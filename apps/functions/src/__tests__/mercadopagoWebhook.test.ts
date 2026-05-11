@@ -12,9 +12,7 @@
 // jest.mock must be hoisted above imports. ts-jest hoists automatically.
 jest.mock("axios");
 import axios from "axios";
-// Scaffolding for Plan 02 Task 2. Reference suppresses noUnusedLocals.
 const mockedAxios = axios as jest.Mocked<typeof axios>;
-void mockedAxios; // Plan 02 Task 2 will replace this with real usage
 
 import { createHmac } from "crypto";
 import { validateMPSignature, beginMpWebhookProcessing, finalizeMpWebhookProcessing, parseExternalReference } from "../mercadopagoWebhook";
@@ -185,5 +183,154 @@ describe("MP webhook — parseExternalReference (unit)", () => {
     expect(parseExternalReference(":att456")).toBeNull();
     expect(parseExternalReference("tx123:")).toBeNull();
     expect(parseExternalReference("  :  ")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Block D — MPWH-03 fallback failure modes (unit, axios-mocked)
+// ---------------------------------------------------------------------------
+
+// NOTE: do NOT add a top-of-file `import { handlePaymentEvent } from "../mercadopagoWebhook"`
+// for this describe block. The MPWH-03 tests below use jest.resetModules() + jest.doMock("../init")
+// + dynamic require so that the Firestore primary lookup returns an empty snapshot without an
+// emulator. A static top-of-file import would bypass the doMock (modules are cached at import time)
+// and the primary db.collection(...).where(...).limit(...).get() call would attempt to reach a
+// real Firestore client and either crash or hang.
+
+describe("MP webhook — MPWH-03 fallback failure modes (unit, axios-mocked)", () => {
+  const ORIGINAL_TOKEN = process.env.MERCADOPAGO_PLATFORM_ACCESS_TOKEN;
+
+  beforeEach(() => {
+    // 1) Reset the axios mock state between tests so call counts and queued responses don't leak.
+    mockedAxios.get.mockReset();
+
+    // 2) Reset the module registry so the next require("../mercadopagoWebhook") re-resolves
+    //    its "./init" import against the freshly-installed doMock below.
+    jest.resetModules();
+
+    // 3) Mock the Firestore db so the primary lookup in handlePaymentEvent
+    //    (db.collection(PAYMENT_ATTEMPTS_COLLECTION).where(...).limit(1).get()) resolves
+    //    to an empty snapshot. This forces every test in this block into the fallback branch
+    //    under test, without needing FIRESTORE_EMULATOR_HOST.
+    //
+    //    The relative path from apps/functions/src/__tests__/ to the init module is "../init".
+    //    Confirm by reading the import in mercadopagoWebhook.ts:
+    //      import { db } from "./init";
+    jest.doMock("../init", () => ({
+      db: {
+        collection: jest.fn(() => ({
+          where: jest.fn(() => ({
+            limit: jest.fn(() => ({
+              get: jest.fn(async () => ({ empty: true, docs: [] })),
+            })),
+          })),
+          // .doc() is unused on this code path (fallback bails before the attempt-doc lookup
+          // when token is missing, axios throws, or external_reference is malformed), but we
+          // stub it defensively so an unintended access surfaces clearly rather than crashing.
+          doc: jest.fn(() => ({
+            get: jest.fn(async () => ({ exists: false })),
+          })),
+        })),
+      },
+    }));
+  });
+
+  afterEach(() => {
+    // Restore env var so other tests aren't affected.
+    if (ORIGINAL_TOKEN === undefined) {
+      delete process.env.MERCADOPAGO_PLATFORM_ACCESS_TOKEN;
+    } else {
+      process.env.MERCADOPAGO_PLATFORM_ACCESS_TOKEN = ORIGINAL_TOKEN;
+    }
+    // Tear down the per-test module mock so it doesn't leak into Plan 01's emulator-gated Block B
+    // tests when run with FIRESTORE_EMULATOR_HOST set.
+    jest.dontMock("../init");
+    jest.resetModules();
+  });
+
+  it("returns without throwing when MERCADOPAGO_PLATFORM_ACCESS_TOKEN is absent AND primary lookup is empty (Behavior 1)", async () => {
+    // Arrange: clear the env var; primary lookup is mocked-empty in beforeEach so the fallback
+    // branch runs and bails on the missing token.
+    delete process.env.MERCADOPAGO_PLATFORM_ACCESS_TOKEN;
+
+    // Dynamic require pulls the freshly-evaluated module with the "../init" doMock in effect.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { handlePaymentEvent } = require("../mercadopagoWebhook");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const loggerWarnSpy = jest.spyOn(require("../lib/logger").logger, "warn");
+
+    // Act + Assert: must NOT throw. New behavior emits the structured "fallback unavailable" warn
+    // envelope with lookup_result:"not_found" — asserted below. This test fails against the
+    // pre-fix code (which simply logged "no payment attempt found, ignoring" via logger.info and
+    // returned, without the new warn envelope or the token check branch).
+    await expect(handlePaymentEvent("999")).resolves.toBeUndefined();
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("fallback unavailable"),
+      expect.objectContaining({ mpPaymentId: "999", lookup_result: "not_found" }),
+    );
+    // Axios must NOT have been called when token is absent (fail-closed behavior)
+    expect(mockedAxios.get).not.toHaveBeenCalled();
+    loggerWarnSpy.mockRestore();
+  });
+
+  it("returns without throwing when axios.get throws a network error (Behavior 2)", async () => {
+    // Arrange: token present, axios rejects on the fallback call.
+    process.env.MERCADOPAGO_PLATFORM_ACCESS_TOKEN = "test-platform-token";
+    mockedAxios.get.mockRejectedValueOnce(new Error("ECONNRESET: connection lost"));
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { handlePaymentEvent } = require("../mercadopagoWebhook");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const loggerWarnSpy = jest.spyOn(require("../lib/logger").logger, "warn");
+
+    // Act + Assert: must NOT throw — the fallback's try/catch swallows the axios rejection.
+    await expect(handlePaymentEvent("999")).resolves.toBeUndefined();
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("fallback MP API call failed"),
+      expect.objectContaining({
+        mpPaymentId: "999",
+        error: expect.stringContaining("ECONNRESET"),
+        lookup_result: "not_found",
+      }),
+    );
+    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/payments/999"),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer test-platform-token" }),
+      }),
+    );
+    loggerWarnSpy.mockRestore();
+  });
+
+  it("returns without throwing when MP response has undefined external_reference (Behavior 3)", async () => {
+    // Arrange: token present, axios resolves with a response missing external_reference.
+    process.env.MERCADOPAGO_PLATFORM_ACCESS_TOKEN = "test-platform-token";
+    mockedAxios.get.mockResolvedValueOnce({
+      data: {
+        id: 999,
+        status: "approved",
+        transaction_amount: 100,
+        // external_reference intentionally omitted to drive parseExternalReference(undefined) → null
+      },
+    } as never);
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { handlePaymentEvent } = require("../mercadopagoWebhook");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const loggerWarnSpy = jest.spyOn(require("../lib/logger").logger, "warn");
+
+    // Act + Assert: must NOT throw. parseExternalReference returns null → fallback logs warn + returns.
+    await expect(handlePaymentEvent("999")).resolves.toBeUndefined();
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("external_reference missing or malformed"),
+      expect.objectContaining({
+        mpPaymentId: "999",
+        externalReference: null,
+        lookup_result: "not_found",
+      }),
+    );
+    expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+    loggerWarnSpy.mockRestore();
   });
 });
