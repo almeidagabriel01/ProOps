@@ -110,6 +110,22 @@ export class MercadoPagoService {
       throw err;
     }
 
+    // MP returns liveMode:true even for test seller accounts connected via OAuth
+    // (token format APP_USR- instead of TEST-). Detect by checking the account email.
+    if (tokens.environment === "production") {
+      try {
+        const meResp = await axios.get<{ email?: string }>(
+          "https://api.mercadopago.com/users/me",
+          { headers: { Authorization: `Bearer ${tokens.accessToken}` } },
+        );
+        if (meResp.data?.email?.endsWith("@testuser.com")) {
+          tokens = { ...tokens, environment: "sandbox" as MercadoPagoEnvironment, liveMode: false };
+        }
+      } catch {
+        // non-critical — keep derived environment on failure
+      }
+    }
+
     const tenantRef = db.collection("tenants").doc(tenantId);
     const tenantSnap = await tenantRef.get();
     if (!tenantSnap.exists) {
