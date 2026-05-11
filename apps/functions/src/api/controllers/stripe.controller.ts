@@ -419,14 +419,57 @@ export const cancelAddon = async (req: Request, res: Response) => {
         .json({ message: "No active Stripe subscription for this addon" });
     }
 
-    // Schedule cancellation at period end (NOT immediate cancellation)
-    // This allows the user to keep the addon until the renewal date
     const stripe = getStripe();
     const existingSubscription = await stripe.subscriptions.retrieve(
       stripeSubscriptionId,
     );
     assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
+    // Read both sources: Stripe is live state; Firestore captures cron-driven transitions
+    // that may have set past_due before the webhook arrives.
+    const stripeStatus = String(existingSubscription.status || "").trim().toLowerCase();
+    const firestoreStatus = String(addonData?.status || "").trim().toLowerCase();
+    const isPastDue = stripeStatus === "past_due" || firestoreStatus === "past_due";
+
+    const nowIso = new Date().toISOString();
+
+    if (isPastDue) {
+      // Firestore-first: mark as cancelled immediately so the feature gate takes effect
+      // even if the Stripe API call below fails.
+      await addonRef.update({
+        status: "cancelled",
+        cancelAtPeriodEnd: false,
+        expiresAt: nowIso,
+        updatedAt: nowIso,
+      });
+
+      // Cancel on Stripe — non-fatal after Firestore is already updated.
+      try {
+        await stripe.subscriptions.cancel(stripeSubscriptionId);
+      } catch (stripeErr) {
+        console.error("[cancelAddon] past_due_stripe_cancel_error", {
+          tenantId,
+          addonId,
+          subscriptionId: stripeSubscriptionId,
+          error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr),
+        });
+      }
+
+      invalidateBillingCache(tenantId);
+
+      console.log(
+        `[cancelAddon] past_due immediate cancel`,
+        JSON.stringify({ tenantId, addonId, subscriptionId: stripeSubscriptionId }),
+      );
+
+      return res.json({
+        success: true,
+        message: "Add-on cancelado imediatamente devido a pagamento em atraso.",
+        cancelAt: nowIso,
+      });
+    }
+
+    // Default path (active / trialing / etc.) — at-period-end cancel.
     const subscription = await stripe.subscriptions.update(
       stripeSubscriptionId,
       {
@@ -434,11 +477,9 @@ export const cancelAddon = async (req: Request, res: Response) => {
       },
     );
 
-    // Update addon in Firestore to reflect pending cancellation
-    // The addon stays active until the period ends
     await addonRef.update({
       cancelAtPeriodEnd: true,
-      cancelScheduledAt: new Date().toISOString(),
+      cancelScheduledAt: nowIso,
       currentPeriodEnd: new Date(
         (subscription as any).current_period_end * 1000,
       ).toISOString(),
