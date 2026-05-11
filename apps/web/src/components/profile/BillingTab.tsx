@@ -27,6 +27,7 @@ interface BillingTabProps {
   handleDowngrade: (plan: UserPlan) => void;
   handleManagePayment: () => void;
   isMaster: boolean;
+  isFree: boolean;
   openingPortal: boolean;
   subscriptionStatus?: string;
   trialEndsAt?: string;
@@ -45,11 +46,12 @@ export function BillingTab({
   handleDowngrade,
   handleManagePayment,
   isMaster,
+  isFree,
   openingPortal,
   subscriptionStatus,
   trialEndsAt,
 }: BillingTabProps) {
-  if (!isMaster) {
+  if (!isMaster && !isFree) {
     return (
       <Card className="bg-muted/30 border-dashed">
         <CardHeader className="text-center pb-10 pt-10">

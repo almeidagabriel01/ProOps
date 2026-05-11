@@ -67,11 +67,15 @@ function ProfileContent() {
     planUsageData.isLoading ||
     (user?.role !== "superadmin" && tenantLoading);
 
+  const isFree = user?.role === "free";
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get("tab");
-  const validTabs = ["overview", "subscription", "billing"];
-  const tabFromUrl = validTabs.includes(tabParam || "")
+  const availableTabs = isFree
+    ? ["overview", "billing"]
+    : ["overview", "subscription", "billing"];
+  const tabFromUrl = availableTabs.includes(tabParam || "")
     ? tabParam!
     : "overview";
   const [activeTab, setActiveTab] = useState(tabFromUrl);
@@ -94,7 +98,7 @@ function ProfileContent() {
 
   return (
     <>
-      <div className="space-y-6 max-w-5xl mx-auto py-8 px-4 md:px-6 min-h-[calc(100vh_-_100px)]">
+      <div className="space-y-6 max-w-5xl mx-auto py-8 px-4 md:px-6">
         {user?.role === "superadmin" && (
           <Link
             href="/admin"
@@ -119,12 +123,12 @@ function ProfileContent() {
         >
           <div className="flex justify-center pb-2">
             <TabsList
-              className="relative grid w-full max-w-[500px] grid-cols-3 h-12 p-1 rounded-full border border-border/10 shadow-sm"
+              className={`relative grid w-full h-12 p-1 rounded-full border border-border/10 shadow-sm ${availableTabs.length === 2 ? "max-w-[340px] grid-cols-2" : "max-w-[500px] grid-cols-3"}`}
               style={{
                 background: "rgba(255,255,255,0.03)",
               }}
             >
-              {["overview", "subscription", "billing"].map((tab) => (
+              {availableTabs.map((tab) => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
@@ -174,26 +178,28 @@ function ProfileContent() {
             </motion.div>
           </TabsContent>
 
-          <TabsContent value="subscription" className="mt-0">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <MySubscriptionTab
-                user={effectiveUser}
-                userPlan={userPlan}
-                purchasedAddons={purchasedAddons}
-                addonsData={purchasedAddonsData}
-                handleManagePayment={handleManagePayment}
-                openingPortal={openingPortal}
-                isMaster={isMaster}
-                tenant={tenant}
-                onAddonCancelled={refreshAddons}
-              />
-            </motion.div>
-          </TabsContent>
+          {!isFree && (
+            <TabsContent value="subscription" className="mt-0">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <MySubscriptionTab
+                  user={effectiveUser}
+                  userPlan={userPlan}
+                  purchasedAddons={purchasedAddons}
+                  addonsData={purchasedAddonsData}
+                  handleManagePayment={handleManagePayment}
+                  openingPortal={openingPortal}
+                  isMaster={isMaster}
+                  tenant={tenant}
+                  onAddonCancelled={refreshAddons}
+                />
+              </motion.div>
+            </TabsContent>
+          )}
 
           <TabsContent value="billing" className="mt-0">
             <motion.div
@@ -215,6 +221,7 @@ function ProfileContent() {
                 handleDowngrade={handleDowngrade}
                 handleManagePayment={handleManagePayment}
                 isMaster={isMaster}
+                isFree={isFree}
                 openingPortal={openingPortal}
                 subscriptionStatus={user?.subscriptionStatus}
                 trialEndsAt={tenant?.trialEndsAt as string | undefined}
