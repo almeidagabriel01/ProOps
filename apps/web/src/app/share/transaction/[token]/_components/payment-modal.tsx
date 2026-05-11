@@ -505,10 +505,10 @@ export function PaymentModal({
                         </p>
                       )}
                       <p>
-                        Use qualquer e-mail comum (ex:{" "}
-                        <code className="bg-muted px-1 rounded">comprador.teste@gmail.com</code>),{" "}
-                        diferente do e-mail do vendedor acima.{" "}
-                        <strong>Não use e-mails @testuser.com</strong> — o Mercado Pago rejeita esse formato no formulário de cartão.
+                        No painel MP Developer → <strong>"Contas de teste"</strong>, crie um usuário
+                        comprador. Use o e-mail gerado{" "}
+                        (<code className="bg-muted px-1 rounded">test_user_...@testuser.com</code>){" "}
+                        no campo de e-mail abaixo — diferente do e-mail do vendedor acima.
                       </p>
                       <p>
                         Cartão de teste:{" "}
