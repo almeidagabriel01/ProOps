@@ -445,7 +445,7 @@ Plans:
 **Plans:** 2 plans
 Plans:
 - [x] 22-01-PLAN.md -- Strip redirect= consumption from useLoginForm + protected-route + page; add USER_SUPERADMIN seed
-- [ ] 22-02-PLAN.md -- Rewrite login-redirect.spec.ts for LOGIN-01 hardened behavior
+- [x] 22-02-PLAN.md -- Rewrite login-redirect.spec.ts for LOGIN-01 hardened behavior
 **UI hint**: yes
 
 ### Phase 23: MP Webhook Hardening
@@ -508,6 +508,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 19. Single-Writer Billing Foundation | 6/6 | Complete   | 2026-05-07 |
 | 20. Subscription State Banners + Cancel Enforcement | 3/4 | In Progress | - |
 | 21. Reactivation + Addon State Cleanup | 0/TBD   | Not started | -          |
-| 22. Login Redirect Hardening      | 0/2            | Not started | -          |
+| 22. Login Redirect Hardening      | 2/2            | Complete    | 2026-05-11 |
 | 23. MP Webhook Hardening          | 0/TBD          | Not started | -          |
 | 24. MP Fee Configuration + Preview | 0/TBD         | Not started | -          |
