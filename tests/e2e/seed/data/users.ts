@@ -39,6 +39,16 @@ export const USER_ADMIN_BETA: SeedUser = {
   role: "admin",
 };
 
+/** Free-tier user — no ERP access, home is landing page. Tenant has no subscription. */
+export const USER_FREE: SeedUser = {
+  uid: "user-free",
+  email: "free@proops.test",
+  password: "Test1234!",
+  name: "Free User",
+  tenantId: "tenant-free",
+  role: "free",
+};
+
 export const USER_MEMBER_BETA: SeedUser = {
   uid: "user-member-beta",
   email: "member@beta.test",
@@ -54,6 +64,7 @@ const ALL_USERS: SeedUser[] = [
   USER_MEMBER_ALPHA,
   USER_ADMIN_BETA,
   USER_MEMBER_BETA,
+  USER_FREE,
 ];
 
 export async function seedUsers(auth: Auth, db: Firestore): Promise<void> {
@@ -95,6 +106,17 @@ export async function seedUsers(auth: Auth, db: Firestore): Promise<void> {
       createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
       ...(planId ? { planId } : {}),
     });
+
+    // Seed the free tenant with no subscription (free role users have bootstrap tenants)
+    if (user.role === "free") {
+      await db.collection("tenants").doc(user.tenantId).set({
+        id: user.tenantId,
+        name: `${user.name}'s Tenant`,
+        niche: "automacao_residencial",
+        primaryColor: "#6B7280",
+        createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+      });
+    }
   }
 
   console.log("[seed] Users created: admin-alpha, member-alpha, admin-beta, member-beta");
