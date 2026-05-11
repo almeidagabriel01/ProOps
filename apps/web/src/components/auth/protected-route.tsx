@@ -117,9 +117,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
             });
         } else if (!firebaseUser) {
           if (!getIsLoggingOut()) {
-            router.push(
-              `/login?redirect=${encodeURIComponent(pathname)}&redirect_reason=session_expired`,
-            );
+            router.push("/login?redirect_reason=session_expired");
           }
         }
       }
