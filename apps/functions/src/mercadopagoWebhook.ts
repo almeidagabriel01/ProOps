@@ -71,6 +71,31 @@ export function parseExternalReference(
   return { transactionId, attemptId };
 }
 
+/**
+ * Derives the MP fee fields from a confirmed payment response.
+ * Returns only the fields that have valid values — Firestore rejects `undefined`.
+ * Rules (from 23-CONTEXT.md MPWH-04):
+ *   - mpGrossAmount = transaction_amount (always present on approved payments)
+ *   - mpNetAmount = transaction_details.net_received_amount (only if present AND non-zero)
+ *   - mpFeeAmount = mpGrossAmount - mpNetAmount (only when both gross and net are known)
+ */
+export function deriveMpFeeFields(payment: MpPaymentResponse): {
+  mpGrossAmount: number;
+  mpNetAmount?: number;
+  mpFeeAmount?: number;
+} {
+  const mpGrossAmount = payment.transaction_amount;
+  const net = payment.transaction_details?.net_received_amount;
+  if (typeof net === "number" && net > 0) {
+    return {
+      mpGrossAmount,
+      mpNetAmount: net,
+      mpFeeAmount: mpGrossAmount - net,
+    };
+  }
+  return { mpGrossAmount };
+}
+
 export function validateMPSignature(req: { headers: Record<string, string | string[] | undefined> }, body: MpWebhookBody): boolean {
   const webhookSecret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
   if (!webhookSecret) return false;
@@ -266,12 +291,14 @@ export async function handlePaymentEvent(dataId: string): Promise<void> {
       }
 
       // Writes
+      const feeFields = deriveMpFeeFields(mpPayment);
       t.update(transactionRef, {
         status: "paid",
         paidAt,
         "payment.status": "approved",
         "payment.paidAt": paidAt,
         "payment.mpPaymentId": dataId,
+        ...feeFields,  // mpGrossAmount always; mpNetAmount + mpFeeAmount when non-zero net present
         updatedAt: FieldValue.serverTimestamp(),
       });
 
