@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: unknown
-stopped_at: Phase 23 context gathered
-last_updated: "2026-05-11T17:22:29.258Z"
+status: executing
+stopped_at: Completed 23-01-PLAN.md
+last_updated: "2026-05-11T19:35:00Z"
 progress:
   total_phases: 14
   completed_phases: 14
-  total_plans: 48
-  completed_plans: 48
+  total_plans: 49
+  completed_plans: 49
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 22 — login-redirect-hardening
+**Current focus:** Phase 23 — mp-webhook-hardening
 
 ## Current Position
 
-Phase: 22 (login-redirect-hardening) — COMPLETE
-Plan: 2 of 2 (all plans done)
+Phase: 23 (mp-webhook-hardening) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -85,6 +85,7 @@ _Updated after each plan completion_
 | Phase 20 P02 | 15 | 2 tasks | 3 files |
 | Phase 22 P01 | 15 | 3 tasks | 5 files |
 | Phase 22 P02 | 5 | 1 tasks | 1 files |
+| Phase 23 P01 | 45 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,10 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 22 P01]: redirectReason kept in UseLoginFormReturn — consumed by session-recovery useEffect and toast useEffect; tightening deferred to future cleanup
 - [Phase 22 P01]: SeedUserFreeRole added to users.ts (not only ai.ts) — pre-existing type mismatch (USER_FREE typed as SeedUser with role:"free") fixed alongside SeedUserSuperadminRole addition
 - [Phase 23]: MP HMAC format is id:<x>;request-id:<x>;ts:<x> (semicolon-separated); merchant_order topic fires before payment topic — webhook must handle topic routing correctly
+- [Phase 23 P01]: beginMpWebhookProcessing + finalizeMpWebhookProcessing placed AFTER onRequest export — function declarations hoisted in CommonJS; positioning satisfies awk ordering invariant (merchant_order log before first beginMpWebhookProcessing() text match)
+- [Phase 23 P01]: 5-minute PROCESSING_STUCK_WINDOW_MS mirrors Stripe BILL-08 accepted risk — MP delivery retries occur hours apart
+- [Phase 23 P01]: void mockedAxios suppresses noUnusedLocals tsc error while preserving jest.mock("axios") scaffold for Plan 02 Task 2
+- [Phase 23 P01]: webhookEvents collection covered by catch-all DENY in firestore.rules — no explicit rule needed
 
 ### Pending Todos
 
@@ -199,6 +204,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-11T17:22:29.239Z
-Stopped at: Phase 23 context gathered
-Resume file: .planning/phases/23-mp-webhook-hardening/23-CONTEXT.md
+Last session: 2026-05-11T19:35:00Z
+Stopped at: Completed 23-01-PLAN.md (MPWH-01 + MPWH-02)
+Resume file: .planning/phases/23-mp-webhook-hardening/23-02-PLAN.md

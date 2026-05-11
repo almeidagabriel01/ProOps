@@ -463,7 +463,7 @@ Plans:
 **Architecture note (highest risk)**: HMAC signature uses a formatted string `id:<x>;request-id:<x>;ts:<x>` — the semicolon-separated format is required. Additionally, `merchant_order` topic events fire before `payment` topic events; the webhook must handle topic-based routing correctly and not assume payment data is available on first receipt.
 **Plans:** 2 plans
 Plans:
-- [ ] 23-01-PLAN.md -- Entry-point hardening: HMAC manifest fix + structured entry log + webhookEvents idempotency gate (MPWH-01, MPWH-02)
+- [x] 23-01-PLAN.md -- Entry-point hardening: HMAC manifest fix + structured entry log + webhookEvents idempotency gate (MPWH-01, MPWH-02)
 - [ ] 23-02-PLAN.md -- Payment resolution: external_reference fallback + MERCADOPAGO_PLATFORM_ACCESS_TOKEN + mpGrossAmount/mpNetAmount/mpFeeAmount persistence (MPWH-03, MPWH-04)
 
 ### Phase 24: MP Fee Configuration + Preview

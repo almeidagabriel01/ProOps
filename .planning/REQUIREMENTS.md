@@ -166,8 +166,8 @@
 
 ### MercadoPago Webhook
 
-- [ ] **MPWH-01**: Webhook MP registra todos os eventos recebidos com log estruturado (headers filtrados, action, resultado de validação HMAC, resultado do lookup de transação) visível no Cloud Logging
-- [ ] **MPWH-02**: Webhook MP processa pagamentos com idempotência via `webhookEvents/{eventId}` — duplicatas retornam 200 sem reprocessar
+- [x] **MPWH-01**: Webhook MP registra todos os eventos recebidos com log estruturado (headers filtrados, action, resultado de validação HMAC, resultado do lookup de transação) visível no Cloud Logging
+- [x] **MPWH-02**: Webhook MP processa pagamentos com idempotência via `webhookEvents/{eventId}` — duplicatas retornam 200 sem reprocessar
 - [ ] **MPWH-03**: Webhook MP resolve a transação corretamente via fallback `external_reference` (chamada `GET /v1/payments/{id}`) quando busca direta por `mpPaymentId` não encontra resultado
 - [ ] **MPWH-04**: Webhook MP persiste `mpFeeAmount`, `mpNetAmount`, `mpGrossAmount` na transação após pagamento confirmado pelo MP
 
@@ -279,8 +279,8 @@
 | ADDON-01 | Phase 21 | Pending  |
 | ADDON-02 | Phase 21 | Pending  |
 | LOGIN-01 | Phase 22 | Complete |
-| MPWH-01  | Phase 23 | Pending  |
-| MPWH-02  | Phase 23 | Pending  |
+| MPWH-01  | Phase 23 | Complete |
+| MPWH-02  | Phase 23 | Complete |
 | MPWH-03  | Phase 23 | Pending  |
 | MPWH-04  | Phase 23 | Pending  |
 | MPFEE-01 | Phase 24 | Pending  |
