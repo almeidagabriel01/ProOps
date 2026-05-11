@@ -795,9 +795,7 @@ async function handleSubscriptionUpdated(
 
     await updateAddonStatus(tenantId, addonType, addonStatus, currentPeriodEnd);
     console.log(`Add-on ${addonType} for tenant ${tenantId} updated to ${addonStatus}`);
-    if (addonStatus === "past_due") {
-      invalidateBillingCache(tenantId);
-    }
+    invalidateBillingCache(tenantId);
     return;
   }
 

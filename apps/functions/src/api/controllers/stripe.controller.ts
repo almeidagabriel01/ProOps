@@ -456,6 +456,7 @@ export const cancelAddon = async (req: Request, res: Response) => {
       }
 
       invalidateBillingCache(tenantId);
+      await invalidateNextjsBillingCache(tenantId);
 
       console.log(
         `[cancelAddon] past_due immediate cancel`,
