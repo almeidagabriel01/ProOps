@@ -20,11 +20,11 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
+import { useScrollContainer } from "@/providers/scroll-container-provider";
 
 const HOTZONE_HEIGHT_PX = 6;
 const HIDE_DELAY_MS = 700;
 const TOP_VISIBLE_THRESHOLD_PX = 0;
-const SCROLL_CONTAINER_ID = "main-content";
 const TOP_IDLE_AUTOHIDE_MS = 5_000;
 
 function useHasHoverSupport() {
@@ -91,6 +91,7 @@ export function BottomDock() {
   const { visibleMenuItems } = useNavigationItems();
 
   const hasHover = useHasHoverSupport();
+  const scrollContainer = useScrollContainer();
 
   const [isVisible, setIsVisible] = React.useState(true);
   const [isAtTop, setIsAtTop] = React.useState(true);
@@ -145,8 +146,7 @@ export function BottomDock() {
       return;
     }
 
-    const scrollEl = document.getElementById(SCROLL_CONTAINER_ID);
-    const target: HTMLElement | Window = scrollEl ?? window;
+    const target: HTMLElement | Window = scrollContainer ?? window;
 
     const getScrollTop = () => {
       if (target === window) return window.scrollY || 0;
@@ -175,7 +175,7 @@ export function BottomDock() {
       passive: true,
     });
     return () => (target as HTMLElement).removeEventListener("scroll", update);
-  }, [hasHover, clearHideTimeout, clearTopIdleTimeout]);
+  }, [hasHover, clearHideTimeout, clearTopIdleTimeout, scrollContainer]);
 
   // Mesmo no topo, se ficar "parado" por muito tempo, recolhe a dock.
   React.useEffect(() => {

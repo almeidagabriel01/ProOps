@@ -14,16 +14,24 @@ import { StripeService } from "@/services/stripe-service";
 import { AddonService } from "@/services/addon-service";
 import { formatDateBR } from "@/utils/date-format";
 import { useRouter } from "next/navigation";
+import {
+  ScrollContainerProvider,
+  useRegisterScrollContainer,
+} from "@/providers/scroll-container-provider";
 
-export function ProtectedAppShell({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function ProtectedShell({ children }: { children: React.ReactNode }) {
   const { planTier, pastDueAddons } = usePlanLimits();
   const { user } = useAuth();
   const router = useRouter();
   const [isOpeningPortal, setIsOpeningPortal] = React.useState(false);
+  const registerMain = useRegisterScrollContainer();
+
+  React.useEffect(() => {
+    document.documentElement.dataset.shell = "locked";
+    return () => {
+      delete document.documentElement.dataset.shell;
+    };
+  }, []);
 
   const activePastDueAddons = React.useMemo(
     () => pastDueAddons.filter((info) => !info.isExpired),
@@ -38,13 +46,6 @@ export function ProtectedAppShell({
       info.addon.addonType
     );
   }, [activePastDueAddons]);
-
-  React.useEffect(() => {
-    document.documentElement.dataset.shell = "locked";
-    return () => {
-      delete document.documentElement.dataset.shell;
-    };
-  }, []);
 
   const subscriptionStatus = user?.subscriptionStatus;
   const isPastDue = subscriptionStatus === "past_due";
@@ -76,11 +77,6 @@ export function ProtectedAppShell({
         : "—";
 
   return (
-    // SubscriptionGuard wraps the ENTIRE shell — Header and BottomDock included.
-    // Previously it only wrapped <main>, so the header/dock flashed briefly before
-    // the guard's redirect landed. Now the guard blocks the whole tree: while
-    // loading it shows a full-screen spinner, while blocked it returns null (no
-    // shell renders at all before the redirect to /subscription-blocked fires).
     <SubscriptionGuard>
       <div className="flex h-screen overflow-hidden bg-card">
         <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
@@ -126,15 +122,32 @@ export function ProtectedAppShell({
               dataTestid="banner-addons-past-due"
             />
           )}
-          <main id="main-content" className="flex-1 min-h-0 p-8 overflow-y-auto">
+          <main
+            id="main-content"
+            ref={registerMain}
+            className="flex-1 min-h-0 p-8 overflow-y-auto"
+          >
             {children}
           </main>
           <AppOnboarding />
         </div>
         <BottomDock />
-        {/* Only render Lia for paid plan users; undefined planTier = still loading, null user = auth loading, role "free" = free plan */}
-        {planTier !== undefined && user !== null && user.role !== "free" && <LiaContainer />}
+        {planTier !== undefined && user !== null && user.role !== "free" && (
+          <LiaContainer />
+        )}
       </div>
     </SubscriptionGuard>
+  );
+}
+
+export function ProtectedAppShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ScrollContainerProvider>
+      <ProtectedShell>{children}</ProtectedShell>
+    </ScrollContainerProvider>
   );
 }

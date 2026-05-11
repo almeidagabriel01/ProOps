@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, startTransition } from "react";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { PaginatedResult } from "@/services/client-service";
+import { useScrollContainer } from "@/providers/scroll-container-provider";
 
 // ============================================
 // TYPES
@@ -235,6 +236,7 @@ export function useInfiniteScroll<T>(
     allowAutoLoadUntilScrollable = true,
   } = options;
 
+  const scrollContainer = useScrollContainer();
   const [visibleCount, setVisibleCount] = useState(batchSize);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -266,18 +268,15 @@ export function useInfiniteScroll<T>(
 
     const unlockIfNotScrollable = () => {
       if (!allowAutoLoadUntilScrollable) return;
-
-      const mainContent = document.getElementById("main-content");
-      const scroller = mainContent ?? document.documentElement;
-      const viewHeight = mainContent ? scroller.clientHeight : window.innerHeight;
+      const scroller = scrollContainer ?? document.documentElement;
+      const viewHeight = scrollContainer ? scroller.clientHeight : window.innerHeight;
       if (scroller.scrollHeight <= viewHeight + 16) {
         unlockLoading();
       }
     };
 
     const handleScroll = () => {
-      const mainContent = document.getElementById("main-content");
-      const scrollTop = mainContent ? mainContent.scrollTop : window.scrollY;
+      const scrollTop = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
       if (scrollTop > 24) {
         unlockLoading();
       }
@@ -297,9 +296,8 @@ export function useInfiniteScroll<T>(
       }
     };
 
-    const mainContent = document.getElementById("main-content");
-    const scrollContainer: EventTarget = mainContent ?? window;
-    scrollContainer.addEventListener("scroll", handleScroll, { passive: true } as AddEventListenerOptions);
+    const scrollTarget: EventTarget = scrollContainer ?? window;
+    scrollTarget.addEventListener("scroll", handleScroll, { passive: true } as AddEventListenerOptions);
     window.addEventListener("wheel", handleWheel, { passive: true });
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
     window.addEventListener("keydown", handleKeyDown);
@@ -308,13 +306,13 @@ export function useInfiniteScroll<T>(
     unlockIfNotScrollable();
 
     return () => {
-      scrollContainer.removeEventListener("scroll", handleScroll);
+      scrollTarget.removeEventListener("scroll", handleScroll);
       window.removeEventListener("wheel", handleWheel);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("resize", unlockIfNotScrollable);
     };
-  }, [requireUserScroll, allowAutoLoadUntilScrollable]);
+  }, [requireUserScroll, allowAutoLoadUntilScrollable, scrollContainer]);
 
   const hasMore = visibleCount < data.length;
 

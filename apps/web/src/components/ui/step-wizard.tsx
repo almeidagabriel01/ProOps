@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { useScrollContainer } from "@/providers/scroll-container-provider";
 
 // ============================================
 // STEP WIZARD CONTEXT
@@ -67,18 +68,15 @@ export function StepWizard({
   const [currentStep, setCurrentStep] = React.useState(initialStep);
   const [maxVisitedStep, setMaxVisitedStep] = React.useState(0);
   const totalSteps = steps.length;
+  const scrollContainer = useScrollContainer();
 
-  // Utility to scroll the main content container to top
   const scrollToTop = React.useCallback(() => {
-    // Try to find the main scrollable container first
-    const mainContent = document.getElementById("main-content");
-    if (mainContent) {
-      mainContent.scrollTo({ top: 0, behavior: "smooth" });
+    if (scrollContainer) {
+      scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
     } else {
-      // Fallback to window scroll
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, []);
+  }, [scrollContainer]);
 
   const goToStep = async (step: number) => {
     if (step >= 0 && step < totalSteps) {

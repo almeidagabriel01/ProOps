@@ -46,6 +46,7 @@ import {
   isPageEnabledForNiche,
 } from "@/lib/niches/config";
 import { Loader } from "@/components/ui/loader";
+import { useScrollContainer } from "@/providers/scroll-container-provider";
 
 interface LocalLazyOptions {
   batchSize: number;
@@ -112,6 +113,7 @@ function sortItems<T extends { name: string; createdAt?: unknown }>(
 
 function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
   const { batchSize, enabled, resetKey } = options;
+  const scrollContainer = useScrollContainer();
   const [visibleCount, setVisibleCount] = React.useState(batchSize);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [sentinelElement, setSentinelElement] =
@@ -131,11 +133,10 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
     wasIntersectingRef.current = false;
     isSentinelVisibleRef.current = false;
 
-    const scroller = document.getElementById("main-content");
-    if ((scroller?.scrollTop ?? 0) > 0) {
+    if ((scrollContainer?.scrollTop ?? 0) > 0) {
       hasUserInteractedRef.current = true;
     }
-  }, [enabled]);
+  }, [enabled, scrollContainer]);
 
   React.useEffect(() => {
     setVisibleCount(batchSize);
@@ -143,9 +144,8 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
     isLoadingMoreRef.current = false;
     wasIntersectingRef.current = false;
     isSentinelVisibleRef.current = false;
-    const scroller = document.getElementById("main-content");
-    hasUserInteractedRef.current = (scroller?.scrollTop ?? 0) > 0;
-  }, [items.length, batchSize, resetKey]);
+    hasUserInteractedRef.current = (scrollContainer?.scrollTop ?? 0) > 0;
+  }, [items.length, batchSize, resetKey, scrollContainer]);
 
   const loadMore = React.useCallback(() => {
     if (!enabled || !hasMore || isLoadingMoreRef.current) return;
@@ -190,19 +190,19 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
       }
     };
 
-    const scrollContainer = document.getElementById("main-content") ?? window;
-    scrollContainer.addEventListener("scroll", onScroll, { passive: true });
+    const scrollTarget: EventTarget = scrollContainer ?? window;
+    scrollTarget.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: true });
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      scrollContainer.removeEventListener("scroll", onScroll);
+      scrollTarget.removeEventListener("scroll", onScroll);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [enabled, maybeLoadMore]);
+  }, [enabled, maybeLoadMore, scrollContainer]);
 
   React.useEffect(() => {
     if (observerRef.current) {
