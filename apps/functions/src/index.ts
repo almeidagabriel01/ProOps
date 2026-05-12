@@ -29,6 +29,7 @@ export { applyScheduledPlanChanges } from "./applyScheduledPlanChanges";
 export { checkPriceChanges } from "./checkPriceChanges";
 export { cleanupStorageAndSharedLinks } from "./cleanupStorageAndSharedLinks";
 export { reconcileAddons } from "./reconcileAddons";
+export { processPayoutRetries } from "./processPayoutRetries";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";

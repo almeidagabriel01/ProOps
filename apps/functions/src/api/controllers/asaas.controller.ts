@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { AsaasService, AsaasOnboardingData } from "../services/asaas.service";
 import { logger } from "../../lib/logger";
+import { db } from "../../init";
 
 function mapAsaasErrorStatus(error: Error): number {
   if (error.message === "TENANT_NOT_FOUND") return 404;
@@ -152,9 +153,27 @@ export const getAsaasStatus = async (req: Request, res: Response): Promise<void>
 
     const { tenantId } = await resolveUserAndTenant(userId, req.user);
 
-    const status = await AsaasService.getPublicStatus(tenantId);
+    const asaasData = await AsaasService.getAsaasData(tenantId);
+    if (!asaasData) {
+      res.status(200).json({ connected: false });
+      return;
+    }
 
-    res.status(200).json(status);
+    // Refresh account status if missing or not yet APPROVED
+    let accountStatus = asaasData.accountStatus;
+    if (!accountStatus || accountStatus.general !== "APPROVED") {
+      const refreshed = await AsaasService.refreshAccountStatus(tenantId);
+      if (refreshed) {
+        accountStatus = refreshed;
+      }
+    }
+
+    res.status(200).json({
+      connected: true,
+      environment: asaasData.environment,
+      connectedAt: asaasData.connectedAt,
+      ...(accountStatus ? { accountStatus } : {}),
+    });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     const status = mapAsaasErrorStatus(err);
@@ -162,6 +181,123 @@ export const getAsaasStatus = async (req: Request, res: Response): Promise<void>
       errorMessage: err.message,
       uid: req.user?.uid,
     });
+    res.status(status).json({ message: err.message });
+  }
+};
+
+// PUT /v1/asaas/payout
+export const updateAsaasPayout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.uid;
+    if (!userId) {
+      res.status(401).json({ message: "Não autenticado" });
+      return;
+    }
+
+    const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
+    if (!isMaster && !isSuperAdmin) {
+      res.status(403).json({ message: "Sem permissão para configurar repasses automáticos" });
+      return;
+    }
+
+    const { enabled, pixAddressKey, pixAddressKeyType } = req.body as Record<string, unknown>;
+
+    if (typeof enabled !== "boolean") {
+      res.status(400).json({ message: "O campo 'enabled' é obrigatório e deve ser boolean" });
+      return;
+    }
+
+    if (enabled) {
+      if (!pixAddressKey || typeof pixAddressKey !== "string" || !pixAddressKey.trim()) {
+        res.status(400).json({ message: "Chave PIX é obrigatória ao habilitar repasses" });
+        return;
+      }
+
+      const validKeyTypes = ["CPF", "CNPJ", "EMAIL", "PHONE", "RANDOM_KEY"] as const;
+      if (!pixAddressKeyType || !validKeyTypes.includes(pixAddressKeyType as (typeof validKeyTypes)[number])) {
+        res.status(400).json({
+          message: "Tipo de chave PIX inválido. Use: CPF, CNPJ, EMAIL, PHONE ou RANDOM_KEY",
+        });
+        return;
+      }
+
+      const keyStr = String(pixAddressKey).trim();
+      const digits = keyStr.replace(/\D/g, "");
+      const keyType = pixAddressKeyType as "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM_KEY";
+
+      let formatError: string | null = null;
+      if (keyType === "CPF" && digits.length !== 11) {
+        formatError = "Chave CPF deve ter 11 dígitos";
+      } else if (keyType === "CNPJ" && digits.length !== 14) {
+        formatError = "Chave CNPJ deve ter 14 dígitos";
+      } else if (keyType === "PHONE" && (digits.length < 10 || digits.length > 11)) {
+        formatError = "Chave telefone deve ter 10 ou 11 dígitos";
+      } else if (keyType === "EMAIL" && (!keyStr.includes("@") || !keyStr.includes("."))) {
+        formatError = "Chave e-mail inválida";
+      } else if (keyType === "RANDOM_KEY" && !keyStr) {
+        formatError = "Chave aleatória não pode ser vazia";
+      }
+
+      if (formatError) {
+        res.status(400).json({ message: formatError });
+        return;
+      }
+    }
+
+    const asaasData = await AsaasService.getAsaasData(tenantId);
+    if (!asaasData) {
+      res.status(422).json({ message: "Conta Asaas não configurada para este tenant" });
+      return;
+    }
+
+    if (enabled) {
+      const currentStatus = asaasData.accountStatus?.general;
+      const effectiveStatus =
+        currentStatus === "APPROVED"
+          ? currentStatus
+          : (await AsaasService.refreshAccountStatus(tenantId))?.general ?? currentStatus;
+
+      if (effectiveStatus !== "APPROVED") {
+        res.status(422).json({
+          message: "A conta Asaas precisa estar aprovada para configurar repasses automáticos",
+        });
+        return;
+      }
+    }
+
+    const tenantRef = db.collection("tenants").doc(tenantId);
+
+    if (enabled) {
+      await tenantRef.update({
+        "asaas.payout": {
+          enabled: true,
+          pixAddressKey: String(pixAddressKey).trim(),
+          pixAddressKeyType: pixAddressKeyType as string,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    } else {
+      await tenantRef.update({
+        "asaas.payout": {
+          enabled: false,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    }
+
+    logger.info("Asaas payout config updated", { tenantId, uid: userId, enabled });
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    const status = mapAsaasErrorStatus(err);
+    if (status >= 500) {
+      logger.error("Unexpected error in updateAsaasPayout", {
+        errorMessage: err.message,
+        uid: req.user?.uid,
+        tenantId: req.user?.tenantId,
+      });
+    }
     res.status(status).json({ message: err.message });
   }
 };

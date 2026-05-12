@@ -16,6 +16,17 @@ export class AsaasApiError extends Error {
   }
 }
 
+export class AsaasAccountNotApprovedError extends Error {
+  constructor(
+    public readonly accountStatus: string,
+    public readonly pendingDocuments: Array<{ id: string; status: string }>,
+    public readonly onboardingUrl: string | null,
+  ) {
+    super("ASAAS_ACCOUNT_NOT_APPROVED");
+    this.name = "AsaasAccountNotApprovedError";
+  }
+}
+
 export type PaymentMethod = "pix" | "boleto";
 
 export interface CreatePaymentRequest {
@@ -308,6 +319,23 @@ export class TransactionPaymentService {
     const asaasData = await AsaasService.getAsaasData(tenantId);
     if (!asaasData) {
       throw new Error("ASAAS_NOT_CONFIGURED");
+    }
+
+    // Guard: subconta must be APPROVED before issuing charges
+    const currentGeneral = asaasData.accountStatus?.general;
+    const needsRefresh = !currentGeneral || currentGeneral !== "APPROVED";
+    let approvalStatus = currentGeneral;
+    if (needsRefresh) {
+      const refreshed = await AsaasService.refreshAccountStatus(tenantId);
+      approvalStatus = refreshed?.general ?? currentGeneral;
+    }
+    if (approvalStatus !== "APPROVED") {
+      const cached = asaasData.accountStatus;
+      throw new AsaasAccountNotApprovedError(
+        approvalStatus ?? "PENDING",
+        cached?.pendingDocuments ?? [],
+        cached?.onboardingUrl ?? null,
+      );
     }
 
     const { apiKey, environment } = asaasData;

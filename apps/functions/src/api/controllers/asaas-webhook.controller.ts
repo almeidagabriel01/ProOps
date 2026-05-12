@@ -3,6 +3,8 @@ import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "../../lib/logger";
 import { resolveWalletRef } from "../../lib/finance-helpers";
+import { schedulePayoutTransfer } from "../services/payout-transfer.service";
+import type { TenantAsaasData } from "../services/asaas.service";
 
 const PAYMENT_ATTEMPTS_COLLECTION = "payment_attempts";
 const WEBHOOK_EVENTS_COLLECTION = "webhookEvents";
@@ -295,6 +297,8 @@ export const handleAsaasWebhook = async (req: Request, res: Response): Promise<v
   // Step 1: Verify auth token against tenant's stored webhookAuthToken
   const providedToken = req.headers["asaas-access-token"] as string | undefined;
 
+  let tenantDataRecord: Record<string, unknown> = {};
+
   try {
     const tenantSnap = await db.collection("tenants").doc(tenantId).get();
     if (!tenantSnap.exists) {
@@ -304,10 +308,9 @@ export const handleAsaasWebhook = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const tenantData = tenantSnap.data() as {
-      asaas?: { webhookAuthToken?: string };
-    };
-    const storedToken = tenantData.asaas?.webhookAuthToken;
+    tenantDataRecord = tenantSnap.data() as Record<string, unknown>;
+    const authCheck = tenantDataRecord as { asaas?: { webhookAuthToken?: string } };
+    const storedToken = authCheck.asaas?.webhookAuthToken;
 
     if (!storedToken || !providedToken || providedToken !== storedToken) {
       logger.warn("Asaas webhook: invalid auth token", {
@@ -382,6 +385,36 @@ export const handleAsaasWebhook = async (req: Request, res: Response): Promise<v
   try {
     await handlePaymentSuccess(tenantId, asaasPaymentId, attemptId, transactionId);
     await finalizeWebhookProcessing(idempotencyKey, "done");
+
+    // Auto-transfer to external PIX key if configured
+    if (event === "PAYMENT_RECEIVED") {
+      const netValue = body.payment?.netValue;
+      const tenantAsaas = tenantDataRecord.asaas as TenantAsaasData | undefined;
+      const payout = tenantAsaas?.payout;
+      if (
+        payout?.enabled &&
+        payout.pixAddressKey &&
+        typeof netValue === "number" &&
+        netValue > 0
+      ) {
+        schedulePayoutTransfer({
+          tenantId,
+          asaasPaymentId,
+          transactionId,
+          netValue,
+          payout,
+          apiKey: tenantAsaas!.apiKey,
+          environment: tenantAsaas!.environment,
+        }).catch((payoutErr) => {
+          logger.error("Asaas webhook: payout transfer scheduling failed", {
+            tenantId,
+            asaasPaymentId,
+            error: payoutErr instanceof Error ? payoutErr.message : String(payoutErr),
+          });
+        });
+      }
+    }
+
     res.status(200).send("OK");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

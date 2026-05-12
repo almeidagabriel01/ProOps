@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { TransactionPaymentService, AsaasApiError } from "../services/transaction-payment.service";
+import { TransactionPaymentService, AsaasApiError, AsaasAccountNotApprovedError } from "../services/transaction-payment.service";
 import { AsaasService } from "../services/asaas.service";
 import { db } from "../../init";
 import { logger } from "../../lib/logger";
@@ -80,6 +80,15 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
             ? "Integração Asaas precisa ser reconectada"
             : error.asaasMessage || "Pagamento recusado pelo Asaas",
         asaasStatus: error.asaasStatus,
+      });
+      return;
+    }
+    if (error instanceof AsaasAccountNotApprovedError) {
+      res.status(409).json({
+        code: "ASAAS_ACCOUNT_NOT_APPROVED",
+        message: "O prestador precisa concluir uma verificação antes de aceitar pagamentos.",
+        accountStatus: error.accountStatus,
+        onboardingUrl: null, // never expose onboardingUrl to end clients
       });
       return;
     }

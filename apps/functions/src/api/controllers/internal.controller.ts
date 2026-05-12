@@ -495,3 +495,52 @@ export const reconcileAddonsManual = async (
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const processPayoutRetriesManual = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const now = new Date().toISOString();
+    const snap = await db
+      .collection("payout_attempts")
+      .where("status", "==", "pending_balance")
+      .where("nextRetryAt", "<=", now)
+      .limit(100)
+      .get();
+
+    logger.info("[processPayoutRetries manual] processing attempts", { count: snap.size });
+
+    const { executeTransfer } = await import("../../api/services/payout-transfer.service");
+
+    let processed = 0;
+    const errors: Array<{ attemptId: string; message: string }> = [];
+
+    for (const doc of snap.docs) {
+      try {
+        await executeTransfer(doc.id);
+        processed++;
+      } catch (err) {
+        errors.push({
+          attemptId: doc.id,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    logger.info("[processPayoutRetries manual] done", { processed, errors: errors.length });
+
+    return res.json({ processed, errors });
+  } catch (error) {
+    logger.error("[processPayoutRetries manual] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
