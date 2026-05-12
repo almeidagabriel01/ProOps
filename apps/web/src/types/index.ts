@@ -30,6 +30,7 @@ export type Tenant = {
   trialEndsAt?: string;
   trialPlanTier?: string;
   mercadoPagoEnabled?: boolean;
+  asaasEnabled?: boolean;
   // Billing fields (synced from Stripe via BillingSnapshot)
   subscriptionStatus?: "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "inactive" | "free";
   currentPeriodEnd?: string | null; // ISO
