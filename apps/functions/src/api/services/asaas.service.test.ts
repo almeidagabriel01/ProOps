@@ -182,7 +182,7 @@ describe("AsaasService.onboardTenant", () => {
 
     await expect(
       AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA),
-    ).rejects.toThrow("ASAAS_SUBCONTA_CREATION_FAILED");
+    ).rejects.toThrow(/^ASAAS_SUBCONTA_CREATION_FAILED/);
 
     expect(docRef.update).not.toHaveBeenCalled();
   });

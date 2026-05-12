@@ -156,7 +156,7 @@ describe("connectAsaas", () => {
 
 
   it("returns 502 when AsaasService throws ASAAS_SUBCONTA_CREATION_FAILED", async () => {
-    mockOnboardTenant.mockRejectedValue(new Error("ASAAS_SUBCONTA_CREATION_FAILED"));
+    mockOnboardTenant.mockRejectedValue(new Error("ASAAS_SUBCONTA_CREATION_FAILED:{}"));
     const req = makeReq({ body: VALID_BODY });
     const { res, status, json } = makeRes();
 
