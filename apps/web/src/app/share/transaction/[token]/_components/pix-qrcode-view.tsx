@@ -5,7 +5,7 @@ import Image from "next/image";
 import { toast } from "@/lib/toast";
 import { Copy, CheckCheck, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PublicPaymentService } from "@/services/mercadopago-service";
+import { PaymentService } from "@/services/payment-service";
 import { Loader } from "@/components/ui/loader";
 
 interface PixQrCodeViewProps {
@@ -94,7 +94,7 @@ export function PixQrCodeView({
 
     const intervalId = setInterval(async () => {
       try {
-        const result = await PublicPaymentService.getPaymentStatus(
+        const result = await PaymentService.getPaymentStatus(
           token,
           paymentId,
         );
