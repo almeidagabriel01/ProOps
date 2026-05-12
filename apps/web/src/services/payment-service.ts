@@ -45,6 +45,7 @@ export interface AsaasOnboardingData {
   email: string;
   cpfCnpj: string;
   mobilePhone: string;
+  incomeValue: number;
   companyType?: string;
   postalCode: string;
   address: string;

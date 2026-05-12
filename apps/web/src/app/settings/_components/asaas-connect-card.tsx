@@ -71,6 +71,13 @@ function maskCep(val: string): string {
   return `${d.slice(0, 5)}-${d.slice(5)}`;
 }
 
+function maskCurrency(val: string): string {
+  const digits = val.replace(/\D/g, "");
+  if (!digits) return "";
+  const num = parseInt(digits, 10) / 100;
+  return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface FormState {
@@ -78,6 +85,7 @@ interface FormState {
   email: string;
   cpfCnpj: string;
   mobilePhone: string;
+  incomeValue: string;
   companyType: string;
   postalCode: string;
   address: string;
@@ -90,6 +98,7 @@ const INITIAL_FORM: FormState = {
   email: "",
   cpfCnpj: "",
   mobilePhone: "",
+  incomeValue: "",
   companyType: "",
   postalCode: "",
   address: "",
@@ -182,6 +191,10 @@ export function AsaasConnectCard() {
 
     if (!form.mobilePhone.replace(/\D/g, "")) nextErrors.mobilePhone = "Telefone é obrigatório";
 
+    const incomeValueNum = parseFloat(form.incomeValue.replace(/\./g, "").replace(",", ".")) || 0;
+    if (!form.incomeValue || incomeValueNum <= 0)
+      nextErrors.incomeValue = "Faturamento mensal é obrigatório";
+
     const postalCode = form.postalCode.replace(/\D/g, "");
     if (!postalCode) nextErrors.postalCode = "CEP é obrigatório";
     else if (postalCode.length !== 8) nextErrors.postalCode = "CEP deve ter 8 dígitos";
@@ -200,11 +213,14 @@ export function AsaasConnectCard() {
 
     try {
       setIsConnecting(true);
+      const incomeValue =
+        parseFloat(form.incomeValue.replace(/\./g, "").replace(",", ".")) || 0;
       const data: AsaasOnboardingData = {
         name: form.name.trim(),
         email: form.email.trim(),
         cpfCnpj: form.cpfCnpj,
         mobilePhone: form.mobilePhone,
+        incomeValue,
         companyType: form.companyType || undefined,
         postalCode: form.postalCode,
         address: form.address.trim(),
@@ -334,6 +350,25 @@ export function AsaasConnectCard() {
                     </span>
                   )}
                 </div>
+              </div>
+
+              <div>
+                <Label>Faturamento Mensal</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                    R$
+                  </span>
+                  <Input
+                    value={form.incomeValue}
+                    onChange={(e) => setField("incomeValue", maskCurrency(e.target.value))}
+                    placeholder="0,00"
+                    inputMode="numeric"
+                    className={`pl-9 ${errors.incomeValue ? "border-destructive" : ""}`}
+                  />
+                </div>
+                {errors.incomeValue && (
+                  <span className="text-sm text-destructive mt-1 block">{errors.incomeValue}</span>
+                )}
               </div>
 
               <div>
