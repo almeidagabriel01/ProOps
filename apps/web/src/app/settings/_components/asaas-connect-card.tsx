@@ -41,6 +41,36 @@ const COMPANY_TYPES = [
   { value: "ASSOCIATION", label: "Associação" },
 ];
 
+function maskCpfCnpj(val: string): string {
+  const d = val.replace(/\D/g, "").slice(0, 14);
+  if (d.length <= 11) {
+    return d
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+  return d
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
+function maskPhone(val: string): string {
+  const d = val.replace(/\D/g, "").slice(0, 11);
+  if (!d.length) return "";
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+function maskCep(val: string): string {
+  const d = val.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface FormState {
@@ -280,8 +310,9 @@ export function AsaasConnectCard() {
                   <Label>CPF / CNPJ</Label>
                   <Input
                     value={form.cpfCnpj}
-                    onChange={(e) => setField("cpfCnpj", e.target.value)}
+                    onChange={(e) => setField("cpfCnpj", maskCpfCnpj(e.target.value))}
                     placeholder="00.000.000/0001-00"
+                    inputMode="numeric"
                     className={errors.cpfCnpj ? "border-destructive" : ""}
                   />
                   {errors.cpfCnpj && (
@@ -292,8 +323,9 @@ export function AsaasConnectCard() {
                   <Label>Telefone / WhatsApp</Label>
                   <Input
                     value={form.mobilePhone}
-                    onChange={(e) => setField("mobilePhone", e.target.value)}
-                    placeholder="(11) 99999-9999"
+                    onChange={(e) => setField("mobilePhone", maskPhone(e.target.value))}
+                    placeholder="(11) 98765-4321"
+                    inputMode="tel"
                     className={errors.mobilePhone ? "border-destructive" : ""}
                   />
                   {errors.mobilePhone && (
@@ -327,9 +359,10 @@ export function AsaasConnectCard() {
                 <div className="relative">
                   <Input
                     value={form.postalCode}
-                    onChange={(e) => setField("postalCode", e.target.value)}
+                    onChange={(e) => setField("postalCode", maskCep(e.target.value))}
                     onBlur={handleCepBlur}
                     placeholder="00000-000"
+                    inputMode="numeric"
                     maxLength={9}
                     className={errors.postalCode ? "border-destructive pr-8" : "pr-8"}
                   />
