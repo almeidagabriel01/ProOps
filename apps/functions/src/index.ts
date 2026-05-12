@@ -32,6 +32,6 @@ export { reconcileAddons } from "./reconcileAddons";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";
-export { mercadopagoWebhook } from "./mercadopagoWebhook";
+// mercadopagoWebhook removed — webhook now handled inside Express monolith at /webhooks/asaas/:tenantId
 
 // NOTE: All other individual functions have been consolidated into the 'api' monolith.
