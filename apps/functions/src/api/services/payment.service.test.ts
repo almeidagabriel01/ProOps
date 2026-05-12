@@ -42,14 +42,16 @@ const mockedDb = db as jest.Mocked<typeof db>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeSharedLinkSnap(data: Record<string, unknown> | null = null) {
+const DEFAULT_SHARED_LINK_DATA = {
+  transactionId: "tx_001",
+  tenantId: "tenant_abc",
+  expiresAt: null,
+};
+
+function makeSharedLinkSnap(data: Record<string, unknown> | null = DEFAULT_SHARED_LINK_DATA) {
   const doc = {
     id: "link_doc_id",
-    data: () => data ?? {
-      transactionId: "tx_001",
-      tenantId: "tenant_abc",
-      expiresAt: null,
-    },
+    data: () => data,
   };
   return {
     empty: data === null,
