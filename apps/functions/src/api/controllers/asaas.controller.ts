@@ -5,7 +5,7 @@ import { logger } from "../../lib/logger";
 
 function mapAsaasErrorStatus(error: Error): number {
   if (error.message === "TENANT_NOT_FOUND") return 404;
-  if (error.message.startsWith("ASAAS_SUBCONTA_CREATION_FAILED")) return 502;
+  if (error.message === "ASAAS_SUBCONTA_CREATION_FAILED") return 502;
   if (error.message === "ASAAS_MASTER_KEY_NOT_CONFIGURED") return 500;
   if (
     error.message.startsWith("FORBIDDEN_") ||
@@ -104,11 +104,9 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
         tenantId: req.user?.tenantId,
       });
     }
-    if (err.message.startsWith("ASAAS_SUBCONTA_CREATION_FAILED")) {
-      const detail = err.message.slice("ASAAS_SUBCONTA_CREATION_FAILED:".length);
+    if (err.message === "ASAAS_SUBCONTA_CREATION_FAILED") {
       res.status(502).json({
         message: "Erro ao criar conta no Asaas. Verifique os dados e tente novamente.",
-        detail: detail || undefined,
       });
       return;
     }
