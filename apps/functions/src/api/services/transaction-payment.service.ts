@@ -710,7 +710,7 @@ export class TransactionPaymentService {
     try {
       await axios.post(
         `${baseUrl}/v3/payments/${paymentId}/receiveInCash`,
-        { value, notifyCustomer: false },
+        { value, paymentDate: toDateString(new Date()), notifyCustomer: false },
         { headers: { access_token: asaasData.apiKey } },
       );
     } catch (err) {
