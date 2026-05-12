@@ -43,6 +43,14 @@ interface PaymentModalProps {
   onPaymentSuccess: () => void;
 }
 
+interface PixPaymentFormProps {
+  onSubmit: (payerOverride?: PayerOverride) => Promise<void>;
+  isLoading: boolean;
+  clientName?: string | null;
+  clientHasDocument?: boolean;
+  primaryColor?: string;
+}
+
 interface BoletoPaymentFormProps {
   onSubmit: (payerOverride?: PayerOverride) => Promise<void>;
   isLoading: boolean;
@@ -70,6 +78,117 @@ function isDocumentoValid(digits: string): boolean {
   if (digits.length === 11) return cpf.isValid(digits);
   if (digits.length === 14) return cnpj.isValid(digits);
   return false;
+}
+
+function PixPaymentForm({
+  onSubmit,
+  isLoading,
+  clientName,
+  clientHasDocument,
+  primaryColor,
+}: PixPaymentFormProps) {
+  const [documento, setDocumento] = React.useState("");
+  const [nome, setNome] = React.useState("");
+
+  const digits = documento.replace(/\D/g, "");
+  const docValid = clientHasDocument || isDocumentoValid(digits);
+  const canSubmit = docValid && (!!clientName || nome.trim().length > 0);
+
+  const handleDocumentoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDocumento(formatDocumento(e.target.value));
+  };
+
+  const handleSubmit = async () => {
+    const resolvedName = clientName ?? nome.trim();
+    const parts = resolvedName.split(" ");
+    const firstName = parts[0];
+    const lastName = parts.slice(1).join(" ") || "";
+    if (clientHasDocument) {
+      await onSubmit({ firstName, lastName });
+    } else {
+      const type = digits.length === 11 ? "CPF" : "CNPJ";
+      await onSubmit({ identification: { type, number: digits }, firstName, lastName });
+    }
+  };
+
+  if (clientHasDocument && clientName) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-4 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+          <QrCode className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+        </div>
+        <div>
+          <p className="font-medium">Pague via PIX</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Aprovação instantânea, 24h por dia.
+          </p>
+        </div>
+        <Button
+          onClick={handleSubmit}
+          disabled={isLoading}
+          className="w-full"
+          style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
+        >
+          {isLoading ? (
+            <Loader size="sm" className="mr-2" />
+          ) : (
+            <QrCode className="mr-2 h-4 w-4" aria-hidden="true" />
+          )}
+          {isLoading ? "Gerando..." : "Gerar QR Code PIX"}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4 py-4">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto">
+        <QrCode className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+      </div>
+      <p className="text-sm text-muted-foreground text-center">
+        Informe o CPF ou CNPJ do pagador para gerar o QR Code PIX.
+      </p>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="pix-documento">CPF / CNPJ</Label>
+        <Input
+          id="pix-documento"
+          type="text"
+          inputMode="numeric"
+          placeholder="000.000.000-00 ou 00.000.000/0000-00"
+          value={documento}
+          onChange={handleDocumentoChange}
+          maxLength={18}
+          aria-label="CPF ou CNPJ do pagador"
+        />
+      </div>
+      {!clientName && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="pix-nome">Nome completo</Label>
+          <Input
+            id="pix-nome"
+            type="text"
+            placeholder="Nome do pagador"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            aria-label="Nome completo do pagador"
+          />
+        </div>
+      )}
+      <Button
+        onClick={handleSubmit}
+        disabled={isLoading || !canSubmit}
+        className="w-full"
+        style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
+      >
+        {isLoading ? (
+          <Loader size="sm" className="mr-2" />
+        ) : (
+          <QrCode className="mr-2 h-4 w-4" aria-hidden="true" />
+        )}
+        {isLoading ? "Gerando..." : "Gerar QR Code PIX"}
+      </Button>
+    </div>
+  );
 }
 
 function BoletoPaymentForm({
@@ -220,16 +339,23 @@ export function PaymentModal({
     onOpenChange(next);
   };
 
-  const handleGeneratePix = async () => {
+  const handleGeneratePix = async (payerOverride?: PayerOverride) => {
     try {
       setIsGeneratingPix(true);
-      const result = await PaymentService.createPayment(token, "pix", { transactionId: transaction.id });
+      const result = await PaymentService.createPayment(token, "pix", {
+        transactionId: transaction.id,
+        payerOverride,
+      });
       if (result.method === "pix") {
         setPixData(result);
       }
     } catch (err) {
       const d = (err as { data?: { message?: string; code?: string } }).data;
-      toast.error("Erro ao gerar QR Code PIX.", { description: d?.message ?? "Tente novamente." });
+      if (d?.code === "INVALID_IDENTIFICATION") {
+        toast.error("CPF ou CNPJ inválido.", { description: "Verifique os dados e tente novamente." });
+      } else {
+        toast.error("Erro ao gerar QR Code PIX.", { description: d?.message ?? "Tente novamente." });
+      }
     } finally {
       setIsGeneratingPix(false);
     }
@@ -304,30 +430,13 @@ export function PaymentModal({
                   onReset={() => setPixData(null)}
                 />
               ) : (
-                <div className="flex flex-col items-center gap-4 py-4 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                    <QrCode className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Pague via PIX</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Aprovação instantânea, 24h por dia.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={handleGeneratePix}
-                    disabled={isGeneratingPix}
-                    className="w-full"
-                    style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
-                  >
-                    {isGeneratingPix ? (
-                      <Loader size="sm" className="mr-2" />
-                    ) : (
-                      <QrCode className="mr-2 h-4 w-4" aria-hidden="true" />
-                    )}
-                    {isGeneratingPix ? "Gerando..." : "Gerar QR Code PIX"}
-                  </Button>
-                </div>
+                <PixPaymentForm
+                  onSubmit={handleGeneratePix}
+                  isLoading={isGeneratingPix}
+                  clientName={clientName}
+                  clientHasDocument={clientHasDocument}
+                  primaryColor={primaryColor}
+                />
               )}
             </TabsContent>
 
