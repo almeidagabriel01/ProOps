@@ -206,3 +206,31 @@ export const getPaymentConfig = async (req: Request, res: Response): Promise<voi
     res.status(500).json({ message: err.message });
   }
 };
+
+export const simulateSandboxPayment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token, paymentId } = req.params;
+    await TransactionPaymentService.simulateSandboxPayment(token, paymentId);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    if (err.message === "EXPIRED_LINK") {
+      res.status(410).json({ message: "Link expirado" });
+      return;
+    }
+    if (err.message === "ASAAS_NOT_CONFIGURED") {
+      res.status(422).json({ message: "Pagamento online não configurado" });
+      return;
+    }
+    if (err.message === "SIMULATE_ONLY_IN_SANDBOX") {
+      res.status(403).json({ message: "Simulação disponível apenas em ambiente sandbox" });
+      return;
+    }
+    if (err.message === "PAYMENT_NOT_FOUND") {
+      res.status(404).json({ message: "Pagamento não encontrado" });
+      return;
+    }
+    logger.error("Unexpected error in simulateSandboxPayment", { errorMessage: err.message });
+    res.status(500).json({ message: err.message });
+  }
+};

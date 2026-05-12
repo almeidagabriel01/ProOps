@@ -428,6 +428,7 @@ export function PaymentModal({
                   onPaymentApproved={onPaymentSuccess}
                   primaryColor={primaryColor}
                   onReset={() => setPixData(null)}
+                  isSandbox={isSandbox}
                 />
               ) : (
                 <PixPaymentForm

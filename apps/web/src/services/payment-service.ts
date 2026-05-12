@@ -78,6 +78,12 @@ export const PaymentService = {
 
   getPaymentConfig: (token: string): Promise<PaymentConfig> =>
     callPublicApi<PaymentConfig>(`/v1/share/transaction/${token}/payment-config`, "GET"),
+
+  simulateSandboxPayment: (token: string, paymentId: string): Promise<{ success: boolean }> =>
+    callPublicApi<{ success: boolean }>(
+      `/v1/share/transaction/${token}/payment/${paymentId}/simulate`,
+      "POST",
+    ),
 };
 
 export const AsaasService = {

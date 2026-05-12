@@ -409,9 +409,7 @@ export class TransactionPaymentService {
 
         const qrCode = qrCodeResponse.data.payload || "";
         const qrCodeBase64 = qrCodeResponse.data.encodedImage || "";
-        const expiresAt =
-          qrCodeResponse.data.expirationDate ||
-          new Date(Date.now() + 30 * 60 * 1000).toISOString();
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
         await attemptRef.update({
           gatewayPaymentId: asaasPaymentId,
@@ -643,5 +641,60 @@ export class TransactionPaymentService {
       amount: asaasPayment.value,
       paidAt: asaasPayment.paymentDate || undefined,
     };
+  }
+
+  static async simulateSandboxPayment(
+    token: string,
+    paymentId: string,
+  ): Promise<void> {
+    const sharedLink = await resolveSharedLink(token);
+    const { tenantId } = sharedLink;
+
+    const asaasData = await AsaasService.getAsaasData(tenantId);
+    if (!asaasData) {
+      throw new Error("ASAAS_NOT_CONFIGURED");
+    }
+    if (asaasData.environment !== "sandbox") {
+      throw new Error("SIMULATE_ONLY_IN_SANDBOX");
+    }
+
+    const baseUrl = AsaasService.getBaseUrl(asaasData.environment);
+
+    const attemptsSnap = await db
+      .collection(PAYMENT_ATTEMPTS_COLLECTION)
+      .where("gatewayPaymentId", "==", paymentId)
+      .where("tenantId", "==", tenantId)
+      .limit(1)
+      .get();
+
+    if (attemptsSnap.empty) {
+      throw new Error("PAYMENT_NOT_FOUND");
+    }
+
+    const attempt = attemptsSnap.docs[0].data() as Record<string, unknown>;
+    const transactionSnap = await db
+      .collection("transactions")
+      .doc(attempt.transactionId as string)
+      .get();
+    const txData = transactionSnap.data() as Record<string, unknown> | undefined;
+    const value = Number(txData?.amount ?? 0);
+
+    try {
+      await axios.post(
+        `${baseUrl}/v3/payments/${paymentId}/receiveInCash`,
+        { value, notifyCustomer: false },
+        { headers: { access_token: asaasData.apiKey } },
+      );
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as Record<string, unknown> | undefined;
+        const errors = Array.isArray(data?.errors)
+          ? (data.errors as Array<{ description: string }>)
+          : [];
+        const message = errors[0]?.description ?? err.message;
+        throw new Error(`ASAAS_SIMULATE_FAILED:${message}`);
+      }
+      throw err;
+    }
   }
 }
