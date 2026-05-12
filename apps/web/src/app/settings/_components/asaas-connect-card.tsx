@@ -53,7 +53,6 @@ interface FormState {
   address: string;
   addressNumber: string;
   province: string;
-  environment: "sandbox" | "production";
 }
 
 const INITIAL_FORM: FormState = {
@@ -66,7 +65,6 @@ const INITIAL_FORM: FormState = {
   address: "",
   addressNumber: "",
   province: "",
-  environment: "production",
 };
 
 interface ViaCepResponse {
@@ -182,7 +180,6 @@ export function AsaasConnectCard() {
         address: form.address.trim(),
         addressNumber: form.addressNumber.trim(),
         province: form.province.trim(),
-        environment: form.environment,
       };
       await AsaasService.connect(data);
       toast.success("Pagamentos online habilitados com sucesso!");
@@ -307,36 +304,22 @@ export function AsaasConnectCard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>
-                    Tipo de Empresa{" "}
-                    <span className="text-muted-foreground text-xs">(opcional)</span>
-                  </Label>
-                  <Select
-                    value={form.companyType}
-                    onChange={(e) => setField("companyType", e.target.value)}
-                  >
-                    <option value="">Selecione...</option>
-                    {COMPANY_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div>
-                  <Label>Ambiente</Label>
-                  <Select
-                    value={form.environment}
-                    onChange={(e) =>
-                      setField("environment", e.target.value as "sandbox" | "production")
-                    }
-                  >
-                    <option value="production">Produção</option>
-                    <option value="sandbox">Sandbox (testes)</option>
-                  </Select>
-                </div>
+              <div>
+                <Label>
+                  Tipo de Empresa{" "}
+                  <span className="text-muted-foreground text-xs">(opcional)</span>
+                </Label>
+                <Select
+                  value={form.companyType}
+                  onChange={(e) => setField("companyType", e.target.value)}
+                >
+                  <option value="">Selecione...</option>
+                  {COMPANY_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </Select>
               </div>
 
               <div>

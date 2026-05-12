@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
-import { AsaasService, AsaasEnvironment, AsaasOnboardingData } from "../services/asaas.service";
+import { AsaasService, AsaasOnboardingData } from "../services/asaas.service";
 import { logger } from "../../lib/logger";
 
 function mapAsaasErrorStatus(error: Error): number {
@@ -41,7 +41,6 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       address,
       addressNumber,
       province,
-      environment: rawEnvironment,
     } = req.body as Record<string, unknown>;
 
     if (!name || typeof name !== "string" || !name.trim()) {
@@ -77,18 +76,6 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const validEnvironments: AsaasEnvironment[] = ["sandbox", "production"];
-    if (
-      !rawEnvironment ||
-      typeof rawEnvironment !== "string" ||
-      !validEnvironments.includes(rawEnvironment as AsaasEnvironment)
-    ) {
-      res.status(400).json({ message: "environment deve ser 'sandbox' ou 'production'" });
-      return;
-    }
-
-    const environment = rawEnvironment as AsaasEnvironment;
-
     const onboardingData: AsaasOnboardingData = {
       name: String(name).trim(),
       email: String(email).trim(),
@@ -102,9 +89,9 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       province: String(province).trim(),
     };
 
-    await AsaasService.onboardTenant(tenantId, onboardingData, environment);
+    await AsaasService.onboardTenant(tenantId, onboardingData);
 
-    logger.info("Asaas onboard requested", { tenantId, environment, uid: userId });
+    logger.info("Asaas onboard requested", { tenantId, uid: userId });
 
     res.status(200).json({ success: true });
   } catch (error) {

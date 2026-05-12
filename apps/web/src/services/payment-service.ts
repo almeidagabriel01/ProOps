@@ -50,7 +50,6 @@ export interface AsaasOnboardingData {
   address: string;
   addressNumber: string;
   province: string;
-  environment: "sandbox" | "production";
 }
 
 export interface PayerOverride {

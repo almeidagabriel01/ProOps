@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Unit tests for AsaasService (subconta model)
  * Mocks: axios, ../../init (db), ../../lib/logger, ../../lib/frontend-app-url
  */
@@ -59,8 +59,9 @@ const VALID_ONBOARDING_DATA = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Default: only sandbox key set → resolveEnvironmentFromConfig() returns "sandbox"
   process.env.ASAAS_MASTER_API_KEY = "$aact_master_sandbox_key";
-  process.env.ASAAS_MASTER_API_KEY_PROD = "$aact_master_prod_key";
+  delete process.env.ASAAS_MASTER_API_KEY_PROD;
 });
 
 afterEach(() => {
@@ -87,23 +88,31 @@ describe("AsaasService.onboardTenant", () => {
       data: { id: "acc_sub123", apiKey: "$aact_sub_key", walletId: "wlt_abc" },
     });
 
-    await AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA, "sandbox");
+    await AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA);
 
-    expect(mockedAxios.post).toHaveBeenCalledWith(
+    // First call: POST /v3/accounts (no webhooks in body)
+    expect(mockedAxios.post).toHaveBeenNthCalledWith(
+      1,
       "https://api-sandbox.asaas.com/v3/accounts",
       expect.objectContaining({
         name: VALID_ONBOARDING_DATA.name,
         email: VALID_ONBOARDING_DATA.email,
         cpfCnpj: VALID_ONBOARDING_DATA.cpfCnpj,
-        webhooks: expect.arrayContaining([
-          expect.objectContaining({
-            enabled: true,
-            events: expect.arrayContaining(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]),
-          }),
-        ]),
       }),
       expect.objectContaining({
         headers: { access_token: "$aact_master_sandbox_key" },
+      }),
+    );
+    // Second call: POST /v3/webhooks using subconta's apiKey
+    expect(mockedAxios.post).toHaveBeenNthCalledWith(
+      2,
+      "https://api-sandbox.asaas.com/v3/webhooks",
+      expect.objectContaining({
+        enabled: true,
+        events: expect.arrayContaining(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]),
+      }),
+      expect.objectContaining({
+        headers: { access_token: "$aact_sub_key" },
       }),
     );
 
@@ -120,7 +129,8 @@ describe("AsaasService.onboardTenant", () => {
     );
   });
 
-  it("uses production master key when environment is production", async () => {
+  it("uses production master key when ASAAS_MASTER_API_KEY_PROD is set", async () => {
+    process.env.ASAAS_MASTER_API_KEY_PROD = "$aact_master_prod_key";
     const { ref: docRef } = makeDocRef({ name: "Tenant Prod" });
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
 
@@ -128,9 +138,10 @@ describe("AsaasService.onboardTenant", () => {
       data: { id: "acc_prod", apiKey: "$aact_prod_sub", walletId: "wlt_prod" },
     });
 
-    await AsaasService.onboardTenant("tenant_prod", VALID_ONBOARDING_DATA, "production");
+    await AsaasService.onboardTenant("tenant_prod", VALID_ONBOARDING_DATA);
 
-    expect(mockedAxios.post).toHaveBeenCalledWith(
+    expect(mockedAxios.post).toHaveBeenNthCalledWith(
+      1,
       "https://api.asaas.com/v3/accounts",
       expect.any(Object),
       expect.objectContaining({
@@ -141,11 +152,12 @@ describe("AsaasService.onboardTenant", () => {
 
   it("throws ASAAS_MASTER_KEY_NOT_CONFIGURED when env var is absent", async () => {
     delete process.env.ASAAS_MASTER_API_KEY;
+    delete process.env.ASAAS_MASTER_API_KEY_PROD;
     const { ref: docRef } = makeDocRef({ name: "Tenant" });
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
 
     await expect(
-      AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA, "sandbox"),
+      AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA),
     ).rejects.toThrow("ASAAS_MASTER_KEY_NOT_CONFIGURED");
 
     expect(docRef.update).not.toHaveBeenCalled();
@@ -156,7 +168,7 @@ describe("AsaasService.onboardTenant", () => {
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
 
     await expect(
-      AsaasService.onboardTenant("nonexistent", VALID_ONBOARDING_DATA, "sandbox"),
+      AsaasService.onboardTenant("nonexistent", VALID_ONBOARDING_DATA),
     ).rejects.toThrow("TENANT_NOT_FOUND");
 
     expect(mockedAxios.post).not.toHaveBeenCalled();
@@ -169,7 +181,7 @@ describe("AsaasService.onboardTenant", () => {
     mockedAxios.post = jest.fn().mockRejectedValue(new Error("Network error"));
 
     await expect(
-      AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA, "sandbox"),
+      AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA),
     ).rejects.toThrow("ASAAS_SUBCONTA_CREATION_FAILED");
 
     expect(docRef.update).not.toHaveBeenCalled();
@@ -184,7 +196,7 @@ describe("AsaasService.onboardTenant", () => {
     });
 
     const dataWithoutType = { ...VALID_ONBOARDING_DATA, companyType: undefined };
-    await AsaasService.onboardTenant("tenant1", dataWithoutType, "sandbox");
+    await AsaasService.onboardTenant("tenant1", dataWithoutType);
 
     const callBody = (mockedAxios.post as jest.Mock).mock.calls[0][1] as Record<string, unknown>;
     expect(callBody).not.toHaveProperty("companyType");
@@ -208,7 +220,7 @@ describe("AsaasService.onboardTenant", () => {
       data: { id: "acc_new", apiKey: "$aact_new_key", walletId: "wlt_new" },
     });
 
-    await AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA, "sandbox");
+    await AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA);
 
     expect(mockedAxios.delete).toHaveBeenCalledWith(
       expect.stringContaining("wbk_old"),
@@ -233,7 +245,7 @@ describe("AsaasService.onboardTenant", () => {
       data: { id: "acc_new", apiKey: "$aact_new", walletId: "wlt_new" },
     });
 
-    await AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA, "sandbox");
+    await AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA);
 
     expect(docRef.update).toHaveBeenCalledWith(
       expect.objectContaining({ asaasEnabled: true }),

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Unit tests for asaas.controller.ts (subconta model)
  * Mocks: express Request/Response, AsaasService, resolveUserAndTenant
  */
@@ -41,7 +41,6 @@ const VALID_BODY = {
   address: "Avenida Paulista",
   addressNumber: "1000",
   province: "Bela Vista",
-  environment: "sandbox",
 };
 
 function makeReq(overrides: Partial<Request> = {}): Request {
@@ -91,15 +90,14 @@ describe("connectAsaas", () => {
       expect.objectContaining({
         name: "Empresa Teste Ltda",
         email: "financeiro@empresa.com",
-        cpfCnpj: "12345678000195",   // stripped of formatting
-        mobilePhone: "11999999999",  // stripped of formatting
-        postalCode: "01310100",      // stripped of formatting
+        cpfCnpj: "12345678000195",
+        mobilePhone: "11999999999",
+        postalCode: "01310100",
         address: "Avenida Paulista",
         addressNumber: "1000",
         province: "Bela Vista",
         companyType: "LIMITED",
       }),
-      "sandbox",
     );
     expect(status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith({ success: true });
@@ -155,15 +153,7 @@ describe("connectAsaas", () => {
     expect(mockOnboardTenant).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when environment is invalid", async () => {
-    const req = makeReq({ body: { ...VALID_BODY, environment: "credit_card" } });
-    const { res, status } = makeRes();
 
-    await connectAsaas(req, res);
-
-    expect(status).toHaveBeenCalledWith(400);
-    expect(mockOnboardTenant).not.toHaveBeenCalled();
-  });
 
   it("returns 502 when AsaasService throws ASAAS_SUBCONTA_CREATION_FAILED", async () => {
     mockOnboardTenant.mockRejectedValue(new Error("ASAAS_SUBCONTA_CREATION_FAILED"));
@@ -235,7 +225,6 @@ describe("connectAsaas", () => {
     expect(mockOnboardTenant).toHaveBeenCalledWith(
       "tenant_abc",
       expect.objectContaining({ companyType: undefined }),
-      "sandbox",
     );
   });
 });
