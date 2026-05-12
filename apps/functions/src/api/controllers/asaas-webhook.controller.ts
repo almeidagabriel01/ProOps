@@ -430,3 +430,74 @@ export const handleAsaasWebhook = async (req: Request, res: Response): Promise<v
     res.status(500).send("Internal Server Error");
   }
 };
+
+/**
+ * Processes a payment success event directly (used by sandbox simulation to bypass webhook delivery).
+ * Reuses the same idempotency gate and handlePaymentSuccess logic as the real webhook.
+ */
+export async function processAsaasPaymentLocally(
+  tenantId: string,
+  asaasPaymentId: string,
+  externalReference: string,
+  netValue: number,
+): Promise<void> {
+  const parsed = parseExternalReference(externalReference);
+  if (!parsed) {
+    throw new Error(`Invalid externalReference: ${externalReference}`);
+  }
+  const { transactionId, attemptId } = parsed;
+
+  const idempotencyKey = `asaas:${tenantId}:${asaasPaymentId}`;
+  const decision = await beginWebhookProcessing(
+    idempotencyKey,
+    "PAYMENT_RECEIVED",
+    asaasPaymentId,
+    tenantId,
+  );
+
+  if (decision === "skip") {
+    logger.info("processAsaasPaymentLocally: already processed, skipping", {
+      tenantId,
+      asaasPaymentId,
+    });
+    return;
+  }
+
+  try {
+    await handlePaymentSuccess(tenantId, asaasPaymentId, attemptId, transactionId);
+    await finalizeWebhookProcessing(idempotencyKey, "done");
+
+    // Trigger payout transfer if configured (same as real webhook)
+    try {
+      const tenantSnap = await db.collection("tenants").doc(tenantId).get();
+      const tenantDataRecord = tenantSnap.data() as Record<string, unknown> ?? {};
+      const tenantAsaas = tenantDataRecord.asaas as TenantAsaasData | undefined;
+      const payout = tenantAsaas?.payout;
+      if (payout?.enabled && payout.pixAddressKey && netValue > 0) {
+        schedulePayoutTransfer({
+          tenantId,
+          asaasPaymentId,
+          transactionId,
+          netValue,
+          payout,
+          apiKey: tenantAsaas!.apiKey,
+          environment: tenantAsaas!.environment,
+        }).catch((payoutErr) => {
+          logger.error("processAsaasPaymentLocally: payout scheduling failed", {
+            tenantId,
+            error: payoutErr instanceof Error ? payoutErr.message : String(payoutErr),
+          });
+        });
+      }
+    } catch (payoutCheckErr) {
+      logger.warn("processAsaasPaymentLocally: error checking payout config (non-fatal)", {
+        tenantId,
+        error: payoutCheckErr instanceof Error ? payoutCheckErr.message : String(payoutCheckErr),
+      });
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await finalizeWebhookProcessing(idempotencyKey, "failed", message);
+    throw err;
+  }
+}

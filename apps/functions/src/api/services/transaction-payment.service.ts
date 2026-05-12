@@ -5,6 +5,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "../../lib/logger";
 import { AsaasService } from "./asaas.service";
 import { cpf, cnpj } from "cpf-cnpj-validator";
+import { processAsaasPaymentLocally } from "../controllers/asaas-webhook.controller";
 
 export class AsaasApiError extends Error {
   constructor(
@@ -723,6 +724,22 @@ export class TransactionPaymentService {
         throw new Error(`ASAAS_SIMULATE_FAILED:${message}`);
       }
       throw err;
+    }
+
+    // After receiveInCash succeeds, directly process the payment without waiting for webhook.
+    // This is needed in local dev where Asaas cannot deliver webhooks to localhost.
+    const externalReference = attempt.externalReference as string | undefined;
+    if (externalReference) {
+      try {
+        await processAsaasPaymentLocally(tenantId, paymentId, externalReference, value);
+      } catch (localProcessErr) {
+        // Non-fatal: the real webhook may still arrive in deployed environments
+        logger.warn("simulateSandboxPayment: local payment processing failed (non-fatal)", {
+          tenantId,
+          paymentId,
+          error: localProcessErr instanceof Error ? localProcessErr.message : String(localProcessErr),
+        });
+      }
     }
   }
 }
