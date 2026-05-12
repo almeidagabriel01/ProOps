@@ -165,9 +165,7 @@ export class AsaasService {
         asaasResponse: axiosBody,
         error: err instanceof Error ? err.message : String(err),
       });
-      const creationErr = new Error("ASAAS_SUBCONTA_CREATION_FAILED");
-      Object.assign(creationErr, { _asaasBody: axiosBody, _asaasStatus: axiosStatus });
-      throw creationErr;
+      throw new Error("ASAAS_SUBCONTA_CREATION_FAILED");
     }
 
     // Step 2: Configure webhook using subconta's apiKey (best-effort)
@@ -188,12 +186,12 @@ export class AsaasService {
     const asaasData: TenantAsaasData = {
       apiKey,
       subAccountId,
-      walletId: walletId || undefined,
       environment,
       connectedAt: new Date().toISOString(),
       webhookUrl,
       webhookAuthToken,
-      webhookId,
+      ...(walletId ? { walletId } : {}),
+      ...(webhookId ? { webhookId } : {}),
     };
 
     await tenantRef.update({
