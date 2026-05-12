@@ -111,8 +111,10 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       });
     }
     if (err.message === "ASAAS_SUBCONTA_CREATION_FAILED") {
+      const detail = (err as unknown as Record<string, unknown>)._asaasBody;
       res.status(502).json({
         message: "Erro ao criar conta no Asaas. Verifique os dados e tente novamente.",
+        detail,
       });
       return;
     }

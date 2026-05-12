@@ -165,7 +165,9 @@ export class AsaasService {
         asaasResponse: axiosBody,
         error: err instanceof Error ? err.message : String(err),
       });
-      throw new Error("ASAAS_SUBCONTA_CREATION_FAILED");
+      const e = new Error("ASAAS_SUBCONTA_CREATION_FAILED");
+      Object.assign(e, { _asaasBody: axiosBody });
+      throw e;
     }
 
     // Step 2: Configure webhook using subconta's apiKey (best-effort)
