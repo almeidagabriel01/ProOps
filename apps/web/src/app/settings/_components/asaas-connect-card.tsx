@@ -202,6 +202,7 @@ export function AsaasConnectCard() {
     if (!form.address.trim()) nextErrors.address = "Endereço é obrigatório";
     if (!form.addressNumber.trim()) nextErrors.addressNumber = "Número é obrigatório";
     if (!form.province.trim()) nextErrors.province = "Bairro é obrigatório";
+    if (!form.companyType) nextErrors.companyType = "Tipo de empresa é obrigatório";
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -376,13 +377,11 @@ export function AsaasConnectCard() {
               </div>
 
               <div>
-                <Label>
-                  Tipo de Empresa{" "}
-                  <span className="text-muted-foreground text-xs">(opcional)</span>
-                </Label>
+                <Label>Tipo de Empresa</Label>
                 <Select
                   value={form.companyType}
                   onChange={(e) => setField("companyType", e.target.value)}
+                  className={errors.companyType ? "border-destructive" : ""}
                 >
                   <option value="">Selecione...</option>
                   {COMPANY_TYPES.map((t) => (
@@ -391,6 +390,9 @@ export function AsaasConnectCard() {
                     </option>
                   ))}
                 </Select>
+                {errors.companyType && (
+                  <span className="text-sm text-destructive mt-1 block">{errors.companyType}</span>
+                )}
               </div>
 
               <div>

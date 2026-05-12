@@ -80,6 +80,10 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       res.status(400).json({ message: "Bairro é obrigatório" });
       return;
     }
+    if (!companyType || typeof companyType !== "string" || !companyType.trim()) {
+      res.status(400).json({ message: "Tipo de empresa é obrigatório" });
+      return;
+    }
 
     const onboardingData: AsaasOnboardingData = {
       name: String(name).trim(),
