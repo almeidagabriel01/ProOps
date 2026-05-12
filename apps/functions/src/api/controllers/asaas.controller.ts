@@ -36,6 +36,7 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       email,
       cpfCnpj,
       mobilePhone,
+      incomeValue,
       companyType,
       postalCode,
       address,
@@ -63,6 +64,10 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       res.status(400).json({ message: "CEP é obrigatório" });
       return;
     }
+    if (incomeValue === undefined || incomeValue === null || typeof incomeValue !== "number" || incomeValue <= 0) {
+      res.status(400).json({ message: "Faturamento mensal é obrigatório e deve ser maior que zero" });
+      return;
+    }
     if (!address || typeof address !== "string" || !address.trim()) {
       res.status(400).json({ message: "Endereço é obrigatório" });
       return;
@@ -81,6 +86,7 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       email: String(email).trim(),
       cpfCnpj: String(cpfCnpj).replace(/\D/g, ""),
       mobilePhone: String(mobilePhone).replace(/\D/g, ""),
+      incomeValue: Number(incomeValue),
       companyType:
         companyType && typeof companyType === "string" ? companyType.trim() : undefined,
       postalCode: String(postalCode).replace(/\D/g, ""),

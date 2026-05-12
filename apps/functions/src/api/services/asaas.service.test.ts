@@ -50,6 +50,7 @@ const VALID_ONBOARDING_DATA = {
   email: "financeiro@empresa.com",
   cpfCnpj: "12345678000195",
   mobilePhone: "11999999999",
+  incomeValue: 5000,
   companyType: "LIMITED",
   postalCode: "01310100",
   address: "Avenida Paulista",
@@ -98,6 +99,7 @@ describe("AsaasService.onboardTenant", () => {
         name: VALID_ONBOARDING_DATA.name,
         email: VALID_ONBOARDING_DATA.email,
         cpfCnpj: VALID_ONBOARDING_DATA.cpfCnpj,
+        incomeValue: 5000,
       }),
       expect.objectContaining({
         headers: { access_token: "$aact_master_sandbox_key" },

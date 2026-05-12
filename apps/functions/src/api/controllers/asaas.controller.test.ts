@@ -36,6 +36,7 @@ const VALID_BODY = {
   email: "financeiro@empresa.com",
   cpfCnpj: "12.345.678/0001-95",
   mobilePhone: "(11) 99999-9999",
+  incomeValue: 5000,
   companyType: "LIMITED",
   postalCode: "01310-100",
   address: "Avenida Paulista",
@@ -97,6 +98,7 @@ describe("connectAsaas", () => {
         addressNumber: "1000",
         province: "Bela Vista",
         companyType: "LIMITED",
+        incomeValue: 5000,
       }),
     );
     expect(status).toHaveBeenCalledWith(200);
@@ -145,6 +147,26 @@ describe("connectAsaas", () => {
 
   it("returns 400 when postalCode is missing", async () => {
     const req = makeReq({ body: { ...VALID_BODY, postalCode: "" } });
+    const { res, status } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when incomeValue is missing", async () => {
+    const req = makeReq({ body: { ...VALID_BODY, incomeValue: undefined } });
+    const { res, status } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when incomeValue is zero or negative", async () => {
+    const req = makeReq({ body: { ...VALID_BODY, incomeValue: 0 } });
     const { res, status } = makeRes();
 
     await connectAsaas(req, res);
@@ -224,7 +246,7 @@ describe("connectAsaas", () => {
     expect(status).toHaveBeenCalledWith(200);
     expect(mockOnboardTenant).toHaveBeenCalledWith(
       "tenant_abc",
-      expect.objectContaining({ companyType: undefined }),
+      expect.objectContaining({ companyType: undefined, incomeValue: 5000 }),
     );
   });
 });

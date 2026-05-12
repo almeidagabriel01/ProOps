@@ -12,6 +12,7 @@ export interface AsaasOnboardingData {
   email: string;
   cpfCnpj: string;
   mobilePhone: string;
+  incomeValue: number;
   companyType?: string;
   postalCode: string;
   address: string;
@@ -142,6 +143,7 @@ export class AsaasService {
           email: data.email,
           cpfCnpj: data.cpfCnpj,
           mobilePhone: data.mobilePhone,
+          incomeValue: data.incomeValue,
           ...(data.companyType ? { companyType: data.companyType } : {}),
           postalCode: data.postalCode,
           address: data.address,
