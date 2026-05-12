@@ -27,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 import {
   AsaasService,
   type AsaasConnectionStatus,
@@ -40,6 +41,22 @@ const COMPANY_TYPES = [
   { value: "LIMITED", label: "Sociedade Limitada" },
   { value: "ASSOCIATION", label: "Associação" },
 ];
+
+const PIX_KEY_TYPES = [
+  { value: "CPF", label: "CPF" },
+  { value: "CNPJ", label: "CNPJ" },
+  { value: "EMAIL", label: "Email" },
+  { value: "PHONE", label: "Celular" },
+  { value: "RANDOM_KEY", label: "Chave aleatória" },
+];
+
+const PIX_KEY_PLACEHOLDERS: Record<string, string> = {
+  CPF: "000.000.000-00",
+  CNPJ: "00.000.000/0001-00",
+  EMAIL: "email@exemplo.com",
+  PHONE: "(11) 98765-4321",
+  RANDOM_KEY: "Chave aleatória gerada pelo banco",
+};
 
 function maskCpfCnpj(val: string): string {
   const d = val.replace(/\D/g, "").slice(0, 14);
@@ -122,18 +139,47 @@ export function AsaasConnectCard() {
   const [form, setForm] = React.useState<FormState>(INITIAL_FORM);
   const [errors, setErrors] = React.useState<Partial<Record<keyof FormState, string>>>({});
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
+  const [payoutEnabled, setPayoutEnabled] = React.useState(false);
+  const [pixAddressKeyType, setPixAddressKeyType] = React.useState("CPF");
+  const [pixAddressKey, setPixAddressKey] = React.useState("");
+  const [isSavingPayout, setIsSavingPayout] = React.useState(false);
 
   const loadStatus = React.useCallback(async () => {
     try {
       setIsLoadingStatus(true);
       const data = await AsaasService.getStatus();
       setStatus(data);
+      if (data.payout) {
+        setPayoutEnabled(data.payout.enabled);
+        setPixAddressKeyType(data.payout.pixAddressKeyType ?? "CPF");
+        setPixAddressKey(data.payout.pixAddressKey ?? "");
+      }
     } catch {
       toast.error("Erro ao carregar status do Asaas.");
     } finally {
       setIsLoadingStatus(false);
     }
   }, []);
+
+  const handleSavePayout = async () => {
+    if (payoutEnabled && !pixAddressKey.trim()) {
+      toast.error("Informe a chave PIX para salvar a configuração de repasse.");
+      return;
+    }
+    try {
+      setIsSavingPayout(true);
+      await AsaasService.updatePayout({
+        enabled: payoutEnabled,
+        pixAddressKey: payoutEnabled ? pixAddressKey.trim() : undefined,
+        pixAddressKeyType: payoutEnabled ? pixAddressKeyType : undefined,
+      });
+      toast.success("Configuração de repasse salva com sucesso!");
+    } catch {
+      toast.error("Erro ao salvar configuração de repasse.");
+    } finally {
+      setIsSavingPayout(false);
+    }
+  };
 
   React.useEffect(() => {
     loadStatus();
@@ -544,7 +590,130 @@ export function AsaasConnectCard() {
                     </span>
                   </div>
                 )}
+                {status.accountStatus?.general === "APPROVED" && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Verificação</span>
+                    <Badge variant="success" className="text-xs">
+                      <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" />
+                      Conta aprovada
+                    </Badge>
+                  </div>
+                )}
               </div>
+
+              {status.accountStatus && status.accountStatus.general !== "APPROVED" && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                  <p className="text-sm font-medium text-amber-800">
+                    Conta pendente de aprovação
+                  </p>
+                  <p className="text-sm text-amber-700">
+                    Sua conta Asaas precisa de verificação de documentos antes de aceitar
+                    pagamentos.
+                  </p>
+                  {(status.accountStatus.pendingDocuments?.length ?? 0) > 0 && (
+                    <p className="text-sm text-amber-700">
+                      Documentos pendentes: {status.accountStatus.pendingDocuments!.length}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {status.accountStatus.onboardingUrl && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() =>
+                          window.open(status.accountStatus!.onboardingUrl, "_blank")
+                        }
+                      >
+                        Completar verificação
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={loadStatus}
+                      disabled={isLoadingStatus}
+                    >
+                      {isLoadingStatus && <Loader size="sm" className="mr-2" />}
+                      Verificar novamente
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {status.accountStatus?.general === "APPROVED" && (
+                <div className="space-y-3 rounded-md border p-3">
+                  <p className="text-sm font-medium">
+                    Repasse automático para sua conta bancária
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="payout-enabled"
+                      checked={payoutEnabled}
+                      onCheckedChange={setPayoutEnabled}
+                    />
+                    <Label htmlFor="payout-enabled" className="text-sm cursor-pointer">
+                      Receber repasses automáticos na minha conta
+                    </Label>
+                  </div>
+                  {payoutEnabled ? (
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm">Tipo de chave PIX</Label>
+                        <Select
+                          value={pixAddressKeyType}
+                          onChange={(e) => {
+                            setPixAddressKeyType(e.target.value);
+                            setPixAddressKey("");
+                          }}
+                          className="mt-1"
+                        >
+                          {PIX_KEY_TYPES.map((t) => (
+                            <option key={t.value} value={t.value}>
+                              {t.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-sm">Chave PIX</Label>
+                        <Input
+                          value={pixAddressKey}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (pixAddressKeyType === "CPF" || pixAddressKeyType === "CNPJ") {
+                              setPixAddressKey(maskCpfCnpj(raw));
+                            } else if (pixAddressKeyType === "PHONE") {
+                              setPixAddressKey(maskPhone(raw));
+                            } else {
+                              setPixAddressKey(raw);
+                            }
+                          }}
+                          placeholder={PIX_KEY_PLACEHOLDERS[pixAddressKeyType] ?? ""}
+                          className="mt-1"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        A cada pagamento recebido, o valor (descontadas as taxas do Asaas) será
+                        transferido automaticamente para esta chave PIX.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Os valores ficarão retidos na conta Asaas até você ativar o repasse
+                      automático.
+                    </p>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={handleSavePayout}
+                    disabled={isSavingPayout || (payoutEnabled && !pixAddressKey.trim())}
+                  >
+                    {isSavingPayout && <Loader size="sm" className="mr-2" />}
+                    Salvar configuração de repasse
+                  </Button>
+                </div>
+              )}
+
               <Button
                 variant="outline"
                 size="sm"

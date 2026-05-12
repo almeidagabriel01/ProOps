@@ -314,6 +314,7 @@ export function PaymentModal({
   const [boletoData, setBoletoData] = React.useState<BoletoPaymentResult | null>(null);
   const [isGeneratingBoleto, setIsGeneratingBoleto] = React.useState(false);
   const [isSandbox, setIsSandbox] = React.useState(false);
+  const [providerNotApproved, setProviderNotApproved] = React.useState(false);
 
   const [activeTab, setActiveTab] = React.useState("pix");
 
@@ -332,6 +333,7 @@ export function PaymentModal({
     setBoletoData(null);
     setIsGeneratingBoleto(false);
     setActiveTab("pix");
+    setProviderNotApproved(false);
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -351,7 +353,9 @@ export function PaymentModal({
       }
     } catch (err) {
       const d = (err as { data?: { message?: string; code?: string } }).data;
-      if (d?.code === "INVALID_IDENTIFICATION") {
+      if (d?.code === "ASAAS_ACCOUNT_NOT_APPROVED") {
+        setProviderNotApproved(true);
+      } else if (d?.code === "INVALID_IDENTIFICATION") {
         toast.error("CPF ou CNPJ inválido.", { description: "Verifique os dados e tente novamente." });
       } else {
         toast.error("Erro ao gerar QR Code PIX.", { description: d?.message ?? "Tente novamente." });
@@ -373,7 +377,9 @@ export function PaymentModal({
       }
     } catch (err) {
       const d = (err as { data?: { message?: string; code?: string } }).data;
-      if (d?.code === "INVALID_IDENTIFICATION") {
+      if (d?.code === "ASAAS_ACCOUNT_NOT_APPROVED") {
+        setProviderNotApproved(true);
+      } else if (d?.code === "INVALID_IDENTIFICATION") {
         toast.error("CPF ou CNPJ inválido.", { description: "Verifique os dados e tente novamente." });
       } else {
         toast.error("Erro ao gerar boleto.", { description: d?.message ?? "Tente novamente." });
@@ -404,7 +410,17 @@ export function PaymentModal({
         )}
 
         <div className="overflow-y-auto min-h-0 flex-1">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          {providerNotApproved && (
+            <Alert className="mb-4">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Pagamento indisponível</AlertTitle>
+              <AlertDescription>
+                O prestador ainda não finalizou a configuração de pagamentos. Entre em contato
+                com ele.
+              </AlertDescription>
+            </Alert>
+          )}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className={providerNotApproved ? "hidden" : ""}>
             <TabsList className="w-full">
               <TabsTrigger value="pix" className="flex-1">
                 <QrCode className="mr-1.5 h-4 w-4" aria-hidden="true" />

@@ -34,10 +34,24 @@ export interface PaymentStatus {
   paidAt?: string;
 }
 
+export interface AsaasAccountStatus {
+  general: "PENDING" | "AWAITING_APPROVAL" | "APPROVED" | "REJECTED";
+  pendingDocuments?: Array<{ id: string; status: string }>;
+  onboardingUrl?: string;
+}
+
+export interface AsaasPayoutConfig {
+  enabled: boolean;
+  pixAddressKey?: string;
+  pixAddressKeyType?: string;
+}
+
 export interface AsaasConnectionStatus {
   connected: boolean;
   environment?: "sandbox" | "production";
   connectedAt?: string;
+  accountStatus?: AsaasAccountStatus;
+  payout?: AsaasPayoutConfig;
 }
 
 export interface AsaasOnboardingData {
@@ -95,4 +109,10 @@ export const AsaasService = {
 
   disconnect: (): Promise<{ success: boolean }> =>
     callApi<{ success: boolean }>("/v1/asaas/disconnect", "DELETE"),
+
+  updatePayout: (payload: {
+    enabled: boolean;
+    pixAddressKey?: string;
+    pixAddressKeyType?: string;
+  }): Promise<void> => callApi<void>("/v1/asaas/payout", "PUT", payload),
 };
