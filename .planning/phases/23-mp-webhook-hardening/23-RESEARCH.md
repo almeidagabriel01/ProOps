@@ -428,17 +428,19 @@ logger.info("MP webhook: received", {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **webhookEvents lifecycle on unexpected handler error**
    - What we know: CONTEXT.md says fallback failure → return 200 (no retry). Does not address unexpected errors in `handlePaymentEvent()` itself.
    - What's unclear: If the handler throws after the idempotency gate writes "processing", should we: (a) mark `status: "failed"` + re-throw → 500 → MP retries, or (b) mark `status: "done"` + return 200 → suppress retry?
    - Recommendation: Planner should default to option (a) for unexpected errors: mark `"failed"`, return 500, allow MP to retry. Only return 200 for *expected* unresolvable cases (missing external_reference). The `"failed"` status also makes debugging easier in Cloud Logging.
+   - **RESOLVED:** Option (a) adopted by CONTEXT.md override note encoded in Plan 01 Task 3: unexpected exceptions after the idempotency gate writes "processing" → `finalizeMpWebhookProcessing(xRequestId, "failed", err.message)` → HTTP 500 → MP retries. Expected unresolvable cases (missing platform token, axios failure, malformed external_reference) return cleanly → outer handler finalizes "done" → HTTP 200 → no retry loop.
 
 2. **merchant_order `action` field format**
    - What we know: Official MP docs confirm `action` exists in payment events (e.g., "payment.created"). The `merchant_order` routing in current code catches everything not matching `payment.*` via the else branch.
    - What's unclear: Whether merchant_order events set `action` or only set `type: "merchant_order"`.
    - Recommendation: Log `body.action` and `body.type` both in the entry log. Route on `action` prefix "payment." to handle payment events; everything else including merchant_order falls to the safe log-and-return-200 path. Current code already does this correctly.
+   - **RESOLVED:** CONTEXT.md § merchant_order event handling locks the routing: `merchant_order` topic → `logger.info` + return 200 + NO Firestore writes; unknown/unexpected topics → `logger.warn` + return 200 + NO Firestore writes. Plan 01 Task 3 enforces this by performing action routing BEFORE invoking `beginMpWebhookProcessing` — only `payment.created` / `payment.updated` events enter the `webhookEvents` idempotency gate. The entry log emits both `action` and `type` fields so downstream log analysis can distinguish topic categories regardless of which field MP populates.
 
 ---
 
