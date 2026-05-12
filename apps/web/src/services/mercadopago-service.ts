@@ -62,6 +62,7 @@ export interface MpPublicConfig {
   publicKey: string;
   environment: "sandbox" | "production";
   sellerTestEmail?: string;
+  testBuyerEmail?: string;
 }
 
 export interface CardPaymentFormData {
