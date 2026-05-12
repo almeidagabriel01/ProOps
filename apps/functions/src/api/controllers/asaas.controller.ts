@@ -111,10 +111,15 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       });
     }
     if (err.message === "ASAAS_SUBCONTA_CREATION_FAILED") {
-      const detail = (err as unknown as Record<string, unknown>)._asaasBody;
+      const body = (err as unknown as Record<string, unknown>)._asaasBody as Record<string, unknown> | undefined;
+      const asaasErrors = Array.isArray(body?.errors)
+        ? (body.errors as Array<{ description?: string }>)
+        : [];
+      const asaasMessage =
+        asaasErrors[0]?.description ||
+        (typeof body?.message === "string" ? body.message : null);
       res.status(502).json({
-        message: "Erro ao criar conta no Asaas. Verifique os dados e tente novamente.",
-        detail,
+        message: asaasMessage || "Erro ao criar conta no Asaas. Verifique os dados e tente novamente.",
       });
       return;
     }
