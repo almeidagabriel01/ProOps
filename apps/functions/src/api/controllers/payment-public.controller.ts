@@ -1,98 +1,85 @@
 import { Request, Response } from "express";
-import { TransactionPaymentService, MercadoPagoApiError, ProcessCardPaymentRequest } from "../services/transaction-payment.service";
-import { MercadoPagoService } from "../services/mercadopago.service";
+import { TransactionPaymentService, AsaasApiError } from "../services/transaction-payment.service";
+import { AsaasService } from "../services/asaas.service";
 import { db } from "../../init";
 import { logger } from "../../lib/logger";
 
 export const createPayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { token } = req.params;
-    const { method, installments, backUrl, transactionId, payerOverride: rawPayerOverride } = req.body as {
+    const {
+      method,
+      transactionId,
+      payerOverride: rawPayerOverride,
+    } = req.body as {
       method?: unknown;
-      installments?: unknown;
-      backUrl?: unknown;
       transactionId?: unknown;
       payerOverride?: unknown;
     };
 
-    const validMethods = ["pix", "credit_card", "debit_card", "boleto"];
+    const validMethods = ["pix", "boleto"];
     if (!method || typeof method !== "string" || !validMethods.includes(method)) {
-      res.status(400).json({ message: "Método de pagamento inválido" });
+      res.status(400).json({ message: "Método de pagamento inválido. Apenas PIX e boleto são suportados." });
       return;
     }
 
-    let parsedPayerOverride: {
-      identification?: { type: "CPF" | "CNPJ"; number: string };
-      firstName?: string;
-      lastName?: string;
-      address?: {
-        zipCode: string;
-        streetName: string;
-        streetNumber: string;
-        neighborhood: string;
-        city: string;
-        federalUnit: string;
-      };
-    } | undefined;
+    let parsedPayerOverride:
+      | {
+          identification?: { type: "CPF" | "CNPJ"; number: string };
+          firstName?: string;
+          lastName?: string;
+        }
+      | undefined;
     if (rawPayerOverride && typeof rawPayerOverride === "object") {
       const po = rawPayerOverride as Record<string, unknown>;
-      const idObj = typeof po.identification === "object" && po.identification !== null
-        ? (po.identification as Record<string, unknown>)
-        : undefined;
-      const idType = idObj?.type === "CPF" || idObj?.type === "CNPJ" ? idObj.type : undefined;
-      const idNumber = typeof idObj?.number === "string" ? idObj.number.replace(/\D/g, "").slice(0, 14) : undefined;
-
-      let parsedAddress: { zipCode: string; streetName: string; streetNumber: string; neighborhood: string; city: string; federalUnit: string } | undefined;
-      const addrRaw = typeof po.address === "object" && po.address !== null
-        ? (po.address as Record<string, unknown>)
-        : undefined;
-      if (addrRaw) {
-        const zipCode = typeof addrRaw.zipCode === "string" ? addrRaw.zipCode.replace(/\D/g, "").slice(0, 8) : "";
-        const streetName = typeof addrRaw.streetName === "string" ? addrRaw.streetName.trim().slice(0, 120) : "";
-        const streetNumber = typeof addrRaw.streetNumber === "string" ? addrRaw.streetNumber.trim().slice(0, 20) : "";
-        const neighborhood = typeof addrRaw.neighborhood === "string" ? addrRaw.neighborhood.trim().slice(0, 80) : "";
-        const city = typeof addrRaw.city === "string" ? addrRaw.city.trim().slice(0, 80) : "";
-        const federalUnit = typeof addrRaw.federalUnit === "string" ? addrRaw.federalUnit.trim().toUpperCase().slice(0, 2) : "";
-        if (zipCode && streetName && streetNumber && neighborhood && city && federalUnit) {
-          parsedAddress = { zipCode, streetName, streetNumber, neighborhood, city, federalUnit };
-        }
-      }
+      const idObj =
+        typeof po.identification === "object" && po.identification !== null
+          ? (po.identification as Record<string, unknown>)
+          : undefined;
+      const idType =
+        idObj?.type === "CPF" || idObj?.type === "CNPJ" ? idObj.type : undefined;
+      const idNumber =
+        typeof idObj?.number === "string"
+          ? idObj.number.replace(/\D/g, "").slice(0, 14)
+          : undefined;
 
       parsedPayerOverride = {
-        identification: idType && idNumber ? { type: idType, number: idNumber } : undefined,
-        firstName: typeof po.firstName === "string" ? po.firstName.trim().slice(0, 60) : undefined,
-        lastName: typeof po.lastName === "string" ? po.lastName.trim().slice(0, 60) : undefined,
-        address: parsedAddress,
+        identification:
+          idType && idNumber ? { type: idType, number: idNumber } : undefined,
+        firstName:
+          typeof po.firstName === "string"
+            ? po.firstName.trim().slice(0, 60)
+            : undefined,
+        lastName:
+          typeof po.lastName === "string"
+            ? po.lastName.trim().slice(0, 60)
+            : undefined,
       };
     }
 
     const result = await TransactionPaymentService.createPayment({
       token,
-      method: method as "pix" | "credit_card" | "debit_card" | "boleto",
-      installments: typeof installments === "number" ? installments : undefined,
-      backUrl: typeof backUrl === "string" ? backUrl : undefined,
+      method: method as "pix" | "boleto",
       transactionId: typeof transactionId === "string" ? transactionId : undefined,
       payerOverride: parsedPayerOverride,
     });
 
     res.status(200).json(result);
   } catch (error) {
-    if (error instanceof MercadoPagoApiError) {
-      const mpStatusCode =
-        error.mpStatus === 401 || error.mpStatus >= 500 ? 502 : error.mpStatus === 429 ? 429 : 400;
-      const isNoPixKey = error.mpMessage?.toLowerCase().includes("without key enabled for qr render");
-      const code = error.mpStatus === 401 ? "MP_AUTH_FAILED" : isNoPixKey ? "MP_PIX_KEY_NOT_CONFIGURED" : "MP_REJECTED";
-      const message =
-        error.mpStatus === 401
-          ? "Integração Mercado Pago precisa ser reconectada"
-          : isNoPixKey
-            ? "Conta Mercado Pago sem chave PIX cadastrada. O recebedor precisa cadastrar uma chave PIX no painel do Mercado Pago para aceitar pagamentos via PIX."
-            : error.mpMessage || "Pagamento recusado pelo Mercado Pago";
-      res.status(mpStatusCode).json({
-        code,
-        message,
-        mpStatus: error.mpStatus,
-        mpError: { message: error.mpMessage, cause: error.mpCause },
+    if (error instanceof AsaasApiError) {
+      const statusCode =
+        error.asaasStatus === 401 || error.asaasStatus >= 500
+          ? 502
+          : error.asaasStatus === 429
+            ? 429
+            : 400;
+      res.status(statusCode).json({
+        code: error.asaasStatus === 401 ? "ASAAS_AUTH_FAILED" : "ASAAS_REJECTED",
+        message:
+          error.asaasStatus === 401
+            ? "Integração Asaas precisa ser reconectada"
+            : error.asaasMessage || "Pagamento recusado pelo Asaas",
+        asaasStatus: error.asaasStatus,
       });
       return;
     }
@@ -101,7 +88,7 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
       res.status(410).json({ message: "Link expirado" });
       return;
     }
-    if (err.message === "MP_NOT_CONFIGURED") {
+    if (err.message === "ASAAS_NOT_CONFIGURED") {
       res.status(422).json({ message: "Pagamento online não configurado para este tenant" });
       return;
     }
@@ -118,23 +105,35 @@ export const createPayment = async (req: Request, res: Response): Promise<void> 
       return;
     }
     if (err.message === "FORBIDDEN_CROSS_GROUP") {
-      res.status(403).json({ message: "Este lançamento não pertence ao grupo do link compartilhado" });
+      res
+        .status(403)
+        .json({ message: "Este lançamento não pertence ao grupo do link compartilhado" });
       return;
     }
     if (err.message === "INVALID_AMOUNT") {
-      res.status(400).json({ code: "INVALID_AMOUNT", message: "Valor do lançamento inválido" });
+      res
+        .status(400)
+        .json({ code: "INVALID_AMOUNT", message: "Valor do lançamento inválido" });
+      return;
+    }
+    if (err.message === "INVALID_METHOD") {
+      res
+        .status(400)
+        .json({ code: "INVALID_METHOD", message: "Método de pagamento não suportado" });
       return;
     }
     if (err.message === "INVALID_IDENTIFICATION") {
-      res.status(400).json({ code: "INVALID_IDENTIFICATION", message: "CPF ou CNPJ inválido. Verifique os dados e tente novamente." });
+      res.status(400).json({
+        code: "INVALID_IDENTIFICATION",
+        message: "CPF ou CNPJ inválido. Verifique os dados e tente novamente.",
+      });
       return;
     }
     if (err.message === "BOLETO_MISSING_IDENTIFICATION") {
-      res.status(422).json({ code: "BOLETO_MISSING_IDENTIFICATION", message: "Para gerar boleto, o cliente precisa ter CPF ou CNPJ cadastrado." });
-      return;
-    }
-    if (err.message === "BOLETO_MISSING_ADDRESS") {
-      res.status(422).json({ code: "BOLETO_MISSING_ADDRESS", message: "Endereço completo é obrigatório para gerar boleto." });
+      res.status(422).json({
+        code: "BOLETO_MISSING_IDENTIFICATION",
+        message: "Para gerar boleto, o cliente precisa ter CPF ou CNPJ cadastrado.",
+      });
       return;
     }
     logger.error("Unexpected error in createPayment", { errorMessage: err.message });
@@ -146,7 +145,7 @@ export const getPaymentStatus = async (req: Request, res: Response): Promise<voi
   try {
     const { token, paymentId } = req.params;
     const result = await TransactionPaymentService.getPaymentStatus(token, paymentId);
-    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader("Cache-Control", "no-store");
     res.status(200).json(result);
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -158,152 +157,52 @@ export const getPaymentStatus = async (req: Request, res: Response): Promise<voi
       res.status(404).json({ message: "Pagamento não encontrado" });
       return;
     }
+    logger.error("Unexpected error in getPaymentStatus", { errorMessage: err.message });
     res.status(500).json({ message: err.message });
   }
 };
 
-export const getMpConfig = async (req: Request, res: Response): Promise<void> => {
+export const getPaymentConfig = async (req: Request, res: Response): Promise<void> => {
   try {
     const { token } = req.params;
+
     const snapshot = await db
       .collection("shared_transactions")
       .where("token", "==", token)
       .limit(1)
       .get();
+
     if (snapshot.empty) {
       res.status(410).json({ message: "Link expirado" });
       return;
     }
-    const linkData = snapshot.docs[0].data() as { tenantId: string; expiresAt: string | null };
+
+    const linkData = snapshot.docs[0].data() as {
+      tenantId: string;
+      expiresAt: string | null;
+    };
+
     if (linkData.expiresAt !== null && new Date(linkData.expiresAt) < new Date()) {
       res.status(410).json({ message: "Link expirado" });
       return;
     }
-    const config = await MercadoPagoService.getPublicConfig(linkData.tenantId);
-    res.status(200).json(config);
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    if (err.message === "MP_NOT_CONFIGURED") {
-      res.status(422).json({ message: "Pagamento online não configurado para este tenant" });
+
+    const status = await AsaasService.getPublicStatus(linkData.tenantId);
+
+    if (!status.connected) {
+      res
+        .status(422)
+        .json({ message: "Pagamento online não configurado para este tenant" });
       return;
     }
-    logger.error("Unexpected error in getMpConfig", { errorMessage: err.message });
-    res.status(500).json({ message: err.message });
-  }
-};
 
-export const processCardPayment = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { token } = req.params;
-    const body = req.body as {
-      cardToken?: unknown;
-      paymentMethodId?: unknown;
-      issuerId?: unknown;
-      installments?: unknown;
-      payerEmail?: unknown;
-      payerIdentification?: unknown;
-      transactionId?: unknown;
-    };
-
-    if (!body.cardToken || typeof body.cardToken !== "string") {
-      res.status(400).json({ message: "cardToken inválido" });
-      return;
-    }
-    if (!body.paymentMethodId || typeof body.paymentMethodId !== "string") {
-      res.status(400).json({ message: "paymentMethodId inválido" });
-      return;
-    }
-    const installments = typeof body.installments === "number" ? body.installments : 1;
-    if (typeof body.payerEmail !== "string" || !body.payerEmail.includes("@")) {
-      res.status(400).json({ code: "PAYER_EMAIL_REQUIRED", message: "E-mail do pagador é obrigatório." });
-      return;
-    }
-    const payerEmail = body.payerEmail.trim().toLowerCase();
-
-    let payerIdentification: ProcessCardPaymentRequest["payerIdentification"];
-    if (
-      body.payerIdentification &&
-      typeof (body.payerIdentification as Record<string, unknown>).type === "string" &&
-      typeof (body.payerIdentification as Record<string, unknown>).number === "string"
-    ) {
-      const pi = body.payerIdentification as { type: string; number: string };
-      if (pi.type === "CPF" || pi.type === "CNPJ") {
-        payerIdentification = { type: pi.type, number: pi.number };
-      }
-    }
-
-    const result = await TransactionPaymentService.processCardPayment({
-      token,
-      transactionId: typeof body.transactionId === "string" ? body.transactionId : undefined,
-      cardToken: body.cardToken,
-      paymentMethodId: body.paymentMethodId,
-      issuerId: typeof body.issuerId === "string" ? body.issuerId : undefined,
-      installments,
-      payerEmail,
-      payerIdentification,
+    res.status(200).json({
+      gateway: "asaas",
+      environment: status.environment,
     });
-
-    res.status(200).json(result);
   } catch (error) {
-    if (error instanceof MercadoPagoApiError) {
-      const mpStatusCode =
-        error.mpStatus === 401 || error.mpStatus >= 500 ? 502 : error.mpStatus === 429 ? 429 : 400;
-      const isInvalidUsers =
-        error.mpMessage?.toLowerCase().includes("invalid users") ||
-        error.mpMessage?.toLowerCase().includes("invalid test user") ||
-        error.mpCause?.some(
-          (c) =>
-            String(c.code) === "106" ||
-            String(c.code) === "2034" ||
-            String(c.code) === "2198" ||
-            c.description?.toLowerCase().includes("invalid users") ||
-            c.description?.toLowerCase().includes("invalid test user"),
-        );
-      const code = error.mpStatus === 401 ? "MP_AUTH_FAILED" : isInvalidUsers ? "MP_INVALID_PAYER" : "MP_REJECTED";
-      const message =
-        error.mpStatus === 401
-          ? "Integração Mercado Pago precisa ser reconectada"
-          : isInvalidUsers
-            ? "E-mail do pagador inválido para cartão em sandbox. Configure MERCADOPAGO_SANDBOX_BUYER_EMAIL com um e-mail de Test User Comprador do painel MP (formato test_user_NNNN@testuser.com). Crie em: mercadopago.com.br/developers → Contas de teste."
-            : error.mpMessage || "Pagamento recusado pelo Mercado Pago";
-      res.status(mpStatusCode).json({
-        code,
-        message,
-        mpStatus: error.mpStatus,
-        mpError: { message: error.mpMessage, cause: error.mpCause },
-      });
-      return;
-    }
     const err = error instanceof Error ? error : new Error(String(error));
-    if (err.message === "EXPIRED_LINK") {
-      res.status(410).json({ message: "Link expirado" });
-      return;
-    }
-    if (err.message === "MP_NOT_CONFIGURED") {
-      res.status(422).json({ message: "Pagamento online não configurado para este tenant" });
-      return;
-    }
-    if (err.message === "ALREADY_PAID") {
-      res.status(409).json({ message: "Este lançamento já foi pago" });
-      return;
-    }
-    if (err.message === "TRANSACTION_NOT_FOUND") {
-      res.status(404).json({ message: "Lançamento não encontrado" });
-      return;
-    }
-    if (err.message === "FORBIDDEN_TENANT_MISMATCH") {
-      res.status(403).json({ message: "Acesso não autorizado" });
-      return;
-    }
-    if (err.message === "FORBIDDEN_CROSS_GROUP") {
-      res.status(403).json({ message: "Este lançamento não pertence ao grupo do link compartilhado" });
-      return;
-    }
-    if (err.message === "INVALID_AMOUNT") {
-      res.status(400).json({ code: "INVALID_AMOUNT", message: "Valor do lançamento inválido" });
-      return;
-    }
-    logger.error("Unexpected error in processCardPayment", { errorMessage: err.message });
+    logger.error("Unexpected error in getPaymentConfig", { errorMessage: err.message });
     res.status(500).json({ message: err.message });
   }
 };
