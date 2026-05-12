@@ -233,8 +233,12 @@ export function AsaasConnectCard() {
       setForm(INITIAL_FORM);
       setErrors({});
       await loadStatus();
-    } catch {
-      toast.error("Erro ao habilitar pagamentos. Verifique os dados e tente novamente.");
+    } catch (err) {
+      const msg =
+        err instanceof Error && err.message
+          ? err.message
+          : "Erro ao habilitar pagamentos. Verifique os dados e tente novamente.";
+      toast.error(msg);
     } finally {
       setIsConnecting(false);
     }
