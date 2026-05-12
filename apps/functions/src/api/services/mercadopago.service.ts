@@ -330,6 +330,12 @@ export class MercadoPagoService {
       }
     }
     const testBuyerEmail = environment === "sandbox" ? (process.env.MERCADOPAGO_SANDBOX_BUYER_EMAIL ?? undefined) : undefined;
+    if (environment === "sandbox" && !testBuyerEmail) {
+      logger.warn(
+        "MP sandbox: MERCADOPAGO_SANDBOX_BUYER_EMAIL not set — card Brick email field will be blank and card payments will fail with MP error 2034",
+        { tenantId },
+      );
+    }
     return { publicKey, environment, sellerTestEmail, testBuyerEmail };
   }
 }

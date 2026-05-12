@@ -264,7 +264,7 @@ export const processCardPayment = async (req: Request, res: Response): Promise<v
         error.mpStatus === 401
           ? "Integração Mercado Pago precisa ser reconectada"
           : isInvalidUsers
-            ? "E-mail do pagador inválido para o ambiente de teste. Use exatamente \"test@testuser.com\" (único e-mail universal aceito em sandbox) ou um e-mail de Test User criado no painel de contas de teste (formato test_user_NNNN@testuser.com)."
+            ? "E-mail do pagador inválido para cartão em sandbox. Configure MERCADOPAGO_SANDBOX_BUYER_EMAIL com um e-mail de Test User Comprador do painel MP (formato test_user_NNNN@testuser.com). Crie em: mercadopago.com.br/developers → Contas de teste."
             : error.mpMessage || "Pagamento recusado pelo Mercado Pago";
       res.status(mpStatusCode).json({
         code,

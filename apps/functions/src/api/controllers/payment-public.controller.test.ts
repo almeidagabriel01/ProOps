@@ -57,7 +57,7 @@ describe("processCardPayment — MercadoPago error mapping", () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ code: "MP_INVALID_PAYER", mpStatus: 400 }),
     );
-    expect((json.mock.calls[0][0] as { message: string }).message).toMatch(/test@testuser\.com/);
+    expect((json.mock.calls[0][0] as { message: string }).message).toMatch(/MERCADOPAGO_SANDBOX_BUYER_EMAIL/);
   });
 
   it("maps cause code 2198 (Invalid test user email) to MP_INVALID_PAYER", async () => {
@@ -72,7 +72,22 @@ describe("processCardPayment — MercadoPago error mapping", () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ code: "MP_INVALID_PAYER", mpStatus: 400 }),
     );
-    expect((json.mock.calls[0][0] as { message: string }).message).toMatch(/test@testuser\.com/);
+    expect((json.mock.calls[0][0] as { message: string }).message).toMatch(/MERCADOPAGO_SANDBOX_BUYER_EMAIL/);
+  });
+
+  it("maps both cause codes 2034 and 2198 in same cause array to MP_INVALID_PAYER", async () => {
+    mockProcessCard.mockRejectedValue(
+      new MercadoPagoApiError(400, "Invalid users involved", [
+        { code: "2034", description: "Invalid users involved" },
+        { code: "2198", description: "Invalid test user email" },
+      ]),
+    );
+    const { res, status, json } = makeRes();
+    await processCardPayment(makeReq(), res);
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "MP_INVALID_PAYER", mpStatus: 400 }),
+    );
   });
 
   it("maps cause code 106 (legacy invalid users) to MP_INVALID_PAYER", async () => {
