@@ -7,8 +7,21 @@ import { resolveAsaasWebhookUrl } from "../../lib/frontend-app-url";
 
 export type AsaasEnvironment = "sandbox" | "production";
 
+export interface AsaasOnboardingData {
+  name: string;
+  email: string;
+  cpfCnpj: string;
+  mobilePhone: string;
+  companyType?: string;
+  postalCode: string;
+  address: string;
+  addressNumber: string;
+  province: string;
+}
+
 export interface TenantAsaasData {
   apiKey: string;
+  subAccountId?: string;
   environment: AsaasEnvironment;
   walletId?: string;
   connectedAt: string;
@@ -23,6 +36,13 @@ export interface AsaasPublicStatus {
   connectedAt?: string;
 }
 
+function getMasterApiKey(environment: AsaasEnvironment): string {
+  if (environment === "production") {
+    return String(process.env.ASAAS_MASTER_API_KEY_PROD || "").trim();
+  }
+  return String(process.env.ASAAS_MASTER_API_KEY || "").trim();
+}
+
 export class AsaasService {
   static getBaseUrl(environment: AsaasEnvironment): string {
     return environment === "sandbox"
@@ -30,78 +50,26 @@ export class AsaasService {
       : "https://api.asaas.com";
   }
 
-  static async validateApiKey(
-    apiKey: string,
-    environment: AsaasEnvironment,
-  ): Promise<{ walletId: string }> {
-    const baseUrl = this.getBaseUrl(environment);
-    const response = await axios.get<{ walletId?: string; id?: string }>(
-      `${baseUrl}/v3/myAccount`,
-      { headers: { access_token: apiKey } },
-    );
-    const walletId = response.data.walletId || response.data.id || "";
-    return { walletId };
-  }
-
-  static async configureWebhook(
-    apiKey: string,
-    environment: AsaasEnvironment,
+  static async onboardTenant(
     tenantId: string,
-    authToken: string,
-  ): Promise<{ webhookId: string; webhookUrl: string }> {
-    const baseUrl = this.getBaseUrl(environment);
-    const webhookUrl = resolveAsaasWebhookUrl(tenantId);
-    const projectId = process.env.GCLOUD_PROJECT || "erp-softcode";
-
-    const response = await axios.post<{ id: string }>(
-      `${baseUrl}/v3/webhooks`,
-      {
-        name: `ProOps - ${projectId}`,
-        url: webhookUrl,
-        email: "financeiro@proops.com.br",
-        enabled: true,
-        interrupted: false,
-        apiVersion: 3,
-        authToken,
-        sendType: "SEQUENTIALLY",
-        events: [
-          "PAYMENT_RECEIVED",
-          "PAYMENT_CONFIRMED",
-          "PAYMENT_OVERDUE",
-          "PAYMENT_DELETED",
-        ],
-      },
-      { headers: { access_token: apiKey } },
-    );
-    return { webhookId: response.data.id, webhookUrl };
-  }
-
-  static async connectTenant(
-    tenantId: string,
-    apiKey: string,
+    data: AsaasOnboardingData,
     environment: AsaasEnvironment,
   ): Promise<void> {
+    const masterApiKey = getMasterApiKey(environment);
+    if (!masterApiKey) {
+      throw new Error("ASAAS_MASTER_KEY_NOT_CONFIGURED");
+    }
+
     const tenantRef = db.collection("tenants").doc(tenantId);
     const tenantSnap = await tenantRef.get();
     if (!tenantSnap.exists) throw new Error("TENANT_NOT_FOUND");
 
-    // Validate key first
-    let walletId = "";
-    try {
-      const result = await AsaasService.validateApiKey(apiKey, environment);
-      walletId = result.walletId;
-    } catch (err) {
-      logger.error("Asaas: falha ao validar API key", {
-        tenantId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      throw new Error("ASAAS_INVALID_API_KEY");
-    }
-
-    // Generate webhook auth token
     const webhookAuthToken = crypto.randomBytes(32).toString("hex");
+    const webhookUrl = resolveAsaasWebhookUrl(tenantId);
+    const baseUrl = this.getBaseUrl(environment);
+    const projectId = process.env.GCLOUD_PROJECT || "erp-softcode";
 
-    // If a previous webhookId exists, attempt to delete it (best-effort)
+    // Attempt to delete old webhook if tenant was previously connected (best-effort)
     const existingData = (tenantSnap.data() as { asaas?: TenantAsaasData } | undefined)?.asaas;
     if (existingData?.webhookId && existingData.apiKey) {
       try {
@@ -121,34 +89,64 @@ export class AsaasService {
       }
     }
 
-    // Configure webhook (best-effort — if fails, user can reconnect)
-    let webhookId: string | undefined;
-    let webhookUrl: string;
+    // Create subconta via master API key
+    let subAccountId = "";
+    let apiKey = "";
+    let walletId = "";
+
     try {
-      const result = await AsaasService.configureWebhook(
-        apiKey,
-        environment,
-        tenantId,
-        webhookAuthToken,
+      const response = await axios.post<{ id: string; apiKey: string; walletId?: string }>(
+        `${baseUrl}/v3/accounts`,
+        {
+          name: data.name,
+          email: data.email,
+          cpfCnpj: data.cpfCnpj,
+          mobilePhone: data.mobilePhone,
+          ...(data.companyType ? { companyType: data.companyType } : {}),
+          postalCode: data.postalCode,
+          address: data.address,
+          addressNumber: data.addressNumber,
+          province: data.province,
+          webhooks: [
+            {
+              name: `ProOps - ${projectId}`,
+              url: webhookUrl,
+              email: "financeiro@proops.com.br",
+              enabled: true,
+              interrupted: false,
+              apiVersion: 3,
+              authToken: webhookAuthToken,
+              sendType: "SEQUENTIALLY",
+              events: [
+                "PAYMENT_RECEIVED",
+                "PAYMENT_CONFIRMED",
+                "PAYMENT_OVERDUE",
+                "PAYMENT_DELETED",
+              ],
+            },
+          ],
+        },
+        { headers: { access_token: masterApiKey } },
       );
-      webhookId = result.webhookId;
-      webhookUrl = result.webhookUrl;
+      subAccountId = response.data.id;
+      apiKey = response.data.apiKey;
+      walletId = response.data.walletId || "";
     } catch (err) {
-      logger.warn("Asaas: falha ao configurar webhook (best-effort)", {
+      logger.error("Asaas: falha ao criar subconta", {
         tenantId,
         error: err instanceof Error ? err.message : String(err),
       });
-      webhookUrl = resolveAsaasWebhookUrl(tenantId);
+      throw new Error("ASAAS_SUBCONTA_CREATION_FAILED");
     }
 
     const asaasData: TenantAsaasData = {
       apiKey,
-      environment,
+      subAccountId,
       walletId: walletId || undefined,
+      environment,
       connectedAt: new Date().toISOString(),
       webhookUrl,
       webhookAuthToken,
-      webhookId,
     };
 
     await tenantRef.update({
@@ -157,7 +155,11 @@ export class AsaasService {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    logger.info("Asaas conectado ao tenant", { tenantId, environment, walletId });
+    logger.info("Asaas subconta criada para tenant", {
+      tenantId,
+      environment,
+      subAccountId,
+    });
   }
 
   static async disconnectTenant(tenantId: string): Promise<void> {

@@ -40,6 +40,19 @@ export interface AsaasConnectionStatus {
   connectedAt?: string;
 }
 
+export interface AsaasOnboardingData {
+  name: string;
+  email: string;
+  cpfCnpj: string;
+  mobilePhone: string;
+  companyType?: string;
+  postalCode: string;
+  address: string;
+  addressNumber: string;
+  province: string;
+  environment: "sandbox" | "production";
+}
+
 export interface PayerOverride {
   identification?: { type: "CPF" | "CNPJ"; number: string };
   firstName?: string;
@@ -71,8 +84,8 @@ export const AsaasService = {
   getStatus: (): Promise<AsaasConnectionStatus> =>
     callApi<AsaasConnectionStatus>("/v1/asaas/status", "GET"),
 
-  connect: (apiKey: string, environment: "sandbox" | "production"): Promise<{ success: boolean }> =>
-    callApi<{ success: boolean }>("/v1/asaas/connect", "POST", { apiKey, environment }),
+  connect: (data: AsaasOnboardingData): Promise<{ success: boolean }> =>
+    callApi<{ success: boolean }>("/v1/asaas/connect", "POST", data),
 
   disconnect: (): Promise<{ success: boolean }> =>
     callApi<{ success: boolean }>("/v1/asaas/disconnect", "DELETE"),

@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
-import { AsaasService, AsaasEnvironment } from "../services/asaas.service";
+import { AsaasService, AsaasEnvironment, AsaasOnboardingData } from "../services/asaas.service";
 import { logger } from "../../lib/logger";
 
 function mapAsaasErrorStatus(error: Error): number {
   if (error.message === "TENANT_NOT_FOUND") return 404;
-  if (error.message === "ASAAS_INVALID_API_KEY") return 422;
+  if (error.message === "ASAAS_SUBCONTA_CREATION_FAILED") return 502;
+  if (error.message === "ASAAS_MASTER_KEY_NOT_CONFIGURED") return 500;
   if (
     error.message.startsWith("FORBIDDEN_") ||
     error.message.startsWith("AUTH_CLAIMS_MISSING_")
@@ -15,7 +16,7 @@ function mapAsaasErrorStatus(error: Error): number {
 }
 
 // POST /v1/asaas/connect
-// Body: { apiKey: string, environment: "sandbox" | "production" }
+// Body: AsaasOnboardingData + environment
 export const connectAsaas = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.uid;
@@ -30,13 +31,49 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const { apiKey, environment: rawEnvironment } = req.body as {
-      apiKey?: unknown;
-      environment?: unknown;
-    };
+    const {
+      name,
+      email,
+      cpfCnpj,
+      mobilePhone,
+      companyType,
+      postalCode,
+      address,
+      addressNumber,
+      province,
+      environment: rawEnvironment,
+    } = req.body as Record<string, unknown>;
 
-    if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length === 0) {
-      res.status(400).json({ message: "API key do Asaas é obrigatória" });
+    if (!name || typeof name !== "string" || !name.trim()) {
+      res.status(400).json({ message: "Nome é obrigatório" });
+      return;
+    }
+    if (!email || typeof email !== "string" || !email.trim()) {
+      res.status(400).json({ message: "E-mail é obrigatório" });
+      return;
+    }
+    if (!cpfCnpj || typeof cpfCnpj !== "string" || !cpfCnpj.replace(/\D/g, "")) {
+      res.status(400).json({ message: "CPF/CNPJ é obrigatório" });
+      return;
+    }
+    if (!mobilePhone || typeof mobilePhone !== "string" || !mobilePhone.replace(/\D/g, "")) {
+      res.status(400).json({ message: "Telefone é obrigatório" });
+      return;
+    }
+    if (!postalCode || typeof postalCode !== "string" || !postalCode.replace(/\D/g, "")) {
+      res.status(400).json({ message: "CEP é obrigatório" });
+      return;
+    }
+    if (!address || typeof address !== "string" || !address.trim()) {
+      res.status(400).json({ message: "Endereço é obrigatório" });
+      return;
+    }
+    if (!addressNumber || typeof addressNumber !== "string" || !addressNumber.trim()) {
+      res.status(400).json({ message: "Número do endereço é obrigatório" });
+      return;
+    }
+    if (!province || typeof province !== "string" || !province.trim()) {
+      res.status(400).json({ message: "Bairro é obrigatório" });
       return;
     }
 
@@ -46,32 +83,49 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
       typeof rawEnvironment !== "string" ||
       !validEnvironments.includes(rawEnvironment as AsaasEnvironment)
     ) {
-      res.status(400).json({
-        message: "environment deve ser 'sandbox' ou 'production'",
-      });
+      res.status(400).json({ message: "environment deve ser 'sandbox' ou 'production'" });
       return;
     }
 
     const environment = rawEnvironment as AsaasEnvironment;
 
-    await AsaasService.connectTenant(tenantId, apiKey.trim(), environment);
+    const onboardingData: AsaasOnboardingData = {
+      name: String(name).trim(),
+      email: String(email).trim(),
+      cpfCnpj: String(cpfCnpj).replace(/\D/g, ""),
+      mobilePhone: String(mobilePhone).replace(/\D/g, ""),
+      companyType:
+        companyType && typeof companyType === "string" ? companyType.trim() : undefined,
+      postalCode: String(postalCode).replace(/\D/g, ""),
+      address: String(address).trim(),
+      addressNumber: String(addressNumber).trim(),
+      province: String(province).trim(),
+    };
 
-    logger.info("Asaas connect requested", { tenantId, environment, uid: userId });
+    await AsaasService.onboardTenant(tenantId, onboardingData, environment);
+
+    logger.info("Asaas onboard requested", { tenantId, environment, uid: userId });
 
     res.status(200).json({ success: true });
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     const status = mapAsaasErrorStatus(err);
-    if (status === 500) {
-      logger.error("Unexpected error in connectAsaas", {
+    if (status >= 500) {
+      logger.error("Error in connectAsaas", {
         errorMessage: err.message,
         uid: req.user?.uid,
         tenantId: req.user?.tenantId,
       });
     }
-    if (err.message === "ASAAS_INVALID_API_KEY") {
-      res.status(422).json({
-        message: "API key do Asaas inválida. Verifique a chave e o ambiente selecionado.",
+    if (err.message === "ASAAS_SUBCONTA_CREATION_FAILED") {
+      res.status(502).json({
+        message: "Erro ao criar conta no Asaas. Verifique os dados e tente novamente.",
+      });
+      return;
+    }
+    if (err.message === "ASAAS_MASTER_KEY_NOT_CONFIGURED") {
+      res.status(500).json({
+        message: "Integração Asaas não configurada no servidor. Contate o suporte.",
       });
       return;
     }
@@ -131,7 +185,7 @@ export const disconnectAsaas = async (req: Request, res: Response): Promise<void
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     const status = mapAsaasErrorStatus(err);
-    if (status === 500) {
+    if (status >= 500) {
       logger.error("Unexpected error in disconnectAsaas", {
         errorMessage: err.message,
         uid: req.user?.uid,

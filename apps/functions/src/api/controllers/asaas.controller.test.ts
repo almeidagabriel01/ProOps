@@ -1,5 +1,5 @@
 /**
- * Unit tests for asaas.controller.ts
+ * Unit tests for asaas.controller.ts (subconta model)
  * Mocks: express Request/Response, AsaasService, resolveUserAndTenant
  */
 
@@ -8,7 +8,7 @@ jest.mock("../../lib/auth-helpers", () => ({
 }));
 jest.mock("../services/asaas.service", () => ({
   AsaasService: {
-    connectTenant: jest.fn(),
+    onboardTenant: jest.fn(),
     disconnectTenant: jest.fn(),
     getPublicStatus: jest.fn(),
   },
@@ -27,9 +27,22 @@ import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { AsaasService } from "../services/asaas.service";
 
 const mockResolveUserAndTenant = resolveUserAndTenant as jest.Mock;
-const mockConnectTenant = AsaasService.connectTenant as jest.Mock;
+const mockOnboardTenant = AsaasService.onboardTenant as jest.Mock;
 const mockDisconnectTenant = AsaasService.disconnectTenant as jest.Mock;
 const mockGetPublicStatus = AsaasService.getPublicStatus as jest.Mock;
+
+const VALID_BODY = {
+  name: "Empresa Teste Ltda",
+  email: "financeiro@empresa.com",
+  cpfCnpj: "12.345.678/0001-95",
+  mobilePhone: "(11) 99999-9999",
+  companyType: "LIMITED",
+  postalCode: "01310-100",
+  address: "Avenida Paulista",
+  addressNumber: "1000",
+  province: "Bela Vista",
+  environment: "sandbox",
+};
 
 function makeReq(overrides: Partial<Request> = {}): Request {
   return {
@@ -67,55 +80,117 @@ beforeEach(() => {
 
 describe("connectAsaas", () => {
   it("returns 200 on success with valid body", async () => {
-    mockConnectTenant.mockResolvedValue(undefined);
-    const req = makeReq({
-      body: { apiKey: "aact_valid_key", environment: "sandbox" },
-    });
+    mockOnboardTenant.mockResolvedValue(undefined);
+    const req = makeReq({ body: VALID_BODY });
     const { res, status, json } = makeRes();
 
     await connectAsaas(req, res);
 
-    expect(mockConnectTenant).toHaveBeenCalledWith("tenant_abc", "aact_valid_key", "sandbox");
+    expect(mockOnboardTenant).toHaveBeenCalledWith(
+      "tenant_abc",
+      expect.objectContaining({
+        name: "Empresa Teste Ltda",
+        email: "financeiro@empresa.com",
+        cpfCnpj: "12345678000195",   // stripped of formatting
+        mobilePhone: "11999999999",  // stripped of formatting
+        postalCode: "01310100",      // stripped of formatting
+        address: "Avenida Paulista",
+        addressNumber: "1000",
+        province: "Bela Vista",
+        companyType: "LIMITED",
+      }),
+      "sandbox",
+    );
     expect(status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith({ success: true });
   });
 
-  it("returns 400 when apiKey is missing", async () => {
-    const req = makeReq({ body: { environment: "sandbox" } });
+  it("returns 400 when name is missing", async () => {
+    const req = makeReq({ body: { ...VALID_BODY, name: "" } });
     const { res, status } = makeRes();
 
     await connectAsaas(req, res);
 
     expect(status).toHaveBeenCalledWith(400);
-    expect(mockConnectTenant).not.toHaveBeenCalled();
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when email is missing", async () => {
+    const req = makeReq({ body: { ...VALID_BODY, email: "" } });
+    const { res, status } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when cpfCnpj is missing", async () => {
+    const req = makeReq({ body: { ...VALID_BODY, cpfCnpj: "" } });
+    const { res, status } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when mobilePhone is missing", async () => {
+    const req = makeReq({ body: { ...VALID_BODY, mobilePhone: "" } });
+    const { res, status } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when postalCode is missing", async () => {
+    const req = makeReq({ body: { ...VALID_BODY, postalCode: "" } });
+    const { res, status } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
   });
 
   it("returns 400 when environment is invalid", async () => {
-    const req = makeReq({ body: { apiKey: "aact_key", environment: "credit_card" } });
+    const req = makeReq({ body: { ...VALID_BODY, environment: "credit_card" } });
     const { res, status } = makeRes();
 
     await connectAsaas(req, res);
 
     expect(status).toHaveBeenCalledWith(400);
-    expect(mockConnectTenant).not.toHaveBeenCalled();
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
   });
 
-  it("returns 422 when AsaasService throws ASAAS_INVALID_API_KEY", async () => {
-    mockConnectTenant.mockRejectedValue(new Error("ASAAS_INVALID_API_KEY"));
-    const req = makeReq({ body: { apiKey: "bad_key", environment: "production" } });
+  it("returns 502 when AsaasService throws ASAAS_SUBCONTA_CREATION_FAILED", async () => {
+    mockOnboardTenant.mockRejectedValue(new Error("ASAAS_SUBCONTA_CREATION_FAILED"));
+    const req = makeReq({ body: VALID_BODY });
     const { res, status, json } = makeRes();
 
     await connectAsaas(req, res);
 
-    expect(status).toHaveBeenCalledWith(422);
+    expect(status).toHaveBeenCalledWith(502);
     expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining("inválida") }),
+      expect.objectContaining({ message: expect.stringContaining("Asaas") }),
     );
   });
 
+  it("returns 500 when AsaasService throws ASAAS_MASTER_KEY_NOT_CONFIGURED", async () => {
+    mockOnboardTenant.mockRejectedValue(new Error("ASAAS_MASTER_KEY_NOT_CONFIGURED"));
+    const req = makeReq({ body: VALID_BODY });
+    const { res, status } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(500);
+  });
+
   it("returns 404 when AsaasService throws TENANT_NOT_FOUND", async () => {
-    mockConnectTenant.mockRejectedValue(new Error("TENANT_NOT_FOUND"));
-    const req = makeReq({ body: { apiKey: "aact_key", environment: "sandbox" } });
+    mockOnboardTenant.mockRejectedValue(new Error("TENANT_NOT_FOUND"));
+    const req = makeReq({ body: VALID_BODY });
     const { res, status } = makeRes();
 
     await connectAsaas(req, res);
@@ -130,7 +205,7 @@ describe("connectAsaas", () => {
     await connectAsaas(req, res);
 
     expect(status).toHaveBeenCalledWith(401);
-    expect(mockConnectTenant).not.toHaveBeenCalled();
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
   });
 
   it("returns 403 when user is not master or superadmin", async () => {
@@ -139,12 +214,29 @@ describe("connectAsaas", () => {
       isMaster: false,
       isSuperAdmin: false,
     });
-    const req = makeReq({ body: { apiKey: "aact_key", environment: "sandbox" } });
+    const req = makeReq({ body: VALID_BODY });
     const { res, status } = makeRes();
 
     await connectAsaas(req, res);
 
     expect(status).toHaveBeenCalledWith(403);
+    expect(mockOnboardTenant).not.toHaveBeenCalled();
+  });
+
+  it("passes through companyType as undefined when not provided", async () => {
+    mockOnboardTenant.mockResolvedValue(undefined);
+    const { companyType: _ct, ...bodyWithoutType } = VALID_BODY;
+    const req = makeReq({ body: bodyWithoutType });
+    const { res, status } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(200);
+    expect(mockOnboardTenant).toHaveBeenCalledWith(
+      "tenant_abc",
+      expect.objectContaining({ companyType: undefined }),
+      "sandbox",
+    );
   });
 });
 
