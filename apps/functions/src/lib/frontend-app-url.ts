@@ -75,3 +75,11 @@ export function resolveMercadoPagoWebhookUrl(): string {
   const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID || "erp-softcode";
   return `https://southamerica-east1-${projectId}.cloudfunctions.net/mercadopagoWebhook`;
 }
+
+export function resolveAsaasWebhookUrl(tenantId: string): string {
+  const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID || "erp-softcode";
+  if (isFunctionsEmulatorRuntime()) {
+    return `http://localhost:5001/${projectId}/southamerica-east1/api/webhooks/asaas/${tenantId}`;
+  }
+  return `https://southamerica-east1-${projectId}.cloudfunctions.net/api/webhooks/asaas/${tenantId}`;
+}
