@@ -3,28 +3,28 @@
  * Tests idempotency, auth validation, event filtering, and payment processing.
  */
 
-jest.mock("../../init", () => ({
+jest.mock("../init", () => ({
   db: {
     collection: jest.fn(),
     runTransaction: jest.fn(),
     batch: jest.fn(),
   },
 }));
-jest.mock("../../lib/logger", () => ({
+jest.mock("../lib/logger", () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
   },
 }));
-jest.mock("../../lib/finance-helpers", () => ({
+jest.mock("../lib/finance-helpers", () => ({
   resolveWalletRef: jest.fn(),
 }));
 
 import type { Request, Response } from "express";
-import { handleAsaasWebhook } from "../../api/controllers/asaas-webhook.controller";
-import { db } from "../../init";
-import { resolveWalletRef } from "../../lib/finance-helpers";
+import { handleAsaasWebhook } from "../api/controllers/asaas-webhook.controller";
+import { db } from "../init";
+import { resolveWalletRef } from "../lib/finance-helpers";
 
 const mockedDb = db as jest.Mocked<typeof db>;
 const mockResolveWalletRef = resolveWalletRef as jest.Mock;

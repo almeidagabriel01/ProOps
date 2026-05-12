@@ -164,7 +164,8 @@ function setupDb({
 beforeEach(() => {
   jest.clearAllMocks();
   mockGetAsaasData.mockResolvedValue(DEFAULT_ASAAS_DATA);
-  mockedAxios.isAxiosError = jest.fn(() => false) as unknown as typeof axios.isAxiosError;
+  // Default: isAxiosError returns false; override per test when needed
+  (mockedAxios as unknown as Record<string, unknown>).isAxiosError = jest.fn(() => false);
 });
 
 // ---------------------------------------------------------------------------
@@ -248,19 +249,19 @@ describe("TransactionPaymentService.createPayment — PIX", () => {
   });
 
   it("throws AsaasApiError and marks attempt as failed when API rejects payment", async () => {
-    const { attemptRef } = setupDb();
+    const { attemptRef: _attemptRef } = setupDb();
 
     mockedAxios.get = jest.fn().mockResolvedValueOnce({ data: { data: [] } });
     mockedAxios.post = jest.fn()
       .mockResolvedValueOnce({ data: { id: "cus_123" } })
       .mockRejectedValueOnce(Object.assign(new Error("Bad Request"), { isAxiosError: true, response: { status: 400, data: { errors: [{ code: "invalid_value", description: "Valor inválido" }] } } }));
-    mockedAxios.isAxiosError = jest.fn(() => true) as unknown as typeof axios.isAxiosError;
+    (mockedAxios as unknown as Record<string, unknown>).isAxiosError = jest.fn(() => true);
 
     await expect(
       TransactionPaymentService.createPayment({ token: "share_token", method: "pix" }),
     ).rejects.toBeInstanceOf(AsaasApiError);
 
-    expect(attemptRef.update).toHaveBeenCalledWith({ status: "failed" });
+    expect(_attemptRef.update).toHaveBeenCalledWith({ status: "failed" });
   });
 });
 
@@ -270,7 +271,7 @@ describe("TransactionPaymentService.createPayment — PIX", () => {
 
 describe("TransactionPaymentService.createPayment — Boleto", () => {
   it("creates customer, creates boleto payment, returns bankSlipUrl and barcodeContent", async () => {
-    const { txRef, attemptRef } = setupDb();
+    const { txRef } = setupDb();
 
     mockedAxios.get = jest.fn()
       .mockResolvedValueOnce({ data: { data: [{ id: "cus_existing" }] } }) // search customer
