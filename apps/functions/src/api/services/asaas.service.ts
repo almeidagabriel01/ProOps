@@ -4,6 +4,7 @@ import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "../../lib/logger";
 import { resolveAsaasWebhookUrl } from "../../lib/frontend-app-url";
+import { describeAsaasError } from "./asaas-error";
 
 export type AsaasEnvironment = "sandbox" | "production";
 
@@ -29,6 +30,15 @@ export interface TenantAsaasData {
   webhookUrl: string;
   webhookAuthToken: string;
   webhookId?: string;
+  webhookStatus?: {
+    state: "registered" | "failed" | "pending";
+    attemptedAt: string;
+    lastError?: {
+      httpStatus?: number;
+      asaasErrors?: Array<{ code?: string; description?: string }>;
+      message: string;
+    };
+  };
   accountStatus?: {
     general: "PENDING" | "AWAITING_APPROVAL" | "APPROVED" | "REJECTED";
     commercialInfo: string;
@@ -52,6 +62,8 @@ export interface AsaasPublicStatus {
   environment?: AsaasEnvironment;
   connectedAt?: string;
   accountStatus?: TenantAsaasData["accountStatus"];
+  webhookStatus?: TenantAsaasData["webhookStatus"];
+  payout?: TenantAsaasData["payout"];
 }
 
 function getMasterApiKey(environment: AsaasEnvironment): string {
@@ -110,6 +122,120 @@ export class AsaasService {
     return { webhookId: response.data.id, webhookUrl };
   }
 
+  /**
+   * Removes any existing webhooks pointing to this tenant's URL from the Asaas
+   * subconta. Best-effort: failures are logged but do not abort the caller.
+   */
+  private static async reconcileExistingWebhooks(
+    apiKey: string,
+    environment: AsaasEnvironment,
+    tenantId: string,
+  ): Promise<void> {
+    const baseUrl = this.getBaseUrl(environment);
+    const expectedUrl = resolveAsaasWebhookUrl(tenantId);
+
+    try {
+      const response = await axios.get<{
+        data: Array<{ id: string; url: string }>;
+      }>(`${baseUrl}/v3/webhooks`, { headers: { access_token: apiKey } });
+
+      const toDelete = (response.data?.data ?? []).filter((w) => w.url === expectedUrl);
+
+      for (const webhook of toDelete) {
+        try {
+          await axios.delete(`${baseUrl}/v3/webhooks/${webhook.id}`, {
+            headers: { access_token: apiKey },
+          });
+          logger.info("Asaas: webhook existente removido antes de recriar", {
+            tenantId,
+            webhookId: webhook.id,
+          });
+        } catch (deleteErr) {
+          logger.warn("Asaas: falha ao remover webhook existente (best-effort)", {
+            tenantId,
+            webhookId: webhook.id,
+            error: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
+          });
+        }
+      }
+    } catch (listErr) {
+      logger.warn("Asaas: falha ao listar webhooks para reconciliação (best-effort)", {
+        tenantId,
+        error: listErr instanceof Error ? listErr.message : String(listErr),
+      });
+    }
+  }
+
+  /**
+   * Registers (or re-registers) the Asaas payment webhook for a tenant.
+   * Reconciles existing webhooks with the same URL first to ensure idempotency.
+   * Persists the result (registered/failed) to Firestore and returns the status.
+   *
+   * When called directly (e.g. retry endpoint), reads asaas data from Firestore.
+   * When called from onboardTenant, the freshly-written data is passed directly
+   * to avoid an extra Firestore round-trip.
+   *
+   * Throws ASAAS_NOT_CONNECTED if no asaas data is available (uncaught, since
+   * the caller must decide whether that is fatal). All Asaas API failures are
+   * caught internally and persisted as state=failed — never re-thrown.
+   */
+  static async registerWebhookForTenant(
+    tenantId: string,
+    existingData?: TenantAsaasData,
+  ): Promise<TenantAsaasData["webhookStatus"]> {
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const asaasData = existingData ?? await this.getAsaasData(tenantId);
+    if (!asaasData) throw new Error("ASAAS_NOT_CONNECTED");
+
+    const authToken = asaasData.webhookAuthToken || crypto.randomBytes(32).toString("hex");
+
+    try {
+      await this.reconcileExistingWebhooks(asaasData.apiKey, asaasData.environment, tenantId);
+
+      const { webhookId, webhookUrl } = await this.configureWebhook(
+        asaasData.apiKey,
+        asaasData.environment,
+        tenantId,
+        authToken,
+      );
+
+      const webhookStatus: TenantAsaasData["webhookStatus"] = {
+        state: "registered",
+        attemptedAt: new Date().toISOString(),
+      };
+
+      await tenantRef.update({
+        "asaas.webhookId": webhookId,
+        "asaas.webhookUrl": webhookUrl,
+        "asaas.webhookAuthToken": authToken,
+        "asaas.webhookStatus": webhookStatus,
+      });
+
+      logger.info("Asaas: webhook registrado com sucesso", { tenantId, webhookId });
+
+      return webhookStatus;
+    } catch (err) {
+      const desc = describeAsaasError(err);
+
+      const webhookStatus: TenantAsaasData["webhookStatus"] = {
+        state: "failed",
+        attemptedAt: new Date().toISOString(),
+        lastError: desc,
+      };
+
+      await tenantRef.update({ "asaas.webhookStatus": webhookStatus });
+
+      logger.error("Asaas: registro de webhook falhou", {
+        tenantId,
+        httpStatus: desc.httpStatus,
+        asaasErrors: desc.asaasErrors,
+        message: desc.message,
+      });
+
+      return webhookStatus;
+    }
+  }
+
   static async onboardTenant(
     tenantId: string,
     data: AsaasOnboardingData,
@@ -127,7 +253,7 @@ export class AsaasService {
     const webhookAuthToken = crypto.randomBytes(32).toString("hex");
     const baseUrl = this.getBaseUrl(environment);
 
-    // Attempt to delete old webhook if tenant was previously connected (best-effort)
+    // Attempt to delete old webhook from the PREVIOUS subconta (best-effort cleanup)
     const existingData = (tenantSnap.data() as { asaas?: TenantAsaasData } | undefined)?.asaas;
     if (existingData?.webhookId && existingData.apiKey) {
       try {
@@ -173,35 +299,21 @@ export class AsaasService {
       apiKey = response.data.apiKey;
       walletId = response.data.walletId || "";
     } catch (err) {
-      const axiosBody = axios.isAxiosError(err) ? err.response?.data : undefined;
-      const axiosStatus = axios.isAxiosError(err) ? err.response?.status : undefined;
+      const desc = describeAsaasError(err);
       logger.error("Asaas: falha ao criar subconta", {
         tenantId,
         environment,
-        httpStatus: axiosStatus,
-        asaasResponse: axiosBody,
-        error: err instanceof Error ? err.message : String(err),
+        httpStatus: desc.httpStatus,
+        asaasErrors: desc.asaasErrors,
+        message: desc.message,
       });
       const e = new Error("ASAAS_SUBCONTA_CREATION_FAILED");
-      Object.assign(e, { _asaasBody: axiosBody });
+      Object.assign(e, { _asaasBody: desc });
       throw e;
     }
 
-    // Step 2: Configure webhook using subconta's apiKey (best-effort)
-    let webhookId: string | undefined;
-    let webhookUrl = resolveAsaasWebhookUrl(tenantId);
-    try {
-      const result = await this.configureWebhook(apiKey, environment, tenantId, webhookAuthToken);
-      webhookId = result.webhookId;
-      webhookUrl = result.webhookUrl;
-    } catch (err) {
-      logger.warn("Asaas: falha ao configurar webhook na subconta (best-effort)", {
-        tenantId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-
-    // Step 3: Persist to Firestore
+    // Step 2: Persist connected state with webhook in "pending" state
+    const webhookUrl = resolveAsaasWebhookUrl(tenantId);
     const asaasData: TenantAsaasData = {
       apiKey,
       subAccountId,
@@ -209,8 +321,8 @@ export class AsaasService {
       connectedAt: new Date().toISOString(),
       webhookUrl,
       webhookAuthToken,
+      webhookStatus: { state: "pending", attemptedAt: new Date().toISOString() },
       ...(walletId ? { walletId } : {}),
-      ...(webhookId ? { webhookId } : {}),
     };
 
     await tenantRef.update({
@@ -224,6 +336,17 @@ export class AsaasService {
       environment,
       subAccountId,
     });
+
+    // Step 3: Register webhook — pass the just-written data to avoid an extra Firestore read.
+    // Non-blocking: failures are stored as webhookStatus.state = "failed", never thrown.
+    try {
+      await this.registerWebhookForTenant(tenantId, asaasData);
+    } catch (err) {
+      logger.warn("Asaas: webhook registration was skipped or threw unexpectedly", {
+        tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   static async disconnectTenant(tenantId: string): Promise<void> {
@@ -254,6 +377,9 @@ export class AsaasService {
       connected: true,
       environment: asaasData.environment,
       connectedAt: asaasData.connectedAt,
+      ...(asaasData.accountStatus ? { accountStatus: asaasData.accountStatus } : {}),
+      ...(asaasData.webhookStatus ? { webhookStatus: asaasData.webhookStatus } : {}),
+      ...(asaasData.payout ? { payout: asaasData.payout } : {}),
     };
   }
 
@@ -278,7 +404,7 @@ export class AsaasService {
       const baseUrl = this.getBaseUrl(environment);
       const masterApiKey = getMasterApiKey(environment);
 
-      // Step 1: Fetch subconta status using the subconta's own apiKey
+      // Fetch subconta status using the subconta's own apiKey
       const statusResp = await axios.get<{
         id: string;
         commercialInfo: string;
@@ -291,7 +417,7 @@ export class AsaasService {
 
       const { commercialInfo, bankAccountInfo, documentation, general } = statusResp.data;
 
-      // Step 2: Fetch onboarding URL and pending documents using master key (best-effort)
+      // Fetch onboarding URL and pending documents using master key (best-effort)
       let onboardingUrl: string | undefined;
       let pendingDocuments: Array<{ id: string; status: string }> | undefined;
 

@@ -1,9 +1,33 @@
 ﻿/**
  * Unit tests for AsaasService (subconta model)
- * Mocks: axios, ../../init (db), ../../lib/logger, ../../lib/frontend-app-url
+ * Mocks: axios, ../../init (db), ../../lib/logger, ../../lib/frontend-app-url, ./asaas-error
  */
 
 jest.mock("axios");
+// Mock describeAsaasError with duck-typed structural extraction so service tests
+// are decoupled from axios.isAxiosError (which jest.mock("axios") auto-mocks away).
+jest.mock("./asaas-error", () => ({
+  describeAsaasError: jest.fn().mockImplementation((err: unknown) => {
+    if (err && typeof err === "object" && "response" in err) {
+      const e = err as {
+        response?: {
+          status?: number;
+          data?: { errors?: Array<{ code?: string; description?: string }>; message?: string };
+        };
+        message?: string;
+      };
+      const asaasErrors = Array.isArray(e.response?.data?.errors) && e.response!.data!.errors!.length
+        ? e.response!.data!.errors
+        : undefined;
+      return {
+        httpStatus: e.response?.status,
+        ...(asaasErrors ? { asaasErrors } : {}),
+        message: asaasErrors?.[0]?.description ?? e.response?.data?.message ?? e.message ?? "Error",
+      };
+    }
+    return { message: err instanceof Error ? (err as Error).message : String(err) };
+  }),
+}));
 jest.mock("../../init", () => ({
   db: {
     collection: jest.fn(),
@@ -85,13 +109,15 @@ describe("AsaasService.onboardTenant", () => {
     const { ref: docRef } = makeDocRef({ name: "Tenant Teste" });
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
 
+    // Reconcile step: GET /v3/webhooks returns empty list
+    mockedAxios.get = jest.fn().mockResolvedValue({ data: { data: [] } });
     mockedAxios.post = jest.fn().mockResolvedValue({
       data: { id: "acc_sub123", apiKey: "$aact_sub_key", walletId: "wlt_abc" },
     });
 
     await AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA);
 
-    // First call: POST /v3/accounts (no webhooks in body)
+    // First call: POST /v3/accounts
     expect(mockedAxios.post).toHaveBeenNthCalledWith(
       1,
       "https://api-sandbox.asaas.com/v3/accounts",
@@ -118,6 +144,7 @@ describe("AsaasService.onboardTenant", () => {
       }),
     );
 
+    // First update: persists subconta + pending webhookStatus
     expect(docRef.update).toHaveBeenCalledWith(
       expect.objectContaining({
         asaasEnabled: true,
@@ -126,6 +153,7 @@ describe("AsaasService.onboardTenant", () => {
           subAccountId: "acc_sub123",
           walletId: "wlt_abc",
           environment: "sandbox",
+          webhookStatus: expect.objectContaining({ state: "pending" }),
         }),
       }),
     );
@@ -136,6 +164,7 @@ describe("AsaasService.onboardTenant", () => {
     const { ref: docRef } = makeDocRef({ name: "Tenant Prod" });
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
 
+    mockedAxios.get = jest.fn().mockResolvedValue({ data: { data: [] } });
     mockedAxios.post = jest.fn().mockResolvedValue({
       data: { id: "acc_prod", apiKey: "$aact_prod_sub", walletId: "wlt_prod" },
     });
@@ -193,6 +222,7 @@ describe("AsaasService.onboardTenant", () => {
     const { ref: docRef } = makeDocRef({ name: "Tenant" });
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
 
+    mockedAxios.get = jest.fn().mockResolvedValue({ data: { data: [] } });
     mockedAxios.post = jest.fn().mockResolvedValue({
       data: { id: "acc_1", apiKey: "$aact_key", walletId: "wlt_1" },
     });
@@ -217,6 +247,8 @@ describe("AsaasService.onboardTenant", () => {
     const { ref: docRef } = makeDocRef({ asaas: existingAsaas });
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
 
+    // Reconcile step on new subconta
+    mockedAxios.get = jest.fn().mockResolvedValue({ data: { data: [] } });
     mockedAxios.delete = jest.fn().mockResolvedValue({});
     mockedAxios.post = jest.fn().mockResolvedValue({
       data: { id: "acc_new", apiKey: "$aact_new_key", walletId: "wlt_new" },
@@ -242,6 +274,7 @@ describe("AsaasService.onboardTenant", () => {
     const { ref: docRef } = makeDocRef({ asaas: existingAsaas });
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
 
+    mockedAxios.get = jest.fn().mockResolvedValue({ data: { data: [] } });
     mockedAxios.delete = jest.fn().mockRejectedValue(new Error("Delete failed"));
     mockedAxios.post = jest.fn().mockResolvedValue({
       data: { id: "acc_new", apiKey: "$aact_new", walletId: "wlt_new" },
@@ -251,6 +284,158 @@ describe("AsaasService.onboardTenant", () => {
 
     expect(docRef.update).toHaveBeenCalledWith(
       expect.objectContaining({ asaasEnabled: true }),
+    );
+  });
+
+  it("persists subconta even when webhook registration fails — state=failed saved", async () => {
+    const { ref: docRef } = makeDocRef({ name: "Tenant" });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    // Reconcile GET succeeds with empty list, but webhook POST fails
+    mockedAxios.get = jest.fn().mockResolvedValue({ data: { data: [] } });
+    mockedAxios.post = jest.fn()
+      .mockResolvedValueOnce({ data: { id: "acc-456", apiKey: "new-key", walletId: "wlt" } })
+      .mockRejectedValueOnce(new Error("Webhook endpoint unavailable"));
+
+    await expect(
+      AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA),
+    ).resolves.not.toThrow();
+
+    // Subconta update happened
+    expect(docRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        asaas: expect.objectContaining({ subAccountId: "acc-456" }),
+      }),
+    );
+    // Webhook failure update happened (state=failed)
+    expect(docRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        "asaas.webhookStatus": expect.objectContaining({ state: "failed" }),
+      }),
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: registerWebhookForTenant
+// ---------------------------------------------------------------------------
+
+describe("AsaasService.registerWebhookForTenant", () => {
+  const ASAAS_DATA = {
+    apiKey: "$aact_sub_key",
+    subAccountId: "sub-123",
+    environment: "sandbox" as const,
+    connectedAt: "2025-01-01T00:00:00.000Z",
+    webhookUrl: "https://example.com/webhooks/asaas/t1",
+    webhookAuthToken: "auth-token-abc",
+  };
+
+  beforeEach(() => {
+    // Default: reconcile returns empty list
+    mockedAxios.get = jest.fn().mockResolvedValue({ data: { data: [] } });
+  });
+
+  it("registers webhook and persists state=registered + webhookId", async () => {
+    const { ref: docRef } = makeDocRef({ asaas: ASAAS_DATA });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ data: { id: "wh-999" } });
+
+    const result = await AsaasService.registerWebhookForTenant("t1");
+
+    expect(result?.state).toBe("registered");
+    expect(result?.lastError).toBeUndefined();
+    expect(docRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        "asaas.webhookId": "wh-999",
+        "asaas.webhookStatus": expect.objectContaining({ state: "registered" }),
+      }),
+    );
+  });
+
+  it("accepts existingData and skips the Firestore read", async () => {
+    const { ref: docRef } = makeDocRef(null, false);
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    mockedAxios.post = jest.fn().mockResolvedValue({ data: { id: "wh-100" } });
+
+    // Passes existingData — should not call docRef.get
+    const result = await AsaasService.registerWebhookForTenant("t1", ASAAS_DATA);
+
+    expect(result?.state).toBe("registered");
+    expect(docRef.get).not.toHaveBeenCalled();
+  });
+
+  it("captures state=failed + lastError when Asaas returns 400 with errors array", async () => {
+    const { ref: docRef } = makeDocRef({ asaas: ASAAS_DATA });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    mockedAxios.post = jest.fn().mockRejectedValue(new Error("Asaas rejected"));
+
+    // Control describeAsaasError's output directly — extraction logic is covered by asaas-error.test.ts.
+    const { describeAsaasError } = require("./asaas-error") as { describeAsaasError: jest.Mock };
+    describeAsaasError.mockReturnValueOnce({
+      httpStatus: 400,
+      asaasErrors: [{ code: "invalid.url", description: "URL inválida para webhook" }],
+      message: "URL inválida para webhook",
+    });
+
+    const result = await AsaasService.registerWebhookForTenant("t1");
+
+    expect(result?.state).toBe("failed");
+    expect(result?.lastError?.httpStatus).toBe(400);
+    expect(result?.lastError?.asaasErrors?.[0]?.description).toBe("URL inválida para webhook");
+    expect(docRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        "asaas.webhookStatus": expect.objectContaining({ state: "failed" }),
+      }),
+    );
+  });
+
+  it("reconciles (deletes) existing webhook with matching URL before creating", async () => {
+    const { ref: docRef } = makeDocRef({ asaas: ASAAS_DATA });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    const expectedUrl = `https://southamerica-east1-erp-softcode.cloudfunctions.net/api/webhooks/asaas/t1`;
+    mockedAxios.get = jest.fn().mockResolvedValue({
+      data: { data: [{ id: "old-wh", url: expectedUrl }] },
+    });
+    mockedAxios.delete = jest.fn().mockResolvedValue({});
+    mockedAxios.post = jest.fn().mockResolvedValue({ data: { id: "new-wh" } });
+
+    const result = await AsaasService.registerWebhookForTenant("t1");
+
+    expect(mockedAxios.delete).toHaveBeenCalledWith(
+      expect.stringContaining("old-wh"),
+      expect.anything(),
+    );
+    expect(result?.state).toBe("registered");
+    expect(docRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({ "asaas.webhookId": "new-wh" }),
+    );
+  });
+
+  it("does NOT delete webhooks with a different URL (different tenant)", async () => {
+    const { ref: docRef } = makeDocRef({ asaas: ASAAS_DATA });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    mockedAxios.get = jest.fn().mockResolvedValue({
+      data: { data: [{ id: "other-tenant-wh", url: "https://example.com/other-tenant" }] },
+    });
+    mockedAxios.delete = jest.fn().mockResolvedValue({});
+    mockedAxios.post = jest.fn().mockResolvedValue({ data: { id: "new-wh" } });
+
+    await AsaasService.registerWebhookForTenant("t1");
+
+    expect(mockedAxios.delete).not.toHaveBeenCalled();
+  });
+
+  it("throws ASAAS_NOT_CONNECTED when no data in Firestore and no existingData passed", async () => {
+    const { ref: docRef } = makeDocRef(null, false);
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    await expect(AsaasService.registerWebhookForTenant("t1")).rejects.toThrow(
+      "ASAAS_NOT_CONNECTED",
     );
   });
 });
