@@ -430,33 +430,45 @@ export class AsaasService {
         throw e;
       }
 
-      // Recovery: POST /v3/accounts returned a conflict — find and reuse the existing subconta
-      const existing = await findExistingSubaccount(masterApiKey, baseUrl, data.cpfCnpj, data.email);
-      if (!existing?.id) {
-        logger.error("Asaas: subconta existente mas não recuperável (CNPJ e email sem resultado)", {
-          tenantId,
-        });
-        throw new Error("ASAAS_SUBCONTA_NOT_RECOVERABLE");
+      // Recovery: POST /v3/accounts returned a conflict.
+      // Priority 1: reuse credentials archived at disconnect (avoids accessTokens IP whitelist).
+      type ReconnectArchive = { subAccountId: string; apiKey: string; walletId?: string };
+      const archived = (tenantSnap.data() as { _asaasReconnect?: ReconnectArchive } | undefined)?._asaasReconnect;
+
+      if (archived?.subAccountId && archived?.apiKey) {
+        const archiveConflict = await db
+          .collection("tenants")
+          .where("asaas.subAccountId", "==", archived.subAccountId)
+          .limit(2)
+          .get();
+        if (!archiveConflict.empty && archiveConflict.docs.some((d) => d.id !== tenantId)) {
+          throw new Error("ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT");
+        }
+        subAccountId = archived.subAccountId;
+        apiKey = archived.apiKey;
+        walletId = archived.walletId || "";
+        logger.info("Asaas: credenciais arquivadas reutilizadas no reconnect", { tenantId, subAccountId });
+      } else {
+        // Priority 2: find subconta via listing + generate new apiKey (requires Asaas IP whitelist).
+        const existing = await findExistingSubaccount(masterApiKey, baseUrl, data.cpfCnpj, data.email);
+        if (!existing?.id) {
+          logger.error("Asaas: subconta existente mas não recuperável (CNPJ e email sem resultado)", { tenantId });
+          throw new Error("ASAAS_SUBCONTA_NOT_RECOVERABLE");
+        }
+        const existingConflict = await db
+          .collection("tenants")
+          .where("asaas.subAccountId", "==", existing.id)
+          .limit(2)
+          .get();
+        if (!existingConflict.empty && existingConflict.docs.some((d) => d.id !== tenantId)) {
+          throw new Error("ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT");
+        }
+        const recoveredApiKey = await generateSubaccountApiKey(masterApiKey, baseUrl, existing.id);
+        subAccountId = existing.id;
+        apiKey = recoveredApiKey;
+        walletId = existing.walletId || "";
+        logger.info("Asaas: subconta recuperada via API", { tenantId, subAccountId });
       }
-
-      // Block if another ProOps tenant already owns this subconta
-      const conflictSnap = await db
-        .collection("tenants")
-        .where("asaas.subAccountId", "==", existing.id)
-        .limit(2)
-        .get();
-
-      if (!conflictSnap.empty && conflictSnap.docs.some((d) => d.id !== tenantId)) {
-        throw new Error("ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT");
-      }
-
-      // Generate a fresh apiKey for the existing subconta
-      const recoveredApiKey = await generateSubaccountApiKey(masterApiKey, baseUrl, existing.id);
-
-      subAccountId = existing.id;
-      apiKey = recoveredApiKey;
-      walletId = existing.walletId || "";
-      logger.info("Asaas: subconta existente recuperada", { tenantId, subAccountId });
     }
 
     // Step 2: Persist connected state with webhook in "pending" state
@@ -475,6 +487,7 @@ export class AsaasService {
     await tenantRef.update({
       asaas: asaasData,
       asaasEnabled: true,
+      _asaasReconnect: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     });
 
@@ -501,9 +514,24 @@ export class AsaasService {
     const tenantSnap = await tenantRef.get();
     if (!tenantSnap.exists) throw new Error("TENANT_NOT_FOUND");
 
+    const currentAsaas = (tenantSnap.data() as { asaas?: TenantAsaasData } | undefined)?.asaas;
+
+    // Preserve subAccountId+apiKey so reconnect with the same CNPJ/email can reuse them
+    // without needing POST /v3/accounts/accessTokens (requires IP whitelist on Asaas side)
+    const reconnectArchive =
+      currentAsaas?.subAccountId && currentAsaas?.apiKey
+        ? {
+            subAccountId: currentAsaas.subAccountId,
+            apiKey: currentAsaas.apiKey,
+            ...(currentAsaas.walletId ? { walletId: currentAsaas.walletId } : {}),
+            savedAt: new Date().toISOString(),
+          }
+        : null;
+
     await tenantRef.update({
       asaas: FieldValue.delete(),
       asaasEnabled: false,
+      ...(reconnectArchive ? { _asaasReconnect: reconnectArchive } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
 
