@@ -44,6 +44,17 @@ export interface AsaasPayoutConfig {
   enabled: boolean;
   pixAddressKey?: string;
   pixAddressKeyType?: string;
+  updatedAt?: string;
+}
+
+export interface AsaasWebhookStatus {
+  state: "registered" | "failed" | "pending";
+  attemptedAt: string;
+  lastError?: {
+    httpStatus?: number;
+    asaasErrors?: Array<{ code?: string; description?: string }>;
+    message: string;
+  };
 }
 
 export interface AsaasConnectionStatus {
@@ -51,6 +62,7 @@ export interface AsaasConnectionStatus {
   environment?: "sandbox" | "production";
   connectedAt?: string;
   accountStatus?: AsaasAccountStatus;
+  webhookStatus?: AsaasWebhookStatus;
   payout?: AsaasPayoutConfig;
 }
 
@@ -114,5 +126,9 @@ export const AsaasService = {
     enabled: boolean;
     pixAddressKey?: string;
     pixAddressKeyType?: string;
-  }): Promise<void> => callApi<void>("/v1/asaas/payout", "PUT", payload),
+  }): Promise<{ success: boolean; payout: AsaasPayoutConfig | null }> =>
+    callApi<{ success: boolean; payout: AsaasPayoutConfig | null }>("/v1/asaas/payout", "PUT", payload),
+
+  retryWebhook: (): Promise<{ webhookStatus: AsaasWebhookStatus }> =>
+    callApi<{ webhookStatus: AsaasWebhookStatus }>("/v1/asaas/webhook/retry", "POST"),
 };
