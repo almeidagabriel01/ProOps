@@ -356,18 +356,24 @@ export class AsaasService {
             logger.info("Asaas: subconta já existia, reutilizando", { tenantId, subAccountId });
             // Fall through to Step 2 (persist + register webhook)
           } else {
-            // Couldn't find it — fail normally
-            logger.error("Asaas: subconta existente mas não encontrada na listagem", { tenantId });
-            const e = new Error("ASAAS_SUBCONTA_CREATION_FAILED");
-            Object.assign(e, { _asaasBody: desc });
-            throw e;
+            // Couldn't find subconta by CNPJ. If original error was email conflict,
+            // the email likely belongs to the Asaas master account — user must use a different email.
+            const wasEmailConflict =
+              desc.asaasErrors?.some((e) => e.description?.toLowerCase().includes("em uso")) ||
+              desc.message.toLowerCase().includes("em uso");
+            logger.error("Asaas: subconta existente mas não encontrada na listagem", {
+              tenantId,
+              wasEmailConflict,
+            });
+            throw new Error(wasEmailConflict ? "ASAAS_EMAIL_IN_USE" : "ASAAS_SUBCONTA_CREATION_FAILED");
           }
         } catch (recoveryErr) {
           // If it's one of our own errors, re-throw; otherwise log and fail normally
           if (
             recoveryErr instanceof Error &&
             (recoveryErr.message === "ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT" ||
-              recoveryErr.message === "ASAAS_SUBCONTA_CREATION_FAILED")
+              recoveryErr.message === "ASAAS_SUBCONTA_CREATION_FAILED" ||
+              recoveryErr.message === "ASAAS_EMAIL_IN_USE")
           ) {
             throw recoveryErr;
           }
