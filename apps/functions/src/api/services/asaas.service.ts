@@ -82,6 +82,70 @@ export function resolveEnvironmentFromConfig(): AsaasEnvironment {
   return prodKey ? "production" : "sandbox";
 }
 
+async function findExistingSubaccount(
+  masterKey: string,
+  baseUrl: string,
+  cpfCnpj: string,
+  email: string,
+): Promise<{ id: string; walletId?: string } | null> {
+  const headers = { access_token: masterKey };
+  const cpfCnpjDigits = cpfCnpj.replace(/\D/g, "");
+
+  try {
+    const byCnpj = await axios.get<{ data?: Array<{ id: string; walletId?: string }> }>(
+      `${baseUrl}/v3/accounts?cpfCnpj=${cpfCnpjDigits}&limit=10`,
+      { headers },
+    );
+    const match = byCnpj.data?.data?.[0];
+    if (match?.id) return match;
+  } catch (err) {
+    logger.warn("asaas.findExistingSubaccount: cpfCnpj lookup failed", {
+      error: describeAsaasError(err).message,
+    });
+  }
+
+  try {
+    const byEmail = await axios.get<{ data?: Array<{ id: string; walletId?: string }> }>(
+      `${baseUrl}/v3/accounts?email=${encodeURIComponent(email)}&limit=10`,
+      { headers },
+    );
+    const match = byEmail.data?.data?.[0];
+    if (match?.id) return match;
+  } catch (err) {
+    logger.warn("asaas.findExistingSubaccount: email lookup failed", {
+      error: describeAsaasError(err).message,
+    });
+  }
+
+  return null;
+}
+
+async function generateSubaccountApiKey(
+  masterKey: string,
+  baseUrl: string,
+  subaccountId: string,
+): Promise<string> {
+  const dateLabel = new Date().toISOString().slice(0, 10);
+  const resp = await axios.post<Record<string, unknown>>(
+    `${baseUrl}/v3/accounts/${subaccountId}/accessTokens`,
+    { name: `ProOps Reconnect ${dateLabel}` },
+    { headers: { access_token: masterKey } },
+  );
+
+  const body = resp.data ?? {};
+  const token =
+    (typeof body.accessToken === "string" && body.accessToken) ||
+    (typeof body.access_token === "string" && body.access_token) ||
+    (typeof body.apiKey === "string" && body.apiKey) ||
+    (typeof body.token === "string" && body.token) ||
+    (typeof body.key === "string" && body.key);
+
+  if (!token) {
+    throw new Error("ASAAS_APIKEY_GENERATION_FAILED");
+  }
+  return token;
+}
+
 export class AsaasService {
   static getBaseUrl(environment: AsaasEnvironment): string {
     return environment === "sandbox"
@@ -325,70 +389,7 @@ export class AsaasService {
         desc.message.toLowerCase().includes("em uso") ??
         false;
 
-      if (isAlreadyExists) {
-        // Attempt to recover: look up the existing subconta by cpfCnpj
-        try {
-          const cpfCnpjDigits = data.cpfCnpj.replace(/\D/g, "");
-          const listResp = await axios.get<{
-            data: Array<{ id: string; apiKey: string; walletId?: string }>;
-          }>(`${baseUrl}/v3/accounts?cpfCnpj=${cpfCnpjDigits}`, {
-            headers: { access_token: masterApiKey },
-          });
-
-          const found = listResp.data?.data?.[0];
-          if (found?.id && found?.apiKey) {
-            // Security check: block if another tenant in Firestore already owns this subconta
-            const conflictSnap = await db
-              .collection("tenants")
-              .where("asaas.subAccountId", "==", found.id)
-              .limit(1)
-              .get();
-
-            if (!conflictSnap.empty && conflictSnap.docs[0].id !== tenantId) {
-              const e = new Error("ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT");
-              throw e;
-            }
-
-            // No conflict — reuse the existing subconta
-            subAccountId = found.id;
-            apiKey = found.apiKey;
-            walletId = found.walletId || "";
-            logger.info("Asaas: subconta já existia, reutilizando", { tenantId, subAccountId });
-            // Fall through to Step 2 (persist + register webhook)
-          } else {
-            // Couldn't find subconta by CNPJ. If original error was email conflict,
-            // the email likely belongs to the Asaas master account — user must use a different email.
-            const wasEmailConflict =
-              desc.asaasErrors?.some((e) => e.description?.toLowerCase().includes("em uso")) ||
-              desc.message.toLowerCase().includes("em uso");
-            logger.error("Asaas: subconta existente mas não encontrada na listagem", {
-              tenantId,
-              wasEmailConflict,
-            });
-            throw new Error(wasEmailConflict ? "ASAAS_EMAIL_IN_USE" : "ASAAS_SUBCONTA_CREATION_FAILED");
-          }
-        } catch (recoveryErr) {
-          // If it's one of our own errors, re-throw; otherwise log and fail normally
-          if (
-            recoveryErr instanceof Error &&
-            (recoveryErr.message === "ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT" ||
-              recoveryErr.message === "ASAAS_SUBCONTA_CREATION_FAILED" ||
-              recoveryErr.message === "ASAAS_EMAIL_IN_USE")
-          ) {
-            throw recoveryErr;
-          }
-          const recoveryDesc = describeAsaasError(recoveryErr);
-          logger.error("Asaas: falha na recuperação de subconta existente", {
-            tenantId,
-            httpStatus: recoveryDesc.httpStatus,
-            message: recoveryDesc.message,
-          });
-          const e = new Error("ASAAS_SUBCONTA_CREATION_FAILED");
-          Object.assign(e, { _asaasBody: desc });
-          throw e;
-        }
-      } else {
-        // Not an "already exists" error — fail normally
+      if (!isAlreadyExists) {
         logger.error("Asaas: falha ao criar subconta", {
           tenantId,
           environment,
@@ -400,6 +401,34 @@ export class AsaasService {
         Object.assign(e, { _asaasBody: desc });
         throw e;
       }
+
+      // Recovery: POST /v3/accounts returned a conflict — find and reuse the existing subconta
+      const existing = await findExistingSubaccount(masterApiKey, baseUrl, data.cpfCnpj, data.email);
+      if (!existing?.id) {
+        logger.error("Asaas: subconta existente mas não recuperável (CNPJ e email sem resultado)", {
+          tenantId,
+        });
+        throw new Error("ASAAS_SUBCONTA_NOT_RECOVERABLE");
+      }
+
+      // Block if another ProOps tenant already owns this subconta
+      const conflictSnap = await db
+        .collection("tenants")
+        .where("asaas.subAccountId", "==", existing.id)
+        .limit(2)
+        .get();
+
+      if (!conflictSnap.empty && conflictSnap.docs.some((d) => d.id !== tenantId)) {
+        throw new Error("ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT");
+      }
+
+      // Generate a fresh apiKey for the existing subconta
+      const recoveredApiKey = await generateSubaccountApiKey(masterApiKey, baseUrl, existing.id);
+
+      subAccountId = existing.id;
+      apiKey = recoveredApiKey;
+      walletId = existing.walletId || "";
+      logger.info("Asaas: subconta existente recuperada", { tenantId, subAccountId });
     }
 
     // Step 2: Persist connected state with webhook in "pending" state

@@ -7,6 +7,8 @@ import { db } from "../../init";
 function mapAsaasErrorStatus(error: Error): number {
   if (error.message === "TENANT_NOT_FOUND") return 404;
   if (error.message === "ASAAS_SUBCONTA_CREATION_FAILED") return 502;
+  if (error.message === "ASAAS_APIKEY_GENERATION_FAILED") return 502;
+  if (error.message === "ASAAS_SUBCONTA_NOT_RECOVERABLE") return 422;
   if (error.message === "ASAAS_EMAIL_IN_USE") return 422;
   if (error.message === "ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT") return 409;
   if (error.message === "ASAAS_MASTER_KEY_NOT_CONFIGURED") return 500;
@@ -122,15 +124,24 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
         tenantId: req.user?.tenantId,
       });
     }
-    if (err.message === "ASAAS_EMAIL_IN_USE") {
+    if (err.message === "ASAAS_SUBCONTA_NOT_RECOVERABLE") {
       res.status(422).json({
-        message: "Este email já está em uso no Asaas. Use um email diferente para criar a subconta.",
+        message:
+          "Este email/CNPJ já está cadastrado no Asaas mas não foi possível recuperar a subconta. Use credenciais diferentes ou contate o suporte.",
+      });
+      return;
+    }
+    if (err.message === "ASAAS_APIKEY_GENERATION_FAILED") {
+      res.status(502).json({
+        message:
+          "Não foi possível gerar uma nova chave de API para a subconta existente. Verifique se a permissão SUB_ACCOUNT:WRITE está habilitada no painel Asaas.",
       });
       return;
     }
     if (err.message === "ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT") {
       res.status(409).json({
-        message: "Este CNPJ/CPF já está vinculado a outra conta. Contate o suporte.",
+        message:
+          "Este email/CNPJ já está vinculado a outra conta ProOps. Cada empresa Asaas só pode ser usada por uma conta ProOps.",
       });
       return;
     }
