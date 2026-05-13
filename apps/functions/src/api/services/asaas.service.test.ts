@@ -418,6 +418,58 @@ describe("AsaasService.onboardTenant", () => {
     expect(docRef.update).not.toHaveBeenCalled();
   });
 
+  it("reuses existing subconta when Asaas rejects with 'email em uso' (email already in use)", async () => {
+    const { ref: docRef } = makeDocRef({ name: "Tenant" });
+
+    const conflictQuery = {
+      where: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
+    };
+
+    (mockedDb.collection as jest.Mock).mockImplementation((col: string) => {
+      if (col === "tenants") {
+        return {
+          doc: jest.fn().mockReturnValue(docRef),
+          where: conflictQuery.where,
+          limit: conflictQuery.limit,
+          get: conflictQuery.get,
+        };
+      }
+      return makeCollection(docRef);
+    });
+
+    // POST /v3/accounts returns email-already-in-use error
+    mockedAxios.post = jest.fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Asaas error"), {
+          response: {
+            status: 400,
+            data: { errors: [{ code: "invalid.email.alreadyInUse", description: "O email test@example.com já está em uso." }] },
+          },
+        }),
+      )
+      .mockResolvedValueOnce({ data: { id: "wh-email-reuse" } });
+
+    mockedAxios.get = jest.fn()
+      .mockResolvedValueOnce({
+        data: { data: [{ id: "acc_email_existing", apiKey: "$aact_email_key", walletId: "wlt_email" }] },
+      })
+      .mockResolvedValueOnce({ data: { data: [] } });
+
+    await AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA);
+
+    expect(docRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        asaasEnabled: true,
+        asaas: expect.objectContaining({
+          apiKey: "$aact_email_key",
+          subAccountId: "acc_email_existing",
+        }),
+      }),
+    );
+  });
+
   it("throws ASAAS_SUBCONTA_CREATION_FAILED on non-already-exists Asaas error (no regression)", async () => {
     const { ref: docRef } = makeDocRef({ name: "Tenant" });
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));

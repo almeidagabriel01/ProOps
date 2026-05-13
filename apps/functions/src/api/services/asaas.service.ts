@@ -310,13 +310,20 @@ export class AsaasService {
       const desc = describeAsaasError(err);
 
       // Check if Asaas rejected because the subconta already exists
+      // Asaas returns different messages for duplicate CNPJ vs duplicate email:
+      // - CNPJ conflict: description contains "já existe" / "already exists"
+      // - Email conflict: description contains "já está em uso" / "em uso"
+      // Both are recovered the same way: look up the existing subconta by CNPJ.
       const isAlreadyExists =
         desc.asaasErrors?.some(
           (e) =>
             e.code?.toLowerCase().includes("alread") ||
             e.description?.toLowerCase().includes("já existe") ||
-            e.description?.toLowerCase().includes("already"),
-        ) ?? false;
+            e.description?.toLowerCase().includes("already") ||
+            e.description?.toLowerCase().includes("em uso"),
+        ) ??
+        desc.message.toLowerCase().includes("em uso") ??
+        false;
 
       if (isAlreadyExists) {
         // Attempt to recover: look up the existing subconta by cpfCnpj
