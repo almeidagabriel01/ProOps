@@ -759,8 +759,9 @@ export class TransactionPaymentService {
       try {
         await processAsaasPaymentLocally(tenantId, paymentId, externalReference, value);
       } catch (localProcessErr) {
-        // Non-fatal: the real webhook may still arrive in deployed environments
-        logger.warn("simulateSandboxPayment: local payment processing failed (non-fatal)", {
+        // Non-fatal: the real webhook may still arrive in deployed environments.
+        // Log as error so failures are visible in GCP Cloud Logging / Sentry.
+        logger.error("simulateSandboxPayment: local payment processing failed", {
           tenantId,
           paymentId,
           error: localProcessErr instanceof Error ? localProcessErr.message : String(localProcessErr),

@@ -183,6 +183,7 @@ export class AsaasService {
         events: [
           "PAYMENT_RECEIVED",
           "PAYMENT_CONFIRMED",
+          "PAYMENT_RECEIVED_IN_CASH",
           "PAYMENT_OVERDUE",
           "PAYMENT_DELETED",
         ],
