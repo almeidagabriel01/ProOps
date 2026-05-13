@@ -287,6 +287,160 @@ describe("AsaasService.onboardTenant", () => {
     );
   });
 
+  it("reuses existing subconta when Asaas rejects with 'already exists' and no conflict", async () => {
+    const { ref: docRef } = makeDocRef({ name: "Tenant" });
+
+    // Simulate the conflict-check query returning no docs (no other tenant owns this subconta)
+    const conflictQuery = {
+      where: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
+    };
+
+    (mockedDb.collection as jest.Mock).mockImplementation((col: string) => {
+      if (col === "tenants") {
+        return {
+          doc: jest.fn().mockReturnValue(docRef),
+          where: conflictQuery.where,
+          limit: conflictQuery.limit,
+          get: conflictQuery.get,
+        };
+      }
+      return makeCollection(docRef);
+    });
+
+    // POST /v3/accounts returns "already exists"
+    mockedAxios.post = jest.fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Asaas error"), {
+          response: {
+            status: 400,
+            data: { errors: [{ code: "invalid.cpfCnpj.alreadyExists", description: "já existe" }] },
+          },
+        }),
+      )
+      // Second POST: webhook registration
+      .mockResolvedValueOnce({ data: { id: "wh-reuse" } });
+
+    // GET /v3/accounts?cpfCnpj=... returns the existing subconta
+    mockedAxios.get = jest.fn()
+      .mockResolvedValueOnce({
+        data: { data: [{ id: "acc_existing", apiKey: "$aact_existing_key", walletId: "wlt_existing" }] },
+      })
+      // Reconcile webhooks GET
+      .mockResolvedValueOnce({ data: { data: [] } });
+
+    await AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA);
+
+    // Must persist the reused subconta
+    expect(docRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        asaasEnabled: true,
+        asaas: expect.objectContaining({
+          apiKey: "$aact_existing_key",
+          subAccountId: "acc_existing",
+          walletId: "wlt_existing",
+        }),
+      }),
+    );
+  });
+
+  it("throws ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT when existing subconta belongs to a different tenant", async () => {
+    const { ref: docRef } = makeDocRef({ name: "Tenant" });
+
+    // Conflict query returns a doc owned by a DIFFERENT tenant
+    const conflictQuery = {
+      where: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      get: jest.fn().mockResolvedValue({
+        empty: false,
+        docs: [{ id: "other_tenant_id" }],
+      }),
+    };
+
+    (mockedDb.collection as jest.Mock).mockImplementation((col: string) => {
+      if (col === "tenants") {
+        return {
+          doc: jest.fn().mockReturnValue(docRef),
+          where: conflictQuery.where,
+          limit: conflictQuery.limit,
+          get: conflictQuery.get,
+        };
+      }
+      return makeCollection(docRef);
+    });
+
+    // POST /v3/accounts returns "already exists"
+    mockedAxios.post = jest.fn().mockRejectedValueOnce(
+      Object.assign(new Error("Asaas error"), {
+        response: {
+          status: 400,
+          data: { errors: [{ code: "invalid.cpfCnpj.alreadyExists", description: "já existe" }] },
+        },
+      }),
+    );
+
+    // GET /v3/accounts?cpfCnpj=... returns the existing subconta (owned by other_tenant_id)
+    mockedAxios.get = jest.fn().mockResolvedValueOnce({
+      data: { data: [{ id: "acc_existing", apiKey: "$aact_existing_key" }] },
+    });
+
+    await expect(
+      AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA),
+    ).rejects.toThrow("ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT");
+
+    expect(docRef.update).not.toHaveBeenCalled();
+  });
+
+  it("throws ASAAS_SUBCONTA_CREATION_FAILED when already-exists but listing returns empty", async () => {
+    const { ref: docRef } = makeDocRef({ name: "Tenant" });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    // POST /v3/accounts returns "already exists"
+    mockedAxios.post = jest.fn().mockRejectedValueOnce(
+      Object.assign(new Error("Asaas error"), {
+        response: {
+          status: 400,
+          data: { errors: [{ code: "invalid.cpfCnpj.alreadyExists", description: "já existe" }] },
+        },
+      }),
+    );
+
+    // GET /v3/accounts?cpfCnpj=... returns empty
+    mockedAxios.get = jest.fn().mockResolvedValueOnce({
+      data: { data: [] },
+    });
+
+    await expect(
+      AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA),
+    ).rejects.toThrow("ASAAS_SUBCONTA_CREATION_FAILED");
+
+    expect(docRef.update).not.toHaveBeenCalled();
+  });
+
+  it("throws ASAAS_SUBCONTA_CREATION_FAILED on non-already-exists Asaas error (no regression)", async () => {
+    const { ref: docRef } = makeDocRef({ name: "Tenant" });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    // POST /v3/accounts returns a generic Asaas error (not "already exists")
+    mockedAxios.post = jest.fn().mockRejectedValueOnce(
+      Object.assign(new Error("Asaas error"), {
+        response: {
+          status: 400,
+          data: { errors: [{ code: "invalid.email", description: "E-mail inválido" }] },
+        },
+      }),
+    );
+
+    await expect(
+      AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA),
+    ).rejects.toThrow("ASAAS_SUBCONTA_CREATION_FAILED");
+
+    // Must NOT call GET /v3/accounts (no recovery attempt)
+    expect(mockedAxios.get).not.toHaveBeenCalled();
+    expect(docRef.update).not.toHaveBeenCalled();
+  });
+
   it("persists subconta even when webhook registration fails — state=failed saved", async () => {
     const { ref: docRef } = makeDocRef({ name: "Tenant" });
     (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));

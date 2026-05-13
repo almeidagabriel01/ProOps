@@ -308,16 +308,85 @@ export class AsaasService {
       walletId = response.data.walletId || "";
     } catch (err) {
       const desc = describeAsaasError(err);
-      logger.error("Asaas: falha ao criar subconta", {
-        tenantId,
-        environment,
-        httpStatus: desc.httpStatus,
-        asaasErrors: desc.asaasErrors,
-        message: desc.message,
-      });
-      const e = new Error("ASAAS_SUBCONTA_CREATION_FAILED");
-      Object.assign(e, { _asaasBody: desc });
-      throw e;
+
+      // Check if Asaas rejected because the subconta already exists
+      const isAlreadyExists =
+        desc.asaasErrors?.some(
+          (e) =>
+            e.code?.toLowerCase().includes("alread") ||
+            e.description?.toLowerCase().includes("já existe") ||
+            e.description?.toLowerCase().includes("already"),
+        ) ?? false;
+
+      if (isAlreadyExists) {
+        // Attempt to recover: look up the existing subconta by cpfCnpj
+        try {
+          const cpfCnpjDigits = data.cpfCnpj.replace(/\D/g, "");
+          const listResp = await axios.get<{
+            data: Array<{ id: string; apiKey: string; walletId?: string }>;
+          }>(`${baseUrl}/v3/accounts?cpfCnpj=${cpfCnpjDigits}`, {
+            headers: { access_token: masterApiKey },
+          });
+
+          const found = listResp.data?.data?.[0];
+          if (found?.id && found?.apiKey) {
+            // Security check: block if another tenant in Firestore already owns this subconta
+            const conflictSnap = await db
+              .collection("tenants")
+              .where("asaas.subAccountId", "==", found.id)
+              .limit(1)
+              .get();
+
+            if (!conflictSnap.empty && conflictSnap.docs[0].id !== tenantId) {
+              const e = new Error("ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT");
+              throw e;
+            }
+
+            // No conflict — reuse the existing subconta
+            subAccountId = found.id;
+            apiKey = found.apiKey;
+            walletId = found.walletId || "";
+            logger.info("Asaas: subconta já existia, reutilizando", { tenantId, subAccountId });
+            // Fall through to Step 2 (persist + register webhook)
+          } else {
+            // Couldn't find it — fail normally
+            logger.error("Asaas: subconta existente mas não encontrada na listagem", { tenantId });
+            const e = new Error("ASAAS_SUBCONTA_CREATION_FAILED");
+            Object.assign(e, { _asaasBody: desc });
+            throw e;
+          }
+        } catch (recoveryErr) {
+          // If it's one of our own errors, re-throw; otherwise log and fail normally
+          if (
+            recoveryErr instanceof Error &&
+            (recoveryErr.message === "ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT" ||
+              recoveryErr.message === "ASAAS_SUBCONTA_CREATION_FAILED")
+          ) {
+            throw recoveryErr;
+          }
+          const recoveryDesc = describeAsaasError(recoveryErr);
+          logger.error("Asaas: falha na recuperação de subconta existente", {
+            tenantId,
+            httpStatus: recoveryDesc.httpStatus,
+            message: recoveryDesc.message,
+          });
+          const e = new Error("ASAAS_SUBCONTA_CREATION_FAILED");
+          Object.assign(e, { _asaasBody: desc });
+          throw e;
+        }
+      } else {
+        // Not an "already exists" error — fail normally
+        logger.error("Asaas: falha ao criar subconta", {
+          tenantId,
+          environment,
+          httpStatus: desc.httpStatus,
+          asaasErrors: desc.asaasErrors,
+          message: desc.message,
+        });
+        const e = new Error("ASAAS_SUBCONTA_CREATION_FAILED");
+        Object.assign(e, { _asaasBody: desc });
+        throw e;
+      }
     }
 
     // Step 2: Persist connected state with webhook in "pending" state

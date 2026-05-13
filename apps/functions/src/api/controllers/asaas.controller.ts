@@ -7,6 +7,7 @@ import { db } from "../../init";
 function mapAsaasErrorStatus(error: Error): number {
   if (error.message === "TENANT_NOT_FOUND") return 404;
   if (error.message === "ASAAS_SUBCONTA_CREATION_FAILED") return 502;
+  if (error.message === "ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT") return 409;
   if (error.message === "ASAAS_MASTER_KEY_NOT_CONFIGURED") return 500;
   if (error.message === "ASAAS_NOT_CONNECTED") return 422;
   if (
@@ -119,6 +120,12 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
         uid: req.user?.uid,
         tenantId: req.user?.tenantId,
       });
+    }
+    if (err.message === "ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT") {
+      res.status(409).json({
+        message: "Este CNPJ/CPF já está vinculado a outra conta. Contate o suporte.",
+      });
+      return;
     }
     if (err.message === "ASAAS_SUBCONTA_CREATION_FAILED") {
       const body = (err as unknown as Record<string, unknown>)._asaasBody as
