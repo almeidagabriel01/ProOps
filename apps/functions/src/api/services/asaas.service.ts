@@ -120,9 +120,8 @@ async function findExistingSubaccount(
   return null;
 }
 
-// Asaas accessTokens flow (two steps):
-// 1. POST /v3/accounts/{id}/accessTokens  → creates token disabled, returns { id }
-// 2. PUT  /v3/accounts/{id}/accessTokens/{tokenId} → enables token, returns { key }
+// Asaas accessTokens: POST /v3/accounts/{id}/accessTokens creates the token
+// already enabled and returns { id, apiKey, enabled: true } in a single call.
 async function generateSubaccountApiKey(
   masterKey: string,
   baseUrl: string,
@@ -132,40 +131,19 @@ async function generateSubaccountApiKey(
   const tokenName = `ProOps Reconnect ${dateLabel}`;
   const headers = { access_token: masterKey };
 
-  let tokenId: string;
   try {
-    const createResp = await axios.post<{ id?: string }>(
+    const createResp = await axios.post<{ id?: string; apiKey?: string }>(
       `${baseUrl}/v3/accounts/${subaccountId}/accessTokens`,
       { name: tokenName },
       { headers },
     );
-    tokenId = createResp.data?.id ?? "";
-    if (!tokenId) throw new Error("no id in response");
+    const key = createResp.data?.apiKey ?? "";
+    if (!key) throw new Error("no apiKey in POST response");
+    return key;
   } catch (err) {
     const desc = describeAsaasError(err);
     logger.error("asaas.generateSubaccountApiKey: POST accessTokens failed", {
       subaccountId,
-      httpStatus: desc.httpStatus,
-      asaasErrors: desc.asaasErrors,
-      message: desc.message,
-    });
-    throw new Error("ASAAS_APIKEY_GENERATION_FAILED");
-  }
-
-  try {
-    const enableResp = await axios.put<{ key?: string }>(
-      `${baseUrl}/v3/accounts/${subaccountId}/accessTokens/${tokenId}`,
-      { name: tokenName, enabled: true },
-      { headers },
-    );
-    const key = enableResp.data?.key;
-    if (!key) throw new Error("no key in response");
-    return key;
-  } catch (err) {
-    const desc = describeAsaasError(err);
-    logger.error("asaas.generateSubaccountApiKey: PUT accessTokens failed", {
-      subaccountId,
-      tokenId,
       httpStatus: desc.httpStatus,
       asaasErrors: desc.asaasErrors,
       message: desc.message,
