@@ -73,13 +73,16 @@ export type PaymentResult = PixPaymentResult | BoletoPaymentResult;
 const SHARED_TRANSACTIONS_COLLECTION = "shared_transactions";
 const PAYMENT_ATTEMPTS_COLLECTION = "payment_attempts";
 
-function mapAsaasStatus(
+export function mapAsaasStatus(
   asaasStatus: string,
 ): "awaiting" | "pending" | "approved" | "rejected" | "refunded" | "cancelled" {
   switch (asaasStatus) {
     case "RECEIVED":
     case "CONFIRMED":
+    case "RECEIVED_IN_CASH":
       return "approved";
+    case "RECEIVED_IN_CASH_UNDONE":
+      return "pending";
     case "PENDING":
     case "AWAITING_RISK_ANALYSIS":
       return "pending";
@@ -634,6 +637,29 @@ export class TransactionPaymentService {
 
     if (attemptsSnap.empty) {
       throw new Error("PAYMENT_NOT_FOUND");
+    }
+
+    const attemptData = attemptsSnap.docs[0].data() as {
+      status?: string;
+      processedAt?: string;
+      transactionId?: string;
+    };
+
+    if (attemptData.status === "completed") {
+      return {
+        paymentId,
+        status: "approved",
+        amount: 0,
+        paidAt: attemptData.processedAt ?? undefined,
+      };
+    }
+
+    if (attemptData.status === "failed") {
+      return {
+        paymentId,
+        status: "rejected",
+        amount: 0,
+      };
     }
 
     const asaasData = await AsaasService.getAsaasData(tenantId);

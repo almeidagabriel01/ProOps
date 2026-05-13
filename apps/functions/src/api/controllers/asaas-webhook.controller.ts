@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
@@ -11,7 +12,11 @@ const WEBHOOK_EVENTS_COLLECTION = "webhookEvents";
 const PROCESSING_STUCK_WINDOW_MS = 5 * 60 * 1000; // 5 min
 
 // Relevant Asaas payment events that indicate a successful payment
-const PAYMENT_SUCCESS_EVENTS = new Set(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]);
+const PAYMENT_SUCCESS_EVENTS = new Set([
+  "PAYMENT_RECEIVED",
+  "PAYMENT_CONFIRMED",
+  "PAYMENT_RECEIVED_IN_CASH",
+]);
 
 interface AsaasWebhookPayload {
   event?: string;
@@ -312,7 +317,23 @@ export const handleAsaasWebhook = async (req: Request, res: Response): Promise<v
     const authCheck = tenantDataRecord as { asaas?: { webhookAuthToken?: string } };
     const storedToken = authCheck.asaas?.webhookAuthToken;
 
-    if (!storedToken || !providedToken || providedToken !== storedToken) {
+    if (!storedToken || !providedToken) {
+      logger.warn("Asaas webhook: invalid auth token", {
+        tenantId,
+        event,
+        hasProvidedToken: !!providedToken,
+        hasStoredToken: !!storedToken,
+      });
+      // Return 200 to avoid retry loops — auth failure is permanent
+      res.status(200).send("OK");
+      return;
+    }
+    const providedBuf = Buffer.from(providedToken, "utf-8");
+    const storedBuf = Buffer.from(storedToken, "utf-8");
+    if (
+      providedBuf.length !== storedBuf.length ||
+      !crypto.timingSafeEqual(providedBuf, storedBuf)
+    ) {
       logger.warn("Asaas webhook: invalid auth token", {
         tenantId,
         event,
