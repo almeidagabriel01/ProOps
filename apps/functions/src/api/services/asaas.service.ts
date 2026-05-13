@@ -217,10 +217,18 @@ export class AsaasService {
     } catch (err) {
       const desc = describeAsaasError(err);
 
+      // Sanitize: if there is no httpStatus the error is a raw Node.js network
+      // error (e.g. "connect ETIMEDOUT"). Replace the message with a generic
+      // string so internal network details are never stored / returned to tenants.
+      const safeDesc =
+        desc.httpStatus === undefined
+          ? { ...desc, message: "Falha de comunicação com o Asaas" }
+          : desc;
+
       const webhookStatus: TenantAsaasData["webhookStatus"] = {
         state: "failed",
         attemptedAt: new Date().toISOString(),
-        lastError: desc,
+        lastError: safeDesc,
       };
 
       await tenantRef.update({ "asaas.webhookStatus": webhookStatus });

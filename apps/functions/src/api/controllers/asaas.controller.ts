@@ -312,20 +312,24 @@ export const updateAsaasPayout = async (req: Request, res: Response): Promise<vo
     const tenantRef = db.collection("tenants").doc(tenantId);
 
     if (enabled) {
+      const resolvedKeyType = pixAddressKeyType as "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "RANDOM_KEY";
+      const cleanedKey =
+        resolvedKeyType === "CPF" || resolvedKeyType === "CNPJ" || resolvedKeyType === "PHONE"
+          ? String(pixAddressKey).trim().replace(/\D/g, "")
+          : String(pixAddressKey).trim();
+
       await tenantRef.update({
         "asaas.payout": {
           enabled: true,
-          pixAddressKey: String(pixAddressKey).trim(),
-          pixAddressKeyType: pixAddressKeyType as string,
+          pixAddressKey: cleanedKey,
+          pixAddressKeyType: resolvedKeyType,
           updatedAt: new Date().toISOString(),
         },
       });
     } else {
       await tenantRef.update({
-        "asaas.payout": {
-          enabled: false,
-          updatedAt: new Date().toISOString(),
-        },
+        "asaas.payout.enabled": false,
+        "asaas.payout.updatedAt": new Date().toISOString(),
       });
     }
 
