@@ -153,6 +153,18 @@ export function PixQrCodeView({
     try {
       setIsSimulating(true);
       await PaymentService.simulateSandboxPayment(token, paymentId);
+      // Immediately check status — after backend processes locally, Firestore is already updated
+      try {
+        const result = await PaymentService.getPaymentStatus(token, paymentId);
+        if (result.status === "approved") {
+          stopPolling();
+          setPaymentStatus("approved");
+          onPaymentApproved();
+          return;
+        }
+      } catch {
+        // Ignore — let polling handle it
+      }
       toast.success("Pagamento simulado! Aguarde a confirmação...");
     } catch {
       toast.error("Erro ao simular pagamento. Tente novamente.");

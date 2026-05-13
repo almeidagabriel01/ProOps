@@ -252,3 +252,129 @@ describe("handleAsaasWebhook — payout transfer wiring", () => {
     expect(mockSchedulePayoutTransfer).not.toHaveBeenCalled();
   });
 });
+
+// ── timing-safe auth ──────────────────────────────────────────────────────────
+
+describe("handleAsaasWebhook — timing-safe auth token check", () => {
+  function setupDbWithToken(storedToken: string) {
+    const tenantDoc = makeDocMock({
+      asaas: { apiKey: "sub-key", environment: "sandbox", webhookAuthToken: storedToken },
+    });
+    (db.collection as jest.Mock).mockImplementation((name: string) => {
+      if (name === "tenants") return makeColMock(tenantDoc);
+      return makeColMock(makeDocMock({}));
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test("returns 200 OK and does NOT process when auth header is missing", async () => {
+    setupDbWithToken("correct-token");
+    const req = {
+      params: { tenantId: "tenant-1" },
+      headers: {},  // no asaas-access-token
+      body: { event: "PAYMENT_RECEIVED", payment: { id: "pay-1", externalReference: "tx-1:attempt-1", value: 100 } },
+    } as unknown as import("express").Request;
+    const res = makeRes();
+
+    await handleAsaasWebhook(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mockSchedulePayoutTransfer).not.toHaveBeenCalled();
+  });
+
+  test("returns 200 OK and does NOT process when token is wrong (same length)", async () => {
+    setupDbWithToken("aaaaaaaaaaaaaaa");
+    const req = {
+      params: { tenantId: "tenant-1" },
+      headers: { "asaas-access-token": "bbbbbbbbbbbbbbb" },  // same length, different content
+      body: { event: "PAYMENT_RECEIVED", payment: { id: "pay-1", externalReference: "tx-1:attempt-1", value: 100 } },
+    } as unknown as import("express").Request;
+    const res = makeRes();
+
+    await handleAsaasWebhook(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mockSchedulePayoutTransfer).not.toHaveBeenCalled();
+  });
+
+  test("returns 200 OK and does NOT process when token length differs", async () => {
+    setupDbWithToken("short");
+    const req = {
+      params: { tenantId: "tenant-1" },
+      headers: { "asaas-access-token": "short-but-longer" },
+      body: { event: "PAYMENT_RECEIVED", payment: { id: "pay-1", externalReference: "tx-1:attempt-1", value: 100 } },
+    } as unknown as import("express").Request;
+    const res = makeRes();
+
+    await handleAsaasWebhook(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mockSchedulePayoutTransfer).not.toHaveBeenCalled();
+  });
+});
+
+// ── PAYMENT_RECEIVED_IN_CASH event ────────────────────────────────────────────
+
+describe("handleAsaasWebhook — PAYMENT_RECEIVED_IN_CASH triggers handlePaymentSuccess", () => {
+  const mockRunTransaction = db.runTransaction as jest.Mock;
+
+  function setupDbForCashReceived() {
+    const tenantDoc = makeDocMock(TENANT_WITHOUT_PAYOUT);
+    const webhookEventsDoc = makeDocMock({ status: "done" }, false);
+    const txDoc = makeDocMock(TRANSACTION_DATA);
+    const attemptDoc = makeDocMock(PAYMENT_ATTEMPT_DATA);
+    const notifCol = { add: jest.fn().mockResolvedValue({ id: "notif-1" }) };
+
+    mockRunTransaction
+      .mockResolvedValueOnce("process")
+      .mockImplementationOnce(async (fn: (t: unknown) => Promise<void>) => {
+        const t = {
+          get: jest.fn()
+            .mockResolvedValueOnce(txDoc)
+            .mockResolvedValueOnce(attemptDoc),
+          update: jest.fn(),
+          set: jest.fn(),
+        };
+        await fn(t);
+      });
+
+    (db.collection as jest.Mock).mockImplementation((name: string) => {
+      if (name === "tenants") return makeColMock(tenantDoc);
+      if (name === "webhookEvents") return makeColMock(webhookEventsDoc);
+      if (name === "transactions") return makeColMock(txDoc);
+      if (name === "payment_attempts") return makeColMock(attemptDoc);
+      if (name === "notifications") return notifCol;
+      return makeColMock(makeDocMock({}));
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (require("../../../lib/finance-helpers") as { resolveWalletRef: jest.Mock }).resolveWalletRef
+      .mockResolvedValue({ ref: { update: jest.fn().mockResolvedValue(undefined) }, walletId: "wallet-1" });
+  });
+
+  test("PAYMENT_RECEIVED_IN_CASH processes payment (calls runTransaction twice)", async () => {
+    setupDbForCashReceived();
+
+    const req = makeReq({
+      event: "PAYMENT_RECEIVED_IN_CASH",
+      payment: {
+        id: "pay-1",
+        externalReference: "tx-1:attempt-1",
+        netValue: 94.51,
+        value: 100,
+      },
+    });
+    const res = makeRes();
+
+    await handleAsaasWebhook(req, res);
+
+    // Two runTransaction calls: idempotency gate + handlePaymentSuccess
+    expect(mockRunTransaction).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+});

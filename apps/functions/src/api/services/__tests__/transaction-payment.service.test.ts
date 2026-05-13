@@ -37,7 +37,7 @@ jest.mock("axios", () => {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const axiosMock = require("axios") as { post: jest.Mock; get: jest.Mock };
 
-import { TransactionPaymentService, AsaasAccountNotApprovedError } from "../transaction-payment.service";
+import { TransactionPaymentService, AsaasAccountNotApprovedError, mapAsaasStatus } from "../transaction-payment.service";
 import { AsaasService } from "../asaas.service";
 import { db } from "../../../init";
 
@@ -362,5 +362,129 @@ describe("TransactionPaymentService.createPayment — subconta approval guard", 
     expect(result.method).toBe("pix");
     // 2 POST calls: customer creation + PIX payment creation
     expect(axiosPost).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ── mapAsaasStatus ────────────────────────────────────────────────────────────
+
+describe("mapAsaasStatus", () => {
+  const approved = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"] as const;
+  const pending = ["PENDING", "AWAITING_RISK_ANALYSIS", "OVERDUE", "RECEIVED_IN_CASH_UNDONE"] as const;
+  const refunded = ["REFUNDED", "CHARGEBACK_REQUESTED", "CHARGEBACK_DISPUTE", "AWAITING_CHARGEBACK_REVERSAL", "DUNNING_REQUESTED", "DUNNING_RECEIVED"] as const;
+  const cancelled = ["DELETED", "RESTORED"] as const;
+
+  test.each(approved)("%s → approved", (s) => {
+    expect(mapAsaasStatus(s)).toBe("approved");
+  });
+
+  test.each(pending)("%s → pending", (s) => {
+    expect(mapAsaasStatus(s)).toBe("pending");
+  });
+
+  test.each(refunded)("%s → refunded", (s) => {
+    expect(mapAsaasStatus(s)).toBe("refunded");
+  });
+
+  test.each(cancelled)("%s → cancelled", (s) => {
+    expect(mapAsaasStatus(s)).toBe("cancelled");
+  });
+
+  test("unknown status → awaiting (default)", () => {
+    expect(mapAsaasStatus("SOME_FUTURE_STATUS")).toBe("awaiting");
+  });
+});
+
+// ── getPaymentStatus — Firestore-first ───────────────────────────────────────
+
+describe("TransactionPaymentService.getPaymentStatus — Firestore-first paths", () => {
+  const mockGetAsaasData = jest.spyOn(AsaasService, "getAsaasData");
+  const axiosGet = axiosMock.get;
+
+  function setupSharedLinkAndAttempt(attemptStatus: string, extra: Record<string, unknown> = {}) {
+    const sharedLinkSnap = {
+      empty: false,
+      docs: [{ id: "link-1", data: () => ({ transactionId: "tx-1", tenantId: "tenant-1", expiresAt: null }) }],
+    };
+    const attemptSnap = {
+      empty: false,
+      docs: [{ data: () => ({ status: attemptStatus, processedAt: "2026-05-13T10:00:00Z", tenantId: "tenant-1", ...extra }) }],
+    };
+
+    const sharedLinkCol = makeMockCollection();
+    sharedLinkCol.get.mockResolvedValue(sharedLinkSnap);
+
+    const attemptsCol = makeMockCollection();
+    attemptsCol.get.mockResolvedValue(attemptSnap);
+
+    (db.collection as jest.Mock).mockImplementation((name: string) => {
+      if (name === "shared_transactions") return sharedLinkCol;
+      if (name === "payment_attempts") return attemptsCol;
+      return makeMockCollection();
+    });
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test("returns approved immediately when attempt.status === completed — no Asaas API call", async () => {
+    setupSharedLinkAndAttempt("completed");
+
+    const result = await TransactionPaymentService.getPaymentStatus("tok", "pay-1");
+
+    expect(result.status).toBe("approved");
+    expect(result.paidAt).toBe("2026-05-13T10:00:00Z");
+    expect(axiosGet).not.toHaveBeenCalled();
+  });
+
+  test("returns rejected immediately when attempt.status === failed — no Asaas API call", async () => {
+    setupSharedLinkAndAttempt("failed");
+
+    const result = await TransactionPaymentService.getPaymentStatus("tok", "pay-1");
+
+    expect(result.status).toBe("rejected");
+    expect(axiosGet).not.toHaveBeenCalled();
+  });
+
+  test("falls back to Asaas API when attempt is still pending — maps RECEIVED_IN_CASH to approved", async () => {
+    setupSharedLinkAndAttempt("initiated");
+    mockGetAsaasData.mockResolvedValue({
+      apiKey: "test-key",
+      subAccountId: "sub-1",
+      environment: "sandbox" as const,
+      walletId: "wallet-1",
+      connectedAt: "2026-01-01T00:00:00Z",
+      webhookUrl: "https://example.com/webhook",
+      webhookAuthToken: "token",
+    });
+    axiosGet.mockResolvedValueOnce({
+      data: { id: "pay-1", status: "RECEIVED_IN_CASH", value: 100 },
+    });
+
+    const result = await TransactionPaymentService.getPaymentStatus("tok", "pay-1");
+
+    expect(result.status).toBe("approved");
+    expect(axiosGet).toHaveBeenCalledTimes(1);
+  });
+
+  test("throws PAYMENT_NOT_FOUND when no attempt exists", async () => {
+    const sharedLinkSnap = {
+      empty: false,
+      docs: [{ id: "link-1", data: () => ({ transactionId: "tx-1", tenantId: "tenant-1", expiresAt: null }) }],
+    };
+    const emptyAttemptSnap = { empty: true, docs: [] };
+
+    const sharedLinkCol = makeMockCollection();
+    sharedLinkCol.get.mockResolvedValue(sharedLinkSnap);
+    const attemptsCol = makeMockCollection();
+    attemptsCol.get.mockResolvedValue(emptyAttemptSnap);
+
+    (db.collection as jest.Mock).mockImplementation((name: string) => {
+      if (name === "shared_transactions") return sharedLinkCol;
+      if (name === "payment_attempts") return attemptsCol;
+      return makeMockCollection();
+    });
+
+    await expect(TransactionPaymentService.getPaymentStatus("tok", "pay-1")).rejects.toThrow("PAYMENT_NOT_FOUND");
   });
 });
