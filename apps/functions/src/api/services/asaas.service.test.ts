@@ -309,7 +309,7 @@ describe("AsaasService.onboardTenant", () => {
       return makeCollection(docRef);
     });
 
-    // POST /v3/accounts returns "already exists"; POST accessTokens returns new key; POST webhook
+    // POST /v3/accounts → conflict; POST accessTokens → token id; POST webhook
     mockedAxios.post = jest.fn()
       .mockRejectedValueOnce(
         Object.assign(new Error("Asaas error"), {
@@ -319,8 +319,12 @@ describe("AsaasService.onboardTenant", () => {
           },
         }),
       )
-      .mockResolvedValueOnce({ data: { accessToken: "$aact_recovered_key" } }) // accessTokens
+      .mockResolvedValueOnce({ data: { id: "tk_reuse_123", enabled: false } }) // accessTokens POST
       .mockResolvedValueOnce({ data: { id: "wh-reuse" } }); // webhook registration
+
+    // PUT accessTokens → enables token, returns key
+    mockedAxios.put = jest.fn()
+      .mockResolvedValueOnce({ data: { key: "$aact_recovered_key", enabled: true } });
 
     // GET /v3/accounts?cpfCnpj=... returns existing subconta (no apiKey — matches real Asaas API)
     mockedAxios.get = jest.fn()
@@ -437,7 +441,7 @@ describe("AsaasService.onboardTenant", () => {
       return makeCollection(docRef);
     });
 
-    // POST /v3/accounts → email conflict; POST accessTokens → new key; POST webhook
+    // POST /v3/accounts → email conflict; POST accessTokens → token id; POST webhook
     mockedAxios.post = jest.fn()
       .mockRejectedValueOnce(
         Object.assign(new Error("Asaas error"), {
@@ -447,8 +451,12 @@ describe("AsaasService.onboardTenant", () => {
           },
         }),
       )
-      .mockResolvedValueOnce({ data: { accessToken: "$aact_email_recovered" } }) // accessTokens
+      .mockResolvedValueOnce({ data: { id: "tk_email_123", enabled: false } }) // accessTokens POST
       .mockResolvedValueOnce({ data: { id: "wh-email-reuse" } }); // webhook
+
+    // PUT accessTokens → enables token, returns key
+    mockedAxios.put = jest.fn()
+      .mockResolvedValueOnce({ data: { key: "$aact_email_recovered", enabled: true } });
 
     // GET by CNPJ finds the subconta (no apiKey — matches real Asaas API)
     mockedAxios.get = jest.fn()
@@ -492,7 +500,7 @@ describe("AsaasService.onboardTenant", () => {
       return makeCollection(docRef);
     });
 
-    // POST /v3/accounts → conflict; POST accessTokens → new key; POST webhook
+    // POST /v3/accounts → conflict; POST accessTokens → token id; POST webhook
     mockedAxios.post = jest.fn()
       .mockRejectedValueOnce(
         Object.assign(new Error("Asaas error"), {
@@ -502,8 +510,12 @@ describe("AsaasService.onboardTenant", () => {
           },
         }),
       )
-      .mockResolvedValueOnce({ data: { accessToken: "$aact_email_fallback_key" } }) // accessTokens
+      .mockResolvedValueOnce({ data: { id: "tk_fallback_123", enabled: false } }) // accessTokens POST
       .mockResolvedValueOnce({ data: { id: "wh-fallback" } }); // webhook
+
+    // PUT accessTokens → enables token, returns key
+    mockedAxios.put = jest.fn()
+      .mockResolvedValueOnce({ data: { key: "$aact_email_fallback_key", enabled: true } });
 
     // GET by CNPJ → empty; GET by email → found subconta
     mockedAxios.get = jest.fn()

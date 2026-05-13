@@ -120,30 +120,58 @@ async function findExistingSubaccount(
   return null;
 }
 
+// Asaas accessTokens flow (two steps):
+// 1. POST /v3/accounts/{id}/accessTokens  → creates token disabled, returns { id }
+// 2. PUT  /v3/accounts/{id}/accessTokens/{tokenId} → enables token, returns { key }
 async function generateSubaccountApiKey(
   masterKey: string,
   baseUrl: string,
   subaccountId: string,
 ): Promise<string> {
   const dateLabel = new Date().toISOString().slice(0, 10);
-  const resp = await axios.post<Record<string, unknown>>(
-    `${baseUrl}/v3/accounts/${subaccountId}/accessTokens`,
-    { name: `ProOps Reconnect ${dateLabel}` },
-    { headers: { access_token: masterKey } },
-  );
+  const tokenName = `ProOps Reconnect ${dateLabel}`;
+  const headers = { access_token: masterKey };
 
-  const body = resp.data ?? {};
-  const token =
-    (typeof body.accessToken === "string" && body.accessToken) ||
-    (typeof body.access_token === "string" && body.access_token) ||
-    (typeof body.apiKey === "string" && body.apiKey) ||
-    (typeof body.token === "string" && body.token) ||
-    (typeof body.key === "string" && body.key);
-
-  if (!token) {
+  let tokenId: string;
+  try {
+    const createResp = await axios.post<{ id?: string }>(
+      `${baseUrl}/v3/accounts/${subaccountId}/accessTokens`,
+      { name: tokenName },
+      { headers },
+    );
+    tokenId = createResp.data?.id ?? "";
+    if (!tokenId) throw new Error("no id in response");
+  } catch (err) {
+    const desc = describeAsaasError(err);
+    logger.error("asaas.generateSubaccountApiKey: POST accessTokens failed", {
+      subaccountId,
+      httpStatus: desc.httpStatus,
+      asaasErrors: desc.asaasErrors,
+      message: desc.message,
+    });
     throw new Error("ASAAS_APIKEY_GENERATION_FAILED");
   }
-  return token;
+
+  try {
+    const enableResp = await axios.put<{ key?: string }>(
+      `${baseUrl}/v3/accounts/${subaccountId}/accessTokens/${tokenId}`,
+      { name: tokenName, enabled: true },
+      { headers },
+    );
+    const key = enableResp.data?.key;
+    if (!key) throw new Error("no key in response");
+    return key;
+  } catch (err) {
+    const desc = describeAsaasError(err);
+    logger.error("asaas.generateSubaccountApiKey: PUT accessTokens failed", {
+      subaccountId,
+      tokenId,
+      httpStatus: desc.httpStatus,
+      asaasErrors: desc.asaasErrors,
+      message: desc.message,
+    });
+    throw new Error("ASAAS_APIKEY_GENERATION_FAILED");
+  }
 }
 
 export class AsaasService {
