@@ -16,7 +16,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const isPublicMarketingPage =
     pathname === "/" ||
     pathname === "/automacao-residencial" ||
-    pathname === "/decoracao";
+    pathname === "/decoracao" ||
+    pathname === "/contato";
 
   const isAuthOnlyPage =
     pathname === "/login" ||
