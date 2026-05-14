@@ -192,13 +192,14 @@ service cloud.firestore {
       // isAllowedClaim/isBlockedClaim are pure string comparisons — safe in let bindings.
       // exists()/get() are in the return expression where && short-circuits reliably
       // (emulator evaluates all let bindings eagerly; return expression respects &&).
-      return isAllowedClaim
-             || (!isBlockedClaim
-                 && isAuthenticated()
-                 && resourceTenantId != ''
-                 && (!exists(/databases/$(database)/documents/tenants/$(resourceTenantId))
-                     || !(string(get(/databases/$(database)/documents/tenants/$(resourceTenantId)).data.get('subscriptionStatus', '')).lower()
-                          in ['canceled', 'cancelled', 'unpaid', 'inactive', 'payment_failed'])));
+      return !(getAuthRole() in ['free', 'FREE'])
+             && (isAllowedClaim
+                 || (!isBlockedClaim
+                     && isAuthenticated()
+                     && resourceTenantId != ''
+                     && (!exists(/databases/$(database)/documents/tenants/$(resourceTenantId))
+                         || !(string(get(/databases/$(database)/documents/tenants/$(resourceTenantId)).data.get('subscriptionStatus', '')).lower()
+                              in ['canceled', 'cancelled', 'unpaid', 'inactive', 'payment_failed']))));
     }
 
     /**
