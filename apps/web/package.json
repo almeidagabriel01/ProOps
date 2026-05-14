@@ -13,7 +13,8 @@
     "lint": "eslint src/ --max-warnings=0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "icons:generate": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -79,6 +80,7 @@
     "eslint-config-next": "^16.1.6",
     "jsdom": "^29.1.1",
     "patch-package": "^8.0.1",
+    "png-to-ico": "^3.0.1",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5",

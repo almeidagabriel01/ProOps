@@ -6,7 +6,7 @@ export function OrganizationJsonLd() {
     "@type": "Organization",
     name: "ProOps",
     url: BASE,
-    logo: `${BASE}/icon.svg`,
+    logo: `${BASE}/icon.png`,
     sameAs: [],
     contactPoint: {
       "@type": "ContactPoint",
