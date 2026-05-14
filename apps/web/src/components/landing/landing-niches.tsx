@@ -14,7 +14,7 @@ if (typeof window !== "undefined") {
 const NICHE_CARDS = [
   {
     icon: Cpu,
-    eyebrow: "Para integradores",
+    eyebrow: "Pacote pronto",
     title: "Automação Residencial",
     description:
       "Gerencie projetos de automação com catálogo de produtos, sistemas por ambiente e propostas técnicas em PDF profissional.",
@@ -22,7 +22,7 @@ const NICHE_CARDS = [
   },
   {
     icon: Layers,
-    eyebrow: "Para lojas de decoração",
+    eyebrow: "Pacote pronto",
     title: "Decoração de Interiores",
     description:
       "Crie propostas com cálculo automático por m², largura ou altura. Catálogo de tecidos, persianas e papéis de parede integrado.",
@@ -97,7 +97,7 @@ export function LandingNiches() {
             Feito para o seu nicho
           </h2>
           <p className="niches-heading text-black/60 dark:text-white/60 max-w-xl mx-auto">
-            O ProOps é especializado em dois segmentos. Escolha o que melhor descreve o seu negócio.
+            Estes pacotes já vêm prontos no ProOps. Atua em outro segmento? Adaptamos para o seu nicho.
           </p>
         </div>
 
@@ -133,6 +133,18 @@ export function LandingNiches() {
               </Link>
             </div>
           ))}
+        </div>
+        <div className="mt-10 text-center">
+          <p className="text-sm text-black/60 dark:text-white/60 mb-3">
+            Atua em outro segmento? O ProOps adapta-se ao seu nicho.
+          </p>
+          <a
+            href="mailto:gestao@proops.com.br"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-black dark:text-white hover:opacity-70 transition-opacity"
+          >
+            Fale com a gente
+            <ArrowRight className="h-4 w-4" />
+          </a>
         </div>
       </div>
     </section>

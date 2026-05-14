@@ -25,7 +25,7 @@ export const NICHE_LANDING_CONFIG: Record<
       title: "ERP para",
       titleHighlight: "Automação Residencial",
       subtitle:
-        "O ProOps foi criado para integradores e empresas de automação residencial que precisam profissionalizar suas propostas comerciais, organizar o CRM e controlar o financeiro em um só lugar.",
+        "O ProOps tem um pacote pronto para integradores e empresas de automação residencial — gestão de propostas, CRM, financeiro e agenda integrados em um só lugar.",
       primaryCta: { label: "Começar grátis", href: "/register" },
       secondaryCta: { label: "Fazer login", href: "/login" },
     },
@@ -111,7 +111,7 @@ export const NICHE_LANDING_CONFIG: Record<
       {
         question: "O ProOps é específico para automação residencial?",
         answer:
-          "Sim. O ProOps tem suporte nativo ao nicho de automação residencial com catálogo de produtos, templates de proposta e campos específicos para projetos de integração AV.",
+          "Não exclusivamente. O ProOps adapta-se ao seu nicho — para automação residencial já temos catálogo de produtos, templates de proposta e campos específicos prontos. Também personalizamos para outros segmentos.",
       },
       {
         question: "Posso personalizar os templates de proposta com minha marca?",
@@ -142,7 +142,7 @@ export const NICHE_LANDING_CONFIG: Record<
       metadataTitle:
         "ERP para Automação Residencial — propostas, projetos e gestão",
       metadataDescription:
-        "ProOps é o sistema ERP especializado para empresas de automação residencial. Gerencie propostas comerciais com PDF profissional, CRM, financeiro, agenda e WhatsApp em uma plataforma integrada.",
+        "ProOps para empresas de automação residencial — pacote pronto com propostas em PDF, CRM, financeiro, agenda e WhatsApp. ERP que adapta-se ao seu negócio.",
       breadcrumb: "Automação Residencial",
     },
   },
@@ -154,7 +154,7 @@ export const NICHE_LANDING_CONFIG: Record<
       title: "ERP para",
       titleHighlight: "Lojas de Decoração",
       subtitle:
-        "Propostas com cálculo automático de metros, catálogo de tecidos, persianas e papéis de parede, CRM e financeiro integrados.",
+        "O ProOps tem um pacote pronto para lojas de cortinas, persianas e papéis de parede — propostas com cálculo automático de metros, catálogo de tecidos, CRM e financeiro integrados.",
       primaryCta: { label: "Começar grátis", href: "/register" },
       secondaryCta: { label: "Fazer login", href: "/login" },
     },
@@ -240,7 +240,7 @@ export const NICHE_LANDING_CONFIG: Record<
       {
         question: "O ProOps funciona para lojas de cortinas e persianas?",
         answer:
-          "Sim. O ProOps tem suporte nativo ao nicho de decoração, com campos específicos para medidas, tipos de produto e ambiente do cliente.",
+          "Não exclusivamente. O ProOps adapta-se ao seu nicho — para decoração já temos cálculo por metro, catálogo de tecidos e campos de medida prontos. Também personalizamos para outros segmentos.",
       },
       {
         question: "Posso incluir fotos dos produtos nas propostas?",
@@ -271,7 +271,7 @@ export const NICHE_LANDING_CONFIG: Record<
       metadataTitle:
         "ERP para Decoração — cortinas, persianas e papéis de parede",
       metadataDescription:
-        "ProOps é o ERP para lojas de decoração. Propostas com cálculo automático de metros, CRM, financeiro e WhatsApp integrados.",
+        "ProOps para lojas de decoração — pacote pronto com propostas por metro, catálogo de tecidos, CRM, financeiro e WhatsApp. ERP que adapta-se ao seu negócio.",
       breadcrumb: "Decoração",
     },
   },
