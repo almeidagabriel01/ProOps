@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore, useState, useMemo, useCallback } from "react";
 import { TrendingUp, X } from "lucide-react";
 import Link from "next/link";
 import { usePriceChange } from "@/hooks/usePriceChange";
 
 const DISMISS_KEY_PREFIX = "price_change_dismissed_";
-
 const DAYS_THRESHOLD = 30;
+// Custom event used to notify same-tab subscribers when a key is dismissed
+const DISMISS_EVENT = "price-dismiss-change";
 
 /**
  * Sticky informational banner displayed when the tenant's subscription price
@@ -19,20 +20,31 @@ export function PriceChangeBanner() {
   const { hasDrift, currentPriceFormatted, newPriceFormatted, renewalDate, cancelUrl } =
     usePriceChange();
 
-  // Start as dismissed to avoid a flash-of-content on mount before localStorage is read
-  const [dismissed, setDismissed] = useState(true);
-
+  const [now] = useState(() => Date.now());
   const dismissKey = `${DISMISS_KEY_PREFIX}${newPriceFormatted ?? ""}`;
 
-  useEffect(() => {
-    if (!hasDrift || !newPriceFormatted) return;
-    const isDismissed = localStorage.getItem(dismissKey) === "1";
-    setDismissed(isDismissed);
-  }, [dismissKey, hasDrift, newPriceFormatted]);
+  // useSyncExternalStore is the React-idiomatic pattern for reading from external
+  // stores (localStorage). This avoids setState-in-effect anti-pattern while
+  // correctly returning the server snapshot (true = dismissed) to prevent SSR flash.
+  const subscribe = useCallback((onChange: () => void) => {
+    window.addEventListener(DISMISS_EVENT, onChange);
+    window.addEventListener("storage", onChange);
+    return () => {
+      window.removeEventListener(DISMISS_EVENT, onChange);
+      window.removeEventListener("storage", onChange);
+    };
+  }, []);
 
-  const daysUntilRenewal = renewalDate
-    ? Math.ceil((renewalDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    : 999;
+  const dismissed = useSyncExternalStore(
+    subscribe,
+    () => localStorage.getItem(dismissKey) === "1",
+    () => true, // SSR snapshot: default dismissed to avoid hydration flash
+  );
+
+  const daysUntilRenewal = useMemo(
+    () => (renewalDate ? Math.ceil((renewalDate.getTime() - now) / (1000 * 60 * 60 * 24)) : 999),
+    [renewalDate, now],
+  );
 
   if (!hasDrift || dismissed || daysUntilRenewal > DAYS_THRESHOLD || !renewalDate) {
     return null;
@@ -46,7 +58,8 @@ export function PriceChangeBanner() {
 
   const handleDismiss = () => {
     localStorage.setItem(dismissKey, "1");
-    setDismissed(true);
+    // Notify same-tab subscribers — storage events only fire for other tabs
+    window.dispatchEvent(new Event(DISMISS_EVENT));
   };
 
   return (

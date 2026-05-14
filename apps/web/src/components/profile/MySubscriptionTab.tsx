@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
-import { auth } from "@/lib/firebase";
 
 import {
   Card,

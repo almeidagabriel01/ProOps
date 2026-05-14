@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { FullPageLoading } from "@/components/ui/full-page-loading";
@@ -24,6 +25,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { tenant, isLoading: isTenantLoading } = useTenant();
   const router = useRouter();
+  const [now] = useState(() => Date.now());
 
   const isLoading = isAuthLoading || isTenantLoading;
 
@@ -61,8 +63,8 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
       return { isGracePeriodExpired: true };
     }
     const graceMs = GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
-    return { isGracePeriodExpired: Date.now() - referenceMs > graceMs };
-  }, [subscriptionStatus, pastDueSince]);
+    return { isGracePeriodExpired: now - referenceMs > graceMs };
+  }, [subscriptionStatus, pastDueSince, now]);
 
   // Compute block decision synchronously during render so children are never
   // painted when the subscription is blocked. The redirect is a side effect
@@ -83,7 +85,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
       const periodEndDate = new Date(currentPeriodEnd);
       if (
         !Number.isNaN(periodEndDate.getTime()) &&
-        periodEndDate.getTime() <= Date.now()
+        periodEndDate.getTime() <= now
       ) {
         return true;
       }
@@ -97,6 +99,7 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     isGracePeriodExpired,
     cancelAtPeriodEnd,
     currentPeriodEnd,
+    now,
   ]);
 
   // Secondary action: navigate to the blocked page. The render already returns

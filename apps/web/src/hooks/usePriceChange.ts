@@ -36,13 +36,17 @@ export function usePriceChange(): PriceChangeInfo {
   const { tenant } = useTenant();
   const [livePlan, setLivePlan] = useState<UserPlan | null>(null);
 
-  // Fetch the live plan for the user's plan tier once
+  const { planId, stripeSubscriptionId, isManualSubscription, billingInterval, currentPeriodEnd } =
+    user ?? {};
+
+  // Fetch the live plan for the user's plan tier once.
+  // effectiveLivePlan is null whenever the subscription is not Stripe-managed so
+  // the memo never compares against a stale plan from a previous tier.
+  const effectiveLivePlan =
+    planId && stripeSubscriptionId && !isManualSubscription ? livePlan : null;
+
   useEffect(() => {
-    const planId = user?.planId;
-    if (!planId || !user?.stripeSubscriptionId || user?.isManualSubscription) {
-      setLivePlan(null);
-      return;
-    }
+    if (!planId || !stripeSubscriptionId || isManualSubscription) return;
 
     let cancelled = false;
     PlanService.getLivePlans()
@@ -63,7 +67,7 @@ export function usePriceChange(): PriceChangeInfo {
     return () => {
       cancelled = true;
     };
-  }, [user?.planId, user?.stripeSubscriptionId, user?.isManualSubscription]);
+  }, [planId, stripeSubscriptionId, isManualSubscription]);
 
   return useMemo((): PriceChangeInfo => {
     const noChange: PriceChangeInfo = {
@@ -75,22 +79,22 @@ export function usePriceChange(): PriceChangeInfo {
     };
 
     // Only applies to Stripe-managed subscriptions
-    if (!user?.stripeSubscriptionId || user?.isManualSubscription) {
+    if (!stripeSubscriptionId || isManualSubscription) {
       return noChange;
     }
 
     // Snapshot price the customer currently pays (written to tenant doc by backend)
     const snapshotCentavos = tenant?.subscription?.unitAmount;
-    if (snapshotCentavos == null || livePlan == null) {
+    if (snapshotCentavos == null || effectiveLivePlan == null) {
       return noChange;
     }
 
     // Live tier price for the user's billing interval
-    const billingInterval = user?.billingInterval ?? "monthly";
+    const interval = billingInterval ?? "monthly";
     const livePriceBRL =
-      billingInterval === "yearly"
-        ? livePlan.pricing?.yearly
-        : livePlan.pricing?.monthly;
+      interval === "yearly"
+        ? effectiveLivePlan.pricing?.yearly
+        : effectiveLivePlan.pricing?.monthly;
 
     if (livePriceBRL == null) {
       return noChange;
@@ -105,9 +109,7 @@ export function usePriceChange(): PriceChangeInfo {
       return noChange;
     }
 
-    const renewalDate = user?.currentPeriodEnd
-      ? new Date(user.currentPeriodEnd)
-      : null;
+    const renewalDate = currentPeriodEnd ? new Date(currentPeriodEnd) : null;
 
     return {
       hasDrift: true,
@@ -117,11 +119,11 @@ export function usePriceChange(): PriceChangeInfo {
       cancelUrl: "/profile?tab=subscription",
     };
   }, [
-    user?.stripeSubscriptionId,
-    user?.isManualSubscription,
-    user?.billingInterval,
-    user?.currentPeriodEnd,
+    stripeSubscriptionId,
+    isManualSubscription,
+    billingInterval,
+    currentPeriodEnd,
     tenant?.subscription?.unitAmount,
-    livePlan,
+    effectiveLivePlan,
   ]);
 }
