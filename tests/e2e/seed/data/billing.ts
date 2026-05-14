@@ -12,7 +12,7 @@ export async function seedBillingState(
   plan: "free" | "pro",
   proposalsCreated?: number,
 ): Promise<void> {
-  const subscriptionStatus = plan === "pro" ? "active" : "canceled";
+  const subscriptionStatus = plan === "pro" ? "active" : "free";
 
   await db.collection("tenants").doc(tenantId).set(
     { plan, subscriptionStatus },

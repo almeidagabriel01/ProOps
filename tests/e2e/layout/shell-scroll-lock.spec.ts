@@ -25,7 +25,7 @@ test.describe("LAYOUT-SCROLL-01: shell data-shell lock attribute", () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_ADMIN_ALPHA.email, USER_ADMIN_ALPHA.password);
-    await expect(page).toHaveURL("/", { timeout: 15000 });
+    await expect(page).toHaveURL("/dashboard", { timeout: 15000 });
 
     // Navigate to a stable authenticated route
     await page.goto("/dashboard");
@@ -41,7 +41,7 @@ test.describe("LAYOUT-SCROLL-01: shell data-shell lock attribute", () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_ADMIN_ALPHA.email, USER_ADMIN_ALPHA.password);
-    await expect(page).toHaveURL("/", { timeout: 15000 });
+    await expect(page).toHaveURL("/dashboard", { timeout: 15000 });
 
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");

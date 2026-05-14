@@ -189,17 +189,19 @@ service cloud.firestore {
       let claimStatus = getAuthSubscriptionStatus();
       let isAllowedClaim = claimStatus == 'active' || claimStatus == 'trialing' || claimStatus == 'free';
       let isBlockedClaim = claimStatus in ['canceled', 'cancelled', 'unpaid', 'inactive', 'payment_failed'];
-      // isAllowedClaim/isBlockedClaim are pure string comparisons — safe in let bindings.
-      // exists()/get() are in the return expression where && short-circuits reliably
-      // (emulator evaluates all let bindings eagerly; return expression respects &&).
+      // isAllowedClaim/isBlockedClaim: pure string comparisons, safe as let bindings.
+      // get() is placed inside an exists() && ... chain: && short-circuits reliably,
+      // so get() is never evaluated on a non-existent document even if || does not
+      // short-circuit (emulator v1.21+ does not short-circuit || consistently).
       return !(getAuthRole() in ['free', 'FREE'])
              && (isAllowedClaim
                  || (!isBlockedClaim
                      && isAuthenticated()
                      && resourceTenantId != ''
                      && (!exists(/databases/$(database)/documents/tenants/$(resourceTenantId))
-                         || !(string(get(/databases/$(database)/documents/tenants/$(resourceTenantId)).data.get('subscriptionStatus', '')).lower()
-                              in ['canceled', 'cancelled', 'unpaid', 'inactive', 'payment_failed']))));
+                         || (exists(/databases/$(database)/documents/tenants/$(resourceTenantId))
+                             && !(string(get(/databases/$(database)/documents/tenants/$(resourceTenantId)).data.get('subscriptionStatus', '')).lower()
+                                  in ['canceled', 'cancelled', 'unpaid', 'inactive', 'payment_failed'])))));
     }
 
     /**
