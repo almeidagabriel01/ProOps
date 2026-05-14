@@ -38,6 +38,7 @@ const PUBLIC_ROUTES = [
   "/subscribe",
   "/checkout-success",
   "/pricing",
+  "/contato",
   "/api/webhooks", // Webhooks need to be public
   "/share", // Public shared proposal pages
   "/auth/action", // Password reset and other auth actions

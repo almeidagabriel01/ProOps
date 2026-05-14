@@ -23,6 +23,7 @@ import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
 import { paymentPublicRoutes } from "./routes/payment-public.routes";
 import { asaasRoutes } from "./routes/asaas.routes";
 import { asaasWebhookRoutes } from "./routes/asaas-webhook.routes";
+import { contactRoutes } from "./routes/contact.routes";
 import { aiRouter, fieldGenRouter } from "../ai";
 import { aiRateLimiter } from "../ai/rate-limiter";
 import {
@@ -203,6 +204,12 @@ const publicGeneralLimiter = createRateLimiter({
   maxRequests: 300,
 });
 
+const contactFormLimiter = createRateLimiter({
+  keyPrefix: "public-contact-form",
+  maxRequests: 5,
+  windowMs: 60_000,
+});
+
 const publicShareLimiter = createRateLimiter({
   keyPrefix: "public-share",
   maxRequests: 80,
@@ -381,6 +388,8 @@ app.use("/v1", publicGeneralLimiter, calendarPublicRoutes);
 app.use("/v1", publicShareLimiter, sharedProposalsRoutes);
 app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
+
+app.use("/v1/public", contactFormLimiter, contactRoutes);
 
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);

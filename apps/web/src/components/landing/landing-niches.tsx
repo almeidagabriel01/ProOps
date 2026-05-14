@@ -138,13 +138,13 @@ export function LandingNiches() {
           <p className="text-sm text-black/60 dark:text-white/60 mb-3">
             Atua em outro segmento? O ProOps adapta-se ao seu nicho.
           </p>
-          <a
-            href="mailto:gestao@proops.com.br"
+          <Link
+            href="/contato"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-black dark:text-white hover:opacity-70 transition-opacity"
           >
             Fale com a gente
             <ArrowRight className="h-4 w-4" />
-          </a>
+          </Link>
         </div>
       </div>
     </section>
