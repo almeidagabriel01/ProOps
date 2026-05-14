@@ -95,6 +95,13 @@ async function makeOgImage() {
 async function main() {
   console.log("Generating ProOps icon assets...");
 
+  // Favicon: transparent background (browser tab — no fill)
+  const iconFavicon = await sharp(SYMBOL_SRC)
+    .extract({ left: 350, top: 0, width: 900, height: 900 })
+    .resize(512, 512, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+
   const icon512 = await makeSquareIcon(512);
   const icon192 = await makeSquareIcon(192);
   const icon180 = await makeSquareIcon(180);
@@ -102,8 +109,8 @@ async function main() {
   const ogImage = await makeOgImage();
 
   // App Router special files
-  writeFileSync(join(ROOT, "src/app/icon.png"), icon512);
-  console.log("  ✓ src/app/icon.png (512×512)");
+  writeFileSync(join(ROOT, "src/app/icon.png"), iconFavicon);
+  console.log("  ✓ src/app/icon.png (512×512, transparent — browser tab favicon)");
 
   writeFileSync(join(ROOT, "src/app/apple-icon.png"), icon180);
   console.log("  ✓ src/app/apple-icon.png (180×180)");
