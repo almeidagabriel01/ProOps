@@ -24,7 +24,7 @@
     "test:e2e:debug": "npx playwright test --config=tests/playwright.config.ts --debug",
     "test:performance": "npx playwright test --config=tests/playwright.perf.config.ts",
     "test:security": "npx tsx tests/e2e/security/run-security-scan.ts",
-    "test:rules": "jest --config tests/jest.config.js",
+    "test:rules": "jest --config tests/jest.config.js --runInBand",
     "test:web": "npm --workspace proops-web run test",
     "test:functions": "npm --prefix apps/functions test"
   },
