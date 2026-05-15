@@ -13,8 +13,7 @@
  *   - "cancel subscription past_due"→ STATE-03
  */
 
-import { test, expect } from "@playwright/test";
-import { signInWithEmailPassword } from "../helpers/firebase-auth-api";
+import { test, expect } from "../fixtures/base.fixture";
 import { getTestDb } from "../helpers/admin-firestore";
 import { seedBillingStateExtended, restoreTenantState } from "../seed/data/billing";
 import { USER_ADMIN_BETA } from "../seed/data/users";
@@ -28,7 +27,7 @@ test.describe("STATE-01 past_due banner", () => {
     await restoreTenantState(db, TENANT);
   });
 
-  test("past_due banner: red banner visible at top of dashboard with 'Atualizar pagamento' CTA", async ({ page }) => {
+  test("past_due banner: red banner visible at top of dashboard with 'Atualizar pagamento' CTA", async ({ page, loginPage }) => {
     await seedBillingStateExtended(db, {
       tenantId: TENANT,
       subscriptionStatus: "past_due",
@@ -39,8 +38,9 @@ test.describe("STATE-01 past_due banner", () => {
       userId: USER_ADMIN_BETA.uid,
     });
 
-    await signInWithEmailPassword(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
-    await page.goto("/dashboard");
+    await loginPage.goto();
+    await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
+    await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 30000 });
 
     const banner = page.getByTestId("billing-state-banner-past-due");
     await expect(banner).toBeVisible({ timeout: 10000 });
@@ -55,7 +55,7 @@ test.describe("STATE-02 cancel period end banner", () => {
     await restoreTenantState(db, TENANT);
   });
 
-  test("cancel period end banner: yellow banner visible with formatted date", async ({ page }) => {
+  test("cancel period end banner: yellow banner visible with formatted date", async ({ page, loginPage }) => {
     const cancelAtIso = "2026-06-15T00:00:00.000Z";
     await seedBillingStateExtended(db, {
       tenantId: TENANT,
@@ -69,8 +69,9 @@ test.describe("STATE-02 cancel period end banner", () => {
       userId: USER_ADMIN_BETA.uid,
     });
 
-    await signInWithEmailPassword(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
-    await page.goto("/dashboard");
+    await loginPage.goto();
+    await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
+    await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 30000 });
 
     const banner = page.getByTestId("billing-state-banner-cancel-period-end");
     await expect(banner).toBeVisible({ timeout: 10000 });
@@ -86,7 +87,7 @@ test.describe("STATE-03 cancel subscription past_due", () => {
     await restoreTenantState(db, TENANT);
   });
 
-  test("cancel subscription past_due: AlertDialog shows immediate-cancel warning copy", async ({ page }) => {
+  test("cancel subscription past_due: AlertDialog shows immediate-cancel warning copy", async ({ page, loginPage }) => {
     await seedBillingStateExtended(db, {
       tenantId: TENANT,
       subscriptionStatus: "past_due",
@@ -97,7 +98,9 @@ test.describe("STATE-03 cancel subscription past_due", () => {
       userId: USER_ADMIN_BETA.uid,
     });
 
-    await signInWithEmailPassword(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
+    await loginPage.goto();
+    await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
+    await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 30000 });
     await page.goto("/profile");
 
     // Profile cancel button — opens the AlertDialog branch.
