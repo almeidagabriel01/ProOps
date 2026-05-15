@@ -63,6 +63,25 @@ test.describe("Asaas PIX simulate payment flow", () => {
     // Step 4: Mock the backend API endpoints that require Asaas credentials
     // These are called from the Next.js proxy (/api/backend/*) which forwards to Cloud Functions
 
+    // Mock the base share transaction endpoint to inject asaasEnabled: true into the
+    // tenant object. The real backend doesn't have Asaas credentials in the emulator,
+    // so tenant.asaasEnabled is absent, making canPay false and hiding the Pagar button.
+    await publicPage.route(
+      `**/api/backend/v1/share/transaction/${token}`,
+      async (route) => {
+        const response = await route.fetch();
+        const json = await response.json();
+        await route.fulfill({
+          status: response.status(),
+          contentType: "application/json",
+          body: JSON.stringify({
+            ...json,
+            tenant: { ...(json.tenant ?? {}), asaasEnabled: true },
+          }),
+        });
+      },
+    );
+
     // Mock payment-config endpoint — tell the frontend that Asaas is the payment provider
     await publicPage.route(
       `**/api/backend/v1/share/transaction/${token}/payment-config`,
