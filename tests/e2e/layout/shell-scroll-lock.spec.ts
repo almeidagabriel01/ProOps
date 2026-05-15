@@ -29,7 +29,7 @@ test.describe("LAYOUT-SCROLL-01: shell data-shell lock attribute", () => {
 
     // Navigate to a stable authenticated route
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await page.waitForSelector('html[data-shell="locked"]', { timeout: 15000 });
 
     const dataShell = await page.evaluate(() =>
       document.documentElement.dataset.shell,
@@ -44,7 +44,7 @@ test.describe("LAYOUT-SCROLL-01: shell data-shell lock attribute", () => {
     await expect(page).toHaveURL("/dashboard", { timeout: 15000 });
 
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+    await page.waitForSelector('html[data-shell="locked"]', { timeout: 15000 });
 
     const overflow = await page.evaluate(() =>
       window.getComputedStyle(document.documentElement).overflow,
@@ -54,7 +54,7 @@ test.describe("LAYOUT-SCROLL-01: shell data-shell lock attribute", () => {
 
   test("public route does NOT have data-shell on <html>", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     const dataShell = await page.evaluate(() =>
       document.documentElement.dataset.shell,
@@ -64,7 +64,7 @@ test.describe("LAYOUT-SCROLL-01: shell data-shell lock attribute", () => {
 
   test("<html> overflow is not hidden on public route", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     const overflow = await page.evaluate(() =>
       window.getComputedStyle(document.documentElement).overflow,
