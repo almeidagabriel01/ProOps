@@ -70,6 +70,40 @@ export async function invalidateBackendTenantPlanCache(tenantId?: string): Promi
 }
 
 /**
+ * Invalidates the Next.js Data Cache entry for the billing-status route so that
+ * the middleware gets fresh data on the next request (instead of a stale cached value).
+ *
+ * Calls POST /api/auth/billing-status/invalidate on the local Next.js server (port 3001).
+ * The secret must match BILLING_CACHE_INVALIDATION_SECRET in playwright.config.ts webServer.env.
+ */
+async function invalidateNextJsBillingStatusCache(tenantId: string): Promise<void> {
+  const secret = process.env.BILLING_CACHE_INVALIDATION_SECRET || "test-billing-cache-secret";
+  const baseUrl = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3001";
+  try {
+    const res = await fetch(`${baseUrl}/api/auth/billing-status/invalidate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-invalidation-secret": secret,
+      },
+      body: JSON.stringify({ tenantId }),
+    });
+    if (!res.ok && res.status !== 204) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[billing fixture] Next.js billing-status cache invalidation returned ${res.status} for tenant=${tenantId}`,
+      );
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[billing fixture] Next.js billing-status cache invalidation failed for tenant=${tenantId}:`,
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
+/**
  * Seeds billing state for a tenant in the Firestore emulator.
  * Writes the plan and subscriptionStatus to tenants/{tenantId}.
  * Optionally seeds proposal usage count for the current month.
@@ -125,6 +159,7 @@ export async function restoreTenantState(
     subscriptionStatus: admin.firestore.FieldValue.delete(),
     stripeSubscriptionId: admin.firestore.FieldValue.delete(),
     cancelAtPeriodEnd: admin.firestore.FieldValue.delete(),
+    pastDueSince: admin.firestore.FieldValue.delete(),
     subscription: admin.firestore.FieldValue.delete(),
   });
 
@@ -237,6 +272,12 @@ export async function seedBillingStateExtended(
     await db.collection("users").doc(opts.userId).set(userPatch, { merge: true });
   }
 
-  // Cache-bust so the freshly seeded tenant state is visible to the backend.
+  // Cache-bust the Functions emulator's in-memory LRU so the backend re-reads fresh state.
   await invalidateBackendTenantPlanCache(opts.tenantId);
+
+  // Also invalidate the Next.js Data Cache (unstable_cache, 60s TTL) so the billing-status
+  // route returns the freshly seeded subscriptionStatus on the next middleware check.
+  // Without this, a stale "allowed: false" entry can survive from a prior test and cause
+  // the middleware to redirect to /subscription-blocked instead of the requested page.
+  await invalidateNextJsBillingStatusCache(opts.tenantId);
 }
