@@ -77,6 +77,9 @@ test.describe("Asaas PIX simulate payment flow", () => {
           body: JSON.stringify({
             ...json,
             tenant: { ...(json.tenant ?? {}), asaasEnabled: true },
+            // clientHasDocument + clientName allow PixPaymentForm to show the direct
+            // "Gerar QR Code PIX" button instead of the CPF/CNPJ entry form.
+            client: { name: "Test User", hasDocument: true },
           }),
         });
       },
@@ -109,7 +112,7 @@ test.describe("Asaas PIX simulate payment flow", () => {
             method: "pix",
             paymentId: MOCK_PAYMENT_ID,
             qrCode: MOCK_QR_PAYLOAD,
-            qrCodeImage: "data:image/png;base64,iVBORw0KGgoAAAANS=",
+            qrCodeBase64: "iVBORw0KGgoAAAANS=",
             expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
             amount: 100,
           }),
@@ -156,12 +159,12 @@ test.describe("Asaas PIX simulate payment flow", () => {
     await payButton.waitFor({ state: "visible", timeout: 10_000 });
     await payButton.click();
 
-    // Wait for the QR code to appear
-    await publicPage.waitForSelector("[data-testid='pix-qrcode'], canvas, img[alt*='QR']", {
-      timeout: 10_000,
-    }).catch(() => {
-      // Fallback: wait for the simulate button
-    });
+    // With client data injected, PixPaymentForm shows a direct "Gerar QR Code PIX" button
+    // instead of the CPF/CNPJ form. Click it to generate the QR code and transition to
+    // PixQrCodeView, which renders the "Simular pagamento (sandbox)" button.
+    const generateQrButton = publicPage.getByRole("button", { name: /gerar qr code pix/i });
+    await generateQrButton.waitFor({ state: "visible", timeout: 10_000 });
+    await generateQrButton.click();
 
     // Click "Simular pagamento (sandbox)" button
     const simulateButton = publicPage.getByRole("button", { name: /simular pagamento/i });
