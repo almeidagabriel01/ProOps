@@ -41,6 +41,10 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
         // ignore — some origins block storage access
       }
     });
+    // Re-clear cookies: page.goto("/login") above may trigger Firebase SDK to
+    // re-issue firebase-auth-token from IndexedDB before the evaluate() wipe.
+    // A second clear ensures no legacy cookie survives into the test body.
+    await context.clearCookies();
   });
 
   test("navigating to /dashboard redirects to /login", async ({ page }) => {
