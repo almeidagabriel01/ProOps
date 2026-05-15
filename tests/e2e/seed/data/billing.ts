@@ -117,6 +117,7 @@ export async function seedBillingState(
 export async function restoreTenantState(
   db: Firestore,
   tenantId: string,
+  userId?: string,
 ): Promise<void> {
   await db.collection("tenants").doc(tenantId).update({
     plan: admin.firestore.FieldValue.delete(),
@@ -126,6 +127,12 @@ export async function restoreTenantState(
     cancelAtPeriodEnd: admin.firestore.FieldValue.delete(),
     subscription: admin.firestore.FieldValue.delete(),
   });
+
+  if (userId) {
+    await db.collection("users").doc(userId).update({
+      stripeSubscriptionId: admin.firestore.FieldValue.delete(),
+    });
+  }
 
   const monthId = new Date().toISOString().slice(0, 7);
   const usageRef = db
@@ -173,6 +180,8 @@ export interface SeedBillingExtendedOptions {
   };
   // optional: also write the same fields onto users/{uid} (auth-provider reads from user doc)
   userId?: string;
+  // optional: seed a fake stripeSubscriptionId so hasStripeSubscription evaluates to true
+  stripeSubscriptionId?: string;
 }
 
 /**
@@ -221,6 +230,9 @@ export async function seedBillingStateExtended(
     }
     if (opts.subscriptionMap) {
       userPatch.subscription = tenantPatch.subscription;
+    }
+    if (opts.stripeSubscriptionId) {
+      userPatch.stripeSubscriptionId = opts.stripeSubscriptionId;
     }
     await db.collection("users").doc(opts.userId).set(userPatch, { merge: true });
   }

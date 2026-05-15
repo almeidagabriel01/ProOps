@@ -87,7 +87,7 @@ test.describe("STATE-03 cancel subscription past_due", () => {
   const db = getTestDb();
 
   test.afterEach(async () => {
-    await restoreTenantState(db, TENANT);
+    await restoreTenantState(db, TENANT, USER_ADMIN_BETA.uid);
   });
 
   test("cancel subscription past_due: AlertDialog shows immediate-cancel warning copy", async ({ page, loginPage }) => {
@@ -99,6 +99,7 @@ test.describe("STATE-03 cancel subscription past_due", () => {
         pastDueSince: new Date().toISOString(),
       },
       userId: USER_ADMIN_BETA.uid,
+      stripeSubscriptionId: "sub_test_past_due",
     });
 
     await loginPage.goto();
