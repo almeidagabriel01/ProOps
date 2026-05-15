@@ -56,7 +56,10 @@ test.describe("STATE-02 cancel period end banner", () => {
   });
 
   test("cancel period end banner: yellow banner visible with formatted date", async ({ page, loginPage }) => {
-    const cancelAtIso = "2026-06-15T00:00:00.000Z";
+    // Use noon UTC so that in America/Sao_Paulo (UTC-3) the date is still 15/06
+    // — formatDateBR renders in BR timezone, so a midnight-UTC seed would land
+    // at 21:00 on 14/06 BRT and render as "14/06/2026", breaking the assertion.
+    const cancelAtIso = "2026-06-15T12:00:00.000Z";
     await seedBillingStateExtended(db, {
       tenantId: TENANT,
       subscriptionStatus: "active",
@@ -102,6 +105,12 @@ test.describe("STATE-03 cancel subscription past_due", () => {
     await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
     await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 30000 });
     await page.goto("/profile");
+
+    // Wait for the subscription tab to render before clicking — the page
+    // settles auth/billing state asynchronously on entry.
+    await page
+      .getByRole("button", { name: /Cancelar Assinatura/i })
+      .waitFor({ state: "visible", timeout: 30000 });
 
     // Profile cancel button — opens the AlertDialog branch.
     await page.getByRole("button", { name: /Cancelar Assinatura/i }).click();

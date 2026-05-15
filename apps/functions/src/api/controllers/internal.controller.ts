@@ -8,6 +8,7 @@ import { detectPriceDrift } from "../../billing/price-drift";
 import { sendEmail } from "../../services/email/send-email";
 import { renderPriceChangeEmail } from "../../services/email/templates/price-change";
 import type { NotificationType } from "../services/notification.service";
+import { clearTenantPlanCache } from "../../lib/tenant-plan-policy";
 
 const WHATSAPP_OVERAGE_EVENT_NAME = "whatsapp_messages";
 
@@ -539,6 +540,47 @@ export const processPayoutRetriesManual = async (
     return res.json({ processed, errors });
   } catch (error) {
     logger.error("[processPayoutRetries manual] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+/**
+ * Debug-only endpoint to invalidate the in-memory tenant-plan LRU cache.
+ *
+ * Used by E2E test fixtures (restoreTenantState) to make plan changes
+ * visible to the backend immediately, replacing the 6s sleep-based
+ * waitForCacheExpiry workaround.
+ *
+ * Body: { tenantId?: string } — omit tenantId to clear the entire cache.
+ * Header: x-cron-secret must match CRON_SECRET.
+ */
+export const invalidateTenantPlanCacheManual = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const body = (req.body || {}) as { tenantId?: string };
+    const tenantId = typeof body.tenantId === "string" ? body.tenantId.trim() : "";
+
+    if (tenantId) {
+      clearTenantPlanCache(tenantId);
+      logger.info("[invalidateTenantPlanCache manual] cleared one", { tenantId });
+      return res.json({ cleared: tenantId });
+    }
+
+    clearTenantPlanCache();
+    logger.info("[invalidateTenantPlanCache manual] cleared all");
+    return res.json({ cleared: "all" });
+  } catch (error) {
+    logger.error("[invalidateTenantPlanCache manual] failed", {
       error: error instanceof Error ? error.message : String(error),
     });
     return res.status(500).json({ message: "Internal Server Error" });

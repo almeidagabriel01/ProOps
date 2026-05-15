@@ -1,5 +1,73 @@
 import * as admin from "firebase-admin";
 import type { Firestore } from "firebase-admin/firestore";
+import * as fs from "fs";
+import * as path from "path";
+
+const FUNCTIONS_BASE =
+  "http://127.0.0.1:5001/demo-proops-test/southamerica-east1/api";
+
+let cachedCronSecret: string | null = null;
+
+/**
+ * Resolve the CRON_SECRET the Functions emulator loaded by replicating its
+ * env-file precedence (.env → .env.demo-proops-test → .env.local). Mirrors
+ * the resolveCronSecret() helper in tests/e2e/billing/whatsapp-overage.spec.ts.
+ */
+function resolveCronSecret(): string {
+  if (cachedCronSecret !== null) return cachedCronSecret;
+  const envFiles = [
+    "apps/functions/.env",
+    "apps/functions/.env.demo-proops-test",
+    "apps/functions/.env.local",
+  ];
+  let resolved = "test-cron-secret";
+  for (const relPath of envFiles) {
+    try {
+      const content = fs.readFileSync(path.join(process.cwd(), relPath), "utf-8");
+      const match = content.match(/^CRON_SECRET=(.+)$/m);
+      if (match) resolved = match[1].trim();
+    } catch {
+      // file not found — skip
+    }
+  }
+  cachedCronSecret = resolved;
+  return resolved;
+}
+
+/**
+ * Hit the in-memory tenant-plan LRU cache invalidation endpoint so the
+ * backend re-reads tenant state from Firestore on the next request.
+ *
+ * Replaces the racy 6s waitForCacheExpiry() sleep used previously. Best-effort:
+ * any network/HTTP failure is logged but not thrown so test cleanup still runs.
+ */
+export async function invalidateBackendTenantPlanCache(tenantId?: string): Promise<void> {
+  try {
+    const res = await fetch(
+      `${FUNCTIONS_BASE}/internal/debug/invalidate-tenant-plan-cache`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-cron-secret": resolveCronSecret(),
+        },
+        body: JSON.stringify(tenantId ? { tenantId } : {}),
+      },
+    );
+    if (!res.ok) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[billing fixture] cache-bust returned ${res.status} for tenant=${tenantId || "all"}`,
+      );
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[billing fixture] cache-bust request failed for tenant=${tenantId || "all"}:`,
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
 
 /**
  * Seeds billing state for a tenant in the Firestore emulator.
@@ -36,6 +104,10 @@ export async function seedBillingState(
         updatedAt: new Date().toISOString(),
       });
   }
+
+  // Backend caches tenant plan in an in-memory LRU. After mutating Firestore
+  // we MUST invalidate the cache so the next request reads fresh state.
+  await invalidateBackendTenantPlanCache(tenantId);
 }
 
 /**
@@ -66,6 +138,10 @@ export async function restoreTenantState(
   if (snap.exists) {
     await usageRef.delete();
   }
+
+  // Drop the in-memory tenant-plan cache so the next test starts with a
+  // clean read from Firestore (replaces the racy 6s waitForCacheExpiry).
+  await invalidateBackendTenantPlanCache(tenantId);
 }
 
 function buildCurrentMonthPeriod(): {
@@ -148,4 +224,7 @@ export async function seedBillingStateExtended(
     }
     await db.collection("users").doc(opts.userId).set(userPatch, { merge: true });
   }
+
+  // Cache-bust so the freshly seeded tenant state is visible to the backend.
+  await invalidateBackendTenantPlanCache(opts.tenantId);
 }

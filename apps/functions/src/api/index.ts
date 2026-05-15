@@ -13,6 +13,7 @@ import { adminRoutes } from "./routes/admin.routes";
 import { stripeRoutes, publicStripeRoutes } from "./routes/stripe.routes";
 import { auxiliaryRoutes } from "./routes/auxiliary.routes";
 import { internalRoutes } from "./routes/internal.routes";
+import { internalDebugRoutes } from "./routes/internal-debug.routes";
 import sharedProposalsRoutes from "./routes/shared-proposals.routes";
 import { sharedTransactionsRoutes } from "./routes/shared-transactions.routes";
 import notificationsRoutes from "./routes/notifications.routes";
@@ -390,6 +391,10 @@ app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
 app.use("/v1/public", contactFormLimiter, contactRoutes);
+
+// Debug-only internal endpoints — gated by x-cron-secret, mounted before auth
+// so E2E fixtures can invalidate caches without a Firebase ID token.
+app.use("/internal", internalDebugRoutes);
 
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
