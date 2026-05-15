@@ -258,98 +258,98 @@ service cloud.firestore {
 
     // PROPOSALS
     match /proposals/{proposalId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Cloud Functions (limits, validation)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // CLIENTS
     match /clients/{clientId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // PRODUCTS
     match /products/{productId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // SERVICES
     match /services/{serviceId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // TRANSACTIONS (Financial)
     match /transactions/{transactionId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Cloud Functions (calculations)
     }
 
     // WALLETS
     match /wallets/{walletId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Cloud Functions
     }
 
     // WALLET TRANSACTIONS (audit log)
     match /wallet_transactions/{transactionId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Cloud Functions
     }
 
     // SISTEMAS (Automation)
     match /sistemas/{sistemaId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false;
     }
 
     // AMBIENTES (Automation)
     match /ambientes/{ambienteId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false;
     }
 
     // PROPOSAL TEMPLATES
     match /proposal_templates/{templateId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false;
     }
 
     // CUSTOM FIELDS
     match /custom_fields/{fieldId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false;
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // CUSTOM OPTIONS (Legacy)
     match /custom_options/{optionId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false;
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // OPTIONS (Dynamic Selects)
     match /options/{optionId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false;
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // ADDONS
     match /addons/{addonId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Stripe Webhooks
     }
 
     // KANBAN STATUSES (Custom kanban columns per tenant)
     match /kanban_statuses/{statusId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -357,8 +357,8 @@ service cloud.firestore {
     match /calendar_events/{eventId} {
       allow read: if isSuperAdmin()
                   || (isAuthenticated()
-                      && belongsToTenant(resource.data.tenantId)
-                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && belongsToTenant(resource.data.get('tenantId', ''))
+                      && tenantSubscriptionAllowsRead(resource.data.get('tenantId', ''))
                       && (resource.data.get('ownerUserId', '') == request.auth.uid
                           || hasTenantAdminRole()));
       allow write: if false; // Managed by Cloud Functions
@@ -419,7 +419,7 @@ service cloud.firestore {
 
     // PURCHASED ADDONS
     match /purchased_addons/{addonId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Managed by Stripe Webhooks
     }
 
@@ -464,7 +464,7 @@ service cloud.firestore {
 
     // NOTIFICATIONS - Acesso restrito ao tenant
     match /notifications/{notificationId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow write: if false; // Apenas Cloud Functions
     }
 
