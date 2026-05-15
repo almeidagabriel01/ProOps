@@ -130,17 +130,20 @@ describe('SEC-BILLING-01: Active subscription allows reads', () => {
   test.each(collectionsWithTenantId)(
     '%s: active tenant can read',
     async (coll) => {
+      await seedDoc('tenants', 'tenant-active', { subscriptionStatus: 'active' });
       await seedDoc(coll, 'doc-active', { tenantId: 'tenant-active' });
       await assertSucceeds(getDoc(doc(activeDb(), coll, 'doc-active')));
     },
   );
 
   test('past_due tenant can still read (grace period — not yet blocked)', async () => {
+    await seedDoc('tenants', 'tenant-pastdue', { subscriptionStatus: 'past_due' });
     await seedDoc('proposals', 'doc-pastdue', { tenantId: 'tenant-pastdue' });
     await assertSucceeds(getDoc(doc(pastDueDb(), 'proposals', 'doc-pastdue')));
   });
 
   test('token without subscriptionStatus claim can read (backwards compat)', async () => {
+    await seedDoc('tenants', 'tenant-noclaim', { subscriptionStatus: 'active' });
     await seedDoc('proposals', 'doc-noclaim', { tenantId: 'tenant-noclaim' });
     await assertSucceeds(getDoc(doc(noClaimDb(), 'proposals', 'doc-noclaim')));
   });
