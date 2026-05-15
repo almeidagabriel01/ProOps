@@ -65,7 +65,14 @@ test.describe("LANDING-CONTATO-01: /contato is fully public", () => {
 
   test("authenticated user sees landing chrome on /contato, not app shell", async ({ authenticatedPage: page }) => {
     await page.goto("/contato");
-    await page.waitForLoadState("networkidle");
+    // Don't wait for networkidle — authenticated sessions on /contato still
+    // load the root providers tree (including Firestore auth-state listeners
+    // and other background queries) which never let the network go fully
+    // idle. Wait for the page-specific heading instead.
+    await page
+      .locator("h1")
+      .filter({ hasText: "Fale com a gente" })
+      .waitFor({ state: "visible", timeout: 30000 });
 
     // Must stay on /contato
     await expect(page).toHaveURL(/\/contato/, { timeout: 10000 });
