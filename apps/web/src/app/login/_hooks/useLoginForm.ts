@@ -395,9 +395,14 @@ export function useLoginForm(): UseLoginFormReturn {
   React.useEffect(() => {
     if (isLoading) return;
     if (user) return;
-    if (redirectReason === "session_expired") {
+    if (redirectReason !== "session_expired") return;
+    // Defer by one tick so the Toaster (mounted in providers.tsx after children)
+    // is guaranteed to be in the DOM and able to render the queued toast. Without
+    // this, an early toast.warning call during initial hydration can be dropped.
+    const id = window.setTimeout(() => {
       toast.warning("Sua sessão expirou. Entre novamente para continuar.");
-    }
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [redirectReason, user, isLoading]);
 
   const handleLogin = async (e?: React.FormEvent) => {

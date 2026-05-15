@@ -91,6 +91,14 @@ test.describe("AUTH-LR-06: Logout clears sticky redirect — free user never sen
     }
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
 
+    // The login form remounts after the previous user's auth state tears down.
+    // Wait for the email input before the next login() call so we don't race
+    // the form mount on a slow CI runner.
+    await page
+      .locator('#email[type="email"], input[type="email"]')
+      .first()
+      .waitFor({ state: "visible", timeout: 30000 });
+
     await loginPage.login(USER_FREE.email, USER_FREE.password);
 
     await expect(page).toHaveURL("/", { timeout: 15000 });
