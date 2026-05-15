@@ -82,19 +82,14 @@ service cloud.firestore {
      * This avoids hard failures when production tokens are temporarily stale
      * while still requiring an authenticated, server-controlled user document.
      *
-     * Uses a let-bound ternary on exists() to guarantee no get() call is ever
-     * executed on a non-existent document: the emulator v1.21+ has been
-     * observed to evaluate `cond && get().data.get(...)` chains eagerly,
-     * producing a Null value error when the doc is missing. The ternary
-     * pattern below is the only one that consistently short-circuits.
+     * Tests pre-seed users/{uid} in beforeEach so exists() always finds the
+     * doc; in production users/{uid} is created on signup.
      */
     function hasSuperAdminRoleInUserDoc() {
-      let role = isAuthenticated()
-                 && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-                 ? get(/databases/$(database)/documents/users/$(request.auth.uid))
-                     .data.get('role', '')
-                 : '';
-      return role in ['superadmin', 'SUPERADMIN'];
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+           .data.get('role', '') in ['superadmin', 'SUPERADMIN'];
     }
 
     /**
