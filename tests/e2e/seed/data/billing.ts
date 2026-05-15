@@ -128,6 +128,11 @@ export async function seedBillingStateExtended(
         pastDueSince: opts.subscriptionMap.pastDueSince,
       }),
     };
+    // Mirror pastDueSince to root: production writers (stripeWebhook) store it at root,
+    // and readers (billing-status route, subscription-blocked layout) only check root.
+    if (opts.subscriptionMap.pastDueSince !== undefined) {
+      tenantPatch.pastDueSince = opts.subscriptionMap.pastDueSince;
+    }
   }
   await db.collection("tenants").doc(opts.tenantId).set(tenantPatch, { merge: true });
 

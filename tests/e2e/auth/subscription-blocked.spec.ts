@@ -15,7 +15,7 @@
  *   SB-08: Past_due without pastDueSince → page renders (fail-closed)
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/base.fixture";
 import { LoginPage } from "../pages/login.page";
 import { getTestDb } from "../helpers/admin-firestore";
 import { seedBillingStateExtended, restoreTenantState } from "../seed/data/billing";
