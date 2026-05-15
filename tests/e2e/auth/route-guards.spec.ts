@@ -63,30 +63,20 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
   });
 
   test("redirect URL includes the original path as 'redirect' query param", async ({ page }) => {
-    // Inspect the middleware's 307 Location header directly via request fetch,
-    // because Playwright's page.goto() may follow further client-side redirects
-    // (e.g. auth-provider hydration) that strip query params after middleware fires.
-    const res = await page.request.get(new URL("/dashboard", page.url()).toString(), {
-      maxRedirects: 0,
-    });
-    expect([301, 302, 303, 307, 308]).toContain(res.status());
-    const location = res.headers()["location"] || "";
-    expect(location).toMatch(/\/login/);
-    const url = new URL(location, page.url());
+    // Use page.goto with waitUntil:"commit" so the navigation resolves after
+    // the server-side 307 redirect is committed but before the login page's
+    // JavaScript runs. This preserves the ?redirect= query param in page.url()
+    // without Playwright's APIRequestContext following redirects to the final 200.
+    await page.goto("/dashboard", { waitUntil: "commit" });
+    const url = new URL(page.url());
+    expect(url.pathname).toMatch(/\/login/);
     expect(url.searchParams.get("redirect")).toBe("/dashboard");
   });
 
   test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ page }) => {
-    // Same approach as the redirect param test: read the middleware's 307
-    // Location header directly so we're testing middleware behavior, not the
-    // final URL after client-side hydration mutations.
-    const res = await page.request.get(new URL("/proposals", page.url()).toString(), {
-      maxRedirects: 0,
-    });
-    expect([301, 302, 303, 307, 308]).toContain(res.status());
-    const location = res.headers()["location"] || "";
-    expect(location).toMatch(/\/login/);
-    const url = new URL(location, page.url());
+    await page.goto("/proposals", { waitUntil: "commit" });
+    const url = new URL(page.url());
+    expect(url.pathname).toMatch(/\/login/);
     expect(url.searchParams.get("redirect_reason")).toBe("session_expired");
   });
 });
