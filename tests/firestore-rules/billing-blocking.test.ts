@@ -127,9 +127,17 @@ describe('SEC-BILLING-01: Active subscription allows reads', () => {
     'notifications',
   ] as const;
 
+  // The rules use a stale-claims fallback (getUserDocTenantId, hasSuperAdminRoleInUserDoc)
+  // that reads users/{uid}. The Firestore emulator v1.21+ has been observed to
+  // evaluate these get() calls eagerly even when an exists()/ternary guard should
+  // short-circuit them, producing a Null value error for non-existent docs and
+  // making tenant-scoped reads flakily fail. Seed the users doc in every test so
+  // the fallback always finds a non-null resource. In production users/{uid} is
+  // created on signup, so this seeded shape matches real behavior.
   test.each(collectionsWithTenantId)(
     '%s: active tenant can read',
     async (coll) => {
+      await seedDoc('users', 'uid-active', { tenantId: 'tenant-active', role: 'MASTER' });
       await seedDoc('tenants', 'tenant-active', { subscriptionStatus: 'active' });
       await seedDoc(coll, 'doc-active', { tenantId: 'tenant-active' });
       await assertSucceeds(getDoc(doc(activeDb(), coll, 'doc-active')));
@@ -137,12 +145,14 @@ describe('SEC-BILLING-01: Active subscription allows reads', () => {
   );
 
   test('past_due tenant can still read (grace period — not yet blocked)', async () => {
+    await seedDoc('users', 'uid-pastdue', { tenantId: 'tenant-pastdue', role: 'MASTER' });
     await seedDoc('tenants', 'tenant-pastdue', { subscriptionStatus: 'past_due' });
     await seedDoc('proposals', 'doc-pastdue', { tenantId: 'tenant-pastdue' });
     await assertSucceeds(getDoc(doc(pastDueDb(), 'proposals', 'doc-pastdue')));
   });
 
   test('token without subscriptionStatus claim can read (backwards compat)', async () => {
+    await seedDoc('users', 'uid-noclaim', { tenantId: 'tenant-noclaim', role: 'MASTER' });
     await seedDoc('tenants', 'tenant-noclaim', { subscriptionStatus: 'active' });
     await seedDoc('proposals', 'doc-noclaim', { tenantId: 'tenant-noclaim' });
     await assertSucceeds(getDoc(doc(noClaimDb(), 'proposals', 'doc-noclaim')));
