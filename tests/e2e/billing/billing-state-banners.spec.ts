@@ -105,7 +105,10 @@ test.describe("STATE-03 cancel subscription past_due", () => {
     await loginPage.goto();
     await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
     await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 30000 });
-    await page.goto("/profile");
+    // Navigate directly to the subscription tab — the "Cancelar Assinatura" button
+    // is rendered only inside <TabsContent value="subscription">. Without the tab
+    // param the page defaults to "overview" and the button is never mounted.
+    await page.goto("/profile?tab=subscription");
 
     // Wait for the subscription tab to render before clicking — the page
     // settles auth/billing state asynchronously on entry.
