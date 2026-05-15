@@ -39,6 +39,18 @@ afterEach(async () => {
   await testEnv.clearFirestore();
 });
 
+// Pre-seed user documents for every test so hasSuperAdminRoleInUserDoc() never
+// calls get() on a non-existent doc. The Firestore emulator v1.21+ evaluates
+// && chains eagerly, producing "Null value error" when the doc is missing.
+beforeEach(async () => {
+  await seedDoc('users', 'uid-active', { tenantId: 'tenant-active', role: 'MASTER' });
+  await seedDoc('users', 'uid-canceled', { tenantId: 'tenant-canceled', role: 'MASTER' });
+  await seedDoc('users', 'uid-unpaid', { tenantId: 'tenant-unpaid', role: 'MASTER' });
+  await seedDoc('users', 'uid-pastdue', { tenantId: 'tenant-pastdue', role: 'MASTER' });
+  await seedDoc('users', 'uid-noclaim', { tenantId: 'tenant-noclaim', role: 'MASTER' });
+  await seedDoc('users', 'uid-superadmin', { tenantId: '', role: 'SUPERADMIN' });
+});
+
 async function seedDoc(
   collectionPath: string,
   docId: string,
