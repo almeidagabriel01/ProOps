@@ -91,13 +91,33 @@ test.describe("AUTH-LR-06: Logout clears sticky redirect — free user never sen
     }
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
 
-    // The login form remounts after the previous user's auth state tears down.
-    // Wait for the email input before the next login() call so we don't race
-    // the form mount on a slow CI runner.
+    // Wipe Firebase Auth persisted state from IndexedDB so the login page
+    // renders the form immediately without a stale-session loading phase.
+    await page.evaluate(async () => {
+      const dbs = (await indexedDB.databases?.()) ?? [];
+      await Promise.all(
+        dbs.map(
+          (db) =>
+            new Promise<void>((resolve) => {
+              if (!db.name) return resolve();
+              const req = indexedDB.deleteDatabase(db.name);
+              req.onsuccess = req.onerror = req.onblocked = () => resolve();
+            }),
+        ),
+      );
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        // noop
+      }
+    });
+    await page.reload();
+
     await page
       .locator('#email[type="email"], input[type="email"]')
       .first()
-      .waitFor({ state: "visible", timeout: 30000 });
+      .waitFor({ state: "visible", timeout: 15000 });
 
     await loginPage.login(USER_FREE.email, USER_FREE.password);
 
@@ -145,11 +165,15 @@ test.describe("AUTH-LOGIN-01-B: redirect_reason=session_expired shows warning to
       page.getByText("Bem-vindo de volta! Insira suas credenciais."),
     ).toBeVisible({ timeout: 5000 });
 
-    // Toast appears on mount via useEffect in useLoginForm
-    // Sileo renders toasts via Sonner — selector falls back to role=status
-    const toast = page
-      .locator('[data-sonner-toast], [role="status"]')
-      .first();
+    // Wait for Firebase Auth to finish initializing (isLoading → false).
+    // The toast useEffect guards on !isLoading so it won't fire until the
+    // email input is visible. Sileo renders toasts with data-sileo-toast.
+    await page
+      .locator('#email[type="email"], input[type="email"]')
+      .first()
+      .waitFor({ state: "visible", timeout: 15000 });
+
+    const toast = page.locator("[data-sileo-toast]").first();
     await expect(toast).toBeVisible({ timeout: 5000 });
   });
 });
