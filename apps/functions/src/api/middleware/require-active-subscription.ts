@@ -117,9 +117,10 @@ export async function requireActiveSubscription(
     }
   }
 
-  const { subscriptionStatus, pastDueSince } = billingState;
+  const { subscriptionStatus, plan, pastDueSince } = billingState;
 
   if (
+    plan === "free" ||
     subscriptionStatus === "free" ||
     subscriptionStatus === "" ||
     subscriptionStatus === "active" ||
