@@ -67,16 +67,16 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
     // the server-side 307 redirect is committed but before the login page's
     // JavaScript runs. This preserves the ?redirect= query param in page.url()
     // without Playwright's APIRequestContext following redirects to the final 200.
-    await page.goto("/dashboard", { waitUntil: "commit" });
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
     const url = new URL(page.url());
-    expect(url.pathname).toMatch(/\/login/);
     expect(url.searchParams.get("redirect")).toBe("/dashboard");
   });
 
   test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ page }) => {
-    await page.goto("/proposals", { waitUntil: "commit" });
+    await page.goto("/proposals");
+    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
     const url = new URL(page.url());
-    expect(url.pathname).toMatch(/\/login/);
     expect(url.searchParams.get("redirect_reason")).toBe("session_expired");
   });
 });
