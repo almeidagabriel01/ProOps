@@ -63,30 +63,30 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
   });
 
   test("redirect URL includes the original path as 'redirect' query param", async ({ page }) => {
-    // Capture the 307 response from middleware directly to read the Location header
-    // before any client-side JS can modify the URL (e.g. Firebase SDK side-effects).
+    // waitForResponse with status 200 + pathname /login captures the URL the browser
+    // navigated to AFTER following the middleware's 307 redirect — before any client-side
+    // JS runs (response.url() is fixed at network time, not affected by history.replaceState).
+    // Playwright does not surface 307 redirect responses separately; only the final 200 fires.
     const [response] = await Promise.all([
       page.waitForResponse(
-        (r) => r.status() === 307 && new URL(r.url()).pathname === "/dashboard",
+        (r) => r.status() === 200 && new URL(r.url()).pathname === "/login",
         { timeout: 10000 },
       ),
       page.goto("/dashboard"),
     ]);
-    const location = response.headers()["location"];
-    const redirectUrl = new URL(location);
-    expect(redirectUrl.searchParams.get("redirect")).toBe("/dashboard");
+    const url = new URL(response.url());
+    expect(url.searchParams.get("redirect")).toBe("/dashboard");
   });
 
   test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ page }) => {
     const [response] = await Promise.all([
       page.waitForResponse(
-        (r) => r.status() === 307 && new URL(r.url()).pathname === "/proposals",
+        (r) => r.status() === 200 && new URL(r.url()).pathname === "/login",
         { timeout: 10000 },
       ),
       page.goto("/proposals"),
     ]);
-    const location = response.headers()["location"];
-    const redirectUrl = new URL(location);
-    expect(redirectUrl.searchParams.get("redirect_reason")).toBe("session_expired");
+    const url = new URL(response.url());
+    expect(url.searchParams.get("redirect_reason")).toBe("session_expired");
   });
 });
