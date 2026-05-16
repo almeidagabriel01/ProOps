@@ -166,6 +166,9 @@ export async function restoreTenantState(
   if (userId) {
     await db.collection("users").doc(userId).update({
       stripeSubscriptionId: admin.firestore.FieldValue.delete(),
+      cancelAtPeriodEnd: admin.firestore.FieldValue.delete(),
+      subscriptionStatus: admin.firestore.FieldValue.delete(),
+      subscription: admin.firestore.FieldValue.delete(),
     });
   }
 

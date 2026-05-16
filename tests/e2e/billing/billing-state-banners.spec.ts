@@ -24,7 +24,7 @@ test.describe("STATE-01 past_due banner", () => {
   const db = getTestDb();
 
   test.afterEach(async () => {
-    await restoreTenantState(db, TENANT);
+    await restoreTenantState(db, TENANT, USER_ADMIN_BETA.uid);
   });
 
   test("past_due banner: red banner visible at top of dashboard with 'Atualizar pagamento' CTA", async ({ page, loginPage }) => {
@@ -52,7 +52,7 @@ test.describe("STATE-02 cancel period end banner", () => {
   const db = getTestDb();
 
   test.afterEach(async () => {
-    await restoreTenantState(db, TENANT);
+    await restoreTenantState(db, TENANT, USER_ADMIN_BETA.uid);
   });
 
   test("cancel period end banner: yellow banner visible with formatted date", async ({ page, loginPage }) => {
