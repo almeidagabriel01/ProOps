@@ -5,7 +5,7 @@ import { test, expect } from "../fixtures/base.fixture";
  *
  * These tests verify that the Next.js middleware redirects unauthenticated
  * users to /login with redirect and redirect_reason query params
- * (middleware.ts lines 117-120: loginUrl.searchParams.set).
+ * (middleware.ts: loginUrl.searchParams.set).
  *
  * All tests deliberately run WITHOUT any auth cookies.
  */
@@ -62,45 +62,31 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
   });
 
-  test("redirect URL includes the original path as 'redirect' query param", async ({ page }) => {
-    // Filter requires both middleware-set params so spurious background requests to
-    // /login (e.g. Next.js RSC refetches without query params) are skipped.
-    const [response] = await Promise.all([
-      page.waitForResponse(
-        (r) => {
-          if (r.status() !== 200) return false;
-          const url = new URL(r.url());
-          return (
-            url.pathname === "/login" &&
-            url.searchParams.has("redirect") &&
-            url.searchParams.has("redirect_reason")
-          );
-        },
-        { timeout: 10000 },
-      ),
-      page.goto("/dashboard"),
-    ]);
-    const url = new URL(response.url());
-    expect(url.searchParams.get("redirect")).toBe("/dashboard");
+  test("redirect URL includes the original path as 'redirect' query param", async ({ playwright }) => {
+    // playwright.request.newContext() creates a fully isolated APIRequestContext
+    // with an empty cookie jar — no __session cookie, no browser state.
+    // Following the redirect lets us inspect the final URL the middleware sends
+    // the user to, without depending on maxRedirects:0 edge-case behavior.
+    const ctx = await playwright.request.newContext({ baseURL: "http://localhost:3001" });
+    try {
+      const resp = await ctx.fetch("/dashboard");
+      const url = new URL(resp.url());
+      expect(url.pathname).toBe("/login");
+      expect(url.searchParams.get("redirect")).toBe("/dashboard");
+    } finally {
+      await ctx.dispose();
+    }
   });
 
-  test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ page }) => {
-    const [response] = await Promise.all([
-      page.waitForResponse(
-        (r) => {
-          if (r.status() !== 200) return false;
-          const url = new URL(r.url());
-          return (
-            url.pathname === "/login" &&
-            url.searchParams.has("redirect") &&
-            url.searchParams.has("redirect_reason")
-          );
-        },
-        { timeout: 10000 },
-      ),
-      page.goto("/proposals"),
-    ]);
-    const url = new URL(response.url());
-    expect(url.searchParams.get("redirect_reason")).toBe("session_expired");
+  test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ playwright }) => {
+    const ctx = await playwright.request.newContext({ baseURL: "http://localhost:3001" });
+    try {
+      const resp = await ctx.fetch("/proposals");
+      const url = new URL(resp.url());
+      expect(url.pathname).toBe("/login");
+      expect(url.searchParams.get("redirect_reason")).toBe("session_expired");
+    } finally {
+      await ctx.dispose();
+    }
   });
 });
