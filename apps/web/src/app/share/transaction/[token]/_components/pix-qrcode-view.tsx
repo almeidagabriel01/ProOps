@@ -69,6 +69,18 @@ export function PixQrCodeView({
   const { minutes, seconds, isExpired } = useCountdown(expiresAt);
 
   const consecutiveErrorsRef = React.useRef(0);
+  const onPaymentApprovedRef = React.useRef(onPaymentApproved);
+  React.useEffect(() => {
+    onPaymentApprovedRef.current = onPaymentApproved;
+  });
+
+  React.useEffect(() => {
+    if (paymentStatus !== "approved") return;
+    const timeoutId = setTimeout(() => {
+      onPaymentApprovedRef.current();
+    }, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [paymentStatus]);
 
   const stopPolling = React.useCallback(() => {
     if (pollingRef.current) {
@@ -108,7 +120,6 @@ export function PixQrCodeView({
           stopPolling();
           clearTimeout(absoluteTimeoutId);
           setPaymentStatus("approved");
-          onPaymentApproved();
         } else if (
           result.status === "rejected" ||
           result.status === "cancelled"
@@ -136,7 +147,7 @@ export function PixQrCodeView({
       clearInterval(intervalId);
       clearTimeout(absoluteTimeoutId);
     };
-  }, [token, paymentId, onPaymentApproved, stopPolling]);
+  }, [token, paymentId, stopPolling]);
 
   const handleCopy = async () => {
     try {
@@ -159,7 +170,6 @@ export function PixQrCodeView({
         if (result.status === "approved") {
           stopPolling();
           setPaymentStatus("approved");
-          onPaymentApproved();
           return;
         }
       } catch {
