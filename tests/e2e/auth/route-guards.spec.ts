@@ -63,13 +63,19 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
   });
 
   test("redirect URL includes the original path as 'redirect' query param", async ({ page }) => {
-    // waitForResponse with status 200 + pathname /login captures the URL the browser
-    // navigated to AFTER following the middleware's 307 redirect — before any client-side
-    // JS runs (response.url() is fixed at network time, not affected by history.replaceState).
-    // Playwright does not surface 307 redirect responses separately; only the final 200 fires.
+    // Filter requires both middleware-set params so spurious background requests to
+    // /login (e.g. Next.js RSC refetches without query params) are skipped.
     const [response] = await Promise.all([
       page.waitForResponse(
-        (r) => r.status() === 200 && new URL(r.url()).pathname === "/login",
+        (r) => {
+          if (r.status() !== 200) return false;
+          const url = new URL(r.url());
+          return (
+            url.pathname === "/login" &&
+            url.searchParams.has("redirect") &&
+            url.searchParams.has("redirect_reason")
+          );
+        },
         { timeout: 10000 },
       ),
       page.goto("/dashboard"),
@@ -81,7 +87,15 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
   test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ page }) => {
     const [response] = await Promise.all([
       page.waitForResponse(
-        (r) => r.status() === 200 && new URL(r.url()).pathname === "/login",
+        (r) => {
+          if (r.status() !== 200) return false;
+          const url = new URL(r.url());
+          return (
+            url.pathname === "/login" &&
+            url.searchParams.has("redirect") &&
+            url.searchParams.has("redirect_reason")
+          );
+        },
         { timeout: 10000 },
       ),
       page.goto("/proposals"),
