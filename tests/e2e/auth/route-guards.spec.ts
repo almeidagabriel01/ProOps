@@ -63,20 +63,30 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
   });
 
   test("redirect URL includes the original path as 'redirect' query param", async ({ page }) => {
-    // Use page.goto with waitUntil:"commit" so the navigation resolves after
-    // the server-side 307 redirect is committed but before the login page's
-    // JavaScript runs. This preserves the ?redirect= query param in page.url()
-    // without Playwright's APIRequestContext following redirects to the final 200.
-    await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-    const url = new URL(page.url());
-    expect(url.searchParams.get("redirect")).toBe("/dashboard");
+    // Capture the 307 response from middleware directly to read the Location header
+    // before any client-side JS can modify the URL (e.g. Firebase SDK side-effects).
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.status() === 307 && new URL(r.url()).pathname === "/dashboard",
+        { timeout: 10000 },
+      ),
+      page.goto("/dashboard"),
+    ]);
+    const location = response.headers()["location"];
+    const redirectUrl = new URL(location);
+    expect(redirectUrl.searchParams.get("redirect")).toBe("/dashboard");
   });
 
   test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ page }) => {
-    await page.goto("/proposals");
-    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-    const url = new URL(page.url());
-    expect(url.searchParams.get("redirect_reason")).toBe("session_expired");
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.status() === 307 && new URL(r.url()).pathname === "/proposals",
+        { timeout: 10000 },
+      ),
+      page.goto("/proposals"),
+    ]);
+    const location = response.headers()["location"];
+    const redirectUrl = new URL(location);
+    expect(redirectUrl.searchParams.get("redirect_reason")).toBe("session_expired");
   });
 });
