@@ -154,6 +154,14 @@ describe('SEC-02: Tenant isolation is enforced — correct tenant can read, writ
     'wallet_transactions',
   ] as const;
 
+  // Seed user docs so hasSuperAdminRoleInUserDoc() never calls get() on a
+  // non-existent doc. The Firestore emulator v1.21+ evaluates && chains
+  // eagerly, producing "Null value error" when the doc is missing.
+  beforeEach(async () => {
+    await seedDoc('users', 'uid-alpha', { tenantId: 'tenant-alpha', role: 'MASTER' });
+    await seedDoc('users', 'uid-beta', { tenantId: 'tenant-beta', role: 'MASTER' });
+  });
+
   test.each(collections)('%s: same-tenant read is allowed', async (coll) => {
     await seedDoc(coll, 'doc-001', { tenantId: 'tenant-alpha' });
     await assertSucceeds(getDoc(doc(alphaDb(), coll, 'doc-001')));

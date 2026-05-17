@@ -24,8 +24,10 @@ const RATE_LIMIT_RPM = 20; // requests per minute per user
 const MAX_SSE_PER_TENANT = 20;
 const WINDOW_MS = 60_000;
 
-// Purge stale window entries every minute to prevent unbounded memory growth
-setInterval(() => {
+// Purge stale window entries every minute to prevent unbounded memory growth.
+// .unref() prevents this timer from keeping the process alive during Firebase CLI
+// local analysis (deploy backend spec detection) and graceful shutdown.
+const _purgeTimer = setInterval(() => {
   const cutoff = Date.now() - WINDOW_MS;
   for (const [uid, timestamps] of userWindows.entries()) {
     const fresh = timestamps.filter((t) => t > cutoff);
@@ -33,6 +35,7 @@ setInterval(() => {
     else userWindows.set(uid, fresh);
   }
 }, WINDOW_MS);
+if (typeof _purgeTimer.unref === "function") _purgeTimer.unref();
 
 export function aiRateLimiter(req: Request, res: Response, next: NextFunction): void {
   const user = req.user;

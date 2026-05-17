@@ -29,12 +29,16 @@ export class LoginPage {
   }
 
   async fillEmail(email: string): Promise<void> {
-    // Click first to trigger readOnly unlock (the form uses readOnly to prevent autofill)
+    // Click first to trigger readOnly unlock (the form uses readOnly to prevent autofill).
+    // After logout the form remounts; wait for the input to be visible before interacting
+    // to avoid clicking a stale node.
+    await this.emailInput.waitFor({ state: "visible", timeout: 30000 });
     await this.emailInput.click();
     await this.emailInput.fill(email);
   }
 
   async fillPassword(password: string): Promise<void> {
+    await this.passwordInput.waitFor({ state: "visible", timeout: 30000 });
     await this.passwordInput.click();
     await this.passwordInput.fill(password);
   }

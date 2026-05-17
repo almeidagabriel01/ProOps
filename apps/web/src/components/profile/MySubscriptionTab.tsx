@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
 
 import {
@@ -12,13 +13,14 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, UserPlan, PurchasedAddon, PlanFeatures } from "@/types";
+import { User, UserPlan, PurchasedAddon, PlanFeatures, Tenant, PlanTier } from "@/types";
 import { ADDON_DEFINITIONS } from "@/services/addon-service";
 import { DEFAULT_PLANS } from "@/services/plan-service";
 import Link from "next/link";
 import { formatPrice } from "@/utils/format";
 import { formatDateBR, type DateValue } from "@/utils/date-format";
 import { CreditCard, Calendar, Crown, Puzzle, Check, X, ExternalLink, AlertCircle, Zap, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   AlertDialog,
@@ -41,6 +43,10 @@ interface MySubscriptionTabProps {
   handleManagePayment: () => void;
   openingPortal: boolean;
   isMaster: boolean;
+  /** Tenant document — provides the Stripe price snapshot (unitAmount in centavos). */
+  tenant?: Tenant | null;
+  /** Called after an addon is successfully cancelled so the parent can refresh the addon list without a full page reload. */
+  onAddonCancelled?: () => Promise<void>;
 }
 
 const statusLabels: Record<
@@ -118,7 +124,11 @@ export function MySubscriptionTab({
   handleManagePayment,
   openingPortal,
   isMaster,
+  tenant,
+  onAddonCancelled,
 }: MySubscriptionTabProps) {
+  const router = useRouter();
+
   // Get effective plan - fallback to DEFAULT_PLANS if userPlan is null but user has planId
   const effectivePlan =
     userPlan ||
@@ -160,6 +170,29 @@ export function MySubscriptionTab({
   const showManualTag = Boolean(isManualSubscription) && !hasBillingEvidence;
 
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Sync billing data when stale — only for superadmin since the endpoint is admin-only.
+  // For regular tenants the backend syncs automatically via webhook; skip to avoid 403.
+  useEffect(() => {
+    if (user?.role !== "superadmin") return;
+    const tenantId = user?.tenantId;
+    if (!tenantId) return;
+    const freeStatuses = ["free", undefined, null];
+    if (freeStatuses.includes(user?.subscriptionStatus as string | undefined | null)) return;
+
+    const billingSyncedAt = user?.subscriptionUpdatedAt;
+    const needsSync =
+      !billingSyncedAt ||
+      Date.now() - new Date(billingSyncedAt).getTime() > 5 * 60 * 1000;
+
+    if (needsSync) {
+      import("@/services/admin-service").then(({ AdminService }) => {
+        AdminService.forceTenantBillingSync(tenantId).catch(() => {});
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.subscriptionUpdatedAt]);
+
   const [addonToCancel, setAddonToCancel] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [subscriptionToCancel, setSubscriptionToCancel] = useState(false);
@@ -174,12 +207,22 @@ export function MySubscriptionTab({
       await StripeService.cancelAddon({
         addonId: addonToCancel,
       });
-      toast.success(
-        "Módulo cancelado com sucesso. A alteração será refletida em breve.",
-      );
+      if (isAddonPastDue) {
+        toast.success(
+          "Módulo cancelado imediatamente. O acesso à funcionalidade foi encerrado.",
+        );
+      } else {
+        toast.success(
+          "Módulo cancelado com sucesso. A alteração será refletida em breve.",
+        );
+      }
       setAddonToCancel(null);
-      // Optional: Trigger a refresh or sync
-      setTimeout(() => window.location.reload(), 2000);
+      // Invalidate client-side cache and refresh addon list in-place.
+      if (tenant?.id) {
+        const { AddonService } = await import("@/services/addon-service");
+        AddonService.invalidateCache(tenant.id);
+      }
+      await onAddonCancelled?.();
     } catch (error) {
       console.error("Error cancelling addon:", error);
       toast.error("Erro ao cancelar módulo. Tente novamente.");
@@ -208,19 +251,32 @@ export function MySubscriptionTab({
   };
 
   const handleConfirmCancelSubscription = async () => {
+    const isPastDueCancel = subscriptionStatus === "past_due";
     setIsCancellingSubscription(true);
     try {
       const { StripeService } = await import("@/services/stripe-service");
       const result = await StripeService.cancelSubscription();
-      if (result.success) {
-        toast.success(
-          "Cancelamento agendado! Seu acesso continua até o final do período pago.",
-        );
-        setSubscriptionToCancel(false);
-        setTimeout(() => window.location.reload(), 2000);
-      } else {
-        throw new Error("Falha no cancelamento");
+      if (!result.success) throw new Error("Falha no cancelamento");
+
+      if (isPastDueCancel || result.requiresReauth) {
+        // Session stays valid — the user remains logged in. The backend already
+        // updated Firestore (subscriptionStatus: "canceled") and cleared the billing
+        // cache before returning this response. Any protected route the user visits
+        // will be blocked by the middleware billing-status gate.
+        // Do NOT call auth.signOut() here — it would flash the login screen before
+        // the /subscription-blocked redirect fires.
+        toast.success("Assinatura cancelada. Seu acesso foi encerrado.");
+        if (!window.location.pathname.startsWith("/subscription-blocked")) {
+          window.location.replace("/subscription-blocked?reason=canceled");
+        }
+        return;
       }
+
+      toast.success(
+        "Cancelamento agendado! Seu acesso continua até o final do período pago.",
+      );
+      setSubscriptionToCancel(false);
+      router.refresh();
     } catch (error) {
       console.error("Error cancelling subscription:", error);
       toast.error("Erro ao cancelar assinatura. Tente novamente.");
@@ -277,12 +333,37 @@ export function MySubscriptionTab({
 
   const statusInfo = statusLabels[subscriptionStatus] || statusLabels.active;
 
-  // Calculate monthly price (using effectivePlan)
+  // Prefer the actual Stripe price snapshot stored on the tenant doc.
+  // Falls back to the live tier lookup for manual subscriptions without Stripe.
+  const snapshotUnitAmount = tenant?.subscription?.unitAmount;
+  const snapshotPriceInBRL =
+    typeof snapshotUnitAmount === "number" && snapshotUnitAmount !== null
+      ? snapshotUnitAmount / 100
+      : null;
+
   const monthlyPrice =
-    effectivePlan?.pricing?.monthly || effectivePlan?.price || 0;
-  const yearlyPrice = effectivePlan?.pricing?.yearly || 0;
+    billingInterval === "monthly"
+      ? (snapshotPriceInBRL ?? effectivePlan?.pricing?.monthly ?? effectivePlan?.price ?? 0)
+      : (effectivePlan?.pricing?.monthly ?? effectivePlan?.price ?? 0);
+  const yearlyPrice =
+    billingInterval === "yearly"
+      ? (snapshotPriceInBRL ?? effectivePlan?.pricing?.yearly ?? 0)
+      : (effectivePlan?.pricing?.yearly ?? 0);
   const currentPrice =
     billingInterval === "yearly" ? yearlyPrice : monthlyPrice;
+
+  // Detect price drift: snapshot differs from what the live tier table says.
+  // Only meaningful when the user has a Stripe subscription (not manual).
+  const liveTierPrice =
+    billingInterval === "yearly"
+      ? (effectivePlan?.pricing?.yearly ?? 0)
+      : (effectivePlan?.pricing?.monthly ?? effectivePlan?.price ?? 0);
+  const hasPriceDrift =
+    snapshotPriceInBRL !== null &&
+    !isManualSubscription &&
+    hasStripeSubscription &&
+    Math.round(snapshotPriceInBRL * 100) !== Math.round(liveTierPrice * 100);
+
   const isEnterprisePlan = effectivePlan?.tier === "enterprise";
 
   // Get addon details
@@ -294,6 +375,7 @@ export function MySubscriptionTab({
   const addonToCancelInfo = addonToCancel
     ? addonsData.find((addon) => addon.addonType === addonToCancel)
     : null;
+  const isAddonPastDue = addonToCancelInfo?.status === "past_due";
   const addonCancelDate = (() => {
     const purchasedDate = normalizeDate(addonToCancelInfo?.purchasedAt);
     if (!purchasedDate) {
@@ -388,6 +470,11 @@ export function MySubscriptionTab({
                     <p className="text-sm text-muted-foreground">
                       /{billingInterval === "yearly" ? "ano" : "mês"}
                     </p>
+                    {hasPriceDrift && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Próxima renovação: {formatPrice(liveTierPrice)}
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -427,8 +514,19 @@ export function MySubscriptionTab({
             </div>
           )}
 
+          {/* Skeleton while billing data is loading for Stripe subscriptions */}
+          {!showManualTag && hasStripeSubscription && !currentPeriodEnd && isSyncing && (
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/50 border">
+              <Calendar className="w-5 h-5 text-muted-foreground shrink-0" />
+              <div className="flex flex-col gap-1.5">
+                <p className="text-sm text-muted-foreground">Próxima cobrança</p>
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          )}
+
           {/* Sync Button for missing billing info */}
-          {!showManualTag && hasStripeSubscription && !currentPeriodEnd && (
+          {!showManualTag && hasStripeSubscription && !currentPeriodEnd && !isSyncing && (
             <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
               <div className="flex items-center gap-3 flex-1">
                 <AlertCircle className="w-5 h-5 text-amber-500" />
@@ -700,8 +798,24 @@ export function MySubscriptionTab({
                             );
                             const isCancelled = addonInfo?.cancelAtPeriodEnd;
                             const cancelDate = addonInfo?.currentPeriodEnd;
+                            const isPeriodExpired = cancelDate
+                              ? new Date(cancelDate) < new Date()
+                              : false;
+                            const addonDef = ADDON_DEFINITIONS.find(
+                              (a) => a.id === module.id,
+                            );
+                            const planTierStr =
+                              effectivePlan?.tier || user?.planId;
+                            const isIncludedInPlan =
+                              addonDef && planTierStr
+                                ? !addonDef.availableForTiers.includes(
+                                    planTierStr as PlanTier,
+                                  )
+                                : false;
+                            const showCancelBadge =
+                              isCancelled && !isPeriodExpired && !isIncludedInPlan;
 
-                            if (isCancelled) {
+                            if (showCancelBadge) {
                               return (
                                 <Badge
                                   variant="outline"
@@ -710,6 +824,10 @@ export function MySubscriptionTab({
                                   Cancelando {formatDate(cancelDate)}
                                 </Badge>
                               );
+                            }
+
+                            if (isIncludedInPlan || isPeriodExpired) {
+                              return null;
                             }
 
                             return (
@@ -760,11 +878,22 @@ export function MySubscriptionTab({
               ?
               <br />
               <br />
-              <br />
-              Seu acesso continuará ativo até{" "}
-              <strong>{addonCancelDate || "o fim do período já pago"}</strong>.
-              Após essa data, o acesso às funcionalidades deste módulo será
-              revogado e não haverá renovação automática.
+              {isAddonPastDue ? (
+                <>
+                  Este módulo está com pagamento em atraso. O cancelamento
+                  ocorrerá <strong>imediatamente</strong> e o acesso às
+                  funcionalidades será revogado agora.
+                </>
+              ) : (
+                <>
+                  Seu acesso continuará ativo até{" "}
+                  <strong>
+                    {addonCancelDate || "o fim do período já pago"}
+                  </strong>
+                  . Após essa data, o acesso às funcionalidades deste módulo
+                  será revogado e não haverá renovação automática.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -803,16 +932,25 @@ export function MySubscriptionTab({
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar Assinatura?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja cancelar sua assinatura do plano{" "}
-              <strong>{effectivePlan?.name}</strong>?
-              <br />
-              <br />
-              Seu acesso continuará ativo até{" "}
-              <strong>
-                {subscriptionCancelDate || "o final do período já pago"}
-              </strong>
-              . Após essa data, sua assinatura não será renovada automaticamente
-              e você será movido para o plano gratuito.
+              {subscriptionStatus === "past_due" ? (
+                <>
+                  Você está com pagamento pendente. Ao cancelar, seu acesso
+                  será encerrado imediatamente.
+                </>
+              ) : (
+                <>
+                  Tem certeza que deseja cancelar sua assinatura do plano{" "}
+                  <strong>{effectivePlan?.name}</strong>?
+                  <br />
+                  <br />
+                  Seu acesso continuará ativo até{" "}
+                  <strong>
+                    {subscriptionCancelDate || "o final do período já pago"}
+                  </strong>
+                  . Após essa data, sua assinatura não será renovada
+                  automaticamente e você será movido para o plano gratuito.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -832,6 +970,8 @@ export function MySubscriptionTab({
                   <Loader size="sm" className="mr-2" />
                   Cancelando...
                 </>
+              ) : subscriptionStatus === "past_due" ? (
+                "Sim, cancelar agora"
               ) : (
                 "Sim, cancelar assinatura"
               )}

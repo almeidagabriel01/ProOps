@@ -10,6 +10,7 @@ import {
   syncAllSubscriptions,
   cancelAddon,
   cancelSubscription,
+  reactivateSubscription,
 } from "../controllers/stripe.controller";
 
 const router = Router();
@@ -21,6 +22,7 @@ router.post("/confirm-checkout", confirmCheckoutSession);
 router.post("/checkout-addon", createAddonCheckoutSession);
 router.post("/cancel", cancelAddon);
 router.post("/cancel-subscription", cancelSubscription);
+router.post("/reactivate-subscription", reactivateSubscription);
 router.post("/portal", createPortalSession);
 router.post("/sync", syncSubscription);
 router.post("/sync-all", syncAllSubscriptions);

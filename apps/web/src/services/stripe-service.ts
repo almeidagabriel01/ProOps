@@ -67,6 +67,7 @@ interface AddonConfirmResponse {
 interface PortalRequest {
   userId: string;
   origin?: string;
+  targetTenantId?: string;
 }
 
 interface PortalResponse {
@@ -229,8 +230,16 @@ export const StripeService = {
   cancelSubscription: async (): Promise<{
     success: boolean;
     cancelAt?: string;
+    requiresReauth?: boolean;
   }> => {
     return callApi("/v1/stripe/cancel-subscription", "POST", {});
+  },
+
+  reactivateSubscription: async (): Promise<{
+    success: boolean;
+    message?: string;
+  }> => {
+    return callApi("/v1/stripe/reactivate-subscription", "POST", {});
   },
 
   createPortalSession: async (data: PortalRequest): Promise<PortalResponse> => {

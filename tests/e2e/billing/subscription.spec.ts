@@ -17,7 +17,11 @@
 import { test, expect } from "@playwright/test";
 import { signInWithEmailPassword } from "../helpers/firebase-auth-api";
 import { getTestDb } from "../helpers/admin-firestore";
-import { seedBillingState, restoreTenantState } from "../seed/data/billing";
+import {
+  seedBillingState,
+  restoreTenantState,
+  invalidateBackendTenantPlanCache,
+} from "../seed/data/billing";
 import { USER_ADMIN_BETA } from "../seed/data/users";
 
 const FUNCTIONS_BASE =
@@ -33,9 +37,13 @@ const PROPOSAL_PAYLOAD = {
   products: [],
 };
 
-/** Wait for the plan cache to expire (TTL=5000ms via .env.local + 1s buffer). */
-async function waitForCacheExpiry(): Promise<void> {
-  await new Promise((r) => setTimeout(r, 6000));
+/**
+ * Invalidate the backend tenant-plan LRU cache so plan changes made via the
+ * Admin SDK become visible on the next request. Replaces the previous racy
+ * 6s sleep — see invalidateBackendTenantPlanCache in seed/data/billing.ts.
+ */
+async function bustPlanCache(): Promise<void> {
+  await invalidateBackendTenantPlanCache("tenant-beta");
 }
 
 test.describe.serial("BILL-01: Plan upgrade unlocks proposal creation", () => {
@@ -71,7 +79,7 @@ test.describe.serial("BILL-01: Plan upgrade unlocks proposal creation", () => {
 
     // Step 2: Upgrade to pro plan. Wait for plan cache to expire.
     await seedBillingState(db, "tenant-beta", "pro");
-    await waitForCacheExpiry();
+    await bustPlanCache();
 
     // Step 3: POST proposal again — expect 201 (pro tier is unlimited).
     const allowedResponse = await fetch(`${FUNCTIONS_BASE}/v1/proposals`, {
@@ -102,7 +110,7 @@ test.describe.serial("BILL-02: subscription.created state allows API call", () =
     // Start blocked: free plan with 5 proposals used.
     await seedBillingState(db, "tenant-beta", "free", 5);
     // Wait for any stale plan cache (from previous test) to expire before this test begins.
-    await waitForCacheExpiry();
+    await bustPlanCache();
   });
 
   test.afterEach(async () => {
@@ -131,7 +139,7 @@ test.describe.serial("BILL-02: subscription.created state allows API call", () =
       { plan: "pro", subscriptionStatus: "active", stripeSubscriptionId: "sub_test_123" },
       { merge: true },
     );
-    await waitForCacheExpiry();
+    await bustPlanCache();
 
     // Step 3: POST proposal again — expect 201 (unblocked).
     const allowedResponse = await fetch(`${FUNCTIONS_BASE}/v1/proposals`, {
@@ -162,7 +170,7 @@ test.describe.serial("BILL-03: subscription.cancelled state blocks API call", ()
     // Start on pro plan (unblocked — unlimited proposals).
     await seedBillingState(db, "tenant-beta", "pro");
     // Wait for any stale plan cache (from previous test) to expire before this test begins.
-    await waitForCacheExpiry();
+    await bustPlanCache();
   });
 
   test.afterEach(async () => {
@@ -205,7 +213,7 @@ test.describe.serial("BILL-03: subscription.cancelled state blocks API call", ()
       { merge: true },
     );
     // Keep usage at 5 (already seeded) so the free plan limit check fires.
-    await waitForCacheExpiry();
+    await bustPlanCache();
 
     // Step 5: POST proposal again — expect 402 (free plan, 5 of 5 used = blocked).
     const blockedResponse = await fetch(`${FUNCTIONS_BASE}/v1/proposals`, {

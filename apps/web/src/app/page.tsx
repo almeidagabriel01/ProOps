@@ -7,12 +7,12 @@ import {
 import { LandingPageClient } from "./_components/landing-page-client";
 
 export const metadata: Metadata = {
-  title: "ProOps — ERP para automação residencial e cortinas",
+  title: "ProOps - ERP para gestão de serviços",
   description:
     "ProOps é o ERP completo para empresas de serviço: propostas, CRM, financeiro, agenda e WhatsApp integrados em uma plataforma online com editor de PDF profissional.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "ProOps — ERP para automação residencial e cortinas",
+    title: "ProOps - ERP para gestão de serviços",
     description:
       "CRM, propostas, financeiro e agenda integrados numa plataforma feita para empresas de serviço que querem crescer sem perder o controle.",
     url: "/",

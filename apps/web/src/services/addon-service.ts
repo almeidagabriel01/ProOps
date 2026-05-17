@@ -221,6 +221,16 @@ export const AddonService = {
   },
 
   /**
+   * Invalidate the in-memory addon caches for a tenant.
+   * Call after any mutation (cancel, reactivate) to ensure the next read fetches
+   * fresh state from Firestore instead of returning stale cached data.
+   */
+  invalidateCache(tenantId: string): void {
+    _addonsCache.invalidate(tenantId);
+    _addonsWithPastDueCache.invalidate(tenantId);
+  },
+
+  /**
    * Delete an add-on (hard delete, use only for cleanup)
    */
   async deleteAddon(tenantId: string, addonType: AddonType): Promise<void> {

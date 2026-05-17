@@ -247,10 +247,12 @@ export class SharedProposalService {
     proposalTitle?: string,
   ): Promise<void> {
     try {
+      const anonymizedIp = this.anonymizeIP(viewerData.ip);
+      const sanitizedUserAgent = this.sanitizeUserAgent(viewerData.userAgent);
       const viewerInfo: ViewerInfo = {
-        ip: this.anonymizeIP(viewerData.ip),
-        userAgent: this.sanitizeUserAgent(viewerData.userAgent),
         timestamp: new Date().toISOString(),
+        ...(anonymizedIp ? { ip: anonymizedIp } : {}),
+        ...(sanitizedUserAgent ? { userAgent: sanitizedUserAgent } : {}),
       };
 
       const docRef = db.collection(SHARED_PROPOSALS_COLLECTION).doc(sharedProposalId);

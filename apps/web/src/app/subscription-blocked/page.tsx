@@ -1,8 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { AlertTriangle, CreditCard, Mail, LogOut, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,36 +16,19 @@ import {
 } from "@/components/ui/card";
 import { StripeService } from "@/services/stripe-service";
 import { Loader } from "@/components/ui/loader";
+import { FullPageLoading } from "@/components/ui/full-page-loading";
 
-export default function SubscriptionBlockedPage() {
+function SubscriptionBlockedContent() {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reasonParam = searchParams.get("reason");
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  useEffect(() => {
-    if (isLoading) return;
-
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
-    const validStatuses = ["active", "trialing"];
-    const isScheduledCancellationExpired =
-      user.cancelAtPeriodEnd &&
-      user.currentPeriodEnd &&
-      !Number.isNaN(new Date(user.currentPeriodEnd).getTime()) &&
-      new Date(user.currentPeriodEnd).getTime() <= Date.now();
-
-    if (
-      user.subscriptionStatus &&
-      validStatuses.includes(user.subscriptionStatus) &&
-      !isScheduledCancellationExpired
-    ) {
-      router.push("/");
-    }
-  }, [user, isLoading, router]);
+  // Redirect logic is now handled server-side in layout.tsx:
+  // - Active subscriptions are redirected to "/" before this page renders.
+  // - Revoked sessions (post-cancel) render this page so the user sees what happened.
 
   const handleManageBilling = async () => {
     if (!user) return;
@@ -71,7 +56,7 @@ export default function SubscriptionBlockedPage() {
   };
 
   const getStatusMessage = () => {
-    switch (user?.subscriptionStatus) {
+    switch (reasonParam || user?.subscriptionStatus) {
       case "unpaid":
       case "past_due":
       case "payment_failed":
@@ -100,14 +85,12 @@ export default function SubscriptionBlockedPage() {
     }
   };
 
-  if (isLoading || !user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader size="lg" />
-      </div>
-    );
+  if (isLoading) {
+    return <FullPageLoading />;
   }
 
+  // user may be null when the session cookie was revoked (post past_due cancel).
+  // The server gate in layout.tsx already verified this user is blocked; render the page.
   const status = getStatusMessage();
   const StatusIcon = status.icon;
 
@@ -183,5 +166,13 @@ export default function SubscriptionBlockedPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function SubscriptionBlockedPage() {
+  return (
+    <Suspense fallback={<FullPageLoading />}>
+      <SubscriptionBlockedContent />
+    </Suspense>
   );
 }

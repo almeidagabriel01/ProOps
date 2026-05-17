@@ -289,6 +289,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userData.subscription?.cancelAtPeriodEnd ||
             userData.subscription?.cancel_at_period_end ||
             false,
+          // Phase 20: NO top-level fallback per CONTEXT.md decision (Pitfall 5).
+          // Read only from canonical subscription.cancelAt — null otherwise.
+          cancelAt: (userData.subscription as { cancelAt?: string | null } | undefined)?.cancelAt ?? null,
           isManualSubscription,
           onboarding: normalizeOnboardingState(userData.onboarding),
         } as User;
@@ -350,11 +353,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Firebase SDK silently refreshes the ID token every ~55 min.
     // We must keep the __session cookie in sync so the middleware
     // doesn't reject the next server-side navigation.
+    // Also checks billing claims — if the refreshed token carries a blocked
+    // subscriptionStatus (written by billing-claims.ts on cancel), sign out immediately.
+    // For past_due we delegate the grace-period check to /api/auth/billing-status
+    // (which reads Firestore) because pastDueSince is not embedded in JWT claims.
+    // "canceled"/"cancelled" excluded: these users stay logged in and are blocked
+    // from ERP access by the billing-status Firestore gate. Signing them out here
+    // would cause a login flash and force full re-authentication.
+    const TERMINAL_BLOCKED_STATUSES = new Set([
+      "unpaid",
+      "inactive",
+      "payment_failed",
+    ]);
+    const SOFT_BLOCKED_STATUSES = new Set(["canceled", "cancelled"]);
     const unsubscribeToken = onIdTokenChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
       const skipEmailVerification =
         process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
       if (firebaseUser.emailVerified || skipEmailVerification) {
+        try {
+          const tokenResult = await firebaseUser.getIdTokenResult();
+          const subStatus = String(
+            tokenResult.claims.subscriptionStatus || "",
+          );
+          if (TERMINAL_BLOCKED_STATUSES.has(subStatus)) {
+            // Sign out so the user must re-authenticate. The server-side middleware
+            // redirects to /subscription-blocked on any subsequent navigation —
+            // keeping redirect logic in one place prevents false positives from stale JWT claims.
+            await signOut(auth);
+            return;
+          }
+          // Canceled accounts stay logged in. Sync the session cookie so it reflects
+          // the new claims. The middleware handles blocking on the next navigation.
+          if (SOFT_BLOCKED_STATUSES.has(subStatus)) {
+            await syncServerSession(firebaseUser);
+            return;
+          }
+          // past_due: check the server for the grace-period decision.
+          // JWT claims don't carry pastDueSince, so we ask the billing-status endpoint.
+          if (subStatus === "past_due") {
+            try {
+              const res = await fetch("/api/auth/billing-status");
+              if (res.ok) {
+                const data = (await res.json()) as { allowed?: boolean; status?: string };
+                if (data.allowed === false) {
+                  await signOut(auth);
+                  return;
+                }
+              }
+            } catch {
+              // Network error — fail open; middleware and Firestore rules are the final gate.
+            }
+          }
+        } catch {
+          // Token revoked — onAuthStateChanged fires with null, triggering sign-out.
+        }
         await syncServerSession(firebaseUser);
       }
     });
@@ -472,6 +525,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     isLoggingOutRef.current = true;
     try {
+      try {
+        sessionStorage.setItem("proops_just_logged_out", "1");
+      } catch {
+        // SSR or storage disabled
+      }
       await clearServerSession();
       await signOut(auth);
       clearViewingTenantId();

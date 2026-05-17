@@ -21,44 +21,10 @@ import { useTenant } from "@/providers/tenant-provider";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
+import { getUserColor, getInitials } from "@/lib/avatar-utils";
 
 interface HeaderProps {
   sidebarWidth?: number;
-}
-
-function getUserColor(name: string) {
-  const colors = [
-    "#ef4444",
-    "#f97316",
-    "#f59e0b",
-    "#84cc16",
-    "#22c55e",
-    "#10b981",
-    "#14b8a6",
-    "#06b6d4",
-    "#0ea5e9",
-    "#3b82f6",
-    "#6366f1",
-    "#8b5cf6",
-    "#a855f7",
-    "#d946ef",
-    "#ec4899",
-    "#f43f5e",
-  ];
-
-  let hash = 0;
-  for (let index = 0; index < name.length; index += 1) {
-    hash = name.charCodeAt(index) + ((hash << 5) - hash);
-  }
-
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function getInitials(name: string) {
-  const names = name.trim().split(" ").filter(Boolean);
-  if (names.length === 0) return "U";
-  if (names.length === 1) return names[0].charAt(0).toUpperCase();
-  return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
 }
 
 function HeaderSkeleton() {
@@ -126,33 +92,32 @@ export function Header({}: HeaderProps) {
     >
       <div className="flex items-center gap-4">
         <CommandPalette />
-      </div>
+        {isViewingAsTenant && user?.role === "superadmin" && (
+          <div className="flex items-center gap-3 px-4 py-1.5 bg-background/50 backdrop-blur-sm border border-border/60 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-500" />
+              </span>
+              <span className="text-xs font-medium text-foreground/80 whitespace-nowrap">
+                Modo Super Admin
+              </span>
+            </div>
 
-      {isViewingAsTenant && user?.role === "superadmin" && (
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-3 px-4 py-1.5 bg-background/50 backdrop-blur-sm border border-border/60 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-500" />
-            </span>
-            <span className="text-xs font-medium text-foreground/80 whitespace-nowrap">
-              Modo Super Admin
-            </span>
+            <div className="w-px h-3 bg-border mx-0.5" />
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBackToAdmin}
+              className="h-auto p-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors"
+            >
+              Voltar ao painel
+              <LogOut className="w-3 h-3 ml-1.5" />
+            </Button>
           </div>
-
-          <div className="w-px h-3 bg-border mx-0.5" />
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBackToAdmin}
-            className="h-auto p-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors"
-          >
-            Voltar ao painel
-            <LogOut className="w-3 h-3 ml-1.5" />
-          </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex items-center gap-4">
         <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />

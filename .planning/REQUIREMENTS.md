@@ -140,6 +140,43 @@
 
 - **COV-01**: Relatório de cobertura de código gerado e exibido no CI
 
+## v4.0 Requirements
+
+### Billing Foundation
+
+- [ ] **BILL-06**: Sistema de billing usa escritor único e transacional — todos os caminhos de escrita (webhooks, controller, cron) chamam uma única função que escreve ambas as formas de dados (top-level fields + nested `subscription.*`) atomicamente via `db.runTransaction()`
+- [ ] **BILL-07**: Cache de estado de assinatura usa LRU com limite de 500 entradas e TTL de 30s, substituindo o Map global ilimitado atual
+- [x] **BILL-08**: Todos os eventos Stripe processados com idempotência via `stripe_events/{eventId}` — replay duplicado retorna 200 sem reprocessar
+
+### Subscription State UI
+
+- [ ] **STATE-01**: Tenant em `past_due` vê banner vermelho persistente no topo do layout com CTA "Atualizar pagamento" que abre portal Stripe; não pode ser dispensado permanentemente
+- [ ] **STATE-02**: Tenant com `cancelAtPeriodEnd: true` vê banner amarelo com data de cancelamento formatada e botão "Reativar assinatura"
+- [ ] **STATE-03**: Tenant em `past_due` que clica "Cancelar assinatura" vê AlertDialog com aviso de cancelamento imediato; ao confirmar, controller chama `stripe.subscriptions.cancel()` (cancelamento imediato — acesso encerra agora). Tenant `active`/`trialing` mantém o fluxo at-period-end existente. O botão de cancelar permanece habilitado; não há bloqueio 409.
+- [ ] **STATE-04**: Tenant com `cancelAtPeriodEnd: true` consegue reativar assinatura com 1 clique via endpoint `POST /api/stripe/subscription/reactivate`
+
+### Addon State
+
+- [ ] **ADDON-01**: Badge "Cancelando em X" some de addons cujo `currentPeriodEnd` já passou ou que estão incluídos no plano atual do tenant
+- [ ] **ADDON-02**: Cron diário limpa automaticamente addons com `currentPeriodEnd` vencido, marcando `status: 'canceled', cancelAtPeriodEnd: false`
+
+### Login Redirect
+
+- [x] **LOGIN-01**: Após login bem-sucedido, usuário é sempre redirecionado para `/dashboard` (ou `/admin` se superadmin), independente de parâmetros `?redirect=` na URL
+
+### MercadoPago Webhook
+
+- [x] **MPWH-01**: Webhook MP registra todos os eventos recebidos com log estruturado (headers filtrados, action, resultado de validação HMAC, resultado do lookup de transação) visível no Cloud Logging
+- [x] **MPWH-02**: Webhook MP processa pagamentos com idempotência via `webhookEvents/{eventId}` — duplicatas retornam 200 sem reprocessar
+- [ ] **MPWH-03**: Webhook MP resolve a transação corretamente via fallback `external_reference` (chamada `GET /v1/payments/{id}`) quando busca direta por `mpPaymentId` não encontra resultado
+- [ ] **MPWH-04**: Webhook MP persiste `mpFeeAmount`, `mpNetAmount`, `mpGrossAmount` na transação após pagamento confirmado pelo MP
+
+### MP Fee Disclosure
+
+- [ ] **MPFEE-01**: Admin configura taxas MP por método de pagamento nas configurações do tenant (PIX, débito, crédito à vista, crédito parcelado); taxas usadas para cálculo de preview
+- [ ] **MPFEE-02**: Ao criar lançamento via Checkout Pro, usuário vê preview "Você receberá líquido R$ X (taxa MP estimada R$ Y, ~Z%)" antes de confirmar
+- [ ] **MPFEE-03**: Detalhe da transação paga via MP exibe bloco Bruto/Taxa/Líquido com valores reais persistidos pelo webhook
+
 ## Out of Scope
 
 | Feature                                 | Reason                                                          |
@@ -148,6 +185,10 @@
 | Load testing / stress test              | Não é objetivo do v1.0 — baseline de performance sim, carga não |
 | Testes de mobile nativo                 | App é web-only                                                  |
 | Visual regression testing (screenshots) | Alta manutenção, baixo ROI para esta fase                       |
+| AUTH-05: Redirect params preserved through auth bounce | Deprecado pelo LOGIN-01 (v4.0): login sempre vai para /dashboard; usuário perde o destino original após bounce de sessão expirada — comportamento aceito para eliminar redirect loops |
+| MP fee em propostas                     | Mudança no pipeline de PDF, risco de regressão — defer v5+      |
+| MP fee no dashboard (card agregado)     | Requer campos populados em dados reais — defer v4.x após deploy do MPWH-04 |
+| Replay de webhook MP via admin UI       | Requer lógica de rollback não implementada — defer v5+          |
 
 ## Traceability
 
@@ -228,15 +269,33 @@
 | AIQA-05     | Phase 17 | Complete |
 | AIQA-06     | Phase 17 | Complete |
 
+| BILL-06  | Phase 19 | Pending  |
+| BILL-07  | Phase 19 | Pending  |
+| BILL-08  | Phase 19 | Complete |
+| STATE-01 | Phase 20 | Pending  |
+| STATE-02 | Phase 20 | Pending  |
+| STATE-03 | Phase 20 | Pending  |
+| STATE-04 | Phase 21 | Pending  |
+| ADDON-01 | Phase 21 | Pending  |
+| ADDON-02 | Phase 21 | Pending  |
+| LOGIN-01 | Phase 22 | Complete |
+| MPWH-01  | Phase 23 | Complete |
+| MPWH-02  | Phase 23 | Complete |
+| MPWH-03  | Phase 23 | Pending  |
+| MPWH-04  | Phase 23 | Pending  |
+| MPFEE-01 | Phase 24 | Pending  |
+| MPFEE-02 | Phase 24 | Pending  |
+| MPFEE-03 | Phase 24 | Pending  |
+
 **Coverage:**
 
 - v1.0 requirements: 34 total (all mapped)
 - v2.0 requirements: 15 total (all mapped)
-- v3.0 requirements: 21 total
-- Mapped to phases: 21
+- v3.0 requirements: 21 total (all mapped)
+- v4.0 requirements: 17 total (all mapped)
 - Unmapped: 0 ✓
 
 ---
 
 _Requirements defined: 2026-04-06_
-_Last updated: 2026-04-13 — v3.0 requirements added (phases 15–17): CHAT-01–09, AIBI-01–06, AIQA-01–06_
+_Last updated: 2026-05-07 — v4.0 requirements added (phases 19–24): BILL-06–08, STATE-01–04, ADDON-01–02, LOGIN-01, MPWH-01–04, MPFEE-01–03. AUTH-05 moved to Out of Scope (superseded by LOGIN-01)._

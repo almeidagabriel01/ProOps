@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { User } from "@/types";
+import { resolveUserHome } from "@/lib/auth/resolve-user-home";
 import {
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
@@ -20,6 +21,7 @@ import {
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { callPublicApi } from "@/lib/api-client";
+import { toast } from "@/lib/toast";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
 
@@ -275,13 +277,29 @@ export function useLoginForm(): UseLoginFormReturn {
     [searchParams],
   );
 
-  // Get redirect URL from query params
-  const redirectUrl = searchParams.get("redirect");
+  // On mount: clear sticky ?redirect_reason param left over from an explicit logout
+  React.useEffect(() => {
+    try {
+      if (sessionStorage.getItem("proops_just_logged_out")) {
+        sessionStorage.removeItem("proops_just_logged_out");
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("redirect_reason")) {
+          params.delete("redirect_reason");
+          const query = params.toString();
+          window.history.replaceState(null, "", query ? `/login?${query}` : "/login");
+        }
+      }
+    } catch {
+      // noop — SSR or storage disabled
+    }
+  }, []);
+
   const redirectReason = searchParams.get("redirect_reason");
 
   const getGoogleSetupTarget = React.useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("mode");
+    params.delete("redirect");
     const query = params.toString();
     return query ? `/register/google-setup?${query}` : "/register/google-setup";
   }, [searchParams]);
@@ -295,87 +313,18 @@ export function useLoginForm(): UseLoginFormReturn {
       return;
     }
 
-    // If there's a redirect URL, go there
-    if (redirectUrl) {
-      const target = decodeURIComponent(redirectUrl);
-      // Guard against open redirect and javascript: XSS — only follow same-origin paths
-      const isSameOrigin = (() => {
-        try {
-          return new URL(target, window.location.origin).origin === window.location.origin;
-        } catch {
-          return false;
-        }
-      })();
-      if (!isSameOrigin) {
-        // Unsafe target — fall through to role-based default redirect
-      } else if (redirectReason === "session_expired") {
-        const isSuperAdminRoute = target.startsWith("/admin");
-        if (!isSuperAdminRoute || user?.role === "superadmin") {
-          window.location.replace(target);
-          return;
-        }
-        // Role mismatch — fall through to role-based default redirect
-      } else {
-        router.replace(target);
-        return;
-      }
-    }
-
-    // Default redirects based on role
+    // Superadmins always land on /admin
     if (user?.role === "superadmin") {
-      router.replace("/admin");
-    } else if (user?.role === "free") {
-      router.replace("/");
-    } else {
-      const perms = user?.permissions || {};
-      const userRole = user?.role;
-      const isAdmin = ["admin", "superadmin", "MASTER"].includes(
-        userRole || "",
-      );
-
-      const canViewDashboard = isAdmin || perms["dashboard"]?.canView === true;
-
-      if (canViewDashboard) {
-        router.replace("/dashboard");
-      } else {
-        const pages = [
-          "kanban",
-          "proposals",
-          "clients",
-          "products",
-          "services",
-          "spreadsheets",
-          "transactions",
-          "wallet",
-          "financial", // fallback for older perms
-          "profile",
-        ];
-
-        const routeMap: Record<string, string> = {
-          kanban: "/crm",
-          proposals: "/proposals",
-          clients: "/contacts",
-          products: "/products",
-          services: "/services",
-          spreadsheets: "/spreadsheets",
-          transactions: "/transactions",
-          wallet: "/wallets",
-          financial: "/transactions",
-          profile: "/profile",
-        };
-
-        const firstAllowed = pages.find(
-          (page) => perms[page]?.canView === true || page === "profile",
-        );
-
-        if (firstAllowed && routeMap[firstAllowed]) {
-          router.replace(routeMap[firstAllowed]);
-        } else {
-          router.replace("/403");
-        }
-      }
+      window.location.replace("/admin");
+      return;
     }
-  }, [redirectUrl, redirectReason, router, user]);
+
+    // Everyone else: role-based home resolution. resolveUserHome handles
+    // free → "/", subscription-blocked → "/subscription-blocked",
+    // admin/MASTER → "/dashboard", MEMBER → first-allowed page.
+    const home = resolveUserHome(user ?? null);
+    router.replace(home.path);
+  }, [router, user]);
 
   // If already logged in, redirect
   React.useEffect(() => {
@@ -416,7 +365,6 @@ export function useLoginForm(): UseLoginFormReturn {
     isLoading,
     router,
     isSessionSynced,
-    redirectReason,
     handleRedirectAfterAuth,
     getGoogleSetupTarget,
     setIsEmailVerificationPending,
@@ -443,6 +391,19 @@ export function useLoginForm(): UseLoginFormReturn {
     sessionRecoveryFailed,
     forceSyncSession,
   ]);
+
+  React.useEffect(() => {
+    if (isLoading) return;
+    if (user) return;
+    if (redirectReason !== "session_expired") return;
+    // Defer by one tick so the Toaster (mounted in providers.tsx after children)
+    // is guaranteed to be in the DOM and able to render the queued toast. Without
+    // this, an early toast.warning call during initial hydration can be dropped.
+    const id = window.setTimeout(() => {
+      toast.warning("Sua sessão expirou. Entre novamente para continuar.");
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [redirectReason, user, isLoading]);
 
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -711,9 +672,7 @@ export function useLoginForm(): UseLoginFormReturn {
         updatedAt: now,
       });
 
-      const verifyUrl = redirectUrl
-        ? `${window.location.origin}/login?redirect=${encodeURIComponent(redirectUrl)}`
-        : `${window.location.origin}/login`;
+      const verifyUrl = `${window.location.origin}/login`;
       await sendEmailVerification(firebaseUser, {
         url: verifyUrl,
       });

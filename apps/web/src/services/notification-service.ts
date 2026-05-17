@@ -2,6 +2,10 @@
 
 import { callApi } from "@/lib/api-client";
 import {
+  isBillingBlockedError,
+  isFirestorePermissionError,
+} from "@/lib/firestore-error";
+import {
   appendNotificationScopeSearchParams,
   NotificationScope,
 } from "@/lib/notifications/scope";
@@ -46,7 +50,9 @@ export const NotificationService = {
 
       return response.notifications;
     } catch (error) {
-      console.error("Error getting notifications:", error);
+      if (!isBillingBlockedError(error)) {
+        console.error("Error getting notifications:", error);
+      }
       throw error;
     }
   },
@@ -150,7 +156,9 @@ export const NotificationService = {
           });
           callback(notifications);
         } catch (error) {
-          console.error("Error in notifications polling:", error);
+          if (!isBillingBlockedError(error)) {
+            console.error("Error in notifications polling:", error);
+          }
         }
       };
 
@@ -196,6 +204,10 @@ export const NotificationService = {
           });
           callback(notifications);
         } catch (error) {
+          if (isBillingBlockedError(error)) {
+            stopPolling();
+            return;
+          }
           console.error("Error in notifications polling fallback:", error);
         }
       };
@@ -222,6 +234,9 @@ export const NotificationService = {
           callback(notifications);
         },
         (error) => {
+          if (isFirestorePermissionError(error)) {
+            return;
+          }
           console.error("Error in notifications subscription:", error);
           startPollingFallback();
         },
@@ -232,7 +247,9 @@ export const NotificationService = {
         unsubscribeSnapshot();
       };
     } catch (error) {
-      console.error("Error subscribing to notifications:", error);
+      if (!isBillingBlockedError(error)) {
+        console.error("Error subscribing to notifications:", error);
+      }
       return startPollingSubscription();
     }
   },

@@ -1,4 +1,4 @@
-import { Loader } from "@/components/ui/loader";
+import { FullPageLoading } from "@/components/ui/full-page-loading";
 
 interface EntityLoadingStateProps {
   message?: string;
@@ -7,14 +7,6 @@ interface EntityLoadingStateProps {
 
 export function EntityLoadingState({
   message = "Carregando...",
-  minHeight = "min-h-[50vh]",
 }: EntityLoadingStateProps) {
-  return (
-    <div className={`flex items-center justify-center ${minHeight}`}>
-      <div className="flex flex-col items-center gap-3">
-        <Loader size="lg" />
-        <p className="text-sm text-muted-foreground">{message}</p>
-      </div>
-    </div>
-  );
+  return <FullPageLoading message={message} />;
 }

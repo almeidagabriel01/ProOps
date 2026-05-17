@@ -7,7 +7,7 @@ const userWindows = new Map<string, number[]>();
 const RATE_LIMIT_RPH = 30; // requests per hour per user
 const WINDOW_MS = 60 * 60_000; // 1 hour
 
-setInterval(() => {
+const _purgeTimer = setInterval(() => {
   const cutoff = Date.now() - WINDOW_MS;
   for (const [uid, timestamps] of userWindows.entries()) {
     const fresh = timestamps.filter((t) => t > cutoff);
@@ -15,6 +15,7 @@ setInterval(() => {
     else userWindows.set(uid, fresh);
   }
 }, WINDOW_MS);
+if (typeof _purgeTimer.unref === "function") _purgeTimer.unref();
 
 export function fieldGenRateLimiter(req: Request, res: Response, next: NextFunction): void {
   const user = req.user;

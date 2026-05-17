@@ -1,8 +1,8 @@
 import { auth, db } from "../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { getStripe } from "./stripeConfig";
-import { clearTenantPlanCache } from "../lib/tenant-plan-policy";
-import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
+import { syncTenantPlanBillingSnapshot } from "./stripeWebhook";
+import type { TenantPlanTier } from "../lib/tenant-plan-policy";
 
 export const WHATSAPP_OVERAGE_PRICE_ID = "price_1T20T7GrkF9UfsqcEtdBX9fY";
 
@@ -117,11 +117,16 @@ export async function updateUserPlan(
       const tenantRef = db.collection("tenants").doc(tenantId);
       const tenantSnap = await tenantRef.get();
       if (tenantSnap.exists) {
-        await tenantRef.update({ plan: normalizedTier });
-        clearTenantPlanCache(tenantId);
-
-        const isWhatsappEnabled = await tenantPlanAllowsWhatsApp(tenantId);
-        await tenantRef.update({ whatsappEnabled: isWhatsappEnabled });
+        await syncTenantPlanBillingSnapshot({
+          tenantId,
+          subscriptionStatus: clientStatus,
+          plan: normalizedTier as TenantPlanTier,
+          stripeSubscriptionId,
+          currentPeriodEnd,
+          cancelAtPeriodEnd: cancelAtPeriodEnd ?? false,
+          billingInterval,
+          source: "helpers.updateUserPlan",
+        });
       }
     }
   } catch (err) {
@@ -369,6 +374,15 @@ export async function runStripeSync(
           currentPeriodEnd,
           subscription.cancel_at_period_end,
         );
+        const tenantId = userData.tenantId;
+        if (tenantId) {
+          await syncTenantPlanBillingSnapshot({
+            tenantId,
+            subscriptionStatus: mapStripeSubscriptionStatus(subscription.status).toLowerCase(),
+            currentPeriodEnd,
+            source: "helpers.runStripeSync",
+          });
+        }
       }
 
       synced += 1;
@@ -490,23 +504,46 @@ export async function upsertTenantStripeBillingData(input: {
   if (!tenantId) return;
 
   const tenantRef = db.collection("tenants").doc(tenantId);
-  const updatePayload: Record<string, unknown> = {
-    updatedAt: FieldValue.serverTimestamp(),
-  };
 
-  if (input.stripeCustomerId) {
-    updatePayload.stripeCustomerId = input.stripeCustomerId;
-  }
-  if (input.stripeSubscriptionId) {
-    updatePayload.stripeSubscriptionId = input.stripeSubscriptionId;
-  }
-  if (input.whatsappOveragePriceId) {
-    updatePayload.whatsappOveragePriceId = input.whatsappOveragePriceId;
-  }
-  if (input.whatsappOverageSubscriptionItemId) {
-    updatePayload.whatsappOverageSubscriptionItemId =
-      input.whatsappOverageSubscriptionItemId;
+  // Route billing-state fields (stripeCustomerId, stripeSubscriptionId) through the
+  // single writer. Read existing subscriptionStatus to preserve it — this function's
+  // callers do not mutate status, so the read-back value is intentionally non-authoritative
+  // for status (T-19-03-05: concurrent writer may change status between this read and the
+  // writer's own transaction, but that is acceptable since upsertTenantStripeBillingData
+  // is not responsible for status transitions).
+  if (input.stripeCustomerId || input.stripeSubscriptionId) {
+    const existingSnap = await tenantRef.get();
+    const existingData = existingSnap.exists
+      ? (existingSnap.data() as Record<string, unknown>)
+      : undefined;
+    const existingStatus = String(
+      (existingData?.subscription as Record<string, unknown> | undefined)?.status ??
+        existingData?.subscriptionStatus ??
+        "",
+    )
+      .trim()
+      .toLowerCase();
+
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: existingStatus || "inactive",
+      ...(input.stripeCustomerId ? { stripeCustomerId: input.stripeCustomerId } : {}),
+      ...(input.stripeSubscriptionId ? { stripeSubscriptionId: input.stripeSubscriptionId } : {}),
+      source: "helpers.upsertTenantStripeBillingData",
+    });
   }
 
-  await tenantRef.set(updatePayload, { merge: true });
+  // EXEMPT: addon-item identifiers, not subscription state (CONTEXT.md `subscription.*` schema does not contain these fields)
+  if (input.whatsappOveragePriceId || input.whatsappOverageSubscriptionItemId) {
+    const addonPayload: Record<string, unknown> = {
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (input.whatsappOveragePriceId) {
+      addonPayload.whatsappOveragePriceId = input.whatsappOveragePriceId;
+    }
+    if (input.whatsappOverageSubscriptionItemId) {
+      addonPayload.whatsappOverageSubscriptionItemId = input.whatsappOverageSubscriptionItemId;
+    }
+    await tenantRef.set(addonPayload, { merge: true });
+  }
 }

@@ -23,6 +23,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 15: Lia Frontend Chat UI** - LiaPanel, streaming SSE, message bubbles, tool dialogs, useAiChat hook (completed 2026-04-14)
 - [x] **Phase 16: Lia Seguranca & Billing** - ai-auth middleware, AI_LIMITS, Firestore rules, billing page AI usage (completed 2026-04-14)
 - [x] **Phase 17: Lia Testes & QA** - E2E AI-01-12, seed tenant ai-test pro, CI smoke test (completed 2026-04-15)
+- [x] **Phase 19: Single-Writer Billing Foundation** - Transactional single writer, LRU cache, Stripe idempotency, admin.controller.ts gap closure (completed 2026-05-07)
+- [x] **Phase 20: Subscription State Banners + Cancel Enforcement** - past_due banner, cancelAtPeriodEnd banner, cancel block 409 (completed 2026-05-11)
+- [x] **Phase 21: Reactivation + Addon State Cleanup** - Reactivate endpoint, stale addon badge fix, daily cleanup cron (completed 2026-05-11)
+- [x] **Phase 22: Login Redirect Hardening** - Always redirect to /dashboard post-login, remove redirect= consumption (completed 2026-05-11)
+- [ ] **Phase 23: MP Webhook Hardening** - Structured logs, idempotency, external_reference fallback, fee persistence
+- [ ] **Phase 24: MP Fee Configuration + Preview** - Admin fee config, checkout preview, transaction detail gross/fee/net block
 
 ## Phase Details
 
@@ -358,10 +364,129 @@ Plans:
 
 - [ ] 11-01-PLAN.md -- Contacts & Products Performance Tests
 
+---
+
+## v4.0 — Billing & Payment Hardening
+
+### Phase 19: Single-Writer Billing Foundation
+
+**Goal**: All billing state writes in the system flow through a single transactional function — eliminating the race conditions and partial-state bugs caused by multiple independent writers today.
+**Depends on**: Nothing (independent backend hardening)
+**Requirements**: BILL-06, BILL-07, BILL-08
+**Success Criteria** (what must be TRUE):
+
+1. All code paths that write billing state (Stripe webhooks, billing controller, cron jobs) call the single `syncTenantPlanBillingSnapshot` function — no parallel writer exists anywhere in the codebase
+2. Every billing write is atomic: top-level tenant fields (`plan`, `status`, `subscriptionId`, etc.) and nested `subscription.*` fields are committed in the same `db.runTransaction()` call — no partial state is possible
+3. The subscription status LRU cache has a hard cap of 500 entries and a TTL of 30 seconds — the previous unbounded global Map is removed
+4. A duplicate Stripe event (same `eventId`) processed a second time returns HTTP 200 without re-executing any business logic — verified by replaying an event in the emulator
+
+**Architecture note**: Extend `syncTenantPlanBillingSnapshot` — do NOT create a new parallel writer. Both top-level fields and nested `subscription.*` fields must be written in a single `db.runTransaction()` call.
+**Plans:** 6/6 plans complete
+Plans:
+- [x] 19-01-PLAN.md — Wave 0 foundation: install lru-cache@^11, define SubscriptionSnapshot types, scaffold BILL-06/07/08 test files
+- [x] 19-02-PLAN.md — Extend syncTenantPlanBillingSnapshot to write subscription.* atomically + consolidate in-file webhook handlers
+- [x] 19-03-PLAN.md — Consolidate external parallel writers (billing-sync.service, stripe.controller, stripeHelpers, applyScheduledPlanChanges)
+- [x] 19-04-PLAN.md — Replace billingStateCache and PLAN_CACHE Maps with bounded LRUCache (BILL-07)
+- [x] 19-05-PLAN.md — BILL-08 verification: emulator replay test asserting duplicate eventId is idempotent
+- [x] 19-06-PLAN.md — Gap closure: route admin.controller.ts billing-state writers through single writer; extend phase-gate audit
+
+### Phase 20: Subscription State Banners + Cancel Enforcement
+
+**Goal**: Tenants in problematic billing states see persistent, actionable UI banners at the top of every protected page — and past_due tenants who cancel get immediate cancellation (not a 409 block).
+**Depends on**: Phase 19
+**Requirements**: STATE-01, STATE-02, STATE-03
+**Success Criteria** (what must be TRUE):
+
+1. A tenant in `past_due` state sees a persistent red banner at the top of every page with a "Atualizar pagamento" CTA that opens the Stripe customer portal — the banner cannot be permanently dismissed
+2. A tenant with `cancelAtPeriodEnd: true` sees a persistent yellow banner showing the formatted cancellation date and a stub "Reativar assinatura" button (Phase 21 wires the endpoint)
+3. A tenant in `past_due` state who clicks "Cancelar assinatura" sees an AlertDialog warning that access ends immediately; on confirm, `stripe.subscriptions.cancel()` is called (immediate cancel) and the tenant lands on `/subscription-blocked`. There is no 409 response and no `BILLING_CANCEL_BLOCKED_PAST_DUE` code.
+4. Banners are absent for tenants in `active` state with no pending cancellation
+
+**Note**: Phase 20 depends on Phase 19 — the canonical billing state fields (`subscription.status`, `subscription.cancelAtPeriodEnd`, `subscription.cancelAt`) must be reliably written before banners can read them correctly. STATE-03 changed from a 409-block to immediate-cancel during the discovery session — see `20-CONTEXT.md` for the locked decision.
+**Plans:** 4 plans
+Plans:
+- [x] 20-01-PLAN.md — Wave 0 foundation: update REQUIREMENTS.md STATE-03 wording, extend seed helper for past_due/cancelAtPeriodEnd states, create E2E spec stubs
+- [x] 20-02-PLAN.md — Backend: cancelSubscription past_due immediate-cancel branch + populate subscription.cancelAt from controller and stripeWebhook (closes Pitfalls 1+2)
+- [x] 20-03-PLAN.md — Frontend banners: BillingStateBanner component, ProtectedAppShell wiring, remove SubscriptionGuard's pre-existing past_due card (closes Pitfall 1 banner collision)
+- [x] 20-04-PLAN.md — Cancel dialog branch in MySubscriptionTab + human-verify checkpoint for the full past_due flow
+**UI hint**: yes
+
+### Phase 21: Reactivation + Addon State Cleanup
+
+**Goal**: Tenants who changed their mind can reactivate a pending cancellation with one click, and the stale "Cancelando em X" badge no longer appears on addons that are already included in the current plan or whose period has expired.
+**Depends on**: Phase 19
+**Requirements**: STATE-04, ADDON-01, ADDON-02
+**Success Criteria** (what must be TRUE):
+
+1. A tenant with `cancelAtPeriodEnd: true` can click "Reativar assinatura" and the subscription is reactivated via `POST /api/stripe/subscription/reactivate` — the yellow banner disappears and the subscription continues normally
+2. Addons whose `currentPeriodEnd` has already passed do not display the "Cancelando em X" badge — the badge is absent even before the daily cleanup cron runs
+3. Addons that are included in the tenant's current plan do not display the "Cancelando em X" badge regardless of their Firestore `cancelAtPeriodEnd` field value
+4. The daily cleanup cron marks addons with expired `currentPeriodEnd` as `status: 'canceled', cancelAtPeriodEnd: false` — confirmed by inspecting Firestore after a simulated cron run
+
+**Plans**: 3 plans
+Plans:
+- [x] 21-01-PLAN.md — Backend: reactivateSubscription endpoint (STATE-04) + stripe-service.ts + route registration
+- [x] 21-02-PLAN.md — Frontend: wire reactivation CTA in ProtectedAppShell + fix stale "Cancelando em X" badges (ADDON-01)
+- [x] 21-03-PLAN.md — Backend: cleanupExpiredAddons() step in reconcileAddons cron (ADDON-02)
+**UI hint**: yes
+
+### Phase 22: Login Redirect Hardening
+
+**Goal**: After a successful login, users always land on `/dashboard` (or `/admin` for superadmins) — the `?redirect=` parameter is never consumed, eliminating redirect loops caused by stale or manipulated redirect URLs.
+**Depends on**: Nothing (independent frontend change)
+**Requirements**: LOGIN-01
+**Success Criteria** (what must be TRUE):
+
+1. A user who visits `/login?redirect=/proposals` and completes login is taken to `/dashboard` — the `redirect` parameter is ignored
+2. A user whose session expired and is bounced to `/login?redirect_reason=session_expired` sees the session-expired toast notification — the `redirect_reason` parameter is still consumed for toast display only
+3. A superadmin who logs in is taken to `/admin` regardless of any URL parameters
+
+**Note**: AUTH-05 has been moved to Out of Scope. Only the consumption of `redirect=` is removed. The `redirect_reason=` handling for the session-expired toast must be preserved.
+**Plans:** 2/2 plans complete
+Plans:
+- [x] 22-01-PLAN.md -- Strip redirect= consumption from useLoginForm + protected-route + page; add USER_SUPERADMIN seed
+- [x] 22-02-PLAN.md -- Rewrite login-redirect.spec.ts for LOGIN-01 hardened behavior
+**UI hint**: yes
+
+### Phase 23: MP Webhook Hardening
+
+**Goal**: The MercadoPago webhook is observable, idempotent, and correctly resolves transactions — fixing the silent failures and missing fee data that currently make MP payments unreliable in production.
+**Depends on**: Nothing (independent backend hardening)
+**Requirements**: MPWH-01, MPWH-02, MPWH-03, MPWH-04
+**Success Criteria** (what must be TRUE):
+
+1. Every MP webhook event received produces a structured log entry in Cloud Logging containing: filtered headers, `action` field, HMAC validation result, and transaction lookup result — observable without code changes
+2. A duplicate MP webhook event (same `eventId`) processed a second time returns HTTP 200 without re-executing any business logic — the event is found in `webhookEvents/{eventId}` and skipped
+3. When a direct Firestore lookup by `mpPaymentId` finds no transaction, the webhook falls back to calling `GET /v1/payments/{id}` and resolves the transaction via `external_reference` — the payment is not silently dropped
+4. After a confirmed MP payment, the transaction document contains `mpFeeAmount`, `mpNetAmount`, and `mpGrossAmount` fields with the values returned by the MP payment API
+
+**Architecture note (highest risk)**: HMAC signature uses a formatted string `id:<x>;request-id:<x>;ts:<x>` — the semicolon-separated format is required. Additionally, `merchant_order` topic events fire before `payment` topic events; the webhook must handle topic-based routing correctly and not assume payment data is available on first receipt.
+**Plans:** 2 plans
+Plans:
+- [x] 23-01-PLAN.md -- Entry-point hardening: HMAC manifest fix + structured entry log + webhookEvents idempotency gate (MPWH-01, MPWH-02)
+- [x] 23-02-PLAN.md -- Payment resolution: external_reference fallback + MERCADOPAGO_PLATFORM_ACCESS_TOKEN + mpGrossAmount/mpNetAmount/mpFeeAmount persistence (MPWH-03, MPWH-04)
+
+### Phase 24: MP Fee Configuration + Preview
+
+**Goal**: Merchants can configure their MP fee rates and see a net-amount preview before confirming a payment request — and completed transactions show the actual gross/fee/net breakdown from real webhook data.
+**Depends on**: Phase 23
+**Requirements**: MPFEE-01, MPFEE-02, MPFEE-03
+**Success Criteria** (what must be TRUE):
+
+1. An admin can open tenant settings and configure MP fee rates per payment method (PIX, debit, credit at-sight, credit installments) — rates are saved and reloaded correctly on next visit
+2. When creating a payment request via Checkout Pro, the user sees a preview line "Você receberá líquido R$ X (taxa MP estimada R$ Y, ~Z%)" before confirming — the amounts are calculated from the configured fee rates
+3. A transaction paid via MercadoPago displays a Bruto / Taxa / Líquido block in its detail view using the real values persisted by the webhook (not estimated values)
+
+**Note**: MP fee on proposals (PDF pipeline) and on the dashboard aggregate card are deferred to v5+ (Out of Scope).
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24
 
 | Phase                             | Plans Complete | Status      | Completed  |
 | --------------------------------- | -------------- | ----------- | ---------- |
@@ -382,4 +507,10 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 15. Lia Frontend Chat UI          | 10/10          | Complete    | 2026-04-14 |
 | 16. Lia Segurança & Billing       | 4/4            | Complete    | 2026-04-14 |
 | 17. Lia Testes & QA               | 5/5            | Complete    | 2026-04-15 |
-| 18. fix(lia) 5 correções          | 3/3 | Complete   | 2026-04-15 |
+| 18. fix(lia) 5 correções          | 3/3            | Complete    | 2026-04-15 |
+| 19. Single-Writer Billing Foundation | 6/6 | Complete   | 2026-05-07 |
+| 20. Subscription State Banners + Cancel Enforcement | 3/4 | In Progress | - |
+| 21. Reactivation + Addon State Cleanup | 0/TBD   | Not started | -          |
+| 22. Login Redirect Hardening      | 2/2            | Complete    | 2026-05-11 |
+| 23. MP Webhook Hardening          | 2/2            | Complete    | 2026-05-11 |
+| 24. MP Fee Configuration + Preview | 0/TBD         | Not started | -          |

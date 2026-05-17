@@ -6,7 +6,7 @@ export function OrganizationJsonLd() {
     "@type": "Organization",
     name: "ProOps",
     url: BASE,
-    logo: `${BASE}/icon.svg`,
+    logo: `${BASE}/icons/icon-512.png`,
     sameAs: [],
     contactPoint: {
       "@type": "ContactPoint",
@@ -36,7 +36,7 @@ export function SoftwareApplicationJsonLd({
   };
 
   const description = niche
-    ? `ERP especializado para empresas de ${nicheNames[niche]}: propostas, CRM, financeiro, agenda e WhatsApp.`
+    ? `ProOps para empresas de ${nicheNames[niche]}: propostas, CRM, financeiro, agenda e WhatsApp — ERP que adapta-se ao seu negócio.`
     : "ERP completo para empresas de serviço: propostas, CRM, financeiro, agenda e WhatsApp integrados.";
 
   const data = {

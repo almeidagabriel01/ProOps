@@ -26,9 +26,13 @@ Propostas e gestão financeira funcionando com confiança — se tudo mais falha
 - AIBI-01: Free tier 403 at AI chat endpoint — Validated in Phase 16: lia-seguranca-billing
 - AIBI-02: Inactive subscription 403 at AI chat endpoint — Validated in Phase 16: lia-seguranca-billing
 - AIBI-03: Monthly limit 429 + UI input disabled — Validated in Phase 16: lia-seguranca-billing
+- LOGIN-01: Post-login redirect ignores ?redirect= param, superadmin routes to /admin, session-expired toast — Validated in Phase 22: login-redirect-hardening
 - AIBI-04: AI usage card on billing/subscription page — Validated in Phase 16: lia-seguranca-billing
 - AIBI-05: Near-limit warning banner in Lia panel — Validated in Phase 16: lia-seguranca-billing
 - AIBI-06: Firestore deny-write rules for aiUsage + aiConversations — Validated in Phase 16: lia-seguranca-billing
+- BILL-06: All billing-state writes route through single transactional writer (syncTenantPlanBillingSnapshot) — Validated in Phase 19: single-writer-billing-foundation
+- BILL-07: LRU cache bounds enforced (max 500, ttl 30s) — Validated in Phase 19: single-writer-billing-foundation
+- BILL-08: Stripe webhook idempotency — duplicate events return 200 without re-executing business logic — Validated in Phase 19: single-writer-billing-foundation
 
 - AUTH-01: Login flow E2E — Validated in Phase 02: auth-multitenant
 - AUTH-02: Session expiration redirect E2E — Validated in Phase 02: auth-multitenant
@@ -99,15 +103,25 @@ _(Definidos no Milestone v1.0 — veja REQUIREMENTS.md)_
 - Security: OWASP ZAP + validação de isolamento multi-tenant + Firestore rules audit
 - CI: GitHub Actions pipeline rodando testes em PRs + scripts locais npm
 
-## Current Milestone: v3.0 — AI Assistant (Frontend & QA)
+## Milestone History (cont.)
 
-**Goal:** Completar o milestone v3.0 implementando a interface de chat da Lia, camada de segurança e billing para IA, e suite de testes E2E que cobre todos os fluxos de IA (AI-01 a AI-12).
+### v3.0 — AI Assistant (Complete)
+
+**Goal:** Implementar a Lia (assistente IA) completa: backend SSE + Gemini, tool system com 29 ações, chat UI com streaming e confirmação, segurança & billing (ai-auth middleware, AI_LIMITS, Firestore rules), e E2E suite AI-01 a AI-12.
+
+## Current Milestone: v4.0 — Billing & Payment Hardening
+
+**Goal:** Corrigir 7 falhas críticas de billing, Stripe e MercadoPago que causam estados inconsistentes, perda de acesso e pagamentos não processados em produção.
 
 **Target features:**
 
-- Frontend Chat UI: LiaPanel (aside 420px fixed right), streaming token-a-token, LiaMessageBubble, LiaInputBar, LiaToolConfirmDialog, LiaToolResultCard, LiaTriggerButton, hook useAiChat com SSE
-- Segurança & Billing: ai-auth.middleware.ts (verificação de planId, subscriptionStatus, limite), Firestore rules para aiUsage e aiConversations, seção de uso da Lia na página de billing, warning a 80% do limite
-- Testes & QA: seed data para tenant ai-test pro, E2E AI-01 a AI-12, smoke test no CI
+- Addon fantasma cleanup (P1) — badge stale eliminado, cron de limpeza diário, script one-shot
+- Stripe cancel/past_due hardening (P2) — escritor único de billing, race condition, cache LRU, idempotência de webhook
+- Login sempre → /dashboard (P3) — remover consumo de ?redirect= no auth
+- Banners de estado (P4) — banner past_due (vermelho) e cancelAtPeriodEnd (amarelo) com CTAs
+- Bloquear cancelamento durante past_due (P5) — 409 no controller, UI desabilitada
+- MP webhook instrumentação e fix (P6) — logs estruturados, auditoria, fix por hipótese confirmada
+- Disclosure de taxa MP (P7) — preview em lançamentos, propostas, settings com tabela de %, detalhe/lista/dashboard
 
 ## Evolution
 
@@ -130,4 +144,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-_Last updated: 2026-04-14 — Phase 16 complete: Lia AI security & billing enforced (AIBI-01–06). Advancing to Phase 17: lia-testes-&-qa._
+_Last updated: 2026-05-11 — Phase 22 complete: Login Redirect Hardening (LOGIN-01 validated — open-redirect surface closed, redirect= param stripped, session-expired toast, E2E spec rewritten)._

@@ -1,0 +1,436 @@
+/**
+ * Phase 19 BILL-06 — Real assertions for the extended single-writer.
+ * Replaces Wave 0 test.todo scaffolds from Plan 01.
+ *
+ * Uses manual mocks of db, tenant-plan-policy, and whatsapp-eligibility
+ * so these tests run without the Firebase emulator.
+ */
+
+// ---- Mock setup (must precede imports) ----
+
+/** Captures the subscription patch (and top-level patch) set inside the transaction */
+let capturedPatch: Record<string, unknown> = {};
+/** Captures the update call that writes whatsappEnabled (post-transaction) */
+const postTxCalls: string[] = [];
+/** Sequence log for call-order assertion */
+const callSequence: string[] = [];
+
+/** Simulates existing tenant data in Firestore */
+let mockTenantData: Record<string, unknown> = {};
+
+// Factory that builds a fresh fake db for each test
+function buildFakeDb() {
+  const tenantRef = {
+    get: jest.fn().mockResolvedValue({
+      exists: Object.keys(mockTenantData).length > 0,
+      data: () => mockTenantData,
+    }),
+    update: jest.fn().mockImplementation((data: Record<string, unknown>) => {
+      callSequence.push("tenantRef.update");
+      postTxCalls.push(JSON.stringify(data));
+      return Promise.resolve();
+    }),
+    set: jest.fn(),
+  };
+
+  const fakeTransaction = {
+    get: jest.fn().mockImplementation(() => {
+      callSequence.push("transaction.get");
+      return Promise.resolve({
+        exists: Object.keys(mockTenantData).length > 0,
+        data: () => mockTenantData,
+      });
+    }),
+    set: jest.fn().mockImplementation(
+      (
+        _ref: unknown,
+        patch: Record<string, unknown>,
+        _opts: unknown,
+      ) => {
+        callSequence.push("transaction.set");
+        capturedPatch = { ...patch };
+      },
+    ),
+  };
+
+  const db = {
+    collection: jest.fn().mockReturnValue({
+      doc: jest.fn().mockReturnValue(tenantRef),
+    }),
+    runTransaction: jest
+      .fn()
+      .mockImplementation(async (cb: (tx: typeof fakeTransaction) => Promise<void>) => {
+        callSequence.push("runTransaction.start");
+        await cb(fakeTransaction);
+        callSequence.push("runTransaction.end");
+      }),
+  };
+
+  return { db, tenantRef, fakeTransaction };
+}
+
+jest.mock("../../init", () => {
+  // Replaced per-test via mockReturnValue on db.collection
+  return { db: buildFakeDb().db };
+});
+
+jest.mock("../../lib/tenant-plan-policy", () => ({
+  clearTenantPlanCache: jest.fn(),
+  resolvePriceToTier: jest.fn().mockReturnValue("pro"),
+  normalizePlanTier: jest.fn((x: unknown) => x || null),
+  compareTiers: jest.fn(),
+}));
+
+jest.mock("../../lib/whatsapp-eligibility", () => ({
+  tenantPlanAllowsWhatsApp: jest.fn().mockResolvedValue(true),
+}));
+
+// ---- Imports ----
+
+import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
+import { clearTenantPlanCache, resolvePriceToTier } from "../../lib/tenant-plan-policy";
+import { tenantPlanAllowsWhatsApp } from "../../lib/whatsapp-eligibility";
+
+// Helper to reset captured state between tests
+function resetCaptures() {
+  capturedPatch = {};
+  postTxCalls.length = 0;
+  callSequence.length = 0;
+  mockTenantData = {};
+}
+
+// Dynamically replace the db mock inside the module
+async function resetDb(overrideTenantData?: Record<string, unknown>) {
+  if (overrideTenantData !== undefined) {
+    mockTenantData = overrideTenantData;
+  }
+  const { db: freshDb } = buildFakeDb();
+  // Replace on the already-loaded module
+  const initModule = jest.requireMock("../../init") as { db: typeof freshDb };
+  initModule.db = freshDb;
+}
+
+// ---- Tests ----
+
+describe("syncTenantPlanBillingSnapshot (BILL-06 single writer)", () => {
+  it("scaffold present", () => {
+    expect(true).toBe(true);
+  });
+
+  beforeEach(async () => {
+    resetCaptures();
+    jest.clearAllMocks();
+    // restore resolvePriceToTier default
+    (resolvePriceToTier as jest.Mock).mockReturnValue("pro");
+    (tenantPlanAllowsWhatsApp as jest.Mock).mockResolvedValue(true);
+    await resetDb({});
+  });
+
+  it("writes top-level fields and subscription.* atomically in one db.runTransaction()", async () => {
+    const periodEnd = new Date("2026-06-01T00:00:00Z");
+
+    await syncTenantPlanBillingSnapshot({
+      tenantId: "tenant-abc",
+      subscriptionStatus: "active",
+      stripePriceId: "price_pro_monthly",
+      currentPeriodEnd: periodEnd,
+      eventId: "evt_001",
+      source: "webhook.subscription.updated",
+    });
+
+    // Top-level assertions
+    expect(capturedPatch.subscriptionStatus).toBe("active");
+    expect(capturedPatch.currentPeriodEnd).toBe(periodEnd.toISOString());
+
+    // subscription.* nested map assertions
+    const sub = capturedPatch.subscription as Record<string, unknown>;
+    expect(sub).toBeDefined();
+    expect(sub.status).toBe("active");
+    expect(sub.currentPeriodEnd).toBe(periodEnd.toISOString());
+    expect(typeof sub.syncedAt).toBe("string");
+    expect(sub.syncedAt).not.toBe("");
+
+    // Only ONE db.runTransaction call inside syncTenantPlanBillingSnapshot
+    const runTxCalls = callSequence.filter((c) => c === "runTransaction.start");
+    expect(runTxCalls).toHaveLength(1);
+  });
+
+  it("populates subscription.lastEventId when eventId is provided", async () => {
+    await syncTenantPlanBillingSnapshot({
+      tenantId: "tenant-abc",
+      subscriptionStatus: "active",
+      stripePriceId: "price_pro_monthly",
+      eventId: "evt_stripe_99",
+      source: "webhook.subscription.updated",
+    });
+
+    const sub = capturedPatch.subscription as Record<string, unknown>;
+    expect(sub).toBeDefined();
+    expect(sub.lastEventId).toBe("evt_stripe_99");
+  });
+
+  it("preserves existing subscription.* fields (merge semantics) when partial params provided", async () => {
+    // Simulate existing tenant data with a subscription map
+    await resetDb({
+      plan: "pro",
+      subscription: {
+        status: "active",
+        stripeCustomerId: "cus_existing",
+        syncedAt: "2026-01-01T00:00:00Z",
+      },
+    });
+
+    // Second call with different params — omits stripeCustomerId
+    await syncTenantPlanBillingSnapshot({
+      tenantId: "tenant-abc",
+      subscriptionStatus: "past_due",
+      eventId: "evt_002",
+      source: "webhook.invoice.payment_failed",
+    });
+
+    const sub = capturedPatch.subscription as Record<string, unknown>;
+    expect(sub).toBeDefined();
+    expect(sub.status).toBe("past_due");
+    // Existing stripeCustomerId must be preserved via merge
+    expect(sub.stripeCustomerId).toBe("cus_existing");
+  });
+
+  it("clears scheduledPlan/At/Reason only when clearScheduled=true AND a tier resolves", async () => {
+    await syncTenantPlanBillingSnapshot({
+      tenantId: "tenant-abc",
+      subscriptionStatus: "active",
+      stripePriceId: "price_pro_monthly",
+      clearScheduled: true,
+      eventId: "evt_003",
+      source: "webhook.subscription.updated",
+    });
+
+    // Top-level clears
+    expect(capturedPatch.scheduledPlan).toBeNull();
+    expect(capturedPatch.scheduledPlanAt).toBeNull();
+    expect(capturedPatch.scheduledPlanReason).toBeNull();
+
+    // Nested clears
+    const sub = capturedPatch.subscription as Record<string, unknown>;
+    expect(sub.scheduledPlan).toBeNull();
+    expect(sub.scheduledPlanAt).toBeNull();
+    expect(sub.scheduledPlanReason).toBeNull();
+  });
+
+  it("writes whatsappEnabled in a SECOND update outside the transaction (Pitfall 2)", async () => {
+    (tenantPlanAllowsWhatsApp as jest.Mock).mockResolvedValue(false);
+
+    await syncTenantPlanBillingSnapshot({
+      tenantId: "tenant-abc",
+      subscriptionStatus: "active",
+      stripePriceId: "price_pro_monthly",
+      eventId: "evt_004",
+      source: "webhook.subscription.updated",
+    });
+
+    // whatsappEnabled must be written AFTER the transaction ends
+    const txEndIdx = callSequence.indexOf("runTransaction.end");
+    const updateIdx = callSequence.indexOf("tenantRef.update");
+
+    expect(txEndIdx).toBeGreaterThan(-1);
+    expect(updateIdx).toBeGreaterThan(-1);
+    // update must happen AFTER the transaction completes
+    expect(updateIdx).toBeGreaterThan(txEndIdx);
+
+    // Verify the value written
+    const updatePayload = JSON.parse(postTxCalls[0] || "{}") as Record<string, unknown>;
+    expect(updatePayload.whatsappEnabled).toBe(false);
+
+    // clearTenantPlanCache is called before tenantPlanAllowsWhatsApp
+    expect(clearTenantPlanCache).toHaveBeenCalledWith("tenant-abc");
+    expect(tenantPlanAllowsWhatsApp).toHaveBeenCalledWith("tenant-abc");
+  });
+
+  it("writes subscription.syncedAt as a non-empty ISO string on every call", async () => {
+    await syncTenantPlanBillingSnapshot({
+      tenantId: "tenant-abc",
+      subscriptionStatus: "canceled",
+      source: "webhook.subscription.deleted",
+    });
+
+    const sub = capturedPatch.subscription as Record<string, unknown>;
+    expect(typeof sub.syncedAt).toBe("string");
+    expect((sub.syncedAt as string).length).toBeGreaterThan(0);
+    // Validate ISO format
+    expect(isNaN(Date.parse(sub.syncedAt as string))).toBe(false);
+  });
+});
+
+// ---- Phase 19 Plan 03: Phase-gate audit + per-source traceability ----
+
+describe("Phase 19 Plan 03 — phase-gate audit", () => {
+  it("phase gate: only single writer + EXEMPT callers write billing state to tenants/{id}", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path") as typeof import("path");
+    const root = path.resolve(__dirname, "../..");
+
+    // Files that previously had parallel billing-state writes: must now import the single writer
+    const consolidatedFiles = [
+      "billing/billing-sync.service.ts",
+      "api/controllers/stripe.controller.ts",
+      "stripe/stripeHelpers.ts",
+      "api/controllers/admin.controller.ts",
+    ];
+    for (const f of consolidatedFiles) {
+      const content = fs.readFileSync(path.join(root, f), "utf8");
+      expect(content).toContain("syncTenantPlanBillingSnapshot");
+    }
+
+    // applyScheduledPlanChanges.ts cannot call the writer (nested transactions — Pitfall 5);
+    // it extends its existing transaction with subscription.* dotted keys instead.
+    const applyContent = fs.readFileSync(
+      path.join(root, "applyScheduledPlanChanges.ts"),
+      "utf8",
+    );
+    expect(applyContent).toContain('"subscription.plan"');
+    expect(applyContent).not.toContain("syncTenantPlanBillingSnapshot");
+
+    // upsertTenantStripeBillingData: must route stripeCustomerId/stripeSubscriptionId through
+    // the single writer and NOT write them via tenantRef directly.
+    const helpers = fs.readFileSync(path.join(root, "stripe/stripeHelpers.ts"), "utf8");
+    const fnStart = helpers.indexOf("export async function upsertTenantStripeBillingData");
+    expect(fnStart).toBeGreaterThan(-1);
+    const nextExportIdx = helpers.indexOf("\nexport ", fnStart + 1);
+    const fnBody = helpers.slice(fnStart, nextExportIdx === -1 ? helpers.length : nextExportIdx);
+
+    // Must call the single writer
+    expect(fnBody).toMatch(/syncTenantPlanBillingSnapshot\s*\(/);
+
+    // Direct tenantRef.set/update calls inside this function must NOT contain billing-state fields
+    const directWriteRe = /tenantRef\.(set|update)\s*\([^)]*\)/gs;
+    let match: RegExpExecArray | null;
+    while ((match = directWriteRe.exec(fnBody)) !== null) {
+      expect(match[0]).not.toMatch(/stripeCustomerId|stripeSubscriptionId/);
+    }
+
+    // Addon-only direct write must carry the EXEMPT comment
+    expect(fnBody).toMatch(/EXEMPT:\s*addon-item identifiers/);
+  });
+
+  it("every consolidated caller passes a unique 'source' tag to syncTenantPlanBillingSnapshot", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path") as typeof import("path");
+    const root = path.resolve(__dirname, "../..");
+
+    const expectedTags: [string, string][] = [
+      ["api/controllers/stripe.controller.ts", "controller.cancelSubscription"],
+      ["api/controllers/stripe.controller.ts", "controller.confirmCheckoutSession"],
+      ["api/controllers/stripe.controller.ts", "controller.syncSubscription"],
+      ["api/controllers/stripe.controller.ts", "controller.createCheckoutSession"],
+      ["billing/billing-sync.service.ts", "cron.checkStripeSubscriptions"],
+      ["stripe/stripeHelpers.ts", "helpers.updateUserPlan"],
+      ["stripe/stripeHelpers.ts", "helpers.runStripeSync"],
+      ["stripe/stripeHelpers.ts", "helpers.upsertTenantStripeBillingData"],
+      ["api/controllers/admin.controller.ts", "admin.updateUserPlan"],
+      ["api/controllers/admin.controller.ts", "admin.forceSetTenantPlan"],
+    ];
+
+    for (const [file, tag] of expectedTags) {
+      const content = fs.readFileSync(path.join(root, file), "utf8");
+      expect(content).toContain(tag);
+    }
+  });
+
+  it("Plan 06 gap closure — admin.controller.ts has no naked billing-state writes", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path") as typeof import("path");
+    const root = path.resolve(__dirname, "../..");
+
+    const adminContent = fs.readFileSync(
+      path.join(root, "api/controllers/admin.controller.ts"),
+      "utf8",
+    );
+
+    // 1. The recomputeTenantFeatures direct write must carry the EXEMPT comment
+    //    that justifies the remaining (non-billing-state) write.
+    expect(adminContent).toMatch(
+      /EXEMPT:\s*recomputeTenantFeatures re-asserts plan from cache/,
+    );
+
+    // 2. The planId direct write inside updateUserPlan must carry an EXEMPT
+    //    comment explaining planId is a raw price-id pointer, not billing state.
+    expect(adminContent).toMatch(
+      /EXEMPT:\s*planId is a raw price-id pointer/,
+    );
+
+    // 3. forceSetTenantPlan must clear scheduled fields via the single writer's
+    //    clearScheduled: true flag, not via direct tenantRef writes.
+    const forceFnStart = adminContent.indexOf(
+      "export const forceSetTenantPlan",
+    );
+    expect(forceFnStart).toBeGreaterThan(-1);
+    const forceFnEnd = adminContent.indexOf(
+      "\nexport ",
+      forceFnStart + 1,
+    );
+    const forceFnBody = adminContent.slice(
+      forceFnStart,
+      forceFnEnd === -1 ? adminContent.length : forceFnEnd,
+    );
+    expect(forceFnBody).toMatch(/clearScheduled:\s*true/);
+    expect(forceFnBody).toMatch(/source:\s*"admin\.forceSetTenantPlan"/);
+
+    // 3b. forceSetTenantPlan post-writer EXEMPT comments — both branches of the
+    //     enterprise/non-enterprise if must carry an EXEMPT comment for parity
+    //     with the Plan 03 audit pattern.
+    expect(forceFnBody).toMatch(
+      /EXEMPT:\s*whatsappEnabled enterprise override/,
+    );
+    expect(forceFnBody).toMatch(
+      /EXEMPT:\s*featuresRecomputedAt is a non-billing-state recompute marker/,
+    );
+
+    // 4. Inside forceSetTenantPlan, no direct tenantRef.update may carry the
+    //    bare scheduledPlan / scheduledPlanAt / scheduledPlanReason fields —
+    //    those are now cleared via clearScheduled inside the single writer.
+    const directWriteRe = /tenantRef\.(set|update)\s*\([\s\S]*?\)/g;
+    let match: RegExpExecArray | null;
+    while ((match = directWriteRe.exec(forceFnBody)) !== null) {
+      expect(match[0]).not.toMatch(/scheduledPlan(At|Reason)?\s*:/);
+      expect(match[0]).not.toMatch(/(^|[^.\w])plan\s*:/);
+    }
+
+    // 5. Inside updateUserPlan, no direct tenantRef write may contain a bare
+    //    `plan:` (the tier field) — only the EXEMPT planId pointer is allowed.
+    const updFnStart = adminContent.indexOf("// Sync the new planId");
+    expect(updFnStart).toBeGreaterThan(-1);
+    // Slice ~80 lines forward to bound the search to this function block.
+    const updFnBody = adminContent.slice(updFnStart, updFnStart + 4000);
+    const updWriteRe = /tenantRef\.(set|update)\s*\([\s\S]*?\)/g;
+    let updMatch: RegExpExecArray | null;
+    while ((updMatch = updWriteRe.exec(updFnBody)) !== null) {
+      // bare `plan: <value>` (the tier) is forbidden; planId is allowed.
+      expect(updMatch[0]).not.toMatch(/(^|[^.\w])plan\s*:/);
+    }
+
+    // 6. updateUserPlan must call the single writer with the correct source tag
+    //    AND must pass tierFromPlanId (NOT profile.tier — getTenantPlanProfile
+    //    would resolve to the stale tier after the direct plan write was removed).
+    expect(updFnBody).toMatch(/syncTenantPlanBillingSnapshot\s*\(/);
+    expect(updFnBody).toMatch(/source:\s*"admin\.updateUserPlan"/);
+    expect(updFnBody).toMatch(/plan:\s*tierFromPlanId/);
+    // Negative assertion: the new sync block must NOT pass profile.tier as plan.
+    // (The recomputeTenantFeatures function still reads profile.tier for its
+    // JSON response, but updateUserPlan's single-writer call must not.)
+    const syncCallStart = updFnBody.indexOf("syncTenantPlanBillingSnapshot(");
+    if (syncCallStart > -1) {
+      const syncCallEnd = updFnBody.indexOf("})", syncCallStart);
+      const syncCallBody = updFnBody.slice(
+        syncCallStart,
+        syncCallEnd === -1 ? syncCallStart + 500 : syncCallEnd,
+      );
+      expect(syncCallBody).not.toMatch(/plan:\s*profile\.tier/);
+    }
+  });
+});

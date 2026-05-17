@@ -2,12 +2,24 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOut, Menu, Sparkles, User as UserIcon, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import type { User } from "@/types";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
 import { getAuthenticatedHome } from "@/lib/landing/auth-redirect";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
+import { getUserColor, getInitials } from "@/lib/avatar-utils";
 
 interface LandingNavbarProps {
   currentUser: User | null;
@@ -27,9 +39,13 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const [mobileOpen, setMobileOpen] = useState(false);
   const lastScrollY = useRef(0);
   const navRef = useRef<HTMLElement>(null);
+  const router = useRouter();
+  const { companyName, logoUrl, avatarSeed } = useHeaderPresentation();
   const appHref = currentUser ? getAuthenticatedHome(currentUser) : "/login";
   const isFreeAccount = currentUser?.role === "free";
-
+  const isBlockedAccount = ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
+    currentUser?.subscriptionStatus ?? "",
+  );
   const scrollToAnchor = (href: string, closeMobile = false) => {
     if (!href.startsWith("#")) return;
 
@@ -143,39 +159,120 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
               ))}
             </div>
 
+            {/* Right cluster: [Auth Slot] [Theme Toggle] [Mobile Menu] */}
             <div className="flex shrink-0 items-center gap-3">
+              {/* Auth slot — desktop sm+ */}
               <div className="hidden items-center gap-3 sm:flex">
-                <AnimatedThemeToggler
-                  className="inline-flex h-8 w-8 items-center justify-center text-black/75 transition-colors hover:text-black dark:text-white/80 dark:hover:text-white"
-                  aria-label="Alternar tema"
-                />
-
-                {isAuthLoading ? null : currentUser ? (
+                {isAuthLoading ? (
                   <>
-                    {isFreeAccount ? (
+                    <Skeleton className="h-7 w-7 rounded-full" />
+                    <Skeleton className="h-4 w-24 rounded-full" />
+                  </>
+                ) : currentUser ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        onClick={() => scrollToAnchor("#pricing")}
-                        className="text-[13px] cursor-pointer font-medium text-black/65 transition-colors hover:text-black dark:text-white/65 dark:hover:text-white"
+                        className="flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-black/70 transition-colors hover:bg-black/[0.04] hover:text-black dark:text-white/70 dark:hover:bg-white/[0.08] dark:hover:text-white"
                       >
-                        Ver planos
+                        <Avatar className="h-7 w-7 border border-black/10 dark:border-white/10">
+                          {logoUrl ? (
+                            <AvatarImage
+                              src={logoUrl}
+                              alt={companyName}
+                              className="object-cover"
+                            />
+                          ) : (
+                            <AvatarFallback
+                              className="text-[10px] font-medium text-white"
+                              style={{ backgroundColor: getUserColor(avatarSeed) }}
+                            >
+                              {getInitials(avatarSeed)}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="max-w-[120px] truncate text-[13px] font-medium">
+                          {companyName}
+                        </span>
+                        <ChevronDown className="h-3 w-3 opacity-50" />
                       </button>
-                    ) : (
-                      <Link
-                        href={appHref}
-                        className="text-[13px] font-medium text-black/65 transition-colors hover:text-black dark:text-white/65 dark:hover:text-white"
-                      >
-                        Entrar no ERP
-                      </Link>
-                    )}
-
-                    <button
-                      onClick={onSignOut}
-                      className="rounded-full cursor-pointer bg-black px-5 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black/85 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="center"
+                      className="mt-2 w-52 rounded-2xl border border-black/10 bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.1)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/90 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
                     >
-                      Sair
-                    </button>
-                  </>
+                      {/* Header: avatar + company name */}
+                      <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1">
+                        <Avatar className="h-8 w-8 shrink-0 border border-black/10 dark:border-white/10">
+                          {logoUrl ? (
+                            <AvatarImage src={logoUrl} alt={companyName} className="object-cover" />
+                          ) : (
+                            <AvatarFallback
+                              className="text-[10px] font-medium text-white"
+                              style={{ backgroundColor: getUserColor(avatarSeed) }}
+                            >
+                              {getInitials(avatarSeed)}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="truncate text-[13px] font-semibold text-black dark:text-white">
+                          {companyName}
+                        </span>
+                      </div>
+                      <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
+                      {isBlockedAccount ? (
+                        <DropdownMenuItem
+                          onClick={() => scrollToAnchor("#pricing")}
+                          className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          Ver planos
+                        </DropdownMenuItem>
+                      ) : isFreeAccount ? (
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => scrollToAnchor("#pricing")}
+                            className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            Ver planos
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => router.push("/profile")}
+                            className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                          >
+                            <UserIcon className="h-4 w-4" />
+                            Meu Perfil
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => router.push(appHref)}
+                            className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                          >
+                            <LayoutDashboard className="h-4 w-4" />
+                            Entrar no ERP
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => router.push("/profile")}
+                            className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                          >
+                            <UserIcon className="h-4 w-4" />
+                            Meu Perfil
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
+                      <DropdownMenuItem
+                        onClick={onSignOut}
+                        className="cursor-pointer gap-2 rounded-xl text-[13px] text-red-500 focus:bg-red-50 focus:text-red-600 dark:text-red-400 dark:focus:bg-red-950/30 dark:focus:text-red-400"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sair
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 ) : (
                   <Link
                     href="/login"
@@ -186,8 +283,9 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                 )}
               </div>
 
+              {/* Single theme toggle for all breakpoints */}
               <AnimatedThemeToggler
-                className="inline-flex h-8 w-8 items-center justify-center text-black/75 transition-colors hover:text-black dark:text-white/80 dark:hover:text-white md:hidden"
+                className="inline-flex h-8 w-8 items-center justify-center text-black/75 transition-colors hover:text-black dark:text-white/80 dark:hover:text-white"
                 aria-label="Alternar tema"
               />
 
@@ -242,9 +340,17 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                 transition={{ delay: 0.3, duration: 0.3 }}
                 className="mt-4 flex flex-col items-center gap-4"
               >
-                {isAuthLoading ? null : currentUser ? (
+                {isAuthLoading ? (
                   <>
-                    {isFreeAccount ? (
+                    <Skeleton className="h-5 w-32 rounded-full" />
+                    <Skeleton className="h-10 w-36 rounded-full" />
+                  </>
+                ) : currentUser ? (
+                  <>
+                    <span className="text-sm text-black/50 dark:text-white/50 truncate max-w-[200px]">
+                      {companyName}
+                    </span>
+                    {isBlockedAccount ? (
                       <button
                         type="button"
                         onClick={() => scrollToAnchor("#pricing", true)}
@@ -252,6 +358,23 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       >
                         Ver planos
                       </button>
+                    ) : isFreeAccount ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => scrollToAnchor("#pricing", true)}
+                          className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                        >
+                          Ver planos
+                        </button>
+                        <Link
+                          href="/profile"
+                          onClick={() => setMobileOpen(false)}
+                          className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                        >
+                          Meu Perfil
+                        </Link>
+                      </>
                     ) : (
                       <Link
                         href={appHref}

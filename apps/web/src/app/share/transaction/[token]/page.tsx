@@ -39,7 +39,7 @@ export default function SharedTransactionPage() {
   const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null);
   const [clientInfo, setClientInfo] = React.useState<{ name: string | null; hasDocument: boolean }>({ name: null, hasDocument: false });
 
-  const canPay = Boolean(tenant?.mercadoPagoEnabled);
+  const canPay = Boolean(tenant?.asaasEnabled);
   const handlePayInstallment = React.useCallback((tx: Transaction) => {
     setSelectedTransaction(tx);
   }, []);

@@ -5,6 +5,7 @@ import {
   deleteMember,
   updatePermissions,
   getAllTenantsBilling,
+  syncTenantBilling,
   updateCredentials,
   updateUserPlan,
   updateUserSubscription,
@@ -14,6 +15,7 @@ import {
   copyTenantData,
   recomputeTenantFeatures,
   forceSetTenantPlan,
+  migrateTenantPrices,
 } from "../controllers/admin.controller";
 
 const router = Router();
@@ -31,9 +33,11 @@ router.put("/users/:userId/plan", updateUserPlan);
 router.put("/users/:userId/subscription", updateUserSubscription);
 router.post("/tenants", createTenant);
 router.post("/tenants/copy-data", copyTenantData);
+router.post("/tenants/migrate-prices", migrateTenantPrices);
 router.delete("/tenants/:tenantId", deleteTenant);
 router.post("/tenants/:tenantId/recompute-features", recomputeTenantFeatures);
 router.post("/tenants/:tenantId/force-set-plan", forceSetTenantPlan);
+router.post("/tenants/:tenantId/sync-billing", syncTenantBilling);
 
 router.post("/test-whatsapp-billing", testWhatsAppBilling);
 

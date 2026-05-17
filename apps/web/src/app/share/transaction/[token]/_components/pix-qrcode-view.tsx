@@ -5,7 +5,7 @@ import Image from "next/image";
 import { toast } from "@/lib/toast";
 import { Copy, CheckCheck, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PublicPaymentService } from "@/services/mercadopago-service";
+import { PaymentService } from "@/services/payment-service";
 import { Loader } from "@/components/ui/loader";
 
 interface PixQrCodeViewProps {
@@ -18,6 +18,7 @@ interface PixQrCodeViewProps {
   onPaymentApproved: () => void;
   primaryColor?: string;
   onReset?: () => void;
+  isSandbox?: boolean;
 }
 
 function useCountdown(expiresAt: string) {
@@ -57,8 +58,10 @@ export function PixQrCodeView({
   onPaymentApproved,
   primaryColor,
   onReset,
+  isSandbox,
 }: PixQrCodeViewProps) {
   const [copied, setCopied] = React.useState(false);
+  const [isSimulating, setIsSimulating] = React.useState(false);
   const [paymentStatus, setPaymentStatus] = React.useState<
     "polling" | "approved" | "rejected" | "expired"
   >("polling");
@@ -66,6 +69,18 @@ export function PixQrCodeView({
   const { minutes, seconds, isExpired } = useCountdown(expiresAt);
 
   const consecutiveErrorsRef = React.useRef(0);
+  const onPaymentApprovedRef = React.useRef(onPaymentApproved);
+  React.useEffect(() => {
+    onPaymentApprovedRef.current = onPaymentApproved;
+  });
+
+  React.useEffect(() => {
+    if (paymentStatus !== "approved") return;
+    const timeoutId = setTimeout(() => {
+      onPaymentApprovedRef.current();
+    }, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [paymentStatus]);
 
   const stopPolling = React.useCallback(() => {
     if (pollingRef.current) {
@@ -94,7 +109,7 @@ export function PixQrCodeView({
 
     const intervalId = setInterval(async () => {
       try {
-        const result = await PublicPaymentService.getPaymentStatus(
+        const result = await PaymentService.getPaymentStatus(
           token,
           paymentId,
         );
@@ -105,7 +120,6 @@ export function PixQrCodeView({
           stopPolling();
           clearTimeout(absoluteTimeoutId);
           setPaymentStatus("approved");
-          onPaymentApproved();
         } else if (
           result.status === "rejected" ||
           result.status === "cancelled"
@@ -120,7 +134,7 @@ export function PixQrCodeView({
           clearInterval(intervalId);
           clearTimeout(absoluteTimeoutId);
           toast.error(
-            "NÃ£o foi possÃ­vel verificar o status do pagamento. Recarregue a pÃ¡gina para tentar novamente.",
+            "Não foi possível verificar o status do pagamento. Recarregue a página para tentar novamente.",
           );
           return;
         }
@@ -133,16 +147,39 @@ export function PixQrCodeView({
       clearInterval(intervalId);
       clearTimeout(absoluteTimeoutId);
     };
-  }, [token, paymentId, onPaymentApproved, stopPolling]);
+  }, [token, paymentId, stopPolling]);
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(qrCode);
       setCopied(true);
-      toast.success("CÃ³digo PIX copiado!");
+      toast.success("Código PIX copiado!");
       setTimeout(() => setCopied(false), 3000);
     } catch {
-      toast.error("Erro ao copiar cÃ³digo. Copie manualmente.");
+      toast.error("Erro ao copiar código. Copie manualmente.");
+    }
+  };
+
+  const handleSimulate = async () => {
+    try {
+      setIsSimulating(true);
+      await PaymentService.simulateSandboxPayment(token, paymentId);
+      // Immediately check status — after backend processes locally, Firestore is already updated
+      try {
+        const result = await PaymentService.getPaymentStatus(token, paymentId);
+        if (result.status === "approved") {
+          stopPolling();
+          setPaymentStatus("approved");
+          return;
+        }
+      } catch {
+        // Ignore — let polling handle it
+      }
+      toast.success("Pagamento simulado! Aguarde a confirmação...");
+    } catch {
+      toast.error("Erro ao simular pagamento. Tente novamente.");
+    } finally {
+      setIsSimulating(false);
     }
   };
 
@@ -172,7 +209,7 @@ export function PixQrCodeView({
           />
         </div>
         <div>
-          <p className="font-semibold text-lg">Pagamento nÃ£o aprovado</p>
+          <p className="font-semibold text-lg">Pagamento não aprovado</p>
           <p className="text-sm text-muted-foreground">
             O pagamento foi recusado ou cancelado. Tente novamente.
           </p>
@@ -225,7 +262,7 @@ export function PixQrCodeView({
 
       <p className="text-xs text-muted-foreground text-center max-w-xs">
         Abra o app do seu banco, acesse o PIX e escaneie o QR Code acima, ou
-        copie o cÃ³digo abaixo.
+        copie o código abaixo.
       </p>
 
       <Button
@@ -246,6 +283,21 @@ export function PixQrCodeView({
         )}
         {copied ? "Copiado!" : "Copiar código PIX"}
       </Button>
+
+      {isSandbox && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleSimulate}
+          disabled={isSimulating}
+          className="w-full max-w-xs text-muted-foreground text-xs"
+        >
+          {isSimulating ? (
+            <Loader size="sm" className="mr-2" />
+          ) : null}
+          {isSimulating ? "Simulando..." : "Simular pagamento (sandbox)"}
+        </Button>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { AI_TIER_LIMITS } from "@/types/ai";
+import { isFirestorePermissionError } from "@/lib/firestore-error";
 
 function getCurrentYearMonth(): string {
   const now = new Date();
@@ -89,7 +90,9 @@ export function useLiaUsage(): UseLiaUsageReturn {
         }
       },
       (error) => {
-        console.error("[useLiaUsage] Firestore onSnapshot error:", error);
+        if (!isFirestorePermissionError(error)) {
+          console.error("[useLiaUsage] Firestore onSnapshot error:", error);
+        }
         setUsage({ messagesUsed: 0, totalTokensUsed: 0, subscriptionKey: key });
       },
     );

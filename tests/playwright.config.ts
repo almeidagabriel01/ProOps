@@ -6,6 +6,9 @@ import { defineConfig, devices } from "@playwright/test";
 process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
 process.env.FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199";
+// Shared with the Next.js webServer so test workers can call the billing-status
+// invalidation endpoint using the same secret (see billing.ts seed helper).
+process.env.BILLING_CACHE_INVALIDATION_SECRET = "test-billing-cache-secret";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -49,9 +52,16 @@ export default defineConfig({
       FIREBASE_AUTH_EMULATOR_HOST: "127.0.0.1:9099",
       FIREBASE_STORAGE_EMULATOR_HOST: "127.0.0.1:9199",
       NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION: "true",
+      // Disable the legacy firebase-auth-token cookie fallback so the middleware
+      // behaves like production: only __session grants access. Without this flag,
+      // the Firebase SDK may set a legacy cookie after page.goto("/login") in
+      // AUTH-05 beforeEach, causing /dashboard to return 200 instead of 307.
+      AUTH_ACCEPT_LEGACY_COOKIE_HINT: "false",
       // Route backend API calls to the Functions emulator under the demo project.
       // The demo-proops-test project matches the emulator project in global-setup.ts.
       FUNCTIONS_LOCAL_API_URL: "http://127.0.0.1:5001/demo-proops-test/southamerica-east1/api",
+      // Secret for the billing-status cache invalidation endpoint called by billing seed helpers.
+      BILLING_CACHE_INVALIDATION_SECRET: "test-billing-cache-secret",
     },
   },
 });

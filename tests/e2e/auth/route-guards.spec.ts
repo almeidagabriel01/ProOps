@@ -5,7 +5,7 @@ import { test, expect } from "../fixtures/base.fixture";
  *
  * These tests verify that the Next.js middleware redirects unauthenticated
  * users to /login with redirect and redirect_reason query params
- * (middleware.ts lines 117-120: loginUrl.searchParams.set).
+ * (middleware.ts: loginUrl.searchParams.set).
  *
  * All tests deliberately run WITHOUT any auth cookies.
  */
@@ -41,6 +41,10 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
         // ignore — some origins block storage access
       }
     });
+    // Re-clear cookies: page.goto("/login") above may trigger Firebase SDK to
+    // re-issue firebase-auth-token from IndexedDB before the evaluate() wipe.
+    // A second clear ensures no legacy cookie survives into the test body.
+    await context.clearCookies();
   });
 
   test("navigating to /dashboard redirects to /login", async ({ page }) => {
@@ -58,20 +62,31 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
   });
 
-  test("redirect URL includes the original path as 'redirect' query param", async ({ page }) => {
-    await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-    // The Next.js middleware sets redirect=<path> in the 307 Location header.
-    // Playwright follows the redirect and the final URL should include the param.
-    expect(new URL(page.url()).searchParams.get("redirect")).toBe("/dashboard");
+  test("redirect URL includes the original path as 'redirect' query param", async ({ playwright }) => {
+    // playwright.request.newContext() creates a fully isolated APIRequestContext
+    // with an empty cookie jar — no __session cookie, no browser state.
+    // Following the redirect lets us inspect the final URL the middleware sends
+    // the user to, without depending on maxRedirects:0 edge-case behavior.
+    const ctx = await playwright.request.newContext({ baseURL: "http://localhost:3001" });
+    try {
+      const resp = await ctx.fetch("/dashboard");
+      const url = new URL(resp.url());
+      expect(url.pathname).toBe("/login");
+      expect(url.searchParams.get("redirect")).toBe("/dashboard");
+    } finally {
+      await ctx.dispose();
+    }
   });
 
-  test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ page }) => {
-    await page.goto("/proposals");
-    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
-    // The Next.js middleware sets redirect_reason=session_expired (middleware.ts line 119).
-    expect(new URL(page.url()).searchParams.get("redirect_reason")).toBe(
-      "session_expired",
-    );
+  test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ playwright }) => {
+    const ctx = await playwright.request.newContext({ baseURL: "http://localhost:3001" });
+    try {
+      const resp = await ctx.fetch("/proposals");
+      const url = new URL(resp.url());
+      expect(url.pathname).toBe("/login");
+      expect(url.searchParams.get("redirect_reason")).toBe("session_expired");
+    } finally {
+      await ctx.dispose();
+    }
   });
 });

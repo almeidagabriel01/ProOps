@@ -69,7 +69,6 @@ function LoginContent() {
     handleResendPhoneCode,
     isGoogleLoading,
     sessionRecoveryFailed,
-    redirectReason,
   } = useLoginForm();
 
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>(
@@ -602,9 +601,7 @@ function LoginContent() {
               <div className="text-left mb-6">
                 <h1 className="text-3xl font-bold tracking-tight">Entrar</h1>
                 <p className="text-muted-foreground mt-2">
-                  {redirectReason === "session_expired"
-                    ? "Sua sessão expirou. Entre novamente para continuar."
-                    : "Bem-vindo de volta! Insira suas credenciais."}
+                  Bem-vindo de volta! Insira suas credenciais.
                 </p>
               </div>
 

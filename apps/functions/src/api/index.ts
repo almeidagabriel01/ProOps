@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { logger } from "../lib/logger";
 import { validateFirebaseIdToken } from "./middleware/auth";
+import { requireActiveSubscription } from "./middleware/require-active-subscription";
 import { CORS_OPTIONS } from "../deploymentConfig";
 import { proxyImage } from "./controllers/proxy.controller";
 
@@ -12,6 +13,7 @@ import { adminRoutes } from "./routes/admin.routes";
 import { stripeRoutes, publicStripeRoutes } from "./routes/stripe.routes";
 import { auxiliaryRoutes } from "./routes/auxiliary.routes";
 import { internalRoutes } from "./routes/internal.routes";
+import { internalDebugRoutes } from "./routes/internal-debug.routes";
 import sharedProposalsRoutes from "./routes/shared-proposals.routes";
 import { sharedTransactionsRoutes } from "./routes/shared-transactions.routes";
 import notificationsRoutes from "./routes/notifications.routes";
@@ -19,8 +21,10 @@ import { whatsappRoutes } from "./routes/whatsapp.routes";
 import { kanbanRoutes } from "./routes/kanban.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
-import { mercadoPagoRoutes } from "./routes/mercadopago.routes";
 import { paymentPublicRoutes } from "./routes/payment-public.routes";
+import { asaasRoutes } from "./routes/asaas.routes";
+import { asaasWebhookRoutes } from "./routes/asaas-webhook.routes";
+import { contactRoutes } from "./routes/contact.routes";
 import { aiRouter, fieldGenRouter } from "../ai";
 import { aiRateLimiter } from "../ai/rate-limiter";
 import {
@@ -201,6 +205,12 @@ const publicGeneralLimiter = createRateLimiter({
   maxRequests: 300,
 });
 
+const contactFormLimiter = createRateLimiter({
+  keyPrefix: "public-contact-form",
+  maxRequests: 5,
+  windowMs: 60_000,
+});
+
 const publicShareLimiter = createRateLimiter({
   keyPrefix: "public-share",
   maxRequests: 80,
@@ -366,6 +376,7 @@ app.get(
 app.get("/v1/aux/proxy-image", publicGeneralLimiter, proxyImage);
 
 app.use("/webhooks/whatsapp", publicWebhookLimiter, whatsappRoutes);
+app.use("/webhooks/asaas", publicWebhookLimiter, asaasWebhookRoutes);
 
 // Public Stripe Routes (Plans)
 app.use("/v1/stripe", publicGeneralLimiter, publicStripeRoutes);
@@ -379,8 +390,15 @@ app.use("/v1", publicShareLimiter, sharedProposalsRoutes);
 app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
+app.use("/v1/public", contactFormLimiter, contactRoutes);
+
+// Debug-only internal endpoints — gated by x-cron-secret, mounted before auth
+// so E2E fixtures can invalidate caches without a Firebase ID token.
+app.use("/internal", internalDebugRoutes);
+
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
+app.use(requireActiveSubscription);
 app.use(protectedLimiter);
 
 app.use((req, res, next) => {
@@ -413,7 +431,7 @@ app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);
 app.use("/internal", internalRoutes);
 app.use("/v1/notifications", notificationsRoutes);
-app.use("/v1", mercadoPagoRoutes);
+app.use("/v1", asaasRoutes);
 app.use("/v1/ai", aiRateLimiter, aiRouter);
 app.use("/v1/ai", fieldGenRouter);
 app.get("/authenticated", (req: express.Request, res: express.Response) => {

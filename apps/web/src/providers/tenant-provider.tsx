@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Tenant, User } from "@/types"; // Keep Type
-import { TenantService } from "@/services/tenant-service";
+import { TenantService, invalidateTenantCache } from "@/services/tenant-service";
 import { useAuth } from "@/providers/auth-provider";
 import {
   collection,
@@ -12,6 +12,7 @@ import {
   limit,
   doc,
   getDoc,
+  onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePathname } from "next/navigation";
@@ -349,6 +350,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
                 setTenantOwner(null);
                 setTenantOwnerPlanName(null);
               }
+            } else if (user?.role?.toLowerCase() === "free") {
+              // Free users own their own bootstrap tenant — no listing query needed
+              setTenantOwner(null);
+              setTenantOwnerPlanName(null);
             } else if (!user?.masterId) {
               // Admin/Master/SuperAdmin: query users in tenant to find owner
               const q = query(
@@ -512,6 +517,56 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       if (styleTag) styleTag.remove();
     }
   }, [tenant]);
+
+  // Real-time listener: keeps tenant doc fresh after initial load.
+  // Fires on any Firestore write to tenants/{id}, including subscription status changes.
+  const tenantSnapshotUnsubRef = React.useRef<(() => void) | null>(null);
+  const listeningTenantIdRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const idToListen = tenant?.id ?? null;
+
+    if (!idToListen) {
+      if (tenantSnapshotUnsubRef.current) {
+        tenantSnapshotUnsubRef.current();
+        tenantSnapshotUnsubRef.current = null;
+        listeningTenantIdRef.current = null;
+      }
+      return;
+    }
+
+    if (listeningTenantIdRef.current === idToListen) return;
+
+    if (tenantSnapshotUnsubRef.current) {
+      tenantSnapshotUnsubRef.current();
+    }
+
+    const unsubscribe = onSnapshot(
+      doc(db, "tenants", idToListen),
+      (snap) => {
+        if (snap.exists()) {
+          setTenant({ id: snap.id, ...snap.data() } as Tenant);
+          invalidateTenantCache(idToListen);
+        }
+      },
+      (err) => {
+        // permission-denied fires when Firestore Rules block a canceled tenant.
+        // SubscriptionGuard handles the redirect — no crash needed here.
+        if (err.code !== "permission-denied") {
+          console.warn("[TenantProvider] tenant snapshot error", err.code);
+        }
+      },
+    );
+
+    tenantSnapshotUnsubRef.current = unsubscribe;
+    listeningTenantIdRef.current = idToListen;
+
+    return () => {
+      unsubscribe();
+      tenantSnapshotUnsubRef.current = null;
+      listeningTenantIdRef.current = null;
+    };
+  }, [tenant?.id]);
 
   const refreshTenant = () => {
     setRefreshTrigger((prev) => prev + 1);

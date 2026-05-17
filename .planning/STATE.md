@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: — AI Assistant
-status: unknown
-stopped_at: context exhaustion at 90% (2026-05-05)
-last_updated: "2026-05-05T00:45:43.100Z"
+status: executing
+stopped_at: context exhaustion at 91% (2026-05-15)
+last_updated: "2026-05-15T20:15:00.337Z"
 progress:
   total_phases: 14
   completed_phases: 14
@@ -17,15 +17,15 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-13)
+See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Propostas e gestão financeira funcionando com confiança — ciclo proposta → aprovação → cobrança não pode quebrar.
-**Current focus:** Phase 02 — auth-multitenant
+**Current focus:** Phase 23 — mp-webhook-hardening
 
 ## Current Position
 
-Phase: 02 (auth-multitenant) — EXECUTING
-Plan: 1 of 4
+Phase: 23 (mp-webhook-hardening) — COMPLETE
+Plan: 2 of 2 (all complete)
 
 ## Performance Metrics
 
@@ -78,6 +78,16 @@ _Updated after each plan completion_
 | Phase 18 P02 | 5 | 2 tasks | 3 files |
 | Phase 18 P01 | 113 | 2 tasks | 2 files |
 | Phase 18 P03 | 2 | 2 tasks | 4 files |
+| Phase 19 P04 | 35 | 2 tasks | 3 files |
+| Phase 19 P05 | 8 | 1 tasks | 1 files |
+| Phase 19 P03 | 45 | 3 tasks | 5 files |
+| Phase 19 P06 | 15 | 2 tasks | 3 files |
+| Phase 20 P01 | 5 | 3 tasks | 3 files |
+| Phase 20 P02 | 15 | 2 tasks | 3 files |
+| Phase 22 P01 | 15 | 3 tasks | 5 files |
+| Phase 22 P02 | 5 | 1 tasks | 1 files |
+| Phase 23 P01 | 45 | 3 tasks | 2 files |
+| Phase 23 P02 | 25 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -153,6 +163,41 @@ Carry-forward decisions from v1.0 relevant to v2.0 work:
 - [Phase 02-02]: Firestore isolation tests use Node.js fetch() directly to emulator REST API — no browser page fixture, independent of browser route interception layer
 - [Phase 02-03]: AUTH-06 gap closed — 502 removed from backend API isolation assertion; global-setup.ts already starts Functions emulator (--only auth,firestore,storage,functions); tightened [403, 404] assertion causes hard failure if emulator unreachable
 - [Phase 02-04]: AUTH-05 redirect params stripped by ProtectedRoute client-side router.push('/login') which lacked query params; middleware returns HTTP 200 for App Router shell — client JS layer is the actual redirect mechanism. Fixed router.push to include redirect + redirect_reason params. 18/18 auth suite green.
+- [Phase ?]: [Phase 19 P03]: Single-writer pattern enforced — all tenant billing-state writes route through syncTenantPlanBillingSnapshot; applyScheduledPlanChanges extends existing tx with subscription.* dotted keys (Pitfall 5); upsertTenantStripeBillingData split with EXEMPT comment for addon-item ids
+- [Phase 19 P06]: admin.controller.ts gap closure — updateUserPlan passes tierFromPlanId (not getTenantPlanProfile which reads stale tier); recomputeTenantFeatures EXEMPT (plan field removed, only whatsappEnabled+featuresRecomputedAt); forceSetTenantPlan routes plan+scheduledPlan* through single writer with clearScheduled:true
+- [Phase 20 P01]: STATE-03 wording updated — BILLING_CANCEL_BLOCKED_PAST_DUE removed; immediate-cancel path (stripe.subscriptions.cancel) is the correct behavior for past_due tenants; no 409 block
+- [Phase 20 P01]: seedBillingStateExtended writes both legacy top-level fields and Phase 19 canonical subscription.* map; restoreTenantState now deletes cancelAtPeriodEnd and subscription fields
+- [Phase 20 P01]: Wave 0 E2E stubs declared with testid contracts billing-state-banner-past-due and billing-state-banner-cancel-period-end — Plan 20-03 must match these
+- [Phase 20 P02]: cancelSubscription branches on tenantData.subscription?.status (Phase 19 canonical) — no fallback to tenantData.subscriptionStatus; past_due → immediate stripe.subscriptions.cancel() + single writer; at-period-end path now passes cancelAt from Stripe cancel_at field; webhook cancel_at_period_end branch populates cancelAt+cancelAtPeriodEnd; rescind branch clears both
+
+### v4.0 Architecture Decisions
+
+- [Phase 19]: Single writer pattern — extend syncTenantPlanBillingSnapshot, never create a parallel writer; top-level fields + nested subscription.* written atomically in db.runTransaction()
+- [Phase 19 P01]: BILL-08 scope locked as verification-only — existing db.runTransaction() in beginStripeEventProcessing prevents cross-instance race; 5-min stuck-processing window accepted risk
+- [Phase 19 P01]: billing-types.ts canonical type file for SubscriptionSnapshot + SyncTenantPlanBillingSnapshotParams — single source of truth for Plans 02-05
+- [Phase 19 P01]: lru-cache@^11.3.6 installed as direct dep (was transitive v6.0.0); LRUCache named export available for Plan 04 BILL-07
+- [Phase 19 P02]: syncTenantPlanBillingSnapshot exported with full SyncTenantPlanBillingSnapshotParams; writes subscription.* atomically with top-level fields in one db.runTransaction(); all in-file handlers consolidated through it
+- [Phase 19 P02]: stripeSubscriptionId widened to string | null (both interfaces) — null-clear path needed for handleSubscriptionDeleted subscription reset
+- [Phase 19 P02]: beginStripeEventProcessing promoted to named export (visibility-only); Plan 05 BILL-08 can import it directly without fallback path
+- [Phase 19 P05]: BILL-08 verified via static import of beginStripeEventProcessing (PRIMARY BRANCH); itIfEmulator pattern skips integration test when FIRESTORE_EMULATOR_HOST is unset; finalizeStripeEventProcessing simulated in test via direct Firestore write
+- [Phase 19 P04]: resolvePlanCacheTtlMs() deleted (not deprecated) — noUnusedLocals:true enforced removal; LRU constructor uses hard-coded literal 30_000 per CONTEXT.md lock
+- [Phase 19 P04]: hasTenantPlanCacheForTest uses .get() !== undefined (not .has()) — lru-cache v11 .has() does not reliably check TTL expiry
+- [Phase 19 P04]: LRU TTL test uses real elapsed time (1200ms) — lru-cache v11 perf.now() debounce via setTimeout makes fake timers unreliable for TTL verification
+- [Phase 20]: Banners depend on Phase 19 canonical billing state — deploy Phase 19 first to ensure reliable field reads
+- [Phase 20 P03]: cancelAt mapped only from subscription.cancelAt (no top-level fallback) — Pitfall 5 from CONTEXT.md
+- [Phase 20 P03]: Shell-level banner pattern — BillingStateBanner lives in ProtectedAppShell, not SubscriptionGuard; SubscriptionGuard's showWarningBanner block removed to prevent double-banner for past_due
+- [Phase 20 P03]: Yellow banner CTA (Reativar assinatura) is disabled stub in this phase — Phase 21 wires endpoint
+- [Phase 22]: AUTH-05 moved to Out of Scope (superseded by LOGIN-01); redirect= consumption removed but redirect_reason= toast handling preserved
+- [Phase 22 P01]: redirectReason kept in UseLoginFormReturn — consumed by session-recovery useEffect and toast useEffect; tightening deferred to future cleanup
+- [Phase 22 P01]: SeedUserFreeRole added to users.ts (not only ai.ts) — pre-existing type mismatch (USER_FREE typed as SeedUser with role:"free") fixed alongside SeedUserSuperadminRole addition
+- [Phase 23]: MP HMAC format is id:<x>;request-id:<x>;ts:<x> (semicolon-separated); merchant_order topic fires before payment topic — webhook must handle topic routing correctly
+- [Phase 23 P01]: beginMpWebhookProcessing + finalizeMpWebhookProcessing placed AFTER onRequest export — function declarations hoisted in CommonJS; positioning satisfies awk ordering invariant (merchant_order log before first beginMpWebhookProcessing() text match)
+- [Phase 23 P01]: 5-minute PROCESSING_STUCK_WINDOW_MS mirrors Stripe BILL-08 accepted risk — MP delivery retries occur hours apart
+- [Phase 23 P01]: void mockedAxios suppresses noUnusedLocals tsc error while preserving jest.mock("axios") scaffold for Plan 02 Task 2
+- [Phase 23 P01]: webhookEvents collection covered by catch-all DENY in firestore.rules — no explicit rule needed
+- [Phase 23 P02]: Zero net_received_amount treated as missing (not zero-fee) — sandbox MP payments return net=0; guard: typeof net === "number" && net > 0
+- [Phase 23 P02]: freshAxios pattern for MPWH-03 unit tests — jest.resetModules() creates new module registry; top-level mockedAxios becomes stale; require("axios") inside test body gets the fresh instance the dynamically-required handlePaymentEvent uses
+- [Phase 23 P02]: CLAUDE.md Bug Fix Policy verified via git-stash workflow — 3 MPWH-03 tests fail without fix, 3 pass with fix
 
 ### Pending Todos
 
@@ -164,6 +209,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-05T00:45:43.097Z
-Stopped at: context exhaustion at 90% (2026-05-05)
+Last session: 2026-05-15T20:15:00.333Z
+Stopped at: context exhaustion at 91% (2026-05-15)
 Resume file: None

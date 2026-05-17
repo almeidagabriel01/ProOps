@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -9,8 +10,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Copy, Settings2 } from "lucide-react";
-import { TenantBillingInfo } from "@/services/admin-service";
+import { MoreHorizontal, Copy, Settings2, ArrowRightLeft } from "lucide-react";
+import { TenantBillingInfo, AdminService } from "@/services/admin-service";
 import { toast } from '@/lib/toast';
 
 interface TenantActionsMenuProps {
@@ -22,6 +23,8 @@ export function TenantActionsMenu({
     item,
     onEditLimits,
 }: TenantActionsMenuProps) {
+    const [isMigrating, setIsMigrating] = useState(false);
+
     const handleCopyAdminId = () => {
         navigator.clipboard.writeText(item.admin.id);
         toast.success("ID do admin copiado!", { autoClose: 2000 });
@@ -31,6 +34,32 @@ export function TenantActionsMenu({
         navigator.clipboard.writeText(item.tenant.id);
         toast.success("ID da empresa copiado!", { autoClose: 2000 });
     };
+
+    const handleMigratePrice = async () => {
+        const confirmed = window.confirm(
+            `Migrar preço de "${item.tenant.name}" para o preço atual do plano?\n\nEsta ação atualiza a assinatura Stripe imediatamente sem prorateamento.`,
+        );
+        if (!confirmed) return;
+
+        setIsMigrating(true);
+        try {
+            const result = await AdminService.migrateTenantPrices([item.tenant.id]);
+            const outcome = result.results[0];
+            if (outcome?.status === "migrated") {
+                toast.success(`Preço migrado com sucesso para ${outcome.toPriceId}.`);
+            } else if (outcome?.status === "skipped") {
+                toast.info(`Migração ignorada: ${outcome.reason ?? "sem drift detectado"}.`);
+            } else {
+                toast.error(`Falha na migração: ${outcome?.reason ?? "erro desconhecido"}.`);
+            }
+        } catch {
+            toast.error("Erro ao migrar preço. Tente novamente.");
+        } finally {
+            setIsMigrating(false);
+        }
+    };
+
+    const hasDrift = Boolean(item.priceChangeNotifiedFor);
 
     return (
         <DropdownMenu>
@@ -70,6 +99,19 @@ export function TenantActionsMenu({
                     <Settings2 className="h-3.5 w-3.5" />
                     Editar Limites
                 </DropdownMenuItem>
+                {hasDrift && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onClick={handleMigratePrice}
+                            disabled={isMigrating}
+                            className="flex items-center gap-2 cursor-pointer text-amber-600 focus:text-amber-600"
+                        >
+                            <ArrowRightLeft className="h-3.5 w-3.5" />
+                            {isMigrating ? "Migrando..." : "Migrar preço"}
+                        </DropdownMenuItem>
+                    </>
+                )}
             </DropdownMenuContent>
         </DropdownMenu>
     );

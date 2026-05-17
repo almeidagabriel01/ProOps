@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { LRUCache } from "lru-cache";
 import { db } from "../init";
 import { getPriceConfig } from "../stripe/stripeConfig";
 import {
@@ -32,7 +33,6 @@ export type TenantPlanProfile = {
 };
 
 type CachedPlan = {
-  expiresAt: number;
   profile: TenantPlanProfile;
 };
 
@@ -110,7 +110,14 @@ const defaultTelemetryHooks: TelemetryHooks = {
 
 let telemetryHooks: TelemetryHooks = defaultTelemetryHooks;
 
-const PLAN_CACHE = new Map<string, CachedPlan>();
+const PLAN_CACHE_MAX_SIZE = 500;
+// TTL is hard-coded to 30_000 ms per CONTEXT.md locked decision (LRU cache replacement).
+// Do NOT route through resolvePlanCacheTtlMs() — env override (TENANT_PLAN_CACHE_TTL_MS)
+// is intentionally NOT honored for the LRU constructor in Phase 19.
+const PLAN_CACHE = new LRUCache<string, CachedPlan>({
+  max: PLAN_CACHE_MAX_SIZE,
+  ttl: 30_000,
+});
 
 const PLAN_LIMITS_BY_TIER: Record<TenantPlanTier, TenantPlanLimits> = {
   free: {
@@ -160,11 +167,6 @@ function normalizeSubscriptionStatus(value: unknown): string {
   return String(value || "").trim().toLowerCase();
 }
 
-function resolvePlanCacheTtlMs(): number {
-  const configured = Number(process.env.TENANT_PLAN_CACHE_TTL_MS || "");
-  if (!Number.isFinite(configured)) return 30_000;
-  return Math.min(Math.max(Math.floor(configured), 5_000), 300_000);
-}
 
 function resolvePlanEnforcementMode(): PlanEnforcementMode {
   const raw = String(process.env.TENANT_PLAN_ENFORCEMENT_MODE || "enforce")
@@ -857,16 +859,13 @@ export function setTenantPlanCacheForTest(
   profile: TenantPlanProfile,
   ttlMs: number = 60_000,
 ): void {
-  PLAN_CACHE.set(tenantId, {
-    profile,
-    expiresAt: Date.now() + Math.max(1_000, ttlMs),
-  });
+  // Per-entry TTL override is a TEST-ONLY convenience. Production cache TTL
+  // is hard-coded 30_000 in the LRU constructor (CONTEXT.md locked decision).
+  PLAN_CACHE.set(tenantId, { profile }, { ttl: Math.max(1_000, ttlMs) });
 }
 
 export function hasTenantPlanCacheForTest(tenantId: string): boolean {
-  const cached = PLAN_CACHE.get(tenantId);
-  if (!cached) return false;
-  return cached.expiresAt > Date.now();
+  return PLAN_CACHE.get(tenantId) !== undefined;
 }
 
 export async function getTenantPlanProfile(
@@ -877,17 +876,13 @@ export async function getTenantPlanProfile(
     throw new Error("TENANT_ID_REQUIRED");
   }
 
-  const now = Date.now();
   const cached = PLAN_CACHE.get(normalizedTenantId);
-  if (cached && cached.expiresAt > now) {
+  if (cached) {
     return cached.profile;
   }
 
   const profile = await resolveTenantPlanProfileUncached(normalizedTenantId);
-  PLAN_CACHE.set(normalizedTenantId, {
-    profile,
-    expiresAt: now + resolvePlanCacheTtlMs(),
-  });
+  PLAN_CACHE.set(normalizedTenantId, { profile });
   return profile;
 }
 

@@ -30,6 +30,24 @@ export type Tenant = {
   trialEndsAt?: string;
   trialPlanTier?: string;
   mercadoPagoEnabled?: boolean;
+  asaasEnabled?: boolean;
+  // Billing fields (synced from Stripe via BillingSnapshot)
+  subscriptionStatus?: "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "inactive" | "free";
+  currentPeriodEnd?: string | null; // ISO
+  cancelAtPeriodEnd?: boolean;
+  pastDueSince?: string | null;
+  // trialEndsAt already declared above
+  billingSyncedAt?: string; // ISO — quando o Firestore foi sincronizado do Stripe
+  isBillingStale?: boolean; // flag calculada pelo backend
+  checkoutInFlightAt?: string | null;
+  /** Nested subscription map written by syncTenantPlanBillingSnapshot */
+  subscription?: {
+    status?: string;
+    unitAmount?: number | null; // centavos (Stripe unit_amount)
+    currency?: string | null; // e.g. "brl"
+    syncedAt?: string;
+    [key: string]: unknown;
+  };
 };
 
 export type UserOnboardingStatus = "active" | "completed" | "skipped";
@@ -76,9 +94,11 @@ export type User = {
   currentPeriodEnd?: string; // ISO Date string for expiration
   isManualSubscription?: boolean; // If true, handled by internal cron, not Stripe
   cancelAtPeriodEnd?: boolean;
+  cancelAt?: string | null; // ISO; absolute cancel date (Phase 20 yellow banner)
   subscription?: {
     status: string;
     updatedAt?: string | Date;
+    cancelAt?: string | null; // canonical Phase 19 field — surfaced via cancelAt above
   };
   subscriptionUpdatedAt?: string;
   onboarding?: UserOnboardingState;

@@ -65,6 +65,19 @@ export interface TenantBillingInfo {
     calendarEvents: number;
   };
   planFeatures?: Partial<PlanFeatures>;
+  // Billing snapshot fields (present when API returns billing data)
+  isBillingStale?: boolean;
+  billingSyncedAt?: string;
+  unitAmount?: number | null;
+  currency?: string | null;
+  stripeSubscriptionId?: string | null;
+  priceChangeNotifiedFor?: string | null;
+}
+
+export interface TenantBillingPage {
+  items: TenantBillingInfo[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export const AdminService = {
@@ -81,6 +94,24 @@ export const AdminService = {
       "/v1/admin/tenants/billing",
       "GET",
     );
+  },
+
+  getTenantsBillingPage: async (params?: {
+    cursor?: string;
+    pageSize?: number;
+  }): Promise<TenantBillingPage> => {
+    const searchParams = new URLSearchParams();
+    if (params?.cursor) searchParams.set("cursor", params.cursor);
+    if (params?.pageSize) searchParams.set("pageSize", String(params.pageSize));
+    const query = searchParams.toString() ? `?${searchParams}` : "";
+    return await callApi<TenantBillingPage>(
+      `/v1/admin/tenants/billing${query}`,
+      "GET",
+    );
+  },
+
+  forceTenantBillingSync: async (tenantId: string): Promise<void> => {
+    await callApi(`/v1/admin/tenants/${tenantId}/sync-billing`, "POST");
   },
 
   updateUserPlan: async (userId: string, planId: string): Promise<void> => {
@@ -128,5 +159,26 @@ export const AdminService = {
       `/v1/admin/tenants/${tenantId}/recompute-features`,
       "POST",
     );
+  },
+
+  migrateTenantPrices: async (
+    tenantIds: string[],
+    prorationBehavior: "none" | "create_prorations" = "none",
+  ): Promise<{
+    migrated: number;
+    skipped: number;
+    failed: number;
+    results: {
+      tenantId: string;
+      status: "migrated" | "skipped" | "failed";
+      reason?: string;
+      fromPriceId?: string;
+      toPriceId?: string;
+    }[];
+  }> => {
+    return await callApi("/v1/admin/tenants/migrate-prices", "POST", {
+      tenantIds,
+      prorationBehavior,
+    });
   },
 };

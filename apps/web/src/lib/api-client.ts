@@ -106,15 +106,17 @@ export const callApi = async <T = unknown>(
 
     return await response.json();
   } catch (error) {
-    console.error(
-      `API Call Failed [${method} ${url}]`,
-      {
-        baseUrl,
-        origin:
-          typeof window !== "undefined" ? window.location.origin : "server",
-      },
-      error,
-    );
+    if (!(error instanceof ApiError && error.status === 402)) {
+      console.error(
+        `API Call Failed [${method} ${url}]`,
+        {
+          baseUrl,
+          origin:
+            typeof window !== "undefined" ? window.location.origin : "server",
+        },
+        error,
+      );
+    }
     throw error;
   }
 };
@@ -176,15 +178,17 @@ export const callPublicApi = async <T = unknown>(
 
     return await response.json();
   } catch (error) {
-    console.error(
-      `Public API Call Failed [${method} ${url}]`,
-      {
-        baseUrl,
-        origin:
-          typeof window !== "undefined" ? window.location.origin : "server",
-      },
-      error,
-    );
+    if (!(error instanceof ApiError && error.status === 402)) {
+      console.error(
+        `Public API Call Failed [${method} ${url}]`,
+        {
+          baseUrl,
+          origin:
+            typeof window !== "undefined" ? window.location.origin : "server",
+        },
+        error,
+      );
+    }
     throw error;
   }
 };

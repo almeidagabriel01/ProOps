@@ -16,6 +16,10 @@ import {
   upsertTenantStripeBillingData,
   WHATSAPP_OVERAGE_PRICE_ID,
 } from "../../stripe/stripeHelpers";
+import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
+import { applyBillingClaimsToTenantUsers } from "../../lib/billing-claims";
+import { invalidateBillingCache } from "../middleware/require-active-subscription";
+import { invalidateNextjsBillingCache } from "../../lib/billing-cache-invalidation";
 
 import { db } from "../../init";
 import {
@@ -23,6 +27,11 @@ import {
   assertTenantAdminClaim,
   getTenantClaim,
 } from "../../lib/request-auth";
+import { writeSecurityAuditEvent } from "../../lib/security-observability";
+import { getTenantPlanProfile } from "../../lib/tenant-plan-policy";
+import { isAddonAvailableForTier } from "../../shared/addon-definitions";
+import { logger } from "../../lib/logger";
+import { reserveCheckout, clearCheckoutReservation } from "../../billing";
 import Stripe from "stripe";
 
 // function mapStripeSubscriptionStatus removed (moved to helpers)
@@ -413,14 +422,61 @@ export const cancelAddon = async (req: Request, res: Response) => {
         .json({ message: "No active Stripe subscription for this addon" });
     }
 
-    // Schedule cancellation at period end (NOT immediate cancellation)
-    // This allows the user to keep the addon until the renewal date
     const stripe = getStripe();
     const existingSubscription = await stripe.subscriptions.retrieve(
       stripeSubscriptionId,
     );
     assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
+    // Read both sources: Stripe is live state; Firestore captures cron-driven transitions
+    // that may have set past_due before the webhook arrives.
+    const stripeStatus = String(existingSubscription.status || "").trim().toLowerCase();
+    const firestoreStatus = String(addonData?.status || "").trim().toLowerCase();
+    const isPastDue = stripeStatus === "past_due" || firestoreStatus === "past_due";
+
+    const nowIso = new Date().toISOString();
+
+    if (isPastDue) {
+      // Stripe-first: cancel on Stripe before touching Firestore.
+      // If Stripe says the subscription is already gone (resource_missing / 404),
+      // treat that as success and proceed to mark Firestore as cancelled.
+      // Any other Stripe error propagates to the caller (502) so Firestore is not
+      // left in a diverged state where the user is blocked but Stripe keeps billing.
+      try {
+        await stripe.subscriptions.cancel(stripeSubscriptionId);
+      } catch (stripeErr) {
+        const stripeCode = (stripeErr as Stripe.errors.StripeError)?.code;
+        const stripeStatus = (stripeErr as Stripe.errors.StripeError)?.statusCode;
+        const alreadyCanceled = stripeCode === "resource_missing" || stripeStatus === 404;
+        if (!alreadyCanceled) {
+          throw stripeErr;
+        }
+        // Subscription already absent in Stripe — fall through to Firestore update.
+      }
+
+      await addonRef.update({
+        status: "cancelled",
+        cancelAtPeriodEnd: false,
+        expiresAt: nowIso,
+        updatedAt: nowIso,
+      });
+
+      invalidateBillingCache(tenantId);
+      await invalidateNextjsBillingCache(tenantId);
+
+      console.log(
+        `[cancelAddon] past_due immediate cancel`,
+        JSON.stringify({ tenantId, addonId, subscriptionId: stripeSubscriptionId }),
+      );
+
+      return res.json({
+        success: true,
+        message: "Add-on cancelado imediatamente devido a pagamento em atraso.",
+        cancelAt: nowIso,
+      });
+    }
+
+    // Default path (active / trialing / etc.) — at-period-end cancel.
     const subscription = await stripe.subscriptions.update(
       stripeSubscriptionId,
       {
@@ -428,11 +484,9 @@ export const cancelAddon = async (req: Request, res: Response) => {
       },
     );
 
-    // Update addon in Firestore to reflect pending cancellation
-    // The addon stays active until the period ends
     await addonRef.update({
       cancelAtPeriodEnd: true,
-      cancelScheduledAt: new Date().toISOString(),
+      cancelScheduledAt: nowIso,
       currentPeriodEnd: new Date(
         (subscription as any).current_period_end * 1000,
       ).toISOString(),
@@ -457,7 +511,6 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       userId,
       tenantId,
       customerId,
-      tenantRef,
       tenantSnap,
       userRef,
       userSnap,
@@ -488,37 +541,148 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       await stripe.subscriptions.retrieve(stripeSubscriptionId);
     assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
 
+    // Read both sources independently.
+    // Stripe is authoritative for live state; Firestore captures cron-driven transitions
+    // (e.g. checkStripeSubscriptions sets past_due before Stripe fires a webhook).
+    // Using || would silently drop a Firestore past_due whenever Stripe returns "active".
+    const stripeStatus = String(existingSubscription.status || "")
+      .trim()
+      .toLowerCase();
+    const firestoreStatus = String(
+      tenantData?.subscriptionStatus ||
+        ((tenantData?.subscription as Record<string, unknown> | undefined)
+          ?.status ?? ""),
+    )
+      .trim()
+      .toLowerCase();
+    // Also read from the user document — custom claims (which drive the UI badge)
+    // are written to users/{uid} by applyBillingClaimsToTenantUsers, but the
+    // tenant document may lag behind if the cron/webhook only updated the user doc.
+    const userDocStatus = String(
+      userData?.subscriptionStatus ||
+        (userData?.subscription as Record<string, unknown> | undefined)
+          ?.status ||
+        "",
+    )
+      .trim()
+      .toLowerCase();
+    // Primary status for non-past_due logic (Stripe wins; Firestore as fallback).
+    const subscriptionStatus = stripeStatus || firestoreStatus || userDocStatus;
+    // Any source declaring past_due triggers immediate cancel:
+    //   stripeStatus   — Stripe ahead of Firestore (payment_failed webhook not yet processed)
+    //   firestoreStatus — cron ahead of Stripe (checkStripeSubscriptions set past_due)
+    //   userDocStatus  — claims/user-doc ahead of tenant-doc (applyBillingClaimsToTenantUsers ran)
+    const isPastDue =
+      stripeStatus === "past_due" ||
+      firestoreStatus === "past_due" ||
+      userDocStatus === "past_due";
+
+    const nowIso = new Date().toISOString();
+
+    if (isPastDue) {
+      // STATE-03: past_due → immediate cancel. Access ends NOW.
+      //
+      // CRITICAL ORDER: Firestore is updated to "canceled" FIRST so the billing
+      // gate immediately blocks the user even if the Stripe API call below fails
+      // (e.g. subscription already cancelled, test env without a real Stripe sub,
+      // transient network error). The Stripe webhook / checkStripeSubscriptions
+      // cron will reconcile Stripe state on the next event.
+      await syncTenantPlanBillingSnapshot({
+        tenantId,
+        source: "controller.cancelSubscription.past_due_immediate",
+        subscriptionStatus: "canceled",
+        plan: "free",
+        stripeSubscriptionId: null,
+        cancelAtPeriodEnd: false,
+        pastDueSince: null,
+      });
+
+      // Cancel on Stripe — non-fatal after Firestore is already updated.
+      try {
+        await stripe.subscriptions.cancel(stripeSubscriptionId);
+      } catch (stripeErr) {
+        console.error("[cancelSubscription] past_due_stripe_cancel_error", {
+          tenantId,
+          subscriptionId: stripeSubscriptionId,
+          error:
+            stripeErr instanceof Error ? stripeErr.message : String(stripeErr),
+        });
+      }
+
+      // Propagate canceled status into custom claims. Errors are non-fatal —
+      // billing-status reads Firestore directly (CACHE_TTL_MS=0), so the billing
+      // gate is already enforced by the Firestore write above.
+      try {
+        await applyBillingClaimsToTenantUsers(tenantId, {
+          subscriptionStatus: "canceled",
+          subscriptionPlan: "free",
+        });
+      } catch (err) {
+        console.error("[cancelSubscription] billing_claims_partial_failure", {
+          tenantId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
+      invalidateBillingCache(tenantId);
+      await invalidateNextjsBillingCache(tenantId);
+
+      await userRef.set(
+        {
+          cancelAtPeriodEnd: false,
+          subscriptionStatus: "canceled",
+          canceledAt: nowIso,
+          updatedAt: nowIso,
+        },
+        { merge: true },
+      );
+
+      console.log(
+        `[cancelSubscription] past_due immediate cancel`,
+        JSON.stringify({ userId, tenantId, subscriptionId: stripeSubscriptionId }),
+      );
+
+      return res.json({
+        success: true,
+        message: "Subscription canceled immediately",
+        cancelAt: nowIso,
+        requiresReauth: true,
+      });
+    }
+
+    // Default path (active / trialing / etc.) — at-period-end cancel.
     const subscription = await stripe.subscriptions.update(stripeSubscriptionId, {
       cancel_at_period_end: true,
     });
 
-    const currentPeriodEnd = new Date(
-      (subscription as any).current_period_end * 1000,
-    ).toISOString();
-    const nowIso = new Date().toISOString();
+    const currentPeriodEndMs = (subscription as any).current_period_end * 1000;
+    const cancelAtSeconds = (subscription as any).cancel_at as number | null | undefined;
+    // Prefer Stripe's cancel_at (set when cancel_at_period_end=true); fall back to current_period_end.
+    const cancelAtDate = cancelAtSeconds
+      ? new Date(cancelAtSeconds * 1000)
+      : new Date(currentPeriodEndMs);
+    const currentPeriodEnd = new Date(currentPeriodEndMs).toISOString();
 
-    await Promise.all([
-      tenantRef.set(
-        {
-          stripeSubscriptionId: subscription.id,
-          cancelAtPeriodEnd: true,
-          cancelScheduledAt: nowIso,
-          currentPeriodEnd,
-          updatedAt: nowIso,
-        },
-        { merge: true },
-      ),
-      userRef.set(
-        {
-          stripeSubscriptionId: subscription.id,
-          cancelAtPeriodEnd: true,
-          cancelScheduledAt: nowIso,
-          currentPeriodEnd,
-          updatedAt: nowIso,
-        },
-        { merge: true },
-      ),
-    ]);
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      source: "controller.cancelSubscription",
+      subscriptionStatus: subscriptionStatus || "active", // unchanged — cancel scheduled for period end
+      stripeSubscriptionId: subscription.id,
+      cancelAtPeriodEnd: true,
+      cancelAt: cancelAtDate,            // NEW — populates subscription.cancelAt for yellow banner
+      cancelScheduledAt: nowIso,
+      currentPeriodEnd: new Date(currentPeriodEndMs),
+    });
+    await userRef.set(
+      {
+        stripeSubscriptionId: subscription.id,
+        cancelAtPeriodEnd: true,
+        cancelScheduledAt: nowIso,
+        currentPeriodEnd,
+        updatedAt: nowIso,
+      },
+      { merge: true },
+    );
 
     console.log(
       `[cancelSubscription] cancellation scheduled`,
@@ -529,10 +693,111 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       success: true,
       message:
         "Subscription will be cancelled at the end of the billing period",
-      cancelAt: currentPeriodEnd,
+      cancelAt: cancelAtDate.toISOString(),
     });
   } catch (error: unknown) {
     console.error("[cancelSubscription] Error:", error);
+    return res
+      .status(getErrorStatus(error))
+      .json({ message: getErrorMessage(error), success: false });
+  }
+};
+
+export const reactivateSubscription = async (req: Request, res: Response) => {
+  try {
+    const {
+      userId,
+      tenantId,
+      customerId,
+      tenantSnap,
+      userRef,
+      userSnap,
+    } = await resolveStripeUserContext(req);
+
+    const tenantData = tenantSnap.exists
+      ? (tenantSnap.data() as Record<string, unknown>)
+      : {};
+    const userData = userSnap.exists
+      ? (userSnap.data() as Record<string, unknown>)
+      : {};
+
+    const stripeSubscriptionId = String(
+      tenantData?.stripeSubscriptionId ||
+        userData?.stripeSubscriptionId ||
+        "",
+    ).trim();
+    if (!stripeSubscriptionId) {
+      return res.status(400).json({ message: "No active subscription found" });
+    }
+
+    const stripe = getStripe();
+    const existingSubscription =
+      await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    assertSubscriptionOwnership(existingSubscription, tenantId, customerId);
+
+    if (!existingSubscription.cancel_at_period_end) {
+      return res.status(400).json({
+        message: "Subscription is not scheduled for cancellation",
+        code: "NOT_SCHEDULED_FOR_CANCELLATION",
+      });
+    }
+
+    const subscription = await stripe.subscriptions.update(stripeSubscriptionId, {
+      cancel_at_period_end: false,
+    });
+
+    const subscriptionStatus = String(subscription.status || "active");
+    const currentPeriodEnd = new Date(
+      (subscription as any).current_period_end * 1000,
+    );
+    const nowIso = new Date().toISOString();
+
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      source: "controller.reactivateSubscription",
+      subscriptionStatus,
+      stripeSubscriptionId: subscription.id,
+      cancelAtPeriodEnd: false,
+      cancelAt: null,
+      cancelScheduledAt: null,
+      currentPeriodEnd,
+    });
+
+    try {
+      await applyBillingClaimsToTenantUsers(tenantId, {
+        subscriptionStatus,
+      });
+    } catch (err) {
+      console.error("[reactivateSubscription] billing_claims_partial_failure", {
+        tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    invalidateBillingCache(tenantId);
+    await invalidateNextjsBillingCache(tenantId);
+
+    await userRef.set(
+      {
+        cancelAtPeriodEnd: false,
+        cancelAt: null,
+        cancelScheduledAt: null,
+        updatedAt: nowIso,
+      },
+      { merge: true },
+    );
+
+    console.log(
+      `[reactivateSubscription] reactivated`,
+      JSON.stringify({ userId, tenantId, subscriptionId: subscription.id }),
+    );
+
+    return res.json({
+      success: true,
+      message: "Subscription reactivated successfully",
+    });
+  } catch (error: unknown) {
+    console.error("[reactivateSubscription] Error:", error);
     return res
       .status(getErrorStatus(error))
       .json({ message: getErrorMessage(error), success: false });
@@ -583,6 +848,27 @@ export const createAddonCheckoutSession = async (
       ? (tenantSnap.data() as Record<string, unknown> | undefined)
       : undefined;
 
+    // Backend tier enforcement — frontend check alone is insufficient (API is public).
+    // Uses the full resolver (including plans/{planId} Firestore fallback) to handle
+    // tenants whose planId is a document ID rather than a plain tier string.
+    const tenantPlanProfile = await getTenantPlanProfile(tenantId);
+    const tenantTier = tenantPlanProfile.tier;
+    if (!isAddonAvailableForTier(addonId, tenantTier)) {
+      void writeSecurityAuditEvent({
+        eventType: "plan_violation",
+        tenantId,
+        uid: userId,
+        route: req.path,
+        status: 403,
+        reason: `ADDON_NOT_AVAILABLE_FOR_TIER: addon=${addonId} tier=${tenantTier}`,
+        source: "stripe.controller.createAddonCheckoutSession",
+      });
+      return res.status(403).json({
+        message: "Este add-on não está disponível para o seu plano atual.",
+        code: "ADDON_NOT_AVAILABLE_FOR_TIER",
+      });
+    }
+
     customerId =
       customerId ||
       String(userData?.stripeId || "").trim() ||
@@ -604,6 +890,7 @@ export const createAddonCheckoutSession = async (
       const nowIso = new Date().toISOString();
       await Promise.all([
         userRef.set({ stripeId: customerId, updatedAt: nowIso }, { merge: true }),
+        // EXEMPT: customer-id-only write before subscription exists; stripeCustomerId is not billing state until a subscription is attached
         tenantRef.set(
           { stripeCustomerId: customerId, updatedAt: nowIso },
           { merge: true },
@@ -642,24 +929,37 @@ export const createAddonCheckoutSession = async (
               existingAddonSubscription.id,
               { cancel_at_period_end: false },
             );
-            await addonRef.set(
-              {
+            // Stripe was updated successfully. Wrap Firestore write so that a
+            // transient Firestore failure does not surface as a 500 to the user —
+            // Stripe is source-of-truth and the reconciliation cron will correct
+            // any divergence within 6 hours.
+            try {
+              await addonRef.set(
+                {
+                  tenantId,
+                  addonType: addonId,
+                  stripeSubscriptionId: reactivatedSubscription.id,
+                  status:
+                    reactivatedSubscription.status === "past_due"
+                      ? "past_due"
+                      : "active",
+                  cancelAtPeriodEnd: false,
+                  cancelScheduledAt: null,
+                  currentPeriodEnd: new Date(
+                    (reactivatedSubscription as any).current_period_end * 1000,
+                  ).toISOString(),
+                  updatedAt: new Date().toISOString(),
+                },
+                { merge: true },
+              );
+            } catch (firestoreErr) {
+              logger.warn("[createAddonCheckoutSession] Firestore write failed after Stripe reactivation — reconciliation cron will correct", {
                 tenantId,
-                addonType: addonId,
+                addonId,
                 stripeSubscriptionId: reactivatedSubscription.id,
-                status:
-                  reactivatedSubscription.status === "past_due"
-                    ? "past_due"
-                    : "active",
-                cancelAtPeriodEnd: false,
-                cancelScheduledAt: null,
-                currentPeriodEnd: new Date(
-                  (reactivatedSubscription as any).current_period_end * 1000,
-                ).toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-              { merge: true },
-            );
+                error: firestoreErr instanceof Error ? firestoreErr.message : String(firestoreErr),
+              });
+            }
 
             return res.json({
               success: true,
@@ -682,16 +982,29 @@ export const createAddonCheckoutSession = async (
 
     const appOrigin = resolveRequestOrigin(req);
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      payment_method_types: ["card"],
-      customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appOrigin}/profile/addons?success=true`,
-      cancel_url: `${appOrigin}/profile/addons?canceled=true`,
-      metadata: { userId, addonType: addonId, tenantId, type: "addon" },
-      allow_promotion_codes: true,
-    });
+    // Idempotency key: bucketed by 30-minute window so double-clicks within
+    // the same window reuse the existing session instead of creating duplicates.
+    const idempotencyKey = `addon-checkout:${tenantId}:${addonId}:${Math.floor(Date.now() / (1000 * 60 * 30))}`;
+
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "subscription",
+        payment_method_types: ["card"],
+        customer: customerId,
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${appOrigin}/profile/addons?success=true`,
+        cancel_url: `${appOrigin}/profile/addons?canceled=true`,
+        metadata: { userId, addonType: addonId, tenantId, type: "addon" },
+        // subscription_data.metadata is propagated to the created Subscription object.
+        // Without this, subscription.metadata is empty and webhook handlers cannot
+        // distinguish addon subscriptions from main plan subscriptions.
+        subscription_data: {
+          metadata: { type: "addon", addonType: addonId, tenantId, userId },
+        },
+        allow_promotion_codes: true,
+      },
+      { idempotencyKey },
+    );
 
     return res.json({ url: session.url });
   } catch (error: unknown) {
@@ -817,9 +1130,24 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     const validInterval: BillingInterval =
       rawBillingInterval === "yearly" ? "yearly" : "monthly";
+
+    const reservation = await reserveCheckout({
+      tenantId,
+      planTier,
+      billingInterval: validInterval,
+    });
+    if (!reservation.ok) {
+      return res.status(409).json({
+        code: "RECENT_CHECKOUT_IN_FLIGHT",
+        message: "Um checkout já está em andamento. Aguarde alguns instantes.",
+        until: reservation.until,
+      });
+    }
+
     const priceId = getPriceIdForTier(planTier, validInterval);
 
     if (!priceId) {
+      await clearCheckoutReservation(tenantId).catch(() => {});
       return res
         .status(400)
         .json({ message: "Invalid plan tier or price not configured" });
@@ -952,31 +1280,27 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         whatsappOverageSubscriptionItemId: whatsappItem?.id,
       });
 
-      await Promise.all([
-        tenantRef.set(
-          {
-            stripeCustomerId: effectiveCustomerId || null,
-            stripeSubscriptionId: hydratedSubscription.id,
-            subscriptionStatus: status.toLowerCase(),
-            currentPeriodEnd: currentPeriodEnd.toISOString(),
-            cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true },
-        ),
-        userRef.set(
-          {
-            stripeId: effectiveCustomerId || null,
-            stripeSubscriptionId: hydratedSubscription.id,
-            subscriptionStatus: status.toLowerCase(),
-            currentPeriodEnd: currentPeriodEnd.toISOString(),
-            cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
-            billingInterval: validInterval,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true },
-        ),
-      ]);
+      await syncTenantPlanBillingSnapshot({
+        tenantId,
+        subscriptionStatus: status.toLowerCase(),
+        stripeCustomerId: effectiveCustomerId || undefined,
+        stripeSubscriptionId: hydratedSubscription.id,
+        currentPeriodEnd: currentPeriodEnd,
+        cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
+        source: "controller.createCheckoutSession",
+      });
+      await userRef.set(
+        {
+          stripeId: effectiveCustomerId || null,
+          stripeSubscriptionId: hydratedSubscription.id,
+          subscriptionStatus: status.toLowerCase(),
+          currentPeriodEnd: currentPeriodEnd.toISOString(),
+          cancelAtPeriodEnd: hydratedSubscription.cancel_at_period_end,
+          billingInterval: validInterval,
+          updatedAt: new Date().toISOString(),
+        },
+        { merge: true },
+      );
 
       await updateSubscriptionStatus(
         userId,
@@ -1009,6 +1333,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       const nowIso = new Date().toISOString();
       await Promise.all([
         userRef.set({ stripeId: customerId, updatedAt: nowIso }, { merge: true }),
+        // EXEMPT: customer-id-only write before subscription exists; stripeCustomerId is not billing state until a subscription is attached
         tenantRef.set(
           { stripeCustomerId: customerId, updatedAt: nowIso },
           { merge: true },
@@ -1080,7 +1405,16 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       };
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const idempotencyKey = `checkout:${tenantId}:${planTier}:${validInterval}`;
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create(sessionParams, {
+        idempotencyKey,
+      });
+    } catch (err) {
+      await clearCheckoutReservation(tenantId).catch(() => {});
+      throw err;
+    }
 
     return res.json({ url: session.url, trialDays: trialEligible ? PRO_TRIAL_DAYS : 0 });
   } catch (error: unknown) {
@@ -1097,7 +1431,6 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
       customerId: contextCustomerId,
       userRef,
       userSnap,
-      tenantRef,
     } = await resolveStripeUserContext(req, { allowFreeOwnerCheckout: true });
     const { sessionId } = req.body as { sessionId?: string };
 
@@ -1210,7 +1543,12 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
         : undefined;
       await markTrialUsed(tenantId);
       if (trialEnd) {
-        await tenantRef.set({ trialEndsAt: trialEnd }, { merge: true });
+        await syncTenantPlanBillingSnapshot({
+          tenantId,
+          subscriptionStatus: "trialing",
+          trialEndsAt: trialEnd,
+          source: "controller.confirmCheckoutSession",
+        });
       }
     }
 
@@ -1243,28 +1581,24 @@ export const confirmCheckoutSession = async (req: Request, res: Response) => {
       whatsappOverageSubscriptionItemId: whatsappItem?.id,
     });
 
-    await Promise.all([
-      tenantRef.set(
-        {
-          stripeCustomerId: effectiveCustomerId || null,
-          stripeSubscriptionId: subscription.id,
-          subscriptionStatus: status.toLowerCase(),
-          currentPeriodEnd: currentPeriodEnd.toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      ),
-      userRef.set(
-        {
-          stripeId: effectiveCustomerId || null,
-          stripeSubscriptionId: subscription.id,
-          subscriptionStatus: status.toLowerCase(),
-          currentPeriodEnd: currentPeriodEnd.toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      ),
-    ]);
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: status.toLowerCase(),
+      stripeCustomerId: effectiveCustomerId || undefined,
+      stripeSubscriptionId: subscription.id,
+      currentPeriodEnd: currentPeriodEnd,
+      source: "controller.confirmCheckoutSession",
+    });
+    await userRef.set(
+      {
+        stripeId: effectiveCustomerId || null,
+        stripeSubscriptionId: subscription.id,
+        subscriptionStatus: status.toLowerCase(),
+        currentPeriodEnd: currentPeriodEnd.toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
 
     await updateSubscriptionStatus(
       userId,
@@ -1468,6 +1802,35 @@ export const previewPlanChange = async (req: Request, res: Response) => {
 
 export const createPortalSession = async (req: Request, res: Response) => {
   try {
+    // Superadmin impersonation: open portal for a specific tenant without needing
+    // the superadmin's own Stripe identity (which is often empty / 403s).
+    const targetTenantId = String(req.body?.targetTenantId || "").trim();
+    if (targetTenantId && req.user?.isSuperAdmin === true) {
+      const targetTenantSnap = await db.collection("tenants").doc(targetTenantId).get();
+      if (!targetTenantSnap.exists) {
+        return res.status(404).json({ message: "Tenant não encontrado" });
+      }
+      const targetTenantData = targetTenantSnap.data() as Record<string, unknown>;
+      const targetStripeId = String(targetTenantData?.stripeCustomerId || "").trim();
+      if (!targetStripeId) {
+        return res.status(400).json({ message: "Tenant não possui cliente Stripe registrado" });
+      }
+      const appOrigin = resolveRequestOrigin(req);
+      const stripe = getStripe();
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: targetStripeId,
+        return_url: `${appOrigin}/profile`,
+      });
+      await writeSecurityAuditEvent({
+        eventType: "superadmin_portal_session",
+        uid: req.user.uid,
+        tenantId: targetTenantId,
+        reason: `superadmin opened billing portal for tenant ${targetTenantId}`,
+        route: req.path,
+      });
+      return res.json({ url: portalSession.url });
+    }
+
     const {
       userId,
       tenantId,
@@ -1513,6 +1876,7 @@ export const createPortalSession = async (req: Request, res: Response) => {
       const nowIso = new Date().toISOString();
       await Promise.all([
         userRef.set({ stripeId, updatedAt: nowIso }, { merge: true }),
+        // EXEMPT: customer-id-only write before subscription exists; stripeCustomerId is not billing state until a subscription is attached
         tenantRef.set(
           { stripeCustomerId: stripeId, updatedAt: nowIso },
           { merge: true },
@@ -1712,7 +2076,6 @@ export const syncSubscription = async (req: Request, res: Response) => {
       customerId,
       userRef,
       userSnap,
-      tenantRef,
       tenantSnap,
     } = await resolveStripeUserContext(req);
     const userData = userSnap.exists
@@ -1767,29 +2130,23 @@ export const syncSubscription = async (req: Request, res: Response) => {
       subscription.cancel_at_period_end,
     );
 
-    await Promise.all([
-      tenantRef.set(
-        {
-          stripeSubscriptionId,
-          stripeCustomerId: getStripeCustomerId(
-            subscription.customer as string | Stripe.Customer | null,
-          ),
-          subscriptionStatus: status.toLowerCase(),
-          currentPeriodEnd: currentPeriodEnd.toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      ),
-      userRef.set(
-        {
-          stripeSubscriptionId,
-          subscriptionStatus: status.toLowerCase(),
-          currentPeriodEnd: currentPeriodEnd.toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      ),
-    ]);
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: status.toLowerCase(),
+      stripeCustomerId: getStripeCustomerId(subscription.customer as string | Stripe.Customer | null) || undefined,
+      stripeSubscriptionId,
+      currentPeriodEnd,
+      source: "controller.syncSubscription",
+    });
+    await userRef.set(
+      {
+        stripeSubscriptionId,
+        subscriptionStatus: status.toLowerCase(),
+        currentPeriodEnd: currentPeriodEnd.toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
 
     return res.json({
       success: true,

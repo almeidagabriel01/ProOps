@@ -24,6 +24,7 @@ interface PlanCardProps {
   onUpgrade: (plan: UserPlan) => void;
   onDowngrade: (plan: UserPlan) => void;
   isMaster?: boolean;
+  isFree?: boolean;
   isTrialing?: boolean;
   isActivePlan?: boolean;
   trialEndsAt?: string;
@@ -39,6 +40,7 @@ export function PlanCard({
   onUpgrade,
   onDowngrade,
   isMaster = false,
+  isFree = false,
   isTrialing = false,
   isActivePlan = false,
   trialEndsAt,
@@ -161,7 +163,7 @@ export function PlanCard({
         <CardContent className="px-6 pb-8 flex-1 flex flex-col gap-6 z-10">
           {/* Price */}
           <div className="p-4 rounded-xl bg-muted/30 border border-border/50 backdrop-blur-sm">
-            {isMaster ? (
+            {isMaster || isFree ? (
               <div className="flex flex-col">
                 {isEnterprise ? (
                   <div className="flex items-center justify-center h-10 text-2xl font-extrabold tracking-tight text-foreground text-center w-full">
@@ -298,7 +300,7 @@ export function PlanCard({
               >
                 Plano Ativo
               </Button>
-            ) : isMaster ? (
+            ) : (isMaster || isFree) ? (
               canUpgrade ? (
                 <Button
                   className={cn(

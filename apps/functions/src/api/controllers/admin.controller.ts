@@ -7,6 +7,7 @@ import { generateRandomPassword } from "../../lib/admin-helpers";
 import { UserDoc } from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import { logger } from "../../lib/logger";
+import { enqueueTenantSync, isStale } from "../../billing";
 import {
   clearTenantPlanCache,
   enforceTenantPlanLimit,
@@ -23,6 +24,9 @@ import {
   maybeAutoEnableWhatsApp,
   tenantPlanAllowsWhatsApp,
 } from "../../lib/whatsapp-eligibility";
+import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
+import { getStripe } from "../../stripe/stripeConfig";
+import { detectPriceDrift } from "../../billing/price-drift";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -703,17 +707,47 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       primaryColor?: string;
       niche?: string;
       whatsappEnabled?: boolean;
+      subscriptionStatus?: string;
+      currentPeriodEnd?: string;
+      billingSyncedAt?: string;
+      unitAmount?: number | null;
+      currency?: string | null;
+      stripeSubscriptionId?: string | null;
+      priceChangeNotifiedFor?: string | null;
+      subscription?: {
+        unitAmount?: number | null;
+        currency?: string | null;
+        [key: string]: unknown;
+      };
     }
 
+    const cursor = String(req.query.cursor || "").trim() || null;
+    const pageSize = Math.min(Number(req.query.pageSize) || 25, 100);
+
     // Busca usuários MASTER/admin/free (donos de empresa ou contas gratuitas)
-    const usersSnapshot = await db
+    let usersQuery: FirebaseFirestore.Query = db
       .collection("users")
       .where("role", "in", ["MASTER", "admin", "ADMIN", "master", "free"])
-      .get();
+      .orderBy("createdAt", "desc")
+      .limit(pageSize + 1);
 
-    console.log(
-      `[getAllTenantsBilling] Found ${usersSnapshot.docs.length} master users`,
-    );
+    if (cursor) {
+      const cursorSnap = await db.collection("users").doc(cursor).get();
+      if (cursorSnap.exists) {
+        usersQuery = usersQuery.startAfter(cursorSnap);
+      }
+    }
+
+    const usersSnapshot = await usersQuery.get();
+    const hasMore = usersSnapshot.docs.length > pageSize;
+    const docs = hasMore ? usersSnapshot.docs.slice(0, pageSize) : usersSnapshot.docs;
+    const nextCursor = hasMore ? docs[docs.length - 1].id : null;
+
+    logger.info("[getAllTenantsBilling] found users", {
+      count: docs.length,
+      hasMore,
+      cursor: cursor || undefined,
+    });
 
     // Collect unique tenant IDs and plan IDs for batch fetch
     const tenantIds = new Set<string>();
@@ -725,7 +759,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       enterprise: "Enterprise",
     };
 
-    for (const userDoc of usersSnapshot.docs) {
+    for (const userDoc of docs) {
       const userData = userDoc.data() as BillingUserData;
       const tenantId = userData.tenantId || userData.companyId;
       if (tenantId) tenantIds.add(tenantId);
@@ -851,6 +885,10 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         normalizeStatus(userData.subscriptionStatus) ||
         normalizeStatus(userData.subscription?.status);
 
+      if (rawStatus === "past_due") {
+        return "past_due";
+      }
+
       const blockedStatuses = new Set([
         "inactive",
         "canceled",
@@ -893,11 +931,11 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
     // Process all users synchronously using pre-fetched data
     const tenantsData = [];
-    for (const userDoc of usersSnapshot.docs) {
+    for (const userDoc of docs) {
       try {
         const userData = userDoc.data() as BillingUserData;
         const tenantId = userData.tenantId || userData.companyId;
-        const tenantData = (tenantId && tenantDataMap.get(tenantId)) || {};
+        const tenantData = (tenantId && tenantDataMap.get(tenantId)) || {} as TenantData;
 
         const rawPlanId = String(userData.planId || "free");
         // Normalize planId to tier name: if it's a document ID, resolve to tier; otherwise use as-is
@@ -911,28 +949,37 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
         const effectiveStatus = deriveTenantStatus(userData);
 
+        // Prefer billing fields from tenant doc (authoritative after sync)
+        const tenantSubscriptionStatus = tenantData.subscriptionStatus || effectiveStatus;
+        const tenantCurrentPeriodEnd = tenantData.currentPeriodEnd || userData.currentPeriodEnd;
+
+        // Detect staleness and fire background sync if needed
+        const isBillingStale = isStale({
+          billingSyncedAt: tenantData.billingSyncedAt,
+          subscriptionStatus: tenantData.subscriptionStatus,
+        });
+        if (isBillingStale && tenantId) {
+          enqueueTenantSync(tenantId, "on_demand").catch(() => {});
+        }
+
         tenantsData.push({
           tenant: {
             id: tenantId || userDoc.id,
-            name:
-              (tenantData as TenantData).name ||
-              userData.companyName ||
-              "Sem nome",
-            slug: (tenantData as TenantData).slug,
-            createdAt:
-              (tenantData as TenantData).createdAt || userData.createdAt,
-            logoUrl: (tenantData as TenantData).logoUrl,
-            primaryColor: (tenantData as TenantData).primaryColor,
-            niche: (tenantData as TenantData).niche,
-            whatsappEnabled: (tenantData as TenantData).whatsappEnabled,
+            name: tenantData.name || userData.companyName || "Sem nome",
+            slug: tenantData.slug,
+            createdAt: tenantData.createdAt || userData.createdAt,
+            logoUrl: tenantData.logoUrl,
+            primaryColor: tenantData.primaryColor,
+            niche: tenantData.niche,
+            whatsappEnabled: tenantData.whatsappEnabled,
           },
           admin: {
             id: userDoc.id,
             name: userData.name || userData.displayName || "",
             email: userData.email || "",
             phoneNumber: userData.phoneNumber,
-            subscriptionStatus: userData.subscriptionStatus,
-            currentPeriodEnd: userData.currentPeriodEnd,
+            subscriptionStatus: tenantSubscriptionStatus,
+            currentPeriodEnd: tenantCurrentPeriodEnd,
             subscription: userData.subscription,
           },
           planName: planName || planId,
@@ -940,6 +987,11 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           subscriptionStatus: effectiveStatus,
           billingInterval: String(userData.billingInterval || "monthly"),
           planFeatures: planFeaturesMap.get(rawPlanId) || TIER_DEFAULT_FEATURES[planId] || undefined,
+          unitAmount: tenantData?.unitAmount ?? tenantData?.subscription?.unitAmount ?? null,
+          currency: tenantData?.currency ?? tenantData?.subscription?.currency ?? "brl",
+          stripeSubscriptionId: tenantData?.stripeSubscriptionId ?? null,
+          priceChangeNotifiedFor: tenantData?.priceChangeNotifiedFor ?? null,
+          isBillingStale,
           usage: {
             users: userData.usage?.users || 0,
             proposals: userData.usage?.proposals || 0,
@@ -951,20 +1003,38 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           },
         });
       } catch (docErr) {
-        console.error(
-          `[getAllTenantsBilling] Error processing user doc ${userDoc.id}, skipping:`,
-          docErr,
-        );
+        logger.error("[getAllTenantsBilling] error processing user doc", {
+          docId: userDoc.id,
+          error: docErr instanceof Error ? docErr.message : String(docErr),
+        });
       }
     }
 
-    console.log(
-      `[getAllTenantsBilling] Returning ${tenantsData.length} tenants`,
-    );
-    return res.json(tenantsData);
+    logger.info("[getAllTenantsBilling] returning tenants", { count: tenantsData.length, hasMore });
+    return res.json({ items: tenantsData, nextCursor, hasMore });
   } catch (error: unknown) {
     console.error("Error getting tenants:", error);
     return res.status(500).json({ message: "Erro ao buscar tenants." });
+  }
+};
+
+export const syncTenantBilling = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Acesso negado." });
+    }
+    const { tenantId } = req.params;
+    if (!tenantId || !tenantId.trim()) {
+      return res.status(400).json({ message: "tenantId obrigatório." });
+    }
+    const snapshot = await enqueueTenantSync(tenantId, "manual");
+    return res.status(200).json({ ok: true, snapshot });
+  } catch (err) {
+    logger.error("[syncTenantBilling] error", {
+      tenantId: req.params.tenantId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return res.status(500).json({ message: "Erro ao sincronizar billing." });
   }
 };
 
@@ -1110,24 +1180,53 @@ export const updateUserPlan = async (req: Request, res: Response) => {
     if (tenantId) {
       try {
         const tenantRef = db.collection("tenants").doc(tenantId);
-        const tenantPlanFields: Record<string, unknown> = {
-          planId,
-          updatedAt: FieldValue.serverTimestamp(),
-        };
-        // Write plan field directly when planId is a recognizable tier name —
-        // keeps plan and planId in sync so the resolver always reads the right tier.
         const tierFromPlanId = normalizePlanTier(planId);
+
+        // Read existing tenant doc BEFORE any writes — we need the current
+        // subscriptionStatus to pass to the single writer (the writer requires it
+        // and we have no Stripe context here). Pattern matches
+        // billing-sync.service.ts and stripeHelpers.upsertTenantStripeBillingData.
+        const tenantSnap = await tenantRef.get();
+        const tenantData = (tenantSnap.data() || {}) as Record<string, unknown>;
+        const existingSubscriptionStatus =
+          typeof tenantData.subscriptionStatus === "string" &&
+          tenantData.subscriptionStatus.trim()
+            ? (tenantData.subscriptionStatus as string)
+            : "active";
+
+        // (1) Write planId (raw Stripe price-id pointer) directly — NOT a
+        // billing-state field per Phase 19 schema. The plan tier is routed
+        // through the single writer below.
+        await tenantRef.set(
+          {
+            // EXEMPT: planId is a raw price-id pointer, not a Phase 19 billing-state field
+            planId,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+
+        // (2) Route the plan tier through the single writer. We use
+        // tierFromPlanId (= normalizePlanTier(planId), computed at the top of
+        // the try block) directly — DO NOT call getTenantPlanProfile here, as
+        // it reads tenantData.plan first and would return the STALE tier
+        // (the doc has not been updated with the new tier yet). The single
+        // writer handles clearTenantPlanCache + whatsappEnabled second-write
+        // internally (Pitfall 2) — do NOT duplicate them in this block.
         if (tierFromPlanId) {
-          tenantPlanFields.plan = tierFromPlanId;
+          await syncTenantPlanBillingSnapshot({
+            tenantId,
+            subscriptionStatus: existingSubscriptionStatus,
+            plan: tierFromPlanId,
+            source: "admin.updateUserPlan",
+          });
+        } else {
+          // planId is not a recognizable tier (custom/legacy price-id) —
+          // clear the plan cache so the next read picks up planId via the
+          // resolver chain in tenant-plan-policy.ts. We do not pass plan: to
+          // the writer because we do not have a valid TenantPlanTier value.
+          clearTenantPlanCache(tenantId);
         }
-        await tenantRef.set(tenantPlanFields, { merge: true });
-        clearTenantPlanCache(tenantId);
-        const profile = await getTenantPlanProfile(tenantId);
-        const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
-        await tenantRef.update({
-          plan: profile.tier,
-          whatsappEnabled: allowsWhatsApp,
-        });
       } catch (syncErr) {
         logger.error(
           `[updateUserPlan] Failed to sync tenant plan for user ${userId}`,
@@ -1204,6 +1303,29 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
 
     // Update Subscription
     await db.collection("users").doc(userId).update(safeUpdates);
+
+    // Mirror billing fields to tenant doc so the admin card reads the updated value.
+    // getAllTenantsBilling prefers tenants.currentPeriodEnd over users.currentPeriodEnd,
+    // so without this mirror, manual edits are silently shadowed by the stale tenant value.
+    const userSnap = await db.collection("users").doc(userId).get();
+    const tenantId = userSnap.get("tenantId") as string | undefined;
+    if (tenantId) {
+      const tenantUpdates: Record<string, unknown> = {
+        billingSyncedAt: new Date().toISOString(),
+      };
+      if ("currentPeriodEnd" in safeUpdates)
+        tenantUpdates.currentPeriodEnd = safeUpdates.currentPeriodEnd;
+      if ("subscriptionStatus" in safeUpdates)
+        tenantUpdates.subscriptionStatus = safeUpdates.subscriptionStatus;
+      if ("isManualSubscription" in safeUpdates)
+        tenantUpdates.isManualSubscription = safeUpdates.isManualSubscription;
+      await db.collection("tenants").doc(tenantId).update(tenantUpdates);
+      logger.info("[admin] Manual subscription mirrored to tenant doc", {
+        userId,
+        tenantId,
+        fields: Object.keys(tenantUpdates),
+      });
+    }
 
     return res.json({
       success: true,
@@ -1961,8 +2083,16 @@ export const recomputeTenantFeatures = async (
     const profile = await getTenantPlanProfile(tenantId);
     const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
 
+    // EXEMPT: recomputeTenantFeatures re-asserts plan from cache with no
+    // subscription-state mutation. profile.tier is read from getTenantPlanProfile
+    // (which reads the existing tenant plan, not Stripe) — routing through
+    // syncTenantPlanBillingSnapshot would require a synthetic subscriptionStatus
+    // and produce no behavior change. Remaining fields (whatsappEnabled,
+    // featuresRecomputedAt) are non-billing-state per Phase 19 schema —
+    // whatsappEnabled is the Pitfall 2 carve-out, featuresRecomputedAt is a
+    // recompute timestamp. plan field is intentionally NOT written here so the
+    // single writer remains the only path that mutates billing-state plan.
     await tenantRef.update({
-      plan: profile.tier,
       whatsappEnabled: allowsWhatsApp,
       featuresRecomputedAt: new Date().toISOString(),
     });
@@ -2016,20 +2146,46 @@ export const forceSetTenantPlan = async (req: Request, res: Response) => {
       });
     }
 
-    clearTenantPlanCache(tenantId);
-    const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
+    // Read existing subscriptionStatus from the doc we already loaded above.
+    // forceSetTenantPlan is a manual-subscription override (guard above ensures
+    // tenantData.isManualSubscription === true), so subscription is "active" by
+    // virtue of the operator invoking this endpoint. Use existing status when
+    // present, fall back to "active" when the field is missing or empty.
+    const existingSubscriptionStatus =
+      typeof tenantData.subscriptionStatus === "string" &&
+      tenantData.subscriptionStatus.trim()
+        ? (tenantData.subscriptionStatus as string)
+        : "active";
 
-    await tenantRef.update({
+    // Phase 19 single-writer: route plan + scheduled fields through the single
+    // writer so subscription.* stays in sync. clearScheduled: true clears
+    // scheduledPlan/At/Reason inside the same transaction. The writer handles
+    // clearTenantPlanCache + whatsappEnabled second-write internally.
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus: existingSubscriptionStatus,
       plan: tier,
-      scheduledPlan: null,
-      scheduledPlanAt: null,
-      scheduledPlanReason: null,
-      whatsappEnabled: tier === "enterprise" ? true : allowsWhatsApp,
-      featuresRecomputedAt: new Date().toISOString(),
+      clearScheduled: true,
+      source: "admin.forceSetTenantPlan",
     });
 
-    // Clear cache again after write so next read reflects new plan.
-    clearTenantPlanCache(tenantId);
+    // Enterprise tier always allows WhatsApp; the single writer's internal
+    // whatsappEnabled re-evaluation already handled allowsWhatsApp for non-
+    // enterprise tiers. The enterprise-true override is preserved here for
+    // parity with previous behavior. featuresRecomputedAt is a non-billing-
+    // state recompute marker in both branches.
+    if (tier === "enterprise") {
+      // EXEMPT: whatsappEnabled enterprise override + featuresRecomputedAt are non-billing-state fields
+      await tenantRef.update({
+        whatsappEnabled: true,
+        featuresRecomputedAt: new Date().toISOString(),
+      });
+    } else {
+      // EXEMPT: featuresRecomputedAt is a non-billing-state recompute marker
+      await tenantRef.update({
+        featuresRecomputedAt: new Date().toISOString(),
+      });
+    }
 
     logger.info("[forceSetTenantPlan] plan forced", {
       tenantId,
@@ -2040,7 +2196,7 @@ export const forceSetTenantPlan = async (req: Request, res: Response) => {
     return res.json({
       tenantId,
       tier,
-      whatsappEnabled: tier === "enterprise" ? true : allowsWhatsApp,
+      whatsappEnabled: tier === "enterprise" ? true : await tenantPlanAllowsWhatsApp(tenantId),
     });
   } catch (err) {
     logger.error("[forceSetTenantPlan] failed", {
@@ -2048,4 +2204,142 @@ export const forceSetTenantPlan = async (req: Request, res: Response) => {
     });
     return res.status(500).json({ message: "Erro ao forçar plano do tenant." });
   }
+};
+
+type MigratePricesResult = {
+  tenantId: string;
+  status: "migrated" | "skipped" | "failed";
+  reason?: string;
+  fromPriceId?: string;
+  toPriceId?: string;
+};
+
+export const migrateTenantPrices = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  if (!isSuperAdminClaim(req)) {
+    res.status(403).json({ error: "FORBIDDEN" });
+    return;
+  }
+
+  const { tenantIds, prorationBehavior = "none" } = req.body as {
+    tenantIds?: string[];
+    prorationBehavior?: "none" | "create_prorations";
+  };
+
+  if (!Array.isArray(tenantIds) || tenantIds.length === 0) {
+    res
+      .status(400)
+      .json({ error: "tenantIds is required and must be a non-empty array" });
+    return;
+  }
+  if (tenantIds.length > 50) {
+    res.status(400).json({ error: "Maximum 50 tenants per request" });
+    return;
+  }
+
+  const stripe = getStripe();
+  const WHATSAPP_OVERAGE_PRICE_ID = "price_1T20T7GrkF9UfsqcEtdBX9fY";
+
+  const results: MigratePricesResult[] = [];
+
+  for (const tenantId of tenantIds) {
+    try {
+      const tenantRef = db.collection("tenants").doc(tenantId);
+      const tenantSnap = await tenantRef.get();
+
+      if (!tenantSnap.exists) {
+        results.push({ tenantId, status: "skipped", reason: "tenant not found" });
+        continue;
+      }
+
+      const tenantData = tenantSnap.data() as Record<string, unknown>;
+      const drift = detectPriceDrift({
+        stripePriceId: tenantData.stripePriceId as string | undefined,
+        priceId: tenantData.priceId as string | undefined,
+        billingInterval: tenantData.billingInterval as string | undefined,
+        isManualSubscription: Boolean(tenantData.isManualSubscription),
+        stripeSubscriptionId: tenantData.stripeSubscriptionId as
+          | string
+          | undefined,
+      });
+
+      if (!drift.hasDrift) {
+        results.push({ tenantId, status: "skipped", reason: "no drift detected" });
+        continue;
+      }
+
+      const stripeSubscriptionId = String(
+        tenantData.stripeSubscriptionId ?? "",
+      ).trim();
+      const subscription = await stripe.subscriptions.retrieve(
+        stripeSubscriptionId,
+        { expand: ["items"] },
+      );
+
+      if (subscription.cancel_at_period_end) {
+        results.push({
+          tenantId,
+          status: "skipped",
+          reason: "subscription canceling at period end",
+        });
+        continue;
+      }
+
+      const planItem = subscription.items.data.find(
+        (item) => item.price.id !== WHATSAPP_OVERAGE_PRICE_ID,
+      );
+
+      if (!planItem) {
+        results.push({
+          tenantId,
+          status: "failed",
+          reason: "no plan item found in subscription",
+        });
+        continue;
+      }
+
+      await stripe.subscriptions.update(stripeSubscriptionId, {
+        items: [{ id: planItem.id, price: drift.expectedPriceId! }],
+        proration_behavior: prorationBehavior,
+      });
+
+      await tenantRef.update({
+        priceChangeNotifiedFor: null,
+        priceChangeNotifiedAt: null,
+      });
+
+      results.push({
+        tenantId,
+        status: "migrated",
+        fromPriceId: drift.currentPriceId ?? undefined,
+        toPriceId: drift.expectedPriceId ?? undefined,
+      });
+
+      logger.info("[migrateTenantPrices] migrated", {
+        tenantId,
+        fromPriceId: drift.currentPriceId,
+        toPriceId: drift.expectedPriceId,
+        prorationBehavior,
+        requestedBy: req.user?.uid,
+      });
+    } catch (err) {
+      logger.error("[migrateTenantPrices] error", {
+        tenantId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      results.push({
+        tenantId,
+        status: "failed",
+        reason: err instanceof Error ? err.message : "unknown error",
+      });
+    }
+  }
+
+  const migrated = results.filter((r) => r.status === "migrated").length;
+  const skipped = results.filter((r) => r.status === "skipped").length;
+  const failed = results.filter((r) => r.status === "failed").length;
+
+  res.json({ migrated, skipped, failed, results });
 };

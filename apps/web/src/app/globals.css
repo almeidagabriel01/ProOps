@@ -478,6 +478,13 @@ html.theme-transitioning * {
 }
 
 /* Custom Sileo Notification Overrides */
+
+/* Elevate toasts above Radix Dialog (which is z-50). Both default to z-index:50,
+   but Dialog renders later in the DOM and wins the stacking order. */
+[data-sileo-viewport] {
+  z-index: 9999 !important;
+}
+
 [data-sileo-viewport] [data-sileo-pill],
 [data-sileo-viewport] [data-sileo-body] {
   fill: var(--sileo-toast-bg) !important;
@@ -766,4 +773,15 @@ html.theme-transitioning * {
 .calendar-event-chip__status--canceled {
   background: rgba(225, 29, 72, 0.12);
   color: #be123c;
+}
+
+/* Lock html/body scroll while the authenticated shell is mounted.
+   Prevents the document-level scrollbar that leaks from siblings of the shell
+   (ToastProvider, Analytics nodes, DPR rounding on Windows).
+   Applied only when ProtectedAppShell sets data-shell="locked" on <html>,
+   so public routes (/login, /share, landing) are completely unaffected. */
+html[data-shell="locked"],
+html[data-shell="locked"] body {
+  height: 100%;
+  overflow: hidden;
 }

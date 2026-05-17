@@ -11,6 +11,14 @@ export interface SeedUser {
   masterId?: string;
 }
 
+export interface SeedUserFreeRole extends Omit<SeedUser, "role"> {
+  role: "free";
+}
+
+export interface SeedUserSuperadminRole extends Omit<SeedUser, "role"> {
+  role: "superadmin";
+}
+
 export const USER_ADMIN_ALPHA: SeedUser = {
   uid: "user-admin-alpha",
   email: "admin@alpha.test",
@@ -39,6 +47,26 @@ export const USER_ADMIN_BETA: SeedUser = {
   role: "admin",
 };
 
+/** Free-tier user — no ERP access, home is landing page. Tenant has no subscription. */
+export const USER_FREE: SeedUserFreeRole = {
+  uid: "user-free",
+  email: "free@proops.test",
+  password: "Test1234!",
+  name: "Free User",
+  tenantId: "tenant-free",
+  role: "free",
+};
+
+/** Superadmin user — home is /admin. Dedicated tenant for isolation. */
+export const USER_SUPERADMIN: SeedUserSuperadminRole = {
+  uid: "user-superadmin",
+  email: "superadmin@proops.test",
+  password: "Test1234!",
+  name: "Super Admin",
+  tenantId: "tenant-superadmin",
+  role: "superadmin",
+};
+
 export const USER_MEMBER_BETA: SeedUser = {
   uid: "user-member-beta",
   email: "member@beta.test",
@@ -49,11 +77,13 @@ export const USER_MEMBER_BETA: SeedUser = {
   masterId: "user-admin-beta",
 };
 
-const ALL_USERS: SeedUser[] = [
+const ALL_USERS: (SeedUser | SeedUserFreeRole | SeedUserSuperadminRole)[] = [
   USER_ADMIN_ALPHA,
   USER_MEMBER_ALPHA,
   USER_ADMIN_BETA,
   USER_MEMBER_BETA,
+  USER_FREE,
+  USER_SUPERADMIN,
 ];
 
 export async function seedUsers(auth: Auth, db: Firestore): Promise<void> {
@@ -95,7 +125,18 @@ export async function seedUsers(auth: Auth, db: Firestore): Promise<void> {
       createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
       ...(planId ? { planId } : {}),
     });
+
+    // Seed bootstrap tenants for users not covered by seedTenants() (free + superadmin)
+    if (user.role === "free" || user.role === "superadmin") {
+      await db.collection("tenants").doc(user.tenantId).set({
+        id: user.tenantId,
+        name: `${user.name}'s Tenant`,
+        niche: "automacao_residencial",
+        primaryColor: "#6B7280",
+        createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+      });
+    }
   }
 
-  console.log("[seed] Users created: admin-alpha, member-alpha, admin-beta, member-beta");
+  console.log("[seed] Users created: admin-alpha, member-alpha, admin-beta, member-beta, free, superadmin");
 }

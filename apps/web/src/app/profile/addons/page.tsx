@@ -108,6 +108,8 @@ export default function AddonsPage() {
       return formatDateBR(projected);
     })();
 
+  const isAddonPastDue = addonToCancelData?.status === "past_due";
+
   // Handle success/canceled URL params - only after loading is complete
   React.useEffect(() => {
     // Wait until loading is done before showing toasts
@@ -141,6 +143,15 @@ export default function AddonsPage() {
         {
           toastId: "addon-cancelled-success",
         },
+      );
+      router.replace("/profile/addons");
+    }
+
+    const addonCancelledImmediate = searchParams.get("addon_cancelled_immediate");
+    if (addonCancelledImmediate === "true") {
+      toast.success(
+        "Add-on cancelado. O acesso à funcionalidade foi encerrado imediatamente.",
+        { toastId: "addon-cancelled-immediate-success" },
       );
       router.replace("/profile/addons");
     }
@@ -220,8 +231,12 @@ export default function AddonsPage() {
         addonId: addonToCancel.id,
       });
 
-      // Redirect with query param - toast will show after skeleton loading completes
-      window.location.href = "/profile/addons?addon_cancelled=true";
+      // Redirect with query param — toast will show after skeleton loading completes.
+      // past_due → immediate cancel; active → scheduled at period end.
+      const redirectParam = isAddonPastDue
+        ? "addon_cancelled_immediate=true"
+        : "addon_cancelled=true";
+      window.location.href = `/profile/addons?${redirectParam}`;
     } catch (error) {
       console.error("Error cancelling add-on:", error);
       toast.error("Erro ao cancelar add-on. Tente novamente.", {
@@ -366,10 +381,14 @@ export default function AddonsPage() {
                 const cancelDate = addonData?.currentPeriodEnd
                   ? formatDateBR(addonData.currentPeriodEnd)
                   : null;
-
-                const isRedundant = !availableAddons.find(
-                  (a) => a.id === addonType,
-                );
+                const isPeriodExpired = addonData?.currentPeriodEnd
+                  ? new Date(addonData.currentPeriodEnd) < new Date()
+                  : false;
+                const isIncludedInPlan = planTier
+                  ? !addon.availableForTiers.includes(planTier as PlanTier)
+                  : false;
+                const showCancelBadge =
+                  isScheduledCancel && !isPeriodExpired && !isIncludedInPlan;
 
                 return (
                   <div
@@ -383,7 +402,7 @@ export default function AddonsPage() {
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold">{addon.name}</h4>
-                          {isScheduledCancel ? (
+                          {showCancelBadge ? (
                             <Badge variant="destructive" className="text-xs">
                               Cancelando em {cancelDate}
                             </Badge>
@@ -396,7 +415,7 @@ export default function AddonsPage() {
                         <p className="text-sm text-muted-foreground mt-1">
                           {addon.description}
                         </p>
-                        {isScheduledCancel && cancelDate && (
+                        {showCancelBadge && cancelDate && (
                           <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded w-fit border border-amber-200">
                             <Calendar className="w-3 h-3" />
                             Ativo até {cancelDate}
@@ -405,7 +424,7 @@ export default function AddonsPage() {
                         <p className="text-xs text-muted-foreground mt-1">
                           Cobrança: Mensal
                         </p>
-                        {isRedundant && (
+                        {isIncludedInPlan && (
                           <div className="flex items-center gap-1.5 mt-2 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded w-fit border border-amber-200">
                             <Sparkles className="w-3 h-3" />
                             Já incluso no seu plano atual
@@ -414,7 +433,7 @@ export default function AddonsPage() {
                       </div>
                     </div>
 
-                    {!isScheduledCancel && (
+                    {!isScheduledCancel && !isPeriodExpired && !isIncludedInPlan && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -464,9 +483,23 @@ export default function AddonsPage() {
               Tem certeza que deseja cancelar o add-on{" "}
               <strong>{addonToCancel?.name}</strong>?
               <br />
-              <br />O add-on continuará ativo até{" "}
-              <strong>{addonToCancelDate || "o final do período já pago"}</strong>.
-              Após essa data, o acesso será revogado e não haverá renovação automática.
+              <br />
+              {isAddonPastDue ? (
+                <>
+                  Este add-on está com pagamento em atraso. O cancelamento
+                  ocorrerá <strong>imediatamente</strong> e o acesso à
+                  funcionalidade será revogado agora.
+                </>
+              ) : (
+                <>
+                  O add-on continuará ativo até{" "}
+                  <strong>
+                    {addonToCancelDate || "o final do período já pago"}
+                  </strong>
+                  . Após essa data, o acesso será revogado e não haverá
+                  renovação automática.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

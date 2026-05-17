@@ -15,7 +15,11 @@ import { createKeyedTTLCache } from "@/lib/service-cache";
 
 const COLLECTION_NAME = "tenants";
 
-const _tenantByIdCache = createKeyedTTLCache<Tenant | null>(60 * 1000);
+const _tenantByIdCache = createKeyedTTLCache<Tenant | null>(10 * 1000);
+
+export function invalidateTenantCache(id?: string): void {
+  _tenantByIdCache.invalidate(id);
+}
 
 export const TenantService = {
   getTenants: async (): Promise<Tenant[]> => {

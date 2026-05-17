@@ -301,6 +301,7 @@ export const getSharedTransaction = async (req: Request, res: Response) => {
             logoUrl: tenantData.logoUrl,
             primaryColor: tenantData.primaryColor,
             mercadoPagoEnabled: tenantData.mercadoPagoEnabled ?? false,
+            asaasEnabled: tenantData.asaasEnabled ?? false,
           }
         : null,
       client: clientPayload,
