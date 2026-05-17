@@ -110,6 +110,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Billing-allowed routes (e.g., /subscription-blocked) are accessible to everyone, including
+  // unauthenticated users. The layout.tsx server component handles role/subscription redirects
+  // for authenticated visitors.
+  if (isBillingAllowed(pathname)) {
+    const resp = NextResponse.next();
+    resp.headers.set("Cache-Control", "no-store, must-revalidate");
+    return resp;
+  }
+
   // Allow public routes
   if (isPublicRoute(pathname)) {
     return NextResponse.next();
@@ -196,13 +205,6 @@ export async function middleware(request: NextRequest) {
       resp.headers.set("Cache-Control", "no-store");
       return resp;
     }
-  }
-
-  // Add Cache-Control: no-store on the subscription-blocked page to prevent bfcache restoring stale state.
-  if (isBillingAllowed(pathname)) {
-    const resp = NextResponse.next();
-    resp.headers.set("Cache-Control", "no-store, must-revalidate");
-    return resp;
   }
 
   return NextResponse.next();
