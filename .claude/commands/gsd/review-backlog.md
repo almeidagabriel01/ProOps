@@ -6,6 +6,7 @@ allowed-tools:
   - Write
   - Bash
   - AskUserQuestion
+requires: [phase, review]
 ---
 
 <objective>
@@ -47,7 +48,7 @@ milestone sequence or remove stale entries.
 
 6. **Commit changes:**
    ```bash
-   gsd-sdk query commit "docs: review backlog — promoted N, removed M" .planning/ROADMAP.md
+   gsd-sdk query commit "docs: review backlog — promoted N, removed M" --files .planning/ROADMAP.md
    ```
 
 7. **Report summary:**
