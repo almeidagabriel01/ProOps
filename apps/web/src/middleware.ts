@@ -41,7 +41,9 @@ const PUBLIC_ROUTES = [
   "/contato",
   "/api/webhooks", // Webhooks need to be public
   "/share", // Public shared proposal pages
-  "/auth/action", // Password reset and other auth actions
+  "/auth/action", // Legacy Firebase Auth action handler (kept for in-flight emails)
+  "/reset", // Custom password reset flow (oobCode via clean URL)
+  "/verify", // Custom email verification flow (oobCode via clean URL)
 ];
 
 // Static assets and API routes to skip

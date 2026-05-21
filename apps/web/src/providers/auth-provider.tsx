@@ -6,13 +6,13 @@ import {
   onAuthStateChanged,
   onIdTokenChanged,
   signInWithEmailAndPassword,
-  sendEmailVerification,
   signOut,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
+import { AuthService } from "@/services/auth-service";
 
 import { User, SubscriptionStatus } from "@/types";
 
@@ -490,13 +490,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
         if (!currentUser.emailVerified && !skipEmailVerification) {
           try {
-            if (typeof window !== "undefined") {
-              await sendEmailVerification(currentUser, {
-                url: `${window.location.origin}/login`,
-              });
-            } else {
-              await sendEmailVerification(currentUser);
-            }
+            await AuthService.sendVerificationEmail();
           } catch (verificationError) {
             console.error(
               "Failed to send email verification on login:",

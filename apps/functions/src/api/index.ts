@@ -25,6 +25,10 @@ import { paymentPublicRoutes } from "./routes/payment-public.routes";
 import { asaasRoutes } from "./routes/asaas.routes";
 import { asaasWebhookRoutes } from "./routes/asaas-webhook.routes";
 import { contactRoutes } from "./routes/contact.routes";
+import {
+  publicAuthRoutes,
+  protectedAuthRoutes,
+} from "./routes/auth.routes";
 import { aiRouter, fieldGenRouter } from "../ai";
 import { aiRateLimiter } from "../ai/rate-limiter";
 import {
@@ -211,6 +215,12 @@ const contactFormLimiter = createRateLimiter({
   windowMs: 60_000,
 });
 
+const passwordResetLimiter = createRateLimiter({
+  keyPrefix: "public-password-reset",
+  maxRequests: 5,
+  windowMs: 60_000,
+});
+
 const publicShareLimiter = createRateLimiter({
   keyPrefix: "public-share",
   maxRequests: 80,
@@ -392,6 +402,9 @@ app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
 app.use("/v1/public", contactFormLimiter, contactRoutes);
 
+// Public auth routes (forgot password) — strict rate limit
+app.use("/v1/auth", passwordResetLimiter, publicAuthRoutes);
+
 // Debug-only internal endpoints — gated by x-cron-secret, mounted before auth
 // so E2E fixtures can invalidate caches without a Firebase ID token.
 app.use("/internal", internalDebugRoutes);
@@ -426,6 +439,7 @@ app.use("/v1", coreRoutes);
 app.use("/v1", financeRoutes);
 app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
+app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);

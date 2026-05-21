@@ -7,6 +7,7 @@ export interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
+  text?: string;
   tenantId?: string;
   type?: string;
 }
@@ -23,12 +24,20 @@ export async function sendEmail(
   const from = getEmailFrom();
   try {
     const resend = getResend();
-    const result = await resend.emails.send({
+    const payload: {
+      from: string;
+      to: string;
+      subject: string;
+      html: string;
+      text?: string;
+    } = {
       from,
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
-    });
+    };
+    if (opts.text) payload.text = opts.text;
+    const result = await resend.emails.send(payload);
 
     const messageId = result.data?.id;
 

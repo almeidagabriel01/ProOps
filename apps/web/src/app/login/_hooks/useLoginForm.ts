@@ -12,12 +12,12 @@ import {
   linkWithCredential,
   PhoneAuthProvider,
   RecaptchaVerifier,
-  sendEmailVerification,
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
 } from "firebase/auth";
+import { AuthService } from "@/services/auth-service";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { callPublicApi } from "@/lib/api-client";
@@ -221,12 +221,7 @@ export function useLoginForm(): UseLoginFormReturn {
     setIsResetting(true);
 
     try {
-      const { sendPasswordResetEmail } = await import("firebase/auth");
-      const actionCodeSettings = {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: true,
-      };
-      await sendPasswordResetEmail(auth, email, actionCodeSettings);
+      await AuthService.requestPasswordReset(email);
     } catch (err: unknown) {
       console.warn("Password reset request finished with non-fatal error", err);
     } finally {
@@ -672,10 +667,14 @@ export function useLoginForm(): UseLoginFormReturn {
         updatedAt: now,
       });
 
-      const verifyUrl = `${window.location.origin}/login`;
-      await sendEmailVerification(firebaseUser, {
-        url: verifyUrl,
-      });
+      try {
+        await AuthService.sendVerificationEmail();
+      } catch (sendErr) {
+        console.error(
+          "Failed to send verification email after registration:",
+          sendErr,
+        );
+      }
 
       setIsRegistering(false);
       setIsEmailVerificationPending(true);
