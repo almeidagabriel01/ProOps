@@ -83,13 +83,26 @@ export async function requestPasswordReset(
       err && typeof err === "object" && "code" in err
         ? String((err as { code: string }).code)
         : "";
+    const message = err instanceof Error ? err.message : String(err);
 
-    if (code === "auth/user-not-found" || code === "auth/email-not-found") {
+    // Firebase projects with email enumeration protection enabled return
+    // `auth/internal-error: INTERNAL ASSERT FAILED: Unable to create the email
+    // action link` instead of `auth/user-not-found`. Treat both as silent
+    // no-ops so logs stay clean and the response remains anti-enumeration.
+    const isEnumerationProtected =
+      code === "auth/internal-error" &&
+      /unable to create the email action link/i.test(message);
+
+    if (
+      code === "auth/user-not-found" ||
+      code === "auth/email-not-found" ||
+      isEnumerationProtected
+    ) {
       logger.info("[auth] password reset requested for unknown email");
     } else {
       logger.error("[auth] requestPasswordReset failed", {
         code,
-        error: err instanceof Error ? err.message : String(err),
+        error: message,
       });
     }
   }
