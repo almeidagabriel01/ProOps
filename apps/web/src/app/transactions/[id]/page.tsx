@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, AlertCircle } from "lucide-react";
+import { Wallet, AlertCircle, Info } from "lucide-react";
 import {
   useEditTransaction,
   EditTransactionFormData,
@@ -71,6 +71,7 @@ export default function EditTransactionPage() {
     switchPaymentMode,
     recurringEditScope,
     setRecurringEditScope,
+    fromGrouped,
   } = useEditTransaction();
 
   // Adapt formData type for shared components
@@ -267,6 +268,7 @@ export default function EditTransactionPage() {
           onChange={() => {}}
           onClientChange={() => {}}
           totalOverride={totalValueOverride}
+          installmentNumber={transaction?.installmentNumber}
         />
 
         <div className="flex justify-end pt-6">
@@ -290,7 +292,7 @@ export default function EditTransactionPage() {
         onBack={() => router.push("/transactions")}
       />
 
-      {transaction?.isRecurring && (
+      {transaction?.isRecurring && !fromGrouped && (
         <div className="mb-6 rounded-xl border border-border/50 bg-card p-4">
           <p className="mb-3 text-sm font-medium text-foreground">
             Aplicar alterações:
@@ -328,6 +330,29 @@ export default function EditTransactionPage() {
                 </span>
               </span>
             </label>
+          </div>
+        </div>
+      )}
+
+      {transaction?.isRecurring && fromGrouped && (
+        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3">
+          <div className="p-2 bg-primary/10 rounded-lg text-primary flex items-center justify-center">
+            <Info className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Aplicando alterações:{" "}
+              <span className="text-primary font-semibold">
+                {recurringEditScope === "single"
+                  ? "Somente esta ocorrência"
+                  : "Toda a série recorrente"}
+              </span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {recurringEditScope === "single"
+                ? "Como você clicou para editar a parcela individualmente na visualização por agrupados, a alteração se aplica apenas a este vencimento."
+                : "Como você clicou para editar a recorrência inteira na visualização por agrupados, as alterações se aplicarão a toda a série recorrente."}
+            </p>
           </div>
         </div>
       )}
@@ -402,6 +427,7 @@ export default function EditTransactionPage() {
             onChange={handleChange}
             onClientChange={handleClientChange}
             totalOverride={totalValueOverride}
+            installmentNumber={transaction?.installmentNumber}
           />
           <StepNavigation
             onSubmit={handleFormSubmit}

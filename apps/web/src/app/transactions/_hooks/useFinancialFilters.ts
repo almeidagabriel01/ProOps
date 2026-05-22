@@ -54,6 +54,7 @@ function readPersistedFilterStatus(
 export function useFinancialFilters(
   transactions: Transaction[],
   wallets: Wallet[],
+  initialViewMode: "grouped" | "byDueDate" = "byDueDate",
 ) {
   const { tenant } = useTenant();
   const tenantId = tenant?.id;
@@ -62,8 +63,16 @@ export function useFinancialFilters(
   const [filterType, setFilterType] = React.useState<TransactionType | "all">(
     "all",
   );
+  const [viewMode, setViewMode] = React.useState<"grouped" | "byDueDate">(
+    initialViewMode,
+  );
   const [filterStatus, setFilterStatus] = React.useState<TransactionStatus[]>(
-    () => readPersistedFilterStatus(tenantId),
+    () => {
+      if (initialViewMode === "byDueDate") {
+        return ["pending", "overdue"];
+      }
+      return readPersistedFilterStatus(tenantId);
+    },
   );
 
   // Re-read persisted value when tenant becomes available or changes
@@ -72,12 +81,20 @@ export function useFinancialFilters(
   React.useEffect(() => {
     if (!tenantId || hydratedTenantRef.current === tenantId) return;
     hydratedTenantRef.current = tenantId;
-    setFilterStatus(readPersistedFilterStatus(tenantId));
-  }, [tenantId]);
+    if (viewMode === "byDueDate") {
+      setFilterStatus(["pending", "overdue"]);
+    } else {
+      setFilterStatus(readPersistedFilterStatus(tenantId));
+    }
+  }, [tenantId, viewMode]);
 
   // Persist filter selection per tenant
   React.useEffect(() => {
     if (typeof window === "undefined" || !tenantId) return;
+    // We only persist filter status in grouped mode.
+    // In byDueDate mode, we always default to ["pending", "overdue"] on load/access.
+    if (viewMode !== "grouped") return;
+
     try {
       window.localStorage.setItem(
         `transactions:filterStatus:v2:${tenantId}`,
@@ -86,7 +103,7 @@ export function useFinancialFilters(
     } catch {
       // ignore quota errors — non-critical
     }
-  }, [filterStatus, tenantId]);
+  }, [filterStatus, tenantId, viewMode]);
 
   const [filterWallet, setFilterWallet] = React.useState<string>("");
   const [filterStartDate, setFilterStartDate] = React.useState<string>("");
@@ -95,9 +112,6 @@ export function useFinancialFilters(
     "date" | "dueDate"
   >("dueDate");
   const [sortBy, setSortBy] = React.useState<"date" | "created">("created");
-  const [viewMode, setViewMode] = React.useState<"grouped" | "byDueDate">(
-    "byDueDate",
-  );
 
   const filteredTransactions = React.useMemo(() => {
     const effectiveTransactions: Transaction[] = [];

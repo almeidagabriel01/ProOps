@@ -18,6 +18,16 @@ jest.mock("../services/transaction-payment.service", () => {
         this.name = "AsaasApiError";
       }
     },
+    AsaasAccountNotApprovedError: class AsaasAccountNotApprovedError extends Error {
+      constructor(
+        public readonly accountStatus: string,
+        public readonly pendingDocuments: Array<{ id: string; status: string }>,
+        public readonly onboardingUrl: string | null,
+      ) {
+        super("ASAAS_ACCOUNT_NOT_APPROVED");
+        this.name = "AsaasAccountNotApprovedError";
+      }
+    },
   };
 });
 jest.mock("../services/asaas.service", () => ({

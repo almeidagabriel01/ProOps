@@ -22,6 +22,7 @@ interface ReviewStepProps {
   }) => void;
   errors?: FormErrors<TransactionFormData>;
   totalOverride?: number;
+  installmentNumber?: number;
 }
 
 export function ReviewStep({
@@ -30,6 +31,7 @@ export function ReviewStep({
   onClientChange,
   errors = {},
   totalOverride,
+  installmentNumber,
 }: ReviewStepProps) {
   const { wallets } = useWalletsData();
   const isIncome = formData.type === "income";
@@ -82,6 +84,10 @@ export function ReviewStep({
     const total = parseFloat(formData.amount || "0");
     const downPayment = getDownPaymentAmount();
     const remaining = total - downPayment;
+
+    if (formData.isRecurring) {
+      return remaining;
+    }
 
     // Avoid division by zero
     if (formData.installmentCount === 0) return 0;
@@ -231,7 +237,7 @@ export function ReviewStep({
                       {formatCurrency(getInstallmentDisplayValue())}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      1ª:{" "}
+                      {installmentNumber ? `${installmentNumber}ª:` : "1ª:"}{" "}
                       {formData.paymentMode === "installmentValue"
                         ? formData.firstInstallmentDate
                           ? formatDateBR(formData.firstInstallmentDate)
@@ -273,7 +279,7 @@ export function ReviewStep({
                       {formatCurrency(getInstallmentDisplayValue())} / mês
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      1ª:{" "}
+                      {installmentNumber ? `${installmentNumber}ª:` : "1ª:"}{" "}
                       {formData.paymentMode === "installmentValue"
                         ? formData.firstInstallmentDate
                           ? formatDateBR(formData.firstInstallmentDate)

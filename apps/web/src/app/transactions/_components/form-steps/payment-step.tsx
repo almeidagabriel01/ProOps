@@ -80,6 +80,9 @@ export function PaymentStep({
     const total = parseFloat(formData.amount || "0");
     const downPayment = getDownPaymentAmount();
     const remaining = total - downPayment;
+    if (formData.isRecurring) {
+      return remaining.toFixed(2);
+    }
     const count = formData.installmentCount || 1;
     if (remaining <= 0 || count <= 0) return "0,00";
     return (remaining / count).toFixed(2);

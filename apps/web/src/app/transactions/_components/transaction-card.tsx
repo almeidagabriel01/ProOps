@@ -593,7 +593,7 @@ export function TransactionCard({
                     <Edit className="w-4 h-4" />
                   </Button>
                 ) : (
-                  <Link href={`/transactions/${transaction.id}`}>
+                  <Link href={`/transactions/${transaction.id}?fromGrouped=series`}>
                     <Button
                       variant="ghost"
                       size="icon"

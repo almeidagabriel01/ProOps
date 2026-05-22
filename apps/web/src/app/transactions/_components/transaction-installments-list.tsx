@@ -14,13 +14,14 @@ import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
 import { statusConfig } from "../_constants/config";
 import { Wallet } from "@/types";
-import { Check, ChevronDown, Edit2, Banknote, CreditCard, Split, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, Edit2, Banknote, CreditCard, Split, RefreshCw, Pencil } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { cn } from "@/lib/utils";
 import { useTransactionStatuses } from "@/app/transactions/_hooks/useTransactionStatuses";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
+import Link from "next/link";
 
 interface TransactionInstallmentsListProps {
   installments: Transaction[];
@@ -590,6 +591,20 @@ export function TransactionInstallmentsList({
                               </div>
                             )}
                           </div>
+                          {canEdit && (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Link href={`/transactions/${group.main.id}?fromGrouped=single`}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-muted"
+                                  title="Editar esta ocorrência"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Button>
+                              </Link>
+                            </div>
+                          )}
                           <div onClick={(e) => e.stopPropagation()}>
                             {renderStatusBadge(
                               group.main,

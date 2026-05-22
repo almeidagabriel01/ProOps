@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "@/lib/toast";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
   TransactionService,
   Transaction,
@@ -161,6 +161,8 @@ function resolveWalletId(value: string, walletList: Wallet[]): string {
 export function useEditTransaction() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
+  const fromGrouped = searchParams.get("fromGrouped"); // "single" | "series" | null
   const transactionId = params.id as string;
   const {
     canEdit,
@@ -400,13 +402,22 @@ export function useEditTransaction() {
       // Determine if we should treat this as an installment group edit
       const hasGroup = groupTransactions.length > 0;
 
+      // For recurring, resolve the default/base amount from the group
+      let baseRecurringAmount = safeData.amount;
+      if (safeData.isRecurring && groupTransactions.length > 0) {
+        const baseTx = groupTransactions.find((t) => !t.overriddenAmount);
+        if (baseTx) {
+          baseRecurringAmount = baseTx.amount;
+        }
+      }
+
       // Calculate Total Amount
       // If it's a group (installments), sum everyone (including down payment)
       // If single or recurring, just use safeData.amount (the base value)
       const totalAmount =
         hasGroup && !safeData.isRecurring
           ? groupTransactions.reduce((sum, t) => sum + t.amount, 0)
-          : safeData.amount;
+          : (safeData.isRecurring ? baseRecurringAmount : safeData.amount);
 
       // Installment Count:
       // If group, count regular installments.
@@ -419,31 +430,37 @@ export function useEditTransaction() {
       // Installment Value (for form pre-fill if needed):
       // If group, take the first regular installment's amount (approximation)
       const firstRegular = regularInstallments[0];
-      const instValue = firstRegular
-        ? firstRegular.amount
-        : hasGroup
-          ? 0
-          : safeData.amount / (safeData.installmentCount || 1);
+      const instValue = safeData.isRecurring
+        ? baseRecurringAmount
+        : (firstRegular
+            ? firstRegular.amount
+            : hasGroup
+              ? 0
+              : safeData.amount / (safeData.installmentCount || 1));
 
       const initialFormData: EditTransactionFormData = {
         type: safeData.type,
         description: safeData.description,
-        amount: totalAmount.toFixed(2),
+        amount: safeData.isRecurring ? safeData.amount.toFixed(2) : totalAmount.toFixed(2),
         date: safeData.date ? safeData.date.split("T")[0] : "",
         dueDate:
-          hasGroup && firstRegular?.dueDate
-            ? firstRegular.dueDate.split("T")[0]
-            : safeData.dueDate
-              ? safeData.dueDate.split("T")[0]
-              : "",
+          safeData.isRecurring
+            ? (safeData.dueDate ? safeData.dueDate.split("T")[0] : "")
+            : (hasGroup && firstRegular?.dueDate
+                ? firstRegular.dueDate.split("T")[0]
+                : safeData.dueDate
+                  ? safeData.dueDate.split("T")[0]
+                  : ""),
         status: safeData.status,
         clientId: safeData.clientId,
         clientName: safeData.clientName || "",
         category: safeData.category || "",
         wallet:
-          hasGroup && firstRegular?.wallet
-            ? firstRegular.wallet
-            : safeData.wallet || "",
+          safeData.isRecurring
+            ? (safeData.wallet || "")
+            : (hasGroup && firstRegular?.wallet
+                ? firstRegular.wallet
+                : safeData.wallet || ""),
         notes: safeData.notes || "",
         isInstallment: safeData.isRecurring
           ? false
@@ -470,15 +487,21 @@ export function useEditTransaction() {
         downPaymentDueDate: downPaymentItem?.date
           ? downPaymentItem.date.split("T")[0]
           : "",
-        installmentValue: instValue.toFixed(2),
-        installmentsWallet: firstRegular?.wallet || safeData.wallet || "",
-        firstInstallmentDate: firstRegular?.dueDate
-          ? firstRegular.dueDate.split("T")[0]
-          : safeData.dueDate
-            ? safeData.dueDate.split("T")[0]
-            : safeData.date
-              ? safeData.date.split("T")[0]
-              : "",
+        installmentValue: safeData.isRecurring ? safeData.amount.toFixed(2) : instValue.toFixed(2),
+        installmentsWallet: safeData.isRecurring ? safeData.wallet : (firstRegular?.wallet || safeData.wallet || ""),
+        firstInstallmentDate: safeData.isRecurring
+          ? (safeData.dueDate
+              ? safeData.dueDate.split("T")[0]
+              : safeData.date
+                ? safeData.date.split("T")[0]
+                : "")
+          : (firstRegular?.dueDate
+              ? firstRegular.dueDate.split("T")[0]
+              : safeData.dueDate
+                ? safeData.dueDate.split("T")[0]
+                : safeData.date
+                  ? safeData.date.split("T")[0]
+                  : ""),
       };
 
       // Resolve wallet NAME → ID (backward compat: old data stored wallet names)
@@ -749,12 +772,17 @@ export function useEditTransaction() {
     }));
   };
 
-  // For recurring transactions, the user can apply changes to just THIS
-  // occurrence (default) or regenerate the entire series. Non-recurring
-  // edits always go through the series path for backward compatibility.
   const [recurringEditScope, setRecurringEditScope] = React.useState<
     "single" | "series"
   >("single");
+
+  React.useEffect(() => {
+    if (fromGrouped === "single") {
+      setRecurringEditScope("single");
+    } else if (fromGrouped === "series") {
+      setRecurringEditScope("series");
+    }
+  }, [fromGrouped]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -846,8 +874,22 @@ export function useEditTransaction() {
   const hasChanges = React.useMemo(() => {
     if (!initialSnapshot) return false;
 
-    return buildEditTransactionSnapshot(formData) !== initialSnapshot;
-  }, [formData, initialSnapshot]);
+    const formChanged = buildEditTransactionSnapshot(formData) !== initialSnapshot;
+    if (formChanged) return true;
+
+    // If scope is series and any installment has a different amount than the form amount
+    if (formData.isRecurring && recurringEditScope === "series") {
+      const targetAmount = parseFloat(formData.amount || "0");
+      const hasOverriddenInstallment = relatedInstallments.some(
+        (t) => !t.isDownPayment && t.amount !== targetAmount
+      );
+      if (hasOverriddenInstallment) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [formData, initialSnapshot, recurringEditScope, relatedInstallments]);
 
   return {
     formData,
@@ -873,5 +915,6 @@ export function useEditTransaction() {
     refetch: fetchTransaction,
     recurringEditScope,
     setRecurringEditScope,
+    fromGrouped,
   };
 }

@@ -422,8 +422,12 @@ export class TransactionService {
         }
       }
 
+      const isRecurring = !!anchorData.isRecurring || !!payload.isRecurring;
+
       let effectiveGroupId =
-        (anchorData.installmentGroupId as string | null) || null;
+        (anchorData.installmentGroupId as string | null) ||
+        (isRecurring ? (anchorData.recurringGroupId as string | null) : null) ||
+        null;
 
       const wantInstallments = payload.isInstallment !== false;
       const requestedInstallmentCount = Math.max(
@@ -435,7 +439,7 @@ export class TransactionService {
           ),
         ),
       );
-      const targetInstallmentCount = wantInstallments
+      let targetInstallmentCount = wantInstallments
         ? requestedInstallmentCount
         : 1;
 
@@ -496,10 +500,15 @@ export class TransactionService {
       }
 
       if (effectiveGroupId) {
-        const groupQuery = db
-          .collection(COLLECTION_NAME)
-          .where("tenantId", "==", txTenantId)
-          .where("installmentGroupId", "==", effectiveGroupId);
+        const groupQuery = isRecurring
+          ? db
+              .collection(COLLECTION_NAME)
+              .where("tenantId", "==", txTenantId)
+              .where("recurringGroupId", "==", effectiveGroupId)
+          : db
+              .collection(COLLECTION_NAME)
+              .where("tenantId", "==", txTenantId)
+              .where("installmentGroupId", "==", effectiveGroupId);
         const groupSnap = await t.get(groupQuery);
         groupSnap.docs.forEach((docSnap) => {
           pushDoc({
@@ -543,12 +552,16 @@ export class TransactionService {
           );
         });
 
+      if (isRecurring) {
+        targetInstallmentCount = existingInstallments.length;
+      }
+
       const firstInstallment = existingInstallments[0]?.data || anchorData;
       const launchDate = toDateOnly(
         payload.date,
         toDateOnly(anchorData.date, now.toDate().toISOString().split("T")[0]),
       );
-      const baseInstallmentDueDate = toDateOnly(
+      let baseInstallmentDueDate = toDateOnly(
         paymentMode === "installmentValue"
           ? payload.firstInstallmentDate
           : payload.dueDate,
@@ -557,6 +570,17 @@ export class TransactionService {
           launchDate,
         ),
       );
+
+      if (isRecurring) {
+        const anchorIndex = existingInstallments.findIndex((doc) => doc.id === id);
+        const anchorInstNumber = anchorIndex !== -1
+          ? (existingInstallments[anchorIndex].data.installmentNumber || 1)
+          : (anchorData.installmentNumber || 1);
+        const anchorOffsetMonths = (anchorInstNumber - 1) * (payload.installmentInterval || anchorData.installmentInterval || 1);
+        
+        const newAnchorDueDate = toDateOnly(payload.dueDate, anchorData.dueDate || anchorData.date);
+        baseInstallmentDueDate = addMonths(newAnchorDueDate, -anchorOffsetMonths);
+      }
       const downPaymentDueDate = toDateOnly(
         payload.downPaymentDueDate,
         toDateOnly(
@@ -594,7 +618,11 @@ export class TransactionService {
       const proposalGroupId = anchorData.proposalGroupId || null;
 
       const installmentAmounts: number[] = [];
-      if (paymentMode === "installmentValue") {
+      if (isRecurring) {
+        for (let i = 0; i < targetInstallmentCount; i++) {
+          installmentAmounts.push(totalAmount);
+        }
+      } else if (paymentMode === "installmentValue") {
         for (let i = 0; i < targetInstallmentCount; i++) {
           installmentAmounts.push(installmentValue);
         }
@@ -639,10 +667,9 @@ export class TransactionService {
           date: launchDate,
           dueDate: addMonths(baseInstallmentDueDate, i * interval),
           status:
-            existing?.data?.status ||
-            (i === 0
-              ? payload.status || anchorData.status || "pending"
-              : "pending"),
+            existing?.id === id
+              ? (payload.status || anchorData.status || "pending")
+              : (existing?.data?.status || "pending"),
           clientId,
           clientName,
           proposalId,
@@ -652,10 +679,14 @@ export class TransactionService {
           isDownPayment: false,
           downPaymentType: null,
           downPaymentPercentage: null,
-          isInstallment: wantInstallments,
-          installmentCount: targetInstallmentCount,
+          isInstallment: isRecurring ? false : wantInstallments,
+          isRecurring: isRecurring,
+          installmentCount: isRecurring
+            ? (payload.installmentCount || anchorData.installmentCount || 60)
+            : targetInstallmentCount,
           installmentNumber: i + 1,
-          installmentGroupId: effectiveGroupId,
+          installmentGroupId: isRecurring ? null : effectiveGroupId,
+          recurringGroupId: isRecurring ? effectiveGroupId : null,
           installmentInterval: payload.installmentInterval || 1,
           paymentMode: paymentMode,
           notes,
@@ -800,6 +831,26 @@ export class TransactionService {
         });
       }
 
+      let recurOps: DbOp[] = [];
+      if (isRecurring) {
+        for (const op of toUpdate) {
+          const oldStatus = op.doc.data.status;
+          const newStatus = op.next.status;
+          if (oldStatus !== newStatus) {
+            const ops = await getNextRecurringTransactionOps(
+              t,
+              db,
+              txTenantId,
+              now,
+              userId,
+              op.next,
+              newStatus,
+            );
+            recurOps.push(...ops);
+          }
+        }
+      }
+
       for (const op of toUpdate) {
         t.update(op.doc.ref, op.next);
       }
@@ -809,6 +860,10 @@ export class TransactionService {
       }
       for (const op of toDelete) {
         t.delete(op.ref);
+      }
+      for (const op of recurOps) {
+        if (op.type === "set") t.set(op.ref, op.data);
+        else if (op.type === "delete") t.delete(op.ref);
       }
 
       if (proposalRef) {
