@@ -1040,7 +1040,7 @@ async function handleSubscriptionCreated(
   // Stripe always sends customer.subscription.created before
   // checkout.session.completed. We keep this handler cheap and idempotent:
   // sync billing IDs and the initial subscription status snapshot only.
-  // updateUserPlan and trial-marking are handled in handleCheckoutCompleted.
+  // updateUserPlan is handled in handleCheckoutCompleted.
   // Classify before any DB reads. Addon subscriptions are fully handled by
   // checkout.session.completed — returning early here also avoids the timing
   // issue where the addons doc doesn't exist yet at subscription.created time.

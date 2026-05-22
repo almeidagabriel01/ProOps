@@ -108,8 +108,7 @@ export type SubscriptionStatus =
   | "payment_failed"
   | "trialing"
   | "free"
-  | "inactive"
-  | "trial";
+  | "inactive";
 
 // Subscription Plans
 export type PlanTier = "starter" | "pro" | "enterprise";

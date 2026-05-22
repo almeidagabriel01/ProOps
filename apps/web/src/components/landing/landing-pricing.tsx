@@ -412,11 +412,6 @@ export function LandingPricing({
                       <span className="bg-white dark:bg-neutral-950 text-black dark:text-white text-xs font-bold uppercase tracking-[0.14em] px-4 py-1.5 rounded-full">
                         Mais popular
                       </span>
-                      {plan.tier === "pro" && (
-                        <span className="bg-emerald-500 text-white text-xs font-bold uppercase tracking-[0.14em] px-4 py-1.5 rounded-full shadow-lg shadow-emerald-500/30 animate-pulse">
-                          7 dias grátis
-                        </span>
-                      )}
                     </div>
                   )}
 
@@ -478,11 +473,7 @@ export function LandingPricing({
                         : "bg-black dark:bg-white text-white dark:text-black hover:bg-black/85 dark:hover:bg-white/90"
                     } cursor-pointer disabled:cursor-not-allowed disabled:opacity-70`}
                   >
-                    {processingTier === plan.tier
-                      ? "Redirecionando..."
-                      : plan.tier === "pro"
-                        ? "Testar grátis por 7 dias"
-                        : ctaLabel}
+                    {processingTier === plan.tier ? "Redirecionando..." : ctaLabel}
                   </button>
 
                   <div className="space-y-4 flex-1">

@@ -198,11 +198,6 @@ function SubscribeContent() {
                 {PLAN_NAMES[planTier]}
               </span>{" "}
               ({INTERVAL_LABELS[billingInterval] || billingInterval})
-              {planTier === "pro" && (
-                <span className="block mt-2 text-emerald-500 text-sm font-medium">
-                  Inclui 7 dias grátis para testar
-                </span>
-              )}
             </>
           ) : (
             "Redirecionando..."
