@@ -53,10 +53,11 @@ export function resolveUserHome(user: User | null): ResolvedHome {
     return { kind: "subscription-blocked", path: "/subscription-blocked" };
   }
 
-  // 4. Free → dashboard. Free tier vê apenas o dashboard (resumo + CTA para
-  //    assinar); o restante do ERP é bloqueado por isPathAllowedForUser.
+  // 4. Free → landing pública. Free tier NUNCA acessa nenhuma página do ERP
+  //    (nem o dashboard). O resto do fluxo permitido (assinar plano, gerenciar
+  //    perfil) parte da landing ou é alcançado por redirect explícito.
   if (user.role === "free") {
-    return { kind: "dashboard", path: "/dashboard" };
+    return { kind: "landing", path: "/" };
   }
 
   // 5. Admin/MASTER → dashboard
@@ -84,6 +85,36 @@ export function resolveUserHome(user: User | null): ResolvedHome {
   return { kind: "landing", path: "/" };
 }
 
+/**
+ * Free tier may visit ONLY these paths:
+ *   - "/"                       public landing
+ *   - "/subscribe[/*]"          choose paid plan
+ *   - "/checkout-success[/*]"   stripe callback
+ *   - "/profile[/*]"            manage own account (billing tab lives here)
+ *   - "/subscription-blocked"   defensive
+ *
+ * Anything else — including /dashboard and the entire ERP — is blocked.
+ * Exported separately from isPathAllowedForUser because the next.js
+ * middleware and the billing-status route need to evaluate it from a
+ * `plan` string without a full User object in hand.
+ */
+export function isFreeTierAllowedPath(path: string): boolean {
+  const allowed = new Set([
+    "/",
+    "/subscribe",
+    "/checkout-success",
+    "/profile",
+    "/subscription-blocked",
+  ]);
+  const base = path.split("?")[0];
+  return (
+    allowed.has(base) ||
+    base.startsWith("/subscribe/") ||
+    base.startsWith("/profile/") ||
+    base.startsWith("/checkout-success/")
+  );
+}
+
 export function isPathAllowedForUser(path: string, user: User | null): boolean {
   if (!user) return false;
   const role = (user.role ?? "").toLowerCase();
@@ -93,24 +124,7 @@ export function isPathAllowedForUser(path: string, user: User | null): boolean {
   }
 
   if (role === "free") {
-    // Free tier: dashboard (resumo + upgrade CTA), subscribe / checkout-success
-    // (assinar plano), profile (alterar dados pessoais, ver/escolher plano),
-    // subscription-blocked (defensive). Tudo do ERP fica bloqueado.
-    const allowed = new Set([
-      "/",
-      "/dashboard",
-      "/subscribe",
-      "/checkout-success",
-      "/profile",
-      "/subscription-blocked",
-    ]);
-    const base = path.split("?")[0];
-    return (
-      allowed.has(base) ||
-      base.startsWith("/subscribe/") ||
-      base.startsWith("/profile/") ||
-      base.startsWith("/checkout-success/")
-    );
+    return isFreeTierAllowedPath(path);
   }
 
   // Paying users (admin, master, member, etc.): any internal route except /admin

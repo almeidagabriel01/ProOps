@@ -37,8 +37,6 @@ describe("isPathAllowedForUser", () => {
     const user = makeUser({ role: "free" });
 
     it("allows /", () => expect(isPathAllowedForUser("/", user)).toBe(true));
-    it("allows /dashboard (free's only ERP page)", () =>
-      expect(isPathAllowedForUser("/dashboard", user)).toBe(true));
     it("allows /subscribe", () => expect(isPathAllowedForUser("/subscribe", user)).toBe(true));
     it("allows /subscribe/something (startsWith)", () =>
       expect(isPathAllowedForUser("/subscribe/something", user)).toBe(true));
@@ -51,6 +49,8 @@ describe("isPathAllowedForUser", () => {
     it("allows /profile?tab=billing (strip query string)", () => {
       expect(isPathAllowedForUser("/profile?tab=billing", user)).toBe(true);
     });
+    it("rejects /dashboard (free never accesses ERP)", () =>
+      expect(isPathAllowedForUser("/dashboard", user)).toBe(false));
     it("rejects /transactions", () =>
       expect(isPathAllowedForUser("/transactions", user)).toBe(false));
     it("rejects /proposals", () =>

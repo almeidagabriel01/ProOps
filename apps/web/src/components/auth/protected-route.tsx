@@ -125,14 +125,15 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Free tier: only /dashboard, /profile, /subscribe (and a few aux paths)
-    // are accessible. Any other internal route bounces to /dashboard so the
-    // user sees the upgrade CTA instead of a 403. Handled BEFORE permission
-    // loading because free accounts don't have a permissions document — the
-    // allowlist is the only gate that applies to them.
+    // Free tier: only /, /profile, /subscribe, /checkout-success and
+    // /subscription-blocked are accessible. Any other route — including the
+    // ERP dashboard — bounces to the public landing so no ERP page is ever
+    // rendered for a free account. Handled BEFORE permission loading because
+    // free accounts don't have a permissions document; the allowlist is the
+    // only gate that applies to them.
     if (user.role === "free") {
       if (!isPathAllowedForUser(pathname, user)) {
-        router.replace("/dashboard");
+        router.replace("/");
       }
       return;
     }

@@ -222,6 +222,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
 
+    // Free tier never needs tenant data — they only see the landing,
+    // /profile and the subscribe flow. Loading tenant docs for them would
+    // hydrate ERP-shaped context that downstream components could leak
+    // through prefetch or stale renders before ProtectedRoute kicks in.
+    if (user?.role?.toLowerCase() === "free") {
+      setTenant(null);
+      setTenantOwner(null);
+      setTenantOwnerPlanName(null);
+      currentTenantIdRef.current = null;
+      lastResolvedContextKeyRef.current = contextKey;
+      setIsLoading(false);
+      return;
+    }
+
     if (tenantIdToLoad) {
       try {
         let fetchedTenant: Tenant | null = null;

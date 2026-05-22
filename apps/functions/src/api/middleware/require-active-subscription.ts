@@ -33,6 +33,30 @@ const WHITELISTED_PREFIXES = [
   "/authenticated",
 ];
 
+// Routes a free-tier account is explicitly allowed to call. Subset of the
+// whitelist plus the endpoints needed to manage one's own profile and tenant
+// metadata from the /profile page. Anything outside this list is blocked
+// with HTTP 402 so a free user cannot reach ERP endpoints (proposals,
+// transactions, wallets, contacts, calendar, kanban, etc.) via direct API
+// hits even if a stale session cookie lets them past the Next.js middleware.
+const FREE_TIER_ALLOWED_PREFIXES = [
+  "/v1/stripe/",
+  "/v1/users/me",
+  "/v1/auth/",
+  "/v1/billing/",
+  "/v1/validation/",
+  "/v1/profile",
+  "/v1/tenants/", // GET own tenant (multi-tenant isolation is enforced separately)
+  "/v1/aux/proxy-image",
+  "/health",
+  "/internal/",
+  "/authenticated",
+];
+
+function isFreeTierAllowedPath(path: string): boolean {
+  return FREE_TIER_ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
 function isWhitelistedPath(path: string): boolean {
   return WHITELISTED_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
@@ -119,12 +143,42 @@ export async function requireActiveSubscription(
 
   const { subscriptionStatus, plan, pastDueSince } = billingState;
 
-  if (
-    plan === "free" ||
-    subscriptionStatus === "free" ||
-    subscriptionStatus === "" ||
-    subscriptionStatus === "active"
-  ) {
+  // Free tier: only allowed to call account/billing/profile endpoints. Any
+  // other path is denied with HTTP 402 so a free account cannot reach ERP
+  // endpoints via direct fetch, even if its session cookie is still valid.
+  const isFreeTier = plan === "free" || subscriptionStatus === "free";
+  if (isFreeTier) {
+    if (isFreeTierAllowedPath(req.path)) {
+      next();
+      return;
+    }
+    logger.warn(
+      "billing_free_tier_blocked",
+      buildSecurityLogContext(req, {
+        tenantId,
+        uid: user.uid,
+        reason: "FREE_TIER_FORBIDDEN_ROUTE",
+        source: "require_active_subscription",
+        status: 402,
+      }),
+    );
+    void writeSecurityAuditEvent({
+      eventType: "BILLING_SUBSCRIPTION_BLOCK",
+      tenantId,
+      uid: user.uid,
+      source: "require_active_subscription",
+      reason: "FREE_TIER_FORBIDDEN_ROUTE",
+      route: req.path,
+      status: 402,
+    });
+    res.status(402).json({
+      message: "Recurso disponível apenas para planos pagos. Assine um plano para continuar.",
+      code: "FREE_TIER_FORBIDDEN",
+    });
+    return;
+  }
+
+  if (subscriptionStatus === "" || subscriptionStatus === "active") {
     next();
     return;
   }

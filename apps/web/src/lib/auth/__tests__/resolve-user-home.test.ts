@@ -66,10 +66,10 @@ describe("resolveUserHome", () => {
     expect(result.path).not.toBe("/subscription-blocked");
   });
 
-  it("returns /dashboard for free role (only page free tier can see)", () => {
+  it("returns landing for free role (free tier never sees ERP, not even dashboard)", () => {
     expect(resolveUserHome(makeUser({ role: "free" }))).toEqual({
-      kind: "dashboard",
-      path: "/dashboard",
+      kind: "landing",
+      path: "/",
     });
   });
 
