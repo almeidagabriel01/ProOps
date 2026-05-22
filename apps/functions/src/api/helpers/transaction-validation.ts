@@ -1,9 +1,19 @@
+export type TransactionWritableStatus = "paid" | "pending";
+export const WRITABLE_STATUSES: ReadonlySet<TransactionWritableStatus> = new Set([
+  "paid",
+  "pending",
+]);
+
+export function isWritableStatus(value: unknown): value is TransactionWritableStatus {
+  return typeof value === "string" && WRITABLE_STATUSES.has(value as TransactionWritableStatus);
+}
+
 export interface CreateTransactionDTO {
   description: string;
   amount: number;
   date: string; // YYYY-MM-DD
   type: "income" | "expense";
-  status: "paid" | "pending" | "overdue";
+  status: TransactionWritableStatus;
   dueDate?: string;
   clientId?: string;
   clientName?: string;
@@ -36,7 +46,7 @@ export interface CreateTransactionDTO {
     date: string;
     dueDate?: string;
     wallet?: string;
-    status: "paid" | "pending" | "overdue";
+    status: TransactionWritableStatus;
     downPaymentType?: string;
     downPaymentPercentage?: number;
     installmentNumber?: number;
@@ -54,18 +64,28 @@ export const validateTransactionData = (data: Partial<CreateTransactionDTO>) => 
     !data.type ||
     !data.status
   ) {
-    return { 
-      isValid: false, 
-      message: "Campos obrigatórios faltando: description, amount, date, type, status." 
+    return {
+      isValid: false,
+      message: "Campos obrigatórios faltando: description, amount, date, type, status."
     };
   }
-  
+
   if (data.amount <= 0) {
     return { isValid: false, message: "O valor deve ser maior que zero." };
   }
 
-  if (data.downPayment !== undefined && !["paid", "pending"].includes(data.downPayment.status)) {
-    return { isValid: false, message: "Status da entrada deve ser 'paid' ou 'pending'." };
+  if (!isWritableStatus(data.status)) {
+    return {
+      isValid: false,
+      message: "Status inválido. 'Atrasado' é definido automaticamente pelo sistema.",
+    };
+  }
+
+  if (data.downPayment !== undefined && !isWritableStatus(data.downPayment.status)) {
+    return {
+      isValid: false,
+      message: "Status da entrada deve ser 'Pago' ou 'Pendente'.",
+    };
   }
 
   return { isValid: true, message: "" };

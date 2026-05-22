@@ -556,6 +556,31 @@ export const processPayoutRetriesManual = async (
  * Body: { tenantId?: string } — omit tenantId to clear the entire cache.
  * Header: x-cron-secret must match CRON_SECRET.
  */
+export const markOverdueTransactionsManual = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const { runMarkOverdueTransactions } = await import(
+      "../../markOverdueTransactions"
+    );
+    const result = await runMarkOverdueTransactions();
+    logger.info("[markOverdueTransactions manual] completed", { ...result });
+    return res.json(result);
+  } catch (error) {
+    logger.error("[markOverdueTransactions manual] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const cleanupTrialFieldsManual = async (
   req: Request,
   res: Response,

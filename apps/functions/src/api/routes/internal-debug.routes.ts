@@ -11,11 +11,13 @@ import { Router } from "express";
 import {
   invalidateTenantPlanCacheManual,
   cleanupTrialFieldsManual,
+  markOverdueTransactionsManual,
 } from "../controllers/internal.controller";
 
 const router = Router();
 
 router.post("/debug/invalidate-tenant-plan-cache", invalidateTenantPlanCacheManual);
 router.post("/admin/cleanup-trial-fields", cleanupTrialFieldsManual);
+router.post("/cron/mark-overdue", markOverdueTransactionsManual);
 
 export { router as internalDebugRoutes };

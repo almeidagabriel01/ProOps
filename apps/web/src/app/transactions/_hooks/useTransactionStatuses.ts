@@ -99,8 +99,16 @@ export function useTransactionStatuses() {
     [statuses, tenant],
   );
 
+  // Editable subset — 'overdue' is derived automatically by the backend cron
+  // and on-read defense; users can only set 'paid' or 'pending' manually.
+  const editableStatuses = React.useMemo(
+    () => statuses.filter((s) => s.id !== "overdue"),
+    [statuses],
+  );
+
   return {
     statuses,
+    editableStatuses,
     isLoaded,
     reorderStatuses,
   };

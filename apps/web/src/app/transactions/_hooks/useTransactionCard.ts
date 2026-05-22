@@ -90,7 +90,7 @@ export interface TransactionCardState {
   extraCostLabel: string;
   extraCostToDeleteParentId: string;
   extraCostToDeleteId: string | null;
-  statusOptions: ReturnType<typeof useTransactionStatuses>["statuses"];
+  statusOptions: ReturnType<typeof useTransactionStatuses>["editableStatuses"];
   // handlers
   handleToggleExpand: () => void;
   handleShare: (e: React.MouseEvent) => void;
@@ -126,7 +126,7 @@ export function useTransactionCard({
   controlledIsExpanded,
   onToggleExpand,
 }: UseTransactionCardArgs): TransactionCardState {
-  const { statuses: statusOptions } = useTransactionStatuses();
+  const { editableStatuses: statusOptions } = useTransactionStatuses();
   const router = useRouter();
   const extraCostLabel = transaction.type === "income" ? "Acréscimo" : "Custo Extra";
 

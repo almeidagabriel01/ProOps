@@ -56,7 +56,7 @@ export function TransactionInstallmentsList({
     if (!v) return v;
     return wallets.find((w) => w.id === v || w.name === v)?.name ?? v;
   };
-  const { statuses: statusOptions } = useTransactionStatuses();
+  const { editableStatuses: statusOptions } = useTransactionStatuses();
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [undoingId, setUndoingId] = React.useState<string | null>(null);

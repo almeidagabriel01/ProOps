@@ -101,7 +101,7 @@ export function TransactionListByDueDate({
   wallets = [],
   allTransactions = [],
 }: TransactionListByDueDateProps) {
-  const { statuses: statusOptions } = useTransactionStatuses();
+  const { editableStatuses: statusOptions } = useTransactionStatuses();
   const [updatingState, setUpdatingState] = React.useState<{
     id: string;
     field: "status" | "wallet";

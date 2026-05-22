@@ -23,6 +23,7 @@ export { api } from "./api";
 // 2. Scheduled Tasks
 export { checkManualSubscriptions } from "./checkManualSubscriptions";
 export { checkDueDates } from "./checkDueDates";
+export { markOverdueTransactions } from "./markOverdueTransactions";
 export { checkStripeSubscriptions } from "./checkStripeSubscriptions";
 export { reportWhatsappOverage } from "./reportWhatsappOverage";
 export { applyScheduledPlanChanges } from "./applyScheduledPlanChanges";
