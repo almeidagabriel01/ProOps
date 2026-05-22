@@ -512,13 +512,15 @@ export function useTransactionForm(): UseTransactionFormReturn {
       }
 
       // Generate Group ID.
-      // For recurring entries we eagerly materialize 60 occurrences (5 years
-      // of monthly cadence) so the cash-flow forecast, calendar and date
-      // filters work out of the box — same pattern as Asaas, Conta Azul and
-      // QuickBooks. Backend caps at 120 (RECURRING_MAX_OCCURRENCES) as an
-      // anti-abuse guard. To change cadence or count later, we'd expose
-      // inputs in the form and forward them here.
-      const RECURRING_DEFAULT_OCCURRENCES = 60;
+      // Rolling-window strategy for recurring entries:
+      //   1. Create 12 occurrences upfront (1 year monthly) — enough for
+      //      forecast, calendar and monthly filters without bloating the
+      //      collection.
+      //   2. Backend's getNextRecurringTransactionOps appends the next
+      //      occurrence whenever the user marks one as paid, so the user
+      //      always sees roughly 12 unpaid future occurrences ahead.
+      // Backend hard-caps the initial series at 120 as anti-abuse defense.
+      const RECURRING_DEFAULT_OCCURRENCES = 12;
       const submitDbCount = formData.isRecurring
         ? RECURRING_DEFAULT_OCCURRENCES
         : formData.isInstallment
