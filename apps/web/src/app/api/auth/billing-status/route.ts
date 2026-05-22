@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 import { unstable_cache } from "next/cache";
+import { isFreeTierAllowedPath } from "@/lib/auth/resolve-user-home";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,13 +58,14 @@ function createBillingStateFetcher(tenantId: string) {
       const db = getAdminFirestore();
       const tenantSnap = await db.collection("tenants").doc(tenantId).get();
       if (!tenantSnap.exists) {
-        return { subscriptionStatus: "", pastDueSince: null };
+        return { subscriptionStatus: "", plan: "", pastDueSince: null };
       }
       const data = tenantSnap.data() as Record<string, unknown> | undefined;
       const subscriptionStatus = String(data?.subscriptionStatus || "").trim().toLowerCase();
+      const plan = String(data?.plan || "").trim().toLowerCase();
       const pastDueSince =
         typeof data?.pastDueSince === "string" && data.pastDueSince ? data.pastDueSince : null;
-      return { subscriptionStatus, pastDueSince };
+      return { subscriptionStatus, plan, pastDueSince };
     },
     [`billing-state-${tenantId}`],
     { revalidate: BILLING_CACHE_TTL_SECONDS, tags: [`billing-status:${tenantId}`] },
@@ -72,6 +74,7 @@ function createBillingStateFetcher(tenantId: string) {
 
 async function resolveBillingState(tenantId: string): Promise<{
   subscriptionStatus: string;
+  plan: string;
   pastDueSince: string | null;
 }> {
   return createBillingStateFetcher(tenantId)();
@@ -112,6 +115,22 @@ export async function GET(req: NextRequest) {
     const { subscriptionStatus, pastDueSince } =
       await resolveBillingState(tenantId);
 
+    // Free tier guard. Uses the USER role from the session-cookie claim
+    // (authoritative for who's paying) rather than tenants/{id}.plan,
+    // which can be desynchronized in legacy data (some paying tenants
+    // still carry `plan: "free"` despite an active subscription). If
+    // the user role is 'free', allow only the free-tier allowlist; any
+    // other path (including /dashboard) is blocked before the page renders.
+    const requestedPath = req.nextUrl.searchParams.get("path") || "";
+    const isFreeUser = String(decoded.role || "").toLowerCase() === "free";
+    if (isFreeUser && requestedPath && !isFreeTierAllowedPath(requestedPath)) {
+      return NextResponse.json({
+        allowed: false,
+        status: "free",
+        reason: "free_tier_forbidden",
+      });
+    }
+
     const allowed = isBillingAllowed(subscriptionStatus, pastDueSince);
     return NextResponse.json({ allowed, status: subscriptionStatus });
   } catch (error: unknown) {
@@ -136,8 +155,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Fail open on infra errors — other layers (backend middleware, Firestore rules) catch this.
+    // Fail closed on infra errors. Previously we returned allowed:true on
+    // unexpected errors so an outage wouldn't lock anyone out — but that
+    // meant a free user could reach the ERP whenever the cookie verifier
+    // failed transiently. Bounce to subscription-blocked instead; the user
+    // can refresh or try again.
     console.error("[billing-status] unexpected error", error);
-    return NextResponse.json({ allowed: true, status: "unknown" });
+    return NextResponse.json({
+      allowed: false,
+      status: "error",
+      reason: "billing_check_failed",
+    });
   }
 }

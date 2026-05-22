@@ -53,13 +53,6 @@ export function extractPrimaryPriceId(subscription: {
   return nonOverage?.price.id ?? null;
 }
 
-export function extractTrialEndsAt(subscription: {
-  trial_end?: number | null;
-}): string | null {
-  if (!subscription.trial_end) return null;
-  return new Date(subscription.trial_end * 1000).toISOString();
-}
-
 export function isMainPlanSubscription(subscription: {
   metadata?: Record<string, string> | null;
   items: { data: Array<{ price: { id: string } }> };

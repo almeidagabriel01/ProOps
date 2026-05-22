@@ -25,10 +25,6 @@ export type Tenant = {
   stripeSubscriptionId?: string;
   whatsappOverageSubscriptionItemId?: string;
   transactionStatusOrder?: string[];
-  trialUsedAt?: string;
-  trialReservedAt?: string | null;
-  trialEndsAt?: string;
-  trialPlanTier?: string;
   mercadoPagoEnabled?: boolean;
   asaasEnabled?: boolean;
   // Billing fields (synced from Stripe via BillingSnapshot)
@@ -36,7 +32,6 @@ export type Tenant = {
   currentPeriodEnd?: string | null; // ISO
   cancelAtPeriodEnd?: boolean;
   pastDueSince?: string | null;
-  // trialEndsAt already declared above
   billingSyncedAt?: string; // ISO — quando o Firestore foi sincronizado do Stripe
   isBillingStale?: boolean; // flag calculada pelo backend
   checkoutInFlightAt?: string | null;
@@ -113,8 +108,7 @@ export type SubscriptionStatus =
   | "payment_failed"
   | "trialing"
   | "free"
-  | "inactive"
-  | "trial";
+  | "inactive";
 
 // Subscription Plans
 export type PlanTier = "starter" | "pro" | "enterprise";

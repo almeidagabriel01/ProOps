@@ -20,7 +20,6 @@ interface CheckoutRequest {
   userEmail?: string;
   billingInterval?: BillingInterval;
   origin?: string;
-  skipTrial?: boolean;
 }
 
 interface CheckoutResponse {
@@ -38,8 +37,6 @@ interface ConfirmResponse {
   subscriptionId?: string;
   planTier?: string;
   status?: string;
-  trial?: boolean;
-  trialEndsAt?: string;
 }
 
 interface AddonCheckoutRequest {

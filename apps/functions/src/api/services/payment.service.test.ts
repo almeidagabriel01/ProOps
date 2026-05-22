@@ -12,6 +12,7 @@ jest.mock("../../init", () => ({
 jest.mock("./asaas.service", () => ({
   AsaasService: {
     getAsaasData: jest.fn(),
+    refreshAccountStatus: jest.fn().mockResolvedValue({ general: "APPROVED" }),
     getBaseUrl: jest.fn((env: string) =>
       env === "sandbox" ? "https://api-sandbox.asaas.com" : "https://api.asaas.com",
     ),

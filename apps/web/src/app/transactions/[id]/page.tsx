@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, AlertCircle } from "lucide-react";
+import { Wallet, AlertCircle, Info } from "lucide-react";
 import {
   useEditTransaction,
   EditTransactionFormData,
@@ -69,6 +69,9 @@ export default function EditTransactionPage() {
     isProposalTransaction,
     groupTotalValue,
     switchPaymentMode,
+    recurringEditScope,
+    setRecurringEditScope,
+    fromGrouped,
   } = useEditTransaction();
 
   // Adapt formData type for shared components
@@ -199,6 +202,29 @@ export default function EditTransactionPage() {
     relatedInstallments.length,
   ]);
 
+  // Resolve current installment number (with fallbacks if undefined)
+  const resolvedInstallmentNumber = React.useMemo(() => {
+    if (transaction?.installmentNumber) {
+      return transaction.installmentNumber;
+    }
+    // Fallback 1: Parse from description
+    const desc = transaction?.description || "";
+    const match = desc.match(/\((\d+)\/\d+\)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num)) return num;
+    }
+    // Fallback 2: Check index in relatedInstallments
+    if (transaction && relatedInstallments.length > 0) {
+      const regularInstallments = relatedInstallments.filter(t => !t.isDownPayment);
+      const index = regularInstallments.findIndex(t => t.id === transaction.id);
+      if (index !== -1) {
+        return index + 1;
+      }
+    }
+    return undefined;
+  }, [transaction, relatedInstallments]);
+
   // Show loading first - before checking plan access to avoid flash
   if (isLoading || planLoading) {
     return <EntityLoadingState message="Carregando transação..." />;
@@ -265,6 +291,8 @@ export default function EditTransactionPage() {
           onChange={() => {}}
           onClientChange={() => {}}
           totalOverride={totalValueOverride}
+          installmentNumber={resolvedInstallmentNumber}
+          recurringEditScope={recurringEditScope}
         />
 
         <div className="flex justify-end pt-6">
@@ -287,6 +315,71 @@ export default function EditTransactionPage() {
         icon={Wallet}
         onBack={() => router.push("/transactions")}
       />
+
+      {(transaction?.isRecurring || transaction?.isInstallment || !!transaction?.installmentGroupId) && !fromGrouped && (
+        <div className="mb-6 rounded-xl border border-border/50 bg-card p-4">
+          <p className="mb-3 text-sm font-medium text-foreground">
+            Aplicar alterações:
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/50 p-3 text-sm transition-colors hover:bg-muted/50">
+              <input
+                type="radio"
+                name="recurring-edit-scope"
+                value="single"
+                checked={recurringEditScope === "single"}
+                onChange={() => setRecurringEditScope("single")}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block font-medium">Somente esta ocorrência</span>
+                <span className="block text-xs text-muted-foreground">
+                  Altera apenas este lançamento; demais meses/parcelas permanecem com os valores originais
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/50 p-3 text-sm transition-colors hover:bg-muted/50">
+              <input
+                type="radio"
+                name="recurring-edit-scope"
+                value="series"
+                checked={recurringEditScope === "series"}
+                onChange={() => setRecurringEditScope("series")}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block font-medium">Toda a série recorrente / parcelamento</span>
+                <span className="block text-xs text-muted-foreground">
+                  Regenera todas as ocorrências/parcelas (preserva valores já editados manualmente)
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {(transaction?.isRecurring || transaction?.isInstallment || !!transaction?.installmentGroupId) && fromGrouped && (
+        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3">
+          <div className="p-2 bg-primary/10 rounded-lg text-primary flex items-center justify-center">
+            <Info className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Aplicando alterações:{" "}
+              <span className="text-primary font-semibold">
+                {recurringEditScope === "single"
+                  ? "Somente esta ocorrência"
+                  : "Toda a série recorrente"}
+              </span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {recurringEditScope === "single"
+                ? "Como você clicou para editar a parcela individualmente na visualização por agrupados, a alteração se aplica apenas a este vencimento."
+                : "Como você clicou para editar a recorrência/parcelamento inteiro na visualização por agrupados, as alterações se aplicarão a toda a série."}
+            </p>
+          </div>
+        </div>
+      )}
 
       <StepWizard
         steps={transactionSteps}
@@ -346,6 +439,7 @@ export default function EditTransactionPage() {
             isProposalTransaction={!!isProposalTransaction}
             onPaymentModeChange={switchPaymentMode}
             errors={paymentErrors}
+            recurringEditScope={recurringEditScope}
           />
 
           <StepNavigation onBeforeNext={validatePaymentStep} />
@@ -358,6 +452,8 @@ export default function EditTransactionPage() {
             onChange={handleChange}
             onClientChange={handleClientChange}
             totalOverride={totalValueOverride}
+            installmentNumber={resolvedInstallmentNumber}
+            recurringEditScope={recurringEditScope}
           />
           <StepNavigation
             onSubmit={handleFormSubmit}

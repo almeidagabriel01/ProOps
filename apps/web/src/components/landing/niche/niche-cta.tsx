@@ -49,7 +49,7 @@ export function NicheCta({ cta }: NicheCtaProps) {
         >
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
             <Button asChild size="lg" className="btn-sweep rounded-full px-8 font-semibold bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
-              <Link href="/register">Criar conta grátis</Link>
+              <Link href="/register">Criar conta</Link>
             </Button>
           </motion.div>
 

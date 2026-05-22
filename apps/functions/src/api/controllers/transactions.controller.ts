@@ -7,12 +7,18 @@ import { TransactionService } from "../services/transaction.service";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 
+// Manual writes can only set 'paid' or 'pending' — 'overdue' is derived
+// automatically from dueDate by the daily cron and on-read defense.
+const WritableStatusSchema = z.enum(["paid", "pending"], {
+  message: "Status inválido. 'Atrasado' é definido automaticamente pelo sistema.",
+});
+
 const CreateTransactionSchema = z.object({
   description: z.string().min(1).max(500).trim(),
   amount: z.number().positive("O valor deve ser maior que zero."),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (YYYY-MM-DD)."),
   type: z.enum(["income", "expense"]),
-  status: z.enum(["paid", "pending", "overdue"]),
+  status: WritableStatusSchema,
   dueDate: z.string().max(10).optional(),
   clientId: z.string().max(100).optional(),
   clientName: z.string().max(200).optional(),
@@ -39,7 +45,7 @@ const CreateTransactionSchema = z.object({
     date: z.string(),
     dueDate: z.string().optional(),
     wallet: z.string().max(200).optional(),
-    status: z.enum(["paid", "pending", "overdue"]),
+    status: WritableStatusSchema,
     downPaymentType: z.string().max(50).optional(),
     downPaymentPercentage: z.number().min(0).max(100).optional(),
     installmentNumber: z.number().int().optional(),
@@ -54,7 +60,7 @@ const UpdateTransactionSchema = z.object({
   amount: z.number().positive().optional(),
   date: z.string().max(10).optional(),
   type: z.enum(["income", "expense"]).optional(),
-  status: z.enum(["paid", "pending", "overdue"]).optional(),
+  status: WritableStatusSchema.optional(),
   dueDate: z.string().max(10).optional().nullable(),
   clientId: z.string().max(100).optional().nullable(),
   clientName: z.string().max(200).optional().nullable(),
@@ -230,15 +236,17 @@ export const updateTransactionsStatusBatch = async (
     const userId = req.user!.uid;
     const { ids, newStatus } = req.body as {
       ids?: string[];
-      newStatus?: "paid" | "pending" | "overdue";
+      newStatus?: "paid" | "pending";
     };
 
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ message: "IDs inválidos." });
     }
 
-    if (!newStatus || !["paid", "pending", "overdue"].includes(newStatus)) {
-      return res.status(400).json({ message: "Status inválido." });
+    if (!newStatus || !["paid", "pending"].includes(newStatus)) {
+      return res.status(400).json({
+        message: "Status inválido. 'Atrasado' é definido automaticamente pelo sistema.",
+      });
     }
 
     const count = await TransactionService.updateStatusBatch(
@@ -331,15 +339,17 @@ export const updateGroupStatus = async (req: Request, res: Response) => {
     const { newStatus } = req.body as { newStatus?: string };
 
     if (!groupId) return res.status(400).json({ message: "ID de grupo inválido." });
-    if (!newStatus || !["paid", "pending", "overdue"].includes(newStatus)) {
-      return res.status(400).json({ message: "Status inválido." });
+    if (!newStatus || !["paid", "pending"].includes(newStatus)) {
+      return res.status(400).json({
+        message: "Status inválido. 'Atrasado' é definido automaticamente pelo sistema.",
+      });
     }
 
     const count = await TransactionService.updateGroupStatus(
       userId,
       req.user,
       groupId,
-      newStatus as "paid" | "pending" | "overdue",
+      newStatus as "paid" | "pending",
     );
 
     return res.json({ success: true, message: `${count} lançamentos do grupo atualizados.`, count });

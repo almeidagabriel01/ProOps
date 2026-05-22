@@ -40,11 +40,11 @@ Exceção: `createCheckoutSession` e `confirmCheckoutSession` aceitam `allowFree
 
 ### Tiers disponíveis
 
-| Tier | Nome | Trial | Destaques |
-|------|------|-------|-----------|
-| `starter` | Starter | Nao | 80 propostas, 1 usuario, sem financeiro |
-| `pro` | Profissional | 7 dias | Ilimitado, 2 usuarios, financeiro, customizacao |
-| `enterprise` | Enterprise | Nao | Tudo ilimitado, Kanban |
+| Tier | Nome | Destaques |
+|------|------|-----------|
+| `starter` | Starter | 80 propostas, 1 usuario, sem financeiro |
+| `pro` | Profissional | Ilimitado, 2 usuarios, financeiro, customizacao |
+| `enterprise` | Enterprise | Tudo ilimitado, Kanban |
 
 ### Add-ons compraveis
 
@@ -71,12 +71,7 @@ Precos sao lidos dinamicamente do Stripe via `getPriceConfig()` de `stripeConfig
 
 ### Fluxo se usuario NAO TEM assinatura (novo checkout)
 1. Cria `stripe.customers` se `customerId` ainda nao existe; persiste no Firestore
-2. **Trial eligibility** (apenas `planTier === "pro"` e `skipTrial !== true`):
-   - `reserveTrialSlot(tenantId)` — Firestore Transaction atomica que seta `trialReservedAt`; evita race condition TOCTOU
-   - `hasEmailUsedTrial(email)` — cruza todos os tenants com o mesmo email para bloquear abuso multi-conta
-   - Se elegivel, seta `trial_period_days: 7` no `subscription_data`
-   - `payment_method_collection: "always"` — cartao sempre obrigatorio mesmo em trial
-   - TTL de reserva: 30 minutos (checkout abandonado libera o slot)
+2. `payment_method_collection: "always"` — cartão sempre obrigatório
 3. `success_url: /checkout-success?session_id={CHECKOUT_SESSION_ID}` — frontend chama `confirmCheckoutSession` ao carregar esta página
 
 ---
@@ -86,12 +81,11 @@ Precos sao lidos dinamicamente do Stripe via `getPriceConfig()` de `stripeConfig
 Chamado pelo frontend apos redirect de sucesso:
 
 1. Recupera sessao do Stripe com `expand: ["subscription"]`
-2. Valida `session.status === "complete"` e `payment_status === "paid"` ou `"no_payment_required"` (trial)
+2. Valida `session.status === "complete"` e `payment_status === "paid"`
 3. Valida que `session.metadata.userId` e `session.metadata.tenantId` batem com o token autenticado
-4. Chama `markTrialUsed(tenantId)` se status for `"trialing"` — seta `trialUsedAt` e `trialEndsAt`
-5. Chama `addWhatsAppOverageToSubscription` para adicionar item de overage
-6. Persiste em `users/{userId}` e `tenants/{tenantId}`
-7. Retorna `{ success, subscriptionId, planTier, status, trial?, trialEndsAt? }`
+4. Chama `addWhatsAppOverageToSubscription` para adicionar item de overage
+5. Persiste em `users/{userId}` e `tenants/{tenantId}`
+6. Retorna `{ success, subscriptionId, planTier, status }`
 
 ---
 
@@ -135,7 +129,6 @@ O webhook esta em `functions/src/stripe/stripeWebhook.ts` (nao neste controller)
 | `customer.subscription.deleted` | Marca como `canceled`, downgrade para `free` |
 | `invoice.payment_succeeded` | Atualiza `subscriptionStatus` para `active` |
 | `invoice.payment_failed` | Atualiza para `past_due` |
-| `customer.subscription.trial_will_end` | (log) |
 
 ---
 
@@ -146,12 +139,11 @@ O webhook esta em `functions/src/stripe/stripeWebhook.ts` (nao neste controller)
 ```
 stripeId: string                 // Stripe customer ID
 stripeSubscriptionId: string     // ID da subscription ativa
-subscriptionStatus: string       // active | trialing | past_due | canceled | free
+subscriptionStatus: string       // active | past_due | canceled | free (trialing tolerado defensivamente)
 currentPeriodEnd: ISO string     // fim do periodo atual
 cancelAtPeriodEnd: boolean
 billingInterval: "monthly" | "yearly"
 planId: string                   // starter | pro | enterprise | free
-trialUsedAt?: ISO string         // setado ao confirmar trial
 ```
 
 ### `tenants/{tenantId}`
@@ -164,9 +156,6 @@ currentPeriodEnd: ISO string
 cancelAtPeriodEnd: boolean
 cancelScheduledAt?: ISO string
 whatsappOverageSubscriptionItemId?: string  // item ID do Stripe para overage metered billing
-trialUsedAt?: ISO string
-trialReservedAt?: ISO string    // reserva atomica de trial (TTL 30 min)
-trialEndsAt?: ISO string
 ```
 
 ### `addons/{tenantId}_{addonId}`
@@ -223,5 +212,4 @@ Essa funcao previne que um admin de um tenant manipule a subscription de outro t
 - [ ] Testar webhook localmente com `stripe listen --forward-to localhost:5001/...`
 - [ ] Nao mudar `WHATSAPP_OVERAGE_PRICE_ID` sem migrar os itens de subscription existentes
 - [ ] `createCheckoutSession` aceita `allowFreeOwnerCheckout` — nao remover sem rever o fluxo de onboarding
-- [ ] Trial: testar `reserveTrialSlot` com requests concorrentes para confirmar que TOCTOU esta protegido
 - [ ] `cancel_at_period_end: true` — nunca cancelar imediatamente sem confirmacao explicita do usuario

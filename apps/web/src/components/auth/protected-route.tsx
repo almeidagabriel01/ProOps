@@ -21,6 +21,7 @@ import {
   pageRequiresAuth,
   pageIsMasterOnly,
 } from "@/lib/page-config";
+import { isPathAllowedForUser } from "@/lib/auth/resolve-user-home";
 import { ProtectedAppShell } from "@/components/layout/protected-app-shell";
 import { RouteContentSkeleton } from "@/components/layout/route-content-skeleton";
 import { EmailVerificationPending } from "@/components/auth/email-verification-pending";
@@ -120,6 +121,19 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
             router.push("/login?redirect_reason=session_expired");
           }
         }
+      }
+      return;
+    }
+
+    // Free tier: only /, /profile, /subscribe, /checkout-success and
+    // /subscription-blocked are accessible. Any other route — including the
+    // ERP dashboard — bounces to the public landing so no ERP page is ever
+    // rendered for a free account. Handled BEFORE permission loading because
+    // free accounts don't have a permissions document; the allowlist is the
+    // only gate that applies to them.
+    if (user.role === "free") {
+      if (!isPathAllowedForUser(pathname, user)) {
+        router.replace("/");
       }
       return;
     }

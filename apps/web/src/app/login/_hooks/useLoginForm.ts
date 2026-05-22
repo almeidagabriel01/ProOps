@@ -4,7 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { User } from "@/types";
-import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { isPathAllowedForUser, resolveUserHome } from "@/lib/auth/resolve-user-home";
 import {
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
@@ -314,12 +314,33 @@ export function useLoginForm(): UseLoginFormReturn {
       return;
     }
 
-    // Everyone else: role-based home resolution. resolveUserHome handles
-    // free → "/", subscription-blocked → "/subscription-blocked",
+    // If the login page was opened with ?redirect=<path> (e.g. from
+    // "Assinar agora" on the landing pricing, which links to
+    // /login?redirect=/subscribe?plan=pro), honour it as long as the path
+    // is allowed for this user's role. This is what sends the user to the
+    // Stripe checkout after auth instead of dropping them on the dashboard.
+    const redirectParam = searchParams.get("redirect");
+    if (redirectParam) {
+      const decoded = (() => {
+        try {
+          return decodeURIComponent(redirectParam);
+        } catch {
+          return redirectParam;
+        }
+      })();
+      const isInternal = decoded.startsWith("/") && !decoded.startsWith("//");
+      if (isInternal && isPathAllowedForUser(decoded, user ?? null)) {
+        router.replace(decoded);
+        return;
+      }
+    }
+
+    // Fallback: role-based home resolution. resolveUserHome handles
+    // free → "/dashboard", subscription-blocked → "/subscription-blocked",
     // admin/MASTER → "/dashboard", MEMBER → first-allowed page.
     const home = resolveUserHome(user ?? null);
     router.replace(home.path);
-  }, [router, user]);
+  }, [router, user, searchParams]);
 
   // If already logged in, redirect
   React.useEffect(() => {
@@ -477,10 +498,19 @@ export function useLoginForm(): UseLoginFormReturn {
       }
     } catch (googleError: unknown) {
       const code = (googleError as { code?: string })?.code;
-      const fallbackCodes = [
+      // User intentionally closed or cancelled the popup — just stop silently.
+      const silentCodes = [
         "auth/popup-closed-by-user",
-        "auth/popup-blocked",
         "auth/cancelled-popup-request",
+      ];
+      if (code && silentCodes.includes(code)) {
+        setIsGoogleLoading(false);
+        return;
+      }
+
+      // Popup was blocked by the browser — fall back to full-page redirect.
+      const fallbackCodes = [
+        "auth/popup-blocked",
         "auth/operation-not-supported-in-this-environment",
       ];
       if (code && fallbackCodes.includes(code)) {

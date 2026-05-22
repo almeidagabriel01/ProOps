@@ -81,10 +81,6 @@ type Tenant = {
   stripeSubscriptionId?: string;
   whatsappOverageSubscriptionItemId?: string;
   transactionStatusOrder?: string[];  // Ordem personalizada de status de transações
-  trialUsedAt?: string;
-  trialReservedAt?: string | null;
-  trialEndsAt?: string;
-  trialPlanTier?: string;
 };
 ```
 
@@ -124,10 +120,6 @@ O `tenantOwner` (usuário admin do tenant) também é exposto pelo provider e us
 ### `whatsappEnabled` / `whatsappPlan`
 - Controlam se o botão de WhatsApp aparece nas propostas
 - Afetam o billing de overage (cron mensal no backend)
-
-### `trialEndsAt` / `trialUsedAt`
-- Determinam se o tenant está em período de trial
-- Exibidos em `/profile` na aba de planos (`BillingTab`)
 
 ---
 

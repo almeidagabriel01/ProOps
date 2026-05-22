@@ -1,17 +1,21 @@
 /**
- * Next.js Middleware
+ * Next.js Proxy (Next 16+)
  *
- * Server-side route protection.
+ * Server-side route protection. Renamed from `middleware.ts` because the
+ * `middleware` file convention was deprecated in Next 16 in favour of
+ * `proxy`. The exported function MUST be named `proxy`; per-request
+ * behaviour is otherwise identical to the previous middleware API.
+ *
  * Checks authentication via Firebase Auth cookies/tokens.
  *
- * IMPORTANT: This middleware provides the first line of defense.
+ * IMPORTANT: This proxy provides the first line of defense.
  * Client-side ProtectedRoute and Cloud Functions provide additional layers.
  *
  * STRATEGY:
  * - Firebase Auth doesn't set cookies automatically in Next.js
  * - We check for the __session cookie (set by client after login)
  * - For full server-side auth, you'd need to verify the token here
- * - This middleware does a lightweight check; Cloud Functions are the authority
+ * - This proxy does a lightweight check; Cloud Functions are the authority
  */
 
 import { NextResponse } from "next/server";
@@ -86,7 +90,7 @@ interface BillingStatusResponse {
 // MIDDLEWARE
 // ============================================
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Legacy route redirect: /automation -> /solutions
@@ -158,10 +162,14 @@ export async function middleware(request: NextRequest) {
   // are the primary enforcement; this gate prevents SSR of protected pages before HTML is served.
   if (!isBillingAllowed(pathname)) {
     try {
-      const billingRes = await fetch(
-        new URL("/api/auth/billing-status", request.url).toString(),
-        { headers: { cookie: request.headers.get("cookie") ?? "" } },
-      );
+      const billingUrl = new URL("/api/auth/billing-status", request.url);
+      // Forward the requested path so billing-status can enforce the free
+      // tier allowlist (free user trying to reach /dashboard etc. is denied
+      // here before any ERP page is rendered).
+      billingUrl.searchParams.set("path", pathname);
+      const billingRes = await fetch(billingUrl.toString(), {
+        headers: { cookie: request.headers.get("cookie") ?? "" },
+      });
       if (billingRes.ok) {
         const billing = (await billingRes.json()) as BillingStatusResponse;
         if (!billing.allowed) {
@@ -181,6 +189,15 @@ export async function middleware(request: NextRequest) {
               path: "/",
               maxAge: 0,
             });
+            return resp;
+          }
+          // Free tier trying to reach an ERP route → bounce to the public
+          // landing. Not /subscription-blocked because the account isn't
+          // blocked, it just doesn't have access to the ERP.
+          if (billing.reason === "free_tier_forbidden") {
+            const homeUrl = new URL("/", request.url);
+            const resp = NextResponse.redirect(homeUrl);
+            resp.headers.set("Cache-Control", "no-store");
             return resp;
           }
           const blockedUrl = new URL("/subscription-blocked", request.url);

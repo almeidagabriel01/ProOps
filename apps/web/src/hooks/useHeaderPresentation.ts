@@ -13,11 +13,12 @@ interface HeaderPresentation {
   avatarSeed: string;
   isViewingAsTenant: boolean;
   isPlanLabelLoading: boolean;
+  isTenantLoading: boolean;
 }
 
 export function useHeaderPresentation(): HeaderPresentation {
   const { user } = useAuth();
-  const { tenant, tenantOwner, tenantOwnerPlanName } = useTenant();
+  const { tenant, tenantOwner, tenantOwnerPlanName, isLoading: isTenantLoading } = useTenant();
 
   const isViewingAsTenant = user?.role === "superadmin" && !!tenant;
   const isMember = user?.role === "member" || !!user?.masterId;
@@ -183,5 +184,6 @@ export function useHeaderPresentation(): HeaderPresentation {
     avatarSeed: tenant?.name || fetchedTenant?.name || user?.name || "U",
     isViewingAsTenant,
     isPlanLabelLoading,
+    isTenantLoading,
   };
 }

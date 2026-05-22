@@ -59,7 +59,10 @@ type TransactionDoc = {
   data: Record<string, any>;
 };
 
-type DbOp = { type: "set"; ref: FirebaseFirestore.DocumentReference; data: any } | { type: "delete"; ref: FirebaseFirestore.DocumentReference };
+type DbOp = 
+  | { type: "set"; ref: FirebaseFirestore.DocumentReference; data: any }
+  | { type: "update"; ref: FirebaseFirestore.DocumentReference; data: any }
+  | { type: "delete"; ref: FirebaseFirestore.DocumentReference };
 
 /**
  * Handles reading the next recurrence to determine if it should be generated/destroyed.
@@ -88,54 +91,143 @@ async function getNextRecurringTransactionOps(
     .limit(1);
 
   const nextSnap = await t.get(nextQuery);
+  const ops: DbOp[] = [];
 
   if (nextStatus === "paid" && nextSnap.empty) {
     // Generate next recurrence
     const interval = currentData.installmentInterval || 1;
-    const nextDueDate = addMonths(currentData.dueDate || currentData.date, interval);
     
-    const nextTx = {
-      tenantId: txTenantId,
-      type: currentData.type,
-      description: currentData.description, // Kept stable without counter for recurrences
-      amount: currentData.amount,
-      date: currentData.date, // Launch date is constant
-      dueDate: nextDueDate,
-      status: "pending",
-      clientId: currentData.clientId || null,
-      clientName: currentData.clientName || null,
-      proposalId: currentData.proposalId || null,
-      category: currentData.category || null,
-      wallet: currentData.installmentsWallet || currentData.wallet || null,
-      isInstallment: false,
-      isRecurring: true,
-      downPaymentType: null,
-      downPaymentPercentage: null,
-      // Pass the count down in case we want to retain whatever the base was, but strictly 1 by 1 UI
-      installmentCount: currentData.installmentCount,
-      installmentNumber: nextNumber,
-      installmentGroupId: null,
-      recurringGroupId: groupId,
-      installmentInterval: interval,
-      paymentMode: currentData.paymentMode || null,
-      notes: currentData.notes || null,
-      extraCosts: [], // Don't forward manual extra costs automatically
-      createdAt: now,
-      updatedAt: now,
-      createdById: userId,
-    };
+    const rawDescription = (currentData.description || "").toString().trim();
+    const baseDescription = rawDescription.replace(/\s*\(\d+\/\d+\)$/, "").trim();
+    
+    const currentLimit = toNumber(currentData.installmentCount, 12);
+    let newLimit = currentLimit;
+    let endNumber = nextNumber;
 
-    const ref = db.collection("transactions").doc();
-    return [{ type: "set", ref, data: nextTx }];
-  } else if (nextStatus !== "paid" && !nextSnap.empty) {
-    // Revered payment -> Delete the automatically generated future one IF it is still pending
-    const nextDoc = nextSnap.docs[0];
-    const nextData = nextDoc.data();
-    if (nextData.status === "pending" || nextData.status === "overdue") {
-       return [{ type: "delete", ref: nextDoc.ref }];
+    if (nextNumber > currentLimit) {
+      newLimit = Math.ceil(nextNumber / 12) * 12;
+      endNumber = newLimit;
+      
+      // Update older documents in that group (adjusting suffixes and counts)
+      const groupQuery = db
+        .collection("transactions")
+        .where("tenantId", "==", txTenantId)
+        .where("recurringGroupId", "==", groupId);
+      
+      const groupSnap = await t.get(groupQuery);
+      for (const doc of groupSnap.docs) {
+        const docData = doc.data();
+        const k = toNumber(docData.installmentNumber, 1);
+        const docRawDesc = (docData.description || "").toString().trim();
+        const docBaseDesc = docRawDesc.replace(/\s*\(\d+\/\d+\)$/, "").trim();
+        const docNextDesc = `${docBaseDesc} (${k}/${newLimit})`;
+        
+        ops.push({
+          type: "update",
+          ref: doc.ref,
+          data: {
+            description: docNextDesc,
+            installmentCount: newLimit,
+            updatedAt: now,
+          },
+        });
+      }
+    } else {
+      newLimit = currentLimit;
+      endNumber = nextNumber;
+    }
+
+    for (let n = nextNumber; n <= endNumber; n++) {
+      const offset = n - currentNumber;
+      const nextDueDate = addMonths(currentData.dueDate || currentData.date, offset * interval);
+      const nextDescription = `${baseDescription} (${n}/${newLimit})`;
+
+      const nextTx = {
+        tenantId: txTenantId,
+        type: currentData.type,
+        description: nextDescription,
+        amount: currentData.amount,
+        date: currentData.date, // Launch date is constant
+        dueDate: nextDueDate,
+        status: "pending",
+        clientId: currentData.clientId || null,
+        clientName: currentData.clientName || null,
+        proposalId: currentData.proposalId || null,
+        category: currentData.category || null,
+        wallet: currentData.installmentsWallet || currentData.wallet || null,
+        isInstallment: false,
+        isRecurring: true,
+        downPaymentType: null,
+        downPaymentPercentage: null,
+        installmentCount: newLimit,
+        installmentNumber: n,
+        installmentGroupId: null,
+        recurringGroupId: groupId,
+        installmentInterval: interval,
+        paymentMode: currentData.paymentMode || null,
+        notes: currentData.notes || null,
+        extraCosts: [], // Don't forward manual extra costs automatically
+        createdAt: now,
+        updatedAt: now,
+        createdById: userId,
+      };
+
+      const ref = db.collection("transactions").doc();
+      ops.push({ type: "set", ref, data: nextTx });
+    }
+    return ops;
+  } else if (nextStatus !== "paid") {
+    // Reverted payment -> Check if boundary and all subsequent ones are pending/overdue
+    if (currentNumber % 12 === 0) {
+      const groupQuery = db
+        .collection("transactions")
+        .where("tenantId", "==", txTenantId)
+        .where("recurringGroupId", "==", groupId);
+      
+      const groupSnap = await t.get(groupQuery);
+      
+      const futureDocs = groupSnap.docs.filter(
+        doc => toNumber(doc.data().installmentNumber, 0) > currentNumber
+      );
+
+      if (futureDocs.length > 0) {
+        const allFutureArePendingOrOverdue = futureDocs.every(
+          doc => doc.data().status === "pending" || doc.data().status === "overdue"
+        );
+
+        if (allFutureArePendingOrOverdue) {
+          // Delete all future docs
+          for (const doc of futureDocs) {
+            ops.push({ type: "delete", ref: doc.ref });
+          }
+
+          // Restore limit of remaining ones back to currentNumber
+          const remainingDocs = groupSnap.docs.filter(
+            doc => toNumber(doc.data().installmentNumber, 0) <= currentNumber
+          );
+
+          for (const doc of remainingDocs) {
+            const docData = doc.data();
+            const k = toNumber(docData.installmentNumber, 1);
+            const docRawDesc = (docData.description || "").toString().trim();
+            const docBaseDesc = docRawDesc.replace(/\s*\(\d+\/\d+\)$/, "").trim();
+            const docNextDesc = `${docBaseDesc} (${k}/${currentNumber})`;
+
+            ops.push({
+              type: "update",
+              ref: doc.ref,
+              data: {
+                description: docNextDesc,
+                installmentCount: currentNumber,
+                updatedAt: now,
+              },
+            });
+          }
+        }
+      }
     }
   }
-  return [];
+  return ops;
 }
 
 
@@ -166,6 +258,13 @@ export class TransactionService {
       const generatedGroupId = `gen_${now.toMillis()}`;
       const groupId = data.installmentGroupId || data.recurringGroupId || generatedGroupId;
 
+      // Defense in depth: hard cap on series length. Frontend defaults to 60
+      // for recurring; an attacker bypassing the form could otherwise request
+      // a series of millions of docs. 120 = 10 years monthly which covers
+      // every legitimate use case.
+      const RECURRING_MAX_OCCURRENCES = 120;
+      const INSTALLMENT_MAX_OCCURRENCES = 120;
+
       const shouldGenerateInstallments =
         data.isInstallment &&
         (data.installmentCount || 0) > 1 &&
@@ -177,7 +276,16 @@ export class TransactionService {
         (!data.installmentNumber || data.installmentNumber === 1);
 
       if (shouldGenerateInstallments || shouldGenerateRecurrences) {
-        const count = data.installmentCount!;
+        const requestedCount = data.installmentCount!;
+        const cap = shouldGenerateRecurrences
+          ? RECURRING_MAX_OCCURRENCES
+          : INSTALLMENT_MAX_OCCURRENCES;
+        if (requestedCount > cap) {
+          throw new Error(
+            `Limite de ${cap} ocorrências por série excedido (solicitado: ${requestedCount}).`,
+          );
+        }
+        const count = requestedCount;
         const baseAmount = data.amount;
 
         for (let i = 0; i < count; i++) {
@@ -196,9 +304,9 @@ export class TransactionService {
           const newTx = {
             tenantId,
             type: data.type,
-            description: isFirst
-              ? data.description
-              : `${data.description} (${i + 1}/${count})`,
+            description: count > 1
+              ? `${data.description} (${i + 1}/${count})`
+              : data.description,
             amount: baseAmount,
             date: currentDate,
             dueDate: currentDueDate,
@@ -406,8 +514,11 @@ export class TransactionService {
         }
       }
 
-      let effectiveGroupId =
-        (anchorData.installmentGroupId as string | null) || null;
+      const isRecurring = !!anchorData.isRecurring || !!payload.isRecurring;
+
+      let effectiveGroupId = isRecurring
+        ? (anchorData.recurringGroupId as string | null) || (anchorData.installmentGroupId as string | null)
+        : (anchorData.installmentGroupId as string | null) || (anchorData.recurringGroupId as string | null) || null;
 
       const wantInstallments = payload.isInstallment !== false;
       const requestedInstallmentCount = Math.max(
@@ -419,7 +530,7 @@ export class TransactionService {
           ),
         ),
       );
-      const targetInstallmentCount = wantInstallments
+      let targetInstallmentCount = wantInstallments
         ? requestedInstallmentCount
         : 1;
 
@@ -480,10 +591,15 @@ export class TransactionService {
       }
 
       if (effectiveGroupId) {
-        const groupQuery = db
-          .collection(COLLECTION_NAME)
-          .where("tenantId", "==", txTenantId)
-          .where("installmentGroupId", "==", effectiveGroupId);
+        const groupQuery = isRecurring
+          ? db
+              .collection(COLLECTION_NAME)
+              .where("tenantId", "==", txTenantId)
+              .where("recurringGroupId", "==", effectiveGroupId)
+          : db
+              .collection(COLLECTION_NAME)
+              .where("tenantId", "==", txTenantId)
+              .where("installmentGroupId", "==", effectiveGroupId);
         const groupSnap = await t.get(groupQuery);
         groupSnap.docs.forEach((docSnap) => {
           pushDoc({
@@ -527,12 +643,16 @@ export class TransactionService {
           );
         });
 
+      if (isRecurring) {
+        targetInstallmentCount = existingInstallments.length;
+      }
+
       const firstInstallment = existingInstallments[0]?.data || anchorData;
       const launchDate = toDateOnly(
         payload.date,
         toDateOnly(anchorData.date, now.toDate().toISOString().split("T")[0]),
       );
-      const baseInstallmentDueDate = toDateOnly(
+      let baseInstallmentDueDate = toDateOnly(
         paymentMode === "installmentValue"
           ? payload.firstInstallmentDate
           : payload.dueDate,
@@ -541,6 +661,17 @@ export class TransactionService {
           launchDate,
         ),
       );
+
+      if (isRecurring) {
+        const anchorIndex = existingInstallments.findIndex((doc) => doc.id === id);
+        const anchorInstNumber = anchorIndex !== -1
+          ? (existingInstallments[anchorIndex].data.installmentNumber || 1)
+          : (anchorData.installmentNumber || 1);
+        const anchorOffsetMonths = (anchorInstNumber - 1) * (payload.installmentInterval || anchorData.installmentInterval || 1);
+        
+        const newAnchorDueDate = toDateOnly(payload.dueDate, anchorData.dueDate || anchorData.date);
+        baseInstallmentDueDate = addMonths(newAnchorDueDate, -anchorOffsetMonths);
+      }
       const downPaymentDueDate = toDateOnly(
         payload.downPaymentDueDate,
         toDateOnly(
@@ -566,9 +697,10 @@ export class TransactionService {
         installmentsWallet ??
         null;
 
-      const description = (payload.description ?? anchorData.description ?? "")
+      const rawDescription = (payload.description ?? anchorData.description ?? "")
         .toString()
         .trim();
+      const baseDescription = rawDescription.replace(/\s*\(\d+\/\d+\)$/, "").trim();
       const type = (payload.type ?? anchorData.type) as "income" | "expense";
       const category = payload.category ?? anchorData.category ?? null;
       const clientId = payload.clientId ?? anchorData.clientId ?? null;
@@ -578,7 +710,11 @@ export class TransactionService {
       const proposalGroupId = anchorData.proposalGroupId || null;
 
       const installmentAmounts: number[] = [];
-      if (paymentMode === "installmentValue") {
+      if (isRecurring) {
+        for (let i = 0; i < targetInstallmentCount; i++) {
+          installmentAmounts.push(totalAmount);
+        }
+      } else if (paymentMode === "installmentValue") {
         for (let i = 0; i < targetInstallmentCount; i++) {
           installmentAmounts.push(installmentValue);
         }
@@ -604,22 +740,36 @@ export class TransactionService {
       }> = [];
       const toDelete: TransactionDoc[] = [...extraDownPayments];
 
+      const totalCount = isRecurring
+        ? (payload.installmentCount || anchorData.installmentCount || 60)
+        : targetInstallmentCount;
+
       for (let i = 0; i < targetInstallmentCount; i++) {
         const existing = existingInstallments[i] || null;
         const interval = payload.installmentInterval || 1;
-        
-        const nextInstallment = {
+
+        // Preserve manually-edited amounts (recurring occurrences flagged with
+        // overriddenAmount=true). Other fields still sync with the series.
+        const preserveAmount = !!existing?.data?.overriddenAmount;
+        const resolvedAmount = preserveAmount
+          ? toNumber(existing!.data.amount, 0)
+          : (installmentAmounts[i] ?? 0);
+
+        const installmentDescription = totalCount > 1
+          ? `${baseDescription} (${i + 1}/${totalCount})`
+          : baseDescription;
+
+        const nextInstallment: Record<string, any> = {
           tenantId: txTenantId,
           type,
-          description,
-          amount: installmentAmounts[i] ?? 0,
+          description: installmentDescription,
+          amount: resolvedAmount,
           date: launchDate,
           dueDate: addMonths(baseInstallmentDueDate, i * interval),
           status:
-            existing?.data?.status ||
-            (i === 0
-              ? payload.status || anchorData.status || "pending"
-              : "pending"),
+            existing?.id === id
+              ? (payload.status || anchorData.status || "pending")
+              : (existing?.data?.status || "pending"),
           clientId,
           clientName,
           proposalId,
@@ -629,15 +779,18 @@ export class TransactionService {
           isDownPayment: false,
           downPaymentType: null,
           downPaymentPercentage: null,
-          isInstallment: wantInstallments,
-          installmentCount: targetInstallmentCount,
+          isInstallment: isRecurring ? false : wantInstallments,
+          isRecurring: isRecurring,
+          installmentCount: totalCount,
           installmentNumber: i + 1,
-          installmentGroupId: effectiveGroupId,
+          installmentGroupId: isRecurring ? null : effectiveGroupId,
+          recurringGroupId: isRecurring ? effectiveGroupId : null,
           installmentInterval: payload.installmentInterval || 1,
           paymentMode: paymentMode,
           notes,
           updatedAt: now,
         };
+        if (preserveAmount) nextInstallment.overriddenAmount = true;
 
         if (existing) {
           toUpdate.push({
@@ -661,7 +814,7 @@ export class TransactionService {
         const nextDownPayment = {
           tenantId: txTenantId,
           type,
-          description,
+          description: baseDescription,
           amount: downPaymentAmount,
           date: launchDate,
           dueDate: downPaymentDueDate,
@@ -766,6 +919,26 @@ export class TransactionService {
         }
       }
 
+      let recurOps: DbOp[] = [];
+      if (isRecurring) {
+        for (const op of toUpdate) {
+          const oldStatus = op.doc.data.status;
+          const newStatus = op.next.status;
+          if (oldStatus !== newStatus) {
+            const ops = await getNextRecurringTransactionOps(
+              t,
+              db,
+              txTenantId,
+              now,
+              userId,
+              op.next,
+              newStatus,
+            );
+            recurOps.push(...ops);
+          }
+        }
+      }
+
       for (const [wallet, delta] of walletAdjustments.entries()) {
         if (delta === 0) continue;
         const walletRef = walletRefs.get(wallet);
@@ -785,6 +958,11 @@ export class TransactionService {
       }
       for (const op of toDelete) {
         t.delete(op.ref);
+      }
+      for (const op of recurOps) {
+        if (op.type === "set") t.set(op.ref, op.data);
+        else if (op.type === "update") t.update(op.ref, op.data);
+        else if (op.type === "delete") t.delete(op.ref);
       }
 
       if (proposalRef) {
@@ -942,8 +1120,19 @@ export class TransactionService {
         t.update(proposalRef, proposalUpdate);
       }
 
+      // Mark recurring occurrence as manually overridden when the amount
+      // changes. Bulk series edits must skip these to preserve user intent.
+      const amountChanged =
+        normalizedUpdateData.amount !== undefined &&
+        toNumber(normalizedUpdateData.amount) !== toNumber(currentData.amount);
+      const overriddenFlag =
+        currentData.isRecurring && amountChanged
+          ? { overriddenAmount: true }
+          : {};
+
       const finalUpdateData: Record<string, any> = {
         ...normalizedUpdateData,
+        ...overriddenFlag,
         updatedAt: now,
       };
       if (nextStatus === "paid") {
@@ -956,6 +1145,7 @@ export class TransactionService {
 
       for (const op of recurOps) {
         if (op.type === "set") t.set(op.ref, op.data);
+        else if (op.type === "update") t.update(op.ref, op.data);
         else if (op.type === "delete") t.delete(op.ref);
       }
     });
@@ -1118,6 +1308,7 @@ export class TransactionService {
       // 5) Write recurrences
       for (const op of recurOps) {
         if (op.type === "set") t.set(op.ref, op.data);
+        else if (op.type === "update") t.update(op.ref, op.data);
         else if (op.type === "delete") t.delete(op.ref);
       }
 

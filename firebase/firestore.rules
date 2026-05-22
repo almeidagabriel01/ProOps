@@ -305,6 +305,14 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions
     }
 
+    // WALLET CASCADE JOBS (live progress for async wallet rename cascade)
+    // Tenant members may read their tenant's jobs so the UI can show
+    // real-time progress via onSnapshot. Writes are Admin SDK only.
+    match /wallet_cascade_jobs/{jobId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId));
+      allow write: if false; // Managed by Cloud Functions trigger
+    }
+
     // SISTEMAS (Automation)
     match /sistemas/{sistemaId} {
       allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));

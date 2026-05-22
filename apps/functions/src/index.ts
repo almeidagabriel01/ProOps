@@ -23,6 +23,7 @@ export { api } from "./api";
 // 2. Scheduled Tasks
 export { checkManualSubscriptions } from "./checkManualSubscriptions";
 export { checkDueDates } from "./checkDueDates";
+export { markOverdueTransactions } from "./markOverdueTransactions";
 export { checkStripeSubscriptions } from "./checkStripeSubscriptions";
 export { reportWhatsappOverage } from "./reportWhatsappOverage";
 export { applyScheduledPlanChanges } from "./applyScheduledPlanChanges";
@@ -30,6 +31,9 @@ export { checkPriceChanges } from "./checkPriceChanges";
 export { cleanupStorageAndSharedLinks } from "./cleanupStorageAndSharedLinks";
 export { reconcileAddons } from "./reconcileAddons";
 export { processPayoutRetries } from "./processPayoutRetries";
+
+// 2b. Firestore triggers
+export { onWalletCascadeJob } from "./onWalletCascadeJob";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";

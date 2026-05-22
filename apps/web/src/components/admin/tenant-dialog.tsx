@@ -47,8 +47,7 @@ export interface TenantFormData {
     | "unpaid"
     | "trialing"
     | "free"
-    | "inactive"
-    | "trial";
+    | "inactive";
   currentPeriodEnd?: string;
 }
 
@@ -456,8 +455,7 @@ export function TenantDialog({
                               ? "Em Atraso (Past Due)"
                               : formData.subscriptionStatus === "canceled"
                                 ? "Cancelada"
-                                : formData.subscriptionStatus === "trialing" ||
-                                    formData.subscriptionStatus === "trial"
+                                : formData.subscriptionStatus === "trialing"
                                   ? "Em Teste"
                                   : formData.subscriptionStatus === "free"
                                     ? "Gratuita"

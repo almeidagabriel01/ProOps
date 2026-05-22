@@ -40,10 +40,7 @@ import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 import { logger } from "../lib/logger";
 import { applyBillingClaimsToTenantUsers } from "../lib/billing-claims";
 import { invalidateBillingCache } from "../api/middleware/require-active-subscription";
-import type {
-  SyncTenantPlanBillingSnapshotParams,
-  SubscriptionSnapshot,
-} from "../shared/billing-types";
+import type { SyncTenantPlanBillingSnapshotParams } from "../shared/billing-types";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
 const WEBHOOK_RATE_LIMIT_MAX_REQUESTS = 240;
@@ -206,12 +203,13 @@ export async function syncTenantPlanBillingSnapshot(
       ...("stripeCustomerId" in params && {
         stripeCustomerId: params.stripeCustomerId,
       }),
-      // billing-sync.service.ts writes both priceId and stripePriceId; preserve mirror
+      // Canonical: stripePriceId. The pre-Apr/2025 mirror `priceId` is no
+      // longer written; tenant-plan-policy still reads it as a fallback for
+      // legacy docs and the cleanup-billing-redundant-fields migration drops
+      // the stale value where present.
       ...(params.stripePriceId != null && {
-        priceId: params.stripePriceId,
         stripePriceId: params.stripePriceId,
       }),
-      ...("trialEndsAt" in params && { trialEndsAt: params.trialEndsAt }),
       ...("billingInterval" in params && {
         billingInterval: params.billingInterval,
       }),
@@ -239,58 +237,11 @@ export async function syncTenantPlanBillingSnapshot(
       if ("scheduledPlanReason" in params) patch.scheduledPlanReason = params.scheduledPlanReason;
     }
 
-    // ---- subscription.* nested map (new in Plan 02; written atomically with top-level) ----
-    const existingSubscription =
-      (tenantData?.subscription as Record<string, unknown> | undefined) ?? {};
-
-    const subscriptionPatch: SubscriptionSnapshot = {
-      status: lifecyclePatch.subscriptionStatus,
-      syncedAt: nowIso,
-      // Preserve pastDueSince from lifecycle logic
-      pastDueSince: lifecyclePatch.pastDueSince,
-      ...(params.eventId != null && { lastEventId: params.eventId }),
-      ...(params.cancelAtPeriodEnd != null && {
-        cancelAtPeriodEnd: params.cancelAtPeriodEnd,
-      }),
-      ...("cancelAt" in params && {
-        cancelAt: params.cancelAt != null ? params.cancelAt.toISOString() : null,
-      }),
-      ...(params.stripeSubscriptionId !== undefined && {
-        stripeSubscriptionId: params.stripeSubscriptionId,
-      }),
-      ...(params.stripePriceId != null && {
-        stripePriceId: params.stripePriceId,
-      }),
-      ...(params.stripeCustomerId != null && {
-        stripeCustomerId: params.stripeCustomerId,
-      }),
-      ...(params.currentPeriodEnd != null && {
-        currentPeriodEnd: params.currentPeriodEnd.toISOString(),
-      }),
-      // Plan resolution
-      ...(resolvedPlan != null && { plan: resolvedPlan }),
-      ...(resolvedUnitAmount !== undefined && { unitAmount: resolvedUnitAmount }),
-      ...(resolvedCurrency !== undefined && { currency: resolvedCurrency }),
-    };
-
-    // Apply scheduled-plan clears or explicit values to nested map
-    if (resolvedPlan && params.clearScheduled) {
-      subscriptionPatch.scheduledPlan = null;
-      subscriptionPatch.scheduledPlanAt = null;
-      subscriptionPatch.scheduledPlanReason = null;
-    } else if (!params.clearScheduled || !resolvedPlan) {
-      if ("scheduledPlan" in params) subscriptionPatch.scheduledPlan = params.scheduledPlan;
-      if ("scheduledPlanAt" in params) {
-        subscriptionPatch.scheduledPlanAt =
-          params.scheduledPlanAt instanceof Date
-            ? Timestamp.fromDate(params.scheduledPlanAt)
-            : (params.scheduledPlanAt ?? null);
-      }
-      if ("scheduledPlanReason" in params) subscriptionPatch.scheduledPlanReason = params.scheduledPlanReason;
-    }
-
-    // Merge existing subscription fields with the new patch (preserves fields not updated this call)
-    patch.subscription = { ...existingSubscription, ...subscriptionPatch };
+    // Canonical writes are all at root. The previous "subscription.*" nested
+    // mirror has no readers (audited: tenant-plan-policy, require-active-
+    // subscription, the crons and all frontend consumers read root only) and
+    // caused real harm when the two copies diverged. Nested keys are removed
+    // by cleanup-billing-redundant-fields.
 
     transaction.set(tenantRef, patch, { merge: true });
   });
@@ -690,29 +641,6 @@ async function handleCheckoutCompleted(
       subscription.status,
     );
 
-    // Mark trial as used on tenant when subscription starts in trialing state
-    if (subscription.status === "trialing" || metadata.trial === "true") {
-      const tenantRef = db.collection("tenants").doc(tenantId);
-      const tenantSnap = await tenantRef.get();
-      const tenantData = tenantSnap.exists
-        ? (tenantSnap.data() as Record<string, unknown> | undefined)
-        : undefined;
-      if (!tenantData?.trialUsedAt) {
-        const trialEnd = (subscription as any).trial_end
-          ? new Date((subscription as any).trial_end * 1000).toISOString()
-          : undefined;
-        await tenantRef.set(
-          {
-            trialUsedAt: new Date().toISOString(),
-            trialPlanTier: planTier,
-            ...(trialEnd && { trialEndsAt: trialEnd }),
-          },
-          { merge: true },
-        );
-        console.log(`Trial marked as used for tenant ${tenantId}`);
-      }
-    }
-
     const whatsappItem = subscription.items.data.find(
       (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
     );
@@ -1064,7 +992,7 @@ async function handleSubscriptionCreated(
   // Stripe always sends customer.subscription.created before
   // checkout.session.completed. We keep this handler cheap and idempotent:
   // sync billing IDs and the initial subscription status snapshot only.
-  // updateUserPlan and trial-marking are handled in handleCheckoutCompleted.
+  // updateUserPlan is handled in handleCheckoutCompleted.
   // Classify before any DB reads. Addon subscriptions are fully handled by
   // checkout.session.completed — returning early here also avoids the timing
   // issue where the addons doc doesn't exist yet at subscription.created time.

@@ -18,7 +18,6 @@ function CheckoutSuccessContent() {
     "loading",
   );
   const [planName, setPlanName] = useState<string>("");
-  const [isTrial, setIsTrial] = useState(false);
   const hasProcessed = useRef(false);
 
   useEffect(() => {
@@ -64,9 +63,6 @@ function CheckoutSuccessContent() {
         const data = await StripeService.confirmCheckout({ sessionId });
 
         setPlanName(data.planTier?.toUpperCase() || "");
-        if (data.trial) {
-          setIsTrial(true);
-        }
 
         // Refresh user data to get updated role and planId
         await refreshUser();
@@ -135,20 +131,13 @@ function CheckoutSuccessContent() {
               <CheckCircle className="w-10 h-10 text-green-500" />
             </div>
             <h1 className="text-2xl font-bold mb-2 text-green-500">
-              {isTrial ? "Trial ativado!" : "Assinatura confirmada!"}
+              Assinatura confirmada!
             </h1>
             <p className="text-muted-foreground">
-              {isTrial
-                ? `Seu trial de 7 dias do plano ${planName || "PRO"} foi ativado!`
-                : planName
-                  ? `Plano ${planName} ativado com sucesso!`
-                  : "Seu plano foi ativado com sucesso!"}
+              {planName
+                ? `Plano ${planName} ativado com sucesso!`
+                : "Seu plano foi ativado com sucesso!"}
             </p>
-            {isTrial && (
-              <p className="text-sm text-emerald-500 font-medium mt-2">
-                Aproveite todos os recursos PRO. Após 7 dias, a cobrança inicia automaticamente.
-              </p>
-            )}
             <p className="text-sm text-muted-foreground mt-4">
               Redirecionando para o dashboard...
             </p>

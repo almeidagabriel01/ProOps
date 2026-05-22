@@ -13,6 +13,7 @@ import {
 } from "@/services/wallet-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useWalletCascadeJob } from "./useWalletCascadeJob";
 
 interface UseWalletsDataReturn {
   wallets: Wallet[];
@@ -115,12 +116,22 @@ export function useWalletsData(): UseWalletsDataReturn {
     [fetchData, tenant?.id],
   );
 
+  // Tracks an in-flight wallet rename cascade job. When set, the
+  // useWalletCascadeJob hook below subscribes and surfaces progress
+  // toasts; clears itself when the job settles.
+  const [cascadeJobId, setCascadeJobId] = useState<string | null>(null);
+
   const updateWallet = useCallback(
     async (walletId: string, data: UpdateWalletInput): Promise<boolean> => {
       try {
-        await WalletService.updateWallet(walletId, data);
-        await fetchData(); // Refresh data
-        toast.success("Carteira atualizada com sucesso!");
+        const { cascadeJobId: newCascadeJobId } =
+          await WalletService.updateWallet(walletId, data);
+        await fetchData(); // Refresh wallet data immediately
+        if (newCascadeJobId) {
+          setCascadeJobId(newCascadeJobId);
+        } else {
+          toast.success("Carteira atualizada com sucesso!");
+        }
         return true;
       } catch (error: unknown) {
         console.error("Error updating wallet:", error);
@@ -132,6 +143,14 @@ export function useWalletsData(): UseWalletsDataReturn {
     },
     [fetchData],
   );
+
+  useWalletCascadeJob({
+    jobId: cascadeJobId,
+    onSettled: () => {
+      setCascadeJobId(null);
+      void fetchData();
+    },
+  });
 
   const deleteWallet = useCallback(
     async (walletId: string, force = false): Promise<boolean> => {
