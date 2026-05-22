@@ -8,6 +8,7 @@ import type {
 } from "@/services/transaction-service";
 import type { Wallet } from "@/types";
 import { normalize } from "@/utils/text";
+import { useTenant } from "@/providers/tenant-provider";
 import { getProposalTransactionDisplayName } from "../_lib/proposal-transaction";
 import {
   isDownPaymentLike,
@@ -19,17 +20,70 @@ import {
   getDateString,
 } from "../_lib/financial-utils";
 
+const DEFAULT_FILTER_STATUS: TransactionStatus[] = ["pending", "overdue"];
+const VALID_STATUSES: ReadonlySet<TransactionStatus> = new Set([
+  "paid",
+  "pending",
+  "overdue",
+]);
+
+function readPersistedFilterStatus(
+  tenantId: string | undefined,
+): TransactionStatus[] {
+  if (typeof window === "undefined" || !tenantId) return DEFAULT_FILTER_STATUS;
+  try {
+    const raw = window.localStorage.getItem(
+      `transactions:filterStatus:${tenantId}`,
+    );
+    if (!raw) return DEFAULT_FILTER_STATUS;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return DEFAULT_FILTER_STATUS;
+    const sanitized = parsed.filter((s): s is TransactionStatus =>
+      typeof s === "string" && VALID_STATUSES.has(s as TransactionStatus),
+    );
+    return sanitized;
+  } catch {
+    return DEFAULT_FILTER_STATUS;
+  }
+}
+
 export function useFinancialFilters(
   transactions: Transaction[],
   wallets: Wallet[],
 ) {
+  const { tenant } = useTenant();
+  const tenantId = tenant?.id;
+
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filterType, setFilterType] = React.useState<TransactionType | "all">(
     "all",
   );
-  const [filterStatus, setFilterStatus] = React.useState<TransactionStatus[]>([
-    "pending",
-  ]);
+  const [filterStatus, setFilterStatus] = React.useState<TransactionStatus[]>(
+    () => readPersistedFilterStatus(tenantId),
+  );
+
+  // Re-read persisted value when tenant becomes available or changes
+  // (lazy initializer above may have run before tenant was hydrated)
+  const hydratedTenantRef = React.useRef<string | undefined>(undefined);
+  React.useEffect(() => {
+    if (!tenantId || hydratedTenantRef.current === tenantId) return;
+    hydratedTenantRef.current = tenantId;
+    setFilterStatus(readPersistedFilterStatus(tenantId));
+  }, [tenantId]);
+
+  // Persist filter selection per tenant
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !tenantId) return;
+    try {
+      window.localStorage.setItem(
+        `transactions:filterStatus:${tenantId}`,
+        JSON.stringify(filterStatus),
+      );
+    } catch {
+      // ignore quota errors — non-critical
+    }
+  }, [filterStatus, tenantId]);
+
   const [filterWallet, setFilterWallet] = React.useState<string>("");
   const [filterStartDate, setFilterStartDate] = React.useState<string>("");
   const [filterEndDate, setFilterEndDate] = React.useState<string>("");
