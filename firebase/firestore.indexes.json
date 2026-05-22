@@ -1689,16 +1689,6 @@
       ]
     },
     {
-      "collectionGroup": "tenants",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "scheduledPlanAt",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
       "collectionGroup": "payout_attempts",
       "queryScope": "COLLECTION",
       "fields": [
@@ -1736,16 +1726,6 @@
         },
         {
           "fieldPath": "installmentsWallet",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "wallet_cascade_jobs",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "expiresAt",
           "order": "ASCENDING"
         }
       ]
