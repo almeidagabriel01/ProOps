@@ -118,9 +118,28 @@ export function useWalletsData(): UseWalletsDataReturn {
   const updateWallet = useCallback(
     async (walletId: string, data: UpdateWalletInput): Promise<boolean> => {
       try {
-        await WalletService.updateWallet(walletId, data);
+        const { cascade } = await WalletService.updateWallet(walletId, data);
         await fetchData(); // Refresh data
-        toast.success("Carteira atualizada com sucesso!");
+        const cascadeTotal =
+          (cascade?.transactionsUpdated ?? 0) + (cascade?.proposalsUpdated ?? 0);
+        if (cascadeTotal > 0 && cascade) {
+          const parts: string[] = [];
+          if (cascade.transactionsUpdated > 0) {
+            parts.push(
+              `${cascade.transactionsUpdated} lançamento${cascade.transactionsUpdated === 1 ? "" : "s"}`,
+            );
+          }
+          if (cascade.proposalsUpdated > 0) {
+            parts.push(
+              `${cascade.proposalsUpdated} proposta${cascade.proposalsUpdated === 1 ? "" : "s"}`,
+            );
+          }
+          toast.success(
+            `Carteira atualizada. ${parts.join(" e ")} sincronizado${cascadeTotal === 1 ? "" : "s"} com o novo nome.`,
+          );
+        } else {
+          toast.success("Carteira atualizada com sucesso!");
+        }
         return true;
       } catch (error: unknown) {
         console.error("Error updating wallet:", error);

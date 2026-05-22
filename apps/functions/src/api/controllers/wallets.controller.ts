@@ -248,7 +248,28 @@ export const updateWallet = async (req: Request, res: Response) => {
     } else {
       await walletRef.update(safeUpdate);
     }
-    return res.json({ success: true, message: "Carteira atualizada." });
+
+    // Cascade rename to denormalized references (transactions, proposals).
+    // Migrates legacy NAME-stored docs to id-stored in the same pass.
+    const renamedFrom = walletData?.name as string | undefined;
+    const renamedTo = typeof safeUpdate.name === "string" ? safeUpdate.name : undefined;
+    let cascadeResult = { transactionsUpdated: 0, proposalsUpdated: 0 };
+    if (renamedFrom && renamedTo && renamedFrom !== renamedTo) {
+      const { cascadeWalletRename } = await import(
+        "../services/wallet-cascade.service"
+      );
+      cascadeResult = await cascadeWalletRename({
+        tenantId,
+        walletId: id,
+        oldName: renamedFrom,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Carteira atualizada.",
+      cascade: cascadeResult,
+    });
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro desconhecido";
