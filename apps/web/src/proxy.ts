@@ -1,17 +1,21 @@
 /**
- * Next.js Middleware
+ * Next.js Proxy (Next 16+)
  *
- * Server-side route protection.
+ * Server-side route protection. Renamed from `middleware.ts` because the
+ * `middleware` file convention was deprecated in Next 16 in favour of
+ * `proxy`. The exported function MUST be named `proxy`; per-request
+ * behaviour is otherwise identical to the previous middleware API.
+ *
  * Checks authentication via Firebase Auth cookies/tokens.
  *
- * IMPORTANT: This middleware provides the first line of defense.
+ * IMPORTANT: This proxy provides the first line of defense.
  * Client-side ProtectedRoute and Cloud Functions provide additional layers.
  *
  * STRATEGY:
  * - Firebase Auth doesn't set cookies automatically in Next.js
  * - We check for the __session cookie (set by client after login)
  * - For full server-side auth, you'd need to verify the token here
- * - This middleware does a lightweight check; Cloud Functions are the authority
+ * - This proxy does a lightweight check; Cloud Functions are the authority
  */
 
 import { NextResponse } from "next/server";
@@ -86,7 +90,7 @@ interface BillingStatusResponse {
 // MIDDLEWARE
 // ============================================
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Legacy route redirect: /automation -> /solutions
