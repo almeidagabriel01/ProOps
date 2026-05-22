@@ -400,13 +400,22 @@ export function useEditTransaction() {
       // Determine if we should treat this as an installment group edit
       const hasGroup = groupTransactions.length > 0;
 
+      // For recurring, resolve the default/base amount from the group
+      let baseRecurringAmount = safeData.amount;
+      if (safeData.isRecurring && groupTransactions.length > 0) {
+        const baseTx = groupTransactions.find((t) => !t.overriddenAmount);
+        if (baseTx) {
+          baseRecurringAmount = baseTx.amount;
+        }
+      }
+
       // Calculate Total Amount
       // If it's a group (installments), sum everyone (including down payment)
       // If single or recurring, just use safeData.amount (the base value)
       const totalAmount =
         hasGroup && !safeData.isRecurring
           ? groupTransactions.reduce((sum, t) => sum + t.amount, 0)
-          : safeData.amount;
+          : (safeData.isRecurring ? baseRecurringAmount : safeData.amount);
 
       // Installment Count:
       // If group, count regular installments.
@@ -419,11 +428,13 @@ export function useEditTransaction() {
       // Installment Value (for form pre-fill if needed):
       // If group, take the first regular installment's amount (approximation)
       const firstRegular = regularInstallments[0];
-      const instValue = firstRegular
-        ? firstRegular.amount
-        : hasGroup
-          ? 0
-          : safeData.amount / (safeData.installmentCount || 1);
+      const instValue = safeData.isRecurring
+        ? baseRecurringAmount
+        : (firstRegular
+            ? firstRegular.amount
+            : hasGroup
+              ? 0
+              : safeData.amount / (safeData.installmentCount || 1));
 
       const initialFormData: EditTransactionFormData = {
         type: safeData.type,
@@ -846,8 +857,22 @@ export function useEditTransaction() {
   const hasChanges = React.useMemo(() => {
     if (!initialSnapshot) return false;
 
-    return buildEditTransactionSnapshot(formData) !== initialSnapshot;
-  }, [formData, initialSnapshot]);
+    const formChanged = buildEditTransactionSnapshot(formData) !== initialSnapshot;
+    if (formChanged) return true;
+
+    // If scope is series and any installment has a different amount than the form amount
+    if (formData.isRecurring && recurringEditScope === "series") {
+      const targetAmount = parseFloat(formData.amount || "0");
+      const hasOverriddenInstallment = relatedInstallments.some(
+        (t) => !t.isDownPayment && t.amount !== targetAmount
+      );
+      if (hasOverriddenInstallment) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [formData, initialSnapshot, recurringEditScope, relatedInstallments]);
 
   return {
     formData,

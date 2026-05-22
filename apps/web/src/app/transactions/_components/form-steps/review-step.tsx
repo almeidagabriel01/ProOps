@@ -83,6 +83,10 @@ export function ReviewStep({
     const downPayment = getDownPaymentAmount();
     const remaining = total - downPayment;
 
+    if (formData.isRecurring) {
+      return remaining;
+    }
+
     // Avoid division by zero
     if (formData.installmentCount === 0) return 0;
 

@@ -523,7 +523,7 @@ export default function FinancialPage() {
     setViewMode(mode);
     if (mode === "byDueDate") {
       setFilterDateType("dueDate");
-      setFilterStatus(["pending"]);
+      setFilterStatus(["pending", "overdue"]);
     } else {
       setFilterStatus([]);
     }

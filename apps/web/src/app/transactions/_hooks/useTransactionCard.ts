@@ -209,7 +209,11 @@ export function useTransactionCard({
 
   const displayAmount = React.useMemo(() => {
     if (isProposalGroup) return proposalTotalAmount + totalExtraCosts;
-    if (relatedInstallments.length > 0 && !transaction.isRecurring) {
+    if (relatedInstallments.length > 0) {
+      if (transaction.isRecurring) {
+        const baseTransaction = relatedInstallments.find((t) => !t.overriddenAmount) || transaction;
+        return baseTransaction.amount + totalExtraCosts;
+      }
       return relatedInstallments.reduce((sum, t) => sum + t.amount, 0) + totalExtraCosts;
     }
     return transaction.amount + totalExtraCosts;
@@ -217,8 +221,7 @@ export function useTransactionCard({
     isProposalGroup,
     proposalTotalAmount,
     relatedInstallments,
-    transaction.isRecurring,
-    transaction.amount,
+    transaction,
     totalExtraCosts,
   ]);
 
@@ -328,9 +331,16 @@ export function useTransactionCard({
     if (isInstallmentGroup && !onUpdateBatch) return;
     if (!canEdit) return;
     e.stopPropagation();
-    const initialValue = isInstallmentGroup
-      ? relatedInstallments.reduce((sum, t) => sum + t.amount, 0)
-      : transaction.amount;
+    
+    let initialValue = transaction.amount;
+    if (isInstallmentGroup) {
+      if (transaction.isRecurring) {
+        const baseTransaction = relatedInstallments.find((t) => !t.overriddenAmount) || transaction;
+        initialValue = baseTransaction.amount;
+      } else {
+        initialValue = relatedInstallments.reduce((sum, t) => sum + t.amount, 0);
+      }
+    }
     setEditAmountValue(initialValue);
     setIsEditingAmount(true);
   };
@@ -339,7 +349,9 @@ export function useTransactionCard({
     if (!onUpdate) return;
     const isInstallmentGroup = !isProposalGroup && relatedInstallments.length > 0;
     const currentAmount = isInstallmentGroup
-      ? relatedInstallments.reduce((sum, t) => sum + t.amount, 0)
+      ? (transaction.isRecurring
+          ? (relatedInstallments.find((t) => !t.overriddenAmount) || transaction).amount
+          : relatedInstallments.reduce((sum, t) => sum + t.amount, 0))
       : transaction.amount;
     if (Math.abs(editAmountValue - currentAmount) < 0.01) {
       setIsEditingAmount(false);
@@ -352,12 +364,25 @@ export function useTransactionCard({
     setIsSavingAmount(true);
     try {
       if (isInstallmentGroup && onUpdateBatch) {
-        const newInstallmentAmount = editAmountValue / relatedInstallments.length;
-        const updates = relatedInstallments.map((inst) => ({
-          id: inst.id,
-          data: { amount: newInstallmentAmount },
-        }));
-        await onUpdateBatch(updates);
+        if (transaction.isRecurring) {
+          // Edit the base amount for the series (only update non-overridden installments)
+          const updates = relatedInstallments
+            .filter((inst) => !inst.overriddenAmount)
+            .map((inst) => ({
+              id: inst.id,
+              data: { amount: editAmountValue },
+            }));
+          if (updates.length > 0) {
+            await onUpdateBatch(updates);
+          }
+        } else {
+          const newInstallmentAmount = editAmountValue / relatedInstallments.length;
+          const updates = relatedInstallments.map((inst) => ({
+            id: inst.id,
+            data: { amount: newInstallmentAmount },
+          }));
+          await onUpdateBatch(updates);
+        }
       } else {
         await onUpdate(transaction, { amount: editAmountValue });
       }
@@ -375,11 +400,12 @@ export function useTransactionCard({
     } else if (e.key === "Escape") {
       setIsEditingAmount(false);
       const isInstallmentGroup = !isProposalGroup && relatedInstallments.length > 0;
-      setEditAmountValue(
-        isInstallmentGroup
-          ? relatedInstallments.reduce((sum, t) => sum + t.amount, 0)
-          : transaction.amount,
-      );
+      const initialValue = isInstallmentGroup
+        ? (transaction.isRecurring
+            ? (relatedInstallments.find((t) => !t.overriddenAmount) || transaction).amount
+            : relatedInstallments.reduce((sum, t) => sum + t.amount, 0))
+        : transaction.amount;
+      setEditAmountValue(initialValue);
     }
   };
 

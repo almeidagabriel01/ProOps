@@ -23,8 +23,8 @@ describe("useFinancialFilters — filterStatus default and persistence", () => {
     expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
   });
 
-  it("persists filterStatus changes to localStorage scoped by tenantId", () => {
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets));
+  it("persists filterStatus changes to localStorage scoped by tenantId in grouped mode", () => {
+    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "grouped"));
 
     act(() => {
       result.current.setFilterStatus(["paid"]);
@@ -36,33 +36,56 @@ describe("useFinancialFilters — filterStatus default and persistence", () => {
     expect(stored).toBe(JSON.stringify(["paid"]));
   });
 
-  it("restores filterStatus from localStorage on mount", () => {
+  it("does not persist filterStatus changes to localStorage in byDueDate mode", () => {
+    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "byDueDate"));
+
+    act(() => {
+      result.current.setFilterStatus(["paid"]);
+    });
+
+    const stored = window.localStorage.getItem(
+      "transactions:filterStatus:v2:tenant-test",
+    );
+    expect(stored).toBeNull();
+  });
+
+  it("restores filterStatus from localStorage on mount in grouped mode", () => {
     window.localStorage.setItem(
       "transactions:filterStatus:v2:tenant-test",
       JSON.stringify(["pending"]),
     );
 
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets));
+    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "grouped"));
     expect(result.current.filterStatus).toEqual(["pending"]);
   });
 
-  it("ignores malformed localStorage values and falls back to default", () => {
+  it("does not restore filterStatus from localStorage on mount in byDueDate mode", () => {
+    window.localStorage.setItem(
+      "transactions:filterStatus:v2:tenant-test",
+      JSON.stringify(["pending"]),
+    );
+
+    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "byDueDate"));
+    expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
+  });
+
+  it("ignores malformed localStorage values and falls back to default in grouped mode", () => {
     window.localStorage.setItem(
       "transactions:filterStatus:v2:tenant-test",
       "not-json",
     );
 
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets));
+    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "grouped"));
     expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
   });
 
-  it("sanitizes unknown status values from localStorage", () => {
+  it("sanitizes unknown status values from localStorage in grouped mode", () => {
     window.localStorage.setItem(
       "transactions:filterStatus:v2:tenant-test",
       JSON.stringify(["paid", "bogus", "overdue"]),
     );
 
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets));
+    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "grouped"));
     expect(result.current.filterStatus).toEqual(["paid", "overdue"]);
   });
 
