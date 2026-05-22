@@ -10,7 +10,6 @@ import {
 
 interface CachedBillingState {
   subscriptionStatus: string;
-  plan: string;
   pastDueSince: string | null;
 }
 
@@ -121,12 +120,10 @@ export async function requireActiveSubscription(
 
       const data = tenantSnap.data() as Record<string, unknown> | undefined;
       const subscriptionStatus = String(data?.subscriptionStatus || "").trim().toLowerCase();
-      const plan = String(data?.plan || "").trim().toLowerCase();
       const pastDueSince = normalizePastDueSince(data?.pastDueSince);
 
       billingState = {
         subscriptionStatus,
-        plan,
         pastDueSince,
       };
       billingStateCache.set(tenantId, billingState);
@@ -141,13 +138,16 @@ export async function requireActiveSubscription(
     }
   }
 
-  const { subscriptionStatus, plan, pastDueSince } = billingState;
+  const { subscriptionStatus, pastDueSince } = billingState;
 
-  // Free tier: only allowed to call account/billing/profile endpoints. Any
-  // other path is denied with HTTP 402 so a free account cannot reach ERP
-  // endpoints via direct fetch, even if its session cookie is still valid.
-  const isFreeTier = plan === "free" || subscriptionStatus === "free";
-  if (isFreeTier) {
+  // Free tier guard. Uses the USER role from the JWT claim (authoritative)
+  // rather than the tenant's `plan` field, which can be desynchronized
+  // (legacy tenants with `plan: "free"` but `subscriptionStatus: "active"`
+  // exist in prod from before the billing-sync was wired up). The user
+  // role is what determines whether an account is on the free tier — if
+  // role is admin/master/member/wk, the user pays, full stop.
+  const isFreeUser = String(user.role || "").toLowerCase() === "free";
+  if (isFreeUser) {
     if (isFreeTierAllowedPath(req.path)) {
       next();
       return;

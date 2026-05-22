@@ -112,20 +112,18 @@ export async function GET(req: NextRequest) {
 
     // Always read from Firestore — session cookie claims are embedded at cookie creation
     // time and can be stale if a Stripe webhook updated subscriptionStatus after login.
-    const { subscriptionStatus, plan, pastDueSince } =
+    const { subscriptionStatus, pastDueSince } =
       await resolveBillingState(tenantId);
 
-    // Free tier guard: regardless of subscriptionStatus, a free tenant can
-    // only navigate to /, /subscribe, /profile, /checkout-success and
-    // /subscription-blocked. Any other path (including /dashboard and the
-    // entire ERP) is blocked at the middleware boundary before the page
-    // is rendered. The path is forwarded by the middleware as ?path=.
+    // Free tier guard. Uses the USER role from the session-cookie claim
+    // (authoritative for who's paying) rather than tenants/{id}.plan,
+    // which can be desynchronized in legacy data (some paying tenants
+    // still carry `plan: "free"` despite an active subscription). If
+    // the user role is 'free', allow only the free-tier allowlist; any
+    // other path (including /dashboard) is blocked before the page renders.
     const requestedPath = req.nextUrl.searchParams.get("path") || "";
-    const isFreeTier =
-      plan === "free" ||
-      subscriptionStatus === "free" ||
-      String(decoded.role || "").toLowerCase() === "free";
-    if (isFreeTier && requestedPath && !isFreeTierAllowedPath(requestedPath)) {
+    const isFreeUser = String(decoded.role || "").toLowerCase() === "free";
+    if (isFreeUser && requestedPath && !isFreeTierAllowedPath(requestedPath)) {
       return NextResponse.json({
         allowed: false,
         status: "free",
