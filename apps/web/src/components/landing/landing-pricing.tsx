@@ -114,14 +114,14 @@ export function LandingPricing({
   );
   const isAnnual = billingInterval === "yearly";
 
-  const handleSubscribe = async (planTier: string, skipTrial?: boolean) => {
+  const handleSubscribe = async (planTier: string) => {
     if (planTier === "enterprise") {
       window.location.href = `mailto:${ENTERPRISE_CONTACT_EMAIL}`;
       return;
     }
 
     if (!currentUser) {
-      const subscribeUrl = `/subscribe?plan=${planTier}&interval=${billingInterval}${skipTrial ? "&skipTrial=true" : ""}`;
+      const subscribeUrl = `/subscribe?plan=${planTier}&interval=${billingInterval}`;
       router.push(`/login?redirect=${encodeURIComponent(subscribeUrl)}&mode=register`);
       return;
     }
@@ -139,7 +139,6 @@ export function LandingPricing({
         planTier,
         billingInterval,
         origin: window.location.origin,
-        ...(skipTrial && { skipTrial: true }),
       });
 
       if (response.url) {
@@ -485,16 +484,6 @@ export function LandingPricing({
                         ? "Testar grátis por 7 dias"
                         : ctaLabel}
                   </button>
-
-                  {plan.tier === "pro" && (
-                    <button
-                      type="button"
-                      onClick={() => void handleSubscribe(plan.tier, true)}
-                      className={`text-xs underline cursor-pointer opacity-55 hover:opacity-90 transition-opacity mb-4 block w-full text-center ${plan.popular ? "text-white/70 dark:text-black/70" : "text-black/55 dark:text-white/55"}`}
-                    >
-                      Prefiro assinar direto
-                    </button>
-                  )}
 
                   <div className="space-y-4 flex-1">
                     <p

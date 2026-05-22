@@ -32,7 +32,6 @@ function SubscribeContent() {
 
   const planTier = searchParams.get("plan");
   const billingInterval = searchParams.get("interval") || "monthly";
-  const skipTrial = searchParams.get("skipTrial") === "true";
 
   useEffect(() => {
     // If no plan specified, redirect to home
@@ -90,7 +89,6 @@ function SubscribeContent() {
         userEmail: user.email,
         billingInterval: billingInterval as "monthly" | "yearly",
         origin: window.location.origin,
-        ...(skipTrial && { skipTrial: true }),
       });
 
       if (data.url) {

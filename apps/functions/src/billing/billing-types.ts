@@ -17,7 +17,6 @@ export interface BillingSnapshot {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   pastDueSince: string | null;
-  trialEndsAt: string | null;
   billingSyncedAt: string;
   billingSyncing: boolean;
   source: "webhook" | "cron" | "on_demand" | "manual";

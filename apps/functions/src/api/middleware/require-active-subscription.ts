@@ -123,8 +123,7 @@ export async function requireActiveSubscription(
     plan === "free" ||
     subscriptionStatus === "free" ||
     subscriptionStatus === "" ||
-    subscriptionStatus === "active" ||
-    subscriptionStatus === "trialing"
+    subscriptionStatus === "active"
   ) {
     next();
     return;

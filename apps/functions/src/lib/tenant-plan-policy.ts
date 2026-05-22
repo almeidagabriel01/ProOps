@@ -455,9 +455,7 @@ async function resolveTenantPlanProfileUncached(
     normalizePlanTier(tenantData?.plan) ||
     normalizePlanTier(tenantData?.planTier) ||
     normalizePlanTier(tenantData?.tier);
-  // Skip "free" early-return when tenant is actively trialing a paid plan —
-  // the trialPlanTier step below will resolve the correct tier.
-  if (directTier && !(directTier === "free" && subscriptionStatus === "trialing")) {
+  if (directTier) {
     return buildProfileFromTier({
       tenantId,
       tier: directTier,
@@ -528,24 +526,6 @@ async function resolveTenantPlanProfileUncached(
     }
   } catch {
     // Non-fatal — fall through to compat default.
-  }
-
-  // Last resort before compat-default: if the tenant is actively trialing a paid
-  // plan, resolve the tier from trialPlanTier (set when the trial was activated).
-  // This covers tenants whose doc still has plan:"free" but subscriptionStatus:"trialing".
-  if (subscriptionStatus === "trialing") {
-    const trialTier = normalizePlanTier(tenantData?.trialPlanTier);
-    if (trialTier && trialTier !== "free") {
-      return buildProfileFromTier({
-        tenantId,
-        tier: trialTier,
-        subscriptionStatus,
-        stripeSubscriptionId,
-        stripePriceId,
-        pastDueSince,
-        source: "tenant.trialPlanTier",
-      });
-    }
   }
 
   return buildCompatDefaultTenantPlanProfile({
@@ -651,7 +631,7 @@ export function evaluateSubscriptionStatusAccess(input: {
   graceDays?: number;
 }): SubscriptionStatusAccessDecision {
   const status = normalizeSubscriptionStatus(input.subscriptionStatus);
-  if (!status || status === "active" || status === "trialing") {
+  if (!status || status === "active") {
     return { allowWrite: true, reasonCode: "SUBSCRIPTION_OK" };
   }
 

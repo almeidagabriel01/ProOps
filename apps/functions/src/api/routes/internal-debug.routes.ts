@@ -8,10 +8,14 @@
  * Each handler MUST verify x-cron-secret as its first action.
  */
 import { Router } from "express";
-import { invalidateTenantPlanCacheManual } from "../controllers/internal.controller";
+import {
+  invalidateTenantPlanCacheManual,
+  cleanupTrialFieldsManual,
+} from "../controllers/internal.controller";
 
 const router = Router();
 
 router.post("/debug/invalidate-tenant-plan-cache", invalidateTenantPlanCacheManual);
+router.post("/admin/cleanup-trial-fields", cleanupTrialFieldsManual);
 
 export { router as internalDebugRoutes };

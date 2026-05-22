@@ -211,7 +211,6 @@ export async function syncTenantPlanBillingSnapshot(
         priceId: params.stripePriceId,
         stripePriceId: params.stripePriceId,
       }),
-      ...("trialEndsAt" in params && { trialEndsAt: params.trialEndsAt }),
       ...("billingInterval" in params && {
         billingInterval: params.billingInterval,
       }),
@@ -689,29 +688,6 @@ async function handleCheckoutCompleted(
       subscription.cancel_at_period_end,
       subscription.status,
     );
-
-    // Mark trial as used on tenant when subscription starts in trialing state
-    if (subscription.status === "trialing" || metadata.trial === "true") {
-      const tenantRef = db.collection("tenants").doc(tenantId);
-      const tenantSnap = await tenantRef.get();
-      const tenantData = tenantSnap.exists
-        ? (tenantSnap.data() as Record<string, unknown> | undefined)
-        : undefined;
-      if (!tenantData?.trialUsedAt) {
-        const trialEnd = (subscription as any).trial_end
-          ? new Date((subscription as any).trial_end * 1000).toISOString()
-          : undefined;
-        await tenantRef.set(
-          {
-            trialUsedAt: new Date().toISOString(),
-            trialPlanTier: planTier,
-            ...(trialEnd && { trialEndsAt: trialEnd }),
-          },
-          { merge: true },
-        );
-        console.log(`Trial marked as used for tenant ${tenantId}`);
-      }
-    }
 
     const whatsappItem = subscription.items.data.find(
       (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
