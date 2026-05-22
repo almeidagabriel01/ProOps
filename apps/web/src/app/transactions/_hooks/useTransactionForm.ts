@@ -511,12 +511,19 @@ export function useTransactionForm(): UseTransactionFormReturn {
         dueDateToUse = formData.dueDate;
       }
 
-      // Generate Group ID
-      const submitDbCount = formData.isInstallment
-        ? formData.isRecurring
-          ? 1
-          : formData.installmentCount
-        : 1;
+      // Generate Group ID.
+      // For recurring entries we eagerly materialize 60 occurrences (5 years
+      // of monthly cadence) so the cash-flow forecast, calendar and date
+      // filters work out of the box — same pattern as Asaas, Conta Azul and
+      // QuickBooks. Backend caps at 120 (RECURRING_MAX_OCCURRENCES) as an
+      // anti-abuse guard. To change cadence or count later, we'd expose
+      // inputs in the form and forward them here.
+      const RECURRING_DEFAULT_OCCURRENCES = 60;
+      const submitDbCount = formData.isRecurring
+        ? RECURRING_DEFAULT_OCCURRENCES
+        : formData.isInstallment
+          ? formData.installmentCount
+          : 1;
       if (
         (formData.isInstallment && submitDbCount >= 1) ||
         (formData.isRecurring && submitDbCount >= 1) ||

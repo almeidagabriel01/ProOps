@@ -166,6 +166,13 @@ export class TransactionService {
       const generatedGroupId = `gen_${now.toMillis()}`;
       const groupId = data.installmentGroupId || data.recurringGroupId || generatedGroupId;
 
+      // Defense in depth: hard cap on series length. Frontend defaults to 60
+      // for recurring; an attacker bypassing the form could otherwise request
+      // a series of millions of docs. 120 = 10 years monthly which covers
+      // every legitimate use case.
+      const RECURRING_MAX_OCCURRENCES = 120;
+      const INSTALLMENT_MAX_OCCURRENCES = 120;
+
       const shouldGenerateInstallments =
         data.isInstallment &&
         (data.installmentCount || 0) > 1 &&
@@ -177,7 +184,16 @@ export class TransactionService {
         (!data.installmentNumber || data.installmentNumber === 1);
 
       if (shouldGenerateInstallments || shouldGenerateRecurrences) {
-        const count = data.installmentCount!;
+        const requestedCount = data.installmentCount!;
+        const cap = shouldGenerateRecurrences
+          ? RECURRING_MAX_OCCURRENCES
+          : INSTALLMENT_MAX_OCCURRENCES;
+        if (requestedCount > cap) {
+          throw new Error(
+            `Limite de ${cap} ocorrências por série excedido (solicitado: ${requestedCount}).`,
+          );
+        }
+        const count = requestedCount;
         const baseAmount = data.amount;
 
         for (let i = 0; i < count; i++) {
