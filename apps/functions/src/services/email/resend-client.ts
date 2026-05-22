@@ -27,14 +27,14 @@ export function getDefaultReplyTo(): string {
 }
 
 /**
- * Mailto used for the List-Unsubscribe header on transactional emails. Outlook
- * uses the presence of this header as a positive signal that the sender
- * follows bulk-sending best-practices, even for one-to-one transactional mail.
- * Required value, but never auto-triggered for password resets — kept as a
- * mailto so accidental triggering is a no-op.
+ * Mailto used for the List-Unsubscribe header. Opt-in via env: if not set,
+ * the header is omitted (recommended for critical transactional mail like
+ * password reset / email verification, where the user cannot opt out).
+ *
+ * When set, it MUST be a real, monitored mailbox — bouncing unsubscribe
+ * requests hurts sender reputation more than no header at all.
  */
-export function getUnsubscribeMailto(): string {
-  return (
-    process.env.EMAIL_UNSUBSCRIBE_MAILTO ?? "unsubscribe@proops.com.br"
-  );
+export function getUnsubscribeMailto(): string | null {
+  const value = process.env.EMAIL_UNSUBSCRIBE_MAILTO?.trim();
+  return value ? value : null;
 }

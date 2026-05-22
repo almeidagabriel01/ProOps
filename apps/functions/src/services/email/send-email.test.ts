@@ -18,11 +18,13 @@ jest.mock("../../lib/logger", () => ({
 
 const resendSendMock = jest.fn();
 
+const unsubscribeMock = jest.fn();
+
 jest.mock("./resend-client", () => ({
   getResend: jest.fn(() => ({ emails: { send: resendSendMock } })),
   getEmailFrom: jest.fn(() => "ProOps <noreply@proops.com.br>"),
   getDefaultReplyTo: jest.fn(() => "gestao@proops.com.br"),
-  getUnsubscribeMailto: jest.fn(() => "unsubscribe@proops.com.br"),
+  getUnsubscribeMailto: () => unsubscribeMock(),
 }));
 
 import { sendEmail } from "./send-email";
@@ -33,6 +35,7 @@ const mockCollection = db.collection as jest.Mock;
 beforeEach(() => {
   jest.clearAllMocks();
   resendSendMock.mockResolvedValue({ data: { id: "resend_msg_123" } });
+  unsubscribeMock.mockReturnValue(null); // default: header omitted
 });
 
 describe("sendEmail", () => {
@@ -53,7 +56,7 @@ describe("sendEmail", () => {
     expect(payload.replyTo).toBe("gestao@proops.com.br");
   });
 
-  it("attaches anti-spam headers including List-Unsubscribe for Outlook deliverability", async () => {
+  it("attaches anti-spam headers: X-Entity-Ref-ID, Auto-Submitted, X-Auto-Response-Suppress", async () => {
     await sendEmail({
       to: "user@example.com",
       subject: "Hi",
@@ -67,6 +70,33 @@ describe("sendEmail", () => {
     expect(payload.headers["X-Entity-Ref-ID"]).toMatch(
       /^password_reset-\d+-[a-z0-9]+$/,
     );
+  });
+
+  it("omits List-Unsubscribe when no opt-in mailbox is configured", async () => {
+    unsubscribeMock.mockReturnValue(null);
+
+    await sendEmail({
+      to: "user@example.com",
+      subject: "Hi",
+      html: "<p>Hi</p>",
+      type: "password_reset",
+    });
+
+    const payload = resendSendMock.mock.calls[0][0];
+    expect(payload.headers["List-Unsubscribe"]).toBeUndefined();
+  });
+
+  it("attaches List-Unsubscribe when an opt-in mailbox is configured", async () => {
+    unsubscribeMock.mockReturnValue("unsubscribe@proops.com.br");
+
+    await sendEmail({
+      to: "user@example.com",
+      subject: "Hi",
+      html: "<p>Hi</p>",
+      type: "marketing_newsletter",
+    });
+
+    const payload = resendSendMock.mock.calls[0][0];
     expect(payload.headers["List-Unsubscribe"]).toBe(
       "<mailto:unsubscribe@proops.com.br?subject=unsubscribe>",
     );

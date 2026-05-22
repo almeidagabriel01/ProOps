@@ -46,10 +46,14 @@ export async function sendEmail(
     "X-Entity-Ref-ID": entityRefId,
     "Auto-Submitted": "auto-generated",
     "X-Auto-Response-Suppress": "All",
-    // RFC 8058 + RFC 2369. Outlook gives positive deliverability signal when
-    // List-Unsubscribe is present, even on transactional mail.
-    "List-Unsubscribe": `<mailto:${unsubscribeMailto}?subject=unsubscribe>`,
   };
+  // RFC 8058 + RFC 2369. Only add when an opt-in mailbox is configured —
+  // attaching List-Unsubscribe pointing to a non-existent mailbox bounces,
+  // which hurts deliverability more than skipping the header.
+  if (unsubscribeMailto) {
+    baseHeaders["List-Unsubscribe"] =
+      `<mailto:${unsubscribeMailto}?subject=unsubscribe>`;
+  }
   const headers: Record<string, string> = { ...baseHeaders, ...opts.headers };
 
   try {
