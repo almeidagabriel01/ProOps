@@ -20,7 +20,9 @@ const resendSendMock = jest.fn();
 
 jest.mock("./resend-client", () => ({
   getResend: jest.fn(() => ({ emails: { send: resendSendMock } })),
-  getEmailFrom: jest.fn(() => "ProOps <gestao@proops.com.br>"),
+  getEmailFrom: jest.fn(() => "ProOps <noreply@proops.com.br>"),
+  getDefaultReplyTo: jest.fn(() => "gestao@proops.com.br"),
+  getUnsubscribeMailto: jest.fn(() => "unsubscribe@proops.com.br"),
 }));
 
 import { sendEmail } from "./send-email";
@@ -34,7 +36,7 @@ beforeEach(() => {
 });
 
 describe("sendEmail", () => {
-  it("sends an email with the default From and a default Reply-To", async () => {
+  it("sends an email with the default From and the env-driven default Reply-To", async () => {
     const result = await sendEmail({
       to: "user@example.com",
       subject: "Hi",
@@ -47,11 +49,11 @@ describe("sendEmail", () => {
 
     expect(resendSendMock).toHaveBeenCalledTimes(1);
     const payload = resendSendMock.mock.calls[0][0];
-    expect(payload.from).toBe("ProOps <gestao@proops.com.br>");
+    expect(payload.from).toBe("ProOps <noreply@proops.com.br>");
     expect(payload.replyTo).toBe("gestao@proops.com.br");
   });
 
-  it("attaches anti-spam headers: X-Entity-Ref-ID, Auto-Submitted, X-Auto-Response-Suppress", async () => {
+  it("attaches anti-spam headers including List-Unsubscribe for Outlook deliverability", async () => {
     await sendEmail({
       to: "user@example.com",
       subject: "Hi",
@@ -64,6 +66,9 @@ describe("sendEmail", () => {
     expect(payload.headers["X-Auto-Response-Suppress"]).toBe("All");
     expect(payload.headers["X-Entity-Ref-ID"]).toMatch(
       /^password_reset-\d+-[a-z0-9]+$/,
+    );
+    expect(payload.headers["List-Unsubscribe"]).toBe(
+      "<mailto:unsubscribe@proops.com.br?subject=unsubscribe>",
     );
   });
 

@@ -1,7 +1,12 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../init";
 import { logger } from "../../lib/logger";
-import { getEmailFrom, getResend } from "./resend-client";
+import {
+  getDefaultReplyTo,
+  getEmailFrom,
+  getResend,
+  getUnsubscribeMailto,
+} from "./resend-client";
 
 export interface SendEmailOptions {
   to: string;
@@ -24,8 +29,6 @@ export interface SendEmailResult {
   error?: string;
 }
 
-const DEFAULT_REPLY_TO = "gestao@proops.com.br";
-
 function generateEntityRefId(type: string | undefined): string {
   const safeType = (type || "transactional").replace(/[^a-z0-9_-]/gi, "_");
   return `${safeType}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -35,13 +38,17 @@ export async function sendEmail(
   opts: SendEmailOptions,
 ): Promise<SendEmailResult> {
   const from = getEmailFrom();
-  const replyTo = opts.replyTo || DEFAULT_REPLY_TO;
+  const replyTo = opts.replyTo || getDefaultReplyTo();
   const entityRefId = generateEntityRefId(opts.type);
+  const unsubscribeMailto = getUnsubscribeMailto();
 
   const baseHeaders: Record<string, string> = {
     "X-Entity-Ref-ID": entityRefId,
     "Auto-Submitted": "auto-generated",
     "X-Auto-Response-Suppress": "All",
+    // RFC 8058 + RFC 2369. Outlook gives positive deliverability signal when
+    // List-Unsubscribe is present, even on transactional mail.
+    "List-Unsubscribe": `<mailto:${unsubscribeMailto}?subject=unsubscribe>`,
   };
   const headers: Record<string, string> = { ...baseHeaders, ...opts.headers };
 
