@@ -31,14 +31,14 @@ describe("useFinancialFilters — filterStatus default and persistence", () => {
     });
 
     const stored = window.localStorage.getItem(
-      "transactions:filterStatus:tenant-test",
+      "transactions:filterStatus:v2:tenant-test",
     );
     expect(stored).toBe(JSON.stringify(["paid"]));
   });
 
   it("restores filterStatus from localStorage on mount", () => {
     window.localStorage.setItem(
-      "transactions:filterStatus:tenant-test",
+      "transactions:filterStatus:v2:tenant-test",
       JSON.stringify(["pending"]),
     );
 
@@ -48,7 +48,7 @@ describe("useFinancialFilters — filterStatus default and persistence", () => {
 
   it("ignores malformed localStorage values and falls back to default", () => {
     window.localStorage.setItem(
-      "transactions:filterStatus:tenant-test",
+      "transactions:filterStatus:v2:tenant-test",
       "not-json",
     );
 
@@ -58,7 +58,7 @@ describe("useFinancialFilters — filterStatus default and persistence", () => {
 
   it("sanitizes unknown status values from localStorage", () => {
     window.localStorage.setItem(
-      "transactions:filterStatus:tenant-test",
+      "transactions:filterStatus:v2:tenant-test",
       JSON.stringify(["paid", "bogus", "overdue"]),
     );
 

@@ -32,8 +32,12 @@ function readPersistedFilterStatus(
 ): TransactionStatus[] {
   if (typeof window === "undefined" || !tenantId) return DEFAULT_FILTER_STATUS;
   try {
+    // One-time cleanup of the v1 key that stored only ["pending"] (old
+    // default). Without removing it, the v2 read would never trigger the
+    // new default for users who used the page before the bump.
+    window.localStorage.removeItem(`transactions:filterStatus:${tenantId}`);
     const raw = window.localStorage.getItem(
-      `transactions:filterStatus:${tenantId}`,
+      `transactions:filterStatus:v2:${tenantId}`,
     );
     if (!raw) return DEFAULT_FILTER_STATUS;
     const parsed = JSON.parse(raw);
@@ -76,7 +80,7 @@ export function useFinancialFilters(
     if (typeof window === "undefined" || !tenantId) return;
     try {
       window.localStorage.setItem(
-        `transactions:filterStatus:${tenantId}`,
+        `transactions:filterStatus:v2:${tenantId}`,
         JSON.stringify(filterStatus),
       );
     } catch {

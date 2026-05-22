@@ -22,7 +22,7 @@ import {
 } from "../_lib/proposal-transaction";
 import { formatDateBR } from "@/utils/date-format";
 
-import { Check, ChevronDown, Eye, Trash2, ArrowUpCircle, ArrowDownCircle, ArrowUp, ArrowDown, ChevronsUpDown, Split, FileText, Banknote, CreditCard } from "lucide-react";
+import { Check, ChevronDown, Eye, Pencil, Trash2, ArrowUpCircle, ArrowDownCircle, ArrowUp, ArrowDown, ChevronsUpDown, Split, FileText, Banknote, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { PartialPaymentDialog } from "./partial-payment-dialog";
@@ -839,6 +839,18 @@ export function TransactionListByDueDate({
                             title="Ver"
                           >
                             <Eye className="w-3 h-3" />
+                          </Button>
+                        </Link>
+                      )}
+                      {canEdit && !(tx as SyncTx).isExtraCostSync && (
+                        <Link href={`/transactions/${tx.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            title="Editar"
+                          >
+                            <Pencil className="w-3 h-3" />
                           </Button>
                         </Link>
                       )}
