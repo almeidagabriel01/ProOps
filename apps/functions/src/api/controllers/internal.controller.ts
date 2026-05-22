@@ -581,6 +581,35 @@ export const markOverdueTransactionsManual = async (
   }
 };
 
+export const cleanupBillingRedundantFieldsManual = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+    const { cleanupBillingRedundantFields } = await import(
+      "../../scripts/cleanup-billing-redundant-fields"
+    );
+    const result = await cleanupBillingRedundantFields();
+    logger.info("[cleanupBillingRedundantFields manual] completed", {
+      scanned: result.scanned,
+      updated: result.updated,
+      batches: result.batches,
+      inconsistentFreePayingCount: result.inconsistentFreePaying.length,
+    });
+    return res.json(result);
+  } catch (error) {
+    logger.error("[cleanupBillingRedundantFields manual] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const cleanupTrialFieldsManual = async (
   req: Request,
   res: Response,

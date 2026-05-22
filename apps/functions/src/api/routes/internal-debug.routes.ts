@@ -11,6 +11,7 @@ import { Router } from "express";
 import {
   invalidateTenantPlanCacheManual,
   cleanupTrialFieldsManual,
+  cleanupBillingRedundantFieldsManual,
   markOverdueTransactionsManual,
 } from "../controllers/internal.controller";
 
@@ -18,6 +19,7 @@ const router = Router();
 
 router.post("/debug/invalidate-tenant-plan-cache", invalidateTenantPlanCacheManual);
 router.post("/admin/cleanup-trial-fields", cleanupTrialFieldsManual);
+router.post("/admin/cleanup-billing-redundant-fields", cleanupBillingRedundantFieldsManual);
 router.post("/cron/mark-overdue", markOverdueTransactionsManual);
 
 export { router as internalDebugRoutes };
