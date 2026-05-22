@@ -67,6 +67,16 @@ export const metadata: Metadata = {
     default: "ProOps - ERP para gestão de serviços",
     template: "%s | ProOps",
   },
+  icons: {
+    // icon-google.png: white background + black logo, used by Google Search
+    // and other crawlers that flatten transparency to white.
+    // The transparent icon.png in src/app/ continues to serve browser tabs.
+    icon: [
+      { url: "/icons/icon-google.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
   description:
     "ProOps é o ERP completo para empresas de serviço: propostas, CRM, financeiro, agenda e WhatsApp integrados em uma plataforma online com editor de PDF profissional.",
   applicationName: "ProOps",

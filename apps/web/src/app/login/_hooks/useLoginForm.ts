@@ -314,11 +314,12 @@ export function useLoginForm(): UseLoginFormReturn {
       return;
     }
 
-    // If the login page was opened with ?redirect=<path> (e.g. from
-    // "Assinar agora" on the landing pricing, which links to
-    // /login?redirect=/subscribe?plan=pro), honour it as long as the path
-    // is allowed for this user's role. This is what sends the user to the
-    // Stripe checkout after auth instead of dropping them on the dashboard.
+    // Only honour ?redirect= for explicit payment-flow paths
+    // (e.g. /login?redirect=/subscribe?plan=pro from the pricing page).
+    // Arbitrary ERP routes (/proposals, /dashboard, /contacts, etc.) are
+    // intentionally ignored so that a user always lands on their role-based
+    // home after login, regardless of URL params.
+    const REDIRECT_ALLOWED_PREFIXES = ["/subscribe", "/checkout-success"];
     const redirectParam = searchParams.get("redirect");
     if (redirectParam) {
       const decoded = (() => {
@@ -329,7 +330,11 @@ export function useLoginForm(): UseLoginFormReturn {
         }
       })();
       const isInternal = decoded.startsWith("/") && !decoded.startsWith("//");
-      if (isInternal && isPathAllowedForUser(decoded, user ?? null)) {
+      const base = decoded.split("?")[0];
+      const isPaymentFlow = REDIRECT_ALLOWED_PREFIXES.some(
+        (prefix) => base === prefix || base.startsWith(prefix + "/"),
+      );
+      if (isInternal && isPaymentFlow && isPathAllowedForUser(decoded, user ?? null)) {
         router.replace(decoded);
         return;
       }

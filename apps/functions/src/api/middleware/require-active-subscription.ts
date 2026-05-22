@@ -27,6 +27,7 @@ const WHITELISTED_PREFIXES = [
   "/v1/billing/",
   "/v1/validation/",
   "/v1/aux/proxy-image", // proxy-image is public; other /v1/aux/* routes are authenticated mutations
+  "/v1/ai/",            // AI routes carry their own tier/subscription checks (403 AI_FREE_TIER_BLOCKED)
   "/health",
   "/internal/",
   "/authenticated",
@@ -178,7 +179,11 @@ export async function requireActiveSubscription(
     return;
   }
 
-  if (subscriptionStatus === "" || subscriptionStatus === "active") {
+  // Allow empty status (legacy tenants), active, and "free" (free-tier tenants
+  // seeded without a Stripe subscription). The plan-limit check inside each route
+  // handler (e.g. PLAN_LIMIT_PROPOSALS_MONTHLY) is responsible for enforcing limits
+  // on free tenants — blocking them here would shadow that error with BILLING_INACTIVE.
+  if (subscriptionStatus === "" || subscriptionStatus === "active" || subscriptionStatus === "free") {
     next();
     return;
   }
