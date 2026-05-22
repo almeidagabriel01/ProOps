@@ -69,6 +69,8 @@ export default function EditTransactionPage() {
     isProposalTransaction,
     groupTotalValue,
     switchPaymentMode,
+    recurringEditScope,
+    setRecurringEditScope,
   } = useEditTransaction();
 
   // Adapt formData type for shared components
@@ -287,6 +289,48 @@ export default function EditTransactionPage() {
         icon={Wallet}
         onBack={() => router.push("/transactions")}
       />
+
+      {transaction?.isRecurring && (
+        <div className="mb-6 rounded-xl border border-border/50 bg-card p-4">
+          <p className="mb-3 text-sm font-medium text-foreground">
+            Aplicar alterações:
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/50 p-3 text-sm transition-colors hover:bg-muted/50">
+              <input
+                type="radio"
+                name="recurring-edit-scope"
+                value="single"
+                checked={recurringEditScope === "single"}
+                onChange={() => setRecurringEditScope("single")}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block font-medium">Somente esta ocorrência</span>
+                <span className="block text-xs text-muted-foreground">
+                  Altera apenas este lançamento; demais meses permanecem com os valores originais
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border/50 p-3 text-sm transition-colors hover:bg-muted/50">
+              <input
+                type="radio"
+                name="recurring-edit-scope"
+                value="series"
+                checked={recurringEditScope === "series"}
+                onChange={() => setRecurringEditScope("series")}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block font-medium">Toda a série recorrente</span>
+                <span className="block text-xs text-muted-foreground">
+                  Regenera todas as ocorrências (preserva valores já editados manualmente)
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
 
       <StepWizard
         steps={transactionSteps}

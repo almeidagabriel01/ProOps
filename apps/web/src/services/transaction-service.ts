@@ -116,7 +116,7 @@ const COLLECTION_NAME = "transactions";
  * deriving on read covers the gap so users never see a stale "Pendente" on
  * a vencida lançamento. Returns a new object — does not mutate input.
  */
-function withDerivedOverdue<T extends { status?: TransactionStatus; dueDate?: string }>(
+export function withDerivedOverdue<T extends { status?: TransactionStatus; dueDate?: string }>(
   tx: T,
 ): T {
   if (tx.status !== "pending" || !tx.dueDate) return tx;

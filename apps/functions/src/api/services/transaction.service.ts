@@ -607,12 +607,19 @@ export class TransactionService {
       for (let i = 0; i < targetInstallmentCount; i++) {
         const existing = existingInstallments[i] || null;
         const interval = payload.installmentInterval || 1;
-        
-        const nextInstallment = {
+
+        // Preserve manually-edited amounts (recurring occurrences flagged with
+        // overriddenAmount=true). Other fields still sync with the series.
+        const preserveAmount = !!existing?.data?.overriddenAmount;
+        const resolvedAmount = preserveAmount
+          ? toNumber(existing!.data.amount, 0)
+          : (installmentAmounts[i] ?? 0);
+
+        const nextInstallment: Record<string, any> = {
           tenantId: txTenantId,
           type,
           description,
-          amount: installmentAmounts[i] ?? 0,
+          amount: resolvedAmount,
           date: launchDate,
           dueDate: addMonths(baseInstallmentDueDate, i * interval),
           status:
@@ -638,6 +645,7 @@ export class TransactionService {
           notes,
           updatedAt: now,
         };
+        if (preserveAmount) nextInstallment.overriddenAmount = true;
 
         if (existing) {
           toUpdate.push({
@@ -942,8 +950,19 @@ export class TransactionService {
         t.update(proposalRef, proposalUpdate);
       }
 
+      // Mark recurring occurrence as manually overridden when the amount
+      // changes. Bulk series edits must skip these to preserve user intent.
+      const amountChanged =
+        normalizedUpdateData.amount !== undefined &&
+        toNumber(normalizedUpdateData.amount) !== toNumber(currentData.amount);
+      const overriddenFlag =
+        currentData.isRecurring && amountChanged
+          ? { overriddenAmount: true }
+          : {};
+
       const finalUpdateData: Record<string, any> = {
         ...normalizedUpdateData,
+        ...overriddenFlag,
         updatedAt: now,
       };
       if (nextStatus === "paid") {

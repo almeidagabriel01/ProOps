@@ -749,6 +749,13 @@ export function useEditTransaction() {
     }));
   };
 
+  // For recurring transactions, the user can apply changes to just THIS
+  // occurrence (default) or regenerate the entire series. Non-recurring
+  // edits always go through the series path for backward compatibility.
+  const [recurringEditScope, setRecurringEditScope] = React.useState<
+    "single" | "series"
+  >("single");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!transaction) return;
@@ -759,44 +766,63 @@ export function useEditTransaction() {
       : `ID ${transaction.id}`;
 
     try {
-      const payload: UpdateFinancialEntryWithInstallmentsPayload = {
-        type: formData.type,
-        description: formData.description.trim(),
-        amount: formData.amount,
-        date: formData.date,
-        dueDate: formData.dueDate,
-        status: formData.status,
-        clientId: formData.clientId,
-        clientName: formData.clientName,
-        category: formData.category,
-        wallet: formData.wallet,
-        notes: formData.notes,
-        isInstallment: formData.isInstallment && !formData.isRecurring,
-        isRecurring: formData.isRecurring,
-        installmentCount: formData.isRecurring ? 60 : formData.installmentCount,
-        installmentInterval: formData.installmentInterval || 1,
-        paymentMode: formData.paymentMode,
-        installmentValue: formData.installmentValue,
-        firstInstallmentDate: formData.firstInstallmentDate,
-        installmentsWallet:
-          formData.paymentMode === "total"
-            ? formData.wallet
-            : formData.installmentsWallet,
-        downPaymentEnabled: formData.downPaymentEnabled,
-        downPaymentType: formData.downPaymentType,
-        downPaymentPercentage: formData.downPaymentPercentage,
-        downPaymentValue: formData.downPaymentValue,
-        downPaymentWallet: formData.downPaymentWallet,
-        downPaymentDueDate: formData.downPaymentDueDate,
-        expectedUpdatedAt: transaction.updatedAt,
-        targetTenantId: transaction.tenantId,
-        extraTransactionIds,
-      };
+      // Recurring + "this occurrence only" → single-doc update.
+      // Backend tags it as overriddenAmount to protect against series
+      // regeneration overwriting the value.
+      if (formData.isRecurring && recurringEditScope === "single") {
+        await TransactionService.updateTransaction(transaction.id, {
+          type: formData.type,
+          description: formData.description.trim(),
+          amount: Number(formData.amount),
+          date: formData.date,
+          dueDate: formData.dueDate,
+          status: formData.status,
+          clientId: formData.clientId,
+          clientName: formData.clientName,
+          category: formData.category,
+          wallet: formData.wallet,
+          notes: formData.notes,
+        });
+      } else {
+        const payload: UpdateFinancialEntryWithInstallmentsPayload = {
+          type: formData.type,
+          description: formData.description.trim(),
+          amount: formData.amount,
+          date: formData.date,
+          dueDate: formData.dueDate,
+          status: formData.status,
+          clientId: formData.clientId,
+          clientName: formData.clientName,
+          category: formData.category,
+          wallet: formData.wallet,
+          notes: formData.notes,
+          isInstallment: formData.isInstallment && !formData.isRecurring,
+          isRecurring: formData.isRecurring,
+          installmentCount: formData.isRecurring ? 60 : formData.installmentCount,
+          installmentInterval: formData.installmentInterval || 1,
+          paymentMode: formData.paymentMode,
+          installmentValue: formData.installmentValue,
+          firstInstallmentDate: formData.firstInstallmentDate,
+          installmentsWallet:
+            formData.paymentMode === "total"
+              ? formData.wallet
+              : formData.installmentsWallet,
+          downPaymentEnabled: formData.downPaymentEnabled,
+          downPaymentType: formData.downPaymentType,
+          downPaymentPercentage: formData.downPaymentPercentage,
+          downPaymentValue: formData.downPaymentValue,
+          downPaymentWallet: formData.downPaymentWallet,
+          downPaymentDueDate: formData.downPaymentDueDate,
+          expectedUpdatedAt: transaction.updatedAt,
+          targetTenantId: transaction.tenantId,
+          extraTransactionIds,
+        };
 
-      await TransactionService.updateFinancialEntryWithInstallments(
-        transaction.id,
-        payload,
-      );
+        await TransactionService.updateFinancialEntryWithInstallments(
+          transaction.id,
+          payload,
+        );
+      }
 
       toast.success(`Lancamento ${transactionLabel} atualizado com sucesso.`, {
         title: "Sucesso ao editar",
@@ -845,5 +871,7 @@ export function useEditTransaction() {
         ? relatedInstallments.reduce((sum, t) => sum + t.amount, 0)
         : null,
     refetch: fetchTransaction,
+    recurringEditScope,
+    setRecurringEditScope,
   };
 }
