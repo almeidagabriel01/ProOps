@@ -484,8 +484,38 @@ export function useLoginForm(): UseLoginFormReturn {
       return;
     }
 
+    // Watch the popup window and release the loading state the moment
+    // the user closes it, without waiting for Firebase's own polling delay.
+    let popupClosedEarly = false;
+    let popupWatchInterval: ReturnType<typeof setInterval> | null = null;
+
+    const watchPopup = (popupWindow: Window | null) => {
+      if (!popupWindow) return;
+      popupWatchInterval = setInterval(() => {
+        if (popupWindow.closed) {
+          clearInterval(popupWatchInterval!);
+          popupClosedEarly = true;
+          setIsGoogleLoading(false);
+        }
+      }, 300);
+    };
+
+    // signInWithPopup opens the popup internally; we intercept it by patching
+    // window.open temporarily so we can grab a reference to the popup window.
+    const originalOpen = window.open.bind(window);
+    let popupRef: Window | null = null;
+    window.open = (...args) => {
+      popupRef = originalOpen(...args);
+      watchPopup(popupRef);
+      return popupRef;
+    };
+
     try {
       const userCredential = await signInWithPopup(auth, provider);
+
+      // Popup completed successfully — stop watching.
+      if (popupWatchInterval) clearInterval(popupWatchInterval);
+      window.open = originalOpen;
 
       const firebaseUser = userCredential.user;
       const additionalInfo = getAdditionalUserInfo(userCredential);
@@ -497,6 +527,12 @@ export function useLoginForm(): UseLoginFormReturn {
         router.replace(getGoogleSetupTarget());
       }
     } catch (googleError: unknown) {
+      if (popupWatchInterval) clearInterval(popupWatchInterval);
+      window.open = originalOpen;
+
+      // If we already detected the popup was closed early, ignore the error.
+      if (popupClosedEarly) return;
+
       const code = (googleError as { code?: string })?.code;
       // User intentionally closed or cancelled the popup — just stop silently.
       const silentCodes = [
