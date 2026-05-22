@@ -53,9 +53,10 @@ export function resolveUserHome(user: User | null): ResolvedHome {
     return { kind: "subscription-blocked", path: "/subscription-blocked" };
   }
 
-  // 4. Free → landing (free não tem acesso ao ERP)
+  // 4. Free → dashboard. Free tier vê apenas o dashboard (resumo + CTA para
+  //    assinar); o restante do ERP é bloqueado por isPathAllowedForUser.
   if (user.role === "free") {
-    return { kind: "landing", path: "/" };
+    return { kind: "dashboard", path: "/dashboard" };
   }
 
   // 5. Admin/MASTER → dashboard
@@ -92,9 +93,24 @@ export function isPathAllowedForUser(path: string, user: User | null): boolean {
   }
 
   if (role === "free") {
-    const allowed = new Set(["/", "/subscribe", "/subscription-blocked"]);
+    // Free tier: dashboard (resumo + upgrade CTA), subscribe / checkout-success
+    // (assinar plano), profile (alterar dados pessoais, ver/escolher plano),
+    // subscription-blocked (defensive). Tudo do ERP fica bloqueado.
+    const allowed = new Set([
+      "/",
+      "/dashboard",
+      "/subscribe",
+      "/checkout-success",
+      "/profile",
+      "/subscription-blocked",
+    ]);
     const base = path.split("?")[0];
-    return allowed.has(base) || base.startsWith("/subscribe/");
+    return (
+      allowed.has(base) ||
+      base.startsWith("/subscribe/") ||
+      base.startsWith("/profile/") ||
+      base.startsWith("/checkout-success/")
+    );
   }
 
   // Paying users (admin, master, member, etc.): any internal route except /admin

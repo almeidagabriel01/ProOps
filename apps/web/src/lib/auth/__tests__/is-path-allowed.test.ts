@@ -37,16 +37,30 @@ describe("isPathAllowedForUser", () => {
     const user = makeUser({ role: "free" });
 
     it("allows /", () => expect(isPathAllowedForUser("/", user)).toBe(true));
+    it("allows /dashboard (free's only ERP page)", () =>
+      expect(isPathAllowedForUser("/dashboard", user)).toBe(true));
     it("allows /subscribe", () => expect(isPathAllowedForUser("/subscribe", user)).toBe(true));
-    it("allows /subscription-blocked", () => expect(isPathAllowedForUser("/subscription-blocked", user)).toBe(true));
-    it("allows /subscribe/something (startsWith)", () => expect(isPathAllowedForUser("/subscribe/something", user)).toBe(true));
-    it("rejects /profile", () => expect(isPathAllowedForUser("/profile", user)).toBe(false));
-    it("rejects /dashboard", () => expect(isPathAllowedForUser("/dashboard", user)).toBe(false));
-    it("rejects /transactions", () => expect(isPathAllowedForUser("/transactions", user)).toBe(false));
-    it("rejects /admin", () => expect(isPathAllowedForUser("/admin", user)).toBe(false));
-    it("rejects /profile?tab=overview (strip query string)", () => {
-      expect(isPathAllowedForUser("/profile?tab=overview", user)).toBe(false);
+    it("allows /subscribe/something (startsWith)", () =>
+      expect(isPathAllowedForUser("/subscribe/something", user)).toBe(true));
+    it("allows /checkout-success", () =>
+      expect(isPathAllowedForUser("/checkout-success", user)).toBe(true));
+    it("allows /subscription-blocked", () =>
+      expect(isPathAllowedForUser("/subscription-blocked", user)).toBe(true));
+    it("allows /profile (to view/change plan)", () =>
+      expect(isPathAllowedForUser("/profile", user)).toBe(true));
+    it("allows /profile?tab=billing (strip query string)", () => {
+      expect(isPathAllowedForUser("/profile?tab=billing", user)).toBe(true);
     });
+    it("rejects /transactions", () =>
+      expect(isPathAllowedForUser("/transactions", user)).toBe(false));
+    it("rejects /proposals", () =>
+      expect(isPathAllowedForUser("/proposals", user)).toBe(false));
+    it("rejects /contacts", () =>
+      expect(isPathAllowedForUser("/contacts", user)).toBe(false));
+    it("rejects /crm", () => expect(isPathAllowedForUser("/crm", user)).toBe(false));
+    it("rejects /wallets", () =>
+      expect(isPathAllowedForUser("/wallets", user)).toBe(false));
+    it("rejects /admin", () => expect(isPathAllowedForUser("/admin", user)).toBe(false));
   });
 
   describe("paying admin/master", () => {
