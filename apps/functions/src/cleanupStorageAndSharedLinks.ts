@@ -2,6 +2,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { processStorageGcQueue } from "./lib/storage-gc";
+import { cleanupExpiredWalletCascadeJobs } from "./api/services/wallet-cascade-job.service";
 
 const SHARED_PROPOSALS_COLLECTION = "shared_proposals";
 const SHARED_TRANSACTIONS_COLLECTION = "shared_transactions";
@@ -77,6 +78,16 @@ export const cleanupStorageAndSharedLinks = onSchedule(
       );
     }
 
+    let deletedWalletCascadeJobs = 0;
+    try {
+      deletedWalletCascadeJobs = await cleanupExpiredWalletCascadeJobs();
+    } catch (error) {
+      console.error(
+        "[cleanupStorageAndSharedLinks] failed during wallet_cascade_jobs cleanup",
+        error,
+      );
+    }
+
     console.log("[cleanupStorageAndSharedLinks] job finished", {
       deletedSharedProposals,
       deletedSharedTransactions,
@@ -84,6 +95,7 @@ export const cleanupStorageAndSharedLinks = onSchedule(
       storageGcDeleted: gcStats.deleted,
       storageGcFailed: gcStats.failed,
       storageGcDeadLettered: gcStats.deadLettered,
+      deletedWalletCascadeJobs,
     });
   },
 );

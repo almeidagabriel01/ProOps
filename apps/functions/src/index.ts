@@ -32,6 +32,9 @@ export { cleanupStorageAndSharedLinks } from "./cleanupStorageAndSharedLinks";
 export { reconcileAddons } from "./reconcileAddons";
 export { processPayoutRetries } from "./processPayoutRetries";
 
+// 2b. Firestore triggers
+export { onWalletCascadeJob } from "./onWalletCascadeJob";
+
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";
 // mercadopagoWebhook removed — webhook now handled inside Express monolith at /webhooks/asaas/:tenantId

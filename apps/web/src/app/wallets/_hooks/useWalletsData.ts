@@ -13,6 +13,7 @@ import {
 } from "@/services/wallet-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useWalletCascadeJob } from "./useWalletCascadeJob";
 
 interface UseWalletsDataReturn {
   wallets: Wallet[];
@@ -115,28 +116,19 @@ export function useWalletsData(): UseWalletsDataReturn {
     [fetchData, tenant?.id],
   );
 
+  // Tracks an in-flight wallet rename cascade job. When set, the
+  // useWalletCascadeJob hook below subscribes and surfaces progress
+  // toasts; clears itself when the job settles.
+  const [cascadeJobId, setCascadeJobId] = useState<string | null>(null);
+
   const updateWallet = useCallback(
     async (walletId: string, data: UpdateWalletInput): Promise<boolean> => {
       try {
-        const { cascade } = await WalletService.updateWallet(walletId, data);
-        await fetchData(); // Refresh data
-        const cascadeTotal =
-          (cascade?.transactionsUpdated ?? 0) + (cascade?.proposalsUpdated ?? 0);
-        if (cascadeTotal > 0 && cascade) {
-          const parts: string[] = [];
-          if (cascade.transactionsUpdated > 0) {
-            parts.push(
-              `${cascade.transactionsUpdated} lançamento${cascade.transactionsUpdated === 1 ? "" : "s"}`,
-            );
-          }
-          if (cascade.proposalsUpdated > 0) {
-            parts.push(
-              `${cascade.proposalsUpdated} proposta${cascade.proposalsUpdated === 1 ? "" : "s"}`,
-            );
-          }
-          toast.success(
-            `Carteira atualizada. ${parts.join(" e ")} sincronizado${cascadeTotal === 1 ? "" : "s"} com o novo nome.`,
-          );
+        const { cascadeJobId: newCascadeJobId } =
+          await WalletService.updateWallet(walletId, data);
+        await fetchData(); // Refresh wallet data immediately
+        if (newCascadeJobId) {
+          setCascadeJobId(newCascadeJobId);
         } else {
           toast.success("Carteira atualizada com sucesso!");
         }
@@ -151,6 +143,14 @@ export function useWalletsData(): UseWalletsDataReturn {
     },
     [fetchData],
   );
+
+  useWalletCascadeJob({
+    jobId: cascadeJobId,
+    onSettled: () => {
+      setCascadeJobId(null);
+      void fetchData();
+    },
+  });
 
   const deleteWallet = useCallback(
     async (walletId: string, force = false): Promise<boolean> => {

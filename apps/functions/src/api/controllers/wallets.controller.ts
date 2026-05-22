@@ -249,26 +249,29 @@ export const updateWallet = async (req: Request, res: Response) => {
       await walletRef.update(safeUpdate);
     }
 
-    // Cascade rename to denormalized references (transactions, proposals).
-    // Migrates legacy NAME-stored docs to id-stored in the same pass.
+    // Cascade rename to denormalized references (transactions, proposals)
+    // runs asynchronously via Firestore trigger. We only enqueue a job
+    // here so the HTTP request returns immediately; the frontend listens
+    // on wallet_cascade_jobs/{jobId} for live progress and completion.
     const renamedFrom = walletData?.name as string | undefined;
     const renamedTo = typeof safeUpdate.name === "string" ? safeUpdate.name : undefined;
-    let cascadeResult = { transactionsUpdated: 0, proposalsUpdated: 0 };
+    let cascadeJobId: string | null = null;
     if (renamedFrom && renamedTo && renamedFrom !== renamedTo) {
-      const { cascadeWalletRename } = await import(
-        "../services/wallet-cascade.service"
+      const { enqueueWalletCascadeJob } = await import(
+        "../services/wallet-cascade-job.service"
       );
-      cascadeResult = await cascadeWalletRename({
+      cascadeJobId = await enqueueWalletCascadeJob({
         tenantId,
         walletId: id,
         oldName: renamedFrom,
+        newName: renamedTo,
       });
     }
 
     return res.json({
       success: true,
       message: "Carteira atualizada.",
-      cascade: cascadeResult,
+      cascadeJobId,
     });
   } catch (error: unknown) {
     const message =
