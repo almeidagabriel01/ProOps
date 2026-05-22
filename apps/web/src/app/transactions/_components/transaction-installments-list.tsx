@@ -14,7 +14,7 @@ import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
 import { statusConfig } from "../_constants/config";
 import { Wallet } from "@/types";
-import { Check, ChevronDown, Edit2, Banknote, CreditCard, Split, RefreshCw, Pencil } from "lucide-react";
+import { Check, ChevronDown, Edit, Banknote, CreditCard, Split, RefreshCw, Pencil } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { cn } from "@/lib/utils";
@@ -60,12 +60,51 @@ export function TransactionInstallmentsList({
   const { editableStatuses: statusOptions } = useTransactionStatuses();
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [undoingId, setUndoingId] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState<number>(0);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [undoingId, setUndoingId] = React.useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = React.useState<Set<number>>(
     new Set(),
   );
+
+  const handleEditClick = (installment: Transaction, e: React.MouseEvent) => {
+    if (!canEdit || !onUpdate) return;
+    e.stopPropagation();
+    setEditingId(installment.id);
+    setEditValue(installment.amount);
+  };
+
+  const handleEditSave = async (installment: Transaction) => {
+    if (!onUpdate) return;
+
+    if (Math.abs(editValue - installment.amount) < 0.01) {
+      setEditingId(null);
+      return;
+    }
+
+    if (editValue <= 0) {
+      toast.warning("O valor deve ser maior que zero");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onUpdate(installment, { amount: editValue });
+      setEditingId(null);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, installment: Transaction) => {
+    if (e.key === "Enter") {
+      handleEditSave(installment);
+    } else if (e.key === "Escape") {
+      setEditingId(null);
+    }
+  };
 
   const isRecurringGroup = installments.some((i) => i.isRecurring);
 
@@ -209,44 +248,7 @@ export function TransactionInstallmentsList({
     setUpdatingId(null);
   };
 
-  const handleEditClick = (installment: Transaction, e: React.MouseEvent) => {
-    if (!canEdit || !onUpdate) return;
-    e.stopPropagation();
-    setEditingId(installment.id);
-    setEditValue(installment.amount);
-  };
 
-  const handleEditSave = async (installment: Transaction) => {
-    if (!onUpdate) return;
-
-    if (Math.abs(editValue - installment.amount) < 0.01) {
-      setEditingId(null);
-      return;
-    }
-
-    if (editValue <= 0) {
-      toast.warning("O valor deve ser maior que zero");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await onUpdate(installment, { amount: editValue });
-      setEditingId(null);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent, installment: Transaction) => {
-    if (e.key === "Enter") {
-      handleEditSave(installment);
-    } else if (e.key === "Escape") {
-      setEditingId(null);
-    }
-  };
 
   const formatDate = (dateString: string) => {
     return formatDateBR(dateString, "");
@@ -575,19 +577,30 @@ export function TransactionInstallmentsList({
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex items-center justify-end gap-2">
-                                <span>{formatCurrency(group.main.amount)}</span>
+                              <div className="flex items-center justify-end gap-1.5 group/amount">
                                 {canEdit && onUpdate && (
                                   <button
                                     onClick={(e) =>
                                       handleEditClick(group.main, e)
                                     }
-                                    className="p-1 hover:bg-muted rounded-full transition-colors flex items-center justify-center cursor-pointer"
-                                    title="Clique para editar o valor"
+                                    className="p-1 hover:bg-muted rounded-full transition-colors flex items-center justify-center cursor-pointer text-muted-foreground hover:text-primary"
+                                    title="Clique para editar o valor diretamente"
                                   >
-                                    <Edit2 className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                                    <Pencil className="w-3.5 h-3.5" />
                                   </button>
                                 )}
+                                <span
+                                  onClick={(e) =>
+                                    canEdit && onUpdate && handleEditClick(group.main, e)
+                                  }
+                                  className={cn(
+                                    "transition-colors decoration-dashed",
+                                    canEdit && onUpdate && "cursor-pointer group-hover/amount:text-primary group-hover/amount:underline"
+                                  )}
+                                  title={canEdit && onUpdate ? "Clique para editar o valor diretamente" : undefined}
+                                >
+                                  {formatCurrency(group.main.amount)}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -600,7 +613,7 @@ export function TransactionInstallmentsList({
                                   className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-muted"
                                   title="Editar esta ocorrência"
                                 >
-                                  <Pencil className="w-3.5 h-3.5" />
+                                  <Edit className="w-3.5 h-3.5" />
                                 </Button>
                               </Link>
                             </div>

@@ -59,7 +59,10 @@ type TransactionDoc = {
   data: Record<string, any>;
 };
 
-type DbOp = { type: "set"; ref: FirebaseFirestore.DocumentReference; data: any } | { type: "delete"; ref: FirebaseFirestore.DocumentReference };
+type DbOp = 
+  | { type: "set"; ref: FirebaseFirestore.DocumentReference; data: any }
+  | { type: "update"; ref: FirebaseFirestore.DocumentReference; data: any }
+  | { type: "delete"; ref: FirebaseFirestore.DocumentReference };
 
 /**
  * Handles reading the next recurrence to determine if it should be generated/destroyed.
@@ -88,54 +91,143 @@ async function getNextRecurringTransactionOps(
     .limit(1);
 
   const nextSnap = await t.get(nextQuery);
+  const ops: DbOp[] = [];
 
   if (nextStatus === "paid" && nextSnap.empty) {
     // Generate next recurrence
     const interval = currentData.installmentInterval || 1;
-    const nextDueDate = addMonths(currentData.dueDate || currentData.date, interval);
     
-    const nextTx = {
-      tenantId: txTenantId,
-      type: currentData.type,
-      description: currentData.description, // Kept stable without counter for recurrences
-      amount: currentData.amount,
-      date: currentData.date, // Launch date is constant
-      dueDate: nextDueDate,
-      status: "pending",
-      clientId: currentData.clientId || null,
-      clientName: currentData.clientName || null,
-      proposalId: currentData.proposalId || null,
-      category: currentData.category || null,
-      wallet: currentData.installmentsWallet || currentData.wallet || null,
-      isInstallment: false,
-      isRecurring: true,
-      downPaymentType: null,
-      downPaymentPercentage: null,
-      // Pass the count down in case we want to retain whatever the base was, but strictly 1 by 1 UI
-      installmentCount: currentData.installmentCount,
-      installmentNumber: nextNumber,
-      installmentGroupId: null,
-      recurringGroupId: groupId,
-      installmentInterval: interval,
-      paymentMode: currentData.paymentMode || null,
-      notes: currentData.notes || null,
-      extraCosts: [], // Don't forward manual extra costs automatically
-      createdAt: now,
-      updatedAt: now,
-      createdById: userId,
-    };
+    const rawDescription = (currentData.description || "").toString().trim();
+    const baseDescription = rawDescription.replace(/\s*\(\d+\/\d+\)$/, "").trim();
+    
+    const currentLimit = toNumber(currentData.installmentCount, 12);
+    let newLimit = currentLimit;
+    let endNumber = nextNumber;
 
-    const ref = db.collection("transactions").doc();
-    return [{ type: "set", ref, data: nextTx }];
-  } else if (nextStatus !== "paid" && !nextSnap.empty) {
-    // Revered payment -> Delete the automatically generated future one IF it is still pending
-    const nextDoc = nextSnap.docs[0];
-    const nextData = nextDoc.data();
-    if (nextData.status === "pending" || nextData.status === "overdue") {
-       return [{ type: "delete", ref: nextDoc.ref }];
+    if (nextNumber > currentLimit) {
+      newLimit = Math.ceil(nextNumber / 12) * 12;
+      endNumber = newLimit;
+      
+      // Update older documents in that group (adjusting suffixes and counts)
+      const groupQuery = db
+        .collection("transactions")
+        .where("tenantId", "==", txTenantId)
+        .where("recurringGroupId", "==", groupId);
+      
+      const groupSnap = await t.get(groupQuery);
+      for (const doc of groupSnap.docs) {
+        const docData = doc.data();
+        const k = toNumber(docData.installmentNumber, 1);
+        const docRawDesc = (docData.description || "").toString().trim();
+        const docBaseDesc = docRawDesc.replace(/\s*\(\d+\/\d+\)$/, "").trim();
+        const docNextDesc = `${docBaseDesc} (${k}/${newLimit})`;
+        
+        ops.push({
+          type: "update",
+          ref: doc.ref,
+          data: {
+            description: docNextDesc,
+            installmentCount: newLimit,
+            updatedAt: now,
+          },
+        });
+      }
+    } else {
+      newLimit = currentLimit;
+      endNumber = nextNumber;
+    }
+
+    for (let n = nextNumber; n <= endNumber; n++) {
+      const offset = n - currentNumber;
+      const nextDueDate = addMonths(currentData.dueDate || currentData.date, offset * interval);
+      const nextDescription = `${baseDescription} (${n}/${newLimit})`;
+
+      const nextTx = {
+        tenantId: txTenantId,
+        type: currentData.type,
+        description: nextDescription,
+        amount: currentData.amount,
+        date: currentData.date, // Launch date is constant
+        dueDate: nextDueDate,
+        status: "pending",
+        clientId: currentData.clientId || null,
+        clientName: currentData.clientName || null,
+        proposalId: currentData.proposalId || null,
+        category: currentData.category || null,
+        wallet: currentData.installmentsWallet || currentData.wallet || null,
+        isInstallment: false,
+        isRecurring: true,
+        downPaymentType: null,
+        downPaymentPercentage: null,
+        installmentCount: newLimit,
+        installmentNumber: n,
+        installmentGroupId: null,
+        recurringGroupId: groupId,
+        installmentInterval: interval,
+        paymentMode: currentData.paymentMode || null,
+        notes: currentData.notes || null,
+        extraCosts: [], // Don't forward manual extra costs automatically
+        createdAt: now,
+        updatedAt: now,
+        createdById: userId,
+      };
+
+      const ref = db.collection("transactions").doc();
+      ops.push({ type: "set", ref, data: nextTx });
+    }
+    return ops;
+  } else if (nextStatus !== "paid") {
+    // Reverted payment -> Check if boundary and all subsequent ones are pending/overdue
+    if (currentNumber % 12 === 0) {
+      const groupQuery = db
+        .collection("transactions")
+        .where("tenantId", "==", txTenantId)
+        .where("recurringGroupId", "==", groupId);
+      
+      const groupSnap = await t.get(groupQuery);
+      
+      const futureDocs = groupSnap.docs.filter(
+        doc => toNumber(doc.data().installmentNumber, 0) > currentNumber
+      );
+
+      if (futureDocs.length > 0) {
+        const allFutureArePendingOrOverdue = futureDocs.every(
+          doc => doc.data().status === "pending" || doc.data().status === "overdue"
+        );
+
+        if (allFutureArePendingOrOverdue) {
+          // Delete all future docs
+          for (const doc of futureDocs) {
+            ops.push({ type: "delete", ref: doc.ref });
+          }
+
+          // Restore limit of remaining ones back to currentNumber
+          const remainingDocs = groupSnap.docs.filter(
+            doc => toNumber(doc.data().installmentNumber, 0) <= currentNumber
+          );
+
+          for (const doc of remainingDocs) {
+            const docData = doc.data();
+            const k = toNumber(docData.installmentNumber, 1);
+            const docRawDesc = (docData.description || "").toString().trim();
+            const docBaseDesc = docRawDesc.replace(/\s*\(\d+\/\d+\)$/, "").trim();
+            const docNextDesc = `${docBaseDesc} (${k}/${currentNumber})`;
+
+            ops.push({
+              type: "update",
+              ref: doc.ref,
+              data: {
+                description: docNextDesc,
+                installmentCount: currentNumber,
+                updatedAt: now,
+              },
+            });
+          }
+        }
+      }
     }
   }
-  return [];
+  return ops;
 }
 
 
@@ -212,9 +304,9 @@ export class TransactionService {
           const newTx = {
             tenantId,
             type: data.type,
-            description: isFirst
-              ? data.description
-              : `${data.description} (${i + 1}/${count})`,
+            description: count > 1
+              ? `${data.description} (${i + 1}/${count})`
+              : data.description,
             amount: baseAmount,
             date: currentDate,
             dueDate: currentDueDate,
@@ -424,10 +516,9 @@ export class TransactionService {
 
       const isRecurring = !!anchorData.isRecurring || !!payload.isRecurring;
 
-      let effectiveGroupId =
-        (anchorData.installmentGroupId as string | null) ||
-        (isRecurring ? (anchorData.recurringGroupId as string | null) : null) ||
-        null;
+      let effectiveGroupId = isRecurring
+        ? (anchorData.recurringGroupId as string | null) || (anchorData.installmentGroupId as string | null)
+        : (anchorData.installmentGroupId as string | null) || (anchorData.recurringGroupId as string | null) || null;
 
       const wantInstallments = payload.isInstallment !== false;
       const requestedInstallmentCount = Math.max(
@@ -606,9 +697,10 @@ export class TransactionService {
         installmentsWallet ??
         null;
 
-      const description = (payload.description ?? anchorData.description ?? "")
+      const rawDescription = (payload.description ?? anchorData.description ?? "")
         .toString()
         .trim();
+      const baseDescription = rawDescription.replace(/\s*\(\d+\/\d+\)$/, "").trim();
       const type = (payload.type ?? anchorData.type) as "income" | "expense";
       const category = payload.category ?? anchorData.category ?? null;
       const clientId = payload.clientId ?? anchorData.clientId ?? null;
@@ -648,6 +740,10 @@ export class TransactionService {
       }> = [];
       const toDelete: TransactionDoc[] = [...extraDownPayments];
 
+      const totalCount = isRecurring
+        ? (payload.installmentCount || anchorData.installmentCount || 60)
+        : targetInstallmentCount;
+
       for (let i = 0; i < targetInstallmentCount; i++) {
         const existing = existingInstallments[i] || null;
         const interval = payload.installmentInterval || 1;
@@ -659,10 +755,14 @@ export class TransactionService {
           ? toNumber(existing!.data.amount, 0)
           : (installmentAmounts[i] ?? 0);
 
+        const installmentDescription = totalCount > 1
+          ? `${baseDescription} (${i + 1}/${totalCount})`
+          : baseDescription;
+
         const nextInstallment: Record<string, any> = {
           tenantId: txTenantId,
           type,
-          description,
+          description: installmentDescription,
           amount: resolvedAmount,
           date: launchDate,
           dueDate: addMonths(baseInstallmentDueDate, i * interval),
@@ -681,9 +781,7 @@ export class TransactionService {
           downPaymentPercentage: null,
           isInstallment: isRecurring ? false : wantInstallments,
           isRecurring: isRecurring,
-          installmentCount: isRecurring
-            ? (payload.installmentCount || anchorData.installmentCount || 60)
-            : targetInstallmentCount,
+          installmentCount: totalCount,
           installmentNumber: i + 1,
           installmentGroupId: isRecurring ? null : effectiveGroupId,
           recurringGroupId: isRecurring ? effectiveGroupId : null,
@@ -716,7 +814,7 @@ export class TransactionService {
         const nextDownPayment = {
           tenantId: txTenantId,
           type,
-          description,
+          description: baseDescription,
           amount: downPaymentAmount,
           date: launchDate,
           dueDate: downPaymentDueDate,
@@ -821,16 +919,6 @@ export class TransactionService {
         }
       }
 
-      for (const [wallet, delta] of walletAdjustments.entries()) {
-        if (delta === 0) continue;
-        const walletRef = walletRefs.get(wallet);
-        if (!walletRef) continue;
-        t.update(walletRef, {
-          balance: FieldValue.increment(delta),
-          updatedAt: now,
-        });
-      }
-
       let recurOps: DbOp[] = [];
       if (isRecurring) {
         for (const op of toUpdate) {
@@ -851,6 +939,16 @@ export class TransactionService {
         }
       }
 
+      for (const [wallet, delta] of walletAdjustments.entries()) {
+        if (delta === 0) continue;
+        const walletRef = walletRefs.get(wallet);
+        if (!walletRef) continue;
+        t.update(walletRef, {
+          balance: FieldValue.increment(delta),
+          updatedAt: now,
+        });
+      }
+
       for (const op of toUpdate) {
         t.update(op.doc.ref, op.next);
       }
@@ -863,6 +961,7 @@ export class TransactionService {
       }
       for (const op of recurOps) {
         if (op.type === "set") t.set(op.ref, op.data);
+        else if (op.type === "update") t.update(op.ref, op.data);
         else if (op.type === "delete") t.delete(op.ref);
       }
 
@@ -1046,6 +1145,7 @@ export class TransactionService {
 
       for (const op of recurOps) {
         if (op.type === "set") t.set(op.ref, op.data);
+        else if (op.type === "update") t.update(op.ref, op.data);
         else if (op.type === "delete") t.delete(op.ref);
       }
     });
@@ -1208,6 +1308,7 @@ export class TransactionService {
       // 5) Write recurrences
       for (const op of recurOps) {
         if (op.type === "set") t.set(op.ref, op.data);
+        else if (op.type === "update") t.update(op.ref, op.data);
         else if (op.type === "delete") t.delete(op.ref);
       }
 

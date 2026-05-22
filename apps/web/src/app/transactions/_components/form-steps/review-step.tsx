@@ -23,6 +23,7 @@ interface ReviewStepProps {
   errors?: FormErrors<TransactionFormData>;
   totalOverride?: number;
   installmentNumber?: number;
+  recurringEditScope?: "single" | "series";
 }
 
 export function ReviewStep({
@@ -32,9 +33,31 @@ export function ReviewStep({
   errors = {},
   totalOverride,
   installmentNumber,
+  recurringEditScope,
 }: ReviewStepProps) {
   const { wallets } = useWalletsData();
   const isIncome = formData.type === "income";
+
+  const getInstallmentInfo = () => {
+    const isSingle = recurringEditScope === "single" || (recurringEditScope !== "series" && installmentNumber !== undefined);
+    const labelNum = isSingle && installmentNumber ? installmentNumber : 1;
+    const label = `${labelNum}ª:`;
+
+    let dateStr = "";
+    if (isSingle) {
+      dateStr = formData.dueDate || formData.date || "";
+    } else {
+      dateStr =
+        formData.paymentMode === "installmentValue"
+          ? formData.firstInstallmentDate || formData.dueDate || formData.date || ""
+          : formData.dueDate || formData.date || "";
+    }
+
+    const formattedDate = dateStr ? formatDateBR(dateStr) : "Data não definida";
+    return { label, formattedDate };
+  };
+
+  const { label: instLabel, formattedDate: instFormattedDate } = getInstallmentInfo();
 
   const getDownPaymentAmount = () => {
     if (!formData.downPaymentEnabled) return 0;
@@ -191,8 +214,36 @@ export function ReviewStep({
           {/* Payment Structure Breakdown */}
           {(formData.isInstallment ||
             formData.isRecurring ||
-            formData.downPaymentEnabled) && (
+            formData.downPaymentEnabled ||
+            (recurringEditScope === "single" && installmentNumber !== undefined)) && (
             <div className="p-4 rounded-xl bg-muted/30 border border-border/50 space-y-3">
+              {/* Single Installment Edit Breakdown */}
+              {recurringEditScope === "single" && installmentNumber !== undefined && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-sm font-medium text-amber-500">
+                        Parcela Individual
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        Edição de ocorrência específica
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-amber-500">
+                        {instLabel} {instFormattedDate}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(parseFloat(formData.amount || "0"))}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
+                    * Alterações nesta ocorrência serão aplicadas apenas a esta parcela e não afetarão o restante do grupo.
+                  </div>
+                </div>
+              )}
+
               {/* Down Payment */}
               {formData.downPaymentEnabled && (
                 <div className="flex justify-between items-start">
@@ -237,14 +288,7 @@ export function ReviewStep({
                       {formatCurrency(getInstallmentDisplayValue())}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {installmentNumber ? `${installmentNumber}ª:` : "1ª:"}{" "}
-                      {formData.paymentMode === "installmentValue"
-                        ? formData.firstInstallmentDate
-                          ? formatDateBR(formData.firstInstallmentDate)
-                          : "Data não definida"
-                        : formData.dueDate
-                          ? formatDateBR(formData.dueDate)
-                          : "Data não definida"}
+                      {instLabel} {instFormattedDate}
                     </p>
                   </div>
                 </div>
@@ -279,14 +323,7 @@ export function ReviewStep({
                       {formatCurrency(getInstallmentDisplayValue())} / mês
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {installmentNumber ? `${installmentNumber}ª:` : "1ª:"}{" "}
-                      {formData.paymentMode === "installmentValue"
-                        ? formData.firstInstallmentDate
-                          ? formatDateBR(formData.firstInstallmentDate)
-                          : "Data não definida"
-                        : formData.dueDate
-                          ? formatDateBR(formData.dueDate)
-                          : "Data não definida"}
+                      {instLabel} {instFormattedDate}
                     </p>
                   </div>
                 </div>

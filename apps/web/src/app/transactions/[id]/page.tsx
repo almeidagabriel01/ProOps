@@ -202,6 +202,29 @@ export default function EditTransactionPage() {
     relatedInstallments.length,
   ]);
 
+  // Resolve current installment number (with fallbacks if undefined)
+  const resolvedInstallmentNumber = React.useMemo(() => {
+    if (transaction?.installmentNumber) {
+      return transaction.installmentNumber;
+    }
+    // Fallback 1: Parse from description
+    const desc = transaction?.description || "";
+    const match = desc.match(/\((\d+)\/\d+\)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num)) return num;
+    }
+    // Fallback 2: Check index in relatedInstallments
+    if (transaction && relatedInstallments.length > 0) {
+      const regularInstallments = relatedInstallments.filter(t => !t.isDownPayment);
+      const index = regularInstallments.findIndex(t => t.id === transaction.id);
+      if (index !== -1) {
+        return index + 1;
+      }
+    }
+    return undefined;
+  }, [transaction, relatedInstallments]);
+
   // Show loading first - before checking plan access to avoid flash
   if (isLoading || planLoading) {
     return <EntityLoadingState message="Carregando transação..." />;
@@ -268,7 +291,8 @@ export default function EditTransactionPage() {
           onChange={() => {}}
           onClientChange={() => {}}
           totalOverride={totalValueOverride}
-          installmentNumber={transaction?.installmentNumber}
+          installmentNumber={resolvedInstallmentNumber}
+          recurringEditScope={recurringEditScope}
         />
 
         <div className="flex justify-end pt-6">
@@ -292,7 +316,7 @@ export default function EditTransactionPage() {
         onBack={() => router.push("/transactions")}
       />
 
-      {transaction?.isRecurring && !fromGrouped && (
+      {(transaction?.isRecurring || transaction?.isInstallment || !!transaction?.installmentGroupId) && !fromGrouped && (
         <div className="mb-6 rounded-xl border border-border/50 bg-card p-4">
           <p className="mb-3 text-sm font-medium text-foreground">
             Aplicar alterações:
@@ -310,7 +334,7 @@ export default function EditTransactionPage() {
               <span>
                 <span className="block font-medium">Somente esta ocorrência</span>
                 <span className="block text-xs text-muted-foreground">
-                  Altera apenas este lançamento; demais meses permanecem com os valores originais
+                  Altera apenas este lançamento; demais meses/parcelas permanecem com os valores originais
                 </span>
               </span>
             </label>
@@ -324,9 +348,9 @@ export default function EditTransactionPage() {
                 className="mt-0.5"
               />
               <span>
-                <span className="block font-medium">Toda a série recorrente</span>
+                <span className="block font-medium">Toda a série recorrente / parcelamento</span>
                 <span className="block text-xs text-muted-foreground">
-                  Regenera todas as ocorrências (preserva valores já editados manualmente)
+                  Regenera todas as ocorrências/parcelas (preserva valores já editados manualmente)
                 </span>
               </span>
             </label>
@@ -334,7 +358,7 @@ export default function EditTransactionPage() {
         </div>
       )}
 
-      {transaction?.isRecurring && fromGrouped && (
+      {(transaction?.isRecurring || transaction?.isInstallment || !!transaction?.installmentGroupId) && fromGrouped && (
         <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-start gap-3">
           <div className="p-2 bg-primary/10 rounded-lg text-primary flex items-center justify-center">
             <Info className="w-4 h-4" />
@@ -351,7 +375,7 @@ export default function EditTransactionPage() {
             <p className="text-xs text-muted-foreground mt-0.5">
               {recurringEditScope === "single"
                 ? "Como você clicou para editar a parcela individualmente na visualização por agrupados, a alteração se aplica apenas a este vencimento."
-                : "Como você clicou para editar a recorrência inteira na visualização por agrupados, as alterações se aplicarão a toda a série recorrente."}
+                : "Como você clicou para editar a recorrência/parcelamento inteiro na visualização por agrupados, as alterações se aplicarão a toda a série."}
             </p>
           </div>
         </div>
@@ -415,6 +439,7 @@ export default function EditTransactionPage() {
             isProposalTransaction={!!isProposalTransaction}
             onPaymentModeChange={switchPaymentMode}
             errors={paymentErrors}
+            recurringEditScope={recurringEditScope}
           />
 
           <StepNavigation onBeforeNext={validatePaymentStep} />
@@ -427,7 +452,8 @@ export default function EditTransactionPage() {
             onChange={handleChange}
             onClientChange={handleClientChange}
             totalOverride={totalValueOverride}
-            installmentNumber={transaction?.installmentNumber}
+            installmentNumber={resolvedInstallmentNumber}
+            recurringEditScope={recurringEditScope}
           />
           <StepNavigation
             onSubmit={handleFormSubmit}

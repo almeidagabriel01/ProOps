@@ -89,22 +89,27 @@ describe("useFinancialFilters — filterStatus default and persistence", () => {
     expect(result.current.filterStatus).toEqual(["paid", "overdue"]);
   });
 
-  it("preserves filterStatus when viewMode toggles byDueDate → grouped → byDueDate", () => {
+  it("handles filterStatus resetting and restoring when toggling viewMode", () => {
+    // 1. Persist a value for grouped mode
+    window.localStorage.setItem(
+      "transactions:filterStatus:v2:tenant-test",
+      JSON.stringify(["paid"]),
+    );
+
+    // 2. Load hook (defaults to byDueDate, which ignores localStorage and uses pending+overdue)
     const { result } = renderHook(() => useFinancialFilters(noTx, noWallets));
+    expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
 
-    act(() => {
-      result.current.setFilterStatus(["paid"]);
-    });
-    expect(result.current.filterStatus).toEqual(["paid"]);
-
+    // 3. Toggle to grouped mode (should restore ["paid"] from localStorage)
     act(() => {
       result.current.setViewMode("grouped");
     });
     expect(result.current.filterStatus).toEqual(["paid"]);
 
+    // 4. Toggle back to byDueDate mode (should reset to default ["pending", "overdue"])
     act(() => {
       result.current.setViewMode("byDueDate");
     });
-    expect(result.current.filterStatus).toEqual(["paid"]);
+    expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
   });
 });

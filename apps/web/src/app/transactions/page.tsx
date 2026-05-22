@@ -278,6 +278,41 @@ export default function FinancialPage() {
     sortConfig,
   } = useSort(filteredTransactions);
 
+  // Active filters detection and management
+  const hasActiveFilters = React.useMemo(() => {
+    return (
+      searchTerm.trim() !== "" ||
+      filterType !== "all" ||
+      filterWallet !== "" ||
+      filterStartDate !== "" ||
+      filterEndDate !== "" ||
+      filterStatus.length > 0
+    );
+  }, [
+    searchTerm,
+    filterType,
+    filterWallet,
+    filterStartDate,
+    filterEndDate,
+    filterStatus,
+  ]);
+
+  const handleClearFilters = React.useCallback(() => {
+    setSearchTerm("");
+    setFilterType("all");
+    setFilterWallet("");
+    setFilterStartDate("");
+    setFilterEndDate("");
+    setFilterStatus([]);
+  }, [
+    setSearchTerm,
+    setFilterType,
+    setFilterWallet,
+    setFilterStartDate,
+    setFilterEndDate,
+    setFilterStatus,
+  ]);
+
   // Helper to get stable ID for expansion
   const getExpansionKey = React.useCallback((t: Transaction) => {
     if (t.proposalGroupId) return `proposal-${t.proposalGroupId}`;
@@ -523,9 +558,6 @@ export default function FinancialPage() {
     setViewMode(mode);
     if (mode === "byDueDate") {
       setFilterDateType("dueDate");
-      setFilterStatus(["pending", "overdue"]);
-    } else {
-      setFilterStatus([]);
     }
   };
 
@@ -603,26 +635,45 @@ export default function FinancialPage() {
         </div>
       </div>
 
-      {/* Summary Cards - with selection indicator */}
-      <div className="space-y-2">
-        {selectedIds.size > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              Mostrando valores de <strong>{selectedIds.size}</strong> item
-              {selectedIds.size !== 1 ? "s" : ""} selecionado
-              {selectedIds.size !== 1 ? "s" : ""}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-xs gap-1"
-              onClick={() => setSelectedIds(new Set())}
-            >
-              <X className="w-3 h-3" />
-              Limpar
-            </Button>
+      {/* Summary Cards - with centered minimalist indicators */}
+      <div className="space-y-3">
+        {hasActiveFilters ? (
+          <div className="flex justify-center mb-4 mt-2">
+            <div className="inline-flex items-center gap-3 px-3 py-1.5 rounded-lg border border-amber-500/20 bg-amber-500/5 text-amber-900 dark:text-amber-200 text-xs animate-in fade-in slide-in-from-top-1 duration-200 shadow-sm">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span>
+                  Resumo com <strong className="font-semibold text-amber-600 dark:text-amber-400">filtros ativos</strong> aplicados
+                </span>
+              </div>
+              <button
+                onClick={handleClearFilters}
+                className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition-colors cursor-pointer text-xs border-l border-amber-500/20 pl-3 py-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+                Limpar Filtros
+              </button>
+            </div>
           </div>
-        )}
+        ) : selectedIds.size > 0 ? (
+          <div className="flex justify-center mb-4 mt-2">
+            <div className="inline-flex items-center gap-3 px-3 py-1.5 rounded-lg border border-blue-500/20 bg-blue-500/5 text-blue-900 dark:text-blue-200 text-xs animate-in fade-in slide-in-from-top-1 duration-200 shadow-sm">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
+                <span>
+                  Resumo baseado em <strong className="font-semibold text-blue-600 dark:text-blue-400">{selectedIds.size}</strong> lançamento{selectedIds.size !== 1 ? "s" : ""} selecionado{selectedIds.size !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="inline-flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors cursor-pointer text-xs border-l border-blue-500/20 pl-3 py-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+                Limpar Seleção
+              </button>
+            </div>
+          </div>
+        ) : null}
         <FinancialSummaryCards
           summary={summary}
           selectionSummary={selectionSummary}

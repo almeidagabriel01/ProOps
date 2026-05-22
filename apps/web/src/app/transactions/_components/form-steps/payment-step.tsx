@@ -18,6 +18,7 @@ import {
   Banknote,
   Check,
   RefreshCw,
+  Info,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -34,6 +35,7 @@ interface PaymentStepProps {
   errors?: FormErrors<TransactionFormData>;
   isProposalTransaction?: boolean;
   onPaymentModeChange?: (mode: PaymentMode) => void;
+  recurringEditScope?: "single" | "series";
 }
 
 export function PaymentStep({
@@ -44,6 +46,7 @@ export function PaymentStep({
   errors = {},
   isProposalTransaction = false,
   onPaymentModeChange,
+  recurringEditScope,
 }: PaymentStepProps) {
   const getDownPaymentAmount = () => {
     if (!formData.downPaymentEnabled) return 0;
@@ -139,8 +142,24 @@ export function PaymentStep({
         </div>
       </div>
 
+      {recurringEditScope === "single" && (
+        <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 flex items-start gap-3">
+          <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500 flex items-center justify-center mt-0.5">
+            <Info className="w-4 h-4 animate-pulse" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Editando ocorrência individual
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Este lançamento faz parte de um parcelamento ou recorrência. As configurações da série estão bloqueadas e as alterações feitas aqui serão aplicadas apenas a este vencimento.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Payment Mode Selector */}
-      {!isProposalTransaction && (
+      {!isProposalTransaction && recurringEditScope !== "single" && (
         <div className="grid grid-cols-2 gap-4">
           <button
             type="button"
@@ -217,11 +236,11 @@ export function PaymentStep({
       )}
 
       {/* ================== MODE: VALOR TOTAL ================== */}
-      {formData.paymentMode === "total" && (
+      {(formData.paymentMode === "total" || recurringEditScope === "single") && (
         <div className="space-y-3 animate-in fade-in duration-300">
           {/* Amount Input */}
           <FormItem
-            label="Valor Total"
+            label={recurringEditScope === "single" ? "Valor" : "Valor Total"}
             htmlFor="amount"
             required
             error={errors.amount}
@@ -244,10 +263,10 @@ export function PaymentStep({
             )}
           </FormItem>
 
-          {/* Due Date Input - HIDDEN if installments or recurring enabled */}
-          {!formData.isInstallment && !formData.isRecurring && (
+          {/* Due Date Input - HIDDEN if installments or recurring enabled, UNLESS editing a single occurrence */}
+          {(!formData.isInstallment && !formData.isRecurring || recurringEditScope === "single") && (
             <FormItem
-              label="Vencimento (Valor à Vista)"
+              label={recurringEditScope === "single" ? "Vencimento desta ocorrência" : "Vencimento (Valor à Vista)"}
               htmlFor="dueDate"
               required={formData.type === "income"}
               error={errors.dueDate}
@@ -284,7 +303,7 @@ export function PaymentStep({
           )}
 
           {/* Down Payment Toggle - Compact */}
-          {!isProposalTransaction && (
+          {!isProposalTransaction && recurringEditScope !== "single" && (
             <div
               className={`
               rounded-xl border p-4 transition-all duration-200
@@ -477,13 +496,15 @@ export function PaymentStep({
                 ? "border-primary/40 bg-primary/5"
                 : "border-border hover:border-primary/30"
             }
+            ${recurringEditScope === "single" ? "opacity-80" : ""}
           `}
           >
             <div
-              className="flex items-center gap-3 cursor-pointer"
-              onClick={() =>
-                handlePaymentToggle("isInstallment", !formData.isInstallment)
-              }
+              className={`flex items-center gap-3 ${recurringEditScope === "single" ? "cursor-not-allowed" : "cursor-pointer"}`}
+              onClick={() => {
+                if (recurringEditScope === "single") return;
+                handlePaymentToggle("isInstallment", !formData.isInstallment);
+              }}
             >
               <div
                 className={`
@@ -496,23 +517,26 @@ export function PaymentStep({
               <div className="flex-1">
                 <p className="font-medium text-sm">Parcelar Lançamento</p>
                 <p className="text-xs text-muted-foreground">
-                  Divida em múltiplas parcelas
+                  {recurringEditScope === "single"
+                    ? "Esta parcela faz parte de uma série (altere em 'Toda a série')"
+                    : "Divida em múltiplas parcelas"}
                 </p>
               </div>
               <div onClick={(e) => e.stopPropagation()}>
                 <Checkbox
                   id="isInstallment"
                   checked={formData.isInstallment}
-                  onCheckedChange={(checked) =>
-                    handlePaymentToggle("isInstallment", checked === true)
-                  }
-                  disabled={isProposalTransaction}
-                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary cursor-pointer"
+                  onCheckedChange={(checked) => {
+                    if (recurringEditScope === "single") return;
+                    handlePaymentToggle("isInstallment", checked === true);
+                  }}
+                  disabled={isProposalTransaction || recurringEditScope === "single"}
+                  className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
               </div>
             </div>
 
-            {formData.isInstallment && (
+            {formData.isInstallment && recurringEditScope !== "single" && (
               <div className="grid grid-cols-2 gap-4 pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
                 <FormItem label="Parcelas" htmlFor="installmentCount">
                   <Select
@@ -595,13 +619,15 @@ export function PaymentStep({
                 ? "border-green-500/40 bg-green-500/5"
                 : "border-border hover:border-green-500/30"
             }
+            ${recurringEditScope === "single" ? "opacity-80" : ""}
           `}
           >
             <div
-              className="flex items-center gap-3 cursor-pointer"
-              onClick={() =>
-                handlePaymentToggle("isRecurring", !formData.isRecurring)
-              }
+              className={`flex items-center gap-3 ${recurringEditScope === "single" ? "cursor-not-allowed" : "cursor-pointer"}`}
+              onClick={() => {
+                if (recurringEditScope === "single") return;
+                handlePaymentToggle("isRecurring", !formData.isRecurring);
+              }}
             >
               <div
                 className={`
@@ -614,23 +640,26 @@ export function PaymentStep({
               <div className="flex-1">
                 <p className="font-medium text-sm">Pagamento Recorrente</p>
                 <p className="text-xs text-muted-foreground">
-                  Gera lançamentos contínuos automatizados
+                  {recurringEditScope === "single"
+                    ? "Este lançamento faz parte de uma recorrência (altere em 'Toda a série')"
+                    : "Gera lançamentos contínuos automatizados"}
                 </p>
               </div>
               <div onClick={(e) => e.stopPropagation()}>
                 <Checkbox
                   id="isRecurring"
                   checked={formData.isRecurring}
-                  onCheckedChange={(checked) =>
-                    handlePaymentToggle("isRecurring", checked === true)
-                  }
-                  disabled={isProposalTransaction}
-                  className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500 cursor-pointer"
+                  onCheckedChange={(checked) => {
+                    if (recurringEditScope === "single") return;
+                    handlePaymentToggle("isRecurring", checked === true);
+                  }}
+                  disabled={isProposalTransaction || recurringEditScope === "single"}
+                  className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
                 />
               </div>
             </div>
 
-            {formData.isRecurring && (
+            {formData.isRecurring && recurringEditScope !== "single" && (
               <div className="pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200">
                 <div className="grid grid-cols-2 gap-4">
                   <FormItem
@@ -684,7 +713,8 @@ export function PaymentStep({
           {/* Payment Summary - shows when both down payment and installments are configured */}
           {formData.downPaymentEnabled &&
             getDownPaymentAmount() > 0 &&
-            (formData.isInstallment || formData.isRecurring) && (
+            (formData.isInstallment || formData.isRecurring) &&
+            recurringEditScope !== "single" && (
               <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
@@ -725,7 +755,7 @@ export function PaymentStep({
       )}
 
       {/* ================== MODE: VALOR DAS PARCELAS ================== */}
-      {formData.paymentMode === "installmentValue" && (
+      {formData.paymentMode === "installmentValue" && recurringEditScope !== "single" && (
         <div className="space-y-6 animate-in fade-in duration-300">
           {/* Down Payment Toggle - Compact (Advanced Mode) */}
           <div
@@ -1106,171 +1136,8 @@ export function PaymentStep({
             )}
           </div>
 
-          {/* Recurring Toggle - Compact (Advanced Mode) */}
-          <div
-            className={`
-            rounded-xl border p-4 transition-all duration-200 mt-4
-            ${
-              formData.isRecurring
-                ? "border-green-500/40 bg-green-500/5"
-                : "border-border hover:border-green-500/30"
-            }
-          `}
-          >
-            <div
-              className="flex items-center gap-3 cursor-pointer"
-              onClick={() =>
-                handlePaymentToggle("isRecurring", !formData.isRecurring)
-              }
-            >
-              <div
-                className={`
-                w-8 h-8 rounded-lg flex items-center justify-center transition-all
-                ${formData.isRecurring ? "bg-green-500/15 text-green-500" : "bg-muted text-muted-foreground"}
-              `}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-sm">Pagamento Recorrente</p>
-                <p className="text-xs text-muted-foreground">
-                  Gera lançamentos contínuos automatizados
-                </p>
-              </div>
-              <div onClick={(e) => e.stopPropagation()}>
-                <Checkbox
-                  id="isRecurringAdvanced"
-                  checked={formData.isRecurring}
-                  onCheckedChange={(checked) =>
-                    handlePaymentToggle("isRecurring", checked === true)
-                  }
-                  disabled={isProposalTransaction}
-                  className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500 cursor-pointer"
-                />
-              </div>
-            </div>
-
-            {formData.isRecurring && (
-              <div className="pt-4 mt-4 border-t border-border/30 animate-in slide-in-from-top-2 duration-200 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="field-gap">
-                    <div className="min-h-5">
-                      <Label
-                        htmlFor="dueDateRecurringAdvanced"
-                        className={
-                          errors.firstInstallmentDate ? "text-destructive" : ""
-                        }
-                      >
-                        Vencimento da 1ª Recorrência
-                      </Label>
-                    </div>
-                    <DatePicker
-                      id="dueDateRecurringAdvanced"
-                      name="firstInstallmentDate"
-                      value={formData.firstInstallmentDate}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                      className={
-                        errors.firstInstallmentDate
-                          ? "border-destructive focus-visible:ring-destructive"
-                          : ""
-                      }
-                      required={formData.type === "income"}
-                    />
-                    {errors.firstInstallmentDate && (
-                      <p className="text-xs text-destructive mt-1">
-                        {errors.firstInstallmentDate}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="field-gap">
-                    <div className="min-h-5">
-                      <Label htmlFor="recurringIntervalAdvanced">
-                        Repetir a cada (x meses)
-                      </Label>
-                    </div>
-                    <Input
-                      id="recurringIntervalAdvanced"
-                      name="recurringInterval"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="Ex: 1"
-                      value={formData.installmentInterval || ""}
-                      onChange={(e) => {
-                        const value =
-                          e.target.value === "" ? 0 : parseInt(e.target.value);
-                        onFormDataChange((prev) => ({
-                          ...prev,
-                          installmentInterval: isNaN(value) ? 1 : value,
-                        }));
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="field-gap">
-                  <div className="min-h-5">
-                    <Label htmlFor="recurringValueAdvanced">
-                      Valor por Recorrência
-                    </Label>
-                  </div>
-                  <CurrencyInput
-                    id="recurringValueAdvanced"
-                    name="installmentValue"
-                    value={formData.installmentValue}
-                    onChange={onChange}
-                    placeholder="0,00"
-                  />
-                </div>
-
-                <div className="flex items-end gap-2">
-                  <div className="h-11 flex items-center">
-                    <Wallet className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <WalletSelect
-                      label="Carteira para recorrências"
-                      name="installmentsWallet"
-                      value={formData.installmentsWallet || ""}
-                      onChange={onChange}
-                      preSelectDefault
-                    />
-                  </div>
-                </div>
-
-                <p className="text-xs text-muted-foreground mt-2">
-                  Lançamentos gerados automaticamente a partir da data
-                  informada, no intervalo selecionado.
-                </p>
-
-                {/* Summary */}
-                <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 mt-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
-                      <CreditCard className="w-4 h-4 text-primary" />
-                    </div>
-                    <span className="font-semibold">Resumo da Recorrência</span>
-                  </div>
-                  <div className="text-sm space-y-2">
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-primary">• Valor por período:</span>
-                      <span className="font-semibold text-primary">
-                        {formatCurrency(
-                          parseFloat(formData.installmentValue || "0"),
-                        )}{" "}
-                        / período
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* No installments or recurring - Show single payment info */}
-          {!formData.isInstallment && !formData.isRecurring && (
+          {!formData.isInstallment && (
             <div className="p-4 rounded-xl bg-muted/30 border">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -1279,8 +1146,7 @@ export function PaymentStep({
                 <div>
                   <p className="font-medium">Pagamento à Vista</p>
                   <p className="text-sm text-muted-foreground">
-                    Marque &quot;Parcelamento&quot; ou &quot;Recorrente&quot;
-                    para configurar.
+                    Marque &quot;Parcelamento&quot; para configurar, ou volte para a aba &quot;Valor total&quot; para pagamento à vista ou recorrente.
                   </p>
                 </div>
               </div>

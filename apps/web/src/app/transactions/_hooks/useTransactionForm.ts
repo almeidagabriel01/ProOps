@@ -232,8 +232,8 @@ export function useTransactionForm(): UseTransactionFormReturn {
           installmentValue: installmentVal,
           installmentsWallet: formData.wallet, // Propagate wallet
           firstInstallmentDate: formData.dueDate || formData.date, // Default to due date or transaction date
-          isInstallment: formData.isRecurring ? false : true,
-          isRecurring: formData.isRecurring,
+          isInstallment: true,
+          isRecurring: false,
           installmentCount: count,
           downPaymentEnabled: formData.downPaymentEnabled,
           downPaymentType: formData.downPaymentType,
@@ -342,8 +342,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
               targetBuffer.isInstallment ??
               computedValues.isInstallment ??
               true,
-            isRecurring:
-              targetBuffer.isRecurring ?? computedValues.isRecurring ?? false,
+            isRecurring: false,
             installmentCount:
               targetBuffer.installmentCount ??
               computedValues.installmentCount ??

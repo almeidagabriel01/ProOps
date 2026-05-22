@@ -75,16 +75,24 @@ export function useFinancialFilters(
     },
   );
 
-  // Re-read persisted value when tenant becomes available or changes
-  // (lazy initializer above may have run before tenant was hydrated)
+  // Re-read persisted value when tenant becomes available/changes or viewMode changes
   const hydratedTenantRef = React.useRef<string | undefined>(undefined);
+  const prevViewModeRef = React.useRef<"grouped" | "byDueDate">(initialViewMode);
   React.useEffect(() => {
-    if (!tenantId || hydratedTenantRef.current === tenantId) return;
-    hydratedTenantRef.current = tenantId;
-    if (viewMode === "byDueDate") {
-      setFilterStatus(["pending", "overdue"]);
-    } else {
-      setFilterStatus(readPersistedFilterStatus(tenantId));
+    if (!tenantId) return;
+
+    const tenantChanged = hydratedTenantRef.current !== tenantId;
+    const viewModeChanged = prevViewModeRef.current !== viewMode;
+
+    if (tenantChanged || viewModeChanged) {
+      hydratedTenantRef.current = tenantId;
+      prevViewModeRef.current = viewMode;
+
+      if (viewMode === "byDueDate") {
+        setFilterStatus(["pending", "overdue"]);
+      } else {
+        setFilterStatus(readPersistedFilterStatus(tenantId));
+      }
     }
   }, [tenantId, viewMode]);
 

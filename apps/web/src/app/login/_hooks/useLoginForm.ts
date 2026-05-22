@@ -498,10 +498,19 @@ export function useLoginForm(): UseLoginFormReturn {
       }
     } catch (googleError: unknown) {
       const code = (googleError as { code?: string })?.code;
-      const fallbackCodes = [
+      // User intentionally closed or cancelled the popup — just stop silently.
+      const silentCodes = [
         "auth/popup-closed-by-user",
-        "auth/popup-blocked",
         "auth/cancelled-popup-request",
+      ];
+      if (code && silentCodes.includes(code)) {
+        setIsGoogleLoading(false);
+        return;
+      }
+
+      // Popup was blocked by the browser — fall back to full-page redirect.
+      const fallbackCodes = [
+        "auth/popup-blocked",
         "auth/operation-not-supported-in-this-environment",
       ];
       if (code && fallbackCodes.includes(code)) {
