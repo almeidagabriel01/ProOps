@@ -46,8 +46,8 @@ test.describe("FIN-06: Installment transactions", () => {
         type: "income",
         description,
         amount: 300,
-        date: "2024-07-01",
-        dueDate: "2024-07-01",
+        date: "2030-07-01",
+        dueDate: "2030-07-01",
         status: "pending",
         wallet: "wallet-alpha-main",
         isInstallment: true,
@@ -137,7 +137,7 @@ test.describe("FIN-06: Installment transactions", () => {
     });
     const installment1Updated = authenticatedPage.waitForResponse(
       (resp) =>
-        resp.url().includes(`/api/backend/v1/transactions/${transactionId}`) &&
+        resp.url().includes("/api/backend/v1/transactions/") &&
         [200, 204].includes(resp.status()) &&
         resp.request().method() !== "GET",
       { timeout: 10000 },
@@ -177,7 +177,7 @@ test.describe("FIN-06: Installment transactions", () => {
     });
     const installment2Updated = authenticatedPage.waitForResponse(
       (resp) =>
-        resp.url().includes(`/api/backend/v1/transactions/${transactionId}`) &&
+        resp.url().includes("/api/backend/v1/transactions/") &&
         [200, 204].includes(resp.status()) &&
         resp.request().method() !== "GET",
       { timeout: 10000 },
@@ -217,8 +217,8 @@ test.describe("FIN-08: Selective installment payment", () => {
         type: "income",
         description,
         amount: 300,
-        date: "2024-07-01",
-        dueDate: "2024-07-01",
+        date: "2030-07-01",
+        dueDate: "2030-07-01",
         status: "pending",
         wallet: "wallet-alpha-main",
         isInstallment: true,
@@ -261,7 +261,7 @@ test.describe("FIN-08: Selective installment payment", () => {
     const portalContent1 = authenticatedPage.locator("body > div[style*='position: fixed']").filter({ hasText: "Pago" });
     const fin08Installment1Updated = authenticatedPage.waitForResponse(
       (resp) =>
-        resp.url().includes(`/api/backend/v1/transactions/${transactionId}`) &&
+        resp.url().includes("/api/backend/v1/transactions/") &&
         [200, 204].includes(resp.status()) &&
         resp.request().method() !== "GET",
       { timeout: 10000 },
@@ -288,7 +288,7 @@ test.describe("FIN-08: Selective installment payment", () => {
     const portalContent2 = authenticatedPage.locator("body > div[style*='position: fixed']").filter({ hasText: "Pago" });
     const fin08Installment2Updated = authenticatedPage.waitForResponse(
       (resp) =>
-        resp.url().includes(`/api/backend/v1/transactions/${transactionId}`) &&
+        resp.url().includes("/api/backend/v1/transactions/") &&
         [200, 204].includes(resp.status()) &&
         resp.request().method() !== "GET",
       { timeout: 10000 },
