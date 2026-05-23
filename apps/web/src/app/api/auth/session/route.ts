@@ -76,7 +76,12 @@ export async function POST(req: NextRequest) {
     }
 
     const adminAuth = getAdminAuth();
-    await adminAuth.verifyIdToken(idToken, true);
+    // When running against the Firebase Auth emulator the ID tokens returned
+    // by the emulator are unsigned (no "kid") and cannot be verified with
+    // checkRevoked=true. Detect emulator mode and avoid the extra revoked
+    // check there while keeping strict verification in production.
+    const isEmulator = Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
+    await adminAuth.verifyIdToken(idToken, isEmulator ? false : true);
 
     const maxAgeSeconds = resolveSessionMaxAgeSeconds();
     const expiresInMs = maxAgeSeconds * 1000;

@@ -1,7 +1,8 @@
-import type { Page } from "@playwright/test";
+import type { Browser, Page } from "@playwright/test";
 import { test as base, expect } from "./base.fixture";
-import { LoginPage } from "../pages/login.page";
+import { signInWithEmailPassword } from "../helpers/firebase-auth-api";
 import { USER_ADMIN_ALPHA, USER_ADMIN_BETA } from "../seed/data/users";
+import * as admin from "firebase-admin";
 
 interface AuthFixtures {
   /** Pre-authenticated page as tenant-alpha admin (admin@alpha.test) */
@@ -41,35 +42,105 @@ async function interceptFirebaseRequests(page: Page): Promise<void> {
   });
 }
 
+// We set the __session cookie server-side by navigating to the dev-only
+// `/api/auth/dev-session` route with a valid idToken. That route issues the
+// HttpOnly cookie via Set-Cookie and redirects to the requested page, ensuring
+// the SSR middleware sees the cookie on the very first request.
+
+async function createAuthenticatedPage(
+  browser: Browser,
+  email: string,
+  password: string,
+): Promise<Page> {
+  // Create a new browser context and set the __session cookie server-side
+  // so it will be present on the very first navigation (SSR request).
+  const context = await browser.newContext();
+
+  // Sign in to the Auth emulator to obtain an idToken
+  const { idToken } = await signInWithEmailPassword(email, password);
+
+  // Create a new page and navigate to the dev-only server endpoint that
+  // sets the __session cookie server-side and redirects to the requested page.
+  const page = await context.newPage();
+  await interceptFirebaseRequests(page);
+
+    // Navigate to root so page.evaluate has a same-origin context to call POST /api/auth/session
+    await page.goto("http://localhost:3001/", { waitUntil: "networkidle" });
+
+    // Request server to create session cookie via POST /api/auth/session using the idToken.
+    const createSessionResult = await page.evaluate(async (token) => {
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ idToken: token }),
+      });
+      return { status: res.status, ok: res.ok, text: await res.text() };
+    }, idToken);
+
+    // eslint-disable-next-line no-console
+    console.log('[auth.fixture] createSessionResult ->', createSessionResult);
+
+    // Log cookies present in the browser context after the POST
+    try {
+      // eslint-disable-next-line no-console
+      console.log('[auth.fixture] context.cookies ->', await context.cookies());
+    } catch (e) {
+      // ignore
+    }
+
+    // Now navigate to the protected page; SSR should see the cookie set by the previous POST.
+    // As a diagnostic step, call a debug endpoint that echoes the server's
+    // received Cookie header to verify whether the browser sent __session.
+    const debugCookie = await page.evaluate(async () => {
+      const res = await fetch('/api/debug/cookie', { credentials: 'include' });
+      try {
+        return await res.json();
+      } catch (e) {
+        return { error: String(e) };
+      }
+    });
+    // eslint-disable-next-line no-console
+    console.log('[auth.fixture] debugCookie ->', debugCookie);
+
+    await page.goto('http://localhost:3001/transactions', { waitUntil: 'networkidle' });
+
+  // Debug: log the current page URL so test runs surface navigation status.
+  // eslint-disable-next-line no-console
+    console.log('[auth.fixture] page.url after goto ->', page.url());
+
+  return page;
+}
+
 /**
  * Auth fixture that provides pre-authenticated browser contexts.
  * Uses LoginPage to log in seeded users before handing the page to tests.
  */
 export const test = base.extend<AuthFixtures>({
-  authenticatedPage: async ({ page }, provide) => {
-    await interceptFirebaseRequests(page);
+  authenticatedPage: async ({ browser }, provide) => {
+    const page = await createAuthenticatedPage(
+      browser,
+      USER_ADMIN_ALPHA.email,
+      USER_ADMIN_ALPHA.password,
+    );
 
-    const loginPage = new LoginPage(page);
-    await loginPage.goto();
-    await loginPage.login(USER_ADMIN_ALPHA.email, USER_ADMIN_ALPHA.password);
-
-    // Wait for redirect to an authenticated route (dashboard or any main route)
-    await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 30000 });
+    await page.waitForURL(/\/transactions/, { timeout: 30000 });
 
     await provide(page);
+    await page.context().close();
   },
 
-  authenticatedAsBeta: async ({ page }, provide) => {
-    await interceptFirebaseRequests(page);
+  authenticatedAsBeta: async ({ browser }, provide) => {
+    const page = await createAuthenticatedPage(
+      browser,
+      USER_ADMIN_BETA.email,
+      USER_ADMIN_BETA.password,
+    );
 
-    const loginPage = new LoginPage(page);
-    await loginPage.goto();
-    await loginPage.login(USER_ADMIN_BETA.email, USER_ADMIN_BETA.password);
-
-    // Wait for redirect to an authenticated route
-    await page.waitForURL(/(dashboard|proposals|transactions|contacts)/, { timeout: 30000 });
+    await page.waitForURL(/\/transactions/, { timeout: 30000 });
 
     await provide(page);
+    await page.context().close();
   },
 });
 

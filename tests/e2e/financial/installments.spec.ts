@@ -137,9 +137,9 @@ test.describe("FIN-06: Installment transactions", () => {
     });
     const installment1Updated = authenticatedPage.waitForResponse(
       (resp) =>
-        resp.url().includes("/api/backend/") &&
-        resp.request().method() !== "GET" &&
-        resp.status() === 200,
+        resp.url().includes(`/api/backend/v1/transactions/${transactionId}`) &&
+        [200, 204].includes(resp.status()) &&
+        resp.request().method() !== "GET",
       { timeout: 10000 },
     );
     await portalContent.getByText("Pago", { exact: true }).click();
@@ -177,9 +177,9 @@ test.describe("FIN-06: Installment transactions", () => {
     });
     const installment2Updated = authenticatedPage.waitForResponse(
       (resp) =>
-        resp.url().includes("/api/backend/") &&
-        resp.request().method() !== "GET" &&
-        resp.status() === 200,
+        resp.url().includes(`/api/backend/v1/transactions/${transactionId}`) &&
+        [200, 204].includes(resp.status()) &&
+        resp.request().method() !== "GET",
       { timeout: 10000 },
     );
     await portalContent2.getByText("Pago", { exact: true }).click();
@@ -261,9 +261,9 @@ test.describe("FIN-08: Selective installment payment", () => {
     const portalContent1 = authenticatedPage.locator("body > div[style*='position: fixed']").filter({ hasText: "Pago" });
     const fin08Installment1Updated = authenticatedPage.waitForResponse(
       (resp) =>
-        resp.url().includes("/api/backend/") &&
-        resp.request().method() !== "GET" &&
-        resp.status() === 200,
+        resp.url().includes(`/api/backend/v1/transactions/${transactionId}`) &&
+        [200, 204].includes(resp.status()) &&
+        resp.request().method() !== "GET",
       { timeout: 10000 },
     );
     await portalContent1.getByText("Pago", { exact: true }).click();
@@ -288,9 +288,9 @@ test.describe("FIN-08: Selective installment payment", () => {
     const portalContent2 = authenticatedPage.locator("body > div[style*='position: fixed']").filter({ hasText: "Pago" });
     const fin08Installment2Updated = authenticatedPage.waitForResponse(
       (resp) =>
-        resp.url().includes("/api/backend/") &&
-        resp.request().method() !== "GET" &&
-        resp.status() === 200,
+        resp.url().includes(`/api/backend/v1/transactions/${transactionId}`) &&
+        [200, 204].includes(resp.status()) &&
+        resp.request().method() !== "GET",
       { timeout: 10000 },
     );
     await portalContent2.getByText("Pago", { exact: true }).click();

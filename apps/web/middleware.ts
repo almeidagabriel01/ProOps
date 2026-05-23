@@ -124,9 +124,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // (removed dev-only bypass — middleware behavior must match production)
+
   // Check for auth session
   // Firebase Auth doesn't automatically set cookies in Next.js
   // The client needs to set a session cookie after login
+  // Debug: log incoming cookie header for troubleshooting E2E session propagation
+  // remove debug logging — middleware should not produce test-only logs
+
   const sessionCookie = request.cookies.get("__session")?.value;
   const legacyAuthHint = request.cookies.get("firebase-auth-token")?.value;
   const defaultLegacyFallback =
