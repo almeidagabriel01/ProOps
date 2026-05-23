@@ -40,7 +40,8 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const lastScrollY = useRef(0);
   const navRef = useRef<HTMLElement>(null);
   const router = useRouter();
-  const { companyName, logoUrl, avatarSeed } = useHeaderPresentation();
+  const { companyName, logoUrl, avatarSeed, isTenantLoading } = useHeaderPresentation();
+  const isNavbarLoading = isAuthLoading || (!!currentUser && isTenantLoading);
   const appHref = currentUser ? getAuthenticatedHome(currentUser) : "/login";
   const isFreeAccount = currentUser?.role === "free";
   const isBlockedAccount = ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
@@ -163,7 +164,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
             <div className="flex shrink-0 items-center gap-3">
               {/* Auth slot — desktop sm+ */}
               <div className="hidden items-center gap-3 sm:flex">
-                {isAuthLoading ? (
+                {isNavbarLoading ? (
                   <>
                     <Skeleton className="h-7 w-7 rounded-full" />
                     <Skeleton className="h-4 w-24 rounded-full" />
@@ -340,7 +341,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                 transition={{ delay: 0.3, duration: 0.3 }}
                 className="mt-4 flex flex-col items-center gap-4"
               >
-                {isAuthLoading ? (
+                {isNavbarLoading ? (
                   <>
                     <Skeleton className="h-5 w-32 rounded-full" />
                     <Skeleton className="h-10 w-36 rounded-full" />

@@ -40,7 +40,7 @@ jest.mock("../../api/services/products.service", () => ({
   deleteProduct: jest.fn().mockResolvedValue({}),
 }));
 
-jest.mock("../../api/services/transaction.service", () => ({
+jest.mock("../../api/services/transaction-ai.service", () => ({
   listTransactionsForAi: jest.fn().mockResolvedValue({ transactions: [] }),
   createTransactionForAi: jest.fn().mockResolvedValue({ id: "tx-1" }),
   deleteTransactionForAi: jest.fn().mockResolvedValue({}),

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { sendEmailVerification, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { AuthService } from "@/services/auth-service";
+import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -118,9 +120,7 @@ export function EmailVerificationPending({
     setIsResending(true);
 
     try {
-      await sendEmailVerification(currentUser, {
-        url: `${window.location.origin}/login`,
-      });
+      await AuthService.sendVerificationEmail();
 
       setLastSentAt(Date.now());
       setMessage(
@@ -128,15 +128,10 @@ export function EmailVerificationPending({
       );
     } catch (error: unknown) {
       console.error("Failed to resend email verification:", error);
-      const errorCode = (error as { code?: string })?.code;
 
-      if (errorCode === "auth/too-many-requests") {
+      if (error instanceof ApiError && error.status === 429) {
         setMessage(
           "Muitas tentativas de reenvio. Aguarde alguns minutos e tente novamente.",
-        );
-      } else if (errorCode === "auth/unauthorized-continue-uri") {
-        setMessage(
-          "Domínio do link não autorizado no Firebase Auth. Adicione este domínio em Authentication > Settings > Authorized domains.",
         );
       } else {
         setMessage(

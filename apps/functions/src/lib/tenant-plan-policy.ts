@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { LRUCache } from "lru-cache";
 import { db } from "../init";
+import { logger } from "./logger";
 import { getPriceConfig } from "../stripe/stripeConfig";
 import {
   incrementSecurityCounter,
@@ -423,8 +424,12 @@ async function resolveTenantPlanProfileUncached(
   const stripeSubscriptionId = normalizeOptionalString(
     tenantData?.stripeSubscriptionId,
   );
+  // Canonical: tenants/{id}.stripePriceId. Legacy: tenants/{id}.priceId
+  // (pre-Apr/2025 writers used this name; the migration left some docs with
+  // it populated). Both still consulted here for backwards compatibility;
+  // new writers only touch stripePriceId.
   const stripePriceId = normalizeOptionalString(
-    tenantData?.priceId || tenantData?.stripePriceId,
+    tenantData?.stripePriceId || tenantData?.priceId,
   );
   const stripeCustomerId = normalizeOptionalString(tenantData?.stripeCustomerId);
   const pastDueSince = toIsoStringOrUndefined(tenantData?.pastDueSince);
@@ -455,9 +460,19 @@ async function resolveTenantPlanProfileUncached(
     normalizePlanTier(tenantData?.plan) ||
     normalizePlanTier(tenantData?.planTier) ||
     normalizePlanTier(tenantData?.tier);
-  // Skip "free" early-return when tenant is actively trialing a paid plan —
-  // the trialPlanTier step below will resolve the correct tier.
-  if (directTier && !(directTier === "free" && subscriptionStatus === "trialing")) {
+
+  // Data-consistency guard: a tenant with subscriptionStatus="active" cannot
+  // legitimately be on tier "free" — that's a stale write from before the
+  // stripe sync caught up (or from a price id that no longer maps to a known
+  // tier). Bypass the stored "free" and try to derive the real tier from
+  // planId → priceId → owner.planId. If nothing resolves, the function falls
+  // through to buildCompatDefaultTenantPlanProfile and the tenant is
+  // reported as starter (compat default) rather than free — admin can
+  // reconcile from there. Without this guard the tenant is locked out of
+  // the ERP via require-active-subscription's free-tier gate.
+  const isInconsistentFree =
+    directTier === "free" && subscriptionStatus === "active";
+  if (directTier && !isInconsistentFree) {
     return buildProfileFromTier({
       tenantId,
       tier: directTier,
@@ -466,6 +481,15 @@ async function resolveTenantPlanProfileUncached(
       stripePriceId,
       pastDueSince,
       source: "tenant.plan",
+    });
+  }
+  if (isInconsistentFree) {
+    logger.warn("tenant_plan_inconsistent_free_active", {
+      tenantId,
+      storedPlan: directTier,
+      subscriptionStatus,
+      stripePriceId,
+      stripeSubscriptionId,
     });
   }
 
@@ -528,24 +552,6 @@ async function resolveTenantPlanProfileUncached(
     }
   } catch {
     // Non-fatal — fall through to compat default.
-  }
-
-  // Last resort before compat-default: if the tenant is actively trialing a paid
-  // plan, resolve the tier from trialPlanTier (set when the trial was activated).
-  // This covers tenants whose doc still has plan:"free" but subscriptionStatus:"trialing".
-  if (subscriptionStatus === "trialing") {
-    const trialTier = normalizePlanTier(tenantData?.trialPlanTier);
-    if (trialTier && trialTier !== "free") {
-      return buildProfileFromTier({
-        tenantId,
-        tier: trialTier,
-        subscriptionStatus,
-        stripeSubscriptionId,
-        stripePriceId,
-        pastDueSince,
-        source: "tenant.trialPlanTier",
-      });
-    }
   }
 
   return buildCompatDefaultTenantPlanProfile({
@@ -651,7 +657,7 @@ export function evaluateSubscriptionStatusAccess(input: {
   graceDays?: number;
 }): SubscriptionStatusAccessDecision {
   const status = normalizeSubscriptionStatus(input.subscriptionStatus);
-  if (!status || status === "active" || status === "trialing") {
+  if (!status || status === "active") {
     return { allowWrite: true, reasonCode: "SUBSCRIPTION_OK" };
   }
 

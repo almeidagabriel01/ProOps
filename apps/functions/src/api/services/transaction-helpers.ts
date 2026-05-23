@@ -26,6 +26,9 @@ export const UPDATABLE_TRANSACTION_FIELDS = new Set([
   "extraCosts",
   "isPartialPayment",
   "parentTransactionId",
+  // Marks a recurring occurrence whose amount was manually adjusted —
+  // bulk series updates must NOT overwrite these.
+  "overriddenAmount",
 ]);
 
 export function sanitizeTransactionUpdateData(

@@ -72,6 +72,7 @@ export type Transaction = {
   createdAt: string;
   updatedAt: string;
   isPartialPayment?: boolean;
+  overriddenAmount?: boolean;
   parentTransactionId?: string; // ID of the transaction this was split from (or related to)
   extraCosts?: ExtraCost[]; // Inline extra costs that don't need their own transaction documents
   paidAt?: string; // Timestamp set when transaction is marked as paid
@@ -110,6 +111,24 @@ export type UpdateFinancialEntryWithInstallmentsPayload = {
 
 const COLLECTION_NAME = "transactions";
 
+/**
+ * Derives `overdue` for pending transactions whose dueDate already passed.
+ * The cron `markOverdueTransactions` (00:05 BRT) persists this state daily;
+ * deriving on read covers the gap so users never see a stale "Pendente" on
+ * a vencida lançamento. Returns a new object — does not mutate input.
+ */
+export function withDerivedOverdue<T extends { status?: TransactionStatus; dueDate?: string }>(
+  tx: T,
+): T {
+  if (tx.status !== "pending" || !tx.dueDate) return tx;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(`${tx.dueDate}T00:00:00`);
+  if (Number.isNaN(due.getTime())) return tx;
+  if (due >= today) return tx;
+  return { ...tx, status: "overdue" as TransactionStatus };
+}
+
 export const TransactionService = {
   getTransactions: async (tenantId: string): Promise<Transaction[]> => {
     try {
@@ -120,10 +139,10 @@ export const TransactionService = {
         where("tenantId", "==", tenantId),
       );
       const querySnapshot = await getDocs(q);
-      const transactions = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Transaction[];
+      const transactions = querySnapshot.docs.map((doc) => {
+        const data = { id: doc.id, ...doc.data() } as Transaction;
+        return withDerivedOverdue(data);
+      });
 
       // Sort by date descending (client-side)
       return transactions.sort(
@@ -141,7 +160,7 @@ export const TransactionService = {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Transaction;
+        return withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction);
       }
       return null;
     } catch (error) {

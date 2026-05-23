@@ -6,7 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Clock, Sparkles, Zap, Star } from "lucide-react";
+import { Check, Sparkles, Zap, Star } from "lucide-react";
 import { UserPlan, BillingInterval } from "@/types";
 import { formatPrice } from "@/utils/format";
 import { cn } from "@/lib/utils";
@@ -25,9 +25,7 @@ interface PlanCardProps {
   onDowngrade: (plan: UserPlan) => void;
   isMaster?: boolean;
   isFree?: boolean;
-  isTrialing?: boolean;
   isActivePlan?: boolean;
-  trialEndsAt?: string;
 }
 
 export function PlanCard({
@@ -41,9 +39,7 @@ export function PlanCard({
   onDowngrade,
   isMaster = false,
   isFree = false,
-  isTrialing = false,
   isActivePlan = false,
-  trialEndsAt,
 }: PlanCardProps) {
   const displayPrice =
     billingInterval === "yearly" && plan.pricing
@@ -99,13 +95,7 @@ export function PlanCard({
 
         {/* Header Badges */}
         <div className="absolute top-0 right-0 p-4 z-20 flex gap-2">
-          {isCurrent && isTrialing && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm">
-              <Clock className="w-3 h-3" />
-              Trial
-            </span>
-          )}
-          {isCurrent && isActivePlan && !isTrialing && (
+          {isCurrent && isActivePlan && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground shadow-sm shadow-primary/20">
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
               Ativo
@@ -142,13 +132,7 @@ export function PlanCard({
               <CardTitle className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/70">
                 {plan.name}
               </CardTitle>
-              {isCurrent && isTrialing && trialEndsAt && (
-                <p className="text-xs font-medium text-emerald-600 mt-0.5">
-                  Trial ativo at&eacute;{" "}
-                  {new Date(trialEndsAt).toLocaleDateString("pt-BR")}
-                </p>
-              )}
-              {isCurrent && isActivePlan && !isTrialing && (
+              {isCurrent && isActivePlan && (
                 <p className="text-xs font-medium text-primary mt-0.5">
                   Seu plano atual
                 </p>

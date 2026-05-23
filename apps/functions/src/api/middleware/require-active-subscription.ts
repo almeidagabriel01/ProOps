@@ -10,7 +10,6 @@ import {
 
 interface CachedBillingState {
   subscriptionStatus: string;
-  plan: string;
   pastDueSince: string | null;
 }
 
@@ -28,10 +27,35 @@ const WHITELISTED_PREFIXES = [
   "/v1/billing/",
   "/v1/validation/",
   "/v1/aux/proxy-image", // proxy-image is public; other /v1/aux/* routes are authenticated mutations
+  "/v1/ai/",            // AI routes carry their own tier/subscription checks (403 AI_FREE_TIER_BLOCKED)
   "/health",
   "/internal/",
   "/authenticated",
 ];
+
+// Routes a free-tier account is explicitly allowed to call. Subset of the
+// whitelist plus the endpoints needed to manage one's own profile and tenant
+// metadata from the /profile page. Anything outside this list is blocked
+// with HTTP 402 so a free user cannot reach ERP endpoints (proposals,
+// transactions, wallets, contacts, calendar, kanban, etc.) via direct API
+// hits even if a stale session cookie lets them past the Next.js middleware.
+const FREE_TIER_ALLOWED_PREFIXES = [
+  "/v1/stripe/",
+  "/v1/users/me",
+  "/v1/auth/",
+  "/v1/billing/",
+  "/v1/validation/",
+  "/v1/profile",
+  "/v1/tenants/", // GET own tenant (multi-tenant isolation is enforced separately)
+  "/v1/aux/proxy-image",
+  "/health",
+  "/internal/",
+  "/authenticated",
+];
+
+function isFreeTierAllowedPath(path: string): boolean {
+  return FREE_TIER_ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
 
 function isWhitelistedPath(path: string): boolean {
   return WHITELISTED_PREFIXES.some((prefix) => path.startsWith(prefix));
@@ -97,12 +121,10 @@ export async function requireActiveSubscription(
 
       const data = tenantSnap.data() as Record<string, unknown> | undefined;
       const subscriptionStatus = String(data?.subscriptionStatus || "").trim().toLowerCase();
-      const plan = String(data?.plan || "").trim().toLowerCase();
       const pastDueSince = normalizePastDueSince(data?.pastDueSince);
 
       billingState = {
         subscriptionStatus,
-        plan,
         pastDueSince,
       };
       billingStateCache.set(tenantId, billingState);
@@ -117,15 +139,51 @@ export async function requireActiveSubscription(
     }
   }
 
-  const { subscriptionStatus, plan, pastDueSince } = billingState;
+  const { subscriptionStatus, pastDueSince } = billingState;
 
-  if (
-    plan === "free" ||
-    subscriptionStatus === "free" ||
-    subscriptionStatus === "" ||
-    subscriptionStatus === "active" ||
-    subscriptionStatus === "trialing"
-  ) {
+  // Free tier guard. Uses the USER role from the JWT claim (authoritative)
+  // rather than the tenant's `plan` field, which can be desynchronized
+  // (legacy tenants with `plan: "free"` but `subscriptionStatus: "active"`
+  // exist in prod from before the billing-sync was wired up). The user
+  // role is what determines whether an account is on the free tier — if
+  // role is admin/master/member/wk, the user pays, full stop.
+  const isFreeUser = String(user.role || "").toLowerCase() === "free";
+  if (isFreeUser) {
+    if (isFreeTierAllowedPath(req.path)) {
+      next();
+      return;
+    }
+    logger.warn(
+      "billing_free_tier_blocked",
+      buildSecurityLogContext(req, {
+        tenantId,
+        uid: user.uid,
+        reason: "FREE_TIER_FORBIDDEN_ROUTE",
+        source: "require_active_subscription",
+        status: 402,
+      }),
+    );
+    void writeSecurityAuditEvent({
+      eventType: "BILLING_SUBSCRIPTION_BLOCK",
+      tenantId,
+      uid: user.uid,
+      source: "require_active_subscription",
+      reason: "FREE_TIER_FORBIDDEN_ROUTE",
+      route: req.path,
+      status: 402,
+    });
+    res.status(402).json({
+      message: "Recurso disponível apenas para planos pagos. Assine um plano para continuar.",
+      code: "FREE_TIER_FORBIDDEN",
+    });
+    return;
+  }
+
+  // Allow empty status (legacy tenants), active, and "free" (free-tier tenants
+  // seeded without a Stripe subscription). The plan-limit check inside each route
+  // handler (e.g. PLAN_LIMIT_PROPOSALS_MONTHLY) is responsible for enforcing limits
+  // on free tenants — blocking them here would shadow that error with BILLING_INACTIVE.
+  if (subscriptionStatus === "" || subscriptionStatus === "active" || subscriptionStatus === "free") {
     next();
     return;
   }

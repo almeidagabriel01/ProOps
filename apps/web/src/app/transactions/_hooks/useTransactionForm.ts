@@ -232,8 +232,8 @@ export function useTransactionForm(): UseTransactionFormReturn {
           installmentValue: installmentVal,
           installmentsWallet: formData.wallet, // Propagate wallet
           firstInstallmentDate: formData.dueDate || formData.date, // Default to due date or transaction date
-          isInstallment: formData.isRecurring ? false : true,
-          isRecurring: formData.isRecurring,
+          isInstallment: true,
+          isRecurring: false,
           installmentCount: count,
           downPaymentEnabled: formData.downPaymentEnabled,
           downPaymentType: formData.downPaymentType,
@@ -342,8 +342,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
               targetBuffer.isInstallment ??
               computedValues.isInstallment ??
               true,
-            isRecurring:
-              targetBuffer.isRecurring ?? computedValues.isRecurring ?? false,
+            isRecurring: false,
             installmentCount:
               targetBuffer.installmentCount ??
               computedValues.installmentCount ??
@@ -511,12 +510,21 @@ export function useTransactionForm(): UseTransactionFormReturn {
         dueDateToUse = formData.dueDate;
       }
 
-      // Generate Group ID
-      const submitDbCount = formData.isInstallment
-        ? formData.isRecurring
-          ? 1
-          : formData.installmentCount
-        : 1;
+      // Generate Group ID.
+      // Rolling-window strategy for recurring entries:
+      //   1. Create 12 occurrences upfront (1 year monthly) — enough for
+      //      forecast, calendar and monthly filters without bloating the
+      //      collection.
+      //   2. Backend's getNextRecurringTransactionOps appends the next
+      //      occurrence whenever the user marks one as paid, so the user
+      //      always sees roughly 12 unpaid future occurrences ahead.
+      // Backend hard-caps the initial series at 120 as anti-abuse defense.
+      const RECURRING_DEFAULT_OCCURRENCES = 12;
+      const submitDbCount = formData.isRecurring
+        ? RECURRING_DEFAULT_OCCURRENCES
+        : formData.isInstallment
+          ? formData.installmentCount
+          : 1;
       if (
         (formData.isInstallment && submitDbCount >= 1) ||
         (formData.isRecurring && submitDbCount >= 1) ||

@@ -12,7 +12,8 @@
  *   src/app/apple-icon.png        180x180  — iOS home screen
  *   src/app/opengraph-image.png  1200x630  — OG / Twitter card
  *   public/favicon.ico            multi-size (48/32/16) — legacy browser / Google fallback
- *   public/icons/icon-192.png     192x192  — manifest
+ *   public/icons/icon-192.png          192x192  — manifest
+ *   public/icons/icon-google.png        192x192  — white bg, used by Google Search via metadata
  *   public/icons/icon-512.png     512x512  — manifest
  *   public/icons/icon-maskable-512.png  512x512 with 20% safe-zone — manifest maskable
  */
@@ -121,6 +122,12 @@ async function main() {
   // Manifest icons
   writeFileSync(join(ROOT, "public/icons/icon-192.png"), icon192);
   console.log("  ✓ public/icons/icon-192.png (192×192)");
+
+  // icon-google.png: same as icon-192 (white background + black logo)
+  // Referenced explicitly in layout.tsx metadata.icons so Google Search
+  // and other crawlers that flatten transparency use the correct version.
+  writeFileSync(join(ROOT, "public/icons/icon-google.png"), icon192);
+  console.log("  ✓ public/icons/icon-google.png (192×192, white bg — Google Search)");
 
   writeFileSync(join(ROOT, "public/icons/icon-512.png"), icon512);
   console.log("  ✓ public/icons/icon-512.png (512×512)");

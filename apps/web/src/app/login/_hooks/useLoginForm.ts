@@ -4,7 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { User } from "@/types";
-import { resolveUserHome } from "@/lib/auth/resolve-user-home";
+import { isPathAllowedForUser, resolveUserHome } from "@/lib/auth/resolve-user-home";
 import {
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
@@ -12,12 +12,12 @@ import {
   linkWithCredential,
   PhoneAuthProvider,
   RecaptchaVerifier,
-  sendEmailVerification,
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
 } from "firebase/auth";
+import { AuthService } from "@/services/auth-service";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { callPublicApi } from "@/lib/api-client";
@@ -221,12 +221,7 @@ export function useLoginForm(): UseLoginFormReturn {
     setIsResetting(true);
 
     try {
-      const { sendPasswordResetEmail } = await import("firebase/auth");
-      const actionCodeSettings = {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: true,
-      };
-      await sendPasswordResetEmail(auth, email, actionCodeSettings);
+      await AuthService.requestPasswordReset(email);
     } catch (err: unknown) {
       console.warn("Password reset request finished with non-fatal error", err);
     } finally {
@@ -319,12 +314,38 @@ export function useLoginForm(): UseLoginFormReturn {
       return;
     }
 
-    // Everyone else: role-based home resolution. resolveUserHome handles
-    // free → "/", subscription-blocked → "/subscription-blocked",
+    // Only honour ?redirect= for explicit payment-flow paths
+    // (e.g. /login?redirect=/subscribe?plan=pro from the pricing page).
+    // Arbitrary ERP routes (/proposals, /dashboard, /contacts, etc.) are
+    // intentionally ignored so that a user always lands on their role-based
+    // home after login, regardless of URL params.
+    const REDIRECT_ALLOWED_PREFIXES = ["/subscribe", "/checkout-success"];
+    const redirectParam = searchParams.get("redirect");
+    if (redirectParam) {
+      const decoded = (() => {
+        try {
+          return decodeURIComponent(redirectParam);
+        } catch {
+          return redirectParam;
+        }
+      })();
+      const isInternal = decoded.startsWith("/") && !decoded.startsWith("//");
+      const base = decoded.split("?")[0];
+      const isPaymentFlow = REDIRECT_ALLOWED_PREFIXES.some(
+        (prefix) => base === prefix || base.startsWith(prefix + "/"),
+      );
+      if (isInternal && isPaymentFlow && isPathAllowedForUser(decoded, user ?? null)) {
+        router.replace(decoded);
+        return;
+      }
+    }
+
+    // Fallback: role-based home resolution. resolveUserHome handles
+    // free → "/dashboard", subscription-blocked → "/subscription-blocked",
     // admin/MASTER → "/dashboard", MEMBER → first-allowed page.
     const home = resolveUserHome(user ?? null);
     router.replace(home.path);
-  }, [router, user]);
+  }, [router, user, searchParams]);
 
   // If already logged in, redirect
   React.useEffect(() => {
@@ -468,8 +489,38 @@ export function useLoginForm(): UseLoginFormReturn {
       return;
     }
 
+    // Watch the popup window and release the loading state the moment
+    // the user closes it, without waiting for Firebase's own polling delay.
+    let popupClosedEarly = false;
+    let popupWatchInterval: ReturnType<typeof setInterval> | null = null;
+
+    const watchPopup = (popupWindow: Window | null) => {
+      if (!popupWindow) return;
+      popupWatchInterval = setInterval(() => {
+        if (popupWindow.closed) {
+          clearInterval(popupWatchInterval!);
+          popupClosedEarly = true;
+          setIsGoogleLoading(false);
+        }
+      }, 300);
+    };
+
+    // signInWithPopup opens the popup internally; we intercept it by patching
+    // window.open temporarily so we can grab a reference to the popup window.
+    const originalOpen = window.open.bind(window);
+    let popupRef: Window | null = null;
+    window.open = (...args) => {
+      popupRef = originalOpen(...args);
+      watchPopup(popupRef);
+      return popupRef;
+    };
+
     try {
       const userCredential = await signInWithPopup(auth, provider);
+
+      // Popup completed successfully — stop watching.
+      if (popupWatchInterval) clearInterval(popupWatchInterval);
+      window.open = originalOpen;
 
       const firebaseUser = userCredential.user;
       const additionalInfo = getAdditionalUserInfo(userCredential);
@@ -481,11 +532,26 @@ export function useLoginForm(): UseLoginFormReturn {
         router.replace(getGoogleSetupTarget());
       }
     } catch (googleError: unknown) {
+      if (popupWatchInterval) clearInterval(popupWatchInterval);
+      window.open = originalOpen;
+
+      // If we already detected the popup was closed early, ignore the error.
+      if (popupClosedEarly) return;
+
       const code = (googleError as { code?: string })?.code;
-      const fallbackCodes = [
+      // User intentionally closed or cancelled the popup — just stop silently.
+      const silentCodes = [
         "auth/popup-closed-by-user",
-        "auth/popup-blocked",
         "auth/cancelled-popup-request",
+      ];
+      if (code && silentCodes.includes(code)) {
+        setIsGoogleLoading(false);
+        return;
+      }
+
+      // Popup was blocked by the browser — fall back to full-page redirect.
+      const fallbackCodes = [
+        "auth/popup-blocked",
         "auth/operation-not-supported-in-this-environment",
       ];
       if (code && fallbackCodes.includes(code)) {
@@ -672,10 +738,14 @@ export function useLoginForm(): UseLoginFormReturn {
         updatedAt: now,
       });
 
-      const verifyUrl = `${window.location.origin}/login`;
-      await sendEmailVerification(firebaseUser, {
-        url: verifyUrl,
-      });
+      try {
+        await AuthService.sendVerificationEmail();
+      } catch (sendErr) {
+        console.error(
+          "Failed to send verification email after registration:",
+          sendErr,
+        );
+      }
 
       setIsRegistering(false);
       setIsEmailVerificationPending(true);

@@ -248,7 +248,31 @@ export const updateWallet = async (req: Request, res: Response) => {
     } else {
       await walletRef.update(safeUpdate);
     }
-    return res.json({ success: true, message: "Carteira atualizada." });
+
+    // Cascade rename to denormalized references (transactions, proposals)
+    // runs asynchronously via Firestore trigger. We only enqueue a job
+    // here so the HTTP request returns immediately; the frontend listens
+    // on wallet_cascade_jobs/{jobId} for live progress and completion.
+    const renamedFrom = walletData?.name as string | undefined;
+    const renamedTo = typeof safeUpdate.name === "string" ? safeUpdate.name : undefined;
+    let cascadeJobId: string | null = null;
+    if (renamedFrom && renamedTo && renamedFrom !== renamedTo) {
+      const { enqueueWalletCascadeJob } = await import(
+        "../services/wallet-cascade-job.service"
+      );
+      cascadeJobId = await enqueueWalletCascadeJob({
+        tenantId,
+        walletId: id,
+        oldName: renamedFrom,
+        newName: renamedTo,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Carteira atualizada.",
+      cascadeJobId,
+    });
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Erro desconhecido";

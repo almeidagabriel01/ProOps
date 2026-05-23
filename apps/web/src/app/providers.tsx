@@ -39,7 +39,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ErrorBoundary>
         <AuthProvider>
           {isPublicMarketingPage ? (
-            <main className="min-h-screen">{children}</main>
+            <PermissionsProvider>
+              <TenantProvider>
+                <PlanProvider>
+                  <main className="min-h-screen">{children}</main>
+                </PlanProvider>
+              </TenantProvider>
+            </PermissionsProvider>
           ) : pathname.startsWith("/share/") ? (
             <main className="min-h-screen">{children}</main>
           ) : isAuthOnlyPage ? (

@@ -30,7 +30,6 @@ interface BillingTabProps {
   isFree: boolean;
   openingPortal: boolean;
   subscriptionStatus?: string;
-  trialEndsAt?: string;
 }
 
 export function BillingTab({
@@ -49,7 +48,6 @@ export function BillingTab({
   isFree,
   openingPortal,
   subscriptionStatus,
-  trialEndsAt,
 }: BillingTabProps) {
   if (!isMaster && !isFree) {
     return (
@@ -130,13 +128,7 @@ export function BillingTab({
       <div className="grid md:grid-cols-3 gap-6">
         {allPlans.map((plan) => {
           const isCurrent = isCurrentPlan(plan);
-          const trialStillActive =
-            !!trialEndsAt && new Date(trialEndsAt) > new Date();
-          const isTrialing =
-            isCurrent &&
-            (subscriptionStatus === "trialing" || trialStillActive);
-          const isActivePlan =
-            isCurrent && subscriptionStatus === "active" && !trialStillActive;
+          const isActivePlan = isCurrent && subscriptionStatus === "active";
           return (
             <PlanCard
               key={plan.id}
@@ -150,9 +142,7 @@ export function BillingTab({
               onDowngrade={handleDowngrade}
               isMaster={isMaster}
               isFree={isFree}
-              isTrialing={isTrialing}
               isActivePlan={isActivePlan}
-              trialEndsAt={isTrialing ? trialEndsAt : undefined}
             />
           );
         })}

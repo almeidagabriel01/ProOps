@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "@/lib/toast";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
   TransactionService,
   Transaction,
@@ -161,6 +161,8 @@ function resolveWalletId(value: string, walletList: Wallet[]): string {
 export function useEditTransaction() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
+  const fromGrouped = searchParams.get("fromGrouped"); // "single" | "series" | null
   const transactionId = params.id as string;
   const {
     canEdit,
@@ -179,6 +181,18 @@ export function useEditTransaction() {
   const [extraTransactionIds, setExtraTransactionIds] = React.useState<
     string[]
   >([]);
+
+  const [recurringEditScope, setRecurringEditScope] = React.useState<
+    "single" | "series"
+  >("single");
+
+  React.useEffect(() => {
+    if (fromGrouped === "single") {
+      setRecurringEditScope("single");
+    } else if (fromGrouped === "series") {
+      setRecurringEditScope("series");
+    }
+  }, [fromGrouped]);
 
   const [formData, setFormData] = React.useState<EditTransactionFormData>({
     type: "income",
@@ -218,6 +232,8 @@ export function useEditTransaction() {
     installmentsWallet: string;
     downPaymentWallet: string;
   } | null>(null);
+  const lastTransactionIdRef = React.useRef<string | null>(null);
+  const lastScopeRef = React.useRef<"single" | "series" | null>(null);
 
   // Sync wallets ref and apply deferred wallet resolution
   React.useEffect(() => {
@@ -391,59 +407,86 @@ export function useEditTransaction() {
         }
       }
 
-      // DERIVE FORM STATE FROM GROUP (if exists) OR SINGLE TRANSACTION
-      const downPaymentItem = groupTransactions.find((t) => t.isDownPayment);
-      const regularInstallments = groupTransactions.filter(
-        (t) => !t.isDownPayment,
-      );
+      // Form pre-filling is handled by a reactive useEffect
+    } catch (error) {
+      console.error("Error fetching transaction:", error);
+      toast.error("Erro ao carregar lançamento.");
+      router.push("/transactions");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [transactionId, params.id, router]);
 
-      // Determine if we should treat this as an installment group edit
-      const hasGroup = groupTransactions.length > 0;
+  React.useEffect(() => {
+    fetchTransaction();
+  }, [fetchTransaction]);
 
-      // Calculate Total Amount
-      // If it's a group (installments), sum everyone (including down payment)
-      // If single or recurring, just use safeData.amount (the base value)
-      const totalAmount =
-        hasGroup && !safeData.isRecurring
-          ? groupTransactions.reduce((sum, t) => sum + t.amount, 0)
-          : safeData.amount;
+  // Reactive pre-fill based on transaction, relatedInstallments, and scope changes
+  React.useEffect(() => {
+    if (!transaction) return;
 
-      // Installment Count:
-      // If group, count regular installments.
-      // If single or recurring, use safeData.installmentCount
-      const instCount =
-        hasGroup && !safeData.isRecurring
-          ? regularInstallments.length
-          : safeData.installmentCount || 1;
+    const hasNewTransaction = transaction.id !== lastTransactionIdRef.current;
+    const hasNewScope = recurringEditScope !== lastScopeRef.current;
 
-      // Installment Value (for form pre-fill if needed):
-      // If group, take the first regular installment's amount (approximation)
-      const firstRegular = regularInstallments[0];
-      const instValue = firstRegular
-        ? firstRegular.amount
-        : hasGroup
-          ? 0
-          : safeData.amount / (safeData.installmentCount || 1);
+    if (!hasNewTransaction && !hasNewScope) {
+      return;
+    }
 
-      const initialFormData: EditTransactionFormData = {
+    lastTransactionIdRef.current = transaction.id;
+    lastScopeRef.current = recurringEditScope;
+
+    const safeData = transaction as ExtendedTransaction;
+    const groupTransactions = relatedInstallments;
+
+    const downPaymentItem = groupTransactions.find((t) => t.isDownPayment);
+    const regularInstallments = groupTransactions.filter(
+      (t) => !t.isDownPayment,
+    );
+
+    const hasGroup = groupTransactions.length > 0;
+
+    let baseRecurringAmount = safeData.amount;
+    if (safeData.isRecurring && groupTransactions.length > 0) {
+      const baseTx = groupTransactions.find((t) => !t.overriddenAmount);
+      if (baseTx) {
+        baseRecurringAmount = baseTx.amount;
+      }
+    }
+
+    const totalAmount =
+      hasGroup && !safeData.isRecurring
+        ? groupTransactions.reduce((sum, t) => sum + t.amount, 0)
+        : (safeData.isRecurring ? baseRecurringAmount : safeData.amount);
+
+    const instCount =
+      hasGroup && !safeData.isRecurring
+        ? regularInstallments.length
+        : safeData.installmentCount || (safeData.isRecurring ? 12 : 1);
+
+    const firstRegular = regularInstallments[0];
+    const instValue = safeData.isRecurring
+      ? baseRecurringAmount
+      : (firstRegular
+          ? firstRegular.amount
+          : hasGroup
+            ? 0
+            : safeData.amount / (safeData.installmentCount || 1));
+
+    let initialFormData: EditTransactionFormData;
+
+    if (recurringEditScope === "single") {
+      // Pre-fill for single occurrence edit
+      initialFormData = {
         type: safeData.type,
         description: safeData.description,
-        amount: totalAmount.toFixed(2),
+        amount: safeData.amount.toFixed(2),
         date: safeData.date ? safeData.date.split("T")[0] : "",
-        dueDate:
-          hasGroup && firstRegular?.dueDate
-            ? firstRegular.dueDate.split("T")[0]
-            : safeData.dueDate
-              ? safeData.dueDate.split("T")[0]
-              : "",
+        dueDate: safeData.dueDate ? safeData.dueDate.split("T")[0] : "",
         status: safeData.status,
         clientId: safeData.clientId,
         clientName: safeData.clientName || "",
         category: safeData.category || "",
-        wallet:
-          hasGroup && firstRegular?.wallet
-            ? firstRegular.wallet
-            : safeData.wallet || "",
+        wallet: safeData.wallet || "",
         notes: safeData.notes || "",
         isInstallment: safeData.isRecurring
           ? false
@@ -470,57 +513,116 @@ export function useEditTransaction() {
         downPaymentDueDate: downPaymentItem?.date
           ? downPaymentItem.date.split("T")[0]
           : "",
-        installmentValue: instValue.toFixed(2),
-        installmentsWallet: firstRegular?.wallet || safeData.wallet || "",
-        firstInstallmentDate: firstRegular?.dueDate
-          ? firstRegular.dueDate.split("T")[0]
-          : safeData.dueDate
-            ? safeData.dueDate.split("T")[0]
-            : safeData.date
-              ? safeData.date.split("T")[0]
-              : "",
+        installmentValue: safeData.isRecurring ? safeData.amount.toFixed(2) : instValue.toFixed(2),
+        installmentsWallet: safeData.isRecurring ? (safeData.wallet || "") : (firstRegular?.wallet || safeData.wallet || ""),
+        firstInstallmentDate: safeData.isRecurring
+          ? (safeData.dueDate
+              ? safeData.dueDate.split("T")[0]
+              : safeData.date
+                ? safeData.date.split("T")[0]
+                : "")
+          : (firstRegular?.dueDate
+              ? firstRegular.dueDate.split("T")[0]
+              : safeData.dueDate
+                ? safeData.dueDate.split("T")[0]
+                : safeData.date
+                  ? safeData.date.split("T")[0]
+                  : ""),
       };
-
-      // Resolve wallet NAME → ID (backward compat: old data stored wallet names)
-      const currentWallets = walletsRef.current;
-      const resolvedWallet = resolveWalletId(initialFormData.wallet, currentWallets);
-      const resolvedInstallmentsWallet = resolveWalletId(initialFormData.installmentsWallet, currentWallets);
-      const resolvedDownPaymentWallet = resolveWalletId(initialFormData.downPaymentWallet, currentWallets);
-
-      if (currentWallets.length === 0 && (initialFormData.wallet || initialFormData.installmentsWallet || initialFormData.downPaymentWallet)) {
-        pendingWalletResolution.current = {
-          wallet: initialFormData.wallet,
-          installmentsWallet: initialFormData.installmentsWallet,
-          downPaymentWallet: initialFormData.downPaymentWallet,
-        };
-      } else {
-        pendingWalletResolution.current = null;
-      }
-
-      const resolvedInitialFormData: EditTransactionFormData = {
-        ...initialFormData,
-        wallet: resolvedWallet,
-        installmentsWallet: resolvedInstallmentsWallet,
-        downPaymentWallet: resolvedDownPaymentWallet,
+    } else {
+      // Pre-fill for series scope edit
+      initialFormData = {
+        type: safeData.type,
+        description: safeData.description,
+        amount: safeData.isRecurring ? safeData.amount.toFixed(2) : totalAmount.toFixed(2),
+        date: safeData.date ? safeData.date.split("T")[0] : "",
+        dueDate:
+          safeData.isRecurring
+            ? (safeData.dueDate ? safeData.dueDate.split("T")[0] : "")
+            : (hasGroup && firstRegular?.dueDate
+                ? firstRegular.dueDate.split("T")[0]
+                : safeData.dueDate
+                  ? safeData.dueDate.split("T")[0]
+                  : ""),
+        status: safeData.status,
+        clientId: safeData.clientId,
+        clientName: safeData.clientName || "",
+        category: safeData.category || "",
+        wallet:
+          safeData.isRecurring
+            ? (safeData.wallet || "")
+            : (hasGroup && firstRegular?.wallet
+                ? firstRegular.wallet
+                : safeData.wallet || ""),
+        notes: safeData.notes || "",
+        isInstallment: safeData.isRecurring
+          ? false
+          : regularInstallments.length > 1 || (safeData.isInstallment ?? false),
+        isRecurring: safeData.isRecurring ?? false,
+        installmentCount: instCount > 0 ? instCount : 1,
+        installmentInterval:
+          (hasGroup
+            ? firstRegular?.installmentInterval
+            : safeData.installmentInterval) || 1,
+        paymentMode: safeData.paymentMode || "total",
+        downPaymentEnabled: !!downPaymentItem,
+        downPaymentType:
+          (downPaymentItem?.downPaymentType as "value" | "percentage") ||
+          "value",
+        downPaymentPercentage:
+          downPaymentItem?.downPaymentType === "percentage"
+            ? String(downPaymentItem?.downPaymentPercentage || "")
+            : "",
+        downPaymentValue: downPaymentItem
+          ? downPaymentItem.amount.toFixed(2)
+          : "",
+        downPaymentWallet: downPaymentItem?.wallet || safeData.wallet || "",
+        downPaymentDueDate: downPaymentItem?.date
+          ? downPaymentItem.date.split("T")[0]
+          : "",
+        installmentValue: safeData.isRecurring ? safeData.amount.toFixed(2) : instValue.toFixed(2),
+        installmentsWallet: safeData.isRecurring ? (safeData.wallet || "") : (firstRegular?.wallet || safeData.wallet || ""),
+        firstInstallmentDate: safeData.isRecurring
+          ? (safeData.dueDate
+              ? safeData.dueDate.split("T")[0]
+              : safeData.date
+                ? safeData.date.split("T")[0]
+                : "")
+          : (firstRegular?.dueDate
+              ? firstRegular.dueDate.split("T")[0]
+              : safeData.dueDate
+                ? safeData.dueDate.split("T")[0]
+                : safeData.date
+                  ? safeData.date.split("T")[0]
+                  : ""),
       };
-
-      setFormData((prev) => ({
-        ...prev,
-        ...resolvedInitialFormData,
-      }));
-      setInitialSnapshot(buildEditTransactionSnapshot(resolvedInitialFormData));
-    } catch (error) {
-      console.error("Error fetching transaction:", error);
-      toast.error("Erro ao carregar lançamento.");
-      router.push("/transactions");
-    } finally {
-      setIsLoading(false);
     }
-  }, [transactionId, params.id, router]);
 
-  React.useEffect(() => {
-    fetchTransaction();
-  }, [fetchTransaction]);
+    const currentWallets = wallets;
+    const resolvedWallet = resolveWalletId(initialFormData.wallet, currentWallets);
+    const resolvedInstallmentsWallet = resolveWalletId(initialFormData.installmentsWallet, currentWallets);
+    const resolvedDownPaymentWallet = resolveWalletId(initialFormData.downPaymentWallet, currentWallets);
+
+    if (currentWallets.length === 0 && (initialFormData.wallet || initialFormData.installmentsWallet || initialFormData.downPaymentWallet)) {
+      pendingWalletResolution.current = {
+        wallet: initialFormData.wallet,
+        installmentsWallet: initialFormData.installmentsWallet,
+        downPaymentWallet: initialFormData.downPaymentWallet,
+      };
+    } else {
+      pendingWalletResolution.current = null;
+    }
+
+    const resolvedInitialFormData: EditTransactionFormData = {
+      ...initialFormData,
+      wallet: resolvedWallet,
+      installmentsWallet: resolvedInstallmentsWallet,
+      downPaymentWallet: resolvedDownPaymentWallet,
+    };
+
+    setFormData(resolvedInitialFormData);
+    setInitialSnapshot(buildEditTransactionSnapshot(resolvedInitialFormData));
+  }, [transaction, relatedInstallments, recurringEditScope, wallets]);
 
   const switchPaymentMode = (newMode: "total" | "installmentValue") => {
     if (newMode === formData.paymentMode) return;
@@ -568,8 +670,8 @@ export function useEditTransaction() {
           installmentValue: installmentVal,
           installmentsWallet: formData.wallet,
           firstInstallmentDate: formData.dueDate || formData.date, // Default
-          isInstallment: formData.isRecurring ? false : true,
-          isRecurring: formData.isRecurring,
+          isInstallment: true,
+          isRecurring: false,
           installmentCount: count,
           installmentInterval: formData.installmentInterval || 1,
           downPaymentEnabled: formData.downPaymentEnabled,
@@ -681,8 +783,7 @@ export function useEditTransaction() {
               targetBuffer.isInstallment ??
               computedValues.isInstallment ??
               true,
-            isRecurring:
-              targetBuffer.isRecurring ?? computedValues.isRecurring ?? false,
+            isRecurring: false,
             installmentCount:
               targetBuffer.installmentCount ??
               computedValues.installmentCount ??
@@ -759,44 +860,68 @@ export function useEditTransaction() {
       : `ID ${transaction.id}`;
 
     try {
-      const payload: UpdateFinancialEntryWithInstallmentsPayload = {
-        type: formData.type,
-        description: formData.description.trim(),
-        amount: formData.amount,
-        date: formData.date,
-        dueDate: formData.dueDate,
-        status: formData.status,
-        clientId: formData.clientId,
-        clientName: formData.clientName,
-        category: formData.category,
-        wallet: formData.wallet,
-        notes: formData.notes,
-        isInstallment: formData.isInstallment && !formData.isRecurring,
-        isRecurring: formData.isRecurring,
-        installmentCount: formData.isRecurring ? 60 : formData.installmentCount,
-        installmentInterval: formData.installmentInterval || 1,
-        paymentMode: formData.paymentMode,
-        installmentValue: formData.installmentValue,
-        firstInstallmentDate: formData.firstInstallmentDate,
-        installmentsWallet:
-          formData.paymentMode === "total"
-            ? formData.wallet
-            : formData.installmentsWallet,
-        downPaymentEnabled: formData.downPaymentEnabled,
-        downPaymentType: formData.downPaymentType,
-        downPaymentPercentage: formData.downPaymentPercentage,
-        downPaymentValue: formData.downPaymentValue,
-        downPaymentWallet: formData.downPaymentWallet,
-        downPaymentDueDate: formData.downPaymentDueDate,
-        expectedUpdatedAt: transaction.updatedAt,
-        targetTenantId: transaction.tenantId,
-        extraTransactionIds,
-      };
+      // Series/installment vs single occurrence edit.
+      // If we are not doing a series-wide update, we perform a single-document update.
+      // For recurring transactions, the backend tags it as overriddenAmount to protect against series
+      // regeneration overwriting the value.
+      const isSeriesEdit =
+        recurringEditScope === "series" &&
+        (formData.isRecurring || formData.isInstallment || !!transaction.installmentGroupId);
 
-      await TransactionService.updateFinancialEntryWithInstallments(
-        transaction.id,
-        payload,
-      );
+      if (!isSeriesEdit) {
+        await TransactionService.updateTransaction(transaction.id, {
+          type: formData.type,
+          description: formData.description.trim(),
+          amount: Number(formData.amount),
+          date: formData.date,
+          dueDate: formData.dueDate,
+          status: formData.status,
+          clientId: formData.clientId,
+          clientName: formData.clientName,
+          category: formData.category,
+          wallet: formData.wallet,
+          notes: formData.notes,
+        });
+      } else {
+        const payload: UpdateFinancialEntryWithInstallmentsPayload = {
+          type: formData.type,
+          description: formData.description.trim(),
+          amount: formData.amount,
+          date: formData.date,
+          dueDate: formData.dueDate,
+          status: formData.status,
+          clientId: formData.clientId,
+          clientName: formData.clientName,
+          category: formData.category,
+          wallet: formData.wallet,
+          notes: formData.notes,
+          isInstallment: formData.isInstallment && !formData.isRecurring,
+          isRecurring: formData.isRecurring,
+          installmentCount: formData.installmentCount,
+          installmentInterval: formData.installmentInterval || 1,
+          paymentMode: formData.paymentMode,
+          installmentValue: formData.installmentValue,
+          firstInstallmentDate: formData.firstInstallmentDate,
+          installmentsWallet:
+            formData.paymentMode === "total"
+              ? formData.wallet
+              : formData.installmentsWallet,
+          downPaymentEnabled: formData.downPaymentEnabled,
+          downPaymentType: formData.downPaymentType,
+          downPaymentPercentage: formData.downPaymentPercentage,
+          downPaymentValue: formData.downPaymentValue,
+          downPaymentWallet: formData.downPaymentWallet,
+          downPaymentDueDate: formData.downPaymentDueDate,
+          expectedUpdatedAt: transaction.updatedAt,
+          targetTenantId: transaction.tenantId,
+          extraTransactionIds,
+        };
+
+        await TransactionService.updateFinancialEntryWithInstallments(
+          transaction.id,
+          payload,
+        );
+      }
 
       toast.success(`Lancamento ${transactionLabel} atualizado com sucesso.`, {
         title: "Sucesso ao editar",
@@ -820,8 +945,22 @@ export function useEditTransaction() {
   const hasChanges = React.useMemo(() => {
     if (!initialSnapshot) return false;
 
-    return buildEditTransactionSnapshot(formData) !== initialSnapshot;
-  }, [formData, initialSnapshot]);
+    const formChanged = buildEditTransactionSnapshot(formData) !== initialSnapshot;
+    if (formChanged) return true;
+
+    // If scope is series and any installment has a different amount than the form amount
+    if (formData.isRecurring && recurringEditScope === "series") {
+      const targetAmount = parseFloat(formData.amount || "0");
+      const hasOverriddenInstallment = relatedInstallments.some(
+        (t) => !t.isDownPayment && t.amount !== targetAmount
+      );
+      if (hasOverriddenInstallment) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [formData, initialSnapshot, recurringEditScope, relatedInstallments]);
 
   return {
     formData,
@@ -845,5 +984,8 @@ export function useEditTransaction() {
         ? relatedInstallments.reduce((sum, t) => sum + t.amount, 0)
         : null,
     refetch: fetchTransaction,
+    recurringEditScope,
+    setRecurringEditScope,
+    fromGrouped,
   };
 }

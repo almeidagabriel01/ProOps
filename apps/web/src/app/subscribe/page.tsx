@@ -32,7 +32,6 @@ function SubscribeContent() {
 
   const planTier = searchParams.get("plan");
   const billingInterval = searchParams.get("interval") || "monthly";
-  const skipTrial = searchParams.get("skipTrial") === "true";
 
   useEffect(() => {
     // If no plan specified, redirect to home
@@ -90,7 +89,6 @@ function SubscribeContent() {
         userEmail: user.email,
         billingInterval: billingInterval as "monthly" | "yearly",
         origin: window.location.origin,
-        ...(skipTrial && { skipTrial: true }),
       });
 
       if (data.url) {
@@ -200,11 +198,6 @@ function SubscribeContent() {
                 {PLAN_NAMES[planTier]}
               </span>{" "}
               ({INTERVAL_LABELS[billingInterval] || billingInterval})
-              {planTier === "pro" && (
-                <span className="block mt-2 text-emerald-500 text-sm font-medium">
-                  Inclui 7 dias grátis para testar
-                </span>
-              )}
             </>
           ) : (
             "Redirecionando..."

@@ -139,14 +139,21 @@ export const WalletService = {
   },
 
   /**
-   * Update a wallet via Cloud Function
+   * Update a wallet via Cloud Function. When the name changes, the backend
+   * enqueues an async cascade job and returns its id; the caller should
+   * subscribe to `wallet_cascade_jobs/{cascadeJobId}` for live progress.
    */
   updateWallet: async (
     walletId: string,
     data: UpdateWalletInput,
-  ): Promise<void> => {
+  ): Promise<{ cascadeJobId: string | null }> => {
     try {
-      await callApi(`v1/wallets/${walletId}`, "PUT", data);
+      const response = await callApi<{
+        success: boolean;
+        message: string;
+        cascadeJobId?: string | null;
+      }>(`v1/wallets/${walletId}`, "PUT", data);
+      return { cascadeJobId: response?.cascadeJobId ?? null };
     } catch (error) {
       console.error("Error updating wallet:", error);
       throw error;

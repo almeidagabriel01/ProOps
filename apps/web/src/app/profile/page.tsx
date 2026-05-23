@@ -224,7 +224,6 @@ function ProfileContent() {
                 isFree={isFree}
                 openingPortal={openingPortal}
                 subscriptionStatus={user?.subscriptionStatus}
-                trialEndsAt={tenant?.trialEndsAt as string | undefined}
               />
             </motion.div>
           </TabsContent>
