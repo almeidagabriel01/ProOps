@@ -68,13 +68,30 @@ export const metadata: Metadata = {
     template: "%s | ProOps",
   },
   icons: {
-    // icon-google.png: white background + black logo, used by Google Search
-    // and other crawlers that flatten transparency to white.
-    // The transparent icon.png in src/app/ continues to serve browser tabs.
+    // Light/dark favicon pair switched by the `media` attribute on each <link>
+    // (the same technique TOTVS uses; Chromium honors media on icon links).
+    // Default (no media) = dark glyph, so Google Search shows the dark logo on
+    // its white SERP circle. prefers-color-scheme:dark = white glyph, so dark
+    // browser tabs show a white logo. Regenerate via scripts/generate-icons.mjs.
     icon: [
-      { url: "/icons/icon-google.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-light-192.png", type: "image/png", sizes: "192x192" },
+      {
+        url: "/icons/icon-light-192.png",
+        type: "image/png",
+        sizes: "192x192",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/icons/icon-dark-192.png",
+        type: "image/png",
+        sizes: "192x192",
+        media: "(prefers-color-scheme: dark)",
+      },
     ],
-    shortcut: "/favicon.ico",
+    // No `shortcut: /favicon.ico` on purpose: a non-media favicon.ico link has
+    // an exact 16px size and would win for the tab icon, defeating the media
+    // switching above. favicon.ico still exists in public/ for Google's direct
+    // /favicon.ico probe (Google fetches it even when it isn't linked).
     apple: "/apple-icon.png",
   },
   description:
