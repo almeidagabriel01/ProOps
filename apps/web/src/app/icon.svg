@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="445 165 600 600">
+<style>
+  path { fill: #0a0a0a; }
+  @media (prefers-color-scheme: dark) { path { fill: #ffffff; } }
+</style>
 <g transform="translate(0.000000,900.000000) scale(0.100000,-0.100000)"
 fill="#0a0a0a" stroke="none">
 <path d="M7500 6103 c-485 -52 -935 -337 -1197 -758 -126 -202 -194 -401 -228

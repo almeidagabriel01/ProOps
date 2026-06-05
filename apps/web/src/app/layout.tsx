@@ -68,10 +68,10 @@ export const metadata: Metadata = {
     template: "%s | ProOps",
   },
   icons: {
-    // The logo is dark so it stays visible: transparent icon.svg (preferred by
-    // Google/browsers) shows the dark glyph on Google's light SERP circle, with
-    // the opaque icon-512.png as a fallback. The bare logo used to be white and
-    // disappeared on that circle. Regenerate via scripts/generate-icons.mjs.
+    // icon.svg (preferred by Google/browsers) is adaptive: dark glyph by
+    // default so it stays visible on Google's light SERP circle, white glyph
+    // under prefers-color-scheme:dark for contrast in dark browser tabs.
+    // icon-512.png is the opaque fallback. Regenerate via scripts/generate-icons.mjs.
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },

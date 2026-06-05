@@ -39,7 +39,8 @@ const SYMBOL_SRC = join(ROOT, "public/logo/logo2-transparent.png");
 const WORDMARK_SRC = join(ROOT, "public/logo/logo-transparent.png");
 const SVG_LOGO_SRC = join(ROOT, "public/logo/logo2-cropped.svg");
 
-const GLYPH_FILL = "#0a0a0a"; // dark logo color (easy to swap, e.g. brand color)
+const GLYPH_FILL = "#0a0a0a"; // dark logo (default + light theme + Google's light circle)
+const GLYPH_FILL_DARK = "#ffffff"; // light logo for dark-themed browsers (prefers-color-scheme: dark)
 const BG = "#ffffff"; // solid white background (for opaque assets only)
 const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
 
@@ -82,10 +83,13 @@ async function makeMaskableIcon(size) {
 }
 
 /**
- * Build the SVG favicon from the vector logo: TRANSPARENT background + dark
- * glyph, square viewBox centered on the symbol. The original icon.svg used a
- * white fill on a transparent background and vanished on Google's white circle;
- * a dark glyph stays visible there while keeping the browser tab transparent.
+ * Build the ADAPTIVE SVG favicon (transparent background):
+ *   - default / light theme / Google's light SERP circle -> dark glyph (visible)
+ *   - prefers-color-scheme: dark (dark browser tab) -> white glyph (contrast)
+ * The dark default is deliberate: if a renderer (e.g. Google) ignores the media
+ * query, it falls back to the dark glyph and stays visible on the light circle.
+ * The <g> keeps a dark presentation fill so even renderers that ignore <style>
+ * render dark.
  */
 function makeSvg() {
   const src = readFileSync(SVG_LOGO_SRC, "utf8");
@@ -99,6 +103,10 @@ function makeSvg() {
   const size = 600;
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="${x} ${y} ${size} ${size}">
+<style>
+  path { fill: ${GLYPH_FILL}; }
+  @media (prefers-color-scheme: dark) { path { fill: ${GLYPH_FILL_DARK}; } }
+</style>
 ${glyph}
 </svg>
 `;
