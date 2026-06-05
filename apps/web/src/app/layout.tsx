@@ -88,7 +88,10 @@ export const metadata: Metadata = {
         media: "(prefers-color-scheme: dark)",
       },
     ],
-    shortcut: "/favicon.ico",
+    // No `shortcut: /favicon.ico` on purpose: a non-media favicon.ico link has
+    // an exact 16px size and would win for the tab icon, defeating the media
+    // switching above. favicon.ico still exists in public/ for Google's direct
+    // /favicon.ico probe (Google fetches it even when it isn't linked).
     apple: "/apple-icon.png",
   },
   description:
