@@ -4,24 +4,25 @@
  * Run: node scripts/generate-icons.mjs   (from apps/web/)
  *  or: node apps/web/scripts/generate-icons.mjs   (from repo root)
  *
- * Goal: a DARK logo so it's visible. The browser-tab + Google favicon are
- * TRANSPARENT (Google draws a light circle behind the favicon, so a dark logo
- * stands out). Assets that technically require an opaque background (iOS,
- * PWA/manifest, Knowledge Panel) keep a solid white background.
- * The original bug was a WHITE logo, which vanished on Google's white circle.
+ * Strategy (same as TOTVS): a light/dark favicon PAIR declared in layout.tsx
+ * with `media` queries on the <link rel="icon"> tags (Chromium honors the media
+ * attribute on link tags, unlike prefers-color-scheme INSIDE an SVG):
+ *   - default (no media) + light theme -> DARK glyph  -> Google SERP + light tabs
+ *   - prefers-color-scheme: dark        -> WHITE glyph -> dark browser tabs
+ * There is intentionally NO app/icon.svg / app/icon.png: a no-media SVG file
+ * convention would be preferred by browsers and defeat the media switching.
  *
  * Sources: public/logo/logo2-transparent.png (1600x900 symbol, black on transparent)
  *          public/logo/logo-transparent.png  (1600x1600 wordmark, black on transparent)
- *          public/logo/logo2-cropped.svg     (vector symbol, used for icon.svg)
+ *          public/logo/logo2-cropped.svg     (vector symbol, recolored per icon)
  *
  * Outputs:
- *   src/app/icon.svg              vector   - App Router favicon (PREFERRED), TRANSPARENT + dark logo
- *   src/app/icon.png              512x512  - App Router favicon fallback, TRANSPARENT + dark logo
- *   public/favicon.ico            48/32/16 - legacy browser / Google root probe, TRANSPARENT + dark logo
- *   src/app/apple-icon.png        180x180  - iOS home screen, WHITE bg (iOS needs opaque)
- *   src/app/opengraph-image.png  1200x630  - OG / Twitter card, white bg
+ *   public/icons/icon-light-192.png    192x192  - DARK glyph, transparent (default + light + Google)
+ *   public/icons/icon-dark-192.png     192x192  - WHITE glyph, transparent (dark browser tab)
+ *   public/favicon.ico                 48/32/16 - DARK glyph, transparent (Google root probe / fallback)
+ *   src/app/apple-icon.png             180x180  - iOS home screen, WHITE bg (iOS needs opaque)
+ *   src/app/opengraph-image.png       1200x630  - OG / Twitter card, white bg
  *   public/icons/icon-192.png          192x192  - manifest, white bg
- *   public/icons/icon-google.png       192x192  - extra Google hint, white bg
  *   public/icons/icon-512.png          512x512  - manifest + JSON-LD Organization.logo, white bg
  *   public/icons/icon-maskable-512.png 512x512  - manifest maskable (20% safe-zone), white bg
  */
@@ -91,11 +92,15 @@ async function makeMaskableIcon(size) {
  * The <g> keeps a dark presentation fill so even renderers that ignore <style>
  * render dark.
  */
-function makeSvg() {
+/**
+ * Build an SVG of the logo glyph with a given fill on a TRANSPARENT background,
+ * square viewBox centered on the symbol.
+ */
+function logoSvg(fill) {
   const src = readFileSync(SVG_LOGO_SRC, "utf8");
   const g = src.match(/<g[\s\S]*?<\/g>/);
   if (!g) throw new Error("Could not find <g> in logo2-cropped.svg");
-  const glyph = g[0].replace(/fill="#ffffff"/i, `fill="${GLYPH_FILL}"`);
+  const glyph = g[0].replace(/fill="#ffffff"/i, `fill="${fill}"`);
   // Glyph content lives at x 540-950 / y 250-680; a square viewBox centered
   // on (745, 465) with side 600 gives ~16% padding on each side.
   const x = 445;
@@ -103,13 +108,17 @@ function makeSvg() {
   const size = 600;
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="${x} ${y} ${size} ${size}">
-<style>
-  path { fill: ${GLYPH_FILL}; }
-  @media (prefers-color-scheme: dark) { path { fill: ${GLYPH_FILL_DARK}; } }
-</style>
 ${glyph}
 </svg>
 `;
+}
+
+/** Render the logo glyph (given fill) to a transparent PNG buffer of size px. */
+async function logoPng(fill, size) {
+  return sharp(Buffer.from(logoSvg(fill)))
+    .resize(size, size, { fit: "contain", background: TRANSPARENT })
+    .png()
+    .toBuffer();
 }
 
 /**
@@ -142,21 +151,23 @@ async function makeOgImage() {
 }
 
 async function main() {
-  console.log("Generating ProOps icon assets (dark logo; tab/Google transparent)...");
+  console.log("Generating ProOps icon assets (TOTVS-style light/dark favicon pair)...");
 
   const icon512 = await makeSquareIcon(512); // opaque white (manifest + JSON-LD)
-  const icon192 = await makeSquareIcon(192); // opaque white (manifest + Google hint)
+  const icon192 = await makeSquareIcon(192); // opaque white (manifest)
   const icon180 = await makeSquareIcon(180); // opaque white (iOS needs opaque)
   const iconMaskable512 = await makeMaskableIcon(512); // opaque white (PWA maskable)
   const ogImage = await makeOgImage();
 
-  // Browser tab + Google favicon: TRANSPARENT + dark logo (Google draws a
-  // light circle behind it, so the dark logo stands out).
-  writeFileSync(join(ROOT, "src/app/icon.svg"), makeSvg());
-  console.log("  [ok] src/app/icon.svg (vector, transparent + dark logo)");
+  // Favicon pair, declared with media queries in layout.tsx (like TOTVS).
+  // Both transparent; only the glyph color differs.
+  //   icon-light: DARK glyph  -> default (no media) + light theme + Google SERP
+  //   icon-dark:  WHITE glyph -> prefers-color-scheme: dark (dark browser tab)
+  writeFileSync(join(ROOT, "public/icons/icon-light-192.png"), await logoPng(GLYPH_FILL, 192));
+  console.log("  [ok] public/icons/icon-light-192.png (192x192, dark glyph, transparent)");
 
-  writeFileSync(join(ROOT, "src/app/icon.png"), await makeSquareIcon(512, 0.12, "transparent"));
-  console.log("  [ok] src/app/icon.png (512x512, transparent + dark logo)");
+  writeFileSync(join(ROOT, "public/icons/icon-dark-192.png"), await logoPng(GLYPH_FILL_DARK, 192));
+  console.log("  [ok] public/icons/icon-dark-192.png (192x192, white glyph, transparent)");
 
   // iOS renders transparency as black on the home screen, so apple-icon stays opaque.
   writeFileSync(join(ROOT, "src/app/apple-icon.png"), icon180);
@@ -165,14 +176,9 @@ async function main() {
   writeFileSync(join(ROOT, "src/app/opengraph-image.png"), ogImage);
   console.log("  [ok] src/app/opengraph-image.png (1200x630)");
 
-  // Manifest icons
+  // Manifest icons (opaque white - PWA install + JSON-LD Organization.logo)
   writeFileSync(join(ROOT, "public/icons/icon-192.png"), icon192);
   console.log("  [ok] public/icons/icon-192.png (192x192)");
-
-  // icon-google.png: same as icon-192 (white background + dark logo).
-  // Referenced explicitly in layout.tsx metadata.icons.
-  writeFileSync(join(ROOT, "public/icons/icon-google.png"), icon192);
-  console.log("  [ok] public/icons/icon-google.png (192x192, white bg - Google Search)");
 
   writeFileSync(join(ROOT, "public/icons/icon-512.png"), icon512);
   console.log("  [ok] public/icons/icon-512.png (512x512)");
@@ -180,16 +186,17 @@ async function main() {
   writeFileSync(join(ROOT, "public/icons/icon-maskable-512.png"), iconMaskable512);
   console.log("  [ok] public/icons/icon-maskable-512.png (512x512 maskable)");
 
-  // favicon.ico: multi-size from 48/32/16 buffers, TRANSPARENT + dark logo
-  const ico48 = await makeSquareIcon(48, 0.08, "transparent");
-  const ico32 = await makeSquareIcon(32, 0.08, "transparent");
-  const ico16 = await makeSquareIcon(16, 0.06, "transparent");
-
-  const icoBuffer = await pngToIco([ico48, ico32, ico16]);
+  // favicon.ico: Google root probe + non-media fallback -> DARK glyph (visible
+  // on Google's white circle), transparent, multi-size 48/32/16.
+  const icoBuffer = await pngToIco([
+    await logoPng(GLYPH_FILL, 48),
+    await logoPng(GLYPH_FILL, 32),
+    await logoPng(GLYPH_FILL, 16),
+  ]);
   writeFileSync(join(ROOT, "public/favicon.ico"), icoBuffer);
-  console.log("  [ok] public/favicon.ico (48/32/16 multi-size, transparent)");
+  console.log("  [ok] public/favicon.ico (48/32/16, dark glyph, transparent)");
 
-  console.log("\nDone. Dark logo; tab/Google favicons transparent, others opaque white.");
+  console.log("\nDone. Google gets the dark glyph; dark browser tabs get the white glyph.");
 }
 
 main().catch((err) => {
