@@ -101,11 +101,12 @@ function logoSvg(fill) {
   const g = src.match(/<g[\s\S]*?<\/g>/);
   if (!g) throw new Error("Could not find <g> in logo2-cropped.svg");
   const glyph = g[0].replace(/fill="#ffffff"/i, `fill="${fill}"`);
-  // Glyph content lives at x 540-950 / y 250-680; a square viewBox centered
-  // on (745, 465) with side 600 gives ~16% padding on each side.
-  const x = 445;
-  const y = 165;
-  const size = 600;
+  // Glyph content lives at x 540-950 / y 250-680 (410x430); a square viewBox
+  // centered on (745, 465). Side 500 gives ~9% horizontal / ~7% vertical
+  // padding so the glyph fills more of the favicon (less empty space).
+  const x = 495;
+  const y = 215;
+  const size = 500;
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="${x} ${y} ${size} ${size}">
 ${glyph}
