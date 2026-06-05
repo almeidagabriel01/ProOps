@@ -13,6 +13,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { Providers } from "./providers";
+import { CookieConsentBanner } from "@/components/legal/cookie-consent-banner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -161,6 +162,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${interPdf.variable} ${robotoPdf.variable} ${latoPdf.variable} ${montserratPdf.variable} ${playfairPdf.variable} antialiased`}
       >
         <Providers>{children}</Providers>
+        <CookieConsentBanner />
         <Analytics />
         <SpeedInsights />
         {process.env.NEXT_PUBLIC_GA_ID && (

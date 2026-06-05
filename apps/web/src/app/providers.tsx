@@ -26,6 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     pathname === "/privacy" ||
     pathname === "/terms" ||
     pathname === "/data-deletion" ||
+    pathname === "/cookies" ||
     pathname.startsWith("/email-verification-pending") ||
     pathname.startsWith("/subscribe") ||
     pathname.startsWith("/checkout-success") ||
