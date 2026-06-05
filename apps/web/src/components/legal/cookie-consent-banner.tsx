@@ -52,7 +52,7 @@ export function CookieConsentBanner() {
         <button
           type="button"
           onClick={handleDismiss}
-          className="shrink-0 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 sm:self-auto"
+          className="shrink-0 cursor-pointer rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 sm:self-auto"
         >
           Entendi
         </button>
