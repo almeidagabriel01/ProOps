@@ -68,11 +68,13 @@ export const metadata: Metadata = {
     template: "%s | ProOps",
   },
   icons: {
-    // icon-google.png: white background + black logo, used by Google Search
-    // and other crawlers that flatten transparency to white.
-    // The transparent icon.png in src/app/ continues to serve browser tabs.
+    // The logo is dark so it stays visible: transparent icon.svg (preferred by
+    // Google/browsers) shows the dark glyph on Google's light SERP circle, with
+    // the opaque icon-512.png as a fallback. The bare logo used to be white and
+    // disappeared on that circle. Regenerate via scripts/generate-icons.mjs.
     icon: [
-      { url: "/icons/icon-google.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
     shortcut: "/favicon.ico",
     apple: "/apple-icon.png",
