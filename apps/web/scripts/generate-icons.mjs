@@ -92,33 +92,48 @@ async function makeMaskableIcon(size) {
  * The <g> keeps a dark presentation fill so even renderers that ignore <style>
  * render dark.
  */
+// Margin around the glyph in the favicon, as a fraction of the icon size.
+// The artwork only occupies ~322x322 of the source's 410x430 viewBox, so we
+// trim to the real bounds (below) and re-pad with this margin. Smaller = bigger
+// glyph; ~0.05 fills almost the whole icon without touching the edges.
+const FAVICON_MARGIN = 0.05;
+
 /**
- * Build an SVG of the logo glyph with a given fill on a TRANSPARENT background,
- * square viewBox centered on the symbol.
+ * Build an SVG of the logo glyph with a given fill on a TRANSPARENT background.
+ * Uses the artwork's own viewBox; the glyph is trimmed to its true bounds in
+ * logoPng, so this only needs to contain the whole symbol without clipping.
  */
 function logoSvg(fill) {
   const src = readFileSync(SVG_LOGO_SRC, "utf8");
   const g = src.match(/<g[\s\S]*?<\/g>/);
   if (!g) throw new Error("Could not find <g> in logo2-cropped.svg");
   const glyph = g[0].replace(/fill="#ffffff"/i, `fill="${fill}"`);
-  // Glyph content lives at x 540-950 / y 250-680 (410x430); a square viewBox
-  // centered on (745, 465). Side 440 leaves only a thin margin (~3% horizontal,
-  // ~1% vertical) so the glyph nearly fills the favicon. The glyph is 430 tall,
-  // so going below ~440 would start clipping it top/bottom.
-  const x = 525;
-  const y = 245;
-  const size = 440;
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="${x} ${y} ${size} ${size}">
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="860" viewBox="540 250 410 430">
 ${glyph}
 </svg>
 `;
 }
 
-/** Render the logo glyph (given fill) to a transparent PNG buffer of size px. */
+/**
+ * Render the logo glyph (given fill) to a transparent PNG of size px: render
+ * generously, trim to the true glyph bounds, then re-pad with FAVICON_MARGIN so
+ * the symbol fills most of the icon.
+ */
 async function logoPng(fill, size) {
-  return sharp(Buffer.from(logoSvg(fill)))
-    .resize(size, size, { fit: "contain", background: TRANSPARENT })
+  const rendered = await sharp(Buffer.from(logoSvg(fill))).png().toBuffer();
+  const trimmed = await sharp(rendered).trim().png().toBuffer();
+  const margin = Math.round(size * FAVICON_MARGIN);
+  const inner = size - margin * 2;
+  return sharp(trimmed)
+    .resize(inner, inner, { fit: "contain", background: TRANSPARENT })
+    .extend({
+      top: margin,
+      bottom: margin,
+      left: margin,
+      right: margin,
+      background: TRANSPARENT,
+    })
     .png()
     .toBuffer();
 }
