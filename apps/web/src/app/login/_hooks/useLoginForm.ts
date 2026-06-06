@@ -92,9 +92,14 @@ interface UseLoginFormReturn {
   isGoogleLoading: boolean;
   sessionRecoveryFailed: boolean;
   redirectReason: string | null;
+  requiresMfaCode: boolean;
+  mfaLoginCode: string;
+  setMfaLoginCode: (value: string) => void;
+  isVerifyingMfaCode: boolean;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
+  handleConfirmMfaCode: (e?: React.FormEvent) => Promise<void>;
   handleRegister: (e?: React.FormEvent) => Promise<void>;
   handleForgotPassword: (e?: React.FormEvent) => Promise<void>;
   handleGoogleAuth: () => Promise<void>;
@@ -140,6 +145,9 @@ export function useLoginForm(): UseLoginFormReturn {
   const [isVerifyingSmsCode, setIsVerifyingSmsCode] = React.useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [sessionRecoveryFailed, setSessionRecoveryFailed] = React.useState(false);
+  const [requiresMfaCode, setRequiresMfaCode] = React.useState(false);
+  const [mfaLoginCode, setMfaLoginCode] = React.useState("");
+  const [isVerifyingMfaCode, setIsVerifyingMfaCode] = React.useState(false);
   const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
 
   const normalizePhoneToE164 = React.useCallback((value: string): string => {
@@ -230,7 +238,8 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, user, isLoading, isSessionSynced, forceSyncSession } = useAuth();
+  const { login, resolveTotpLogin, user, isLoading, isSessionSynced, forceSyncSession } =
+    useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -461,12 +470,38 @@ export function useLoginForm(): UseLoginFormReturn {
       if (!result.success) {
         if (result.code === "email-not-verified") {
           setIsEmailVerificationPending(true);
+        } else if (result.code === "mfa-required") {
+          setRequiresMfaCode(true);
         } else {
           setError("Falha no login. Verifique suas credenciais.");
         }
       }
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleConfirmMfaCode = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setError("");
+    const trimmed = mfaLoginCode.trim();
+    if (!/^\d{6}$/.test(trimmed)) {
+      setError("Digite o código de 6 dígitos do seu aplicativo autenticador.");
+      return;
+    }
+
+    setIsVerifyingMfaCode(true);
+    try {
+      const result = await resolveTotpLogin(trimmed);
+      if (result.success) {
+        // The user-state effect handles the post-login redirect.
+        setRequiresMfaCode(false);
+        setMfaLoginCode("");
+      } else {
+        setError("Código inválido ou expirado. Tente o código atual do app.");
+      }
+    } finally {
+      setIsVerifyingMfaCode(false);
     }
   };
 
@@ -869,6 +904,11 @@ export function useLoginForm(): UseLoginFormReturn {
     isGoogleLoading,
     sessionRecoveryFailed,
     redirectReason,
+    requiresMfaCode,
+    mfaLoginCode,
+    setMfaLoginCode,
+    isVerifyingMfaCode,
+    handleConfirmMfaCode,
     handleLogin,
     handleRegister,
     handleForgotPassword,

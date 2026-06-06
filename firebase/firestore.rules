@@ -158,11 +158,25 @@ service cloud.firestore {
     }
 
     /**
+     * True when the caller authenticated with a second factor (TOTP MFA).
+     * Firebase sets firebase.sign_in_second_factor on the ID token after an
+     * MFA sign-in; it is null for single-factor sessions.
+     */
+    function hasMfa() {
+      return isAuthenticated()
+             && request.auth.token.firebase.sign_in_second_factor != null;
+    }
+
+    /**
      * Check if user is a super admin.
      * Super admins have full read access to all tenant data for administration.
+     * MFA (second factor) is REQUIRED — a super admin without an MFA session
+     * loses client-SDK privileged access (data flows go through the backend
+     * Admin SDK). This is intentional hardening; see SUPERADMIN_MFA_REQUIRED.
      */
     function isSuperAdmin() {
       return isAuthenticated()
+             && hasMfa()
              && (getAuthRole() in ['superadmin', 'SUPERADMIN']
                  || hasSuperAdminRoleInUserDoc());
     }
@@ -560,6 +574,22 @@ service cloud.firestore {
     }
 
     match /calendar_oauth_states/{stateId} {
+      allow read, write: if false;
+    }
+
+    // SECURITY OBSERVABILITY — written exclusively by Cloud Functions (Admin SDK).
+    // The audit trail is read through the backend (GET /admin/audit-events), never
+    // via the client SDK. Denied here explicitly for clarity (also covered by the
+    // catch-all below).
+    match /security_audit_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /security_metrics/{windowId} {
+      allow read, write: if false;
+    }
+
+    match /security_metrics_tenants/{docId} {
       allow read, write: if false;
     }
 

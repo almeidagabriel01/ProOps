@@ -81,6 +81,31 @@ export function shouldRequireStrictClaimsInMiddleware(): boolean {
   );
 }
 
+/**
+ * Allowlist of super admins (emails and/or uids), comma-separated, read from
+ * `SUPERADMIN_ALLOWLIST`. When empty/unset the allowlist is NOT enforced (no
+ * demotion) — an empty allowlist must never lock everyone out.
+ */
+export function parseSuperAdminAllowlist(): string[] {
+  return String(process.env.SUPERADMIN_ALLOWLIST || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Kill-switch for the super admin MFA (TOTP) requirement. Defaults to `false`
+ * so deploying the code never locks out a super admin who has not enrolled yet;
+ * flip to `true` only after enrolling MFA on the operator account.
+ */
+export function isSuperAdminMfaRequired(): boolean {
+  return (
+    String(process.env.SUPERADMIN_MFA_REQUIRED || "")
+      .trim()
+      .toLowerCase() === "true"
+  );
+}
+
 export function extractAuthTokenFromRequest(req: Request): {
   token: string;
   source: TokenSource;
@@ -120,6 +145,10 @@ export interface AuthContext {
   hasRequiredClaims: boolean;
   userDocTenantId?: string;
   tokenSource: TokenSource;
+  mfaVerified: boolean;
+  mfaRequired: boolean;
+  superAdminRoleClaimed: boolean;
+  superAdminAllowlisted: boolean;
   [key: string]: unknown;
 }
 
@@ -140,6 +169,11 @@ export type AuthInvariantInput = {
   tenantId: string;
   userDocTenantId?: string;
   requireStrictClaims?: boolean;
+  email?: string;
+  uid?: string;
+  mfaVerified?: boolean;
+  superAdminAllowlist?: string[];
+  requireSuperAdminMfa?: boolean;
 };
 
 export type AuthInvariantResult = {
@@ -147,7 +181,22 @@ export type AuthInvariantResult = {
   hasRequiredClaims: boolean;
   tenantMismatch: boolean;
   missingClaimsErrorCode?: "AUTH_CLAIMS_MISSING_ROLE" | "AUTH_CLAIMS_MISSING_TENANT";
+  superAdminRoleClaimed: boolean;
+  superAdminAllowlisted: boolean;
+  mfaVerified: boolean;
+  mfaRequired: boolean;
 };
+
+function matchesSuperAdminAllowlist(
+  allowlist: string[],
+  email: string,
+  uid: string,
+): boolean {
+  const emailLc = email.trim().toLowerCase();
+  return allowlist.some(
+    (entry) => entry === uid || entry.toLowerCase() === emailLc,
+  );
+}
 
 export function evaluateAuthContextInvariants(
   input: AuthInvariantInput,
@@ -155,7 +204,8 @@ export function evaluateAuthContextInvariants(
   const role = normalizeRole(input.role);
   const tenantId = normalizeTenantId(input.tenantId);
   const userDocTenantId = normalizeTenantId(input.userDocTenantId);
-  const isSuperAdmin = role === "SUPERADMIN";
+  const superAdminRoleClaimed = role === "SUPERADMIN";
+  const isSuperAdmin = superAdminRoleClaimed;
   const hasRequiredClaims = Boolean(role) && (isSuperAdmin || Boolean(tenantId));
   const tenantMismatch =
     Boolean(tenantId) &&
@@ -169,11 +219,32 @@ export function evaluateAuthContextInvariants(
           | "AUTH_CLAIMS_MISSING_TENANT")
       : undefined;
 
+  const allowlist = input.superAdminAllowlist ?? [];
+  const allowlistEnforced = superAdminRoleClaimed && allowlist.length > 0;
+  const superAdminAllowlisted = allowlistEnforced
+    ? matchesSuperAdminAllowlist(
+        allowlist,
+        String(input.email || ""),
+        String(input.uid || ""),
+      )
+    : true;
+
+  const mfaVerified = input.mfaVerified === true;
+  const mfaRequired =
+    superAdminRoleClaimed &&
+    superAdminAllowlisted &&
+    input.requireSuperAdminMfa === true &&
+    !mfaVerified;
+
   return {
     isSuperAdmin,
     hasRequiredClaims,
     tenantMismatch,
     missingClaimsErrorCode,
+    superAdminRoleClaimed,
+    superAdminAllowlisted,
+    mfaVerified,
+    mfaRequired,
   };
 }
 
@@ -223,11 +294,25 @@ async function resolveAuthContextFromDecodedToken(
   const effectiveRole = role || normalizeRole(userData?.role);
   const effectiveTenantId = tenantId || userDocTenantId;
 
+  const resolvedEmail =
+    normalizeOptionalString(decodedIdToken.email) ||
+    normalizeOptionalString(userRecord.email);
+
+  const tokenMfa = (decodedIdToken.firebase || {}) as {
+    sign_in_second_factor?: unknown;
+  };
+  const mfaVerified = Boolean(tokenMfa.sign_in_second_factor);
+
   const invariantResult = evaluateAuthContextInvariants({
     role: effectiveRole,
     tenantId: effectiveTenantId,
     userDocTenantId,
     requireStrictClaims: options.requireStrictClaims,
+    email: resolvedEmail,
+    uid: decodedIdToken.uid,
+    mfaVerified,
+    superAdminAllowlist: parseSuperAdminAllowlist(),
+    requireSuperAdminMfa: isSuperAdminMfaRequired(),
   });
 
   if (invariantResult.tenantMismatch) {
@@ -241,11 +326,16 @@ async function resolveAuthContextFromDecodedToken(
     throw buildMissingClaimsError(role);
   }
 
+  if (
+    invariantResult.superAdminRoleClaimed &&
+    !invariantResult.superAdminAllowlisted
+  ) {
+    throw new Error("FORBIDDEN_SUPERADMIN_NOT_ALLOWLISTED");
+  }
+
   return {
     uid: decodedIdToken.uid,
-    email:
-      normalizeOptionalString(decodedIdToken.email) ||
-      normalizeOptionalString(userRecord.email),
+    email: resolvedEmail,
     email_verified: decodedIdToken.email_verified,
     role: effectiveRole,
     tenantId: effectiveTenantId,
@@ -255,6 +345,10 @@ async function resolveAuthContextFromDecodedToken(
     hasRequiredClaims: invariantResult.hasRequiredClaims,
     userDocTenantId: userDocTenantId || undefined,
     tokenSource,
+    mfaVerified: invariantResult.mfaVerified,
+    mfaRequired: invariantResult.mfaRequired,
+    superAdminRoleClaimed: invariantResult.superAdminRoleClaimed,
+    superAdminAllowlisted: invariantResult.superAdminAllowlisted,
   };
 }
 

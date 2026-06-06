@@ -5,6 +5,10 @@ import { db } from "../../init";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 import { isGoogleCalendarSyncEnabled } from "../../lib/google-calendar-feature";
 import { isTenantAdminRole } from "../../lib/auth-context";
+import {
+  assertTenantExists,
+  auditSuperAdminCrossTenantWrite,
+} from "../../lib/tenant-resolution";
 
 const CALENDAR_EVENTS_COLLECTION = "calendar_events";
 const CALENDAR_INTEGRATIONS_COLLECTION = "calendar_integrations";
@@ -943,6 +947,27 @@ function resolveCalendarTenantId(req: Request): string {
   return "";
 }
 
+// Validates + audits a super admin write performed against another tenant's
+// calendar (via the x-tenant-id header). No-op for regular users. Throws when
+// the target tenant does not exist (caller maps to HTTP 400).
+async function validateSuperAdminCalendarTarget(
+  req: Request,
+  tenantId: string,
+): Promise<void> {
+  if (!req.user?.isSuperAdmin) return;
+  const headerTenantId = String(req.headers["x-tenant-id"] || "").trim();
+  if (!headerTenantId || headerTenantId !== tenantId) return;
+  if (headerTenantId === req.user.tenantId) return;
+
+  await assertTenantExists(headerTenantId);
+  auditSuperAdminCrossTenantWrite({
+    uid: req.user.uid,
+    tenantId: headerTenantId,
+    route: req.originalUrl || req.path,
+    requestId: req.requestId,
+  });
+}
+
 function canViewCalendarEvents(req: Request): boolean {
   return Boolean(req.user?.uid && resolveCalendarTenantId(req));
 }
@@ -1577,6 +1602,13 @@ export async function createCalendarEvent(req: Request, res: Response) {
     if (!req.user?.uid || !tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
+    try {
+      await validateSuperAdminCalendarTarget(req, tenantId);
+    } catch {
+      return res
+        .status(400)
+        .json({ message: "Empresa inválida ou inexistente." });
+    }
 
     const docRef = db.collection(CALENDAR_EVENTS_COLLECTION).doc();
     const eventData = buildCalendarEventDocument({
@@ -1627,8 +1659,16 @@ export async function createCalendarEvent(req: Request, res: Response) {
 
 export async function updateCalendarEvent(req: Request, res: Response) {
   try {
-    if (!req.user?.uid || !resolveCalendarTenantId(req)) {
+    const tenantId = resolveCalendarTenantId(req);
+    if (!req.user?.uid || !tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
+    }
+    try {
+      await validateSuperAdminCalendarTarget(req, tenantId);
+    } catch {
+      return res
+        .status(400)
+        .json({ message: "Empresa inválida ou inexistente." });
     }
 
     const { id } = req.params;
@@ -1701,8 +1741,16 @@ export async function updateCalendarEvent(req: Request, res: Response) {
 
 export async function deleteCalendarEvent(req: Request, res: Response) {
   try {
-    if (!req.user?.uid || !resolveCalendarTenantId(req)) {
+    const tenantId = resolveCalendarTenantId(req);
+    if (!req.user?.uid || !tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
+    }
+    try {
+      await validateSuperAdminCalendarTarget(req, tenantId);
+    } catch {
+      return res
+        .status(400)
+        .json({ message: "Empresa inválida ou inexistente." });
     }
 
     const { id } = req.params;

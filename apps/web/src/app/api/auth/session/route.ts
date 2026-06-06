@@ -34,6 +34,28 @@ function isSecureCookieRequest(req: NextRequest): boolean {
   return String(protocol || "").toLowerCase().startsWith("https");
 }
 
+function parseSuperAdminAllowlist(): string[] {
+  return String(process.env.SUPERADMIN_ALLOWLIST || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function isSuperAdminMfaRequired(): boolean {
+  return (
+    String(process.env.SUPERADMIN_MFA_REQUIRED || "")
+      .trim()
+      .toLowerCase() === "true"
+  );
+}
+
+function isAllowlisted(allowlist: string[], email: string, uid: string): boolean {
+  const emailLc = String(email || "").trim().toLowerCase();
+  return allowlist.some(
+    (entry) => entry === uid || entry.toLowerCase() === emailLc,
+  );
+}
+
 function clearLegacyCookie(response: NextResponse, req: NextRequest): void {
   response.cookies.set({
     name: LEGACY_COOKIE_NAME,
@@ -81,7 +103,32 @@ export async function POST(req: NextRequest) {
     // checkRevoked=true. Detect emulator mode and avoid the extra revoked
     // check there while keeping strict verification in production.
     const isEmulator = Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
-    await adminAuth.verifyIdToken(idToken, isEmulator ? false : true);
+    const decoded = await adminAuth.verifyIdToken(idToken, isEmulator ? false : true);
+
+    // Defense-in-depth super admin gates (the backend middleware is authoritative).
+    const role = String((decoded as { role?: unknown }).role || "")
+      .trim()
+      .toUpperCase();
+    const isSuperAdminRole = role === "SUPERADMIN";
+
+    if (isSuperAdminRole) {
+      const allowlist = parseSuperAdminAllowlist();
+      if (
+        allowlist.length > 0 &&
+        !isAllowlisted(allowlist, String(decoded.email || ""), decoded.uid)
+      ) {
+        return NextResponse.json(
+          { error: "Super admin não autorizado.", code: "SUPERADMIN_NOT_ALLOWLISTED" },
+          { status: 403 },
+        );
+      }
+    }
+
+    const secondFactor = (
+      decoded.firebase as { sign_in_second_factor?: unknown } | undefined
+    )?.sign_in_second_factor;
+    const mfaRequired =
+      isSuperAdminRole && isSuperAdminMfaRequired() && !secondFactor;
 
     const maxAgeSeconds = resolveSessionMaxAgeSeconds();
     const expiresInMs = maxAgeSeconds * 1000;
@@ -89,7 +136,7 @@ export async function POST(req: NextRequest) {
       expiresIn: expiresInMs,
     });
 
-    const response = NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true, mfaRequired });
     response.cookies.set({
       name: SESSION_COOKIE_NAME,
       value: sessionCookie,

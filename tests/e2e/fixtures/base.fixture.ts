@@ -18,6 +18,19 @@ interface PageFixtures {
 // client bundle via .env.local — the network request is intercepted before
 // it reaches Google's servers.
 async function setupEmulatorRoutes(page: import("@playwright/test").Page) {
+  // Pré-marca o consentimento de cookies como "dismissed" para que o
+  // CookieConsentBanner (fixed bottom, z-[100]) nunca renderize durante os
+  // testes — ele intercepta cliques em dropdowns/portais próximos ao rodapé e
+  // é fonte de flakiness (ex.: opção "Pago" no FIN-06). Chave/valor espelham
+  // apps/web/src/lib/cookie-consent-storage.ts.
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem("proops_cookie_consent", "dismissed");
+    } catch {
+      // localStorage pode lançar em frames sandbox/cross-origin — ignorar.
+    }
+  });
+
   // Auth: identitytoolkit + securetoken both route through the Auth emulator
   await page.route("https://identitytoolkit.googleapis.com/**", async (route) => {
     const url = route.request().url().replace(

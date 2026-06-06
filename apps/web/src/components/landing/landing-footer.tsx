@@ -119,6 +119,14 @@ export function LandingFooter() {
               </li>
               <li>
                 <Link
+                  href="/cookies"
+                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
+                >
+                  Política de Cookies
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/login"
                   className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
                 >

@@ -7,6 +7,12 @@ import { generateRandomPassword } from "../../lib/admin-helpers";
 import { UserDoc } from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import { logger } from "../../lib/logger";
+import {
+  incrementSecurityCounter,
+  resolveSecurityAuditCollection,
+  writeSecurityAuditEvent,
+} from "../../lib/security-observability";
+import { assertTenantExists } from "../../lib/tenant-resolution";
 import { enqueueTenantSync, isStale } from "../../billing";
 import {
   clearTenantPlanCache,
@@ -538,6 +544,18 @@ export const deleteMember = async (req: Request, res: Response) => {
         t.update(companyRef, { "usage.users": FieldValue.increment(-1) });
       }
     });
+
+    if (isSuperAdmin) {
+      void writeSecurityAuditEvent({
+        eventType: "super_admin_destructive_op",
+        uid: loggedUserId,
+        tenantId,
+        route: req.originalUrl || req.path,
+        requestId: req.requestId,
+        reason: `deleteMember:${id}`,
+        source: "admin_controller",
+      });
+    }
 
     return res.json({ success: true, message: "Membro removido." });
   } catch (error: unknown) {
@@ -1610,6 +1628,16 @@ export const deleteTenant = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "tenantId é obrigatório." });
     }
 
+    void writeSecurityAuditEvent({
+      eventType: "super_admin_destructive_op",
+      uid: req.user!.uid,
+      tenantId,
+      route: req.originalUrl || req.path,
+      requestId: req.requestId,
+      reason: "deleteTenant",
+      source: "admin_controller",
+    });
+
     const userSnaps = await Promise.all([
       db.collection("users").where("tenantId", "==", tenantId).get(),
       db.collection("users").where("companyId", "==", tenantId).get(),
@@ -1688,6 +1716,102 @@ export const deleteTenant = async (req: Request, res: Response) => {
     console.error("[deleteTenant] error:", error);
     const message =
       error instanceof Error ? error.message : "Erro ao remover empresa.";
+    return res.status(500).json({ message });
+  }
+};
+
+/**
+ * Records the start of a super admin "view as tenant" session. Called by the
+ * admin panel when a super admin opens another company's dashboard, giving the
+ * audit trail an explicit entry point in addition to per-write events.
+ */
+export const startImpersonation = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Permissão negada." });
+    }
+
+    const tenantId = String(req.body?.tenantId || "").trim();
+    if (!tenantId) {
+      return res.status(400).json({ message: "tenantId é obrigatório." });
+    }
+
+    try {
+      await assertTenantExists(tenantId);
+    } catch {
+      return res
+        .status(400)
+        .json({ message: "Empresa inválida ou inexistente." });
+    }
+
+    const uid = req.user!.uid;
+    const route = req.originalUrl || req.path;
+
+    void writeSecurityAuditEvent({
+      eventType: "super_admin_impersonation_started",
+      uid,
+      tenantId,
+      route,
+      requestId: req.requestId,
+      source: "admin_controller",
+    });
+    void incrementSecurityCounter("super_admin_impersonation_started", {
+      uid,
+      tenantId,
+      route,
+      requestId: req.requestId,
+    });
+
+    return res.json({ success: true });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
+  }
+};
+
+/**
+ * Returns recent security audit events for the super admin panel. The
+ * `security_audit_events` collection is written via the Admin SDK and is denied
+ * to the client SDK by Firestore rules, so this is the only read path. Filters
+ * are applied in memory over a recent window to avoid composite-index needs.
+ */
+export const getAuditEvents = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Permissão negada." });
+    }
+
+    const tenantId = String(req.query.tenantId || "").trim();
+    const uid = String(req.query.uid || "").trim();
+    const eventType = String(req.query.eventType || "").trim();
+
+    const requestedLimit = Number(req.query.limit);
+    const limit =
+      Number.isFinite(requestedLimit) && requestedLimit > 0
+        ? Math.min(Math.floor(requestedLimit), 200)
+        : 50;
+
+    const snap = await db
+      .collection(resolveSecurityAuditCollection())
+      .orderBy("createdAt", "desc")
+      .limit(500)
+      .get();
+
+    const events = snap.docs
+      .map(
+        (doc) =>
+          ({ id: doc.id, ...doc.data() }) as Record<string, unknown>,
+      )
+      .filter((e) => !tenantId || e.tenantId === tenantId)
+      .filter((e) => !uid || e.uid === uid)
+      .filter((e) => !eventType || e.eventType === eventType)
+      .slice(0, limit);
+
+    return res.json({ events });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
     return res.status(500).json({ message });
   }
 };

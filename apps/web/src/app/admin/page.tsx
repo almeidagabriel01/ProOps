@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Building2, CreditCard } from "lucide-react";
+import { Plus, Search, Building2, CreditCard, ShieldCheck } from "lucide-react";
 import { TenantDialog } from "@/components/admin/tenant-dialog";
 import { useTenantManagement } from "./_hooks/useTenantManagement";
 import { TenantCard, CopyDataDialog } from "./_components";
@@ -79,6 +79,14 @@ export default function AdminPage() {
           </p>
         </div>
         <div className="flex gap-2 items-center">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => router.push("/admin/setup-mfa")}
+            className="shadow-sm hover:shadow transition-all cursor-pointer"
+          >
+            <ShieldCheck className="w-5 h-5 mr-2" /> Segurança (MFA)
+          </Button>
           <Button
             variant="outline"
             size="lg"

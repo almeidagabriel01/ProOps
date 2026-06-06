@@ -115,6 +115,18 @@ function noClaimDb() {
 
 function superAdminCanceledDb() {
   // SuperAdmin with a canceled status should still have full access.
+  // MFA second factor is required by isSuperAdmin() in the rules.
+  return testEnv
+    .authenticatedContext('uid-superadmin', {
+      role: 'SUPERADMIN',
+      subscriptionStatus: 'canceled',
+      firebase: { sign_in_second_factor: 'totp' },
+    })
+    .firestore();
+}
+
+function superAdminNoMfaDb() {
+  // SuperAdmin WITHOUT a second factor — must NOT get privileged access.
   return testEnv
     .authenticatedContext('uid-superadmin', {
       role: 'SUPERADMIN',
@@ -229,5 +241,12 @@ describe('SEC-BILLING-04: SuperAdmin with canceled claim still has full access',
   test('superadmin can read proposals regardless of subscriptionStatus', async () => {
     await seedDoc('proposals', 'doc-any', { tenantId: 'any-tenant' });
     await assertSucceeds(getDoc(doc(superAdminCanceledDb(), 'proposals', 'doc-any')));
+  });
+});
+
+describe('SEC-BILLING-05: SuperAdmin without MFA loses privileged access', () => {
+  test('superadmin without a second factor cannot read another tenant proposal', async () => {
+    await seedDoc('proposals', 'doc-mfa', { tenantId: 'any-tenant' });
+    await assertFails(getDoc(doc(superAdminNoMfaDb(), 'proposals', 'doc-mfa')));
   });
 });

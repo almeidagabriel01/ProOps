@@ -581,6 +581,31 @@ export const markOverdueTransactionsManual = async (
   }
 };
 
+export const cleanupSecurityAuditEventsManual = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const { runCleanupSecurityAuditEvents } = await import(
+      "../../cleanupSecurityAuditEvents"
+    );
+    const result = await runCleanupSecurityAuditEvents();
+    logger.info("[cleanupSecurityAuditEvents manual] completed", { ...result });
+    return res.json(result);
+  } catch (error) {
+    logger.error("[cleanupSecurityAuditEvents manual] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const cleanupBillingRedundantFieldsManual = async (
   req: Request,
   res: Response,
