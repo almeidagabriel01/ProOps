@@ -1,0 +1,184 @@
+/**
+ * Integration test for the OAuth callback wiring in calendar.controller.ts
+ * (handleGoogleCalendarCallback -> encrypt -> persist).
+ *
+ * This is the path with no automated coverage until now and the one that must
+ * never persist a plaintext refresh token. Firestore, Cloud KMS and googleapis
+ * are mocked; the feature flag is enabled only for this test.
+ */
+
+import type { Request, Response } from "express";
+
+process.env.GOOGLE_CALENDAR_SYNC_ENABLED = "true";
+process.env.GOOGLE_CALENDAR_CLIENT_ID = "test-client-id";
+process.env.GOOGLE_CALENDAR_CLIENT_SECRET = "test-client-secret";
+process.env.GOOGLE_CALENDAR_REDIRECT_URI =
+  "https://dev.example.com/api/backend/v1/calendar/google/callback";
+
+jest.mock("../../lib/logger", () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+}));
+
+const mockEncrypt = jest.fn(async (t: string) => `kms:v1:${t}`);
+const mockDecrypt = jest.fn(async (c: string) => c.replace(/^kms:v1:/, ""));
+
+jest.mock("../../lib/token-encryption", () => ({
+  encryptToken: (t: string) => mockEncrypt(t),
+  decryptToken: (c: string) => mockDecrypt(c),
+  isEncryptedToken: (v: unknown) =>
+    typeof v === "string" && v.startsWith("kms:v1:"),
+}));
+
+const mockGetToken = jest.fn();
+const mockSetCredentials = jest.fn();
+const mockUserinfoGet = jest.fn(async () => ({ data: { email: "user@example.com" } }));
+
+jest.mock("googleapis", () => ({
+  google: {
+    auth: {
+      OAuth2: jest.fn().mockImplementation(() => ({
+        getToken: mockGetToken,
+        setCredentials: mockSetCredentials,
+        generateAuthUrl: jest.fn(() => "https://accounts.google.com/auth"),
+      })),
+    },
+    oauth2: jest.fn(() => ({ userinfo: { get: mockUserinfoGet } })),
+  },
+}));
+
+jest.mock("../../init", () => ({ db: { collection: jest.fn() } }));
+
+import { handleGoogleCalendarCallback } from "./calendar.controller";
+import { db } from "../../init";
+
+const collectionMock = db.collection as unknown as jest.Mock;
+
+function installDb(opts: { stateData?: unknown; existingIntegration?: unknown }) {
+  const setIntegrationSpy = jest.fn(
+    async (_data?: unknown, _options?: unknown) => undefined,
+  );
+  const stateDeleteSpy = jest.fn(async () => undefined);
+
+  const integrationsDocRef = {
+    get: jest.fn(async () => ({
+      id: "tenant-1",
+      data: () => opts.existingIntegration,
+    })),
+    set: setIntegrationSpy,
+  };
+  const statesDocRef = {
+    get: jest.fn(async () => ({
+      exists: opts.stateData !== undefined,
+      data: () => opts.stateData,
+    })),
+    delete: stateDeleteSpy,
+  };
+
+  collectionMock.mockImplementation((name: string) => {
+    if (name === "calendar_oauth_states") {
+      return { doc: jest.fn(() => statesDocRef) };
+    }
+    // calendar_integrations
+    const col: Record<string, unknown> = {
+      doc: jest.fn(() => integrationsDocRef),
+      get: jest.fn(async () => ({ empty: true, docs: [] })),
+    };
+    col.where = jest.fn(() => col);
+    return col;
+  });
+
+  return { setIntegrationSpy, stateDeleteSpy };
+}
+
+function makeReqRes() {
+  const req = {
+    query: { state: "state-abc", code: "auth-code" },
+    headers: { host: "dev.example.com", "x-forwarded-proto": "https" },
+  } as unknown as Request;
+  const redirect = jest.fn();
+  const res = {
+    redirect,
+    status: jest.fn(function status() {
+      return res;
+    }),
+    json: jest.fn(function json() {
+      return res;
+    }),
+  } as unknown as Response;
+  return { req, res, redirect };
+}
+
+const FUTURE_MS = 9_999_999_999_999; // year ~2286, never expired
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
+describe("handleGoogleCalendarCallback — encrypt -> persist wiring", () => {
+  it("persists ONLY the encrypted refresh token (plaintext field cleared)", async () => {
+    mockGetToken.mockResolvedValueOnce({
+      tokens: { refresh_token: "new-refresh-token" },
+    });
+    const { setIntegrationSpy, stateDeleteSpy } = installDb({
+      stateData: { uid: "user-1", tenantId: "tenant-1", expiresAtMs: FUTURE_MS },
+      existingIntegration: undefined,
+    });
+    const { req, res, redirect } = makeReqRes();
+
+    await handleGoogleCalendarCallback(req, res);
+
+    expect(mockEncrypt).toHaveBeenCalledWith("new-refresh-token");
+    expect(setIntegrationSpy).toHaveBeenCalledTimes(1);
+    const persisted = setIntegrationSpy.mock.calls[0][0] as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(persisted.refreshTokenEnc).toBe("kms:v1:new-refresh-token");
+    expect(persisted.refreshToken).toBe("");
+    expect(persisted.connectedEmail).toBe("user@example.com");
+
+    expect(stateDeleteSpy).toHaveBeenCalledTimes(1); // one-time state consumed
+    expect(redirect).toHaveBeenCalledTimes(1);
+    expect(String(redirect.mock.calls[0][0])).toContain("googleCalendar=connected");
+  });
+
+  it("reuses and re-encrypts the existing token when Google returns no refresh_token", async () => {
+    mockGetToken.mockResolvedValueOnce({ tokens: {} }); // no refresh_token
+    const { setIntegrationSpy } = installDb({
+      stateData: { uid: "user-1", tenantId: "tenant-1", expiresAtMs: FUTURE_MS },
+      existingIntegration: {
+        tenantId: "tenant-1",
+        provider: "google",
+        enabled: true,
+        calendarId: "primary",
+        refreshToken: "",
+        refreshTokenEnc: "kms:v1:old-token",
+        updatedAt: "2025-01-01T00:00:00.000Z",
+      },
+    });
+    const { req, res } = makeReqRes();
+
+    await handleGoogleCalendarCallback(req, res);
+
+    // The existing token is decrypted for reuse, then re-encrypted on write.
+    expect(mockDecrypt).toHaveBeenCalledWith("kms:v1:old-token");
+    expect(mockEncrypt).toHaveBeenCalledWith("old-token");
+    const persisted = setIntegrationSpy.mock.calls[0][0] as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(persisted.refreshTokenEnc).toBe("kms:v1:old-token");
+    expect(persisted.refreshToken).toBe("");
+  });
+
+  it("redirects with an error when state or code is missing (no write)", async () => {
+    const { setIntegrationSpy } = installDb({ stateData: undefined });
+    const { req, res, redirect } = makeReqRes();
+    (req as unknown as { query: Record<string, string> }).query = { state: "", code: "" };
+
+    await handleGoogleCalendarCallback(req, res);
+
+    expect(setIntegrationSpy).not.toHaveBeenCalled();
+    expect(String(redirect.mock.calls[0][0])).toContain("googleCalendar=error");
+  });
+});
