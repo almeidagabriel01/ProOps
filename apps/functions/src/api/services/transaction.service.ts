@@ -8,6 +8,10 @@ import {
 import { CreateTransactionDTO } from "../helpers/transaction-validation";
 import { logger } from "../../lib/logger";
 import {
+  assertTenantExists,
+  auditSuperAdminCrossTenantWrite,
+} from "../../lib/tenant-resolution";
+import {
   sanitizeTransactionUpdateData,
   roundCurrency,
   toNumber,
@@ -247,6 +251,18 @@ export class TransactionService {
     // Super admin can specify target tenant
     const tenantId =
       data.targetTenantId && isSuperAdmin ? data.targetTenantId : userTenantId;
+
+    // Validate + audit super admin cross-tenant override
+    if (isSuperAdmin && data.targetTenantId) {
+      await assertTenantExists(data.targetTenantId);
+      if (data.targetTenantId !== userTenantId) {
+        auditSuperAdminCrossTenantWrite({
+          uid: user?.uid,
+          tenantId: data.targetTenantId,
+          route: "POST /v1/transactions",
+        });
+      }
+    }
 
     // Prepare data
     const now = Timestamp.now();

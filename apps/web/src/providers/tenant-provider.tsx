@@ -21,7 +21,7 @@ import {
   readViewingTenantId,
   writeViewingTenantId,
 } from "@/lib/viewing-tenant-session";
-import type { TenantBillingInfo } from "@/services/admin-service";
+import { AdminService, type TenantBillingInfo } from "@/services/admin-service";
 import {
   ensureDarkModeContrast,
   ensureLightModeContrast,
@@ -598,6 +598,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     routeTransitionTargetsRef.current["tenant-switch"] = "/dashboard";
     beginGlobalLoading("tenant-switch");
     writeViewingTenantId(newTenant.id);
+    // Record the impersonation session start for the audit trail (best-effort —
+    // never block entering the tenant if the audit call fails).
+    void AdminService.startImpersonation(newTenant.id).catch(() => {});
     refreshTenant();
   };
 

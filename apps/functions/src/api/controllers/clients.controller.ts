@@ -3,6 +3,10 @@ import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { resolveUserAndTenant, checkPermission, UserDoc } from "../../lib/auth-helpers";
 import { checkClientLimit } from "../../lib/billing-helpers";
+import {
+  assertTenantExists,
+  auditSuperAdminCrossTenantWrite,
+} from "../../lib/tenant-resolution";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { cpf, cnpj } from "cpf-cnpj-validator";
@@ -90,6 +94,25 @@ export const createClient = async (req: Request, res: Response) => {
           masterData.tenantId ||
           userData.companyId ||
           userData.tenantId;
+
+    // Validate + audit super admin cross-tenant override
+    if (isSuperAdmin && input.targetTenantId) {
+      try {
+        await assertTenantExists(input.targetTenantId);
+      } catch {
+        return res
+          .status(400)
+          .json({ message: "Empresa inválida ou inexistente." });
+      }
+      if (input.targetTenantId !== tenantId) {
+        auditSuperAdminCrossTenantWrite({
+          uid: userId,
+          tenantId: input.targetTenantId,
+          route: req.originalUrl || req.path,
+          requestId: req.requestId,
+        });
+      }
+    }
 
     if (!targetTenantId) {
       return res

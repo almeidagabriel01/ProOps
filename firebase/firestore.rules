@@ -563,6 +563,22 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // SECURITY OBSERVABILITY — written exclusively by Cloud Functions (Admin SDK).
+    // The audit trail is read through the backend (GET /admin/audit-events), never
+    // via the client SDK. Denied here explicitly for clarity (also covered by the
+    // catch-all below).
+    match /security_audit_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /security_metrics/{windowId} {
+      allow read, write: if false;
+    }
+
+    match /security_metrics_tenants/{docId} {
+      allow read, write: if false;
+    }
+
     // ============================================
     // CATCH-ALL
     // ============================================

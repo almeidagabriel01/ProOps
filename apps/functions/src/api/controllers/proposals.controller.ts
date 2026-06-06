@@ -3,6 +3,10 @@ import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
+import {
+  assertTenantExists,
+  auditSuperAdminCrossTenantWrite,
+} from "../../lib/tenant-resolution";
 import { resolveWalletRef } from "../../lib/finance-helpers";
 import {
   enforceTenantPlanLimit,
@@ -886,6 +890,20 @@ export const createProposal = async (req: Request, res: Response) => {
     // We already resolved masterData for the logged user (Super Admin).
     // If target is different, we must find the actual master of that tenant.
     if (isSuperAdmin && userCompanyId && userCompanyId !== tenantId) {
+      try {
+        await assertTenantExists(userCompanyId);
+      } catch {
+        return res
+          .status(400)
+          .json({ message: "Empresa inválida ou inexistente." });
+      }
+      auditSuperAdminCrossTenantWrite({
+        uid: userId,
+        tenantId: userCompanyId,
+        route: req.originalUrl || req.path,
+        requestId: req.requestId,
+      });
+
       const ownerQuery = await db
         .collection("users")
         .where("tenantId", "==", userCompanyId)

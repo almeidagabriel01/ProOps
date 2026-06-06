@@ -114,6 +114,11 @@ export const AdminService = {
     await callApi(`/v1/admin/tenants/${tenantId}/sync-billing`, "POST");
   },
 
+  // Records a super admin "view as tenant" session start for the audit trail.
+  startImpersonation: async (tenantId: string): Promise<void> => {
+    await callApi("/v1/admin/impersonation/start", "POST", { tenantId });
+  },
+
   updateUserPlan: async (userId: string, planId: string): Promise<void> => {
     await callApi(`/v1/admin/users/${userId}/plan`, "PUT", { planId });
   },

@@ -15,7 +15,10 @@ export type SecurityCounterName =
   | "plan_limit_would_block"
   | "plan_source_compat_default"
   | "whatsapp_eligibility_denied"
-  | "whatsapp_message_dedupe_hit";
+  | "whatsapp_message_dedupe_hit"
+  | "super_admin_impersonation_started"
+  | "super_admin_tenant_write"
+  | "super_admin_destructive_op";
 
 type SecurityLogLevel = "INFO" | "WARN" | "ERROR";
 
@@ -49,9 +52,43 @@ const KNOWN_COUNTERS = new Set<SecurityCounterName>([
   "plan_source_compat_default",
   "whatsapp_eligibility_denied",
   "whatsapp_message_dedupe_hit",
+  "super_admin_impersonation_started",
+  "super_admin_tenant_write",
+  "super_admin_destructive_op",
 ]);
 
 const DEFAULT_AUDIT_COLLECTION = "security_audit_events";
+
+const DEFAULT_SECURITY_AUDIT_RETENTION_DAYS = 365;
+const MIN_SECURITY_AUDIT_RETENTION_DAYS = 90;
+const MAX_SECURITY_AUDIT_RETENTION_DAYS = 730;
+
+/**
+ * Retention window (in days) for `security_audit_events`, configurable via
+ * `SECURITY_AUDIT_RETENTION_DAYS`. Clamped between 90 and 730 days so audit
+ * trails are kept long enough for compliance but do not grow unbounded.
+ */
+export function getSecurityAuditRetentionDays(): number {
+  const raw = String(process.env.SECURITY_AUDIT_RETENTION_DAYS || "").trim();
+  if (!raw) {
+    return DEFAULT_SECURITY_AUDIT_RETENTION_DAYS;
+  }
+  const configured = Number(raw);
+  if (!Number.isFinite(configured)) {
+    return DEFAULT_SECURITY_AUDIT_RETENTION_DAYS;
+  }
+  return Math.min(
+    Math.max(Math.floor(configured), MIN_SECURITY_AUDIT_RETENTION_DAYS),
+    MAX_SECURITY_AUDIT_RETENTION_DAYS,
+  );
+}
+
+export function resolveSecurityAuditCollection(): string {
+  return (
+    String(process.env.SECURITY_AUDIT_COLLECTION || "").trim() ||
+    DEFAULT_AUDIT_COLLECTION
+  );
+}
 const DEFAULT_METRICS_COLLECTION = "security_metrics";
 
 function observabilityEnabled(): boolean {
@@ -251,9 +288,12 @@ export async function writeSecurityAuditEvent(params: {
   if (!observabilityEnabled()) return;
 
   const eventType = normalizeOptionalString(params.eventType) || "unknown";
-  const auditCollection =
-    String(process.env.SECURITY_AUDIT_COLLECTION || "").trim() ||
-    DEFAULT_AUDIT_COLLECTION;
+  const auditCollection = resolveSecurityAuditCollection();
+
+  const nowMs = Date.now();
+  const expiresAt = new Date(
+    nowMs + getSecurityAuditRetentionDays() * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
   try {
     await db.collection(auditCollection).add({
@@ -266,7 +306,8 @@ export async function writeSecurityAuditEvent(params: {
       eventId: normalizeOptionalString(params.eventId) || null,
       reason: normalizeOptionalString(params.reason) || null,
       source: normalizeOptionalString(params.source) || null,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(nowMs).toISOString(),
+      expiresAt,
     });
   } catch (error) {
     console.warn("[SECURITY] Failed to persist audit event", {
