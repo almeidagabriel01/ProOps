@@ -283,7 +283,7 @@ function createGoogleOAuthClient(req?: Request) {
   );
 }
 
-async function getGoogleIntegration(
+export async function getGoogleIntegration(
   tenantId: string,
 ): Promise<GoogleCalendarIntegrationRecord | null> {
   const collection = db.collection(CALENDAR_INTEGRATIONS_COLLECTION);
@@ -389,10 +389,22 @@ async function getGoogleIntegration(
     return null;
   }
 
+  // The read-triggered relocation is itself a write — it must obey the
+  // "never persist plaintext" invariant. Encrypt any legacy plaintext before
+  // the .set(); an already-encrypted token is carried over untouched.
+  const migrationTokenSource = selectRefreshTokenSource(legacyRecord.data);
+  const migratedTokenFields =
+    migrationTokenSource.source === "encrypted"
+      ? { refreshToken: "", refreshTokenEnc: migrationTokenSource.value }
+      : buildRefreshTokenStorageFields(
+          await encryptToken(migrationTokenSource.value),
+        );
+
   const migratedRecord: GoogleCalendarIntegrationRecord = {
     id: tenantId,
     data: {
       ...legacyRecord.data,
+      ...migratedTokenFields,
       connectedByUserId:
         legacyRecord.data.connectedByUserId ||
         normalizeOptionalText(legacyDoc.id, 128) ||
