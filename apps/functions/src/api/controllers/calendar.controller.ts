@@ -6,6 +6,11 @@ import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 import { isGoogleCalendarSyncEnabled } from "../../lib/google-calendar-feature";
 import { isTenantAdminRole } from "../../lib/auth-context";
 import {
+  selectRefreshTokenSource,
+  buildRefreshTokenStorageFields,
+} from "../../lib/token-source";
+import { encryptToken, decryptToken } from "../../lib/token-encryption";
+import {
   assertTenantExists,
   auditSuperAdminCrossTenantWrite,
 } from "../../lib/tenant-resolution";
@@ -66,7 +71,10 @@ interface GoogleCalendarIntegrationDocument {
   enabled: boolean;
   connectedEmail: string | null;
   calendarId: string;
+  /** Legacy plaintext refresh token (pre-encryption). Cleared on new writes. */
   refreshToken: string;
+  /** KMS-encrypted refresh token envelope. Preferred over `refreshToken`. */
+  refreshTokenEnc?: string | null;
   scopes: string[];
   connectedByUserId?: string | null;
   uid?: string;
@@ -292,12 +300,13 @@ async function getGoogleIntegration(
       normalizeOptionalText(rawData.connectedByUserId ?? rawData.uid, 128) || null;
     const normalizedTenantId = String(rawData.tenantId || "").trim();
     const refreshToken = String(rawData.refreshToken || "").trim();
+    const refreshTokenEnc = String(rawData.refreshTokenEnc || "").trim() || null;
 
     if (!normalizedTenantId || normalizedTenantId !== tenantId || !rawData.enabled) {
       return null;
     }
 
-    if (!refreshToken) {
+    if (selectRefreshTokenSource({ refreshToken, refreshTokenEnc }).source === "none") {
       return null;
     }
 
@@ -310,6 +319,7 @@ async function getGoogleIntegration(
         connectedEmail: normalizeOptionalText(rawData.connectedEmail, 320),
         calendarId: String(rawData.calendarId || "primary").trim() || "primary",
         refreshToken,
+        refreshTokenEnc,
         scopes:
           Array.isArray(rawData.scopes) && rawData.scopes.length > 0
             ? rawData.scopes.map((scope) => String(scope || "").trim()).filter(Boolean)
@@ -326,13 +336,24 @@ async function getGoogleIntegration(
     };
   };
 
+  const finalizeRecord = async (
+    record: GoogleCalendarIntegrationRecord,
+  ): Promise<GoogleCalendarIntegrationRecord> => {
+    const tokenSource = selectRefreshTokenSource(record.data);
+    if (tokenSource.source !== "encrypted") {
+      return record;
+    }
+    const decrypted = await decryptToken(tokenSource.value);
+    return { ...record, data: { ...record.data, refreshToken: decrypted } };
+  };
+
   const directSnapshot = await collection.doc(tenantId).get();
   const directRecord = normalizeIntegrationRecord(
     directSnapshot.id,
     directSnapshot.data() as GoogleCalendarIntegrationDocument | undefined,
   );
   if (directRecord) {
-    return directRecord;
+    return finalizeRecord(directRecord);
   }
 
   const legacySnapshot = await collection
@@ -386,7 +407,7 @@ async function getGoogleIntegration(
 
   await collection.doc(tenantId).set(migratedRecord.data, { merge: true });
   await legacyDoc.ref.delete().catch(() => undefined);
-  return migratedRecord;
+  return finalizeRecord(migratedRecord);
 }
 
 function buildGoogleDescription(eventData: CalendarEventDocument): string {
@@ -1459,6 +1480,10 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
     const email = String(userInfo.data.email || "").trim() || null;
     const syncedAt = nowIso();
 
+    const refreshTokenFields = buildRefreshTokenStorageFields(
+      await encryptToken(refreshToken),
+    );
+
     await db
       .collection(CALENDAR_INTEGRATIONS_COLLECTION)
       .doc(stateData.tenantId)
@@ -1468,7 +1493,7 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
         enabled: true,
         connectedEmail: email,
         calendarId: "primary",
-        refreshToken,
+        ...refreshTokenFields,
         scopes: GOOGLE_CALENDAR_SCOPES,
         connectedByUserId: stateData.uid,
         uid: stateData.uid,
