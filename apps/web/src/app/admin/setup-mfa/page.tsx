@@ -32,10 +32,19 @@ export default function SetupMfaPage() {
 
   const handleGenerate = async () => {
     setError("");
+    const user = auth.currentUser;
+    if (!user) {
+      setError("Sessão não encontrada. Saia e entre novamente.");
+      return;
+    }
+    if (!user.emailVerified) {
+      setError(
+        "Seu email não está verificado. O Firebase exige email verificado antes de ativar o MFA — verifique seu email e tente de novo.",
+      );
+      return;
+    }
     setBusy(true);
     try {
-      const user = auth.currentUser;
-      if (!user) throw new Error("NO_USER");
       const mfaSession = await multiFactor(user).getSession();
       const totpSecret =
         await TotpMultiFactorGenerator.generateSecret(mfaSession);
@@ -46,12 +55,22 @@ export default function SetupMfaPage() {
         err && typeof err === "object" && "code" in err
           ? String((err as { code: unknown }).code)
           : "";
+      const msgStr =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: unknown }).message)
+          : String(err);
       if (codeStr === "auth/requires-recent-login") {
         setError(
           "Sua sessão é antiga. Saia e entre novamente, depois retorne a esta página.",
         );
+      } else if (codeStr === "auth/unverified-email") {
+        setError(
+          "Seu email não está verificado. Verifique seu email antes de ativar o MFA.",
+        );
       } else {
-        setError("Não foi possível iniciar a configuração do MFA. Tente novamente.");
+        setError(
+          `Não foi possível iniciar a configuração do MFA: ${codeStr || msgStr}`,
+        );
       }
     } finally {
       setBusy(false);
