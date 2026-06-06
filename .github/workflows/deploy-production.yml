@@ -9,6 +9,7 @@ on:
     paths:
       - 'apps/functions/**'
       - 'firebase/firestore.rules'
+      - 'firebase/firestore.indexes.json'
       - 'firebase.json'
 
 permissions:
@@ -89,7 +90,7 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
       - name: Deploy to production
-        run: firebase deploy --project prod --only functions,firestore:rules
+        run: firebase deploy --project prod --only functions,firestore:rules,firestore:indexes
 
       - name: Revoke credentials
         if: always()
