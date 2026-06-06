@@ -69,6 +69,11 @@ function LoginContent() {
     handleResendPhoneCode,
     isGoogleLoading,
     sessionRecoveryFailed,
+    requiresMfaCode,
+    mfaLoginCode,
+    setMfaLoginCode,
+    isVerifyingMfaCode,
+    handleConfirmMfaCode,
   } = useLoginForm();
 
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>(
@@ -159,6 +164,42 @@ function LoginContent() {
             window.location.reload();
           }}
         />
+      </AuthLayout>
+    );
+  }
+
+  if (requiresMfaCode) {
+    return (
+      <AuthLayout reverse={false}>
+        <div className="w-full max-w-sm mx-auto">
+          <h1 className="text-2xl font-semibold mb-2">Verificação em duas etapas</h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Digite o código de 6 dígitos do seu aplicativo autenticador.
+          </p>
+          <form onSubmit={handleConfirmMfaCode} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="mfa-login-code">Código</Label>
+              <Input
+                id="mfa-login-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={mfaLoginCode}
+                onChange={(e) => setMfaLoginCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                autoFocus
+              />
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <Button
+              type="submit"
+              disabled={isVerifyingMfaCode || mfaLoginCode.trim().length !== 6}
+              className="cursor-pointer"
+            >
+              {isVerifyingMfaCode ? "Verificando..." : "Entrar"}
+            </Button>
+          </form>
+        </div>
       </AuthLayout>
     );
   }

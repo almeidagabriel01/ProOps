@@ -3,10 +3,14 @@
 import * as React from "react";
 import {
   User as FirebaseUser,
+  getMultiFactorResolver,
   onAuthStateChanged,
   onIdTokenChanged,
   signInWithEmailAndPassword,
   signOut,
+  TotpMultiFactorGenerator,
+  type MultiFactorError,
+  type MultiFactorResolver,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -29,6 +33,10 @@ interface AuthContextType {
     email: string,
     pass: string,
   ) => Promise<{ success: boolean; code?: string }>;
+  /** Completes a login that returned `code: "mfa-required"` with a TOTP code. */
+  resolveTotpLogin: (
+    totpCode: string,
+  ) => Promise<{ success: boolean; code?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /** Force-refresh the ID token and re-sync the session cookie. */
@@ -41,6 +49,7 @@ const AuthContext = React.createContext<AuthContextType>({
   isSessionSynced: false,
   getIsLoggingOut: () => false,
   login: async () => ({ success: false }),
+  resolveTotpLogin: async () => ({ success: false }),
   logout: async () => {},
   refreshUser: async () => {},
   forceSyncSession: async () => false,
@@ -476,43 +485,95 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return syncServerSession(firebaseUser);
   }, [syncServerSession]);
 
+  const mfaResolverRef = React.useRef<MultiFactorResolver | null>(null);
+
+  // Shared post-sign-in logic for both password and MFA-resolved logins.
+  const finalizeLogin = async (): Promise<{
+    success: boolean;
+    code?: string;
+  }> => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      await currentUser.reload();
+      const skipEmailVerification =
+        process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
+      if (!currentUser.emailVerified && !skipEmailVerification) {
+        try {
+          await AuthService.sendVerificationEmail();
+        } catch (verificationError) {
+          console.error(
+            "Failed to send email verification on login:",
+            verificationError,
+          );
+        }
+
+        // We intentionally DO NOT sign out the unverified user here.
+        // This allows the EmailVerificationPending component to see auth.currentUser
+        // and allow the user to click "Resend email".
+        // We DO clear the server session to prevent backend access.
+        await clearServerSession().catch(() => {});
+        setIsLoading(false);
+        return { success: false, code: "email-not-verified" };
+      }
+    }
+
+    return { success: true };
+  };
+
   const login = async (email: string, pass: string) => {
     setIsLoading(true);
     setIsSessionSynced(false);
     lastSyncSuccessRef.current = 0;
+    mfaResolverRef.current = null;
     try {
       await signInWithEmailAndPassword(auth, email, pass);
+      return await finalizeLogin();
+    } catch (error) {
+      const errorCode =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code: unknown }).code)
+          : "";
 
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        await currentUser.reload();
-        const skipEmailVerification =
-          process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
-        if (!currentUser.emailVerified && !skipEmailVerification) {
-          try {
-            await AuthService.sendVerificationEmail();
-          } catch (verificationError) {
-            console.error(
-              "Failed to send email verification on login:",
-              verificationError,
-            );
-          }
-
-          // We intentionally DO NOT sign out the unverified user here.
-          // This allows the EmailVerificationPending component to see auth.currentUser
-          // and allow the user to click "Resend email".
-          // We DO clear the server session to prevent backend access.
-          await clearServerSession().catch(() => {});
-          setIsLoading(false);
-          return { success: false, code: "email-not-verified" };
-        }
+      if (errorCode === "auth/multi-factor-auth-required") {
+        mfaResolverRef.current = getMultiFactorResolver(
+          auth,
+          error as MultiFactorError,
+        );
+        setIsLoading(false);
+        return { success: false, code: "mfa-required" };
       }
 
-      return { success: true };
-    } catch (error) {
       console.error("Login failed", error);
       setIsLoading(false);
       return { success: false, code: "invalid-credentials" };
+    }
+  };
+
+  const resolveTotpLogin = async (totpCode: string) => {
+    const resolver = mfaResolverRef.current;
+    if (!resolver) {
+      return { success: false, code: "invalid-credentials" };
+    }
+    setIsLoading(true);
+    try {
+      const totpHint = resolver.hints.find(
+        (hint) => hint.factorId === TotpMultiFactorGenerator.FACTOR_ID,
+      );
+      if (!totpHint) {
+        setIsLoading(false);
+        return { success: false, code: "mfa-no-totp" };
+      }
+      const assertion = TotpMultiFactorGenerator.assertionForSignIn(
+        totpHint.uid,
+        totpCode.trim(),
+      );
+      await resolver.resolveSignIn(assertion);
+      mfaResolverRef.current = null;
+      return await finalizeLogin();
+    } catch (error) {
+      console.error("MFA resolve failed", error);
+      setIsLoading(false);
+      return { success: false, code: "mfa-invalid-code" };
     }
   };
 
@@ -551,6 +612,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isSessionSynced,
         getIsLoggingOut,
         login,
+        resolveTotpLogin,
         logout,
         refreshUser,
         forceSyncSession,
