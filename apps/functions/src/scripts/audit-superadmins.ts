@@ -12,20 +12,20 @@
  * Read-only — never mutates anything.
  *
  * Pre-requisites:
- *   1. Firebase credentials (GOOGLE_APPLICATION_CREDENTIALS or
- *      `gcloud auth application-default login`).
+ *   1. Credentials — auto-loaded from apps/functions/.env.<projectId> (the same
+ *      service account the functions use). No gcloud required.
  *   2. SUPERADMIN_ALLOWLIST set (comma-separated emails/uids) to evaluate the
  *      allowlist column; if unset, every super admin is reported as NOT in an
- *      allowlist (enforcement off).
+ *      allowlist (enforcement off). It is also read from .env.<projectId>.
  *
  * Usage:
  *   cd apps/functions
- *   npx dotenv -e .env.erp-softcode -- npx ts-node src/scripts/audit-superadmins.ts
+ *   npx ts-node src/scripts/audit-superadmins.ts
  */
 
-import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
+import { initScriptAdmin } from "./_script-init";
 
 type SuperAdmin = {
   uid: string;
@@ -52,10 +52,7 @@ function isAllowlisted(allowlist: string[], email: string, uid: string): boolean
 }
 
 async function main(): Promise<void> {
-  const projectId = String(process.env.GCLOUD_PROJECT || "erp-softcode").trim();
-  if (getApps().length === 0) {
-    initializeApp({ credential: applicationDefault(), projectId });
-  }
+  const projectId = initScriptAdmin();
 
   const auth = getAuth();
   const db = getFirestore();

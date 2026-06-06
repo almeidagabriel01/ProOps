@@ -11,31 +11,26 @@
  *
  * Pre-requisites:
  *   1. Identity Platform enabled on the target project (console upgrade).
- *   2. Firebase credentials via one of:
- *      a) GOOGLE_APPLICATION_CREDENTIALS=<path-to-service-account.json>
- *      b) gcloud auth application-default login
+ *   2. Credentials — auto-loaded from apps/functions/.env.<projectId>
+ *      (the same service account the functions use). No gcloud required.
  *
  * Usage (dev):
  *   cd apps/functions
- *   GCLOUD_PROJECT=erp-softcode npx ts-node src/scripts/enable-totp.ts
+ *   npx ts-node src/scripts/enable-totp.ts
  *
- * Usage (prod) — only AFTER validating in dev:
+ * Usage (prod) — only AFTER validating in dev (bash/git-bash syntax):
  *   GCLOUD_PROJECT=erp-softcode-prod npx ts-node src/scripts/enable-totp.ts
  */
 
-import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { initScriptAdmin } from "./_script-init";
 
 // Number of adjacent 30s windows accepted to tolerate clock skew between the
 // authenticator app and the server.
 const ADJACENT_INTERVALS = 5;
 
 async function main(): Promise<void> {
-  const projectId = String(process.env.GCLOUD_PROJECT || "erp-softcode").trim();
-
-  if (getApps().length === 0) {
-    initializeApp({ credential: applicationDefault(), projectId });
-  }
+  const projectId = initScriptAdmin();
 
   console.log(`\n=== Enable TOTP MFA ===`);
   console.log(`Project: ${projectId}`);
