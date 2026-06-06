@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import {
   multiFactor,
   TotpMultiFactorGenerator,
@@ -112,6 +114,13 @@ export default function SetupMfaPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6 p-6">
+      <Link
+        href="/admin"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Voltar ao painel
+      </Link>
       <Card>
         <CardHeader>
           <CardTitle>Configurar autenticação em dois fatores (MFA)</CardTitle>
