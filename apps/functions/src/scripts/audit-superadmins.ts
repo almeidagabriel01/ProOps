@@ -95,16 +95,19 @@ async function main(): Promise<void> {
     } else {
       let mfaEnrolled = false;
       let emailVerified = false;
+      let authEmail = "";
       try {
         const user = await auth.getUser(uid);
         mfaEnrolled = (user.multiFactor?.enrolledFactors?.length || 0) > 0;
         emailVerified = user.emailVerified === true;
+        authEmail = String(user.email || "");
       } catch {
         // user may exist only in Firestore; leave defaults as false
       }
       found.set(uid, {
         uid,
-        email,
+        // Firestore doc email is often empty; fall back to the Auth record email.
+        email: email || authEmail,
         viaClaim: false,
         viaDoc: true,
         mfaEnrolled,
