@@ -89,11 +89,30 @@ export const AdminService = {
     await callApi("/v1/admin/credentials", "POST", data);
   },
 
+  // Returns EVERY tenant by walking the paginated billing endpoint. The backend
+  // responds with { items, nextCursor, hasMore }; callers that need the full set
+  // (e.g. aggregate metrics) must accumulate all pages rather than read one page.
   getAllTenantsBilling: async (): Promise<TenantBillingInfo[]> => {
-    return await callApi<TenantBillingInfo[]>(
-      "/v1/admin/tenants/billing",
-      "GET",
-    );
+    const all: TenantBillingInfo[] = [];
+    let cursor: string | undefined = undefined;
+    // Bounded loop (20k tenants) as a safety net against a misbehaving backend.
+    for (let page = 0; page < 200; page++) {
+      const result = await AdminService.getTenantsBillingPage({
+        cursor,
+        pageSize: 100,
+      });
+
+      // Tolerate a legacy backend that returns a flat array (no pagination).
+      if (Array.isArray(result)) {
+        all.push(...result);
+        break;
+      }
+
+      all.push(...(result.items ?? []));
+      if (!result.hasMore || !result.nextCursor) break;
+      cursor = result.nextCursor;
+    }
+    return all;
   },
 
   getTenantsBillingPage: async (params?: {
