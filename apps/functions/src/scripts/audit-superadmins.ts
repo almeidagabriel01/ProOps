@@ -33,6 +33,7 @@ type SuperAdmin = {
   viaClaim: boolean;
   viaDoc: boolean;
   mfaEnrolled: boolean;
+  emailVerified: boolean;
 };
 
 const SUPERADMIN_ROLES = new Set(["superadmin"]);
@@ -73,6 +74,7 @@ async function main(): Promise<void> {
         viaClaim: true,
         viaDoc: false,
         mfaEnrolled: (user.multiFactor?.enrolledFactors?.length || 0) > 0,
+        emailVerified: user.emailVerified === true,
       });
     }
     pageToken = page.pageToken;
@@ -92,11 +94,13 @@ async function main(): Promise<void> {
       if (!existing.email) existing.email = email;
     } else {
       let mfaEnrolled = false;
+      let emailVerified = false;
       try {
         const user = await auth.getUser(uid);
         mfaEnrolled = (user.multiFactor?.enrolledFactors?.length || 0) > 0;
+        emailVerified = user.emailVerified === true;
       } catch {
-        // user may exist only in Firestore; leave mfaEnrolled = false
+        // user may exist only in Firestore; leave defaults as false
       }
       found.set(uid, {
         uid,
@@ -104,6 +108,7 @@ async function main(): Promise<void> {
         viaClaim: false,
         viaDoc: true,
         mfaEnrolled,
+        emailVerified,
       });
     }
   }
@@ -124,23 +129,33 @@ async function main(): Promise<void> {
 
   let notAllowlisted = 0;
   let withoutMfa = 0;
+  let withoutVerifiedEmail = 0;
   for (const a of admins) {
     const allowOk = allowlist.length > 0 && isAllowlisted(allowlist, a.email, a.uid);
     if (!allowOk) notAllowlisted += 1;
     if (!a.mfaEnrolled) withoutMfa += 1;
+    if (!a.emailVerified) withoutVerifiedEmail += 1;
     const source = [a.viaClaim ? "claim" : null, a.viaDoc ? "doc" : null]
       .filter(Boolean)
       .join("+");
     console.log(
       `${allowOk ? "✓" : "✗"} allowlist | ${
         a.mfaEnrolled ? "✓" : "✗"
-      } mfa | ${a.uid} | ${a.email || "(no email)"} | via ${source}`,
+      } mfa | ${a.emailVerified ? "✓" : "✗"} email | ${a.uid} | ${
+        a.email || "(no email)"
+      } | via ${source}`,
     );
   }
 
   console.log(
-    `\nTotal: ${admins.length} | not allowlisted: ${notAllowlisted} | without MFA: ${withoutMfa}`,
+    `\nTotal: ${admins.length} | not allowlisted: ${notAllowlisted} | without MFA: ${withoutMfa} | email not verified: ${withoutVerifiedEmail}`,
   );
+  if (withoutVerifiedEmail > 0) {
+    console.log(
+      `\n⚠ ${withoutVerifiedEmail} super admin(s) com email NÃO verificado — o` +
+        ` enrollment de MFA exige email verificado (use verify-user-email.ts).`,
+    );
+  }
   if (withoutMfa > 0) {
     console.log(
       `\n⚠ ${withoutMfa} super admin(s) without MFA will lose access once` +
