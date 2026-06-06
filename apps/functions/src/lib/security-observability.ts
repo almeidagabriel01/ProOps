@@ -18,7 +18,9 @@ export type SecurityCounterName =
   | "whatsapp_message_dedupe_hit"
   | "super_admin_impersonation_started"
   | "super_admin_tenant_write"
-  | "super_admin_destructive_op";
+  | "super_admin_destructive_op"
+  | "super_admin_not_allowlisted"
+  | "super_admin_mfa_required";
 
 type SecurityLogLevel = "INFO" | "WARN" | "ERROR";
 
@@ -55,6 +57,8 @@ const KNOWN_COUNTERS = new Set<SecurityCounterName>([
   "super_admin_impersonation_started",
   "super_admin_tenant_write",
   "super_admin_destructive_op",
+  "super_admin_not_allowlisted",
+  "super_admin_mfa_required",
 ]);
 
 const DEFAULT_AUDIT_COLLECTION = "security_audit_events";

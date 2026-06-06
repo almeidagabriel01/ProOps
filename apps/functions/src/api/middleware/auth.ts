@@ -24,6 +24,9 @@ function getAuthErrorMessage(errorMessage: string): string {
   if (errorMessage === "FORBIDDEN_TENANT_MISMATCH") {
     return "Forbidden: tenant mismatch";
   }
+  if (errorMessage === "FORBIDDEN_SUPERADMIN_NOT_ALLOWLISTED") {
+    return "Forbidden: super admin not allowlisted";
+  }
   if (errorMessage.startsWith("AUTH_CLAIMS_MISSING_")) {
     return "Unauthorized: missing authorization claims";
   }
@@ -86,6 +89,34 @@ export const validateFirebaseIdToken = async (
       });
     }
 
+    if (authContext.mfaRequired) {
+      const context = buildSecurityLogContext(req, {
+        uid: authContext.uid,
+        tenantId: authContext.tenantId,
+        route: req.path,
+        status: 403,
+        source: "auth_middleware",
+        reason: "super_admin_mfa_required",
+      });
+      logSecurityEvent("super_admin_mfa_required", context, "WARN");
+      void incrementSecurityCounter("super_admin_mfa_required", context);
+      void writeSecurityAuditEvent({
+        eventType: "super_admin_mfa_required",
+        requestId: context.requestId,
+        route: context.route,
+        status: context.status,
+        tenantId: context.tenantId,
+        uid: context.uid,
+        reason: context.reason,
+        source: context.source,
+      });
+      return res.status(403).json({
+        error:
+          "Autenticação multifator (MFA) obrigatória para acesso de super admin.",
+        code: "SUPERADMIN_MFA_REQUIRED",
+      });
+    }
+
     return next();
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNAUTHENTICATED";
@@ -105,11 +136,15 @@ export const validateFirebaseIdToken = async (
     if (message === "FORBIDDEN_TENANT_MISMATCH") {
       void incrementSecurityCounter("FORBIDDEN_TENANT_MISMATCH", context);
     }
+    if (message === "FORBIDDEN_SUPERADMIN_NOT_ALLOWLISTED") {
+      void incrementSecurityCounter("super_admin_not_allowlisted", context);
+    }
 
     if (
       message === "AUTH_CLAIMS_MISSING_ROLE" ||
       message === "AUTH_CLAIMS_MISSING_TENANT" ||
-      message === "FORBIDDEN_TENANT_MISMATCH"
+      message === "FORBIDDEN_TENANT_MISMATCH" ||
+      message === "FORBIDDEN_SUPERADMIN_NOT_ALLOWLISTED"
     ) {
       void writeSecurityAuditEvent({
         eventType: message,
