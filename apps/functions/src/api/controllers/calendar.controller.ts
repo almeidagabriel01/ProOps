@@ -236,38 +236,16 @@ function isNotFoundGoogleError(error: unknown): boolean {
   );
 }
 
-function resolveRequestOrigin(req?: Request): string {
-  if (!req && process.env.NODE_ENV === "production") {
-    return resolveFrontendAppOrigin();
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    return resolveFrontendAppOrigin();
-  }
-
-  const forwardedProto = String(req?.headers["x-forwarded-proto"] || "")
-    .split(",")[0]
-    .trim();
-  const forwardedHost = String(req?.headers["x-forwarded-host"] || "")
-    .split(",")[0]
-    .trim();
-  const host = forwardedHost || String(req?.headers.host || "").trim();
-
-  if (host) {
-    const protocol =
-      forwardedProto || (process.env.NODE_ENV === "production" ? "https" : "http");
-    return `${protocol}://${host}`;
-  }
-
-  return resolveFrontendAppOrigin();
-}
-
-function buildFrontendCalendarUrl(
-  req: Request | undefined,
+export function buildFrontendCalendarUrl(
+  _req: Request | undefined,
   status: "connected" | "error",
   reason?: string,
 ): string {
-  const url = new URL("/calendar", resolveRequestOrigin(req));
+  // The origin is always the configured app origin (APP_URL) — never the
+  // request host / x-forwarded-host, which an attacker can spoof to influence
+  // the OAuth redirect_uri (M1). GOOGLE_CALENDAR_REDIRECT_URI is the explicit
+  // override (handled in resolveGoogleCalendarRedirectUri).
+  const url = new URL("/calendar", resolveFrontendAppOrigin());
   url.searchParams.set("googleCalendar", status);
   if (reason) {
     url.searchParams.set("reason", reason);
@@ -279,16 +257,18 @@ function isGoogleCalendarDisabled(): boolean {
   return !isGoogleCalendarSyncEnabled();
 }
 
-function resolveGoogleCalendarRedirectUri(req?: Request): string {
+export function resolveGoogleCalendarRedirectUri(): string {
   const configured = String(process.env.GOOGLE_CALENDAR_REDIRECT_URI || "").trim();
   if (configured) {
     return configured;
   }
 
-  return `${resolveRequestOrigin(req)}/api/backend/v1/calendar/google/callback`;
+  // Derived from the configured app origin (APP_URL) only — never request
+  // headers. GOOGLE_CALENDAR_REDIRECT_URI above is the explicit override.
+  return `${resolveFrontendAppOrigin()}/api/backend/v1/calendar/google/callback`;
 }
 
-function createGoogleOAuthClient(req?: Request) {
+function createGoogleOAuthClient() {
   const clientId = String(process.env.GOOGLE_CALENDAR_CLIENT_ID || "").trim();
   const clientSecret = String(
     process.env.GOOGLE_CALENDAR_CLIENT_SECRET || "",
@@ -301,7 +281,7 @@ function createGoogleOAuthClient(req?: Request) {
   return new google.auth.OAuth2(
     clientId,
     clientSecret,
-    resolveGoogleCalendarRedirectUri(req),
+    resolveGoogleCalendarRedirectUri(),
   );
 }
 
@@ -1113,7 +1093,7 @@ async function cleanupLocalEventsAfterGoogleDisconnect(params: {
     return;
   }
 
-  const oauthClient = createGoogleOAuthClient(params.req);
+  const oauthClient = createGoogleOAuthClient();
   oauthClient.setCredentials({
     refresh_token: params.integration.refreshToken,
   });
@@ -1420,7 +1400,7 @@ export async function getGoogleCalendarAuthUrl(req: Request, res: Response) {
       });
     }
 
-    const oauthClient = createGoogleOAuthClient(req);
+    const oauthClient = createGoogleOAuthClient();
     const state = crypto.randomUUID();
 
     await db.collection(CALENDAR_OAUTH_STATES_COLLECTION).doc(state).set({
@@ -1501,7 +1481,7 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
       return res.redirect(buildFrontendCalendarUrl(req, "error", "expired_state"));
     }
 
-    const oauthClient = createGoogleOAuthClient(req);
+    const oauthClient = createGoogleOAuthClient();
     const tokenResponse = await oauthClient.getToken(code);
     const tokens = tokenResponse.tokens;
     oauthClient.setCredentials(tokens);
@@ -1636,7 +1616,7 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
 
     if (integration.data.refreshToken) {
       try {
-        const oauthClient = createGoogleOAuthClient(req);
+        const oauthClient = createGoogleOAuthClient();
         await oauthClient.revokeToken(integration.data.refreshToken);
       } catch (error) {
         console.warn(

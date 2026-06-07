@@ -49,7 +49,11 @@ jest.mock("googleapis", () => ({
 
 jest.mock("../../init", () => ({ db: { collection: jest.fn() } }));
 
-import { handleGoogleCalendarCallback } from "./calendar.controller";
+import {
+  handleGoogleCalendarCallback,
+  buildFrontendCalendarUrl,
+  resolveGoogleCalendarRedirectUri,
+} from "./calendar.controller";
 import { db } from "../../init";
 
 const collectionMock = db.collection as unknown as jest.Mock;
@@ -256,5 +260,47 @@ describe("handleGoogleCalendarCallback — M5 query validation (Zod)", () => {
 
     expect(setIntegrationSpy).not.toHaveBeenCalled();
     expect(String(redirect.mock.calls[0][0])).toContain("reason=invalid_request");
+  });
+});
+
+describe("M1 — OAuth/redirect origin never derives from request headers", () => {
+  const originalRedirect = process.env.GOOGLE_CALENDAR_REDIRECT_URI;
+  const originalAppUrl = process.env.APP_URL;
+
+  afterEach(() => {
+    process.env.GOOGLE_CALENDAR_REDIRECT_URI = originalRedirect;
+    process.env.APP_URL = originalAppUrl;
+  });
+
+  it("buildFrontendCalendarUrl IGNORES a spoofed x-forwarded-host (uses APP_URL)", () => {
+    process.env.APP_URL = "https://safe.example.com";
+    const url = buildFrontendCalendarUrl(
+      {
+        headers: {
+          "x-forwarded-host": "evil.example.com",
+          host: "evil.example.com",
+        },
+      } as unknown as Request,
+      "error",
+      "boom",
+    );
+
+    expect(url).toContain("safe.example.com");
+    expect(url).not.toContain("evil.example.com"); // <- fails on the old header-derived code
+  });
+
+  it("resolveGoogleCalendarRedirectUri uses GOOGLE_CALENDAR_REDIRECT_URI when set (override)", () => {
+    process.env.GOOGLE_CALENDAR_REDIRECT_URI = "https://override.example.com/cb";
+    expect(resolveGoogleCalendarRedirectUri()).toBe(
+      "https://override.example.com/cb",
+    );
+  });
+
+  it("resolveGoogleCalendarRedirectUri derives from APP_URL when no override is set", () => {
+    delete process.env.GOOGLE_CALENDAR_REDIRECT_URI;
+    process.env.APP_URL = "https://safe.example.com";
+    expect(resolveGoogleCalendarRedirectUri()).toBe(
+      "https://safe.example.com/api/backend/v1/calendar/google/callback",
+    );
   });
 });
