@@ -9,6 +9,11 @@ import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import { logger } from "../../lib/logger";
 import { fetchAuditEvents } from "../../lib/audit-events-query";
 import {
+  deleteAllTenantUsers,
+  MAX_TENANT_USERS_BATCH,
+  type TenantUserSnap,
+} from "../../lib/tenant-users-deletion";
+import {
   incrementSecurityCounter,
   resolveSecurityAuditCollection,
   writeSecurityAuditEvent,
@@ -1639,17 +1644,29 @@ export const deleteTenant = async (req: Request, res: Response) => {
       source: "admin_controller",
     });
 
-    const userSnaps = await Promise.all([
-      db.collection("users").where("tenantId", "==", tenantId).get(),
-      db.collection("users").where("companyId", "==", tenantId).get(),
-    ]);
+    const fetchNextUserBatch = async (): Promise<TenantUserSnap[]> => {
+      const userSnaps = await Promise.all([
+        db
+          .collection("users")
+          .where("tenantId", "==", tenantId)
+          .limit(MAX_TENANT_USERS_BATCH)
+          .get(),
+        db
+          .collection("users")
+          .where("companyId", "==", tenantId)
+          .limit(MAX_TENANT_USERS_BATCH)
+          .get(),
+      ]);
 
-    const uniqueUsers = new Map<string, FirebaseFirestore.DocumentSnapshot>();
-    userSnaps.forEach((snap) => {
-      snap.docs.forEach((docSnap) => uniqueUsers.set(docSnap.id, docSnap));
-    });
+      const uniqueUsers = new Map<string, TenantUserSnap>();
+      userSnaps.forEach((snap) => {
+        snap.docs.forEach((docSnap) => uniqueUsers.set(docSnap.id, docSnap));
+      });
+      return Array.from(uniqueUsers.values());
+    };
 
-    for (const [uid, userSnap] of uniqueUsers) {
+    const deleteTenantUser = async (userSnap: TenantUserSnap): Promise<void> => {
+      const uid = userSnap.id;
       const userRef = db.collection("users").doc(uid);
       await deleteSubcollectionInBatches(userRef, "permissions");
 
@@ -1678,7 +1695,12 @@ export const deleteTenant = async (req: Request, res: Response) => {
       }
 
       await userRef.delete();
-    }
+    };
+
+    await deleteAllTenantUsers({
+      fetchNextBatch: fetchNextUserBatch,
+      deleteUser: deleteTenantUser,
+    });
 
     const tenantCollections = [
       "products",
