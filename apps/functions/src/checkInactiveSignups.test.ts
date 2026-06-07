@@ -70,7 +70,7 @@ describe("isEligibleForNoSubscriptionReminder", () => {
 
 describe("renderNoSubscriptionReminderEmail", () => {
   it("embeds the plans URL in html and text", () => {
-    const plansUrl = "https://www.proops.com.br/subscription-blocked/plans";
+    const plansUrl = "https://www.proops.com.br/#pricing";
     const { subject, html, text } = renderNoSubscriptionReminderEmail({
       email: "owner@example.com",
       recipientName: "Maria",
@@ -87,7 +87,7 @@ describe("renderNoSubscriptionReminderEmail", () => {
     const { html } = renderNoSubscriptionReminderEmail({
       email: "owner@example.com",
       recipientName: '<script>alert("x")</script>',
-      plansUrl: "https://www.proops.com.br/subscription-blocked/plans",
+      plansUrl: "https://www.proops.com.br/#pricing",
     });
 
     expect(html).not.toContain("<script>alert");
@@ -97,7 +97,7 @@ describe("renderNoSubscriptionReminderEmail", () => {
   it("renders a generic greeting when no name is provided", () => {
     const { html, text } = renderNoSubscriptionReminderEmail({
       email: "owner@example.com",
-      plansUrl: "https://www.proops.com.br/subscription-blocked/plans",
+      plansUrl: "https://www.proops.com.br/#pricing",
     });
 
     expect(html).toContain("Olá!");

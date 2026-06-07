@@ -12,7 +12,9 @@ import { renderNoSubscriptionReminderEmail } from "./services/email/templates/no
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EMAIL_TYPE = "no_subscription_reminder";
-const PLANS_PATH = "/subscription-blocked/plans";
+// Landing page pricing section (same target as the header "Ver planos" button,
+// which scrolls to <section id="pricing"> on the marketing root route).
+const LANDING_PRICING_PATH = "/#pricing";
 
 /**
  * Pure eligibility check for the "no subscription after 2 days" reminder.
@@ -97,7 +99,7 @@ export async function runNoSubscriptionReminder(
       ? new Date(now - options.lowerBoundDays * DAY_MS).toISOString()
       : null;
 
-  const plansUrl = `${resolveFrontendAppOrigin()}${PLANS_PATH}`;
+  const plansUrl = `${resolveFrontendAppOrigin()}${LANDING_PRICING_PATH}`;
 
   let scanned = 0;
   let sent = 0;
