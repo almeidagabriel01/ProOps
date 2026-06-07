@@ -26,7 +26,6 @@ const WHITELISTED_PREFIXES = [
   "/v1/auth/",
   "/v1/billing/",
   "/v1/validation/",
-  "/v1/aux/proxy-image", // proxy-image is public; other /v1/aux/* routes are authenticated mutations
   "/v1/ai/",            // AI routes carry their own tier/subscription checks (403 AI_FREE_TIER_BLOCKED)
   "/health",
   "/internal/",
@@ -47,7 +46,6 @@ const FREE_TIER_ALLOWED_PREFIXES = [
   "/v1/validation/",
   "/v1/profile",
   "/v1/tenants/", // GET own tenant (multi-tenant isolation is enforced separately)
-  "/v1/aux/proxy-image",
   "/health",
   "/internal/",
   "/authenticated",
