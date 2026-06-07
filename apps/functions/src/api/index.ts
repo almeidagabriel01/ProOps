@@ -4,6 +4,7 @@ import cors from "cors";
 import { logger } from "../lib/logger";
 import { validateFirebaseIdToken } from "./middleware/auth";
 import { requireActiveSubscription } from "./middleware/require-active-subscription";
+import { verifyTurnstileToken } from "./middleware/verify-captcha";
 import { CORS_OPTIONS } from "../deploymentConfig";
 
 import { coreRoutes } from "./routes/core.routes";
@@ -208,6 +209,14 @@ const publicGeneralLimiter = createRateLimiter({
   maxRequests: 300,
 });
 
+// Tighter per-IP limit for the signup contact-validation endpoint, which is an
+// account-enumeration oracle. Defense-in-depth alongside the Turnstile check.
+const publicValidationLimiter = createRateLimiter({
+  keyPrefix: "public-validation",
+  maxRequests: Number(process.env.RATE_LIMIT_VALIDATION_MAX || 60),
+  windowMs: 60_000,
+});
+
 const contactFormLimiter = createRateLimiter({
   keyPrefix: "public-contact-form",
   maxRequests: 5,
@@ -387,8 +396,13 @@ app.use("/webhooks/asaas", publicWebhookLimiter, asaasWebhookRoutes);
 // Public Stripe Routes (Plans)
 app.use("/v1/stripe", publicGeneralLimiter, publicStripeRoutes);
 
-// Public validation routes (register pre-check)
-app.use("/v1/validation", publicGeneralLimiter, validationRoutes);
+// Public validation routes (register pre-check) — bot-protected + tighter limit
+app.use(
+  "/v1/validation",
+  publicValidationLimiter,
+  verifyTurnstileToken,
+  validationRoutes,
+);
 app.use("/v1", publicGeneralLimiter, calendarPublicRoutes);
 
 // Public shared links

@@ -15,6 +15,7 @@ import {
   validatePhoneValue,
 } from "./_lib/register-validation";
 import { callPublicApi } from "@/lib/api-client";
+import { getCaptchaToken } from "@/lib/captcha";
 
 interface ContactFieldValidation {
   valid: boolean;
@@ -180,10 +181,13 @@ function LoginContent() {
 
     const seq = ++contactSeqRef.current[field];
     try {
+      const captchaToken = await getCaptchaToken();
       const res = await callPublicApi<ContactValidationResponse>(
         "v1/validation/contact",
         "POST",
-        field === "email" ? { email: value } : { phoneNumber: value },
+        field === "email"
+          ? { email: value, captchaToken }
+          : { phoneNumber: value, captchaToken },
       );
       if (seq !== contactSeqRef.current[field]) return; // stale response
       const result = field === "email" ? res.email : res.phoneNumber;

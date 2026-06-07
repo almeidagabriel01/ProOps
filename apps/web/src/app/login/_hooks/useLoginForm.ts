@@ -21,6 +21,7 @@ import { AuthService } from "@/services/auth-service";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { callPublicApi } from "@/lib/api-client";
+import { getCaptchaToken } from "@/lib/captcha";
 import { toast } from "@/lib/toast";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
@@ -687,12 +688,14 @@ export function useLoginForm(): UseLoginFormReturn {
     }
 
     try {
+      const captchaToken = await getCaptchaToken();
       const contactValidation = await callPublicApi<ContactValidationResponse>(
         "v1/validation/contact",
         "POST",
         {
           email,
           phoneNumber: phoneNumber || undefined,
+          captchaToken,
         },
       );
 
