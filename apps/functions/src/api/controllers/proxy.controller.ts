@@ -4,6 +4,11 @@ import {
   parseCommaSeparatedHosts,
   validateOutboundUrl,
 } from "../security/url-security";
+import {
+  extractStorageBucket,
+  isBucketAllowed,
+  resolveAllowedBuckets,
+} from "../security/gcs-bucket";
 
 const DEFAULT_USER_AGENT =
   "ProOps-ProxyImage/1.0 (+https://proops.com.br)";
@@ -270,6 +275,21 @@ async function fetchRemoteImage(imageUrl: string): Promise<ProxyFetchResult> {
       statusCode: validation.statusCode,
       message: validation.reason,
     };
+  }
+
+  // Bucket-pinning: an allowed storage host is not enough — path-style URLs put
+  // the bucket in the path, so without this any public GCS bucket would be
+  // proxiable. Require the bucket to be one of the project's own.
+  const allowedBuckets = resolveAllowedBuckets();
+  if (allowedBuckets.length > 0) {
+    const bucket = extractStorageBucket(validation.url);
+    if (!isBucketAllowed(bucket, allowedBuckets)) {
+      return {
+        ok: false,
+        statusCode: 403,
+        message: "Bucket is not allowed by proxy policy",
+      };
+    }
   }
 
   try {
