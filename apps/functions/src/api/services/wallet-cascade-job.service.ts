@@ -10,6 +10,12 @@ const BATCH_SIZE = 400;
 // trigger can persist a continuation cursor and exit cleanly.
 const DEADLINE_HEADROOM_MS = 20_000;
 
+// A2: cap on consecutive runs that make no forward progress. `attempts` is
+// reset to 0 whenever a batch commits, so this bounds retry storms (a stuck or
+// self-re-triggering job) without penalising a large cascade that legitimately
+// needs many continuation rounds.
+const MAX_CASCADE_ATTEMPTS = 5;
+
 export type WalletCascadeStage =
   | "transactions"
   | "proposals_down"
@@ -82,6 +88,39 @@ export async function enqueueWalletCascadeJob(
 }
 
 /**
+ * Firestore I/O seam for {@link processWalletCascadeJob}. Injected so the
+ * control flow (attempts ceiling, continuation, failure handling) can be
+ * unit-tested without the emulator. Defaults to the real Firestore-backed
+ * implementation.
+ */
+export interface ProcessWalletCascadeDeps {
+  loadJob(jobId: string): Promise<WalletCascadeJob | null>;
+  updateJob(jobId: string, patch: Record<string, unknown>): Promise<void>;
+  runBatch(input: {
+    job: WalletCascadeJob;
+    cursor: WalletCascadeContinuationCursor;
+    onCommit: (delta: number) => void;
+  }): Promise<WalletCascadeContinuationCursor>;
+  now(): number;
+}
+
+function createFirestoreCascadeDeps(): ProcessWalletCascadeDeps {
+  const db = getFirestore();
+  const col = db.collection(WALLET_CASCADE_JOBS_COLLECTION);
+  return {
+    async loadJob(jobId) {
+      const snap = await col.doc(jobId).get();
+      return snap.exists ? (snap.data() as WalletCascadeJob) : null;
+    },
+    async updateJob(jobId, patch) {
+      await col.doc(jobId).update(patch);
+    },
+    runBatch: (input) => runOneBatch({ db, ...input }),
+    now: () => Date.now(),
+  };
+}
+
+/**
  * Processes (or resumes) a cascade job. Designed to be called from a
  * Firestore onCreate/onUpdate trigger. Honours a soft deadline so the
  * function can persist progress and exit before the hard 540s limit.
@@ -92,24 +131,40 @@ export async function enqueueWalletCascadeJob(
 export async function processWalletCascadeJob(
   jobId: string,
   deadlineMs: number,
+  deps: ProcessWalletCascadeDeps = createFirestoreCascadeDeps(),
 ): Promise<void> {
-  const db = getFirestore();
-  const jobRef = db.collection(WALLET_CASCADE_JOBS_COLLECTION).doc(jobId);
-
-  const jobSnap = await jobRef.get();
-  if (!jobSnap.exists) {
+  const job = await deps.loadJob(jobId);
+  if (!job) {
     logger.warn("wallet_cascade_job not found", { jobId });
     return;
   }
-  const job = jobSnap.data() as WalletCascadeJob;
   if (job.status === "completed" || job.status === "failed") {
     return;
   }
 
-  await jobRef.update({
+  // A2: bounded retries. `attempts` counts consecutive runs that made no
+  // progress (reset to 0 on every committed batch below). Without a ceiling a
+  // job that never reaches a terminal state — e.g. one that keeps erroring, or
+  // whose failed-state write itself keeps failing (A1) — would re-trigger
+  // itself until the 30-day TTL. The ceiling forces convergence to "failed".
+  if ((job.attempts ?? 0) >= MAX_CASCADE_ATTEMPTS) {
+    await deps.updateJob(jobId, {
+      status: "failed",
+      progress: job.progress,
+      error: "MAX_CASCADE_ATTEMPTS_EXCEEDED",
+      completedAt: new Date().toISOString(),
+    });
+    logger.error("wallet_cascade_job exceeded max attempts", {
+      jobId,
+      attempts: job.attempts,
+    });
+    return;
+  }
+
+  await deps.updateJob(jobId, {
     status: "running",
     startedAt: job.startedAt || new Date().toISOString(),
-    attempts: FieldValue.increment(1),
+    attempts: (job.attempts ?? 0) + 1,
   });
 
   let cursor: WalletCascadeContinuationCursor = job.continuationCursor || {
@@ -119,14 +174,14 @@ export async function processWalletCascadeJob(
 
   try {
     while (cursor.stage !== "done") {
-      if (Date.now() >= deadlineMs) {
-        await jobRef.update({
+      if (deps.now() >= deadlineMs) {
+        await deps.updateJob(jobId, {
           status: "pending",
           progress,
           continuationCursor: cursor,
         });
         // Bump triggers another run via onUpdate (no-op if rules forbid).
-        await jobRef.update({ continuationKick: Date.now() });
+        await deps.updateJob(jobId, { continuationKick: deps.now() });
         logger.info("wallet_cascade_job paused for continuation", {
           jobId,
           cursor,
@@ -135,8 +190,7 @@ export async function processWalletCascadeJob(
         return;
       }
 
-      cursor = await runOneBatch({
-        db,
+      cursor = await deps.runBatch({
         job,
         cursor,
         onCommit: (delta) => {
@@ -148,10 +202,17 @@ export async function processWalletCascadeJob(
         },
       });
 
-      await jobRef.update({ progress, continuationCursor: cursor });
+      // A batch committed → real forward progress was made, so reset the
+      // no-progress counter. A legitimately large cascade that needs many
+      // continuation rounds is thus never mistaken for a stuck/looping job.
+      await deps.updateJob(jobId, {
+        progress,
+        continuationCursor: cursor,
+        attempts: 0,
+      });
     }
 
-    await jobRef.update({
+    await deps.updateJob(jobId, {
       status: "completed",
       progress,
       completedAt: new Date().toISOString(),
@@ -160,7 +221,7 @@ export async function processWalletCascadeJob(
     logger.info("wallet_cascade_job completed", { jobId, progress });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await jobRef.update({
+    await deps.updateJob(jobId, {
       status: "failed",
       progress,
       error: message,
