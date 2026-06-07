@@ -82,7 +82,6 @@ async function ensureWidget(): Promise<string> {
 
   widgetId = turnstile.render(container, {
     sitekey: SITE_KEY,
-    size: "invisible",
     execution: "execute",
     appearance: "interaction-only",
     callback: (token: string) => {
