@@ -47,7 +47,9 @@ test.describe("Auth Registration", () => {
     const testName = `Teste Claims ${timestamp}`;
     const testCompanyName = `Empresa Claims ${timestamp}`;
 
-    const testPhone = "11999999999";
+    // Valid BR mobile: real-looking subscriber (not repeated/sequential, not in
+    // the backend's fake-number blocklist) so validateBrazilMobilePhone passes.
+    const testPhone = "11987654321";
 
     await registerPage.goto();
     await registerPage.isLoaded();
@@ -207,7 +209,7 @@ test.describe("Auth Registration", () => {
       name: testName,
       email: testEmail,
       password: testPassword,
-      phone: "11999999999",
+      phone: "11987654321",
     });
     await registerPage.fillStep2({ companyName: testCompanyName });
     await registerPage.submitStep3();
