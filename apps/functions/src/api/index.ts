@@ -5,7 +5,6 @@ import { logger } from "../lib/logger";
 import { validateFirebaseIdToken } from "./middleware/auth";
 import { requireActiveSubscription } from "./middleware/require-active-subscription";
 import { CORS_OPTIONS } from "../deploymentConfig";
-import { proxyImage } from "./controllers/proxy.controller";
 
 import { coreRoutes } from "./routes/core.routes";
 import { financeRoutes } from "./routes/finance.routes";
@@ -381,9 +380,6 @@ app.get(
     res.send("OK");
   },
 );
-
-// Proxy image - must be public for PDF generation
-app.get("/v1/aux/proxy-image", publicGeneralLimiter, proxyImage);
 
 app.use("/webhooks/whatsapp", publicWebhookLimiter, whatsappRoutes);
 app.use("/webhooks/asaas", publicWebhookLimiter, asaasWebhookRoutes);
