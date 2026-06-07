@@ -13,7 +13,10 @@ jest.mock("../../../lib/logger", () => ({
 }));
 
 jest.mock("firebase-admin/firestore", () => ({
-  FieldValue: { delete: () => ({ __delete: true }) },
+  FieldValue: {
+    delete: () => ({ __op: "delete" }),
+    increment: (n: number) => ({ __op: "increment", n }),
+  },
   getFirestore: jest.fn(),
 }));
 
@@ -23,6 +26,29 @@ import {
   type WalletCascadeJob,
   type WalletCascadeContinuationCursor,
 } from "../wallet-cascade-job.service";
+
+/**
+ * Mirrors how real Firestore applies a patch, interpreting the FieldValue
+ * sentinels the production code uses: `increment(n)` and `delete()`. This lets
+ * the fake store honour the atomic `attempts: FieldValue.increment(1)` write.
+ */
+function applyPatch(
+  job: WalletCascadeJob,
+  patch: Record<string, unknown>,
+): WalletCascadeJob {
+  const next = { ...job } as Record<string, unknown>;
+  for (const [key, value] of Object.entries(patch)) {
+    const op = (value as { __op?: string } | null)?.__op;
+    if (op === "increment") {
+      next[key] = (Number(next[key]) || 0) + (value as { n: number }).n;
+    } else if (op === "delete") {
+      delete next[key];
+    } else {
+      next[key] = value;
+    }
+  }
+  return next as unknown as WalletCascadeJob;
+}
 
 function makeJob(over: Partial<WalletCascadeJob> = {}): WalletCascadeJob {
   return {
@@ -60,7 +86,7 @@ function makeDeps(opts: FakeDepsOptions) {
         throw new Error("firestore unavailable");
       }
       patches.push(patch);
-      job = { ...(job as WalletCascadeJob), ...patch } as WalletCascadeJob;
+      job = applyPatch(job as WalletCascadeJob, patch);
     },
     runBatch,
     now: () => (nowQueue.length > 1 ? (nowQueue.shift() as number) : nowQueue[0]),
@@ -140,7 +166,7 @@ describe("processWalletCascadeJob — failed-state persistence is best-effort (A
         if (firestoreDown && patch.status === "failed") {
           throw new Error("firestore unavailable");
         }
-        job = { ...job, ...patch } as WalletCascadeJob;
+        job = applyPatch(job, patch);
       },
       runBatch,
       now: () => 0,

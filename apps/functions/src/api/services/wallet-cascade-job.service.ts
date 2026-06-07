@@ -159,7 +159,9 @@ export async function processWalletCascadeJob(
   await deps.updateJob(jobId, {
     status: "running",
     startedAt: job.startedAt || new Date().toISOString(),
-    attempts: (job.attempts ?? 0) + 1,
+    // Atomic so concurrent triggers for the same job (the pending→running race
+    // window) cannot lose an increment via read-modify-write.
+    attempts: FieldValue.increment(1),
   });
 
   let cursor: WalletCascadeContinuationCursor = job.continuationCursor || {
