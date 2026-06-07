@@ -44,10 +44,17 @@ test.describe("Auth Registration", () => {
     const testName = `Teste Claims ${timestamp}`;
     const testCompanyName = `Empresa Claims ${timestamp}`;
 
+    const testPhone = "11999999999";
+
     await registerPage.goto();
     await registerPage.isLoaded();
 
-    await registerPage.fillStep1({ name: testName, email: testEmail, password: testPassword });
+    await registerPage.fillStep1({
+      name: testName,
+      email: testEmail,
+      password: testPassword,
+      phone: testPhone,
+    });
     await registerPage.fillStep2({ companyName: testCompanyName });
     await registerPage.submitStep3();
 
@@ -74,6 +81,11 @@ test.describe("Auth Registration", () => {
     expect(userData["tenantId"]).toBe(expectedTenantId);
     expect(userData["role"]).toBe("free");
     expect(userData["email"]).toBe(testEmail);
+    // Phone must be persisted on the user doc (was previously dropped at signup).
+    expect(userData["phoneNumber"]).toBeTruthy();
+    expect(String(userData["phoneNumber"]).replace(/\D/g, "")).toContain(
+      testPhone,
+    );
 
     // Verify tenants/{tenantId} doc
     const tenantDoc = await db.collection("tenants").doc(expectedTenantId).get();
@@ -154,5 +166,60 @@ test.describe("Auth Registration", () => {
     await expect(
       page.getByText("Nome da empresa é obrigatório"),
     ).toBeVisible({ timeout: 5000 });
+  });
+
+  // REG-06: On-blur validation for the phone field (step 1)
+  test("REG-06: phone field shows validation error on blur, before submitting", async ({
+    page,
+  }) => {
+    const registerPage = new RegisterPage(page);
+    await registerPage.goto();
+    await registerPage.isLoaded();
+
+    // Type a too-short phone and leave the field — error must appear on blur.
+    await registerPage.phoneInput.click();
+    await registerPage.phoneInput.fill("1199");
+    await registerPage.phoneInput.blur();
+
+    await expect(page.getByText("Telefone inválido")).toBeVisible({
+      timeout: 5000,
+    });
+  });
+
+  // REG-07: Registered data is visible immediately after signup (no manual F5)
+  test("REG-07: registered name and company are visible right after signup, without a manual reload", async ({
+    page,
+  }) => {
+    const registerPage = new RegisterPage(page);
+    const timestamp = Date.now();
+    const testEmail = `reg-test-${timestamp}@gmail.com`;
+    const testPassword = "TestReg1234!";
+    const testName = `Visivel ${timestamp}`;
+    const testCompanyName = `Empresa Visivel ${timestamp}`;
+
+    await registerPage.goto();
+    await registerPage.isLoaded();
+
+    await registerPage.fillStep1({
+      name: testName,
+      email: testEmail,
+      password: testPassword,
+      phone: "11999999999",
+    });
+    await registerPage.fillStep2({ companyName: testCompanyName });
+    await registerPage.submitStep3();
+    await registerPage.waitForHomeRedirect();
+
+    // Header (app shell) shows the registered company name, not "Minha Empresa".
+    await expect(page.getByText(testCompanyName).first()).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Profile shows the registered name (read from the user doc, not the fallback).
+    await page.goto("/profile");
+    await expect(page).toHaveURL(/\/profile/, { timeout: 10000 });
+    await expect(page.getByText(testName).first()).toBeVisible({
+      timeout: 10000,
+    });
   });
 });

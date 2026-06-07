@@ -71,6 +71,7 @@ function LoginContent() {
     handleForgotPassword,
     handleGoogleAuth,
     handleLogoUpload,
+    handlePhoneBlur,
     handleConfirmPhoneCode,
     handleResendPhoneCode,
     isGoogleLoading,
@@ -294,6 +295,7 @@ function LoginContent() {
                         name="reg-phone"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
+                        onBlur={handlePhoneBlur}
                       />
                       {errors.phoneNumber && (
                         <p className="text-sm text-destructive">

@@ -4,6 +4,7 @@ import {
   validateCompanyNameValue,
   validateEmailValue,
   validatePasswordValue,
+  validatePhoneValue,
 } from "../register-validation";
 
 describe("register-validation", () => {
@@ -83,6 +84,36 @@ describe("register-validation", () => {
 
     it("accepts a password with 6 or more chars", () => {
       expect(validatePasswordValue("123456")).toBeNull();
+    });
+  });
+
+  describe("validatePhoneValue", () => {
+    it("accepts empty phone (optional field)", () => {
+      expect(validatePhoneValue("")).toBeNull();
+      expect(validatePhoneValue("   ")).toBeNull();
+    });
+
+    it("rejects a too-short phone", () => {
+      expect(validatePhoneValue("11")).toBe("Telefone inválido");
+      expect(validatePhoneValue("(11) 9999")).toBe("Telefone inválido");
+    });
+
+    it("accepts a valid mobile (11 digits) in masked or raw form", () => {
+      expect(validatePhoneValue("(11) 99999-9999")).toBeNull();
+      expect(validatePhoneValue("11999999999")).toBeNull();
+    });
+
+    it("accepts a valid landline (10 digits)", () => {
+      expect(validatePhoneValue("(11) 3333-3333")).toBeNull();
+    });
+
+    it("accepts numbers prefixed with the 55 country code", () => {
+      expect(validatePhoneValue("5511999999999")).toBeNull();
+      expect(validatePhoneValue("+55 (11) 99999-9999")).toBeNull();
+    });
+
+    it("rejects a number that is too long", () => {
+      expect(validatePhoneValue("119999999990000")).toBe("Telefone inválido");
     });
   });
 });

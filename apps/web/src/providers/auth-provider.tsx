@@ -14,6 +14,7 @@ import {
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { retryUntil } from "@/lib/async/retry";
 import { useRouter } from "next/navigation";
 import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
 import { AuthService } from "@/services/auth-service";
@@ -212,7 +213,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<User | null> => {
     try {
       const userDocRef = doc(db, "users", firebaseUser.uid);
-      const userDoc = await getDoc(userDocRef);
+      // Right after self-registration, createUserWithEmailAndPassword signs the
+      // user in (firing this listener) before handleRegister's setDoc lands.
+      // Retry while the doc is missing so we read the freshly-written profile
+      // instead of falling back to a degraded free-user shape.
+      const userDoc = await retryUntil(
+        () => getDoc(userDocRef),
+        (snap) => snap.exists(),
+        { attempts: 4, delayMs: 400 },
+      );
 
       if (userDoc.exists()) {
         const userData = userDoc.data();

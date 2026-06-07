@@ -24,6 +24,7 @@ import { callPublicApi } from "@/lib/api-client";
 import { toast } from "@/lib/toast";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
+import { validatePhoneValue } from "../_lib/register-validation";
 
 type AuthMode = "login" | "register" | "forgot";
 const AUTH_MODES: AuthMode[] = ["login", "register", "forgot"];
@@ -104,6 +105,7 @@ interface UseLoginFormReturn {
   handleForgotPassword: (e?: React.FormEvent) => Promise<void>;
   handleGoogleAuth: () => Promise<void>;
   handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handlePhoneBlur: () => void;
   handleConfirmPhoneCode: () => Promise<void>;
   handleResendPhoneCode: () => Promise<void>;
 }
@@ -238,7 +240,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, user, isLoading, isSessionSynced, forceSyncSession } =
+  const { login, resolveTotpLogin, user, isLoading, isSessionSynced, forceSyncSession, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -662,6 +664,19 @@ export function useLoginForm(): UseLoginFormReturn {
     }
   };
 
+  const handlePhoneBlur = () => {
+    const message = validatePhoneValue(phoneNumber);
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (message) {
+        next.phoneNumber = message;
+      } else {
+        delete next.phoneNumber;
+      }
+      return next;
+    });
+  };
+
   const handleRegister = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError("");
@@ -761,6 +776,7 @@ export function useLoginForm(): UseLoginFormReturn {
         role: "free",
         tenantId: tenantId,
         companyId: tenantId,
+        ...(phoneNumber.trim() ? { phoneNumber: phoneNumber.trim() } : {}),
         onboarding: {
           version: "core-v1",
           status: "active",
@@ -772,6 +788,16 @@ export function useLoginForm(): UseLoginFormReturn {
         createdAt: now,
         updatedAt: now,
       });
+
+      // createUserWithEmailAndPassword already signed the user in and fired the
+      // auth listener before these writes landed, so the context may hold a
+      // degraded fallback. Re-read the freshly-written profile now instead of
+      // forcing the user to reload the page.
+      try {
+        await refreshUser();
+      } catch (refreshErr) {
+        console.error("Failed to refresh user after registration:", refreshErr);
+      }
 
       try {
         await AuthService.sendVerificationEmail();
@@ -914,6 +940,7 @@ export function useLoginForm(): UseLoginFormReturn {
     handleForgotPassword,
     handleGoogleAuth,
     handleLogoUpload,
+    handlePhoneBlur,
     handleConfirmPhoneCode,
     handleResendPhoneCode,
     resetSent,

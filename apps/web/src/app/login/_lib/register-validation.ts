@@ -38,3 +38,20 @@ export function validatePasswordValue(password: string): string | null {
   }
   return null;
 }
+
+/**
+ * Phone is optional. When provided, accept Brazilian formats: 10-11 digits
+ * without country code (DDD + 8/9 subscriber) or 12-13 digits prefixed with 55.
+ */
+export function validatePhoneValue(phone: string): string | null {
+  const value = (phone || "").trim();
+  if (!value) {
+    return null;
+  }
+  const digits = value.replace(/\D/g, "");
+  const isValid =
+    digits.length === 10 ||
+    digits.length === 11 ||
+    ((digits.length === 12 || digits.length === 13) && digits.startsWith("55"));
+  return isValid ? null : "Telefone inválido";
+}

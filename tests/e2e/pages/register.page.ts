@@ -5,6 +5,7 @@ export class RegisterPage {
   readonly nameInput: Locator;
   readonly emailInput: Locator;
   readonly passwordInput: Locator;
+  readonly phoneInput: Locator;
   readonly companyNameInput: Locator;
 
   constructor(page: Page) {
@@ -12,6 +13,7 @@ export class RegisterPage {
     this.nameInput = page.locator("#reg-name");
     this.emailInput = page.locator("#email");
     this.passwordInput = page.locator("#password");
+    this.phoneInput = page.locator("#reg-phone");
     this.companyNameInput = page.locator("#companyName");
   }
 
@@ -25,10 +27,19 @@ export class RegisterPage {
     return true;
   }
 
-  async fillStep1(data: { name: string; email: string; password: string }): Promise<void> {
+  async fillStep1(data: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }): Promise<void> {
     // Click before fill — the form uses readOnly to prevent autofill; click unlocks it
     await this.nameInput.click();
     await this.nameInput.fill(data.name);
+    if (data.phone) {
+      await this.phoneInput.click();
+      await this.phoneInput.fill(data.phone);
+    }
     await this.emailInput.click();
     await this.emailInput.fill(data.email);
     await this.passwordInput.click();
