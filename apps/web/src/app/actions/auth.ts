@@ -2,7 +2,7 @@
 
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { shouldAcceptLegacyAuthCookie } from "@/lib/legacy-auth-cookie";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 type ActionResult =
   | { success: true }
@@ -11,7 +11,10 @@ type ActionResult =
 async function requireSuperAdminSession(): Promise<{ uid: string }> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("__session")?.value;
-  const allowLegacyCookieFallback = shouldAcceptLegacyAuthCookie();
+  const headerStore = await headers();
+  const allowLegacyCookieFallback = shouldAcceptLegacyAuthCookie({
+    host: headerStore.get("host"),
+  });
   const legacyIdToken = allowLegacyCookieFallback
     ? cookieStore.get("firebase-auth-token")?.value
     : undefined;
