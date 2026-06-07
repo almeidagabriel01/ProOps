@@ -8,6 +8,7 @@
  */
 
 import type { Request, Response } from "express";
+import { randomUUID } from "crypto";
 
 process.env.GOOGLE_CALENDAR_SYNC_ENABLED = "true";
 process.env.GOOGLE_CALENDAR_CLIENT_ID = "test-client-id";
@@ -90,9 +91,11 @@ function installDb(opts: { stateData?: unknown; existingIntegration?: unknown })
   return { setIntegrationSpy, stateDeleteSpy };
 }
 
+const VALID_STATE = "11111111-1111-4111-8111-111111111111"; // valid v4 UUID
+
 function makeReqRes() {
   const req = {
-    query: { state: "state-abc", code: "auth-code" },
+    query: { state: VALID_STATE, code: "auth-code" },
     headers: { host: "dev.example.com", "x-forwarded-proto": "https" },
   } as unknown as Request;
   const redirect = jest.fn();
@@ -180,5 +183,78 @@ describe("handleGoogleCalendarCallback — encrypt -> persist wiring", () => {
 
     expect(setIntegrationSpy).not.toHaveBeenCalled();
     expect(String(redirect.mock.calls[0][0])).toContain("googleCalendar=error");
+  });
+});
+
+describe("handleGoogleCalendarCallback — M5 query validation (Zod)", () => {
+  it("VALID: state(uuid) + code proceeds and persists", async () => {
+    mockGetToken.mockResolvedValueOnce({ tokens: { refresh_token: "rt" } });
+    const { setIntegrationSpy } = installDb({
+      stateData: { uid: "u", tenantId: "tenant-1", expiresAtMs: FUTURE_MS },
+    });
+    const { req, res } = makeReqRes(); // VALID_STATE + code already
+
+    await handleGoogleCalendarCallback(req, res);
+
+    expect(setIntegrationSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("VALID: accepts a real crypto.randomUUID() state (generator <-> regex agree)", async () => {
+    mockGetToken.mockResolvedValueOnce({ tokens: { refresh_token: "rt" } });
+    const { setIntegrationSpy } = installDb({
+      stateData: { uid: "u", tenantId: "tenant-1", expiresAtMs: FUTURE_MS },
+    });
+    const { req, res } = makeReqRes();
+    (req as unknown as { query: Record<string, string> }).query = {
+      state: randomUUID(), // the actual generator used by getGoogleCalendarAuthUrl
+      code: "auth-code",
+    };
+
+    await handleGoogleCalendarCallback(req, res);
+
+    expect(setIntegrationSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("ERROR: ?error=access_denied (consent declined) surfaces the reason, no write", async () => {
+    const { setIntegrationSpy } = installDb({ stateData: undefined });
+    const { req, res, redirect } = makeReqRes();
+    (req as unknown as { query: Record<string, string> }).query = {
+      state: VALID_STATE,
+      error: "access_denied",
+    };
+
+    await handleGoogleCalendarCallback(req, res);
+
+    expect(setIntegrationSpy).not.toHaveBeenCalled();
+    const url = String(redirect.mock.calls[0][0]);
+    expect(url).toContain("googleCalendar=error");
+    expect(url).toContain("reason=access_denied"); // real reason, not "missing_code"
+  });
+
+  it("MALFORMED: non-UUID state is rejected (invalid_request), no write", async () => {
+    const { setIntegrationSpy } = installDb({ stateData: undefined });
+    const { req, res, redirect } = makeReqRes();
+    (req as unknown as { query: Record<string, string> }).query = {
+      state: "not-a-uuid",
+      code: "x",
+    };
+
+    await handleGoogleCalendarCallback(req, res);
+
+    expect(setIntegrationSpy).not.toHaveBeenCalled();
+    expect(String(redirect.mock.calls[0][0])).toContain("reason=invalid_request");
+  });
+
+  it("MALFORMED: neither code nor error fails the refine (invalid_request)", async () => {
+    const { setIntegrationSpy } = installDb({ stateData: undefined });
+    const { req, res, redirect } = makeReqRes();
+    (req as unknown as { query: Record<string, string> }).query = {
+      state: VALID_STATE,
+    };
+
+    await handleGoogleCalendarCallback(req, res);
+
+    expect(setIntegrationSpy).not.toHaveBeenCalled();
+    expect(String(redirect.mock.calls[0][0])).toContain("reason=invalid_request");
   });
 });

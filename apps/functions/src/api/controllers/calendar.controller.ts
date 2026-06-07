@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { Request, Response } from "express";
 import { google } from "googleapis";
+import { z } from "zod";
 import { db } from "../../init";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 import { isGoogleCalendarSyncEnabled } from "../../lib/google-calendar-feature";
@@ -26,6 +27,27 @@ const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events.owned",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
+
+// RFC 4122 UUID — `state` is generated via crypto.randomUUID() (v4).
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// OAuth callback query validation. `state` must be our UUID; `code` is an opaque
+// non-empty string (Google guarantees no format) and is optional so the
+// consent-declined flow (?error=access_denied, no code) is not broken. `error`
+// is a short token per RFC 6749. The refine requires at least one of code/error.
+const GoogleCalendarCallbackQuerySchema = z
+  .object({
+    state: z.string().regex(UUID_RE),
+    code: z.string().min(1).optional(),
+    error: z
+      .string()
+      .regex(/^[a-z0-9_-]{1,64}$/i)
+      .optional(),
+  })
+  .refine((data) => Boolean(data.code) || Boolean(data.error), {
+    message: "code_or_error_required",
+  });
 
 type CalendarEventStatus = "scheduled" | "completed" | "canceled";
 type GoogleSyncStatus = "disabled" | "synced" | "error" | "removed";
@@ -1435,11 +1457,23 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
     return res.redirect(buildFrontendCalendarUrl(req, "error", "integration_disabled"));
   }
 
-  const state = String(req.query.state || "").trim();
-  const code = String(req.query.code || "").trim();
+  const parsedQuery = GoogleCalendarCallbackQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return res.redirect(buildFrontendCalendarUrl(req, "error", "invalid_request"));
+  }
 
-  if (!state || !code) {
-    return res.redirect(buildFrontendCalendarUrl(req, "error", "missing_code"));
+  const { state, code, error: oauthError } = parsedQuery.data;
+
+  // User declined consent: Google redirects with ?error=access_denied (and no
+  // code). Surface the real reason instead of treating it as a malformed request.
+  if (oauthError) {
+    return res.redirect(buildFrontendCalendarUrl(req, "error", oauthError));
+  }
+
+  // The schema's refine guarantees code is present when error is absent; this
+  // guard narrows the type and stays defensive.
+  if (!code) {
+    return res.redirect(buildFrontendCalendarUrl(req, "error", "invalid_request"));
   }
 
   try {
