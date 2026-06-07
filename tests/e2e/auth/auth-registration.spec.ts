@@ -110,4 +110,49 @@ test.describe("Auth Registration", () => {
     expect(page.url()).not.toContain("/login");
     expect(page.url()).not.toContain("/register");
   });
+
+  // REG-04: On-blur validation for the name field (step 1)
+  test("REG-04: name field shows validation error on blur, before submitting", async ({
+    page,
+  }) => {
+    const registerPage = new RegisterPage(page);
+    await registerPage.goto();
+    await registerPage.isLoaded();
+
+    // Type a too-short name and leave the field — the error must appear on blur,
+    // not only after clicking "Continuar"/"Finalizar".
+    await registerPage.nameInput.click();
+    await registerPage.nameInput.fill("a");
+    await registerPage.nameInput.blur();
+
+    await expect(
+      page.getByText("Nome deve ter pelo menos 2 caracteres"),
+    ).toBeVisible({ timeout: 5000 });
+  });
+
+  // REG-05: On-blur validation for the company name field (step 2)
+  test("REG-05: company name field shows validation error on blur, before submitting", async ({
+    page,
+  }) => {
+    const registerPage = new RegisterPage(page);
+    const timestamp = Date.now();
+    await registerPage.goto();
+    await registerPage.isLoaded();
+
+    // Advance to step 2 with valid step-1 data (does not submit the form).
+    await registerPage.fillStep1({
+      name: `Teste Blur ${timestamp}`,
+      email: `reg-blur-${timestamp}@gmail.com`,
+      password: "TestReg1234!",
+    });
+
+    // Type a too-short company name and leave the field.
+    await registerPage.companyNameInput.click();
+    await registerPage.companyNameInput.fill("x");
+    await registerPage.companyNameInput.blur();
+
+    await expect(
+      page.getByText("Nome da empresa é obrigatório"),
+    ).toBeVisible({ timeout: 5000 });
+  });
 });

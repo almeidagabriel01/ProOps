@@ -7,6 +7,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { useLoginForm } from "./_hooks/useLoginForm";
 import { CredentialFields } from "./_components/form-fields";
+import {
+  validateNameValue,
+  validateCompanyNameValue,
+  validateEmailValue,
+  validatePasswordValue,
+} from "./_lib/register-validation";
 import { EmailVerificationPending } from "@/components/auth/email-verification-pending";
 import {
   StepWizard,
@@ -82,45 +88,44 @@ function LoginContent() {
 
   const validateRegisterStep1 = (): boolean => {
     const newErrors: Record<string, string> = {};
-    let isValid = true;
 
-    if (!name || name.trim().length < 2) {
-      newErrors.name = "Nome deve ter pelo menos 2 caracteres";
-      isValid = false;
-    }
+    const nameError = validateNameValue(name);
+    if (nameError) newErrors.name = nameError;
 
-    if (!email || !email.trim()) {
-      newErrors.email = "Email é obrigatório";
-      isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = "Email inválido";
-      isValid = false;
-    }
+    const emailError = validateEmailValue(email);
+    if (emailError) newErrors.email = emailError;
 
-    if (!password || password.length < 6) {
-      newErrors.password = "Senha deve ter pelo menos 6 caracteres";
-      isValid = false;
-    }
+    const passwordError = validatePasswordValue(password);
+    if (passwordError) newErrors.password = passwordError;
 
     setRegisterErrors(newErrors);
-    return isValid;
+    return Object.keys(newErrors).length === 0;
   };
 
   const validateRegisterStep2 = (): boolean => {
     const newErrors: Record<string, string> = {};
-    let isValid = true;
 
-    if (!companyName || companyName.trim().length < 2) {
-      newErrors.companyName = "Nome da empresa é obrigatório";
-      isValid = false;
-    }
+    const companyNameError = validateCompanyNameValue(companyName);
+    if (companyNameError) newErrors.companyName = companyNameError;
 
     setRegisterErrors(newErrors);
-    return isValid;
+    return Object.keys(newErrors).length === 0;
   };
 
   const validateRegisterStep3 = (): boolean => {
     return true; // Optional fields (color, logo)
+  };
+
+  const setRegisterFieldError = (field: string, message: string | null) => {
+    setRegisterErrors((prev) => {
+      const newErrors = { ...prev };
+      if (message) {
+        newErrors[field] = message;
+      } else {
+        delete newErrors[field];
+      }
+      return newErrors;
+    });
   };
 
   const clearRegisterError = (field: string) => {
@@ -268,6 +273,9 @@ function LoginContent() {
                             if (e.target.value.trim().length >= 2)
                               clearRegisterError("name");
                           }}
+                          onBlur={() =>
+                            setRegisterFieldError("name", validateNameValue(name))
+                          }
                           placeholder="Nome completo"
                           className={`pl-10 h-11 ${registerErrors.name ? "border-destructive" : ""}`}
                         />
@@ -377,6 +385,12 @@ function LoginContent() {
                             if (e.target.value.trim().length >= 2)
                               clearRegisterError("companyName");
                           }}
+                          onBlur={() =>
+                            setRegisterFieldError(
+                              "companyName",
+                              validateCompanyNameValue(companyName),
+                            )
+                          }
                           placeholder="Minha Empresa"
                           className={`pl-10 h-11 ${registerErrors.companyName ? "border-destructive" : ""}`}
                         />
