@@ -8,6 +8,7 @@ import {
   auditSuperAdminCrossTenantWrite,
 } from "../../lib/tenant-resolution";
 import { resolveWalletRef } from "../../lib/finance-helpers";
+import { buildProposalTransactionsCleanupQuery } from "../../lib/proposal-transactions-query";
 import {
   enforceTenantPlanLimit,
   buildMonthlyPeriodWindowUtc,
@@ -1921,7 +1922,11 @@ async function cleanupProposalTransactions(
 ) {
   try {
     const txRef = db.collection("transactions");
-    const snapshot = await txRef.where("proposalId", "==", proposalId).get();
+    const snapshot = await buildProposalTransactionsCleanupQuery(
+      txRef,
+      proposalId,
+      tenantId,
+    ).get();
 
     if (snapshot.empty) return;
 

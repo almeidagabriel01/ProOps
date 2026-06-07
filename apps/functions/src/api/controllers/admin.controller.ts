@@ -7,6 +7,12 @@ import { generateRandomPassword } from "../../lib/admin-helpers";
 import { UserDoc } from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import { logger } from "../../lib/logger";
+import { fetchAuditEvents } from "../../lib/audit-events-query";
+import {
+  deleteAllTenantUsers,
+  MAX_TENANT_USERS_BATCH,
+  type TenantUserSnap,
+} from "../../lib/tenant-users-deletion";
 import {
   incrementSecurityCounter,
   resolveSecurityAuditCollection,
@@ -1638,17 +1644,29 @@ export const deleteTenant = async (req: Request, res: Response) => {
       source: "admin_controller",
     });
 
-    const userSnaps = await Promise.all([
-      db.collection("users").where("tenantId", "==", tenantId).get(),
-      db.collection("users").where("companyId", "==", tenantId).get(),
-    ]);
+    const fetchNextUserBatch = async (): Promise<TenantUserSnap[]> => {
+      const userSnaps = await Promise.all([
+        db
+          .collection("users")
+          .where("tenantId", "==", tenantId)
+          .limit(MAX_TENANT_USERS_BATCH)
+          .get(),
+        db
+          .collection("users")
+          .where("companyId", "==", tenantId)
+          .limit(MAX_TENANT_USERS_BATCH)
+          .get(),
+      ]);
 
-    const uniqueUsers = new Map<string, FirebaseFirestore.DocumentSnapshot>();
-    userSnaps.forEach((snap) => {
-      snap.docs.forEach((docSnap) => uniqueUsers.set(docSnap.id, docSnap));
-    });
+      const uniqueUsers = new Map<string, TenantUserSnap>();
+      userSnaps.forEach((snap) => {
+        snap.docs.forEach((docSnap) => uniqueUsers.set(docSnap.id, docSnap));
+      });
+      return Array.from(uniqueUsers.values());
+    };
 
-    for (const [uid, userSnap] of uniqueUsers) {
+    const deleteTenantUser = async (userSnap: TenantUserSnap): Promise<void> => {
+      const uid = userSnap.id;
       const userRef = db.collection("users").doc(uid);
       await deleteSubcollectionInBatches(userRef, "permissions");
 
@@ -1677,7 +1695,12 @@ export const deleteTenant = async (req: Request, res: Response) => {
       }
 
       await userRef.delete();
-    }
+    };
+
+    await deleteAllTenantUsers({
+      fetchNextBatch: fetchNextUserBatch,
+      deleteUser: deleteTenantUser,
+    });
 
     const tenantCollections = [
       "products",
@@ -1773,8 +1796,10 @@ export const startImpersonation = async (req: Request, res: Response) => {
 /**
  * Returns recent security audit events for the super admin panel. The
  * `security_audit_events` collection is written via the Admin SDK and is denied
- * to the client SDK by Firestore rules, so this is the only read path. Filters
- * are applied in memory over a recent window to avoid composite-index needs.
+ * to the client SDK by Firestore rules, so this is the only read path. The
+ * tenant filter runs at the database level (composite index tenantId+createdAt);
+ * uid/eventType remain in-memory over the tenant-scoped window. See
+ * `fetchAuditEvents` for the index-build fallback.
  */
 export const getAuditEvents = async (req: Request, res: Response) => {
   try {
@@ -1792,21 +1817,10 @@ export const getAuditEvents = async (req: Request, res: Response) => {
         ? Math.min(Math.floor(requestedLimit), 200)
         : 50;
 
-    const snap = await db
-      .collection(resolveSecurityAuditCollection())
-      .orderBy("createdAt", "desc")
-      .limit(500)
-      .get();
-
-    const events = snap.docs
-      .map(
-        (doc) =>
-          ({ id: doc.id, ...doc.data() }) as Record<string, unknown>,
-      )
-      .filter((e) => !tenantId || e.tenantId === tenantId)
-      .filter((e) => !uid || e.uid === uid)
-      .filter((e) => !eventType || e.eventType === eventType)
-      .slice(0, limit);
+    const events = await fetchAuditEvents(
+      db.collection(resolveSecurityAuditCollection()),
+      { tenantId, uid, eventType, limit },
+    );
 
     return res.json({ events });
   } catch (error: unknown) {

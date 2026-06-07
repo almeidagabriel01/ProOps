@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { Request, Response } from "express";
 import { google } from "googleapis";
+import { z } from "zod";
 import { db } from "../../init";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 import { isGoogleCalendarSyncEnabled } from "../../lib/google-calendar-feature";
@@ -26,6 +27,27 @@ const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events.owned",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
+
+// RFC 4122 UUID — `state` is generated via crypto.randomUUID() (v4).
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// OAuth callback query validation. `state` must be our UUID; `code` is an opaque
+// non-empty string (Google guarantees no format) and is optional so the
+// consent-declined flow (?error=access_denied, no code) is not broken. `error`
+// is a short token per RFC 6749. The refine requires at least one of code/error.
+const GoogleCalendarCallbackQuerySchema = z
+  .object({
+    state: z.string().regex(UUID_RE),
+    code: z.string().min(1).optional(),
+    error: z
+      .string()
+      .regex(/^[a-z0-9_-]{1,64}$/i)
+      .optional(),
+  })
+  .refine((data) => Boolean(data.code) || Boolean(data.error), {
+    message: "code_or_error_required",
+  });
 
 type CalendarEventStatus = "scheduled" | "completed" | "canceled";
 type GoogleSyncStatus = "disabled" | "synced" | "error" | "removed";
@@ -214,38 +236,16 @@ function isNotFoundGoogleError(error: unknown): boolean {
   );
 }
 
-function resolveRequestOrigin(req?: Request): string {
-  if (!req && process.env.NODE_ENV === "production") {
-    return resolveFrontendAppOrigin();
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    return resolveFrontendAppOrigin();
-  }
-
-  const forwardedProto = String(req?.headers["x-forwarded-proto"] || "")
-    .split(",")[0]
-    .trim();
-  const forwardedHost = String(req?.headers["x-forwarded-host"] || "")
-    .split(",")[0]
-    .trim();
-  const host = forwardedHost || String(req?.headers.host || "").trim();
-
-  if (host) {
-    const protocol =
-      forwardedProto || (process.env.NODE_ENV === "production" ? "https" : "http");
-    return `${protocol}://${host}`;
-  }
-
-  return resolveFrontendAppOrigin();
-}
-
-function buildFrontendCalendarUrl(
-  req: Request | undefined,
+export function buildFrontendCalendarUrl(
+  _req: Request | undefined,
   status: "connected" | "error",
   reason?: string,
 ): string {
-  const url = new URL("/calendar", resolveRequestOrigin(req));
+  // The origin is always the configured app origin (APP_URL) — never the
+  // request host / x-forwarded-host, which an attacker can spoof to influence
+  // the OAuth redirect_uri (M1). GOOGLE_CALENDAR_REDIRECT_URI is the explicit
+  // override (handled in resolveGoogleCalendarRedirectUri).
+  const url = new URL("/calendar", resolveFrontendAppOrigin());
   url.searchParams.set("googleCalendar", status);
   if (reason) {
     url.searchParams.set("reason", reason);
@@ -257,16 +257,18 @@ function isGoogleCalendarDisabled(): boolean {
   return !isGoogleCalendarSyncEnabled();
 }
 
-function resolveGoogleCalendarRedirectUri(req?: Request): string {
+export function resolveGoogleCalendarRedirectUri(): string {
   const configured = String(process.env.GOOGLE_CALENDAR_REDIRECT_URI || "").trim();
   if (configured) {
     return configured;
   }
 
-  return `${resolveRequestOrigin(req)}/api/backend/v1/calendar/google/callback`;
+  // Derived from the configured app origin (APP_URL) only — never request
+  // headers. GOOGLE_CALENDAR_REDIRECT_URI above is the explicit override.
+  return `${resolveFrontendAppOrigin()}/api/backend/v1/calendar/google/callback`;
 }
 
-function createGoogleOAuthClient(req?: Request) {
+function createGoogleOAuthClient() {
   const clientId = String(process.env.GOOGLE_CALENDAR_CLIENT_ID || "").trim();
   const clientSecret = String(
     process.env.GOOGLE_CALENDAR_CLIENT_SECRET || "",
@@ -279,7 +281,7 @@ function createGoogleOAuthClient(req?: Request) {
   return new google.auth.OAuth2(
     clientId,
     clientSecret,
-    resolveGoogleCalendarRedirectUri(req),
+    resolveGoogleCalendarRedirectUri(),
   );
 }
 
@@ -1091,7 +1093,7 @@ async function cleanupLocalEventsAfterGoogleDisconnect(params: {
     return;
   }
 
-  const oauthClient = createGoogleOAuthClient(params.req);
+  const oauthClient = createGoogleOAuthClient();
   oauthClient.setCredentials({
     refresh_token: params.integration.refreshToken,
   });
@@ -1398,7 +1400,7 @@ export async function getGoogleCalendarAuthUrl(req: Request, res: Response) {
       });
     }
 
-    const oauthClient = createGoogleOAuthClient(req);
+    const oauthClient = createGoogleOAuthClient();
     const state = crypto.randomUUID();
 
     await db.collection(CALENDAR_OAUTH_STATES_COLLECTION).doc(state).set({
@@ -1435,11 +1437,23 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
     return res.redirect(buildFrontendCalendarUrl(req, "error", "integration_disabled"));
   }
 
-  const state = String(req.query.state || "").trim();
-  const code = String(req.query.code || "").trim();
+  const parsedQuery = GoogleCalendarCallbackQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return res.redirect(buildFrontendCalendarUrl(req, "error", "invalid_request"));
+  }
 
-  if (!state || !code) {
-    return res.redirect(buildFrontendCalendarUrl(req, "error", "missing_code"));
+  const { state, code, error: oauthError } = parsedQuery.data;
+
+  // User declined consent: Google redirects with ?error=access_denied (and no
+  // code). Surface the real reason instead of treating it as a malformed request.
+  if (oauthError) {
+    return res.redirect(buildFrontendCalendarUrl(req, "error", oauthError));
+  }
+
+  // The schema's refine guarantees code is present when error is absent; this
+  // guard narrows the type and stays defensive.
+  if (!code) {
+    return res.redirect(buildFrontendCalendarUrl(req, "error", "invalid_request"));
   }
 
   try {
@@ -1467,7 +1481,7 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
       return res.redirect(buildFrontendCalendarUrl(req, "error", "expired_state"));
     }
 
-    const oauthClient = createGoogleOAuthClient(req);
+    const oauthClient = createGoogleOAuthClient();
     const tokenResponse = await oauthClient.getToken(code);
     const tokens = tokenResponse.tokens;
     oauthClient.setCredentials(tokens);
@@ -1602,7 +1616,7 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
 
     if (integration.data.refreshToken) {
       try {
-        const oauthClient = createGoogleOAuthClient(req);
+        const oauthClient = createGoogleOAuthClient();
         await oauthClient.revokeToken(integration.data.refreshToken);
       } catch (error) {
         console.warn(
