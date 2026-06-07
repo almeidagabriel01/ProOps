@@ -109,3 +109,68 @@ describe("processWalletCascadeJob — bounded retries (A2)", () => {
     expect(getJob()?.attempts).toBe(0);
   });
 });
+
+describe("processWalletCascadeJob — failed-state persistence is best-effort (A1) + converges with the ceiling (A2)", () => {
+  it("rethrows the ORIGINAL processing error even when persisting 'failed' itself fails", async () => {
+    const { deps } = makeDeps({
+      initial: makeJob({ attempts: 0, status: "pending" }),
+      batch: async () => {
+        throw new Error("batch boom");
+      },
+      // The "running" entry write succeeds; only the "failed" write fails.
+      failUpdateWhen: (patch) => patch.status === "failed",
+    });
+
+    // Before the fix the failed-state write threw and masked the real cause.
+    await expect(
+      processWalletCascadeJob("job1", Number.MAX_SAFE_INTEGER, deps),
+    ).rejects.toThrow("batch boom");
+  });
+
+  it("converges to 'failed' via the attempts ceiling when the failed-state write keeps failing", async () => {
+    let firestoreDown = true;
+    let job: WalletCascadeJob = makeJob({ attempts: 0, status: "pending" });
+    const runBatch = jest.fn(async () => {
+      throw new Error("batch boom");
+    });
+
+    const deps: ProcessWalletCascadeDeps = {
+      loadJob: async () => ({ ...job }),
+      updateJob: async (_jobId, patch) => {
+        if (firestoreDown && patch.status === "failed") {
+          throw new Error("firestore unavailable");
+        }
+        job = { ...job, ...patch } as WalletCascadeJob;
+      },
+      runBatch,
+      now: () => 0,
+    };
+
+    // While Firestore cannot persist "failed", each run increments attempts and
+    // rethrows the original error — the job stays "running", never stuck-silent.
+    for (let i = 0; i < 5; i++) {
+      await expect(
+        processWalletCascadeJob("job1", Number.MAX_SAFE_INTEGER, deps),
+      ).rejects.toThrow("batch boom");
+    }
+    expect(job.attempts).toBe(5);
+    expect(job.status).toBe("running");
+
+    // attempts now at the ceiling: the next run takes the ceiling path, skips
+    // runBatch, and best-effort marks failed — which still fails (Firestore
+    // down), so it is swallowed and the run returns without throwing.
+    const callsBeforeCeiling = runBatch.mock.calls.length;
+    await processWalletCascadeJob("job1", Number.MAX_SAFE_INTEGER, deps);
+    expect(runBatch.mock.calls.length).toBe(callsBeforeCeiling);
+    expect(job.status).toBe("running");
+
+    // Firestore recovers → the ceiling path finally persists the terminal state.
+    firestoreDown = false;
+    await processWalletCascadeJob("job1", Number.MAX_SAFE_INTEGER, deps);
+    expect(job.status).toBe("failed");
+    expect(job.error).toBe("MAX_CASCADE_ATTEMPTS_EXCEEDED");
+
+    // The batch ran only during the 5 pre-ceiling rounds, never after.
+    expect(runBatch).toHaveBeenCalledTimes(5);
+  });
+});

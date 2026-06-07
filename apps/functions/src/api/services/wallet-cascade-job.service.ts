@@ -148,12 +148,7 @@ export async function processWalletCascadeJob(
   // whose failed-state write itself keeps failing (A1) — would re-trigger
   // itself until the 30-day TTL. The ceiling forces convergence to "failed".
   if ((job.attempts ?? 0) >= MAX_CASCADE_ATTEMPTS) {
-    await deps.updateJob(jobId, {
-      status: "failed",
-      progress: job.progress,
-      error: "MAX_CASCADE_ATTEMPTS_EXCEEDED",
-      completedAt: new Date().toISOString(),
-    });
+    await markJobFailed(deps, jobId, job.progress, "MAX_CASCADE_ATTEMPTS_EXCEEDED");
     logger.error("wallet_cascade_job exceeded max attempts", {
       jobId,
       attempts: job.attempts,
@@ -221,14 +216,38 @@ export async function processWalletCascadeJob(
     logger.info("wallet_cascade_job completed", { jobId, progress });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    await markJobFailed(deps, jobId, progress, message);
+    logger.error("wallet_cascade_job failed", { jobId, error: message, progress });
+    throw err;
+  }
+}
+
+/**
+ * Persists the terminal "failed" state best-effort (A1). If the write itself
+ * fails, the job is left in its current state and will be retried — but the
+ * attempts ceiling (A2) guarantees it still converges to "failed" on a later
+ * run instead of retrying until the 30-day TTL. The caller still rethrows the
+ * original processing error, so the failure cause is never masked by a
+ * persistence error.
+ */
+async function markJobFailed(
+  deps: ProcessWalletCascadeDeps,
+  jobId: string,
+  progress: WalletCascadeProgress,
+  error: string,
+): Promise<void> {
+  try {
     await deps.updateJob(jobId, {
       status: "failed",
       progress,
-      error: message,
+      error,
       completedAt: new Date().toISOString(),
     });
-    logger.error("wallet_cascade_job failed", { jobId, error: message, progress });
-    throw err;
+  } catch (persistErr) {
+    logger.error("wallet_cascade_job failed-state persist error", {
+      jobId,
+      error: persistErr instanceof Error ? persistErr.message : String(persistErr),
+    });
   }
 }
 
