@@ -785,3 +785,13 @@ html[data-shell="locked"] body {
   height: 100%;
   overflow: hidden;
 }
+
+/* Oculta o chrome de UI (banner de cookies, cabeçalhos de share, etc.) na
+   geração de PDF via Playwright (?print=1 + emulateMedia print). Fica aqui,
+   no globals.css, porque o caminho ?print=1 da página de share não injeta o
+   <style> local — apenas globals.css está garantido em todo render. */
+@media print {
+  [data-pdf-ui] {
+    display: none !important;
+  }
+}
