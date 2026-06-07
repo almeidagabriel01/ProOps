@@ -5,3 +5,4 @@ export * from "./billing-queue";
 export * from "./duplicate-handler";
 export * from "./checkout-reservation";
 export * from "./subscription-classifier";
+export * from "./plan-tier-reconciliation";
