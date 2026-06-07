@@ -17,6 +17,7 @@ import {
   findAndCancelDuplicateSubscriptions,
   clearCheckoutReservation,
   classifySubscription,
+  reconcilePlanTier,
 } from "../billing";
 import { db } from "../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
@@ -631,9 +632,42 @@ async function handleCheckoutCompleted(
     }
     const currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
 
+    // B1: derive the applied tier from the billed price, not the mutable
+    // metadata claim. Metadata is validated against the price; on mismatch the
+    // price wins and a security event is emitted.
+    const checkoutPriceId = extractPrimaryPriceId(subscription);
+    const checkoutReconciliation = reconcilePlanTier({
+      priceTier: checkoutPriceId ? resolvePriceToTier(checkoutPriceId) : null,
+      metadataTier: normalizePlanTier(planTier),
+    });
+    if (checkoutReconciliation.mismatch) {
+      const mismatchReason = `metadata=${checkoutReconciliation.metadataTier} price=${checkoutReconciliation.priceTier}`;
+      logSecurityEvent(
+        "stripe_plan_tier_metadata_mismatch",
+        {
+          tenantId,
+          eventId: subscription.id,
+          source: "webhook.checkout.completed",
+          reason: mismatchReason,
+        },
+        "WARN",
+      );
+      void writeSecurityAuditEvent({
+        eventType: "stripe_plan_tier_metadata_mismatch",
+        tenantId,
+        eventId: subscription.id,
+        source: "webhook.checkout.completed",
+        reason: mismatchReason,
+      });
+    }
+    const resolvedCheckoutTier = checkoutReconciliation.resolvedTier;
+    if (!resolvedCheckoutTier) {
+      throw new Error("BAD_WEBHOOK_METADATA");
+    }
+
     await updateUserPlan(
       userId,
-      planTier,
+      resolvedCheckoutTier,
       subscriptionId,
       billingInterval === "yearly" ? "year" : "month",
       currentPeriodEnd,
@@ -734,10 +768,34 @@ async function handleSubscriptionUpdated(
   ) ?? subscription.items.data[0];
   const interval = primaryItem?.price.recurring?.interval;
 
-  // Resolve the new plan tier from metadata or price ID.
-  const newTier: TenantPlanTier | null =
-    normalizePlanTier(metadata.planTier) ??
-    (primaryPriceId ? resolvePriceToTier(primaryPriceId) : null);
+  // Resolve the new plan tier. The billed Stripe price is authoritative; the
+  // mutable metadata.planTier is only validated against it (B1). On mismatch
+  // the price wins and a security event is emitted.
+  const tierReconciliation = reconcilePlanTier({
+    priceTier: primaryPriceId ? resolvePriceToTier(primaryPriceId) : null,
+    metadataTier: normalizePlanTier(metadata.planTier),
+  });
+  const newTier: TenantPlanTier | null = tierReconciliation.resolvedTier;
+  if (tierReconciliation.mismatch) {
+    const mismatchReason = `metadata=${tierReconciliation.metadataTier} price=${tierReconciliation.priceTier}`;
+    logSecurityEvent(
+      "stripe_plan_tier_metadata_mismatch",
+      {
+        tenantId,
+        eventId: subscription.id,
+        source: "webhook.subscription.updated",
+        reason: mismatchReason,
+      },
+      "WARN",
+    );
+    void writeSecurityAuditEvent({
+      eventType: "stripe_plan_tier_metadata_mismatch",
+      tenantId,
+      eventId: subscription.id,
+      source: "webhook.subscription.updated",
+      reason: mismatchReason,
+    });
+  }
 
   const currentPeriodEndMs = (subscription as any).current_period_end
     ? (subscription as any).current_period_end * 1000
