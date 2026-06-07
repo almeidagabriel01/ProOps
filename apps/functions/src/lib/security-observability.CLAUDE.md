@@ -374,7 +374,7 @@ Se `RATE_LIMIT_STORE=redis` mas as variáveis Redis não estão configuradas ou 
 
 | Limiter | Prefixo | Máximo | Janela | Chave | Aplicado em |
 |---------|---------|--------|--------|-------|-------------|
-| `publicGeneralLimiter` | `public-general` | 300 | 60s | IP | `/health`, `/v1/aux/proxy-image`, `/v1/stripe` (planos), `/v1/validation` |
+| `publicGeneralLimiter` | `public-general` | 300 | 60s | IP | `/health`, `/v1/stripe` (planos), `/v1/validation` |
 | `publicShareLimiter` | `public-share` | 80 | 60s | IP | Links compartilhados (`/v1/share/*`) |
 | `publicWebhookLimiter` | `public-webhook` | 180 | 60s | IP | `/webhooks/whatsapp` |
 | `protectedLimiter` | `protected` | 240* | 60s* | IP:uid:tenantId | Todas as rotas autenticadas |

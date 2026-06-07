@@ -27,11 +27,18 @@ export function useHeaderPresentation(): HeaderPresentation {
   const [isFetchingTenant, setIsFetchingTenant] = useState(false);
 
   useEffect(() => {
-    // Only fetch for superadmin when they are NOT impersonating
-    if (user?.role === "superadmin" && !tenant && user.tenantId) {
+    // The tenant-provider deliberately leaves `tenant` null for roles that must
+    // not hydrate the ERP context (free users, and superadmins who are not
+    // impersonating). The header still needs the company name/logo, so fetch the
+    // tenant doc for display-only purposes in those cases.
+    if (
+      (user?.role === "free" || user?.role === "superadmin") &&
+      !tenant &&
+      user.tenantId
+    ) {
       let isActive = true;
       setIsFetchingTenant(true);
-      const fetchSuperAdminTenant = async () => {
+      const fetchDisplayTenant = async () => {
         try {
           const { TenantService } = await import("@/services/tenant-service");
           const t = await TenantService.getTenantById(user.tenantId!);
@@ -39,16 +46,16 @@ export function useHeaderPresentation(): HeaderPresentation {
             setFetchedTenant(t || null);
           }
         } catch (error) {
-          console.error("Error fetching superadmin tenant:", error);
+          console.error("Error fetching display tenant:", error);
         } finally {
           if (isActive) {
             setIsFetchingTenant(false);
           }
         }
       };
-      
-      void fetchSuperAdminTenant();
-      
+
+      void fetchDisplayTenant();
+
       return () => {
         isActive = false;
       };
@@ -66,7 +73,7 @@ export function useHeaderPresentation(): HeaderPresentation {
       return fetchedTenant?.name || user?.name || "Minha Empresa";
     }
 
-    return tenant?.name || "Minha Empresa";
+    return tenant?.name || fetchedTenant?.name || "Minha Empresa";
   }, [isViewingAsTenant, user?.role, tenant, fetchedTenant?.name, isFetchingTenant, user?.name]);
 
   const planSubject = useMemo(() => {

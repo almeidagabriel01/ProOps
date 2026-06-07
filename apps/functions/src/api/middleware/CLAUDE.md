@@ -37,7 +37,6 @@ O middleware retorna `next()` imediatamente (sem verificar token) nestas condiç
 
 Rotas públicas adicionais são registradas **antes** do middleware no `api/index.ts`:
 - `GET /health`
-- `GET /v1/aux/proxy-image`
 - `POST /webhooks/whatsapp`
 - `GET|POST /v1/stripe` (planos, publicStripeRoutes)
 - `POST /v1/validation/contact`

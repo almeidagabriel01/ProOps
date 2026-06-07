@@ -104,3 +104,43 @@ test.describe("PROFILE-FREE-04: Paying admin user sees PlanUsageCard on /profile
     await expect(planUsageCard).toBeVisible({ timeout: 10000 });
   });
 });
+
+// ─── PROFILE-FREE-05: Free user sees their company name in header + profile ───
+//
+// Bug repro:
+//   - Before fix: tenant-provider leaves `tenant` null for free users, so the
+//     header showed "Minha Empresa" and the profile showed no company data.
+//   - After fix: useDisplayTenant lazily reads the tenant doc for display, so
+//     the real company name ("Free User's Tenant", seeded) appears.
+
+test.describe("PROFILE-FREE-05: Free user sees their company name", () => {
+  const EXPECTED_COMPANY = `${USER_FREE.name}'s Tenant`;
+
+  test("free user → header shows the real company name (not the generic fallback)", async ({
+    page,
+  }) => {
+    const loginPage = new LoginPage(page);
+    await loginPage.goto();
+    await loginPage.login(USER_FREE.email, USER_FREE.password);
+    await expect(page).toHaveURL("/", { timeout: 15000 });
+
+    // Header must display the company name resolved from the tenant doc.
+    await expect(page.getByText(EXPECTED_COMPANY).first()).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("free user → /profile shows the real company name", async ({ page }) => {
+    const loginPage = new LoginPage(page);
+    await loginPage.goto();
+    await loginPage.login(USER_FREE.email, USER_FREE.password);
+    await expect(page).toHaveURL("/", { timeout: 15000 });
+
+    await page.goto("/profile");
+    await expect(page).toHaveURL(/\/profile/, { timeout: 10000 });
+
+    await expect(page.getByText(EXPECTED_COMPANY).first()).toBeVisible({
+      timeout: 10000,
+    });
+  });
+});

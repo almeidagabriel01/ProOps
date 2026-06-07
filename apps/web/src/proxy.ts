@@ -20,6 +20,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { shouldAcceptLegacyAuthCookie } from "@/lib/legacy-auth-cookie";
 
 // ============================================
 // ROUTE CONFIGURATION
@@ -135,16 +136,7 @@ export async function proxy(request: NextRequest) {
   // The client needs to set a session cookie after login
   const sessionCookie = request.cookies.get("__session")?.value;
   const legacyAuthHint = request.cookies.get("firebase-auth-token")?.value;
-  const defaultLegacyFallback =
-    String(process.env.NODE_ENV || "")
-      .trim()
-      .toLowerCase() === "production"
-      ? "false"
-      : "true";
-  const acceptLegacyCookieHint =
-    String(process.env.AUTH_ACCEPT_LEGACY_COOKIE_HINT || defaultLegacyFallback)
-      .trim()
-      .toLowerCase() !== "false";
+  const acceptLegacyCookieHint = shouldAcceptLegacyAuthCookie();
 
   // If no session, redirect to login
   if (!sessionCookie && !(acceptLegacyCookieHint && legacyAuthHint)) {

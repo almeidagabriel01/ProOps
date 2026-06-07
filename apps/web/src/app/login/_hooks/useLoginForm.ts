@@ -21,6 +21,7 @@ import { AuthService } from "@/services/auth-service";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { callPublicApi } from "@/lib/api-client";
+import { getCaptchaToken } from "@/lib/captcha";
 import { toast } from "@/lib/toast";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
@@ -238,7 +239,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, user, isLoading, isSessionSynced, forceSyncSession } =
+  const { login, resolveTotpLogin, user, isLoading, isSessionSynced, forceSyncSession, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -687,12 +688,14 @@ export function useLoginForm(): UseLoginFormReturn {
     }
 
     try {
+      const captchaToken = await getCaptchaToken();
       const contactValidation = await callPublicApi<ContactValidationResponse>(
         "v1/validation/contact",
         "POST",
         {
           email,
           phoneNumber: phoneNumber || undefined,
+          captchaToken,
         },
       );
 
@@ -761,6 +764,7 @@ export function useLoginForm(): UseLoginFormReturn {
         role: "free",
         tenantId: tenantId,
         companyId: tenantId,
+        ...(phoneNumber.trim() ? { phoneNumber: phoneNumber.trim() } : {}),
         onboarding: {
           version: "core-v1",
           status: "active",
@@ -772,6 +776,16 @@ export function useLoginForm(): UseLoginFormReturn {
         createdAt: now,
         updatedAt: now,
       });
+
+      // createUserWithEmailAndPassword already signed the user in and fired the
+      // auth listener before these writes landed, so the context may hold a
+      // degraded fallback. Re-read the freshly-written profile now instead of
+      // forcing the user to reload the page.
+      try {
+        await refreshUser();
+      } catch (refreshErr) {
+        console.error("Failed to refresh user after registration:", refreshErr);
+      }
 
       try {
         await AuthService.sendVerificationEmail();
