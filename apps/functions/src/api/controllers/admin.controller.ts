@@ -7,6 +7,7 @@ import { generateRandomPassword } from "../../lib/admin-helpers";
 import { UserDoc } from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import { logger } from "../../lib/logger";
+import { fetchAuditEvents } from "../../lib/audit-events-query";
 import {
   incrementSecurityCounter,
   resolveSecurityAuditCollection,
@@ -1773,8 +1774,10 @@ export const startImpersonation = async (req: Request, res: Response) => {
 /**
  * Returns recent security audit events for the super admin panel. The
  * `security_audit_events` collection is written via the Admin SDK and is denied
- * to the client SDK by Firestore rules, so this is the only read path. Filters
- * are applied in memory over a recent window to avoid composite-index needs.
+ * to the client SDK by Firestore rules, so this is the only read path. The
+ * tenant filter runs at the database level (composite index tenantId+createdAt);
+ * uid/eventType remain in-memory over the tenant-scoped window. See
+ * `fetchAuditEvents` for the index-build fallback.
  */
 export const getAuditEvents = async (req: Request, res: Response) => {
   try {
@@ -1792,21 +1795,10 @@ export const getAuditEvents = async (req: Request, res: Response) => {
         ? Math.min(Math.floor(requestedLimit), 200)
         : 50;
 
-    const snap = await db
-      .collection(resolveSecurityAuditCollection())
-      .orderBy("createdAt", "desc")
-      .limit(500)
-      .get();
-
-    const events = snap.docs
-      .map(
-        (doc) =>
-          ({ id: doc.id, ...doc.data() }) as Record<string, unknown>,
-      )
-      .filter((e) => !tenantId || e.tenantId === tenantId)
-      .filter((e) => !uid || e.uid === uid)
-      .filter((e) => !eventType || e.eventType === eventType)
-      .slice(0, limit);
+    const events = await fetchAuditEvents(
+      db.collection(resolveSecurityAuditCollection()),
+      { tenantId, uid, eventType, limit },
+    );
 
     return res.json({ events });
   } catch (error: unknown) {
