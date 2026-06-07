@@ -49,6 +49,7 @@ const PUBLIC_ROUTES = [
   "/subscribe",
   "/pricing",
   "/auth",
+  "/verify",
 ];
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {

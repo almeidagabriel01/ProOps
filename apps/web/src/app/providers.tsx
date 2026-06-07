@@ -9,6 +9,7 @@ import { PermissionsProvider } from "@/providers/permissions-provider";
 import { PlanProvider } from "@/providers/plan-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
+import { isAuthOnlyRoute } from "@/lib/auth/auth-only-routes";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,21 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     pathname === "/decoracao" ||
     pathname === "/contato";
 
-  const isAuthOnlyPage =
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/forgot-password" ||
-    pathname === "/privacy" ||
-    pathname === "/terms" ||
-    pathname === "/data-deletion" ||
-    pathname === "/cookies" ||
-    pathname.startsWith("/email-verification-pending") ||
-    pathname.startsWith("/subscribe") ||
-    pathname.startsWith("/checkout-success") ||
-    pathname.startsWith("/auth") ||
-    pathname === "/403" ||
-    pathname.startsWith("/subscription-blocked") ||
-    pathname.startsWith("/share/");
+  const isAuthOnlyPage = isAuthOnlyRoute(pathname);
 
   return (
     <ThemeProvider>
