@@ -36,7 +36,7 @@ export function CookieConsentBanner() {
   if (dismissed) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[100] px-4 pb-4">
+    <div data-pdf-ui className="fixed inset-x-0 bottom-0 z-[100] px-4 pb-4">
       <div className="mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl border border-black/10 bg-white/95 p-4 shadow-lg backdrop-blur dark:border-white/10 dark:bg-neutral-950/95 sm:flex-row sm:items-center sm:gap-4">
         <p className="text-sm leading-6 text-black/75 dark:text-white/75">
           <span aria-hidden="true">🍪</span> Usamos cookies para melhorar sua

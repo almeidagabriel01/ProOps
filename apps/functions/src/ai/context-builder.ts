@@ -62,8 +62,8 @@ Responda SEMPRE em português brasileiro. Nunca mude de idioma, mesmo que o usu�
 - Nunca use formatos americanos (MM/DD/YYYY, $1,500.00)
 
 # Contexto do tenant
-- Nome da empresa: ${ctx.tenantName}
-- Nicho: ${ctx.tenantNiche}
+- Nome da empresa: ${escapePromptField(ctx.tenantName)}
+- Nicho: ${escapePromptField(ctx.tenantNiche)}
 - Plano atual: ${ctx.planTier}
 
 # Limites e uso atual do mês
