@@ -67,6 +67,43 @@ describe("isBucketAllowed — open-proxy is closed", () => {
   });
 });
 
+describe("extractStorageBucket — parser confusion / bypass attempts", () => {
+  const allowed = [PROJECT_BUCKET, "erp-softcode-prod.firebasestorage.app"];
+
+  it("path traversal normalizes to the REAL target bucket, not the allowed prefix", () => {
+    // WHATWG URL normalizes /<allowed>/../evil -> /evil, and axios fetches that
+    // same normalized URL, so extraction and fetch stay consistent.
+    const bucket = bucketOf(
+      `https://storage.googleapis.com/${PROJECT_BUCKET}/../evil-bucket/secret.png`,
+    );
+    expect(bucket).toBe("evil-bucket");
+    expect(isBucketAllowed(bucket, allowed)).toBe(false);
+  });
+
+  it("host-suffix confusion (...storage.googleapis.com.evil.com) is not a storage host", () => {
+    expect(
+      bucketOf("https://attacker.storage.googleapis.com.evil.com/x.png"),
+    ).toBeNull();
+    expect(
+      bucketOf(
+        `https://${PROJECT_BUCKET}.storage.googleapis.com.evil.com/x.png`,
+      ),
+    ).toBeNull();
+  });
+
+  it("userinfo trick (<allowed>@evil.com) resolves to evil.com, not a storage host", () => {
+    // The real hostname is evil.com; credentials are also rejected upstream by
+    // validateOutboundUrl, but extraction must independently fail closed here.
+    expect(bucketOf(`https://${PROJECT_BUCKET}@evil.com/x.png`)).toBeNull();
+  });
+
+  it("a legit virtual-hosted arbitrary bucket is still rejected (control)", () => {
+    const bucket = bucketOf("https://attacker.storage.googleapis.com/x.png");
+    expect(bucket).toBe("attacker");
+    expect(isBucketAllowed(bucket, allowed)).toBe(false);
+  });
+});
+
 describe("resolveAllowedBuckets", () => {
   const original = { ...process.env };
   afterEach(() => {

@@ -70,9 +70,12 @@ export function isBucketAllowed(
 /**
  * Resolves the project's allowed buckets. Prefers an explicit comma-separated
  * PROXY_IMAGE_ALLOWED_BUCKETS, otherwise derives the standard Firebase defaults
- * from the project id. Returns [] when nothing can be resolved — callers treat
- * an empty list as "bucket enforcement disabled" to avoid breaking environments
- * with no project context (e.g. local emulator).
+ * from the project id. Returns [] only when there is no project context at all.
+ *
+ * An empty list means "no enforcement" and is DEV-ONLY: in Cloud Run (prod and
+ * staging) GCLOUD_PROJECT is always set, so this returns a non-empty list there.
+ * The proxy treats an empty list in production as misconfiguration and fails
+ * closed — prod never silently falls open.
  */
 export function resolveAllowedBuckets(): string[] {
   const explicit = String(process.env.PROXY_IMAGE_ALLOWED_BUCKETS || "")

@@ -281,7 +281,20 @@ async function fetchRemoteImage(imageUrl: string): Promise<ProxyFetchResult> {
   // the bucket in the path, so without this any public GCS bucket would be
   // proxiable. Require the bucket to be one of the project's own.
   const allowedBuckets = resolveAllowedBuckets();
-  if (allowedBuckets.length > 0) {
+  if (allowedBuckets.length === 0) {
+    // Empty list = no project context. Acceptable ONLY outside production
+    // (e.g. local emulator without GCLOUD_PROJECT). In Cloud Run GCLOUD_PROJECT
+    // is always set, so an empty list in production means misconfiguration —
+    // fail closed instead of falling open (same principle as the M1 fix). Prod
+    // never legitimately reaches the "skip enforcement" path below.
+    if (isProductionRuntime()) {
+      return {
+        ok: false,
+        statusCode: 403,
+        message: "Proxy bucket policy is not configured",
+      };
+    }
+  } else {
     const bucket = extractStorageBucket(validation.url);
     if (!isBucketAllowed(bucket, allowedBuckets)) {
       return {
