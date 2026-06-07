@@ -136,7 +136,9 @@ export async function proxy(request: NextRequest) {
   // The client needs to set a session cookie after login
   const sessionCookie = request.cookies.get("__session")?.value;
   const legacyAuthHint = request.cookies.get("firebase-auth-token")?.value;
-  const acceptLegacyCookieHint = shouldAcceptLegacyAuthCookie();
+  const acceptLegacyCookieHint = shouldAcceptLegacyAuthCookie({
+    host: request.headers.get("host"),
+  });
 
   // If no session, redirect to login
   if (!sessionCookie && !(acceptLegacyCookieHint && legacyAuthHint)) {
