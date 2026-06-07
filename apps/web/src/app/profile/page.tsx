@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
+import { useDisplayTenant } from "@/hooks/useDisplayTenant";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanChange } from "@/hooks/usePlanChange";
 import { usePlanUsage } from "@/hooks/usePlanUsage";
@@ -25,6 +26,10 @@ import { cn } from "@/lib/utils";
 function ProfileContent() {
   const { user, isLoading: authLoading } = useAuth();
   const { tenant, isLoading: tenantLoading } = useTenant();
+  // Free users don't get a hydrated tenant from the provider; fetch the company
+  // doc display-only so the header/overview show the real name and logo.
+  const { tenant: displayTenant } = useDisplayTenant();
+  const effectiveTenant = tenant ?? displayTenant;
   const { isMaster } = usePermissions();
   const planUsageData = usePlanUsage();
   const { purchasedAddons, purchasedAddonsData, refreshAddons } = usePlanLimits();
@@ -111,7 +116,7 @@ function ProfileContent() {
         {/* Header Section */}
         <ProfileHeader
           user={effectiveUser}
-          tenant={tenant}
+          tenant={effectiveTenant}
           userPlan={userPlan}
           isMaster={isMaster}
         />
@@ -171,7 +176,7 @@ function ProfileContent() {
             >
               <OverviewTab
                 user={effectiveUser}
-                tenant={tenant}
+                tenant={effectiveTenant}
                 isMaster={isMaster}
                 planUsageData={planUsageData}
               />
@@ -194,7 +199,7 @@ function ProfileContent() {
                   handleManagePayment={handleManagePayment}
                   openingPortal={openingPortal}
                   isMaster={isMaster}
-                  tenant={tenant}
+                  tenant={effectiveTenant}
                   onAddonCancelled={refreshAddons}
                 />
               </motion.div>
