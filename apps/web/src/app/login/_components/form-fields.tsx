@@ -168,6 +168,7 @@ export function RegisterFormFields({
 interface CredentialFieldsProps {
   email: string;
   onEmailChange: (value: string) => void;
+  onEmailBlur?: () => void;
   password: string;
   onPasswordChange: (value: string) => void;
   mode: "login" | "register";
@@ -178,6 +179,7 @@ interface CredentialFieldsProps {
 export function CredentialFields({
   email,
   onEmailChange,
+  onEmailBlur,
   password,
   onPasswordChange,
   mode,
@@ -250,7 +252,7 @@ export function CredentialFields({
             placeholder="seu@email.com"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
-            onBlur={validateEmail}
+            onBlur={onEmailBlur ?? validateEmail}
             className={`flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm pl-9
               shadow-sm transition-[border-color,box-shadow] duration-200 ease-out
               placeholder:text-muted-foreground/60

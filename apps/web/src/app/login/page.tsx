@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +12,20 @@ import {
   validateCompanyNameValue,
   validateEmailValue,
   validatePasswordValue,
+  validatePhoneValue,
 } from "./_lib/register-validation";
+import { callPublicApi } from "@/lib/api-client";
+
+interface ContactFieldValidation {
+  valid: boolean;
+  exists: boolean;
+  reason?: string;
+}
+interface ContactValidationResponse {
+  success: boolean;
+  email?: ContactFieldValidation;
+  phoneNumber?: ContactFieldValidation;
+}
 import { EmailVerificationPending } from "@/components/auth/email-verification-pending";
 import {
   StepWizard,
@@ -71,7 +84,6 @@ function LoginContent() {
     handleForgotPassword,
     handleGoogleAuth,
     handleLogoUpload,
-    handlePhoneBlur,
     handleConfirmPhoneCode,
     handleResendPhoneCode,
     isGoogleLoading,
@@ -136,6 +148,60 @@ function LoginContent() {
         delete newErrors[field];
         return newErrors;
       });
+    }
+  };
+
+  // Sequence guards so a slow validation response for a stale value never
+  // overwrites the error for what the user has since typed.
+  const contactSeqRef = useRef<{ email: number; phoneNumber: number }>({
+    email: 0,
+    phoneNumber: 0,
+  });
+
+  // On-blur validation for contact fields: instant client-side format check,
+  // then a backend availability/validity check (email already registered,
+  // phone already in use) via the rate-limited public endpoint — so the user
+  // sees the problem when leaving the field, not only at "Finalizar".
+  const validateContactField = async (
+    field: "email" | "phoneNumber",
+    value: string,
+  ) => {
+    const formatError =
+      field === "email" ? validateEmailValue(value) : validatePhoneValue(value);
+    if (formatError) {
+      setRegisterFieldError(field, formatError);
+      return;
+    }
+    // Phone is optional and empty already passed the format check above.
+    if (field === "phoneNumber" && !value.trim()) {
+      setRegisterFieldError("phoneNumber", null);
+      return;
+    }
+
+    const seq = ++contactSeqRef.current[field];
+    try {
+      const res = await callPublicApi<ContactValidationResponse>(
+        "v1/validation/contact",
+        "POST",
+        field === "email" ? { email: value } : { phoneNumber: value },
+      );
+      if (seq !== contactSeqRef.current[field]) return; // stale response
+      const result = field === "email" ? res.email : res.phoneNumber;
+      if (result && !result.valid) {
+        setRegisterFieldError(
+          field,
+          result.reason ||
+            (field === "email" ? "Email inválido" : "Telefone inválido"),
+        );
+      } else {
+        setRegisterFieldError(field, null);
+      }
+    } catch {
+      // Network/validation error: don't block the user mid-form. The submit
+      // path re-runs this check authoritatively.
+      if (seq === contactSeqRef.current[field]) {
+        setRegisterFieldError(field, null);
+      }
     }
   };
 
@@ -294,12 +360,17 @@ function LoginContent() {
                         id="reg-phone"
                         name="reg-phone"
                         value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        onBlur={handlePhoneBlur}
+                        onChange={(e) => {
+                          setPhoneNumber(e.target.value);
+                          clearRegisterError("phoneNumber");
+                        }}
+                        onBlur={() =>
+                          validateContactField("phoneNumber", phoneNumber)
+                        }
                       />
-                      {errors.phoneNumber && (
+                      {registerErrors.phoneNumber && (
                         <p className="text-sm text-destructive">
-                          {errors.phoneNumber}
+                          {registerErrors.phoneNumber}
                         </p>
                       )}
                     </div>
@@ -310,6 +381,7 @@ function LoginContent() {
                         if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val))
                           clearRegisterError("email");
                       }}
+                      onEmailBlur={() => validateContactField("email", email)}
                       password={password}
                       onPasswordChange={(val) => {
                         setPassword(val);

@@ -8,7 +8,10 @@
 
 import { test, expect } from "../fixtures/auth.fixture";
 import { RegisterPage } from "../pages/register.page";
-import { signInWithEmailPassword } from "../helpers/firebase-auth-api";
+import {
+  signInWithEmailPassword,
+  signUpWithEmailPassword,
+} from "../helpers/firebase-auth-api";
 import { getTestDb } from "../helpers/admin-firestore";
 
 test.describe("Auth Registration", () => {
@@ -221,5 +224,29 @@ test.describe("Auth Registration", () => {
     await expect(page.getByText(testName).first()).toBeVisible({
       timeout: 10000,
     });
+  });
+
+  // REG-08: Email already registered → inline error on blur (backend check)
+  test("REG-08: an already-registered email shows an inline error on blur, before submitting", async ({
+    page,
+  }) => {
+    // Seed an existing account with a resolvable domain so the backend
+    // availability check reaches the "already registered" branch.
+    const existingEmail = `dup-${Date.now()}@gmail.com`;
+    await signUpWithEmailPassword(existingEmail, "TestReg1234!");
+
+    const registerPage = new RegisterPage(page);
+    await registerPage.goto();
+    await registerPage.isLoaded();
+
+    // Type the already-registered email and leave the field — the error must
+    // surface on blur, before clicking "Finalizar".
+    await registerPage.emailInput.click();
+    await registerPage.emailInput.fill(existingEmail);
+    await registerPage.passwordInput.click(); // blur the email field
+
+    await expect(
+      page.getByText("Este email já está cadastrado no sistema."),
+    ).toBeVisible({ timeout: 8000 });
   });
 });

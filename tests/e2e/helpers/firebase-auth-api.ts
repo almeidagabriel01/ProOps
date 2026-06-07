@@ -23,6 +23,31 @@ export interface TokenClaims {
 const AUTH_EMULATOR_URL =
   "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-key";
 
+const AUTH_SIGNUP_URL =
+  "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key";
+
+/**
+ * Creates a user via the Auth emulator REST API. Useful for seeding an
+ * already-registered email before exercising signup duplicate-detection.
+ */
+export async function signUpWithEmailPassword(
+  email: string,
+  password: string,
+): Promise<SignInResponse> {
+  const response = await fetch(AUTH_SIGNUP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, returnSecureToken: true }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Auth emulator sign-up failed (${response.status}): ${body}`);
+  }
+
+  return (await response.json()) as SignInResponse;
+}
+
 /**
  * Signs in via the Auth emulator REST API and returns the raw sign-in response.
  */
