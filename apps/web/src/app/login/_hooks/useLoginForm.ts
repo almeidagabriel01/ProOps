@@ -22,6 +22,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { ApiError, callPublicApi } from "@/lib/api-client";
 import { isValidTotpCode } from "@/lib/mfa-helpers";
+import { shouldReflectWhatsappGate } from "../_lib/should-reflect-whatsapp-gate";
 import { useResendCountdown } from "@/hooks/useResendCountdown";
 import { getCaptchaToken } from "@/lib/captcha";
 import { toast } from "@/lib/toast";
@@ -273,7 +274,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, resolveWhatsappLogin, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, forceSyncSession, refreshUser } =
+  const { login, resolveTotpLogin, resolveWhatsappLogin, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, forceSyncSession, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -474,6 +475,28 @@ export function useLoginForm(): UseLoginFormReturn {
     }, 0);
     return () => window.clearTimeout(id);
   }, [redirectReason, user, isLoading]);
+
+  // Reload survival for the WhatsApp OTP screen. On F5 the local
+  // requiresWhatsappOtp state is lost, but the still-signed-in Firebase user
+  // makes the background session sync re-detect the gate and set
+  // whatsappMfaPending on the provider. Reflect it back into the local OTP
+  // screen so the user sees the code form (with the correct remaining cooldown)
+  // instead of hanging on the logged-in loader. The guard (!requiresWhatsappOtp)
+  // prevents conflict with the foreground login paths (which already set it) and
+  // prevents a re-render loop. We do NOT trigger a new send here — the backend's
+  // retryAfterSeconds reflects the true remaining cooldown.
+  React.useEffect(() => {
+    if (
+      shouldReflectWhatsappGate({
+        hasWhatsappMfaPending: Boolean(whatsappMfaPending),
+        requiresWhatsappOtp,
+      })
+    ) {
+      setWhatsappMaskedPhone(whatsappMfaPending?.maskedPhone || "");
+      setRequiresWhatsappOtp(true);
+      startWhatsappResendCountdown(whatsappMfaPending?.retryAfterSeconds ?? 0);
+    }
+  }, [whatsappMfaPending, requiresWhatsappOtp, startWhatsappResendCountdown]);
 
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -1057,6 +1080,14 @@ export function useLoginForm(): UseLoginFormReturn {
     await sendPhoneVerificationCode(phone);
   };
 
+  // Effective OTP-screen flag. The reflection effect above sets the local state
+  // asynchronously, so on the very first render after a reload the provider can
+  // already hold the gate while requiresWhatsappOtp is still false. OR-ing the
+  // provider gate in here means the OTP screen wins over the logged-in loader on
+  // that first render too, eliminating any loader flash.
+  const effectiveRequiresWhatsappOtp =
+    requiresWhatsappOtp || Boolean(whatsappMfaPending);
+
   return {
     email,
     setEmail,
@@ -1103,7 +1134,7 @@ export function useLoginForm(): UseLoginFormReturn {
     mfaRecoveryRequested,
     mfaRecoveryMessage,
     isRequestingMfaRecovery,
-    requiresWhatsappOtp,
+    requiresWhatsappOtp: effectiveRequiresWhatsappOtp,
     whatsappOtpCode,
     setWhatsappOtpCode,
     whatsappMaskedPhone,

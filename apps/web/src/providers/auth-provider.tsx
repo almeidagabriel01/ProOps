@@ -25,11 +25,30 @@ import { User, SubscriptionStatus } from "@/types";
 
 // Removed local User type definition
 
+/**
+ * Surfaced when a session POST returns the WhatsApp-MFA gate (cookie withheld).
+ * Elevated to the provider so the OTP screen survives a page reload: on F5 the
+ * Firebase user is still signed in, the background sync re-detects the gate, and
+ * the login UI can re-show the code screen from this state instead of hanging on
+ * the "logged-in, waiting for session" loader (which never resolves without the
+ * OTP).
+ */
+export interface WhatsappMfaPending {
+  maskedPhone?: string;
+  retryAfterSeconds?: number;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   /** Whether the __session cookie is known to be in sync with the current token. */
   isSessionSynced: boolean;
+  /**
+   * Set when any session POST returns the WhatsApp-MFA gate; null once the
+   * session syncs or the gate is resolved/cleared. Lets the OTP screen survive
+   * a page reload.
+   */
+  whatsappMfaPending: WhatsappMfaPending | null;
   /** Returns true while logout() is executing — prevents ProtectedRoute from racing. */
   getIsLoggingOut: () => boolean;
   login: (
@@ -84,6 +103,7 @@ const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
   isSessionSynced: false,
+  whatsappMfaPending: null,
   getIsLoggingOut: () => false,
   login: async () => ({ success: false }),
   resolveTotpLogin: async () => ({ success: false }),
@@ -145,6 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSessionSynced, setIsSessionSynced] = React.useState(false);
+  const [whatsappMfaPending, setWhatsappMfaPending] =
+    React.useState<WhatsappMfaPending | null>(null);
   const isLoggingOutRef = React.useRef(false);
   const getIsLoggingOut = React.useCallback(() => isLoggingOutRef.current, []);
   const router = useRouter();
@@ -237,6 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to clear server session:", error);
     }
     setIsSessionSynced(false);
+    setWhatsappMfaPending(null);
     lastSyncSuccessRef.current = 0;
   }, []);
 
@@ -253,6 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // onIdTokenChanged fire on startup; cooldown prevents the redundant call).
       if (Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS) {
         setIsSessionSynced(true);
+        setWhatsappMfaPending(null);
         return true;
       }
       syncInProgressRef.current = true;
@@ -268,9 +292,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // non-idempotent challenge).
           if (interpretSessionResponse(session) === "whatsapp-otp-pending") {
             setIsSessionSynced(false);
+            // Elevate the gate so the OTP screen can re-render after a reload
+            // (where there is no foreground login to set it).
+            setWhatsappMfaPending({
+              maskedPhone: session.maskedPhone,
+              retryAfterSeconds: session.retryAfterSeconds,
+            });
             return true;
           }
           setIsSessionSynced(true);
+          setWhatsappMfaPending(null);
           lastSyncSuccessRef.current = Date.now();
           return true;
         } catch {
@@ -670,6 +701,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Cookie withheld. Keep the user signed in (Firebase) so we can read
           // the ID token for the verify step, but do not finalize yet.
           setIsSessionSynced(false);
+          // Keep the elevated gate consistent with the background path so the
+          // OTP screen survives a reload at this stage too.
+          setWhatsappMfaPending({
+            maskedPhone: session.maskedPhone,
+            retryAfterSeconds: session.retryAfterSeconds,
+          });
           setIsLoading(false);
           return {
             success: false,
@@ -682,6 +719,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Cookie emitted (or super-admin gate handled elsewhere) — mark synced
         // and prime the cooldown so the listener doesn't re-POST immediately.
         setIsSessionSynced(true);
+        setWhatsappMfaPending(null);
         lastSyncSuccessRef.current = Date.now();
       } catch (sessionError) {
         // Non-fatal: the background onAuthStateChanged/onIdTokenChanged listener
@@ -788,6 +826,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // login exactly like the normal flow does after the cookie is set.
       await createServerSession(currentUser, otpCode.trim());
       setIsSessionSynced(true);
+      setWhatsappMfaPending(null);
       lastSyncSuccessRef.current = Date.now();
       const finalized = await finalizeLogin(true);
       // The OTP step is terminal and triggers no further auth-state change, so
@@ -860,6 +899,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isLoading,
         isSessionSynced,
+        whatsappMfaPending,
         getIsLoggingOut,
         login,
         resolveTotpLogin,
