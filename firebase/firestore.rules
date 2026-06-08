@@ -599,6 +599,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // WhatsApp OTP 2FA challenges (hashed code + TTL + attempt counters).
+    // Written and verified exclusively by Cloud Functions (Admin SDK).
+    match /mfaOtpChallenges/{uid} {
+      allow read, write: if false;
+    }
+
     // ============================================
     // CATCH-ALL
     // ============================================

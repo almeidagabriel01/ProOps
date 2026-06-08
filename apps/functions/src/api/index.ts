@@ -18,6 +18,7 @@ import sharedProposalsRoutes from "./routes/shared-proposals.routes";
 import { sharedTransactionsRoutes } from "./routes/shared-transactions.routes";
 import notificationsRoutes from "./routes/notifications.routes";
 import { whatsappRoutes } from "./routes/whatsapp.routes";
+import { whatsappMfaRoutes } from "./routes/whatsapp-mfa.routes";
 import { kanbanRoutes } from "./routes/kanban.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
@@ -253,6 +254,15 @@ const privilegedLimiter = createRateLimiter({
   keyResolver: buildRateLimitIdentity,
 });
 
+// Dedicated tight limiter for WhatsApp OTP endpoints (send/verify) — OTP costs
+// money per template message and is a brute-force surface.
+const whatsappMfaLimiter = createRateLimiter({
+  keyPrefix: "whatsapp-mfa",
+  maxRequests: Number(process.env.RATE_LIMIT_WHATSAPP_MFA_MAX || 5),
+  windowMs: Number(process.env.RATE_LIMIT_WHATSAPP_MFA_WINDOW_MS || 60_000),
+  keyResolver: buildRateLimitIdentity,
+});
+
 const corsMiddleware = cors({
   origin: (origin, callback) => {
     const decision = evaluateCorsDecision({
@@ -450,6 +460,7 @@ app.use("/v1", financeRoutes);
 app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
+app.use("/v1/auth/whatsapp-mfa", whatsappMfaLimiter, whatsappMfaRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);
