@@ -12,6 +12,10 @@ export interface WhatsappChallengeResult {
   mfaRequired?: boolean;
   method?: string;
   maskedPhone?: string;
+  /** True when a fresh OTP was sent now; false when a valid one was reused (cooldown). */
+  otpSent?: boolean;
+  /** Seconds until the user may request a new code (backend-owned cooldown). */
+  retryAfterSeconds?: number;
 }
 
 export interface WhatsappGateInput {

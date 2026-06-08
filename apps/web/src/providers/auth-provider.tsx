@@ -35,7 +35,13 @@ interface AuthContextType {
   login: (
     email: string,
     pass: string,
-  ) => Promise<{ success: boolean; code?: string; maskedPhone?: string }>;
+  ) => Promise<{
+    success: boolean;
+    code?: string;
+    maskedPhone?: string;
+    retryAfterSeconds?: number;
+    otpSent?: boolean;
+  }>;
   /** Completes a login that returned `code: "mfa-required"` with a TOTP code. */
   resolveTotpLogin: (
     totpCode: string,
@@ -65,6 +71,8 @@ interface AuthContextType {
     success: boolean;
     code?: string;
     maskedPhone?: string;
+    retryAfterSeconds?: number;
+    otpSent?: boolean;
   }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -174,6 +182,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mfaRequired?: boolean;
       method?: string;
       maskedPhone?: string;
+      retryAfterSeconds?: number;
+      otpSent?: boolean;
     }> => {
       const idToken = await firebaseUser.getIdToken();
       const response = await fetch("/api/auth/session", {
@@ -191,6 +201,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         mfaRequired?: boolean;
         method?: string;
         maskedPhone?: string;
+        retryAfterSeconds?: number;
+        otpSent?: boolean;
         attemptsLeft?: number;
         message?: string;
       };
@@ -618,6 +630,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     success: boolean;
     code?: string;
     maskedPhone?: string;
+    retryAfterSeconds?: number;
+    otpSent?: boolean;
   }> => {
     const currentUser = auth.currentUser;
     if (currentUser) {
@@ -661,6 +675,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             success: false,
             code: "whatsapp-mfa-required",
             maskedPhone: session.maskedPhone,
+            retryAfterSeconds: session.retryAfterSeconds,
+            otpSent: session.otpSent,
           };
         }
         // Cookie emitted (or super-admin gate handled elsewhere) — mark synced
@@ -689,7 +705,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (
     email: string,
     pass: string,
-  ): Promise<{ success: boolean; code?: string; maskedPhone?: string }> => {
+  ): Promise<{
+    success: boolean;
+    code?: string;
+    maskedPhone?: string;
+    retryAfterSeconds?: number;
+    otpSent?: boolean;
+  }> => {
     setIsLoading(true);
     setIsSessionSynced(false);
     lastSyncSuccessRef.current = 0;

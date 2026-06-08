@@ -45,6 +45,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { AuthLayout } from "./_components/auth-layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader } from "@/components/ui/loader";
+import { formatResendLabel } from "@/hooks/useResendCountdown";
 import { shouldShowLoggedInLoader } from "./_lib/should-show-logged-in-loader";
 
 function LoginContent() {
@@ -109,6 +110,8 @@ function LoginContent() {
     whatsappMaskedPhone,
     isVerifyingWhatsappOtp,
     isResendingWhatsappOtp,
+    whatsappResendSecondsLeft,
+    whatsappResendNotice,
     handleConfirmWhatsappOtp,
     handleResendWhatsappOtp,
   } = useLoginForm();
@@ -420,11 +423,18 @@ function LoginContent() {
             <button
               type="button"
               onClick={handleResendWhatsappOtp}
-              disabled={isResendingWhatsappOtp}
+              disabled={
+                isResendingWhatsappOtp || whatsappResendSecondsLeft > 0
+              }
               className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
             >
-              {isResendingWhatsappOtp ? "Reenviando..." : "Reenviar código"}
+              {isResendingWhatsappOtp
+                ? "Reenviando..."
+                : formatResendLabel(whatsappResendSecondsLeft)}
             </button>
+            {whatsappResendNotice ? (
+              <p className="text-sm text-emerald-600">{whatsappResendNotice}</p>
+            ) : null}
           </form>
           <div className="mt-6 border-t pt-4">
             {mfaRecoveryRequested ? (

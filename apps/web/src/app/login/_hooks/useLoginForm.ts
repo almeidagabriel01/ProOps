@@ -22,6 +22,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { ApiError, callPublicApi } from "@/lib/api-client";
 import { isValidTotpCode } from "@/lib/mfa-helpers";
+import { useResendCountdown } from "@/hooks/useResendCountdown";
 import { getCaptchaToken } from "@/lib/captcha";
 import { toast } from "@/lib/toast";
 import { ALLOWED_TYPES } from "@/services/storage-service";
@@ -107,6 +108,9 @@ interface UseLoginFormReturn {
   whatsappMaskedPhone: string;
   isVerifyingWhatsappOtp: boolean;
   isResendingWhatsappOtp: boolean;
+  whatsappResendSecondsLeft: number;
+  canResendWhatsapp: boolean;
+  whatsappResendNotice: string;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
@@ -173,6 +177,12 @@ export function useLoginForm(): UseLoginFormReturn {
     React.useState(false);
   const [isResendingWhatsappOtp, setIsResendingWhatsappOtp] =
     React.useState(false);
+  const [whatsappResendNotice, setWhatsappResendNotice] = React.useState("");
+  const {
+    secondsLeft: whatsappResendSecondsLeft,
+    canResend: canResendWhatsapp,
+    start: startWhatsappResendCountdown,
+  } = useResendCountdown();
   const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
 
   const normalizePhoneToE164 = React.useCallback((value: string): string => {
@@ -505,6 +515,7 @@ export function useLoginForm(): UseLoginFormReturn {
         } else if (result.code === "whatsapp-mfa-required") {
           setWhatsappMaskedPhone(result.maskedPhone || "");
           setRequiresWhatsappOtp(true);
+          startWhatsappResendCountdown(result.retryAfterSeconds ?? 0);
         } else {
           setError("Falha no login. Verifique suas credenciais.");
         }
@@ -570,7 +581,10 @@ export function useLoginForm(): UseLoginFormReturn {
   };
 
   const handleResendWhatsappOtp = async () => {
+    // The countdown owns the gate: while seconds remain, resend is disabled.
+    if (!canResendWhatsapp) return;
     setError("");
+    setWhatsappResendNotice("");
     setIsResendingWhatsappOtp(true);
     try {
       // Re-trigger the challenge by replaying the session POST (no OTP). The
@@ -580,9 +594,20 @@ export function useLoginForm(): UseLoginFormReturn {
       if (session.code === "whatsapp-mfa-required") {
         if (session.maskedPhone) setWhatsappMaskedPhone(session.maskedPhone);
         setWhatsappOtpCode("");
+        // Restart the countdown from the backend's authoritative cooldown.
+        startWhatsappResendCountdown(session.retryAfterSeconds ?? 0);
+        if (session.otpSent) {
+          setWhatsappResendNotice("Novo código enviado.");
+        }
       }
     } catch (resendError) {
       if (resendError instanceof ApiError) {
+        const retryAfterSeconds = (
+          resendError.data as { retryAfterSeconds?: number } | undefined
+        )?.retryAfterSeconds;
+        if (resendError.status === 429 && typeof retryAfterSeconds === "number") {
+          startWhatsappResendCountdown(retryAfterSeconds);
+        }
         setError(
           resendError.status === 429
             ? resendError.message ||
@@ -691,6 +716,7 @@ export function useLoginForm(): UseLoginFormReturn {
         if (session.code === "whatsapp-mfa-required") {
           setWhatsappMaskedPhone(session.maskedPhone || "");
           setRequiresWhatsappOtp(true);
+          startWhatsappResendCountdown(session.retryAfterSeconds ?? 0);
           setIsGoogleLoading(false);
         }
       }
@@ -751,6 +777,7 @@ export function useLoginForm(): UseLoginFormReturn {
           if (session.code === "whatsapp-mfa-required") {
             setWhatsappMaskedPhone(session.maskedPhone || "");
             setRequiresWhatsappOtp(true);
+            startWhatsappResendCountdown(session.retryAfterSeconds ?? 0);
             setIsGoogleLoading(false);
           }
         }
@@ -1082,6 +1109,9 @@ export function useLoginForm(): UseLoginFormReturn {
     whatsappMaskedPhone,
     isVerifyingWhatsappOtp,
     isResendingWhatsappOtp,
+    whatsappResendSecondsLeft,
+    canResendWhatsapp,
+    whatsappResendNotice,
     handleConfirmMfaCode,
     handleConfirmWhatsappOtp,
     handleResendWhatsappOtp,

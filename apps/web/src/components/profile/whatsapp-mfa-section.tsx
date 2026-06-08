@@ -4,6 +4,10 @@ import * as React from "react";
 import { MessageCircle, MessageCircleOff } from "lucide-react";
 import { ApiError } from "@/lib/api-client";
 import { WhatsappMfaService } from "@/services/whatsapp-mfa-service";
+import {
+  formatResendLabel,
+  useResendCountdown,
+} from "@/hooks/useResendCountdown";
 import { isValidTotpCode, maskPhone } from "@/lib/mfa-helpers";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
@@ -58,12 +62,19 @@ export function WhatsappMfaSection({
   const [error, setError] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [confirmDisableOpen, setConfirmDisableOpen] = React.useState(false);
+  const {
+    secondsLeft: resendSecondsLeft,
+    canResend,
+    start: startResendCountdown,
+  } = useResendCountdown();
 
   React.useEffect(() => {
     setStage(isEnabled ? "active" : "intro");
   }, [isEnabled]);
 
   const handleStart = async () => {
+    // The countdown owns the gate: while seconds remain, the send is disabled.
+    if (!canResend) return;
     setError("");
     if (!phone.trim()) {
       setError("Informe o número de WhatsApp para receber o código.");
@@ -75,6 +86,9 @@ export function WhatsappMfaSection({
       setMaskedPhone(result.maskedPhone || maskPhone(phone));
       setStage("code");
       setCode("");
+      // Start the cooldown from the backend's authoritative value so a later
+      // resend is blocked for the exact remaining time.
+      startResendCountdown(result.retryAfterSeconds ?? 0);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
@@ -82,6 +96,13 @@ export function WhatsappMfaSection({
             "Você já tem o aplicativo autenticador ativo. Desative-o primeiro para usar o WhatsApp.",
           );
         } else if (err.status === 429) {
+          // 429 body carries the remaining cooldown — start the countdown from it.
+          const retryAfterSeconds = (
+            err.data as { retryAfterSeconds?: number } | undefined
+          )?.retryAfterSeconds;
+          if (typeof retryAfterSeconds === "number") {
+            startResendCountdown(retryAfterSeconds);
+          }
           setError(
             err.message ||
               "Muitas solicitações. Aguarde um momento e tente novamente.",
@@ -203,11 +224,17 @@ export function WhatsappMfaSection({
             <Button
               type="button"
               onClick={() => void handleStart()}
-              disabled={busy || Boolean(disabledReason)}
+              disabled={
+                busy || Boolean(disabledReason) || resendSecondsLeft > 0
+              }
               className="w-fit gap-2 cursor-pointer"
             >
               {busy && <Spinner className="h-4 w-4 text-white" />}
-              {busy ? "Enviando..." : "Enviar código"}
+              {busy
+                ? "Enviando..."
+                : formatResendLabel(resendSecondsLeft, {
+                    readyLabel: "Enviar código",
+                  })}
             </Button>
           </div>
         ) : null}

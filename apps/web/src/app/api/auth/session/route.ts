@@ -269,6 +269,8 @@ export async function POST(req: NextRequest) {
           mfaRequired: true,
           method: "whatsapp",
           maskedPhone: challenge?.maskedPhone,
+          otpSent: challenge?.otpSent,
+          retryAfterSeconds: challenge?.retryAfterSeconds,
         });
       }
     }

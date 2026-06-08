@@ -4,6 +4,8 @@ export interface StartWhatsappEnrollResponse {
   success: boolean;
   /** Masked phone the OTP was sent to, e.g. "•••• 1234". */
   maskedPhone?: string;
+  /** Seconds until another code can be requested (backend-owned cooldown). */
+  retryAfterSeconds?: number;
 }
 
 export interface VerifyWhatsappEnrollResponse {
