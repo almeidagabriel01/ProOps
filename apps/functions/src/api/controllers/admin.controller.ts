@@ -7,6 +7,7 @@ import { generateRandomPassword } from "../../lib/admin-helpers";
 import { UserDoc } from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import { authorizeMfaReset } from "../../lib/mfa-reset-authz";
+import { clearUserMfaFactors } from "../../lib/mfa-reset";
 import { logger } from "../../lib/logger";
 import { fetchAuditEvents } from "../../lib/audit-events-query";
 import {
@@ -733,9 +734,7 @@ export const resetMemberMfa = async (req: Request, res: Response) => {
       return res.status(authz.status).json({ message: authz.message });
     }
 
-    await auth.updateUser(targetUid, {
-      multiFactor: { enrolledFactors: null },
-    });
+    await clearUserMfaFactors(targetUid);
 
     void writeSecurityAuditEvent({
       eventType: "mfa_reset_by_admin",
