@@ -690,3 +690,53 @@ export const invalidateTenantPlanCacheManual = async (
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+/**
+ * Manual trigger to drain the backlog of free accounts (created > 2 days ago,
+ * never subscribed) with the no-subscription reminder email. Unlike the daily
+ * cron, this scans without a lower age bound. Run once after deploy.
+ *
+ * Body/query: { dryRun?: boolean, limit?: number }
+ * Header: x-cron-secret must match CRON_SECRET.
+ */
+export const remindNoSubscriptionSignupsManual = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const body = (req.body || {}) as { dryRun?: unknown; limit?: unknown };
+    const dryRun =
+      body.dryRun === true ||
+      String(req.query.dryRun ?? "").toLowerCase() === "true";
+    const limitRaw = Number(body.limit ?? req.query.limit ?? NaN);
+    const maxTotal =
+      Number.isFinite(limitRaw) && limitRaw > 0
+        ? Math.floor(limitRaw)
+        : 2000;
+
+    const { runNoSubscriptionReminder } = await import(
+      "../../checkInactiveSignups"
+    );
+    const result = await runNoSubscriptionReminder({
+      batchLimit: 300,
+      maxTotal,
+      dryRun,
+      sendDelayMs: 150,
+    });
+    logger.info("[remindNoSubscriptionSignups manual] completed", {
+      ...result,
+    });
+    return res.json(result);
+  } catch (error) {
+    logger.error("[remindNoSubscriptionSignups manual] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};

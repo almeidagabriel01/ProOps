@@ -32,6 +32,7 @@ export { cleanupStorageAndSharedLinks } from "./cleanupStorageAndSharedLinks";
 export { reconcileAddons } from "./reconcileAddons";
 export { processPayoutRetries } from "./processPayoutRetries";
 export { cleanupSecurityAuditEvents } from "./cleanupSecurityAuditEvents";
+export { remindNoSubscriptionSignups } from "./checkInactiveSignups";
 
 // 2b. Firestore triggers
 export { onWalletCascadeJob } from "./onWalletCascadeJob";
