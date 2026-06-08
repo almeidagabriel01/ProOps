@@ -768,6 +768,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsSessionSynced(true);
       lastSyncSuccessRef.current = Date.now();
       const finalized = await finalizeLogin(true);
+      // The OTP step is terminal and triggers no further auth-state change, so
+      // nothing else clears isLoading — do it here, otherwise the post-login
+      // redirect effect (guarded by `!isLoading`) never runs and the page hangs
+      // on the loader after a correct code.
+      setIsLoading(false);
       return finalized.success
         ? { success: true }
         : { success: false, code: finalized.code };
