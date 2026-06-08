@@ -306,7 +306,7 @@ describe("challengeWhatsappLogin", () => {
     expect(mockSendTemplate).not.toHaveBeenCalled();
   });
 
-  it("sends an OTP and returns maskedPhone when WhatsApp MFA is enabled", async () => {
+  it("auto-challenge with no prior challenge: sends an OTP, writes the challenge, returns the gate", async () => {
     docStore.set("users/user-1", {
       whatsappMfaEnabled: true,
       whatsappMfaPhone: "5511999998888",
@@ -392,6 +392,178 @@ describe("challengeWhatsappLogin", () => {
     const body = json.mock.calls[0][0] as { retryAfterSeconds: number };
     expect(typeof body.retryAfterSeconds).toBe("number");
     expect(body.retryAfterSeconds).toBeGreaterThan(0);
+  });
+
+  it("auto-challenge reuses a valid code even when the cooldown has ALREADY elapsed (core of the fix)", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+
+    // Valid login code (expiresAt in the future), but the cooldown has already
+    // passed (lastSentAt ~90s ago). canSendOtp would allow a new send — yet on
+    // an auto-challenge we must STILL reuse the pending code, not burn a send.
+    const now = Date.now();
+    const existingCodeHash = hashOtp("888888");
+    docStore.set("mfaOtpChallenges/user-1", {
+      uid: "user-1",
+      tenantId: "tenant-1",
+      purpose: "login",
+      phoneHash: require("crypto")
+        .createHash("sha256")
+        .update("5511999998888")
+        .digest("hex"),
+      codeHash: existingCodeHash,
+      expiresAt: { toMillis: () => now + 200_000 },
+      attempts: 0,
+      maxAttempts: 3,
+      lastSentAt: { toMillis: () => now - 90_000 },
+      sendCount: 1,
+      sendWindowStart: { toMillis: () => now - 90_000 },
+    });
+
+    const req = makeReq({}, USER);
+    const { res, json, status } = makeRes();
+
+    await challengeWhatsappLogin(req, res);
+
+    expect(mockSendTemplate).not.toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalledWith(429);
+    expect(docStore.get("mfaOtpChallenges/user-1")?.codeHash).toBe(existingCodeHash);
+
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mfaRequired: true,
+        method: "whatsapp",
+        otpSent: false,
+        // Cooldown already elapsed → resend is unlocked → 0.
+        retryAfterSeconds: 0,
+      }),
+    );
+  });
+
+  it("resend:true sends a fresh code when the cooldown has passed", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+
+    const now = Date.now();
+    docStore.set("mfaOtpChallenges/user-1", {
+      uid: "user-1",
+      tenantId: "tenant-1",
+      purpose: "login",
+      phoneHash: require("crypto")
+        .createHash("sha256")
+        .update("5511999998888")
+        .digest("hex"),
+      codeHash: hashOtp("111111"),
+      expiresAt: { toMillis: () => now + 200_000 },
+      attempts: 0,
+      maxAttempts: 3,
+      lastSentAt: { toMillis: () => now - 90_000 },
+      sendCount: 1,
+      sendWindowStart: { toMillis: () => now - 90_000 },
+    });
+
+    const req = makeReq({ resend: true }, USER);
+    const { res, json } = makeRes();
+
+    await challengeWhatsappLogin(req, res);
+
+    expect(mockSendTemplate).toHaveBeenCalledTimes(1);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mfaRequired: true,
+        method: "whatsapp",
+        otpSent: true,
+        retryAfterSeconds: 60,
+      }),
+    );
+  });
+
+  it("resend:true does NOT send when still within the cooldown", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+
+    const now = Date.now();
+    const existingCodeHash = hashOtp("222222");
+    docStore.set("mfaOtpChallenges/user-1", {
+      uid: "user-1",
+      tenantId: "tenant-1",
+      purpose: "login",
+      phoneHash: require("crypto")
+        .createHash("sha256")
+        .update("5511999998888")
+        .digest("hex"),
+      codeHash: existingCodeHash,
+      expiresAt: { toMillis: () => now + 250_000 },
+      attempts: 0,
+      maxAttempts: 3,
+      lastSentAt: { toMillis: () => now - 5_000 },
+      sendCount: 1,
+      sendWindowStart: { toMillis: () => now - 5_000 },
+    });
+
+    const req = makeReq({ resend: true }, USER);
+    const { res, json } = makeRes();
+
+    await challengeWhatsappLogin(req, res);
+
+    expect(mockSendTemplate).not.toHaveBeenCalled();
+    expect(docStore.get("mfaOtpChallenges/user-1")?.codeHash).toBe(existingCodeHash);
+
+    const body = json.mock.calls[0][0] as {
+      otpSent: boolean;
+      retryAfterSeconds: number;
+    };
+    expect(body.otpSent).toBe(false);
+    expect(body.retryAfterSeconds).toBeGreaterThan(0);
+  });
+
+  it("resend:true does NOT send when the hourly cap is reached and reports the window remaining", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+
+    // Cooldown elapsed but hourly cap (5) reached within the open window.
+    const now = Date.now();
+    const existingCodeHash = hashOtp("333333");
+    docStore.set("mfaOtpChallenges/user-1", {
+      uid: "user-1",
+      tenantId: "tenant-1",
+      purpose: "login",
+      phoneHash: require("crypto")
+        .createHash("sha256")
+        .update("5511999998888")
+        .digest("hex"),
+      codeHash: existingCodeHash,
+      expiresAt: { toMillis: () => now + 100_000 },
+      attempts: 0,
+      maxAttempts: 3,
+      lastSentAt: { toMillis: () => now - 90_000 },
+      sendCount: 5,
+      sendWindowStart: { toMillis: () => now - 10 * 60_000 },
+    });
+
+    const req = makeReq({ resend: true }, USER);
+    const { res, json } = makeRes();
+
+    await challengeWhatsappLogin(req, res);
+
+    expect(mockSendTemplate).not.toHaveBeenCalled();
+    expect(docStore.get("mfaOtpChallenges/user-1")?.codeHash).toBe(existingCodeHash);
+
+    const body = json.mock.calls[0][0] as {
+      otpSent: boolean;
+      retryAfterSeconds: number;
+    };
+    expect(body.otpSent).toBe(false);
+    // ~50 minutes left in the hourly window.
+    expect(body.retryAfterSeconds).toBeGreaterThan(60);
   });
 });
 

@@ -30,6 +30,10 @@ const codeSchema = z.object({
   code: z.string().regex(/^\d{6}$/),
 });
 
+const challengeSchema = z.object({
+  resend: z.boolean().optional(),
+});
+
 interface ChallengeDoc {
   uid: string;
   tenantId: string;
@@ -355,6 +359,8 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
       return res.json({ mfaRequired: false });
     }
 
+    const resend = challengeSchema.safeParse(req.body).data?.resend === true;
+
     const normalizedPhone = userData.whatsappMfaPhone;
     const challengeRef = db.collection(CHALLENGES_COLLECTION).doc(uid);
     const existingSnap = await challengeRef.get();
@@ -365,18 +371,22 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
     const nowMs = Date.now();
     const sendDecision = canSendOtp(existing ? toOtpRecord(existing) : null, nowMs);
 
-    // This endpoint is invoked automatically by the login session flow and may
-    // be called concurrently/repeatedly (frontend login + background token
-    // listeners, token refresh, Google redirect). The WhatsApp gate must be
-    // idempotent: always respond 200 with the gate, and only issue a NEW OTP
-    // when canSendOtp allows. If we're in cooldown/cap, we deliberately do NOT
-    // send and do NOT return 429 — the project invariant is cooldown (60s) <
-    // TTL (300s), so an active cooldown implies a still-valid pending code that
-    // we simply reuse. Returning 429 here would non-deterministically swallow
-    // the gate and stall the login.
-    let otpSent = false;
-    let retryAfterSeconds: number;
-    if (sendDecision.ok) {
+    // Is there a still-valid login code we can reuse instead of issuing a new one?
+    // Defend against expiresAt being either a number or a Firestore Timestamp.
+    const existingExpiresMs =
+      typeof existing?.expiresAt === "number"
+        ? existing.expiresAt
+        : (existing?.expiresAt?.toMillis?.() ?? null);
+    const hasValidLoginCode =
+      existing !== null &&
+      existing.purpose === "login" &&
+      existingExpiresMs !== null &&
+      existingExpiresMs > nowMs;
+
+    // "Sending" means: generateOtpCode() + writeChallenge() (which advances the
+    // cooldown / hourly send-count) + deliverOtp(). "Reusing" touches none of
+    // these, keeping the current code and counters intact.
+    const sendNewCode = async (): Promise<void> => {
       const code = generateOtpCode();
       await writeChallenge({
         uid,
@@ -387,16 +397,48 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
         nowMs,
         existing,
       });
-
       await deliverOtp(normalizedPhone, code);
+      logger.info("WhatsApp MFA login OTP sent", { uid, tenantId, resend });
+    };
 
-      logger.info("WhatsApp MFA login OTP sent", { uid, tenantId });
+    // This endpoint is invoked automatically by the login session flow on every
+    // login/reload, and may be called concurrently (frontend login + background
+    // token listeners, token refresh, Google redirect). It must always respond
+    // 200 with the gate and never return 429 — a 429 would non-deterministically
+    // swallow the gate and stall the login.
+    let otpSent = false;
+    let retryAfterSeconds: number;
 
-      otpSent = true;
-      retryAfterSeconds = getOtpResendCooldownSeconds();
+    if (resend) {
+      // Explicit "Resend" click: send a fresh code if the cooldown/cap allows;
+      // otherwise surface how long until the next send is permitted.
+      if (sendDecision.ok) {
+        await sendNewCode();
+        otpSent = true;
+        retryAfterSeconds = getOtpResendCooldownSeconds();
+      } else {
+        retryAfterSeconds =
+          sendDecision.retryAfterSeconds ?? getOtpResendCooldownSeconds();
+      }
+    } else if (hasValidLoginCode) {
+      // Auto-challenge with a still-valid pending code: reuse it. Do NOT send and
+      // do NOT advance the send counters — this is the core of the fix that keeps
+      // login/reload from burning the hourly send cap. retryAfterSeconds is 0
+      // once the cooldown has elapsed (resend already unlocked), otherwise the
+      // remaining cooldown.
+      retryAfterSeconds = sendDecision.ok
+        ? 0
+        : (sendDecision.retryAfterSeconds ?? 0);
     } else {
-      retryAfterSeconds =
-        sendDecision.retryAfterSeconds ?? getOtpResendCooldownSeconds();
+      // Auto-challenge with no valid code (first access or expired): issue one if
+      // allowed. Rare edge: no code AND capped — we simply can't send yet.
+      if (sendDecision.ok) {
+        await sendNewCode();
+        otpSent = true;
+        retryAfterSeconds = getOtpResendCooldownSeconds();
+      } else {
+        retryAfterSeconds = sendDecision.retryAfterSeconds ?? 0;
+      }
     }
 
     return res.json({
@@ -404,7 +446,7 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
       method: "whatsapp",
       maskedPhone: maskPhone(normalizedPhone),
       otpSent,
-      retryAfterSeconds,
+      retryAfterSeconds: Math.round(retryAfterSeconds),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
