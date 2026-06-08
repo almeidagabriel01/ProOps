@@ -10,6 +10,7 @@ import {
   canSendOtp,
   generateOtpCode,
   getOtpMaxAttempts,
+  getOtpResendCooldownSeconds,
   getOtpTtlSeconds,
   hashOtp,
   verifyOtp,
@@ -204,6 +205,8 @@ export const startWhatsappEnroll = async (req: Request, res: Response) => {
             ? "Aguarde antes de solicitar um novo código."
             : "Limite de envios atingido. Tente novamente mais tarde.",
         code: sendDecision.reason,
+        retryAfterSeconds:
+          sendDecision.retryAfterSeconds ?? getOtpResendCooldownSeconds(),
       });
     }
 
@@ -230,7 +233,11 @@ export const startWhatsappEnroll = async (req: Request, res: Response) => {
 
     logger.info("WhatsApp MFA enroll OTP sent", { uid, tenantId });
 
-    return res.json({ success: true, maskedPhone: maskPhone(normalizedPhone) });
+    return res.json({
+      success: true,
+      maskedPhone: maskPhone(normalizedPhone),
+      retryAfterSeconds: getOtpResendCooldownSeconds(),
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
     logger.error("startWhatsappEnroll failed", { message });
@@ -367,6 +374,8 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
     // TTL (300s), so an active cooldown implies a still-valid pending code that
     // we simply reuse. Returning 429 here would non-deterministically swallow
     // the gate and stall the login.
+    let otpSent = false;
+    let retryAfterSeconds: number;
     if (sendDecision.ok) {
       const code = generateOtpCode();
       await writeChallenge({
@@ -382,12 +391,20 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
       await deliverOtp(normalizedPhone, code);
 
       logger.info("WhatsApp MFA login OTP sent", { uid, tenantId });
+
+      otpSent = true;
+      retryAfterSeconds = getOtpResendCooldownSeconds();
+    } else {
+      retryAfterSeconds =
+        sendDecision.retryAfterSeconds ?? getOtpResendCooldownSeconds();
     }
 
     return res.json({
       mfaRequired: true,
       method: "whatsapp",
       maskedPhone: maskPhone(normalizedPhone),
+      otpSent,
+      retryAfterSeconds,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";

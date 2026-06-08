@@ -170,8 +170,46 @@ describe("startWhatsappEnroll", () => {
     expect(userDoc?.whatsappMfaPendingPhone).toBe("5511999998888");
 
     expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: true, maskedPhone: expect.stringContaining("8888") }),
+      expect.objectContaining({
+        success: true,
+        maskedPhone: expect.stringContaining("8888"),
+        retryAfterSeconds: 60,
+      }),
     );
+  });
+
+  it("returns 429 with retryAfterSeconds when a recent challenge is within cooldown", async () => {
+    const now = Date.now();
+    docStore.set("mfaOtpChallenges/user-1", {
+      uid: "user-1",
+      tenantId: "tenant-1",
+      purpose: "enroll",
+      phoneHash: "x",
+      codeHash: hashOtp("123456"),
+      expiresAt: { toMillis: () => now + 250_000 },
+      attempts: 0,
+      maxAttempts: 3,
+      lastSentAt: { toMillis: () => now - 5_000 },
+      sendCount: 1,
+      sendWindowStart: { toMillis: () => now - 5_000 },
+    });
+
+    const req = makeReq({ phone: PHONE_INPUT }, USER);
+    const { res, status, json, set } = makeRes();
+
+    await startWhatsappEnroll(req, res);
+
+    expect(status).toHaveBeenCalledWith(429);
+    expect(set).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(mockSendTemplate).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "cooldown",
+        retryAfterSeconds: expect.any(Number),
+      }),
+    );
+    const body = json.mock.calls[0][0] as { retryAfterSeconds: number };
+    expect(body.retryAfterSeconds).toBeGreaterThan(0);
   });
 });
 
@@ -288,6 +326,8 @@ describe("challengeWhatsappLogin", () => {
         mfaRequired: true,
         method: "whatsapp",
         maskedPhone: expect.stringContaining("8888"),
+        otpSent: true,
+        retryAfterSeconds: 60,
       }),
     );
   });
@@ -344,8 +384,14 @@ describe("challengeWhatsappLogin", () => {
         mfaRequired: true,
         method: "whatsapp",
         maskedPhone: expect.stringContaining("8888"),
+        otpSent: false,
       }),
     );
+
+    // retryAfterSeconds reflects the remaining cooldown (a positive number).
+    const body = json.mock.calls[0][0] as { retryAfterSeconds: number };
+    expect(typeof body.retryAfterSeconds).toBe("number");
+    expect(body.retryAfterSeconds).toBeGreaterThan(0);
   });
 });
 
