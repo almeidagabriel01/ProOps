@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { AuthService } from "@/services/auth-service";
@@ -20,6 +20,10 @@ import { useRouter } from "next/navigation";
 import { Loader } from "@/components/ui/loader";
 
 const RESEND_COOLDOWN_MS = 60_000;
+// Auto-poll the user's emailVerified flag while the pending screen is open so a
+// confirmation clicked in another tab/device advances this screen on its own.
+const AUTO_CHECK_INTERVAL_MS = 10_000;
+const AUTO_CHECK_WINDOW_MS = 120_000;
 
 interface EmailVerificationPendingProps {
   onVerified?: () => void;
@@ -44,14 +48,20 @@ export function EmailVerificationPending({
   const [message, setMessage] = useState<string>(
     "Enviamos um link de confirmação para o seu e-mail.",
   );
+  const [autoCheckExpired, setAutoCheckExpired] = useState(false);
 
-  const verifyIfConfirmed = useCallback(async () => {
+  // Guards against calling onVerified more than once when an auto-poll tick and
+  // a manual click resolve at the same time.
+  const hasResolvedRef = useRef(false);
+
+  // Silent verification core: reloads the user, and on confirmation syncs the
+  // server session and notifies the parent. Never touches isChecking/message,
+  // so it's safe to call on a 10s poll without flashing the loader.
+  const runVerificationCheck = useCallback(async (): Promise<boolean> => {
+    if (hasResolvedRef.current) return true;
+
     const currentUser = auth.currentUser;
-
-    if (!currentUser) {
-      setIsChecking(false);
-      return false;
-    }
+    if (!currentUser) return false;
 
     try {
       await currentUser.reload();
@@ -63,6 +73,9 @@ export function EmailVerificationPending({
       process.env.NEXT_PUBLIC_SKIP_EMAIL_VERIFICATION === "true";
 
     if (currentUser.emailVerified || skipEmailVerification) {
+      if (hasResolvedRef.current) return true;
+      hasResolvedRef.current = true;
+
       try {
         await forceSyncSession();
       } catch (sessionError) {
@@ -78,15 +91,46 @@ export function EmailVerificationPending({
       return true;
     }
 
-    setIsChecking(false);
     return false;
   }, [forceSyncSession, onVerified]);
+
+  const verifyIfConfirmed = useCallback(async () => {
+    if (!auth.currentUser) {
+      setIsChecking(false);
+      return false;
+    }
+
+    const verified = await runVerificationCheck();
+    if (!verified) {
+      setIsChecking(false);
+    }
+    return verified;
+  }, [runVerificationCheck]);
 
   useEffect(() => {
     if (isAuthLoading) return;
 
     verifyIfConfirmed();
   }, [isAuthLoading, verifyIfConfirmed]);
+
+  // Auto-poll every 10s for up to 2 minutes. Stops on confirmation (the parent
+  // unmounts this screen) or when the window elapses, after which the user
+  // resolves it manually with the button below.
+  useEffect(() => {
+    if (isAuthLoading) return;
+
+    const startedAt = Date.now();
+    const interval = window.setInterval(() => {
+      if (Date.now() - startedAt >= AUTO_CHECK_WINDOW_MS) {
+        window.clearInterval(interval);
+        setAutoCheckExpired(true);
+        return;
+      }
+      void runVerificationCheck();
+    }, AUTO_CHECK_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [isAuthLoading, runVerificationCheck]);
 
   useEffect(() => {
     if (!lastSentAt) {
@@ -215,8 +259,13 @@ export function EmailVerificationPending({
           </CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground text-center">{message}</p>
+          <p className="text-xs text-muted-foreground text-center">
+            {autoCheckExpired
+              ? 'Não detectamos a confirmação automaticamente. Se já confirmou, clique em "Já confirmei meu e-mail".'
+              : "Verificando automaticamente a cada 10s…"}
+          </p>
         </CardContent>
 
         <CardFooter className="flex flex-col gap-2">

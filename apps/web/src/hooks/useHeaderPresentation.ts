@@ -14,6 +14,7 @@ interface HeaderPresentation {
   isViewingAsTenant: boolean;
   isPlanLabelLoading: boolean;
   isTenantLoading: boolean;
+  isCompanyLoading: boolean;
 }
 
 export function useHeaderPresentation(): HeaderPresentation {
@@ -24,43 +25,58 @@ export function useHeaderPresentation(): HeaderPresentation {
   const isMember = user?.role === "member" || !!user?.masterId;
 
   const [fetchedTenant, setFetchedTenant] = useState<Tenant | null>(null);
-  const [isFetchingTenant, setIsFetchingTenant] = useState(false);
+  const [displayTenantStatus, setDisplayTenantStatus] = useState<
+    "idle" | "loading" | "settled"
+  >("idle");
+
+  // The tenant-provider deliberately leaves `tenant` null for roles that must
+  // not hydrate the ERP context (free users, and superadmins who are not
+  // impersonating). The header still needs the company name/logo, so it fetches
+  // the tenant doc for display-only purposes in those cases. This is derived
+  // synchronously so the loading state is correct on the very first render,
+  // before the effect below runs.
+  const tenantId = user?.tenantId;
+  const needsDisplayTenant =
+    (user?.role === "free" || user?.role === "superadmin") &&
+    !tenant &&
+    !!tenantId;
 
   useEffect(() => {
-    // The tenant-provider deliberately leaves `tenant` null for roles that must
-    // not hydrate the ERP context (free users, and superadmins who are not
-    // impersonating). The header still needs the company name/logo, so fetch the
-    // tenant doc for display-only purposes in those cases.
-    if (
-      (user?.role === "free" || user?.role === "superadmin") &&
-      !tenant &&
-      user.tenantId
-    ) {
-      let isActive = true;
-      setIsFetchingTenant(true);
-      const fetchDisplayTenant = async () => {
-        try {
-          const { TenantService } = await import("@/services/tenant-service");
-          const t = await TenantService.getTenantById(user.tenantId!);
-          if (isActive) {
-            setFetchedTenant(t || null);
-          }
-        } catch (error) {
-          console.error("Error fetching display tenant:", error);
-        } finally {
-          if (isActive) {
-            setIsFetchingTenant(false);
-          }
-        }
-      };
-
-      void fetchDisplayTenant();
-
-      return () => {
-        isActive = false;
-      };
+    if (!needsDisplayTenant || !tenantId) {
+      return;
     }
-  }, [user?.role, user?.tenantId, tenant]);
+
+    let isActive = true;
+    setDisplayTenantStatus("loading");
+    const fetchDisplayTenant = async () => {
+      try {
+        const { TenantService } = await import("@/services/tenant-service");
+        const t = await TenantService.getTenantById(tenantId);
+        if (isActive) {
+          setFetchedTenant(t || null);
+        }
+      } catch (error) {
+        console.error("Error fetching display tenant:", error);
+      } finally {
+        if (isActive) {
+          setDisplayTenantStatus("settled");
+        }
+      }
+    };
+
+    void fetchDisplayTenant();
+
+    return () => {
+      isActive = false;
+    };
+  }, [needsDisplayTenant, tenantId]);
+
+  // True while the display-only tenant fetch is still pending (or in flight) and
+  // we have no name/logo to show yet. Keeps the header skeleton up instead of
+  // flashing the "Minha Empresa" fallback. Resolves to false once the fetch
+  // settles — even on error — so the skeleton never hangs forever.
+  const isCompanyLoading =
+    needsDisplayTenant && !fetchedTenant && displayTenantStatus !== "settled";
 
   const companyName = useMemo(() => {
     if (isViewingAsTenant) {
@@ -68,13 +84,13 @@ export function useHeaderPresentation(): HeaderPresentation {
     }
 
     if (user?.role === "superadmin" && !tenant) {
-      if (isFetchingTenant) return "Carregando...";
+      if (displayTenantStatus !== "settled") return "Carregando...";
       // Fallback: Use fetched tenant if it exists, otherwise use user's name (which for superadmins acts as the company/franchise name)
       return fetchedTenant?.name || user?.name || "Minha Empresa";
     }
 
     return tenant?.name || fetchedTenant?.name || "Minha Empresa";
-  }, [isViewingAsTenant, user?.role, tenant, fetchedTenant?.name, isFetchingTenant, user?.name]);
+  }, [isViewingAsTenant, user?.role, tenant, fetchedTenant?.name, displayTenantStatus, user?.name]);
 
   const planSubject = useMemo(() => {
     if (isViewingAsTenant && tenantOwner) {
@@ -192,5 +208,6 @@ export function useHeaderPresentation(): HeaderPresentation {
     isViewingAsTenant,
     isPlanLabelLoading,
     isTenantLoading,
+    isCompanyLoading,
   };
 }

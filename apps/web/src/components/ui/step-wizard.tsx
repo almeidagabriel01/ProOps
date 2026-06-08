@@ -335,6 +335,7 @@ interface StepNavigationProps {
   submitDisabled?: boolean;
   submitLabel?: string;
   nextLabel?: string;
+  nextDisabled?: boolean;
   prevLabel?: string;
   showPrev?: boolean;
 }
@@ -346,6 +347,7 @@ export function StepNavigation({
   submitDisabled = false,
   submitLabel = "Finalizar",
   nextLabel = "Próximo",
+  nextDisabled = false,
   prevLabel = "Anterior",
   showPrev = true,
 }: StepNavigationProps) {
@@ -435,7 +437,7 @@ export function StepNavigation({
         <button
           type="button"
           onClick={handleNext}
-          disabled={isValidating}
+          disabled={isValidating || nextDisabled}
           className={cn(
             "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
             "bg-linear-to-r from-primary to-primary/90 text-primary-foreground",

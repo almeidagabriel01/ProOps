@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Upload, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Upload, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { TenantNiche, NICHE_LABELS } from "@/types";
 
 interface RegisterFormFieldsProps {
@@ -169,6 +169,7 @@ interface CredentialFieldsProps {
   email: string;
   onEmailChange: (value: string) => void;
   onEmailBlur?: () => void;
+  isEmailValidating?: boolean;
   password: string;
   onPasswordChange: (value: string) => void;
   mode: "login" | "register";
@@ -180,6 +181,7 @@ export function CredentialFields({
   email,
   onEmailChange,
   onEmailBlur,
+  isEmailValidating = false,
   password,
   onPasswordChange,
   mode,
@@ -251,17 +253,25 @@ export function CredentialFields({
             }}
             placeholder="seu@email.com"
             value={email}
+            disabled={isEmailValidating}
             onChange={(e) => onEmailChange(e.target.value)}
             onBlur={onEmailBlur ?? validateEmail}
-            className={`flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm pl-9
+            className={`flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm pl-9 pr-10
               shadow-sm transition-[border-color,box-shadow] duration-200 ease-out
               placeholder:text-muted-foreground/60
               hover:border-primary/40 hover:shadow-md
               focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10
               focus:ring-4 focus:ring-primary/10
+              disabled:cursor-not-allowed disabled:opacity-50
               ${emailError ? "border-destructive" : ""}`}
           />
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          {isEmailValidating && (
+            <Loader2
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground"
+              aria-hidden
+            />
+          )}
         </div>
         {emailError && <p className="text-sm text-destructive">{emailError}</p>}
       </div>

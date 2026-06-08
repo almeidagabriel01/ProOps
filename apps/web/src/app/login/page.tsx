@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLoginForm } from "./_hooks/useLoginForm";
@@ -15,7 +15,11 @@ import {
   validatePhoneValue,
 } from "./_lib/register-validation";
 import { callPublicApi } from "@/lib/api-client";
-import { getCaptchaToken } from "@/lib/captcha";
+import {
+  getCaptchaToken,
+  isCaptchaConfigured,
+  mountCaptcha,
+} from "@/lib/captcha";
 
 interface ContactFieldValidation {
   valid: boolean;
@@ -159,6 +163,38 @@ function LoginContent() {
     phoneNumber: 0,
   });
 
+  // Loading state per contact field while the backend availability/validity
+  // check is in flight — drives the in-input spinner, the field lock and the
+  // "Continuar" button disabled state.
+  const [contactValidating, setContactValidating] = useState<{
+    email: boolean;
+    phoneNumber: boolean;
+  }>({ email: false, phoneNumber: false });
+
+  // Mount the Turnstile widget inline in the signup form (so a challenge shows
+  // below the password field, not floating in the corner) and warm it up so the
+  // first on-blur validation doesn't pay the script-load + render cost inline.
+  // A callback ref fires exactly when the node attaches/detaches, which is
+  // robust to the step's enter animation (a [mode] effect could run before the
+  // animated content mounts, leaving the widget to fall back to the corner).
+  const captchaContainerRef = useCallback((el: HTMLDivElement | null) => {
+    mountCaptcha(el);
+  }, []);
+
+  // Whether step 1 (account) is ready to advance: all required fields valid by
+  // format AND no pending field error (e.g. email/phone already in use from the
+  // backend check). Phone is optional, so an empty phone passes. Drives the
+  // "Continuar" disabled state so it only enables when everything is OK.
+  const isRegisterStep1Valid =
+    !validateNameValue(name) &&
+    !validateEmailValue(email) &&
+    !validatePasswordValue(password) &&
+    !validatePhoneValue(phoneNumber) &&
+    !registerErrors.name &&
+    !registerErrors.email &&
+    !registerErrors.password &&
+    !registerErrors.phoneNumber;
+
   // On-blur validation for contact fields: instant client-side format check,
   // then a backend availability/validity check (email already registered,
   // phone already in use) via the rate-limited public endpoint — so the user
@@ -180,8 +216,18 @@ function LoginContent() {
     }
 
     const seq = ++contactSeqRef.current[field];
+    setContactValidating((prev) => ({ ...prev, [field]: true }));
     try {
       const captchaToken = await getCaptchaToken();
+      // Background check: if Turnstile is configured but couldn't issue a token
+      // without forcing a challenge, skip the advisory lookup (the backend would
+      // reject it with 403). The authoritative check at submit handles it.
+      if (isCaptchaConfigured() && !captchaToken) {
+        if (seq === contactSeqRef.current[field]) {
+          setRegisterFieldError(field, null);
+        }
+        return;
+      }
       const res = await callPublicApi<ContactValidationResponse>(
         "v1/validation/contact",
         "POST",
@@ -205,6 +251,12 @@ function LoginContent() {
       // path re-runs this check authoritatively.
       if (seq === contactSeqRef.current[field]) {
         setRegisterFieldError(field, null);
+      }
+    } finally {
+      // Only the most recent validation for this field clears the loading flag,
+      // so a stale response can't unlock a field that's validating again.
+      if (seq === contactSeqRef.current[field]) {
+        setContactValidating((prev) => ({ ...prev, [field]: false }));
       }
     }
   };
@@ -365,18 +417,30 @@ function LoginContent() {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="reg-phone">WhatsApp / Telefone</Label>
-                      <PhoneInput
-                        id="reg-phone"
-                        name="reg-phone"
-                        value={phoneNumber}
-                        onChange={(e) => {
-                          setPhoneNumber(e.target.value);
-                          clearRegisterError("phoneNumber");
-                        }}
-                        onBlur={() =>
-                          validateContactField("phoneNumber", phoneNumber)
-                        }
-                      />
+                      <div className="relative">
+                        <PhoneInput
+                          id="reg-phone"
+                          name="reg-phone"
+                          value={phoneNumber}
+                          disabled={contactValidating.phoneNumber}
+                          className={
+                            contactValidating.phoneNumber ? "pr-10" : undefined
+                          }
+                          onChange={(e) => {
+                            setPhoneNumber(e.target.value);
+                            clearRegisterError("phoneNumber");
+                          }}
+                          onBlur={() =>
+                            validateContactField("phoneNumber", phoneNumber)
+                          }
+                        />
+                        {contactValidating.phoneNumber && (
+                          <Loader2
+                            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground"
+                            aria-hidden
+                          />
+                        )}
+                      </div>
                       {registerErrors.phoneNumber && (
                         <p className="text-sm text-destructive">
                           {registerErrors.phoneNumber}
@@ -391,6 +455,7 @@ function LoginContent() {
                           clearRegisterError("email");
                       }}
                       onEmailBlur={() => validateContactField("email", email)}
+                      isEmailValidating={contactValidating.email}
                       password={password}
                       onPasswordChange={(val) => {
                         setPassword(val);
@@ -399,6 +464,12 @@ function LoginContent() {
                       mode="register"
                       error={error}
                       errors={registerErrors}
+                    />
+                    {/* Turnstile renders here (below the password field) when a
+                        challenge is required; invisible otherwise. */}
+                    <div
+                      ref={captchaContainerRef}
+                      className="flex justify-center"
                     />
 
                     <div className="relative my-3">
@@ -439,6 +510,11 @@ function LoginContent() {
                     <StepNavigation
                       showPrev={false}
                       nextLabel="Continuar"
+                      nextDisabled={
+                        contactValidating.email ||
+                        contactValidating.phoneNumber ||
+                        !isRegisterStep1Valid
+                      }
                       onBeforeNext={validateRegisterStep1}
                     />
 

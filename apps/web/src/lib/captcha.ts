@@ -14,7 +14,13 @@
 
 const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+// Background (on-blur) checks give up quickly — they never force a challenge.
 const TOKEN_TIMEOUT_MS = 8000;
+// Interactive calls (form submit) wait long enough for the user to solve a
+// challenge.
+const INTERACTIVE_TOKEN_TIMEOUT_MS = 120000;
+// How long the widget stays visible after a verification before it auto-hides.
+const AUTO_HIDE_MS = 3000;
 
 interface TurnstileApi {
   render: (
@@ -23,6 +29,7 @@ interface TurnstileApi {
   ) => string;
   execute: (idOrEl: string | HTMLElement, opts?: Record<string, unknown>) => void;
   reset: (idOrEl: string | HTMLElement) => void;
+  remove: (idOrEl: string | HTMLElement) => void;
 }
 
 declare global {
@@ -36,6 +43,17 @@ let widgetId: string | null = null;
 let hasExecutedOnce = false;
 let pendingResolve: ((token: string) => void) | null = null;
 let chain: Promise<string> = Promise.resolve("");
+
+// Where the widget renders. `mountEl` is set by the form via mountCaptcha() so
+// a challenge shows inline below the password field; when no mount point is
+// provided we fall back to a fixed bottom-right container.
+let mountEl: HTMLElement | null = null;
+let renderedInto: HTMLElement | null = null;
+let fallbackContainer: HTMLElement | null = null;
+let hideTimer: ReturnType<typeof setTimeout> | null = null;
+// Whether the in-flight execution may show an interactive challenge. Calls are
+// serialized via `chain`, so a single module flag is safe.
+let interactiveExecution = false;
 
 function loadScript(): Promise<void> {
   if (scriptPromise) return scriptPromise;
@@ -67,26 +85,88 @@ async function waitForTurnstile(): Promise<TurnstileApi> {
   return window.turnstile;
 }
 
-async function ensureWidget(): Promise<string> {
-  const turnstile = await waitForTurnstile();
-  if (widgetId) return widgetId;
-
+// Lazily-created fallback anchor used only when the form didn't provide a mount
+// point. Kept off-screen-friendly in the bottom-right corner.
+function getFallbackContainer(): HTMLElement {
+  if (fallbackContainer) return fallbackContainer;
   const container = document.createElement("div");
-  // Keep it in the layout (not display:none) so a challenge can render if one
-  // is ever required; interaction-only keeps it invisible the rest of the time.
   container.style.position = "fixed";
   container.style.right = "12px";
   container.style.bottom = "12px";
   container.style.zIndex = "2147483647";
   document.body.appendChild(container);
+  fallbackContainer = container;
+  return container;
+}
 
-  widgetId = turnstile.render(container, {
+function showWidget(): void {
+  if (hideTimer) {
+    clearTimeout(hideTimer);
+    hideTimer = null;
+  }
+  if (renderedInto) renderedInto.style.removeProperty("display");
+}
+
+// Auto-dismiss the widget a few seconds after a verification so it doesn't
+// linger on screen until a page refresh.
+function scheduleHide(): void {
+  const target = renderedInto;
+  if (!target) return;
+  if (hideTimer) clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    target.style.display = "none";
+    hideTimer = null;
+  }, AUTO_HIDE_MS);
+}
+
+async function ensureWidget(): Promise<string> {
+  const turnstile = await waitForTurnstile();
+  const target = mountEl ?? getFallbackContainer();
+
+  // Reuse the widget only while it's still rendered into the desired, attached
+  // container.
+  if (widgetId && renderedInto === target && renderedInto.isConnected) {
+    return widgetId;
+  }
+
+  // Container changed or was unmounted (e.g. toggling login/register): drop the
+  // stale widget before rendering into the new container.
+  if (widgetId) {
+    try {
+      turnstile.remove(widgetId);
+    } catch {
+      // The old node may already be detached — ignore.
+    }
+    widgetId = null;
+    hasExecutedOnce = false;
+  }
+
+  widgetId = turnstile.render(target, {
     sitekey: SITE_KEY,
     execution: "execute",
     appearance: "interaction-only",
     callback: (token: string) => {
       pendingResolve?.(token);
       pendingResolve = null;
+      // Only auto-hide after a real verification — on error/expiry we keep the
+      // widget visible so the user can still solve the challenge.
+      scheduleHide();
+    },
+    "before-interactive-callback": () => {
+      // A challenge needs user interaction. Background (on-blur) checks must
+      // never force the user to solve a captcha mid-typing: resolve empty and
+      // collapse the widget. Interactive calls (submit) let it show.
+      if (!interactiveExecution) {
+        pendingResolve?.("");
+        pendingResolve = null;
+        if (widgetId) {
+          try {
+            window.turnstile?.reset(widgetId);
+          } catch {
+            // ignore
+          }
+        }
+      }
     },
     "error-callback": () => {
       pendingResolve?.("");
@@ -97,6 +177,7 @@ async function ensureWidget(): Promise<string> {
       pendingResolve = null;
     },
   });
+  renderedInto = target;
 
   return widgetId;
 }
@@ -105,10 +186,17 @@ async function ensureWidget(): Promise<string> {
  * Returns a fresh Turnstile token, or "" when Turnstile is not configured or
  * cannot produce one (caller should treat "" as "no token available").
  */
-export function getCaptchaToken(): Promise<string> {
+export function getCaptchaToken(options?: {
+  interactive?: boolean;
+}): Promise<string> {
   if (typeof window === "undefined" || !SITE_KEY) {
     return Promise.resolve("");
   }
+
+  const interactive = options?.interactive ?? false;
+  const timeoutMs = interactive
+    ? INTERACTIVE_TOKEN_TIMEOUT_MS
+    : TOKEN_TIMEOUT_MS;
 
   const run = chain.then(
     () =>
@@ -123,12 +211,25 @@ export function getCaptchaToken(): Promise<string> {
         ensureWidget()
           .then((id) => {
             pendingResolve = finish;
+            interactiveExecution = interactive;
+            showWidget();
             if (hasExecutedOnce) {
               window.turnstile?.reset(id);
             }
             hasExecutedOnce = true;
             window.turnstile?.execute(id);
-            setTimeout(() => finish(""), TOKEN_TIMEOUT_MS);
+            setTimeout(() => {
+              // Background checks never block on a challenge: collapse the
+              // widget if it's still pending when we give up.
+              if (!settled && !interactive) {
+                try {
+                  window.turnstile?.reset(id);
+                } catch {
+                  // ignore
+                }
+              }
+              finish("");
+            }, timeoutMs);
           })
           .catch(() => finish(""));
       }),
@@ -137,4 +238,30 @@ export function getCaptchaToken(): Promise<string> {
   // Keep the chain alive regardless of individual outcomes.
   chain = run.catch(() => "");
   return run;
+}
+
+/**
+ * Whether Turnstile is configured (site key present). When false, getCaptchaToken
+ * resolves "" and the backend skips verification, so callers can safely proceed
+ * with an empty token; when true, an empty token means "couldn't verify".
+ */
+export function isCaptchaConfigured(): boolean {
+  return typeof window !== "undefined" && !!SITE_KEY;
+}
+
+/**
+ * Mounts the Turnstile widget into a form-provided container so a challenge,
+ * when shown, appears inline (below the password field) instead of floating in
+ * the corner. Also eagerly loads the script + renders the widget, so the first
+ * on-blur `getCaptchaToken()` doesn't pay the script-load + render cost on the
+ * critical path.
+ *
+ * Pass the container element on mount; pass `null` on unmount. No-op when
+ * Turnstile is unconfigured.
+ */
+export function mountCaptcha(container: HTMLElement | null): void {
+  if (typeof window === "undefined" || !SITE_KEY) return;
+  mountEl = container;
+  if (!container) return;
+  void ensureWidget().catch(() => {});
 }

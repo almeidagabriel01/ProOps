@@ -20,7 +20,7 @@ export function renderNoSubscriptionReminderEmail(
 
   const text = `${greeting}!
 
-Você criou sua conta no ProOps há alguns dias, mas ainda não escolheu um plano. Escolha o plano ideal para o seu negócio e desbloqueie todos os recursos do sistema:
+Você criou sua conta na ProOps há alguns dias, mas ainda não escolheu um plano. Escolha o plano ideal para o seu negócio e desbloqueie todos os recursos do sistema:
 
 ${data.plansUrl}
 

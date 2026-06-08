@@ -40,8 +40,10 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const lastScrollY = useRef(0);
   const navRef = useRef<HTMLElement>(null);
   const router = useRouter();
-  const { companyName, logoUrl, avatarSeed, isTenantLoading } = useHeaderPresentation();
-  const isNavbarLoading = isAuthLoading || (!!currentUser && isTenantLoading);
+  const { companyName, logoUrl, avatarSeed, isTenantLoading, isCompanyLoading } =
+    useHeaderPresentation();
+  const isNavbarLoading =
+    isAuthLoading || (!!currentUser && (isTenantLoading || isCompanyLoading));
   const appHref = currentUser ? getAuthenticatedHome(currentUser) : "/login";
   const isFreeAccount = currentUser?.role === "free";
   const isBlockedAccount = ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
