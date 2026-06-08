@@ -65,3 +65,24 @@ export function resolveMfaRecoveryView(
   if (!result || !result.valid) return "invalid";
   return result.hasPassword ? "password" : "link-only";
 }
+
+/**
+ * Masks a phone number for display, keeping only the last 4 digits — e.g.
+ * "+5511999991234" → "•••• 1234". Pure and side-effect-free. The backend also
+ * returns a `maskedPhone`; prefer that when available and fall back to this for
+ * a phone the user just typed (before the backend has echoed it back).
+ */
+export function maskPhone(phone: string): string {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (digits.length <= 4) return digits;
+  return `•••• ${digits.slice(-4)}`;
+}
+
+/**
+ * Whether the profile two-factor selector should offer WhatsApp as a method.
+ * Super admins are TOTP-only (the backend rejects WhatsApp enroll for them), so
+ * the WhatsApp option is hidden for them entirely. Any other role may choose it.
+ */
+export function canUseWhatsappMfa(role: string | null | undefined): boolean {
+  return String(role || "").trim().toLowerCase() !== "superadmin";
+}

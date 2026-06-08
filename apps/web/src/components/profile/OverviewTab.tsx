@@ -7,7 +7,7 @@ import { UsePlanUsageReturn } from "@/hooks/usePlanUsage";
 import { PersonalForm } from "./personal-form";
 import { OrganizationForm } from "./organization-form";
 import { PasswordForm } from "./password-form";
-import { MfaSection } from "./mfa-section";
+import { TwoFactorSection } from "./two-factor-section";
 import { AsaasConnectCard } from "@/app/settings/_components/asaas-connect-card";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -50,7 +50,7 @@ export function OverviewTab({
         ) : (
           !isFree && <PlanUsageCard variant="profile" data={planUsageData} />
         )}
-        <MfaSection />
+        <TwoFactorSection />
         {isMaster && <AsaasConnectCard />}
       </div>
       {/* Right Column: Organization + Plan Usage */}

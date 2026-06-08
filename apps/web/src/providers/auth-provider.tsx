@@ -19,6 +19,7 @@ import { retryUntil } from "@/lib/async/retry";
 import { useRouter } from "next/navigation";
 import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
 import { AuthService } from "@/services/auth-service";
+import { interpretSessionResponse } from "@/lib/auth/interpret-session-response";
 
 import { User, SubscriptionStatus } from "@/types";
 
@@ -34,17 +35,37 @@ interface AuthContextType {
   login: (
     email: string,
     pass: string,
-  ) => Promise<{ success: boolean; code?: string }>;
+  ) => Promise<{ success: boolean; code?: string; maskedPhone?: string }>;
   /** Completes a login that returned `code: "mfa-required"` with a TOTP code. */
   resolveTotpLogin: (
     totpCode: string,
   ) => Promise<{ success: boolean; code?: string }>;
+  /**
+   * Completes a login that returned `code: "whatsapp-mfa-required"` by
+   * re-POSTing the current user's ID token together with the WhatsApp OTP to
+   * `/api/auth/session`. On success the cookie is emitted and the login is
+   * finalized. On a wrong code the backend `attemptsLeft` is surfaced.
+   */
+  resolveWhatsappLogin: (
+    otpCode: string,
+  ) => Promise<{ success: boolean; code?: string; attemptsLeft?: number }>;
   /**
    * If `error` is a multi-factor challenge, stashes the resolver for
    * `resolveTotpLogin` and returns true. Lets non-password sign-in paths
    * (e.g. Google OAuth) route into the same TOTP code screen.
    */
   prepareMfaChallenge: (error: unknown) => boolean;
+  /**
+   * Drives session creation for a sign-in path that completed OUTSIDE `login`
+   * (e.g. Google popup/redirect). Surfaces the WhatsApp-MFA gate the same way
+   * `login` does: returns `{ code: "whatsapp-mfa-required", maskedPhone }`
+   * when the cookie was withheld pending an OTP.
+   */
+  completeSessionAfterSignIn: () => Promise<{
+    success: boolean;
+    code?: string;
+    maskedPhone?: string;
+  }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /** Force-refresh the ID token and re-sync the session cookie. */
@@ -58,7 +79,9 @@ const AuthContext = React.createContext<AuthContextType>({
   getIsLoggingOut: () => false,
   login: async () => ({ success: false }),
   resolveTotpLogin: async () => ({ success: false }),
+  resolveWhatsappLogin: async () => ({ success: false }),
   prepareMfaChallenge: () => false,
+  completeSessionAfterSignIn: async () => ({ success: true }),
   logout: async () => {},
   refreshUser: async () => {},
   forceSyncSession: async () => false,
@@ -125,19 +148,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const lastSyncSuccessRef = React.useRef(0);
   const SYNC_COOLDOWN_MS = 30_000;
 
+  // True while an EXPLICIT sign-in is being driven by login()/resolveTotpLogin()
+  // or completeSessionAfterSignIn() (Google popup/redirect). During this window
+  // the foreground path owns the single /api/auth/session POST. The background
+  // listeners (onAuthStateChanged/onIdTokenChanged/visibilitychange) must NOT
+  // call syncServerSession — a concurrent POST would race the foreground one and,
+  // for a WhatsApp-MFA user, hit the non-idempotent challenge's cooldown (429),
+  // breaking the OTP gate. It is held set until the foreground path resolves
+  // (cookie synced, error, OR — for the WhatsApp gate — until resolveWhatsappLogin
+  // finishes), so a token-refresh mid-OTP can't fire a second challenge either.
+  const explicitSignInInProgressRef = React.useRef(false);
+
+  /**
+   * POSTs the ID token (optionally with an `otpCode`) to `/api/auth/session`.
+   * Returns the parsed JSON body so callers can detect the WhatsApp-MFA gate
+   * (`{ mfaRequired: true, method: "whatsapp", maskedPhone }`), which is
+   * returned with HTTP 200 and WITHOUT emitting the cookie. Throws on a
+   * non-OK response so `syncServerSession`'s retry logic still works.
+   */
   const createServerSession = React.useCallback(
-    async (firebaseUser: FirebaseUser) => {
+    async (
+      firebaseUser: FirebaseUser,
+      otpCode?: string,
+    ): Promise<{
+      mfaRequired?: boolean;
+      method?: string;
+      maskedPhone?: string;
+    }> => {
       const idToken = await firebaseUser.getIdToken();
       const response = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify(
+          otpCode ? { idToken, otpCode } : { idToken },
+        ),
       });
 
+      const data = (await response
+        .json()
+        .catch(() => ({}))) as {
+        mfaRequired?: boolean;
+        method?: string;
+        maskedPhone?: string;
+        attemptsLeft?: number;
+        message?: string;
+      };
+
       if (!response.ok) {
-        throw new Error(`Failed to create session cookie (${response.status})`);
+        const error = new Error(
+          `Failed to create session cookie (${response.status})`,
+        ) as Error & { status?: number; attemptsLeft?: number };
+        error.status = response.status;
+        error.attemptsLeft =
+          typeof data.attemptsLeft === "number"
+            ? data.attemptsLeft
+            : undefined;
+        throw error;
       }
+
+      return data;
     },
     [],
   );
@@ -177,7 +247,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const attempt = async (): Promise<boolean> => {
         try {
-          await createServerSession(firebaseUser);
+          const session = await createServerSession(firebaseUser);
+          // Defense for when the listener runs OUTSIDE an explicit login (e.g. a
+          // token-refresh while the user is still entering the WhatsApp OTP): the
+          // route returns 200 WITHOUT a cookie. Treating that as success would
+          // falsely mark the session synced. Do not mark synced, do not prime the
+          // cooldown, and do not retry (the retry would re-POST and fire a second,
+          // non-idempotent challenge).
+          if (interpretSessionResponse(session) === "whatsapp-otp-pending") {
+            setIsSessionSynced(false);
+            return true;
+          }
           setIsSessionSynced(true);
           lastSyncSuccessRef.current = Date.now();
           return true;
@@ -356,7 +436,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (firebaseUser.emailVerified || skipEmailVerification) {
             const userData = await fetchUserData(firebaseUser);
             setUser(userData);
-            await syncServerSession(firebaseUser);
+            // Skip the background sync while an explicit sign-in owns the single
+            // session POST — otherwise two concurrent POSTs race the WhatsApp gate.
+            if (!explicitSignInInProgressRef.current) {
+              await syncServerSession(firebaseUser);
+            }
           } else {
             setUser(null);
           }
@@ -412,7 +496,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Canceled accounts stay logged in. Sync the session cookie so it reflects
           // the new claims. The middleware handles blocking on the next navigation.
           if (SOFT_BLOCKED_STATUSES.has(subStatus)) {
-            await syncServerSession(firebaseUser);
+            if (!explicitSignInInProgressRef.current) {
+              await syncServerSession(firebaseUser);
+            }
             return;
           }
           // past_due: check the server for the grace-period decision.
@@ -434,7 +520,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
           // Token revoked — onAuthStateChanged fires with null, triggering sign-out.
         }
-        await syncServerSession(firebaseUser);
+        // Skip while an explicit sign-in owns the session POST (see ref doc above).
+        // This also prevents a token-refresh during the WhatsApp OTP wait from
+        // firing a second, non-idempotent challenge.
+        if (!explicitSignInInProgressRef.current) {
+          await syncServerSession(firebaseUser);
+        }
       }
     });
 
@@ -444,6 +535,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // sync could have failed (e.g. the device was sleeping). Re-sync.
     const handleVisibilityChange = async () => {
       if (document.visibilityState !== "visible") return;
+      // Don't race the foreground session POST (or fire a challenge during the
+      // WhatsApp OTP wait) when an explicit sign-in is in progress.
+      if (explicitSignInInProgressRef.current) return;
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) return;
       const skipEmailVerification =
@@ -515,9 +609,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Shared post-sign-in logic for both password and MFA-resolved logins.
-  const finalizeLogin = async (): Promise<{
+  // `skipSessionCreate` is set by resolveWhatsappLogin, which already emitted
+  // the cookie with the OTP — re-POSTing here (without the OTP) would make the
+  // route re-challenge and falsely report `whatsapp-mfa-required` again.
+  const finalizeLogin = async (
+    skipSessionCreate = false,
+  ): Promise<{
     success: boolean;
     code?: string;
+    maskedPhone?: string;
   }> => {
     const currentUser = auth.currentUser;
     if (currentUser) {
@@ -542,25 +642,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return { success: false, code: "email-not-verified" };
       }
+
+      // Drive the session creation here (not only via the background listener)
+      // so the WhatsApp-MFA gate can be surfaced to the caller. The route
+      // returns `{ mfaRequired: true, method: "whatsapp", maskedPhone }` with
+      // HTTP 200 and WITHOUT a cookie when WhatsApp OTP is required.
+      if (skipSessionCreate) {
+        return { success: true };
+      }
+      try {
+        const session = await createServerSession(currentUser);
+        if (interpretSessionResponse(session) === "whatsapp-otp-pending") {
+          // Cookie withheld. Keep the user signed in (Firebase) so we can read
+          // the ID token for the verify step, but do not finalize yet.
+          setIsSessionSynced(false);
+          setIsLoading(false);
+          return {
+            success: false,
+            code: "whatsapp-mfa-required",
+            maskedPhone: session.maskedPhone,
+          };
+        }
+        // Cookie emitted (or super-admin gate handled elsewhere) — mark synced
+        // and prime the cooldown so the listener doesn't re-POST immediately.
+        setIsSessionSynced(true);
+        lastSyncSuccessRef.current = Date.now();
+      } catch (sessionError) {
+        // Non-fatal: the background onAuthStateChanged/onIdTokenChanged listener
+        // retries the sync. Don't block the login on a transient failure.
+        console.error("Session creation during login failed:", sessionError);
+      }
     }
 
     return { success: true };
   };
 
-  const login = async (email: string, pass: string) => {
+  // Keep listeners suppressed only while a WhatsApp OTP is still pending. For
+  // every other outcome (success, error, native-MFA challenge handoff) the
+  // foreground path is done and the background listeners can resume.
+  const releaseExplicitSignInUnlessWhatsappPending = (code?: string) => {
+    if (code !== "whatsapp-mfa-required") {
+      explicitSignInInProgressRef.current = false;
+    }
+  };
+
+  const login = async (
+    email: string,
+    pass: string,
+  ): Promise<{ success: boolean; code?: string; maskedPhone?: string }> => {
     setIsLoading(true);
     setIsSessionSynced(false);
     lastSyncSuccessRef.current = 0;
     mfaResolverRef.current = null;
+    // Take ownership of the single session POST before signInWithEmailAndPassword
+    // fires the background auth listeners.
+    explicitSignInInProgressRef.current = true;
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-      return await finalizeLogin();
+      const result = await finalizeLogin();
+      releaseExplicitSignInUnlessWhatsappPending(result.code);
+      return result;
     } catch (error) {
       if (prepareMfaChallenge(error)) {
+        // The user is NOT signed in yet (native MFA challenge pending); no
+        // listener has fired. Release so resolveTotpLogin re-takes ownership.
+        explicitSignInInProgressRef.current = false;
         return { success: false, code: "mfa-required" };
       }
 
       console.error("Login failed", error);
+      explicitSignInInProgressRef.current = false;
       setIsLoading(false);
       return { success: false, code: "invalid-credentials" };
     }
@@ -572,11 +723,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, code: "invalid-credentials" };
     }
     setIsLoading(true);
+    // resolveSignIn() signs the user in and fires the background listeners — take
+    // ownership of the session POST first.
+    explicitSignInInProgressRef.current = true;
     try {
       const totpHint = resolver.hints.find(
         (hint) => hint.factorId === TotpMultiFactorGenerator.FACTOR_ID,
       );
       if (!totpHint) {
+        explicitSignInInProgressRef.current = false;
         setIsLoading(false);
         return { success: false, code: "mfa-no-totp" };
       }
@@ -586,12 +741,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       await resolver.resolveSignIn(assertion);
       mfaResolverRef.current = null;
-      return await finalizeLogin();
+      const result = await finalizeLogin();
+      releaseExplicitSignInUnlessWhatsappPending(result.code);
+      return result;
     } catch (error) {
       console.error("MFA resolve failed", error);
+      explicitSignInInProgressRef.current = false;
       setIsLoading(false);
       return { success: false, code: "mfa-invalid-code" };
     }
+  };
+
+  const resolveWhatsappLogin = async (
+    otpCode: string,
+  ): Promise<{ success: boolean; code?: string; attemptsLeft?: number }> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return { success: false, code: "invalid-credentials" };
+    }
+    setIsLoading(true);
+    try {
+      // Re-POST { idToken, otpCode } to the same session route. When the OTP
+      // matches, the backend emits the __session cookie and we finalize the
+      // login exactly like the normal flow does after the cookie is set.
+      await createServerSession(currentUser, otpCode.trim());
+      setIsSessionSynced(true);
+      lastSyncSuccessRef.current = Date.now();
+      const finalized = await finalizeLogin(true);
+      return finalized.success
+        ? { success: true }
+        : { success: false, code: finalized.code };
+    } catch (error) {
+      const attemptsLeft = (error as { attemptsLeft?: number })?.attemptsLeft;
+      console.error("WhatsApp MFA resolve failed", error);
+      setIsLoading(false);
+      return {
+        success: false,
+        code: "whatsapp-mfa-invalid-code",
+        attemptsLeft,
+      };
+    } finally {
+      // The OTP step is the terminal stage of the WhatsApp gate. Whatever the
+      // outcome (cookie emitted, or a wrong/expired code that surfaces
+      // attemptsLeft), the foreground path has run its single POST — release the
+      // listeners so normal token-refresh syncing can resume.
+      explicitSignInInProgressRef.current = false;
+    }
+  };
+
+  const completeSessionAfterSignIn = async () => {
+    // Google popup/redirect completes OUTSIDE login(); the user is already signed
+    // in so onAuthStateChanged may have fired. Take ownership now so any token-
+    // refresh / visibility re-sync can't fire a concurrent (non-idempotent)
+    // challenge, and so a WhatsApp gate stays suppressed until the OTP is entered.
+    explicitSignInInProgressRef.current = true;
+    const result = await finalizeLogin();
+    releaseExplicitSignInUnlessWhatsappPending(result.code);
+    return result;
   };
 
   const logout = async () => {
@@ -630,7 +836,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         getIsLoggingOut,
         login,
         resolveTotpLogin,
+        resolveWhatsappLogin,
         prepareMfaChallenge,
+        completeSessionAfterSignIn,
         logout,
         refreshUser,
         forceSyncSession,

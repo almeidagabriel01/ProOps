@@ -102,6 +102,14 @@ function LoginContent() {
     mfaRecoveryMessage,
     isRequestingMfaRecovery,
     handleStartMfaRecovery,
+    requiresWhatsappOtp,
+    whatsappOtpCode,
+    setWhatsappOtpCode,
+    whatsappMaskedPhone,
+    isVerifyingWhatsappOtp,
+    isResendingWhatsappOtp,
+    handleConfirmWhatsappOtp,
+    handleResendWhatsappOtp,
   } = useLoginForm();
 
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>(
@@ -335,6 +343,78 @@ function LoginContent() {
             >
               {isVerifyingMfaCode ? "Verificando..." : "Entrar"}
             </Button>
+          </form>
+          <div className="mt-6 border-t pt-4">
+            {mfaRecoveryRequested ? (
+              <p className="text-sm text-muted-foreground">
+                {mfaRecoveryMessage}
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartMfaRecovery}
+                disabled={isRequestingMfaRecovery}
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
+              >
+                {isRequestingMfaRecovery
+                  ? "Enviando..."
+                  : "Perdi acesso ao meu método de verificação"}
+              </button>
+            )}
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (requiresWhatsappOtp) {
+    return (
+      <AuthLayout reverse={false}>
+        <div className="w-full max-w-sm mx-auto">
+          <h1 className="text-2xl font-semibold mb-2">
+            Verificação em duas etapas
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Enviamos um código para o WhatsApp
+            {whatsappMaskedPhone ? ` ${whatsappMaskedPhone}` : ""}.
+          </p>
+          <form
+            onSubmit={handleConfirmWhatsappOtp}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="whatsapp-otp-code">Código</Label>
+              <Input
+                id="whatsapp-otp-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={whatsappOtpCode}
+                onChange={(e) =>
+                  setWhatsappOtpCode(e.target.value.replace(/\D/g, ""))
+                }
+                placeholder="000000"
+                autoFocus
+              />
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <Button
+              type="submit"
+              disabled={
+                isVerifyingWhatsappOtp || whatsappOtpCode.trim().length !== 6
+              }
+              className="cursor-pointer"
+            >
+              {isVerifyingWhatsappOtp ? "Verificando..." : "Entrar"}
+            </Button>
+            <button
+              type="button"
+              onClick={handleResendWhatsappOtp}
+              disabled={isResendingWhatsappOtp}
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
+            >
+              {isResendingWhatsappOtp ? "Reenviando..." : "Reenviar código"}
+            </button>
           </form>
           <div className="mt-6 border-t pt-4">
             {mfaRecoveryRequested ? (

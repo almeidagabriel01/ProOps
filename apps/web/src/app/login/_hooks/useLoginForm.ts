@@ -20,7 +20,8 @@ import {
 import { AuthService } from "@/services/auth-service";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { callPublicApi } from "@/lib/api-client";
+import { ApiError, callPublicApi } from "@/lib/api-client";
+import { isValidTotpCode } from "@/lib/mfa-helpers";
 import { getCaptchaToken } from "@/lib/captcha";
 import { toast } from "@/lib/toast";
 import { ALLOWED_TYPES } from "@/services/storage-service";
@@ -100,10 +101,18 @@ interface UseLoginFormReturn {
   mfaRecoveryRequested: boolean;
   mfaRecoveryMessage: string;
   isRequestingMfaRecovery: boolean;
+  requiresWhatsappOtp: boolean;
+  whatsappOtpCode: string;
+  setWhatsappOtpCode: (value: string) => void;
+  whatsappMaskedPhone: string;
+  isVerifyingWhatsappOtp: boolean;
+  isResendingWhatsappOtp: boolean;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
   handleConfirmMfaCode: (e?: React.FormEvent) => Promise<void>;
+  handleConfirmWhatsappOtp: (e?: React.FormEvent) => Promise<void>;
+  handleResendWhatsappOtp: () => Promise<void>;
   handleStartMfaRecovery: () => Promise<void>;
   handleRegister: (e?: React.FormEvent) => Promise<void>;
   handleForgotPassword: (e?: React.FormEvent) => Promise<void>;
@@ -156,6 +165,13 @@ export function useLoginForm(): UseLoginFormReturn {
   const [mfaRecoveryRequested, setMfaRecoveryRequested] = React.useState(false);
   const [mfaRecoveryMessage, setMfaRecoveryMessage] = React.useState("");
   const [isRequestingMfaRecovery, setIsRequestingMfaRecovery] =
+    React.useState(false);
+  const [requiresWhatsappOtp, setRequiresWhatsappOtp] = React.useState(false);
+  const [whatsappOtpCode, setWhatsappOtpCode] = React.useState("");
+  const [whatsappMaskedPhone, setWhatsappMaskedPhone] = React.useState("");
+  const [isVerifyingWhatsappOtp, setIsVerifyingWhatsappOtp] =
+    React.useState(false);
+  const [isResendingWhatsappOtp, setIsResendingWhatsappOtp] =
     React.useState(false);
   const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
 
@@ -247,7 +263,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, prepareMfaChallenge, user, isLoading, isSessionSynced, forceSyncSession, refreshUser } =
+  const { login, resolveTotpLogin, resolveWhatsappLogin, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, forceSyncSession, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -367,6 +383,10 @@ export function useLoginForm(): UseLoginFormReturn {
 
   // If already logged in, redirect
   React.useEffect(() => {
+    // While a WhatsApp OTP challenge is pending the cookie is withheld; never
+    // redirect (a racing background session sync could otherwise flip
+    // isSessionSynced before the OTP is entered).
+    if (requiresWhatsappOtp) return;
     if (!isLoading) {
       if (user) {
         const currentUser = auth.currentUser;
@@ -407,6 +427,7 @@ export function useLoginForm(): UseLoginFormReturn {
     handleRedirectAfterAuth,
     getGoogleSetupTarget,
     setIsEmailVerificationPending,
+    requiresWhatsappOtp,
   ]);
 
   React.useEffect(() => {
@@ -481,6 +502,9 @@ export function useLoginForm(): UseLoginFormReturn {
           setIsEmailVerificationPending(true);
         } else if (result.code === "mfa-required") {
           setRequiresMfaCode(true);
+        } else if (result.code === "whatsapp-mfa-required") {
+          setWhatsappMaskedPhone(result.maskedPhone || "");
+          setRequiresWhatsappOtp(true);
         } else {
           setError("Falha no login. Verifique suas credenciais.");
         }
@@ -511,6 +535,65 @@ export function useLoginForm(): UseLoginFormReturn {
       }
     } finally {
       setIsVerifyingMfaCode(false);
+    }
+  };
+
+  const handleConfirmWhatsappOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setError("");
+    const trimmed = whatsappOtpCode.trim();
+    if (!isValidTotpCode(trimmed)) {
+      setError("Digite o código de 6 dígitos enviado para o seu WhatsApp.");
+      return;
+    }
+
+    setIsVerifyingWhatsappOtp(true);
+    try {
+      const result = await resolveWhatsappLogin(trimmed);
+      if (result.success) {
+        // The user-state effect handles the post-login redirect once the cookie
+        // is in sync.
+        setRequiresWhatsappOtp(false);
+        setWhatsappOtpCode("");
+      } else if (typeof result.attemptsLeft === "number") {
+        setError(
+          result.attemptsLeft > 0
+            ? `Código inválido. Tentativas restantes: ${result.attemptsLeft}.`
+            : "Código inválido. Solicite um novo código.",
+        );
+      } else {
+        setError("Código inválido ou expirado. Tente novamente.");
+      }
+    } finally {
+      setIsVerifyingWhatsappOtp(false);
+    }
+  };
+
+  const handleResendWhatsappOtp = async () => {
+    setError("");
+    setIsResendingWhatsappOtp(true);
+    try {
+      // Re-trigger the challenge by replaying the session POST (no OTP). The
+      // backend re-sends the code respecting its own cooldown/cap; a 429 means
+      // the cooldown is still active and its message is surfaced to the user.
+      const session = await completeSessionAfterSignIn();
+      if (session.code === "whatsapp-mfa-required") {
+        if (session.maskedPhone) setWhatsappMaskedPhone(session.maskedPhone);
+        setWhatsappOtpCode("");
+      }
+    } catch (resendError) {
+      if (resendError instanceof ApiError) {
+        setError(
+          resendError.status === 429
+            ? resendError.message ||
+                "Aguarde um momento antes de solicitar um novo código."
+            : resendError.message || "Não foi possível reenviar o código.",
+        );
+      } else {
+        setError("Não foi possível reenviar o código. Tente novamente.");
+      }
+    } finally {
+      setIsResendingWhatsappOtp(false);
     }
   };
 
@@ -601,6 +684,15 @@ export function useLoginForm(): UseLoginFormReturn {
 
       if (additionalInfo?.isNewUser || !hasTenant) {
         router.replace(getGoogleSetupTarget());
+      } else {
+        // Existing tenant user: drive session creation so the WhatsApp-MFA gate
+        // can route into the OTP screen instead of silently withholding access.
+        const session = await completeSessionAfterSignIn();
+        if (session.code === "whatsapp-mfa-required") {
+          setWhatsappMaskedPhone(session.maskedPhone || "");
+          setRequiresWhatsappOtp(true);
+          setIsGoogleLoading(false);
+        }
       }
     } catch (googleError: unknown) {
       if (popupWatchInterval) clearInterval(popupWatchInterval);
@@ -654,6 +746,13 @@ export function useLoginForm(): UseLoginFormReturn {
         const hasTenant = Boolean(userDoc.exists() && userDoc.data()?.tenantId);
         if (additionalInfo?.isNewUser || !hasTenant) {
           router.replace(getGoogleSetupTarget());
+        } else {
+          const session = await completeSessionAfterSignIn();
+          if (session.code === "whatsapp-mfa-required") {
+            setWhatsappMaskedPhone(session.maskedPhone || "");
+            setRequiresWhatsappOtp(true);
+            setIsGoogleLoading(false);
+          }
         }
       })
       .catch((err) => {
@@ -977,7 +1076,15 @@ export function useLoginForm(): UseLoginFormReturn {
     mfaRecoveryRequested,
     mfaRecoveryMessage,
     isRequestingMfaRecovery,
+    requiresWhatsappOtp,
+    whatsappOtpCode,
+    setWhatsappOtpCode,
+    whatsappMaskedPhone,
+    isVerifyingWhatsappOtp,
+    isResendingWhatsappOtp,
     handleConfirmMfaCode,
+    handleConfirmWhatsappOtp,
+    handleResendWhatsappOtp,
     handleStartMfaRecovery,
     handleLogin,
     handleRegister,

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   canEnrollMfa,
+  canUseWhatsappMfa,
   isMfaRequiredError,
   isValidTotpCode,
+  maskPhone,
   resolveMfaRecoveryView,
 } from "../mfa-helpers";
 
@@ -104,5 +106,46 @@ describe("resolveMfaRecoveryView", () => {
 
   it("renders the invalid view when there is no inspection result", () => {
     expect(resolveMfaRecoveryView(null)).toBe("invalid");
+  });
+});
+
+describe("maskPhone", () => {
+  it("keeps only the last 4 digits with a masked prefix", () => {
+    expect(maskPhone("+5511999991234")).toBe("•••• 1234");
+  });
+
+  it("strips non-digits before masking", () => {
+    expect(maskPhone("(11) 99999-1234")).toBe("•••• 1234");
+  });
+
+  it("returns the digits unchanged when 4 or fewer", () => {
+    expect(maskPhone("1234")).toBe("1234");
+    expect(maskPhone("12")).toBe("12");
+  });
+
+  it("handles empty and null-ish input", () => {
+    expect(maskPhone("")).toBe("");
+    expect(maskPhone(undefined as unknown as string)).toBe("");
+  });
+});
+
+describe("canUseWhatsappMfa", () => {
+  it("hides WhatsApp for super admins (TOTP-only)", () => {
+    expect(canUseWhatsappMfa("superadmin")).toBe(false);
+    expect(canUseWhatsappMfa("SUPERADMIN")).toBe(false);
+    expect(canUseWhatsappMfa(" SuperAdmin ")).toBe(false);
+  });
+
+  it("offers WhatsApp to every other role", () => {
+    expect(canUseWhatsappMfa("admin")).toBe(true);
+    expect(canUseWhatsappMfa("member")).toBe(true);
+    expect(canUseWhatsappMfa("free")).toBe(true);
+    expect(canUseWhatsappMfa("user")).toBe(true);
+  });
+
+  it("offers WhatsApp when the role is unknown/undefined", () => {
+    expect(canUseWhatsappMfa(undefined)).toBe(true);
+    expect(canUseWhatsappMfa(null)).toBe(true);
+    expect(canUseWhatsappMfa("")).toBe(true);
   });
 });
