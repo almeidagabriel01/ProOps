@@ -24,6 +24,7 @@ import { callPublicApi } from "@/lib/api-client";
 import { isValidTotpCode } from "@/lib/mfa-helpers";
 import { shouldReflectWhatsappGate } from "../_lib/should-reflect-whatsapp-gate";
 import { useResendCountdown } from "@/hooks/useResendCountdown";
+import { resolveRecoveryEmail } from "../_lib/resolve-recovery-email";
 import { getCaptchaToken } from "@/lib/captcha";
 import { toast } from "@/lib/toast";
 import { ALLOWED_TYPES } from "@/services/storage-service";
@@ -638,7 +639,11 @@ export function useLoginForm(): UseLoginFormReturn {
     setError("");
     setMfaRecoveryMessage("");
 
-    const trimmedEmail = email.trim();
+    // At the WhatsApp OTP stage the Firebase sign-in already completed (only the
+    // __session cookie is withheld), so the signed-in user's email is the
+    // reliable source — the form `email` is empty on Google sign-in. Fall back
+    // to the typed email for any other entry point.
+    const trimmedEmail = resolveRecoveryEmail(auth.currentUser?.email, email);
     if (!trimmedEmail) {
       setError(
         "Informe o e-mail da sua conta para receber o link de recuperação.",
