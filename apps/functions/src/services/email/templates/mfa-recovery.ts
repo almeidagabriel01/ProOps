@@ -16,7 +16,7 @@ export function renderMfaRecoveryEmail(
 
   const text = `Recuperar acesso à verificação em dois fatores — ProOps
 
-Olá, recebemos uma solicitação para recuperar o acesso à sua conta no ProOps por ter perdido o método de verificação em dois fatores.
+Olá, recebemos uma solicitação para recuperar o acesso à sua conta na ProOps por ter perdido o método de verificação em dois fatores.
 
 Para continuar e desativar a verificação em dois fatores, abra o link abaixo no seu navegador:
 ${data.recoverUrl}
@@ -48,7 +48,7 @@ gestao@proops.com.br
             <td style="padding:40px;">
               <h2 style="margin:0 0 16px;font-size:22px;color:#18181b;font-weight:700;">Recuperar verificação em dois fatores</h2>
               <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6;">
-                Olá, recebemos uma solicitação para recuperar o acesso à sua conta no ProOps por ter perdido o método de verificação em dois fatores.
+                Olá, recebemos uma solicitação para recuperar o acesso à sua conta na ProOps por ter perdido o método de verificação em dois fatores.
               </p>
               <p style="margin:0 0 32px;font-size:15px;color:#3f3f46;line-height:1.6;">
                 Clique no botão abaixo para continuar. O link expira em 30 minutos e só pode ser usado uma vez.
