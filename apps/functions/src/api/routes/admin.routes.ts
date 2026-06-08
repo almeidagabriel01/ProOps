@@ -18,6 +18,7 @@ import {
   migrateTenantPrices,
   startImpersonation,
   getAuditEvents,
+  resetMemberMfa,
 } from "../controllers/admin.controller";
 
 const router = Router();
@@ -30,6 +31,7 @@ router.post("/members", createMember);
 router.put("/members/permissions", updatePermissions);
 router.put("/members/:id", updateMember);
 router.delete("/members/:id", deleteMember);
+router.post("/members/:uid/reset-mfa", resetMemberMfa);
 
 router.post("/credentials", updateCredentials);
 

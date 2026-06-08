@@ -689,6 +689,79 @@ export const updatePermissions = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Resets (removes) a user's enrolled MFA factors via the Admin SDK.
+ * Recovery path for users who lost their authenticator app — Firebase TOTP has
+ * no native backup codes. Authorized for super admins (any user) or tenant
+ * admins (members of their own tenant only).
+ */
+export const resetMemberMfa = async (req: Request, res: Response) => {
+  try {
+    const requesterUid = req.user!.uid;
+    const targetUid = req.params.uid;
+
+    if (!targetUid || typeof targetUid !== "string") {
+      return res.status(400).json({ message: "ID do usuário é obrigatório." });
+    }
+
+    const targetSnap = await db.collection("users").doc(targetUid).get();
+    if (!targetSnap.exists) {
+      return res.status(404).json({ message: "Usuário não encontrado." });
+    }
+    const targetData = targetSnap.data();
+
+    const isSuperAdmin = isSuperAdminClaim(req);
+    if (!isSuperAdmin) {
+      if (!isTenantAdminClaim(req)) {
+        return res.status(403).json({ message: "Permissão negada." });
+      }
+      // Tenant admins can only reset MFA for members of their own tenant.
+      if (targetData?.tenantId !== req.user!.tenantId) {
+        logger.warn("resetMemberMfa cross-tenant attempt blocked", {
+          requesterId: requesterUid,
+          requesterTenantId: req.user!.tenantId,
+          targetTenantId: targetData?.tenantId,
+          targetUid,
+        });
+        return res.status(403).json({ message: "Permissão negada." });
+      }
+      if (targetData?.masterId !== requesterUid) {
+        return res.status(403).json({ message: "Permissão negada." });
+      }
+    }
+
+    await auth.updateUser(targetUid, {
+      multiFactor: { enrolledFactors: null },
+    });
+
+    void writeSecurityAuditEvent({
+      eventType: "mfa_reset_by_admin",
+      uid: requesterUid,
+      tenantId: targetData?.tenantId,
+      eventId: targetUid,
+      route: req.path,
+      reason: isSuperAdmin ? "superadmin" : "tenant_admin",
+    });
+
+    logger.info("MFA reset by admin", {
+      requesterId: requesterUid,
+      targetUid,
+      isSuperAdmin,
+      tenantId: targetData?.tenantId,
+    });
+
+    return res.json({
+      success: true,
+      message: "Verificação em dois fatores redefinida.",
+    });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    logger.error("resetMemberMfa failed", { message });
+    return res.status(500).json({ message });
+  }
+};
+
 export const getAllTenantsBilling = async (req: Request, res: Response) => {
   try {
     if (!isSuperAdminClaim(req)) {
