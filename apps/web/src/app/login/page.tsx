@@ -98,6 +98,10 @@ function LoginContent() {
     setMfaLoginCode,
     isVerifyingMfaCode,
     handleConfirmMfaCode,
+    mfaRecoveryRequested,
+    mfaRecoveryMessage,
+    isRequestingMfaRecovery,
+    handleStartMfaRecovery,
   } = useLoginForm();
 
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>(
@@ -332,6 +336,24 @@ function LoginContent() {
               {isVerifyingMfaCode ? "Verificando..." : "Entrar"}
             </Button>
           </form>
+          <div className="mt-6 border-t pt-4">
+            {mfaRecoveryRequested ? (
+              <p className="text-sm text-muted-foreground">
+                {mfaRecoveryMessage}
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartMfaRecovery}
+                disabled={isRequestingMfaRecovery}
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
+              >
+                {isRequestingMfaRecovery
+                  ? "Enviando..."
+                  : "Perdi acesso ao meu método de verificação"}
+              </button>
+            )}
+          </div>
         </div>
       </AuthLayout>
     );

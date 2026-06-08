@@ -97,10 +97,14 @@ interface UseLoginFormReturn {
   mfaLoginCode: string;
   setMfaLoginCode: (value: string) => void;
   isVerifyingMfaCode: boolean;
+  mfaRecoveryRequested: boolean;
+  mfaRecoveryMessage: string;
+  isRequestingMfaRecovery: boolean;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
   handleConfirmMfaCode: (e?: React.FormEvent) => Promise<void>;
+  handleStartMfaRecovery: () => Promise<void>;
   handleRegister: (e?: React.FormEvent) => Promise<void>;
   handleForgotPassword: (e?: React.FormEvent) => Promise<void>;
   handleGoogleAuth: () => Promise<void>;
@@ -149,6 +153,10 @@ export function useLoginForm(): UseLoginFormReturn {
   const [requiresMfaCode, setRequiresMfaCode] = React.useState(false);
   const [mfaLoginCode, setMfaLoginCode] = React.useState("");
   const [isVerifyingMfaCode, setIsVerifyingMfaCode] = React.useState(false);
+  const [mfaRecoveryRequested, setMfaRecoveryRequested] = React.useState(false);
+  const [mfaRecoveryMessage, setMfaRecoveryMessage] = React.useState("");
+  const [isRequestingMfaRecovery, setIsRequestingMfaRecovery] =
+    React.useState(false);
   const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
 
   const normalizePhoneToE164 = React.useCallback((value: string): string => {
@@ -503,6 +511,33 @@ export function useLoginForm(): UseLoginFormReturn {
       }
     } finally {
       setIsVerifyingMfaCode(false);
+    }
+  };
+
+  const handleStartMfaRecovery = async () => {
+    setError("");
+    setMfaRecoveryMessage("");
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError(
+        "Informe o e-mail da sua conta para receber o link de recuperação.",
+      );
+      return;
+    }
+
+    setIsRequestingMfaRecovery(true);
+    try {
+      await AuthService.requestMfaRecovery(trimmedEmail);
+    } catch {
+      // Anti-enumeration: never reveal whether the email exists or the request
+      // failed. The neutral confirmation message is shown regardless.
+    } finally {
+      setMfaRecoveryRequested(true);
+      setMfaRecoveryMessage(
+        "Se o e-mail estiver cadastrado, enviamos um link para recuperar o acesso.",
+      );
+      setIsRequestingMfaRecovery(false);
     }
   };
 
@@ -939,7 +974,11 @@ export function useLoginForm(): UseLoginFormReturn {
     mfaLoginCode,
     setMfaLoginCode,
     isVerifyingMfaCode,
+    mfaRecoveryRequested,
+    mfaRecoveryMessage,
+    isRequestingMfaRecovery,
     handleConfirmMfaCode,
+    handleStartMfaRecovery,
     handleLogin,
     handleRegister,
     handleForgotPassword,
