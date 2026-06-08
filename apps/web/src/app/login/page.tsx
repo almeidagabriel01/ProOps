@@ -217,16 +217,11 @@ function LoginContent() {
     );
   }
 
-  if (user && !isLoggingIn && !isRegistering && !sessionRecoveryFailed) {
-    if (user.role === "free") return null;
-
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader size="lg" />
-      </div>
-    );
-  }
-
+  // Email verification pending must take precedence over the logged-in
+  // redirect gate below: right after registration, refreshUser() makes `user`
+  // truthy (role "free") before the redirect/session-sync settles, and the
+  // free-user branch returns null — a blank (black) screen — swallowing the
+  // pending screen until a manual reload. Checking pending first avoids that.
   if (isEmailVerificationPending) {
     return (
       <AuthLayout reverse={mode === "register"}>
@@ -241,6 +236,16 @@ function LoginContent() {
           }}
         />
       </AuthLayout>
+    );
+  }
+
+  if (user && !isLoggingIn && !isRegistering && !sessionRecoveryFailed) {
+    if (user.role === "free") return null;
+
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader size="lg" />
+      </div>
     );
   }
 
