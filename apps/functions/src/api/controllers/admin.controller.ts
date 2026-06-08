@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { generateRandomPassword } from "../../lib/admin-helpers";
 import { UserDoc } from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
+import { authorizeMfaReset } from "../../lib/mfa-reset-authz";
 import { logger } from "../../lib/logger";
 import { fetchAuditEvents } from "../../lib/audit-events-query";
 import {
@@ -705,29 +706,31 @@ export const resetMemberMfa = async (req: Request, res: Response) => {
     }
 
     const targetSnap = await db.collection("users").doc(targetUid).get();
-    if (!targetSnap.exists) {
-      return res.status(404).json({ message: "Usuário não encontrado." });
-    }
     const targetData = targetSnap.data();
-
     const isSuperAdmin = isSuperAdminClaim(req);
-    if (!isSuperAdmin) {
-      if (!isTenantAdminClaim(req)) {
-        return res.status(403).json({ message: "Permissão negada." });
-      }
-      // Tenant admins can only reset MFA for members of their own tenant.
-      if (targetData?.tenantId !== req.user!.tenantId) {
+
+    const authz = authorizeMfaReset({
+      isSuperAdmin,
+      isTenantAdmin: isTenantAdminClaim(req),
+      requesterUid,
+      requesterTenantId: req.user!.tenantId,
+      target: {
+        exists: targetSnap.exists,
+        tenantId: targetData?.tenantId,
+        masterId: targetData?.masterId,
+      },
+    });
+
+    if (!authz.allowed) {
+      if (authz.crossTenant) {
         logger.warn("resetMemberMfa cross-tenant attempt blocked", {
           requesterId: requesterUid,
           requesterTenantId: req.user!.tenantId,
           targetTenantId: targetData?.tenantId,
           targetUid,
         });
-        return res.status(403).json({ message: "Permissão negada." });
       }
-      if (targetData?.masterId !== requesterUid) {
-        return res.status(403).json({ message: "Permissão negada." });
-      }
+      return res.status(authz.status).json({ message: authz.message });
     }
 
     await auth.updateUser(targetUid, {
