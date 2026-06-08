@@ -15,7 +15,7 @@ import {
   validatePhoneValue,
 } from "./_lib/register-validation";
 import { callPublicApi } from "@/lib/api-client";
-import { getCaptchaToken, warmupCaptcha } from "@/lib/captcha";
+import { getCaptchaToken, mountCaptcha } from "@/lib/captcha";
 
 interface ContactFieldValidation {
   valid: boolean;
@@ -167,12 +167,14 @@ function LoginContent() {
     phoneNumber: boolean;
   }>({ email: false, phoneNumber: false });
 
-  // Warm up Turnstile (load script + render widget) as soon as the signup flow
-  // is shown, so the first on-blur validation doesn't pay that cost inline.
+  // Mount the Turnstile widget inline in the signup form (so a challenge shows
+  // below the password field, not floating in the corner) and warm it up so the
+  // first on-blur validation doesn't pay the script-load + render cost inline.
+  const captchaContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (mode === "register") {
-      warmupCaptcha();
-    }
+    if (mode !== "register") return;
+    mountCaptcha(captchaContainerRef.current);
+    return () => mountCaptcha(null);
   }, [mode]);
 
   // Whether step 1 (account) is ready to advance: all required fields valid by
@@ -449,6 +451,12 @@ function LoginContent() {
                       mode="register"
                       error={error}
                       errors={registerErrors}
+                    />
+                    {/* Turnstile renders here (below the password field) when a
+                        challenge is required; invisible otherwise. */}
+                    <div
+                      ref={captchaContainerRef}
+                      className="flex justify-center"
                     />
 
                     <div className="relative my-3">
