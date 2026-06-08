@@ -593,6 +593,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Single-use MFA self-recovery tokens — written and validated exclusively by
+    // Cloud Functions (Admin SDK). Never accessible to the client SDK.
+    match /mfaRecoveryTokens/{tokenId} {
+      allow read, write: if false;
+    }
+
     // ============================================
     // CATCH-ALL
     // ============================================
