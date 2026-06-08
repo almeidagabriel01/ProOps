@@ -45,6 +45,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { AuthLayout } from "./_components/auth-layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader } from "@/components/ui/loader";
+import { shouldShowLoggedInLoader } from "./_lib/should-show-logged-in-loader";
 
 function LoginContent() {
   const {
@@ -303,7 +304,16 @@ function LoginContent() {
     );
   }
 
-  if (user && !isLoggingIn && !isRegistering && !sessionRecoveryFailed) {
+  if (
+    user &&
+    shouldShowLoggedInLoader({
+      isLoggingIn,
+      isRegistering,
+      sessionRecoveryFailed,
+      requiresMfaCode,
+      requiresWhatsappOtp,
+    })
+  ) {
     if (user.role === "free") return null;
 
     return (
