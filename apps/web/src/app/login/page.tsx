@@ -2,7 +2,7 @@
 
 import { Suspense, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLoginForm } from "./_hooks/useLoginForm";
@@ -159,6 +159,14 @@ function LoginContent() {
     phoneNumber: 0,
   });
 
+  // Loading state per contact field while the backend availability/validity
+  // check is in flight — drives the in-input spinner, the field lock and the
+  // "Continuar" button disabled state.
+  const [contactValidating, setContactValidating] = useState<{
+    email: boolean;
+    phoneNumber: boolean;
+  }>({ email: false, phoneNumber: false });
+
   // On-blur validation for contact fields: instant client-side format check,
   // then a backend availability/validity check (email already registered,
   // phone already in use) via the rate-limited public endpoint — so the user
@@ -180,6 +188,7 @@ function LoginContent() {
     }
 
     const seq = ++contactSeqRef.current[field];
+    setContactValidating((prev) => ({ ...prev, [field]: true }));
     try {
       const captchaToken = await getCaptchaToken();
       const res = await callPublicApi<ContactValidationResponse>(
@@ -205,6 +214,12 @@ function LoginContent() {
       // path re-runs this check authoritatively.
       if (seq === contactSeqRef.current[field]) {
         setRegisterFieldError(field, null);
+      }
+    } finally {
+      // Only the most recent validation for this field clears the loading flag,
+      // so a stale response can't unlock a field that's validating again.
+      if (seq === contactSeqRef.current[field]) {
+        setContactValidating((prev) => ({ ...prev, [field]: false }));
       }
     }
   };
@@ -365,18 +380,30 @@ function LoginContent() {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="reg-phone">WhatsApp / Telefone</Label>
-                      <PhoneInput
-                        id="reg-phone"
-                        name="reg-phone"
-                        value={phoneNumber}
-                        onChange={(e) => {
-                          setPhoneNumber(e.target.value);
-                          clearRegisterError("phoneNumber");
-                        }}
-                        onBlur={() =>
-                          validateContactField("phoneNumber", phoneNumber)
-                        }
-                      />
+                      <div className="relative">
+                        <PhoneInput
+                          id="reg-phone"
+                          name="reg-phone"
+                          value={phoneNumber}
+                          disabled={contactValidating.phoneNumber}
+                          className={
+                            contactValidating.phoneNumber ? "pr-10" : undefined
+                          }
+                          onChange={(e) => {
+                            setPhoneNumber(e.target.value);
+                            clearRegisterError("phoneNumber");
+                          }}
+                          onBlur={() =>
+                            validateContactField("phoneNumber", phoneNumber)
+                          }
+                        />
+                        {contactValidating.phoneNumber && (
+                          <Loader2
+                            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground"
+                            aria-hidden
+                          />
+                        )}
+                      </div>
                       {registerErrors.phoneNumber && (
                         <p className="text-sm text-destructive">
                           {registerErrors.phoneNumber}
@@ -391,6 +418,7 @@ function LoginContent() {
                           clearRegisterError("email");
                       }}
                       onEmailBlur={() => validateContactField("email", email)}
+                      isEmailValidating={contactValidating.email}
                       password={password}
                       onPasswordChange={(val) => {
                         setPassword(val);
@@ -439,6 +467,10 @@ function LoginContent() {
                     <StepNavigation
                       showPrev={false}
                       nextLabel="Continuar"
+                      nextDisabled={
+                        contactValidating.email ||
+                        contactValidating.phoneNumber
+                      }
                       onBeforeNext={validateRegisterStep1}
                     />
 
