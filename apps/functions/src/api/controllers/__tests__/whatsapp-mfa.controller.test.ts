@@ -291,6 +291,62 @@ describe("challengeWhatsappLogin", () => {
       }),
     );
   });
+
+  it("is idempotent: returns the gate WITHOUT resending when a valid challenge is within cooldown", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+
+    // A login challenge already exists, sent moments ago (within the 60s
+    // cooldown) and still valid (expiresAt in the future). canSendOtp will
+    // reject the send; the controller must reuse the pending code, not 429.
+    const now = Date.now();
+    const existingCodeHash = hashOtp("999999");
+    docStore.set("mfaOtpChallenges/user-1", {
+      uid: "user-1",
+      tenantId: "tenant-1",
+      purpose: "login",
+      phoneHash: require("crypto")
+        .createHash("sha256")
+        .update("5511999998888")
+        .digest("hex"),
+      codeHash: existingCodeHash,
+      expiresAt: { toMillis: () => now + 250_000 },
+      attempts: 0,
+      maxAttempts: 3,
+      lastSentAt: { toMillis: () => now - 5_000 },
+      sendCount: 1,
+      sendWindowStart: { toMillis: () => now - 5_000 },
+    });
+
+    const req = makeReq({}, USER);
+    const { res, json, status } = makeRes();
+
+    await challengeWhatsappLogin(req, res);
+
+    // No new OTP delivered and no 429.
+    expect(mockSendTemplate).not.toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalledWith(429);
+
+    // The pending challenge is reused untouched: no new write/code.
+    expect(mockSet).not.toHaveBeenCalledWith(
+      "mfaOtpChallenges",
+      "user-1",
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(docStore.get("mfaOtpChallenges/user-1")?.codeHash).toBe(existingCodeHash);
+
+    // The gate is still returned so the login flow can prompt for the code.
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mfaRequired: true,
+        method: "whatsapp",
+        maskedPhone: expect.stringContaining("8888"),
+      }),
+    );
+  });
 });
 
 describe("verifyWhatsappLogin", () => {

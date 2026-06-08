@@ -357,33 +357,32 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
 
     const nowMs = Date.now();
     const sendDecision = canSendOtp(existing ? toOtpRecord(existing) : null, nowMs);
-    if (!sendDecision.ok) {
-      if (sendDecision.retryAfterSeconds) {
-        res.set("Retry-After", String(sendDecision.retryAfterSeconds));
-      }
-      return res.status(429).json({
-        message:
-          sendDecision.reason === "cooldown"
-            ? "Aguarde antes de solicitar um novo código."
-            : "Limite de envios atingido. Tente novamente mais tarde.",
-        code: sendDecision.reason,
+
+    // This endpoint is invoked automatically by the login session flow and may
+    // be called concurrently/repeatedly (frontend login + background token
+    // listeners, token refresh, Google redirect). The WhatsApp gate must be
+    // idempotent: always respond 200 with the gate, and only issue a NEW OTP
+    // when canSendOtp allows. If we're in cooldown/cap, we deliberately do NOT
+    // send and do NOT return 429 — the project invariant is cooldown (60s) <
+    // TTL (300s), so an active cooldown implies a still-valid pending code that
+    // we simply reuse. Returning 429 here would non-deterministically swallow
+    // the gate and stall the login.
+    if (sendDecision.ok) {
+      const code = generateOtpCode();
+      await writeChallenge({
+        uid,
+        tenantId,
+        purpose: "login",
+        phoneHash: hashPhone(normalizedPhone),
+        codeHash: hashOtp(code),
+        nowMs,
+        existing,
       });
+
+      await deliverOtp(normalizedPhone, code);
+
+      logger.info("WhatsApp MFA login OTP sent", { uid, tenantId });
     }
-
-    const code = generateOtpCode();
-    await writeChallenge({
-      uid,
-      tenantId,
-      purpose: "login",
-      phoneHash: hashPhone(normalizedPhone),
-      codeHash: hashOtp(code),
-      nowMs,
-      existing,
-    });
-
-    await deliverOtp(normalizedPhone, code);
-
-    logger.info("WhatsApp MFA login OTP sent", { uid, tenantId });
 
     return res.json({
       mfaRequired: true,
