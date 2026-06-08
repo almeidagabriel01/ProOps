@@ -167,6 +167,20 @@ function LoginContent() {
     phoneNumber: boolean;
   }>({ email: false, phoneNumber: false });
 
+  // Whether step 1 (account) is ready to advance: all required fields valid by
+  // format AND no pending field error (e.g. email/phone already in use from the
+  // backend check). Phone is optional, so an empty phone passes. Drives the
+  // "Continuar" disabled state so it only enables when everything is OK.
+  const isRegisterStep1Valid =
+    !validateNameValue(name) &&
+    !validateEmailValue(email) &&
+    !validatePasswordValue(password) &&
+    !validatePhoneValue(phoneNumber) &&
+    !registerErrors.name &&
+    !registerErrors.email &&
+    !registerErrors.password &&
+    !registerErrors.phoneNumber;
+
   // On-blur validation for contact fields: instant client-side format check,
   // then a backend availability/validity check (email already registered,
   // phone already in use) via the rate-limited public endpoint — so the user
@@ -469,7 +483,8 @@ function LoginContent() {
                       nextLabel="Continuar"
                       nextDisabled={
                         contactValidating.email ||
-                        contactValidating.phoneNumber
+                        contactValidating.phoneNumber ||
+                        !isRegisterStep1Valid
                       }
                       onBeforeNext={validateRegisterStep1}
                     />
