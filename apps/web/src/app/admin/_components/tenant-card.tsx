@@ -19,8 +19,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tenant } from "@/types";
-import { TenantBillingInfo } from "@/services/admin-service";
-import { LogIn, Trash2, Pencil, Calendar, CheckCircle2, Clock, XCircle, MinusCircle } from "lucide-react";
+import { TenantBillingInfo, AdminService } from "@/services/admin-service";
+import { toast } from "@/lib/toast";
+import { LogIn, Trash2, Pencil, ShieldOff, Calendar, CheckCircle2, Clock, XCircle, MinusCircle } from "lucide-react";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -78,6 +79,8 @@ export function TenantCard({
   // Controlled dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isResetMfaDialogOpen, setIsResetMfaDialogOpen] = useState(false);
+  const [isResettingMfa, setIsResettingMfa] = useState(false);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -89,6 +92,19 @@ export function TenantCard({
       // Keep dialog open on error so user can see the error toast
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleResetMfa = async () => {
+    setIsResettingMfa(true);
+    try {
+      await AdminService.resetMemberMfa(admin.id);
+      toast.success("Verificação em dois fatores do admin redefinida.");
+      setIsResetMfaDialogOpen(false);
+    } catch {
+      toast.error("Erro ao resetar MFA. Tente novamente.");
+    } finally {
+      setIsResettingMfa(false);
     }
   };
 
@@ -182,6 +198,16 @@ export function TenantCard({
                 </svg>
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-amber-600"
+              onClick={() => setIsResetMfaDialogOpen(true)}
+              disabled={isDeleting || isResettingMfa}
+              title="Resetar verificação em dois fatores do admin"
+            >
+              <ShieldOff className="w-4 h-4" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -346,6 +372,35 @@ export function TenantCard({
             >
               {isDeleting && <Loader size="sm" className="mr-2" />}
               {isDeleting ? "Removendo..." : "Remover"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset MFA Confirmation Dialog - Controlled */}
+      <AlertDialog
+        open={isResetMfaDialogOpen}
+        onOpenChange={setIsResetMfaDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Resetar verificação em dois fatores
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              A verificação em dois fatores do administrador de{" "}
+              <strong>{tenant.name}</strong> ({admin.email}) será removida. Ele
+              poderá entrar sem o código e reconfigurar pelo próprio perfil. Use
+              quando ele perder o acesso ao app autenticador.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isResettingMfa}>
+              Cancelar
+            </AlertDialogCancel>
+            <Button onClick={handleResetMfa} disabled={isResettingMfa}>
+              {isResettingMfa && <Loader size="sm" className="mr-2" />}
+              {isResettingMfa ? "Resetando..." : "Resetar MFA"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
