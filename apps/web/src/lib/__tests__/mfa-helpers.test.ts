@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { canEnrollMfa, isValidTotpCode } from "../mfa-helpers";
+import {
+  canEnrollMfa,
+  isMfaRequiredError,
+  isValidTotpCode,
+} from "../mfa-helpers";
 
 describe("isValidTotpCode", () => {
   it("accepts exactly 6 digits", () => {
@@ -25,6 +29,34 @@ describe("isValidTotpCode", () => {
 
   it("rejects empty string", () => {
     expect(isValidTotpCode("")).toBe(false);
+  });
+});
+
+describe("isMfaRequiredError", () => {
+  it("detects the multi-factor-auth-required code (password and Google paths)", () => {
+    expect(
+      isMfaRequiredError({ code: "auth/multi-factor-auth-required" }),
+    ).toBe(true);
+  });
+
+  it("detects it on a real FirebaseError-like instance", () => {
+    const err = Object.assign(new Error("Firebase: Error"), {
+      code: "auth/multi-factor-auth-required",
+    });
+    expect(isMfaRequiredError(err)).toBe(true);
+  });
+
+  it("returns false for other auth errors", () => {
+    expect(isMfaRequiredError({ code: "auth/popup-closed-by-user" })).toBe(
+      false,
+    );
+    expect(isMfaRequiredError({ code: "auth/wrong-password" })).toBe(false);
+  });
+
+  it("returns false for null, undefined, and non-objects", () => {
+    expect(isMfaRequiredError(null)).toBe(false);
+    expect(isMfaRequiredError(undefined)).toBe(false);
+    expect(isMfaRequiredError("auth/multi-factor-auth-required")).toBe(false);
   });
 });
 

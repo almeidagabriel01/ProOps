@@ -13,6 +13,7 @@ import {
   type MultiFactorResolver,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
+import { isMfaRequiredError } from "@/lib/mfa-helpers";
 import { doc, getDoc } from "firebase/firestore";
 import { retryUntil } from "@/lib/async/retry";
 import { useRouter } from "next/navigation";
@@ -38,6 +39,12 @@ interface AuthContextType {
   resolveTotpLogin: (
     totpCode: string,
   ) => Promise<{ success: boolean; code?: string }>;
+  /**
+   * If `error` is a multi-factor challenge, stashes the resolver for
+   * `resolveTotpLogin` and returns true. Lets non-password sign-in paths
+   * (e.g. Google OAuth) route into the same TOTP code screen.
+   */
+  prepareMfaChallenge: (error: unknown) => boolean;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /** Force-refresh the ID token and re-sync the session cookie. */
@@ -51,6 +58,7 @@ const AuthContext = React.createContext<AuthContextType>({
   getIsLoggingOut: () => false,
   login: async () => ({ success: false }),
   resolveTotpLogin: async () => ({ success: false }),
+  prepareMfaChallenge: () => false,
   logout: async () => {},
   refreshUser: async () => {},
   forceSyncSession: async () => false,
@@ -496,6 +504,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const mfaResolverRef = React.useRef<MultiFactorResolver | null>(null);
 
+  const prepareMfaChallenge = (error: unknown): boolean => {
+    if (!isMfaRequiredError(error)) return false;
+    mfaResolverRef.current = getMultiFactorResolver(
+      auth,
+      error as MultiFactorError,
+    );
+    setIsLoading(false);
+    return true;
+  };
+
   // Shared post-sign-in logic for both password and MFA-resolved logins.
   const finalizeLogin = async (): Promise<{
     success: boolean;
@@ -538,17 +556,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signInWithEmailAndPassword(auth, email, pass);
       return await finalizeLogin();
     } catch (error) {
-      const errorCode =
-        error && typeof error === "object" && "code" in error
-          ? String((error as { code: unknown }).code)
-          : "";
-
-      if (errorCode === "auth/multi-factor-auth-required") {
-        mfaResolverRef.current = getMultiFactorResolver(
-          auth,
-          error as MultiFactorError,
-        );
-        setIsLoading(false);
+      if (prepareMfaChallenge(error)) {
         return { success: false, code: "mfa-required" };
       }
 
@@ -622,6 +630,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         getIsLoggingOut,
         login,
         resolveTotpLogin,
+        prepareMfaChallenge,
         logout,
         refreshUser,
         forceSyncSession,

@@ -239,7 +239,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, user, isLoading, isSessionSynced, forceSyncSession, refreshUser } =
+  const { login, resolveTotpLogin, prepareMfaChallenge, user, isLoading, isSessionSynced, forceSyncSession, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -585,6 +585,14 @@ export function useLoginForm(): UseLoginFormReturn {
         return;
       }
 
+      // Account has MFA enrolled — route to the TOTP code screen instead of
+      // failing. The auth-provider stashes the resolver for resolveTotpLogin.
+      if (prepareMfaChallenge(googleError)) {
+        setRequiresMfaCode(true);
+        setIsGoogleLoading(false);
+        return;
+      }
+
       // Popup was blocked by the browser — fall back to full-page redirect.
       const fallbackCodes = [
         "auth/popup-blocked",
@@ -614,6 +622,13 @@ export function useLoginForm(): UseLoginFormReturn {
         }
       })
       .catch((err) => {
+        // MFA-enrolled account returning from the redirect fallback — prompt
+        // for the TOTP code instead of surfacing a generic error.
+        if (prepareMfaChallenge(err)) {
+          setRequiresMfaCode(true);
+          setIsGoogleLoading(false);
+          return;
+        }
         console.error("getRedirectResult error:", err);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
