@@ -14,7 +14,11 @@
 
 const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+// Background (on-blur) checks give up quickly — they never force a challenge.
 const TOKEN_TIMEOUT_MS = 8000;
+// Interactive calls (form submit) wait long enough for the user to solve a
+// challenge.
+const INTERACTIVE_TOKEN_TIMEOUT_MS = 120000;
 // How long the widget stays visible after a verification before it auto-hides.
 const AUTO_HIDE_MS = 3000;
 
@@ -47,6 +51,9 @@ let mountEl: HTMLElement | null = null;
 let renderedInto: HTMLElement | null = null;
 let fallbackContainer: HTMLElement | null = null;
 let hideTimer: ReturnType<typeof setTimeout> | null = null;
+// Whether the in-flight execution may show an interactive challenge. Calls are
+// serialized via `chain`, so a single module flag is safe.
+let interactiveExecution = false;
 
 function loadScript(): Promise<void> {
   if (scriptPromise) return scriptPromise;
@@ -145,6 +152,22 @@ async function ensureWidget(): Promise<string> {
       // widget visible so the user can still solve the challenge.
       scheduleHide();
     },
+    "before-interactive-callback": () => {
+      // A challenge needs user interaction. Background (on-blur) checks must
+      // never force the user to solve a captcha mid-typing: resolve empty and
+      // collapse the widget. Interactive calls (submit) let it show.
+      if (!interactiveExecution) {
+        pendingResolve?.("");
+        pendingResolve = null;
+        if (widgetId) {
+          try {
+            window.turnstile?.reset(widgetId);
+          } catch {
+            // ignore
+          }
+        }
+      }
+    },
     "error-callback": () => {
       pendingResolve?.("");
       pendingResolve = null;
@@ -163,10 +186,17 @@ async function ensureWidget(): Promise<string> {
  * Returns a fresh Turnstile token, or "" when Turnstile is not configured or
  * cannot produce one (caller should treat "" as "no token available").
  */
-export function getCaptchaToken(): Promise<string> {
+export function getCaptchaToken(options?: {
+  interactive?: boolean;
+}): Promise<string> {
   if (typeof window === "undefined" || !SITE_KEY) {
     return Promise.resolve("");
   }
+
+  const interactive = options?.interactive ?? false;
+  const timeoutMs = interactive
+    ? INTERACTIVE_TOKEN_TIMEOUT_MS
+    : TOKEN_TIMEOUT_MS;
 
   const run = chain.then(
     () =>
@@ -181,13 +211,25 @@ export function getCaptchaToken(): Promise<string> {
         ensureWidget()
           .then((id) => {
             pendingResolve = finish;
+            interactiveExecution = interactive;
             showWidget();
             if (hasExecutedOnce) {
               window.turnstile?.reset(id);
             }
             hasExecutedOnce = true;
             window.turnstile?.execute(id);
-            setTimeout(() => finish(""), TOKEN_TIMEOUT_MS);
+            setTimeout(() => {
+              // Background checks never block on a challenge: collapse the
+              // widget if it's still pending when we give up.
+              if (!settled && !interactive) {
+                try {
+                  window.turnstile?.reset(id);
+                } catch {
+                  // ignore
+                }
+              }
+              finish("");
+            }, timeoutMs);
           })
           .catch(() => finish(""));
       }),
@@ -196,6 +238,15 @@ export function getCaptchaToken(): Promise<string> {
   // Keep the chain alive regardless of individual outcomes.
   chain = run.catch(() => "");
   return run;
+}
+
+/**
+ * Whether Turnstile is configured (site key present). When false, getCaptchaToken
+ * resolves "" and the backend skips verification, so callers can safely proceed
+ * with an empty token; when true, an empty token means "couldn't verify".
+ */
+export function isCaptchaConfigured(): boolean {
+  return typeof window !== "undefined" && !!SITE_KEY;
 }
 
 /**

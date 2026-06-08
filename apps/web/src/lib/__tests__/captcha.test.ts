@@ -22,6 +22,7 @@ describe("getCaptchaToken", () => {
 
 interface RenderOpts {
   callback?: (token: string) => void;
+  "before-interactive-callback"?: () => void;
   "error-callback"?: () => void;
   "expired-callback"?: () => void;
 }
@@ -51,6 +52,7 @@ async function loadConfiguredModule() {
   turnstileMock.render.mockClear();
   turnstileMock.execute.mockClear();
   turnstileMock.remove.mockClear();
+  turnstileMock.reset.mockClear();
   (window as unknown as { turnstile: typeof turnstileMock }).turnstile =
     turnstileMock;
   return import("../captcha");
@@ -121,5 +123,39 @@ describe("captcha — inline mount + auto-hide", () => {
 
     expect(turnstileMock.remove).toHaveBeenCalledWith("widget-1");
     expect(lastRenderEl).toBe(second);
+  });
+
+  it("resolves empty (no backend 403) when a background check would need interaction", async () => {
+    const { mountCaptcha, getCaptchaToken: getToken } =
+      await loadConfiguredModule();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    mountCaptcha(container);
+
+    // Simulate Cloudflare requiring an interactive challenge instead of an
+    // auto-pass.
+    turnstileMock.execute.mockImplementationOnce(() =>
+      lastRenderOpts?.["before-interactive-callback"]?.(),
+    );
+
+    // Background (non-interactive) call gives up instead of forcing a challenge.
+    await expect(getToken()).resolves.toBe("");
+    expect(turnstileMock.reset).toHaveBeenCalled();
+  });
+
+  it("returns the token on an interactive challenge the user completes", async () => {
+    const { mountCaptcha, getCaptchaToken: getToken } =
+      await loadConfiguredModule();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    mountCaptcha(container);
+
+    // An interactive challenge shows and the user solves it.
+    turnstileMock.execute.mockImplementationOnce(() => {
+      lastRenderOpts?.["before-interactive-callback"]?.();
+      lastRenderOpts?.callback?.("tok_123");
+    });
+
+    await expect(getToken({ interactive: true })).resolves.toBe("tok_123");
   });
 });

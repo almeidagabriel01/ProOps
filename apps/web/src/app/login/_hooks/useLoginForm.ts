@@ -688,7 +688,9 @@ export function useLoginForm(): UseLoginFormReturn {
     }
 
     try {
-      const captchaToken = await getCaptchaToken();
+      // Submit is the authoritative check: allow an interactive challenge here
+      // (the on-blur checks never force one) so the user can complete it.
+      const captchaToken = await getCaptchaToken({ interactive: true });
       const contactValidation = await callPublicApi<ContactValidationResponse>(
         "v1/validation/contact",
         "POST",

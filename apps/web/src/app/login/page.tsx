@@ -15,7 +15,11 @@ import {
   validatePhoneValue,
 } from "./_lib/register-validation";
 import { callPublicApi } from "@/lib/api-client";
-import { getCaptchaToken, mountCaptcha } from "@/lib/captcha";
+import {
+  getCaptchaToken,
+  isCaptchaConfigured,
+  mountCaptcha,
+} from "@/lib/captcha";
 
 interface ContactFieldValidation {
   valid: boolean;
@@ -215,6 +219,15 @@ function LoginContent() {
     setContactValidating((prev) => ({ ...prev, [field]: true }));
     try {
       const captchaToken = await getCaptchaToken();
+      // Background check: if Turnstile is configured but couldn't issue a token
+      // without forcing a challenge, skip the advisory lookup (the backend would
+      // reject it with 403). The authoritative check at submit handles it.
+      if (isCaptchaConfigured() && !captchaToken) {
+        if (seq === contactSeqRef.current[field]) {
+          setRegisterFieldError(field, null);
+        }
+        return;
+      }
       const res = await callPublicApi<ContactValidationResponse>(
         "v1/validation/contact",
         "POST",
