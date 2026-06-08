@@ -624,7 +624,7 @@ export function useLoginForm(): UseLoginFormReturn {
         retryAfterSeconds ?? WHATSAPP_RESEND_COOLDOWN_SECONDS,
       );
       setWhatsappResendNotice(
-        otpSent ? "Novo código enviado." : "Aguarde para reenviar.",
+        otpSent ? "Novo código enviado." : "Fora realizadas várias tentativas em um curto período. Aguarde para reenviar.",
       );
     } catch {
       // Network/transient error — keep the screen usable and let the user retry.
