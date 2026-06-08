@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -15,7 +15,7 @@ import {
   validatePhoneValue,
 } from "./_lib/register-validation";
 import { callPublicApi } from "@/lib/api-client";
-import { getCaptchaToken } from "@/lib/captcha";
+import { getCaptchaToken, warmupCaptcha } from "@/lib/captcha";
 
 interface ContactFieldValidation {
   valid: boolean;
@@ -166,6 +166,14 @@ function LoginContent() {
     email: boolean;
     phoneNumber: boolean;
   }>({ email: false, phoneNumber: false });
+
+  // Warm up Turnstile (load script + render widget) as soon as the signup flow
+  // is shown, so the first on-blur validation doesn't pay that cost inline.
+  useEffect(() => {
+    if (mode === "register") {
+      warmupCaptcha();
+    }
+  }, [mode]);
 
   // Whether step 1 (account) is ready to advance: all required fields valid by
   // format AND no pending field error (e.g. email/phone already in use from the

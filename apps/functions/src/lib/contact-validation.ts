@@ -79,7 +79,10 @@ const domainValidationCache = new Map<
   { valid: boolean; expiresAt: number }
 >();
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs = 3000): Promise<T> {
+export function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs = 3000,
+): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error("VALIDATION_TIMEOUT"));
@@ -94,6 +97,29 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs = 3000): Promise<T> {
         clearTimeout(timeout);
         reject(err);
       });
+  });
+}
+
+// Resolves `true` as soon as ANY check yields true, and only resolves `false`
+// once every check has settled falsy/rejected. Lets the DNS lookup return on
+// the first record type that resolves instead of waiting for the slowest one.
+function firstResolvableTrue(checks: Promise<boolean>[]): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (checks.length === 0) {
+      resolve(false);
+      return;
+    }
+    let remaining = checks.length;
+    for (const check of checks) {
+      check
+        .then((ok) => {
+          if (ok) resolve(true);
+          else if (--remaining === 0) resolve(false);
+        })
+        .catch(() => {
+          if (--remaining === 0) resolve(false);
+        });
+    }
   });
 }
 
@@ -132,21 +158,18 @@ export async function hasResolvableEmailDomain(email: string): Promise<boolean> 
   }
 
   const checks = [
-    withTimeout(resolveMx(domain), 2500).then((mxRecords) =>
+    withTimeout(resolveMx(domain), 1500).then((mxRecords) =>
       Array.isArray(mxRecords) && mxRecords.length > 0,
     ),
-    withTimeout(resolve4(domain), 2500).then(
+    withTimeout(resolve4(domain), 1500).then(
       (records) => Array.isArray(records) && records.length > 0,
     ),
-    withTimeout(resolve6(domain), 2500).then(
+    withTimeout(resolve6(domain), 1500).then(
       (records) => Array.isArray(records) && records.length > 0,
     ),
   ];
 
-  const settled = await Promise.allSettled(checks);
-  const valid = settled.some(
-    (entry) => entry.status === "fulfilled" && entry.value === true,
-  );
+  const valid = await firstResolvableTrue(checks);
 
   domainValidationCache.set(domain, {
     valid,

@@ -2,9 +2,24 @@ import { Request, Response } from "express";
 import { auth, db } from "../../init";
 import {
   normalizeBrazilPhoneNumber,
+  normalizeEmail,
   validateBrazilMobilePhone,
   validateEmailForSignup,
+  withTimeout,
 } from "../../lib/contact-validation";
+
+// Looks up whether an email is already registered, bounded by a timeout so a
+// slow Auth response can't hang the request. A timeout or any non-fatal lookup
+// error is treated as "not registered" — the authoritative re-check at signup
+// submit still runs, so a false negative here never lets a duplicate through.
+async function emailAlreadyExists(normalizedEmail: string): Promise<boolean> {
+  try {
+    await withTimeout(auth.getUserByEmail(normalizedEmail), 3000);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export const validateContactForSignup = async (req: Request, res: Response) => {
   try {
@@ -26,7 +41,13 @@ export const validateContactForSignup = async (req: Request, res: Response) => {
       | undefined;
 
     if (email !== undefined) {
-      const emailValidation = await validateEmailForSignup(email);
+      // Run the domain/syntax validation and the existence lookup concurrently
+      // — they're independent, so total time is the slower of the two instead
+      // of their sum.
+      const [emailValidation, alreadyExists] = await Promise.all([
+        validateEmailForSignup(email),
+        emailAlreadyExists(normalizeEmail(email)),
+      ]);
 
       emailResult = {
         valid: emailValidation.valid,
@@ -35,22 +56,12 @@ export const validateContactForSignup = async (req: Request, res: Response) => {
         reason: emailValidation.reason,
       };
 
-      if (emailValidation.valid) {
-        try {
-          await auth.getUserByEmail(emailValidation.normalizedEmail);
-          emailResult.exists = true;
-          emailResult.valid = false;
-          emailResult.reason = "Este email já está cadastrado no sistema.";
-        } catch (error: unknown) {
-          if (
-            error &&
-            typeof error === "object" &&
-            "code" in error &&
-            (error as { code: string }).code !== "auth/user-not-found"
-          ) {
-            throw error;
-          }
-        }
+      // Preserve the original precedence: only surface "already registered"
+      // once syntax + domain checks pass.
+      if (emailValidation.valid && alreadyExists) {
+        emailResult.exists = true;
+        emailResult.valid = false;
+        emailResult.reason = "Este email já está cadastrado no sistema.";
       }
     }
 

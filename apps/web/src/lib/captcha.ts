@@ -138,3 +138,14 @@ export function getCaptchaToken(): Promise<string> {
   chain = run.catch(() => "");
   return run;
 }
+
+/**
+ * Eagerly loads the Turnstile script and renders the widget without minting a
+ * token. Call this when the signup flow mounts so the first on-blur
+ * `getCaptchaToken()` doesn't pay the script-load + render cost on the critical
+ * path. Safe to call multiple times and a no-op when Turnstile is unconfigured.
+ */
+export function warmupCaptcha(): void {
+  if (typeof window === "undefined" || !SITE_KEY) return;
+  void ensureWidget().catch(() => {});
+}
