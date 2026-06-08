@@ -141,17 +141,17 @@ async function ensureWidget(): Promise<string> {
     callback: (token: string) => {
       pendingResolve?.(token);
       pendingResolve = null;
+      // Only auto-hide after a real verification — on error/expiry we keep the
+      // widget visible so the user can still solve the challenge.
       scheduleHide();
     },
     "error-callback": () => {
       pendingResolve?.("");
       pendingResolve = null;
-      scheduleHide();
     },
     "expired-callback": () => {
       pendingResolve?.("");
       pendingResolve = null;
-      scheduleHide();
     },
   });
   renderedInto = target;

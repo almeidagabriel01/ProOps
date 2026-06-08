@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -170,12 +170,12 @@ function LoginContent() {
   // Mount the Turnstile widget inline in the signup form (so a challenge shows
   // below the password field, not floating in the corner) and warm it up so the
   // first on-blur validation doesn't pay the script-load + render cost inline.
-  const captchaContainerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (mode !== "register") return;
-    mountCaptcha(captchaContainerRef.current);
-    return () => mountCaptcha(null);
-  }, [mode]);
+  // A callback ref fires exactly when the node attaches/detaches, which is
+  // robust to the step's enter animation (a [mode] effect could run before the
+  // animated content mounts, leaving the widget to fall back to the corner).
+  const captchaContainerRef = useCallback((el: HTMLDivElement | null) => {
+    mountCaptcha(el);
+  }, []);
 
   // Whether step 1 (account) is ready to advance: all required fields valid by
   // format AND no pending field error (e.g. email/phone already in use from the
