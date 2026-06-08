@@ -20,7 +20,7 @@ import {
 import { AuthService } from "@/services/auth-service";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { ApiError, callPublicApi } from "@/lib/api-client";
+import { callPublicApi } from "@/lib/api-client";
 import { isValidTotpCode } from "@/lib/mfa-helpers";
 import { shouldReflectWhatsappGate } from "../_lib/should-reflect-whatsapp-gate";
 import { useResendCountdown } from "@/hooks/useResendCountdown";
@@ -31,6 +31,10 @@ import { TenantNiche } from "@/types";
 
 type AuthMode = "login" | "register" | "forgot";
 const AUTH_MODES: AuthMode[] = ["login", "register", "forgot"];
+
+// Fallback cooldown when the backend does not return retryAfterSeconds on a
+// resend. Mirrors the backend's 60s WhatsApp OTP cooldown.
+const WHATSAPP_RESEND_COOLDOWN_SECONDS = 60;
 
 interface ContactValidationResponse {
   success: boolean;
@@ -274,7 +278,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, resolveWhatsappLogin, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, forceSyncSession, refreshUser } =
+  const { login, resolveTotpLogin, resolveWhatsappLogin, resendWhatsappOtp, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, forceSyncSession, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -608,38 +612,23 @@ export function useLoginForm(): UseLoginFormReturn {
     if (!canResendWhatsapp) return;
     setError("");
     setWhatsappResendNotice("");
+    setWhatsappOtpCode("");
     setIsResendingWhatsappOtp(true);
     try {
-      // Re-trigger the challenge by replaying the session POST (no OTP). The
-      // backend re-sends the code respecting its own cooldown/cap; a 429 means
-      // the cooldown is still active and its message is surfaced to the user.
-      const session = await completeSessionAfterSignIn();
-      if (session.code === "whatsapp-mfa-required") {
-        if (session.maskedPhone) setWhatsappMaskedPhone(session.maskedPhone);
-        setWhatsappOtpCode("");
-        // Restart the countdown from the backend's authoritative cooldown.
-        startWhatsappResendCountdown(session.retryAfterSeconds ?? 0);
-        if (session.otpSent) {
-          setWhatsappResendNotice("Novo código enviado.");
-        }
-      }
-    } catch (resendError) {
-      if (resendError instanceof ApiError) {
-        const retryAfterSeconds = (
-          resendError.data as { retryAfterSeconds?: number } | undefined
-        )?.retryAfterSeconds;
-        if (resendError.status === 429 && typeof retryAfterSeconds === "number") {
-          startWhatsappResendCountdown(retryAfterSeconds);
-        }
-        setError(
-          resendError.status === 429
-            ? resendError.message ||
-                "Aguarde um momento antes de solicitar um novo código."
-            : resendError.message || "Não foi possível reenviar o código.",
-        );
-      } else {
-        setError("Não foi possível reenviar o código. Tente novamente.");
-      }
+      // Explicit resend forces a fresh code (resend: true) subject to the
+      // backend cooldown/cap. otpSent === false means the cooldown/cap blocked a
+      // new send; we still restart the countdown from the backend's authoritative
+      // retryAfterSeconds so the button reflects the true wait.
+      const { otpSent, retryAfterSeconds } = await resendWhatsappOtp();
+      startWhatsappResendCountdown(
+        retryAfterSeconds ?? WHATSAPP_RESEND_COOLDOWN_SECONDS,
+      );
+      setWhatsappResendNotice(
+        otpSent ? "Novo código enviado." : "Aguarde para reenviar.",
+      );
+    } catch {
+      // Network/transient error — keep the screen usable and let the user retry.
+      setError("Não foi possível reenviar o código. Tente novamente.");
     } finally {
       setIsResendingWhatsappOtp(false);
     }

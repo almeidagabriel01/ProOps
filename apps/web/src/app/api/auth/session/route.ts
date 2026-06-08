@@ -93,6 +93,7 @@ function buildWhatsappMfaUrl(req: NextRequest, endpoint: "challenge" | "verify")
 async function requestWhatsappChallenge(
   req: NextRequest,
   idToken: string,
+  resend?: boolean,
 ): Promise<WhatsappChallengeResult | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), WHATSAPP_MFA_TIMEOUT_MS);
@@ -103,7 +104,7 @@ async function requestWhatsappChallenge(
         "content-type": "application/json",
         authorization: `Bearer ${idToken}`,
       },
-      body: "{}",
+      body: JSON.stringify({ resend: Boolean(resend) }),
       cache: "no-store",
       signal: controller.signal,
     });
@@ -197,12 +198,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Payload too large" }, { status: 413 });
     }
 
-    const body = (await req.json()) as { idToken?: string; otpCode?: string };
+    const body = (await req.json()) as {
+      idToken?: string;
+      otpCode?: string;
+      resend?: boolean;
+    };
     const idToken = String(body?.idToken || "").trim();
     if (!idToken) {
       return NextResponse.json({ error: "idToken is required" }, { status: 400 });
     }
     const otpCode = String(body?.otpCode || "").trim();
+    const resend = body?.resend === true;
 
     const adminAuth = getAdminAuth();
     // When running against the Firebase Auth emulator the ID tokens returned
@@ -256,7 +262,7 @@ export async function POST(req: NextRequest) {
       // First step: no OTP yet, not a super admin, and no native second factor
       // already satisfied. Ask the backend whether this user requires WhatsApp
       // OTP. On a non-fatal failure the challenge result is null → fail open.
-      const challenge = await requestWhatsappChallenge(req, idToken);
+      const challenge = await requestWhatsappChallenge(req, idToken, resend);
       const decision = decideWhatsappGate({
         isSuperAdmin: isSuperAdminRole,
         hasNativeSecondFactor: Boolean(secondFactor),

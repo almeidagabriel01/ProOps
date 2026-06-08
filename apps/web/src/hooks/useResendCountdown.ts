@@ -3,30 +3,49 @@
 import * as React from "react";
 
 export interface FormatResendLabelOptions {
-  /** Label while the cooldown is active. `{s}` is replaced with the seconds left. */
+  /**
+   * Label while the cooldown is under a minute. `{s}` is replaced with the
+   * seconds left.
+   */
   waitingLabel?: string;
+  /**
+   * Label while the cooldown is a minute or longer. `{m}` is replaced with the
+   * minutes left (rounded up).
+   */
+  waitingMinutesLabel?: string;
   /** Label once the cooldown has elapsed and a resend is allowed. */
   readyLabel?: string;
 }
 
 const DEFAULT_WAITING_LABEL = "Reenviar em {s}s";
+const DEFAULT_WAITING_MINUTES_LABEL = "Reenviar em {m}min";
 const DEFAULT_READY_LABEL = "Reenviar código";
 
 /**
  * Pure formatter for the resend button label. Kept side-effect free so it can be
- * unit tested without any timers or React. When `secondsLeft > 0` it renders the
- * countdown ("Reenviar em 45s"); otherwise the ready-to-resend label.
+ * unit tested without any timers or React. Renders, by remaining time:
+ * - `<= 0`   → the ready-to-resend label.
+ * - `1..59`  → seconds countdown ("Reenviar em 45s").
+ * - `>= 60`  → minutes countdown, rounded up ("Reenviar em 45min" for 2685s).
  */
 export function formatResendLabel(
   secondsLeft: number,
   opts?: FormatResendLabelOptions,
 ): string {
   const waitingLabel = opts?.waitingLabel ?? DEFAULT_WAITING_LABEL;
+  const waitingMinutesLabel =
+    opts?.waitingMinutesLabel ?? DEFAULT_WAITING_MINUTES_LABEL;
   const readyLabel = opts?.readyLabel ?? DEFAULT_READY_LABEL;
-  if (secondsLeft > 0) {
-    return waitingLabel.replace("{s}", String(secondsLeft));
+  if (secondsLeft <= 0) {
+    return readyLabel;
   }
-  return readyLabel;
+  if (secondsLeft >= 60) {
+    return waitingMinutesLabel.replace(
+      "{m}",
+      String(Math.ceil(secondsLeft / 60)),
+    );
+  }
+  return waitingLabel.replace("{s}", String(secondsLeft));
 }
 
 /** Clamps a raw seconds value to a non-negative integer (pure, testable). */

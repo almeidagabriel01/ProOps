@@ -14,6 +14,20 @@ describe("formatResendLabel", () => {
     expect(formatResendLabel(0)).toBe("Reenviar código");
   });
 
+  it("renders seconds for 1..59 and minutes for >= 60", () => {
+    expect(formatResendLabel(45)).toBe("Reenviar em 45s");
+    expect(formatResendLabel(59)).toBe("Reenviar em 59s");
+    expect(formatResendLabel(60)).toBe("Reenviar em 1min");
+    // 2685s = 44min45s → rounded up to 45min
+    expect(formatResendLabel(2685)).toBe("Reenviar em 45min");
+  });
+
+  it("supports a custom minutes label with the {m} placeholder", () => {
+    expect(
+      formatResendLabel(120, { waitingMinutesLabel: "Aguarde {m}min" }),
+    ).toBe("Aguarde 2min");
+  });
+
   it("treats negative seconds as ready (clamped behavior at the label level)", () => {
     expect(formatResendLabel(-5)).toBe("Reenviar código");
   });

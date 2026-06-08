@@ -75,6 +75,16 @@ interface AuthContextType {
     otpCode: string,
   ) => Promise<{ success: boolean; code?: string; attemptsLeft?: number }>;
   /**
+   * Forces a fresh WhatsApp OTP (sends `resend: true` to the session route),
+   * subject to the backend cooldown/cap. Returns whether a new code was actually
+   * sent (`otpSent`) and the remaining cooldown (`retryAfterSeconds`). Does NOT
+   * mark the session synced — the gate stays pending until the code is verified.
+   */
+  resendWhatsappOtp: () => Promise<{
+    otpSent?: boolean;
+    retryAfterSeconds?: number;
+  }>;
+  /**
    * If `error` is a multi-factor challenge, stashes the resolver for
    * `resolveTotpLogin` and returns true. Lets non-password sign-in paths
    * (e.g. Google OAuth) route into the same TOTP code screen.
@@ -108,6 +118,7 @@ const AuthContext = React.createContext<AuthContextType>({
   login: async () => ({ success: false }),
   resolveTotpLogin: async () => ({ success: false }),
   resolveWhatsappLogin: async () => ({ success: false }),
+  resendWhatsappOtp: async () => ({}),
   prepareMfaChallenge: () => false,
   completeSessionAfterSignIn: async () => ({ success: true }),
   logout: async () => {},
@@ -200,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (
       firebaseUser: FirebaseUser,
       otpCode?: string,
+      opts?: { resend?: boolean },
     ): Promise<{
       mfaRequired?: boolean;
       method?: string;
@@ -213,7 +225,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(
-          otpCode ? { idToken, otpCode } : { idToken },
+          otpCode
+            ? { idToken, otpCode }
+            : opts?.resend
+              ? { idToken, resend: true }
+              : { idToken },
         ),
       });
 
@@ -855,6 +871,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Explicit resend path for the WhatsApp OTP. Unlike completeSessionAfterSignIn
+  // (the AUTO path, which reuses a still-valid code), this forces a fresh code by
+  // sending `resend: true` to the session route. It does NOT take ownership of the
+  // explicit-sign-in lock or mark the session synced — the WhatsApp gate is still
+  // pending until the user enters the new code via resolveWhatsappLogin. We only
+  // refresh the elevated gate's retryAfterSeconds (keeping the maskedPhone) so the
+  // OTP screen's cooldown reflects the backend's authoritative value.
+  const resendWhatsappOtp = async (): Promise<{
+    otpSent?: boolean;
+    retryAfterSeconds?: number;
+  }> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return {};
+    }
+    const session = await createServerSession(currentUser, undefined, {
+      resend: true,
+    });
+    setWhatsappMfaPending((prev) => ({
+      maskedPhone: session.maskedPhone ?? prev?.maskedPhone,
+      retryAfterSeconds: session.retryAfterSeconds,
+    }));
+    return {
+      otpSent: session.otpSent,
+      retryAfterSeconds: session.retryAfterSeconds,
+    };
+  };
+
   const completeSessionAfterSignIn = async () => {
     // Google popup/redirect completes OUTSIDE login(); the user is already signed
     // in so onAuthStateChanged may have fired. Take ownership now so any token-
@@ -904,6 +948,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         resolveTotpLogin,
         resolveWhatsappLogin,
+        resendWhatsappOtp,
         prepareMfaChallenge,
         completeSessionAfterSignIn,
         logout,
