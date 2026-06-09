@@ -81,4 +81,26 @@ describe("RecoveryCodeInput", () => {
     fireEvent.change(input, { target: { value: "AB23CD45" } });
     expect(onChange).toHaveBeenCalledWith("ab23cd45");
   });
+
+  it("strips the dash when pasting a xxxx-xxxx code", () => {
+    const onChange = vi.fn();
+    function Harness() {
+      const [v, setV] = React.useState("");
+      return (
+        <RecoveryCodeInput
+          value={v}
+          onChange={(next) => {
+            setV(next);
+            onChange(next);
+          }}
+        />
+      );
+    }
+    const { container } = render(<Harness />);
+    const input = container.querySelector("input")!;
+    fireEvent.paste(input, {
+      clipboardData: { getData: () => "ab23-cd45" },
+    });
+    expect(onChange).toHaveBeenCalledWith("ab23cd45");
+  });
 });

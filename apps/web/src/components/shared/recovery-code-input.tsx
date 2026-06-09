@@ -38,6 +38,7 @@ export function RecoveryCodeInput({
       maxLength={8}
       value={value}
       onChange={(next) => onChange(next.toLowerCase())}
+      pasteTransformer={(pasted) => pasted.replace(/[\s-]/g, "")}
       disabled={disabled}
       autoFocus={autoFocus}
       pattern={ALPHANUMERIC}
