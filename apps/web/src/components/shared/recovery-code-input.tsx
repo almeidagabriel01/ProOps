@@ -41,17 +41,17 @@ export function RecoveryCodeInput({
       disabled={disabled}
       autoFocus={autoFocus}
       pattern={ALPHANUMERIC}
-      containerClassName="mx-auto w-fit"
+      containerClassName="w-full"
     >
-      <InputOTPGroup>
+      <InputOTPGroup className="flex-1">
         {[0, 1, 2, 3].map((index) => (
-          <InputOTPSlot key={index} index={index} className="h-11 w-11" />
+          <InputOTPSlot key={index} index={index} className="h-11 flex-1" />
         ))}
       </InputOTPGroup>
       <InputOTPSeparator />
-      <InputOTPGroup>
+      <InputOTPGroup className="flex-1">
         {[4, 5, 6, 7].map((index) => (
-          <InputOTPSlot key={index} index={index} className="h-11 w-11" />
+          <InputOTPSlot key={index} index={index} className="h-11 flex-1" />
         ))}
       </InputOTPGroup>
     </InputOTP>
