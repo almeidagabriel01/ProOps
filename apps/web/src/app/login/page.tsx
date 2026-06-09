@@ -138,6 +138,7 @@ function LoginContent() {
     handleResendWhatsappOtp,
     showWhatsappRecovery,
     openWhatsappRecovery,
+    closeWhatsappRecovery,
     whatsappRecoveryCode,
     setWhatsappRecoveryCode,
     isRecoveringWhatsapp,
@@ -587,6 +588,61 @@ function LoginContent() {
     );
   }
 
+  if (requiresWhatsappOtp && showWhatsappRecovery) {
+    return (
+      <AuthLayout reverse={false}>
+        <div className="w-full max-w-sm mx-auto">
+          <h1 className="text-2xl font-semibold mb-2">
+            Entrar com código de recuperação
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Use um dos códigos de recuperação que você guardou. A verificação por
+            WhatsApp continua ativa na sua conta.
+          </p>
+          <form
+            onSubmit={handleConfirmWhatsappRecovery}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="whatsapp-recovery-code">
+                Código de recuperação
+              </Label>
+              <Input
+                id="whatsapp-recovery-code"
+                autoComplete="one-time-code"
+                value={whatsappRecoveryCode}
+                onChange={(e) => setWhatsappRecoveryCode(e.target.value)}
+                placeholder="XXXX-XXXX"
+                autoFocus
+              />
+            </div>
+            {whatsappRecoveryError ? (
+              <p className="text-sm text-destructive">{whatsappRecoveryError}</p>
+            ) : null}
+            <Button
+              type="submit"
+              disabled={isRecoveringWhatsapp}
+              className="cursor-pointer"
+            >
+              {isRecoveringWhatsapp ? "Entrando..." : "Entrar"}
+            </Button>
+          </form>
+          <div className="mt-6 border-t pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeWhatsappRecovery}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Usar o código do WhatsApp
+            </Button>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
   if (requiresWhatsappOtp) {
     return (
       <AuthLayout reverse={false}>
@@ -644,46 +700,15 @@ function LoginContent() {
             ) : null}
           </form>
           <div className="mt-6 border-t pt-4">
-            {showWhatsappRecovery ? (
-              <form
-                onSubmit={handleConfirmWhatsappRecovery}
-                className="flex flex-col gap-3"
-              >
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="whatsapp-recovery-code">
-                    Código de recuperação
-                  </Label>
-                  <Input
-                    id="whatsapp-recovery-code"
-                    autoComplete="one-time-code"
-                    value={whatsappRecoveryCode}
-                    onChange={(e) => setWhatsappRecoveryCode(e.target.value)}
-                    placeholder="XXXX-XXXX"
-                    autoFocus
-                  />
-                </div>
-                {whatsappRecoveryError ? (
-                  <p className="text-sm text-destructive">
-                    {whatsappRecoveryError}
-                  </p>
-                ) : null}
-                <Button
-                  type="submit"
-                  disabled={isRecoveringWhatsapp}
-                  className="cursor-pointer"
-                >
-                  {isRecoveringWhatsapp ? "Verificando..." : "Entrar"}
-                </Button>
-              </form>
-            ) : (
-              <button
-                type="button"
-                onClick={openWhatsappRecovery}
-                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
-              >
-                Usar um código de recuperação
-              </button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={openWhatsappRecovery}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <KeyRound className="h-4 w-4" />
+              Usar um código de recuperação
+            </Button>
           </div>
         </div>
       </AuthLayout>

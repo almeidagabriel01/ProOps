@@ -130,6 +130,7 @@ interface UseLoginFormReturn {
   // WhatsApp recovery-code flow (WhatsApp OTP screen)
   showWhatsappRecovery: boolean;
   openWhatsappRecovery: () => void;
+  closeWhatsappRecovery: () => void;
   whatsappRecoveryCode: string;
   setWhatsappRecoveryCode: (value: string) => void;
   isRecoveringWhatsapp: boolean;
@@ -946,6 +947,13 @@ export function useLoginForm(): UseLoginFormReturn {
     setShowWhatsappRecovery(true);
   }, []);
 
+  // Return from the recovery-code form back to the WhatsApp OTP input.
+  const closeWhatsappRecovery = React.useCallback(() => {
+    setShowWhatsappRecovery(false);
+    setWhatsappRecoveryError("");
+    setWhatsappRecoveryCode("");
+  }, []);
+
   const handleConfirmWhatsappRecovery = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setWhatsappRecoveryError("");
@@ -1458,6 +1466,7 @@ export function useLoginForm(): UseLoginFormReturn {
     whatsappResendNotice,
     showWhatsappRecovery,
     openWhatsappRecovery,
+    closeWhatsappRecovery,
     whatsappRecoveryCode,
     setWhatsappRecoveryCode,
     isRecoveringWhatsapp,
