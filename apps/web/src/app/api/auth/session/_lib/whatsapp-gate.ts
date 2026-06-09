@@ -27,6 +27,14 @@ export interface WhatsappGateInput {
    */
   hasNativeSecondFactor: boolean;
   /**
+   * Whether the request already carries a valid `__session` cookie for the SAME
+   * user (a background re-sync of an existing authenticated session). The OTP
+   * gate is a LOGIN step — it must NOT re-challenge an already-authenticated
+   * session, otherwise token refresh / visibilitychange re-syncs would send
+   * unsolicited OTPs and burn the per-user rate limit.
+   */
+  alreadyAuthenticated: boolean;
+  /**
    * The challenge response from the backend, or `null` when the gate decision
    * is made BEFORE the challenge call (super admin / native 2FA short-circuit).
    */
@@ -45,6 +53,9 @@ export function decideWhatsappGate(input: WhatsappGateInput): WhatsappGateDecisi
     return "skip";
   }
   if (input.hasNativeSecondFactor) {
+    return "skip";
+  }
+  if (input.alreadyAuthenticated) {
     return "skip";
   }
   if (input.challenge?.mfaRequired === true) {

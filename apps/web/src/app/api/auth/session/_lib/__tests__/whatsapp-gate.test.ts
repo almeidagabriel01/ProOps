@@ -7,6 +7,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: true,
         hasNativeSecondFactor: false,
+        alreadyAuthenticated: false,
         challenge: null,
       }),
     ).toBe("skip");
@@ -17,6 +18,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: true,
         hasNativeSecondFactor: false,
+        alreadyAuthenticated: false,
         challenge: { mfaRequired: true },
       }),
     ).toBe("skip");
@@ -27,7 +29,30 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: true,
+        alreadyAuthenticated: false,
         challenge: null,
+      }),
+    ).toBe("skip");
+  });
+
+  it("skips the gate on a background re-sync of an already authenticated session", () => {
+    expect(
+      decideWhatsappGate({
+        isSuperAdmin: false,
+        hasNativeSecondFactor: false,
+        alreadyAuthenticated: true,
+        challenge: null,
+      }),
+    ).toBe("skip");
+  });
+
+  it("skips the gate when already authenticated even if a challenge would require it", () => {
+    expect(
+      decideWhatsappGate({
+        isSuperAdmin: false,
+        hasNativeSecondFactor: false,
+        alreadyAuthenticated: true,
+        challenge: { mfaRequired: true },
       }),
     ).toBe("skip");
   });
@@ -37,6 +62,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        alreadyAuthenticated: false,
         challenge: { mfaRequired: true },
       }),
     ).toBe("require");
@@ -47,6 +73,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        alreadyAuthenticated: false,
         challenge: { mfaRequired: false },
       }),
     ).toBe("proceed");
@@ -57,6 +84,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        alreadyAuthenticated: false,
         challenge: null,
       }),
     ).toBe("proceed");
@@ -67,6 +95,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        alreadyAuthenticated: false,
         challenge: {},
       }),
     ).toBe("proceed");

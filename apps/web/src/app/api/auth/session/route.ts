@@ -296,6 +296,28 @@ export async function POST(req: NextRequest) {
     const mfaRequired =
       isSuperAdminRole && isSuperAdminMfaRequired() && !secondFactor;
 
+    // Whether this request is a background re-sync of an ALREADY authenticated
+    // session (token refresh / visibilitychange / startup re-POST the idToken
+    // with `credentials: include`). When the request carries a valid __session
+    // cookie for the SAME user, the OTP gate — a LOGIN step — must be skipped so
+    // re-syncs don't send unsolicited WhatsApp OTPs and burn the rate limit.
+    // Best-effort only: any error/absence falls back to `false` (treat as login).
+    let alreadyAuthenticated = false;
+    const existingCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    if (existingCookie) {
+      try {
+        const sessionDecoded = await adminAuth.verifySessionCookie(
+          existingCookie,
+          true,
+        );
+        if (sessionDecoded.uid === decoded.uid) {
+          alreadyAuthenticated = true;
+        }
+      } catch {
+        alreadyAuthenticated = false;
+      }
+    }
+
     // --- WhatsApp-MFA gate (custom, opt-in) ---
     // Runs in parallel to the super admin gate above and is purely additive.
     // Second step: the client re-POSTed a verification input. Verify it with the
@@ -327,14 +349,16 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(verifyOutcome.body, { status });
       }
       // verified === true → fall through to normal cookie emission below.
-    } else if (!isSuperAdminRole && !secondFactor) {
-      // First step: no OTP yet, not a super admin, and no native second factor
-      // already satisfied. Ask the backend whether this user requires WhatsApp
-      // OTP. On a non-fatal failure the challenge result is null → fail open.
+    } else if (!isSuperAdminRole && !secondFactor && !alreadyAuthenticated) {
+      // First step of LOGIN: no OTP yet, not a super admin, no native second
+      // factor already satisfied, and NOT a re-sync of an existing authenticated
+      // session. Ask the backend whether this user requires WhatsApp OTP. On a
+      // non-fatal failure the challenge result is null → fail open.
       const challenge = await requestWhatsappChallenge(req, idToken, resend);
       const decision = decideWhatsappGate({
         isSuperAdmin: isSuperAdminRole,
         hasNativeSecondFactor: Boolean(secondFactor),
+        alreadyAuthenticated,
         challenge,
       });
       if (decision === "require") {
