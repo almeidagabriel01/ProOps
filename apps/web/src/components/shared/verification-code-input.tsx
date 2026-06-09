@@ -44,11 +44,11 @@ export function VerificationCodeInput({
       autoFocus={autoFocus}
       pattern={DIGITS_ONLY}
       inputMode="numeric"
-      containerClassName="w-full"
+      containerClassName="justify-center"
     >
-      <InputOTPGroup className="w-full justify-between">
+      <InputOTPGroup className="justify-center">
         {[0, 1, 2, 3, 4, 5].map((index) => (
-          <InputOTPSlot key={index} index={index} className="h-12 flex-1" />
+          <InputOTPSlot key={index} index={index} className="h-11 w-11" />
         ))}
       </InputOTPGroup>
     </InputOTP>
