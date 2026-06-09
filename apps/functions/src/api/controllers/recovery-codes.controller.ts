@@ -409,6 +409,12 @@ export const recoverTotpWithCode = async (
       });
     }
 
+    // Mint the custom token FIRST: it signs the user in without the native MFA
+    // challenge. If signing fails (e.g. the runtime service account lacks the
+    // "Service Account Token Creator" role), we must abort BEFORE consuming the
+    // code — otherwise a single-use recovery code is burned without a login.
+    const customToken = await auth.createCustomToken(uid);
+
     // Consume the recovery code atomically (same pattern as /verify). The TOTP
     // factor is intentionally NOT removed — 2FA stays enrolled.
     await db.runTransaction(async (tx) => {
@@ -423,9 +429,6 @@ export const recoverTotpWithCode = async (
       );
       tx.update(codeRef, { codes: updatedCodes });
     });
-
-    // Mint a custom token: signs the user in without the native MFA challenge.
-    const customToken = await auth.createCustomToken(uid);
 
     void writeSecurityAuditEvent({
       eventType: "mfa_recovery_code_signin",

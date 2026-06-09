@@ -459,6 +459,36 @@ describe("recoverTotpWithCode", () => {
     );
   });
 
+  it("createCustomToken failure: returns generic 400 and does NOT consume the code", async () => {
+    mockGetUserByEmail.mockResolvedValue({
+      uid: "user-9",
+      email: "dave@example.com",
+      providerData: [{ providerId: "google.com" }],
+    });
+    seedCodes("user-9", ["1111-2222"]);
+    docStore.set("users/user-9", { tenantId: "tenant-9" });
+    // Signing fails — e.g. the runtime service account lacks the
+    // "Service Account Token Creator" role, or the local emulator has no key.
+    mockCreateCustomToken
+      .mockReset()
+      .mockRejectedValue(new Error("Failed to determine service account"));
+
+    const req = makePublicReq({ email: "dave@example.com", code: "1111-2222" });
+    const { res, status, json } = makeRes();
+
+    await recoverTotpWithCode(req, res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({ message: GENERIC });
+    // A signing failure must NOT burn a single-use recovery code.
+    const stored = docStore.get("mfaRecoveryCodes/user-9") as {
+      codes: { usedAt: unknown }[];
+    };
+    expect(stored.codes[0].usedAt).toBeNull();
+    // No login side effects (audit event is only written after a real sign-in).
+    expect(mockWriteAudit).not.toHaveBeenCalled();
+  });
+
   it("super admin returns 403 and does not consume code nor sign in", async () => {
     mockGetUserByEmail.mockResolvedValue({
       uid: "super-1",
