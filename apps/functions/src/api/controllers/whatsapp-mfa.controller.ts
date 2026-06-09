@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { createHash } from "crypto";
 import { z } from "zod";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { db, auth } from "../../init";
+import { db } from "../../init";
 import { logger } from "../../lib/logger";
 import { isSuperAdminClaim } from "../../lib/request-auth";
 import { writeSecurityAuditEvent } from "../../lib/security-observability";
@@ -58,12 +58,6 @@ function hashPhone(normalizedPhone: string): string {
 function maskPhone(normalizedPhone: string): string {
   const last4 = normalizedPhone.slice(-4);
   return `••••${last4}`;
-}
-
-async function hasTotpFactor(uid: string): Promise<boolean> {
-  const userRecord = await auth.getUser(uid);
-  const factors = userRecord.multiFactor?.enrolledFactors ?? [];
-  return factors.some((factor) => factor.factorId === "totp");
 }
 
 function toOtpRecord(data: ChallengeDoc): OtpRecord {
@@ -182,13 +176,6 @@ export const startWhatsappEnroll = async (req: Request, res: Response) => {
     const normalizedPhone = normalizePhoneNumber(parsed.data.phone);
     if (!normalizedPhone || normalizedPhone.length < 12) {
       return res.status(400).json({ message: "Telefone inválido." });
-    }
-
-    if (await hasTotpFactor(uid)) {
-      return res.status(409).json({
-        message:
-          "Você já tem um aplicativo autenticador (TOTP) ativo. Desative-o antes de ativar o WhatsApp.",
-      });
     }
 
     const challengeRef = db.collection(CHALLENGES_COLLECTION).doc(uid);
@@ -339,16 +326,6 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
   try {
     const uid = req.user!.uid;
     const tenantId = req.user!.tenantId;
-
-    // Auto-reconciliation: if the user has a native TOTP factor, WhatsApp MFA
-    // is redundant/dormant — clear the flag and skip the WhatsApp gate.
-    if (await hasTotpFactor(uid)) {
-      await db.collection("users").doc(uid).set(
-        { whatsappMfaEnabled: false },
-        { merge: true },
-      );
-      return res.json({ mfaRequired: false });
-    }
 
     const userSnap = await db.collection("users").doc(uid).get();
     const userData = userSnap.data() as

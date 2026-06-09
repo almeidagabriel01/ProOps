@@ -3,8 +3,9 @@
  *
  * Mocks Firestore (db), Firebase Auth (getUser), the WhatsApp template sender,
  * the logger and the security audit writer. Asserts: super-admin rejection,
- * TOTP exclusivity, happy-path enroll/verify, that phoneNumberIndex is NEVER
- * written, login auto-reconciliation, and login verification.
+ * that TOTP and WhatsApp can coexist (no exclusivity, no auto-reconcile),
+ * happy-path enroll/verify, that phoneNumberIndex is NEVER written, and login
+ * verification.
  */
 
 const mockSet = jest.fn();
@@ -132,17 +133,22 @@ describe("startWhatsappEnroll", () => {
     expect(mockSendTemplate).not.toHaveBeenCalled();
   });
 
-  it("rejects with 409 when the user already has a TOTP factor", async () => {
+  it("allows enrollment even when the user already has a TOTP factor (no exclusivity)", async () => {
     mockGetUser.mockResolvedValue({
       multiFactor: { enrolledFactors: [{ factorId: "totp" }] },
     });
     const req = makeReq({ phone: PHONE_INPUT }, USER);
-    const { res, status } = makeRes();
+    const { res, status, json } = makeRes();
 
     await startWhatsappEnroll(req, res);
 
-    expect(status).toHaveBeenCalledWith(409);
-    expect(mockSendTemplate).not.toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalledWith(409);
+    expect(mockSendTemplate).toHaveBeenCalledTimes(1);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true }),
+    );
+    // The challenge is written, confirming the flow proceeded normally.
+    expect(docStore.get("mfaOtpChallenges/user-1")?.purpose).toBe("enroll");
   });
 
   it("sends the template, writes the challenge, and returns a masked phone", async () => {
@@ -276,7 +282,7 @@ describe("verifyWhatsappEnroll", () => {
 });
 
 describe("challengeWhatsappLogin", () => {
-  it("auto-reconciles: clears the flag and returns mfaRequired:false when TOTP is present", async () => {
+  it("challenges normally even when a TOTP factor is present (no auto-reconcile / flag untouched)", async () => {
     mockGetUser.mockResolvedValue({
       multiFactor: { enrolledFactors: [{ factorId: "totp" }] },
     });
@@ -290,9 +296,16 @@ describe("challengeWhatsappLogin", () => {
 
     await challengeWhatsappLogin(req, res);
 
-    expect(json).toHaveBeenCalledWith({ mfaRequired: false });
-    expect(docStore.get("users/user-1")?.whatsappMfaEnabled).toBe(false);
-    expect(mockSendTemplate).not.toHaveBeenCalled();
+    // The WhatsApp gate is still issued and the flag is NOT cleared.
+    expect(mockSendTemplate).toHaveBeenCalledTimes(1);
+    expect(docStore.get("users/user-1")?.whatsappMfaEnabled).toBe(true);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mfaRequired: true,
+        method: "whatsapp",
+        otpSent: true,
+      }),
+    );
   });
 
   it("returns mfaRequired:false when WhatsApp MFA is not enabled", async () => {
