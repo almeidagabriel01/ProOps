@@ -47,6 +47,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader } from "@/components/ui/loader";
 import { formatResendLabel } from "@/hooks/useResendCountdown";
 import { shouldShowLoggedInLoader } from "./_lib/should-show-logged-in-loader";
+import { shouldShowInitialLoader } from "./_lib/should-show-initial-loader";
 
 function LoginContent() {
   const {
@@ -305,7 +306,16 @@ function LoginContent() {
     }
   };
 
-  if (isLoading && !isLoggingIn && !isRegistering && !user) {
+  if (
+    shouldShowInitialLoader({
+      isLoading,
+      isLoggingIn,
+      isRegistering,
+      hasUser: Boolean(user),
+      requiresMfaCode,
+      requiresWhatsappOtp,
+    })
+  ) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader size="lg" />
