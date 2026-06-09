@@ -383,7 +383,6 @@ function LoginContent() {
             className="flex flex-col gap-4"
           >
             <div className="flex flex-col gap-1">
-              <Label htmlFor="whatsapp-fallback-code">Código</Label>
               <VerificationCodeInput
                 id="whatsapp-fallback-code"
                 value={whatsappFallbackCode}
@@ -535,7 +534,6 @@ function LoginContent() {
           </p>
           <form onSubmit={handleConfirmMfaCode} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <Label htmlFor="mfa-login-code">Código</Label>
               <VerificationCodeInput
                 id="mfa-login-code"
                 value={mfaLoginCode}
@@ -654,7 +652,6 @@ function LoginContent() {
             className="flex flex-col gap-4"
           >
             <div className="flex flex-col gap-1">
-              <Label htmlFor="whatsapp-otp-code">Código</Label>
               <VerificationCodeInput
                 id="whatsapp-otp-code"
                 value={whatsappOtpCode}

@@ -44,9 +44,9 @@ export function VerificationCodeInput({
       autoFocus={autoFocus}
       pattern={DIGITS_ONLY}
       inputMode="numeric"
-      containerClassName="justify-center"
+      containerClassName="mx-auto w-fit"
     >
-      <InputOTPGroup className="justify-center">
+      <InputOTPGroup>
         {[0, 1, 2, 3, 4, 5].map((index) => (
           <InputOTPSlot key={index} index={index} className="h-11 w-11" />
         ))}

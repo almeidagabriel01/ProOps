@@ -41,7 +41,7 @@ export function RecoveryCodeInput({
       disabled={disabled}
       autoFocus={autoFocus}
       pattern={ALPHANUMERIC}
-      containerClassName="w-full justify-center"
+      containerClassName="mx-auto w-fit"
     >
       <InputOTPGroup>
         {[0, 1, 2, 3].map((index) => (
