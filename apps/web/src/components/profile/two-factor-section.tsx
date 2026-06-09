@@ -31,7 +31,7 @@ import {
  * and the first time a method is enrolled with no codes yet we auto-offer them.
  */
 export function TwoFactorSection() {
-  const { user } = useAuth();
+  const { user, forceSyncSession } = useAuth();
   const {
     enabled: whatsappEnabled,
     phone: whatsappPhone,
@@ -66,13 +66,22 @@ export function TwoFactorSection() {
   // deletes them if no 2FA remains) and refresh the panel so the count
   // reflects the new state — dropping to 0 when the last factor is removed.
   const handleDisabled = React.useCallback(async () => {
+    // Disabling a native MFA factor (TOTP unenroll) rotates/revokes the Firebase
+    // token. Force a fresh token and re-mint the __session cookie so the client
+    // token and the cookie stay consistent with the new factor state — otherwise
+    // in-flight/subsequent calls can hit a stale token (transient 401/403).
+    try {
+      await forceSyncSession();
+    } catch {
+      // Best-effort: the SDK refreshes the token on the next call regardless.
+    }
     try {
       await RecoveryCodesService.reconcileRecoveryCodes();
     } catch {
       // Reconcile is best-effort from the UI's perspective; never block here.
     }
     await recoveryRef.current?.refresh();
-  }, []);
+  }, [forceSyncSession]);
 
   return (
     <div className="flex flex-col gap-4">
