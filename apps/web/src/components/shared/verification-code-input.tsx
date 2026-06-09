@@ -14,6 +14,8 @@ interface VerificationCodeInputProps {
   value: string;
   /** Called with the digit-only string as the user types/pastes. */
   onChange: (value: string) => void;
+  /** Fired once all 6 digits are entered — used for auto-submit. */
+  onComplete?: (value: string) => void;
   id?: string;
   disabled?: boolean;
   autoFocus?: boolean;
@@ -26,6 +28,7 @@ interface VerificationCodeInputProps {
 export function VerificationCodeInput({
   value,
   onChange,
+  onComplete,
   id,
   disabled,
   autoFocus,
@@ -36,6 +39,7 @@ export function VerificationCodeInput({
       maxLength={6}
       value={value}
       onChange={onChange}
+      onComplete={onComplete}
       disabled={disabled}
       autoFocus={autoFocus}
       pattern={DIGITS_ONLY}

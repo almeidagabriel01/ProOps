@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
+import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/react";
 
@@ -41,6 +42,22 @@ describe("VerificationCodeInput", () => {
       <VerificationCodeInput value="123" onChange={vi.fn()} />,
     );
     expect(container.querySelector("input")).toHaveValue("123");
+  });
+
+  it("fires onComplete once all 6 digits are entered (auto-submit)", () => {
+    const onComplete = vi.fn();
+    function Harness() {
+      const [v, setV] = React.useState("");
+      return (
+        <VerificationCodeInput value={v} onChange={setV} onComplete={onComplete} />
+      );
+    }
+    const { container } = render(<Harness />);
+    const input = container.querySelector("input")!;
+    fireEvent.change(input, { target: { value: "12345" } });
+    expect(onComplete).not.toHaveBeenCalled();
+    fireEvent.change(input, { target: { value: "123456" } });
+    expect(onComplete).toHaveBeenCalledWith("123456");
   });
 });
 

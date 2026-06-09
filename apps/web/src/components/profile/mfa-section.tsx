@@ -237,6 +237,9 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
                 id="profile-mfa-code"
                 value={code}
                 onChange={setCode}
+                onComplete={() => {
+                  if (!busy) void enroll();
+                }}
               />
             </div>
 

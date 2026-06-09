@@ -388,6 +388,10 @@ function LoginContent() {
                 id="whatsapp-fallback-code"
                 value={whatsappFallbackCode}
                 onChange={setWhatsappFallbackCode}
+                onComplete={() => {
+                  if (!isVerifyingWhatsappFallback)
+                    void handleConfirmWhatsappFallback();
+                }}
                 autoFocus
               />
             </div>
@@ -536,6 +540,9 @@ function LoginContent() {
                 id="mfa-login-code"
                 value={mfaLoginCode}
                 onChange={setMfaLoginCode}
+                onComplete={() => {
+                  if (!isVerifyingMfaCode) void handleConfirmMfaCode();
+                }}
                 autoFocus
               />
             </div>
@@ -652,6 +659,9 @@ function LoginContent() {
                 id="whatsapp-otp-code"
                 value={whatsappOtpCode}
                 onChange={setWhatsappOtpCode}
+                onComplete={() => {
+                  if (!isVerifyingWhatsappOtp) void handleConfirmWhatsappOtp();
+                }}
                 autoFocus
               />
             </div>
@@ -1029,6 +1039,9 @@ function LoginContent() {
                         <VerificationCodeInput
                           value={smsCode}
                           onChange={setSmsCode}
+                          onComplete={() => {
+                            if (!isVerifyingSmsCode) void handleConfirmPhoneCode();
+                          }}
                         />
                         <div className="flex gap-2 pt-2">
                           <Button

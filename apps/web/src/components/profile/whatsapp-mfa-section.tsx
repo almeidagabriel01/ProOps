@@ -259,6 +259,9 @@ export function WhatsappMfaSection({
                 id="whatsapp-mfa-code"
                 value={code}
                 onChange={setCode}
+                onComplete={() => {
+                  if (!busy) void handleConfirm();
+                }}
               />
             </div>
             <div className="flex gap-2">

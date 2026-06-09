@@ -80,6 +80,9 @@ export default function SetupMfaPage() {
                   id="mfa-code"
                   value={code}
                   onChange={setCode}
+                  onComplete={() => {
+                    if (!busy) void enroll();
+                  }}
                 />
               </div>
 
