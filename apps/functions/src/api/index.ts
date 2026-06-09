@@ -276,6 +276,14 @@ const recoveryCodesLimiter = createRateLimiter({
   keyResolver: buildRateLimitIdentity,
 });
 
+// Apply the recovery-codes limiter ONLY to write endpoints (generate/verify/
+// reconcile). `status` is a read-only GET polled on mount/refresh and during the
+// enrollment auto-generate flow — limiting it caused spurious 429s that the
+// client misread as "0 codes", triggering a redundant generate. Reads stay
+// authenticated and under the global protected limiter.
+const recoveryCodesWriteLimiter: express.RequestHandler = (req, res, next) =>
+  req.method === "GET" ? next() : recoveryCodesLimiter(req, res, next);
+
 const corsMiddleware = cors({
   origin: (origin, callback) => {
     const decision = evaluateCorsDecision({
@@ -474,7 +482,7 @@ app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
 app.use("/v1/auth/whatsapp-mfa", whatsappMfaLimiter, whatsappMfaRoutes);
-app.use("/v1/auth/recovery-codes", recoveryCodesLimiter, recoveryCodesRoutes);
+app.use("/v1/auth/recovery-codes", recoveryCodesWriteLimiter, recoveryCodesRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);
