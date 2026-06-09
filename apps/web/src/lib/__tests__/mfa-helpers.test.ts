@@ -6,6 +6,7 @@ import {
   isValidTotpCode,
   maskPhone,
   resolveMfaRecoveryView,
+  shouldAutoOpenRecoveryCodes,
 } from "../mfa-helpers";
 
 describe("isValidTotpCode", () => {
@@ -147,5 +148,31 @@ describe("canUseWhatsappMfa", () => {
     expect(canUseWhatsappMfa(undefined)).toBe(true);
     expect(canUseWhatsappMfa(null)).toBe(true);
     expect(canUseWhatsappMfa("")).toBe(true);
+  });
+});
+
+describe("shouldAutoOpenRecoveryCodes", () => {
+  it("auto-opens after the first enroll when no codes exist yet", () => {
+    expect(
+      shouldAutoOpenRecoveryCodes({ hasAnyFactor: true, recoveryTotal: 0 }),
+    ).toBe(true);
+  });
+
+  it("does not auto-open when the user already has codes", () => {
+    expect(
+      shouldAutoOpenRecoveryCodes({ hasAnyFactor: true, recoveryTotal: 10 }),
+    ).toBe(false);
+    expect(
+      shouldAutoOpenRecoveryCodes({ hasAnyFactor: true, recoveryTotal: 1 }),
+    ).toBe(false);
+  });
+
+  it("does not auto-open when there is no active factor", () => {
+    expect(
+      shouldAutoOpenRecoveryCodes({ hasAnyFactor: false, recoveryTotal: 0 }),
+    ).toBe(false);
+    expect(
+      shouldAutoOpenRecoveryCodes({ hasAnyFactor: false, recoveryTotal: 10 }),
+    ).toBe(false);
   });
 });

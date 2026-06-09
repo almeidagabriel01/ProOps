@@ -43,6 +43,8 @@ interface WhatsappMfaSectionProps {
   enabledPhone?: string;
   /** Called after a successful enroll/disable so the parent can re-read state. */
   onChanged?: () => void;
+  /** Called only after a successful enroll (not on disable). */
+  onEnrolled?: () => void;
   /** Disables the enroll flow with a hint (e.g. TOTP is the active method). */
   disabledReason?: string;
 }
@@ -51,6 +53,7 @@ export function WhatsappMfaSection({
   isEnabled,
   enabledPhone,
   onChanged,
+  onEnrolled,
   disabledReason,
 }: WhatsappMfaSectionProps) {
   const [stage, setStage] = React.useState<Stage>(
@@ -134,6 +137,7 @@ export function WhatsappMfaSection({
       setCode("");
       toast.success("Verificação por WhatsApp ativada.");
       onChanged?.();
+      onEnrolled?.();
     } catch (err) {
       if (err instanceof ApiError) {
         const attemptsLeft = (err.data as { attemptsLeft?: number })

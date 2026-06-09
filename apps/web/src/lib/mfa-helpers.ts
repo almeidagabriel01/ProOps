@@ -86,3 +86,24 @@ export function maskPhone(phone: string): string {
 export function canUseWhatsappMfa(role: string | null | undefined): boolean {
   return String(role || "").trim().toLowerCase() !== "superadmin";
 }
+
+/** Inputs for deciding whether to auto-offer recovery codes after a 2FA enroll. */
+export interface RecoveryCodesAutoOpenInput {
+  /** True once the user has at least one 2FA factor active (TOTP or WhatsApp). */
+  hasAnyFactor: boolean;
+  /** Total recovery codes the user currently has (0 = none generated yet). */
+  recoveryTotal: number;
+}
+
+/**
+ * Whether the recovery-codes modal should auto-open after a 2FA enroll. We only
+ * auto-generate when the user just gained their first factor and has no codes
+ * yet, so they never end up with 2FA but no recovery safety net. Returns false
+ * once any codes exist, preventing the modal from re-opening on later enrolls.
+ */
+export function shouldAutoOpenRecoveryCodes({
+  hasAnyFactor,
+  recoveryTotal,
+}: RecoveryCodesAutoOpenInput): boolean {
+  return hasAnyFactor && recoveryTotal === 0;
+}

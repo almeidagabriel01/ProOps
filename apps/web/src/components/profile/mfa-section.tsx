@@ -33,7 +33,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export function MfaSection() {
+interface MfaSectionProps {
+  /** Fires once when a TOTP enrollment completes (stage transitions to "done"). */
+  onEnrolled?: () => void;
+}
+
+export function MfaSection({ onEnrolled }: MfaSectionProps = {}) {
   const { logout } = useAuth();
   const {
     stage,
@@ -62,6 +67,19 @@ export function MfaSection() {
     });
     return unsubscribe;
   }, []);
+
+  // Notify the parent once when enrollment completes, without altering the
+  // enroll flow itself (driven by the hook's `stage`).
+  const enrolledNotifiedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (stage === "done" && !enrolledNotifiedRef.current) {
+      enrolledNotifiedRef.current = true;
+      onEnrolled?.();
+    }
+    if (stage !== "done") {
+      enrolledNotifiedRef.current = false;
+    }
+  }, [stage, onEnrolled]);
 
   React.useEffect(() => {
     let active = true;
