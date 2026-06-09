@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2 } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2, MessageCircle, KeyRound } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLoginForm } from "./_hooks/useLoginForm";
@@ -531,35 +531,34 @@ function LoginContent() {
               {isVerifyingMfaCode ? "Verificando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-6 border-t pt-4">
-            <div className="flex flex-col gap-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Métodos alternativos
-              </p>
-              {whatsappFallbackAvailable ? (
-                <button
-                  type="button"
-                  onClick={handleSwitchToWhatsappFallback}
-                  disabled={isSendingWhatsappFallback}
-                  className="text-sm text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
-                >
-                  {isSendingWhatsappFallback
-                    ? "Enviando código..."
-                    : `Receber código por WhatsApp${
-                        whatsappFallbackMaskedPhone
-                          ? ` ${whatsappFallbackMaskedPhone}`
-                          : ""
-                      }`}
-                </button>
-              ) : null}
-              <button
+          <div className="mt-6 border-t pt-4 flex flex-col gap-2">
+            {whatsappFallbackAvailable ? (
+              <Button
                 type="button"
-                onClick={openTotpRecovery}
-                className="text-sm text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
+                variant="outline"
+                onClick={handleSwitchToWhatsappFallback}
+                disabled={isSendingWhatsappFallback}
+                className="w-full justify-start gap-2 cursor-pointer"
               >
-                Usar um código de recuperação
-              </button>
-            </div>
+                <MessageCircle className="h-4 w-4" />
+                {isSendingWhatsappFallback
+                  ? "Enviando código..."
+                  : `Receber código por WhatsApp${
+                      whatsappFallbackMaskedPhone
+                        ? ` ${whatsappFallbackMaskedPhone}`
+                        : ""
+                    }`}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={openTotpRecovery}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <KeyRound className="h-4 w-4" />
+              Usar um código de recuperação
+            </Button>
           </div>
         </div>
       </AuthLayout>
