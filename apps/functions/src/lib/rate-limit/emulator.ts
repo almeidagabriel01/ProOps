@@ -18,7 +18,27 @@ export const EMULATOR_RATE_LIMIT_MAX = 1_000_000;
 export function isEmulatedRuntime(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return Boolean(env.FIRESTORE_EMULATOR_HOST) || env.FUNCTIONS_EMULATOR === "true";
+  // Cover every reliable emulator signal. `firebase emulators:start` always
+  // sets FIREBASE_EMULATOR_HUB; the Functions emulator sets FUNCTIONS_EMULATOR;
+  // the Firestore emulator sets FIRESTORE_EMULATOR_HOST. Accept any truthy
+  // FUNCTIONS_EMULATOR except the literal "false". None are set in Cloud Run.
+  return (
+    Boolean(env.FIRESTORE_EMULATOR_HOST) ||
+    Boolean(env.FIREBASE_EMULATOR_HUB) ||
+    (Boolean(env.FUNCTIONS_EMULATOR) && env.FUNCTIONS_EMULATOR !== "false")
+  );
+}
+
+/** Raw emulator signals — for startup diagnostics only (never logs secrets). */
+export function emulatorRuntimeSignals(
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string | boolean> {
+  return {
+    emulated: isEmulatedRuntime(env),
+    FUNCTIONS_EMULATOR: env.FUNCTIONS_EMULATOR ?? "(unset)",
+    FIREBASE_EMULATOR_HUB: env.FIREBASE_EMULATOR_HUB ? "(set)" : "(unset)",
+    FIRESTORE_EMULATOR_HOST: env.FIRESTORE_EMULATOR_HOST ? "(set)" : "(unset)",
+  };
 }
 
 export function resolveEffectiveRateLimitMax(

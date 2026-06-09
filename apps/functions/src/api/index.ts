@@ -40,7 +40,10 @@ import {
   resolveAllowedCorsOrigins,
 } from "./security/cors-policy";
 import { createRateLimitStore } from "../lib/rate-limit/factory";
-import { resolveEffectiveRateLimitMax } from "../lib/rate-limit/emulator";
+import {
+  resolveEffectiveRateLimitMax,
+  emulatorRuntimeSignals,
+} from "../lib/rate-limit/emulator";
 import {
   attachRequestId,
   buildSecurityLogContext,
@@ -276,6 +279,13 @@ const recoveryCodesVerifyLimiter = createRateLimiter({
   windowMs: Number(process.env.RATE_LIMIT_RECOVERY_CODES_VERIFY_WINDOW_MS || 60_000),
   keyResolver: buildRateLimitIdentity,
 });
+
+// One-time startup diagnostic (dev/emulator only — silent in Cloud Run, where
+// NODE_ENV==="production"). Confirms whether the rate-limit emulator bypass is
+// active so a misdetected runtime is obvious instead of surfacing as 429s.
+if (process.env.NODE_ENV !== "production") {
+  logger.info("rate-limit runtime", emulatorRuntimeSignals());
+}
 
 const corsMiddleware = cors({
   origin: (origin, callback) => {

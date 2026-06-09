@@ -17,6 +17,16 @@ describe("rate-limit emulator detection", () => {
       expect(isEmulatedRuntime({ FUNCTIONS_EMULATOR: "true" })).toBe(true);
     });
 
+    it("detects any truthy FUNCTIONS_EMULATOR value (not only 'true')", () => {
+      expect(isEmulatedRuntime({ FUNCTIONS_EMULATOR: "1" })).toBe(true);
+    });
+
+    it("detects the emulator suite via FIREBASE_EMULATOR_HUB", () => {
+      expect(isEmulatedRuntime({ FIREBASE_EMULATOR_HUB: "127.0.0.1:4400" })).toBe(
+        true,
+      );
+    });
+
     it("treats a non-emulator runtime (Cloud Run) as not emulated", () => {
       expect(isEmulatedRuntime({})).toBe(false);
     });
