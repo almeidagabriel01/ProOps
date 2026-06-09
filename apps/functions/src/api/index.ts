@@ -44,6 +44,7 @@ import {
   resolveEffectiveRateLimitMax,
   emulatorRuntimeSignals,
 } from "../lib/rate-limit/emulator";
+import { WHATSAPP_MFA_OTP_LIMITED_PREFIXES } from "../lib/rate-limit/whatsapp-mfa-limiter-paths";
 import {
   attachRequestId,
   buildSecurityLogContext,
@@ -484,7 +485,14 @@ app.use("/v1", financeRoutes);
 app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
-app.use("/v1/auth/whatsapp-mfa", whatsappMfaLimiter, whatsappMfaRoutes);
+// Apply the tight OTP limiter ONLY to the OTP cost / brute-force surfaces
+// (enroll, challenge, verify). `/disable` is intentionally left to the global
+// protected limiter (240/min) — throttling it with the 5/min OTP budget locked
+// users out of turning OFF their own 2FA. Same pattern as recovery-codes verify.
+for (const prefix of WHATSAPP_MFA_OTP_LIMITED_PREFIXES) {
+  app.use(`/v1/auth/whatsapp-mfa${prefix}`, whatsappMfaLimiter);
+}
+app.use("/v1/auth/whatsapp-mfa", whatsappMfaRoutes);
 app.use("/v1/auth/recovery-codes/verify", recoveryCodesVerifyLimiter);
 app.use("/v1/auth/recovery-codes", recoveryCodesRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
