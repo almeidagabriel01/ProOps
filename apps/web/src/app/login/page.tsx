@@ -464,7 +464,7 @@ function LoginContent() {
             onSubmit={handleRecoverTotpWithCode}
             className="flex flex-col gap-4"
           >
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="totp-recovery-email">E-mail</Label>
               <Input
                 id="totp-recovery-email"
@@ -475,7 +475,7 @@ function LoginContent() {
                 placeholder="seu@email.com"
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="totp-recovery-password">
                 Senha (se sua conta usa senha)
               </Label>
