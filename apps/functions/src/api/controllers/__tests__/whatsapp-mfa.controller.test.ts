@@ -85,6 +85,7 @@ jest.mock("firebase-admin/firestore", () => {
 import type { Request, Response } from "express";
 import {
   challengeWhatsappLogin,
+  disableWhatsappMfa,
   startWhatsappEnroll,
   verifyWhatsappEnroll,
   verifyWhatsappLogin,
@@ -623,5 +624,57 @@ describe("verifyWhatsappLogin", () => {
     expect(status).toHaveBeenCalledWith(400);
     // Challenge NOT consumed on a failed attempt.
     expect(docStore.get("mfaOtpChallenges/user-1")).toBeDefined();
+  });
+});
+
+describe("disableWhatsappMfa", () => {
+  it("deletes the recovery codes when the user has NO native TOTP factor", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+    docStore.set("mfaRecoveryCodes/user-1", {
+      uid: "user-1",
+      codes: [{ hash: "h1", usedAt: null }],
+      generatedAt: { toDate: () => new Date() },
+    });
+    // No TOTP factor enrolled — disabling WhatsApp leaves ZERO 2FA methods.
+    mockGetUser.mockResolvedValue({ multiFactor: { enrolledFactors: [] } });
+
+    const req = makeReq({}, USER);
+    const { res, json } = makeRes();
+
+    await disableWhatsappMfa(req, res);
+
+    expect(json).toHaveBeenCalledWith({ success: true });
+    expect(docStore.get("users/user-1")?.whatsappMfaEnabled).toBe(false);
+    // Codes are purged because no method remains.
+    expect(docStore.get("mfaRecoveryCodes/user-1")).toBeUndefined();
+  });
+
+  it("KEEPS the recovery codes when the user still has a native TOTP factor", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+    docStore.set("mfaRecoveryCodes/user-1", {
+      uid: "user-1",
+      codes: [{ hash: "h1", usedAt: null }],
+      generatedAt: { toDate: () => new Date() },
+    });
+    // A TOTP factor remains active after WhatsApp is disabled.
+    mockGetUser.mockResolvedValue({
+      multiFactor: { enrolledFactors: [{ factorId: "totp" }] },
+    });
+
+    const req = makeReq({}, USER);
+    const { res, json } = makeRes();
+
+    await disableWhatsappMfa(req, res);
+
+    expect(json).toHaveBeenCalledWith({ success: true });
+    expect(docStore.get("users/user-1")?.whatsappMfaEnabled).toBe(false);
+    // Codes are preserved because TOTP is still an active 2FA method.
+    expect(docStore.get("mfaRecoveryCodes/user-1")).toBeDefined();
   });
 });

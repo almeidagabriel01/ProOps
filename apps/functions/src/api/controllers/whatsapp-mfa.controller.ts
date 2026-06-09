@@ -5,6 +5,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { db } from "../../init";
 import { logger } from "../../lib/logger";
 import { isSuperAdminClaim } from "../../lib/request-auth";
+import { reconcileRecoveryCodes } from "./recovery-codes.controller";
 import { writeSecurityAuditEvent } from "../../lib/security-observability";
 import {
   canSendOtp,
@@ -494,6 +495,10 @@ export const disableWhatsappMfa = async (req: Request, res: Response) => {
     );
 
     await db.collection(CHALLENGES_COLLECTION).doc(uid).delete().catch(() => {});
+
+    // With WhatsApp now off, drop the recovery codes if no 2FA method remains
+    // (i.e. the user also has no native TOTP factor). Idempotent.
+    await reconcileRecoveryCodes(uid);
 
     void writeSecurityAuditEvent({
       eventType: "whatsapp_mfa_disabled",

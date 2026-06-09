@@ -45,6 +45,69 @@ function countRemaining(codes: StoredRecoveryCode[]): number {
   return codes.filter((c) => c.usedAt === null || c.usedAt === undefined).length;
 }
 
+/** Number of unused recovery codes currently stored for a uid (0 if none). */
+async function readRemaining(uid: string): Promise<number> {
+  const snap = await db.collection(RECOVERY_CODES_COLLECTION).doc(uid).get();
+  if (!snap.exists) return 0;
+  const data = snap.data() as RecoveryCodesDoc;
+  return countRemaining(data.codes ?? []);
+}
+
+/**
+ * Recovery codes are only meaningful while at least one 2FA method is active.
+ * A user's 2FA = native TOTP factor (Firebase enrolledFactors) AND/OR the
+ * WhatsApp MFA flag on their user doc. When BOTH are gone, the stored recovery
+ * codes must be deleted so old codes can never be reused after re-enrolling and
+ * the remaining count resets to zero.
+ *
+ * Idempotent: deleting a non-existent doc is a no-op. Returns whether any factor
+ * remains and whether the codes were deleted.
+ */
+export async function reconcileRecoveryCodes(
+  uid: string,
+): Promise<{ hasAnyFactor: boolean; deleted: boolean }> {
+  const factors = (await auth.getUser(uid)).multiFactor?.enrolledFactors ?? [];
+  const hasTotp = factors.some((f) => f.factorId === "totp");
+
+  const userSnap = await db.collection("users").doc(uid).get();
+  const hasWhatsapp =
+    (userSnap.data() as { whatsappMfaEnabled?: boolean } | undefined)
+      ?.whatsappMfaEnabled === true;
+
+  const hasAnyFactor = hasTotp || hasWhatsapp;
+  if (hasAnyFactor) {
+    return { hasAnyFactor: true, deleted: false };
+  }
+
+  await db.collection(RECOVERY_CODES_COLLECTION).doc(uid).delete();
+  return { hasAnyFactor: false, deleted: true };
+}
+
+/**
+ * POST /v1/auth/recovery-codes/reconcile — protected.
+ *
+ * Called by the client after it disables the native TOTP factor (which Firebase
+ * removes client-side). Re-evaluates the user's 2FA state and deletes the stored
+ * recovery codes if no method remains. Returns the post-reconcile state.
+ */
+export const reconcileRecoveryCodesHandler = async (
+  req: Request,
+  res: Response,
+): Promise<Response> => {
+  try {
+    const uid = req.user!.uid;
+    const { hasAnyFactor, deleted } = await reconcileRecoveryCodes(uid);
+    const remaining = deleted ? 0 : await readRemaining(uid);
+    return res.json({ hasAnyFactor, remaining });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro desconhecido";
+    logger.error("reconcileRecoveryCodesHandler failed", { message });
+    return res
+      .status(500)
+      .json({ message: "Falha ao reconciliar códigos de recuperação." });
+  }
+};
+
 export const generateRecoveryCodesHandler = async (
   req: Request,
   res: Response,

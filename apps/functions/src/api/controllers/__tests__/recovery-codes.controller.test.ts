@@ -28,6 +28,9 @@ function makeDocRef(collection: string, id: string) {
       const existing = docStore.get(docKey(collection, id)) ?? {};
       docStore.set(docKey(collection, id), { ...existing, ...value });
     }),
+    delete: jest.fn(async () => {
+      docStore.delete(docKey(collection, id));
+    }),
   };
 }
 
@@ -55,10 +58,12 @@ const mockRunTransaction = jest.fn(
 
 const mockGetUserByEmail = jest.fn();
 const mockCreateCustomToken = jest.fn();
+const mockGetUser = jest.fn();
 jest.mock("../../../init", () => ({
   auth: {
     getUserByEmail: (...args: unknown[]) => mockGetUserByEmail(...args),
     createCustomToken: (...args: unknown[]) => mockCreateCustomToken(...args),
+    getUser: (...args: unknown[]) => mockGetUser(...args),
   },
   db: {
     collection: (name: string) => mockCollection(name),
@@ -98,6 +103,8 @@ import type { Request, Response } from "express";
 import {
   generateRecoveryCodesHandler,
   getRecoveryCodesStatusHandler,
+  reconcileRecoveryCodes,
+  reconcileRecoveryCodesHandler,
   recoverTotpWithCode,
   verifyRecoveryCodeHandler,
 } from "../recovery-codes.controller";
@@ -565,5 +572,106 @@ describe("recoverTotpWithCode", () => {
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({ message: GENERIC });
     expect(mockCreateCustomToken).not.toHaveBeenCalled();
+  });
+});
+
+describe("reconcileRecoveryCodes", () => {
+  function seedCodes(uid: string, count: number): void {
+    docStore.set(`mfaRecoveryCodes/${uid}`, {
+      uid,
+      codes: Array.from({ length: count }, (_, i) => ({
+        hash: hashRecoveryCode(`code-${i}-aaaa`),
+        usedAt: null,
+      })),
+      generatedAt: { toDate: () => new Date() },
+    });
+  }
+
+  it("deletes the codes when there is no TOTP factor and no WhatsApp MFA", async () => {
+    seedCodes("user-1", 5);
+    mockGetUser.mockResolvedValue({ multiFactor: { enrolledFactors: [] } });
+    docStore.set("users/user-1", { whatsappMfaEnabled: false });
+
+    const result = await reconcileRecoveryCodes("user-1");
+
+    expect(result).toEqual({ hasAnyFactor: false, deleted: true });
+    expect(docStore.get("mfaRecoveryCodes/user-1")).toBeUndefined();
+  });
+
+  it("is idempotent when no codes exist and no factor remains", async () => {
+    mockGetUser.mockResolvedValue({ multiFactor: { enrolledFactors: [] } });
+    docStore.set("users/user-1", {});
+
+    const result = await reconcileRecoveryCodes("user-1");
+
+    expect(result).toEqual({ hasAnyFactor: false, deleted: true });
+    expect(docStore.get("mfaRecoveryCodes/user-1")).toBeUndefined();
+  });
+
+  it("keeps the codes when a native TOTP factor is present", async () => {
+    seedCodes("user-1", 4);
+    mockGetUser.mockResolvedValue({
+      multiFactor: { enrolledFactors: [{ factorId: "totp" }] },
+    });
+    docStore.set("users/user-1", { whatsappMfaEnabled: false });
+
+    const result = await reconcileRecoveryCodes("user-1");
+
+    expect(result).toEqual({ hasAnyFactor: true, deleted: false });
+    expect(docStore.get("mfaRecoveryCodes/user-1")).toBeDefined();
+  });
+
+  it("keeps the codes when WhatsApp MFA is enabled (no TOTP)", async () => {
+    seedCodes("user-1", 3);
+    mockGetUser.mockResolvedValue({ multiFactor: { enrolledFactors: [] } });
+    docStore.set("users/user-1", { whatsappMfaEnabled: true });
+
+    const result = await reconcileRecoveryCodes("user-1");
+
+    expect(result).toEqual({ hasAnyFactor: true, deleted: false });
+    expect(docStore.get("mfaRecoveryCodes/user-1")).toBeDefined();
+  });
+});
+
+describe("reconcileRecoveryCodesHandler", () => {
+  it("returns hasAnyFactor:false and remaining:0 after deleting codes", async () => {
+    docStore.set("mfaRecoveryCodes/user-1", {
+      uid: "user-1",
+      codes: [{ hash: hashRecoveryCode("aaaa-bbbb"), usedAt: null }],
+      generatedAt: { toDate: () => new Date() },
+    });
+    mockGetUser.mockResolvedValue({ multiFactor: { enrolledFactors: [] } });
+    docStore.set("users/user-1", { whatsappMfaEnabled: false });
+
+    const req = makeReq({}, USER);
+    const { res, json } = makeRes();
+
+    await reconcileRecoveryCodesHandler(req, res);
+
+    expect(json).toHaveBeenCalledWith({ hasAnyFactor: false, remaining: 0 });
+    expect(docStore.get("mfaRecoveryCodes/user-1")).toBeUndefined();
+  });
+
+  it("returns hasAnyFactor:true and the unused count when a factor remains", async () => {
+    docStore.set("mfaRecoveryCodes/user-1", {
+      uid: "user-1",
+      codes: [
+        { hash: hashRecoveryCode("aaaa-bbbb"), usedAt: null },
+        { hash: hashRecoveryCode("cccc-dddd"), usedAt: { toDate: () => new Date() } },
+        { hash: hashRecoveryCode("eeee-ffff"), usedAt: null },
+      ],
+      generatedAt: { toDate: () => new Date() },
+    });
+    mockGetUser.mockResolvedValue({
+      multiFactor: { enrolledFactors: [{ factorId: "totp" }] },
+    });
+    docStore.set("users/user-1", { whatsappMfaEnabled: false });
+
+    const req = makeReq({}, USER);
+    const { res, json } = makeRes();
+
+    await reconcileRecoveryCodesHandler(req, res);
+
+    expect(json).toHaveBeenCalledWith({ hasAnyFactor: true, remaining: 2 });
   });
 });
