@@ -593,12 +593,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Single-use MFA self-recovery tokens — written and validated exclusively by
-    // Cloud Functions (Admin SDK). Never accessible to the client SDK.
-    match /mfaRecoveryTokens/{tokenId} {
-      allow read, write: if false;
-    }
-
     // WhatsApp OTP 2FA challenges (hashed code + TTL + attempt counters).
     // Written and verified exclusively by Cloud Functions (Admin SDK).
     match /mfaOtpChallenges/{uid} {

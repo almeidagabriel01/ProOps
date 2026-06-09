@@ -81,4 +81,28 @@ describe("clearUserMfaFactors", () => {
     expect(mockSendEmail).not.toHaveBeenCalled();
     expect(mockUpdateUser).toHaveBeenCalled();
   });
+
+  it("clears WhatsApp flags by default (includeWhatsapp omitted)", async () => {
+    await clearUserMfaFactors("uid-1");
+    expect(mockDocSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        whatsappMfaEnabled: false,
+        whatsappMfaPhone: "__DELETE__",
+      }),
+      { merge: true },
+    );
+  });
+
+  it("removes the native factor but keeps WhatsApp flags when includeWhatsapp:false", async () => {
+    await clearUserMfaFactors("uid-1", { includeWhatsapp: false });
+    // Native TOTP factor still removed.
+    expect(mockUpdateUser).toHaveBeenCalledWith("uid-1", {
+      multiFactor: { enrolledFactors: null },
+    });
+    // The WhatsApp-flag-clearing set() must NOT run. The only doc set() in the
+    // flow is the flag write — its absence proves the flags are untouched.
+    expect(mockDocSet).not.toHaveBeenCalled();
+    // Notification email is still fired (best-effort).
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+  });
 });
