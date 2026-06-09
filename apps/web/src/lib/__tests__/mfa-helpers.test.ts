@@ -145,4 +145,16 @@ describe("shouldAutoOpenRecoveryCodes", () => {
       shouldAutoOpenRecoveryCodes({ hasAnyFactor: false, recoveryTotal: 10 }),
     ).toBe(false);
   });
+
+  it("does not auto-open when the status is unknown (fail-safe)", () => {
+    // A failed/unread status (`null`) must never trigger a spurious generate,
+    // even with an active factor — we only generate when we positively know
+    // the user has zero codes.
+    expect(
+      shouldAutoOpenRecoveryCodes({ hasAnyFactor: true, recoveryTotal: null }),
+    ).toBe(false);
+    expect(
+      shouldAutoOpenRecoveryCodes({ hasAnyFactor: false, recoveryTotal: null }),
+    ).toBe(false);
+  });
 });

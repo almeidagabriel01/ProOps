@@ -45,11 +45,15 @@ export function TwoFactorSection() {
   const handleEnrolled = React.useCallback(async () => {
     const section = recoveryRef.current;
     if (!section) return;
+    // `refresh()` returns `null` when the status read fails (e.g. 429/network).
+    // Pass the total through only when the status is known; an unknown status
+    // (`null`) must NOT trigger auto-generation — `shouldAutoOpenRecoveryCodes`
+    // treats `null` as fail-safe and returns false.
     const status = await section.refresh();
     if (
       shouldAutoOpenRecoveryCodes({
         hasAnyFactor: true,
-        recoveryTotal: status?.total ?? 0,
+        recoveryTotal: status ? status.total : null,
       })
     ) {
       await section.generateAndShow().catch(() => {

@@ -69,7 +69,14 @@ export const RecoveryCodesSection = React.forwardRef<
         await RecoveryCodesService.generateRecoveryCodes();
       setCodes(fresh);
       setModalOpen(true);
-      await refresh();
+      // The generate response already tells us the new state: a fresh batch of
+      // `fresh.length` codes, all unused. Update the panel from it directly
+      // instead of issuing a redundant status request right after generating.
+      setStatus({
+        total: fresh.length,
+        remaining: fresh.length,
+        generatedAt: new Date().toISOString(),
+      });
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -80,7 +87,7 @@ export const RecoveryCodesSection = React.forwardRef<
     } finally {
       setGenerating(false);
     }
-  }, [refresh]);
+  }, []);
 
   React.useImperativeHandle(
     ref,

@@ -65,19 +65,26 @@ export function canUseWhatsappMfa(role: string | null | undefined): boolean {
 export interface RecoveryCodesAutoOpenInput {
   /** True once the user has at least one 2FA factor active (TOTP or WhatsApp). */
   hasAnyFactor: boolean;
-  /** Total recovery codes the user currently has (0 = none generated yet). */
-  recoveryTotal: number;
+  /**
+   * Total recovery codes the user currently has (0 = none generated yet), or
+   * `null` when the status could not be read (e.g. the status request failed).
+   * An unknown status must never trigger auto-generation — it is fail-safe.
+   */
+  recoveryTotal: number | null;
 }
 
 /**
  * Whether the recovery-codes modal should auto-open after a 2FA enroll. We only
- * auto-generate when the user just gained their first factor and has no codes
- * yet, so they never end up with 2FA but no recovery safety net. Returns false
- * once any codes exist, preventing the modal from re-opening on later enrolls.
+ * auto-generate when the user just gained their first factor AND we positively
+ * know they have no codes yet, so they never end up with 2FA but no recovery
+ * safety net. Returns false once any codes exist (preventing re-opening on later
+ * enrolls) and also when `recoveryTotal` is `null` — an unknown status (failed
+ * read) must not trigger a spurious generation.
  */
 export function shouldAutoOpenRecoveryCodes({
   hasAnyFactor,
   recoveryTotal,
 }: RecoveryCodesAutoOpenInput): boolean {
+  if (recoveryTotal === null) return false;
   return hasAnyFactor && recoveryTotal === 0;
 }
