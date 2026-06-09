@@ -222,6 +222,23 @@ body {
   will-change: transform, opacity;
 }
 
+/* OTP input caret blink (matches the input-otp / HeroUI demo) */
+@keyframes caret-blink {
+  0%,
+  70%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-caret-blink {
+  animation: caret-blink 1.25s ease-out infinite;
+}
+
 /* GPU Performance Utilities */
 .gpu-accelerated {
   transform: translateZ(0);
