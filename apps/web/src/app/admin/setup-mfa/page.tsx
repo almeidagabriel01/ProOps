@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { VerificationCodeInput } from "@/components/shared/verification-code-input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -76,14 +76,10 @@ export default function SetupMfaPage() {
 
               <div className="flex flex-col gap-1">
                 <Label htmlFor="mfa-code">Código de 6 dígitos</Label>
-                <Input
+                <VerificationCodeInput
                   id="mfa-code"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
                   value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="000000"
+                  onChange={setCode}
                 />
               </div>
 

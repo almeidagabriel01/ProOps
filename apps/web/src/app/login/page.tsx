@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/step-wizard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VerificationCodeInput } from "@/components/shared/verification-code-input";
+import { RecoveryCodeInput } from "@/components/shared/recovery-code-input";
 import { Select } from "@/components/ui/select";
 import { NICHE_LABELS, TenantNiche } from "@/types";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -382,16 +384,10 @@ function LoginContent() {
           >
             <div className="flex flex-col gap-1">
               <Label htmlFor="whatsapp-fallback-code">Código</Label>
-              <Input
+              <VerificationCodeInput
                 id="whatsapp-fallback-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
                 value={whatsappFallbackCode}
-                onChange={(e) =>
-                  setWhatsappFallbackCode(e.target.value.replace(/\D/g, ""))
-                }
-                placeholder="000000"
+                onChange={setWhatsappFallbackCode}
                 autoFocus
               />
             </div>
@@ -478,12 +474,10 @@ function LoginContent() {
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="totp-recovery-code">Código de recuperação</Label>
-              <Input
+              <RecoveryCodeInput
                 id="totp-recovery-code"
-                autoComplete="one-time-code"
                 value={totpRecoveryCode}
-                onChange={(e) => setTotpRecoveryCode(e.target.value)}
-                placeholder="XXXX-XXXX"
+                onChange={setTotpRecoveryCode}
                 autoFocus
               />
             </div>
@@ -538,14 +532,10 @@ function LoginContent() {
           <form onSubmit={handleConfirmMfaCode} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <Label htmlFor="mfa-login-code">Código</Label>
-              <Input
+              <VerificationCodeInput
                 id="mfa-login-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
                 value={mfaLoginCode}
-                onChange={(e) => setMfaLoginCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="000000"
+                onChange={setMfaLoginCode}
                 autoFocus
               />
             </div>
@@ -607,12 +597,10 @@ function LoginContent() {
               <Label htmlFor="whatsapp-recovery-code">
                 Código de recuperação
               </Label>
-              <Input
+              <RecoveryCodeInput
                 id="whatsapp-recovery-code"
-                autoComplete="one-time-code"
                 value={whatsappRecoveryCode}
-                onChange={(e) => setWhatsappRecoveryCode(e.target.value)}
-                placeholder="XXXX-XXXX"
+                onChange={setWhatsappRecoveryCode}
                 autoFocus
               />
             </div>
@@ -660,16 +648,10 @@ function LoginContent() {
           >
             <div className="flex flex-col gap-1">
               <Label htmlFor="whatsapp-otp-code">Código</Label>
-              <Input
+              <VerificationCodeInput
                 id="whatsapp-otp-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
                 value={whatsappOtpCode}
-                onChange={(e) =>
-                  setWhatsappOtpCode(e.target.value.replace(/\D/g, ""))
-                }
-                placeholder="000000"
+                onChange={setWhatsappOtpCode}
                 autoFocus
               />
             </div>
@@ -1044,12 +1026,9 @@ function LoginContent() {
                         <p className="text-sm text-muted-foreground">
                           Digite o código enviado por SMS para confirmar.
                         </p>
-                        <Input
+                        <VerificationCodeInput
                           value={smsCode}
-                          onChange={(e) => setSmsCode(e.target.value)}
-                          placeholder="000000"
-                          className="text-center tracking-widest font-mono text-lg"
-                          maxLength={6}
+                          onChange={setSmsCode}
                         />
                         <div className="flex gap-2 pt-2">
                           <Button

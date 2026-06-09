@@ -18,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { VerificationCodeInput } from "@/components/shared/verification-code-input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -233,14 +233,10 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
 
             <div className="flex flex-col gap-1">
               <Label htmlFor="profile-mfa-code">Código de 6 dígitos</Label>
-              <Input
+              <VerificationCodeInput
                 id="profile-mfa-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="000000"
+                onChange={setCode}
               />
             </div>
 

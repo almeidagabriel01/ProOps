@@ -48,6 +48,7 @@
     "firebase": "^12.6.0",
     "firebase-admin": "^12.7.0",
     "gsap": "^3.14.2",
+    "input-otp": "^1.4.2",
     "lucide-react": "^0.556.0",
     "motion": "^12.34.0",
     "next": "^16.1.6",
