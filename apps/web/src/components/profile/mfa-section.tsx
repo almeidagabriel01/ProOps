@@ -231,7 +231,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
               </code>
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="profile-mfa-code">Código de 6 dígitos</Label>
               <VerificationCodeInput
                 id="profile-mfa-code"

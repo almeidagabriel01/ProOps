@@ -253,7 +253,7 @@ export function WhatsappMfaSection({
               Enviamos um código para o WhatsApp
               {displayPhone ? ` ${displayPhone}` : ""}.
             </p>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="whatsapp-mfa-code">Código de 6 dígitos</Label>
               <VerificationCodeInput
                 id="whatsapp-mfa-code"

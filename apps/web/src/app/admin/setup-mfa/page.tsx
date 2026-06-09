@@ -74,7 +74,7 @@ export default function SetupMfaPage() {
                 </p>
               </div>
 
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="mfa-code">Código de 6 dígitos</Label>
                 <VerificationCodeInput
                   id="mfa-code"

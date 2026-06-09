@@ -488,7 +488,7 @@ function LoginContent() {
                 placeholder="••••••••"
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="totp-recovery-code">Código de recuperação</Label>
               <RecoveryCodeInput
                 id="totp-recovery-code"
@@ -597,7 +597,7 @@ function LoginContent() {
             onSubmit={handleConfirmWhatsappRecovery}
             className="flex flex-col gap-4"
           >
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="whatsapp-recovery-code">
                 Código de recuperação
               </Label>
