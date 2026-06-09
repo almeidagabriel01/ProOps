@@ -40,6 +40,7 @@ import {
   resolveAllowedCorsOrigins,
 } from "./security/cors-policy";
 import { createRateLimitStore } from "../lib/rate-limit/factory";
+import { resolveEffectiveRateLimitMax } from "../lib/rate-limit/emulator";
 import {
   attachRequestId,
   buildSecurityLogContext,
@@ -112,13 +113,12 @@ function createRateLimiter(options: {
   keyResolver?: (req: express.Request) => string;
 }): express.RequestHandler {
   const windowMs = options.windowMs || DEFAULT_PUBLIC_WINDOW_MS;
-  // In the Firebase emulator (FIRESTORE_EMULATOR_HOST is always injected by the
-  // emulator process), raise every limiter to a harmless ceiling so the full
-  // E2E suite can accumulate requests across specs without hitting fixed-window
-  // counters that never reset between specs. This var is NEVER set in Cloud Run.
-  const effectiveMax = process.env.FIRESTORE_EMULATOR_HOST
-    ? 1_000_000
-    : options.maxRequests;
+  // Inside any Firebase emulator, raise every limiter to a harmless ceiling so
+  // local dev and the full E2E suite can accumulate requests without hitting
+  // fixed-window counters. Covers both the Firestore emulator and the
+  // functions-emulator-only setup (`npm run dev:backend` against real Firestore).
+  // Neither signal is ever set in Cloud Run, so deployed limits are untouched.
+  const effectiveMax = resolveEffectiveRateLimitMax(options.maxRequests);
 
   return async (req, res, next) => {
     const route = sanitizeLoggedPath(req.path);
