@@ -7,6 +7,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: true,
         hasNativeSecondFactor: false,
+        recoveryLogin: false,
         alreadyAuthenticated: false,
         challenge: null,
       }),
@@ -18,6 +19,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: true,
         hasNativeSecondFactor: false,
+        recoveryLogin: false,
         alreadyAuthenticated: false,
         challenge: { mfaRequired: true },
       }),
@@ -29,8 +31,23 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: true,
+        recoveryLogin: false,
         alreadyAuthenticated: false,
         challenge: null,
+      }),
+    ).toBe("skip");
+  });
+
+  it("skips the gate when the login was completed via a recovery code", () => {
+    // A one-time recovery code is a full 2FA bypass — it must not trigger a
+    // second WhatsApp challenge, even when a challenge would otherwise require it.
+    expect(
+      decideWhatsappGate({
+        isSuperAdmin: false,
+        hasNativeSecondFactor: false,
+        recoveryLogin: true,
+        alreadyAuthenticated: false,
+        challenge: { mfaRequired: true },
       }),
     ).toBe("skip");
   });
@@ -40,6 +57,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        recoveryLogin: false,
         alreadyAuthenticated: true,
         challenge: null,
       }),
@@ -51,6 +69,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        recoveryLogin: false,
         alreadyAuthenticated: true,
         challenge: { mfaRequired: true },
       }),
@@ -62,6 +81,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        recoveryLogin: false,
         alreadyAuthenticated: false,
         challenge: { mfaRequired: true },
       }),
@@ -73,6 +93,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        recoveryLogin: false,
         alreadyAuthenticated: false,
         challenge: { mfaRequired: false },
       }),
@@ -84,6 +105,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        recoveryLogin: false,
         alreadyAuthenticated: false,
         challenge: null,
       }),
@@ -95,6 +117,7 @@ describe("decideWhatsappGate", () => {
       decideWhatsappGate({
         isSuperAdmin: false,
         hasNativeSecondFactor: false,
+        recoveryLogin: false,
         alreadyAuthenticated: false,
         challenge: {},
       }),

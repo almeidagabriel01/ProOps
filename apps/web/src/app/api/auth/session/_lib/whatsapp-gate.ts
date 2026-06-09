@@ -27,6 +27,14 @@ export interface WhatsappGateInput {
    */
   hasNativeSecondFactor: boolean;
   /**
+   * Whether this sign-in was completed with a one-time recovery code (the
+   * `recovery_login` developer claim minted onto the custom token by
+   * `recover-totp`). A recovery code is a full 2FA bypass — it must NOT trigger
+   * a second WhatsApp challenge, otherwise a user who lost their authenticator
+   * AND can't receive WhatsApp would be locked out despite a valid code.
+   */
+  recoveryLogin: boolean;
+  /**
    * Whether the request already carries a valid `__session` cookie for the SAME
    * user (a background re-sync of an existing authenticated session). The OTP
    * gate is a LOGIN step — it must NOT re-challenge an already-authenticated
@@ -53,6 +61,9 @@ export function decideWhatsappGate(input: WhatsappGateInput): WhatsappGateDecisi
     return "skip";
   }
   if (input.hasNativeSecondFactor) {
+    return "skip";
+  }
+  if (input.recoveryLogin) {
     return "skip";
   }
   if (input.alreadyAuthenticated) {

@@ -413,7 +413,11 @@ export const recoverTotpWithCode = async (
     // challenge. If signing fails (e.g. the runtime service account lacks the
     // "Service Account Token Creator" role), we must abort BEFORE consuming the
     // code — otherwise a single-use recovery code is burned without a login.
-    const customToken = await auth.createCustomToken(uid);
+    // The `recovery_login` claim tells the session gate this login already
+    // cleared 2FA, so it must NOT raise a second WhatsApp challenge.
+    const customToken = await auth.createCustomToken(uid, {
+      recovery_login: true,
+    });
 
     // Consume the recovery code atomically (same pattern as /verify). The TOTP
     // factor is intentionally NOT removed — 2FA stays enrolled.

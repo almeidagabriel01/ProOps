@@ -364,7 +364,9 @@ describe("recoverTotpWithCode", () => {
       customToken: "fake-custom-token",
     });
     // TOTP factor is NOT removed; user is signed in via a custom token.
-    expect(mockCreateCustomToken).toHaveBeenCalledWith("user-1");
+    expect(mockCreateCustomToken).toHaveBeenCalledWith("user-1", {
+      recovery_login: true,
+    });
     // Code consumed.
     const stored = docStore.get("mfaRecoveryCodes/user-1") as {
       codes: { usedAt: unknown }[];
@@ -450,7 +452,9 @@ describe("recoverTotpWithCode", () => {
       customToken: "fake-custom-token",
     });
     expect(global.fetch).not.toHaveBeenCalled();
-    expect(mockCreateCustomToken).toHaveBeenCalledWith("user-2");
+    expect(mockCreateCustomToken).toHaveBeenCalledWith("user-2", {
+      recovery_login: true,
+    });
     expect(mockWriteAudit).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: "mfa_recovery_code_signin",
@@ -542,7 +546,9 @@ describe("recoverTotpWithCode", () => {
       success: true,
       customToken: "fake-custom-token",
     });
-    expect(mockCreateCustomToken).toHaveBeenCalledWith("user-3");
+    expect(mockCreateCustomToken).toHaveBeenCalledWith("user-3", {
+      recovery_login: true,
+    });
   });
 
   it("invalid code returns generic 400 and does not sign in", async () => {

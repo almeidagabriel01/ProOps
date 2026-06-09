@@ -293,6 +293,11 @@ export async function POST(req: NextRequest) {
     const secondFactor = (
       decoded.firebase as { sign_in_second_factor?: unknown } | undefined
     )?.sign_in_second_factor;
+    // `recover-totp` mints the custom token with this developer claim. A login
+    // completed via a one-time recovery code already cleared 2FA, so the
+    // WhatsApp gate below must be skipped (a recovery code is a full bypass).
+    const recoveryLogin =
+      (decoded as { recovery_login?: unknown }).recovery_login === true;
     const mfaRequired =
       isSuperAdminRole && isSuperAdminMfaRequired() && !secondFactor;
 
@@ -349,7 +354,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(verifyOutcome.body, { status });
       }
       // verified === true → fall through to normal cookie emission below.
-    } else if (!isSuperAdminRole && !secondFactor && !alreadyAuthenticated) {
+    } else if (
+      !isSuperAdminRole &&
+      !secondFactor &&
+      !recoveryLogin &&
+      !alreadyAuthenticated
+    ) {
       // First step of LOGIN: no OTP yet, not a super admin, no native second
       // factor already satisfied, and NOT a re-sync of an existing authenticated
       // session. Ask the backend whether this user requires WhatsApp OTP. On a
@@ -358,6 +368,7 @@ export async function POST(req: NextRequest) {
       const decision = decideWhatsappGate({
         isSuperAdmin: isSuperAdminRole,
         hasNativeSecondFactor: Boolean(secondFactor),
+        recoveryLogin,
         alreadyAuthenticated,
         challenge,
       });
