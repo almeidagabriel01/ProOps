@@ -108,6 +108,7 @@ interface UseLoginFormReturn {
   // TOTP recovery-code flow (native TOTP screen)
   showTotpRecovery: boolean;
   openTotpRecovery: () => void;
+  closeTotpRecovery: () => void;
   totpRecoveryEmail: string;
   setTotpRecoveryEmail: (value: string) => void;
   totpRecoveryCode: string;
@@ -890,6 +891,14 @@ export function useLoginForm(): UseLoginFormReturn {
     setShowTotpRecovery(true);
   }, [email]);
 
+  // Return from the recovery-code form back to the authenticator-app code input.
+  const closeTotpRecovery = React.useCallback(() => {
+    setShowTotpRecovery(false);
+    setTotpRecoveryError("");
+    setTotpRecoveryCode("");
+    setTotpRecoveryPassword("");
+  }, []);
+
   const handleRecoverTotpWithCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setTotpRecoveryError("");
@@ -1458,6 +1467,7 @@ export function useLoginForm(): UseLoginFormReturn {
     isVerifyingMfaCode,
     showTotpRecovery,
     openTotpRecovery,
+    closeTotpRecovery,
     totpRecoveryEmail,
     setTotpRecoveryEmail,
     totpRecoveryCode,

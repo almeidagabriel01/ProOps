@@ -102,6 +102,7 @@ function LoginContent() {
     handleConfirmMfaCode,
     showTotpRecovery,
     openTotpRecovery,
+    closeTotpRecovery,
     totpRecoveryEmail,
     setTotpRecoveryEmail,
     totpRecoveryCode,
@@ -424,6 +425,81 @@ function LoginContent() {
     );
   }
 
+  if (requiresMfaCode && showTotpRecovery) {
+    return (
+      <AuthLayout reverse={false}>
+        <div className="w-full max-w-sm mx-auto">
+          <h1 className="text-2xl font-semibold mb-2">
+            Entrar com código de recuperação
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Use um dos códigos de recuperação que você guardou. A verificação por
+            aplicativo continua ativa na sua conta.
+          </p>
+          <form
+            onSubmit={handleRecoverTotpWithCode}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="totp-recovery-email">E-mail</Label>
+              <Input
+                id="totp-recovery-email"
+                type="email"
+                autoComplete="email"
+                value={totpRecoveryEmail}
+                onChange={(e) => setTotpRecoveryEmail(e.target.value)}
+                placeholder="seu@email.com"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="totp-recovery-code">Código de recuperação</Label>
+              <Input
+                id="totp-recovery-code"
+                autoComplete="one-time-code"
+                value={totpRecoveryCode}
+                onChange={(e) => setTotpRecoveryCode(e.target.value)}
+                placeholder="XXXX-XXXX"
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="totp-recovery-password">
+                Senha (se sua conta usa senha)
+              </Label>
+              <Input
+                id="totp-recovery-password"
+                type="password"
+                autoComplete="current-password"
+                value={totpRecoveryPassword}
+                onChange={(e) => setTotpRecoveryPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+            {totpRecoveryError ? (
+              <p className="text-sm text-destructive">{totpRecoveryError}</p>
+            ) : null}
+            <Button
+              type="submit"
+              disabled={isRecoveringTotp}
+              className="cursor-pointer"
+            >
+              {isRecoveringTotp ? "Entrando..." : "Entrar"}
+            </Button>
+          </form>
+          <div className="mt-6 border-t pt-4">
+            <button
+              type="button"
+              onClick={closeTotpRecovery}
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
+            >
+              Usar o código do aplicativo autenticador
+            </button>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
   if (requiresMfaCode) {
     return (
       <AuthLayout reverse={false}>
@@ -456,92 +532,34 @@ function LoginContent() {
             </Button>
           </form>
           <div className="mt-6 border-t pt-4">
-            {showTotpRecovery ? (
-              <form
-                onSubmit={handleRecoverTotpWithCode}
-                className="flex flex-col gap-3"
-              >
-                <p className="text-sm text-muted-foreground">
-                  Informe um código de recuperação para remover a verificação por
-                  aplicativo.
-                </p>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="totp-recovery-email">E-mail</Label>
-                  <Input
-                    id="totp-recovery-email"
-                    type="email"
-                    autoComplete="email"
-                    value={totpRecoveryEmail}
-                    onChange={(e) => setTotpRecoveryEmail(e.target.value)}
-                    placeholder="seu@email.com"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="totp-recovery-code">
-                    Código de recuperação
-                  </Label>
-                  <Input
-                    id="totp-recovery-code"
-                    autoComplete="one-time-code"
-                    value={totpRecoveryCode}
-                    onChange={(e) => setTotpRecoveryCode(e.target.value)}
-                    placeholder="XXXX-XXXX"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="totp-recovery-password">
-                    Senha (se sua conta usa senha)
-                  </Label>
-                  <Input
-                    id="totp-recovery-password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={totpRecoveryPassword}
-                    onChange={(e) => setTotpRecoveryPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                </div>
-                {totpRecoveryError ? (
-                  <p className="text-sm text-destructive">{totpRecoveryError}</p>
-                ) : null}
-                <Button
-                  type="submit"
-                  disabled={isRecoveringTotp}
-                  className="cursor-pointer"
-                >
-                  {isRecoveringTotp ? "Removendo..." : "Remover verificação"}
-                </Button>
-              </form>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Métodos alternativos
-                </p>
-                {whatsappFallbackAvailable ? (
-                  <button
-                    type="button"
-                    onClick={handleSwitchToWhatsappFallback}
-                    disabled={isSendingWhatsappFallback}
-                    className="text-sm text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
-                  >
-                    {isSendingWhatsappFallback
-                      ? "Enviando código..."
-                      : `Receber código por WhatsApp${
-                          whatsappFallbackMaskedPhone
-                            ? ` ${whatsappFallbackMaskedPhone}`
-                            : ""
-                        }`}
-                  </button>
-                ) : null}
+            <div className="flex flex-col gap-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Métodos alternativos
+              </p>
+              {whatsappFallbackAvailable ? (
                 <button
                   type="button"
-                  onClick={openTotpRecovery}
-                  className="text-sm text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
+                  onClick={handleSwitchToWhatsappFallback}
+                  disabled={isSendingWhatsappFallback}
+                  className="text-sm text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
                 >
-                  Usar um código de recuperação
+                  {isSendingWhatsappFallback
+                    ? "Enviando código..."
+                    : `Receber código por WhatsApp${
+                        whatsappFallbackMaskedPhone
+                          ? ` ${whatsappFallbackMaskedPhone}`
+                          : ""
+                      }`}
                 </button>
-              </div>
-            )}
+              ) : null}
+              <button
+                type="button"
+                onClick={openTotpRecovery}
+                className="text-sm text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
+              >
+                Usar um código de recuperação
+              </button>
+            </div>
           </div>
         </div>
       </AuthLayout>
