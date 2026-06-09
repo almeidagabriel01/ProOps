@@ -382,7 +382,7 @@ function LoginContent() {
             onSubmit={handleConfirmWhatsappFallback}
             className="flex flex-col gap-4"
           >
-            <div className="flex flex-col gap-1">
+            <div className="mb-2">
               <VerificationCodeInput
                 id="whatsapp-fallback-code"
                 value={whatsappFallbackCode}
@@ -533,7 +533,7 @@ function LoginContent() {
             Digite o código de 6 dígitos do seu aplicativo autenticador.
           </p>
           <form onSubmit={handleConfirmMfaCode} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="mb-2">
               <VerificationCodeInput
                 id="mfa-login-code"
                 value={mfaLoginCode}
@@ -651,7 +651,7 @@ function LoginContent() {
             onSubmit={handleConfirmWhatsappOtp}
             className="flex flex-col gap-4"
           >
-            <div className="flex flex-col gap-1">
+            <div className="mb-2">
               <VerificationCodeInput
                 id="whatsapp-otp-code"
                 value={whatsappOtpCode}
