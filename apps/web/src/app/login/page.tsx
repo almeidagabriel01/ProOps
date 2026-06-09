@@ -543,11 +543,7 @@ function LoginContent() {
                 <MessageCircle className="h-4 w-4" />
                 {isSendingWhatsappFallback
                   ? "Enviando código..."
-                  : `Receber código por WhatsApp${
-                      whatsappFallbackMaskedPhone
-                        ? ` ${whatsappFallbackMaskedPhone}`
-                        : ""
-                    }`}
+                  : "Receber código por WhatsApp"}
               </Button>
             ) : null}
             <Button
