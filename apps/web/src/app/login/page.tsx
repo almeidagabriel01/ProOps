@@ -476,15 +476,6 @@ function LoginContent() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="totp-recovery-code">Código de recuperação</Label>
-              <RecoveryCodeInput
-                id="totp-recovery-code"
-                value={totpRecoveryCode}
-                onChange={setTotpRecoveryCode}
-                autoFocus
-              />
-            </div>
-            <div className="flex flex-col gap-1">
               <Label htmlFor="totp-recovery-password">
                 Senha (se sua conta usa senha)
               </Label>
@@ -495,6 +486,14 @@ function LoginContent() {
                 value={totpRecoveryPassword}
                 onChange={(e) => setTotpRecoveryPassword(e.target.value)}
                 placeholder="••••••••"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="totp-recovery-code">Código de recuperação</Label>
+              <RecoveryCodeInput
+                id="totp-recovery-code"
+                value={totpRecoveryCode}
+                onChange={setTotpRecoveryCode}
               />
             </div>
             {totpRecoveryError ? (

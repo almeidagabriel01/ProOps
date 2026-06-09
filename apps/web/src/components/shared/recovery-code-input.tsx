@@ -45,13 +45,13 @@ export function RecoveryCodeInput({
     >
       <InputOTPGroup className="flex-1">
         {[0, 1, 2, 3].map((index) => (
-          <InputOTPSlot key={index} index={index} className="h-11 flex-1" />
+          <InputOTPSlot key={index} index={index} className="h-11 min-w-0 flex-1" />
         ))}
       </InputOTPGroup>
       <InputOTPSeparator />
       <InputOTPGroup className="flex-1">
         {[4, 5, 6, 7].map((index) => (
-          <InputOTPSlot key={index} index={index} className="h-11 flex-1" />
+          <InputOTPSlot key={index} index={index} className="h-11 min-w-0 flex-1" />
         ))}
       </InputOTPGroup>
     </InputOTP>
