@@ -605,6 +605,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // MFA recovery (backup) codes — hashed, single-use. Written, read and
+    // consumed exclusively by Cloud Functions (Admin SDK). Never client-visible.
+    match /mfaRecoveryCodes/{uid} {
+      allow read, write: if false;
+    }
+
     // ============================================
     // CATCH-ALL
     // ============================================
