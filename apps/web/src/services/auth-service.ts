@@ -11,6 +11,12 @@ export interface RequestEmailVerificationResponse {
 
 export interface RecoverTotpWithCodeResponse {
   success: boolean;
+  /**
+   * Firebase custom token returned by the backend on success. Used with
+   * `signInWithCustomToken` to sign the user in WITHOUT triggering the native
+   * MFA challenge (the TOTP factor stays enrolled).
+   */
+  customToken?: string;
 }
 
 export const AuthService = {
@@ -41,11 +47,13 @@ export const AuthService = {
   },
 
   /**
-   * Public endpoint. Removes ONLY the native TOTP second factor for the account
-   * matching `email`, consuming one recovery code. WhatsApp 2FA (if any) is kept.
-   * Password accounts must pass `password` for reauthentication; Google-only
-   * accounts omit it. On a 400 the backend message ("Senha incorreta." or a
-   * generic failure) is propagated via `ApiError.message` for the UI to display.
+   * Public endpoint. Consumes one recovery code for the account matching
+   * `email` and, on success, returns a Firebase `customToken` to sign the user
+   * in directly (the native TOTP factor stays enrolled). WhatsApp 2FA (if any)
+   * is kept and surfaced on sign-in. Password accounts must pass `password` for
+   * reauthentication; Google-only accounts omit it. On a 400 the backend message
+   * ("Senha incorreta." or a generic failure) is propagated via
+   * `ApiError.message` for the UI to display.
    */
   async recoverTotpWithCode(
     email: string,

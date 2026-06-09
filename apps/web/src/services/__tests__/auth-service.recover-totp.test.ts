@@ -16,8 +16,11 @@ const mockedCallPublicApi = callPublicApi as unknown as Mock;
 describe("AuthService.recoverTotpWithCode", () => {
   beforeEach(() => mockedCallPublicApi.mockReset());
 
-  it("POSTs email + code (+ password) to /v1/auth/mfa-recovery/recover-totp for a password account", async () => {
-    mockedCallPublicApi.mockResolvedValueOnce({ success: true });
+  it("POSTs email + code (+ password) and propagates the customToken for a password account", async () => {
+    mockedCallPublicApi.mockResolvedValueOnce({
+      success: true,
+      customToken: "custom-token-abc",
+    });
 
     const result = await AuthService.recoverTotpWithCode(
       "user@example.com",
@@ -30,19 +33,29 @@ describe("AuthService.recoverTotpWithCode", () => {
       "POST",
       { email: "user@example.com", code: "ABCD-1234", password: "s3cret" },
     );
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, customToken: "custom-token-abc" });
   });
 
-  it("omits the password key entirely for Google-only accounts", async () => {
-    mockedCallPublicApi.mockResolvedValueOnce({ success: true });
+  it("omits the password key entirely for Google-only accounts and propagates the customToken", async () => {
+    mockedCallPublicApi.mockResolvedValueOnce({
+      success: true,
+      customToken: "custom-token-google",
+    });
 
-    await AuthService.recoverTotpWithCode("user@example.com", "ABCD-1234");
+    const result = await AuthService.recoverTotpWithCode(
+      "user@example.com",
+      "ABCD-1234",
+    );
 
     expect(mockedCallPublicApi).toHaveBeenCalledWith(
       "v1/auth/mfa-recovery/recover-totp",
       "POST",
       { email: "user@example.com", code: "ABCD-1234" },
     );
+    expect(result).toEqual({
+      success: true,
+      customToken: "custom-token-google",
+    });
   });
 
   it("propagates the backend error message (e.g. wrong password) to the caller", async () => {

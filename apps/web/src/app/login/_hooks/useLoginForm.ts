@@ -304,7 +304,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, resolveWhatsappLogin, resolveWhatsappRecovery, resendWhatsappOtp, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, forceSyncSession, refreshUser } =
+  const { login, resolveTotpLogin, resolveWhatsappLogin, resolveWhatsappRecovery, signInWithRecoveryToken, resendWhatsappOtp, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, forceSyncSession, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -693,23 +693,47 @@ export function useLoginForm(): UseLoginFormReturn {
     setIsRecoveringTotp(true);
     try {
       const password = totpRecoveryPassword.trim();
-      await AuthService.recoverTotpWithCode(
+      const { customToken } = await AuthService.recoverTotpWithCode(
         trimmedEmail,
         trimmedCode,
         password ? password : undefined,
       );
-      // TOTP removed. Send the user back to the login screen to sign in again
-      // (the native second factor no longer applies).
-      setRequiresMfaCode(false);
-      setShowTotpRecovery(false);
-      setMfaLoginCode("");
-      setTotpRecoveryCode("");
-      setTotpRecoveryPassword("");
-      setError("");
-      setMode("login");
-      setTotpRecoverySuccess(
-        "Verificação por aplicativo removida. Faça login novamente.",
-      );
+      if (!customToken) {
+        setTotpRecoveryError("Não foi possível usar o código de recuperação.");
+        return;
+      }
+
+      // The recovery code is valid: sign the user in directly with the custom
+      // token (TOTP stays enrolled). If the account also has WhatsApp 2FA,
+      // finalizeLogin surfaces the gate and we route into the OTP screen.
+      const result = await signInWithRecoveryToken(customToken);
+      if (result.success) {
+        // Signed in. Clear the recovery/TOTP screens; the post-login redirect
+        // effect takes over from here.
+        setRequiresMfaCode(false);
+        setShowTotpRecovery(false);
+        setMfaLoginCode("");
+        setTotpRecoveryCode("");
+        setTotpRecoveryPassword("");
+        setError("");
+        setTotpRecoveryError("");
+        setTotpRecoverySuccess("Entrando...");
+      } else if (result.code === "whatsapp-mfa-required") {
+        // Account also has WhatsApp 2FA — hand off to the WhatsApp OTP screen.
+        setRequiresMfaCode(false);
+        setShowTotpRecovery(false);
+        setMfaLoginCode("");
+        setTotpRecoveryCode("");
+        setTotpRecoveryPassword("");
+        setTotpRecoveryError("");
+        setWhatsappMaskedPhone(result.maskedPhone || "");
+        setRequiresWhatsappOtp(true);
+        startWhatsappResendCountdown(result.retryAfterSeconds ?? 0);
+      } else {
+        setTotpRecoveryError(
+          "Não foi possível concluir o login com o código de recuperação.",
+        );
+      }
     } catch (recoverError: unknown) {
       const message =
         recoverError instanceof Error

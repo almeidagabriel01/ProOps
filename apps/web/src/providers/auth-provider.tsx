@@ -6,6 +6,7 @@ import {
   getMultiFactorResolver,
   onAuthStateChanged,
   onIdTokenChanged,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut,
   TotpMultiFactorGenerator,
@@ -86,6 +87,23 @@ interface AuthContextType {
     code: string,
   ) => Promise<{ success: boolean; code?: string }>;
   /**
+   * Signs the user in with the Firebase custom token returned by the TOTP
+   * recovery endpoint, then drives session creation. The custom-token sign-in
+   * does NOT trigger the native MFA challenge (the TOTP factor stays enrolled),
+   * so this is how a recovery code logs the user in. If the account ALSO has
+   * WhatsApp 2FA, `finalizeLogin` surfaces the gate and this returns
+   * `{ code: "whatsapp-mfa-required", maskedPhone }`, routing into the OTP
+   * screen exactly like the other login paths.
+   */
+  signInWithRecoveryToken: (
+    customToken: string,
+  ) => Promise<{
+    success: boolean;
+    code?: string;
+    maskedPhone?: string;
+    retryAfterSeconds?: number;
+  }>;
+  /**
    * Forces a fresh WhatsApp OTP (sends `resend: true` to the session route),
    * subject to the backend cooldown/cap. Returns whether a new code was actually
    * sent (`otpSent`) and the remaining cooldown (`retryAfterSeconds`). Does NOT
@@ -130,6 +148,7 @@ const AuthContext = React.createContext<AuthContextType>({
   resolveTotpLogin: async () => ({ success: false }),
   resolveWhatsappLogin: async () => ({ success: false }),
   resolveWhatsappRecovery: async () => ({ success: false }),
+  signInWithRecoveryToken: async () => ({ success: false }),
   resendWhatsappOtp: async () => ({}),
   prepareMfaChallenge: () => false,
   completeSessionAfterSignIn: async () => ({ success: true }),
@@ -922,6 +941,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithRecoveryToken = async (
+    customToken: string,
+  ): Promise<{
+    success: boolean;
+    code?: string;
+    maskedPhone?: string;
+    retryAfterSeconds?: number;
+  }> => {
+    setIsLoading(true);
+    setIsSessionSynced(false);
+    lastSyncSuccessRef.current = 0;
+    mfaResolverRef.current = null;
+    // signInWithCustomToken signs the user in and fires the background auth
+    // listeners — take ownership of the single session POST first, exactly like
+    // the password/Google paths do.
+    explicitSignInInProgressRef.current = true;
+    try {
+      await signInWithCustomToken(auth, customToken);
+      // Drives session creation and surfaces the WhatsApp-MFA gate when the
+      // account also has WhatsApp 2FA (returns code "whatsapp-mfa-required").
+      const result = await finalizeLogin();
+      releaseExplicitSignInUnlessWhatsappPending(result.code);
+      return result;
+    } catch (error) {
+      console.error("Recovery-token sign-in failed", error);
+      explicitSignInInProgressRef.current = false;
+      setIsLoading(false);
+      return { success: false, code: "invalid-credentials" };
+    }
+  };
+
   // Explicit resend path for the WhatsApp OTP. Unlike completeSessionAfterSignIn
   // (the AUTO path, which reuses a still-valid code), this forces a fresh code by
   // sending `resend: true` to the session route. It does NOT take ownership of the
@@ -1000,6 +1050,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resolveTotpLogin,
         resolveWhatsappLogin,
         resolveWhatsappRecovery,
+        signInWithRecoveryToken,
         resendWhatsappOtp,
         prepareMfaChallenge,
         completeSessionAfterSignIn,
