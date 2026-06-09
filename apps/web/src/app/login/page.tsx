@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2, MessageCircle, KeyRound } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2, MessageCircle, KeyRound, Smartphone } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLoginForm } from "./_hooks/useLoginForm";
@@ -411,14 +411,28 @@ function LoginContent() {
               <p className="text-sm text-emerald-600">{whatsappResendNotice}</p>
             ) : null}
           </form>
-          <div className="mt-6 border-t pt-4">
-            <button
+          <div className="mt-6 border-t pt-4 flex flex-col gap-2">
+            <Button
               type="button"
+              variant="outline"
               onClick={handleBackToTotpFromFallback}
-              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
+              className="w-full justify-start gap-2 cursor-pointer"
             >
+              <Smartphone className="h-4 w-4" />
               Usar o código do aplicativo autenticador
-            </button>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                handleBackToTotpFromFallback();
+                openTotpRecovery();
+              }}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <KeyRound className="h-4 w-4" />
+              Usar um código de recuperação
+            </Button>
           </div>
         </div>
       </AuthLayout>
@@ -487,13 +501,15 @@ function LoginContent() {
             </Button>
           </form>
           <div className="mt-6 border-t pt-4">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={closeTotpRecovery}
-              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
+              className="w-full justify-start gap-2 cursor-pointer"
             >
+              <Smartphone className="h-4 w-4" />
               Usar o código do aplicativo autenticador
-            </button>
+            </Button>
           </div>
         </div>
       </AuthLayout>
