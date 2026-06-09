@@ -421,7 +421,7 @@ function LoginContent() {
               <p className="text-sm text-emerald-600">{whatsappResendNotice}</p>
             ) : null}
           </form>
-          <div className="mt-6 border-t pt-4 flex flex-col gap-2">
+          <div className="mt-6 border-t pt-6 flex flex-col gap-2">
             <Button
               type="button"
               variant="outline"
@@ -508,7 +508,7 @@ function LoginContent() {
               {isRecoveringTotp ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-6 border-t pt-4">
+          <div className="mt-6 border-t pt-6">
             <Button
               type="button"
               variant="outline"
@@ -553,7 +553,7 @@ function LoginContent() {
               {isVerifyingMfaCode ? "Verificando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-6 border-t pt-4 flex flex-col gap-2">
+          <div className="mt-6 border-t pt-6 flex flex-col gap-2">
             {whatsappFallbackAvailable ? (
               <Button
                 type="button"
@@ -620,7 +620,7 @@ function LoginContent() {
               {isRecoveringWhatsapp ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-6 border-t pt-4">
+          <div className="mt-6 border-t pt-6">
             <Button
               type="button"
               variant="outline"
@@ -688,7 +688,7 @@ function LoginContent() {
               <p className="text-sm text-emerald-600">{whatsappResendNotice}</p>
             ) : null}
           </form>
-          <div className="mt-6 border-t pt-4">
+          <div className="mt-6 border-t pt-6">
             <Button
               type="button"
               variant="outline"
