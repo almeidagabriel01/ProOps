@@ -40,32 +40,6 @@ export function canEnrollMfa(user: MfaEligibleUser | null): MfaEnrollEligibility
   return { ok: true };
 }
 
-/** Result of inspecting an MFA recovery token (`/v1/auth/mfa-recovery/inspect`). */
-export interface MfaRecoveryInspectResult {
-  valid: boolean;
-  hasPassword?: boolean;
-}
-
-/**
- * Which variant the `/recover-mfa` page should render once the token has been
- * inspected. `password` accounts must reauthenticate with their password;
- * Google-only accounts (`link-only`) confirm with the link alone.
- */
-export type MfaRecoveryView = "invalid" | "password" | "link-only";
-
-/**
- * Pure decision used by the recovery page after `inspectMfaRecoveryToken`.
- * An invalid token (or a missing inspection result) yields `"invalid"`. A valid
- * token routes to `"password"` when the account has a password provider, or to
- * `"link-only"` for Google-only accounts.
- */
-export function resolveMfaRecoveryView(
-  result: MfaRecoveryInspectResult | null,
-): MfaRecoveryView {
-  if (!result || !result.valid) return "invalid";
-  return result.hasPassword ? "password" : "link-only";
-}
-
 /**
  * Masks a phone number for display, keeping only the last 4 digits — e.g.
  * "+5511999991234" → "•••• 1234". Pure and side-effect-free. The backend also

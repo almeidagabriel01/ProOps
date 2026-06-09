@@ -75,6 +75,17 @@ interface AuthContextType {
     otpCode: string,
   ) => Promise<{ success: boolean; code?: string; attemptsLeft?: number }>;
   /**
+   * Completes a login that is gated on the WhatsApp OTP screen using a one-time
+   * recovery code instead of the OTP. The Firebase sign-in already completed
+   * (only the __session cookie is withheld), so this re-POSTs the current user's
+   * ID token together with the recovery code to `/api/auth/session`. On success
+   * the cookie is emitted and the login is finalized exactly like
+   * `resolveWhatsappLogin`. On a wrong/used code the backend error is surfaced.
+   */
+  resolveWhatsappRecovery: (
+    code: string,
+  ) => Promise<{ success: boolean; code?: string }>;
+  /**
    * Forces a fresh WhatsApp OTP (sends `resend: true` to the session route),
    * subject to the backend cooldown/cap. Returns whether a new code was actually
    * sent (`otpSent`) and the remaining cooldown (`retryAfterSeconds`). Does NOT
@@ -118,6 +129,7 @@ const AuthContext = React.createContext<AuthContextType>({
   login: async () => ({ success: false }),
   resolveTotpLogin: async () => ({ success: false }),
   resolveWhatsappLogin: async () => ({ success: false }),
+  resolveWhatsappRecovery: async () => ({ success: false }),
   resendWhatsappOtp: async () => ({}),
   prepareMfaChallenge: () => false,
   completeSessionAfterSignIn: async () => ({ success: true }),
@@ -211,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (
       firebaseUser: FirebaseUser,
       otpCode?: string,
-      opts?: { resend?: boolean },
+      opts?: { resend?: boolean; recoveryCode?: string },
     ): Promise<{
       mfaRequired?: boolean;
       method?: string;
@@ -227,9 +239,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(
           otpCode
             ? { idToken, otpCode }
-            : opts?.resend
-              ? { idToken, resend: true }
-              : { idToken },
+            : opts?.recoveryCode
+              ? { idToken, recoveryCode: opts.recoveryCode }
+              : opts?.resend
+                ? { idToken, resend: true }
+                : { idToken },
         ),
       });
 
@@ -871,6 +885,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resolveWhatsappRecovery = async (
+    code: string,
+  ): Promise<{ success: boolean; code?: string }> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      return { success: false, code: "invalid-credentials" };
+    }
+    setIsLoading(true);
+    try {
+      // Re-POST { idToken, recoveryCode } to the same session route. When the
+      // code is valid, the backend emits the __session cookie and we finalize the
+      // login exactly like resolveWhatsappLogin does after the OTP is verified.
+      await createServerSession(currentUser, undefined, {
+        recoveryCode: code.trim(),
+      });
+      setIsSessionSynced(true);
+      setWhatsappMfaPending(null);
+      lastSyncSuccessRef.current = Date.now();
+      const finalized = await finalizeLogin(true);
+      // Terminal step — nothing else clears isLoading, so do it here (otherwise
+      // the post-login redirect effect, guarded by `!isLoading`, never runs).
+      setIsLoading(false);
+      return finalized.success
+        ? { success: true }
+        : { success: false, code: finalized.code };
+    } catch (error) {
+      console.error("WhatsApp recovery-code resolve failed", error);
+      setIsLoading(false);
+      return { success: false, code: "recovery-code-invalid" };
+    } finally {
+      // The recovery-code step is the terminal stage of the WhatsApp gate.
+      // Whatever the outcome, the foreground path has run its single POST —
+      // release the listeners so normal token-refresh syncing can resume.
+      explicitSignInInProgressRef.current = false;
+    }
+  };
+
   // Explicit resend path for the WhatsApp OTP. Unlike completeSessionAfterSignIn
   // (the AUTO path, which reuses a still-valid code), this forces a fresh code by
   // sending `resend: true` to the session route. It does NOT take ownership of the
@@ -948,6 +999,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         resolveTotpLogin,
         resolveWhatsappLogin,
+        resolveWhatsappRecovery,
         resendWhatsappOtp,
         prepareMfaChallenge,
         completeSessionAfterSignIn,

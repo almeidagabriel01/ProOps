@@ -5,7 +5,6 @@ import {
   isMfaRequiredError,
   isValidTotpCode,
   maskPhone,
-  resolveMfaRecoveryView,
   shouldAutoOpenRecoveryCodes,
 } from "../mfa-helpers";
 
@@ -78,35 +77,6 @@ describe("canEnrollMfa", () => {
 
   it("blocks enrollment when there is no user", () => {
     expect(canEnrollMfa(null)).toEqual({ ok: false, reason: "no-user" });
-  });
-});
-
-describe("resolveMfaRecoveryView", () => {
-  it("renders the password form for a valid token on a password account", () => {
-    expect(resolveMfaRecoveryView({ valid: true, hasPassword: true })).toBe(
-      "password",
-    );
-  });
-
-  it("renders the link-only variant for a valid token on a Google account", () => {
-    expect(resolveMfaRecoveryView({ valid: true, hasPassword: false })).toBe(
-      "link-only",
-    );
-  });
-
-  it("treats a valid token without hasPassword as link-only (Google default)", () => {
-    expect(resolveMfaRecoveryView({ valid: true })).toBe("link-only");
-  });
-
-  it("renders the invalid view for an invalid token", () => {
-    expect(resolveMfaRecoveryView({ valid: false })).toBe("invalid");
-    expect(resolveMfaRecoveryView({ valid: false, hasPassword: true })).toBe(
-      "invalid",
-    );
-  });
-
-  it("renders the invalid view when there is no inspection result", () => {
-    expect(resolveMfaRecoveryView(null)).toBe("invalid");
   });
 });
 

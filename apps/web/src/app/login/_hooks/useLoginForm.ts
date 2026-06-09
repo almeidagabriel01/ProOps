@@ -24,7 +24,6 @@ import { callPublicApi } from "@/lib/api-client";
 import { isValidTotpCode } from "@/lib/mfa-helpers";
 import { shouldReflectWhatsappGate } from "../_lib/should-reflect-whatsapp-gate";
 import { useResendCountdown } from "@/hooks/useResendCountdown";
-import { resolveRecoveryEmail } from "../_lib/resolve-recovery-email";
 import { getCaptchaToken } from "@/lib/captcha";
 import { toast } from "@/lib/toast";
 import { ALLOWED_TYPES } from "@/services/storage-service";
@@ -105,9 +104,18 @@ interface UseLoginFormReturn {
   mfaLoginCode: string;
   setMfaLoginCode: (value: string) => void;
   isVerifyingMfaCode: boolean;
-  mfaRecoveryRequested: boolean;
-  mfaRecoveryMessage: string;
-  isRequestingMfaRecovery: boolean;
+  // TOTP recovery-code flow (native TOTP screen)
+  showTotpRecovery: boolean;
+  openTotpRecovery: () => void;
+  totpRecoveryEmail: string;
+  setTotpRecoveryEmail: (value: string) => void;
+  totpRecoveryCode: string;
+  setTotpRecoveryCode: (value: string) => void;
+  totpRecoveryPassword: string;
+  setTotpRecoveryPassword: (value: string) => void;
+  isRecoveringTotp: boolean;
+  totpRecoveryError: string;
+  totpRecoverySuccess: string;
   requiresWhatsappOtp: boolean;
   whatsappOtpCode: string;
   setWhatsappOtpCode: (value: string) => void;
@@ -117,13 +125,21 @@ interface UseLoginFormReturn {
   whatsappResendSecondsLeft: number;
   canResendWhatsapp: boolean;
   whatsappResendNotice: string;
+  // WhatsApp recovery-code flow (WhatsApp OTP screen)
+  showWhatsappRecovery: boolean;
+  openWhatsappRecovery: () => void;
+  whatsappRecoveryCode: string;
+  setWhatsappRecoveryCode: (value: string) => void;
+  isRecoveringWhatsapp: boolean;
+  whatsappRecoveryError: string;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
   handleConfirmMfaCode: (e?: React.FormEvent) => Promise<void>;
   handleConfirmWhatsappOtp: (e?: React.FormEvent) => Promise<void>;
   handleResendWhatsappOtp: () => Promise<void>;
-  handleStartMfaRecovery: () => Promise<void>;
+  handleRecoverTotpWithCode: (e?: React.FormEvent) => Promise<void>;
+  handleConfirmWhatsappRecovery: (e?: React.FormEvent) => Promise<void>;
   handleRegister: (e?: React.FormEvent) => Promise<void>;
   handleForgotPassword: (e?: React.FormEvent) => Promise<void>;
   handleGoogleAuth: () => Promise<void>;
@@ -172,10 +188,19 @@ export function useLoginForm(): UseLoginFormReturn {
   const [requiresMfaCode, setRequiresMfaCode] = React.useState(false);
   const [mfaLoginCode, setMfaLoginCode] = React.useState("");
   const [isVerifyingMfaCode, setIsVerifyingMfaCode] = React.useState(false);
-  const [mfaRecoveryRequested, setMfaRecoveryRequested] = React.useState(false);
-  const [mfaRecoveryMessage, setMfaRecoveryMessage] = React.useState("");
-  const [isRequestingMfaRecovery, setIsRequestingMfaRecovery] =
-    React.useState(false);
+  // TOTP recovery-code flow (native TOTP screen)
+  const [showTotpRecovery, setShowTotpRecovery] = React.useState(false);
+  const [totpRecoveryEmail, setTotpRecoveryEmail] = React.useState("");
+  const [totpRecoveryCode, setTotpRecoveryCode] = React.useState("");
+  const [totpRecoveryPassword, setTotpRecoveryPassword] = React.useState("");
+  const [isRecoveringTotp, setIsRecoveringTotp] = React.useState(false);
+  const [totpRecoveryError, setTotpRecoveryError] = React.useState("");
+  const [totpRecoverySuccess, setTotpRecoverySuccess] = React.useState("");
+  // WhatsApp recovery-code flow (WhatsApp OTP screen)
+  const [showWhatsappRecovery, setShowWhatsappRecovery] = React.useState(false);
+  const [whatsappRecoveryCode, setWhatsappRecoveryCode] = React.useState("");
+  const [isRecoveringWhatsapp, setIsRecoveringWhatsapp] = React.useState(false);
+  const [whatsappRecoveryError, setWhatsappRecoveryError] = React.useState("");
   const [requiresWhatsappOtp, setRequiresWhatsappOtp] = React.useState(false);
   const [whatsappOtpCode, setWhatsappOtpCode] = React.useState("");
   const [whatsappMaskedPhone, setWhatsappMaskedPhone] = React.useState("");
@@ -279,7 +304,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, resolveWhatsappLogin, resendWhatsappOtp, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, forceSyncSession, refreshUser } =
+  const { login, resolveTotpLogin, resolveWhatsappLogin, resolveWhatsappRecovery, resendWhatsappOtp, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, forceSyncSession, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -635,34 +660,98 @@ export function useLoginForm(): UseLoginFormReturn {
     }
   };
 
-  const handleStartMfaRecovery = async () => {
-    setError("");
-    setMfaRecoveryMessage("");
+  // Reveal the TOTP recovery-code form, prefilling the email from the login form
+  // when available (it is editable — on Google sign-in the form `email` is empty,
+  // so the user must type it). The native TOTP screen is reached BEFORE the
+  // Firebase sign-in completes (the multi-factor challenge is pending), so there
+  // is no signed-in user email to fall back to here.
+  const openTotpRecovery = React.useCallback(() => {
+    setTotpRecoveryError("");
+    setTotpRecoverySuccess("");
+    setTotpRecoveryCode("");
+    setTotpRecoveryPassword("");
+    setTotpRecoveryEmail((prev) => prev || email);
+    setShowTotpRecovery(true);
+  }, [email]);
 
-    // At the WhatsApp OTP stage the Firebase sign-in already completed (only the
-    // __session cookie is withheld), so the signed-in user's email is the
-    // reliable source — the form `email` is empty on Google sign-in. Fall back
-    // to the typed email for any other entry point.
-    const trimmedEmail = resolveRecoveryEmail(auth.currentUser?.email, email);
+  const handleRecoverTotpWithCode = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setTotpRecoveryError("");
+    setTotpRecoverySuccess("");
+
+    const trimmedEmail = totpRecoveryEmail.trim();
+    const trimmedCode = totpRecoveryCode.trim();
     if (!trimmedEmail) {
-      setError(
-        "Informe o e-mail da sua conta para receber o link de recuperação.",
-      );
+      setTotpRecoveryError("Informe o e-mail da sua conta.");
+      return;
+    }
+    if (!trimmedCode) {
+      setTotpRecoveryError("Informe um código de recuperação.");
       return;
     }
 
-    setIsRequestingMfaRecovery(true);
+    setIsRecoveringTotp(true);
     try {
-      await AuthService.requestMfaRecovery(trimmedEmail);
-    } catch {
-      // Anti-enumeration: never reveal whether the email exists or the request
-      // failed. The neutral confirmation message is shown regardless.
-    } finally {
-      setMfaRecoveryRequested(true);
-      setMfaRecoveryMessage(
-        "Se o e-mail estiver cadastrado, enviamos um link para recuperar o acesso.",
+      const password = totpRecoveryPassword.trim();
+      await AuthService.recoverTotpWithCode(
+        trimmedEmail,
+        trimmedCode,
+        password ? password : undefined,
       );
-      setIsRequestingMfaRecovery(false);
+      // TOTP removed. Send the user back to the login screen to sign in again
+      // (the native second factor no longer applies).
+      setRequiresMfaCode(false);
+      setShowTotpRecovery(false);
+      setMfaLoginCode("");
+      setTotpRecoveryCode("");
+      setTotpRecoveryPassword("");
+      setError("");
+      setMode("login");
+      setTotpRecoverySuccess(
+        "Verificação por aplicativo removida. Faça login novamente.",
+      );
+    } catch (recoverError: unknown) {
+      const message =
+        recoverError instanceof Error
+          ? recoverError.message
+          : "Não foi possível usar o código de recuperação.";
+      setTotpRecoveryError(message);
+    } finally {
+      setIsRecoveringTotp(false);
+    }
+  };
+
+  const openWhatsappRecovery = React.useCallback(() => {
+    setWhatsappRecoveryError("");
+    setWhatsappRecoveryCode("");
+    setShowWhatsappRecovery(true);
+  }, []);
+
+  const handleConfirmWhatsappRecovery = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setWhatsappRecoveryError("");
+
+    const trimmedCode = whatsappRecoveryCode.trim();
+    if (!trimmedCode) {
+      setWhatsappRecoveryError("Informe um código de recuperação.");
+      return;
+    }
+
+    setIsRecoveringWhatsapp(true);
+    try {
+      const result = await resolveWhatsappRecovery(trimmedCode);
+      if (result.success) {
+        // The user-state effect handles the post-login redirect once the cookie
+        // is in sync.
+        setRequiresWhatsappOtp(false);
+        setShowWhatsappRecovery(false);
+        setWhatsappOtpCode("");
+        setWhatsappRecoveryCode("");
+      } else {
+        setWhatsappRecoveryError("Código de recuperação inválido.");
+      }
+    } finally {
+      setIsRecoveringWhatsapp(false);
     }
   };
 
@@ -1125,9 +1214,17 @@ export function useLoginForm(): UseLoginFormReturn {
     mfaLoginCode,
     setMfaLoginCode,
     isVerifyingMfaCode,
-    mfaRecoveryRequested,
-    mfaRecoveryMessage,
-    isRequestingMfaRecovery,
+    showTotpRecovery,
+    openTotpRecovery,
+    totpRecoveryEmail,
+    setTotpRecoveryEmail,
+    totpRecoveryCode,
+    setTotpRecoveryCode,
+    totpRecoveryPassword,
+    setTotpRecoveryPassword,
+    isRecoveringTotp,
+    totpRecoveryError,
+    totpRecoverySuccess,
     requiresWhatsappOtp: effectiveRequiresWhatsappOtp,
     whatsappOtpCode,
     setWhatsappOtpCode,
@@ -1137,10 +1234,17 @@ export function useLoginForm(): UseLoginFormReturn {
     whatsappResendSecondsLeft,
     canResendWhatsapp,
     whatsappResendNotice,
+    showWhatsappRecovery,
+    openWhatsappRecovery,
+    whatsappRecoveryCode,
+    setWhatsappRecoveryCode,
+    isRecoveringWhatsapp,
+    whatsappRecoveryError,
     handleConfirmMfaCode,
     handleConfirmWhatsappOtp,
     handleResendWhatsappOtp,
-    handleStartMfaRecovery,
+    handleRecoverTotpWithCode,
+    handleConfirmWhatsappRecovery,
     handleLogin,
     handleRegister,
     handleForgotPassword,

@@ -6,6 +6,7 @@ import {
   decideWhatsappGate,
   type WhatsappChallengeResult,
 } from "./_lib/whatsapp-gate";
+import { decideSessionVerification } from "./_lib/session-verification";
 
 const SESSION_COOKIE_NAME = "__session";
 const LEGACY_COOKIE_NAME = "firebase-auth-token";
@@ -175,6 +176,56 @@ async function requestWhatsappVerify(
   }
 }
 
+/**
+ * Calls the backend recovery-codes verify with the user's ID token and a
+ * one-time recovery code. Like the WhatsApp verify, this does NOT fail open: a
+ * failed/errored verify must withhold the cookie. The backend returns
+ * `{ verified: true, remaining }` on success or 400 `{ verified: false, message }`
+ * on failure; the status/body are forwarded so the client can surface `message`.
+ */
+async function requestRecoveryCodeVerify(
+  req: NextRequest,
+  idToken: string,
+  code: string,
+): Promise<WhatsappVerifyOutcome> {
+  const { baseUrl } = resolveFunctionsApiUpstream(req);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), WHATSAPP_MFA_TIMEOUT_MS);
+  try {
+    const upstreamResponse = await fetch(
+      `${baseUrl}/v1/auth/recovery-codes/verify`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ code }),
+        cache: "no-store",
+        signal: controller.signal,
+      },
+    );
+    const json = (await upstreamResponse.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
+    return {
+      verified: upstreamResponse.ok && json?.verified === true,
+      status: upstreamResponse.status,
+      body: json,
+    };
+  } catch (error) {
+    console.error("Recovery code verify request failed:", error);
+    return {
+      verified: false,
+      status: 502,
+      body: { message: "Não foi possível verificar o código. Tente novamente." },
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function POST(req: NextRequest) {
   const clientIp = getClientIp(req);
 
@@ -201,6 +252,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as {
       idToken?: string;
       otpCode?: string;
+      recoveryCode?: string;
       resend?: boolean;
     };
     const idToken = String(body?.idToken || "").trim();
@@ -208,6 +260,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "idToken is required" }, { status: 400 });
     }
     const otpCode = String(body?.otpCode || "").trim();
+    const recoveryCode = String(body?.recoveryCode || "").trim();
     const resend = body?.resend === true;
 
     const adminAuth = getAdminAuth();
@@ -245,11 +298,27 @@ export async function POST(req: NextRequest) {
 
     // --- WhatsApp-MFA gate (custom, opt-in) ---
     // Runs in parallel to the super admin gate above and is purely additive.
-    // Second step: the client re-POSTed { idToken, otpCode }. Verify the OTP
-    // with the backend BEFORE creating the session cookie. A failed verify
-    // withholds the cookie and forwards the backend's status/message.
-    if (otpCode) {
+    // Second step: the client re-POSTed a verification input. Verify it with the
+    // backend BEFORE creating the session cookie. Both the WhatsApp OTP and the
+    // recovery-code paths are fail-closed: a failed verify withholds the cookie
+    // and forwards the backend's status/message.
+    const verificationPath = decideSessionVerification({ otpCode, recoveryCode });
+    if (verificationPath === "otp") {
       const verifyOutcome = await requestWhatsappVerify(req, idToken, otpCode);
+      if (!verifyOutcome.verified) {
+        const status =
+          verifyOutcome.status >= 400 && verifyOutcome.status < 600
+            ? verifyOutcome.status
+            : 400;
+        return NextResponse.json(verifyOutcome.body, { status });
+      }
+      // verified === true → fall through to normal cookie emission below.
+    } else if (verificationPath === "recovery-code") {
+      const verifyOutcome = await requestRecoveryCodeVerify(
+        req,
+        idToken,
+        recoveryCode,
+      );
       if (!verifyOutcome.verified) {
         const status =
           verifyOutcome.status >= 400 && verifyOutcome.status < 600

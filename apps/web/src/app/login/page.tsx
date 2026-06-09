@@ -100,10 +100,18 @@ function LoginContent() {
     setMfaLoginCode,
     isVerifyingMfaCode,
     handleConfirmMfaCode,
-    mfaRecoveryRequested,
-    mfaRecoveryMessage,
-    isRequestingMfaRecovery,
-    handleStartMfaRecovery,
+    showTotpRecovery,
+    openTotpRecovery,
+    totpRecoveryEmail,
+    setTotpRecoveryEmail,
+    totpRecoveryCode,
+    setTotpRecoveryCode,
+    totpRecoveryPassword,
+    setTotpRecoveryPassword,
+    isRecoveringTotp,
+    totpRecoveryError,
+    totpRecoverySuccess,
+    handleRecoverTotpWithCode,
     requiresWhatsappOtp,
     whatsappOtpCode,
     setWhatsappOtpCode,
@@ -114,6 +122,13 @@ function LoginContent() {
     whatsappResendNotice,
     handleConfirmWhatsappOtp,
     handleResendWhatsappOtp,
+    showWhatsappRecovery,
+    openWhatsappRecovery,
+    whatsappRecoveryCode,
+    setWhatsappRecoveryCode,
+    isRecoveringWhatsapp,
+    whatsappRecoveryError,
+    handleConfirmWhatsappRecovery,
   } = useLoginForm();
 
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>(
@@ -358,20 +373,69 @@ function LoginContent() {
             </Button>
           </form>
           <div className="mt-6 border-t pt-4">
-            {mfaRecoveryRequested ? (
-              <p className="text-sm text-muted-foreground">
-                {mfaRecoveryMessage}
-              </p>
+            {showTotpRecovery ? (
+              <form
+                onSubmit={handleRecoverTotpWithCode}
+                className="flex flex-col gap-3"
+              >
+                <p className="text-sm text-muted-foreground">
+                  Informe um código de recuperação para remover a verificação por
+                  aplicativo.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="totp-recovery-email">E-mail</Label>
+                  <Input
+                    id="totp-recovery-email"
+                    type="email"
+                    autoComplete="email"
+                    value={totpRecoveryEmail}
+                    onChange={(e) => setTotpRecoveryEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="totp-recovery-code">
+                    Código de recuperação
+                  </Label>
+                  <Input
+                    id="totp-recovery-code"
+                    autoComplete="one-time-code"
+                    value={totpRecoveryCode}
+                    onChange={(e) => setTotpRecoveryCode(e.target.value)}
+                    placeholder="XXXX-XXXX"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="totp-recovery-password">
+                    Senha (se sua conta usa senha)
+                  </Label>
+                  <Input
+                    id="totp-recovery-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={totpRecoveryPassword}
+                    onChange={(e) => setTotpRecoveryPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                </div>
+                {totpRecoveryError ? (
+                  <p className="text-sm text-destructive">{totpRecoveryError}</p>
+                ) : null}
+                <Button
+                  type="submit"
+                  disabled={isRecoveringTotp}
+                  className="cursor-pointer"
+                >
+                  {isRecoveringTotp ? "Removendo..." : "Remover verificação"}
+                </Button>
+              </form>
             ) : (
               <button
                 type="button"
-                onClick={handleStartMfaRecovery}
-                disabled={isRequestingMfaRecovery}
-                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
+                onClick={openTotpRecovery}
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
               >
-                {isRequestingMfaRecovery
-                  ? "Enviando..."
-                  : "Perdi acesso ao meu método de verificação"}
+                Usar um código de recuperação
               </button>
             )}
           </div>
@@ -437,20 +501,44 @@ function LoginContent() {
             ) : null}
           </form>
           <div className="mt-6 border-t pt-4">
-            {mfaRecoveryRequested ? (
-              <p className="text-sm text-muted-foreground">
-                {mfaRecoveryMessage}
-              </p>
+            {showWhatsappRecovery ? (
+              <form
+                onSubmit={handleConfirmWhatsappRecovery}
+                className="flex flex-col gap-3"
+              >
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="whatsapp-recovery-code">
+                    Código de recuperação
+                  </Label>
+                  <Input
+                    id="whatsapp-recovery-code"
+                    autoComplete="one-time-code"
+                    value={whatsappRecoveryCode}
+                    onChange={(e) => setWhatsappRecoveryCode(e.target.value)}
+                    placeholder="XXXX-XXXX"
+                    autoFocus
+                  />
+                </div>
+                {whatsappRecoveryError ? (
+                  <p className="text-sm text-destructive">
+                    {whatsappRecoveryError}
+                  </p>
+                ) : null}
+                <Button
+                  type="submit"
+                  disabled={isRecoveringWhatsapp}
+                  className="cursor-pointer"
+                >
+                  {isRecoveringWhatsapp ? "Verificando..." : "Entrar"}
+                </Button>
+              </form>
             ) : (
               <button
                 type="button"
-                onClick={handleStartMfaRecovery}
-                disabled={isRequestingMfaRecovery}
-                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
+                onClick={openWhatsappRecovery}
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
               >
-                {isRequestingMfaRecovery
-                  ? "Enviando..."
-                  : "Perdi acesso ao meu método de verificação"}
+                Usar um código de recuperação
               </button>
             )}
           </div>
@@ -940,6 +1028,14 @@ function LoginContent() {
                   Bem-vindo de volta! Insira suas credenciais.
                 </p>
               </div>
+
+              {totpRecoverySuccess ? (
+                <div className="mb-4 rounded-lg border border-green-500/20 bg-green-500/10 p-3">
+                  <p className="text-sm text-green-600 font-medium">
+                    {totpRecoverySuccess}
+                  </p>
+                </div>
+              ) : null}
 
               <form onSubmit={handleLogin} className="space-y-5">
                 <CredentialFields
