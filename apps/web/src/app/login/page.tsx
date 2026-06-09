@@ -112,6 +112,18 @@ function LoginContent() {
     totpRecoveryError,
     totpRecoverySuccess,
     handleRecoverTotpWithCode,
+    whatsappFallbackAvailable,
+    whatsappFallbackStage,
+    whatsappFallbackMaskedPhone,
+    whatsappFallbackCode,
+    setWhatsappFallbackCode,
+    isSendingWhatsappFallback,
+    isVerifyingWhatsappFallback,
+    isResendingWhatsappFallback,
+    handleSwitchToWhatsappFallback,
+    handleBackToTotpFromFallback,
+    handleConfirmWhatsappFallback,
+    handleResendWhatsappFallback,
     requiresWhatsappOtp,
     whatsappOtpCode,
     setWhatsappOtpCode,
@@ -341,6 +353,77 @@ function LoginContent() {
     );
   }
 
+  if (requiresMfaCode && whatsappFallbackStage === "otp") {
+    return (
+      <AuthLayout reverse={false}>
+        <div className="w-full max-w-sm mx-auto">
+          <h1 className="text-2xl font-semibold mb-2">
+            Verificação em duas etapas
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Enviamos um código para o WhatsApp
+            {whatsappFallbackMaskedPhone ? ` ${whatsappFallbackMaskedPhone}` : ""}.
+          </p>
+          <form
+            onSubmit={handleConfirmWhatsappFallback}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="whatsapp-fallback-code">Código</Label>
+              <Input
+                id="whatsapp-fallback-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={whatsappFallbackCode}
+                onChange={(e) =>
+                  setWhatsappFallbackCode(e.target.value.replace(/\D/g, ""))
+                }
+                placeholder="000000"
+                autoFocus
+              />
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <Button
+              type="submit"
+              disabled={
+                isVerifyingWhatsappFallback ||
+                whatsappFallbackCode.trim().length !== 6
+              }
+              className="cursor-pointer"
+            >
+              {isVerifyingWhatsappFallback ? "Verificando..." : "Entrar"}
+            </Button>
+            <button
+              type="button"
+              onClick={handleResendWhatsappFallback}
+              disabled={
+                isResendingWhatsappFallback || whatsappResendSecondsLeft > 0
+              }
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
+            >
+              {isResendingWhatsappFallback
+                ? "Reenviando..."
+                : formatResendLabel(whatsappResendSecondsLeft)}
+            </button>
+            {whatsappResendNotice ? (
+              <p className="text-sm text-emerald-600">{whatsappResendNotice}</p>
+            ) : null}
+          </form>
+          <div className="mt-6 border-t pt-4">
+            <button
+              type="button"
+              onClick={handleBackToTotpFromFallback}
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
+            >
+              Usar o código do aplicativo autenticador
+            </button>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
   if (requiresMfaCode) {
     return (
       <AuthLayout reverse={false}>
@@ -430,13 +513,34 @@ function LoginContent() {
                 </Button>
               </form>
             ) : (
-              <button
-                type="button"
-                onClick={openTotpRecovery}
-                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
-              >
-                Usar um código de recuperação
-              </button>
+              <div className="flex flex-col gap-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Métodos alternativos
+                </p>
+                {whatsappFallbackAvailable ? (
+                  <button
+                    type="button"
+                    onClick={handleSwitchToWhatsappFallback}
+                    disabled={isSendingWhatsappFallback}
+                    className="text-sm text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
+                  >
+                    {isSendingWhatsappFallback
+                      ? "Enviando código..."
+                      : `Receber código por WhatsApp${
+                          whatsappFallbackMaskedPhone
+                            ? ` ${whatsappFallbackMaskedPhone}`
+                            : ""
+                        }`}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={openTotpRecovery}
+                  className="text-sm text-left text-muted-foreground underline-offset-4 hover:text-foreground hover:underline cursor-pointer"
+                >
+                  Usar um código de recuperação
+                </button>
+              </div>
             )}
           </div>
         </div>

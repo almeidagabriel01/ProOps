@@ -21,7 +21,7 @@ import {
 import { sendWhatsAppTemplate } from "../services/whatsapp/whatsapp.api";
 import { normalizePhoneNumber } from "../services/whatsapp/whatsapp.utils";
 
-const CHALLENGES_COLLECTION = "mfaOtpChallenges";
+export const CHALLENGES_COLLECTION = "mfaOtpChallenges";
 
 const enrollStartSchema = z.object({
   phone: z.string().min(1),
@@ -35,7 +35,7 @@ const challengeSchema = z.object({
   resend: z.boolean().optional(),
 });
 
-interface ChallengeDoc {
+export interface ChallengeDoc {
   uid: string;
   tenantId: string;
   purpose: OtpPurpose;
@@ -51,17 +51,17 @@ interface ChallengeDoc {
 }
 
 /** SHA-256 hash of a normalized phone number — never store the raw phone here. */
-function hashPhone(normalizedPhone: string): string {
+export function hashPhone(normalizedPhone: string): string {
   return createHash("sha256").update(normalizedPhone).digest("hex");
 }
 
 /** Mask a normalized phone, revealing only the last 4 digits. */
-function maskPhone(normalizedPhone: string): string {
+export function maskPhone(normalizedPhone: string): string {
   const last4 = normalizedPhone.slice(-4);
   return `••••${last4}`;
 }
 
-function toOtpRecord(data: ChallengeDoc): OtpRecord {
+export function toOtpRecord(data: ChallengeDoc): OtpRecord {
   return {
     codeHash: data.codeHash,
     expiresAt: data.expiresAt,
@@ -94,7 +94,7 @@ function buildOtpTemplateComponents(code: string): unknown[] {
   ];
 }
 
-async function deliverOtp(
+export async function deliverOtp(
   normalizedPhone: string,
   code: string,
 ): Promise<void> {
@@ -115,7 +115,7 @@ async function deliverOtp(
  * Persist (create or refresh) the OTP challenge for a uid, advancing the
  * hourly send-window counters. Always called after canSendOtp() approved a send.
  */
-async function writeChallenge(params: {
+export async function writeChallenge(params: {
   uid: string;
   tenantId: string;
   purpose: OtpPurpose;

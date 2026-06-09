@@ -298,6 +298,12 @@ export async function POST(req: NextRequest) {
     // WhatsApp gate below must be skipped (a recovery code is a full bypass).
     const recoveryLogin =
       (decoded as { recovery_login?: unknown }).recovery_login === true;
+    // `whatsapp-login-fallback` mints the custom token with this claim when the
+    // user chose to receive the 2FA code via WhatsApp on the native TOTP screen.
+    // The WhatsApp factor was already satisfied, so skip the gate (no second
+    // challenge), same as `recovery_login`.
+    const whatsappLogin =
+      (decoded as { whatsapp_login?: unknown }).whatsapp_login === true;
     const mfaRequired =
       isSuperAdminRole && isSuperAdminMfaRequired() && !secondFactor;
 
@@ -358,6 +364,7 @@ export async function POST(req: NextRequest) {
       !isSuperAdminRole &&
       !secondFactor &&
       !recoveryLogin &&
+      !whatsappLogin &&
       !alreadyAuthenticated
     ) {
       // First step of LOGIN: no OTP yet, not a super admin, no native second
@@ -369,6 +376,7 @@ export async function POST(req: NextRequest) {
         isSuperAdmin: isSuperAdminRole,
         hasNativeSecondFactor: Boolean(secondFactor),
         recoveryLogin,
+        whatsappLogin,
         alreadyAuthenticated,
         challenge,
       });

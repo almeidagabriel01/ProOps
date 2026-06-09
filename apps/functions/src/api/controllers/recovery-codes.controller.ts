@@ -242,7 +242,7 @@ export const verifyRecoveryCodeHandler = async (
   }
 };
 
-function hasPasswordProvider(
+export function hasPasswordProvider(
   providerData: Array<{ providerId: string }>,
 ): boolean {
   return providerData.some((p) => p.providerId === "password");
@@ -254,7 +254,7 @@ function hasPasswordProvider(
  * the security rules would block them anyway. Detect via custom claims first
  * (authoritative) and fall back to the user document role.
  */
-function isSuperAdminRole(role: unknown): boolean {
+export function isSuperAdminRole(role: unknown): boolean {
   return typeof role === "string" && role.toUpperCase() === "SUPERADMIN";
 }
 
@@ -265,7 +265,7 @@ function isSuperAdminRole(role: unknown): boolean {
  * idToken, or with an mfaPendingCredential when MFA is enrolled); a wrong
  * password returns 400. Both 200 shapes prove the password.
  */
-async function verifyPasswordViaRest(
+export async function verifyPasswordViaRest(
   email: string,
   password: string,
 ): Promise<boolean> {

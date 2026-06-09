@@ -19,6 +19,31 @@ export interface RecoverTotpWithCodeResponse {
   customToken?: string;
 }
 
+export interface WhatsappLoginFallbackAvailability {
+  available: boolean;
+  /** Masked enrolled phone (e.g. `••••1234`), present only when available. */
+  maskedPhone?: string;
+}
+
+export interface WhatsappLoginFallbackSendResponse {
+  available: boolean;
+  maskedPhone?: string;
+  /** True when a fresh OTP was sent now; false when a valid one was reused. */
+  otpSent?: boolean;
+  /** Seconds until the user may request a new code (backend-owned cooldown). */
+  retryAfterSeconds?: number;
+}
+
+export interface WhatsappLoginFallbackVerifyResponse {
+  success: boolean;
+  /**
+   * Firebase custom token returned on success. Carries the `whatsapp_login`
+   * claim and is used with `signInWithCustomToken` to sign the user in WITHOUT
+   * the native TOTP challenge (the TOTP factor stays enrolled).
+   */
+  customToken?: string;
+}
+
 export const AuthService = {
   /**
    * Public endpoint. Always resolves with `{ success: true }` regardless of
@@ -64,6 +89,61 @@ export const AuthService = {
       "v1/auth/mfa-recovery/recover-totp",
       "POST",
       password !== undefined ? { email, code, password } : { email, code },
+    );
+  },
+
+  /**
+   * Public endpoint. Reports whether the account can receive its 2FA code via
+   * WhatsApp on the native TOTP screen — WITHOUT sending anything. Password
+   * accounts must pass `password` (validated server-side) for the check to
+   * succeed; Google-only accounts omit it. Drives the visibility of the WhatsApp
+   * option on the TOTP screen.
+   */
+  async checkWhatsappLoginFallback(
+    email: string,
+    password?: string,
+  ): Promise<WhatsappLoginFallbackAvailability> {
+    return callPublicApi<WhatsappLoginFallbackAvailability>(
+      "v1/auth/mfa-recovery/whatsapp/availability",
+      "POST",
+      password !== undefined ? { email, password } : { email },
+    );
+  },
+
+  /**
+   * Public endpoint. Sends (or, on a still-valid code, reuses) the WhatsApp
+   * login OTP. Pass `resend: true` to force a fresh code subject to the backend
+   * cooldown. Same identity gate as `checkWhatsappLoginFallback`.
+   */
+  async sendWhatsappLoginFallback(
+    email: string,
+    password?: string,
+    resend?: boolean,
+  ): Promise<WhatsappLoginFallbackSendResponse> {
+    const body: Record<string, unknown> = { email };
+    if (password !== undefined) body.password = password;
+    if (resend) body.resend = true;
+    return callPublicApi<WhatsappLoginFallbackSendResponse>(
+      "v1/auth/mfa-recovery/whatsapp/send",
+      "POST",
+      body,
+    );
+  },
+
+  /**
+   * Public endpoint. Verifies the WhatsApp login OTP and, on success, returns a
+   * Firebase `customToken` to sign the user in directly (TOTP factor stays
+   * enrolled). On a 400 the backend message / `attemptsLeft` is propagated via
+   * `ApiError` for the UI to display.
+   */
+  async verifyWhatsappLoginFallback(
+    email: string,
+    code: string,
+  ): Promise<WhatsappLoginFallbackVerifyResponse> {
+    return callPublicApi<WhatsappLoginFallbackVerifyResponse>(
+      "v1/auth/mfa-recovery/whatsapp/verify",
+      "POST",
+      { email, code },
     );
   },
 };

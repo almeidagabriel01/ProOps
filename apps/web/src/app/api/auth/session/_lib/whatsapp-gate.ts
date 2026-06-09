@@ -35,6 +35,14 @@ export interface WhatsappGateInput {
    */
   recoveryLogin: boolean;
   /**
+   * Whether this sign-in was completed via the WhatsApp fallback on the native
+   * TOTP screen (the `whatsapp_login` developer claim minted onto the custom
+   * token by `whatsapp-login-fallback`). The WhatsApp factor was already
+   * satisfied pre-sign-in, so the gate must NOT raise a SECOND WhatsApp
+   * challenge (double verification).
+   */
+  whatsappLogin: boolean;
+  /**
    * Whether the request already carries a valid `__session` cookie for the SAME
    * user (a background re-sync of an existing authenticated session). The OTP
    * gate is a LOGIN step — it must NOT re-challenge an already-authenticated
@@ -64,6 +72,9 @@ export function decideWhatsappGate(input: WhatsappGateInput): WhatsappGateDecisi
     return "skip";
   }
   if (input.recoveryLogin) {
+    return "skip";
+  }
+  if (input.whatsappLogin) {
     return "skip";
   }
   if (input.alreadyAuthenticated) {
