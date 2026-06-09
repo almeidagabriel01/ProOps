@@ -54,8 +54,12 @@ const mockRunTransaction = jest.fn(
 );
 
 const mockGetUserByEmail = jest.fn();
+const mockCreateCustomToken = jest.fn();
 jest.mock("../../../init", () => ({
-  auth: { getUserByEmail: (...args: unknown[]) => mockGetUserByEmail(...args) },
+  auth: {
+    getUserByEmail: (...args: unknown[]) => mockGetUserByEmail(...args),
+    createCustomToken: (...args: unknown[]) => mockCreateCustomToken(...args),
+  },
   db: {
     collection: (name: string) => mockCollection(name),
     runTransaction: (fn: unknown) => mockRunTransaction(fn as never),
@@ -66,9 +70,9 @@ jest.mock("../../../lib/logger", () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 
-const mockClearFactors = jest.fn();
-jest.mock("../../../lib/mfa-reset", () => ({
-  clearUserMfaFactors: (...args: unknown[]) => mockClearFactors(...args),
+const mockSendEmail = jest.fn();
+jest.mock("../../../services/email/send-email", () => ({
+  sendEmail: (...args: unknown[]) => mockSendEmail(...args),
 }));
 
 const mockWriteAudit = jest.fn();
@@ -323,24 +327,20 @@ describe("recoverTotpWithCode", () => {
 
   beforeEach(() => {
     mockGetUserByEmail.mockReset();
-    mockClearFactors.mockReset().mockResolvedValue(undefined);
+    mockCreateCustomToken.mockReset().mockResolvedValue("fake-custom-token");
+    mockSendEmail.mockReset().mockResolvedValue({ ok: true });
     process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "test-api-key";
     global.fetch = jest.fn() as unknown as typeof fetch;
   });
 
-  it("password account: correct code + password removes native factor, consumes code, keeps whatsapp flags", async () => {
+  it("password account: correct code + password signs in via custom token, consumes code, keeps TOTP factor", async () => {
     mockGetUserByEmail.mockResolvedValue({
       uid: "user-1",
       email: "alice@example.com",
       providerData: [{ providerId: "password" }],
     });
     seedCodes("user-1", ["aaaa-bbbb", "cccc-dddd"]);
-    // Pre-existing whatsapp flags on the user doc must remain untouched.
-    docStore.set("users/user-1", {
-      tenantId: "tenant-1",
-      whatsappMfaEnabled: true,
-      whatsappMfaPhone: "+5511999999999",
-    });
+    docStore.set("users/user-1", { tenantId: "tenant-1", name: "Alice" });
     (global.fetch as jest.Mock).mockResolvedValue({ status: 200 });
 
     const req = makePublicReq({
@@ -352,23 +352,28 @@ describe("recoverTotpWithCode", () => {
 
     await recoverTotpWithCode(req, res);
 
-    expect(json).toHaveBeenCalledWith({ success: true });
-    expect(mockClearFactors).toHaveBeenCalledWith("user-1", {
-      includeWhatsapp: false,
+    expect(json).toHaveBeenCalledWith({
+      success: true,
+      customToken: "fake-custom-token",
     });
+    // TOTP factor is NOT removed; user is signed in via a custom token.
+    expect(mockCreateCustomToken).toHaveBeenCalledWith("user-1");
     // Code consumed.
     const stored = docStore.get("mfaRecoveryCodes/user-1") as {
       codes: { usedAt: unknown }[];
     };
     expect(stored.codes[0].usedAt).toBeNull();
     expect(stored.codes[1].usedAt).not.toBeNull();
-    // WhatsApp flags untouched by this flow (clearUserMfaFactors is mocked).
-    const userDoc = docStore.get("users/user-1") as Record<string, unknown>;
-    expect(userDoc.whatsappMfaEnabled).toBe(true);
-    expect(userDoc.whatsappMfaPhone).toBe("+5511999999999");
+    // Security notification email sent.
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "alice@example.com",
+        type: "mfa_recovery_code_used",
+      }),
+    );
     expect(mockWriteAudit).toHaveBeenCalledWith(
       expect.objectContaining({
-        eventType: "mfa_totp_recovery_with_code",
+        eventType: "mfa_recovery_code_signin",
         uid: "user-1",
         tenantId: "tenant-1",
         reason: "password",
@@ -376,7 +381,7 @@ describe("recoverTotpWithCode", () => {
     );
   });
 
-  it("password account: wrong password returns 400 'Senha incorreta.' and does not remove factors", async () => {
+  it("password account: wrong password returns 400 'Senha incorreta.' and does not sign in", async () => {
     mockGetUserByEmail.mockResolvedValue({
       uid: "user-1",
       email: "alice@example.com",
@@ -396,7 +401,7 @@ describe("recoverTotpWithCode", () => {
 
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({ message: "Senha incorreta." });
-    expect(mockClearFactors).not.toHaveBeenCalled();
+    expect(mockCreateCustomToken).not.toHaveBeenCalled();
     expect(mockWriteAudit).not.toHaveBeenCalled();
   });
 
@@ -416,10 +421,10 @@ describe("recoverTotpWithCode", () => {
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({ message: "Senha incorreta." });
     expect(global.fetch).not.toHaveBeenCalled();
-    expect(mockClearFactors).not.toHaveBeenCalled();
+    expect(mockCreateCustomToken).not.toHaveBeenCalled();
   });
 
-  it("google-only account: code alone removes native factor (no password needed)", async () => {
+  it("google-only account: code alone signs in via custom token (no password needed)", async () => {
     mockGetUserByEmail.mockResolvedValue({
       uid: "user-2",
       email: "bob@example.com",
@@ -433,20 +438,77 @@ describe("recoverTotpWithCode", () => {
 
     await recoverTotpWithCode(req, res);
 
-    expect(json).toHaveBeenCalledWith({ success: true });
-    expect(global.fetch).not.toHaveBeenCalled();
-    expect(mockClearFactors).toHaveBeenCalledWith("user-2", {
-      includeWhatsapp: false,
+    expect(json).toHaveBeenCalledWith({
+      success: true,
+      customToken: "fake-custom-token",
     });
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockCreateCustomToken).toHaveBeenCalledWith("user-2");
     expect(mockWriteAudit).toHaveBeenCalledWith(
       expect.objectContaining({
-        eventType: "mfa_totp_recovery_with_code",
+        eventType: "mfa_recovery_code_signin",
         reason: "google_code_only",
       }),
     );
   });
 
-  it("invalid code returns generic 400 and does not remove factors", async () => {
+  it("super admin returns 403 and does not consume code nor sign in", async () => {
+    mockGetUserByEmail.mockResolvedValue({
+      uid: "super-1",
+      email: "root@example.com",
+      providerData: [{ providerId: "password" }],
+      customClaims: { role: "superadmin" },
+    });
+    seedCodes("super-1", ["aaaa-bbbb"]);
+    docStore.set("users/super-1", { role: "SUPERADMIN" });
+    (global.fetch as jest.Mock).mockResolvedValue({ status: 200 });
+
+    const req = makePublicReq({
+      email: "root@example.com",
+      code: "aaaa-bbbb",
+      password: "correct",
+    });
+    const { res, status, json } = makeRes();
+
+    await recoverTotpWithCode(req, res);
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({
+      message:
+        "Contas de super administrador devem usar o reset assistido para recuperar o 2FA.",
+    });
+    expect(mockCreateCustomToken).not.toHaveBeenCalled();
+    expect(mockWriteAudit).not.toHaveBeenCalled();
+    // Code remains unused.
+    const stored = docStore.get("mfaRecoveryCodes/super-1") as {
+      codes: { usedAt: unknown }[];
+    };
+    expect(stored.codes[0].usedAt).toBeNull();
+  });
+
+  it("best-effort notification: success even when sendEmail rejects", async () => {
+    mockGetUserByEmail.mockResolvedValue({
+      uid: "user-3",
+      email: "carol@example.com",
+      providerData: [{ providerId: "google.com" }],
+    });
+    seedCodes("user-3", ["1111-2222"]);
+    docStore.set("users/user-3", { tenantId: "tenant-3" });
+    mockSendEmail.mockRejectedValue(new Error("resend down"));
+
+    const req = makePublicReq({ email: "carol@example.com", code: "1111-2222" });
+    const { res, json } = makeRes();
+
+    await recoverTotpWithCode(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      success: true,
+      customToken: "fake-custom-token",
+    });
+    expect(mockCreateCustomToken).toHaveBeenCalledWith("user-3");
+  });
+
+  it("invalid code returns generic 400 and does not sign in", async () => {
     mockGetUserByEmail.mockResolvedValue({
       uid: "user-1",
       email: "alice@example.com",
@@ -465,7 +527,7 @@ describe("recoverTotpWithCode", () => {
 
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({ message: GENERIC });
-    expect(mockClearFactors).not.toHaveBeenCalled();
+    expect(mockCreateCustomToken).not.toHaveBeenCalled();
   });
 
   it("unknown email returns generic 400 (anti-enumeration)", async () => {
@@ -481,7 +543,7 @@ describe("recoverTotpWithCode", () => {
 
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({ message: GENERIC });
-    expect(mockClearFactors).not.toHaveBeenCalled();
+    expect(mockCreateCustomToken).not.toHaveBeenCalled();
   });
 
   it("no recovery codes doc returns generic 400", async () => {
@@ -502,6 +564,6 @@ describe("recoverTotpWithCode", () => {
 
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({ message: GENERIC });
-    expect(mockClearFactors).not.toHaveBeenCalled();
+    expect(mockCreateCustomToken).not.toHaveBeenCalled();
   });
 });

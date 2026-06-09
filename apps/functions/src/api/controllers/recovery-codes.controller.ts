@@ -225,16 +225,52 @@ async function verifyPasswordViaRest(
 }
 
 /**
+ * Best-effort security notification fired after a recovery code is used to sign
+ * in. A Resend hiccup must NEVER fail the login — a missed email is far less
+ * harmful than blocking a legitimate recovery. Hence the try/catch + log: this
+ * helper never throws. The message differs from `mfa-disabled`: here 2FA stays
+ * enabled and the code was a one-time alternative to the authenticator challenge.
+ */
+async function notifyRecoveryCodeUsed(
+  email: string | undefined,
+  name?: string,
+): Promise<void> {
+  if (!email) return;
+  try {
+    const { subject, html, text } = renderRecoveryCodeUsedEmail({ name });
+    await sendEmail({
+      to: email,
+      subject,
+      html,
+      text,
+      type: "mfa_recovery_code_used",
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn("recoverTotpWithCode: notification email failed", { message });
+  }
+}
+
+/**
  * POST /v1/auth/mfa-recovery/recover-totp — public.
  *
  * The user is stuck on the native Firebase TOTP screen (password already
- * entered, but NOT signed in). They submit a recovery code to unlock by
- * removing ONLY the native TOTP factor, keeping WhatsApp 2FA intact.
+ * entered, but NOT signed in). They submit a recovery code to sign in WITHOUT
+ * removing the TOTP factor (GitHub/Google model: the recovery code is a
+ * one-time alternative to the 2FA challenge; 2FA stays enrolled). Because the
+ * native TOTP factor blocks the normal client-side sign-in, we mint an Admin
+ * SDK custom token, which signs the user in without triggering the native MFA
+ * challenge. The user manages/reconfigures the authenticator in settings later.
+ *
+ * Super admins are rejected (403): they are TOTP-mandatory and a custom token
+ * lacks `sign_in_second_factor`, so the `hasMfa()` rule gate would block them —
+ * they must use the assisted reset flow instead.
  *
  * Anti-enumeration: any failure to locate the account / validate the code
  * returns a generic 400 so existence is never leaked. A correct password (for
  * password accounts) is required; Google-only accounts unlock with the code
- * alone. On success the recovery code is consumed atomically.
+ * alone. On success the recovery code is consumed atomically and a custom token
+ * is returned.
  */
 export const recoverTotpWithCode = async (
   req: Request,
@@ -284,10 +320,34 @@ export const recoverTotpWithCode = async (
       }
     }
 
-    // Remove only the native TOTP factor; keep WhatsApp MFA enabled.
-    await clearUserMfaFactors(uid, { includeWhatsapp: false });
+    // Resolve tenant + role from the user doc (also used for super-admin gate).
+    let tenantId: string | undefined;
+    let docRole: unknown;
+    let name: string | undefined;
+    try {
+      const userSnap = await db.collection("users").doc(uid).get();
+      const userData = userSnap.data() as
+        | { tenantId?: string; role?: string; name?: string }
+        | undefined;
+      tenantId = userData?.tenantId;
+      docRole = userData?.role;
+      name = userData?.name;
+    } catch {
+      tenantId = undefined;
+    }
 
-    // Consume the recovery code atomically (same pattern as /verify).
+    // Super admins cannot use this path — they must use the assisted reset.
+    const claimsRole = userRecord.customClaims?.role;
+    if (isSuperAdminRole(claimsRole) || isSuperAdminRole(docRole)) {
+      logger.warn("recoverTotpWithCode: super admin blocked", { uid });
+      return res.status(403).json({
+        message:
+          "Contas de super administrador devem usar o reset assistido para recuperar o 2FA.",
+      });
+    }
+
+    // Consume the recovery code atomically (same pattern as /verify). The TOTP
+    // factor is intentionally NOT removed — 2FA stays enrolled.
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(codeRef);
       if (!snap.exists) return;
@@ -301,17 +361,11 @@ export const recoverTotpWithCode = async (
       tx.update(codeRef, { codes: updatedCodes });
     });
 
-    let tenantId: string | undefined;
-    try {
-      const userSnap = await db.collection("users").doc(uid).get();
-      const userData = userSnap.data() as { tenantId?: string } | undefined;
-      tenantId = userData?.tenantId;
-    } catch {
-      tenantId = undefined;
-    }
+    // Mint a custom token: signs the user in without the native MFA challenge.
+    const customToken = await auth.createCustomToken(uid);
 
     void writeSecurityAuditEvent({
-      eventType: "mfa_totp_recovery_with_code",
+      eventType: "mfa_recovery_code_signin",
       uid,
       tenantId,
       route: req.path,
@@ -320,13 +374,16 @@ export const recoverTotpWithCode = async (
       source: "recovery_codes",
     });
 
-    logger.info("MFA TOTP recovered with recovery code", {
+    logger.info("MFA recovery code used to sign in", {
       uid,
       tenantId,
       method: hasPassword ? "password" : "google_code_only",
     });
 
-    return res.json({ success: true });
+    // Best-effort security email — must not block the login on failure.
+    await notifyRecoveryCodeUsed(userRecord.email ?? undefined, name);
+
+    return res.json({ success: true, customToken });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
     logger.error("recoverTotpWithCode failed", { message });
