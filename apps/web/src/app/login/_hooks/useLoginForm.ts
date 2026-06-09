@@ -6,7 +6,6 @@ import { useAuth } from "@/providers/auth-provider";
 import { User } from "@/types";
 import { isPathAllowedForUser, resolveUserHome } from "@/lib/auth/resolve-user-home";
 import {
-  type AuthError,
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
   GoogleAuthProvider,
@@ -23,6 +22,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { callPublicApi } from "@/lib/api-client";
 import { isValidTotpCode } from "@/lib/mfa-helpers";
+import { extractEmailFromAuthError } from "../_lib/extract-email-from-auth-error";
 import { shouldReflectWhatsappGate } from "../_lib/should-reflect-whatsapp-gate";
 import { useResendCountdown } from "@/hooks/useResendCountdown";
 import { getCaptchaToken } from "@/lib/captcha";
@@ -161,36 +161,6 @@ interface UseLoginFormReturn {
   handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleConfirmPhoneCode: () => Promise<void>;
   handleResendPhoneCode: () => Promise<void>;
-}
-
-/**
- * Best-effort extraction of the account e-mail from a Firebase MFA error. Used
- * on the native TOTP screen reached via Google sign-in (the login form e-mail is
- * empty there) to drive the WhatsApp-fallback availability check. Tries the
- * error's `customData.email` first, then decodes the Google OAuth credential's
- * ID token (JWT) `email` claim. Returns "" when nothing is available — the
- * WhatsApp option simply won't appear.
- */
-function extractEmailFromAuthError(error: unknown): string {
-  const fromCustomData = (error as { customData?: { email?: string } })
-    ?.customData?.email;
-  if (fromCustomData) return fromCustomData;
-  try {
-    const credential = GoogleAuthProvider.credentialFromError(
-      error as AuthError,
-    );
-    const idToken = (credential as { idToken?: string } | null)?.idToken;
-    if (idToken) {
-      const payloadPart = idToken.split(".")[1];
-      if (payloadPart) {
-        const payload = JSON.parse(atob(payloadPart)) as { email?: unknown };
-        if (typeof payload.email === "string") return payload.email;
-      }
-    }
-  } catch {
-    // ignore — fall through to ""
-  }
-  return "";
 }
 
 export function useLoginForm(): UseLoginFormReturn {
