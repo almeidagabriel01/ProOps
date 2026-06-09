@@ -264,25 +264,18 @@ const whatsappMfaLimiter = createRateLimiter({
   keyResolver: buildRateLimitIdentity,
 });
 
-// Recovery codes have their OWN counter (not shared with WhatsApp MFA) and a
-// more generous limit: `status` is a read-only GET polled on mount/refresh and
-// the enrollment flow bursts several calls. `verify` stays safe here — it is
-// authenticated and the code space (31^8 per code) makes brute force infeasible
-// well under this limit.
-const recoveryCodesLimiter = createRateLimiter({
-  keyPrefix: "recovery-codes",
-  maxRequests: Number(process.env.RATE_LIMIT_RECOVERY_CODES_MAX || 30),
-  windowMs: Number(process.env.RATE_LIMIT_RECOVERY_CODES_WINDOW_MS || 60_000),
+// Tight limiter applied ONLY to recovery-code `verify` — the brute-force
+// surface. `generate`/`reconcile`/`status` are NOT brute-force surfaces (they
+// are authenticated and act only on the caller's own account), so they rely on
+// the global protected limiter (240/min) instead; rate-limiting them tightly
+// caused spurious 429s during enrollment/testing bursts. `verify` is safe even
+// at a generous limit (31^8 per code) but keeps a dedicated counter.
+const recoveryCodesVerifyLimiter = createRateLimiter({
+  keyPrefix: "recovery-codes-verify",
+  maxRequests: Number(process.env.RATE_LIMIT_RECOVERY_CODES_VERIFY_MAX || 30),
+  windowMs: Number(process.env.RATE_LIMIT_RECOVERY_CODES_VERIFY_WINDOW_MS || 60_000),
   keyResolver: buildRateLimitIdentity,
 });
-
-// Apply the recovery-codes limiter ONLY to write endpoints (generate/verify/
-// reconcile). `status` is a read-only GET polled on mount/refresh and during the
-// enrollment auto-generate flow — limiting it caused spurious 429s that the
-// client misread as "0 codes", triggering a redundant generate. Reads stay
-// authenticated and under the global protected limiter.
-const recoveryCodesWriteLimiter: express.RequestHandler = (req, res, next) =>
-  req.method === "GET" ? next() : recoveryCodesLimiter(req, res, next);
 
 const corsMiddleware = cors({
   origin: (origin, callback) => {
@@ -482,7 +475,8 @@ app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
 app.use("/v1/auth/whatsapp-mfa", whatsappMfaLimiter, whatsappMfaRoutes);
-app.use("/v1/auth/recovery-codes", recoveryCodesWriteLimiter, recoveryCodesRoutes);
+app.use("/v1/auth/recovery-codes/verify", recoveryCodesVerifyLimiter);
+app.use("/v1/auth/recovery-codes", recoveryCodesRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);
