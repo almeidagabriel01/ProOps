@@ -103,15 +103,6 @@ export async function proxy(request: NextRequest) {
     return resp;
   }
 
-  // Legacy route redirect: /settings/team -> /team
-  if (pathname === "/settings/team" || pathname.startsWith("/settings/team/")) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = pathname.replace("/settings/team", "/team");
-    const resp = NextResponse.redirect(redirectUrl);
-    resp.headers.set("Content-Type", "text/plain");
-    return resp;
-  }
-
   // Skip static assets and API routes
   if (shouldSkip(pathname)) {
     return NextResponse.next();

@@ -49,6 +49,14 @@ describe("isPathAllowedForUser", () => {
     it("allows /profile?tab=billing (strip query string)", () => {
       expect(isPathAllowedForUser("/profile?tab=billing", user)).toBe(true);
     });
+    // Configurações: 2FA migrou de /profile para /settings/security; o free
+    // precisa continuar acessando para gerenciar a verificação em dois fatores.
+    it("allows /settings", () =>
+      expect(isPathAllowedForUser("/settings", user)).toBe(true));
+    it("allows /settings/security (startsWith)", () =>
+      expect(isPathAllowedForUser("/settings/security", user)).toBe(true));
+    it("allows /settings/team (startsWith)", () =>
+      expect(isPathAllowedForUser("/settings/team", user)).toBe(true));
     it("rejects /dashboard (free never accesses ERP)", () =>
       expect(isPathAllowedForUser("/dashboard", user)).toBe(false));
     it("rejects /transactions", () =>
@@ -72,6 +80,8 @@ describe("isPathAllowedForUser", () => {
 
     it("allows /dashboard for admin", () => expect(isPathAllowedForUser("/dashboard", adminUser)).toBe(true));
     it("allows /profile for admin", () => expect(isPathAllowedForUser("/profile", adminUser)).toBe(true));
+    it("allows /settings for admin", () => expect(isPathAllowedForUser("/settings", adminUser)).toBe(true));
+    it("allows /settings/payments for admin", () => expect(isPathAllowedForUser("/settings/payments", adminUser)).toBe(true));
     it("allows /transactions for admin", () => expect(isPathAllowedForUser("/transactions", adminUser)).toBe(true));
     it("rejects /admin for admin (not superadmin)", () => expect(isPathAllowedForUser("/admin", adminUser)).toBe(false));
     it("allows /dashboard for master", () => expect(isPathAllowedForUser("/dashboard", masterUser)).toBe(true));

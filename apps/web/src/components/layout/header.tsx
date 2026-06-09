@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, Settings, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -176,6 +176,13 @@ export function Header({}: HeaderProps) {
               >
                 <UserIcon className="mr-2 h-4 w-4" />
                 <span>Meu Perfil</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push("/settings")}
+                className="cursor-pointer"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Configurações</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

@@ -93,7 +93,7 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
     );
   }
 
-  if (pathname.startsWith("/team")) {
+  if (pathname.startsWith("/team") || pathname.startsWith("/settings/team")) {
     return <TeamSkeleton />;
   }
 

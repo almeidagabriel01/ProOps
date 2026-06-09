@@ -196,9 +196,9 @@ const ROUTE_STEP_TEMPLATES: Record<string, Omit<OnboardingStep, "title">> = {
     ],
     actionLabel: "Abrir ambientes",
   },
-  "/team": {
+  "/settings/team": {
     id: "team",
-    route: "/team",
+    route: "/settings/team",
     pageId: "team",
     description:
       "Convide pessoas, controle acessos e mantenha a operação distribuida com segurança.",
