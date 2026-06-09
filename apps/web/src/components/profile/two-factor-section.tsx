@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { RecoveryCodesService } from "@/services/recovery-codes-service";
 import { MfaSection } from "./mfa-section";
 import { WhatsappMfaSection } from "./whatsapp-mfa-section";
 import {
@@ -57,6 +58,18 @@ export function TwoFactorSection() {
     }
   }, []);
 
+  // After any method is disabled, reconcile the recovery codes (the backend
+  // deletes them if no 2FA remains) and refresh the panel so the count
+  // reflects the new state — dropping to 0 when the last factor is removed.
+  const handleDisabled = React.useCallback(async () => {
+    try {
+      await RecoveryCodesService.reconcileRecoveryCodes();
+    } catch {
+      // Reconcile is best-effort from the UI's perspective; never block here.
+    }
+    await recoveryRef.current?.refresh();
+  }, []);
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -77,7 +90,10 @@ export function TwoFactorSection() {
         </CardContent>
       </Card>
 
-      <MfaSection onEnrolled={() => void handleEnrolled()} />
+      <MfaSection
+        onEnrolled={() => void handleEnrolled()}
+        onDisabled={() => void handleDisabled()}
+      />
 
       {showWhatsapp ? (
         <WhatsappMfaSection
@@ -85,6 +101,7 @@ export function TwoFactorSection() {
           enabledPhone={whatsappPhone ? maskPhone(whatsappPhone) : undefined}
           onChanged={() => void refreshWhatsapp()}
           onEnrolled={() => void handleEnrolled()}
+          onDisabled={() => void handleDisabled()}
         />
       ) : null}
 

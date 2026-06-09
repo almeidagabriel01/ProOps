@@ -14,6 +14,13 @@ export interface RecoveryCodesStatusResponse {
   generatedAt?: string;
 }
 
+export interface ReconcileRecoveryCodesResponse {
+  /** Whether the user still has any 2FA factor (TOTP native or WhatsApp). */
+  hasAnyFactor: boolean;
+  /** How many recovery codes remain after reconciliation (0 when none). */
+  remaining: number;
+}
+
 /**
  * Authenticated client for the MFA recovery-codes endpoints. These require a
  * valid Firebase ID token, so they go through `callApi` (NOT `callPublicApi`).
@@ -41,6 +48,19 @@ export const RecoveryCodesService = {
     return callApi<RecoveryCodesStatusResponse>(
       "v1/auth/recovery-codes/status",
       "GET",
+    );
+  },
+
+  /**
+   * Reconciles recovery codes against the user's current 2FA factors. If the
+   * user has no factor left (no native TOTP and no WhatsApp), the backend
+   * deletes the recovery codes so they don't outlive 2FA. Idempotent — safe to
+   * call after disabling any method. Throws on backend errors.
+   */
+  async reconcileRecoveryCodes(): Promise<ReconcileRecoveryCodesResponse> {
+    return callApi<ReconcileRecoveryCodesResponse>(
+      "v1/auth/recovery-codes/reconcile",
+      "POST",
     );
   },
 };

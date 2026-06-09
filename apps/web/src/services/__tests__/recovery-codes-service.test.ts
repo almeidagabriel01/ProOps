@@ -68,3 +68,35 @@ describe("RecoveryCodesService.getRecoveryCodesStatus", () => {
     ).rejects.toThrow("Falha ao consultar.");
   });
 });
+
+describe("RecoveryCodesService.reconcileRecoveryCodes", () => {
+  beforeEach(() => mockedCallApi.mockReset());
+
+  it("POSTs to the authenticated reconcile endpoint with no body", async () => {
+    mockedCallApi.mockResolvedValueOnce({ hasAnyFactor: false, remaining: 0 });
+
+    const result = await RecoveryCodesService.reconcileRecoveryCodes();
+
+    expect(mockedCallApi).toHaveBeenCalledWith(
+      "v1/auth/recovery-codes/reconcile",
+      "POST",
+    );
+    expect(result).toEqual({ hasAnyFactor: false, remaining: 0 });
+  });
+
+  it("returns the remaining count when a factor still exists", async () => {
+    mockedCallApi.mockResolvedValueOnce({ hasAnyFactor: true, remaining: 7 });
+
+    const result = await RecoveryCodesService.reconcileRecoveryCodes();
+
+    expect(result).toEqual({ hasAnyFactor: true, remaining: 7 });
+  });
+
+  it("propagates a backend error to the caller", async () => {
+    mockedCallApi.mockRejectedValueOnce(new Error("Falha ao reconciliar."));
+
+    await expect(
+      RecoveryCodesService.reconcileRecoveryCodes(),
+    ).rejects.toThrow("Falha ao reconciliar.");
+  });
+});

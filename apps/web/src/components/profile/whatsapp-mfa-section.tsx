@@ -45,6 +45,8 @@ interface WhatsappMfaSectionProps {
   onChanged?: () => void;
   /** Called only after a successful enroll (not on disable). */
   onEnrolled?: () => void;
+  /** Called only after a successful disable (not on enroll). */
+  onDisabled?: () => void;
   /** Disables the enroll flow with a hint (e.g. TOTP is the active method). */
   disabledReason?: string;
 }
@@ -54,6 +56,7 @@ export function WhatsappMfaSection({
   enabledPhone,
   onChanged,
   onEnrolled,
+  onDisabled,
   disabledReason,
 }: WhatsappMfaSectionProps) {
   const [stage, setStage] = React.useState<Stage>(
@@ -169,6 +172,7 @@ export function WhatsappMfaSection({
       setMaskedPhone("");
       toast.success("Verificação por WhatsApp desativada.");
       onChanged?.();
+      onDisabled?.();
     } catch (err) {
       setConfirmDisableOpen(false);
       const message =

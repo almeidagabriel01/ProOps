@@ -36,9 +36,11 @@ import {
 interface MfaSectionProps {
   /** Fires once when a TOTP enrollment completes (stage transitions to "done"). */
   onEnrolled?: () => void;
+  /** Fires when the TOTP factor is successfully disabled. */
+  onDisabled?: () => void;
 }
 
-export function MfaSection({ onEnrolled }: MfaSectionProps = {}) {
+export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
   const { logout } = useAuth();
   const {
     stage,
@@ -120,6 +122,7 @@ export function MfaSection({ onEnrolled }: MfaSectionProps = {}) {
     setConfirmDisableOpen(false);
     if (ok) {
       toast.success("Verificação em dois fatores desativada.");
+      onDisabled?.();
     }
   };
 
