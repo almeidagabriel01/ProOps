@@ -13,7 +13,7 @@ export function renderPriceChangeEmail(props: PriceChangeEmailProps): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Atualização de preço do ProOps</title>
+  <title>Atualização de preço da ProOps</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">
@@ -70,7 +70,7 @@ export function renderPriceChangeEmail(props: PriceChangeEmailProps): string {
           <tr>
             <td style="background:#f9f9f9;padding:24px 40px;border-top:1px solid #e4e4e7;">
               <p style="margin:0;font-size:12px;color:#a1a1aa;line-height:1.6;">
-                Você está recebendo este email porque possui uma assinatura ativa no ProOps.<br/>
+                Você está recebendo este email porque possui uma assinatura ativa na ProOps.<br/>
                 ProOps · gestao@proops.com.br
               </p>
             </td>

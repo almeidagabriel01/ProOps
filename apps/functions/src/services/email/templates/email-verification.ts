@@ -16,7 +16,7 @@ export function renderEmailVerificationEmail(
 
   const text = `Confirme seu email — ProOps
 
-Olá, recebemos seu cadastro no ProOps. Para ativar sua conta, confirme seu endereço de email abrindo o link abaixo no seu navegador:
+Olá, recebemos seu cadastro na ProOps. Para ativar sua conta, confirme seu endereço de email abrindo o link abaixo no seu navegador:
 
 ${data.verifyUrl}
 
@@ -47,7 +47,7 @@ gestao@proops.com.br
             <td style="padding:40px;">
               <h2 style="margin:0 0 16px;font-size:22px;color:#18181b;font-weight:700;">Confirme seu email</h2>
               <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6;">
-                Olá, recebemos seu cadastro no ProOps. Para ativar sua conta, confirme seu endereço de email.
+                Olá, recebemos seu cadastro na ProOps. Para ativar sua conta, confirme seu endereço de email.
               </p>
               <p style="margin:0 0 32px;font-size:15px;color:#3f3f46;line-height:1.6;">
                 Clique no botão abaixo. O link expira em 24 horas.

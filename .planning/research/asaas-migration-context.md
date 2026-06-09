@@ -19,17 +19,21 @@ O ProOps é um ERP multi-tenant SaaS. Tenants conectam uma conta de pagamento pa
 ## 2. Como o Asaas funciona (modelo de integração)
 
 ### Autenticação
+
 Cada subconta Asaas tem uma API key própria (`$access_token` no header).
+
 ```
 Header: access_token: $aact_XXXXXX  (sandbox)
 Header: access_token: $PROD_KEY     (produção)
 ```
 
 ### Base URL
+
 - Sandbox: `https://sandbox.asaas.com/api/v3`
 - Produção: `https://api.asaas.com/api/v3`
 
 ### Criar cobrança PIX
+
 ```http
 POST /payments
 {
@@ -41,9 +45,11 @@ POST /payments
   "externalReference": "{transactionId}:{attemptId}"  // para idempotência
 }
 ```
+
 Resposta inclui `pixQrCode` (copia-cola) e `pixQrCodeImage` (base64 do QR).
 
 ### Criar cobrança Boleto
+
 ```http
 POST /payments
 {
@@ -56,9 +62,11 @@ POST /payments
   "postalService": false
 }
 ```
+
 Resposta inclui `bankSlipUrl` (PDF do boleto) e `invoiceUrl`.
 
 ### Criar/buscar cliente no Asaas
+
 ```http
 POST /customers
 {
@@ -67,11 +75,14 @@ POST /customers
   "email": "joao@email.com"
 }
 ```
+
 Para boleto: CPF/CNPJ obrigatório. Para PIX: apenas nome + email.
 
 ### Webhook Asaas → ProOps
+
 Asaas envia POST para URL configurada por subconta quando status muda.
 Payload relevante:
+
 ```json
 {
   "event": "PAYMENT_RECEIVED",
@@ -79,22 +90,25 @@ Payload relevante:
     "id": "pay_XXXXXX",
     "externalReference": "txId:attemptId",
     "status": "RECEIVED",
-    "value": 150.00,
-    "netValue": 148.50,
+    "value": 150.0,
+    "netValue": 148.5,
     "billingType": "PIX"
   }
 }
 ```
+
 Eventos relevantes: `PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`, `PAYMENT_OVERDUE`, `PAYMENT_DELETED`.
 
 Autenticidade: Asaas envia header `asaas-access-token` com a API key da subconta. Valide que a API key no header corresponde à subconta do tenant.
 
 ### Consultar status de cobrança
+
 ```http
 GET /payments/{asaasPaymentId}
 ```
 
 ### Polling de confirmação PIX
+
 Para o QR Code PIX, o cliente paga e o Asaas notifica via webhook. Para polling no frontend (similar ao que existe para MP), consultar `GET /payments/{id}` a cada N segundos.
 
 ---
@@ -102,6 +116,7 @@ Para o QR Code PIX, o cliente paga e o Asaas notifica via webhook. Para polling 
 ## 3. Arquitetura atual (o que existe para MP)
 
 ### Stack
+
 - Backend: `apps/functions/` — Firebase Cloud Functions V2 (Express), Node 22, TypeScript
 - Frontend: `apps/web/` — Next.js App Router
 
@@ -125,23 +140,24 @@ Webhook marca transação como paga no Firestore
 
 ### Backend — MODIFICAR
 
-| Arquivo | Tamanho aprox. | O que muda |
-|---|---|---|
-| `apps/functions/src/api/services/transaction-payment.service.ts` | ~1350 linhas | Arquivo principal. Substituir lógica PIX/boleto MP por Asaas. Remover `processCardPayment`. Remover `MercadoPagoApiError`. Renomear para `payment.service.ts` ou manter nome. |
-| `apps/functions/src/api/services/mercadopago.service.ts` | ~340 linhas | Substituir por `asaas.service.ts` — CRUD da conexão Asaas por tenant (salvar API key, validar, desconectar) |
-| `apps/functions/src/api/controllers/payment-public.controller.ts` | ~300 linhas | Remover `processCardPayment`. Manter `createPayment` e `getMpConfig` (renomear para `getPaymentConfig`). Atualizar mapeamento de erros. |
-| `apps/functions/src/lib/mercadopago-client.ts` | ~196 linhas | **DELETAR** — era só para OAuth MP |
-| `apps/functions/src/mercadopagoWebhook.ts` | ~568 linhas | **SUBSTITUIR** por `asaasWebhook.ts` — handler do webhook Asaas |
+| Arquivo                                                           | Tamanho aprox. | O que muda                                                                                                                                                                    |
+| ----------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/functions/src/api/services/transaction-payment.service.ts`  | ~1350 linhas   | Arquivo principal. Substituir lógica PIX/boleto MP por Asaas. Remover `processCardPayment`. Remover `MercadoPagoApiError`. Renomear para `payment.service.ts` ou manter nome. |
+| `apps/functions/src/api/services/mercadopago.service.ts`          | ~340 linhas    | Substituir por `asaas.service.ts` — CRUD da conexão Asaas por tenant (salvar API key, validar, desconectar)                                                                   |
+| `apps/functions/src/api/controllers/payment-public.controller.ts` | ~300 linhas    | Remover `processCardPayment`. Manter `createPayment` e `getMpConfig` (renomear para `getPaymentConfig`). Atualizar mapeamento de erros.                                       |
+| `apps/functions/src/lib/mercadopago-client.ts`                    | ~196 linhas    | **DELETAR** — era só para OAuth MP                                                                                                                                            |
+| `apps/functions/src/mercadopagoWebhook.ts`                        | ~568 linhas    | **SUBSTITUIR** por `asaasWebhook.ts` — handler do webhook Asaas                                                                                                               |
 
 ### Backend — CRIAR
 
-| Arquivo | Propósito |
-|---|---|
-| `apps/functions/src/api/services/asaas.service.ts` | Gerencia conexão Asaas por tenant: salvar API key, testar conexão, desconectar |
-| `apps/functions/src/api/controllers/asaas.controller.ts` | Endpoints para o tenant conectar/desconectar Asaas (settings) |
-| `apps/functions/src/asaasWebhook.ts` | Cloud Function HTTP separada para receber webhooks do Asaas |
+| Arquivo                                                  | Propósito                                                                      |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `apps/functions/src/api/services/asaas.service.ts`       | Gerencia conexão Asaas por tenant: salvar API key, testar conexão, desconectar |
+| `apps/functions/src/api/controllers/asaas.controller.ts` | Endpoints para o tenant conectar/desconectar Asaas (settings)                  |
+| `apps/functions/src/asaasWebhook.ts`                     | Cloud Function HTTP separada para receber webhooks do Asaas                    |
 
 ### Backend — VERIFICAR (rotas)
+
 ```
 apps/functions/src/api/routes/
   mercadopago.routes.ts   → renomear para asaas.routes.ts ou payments.routes.ts
@@ -150,23 +166,23 @@ apps/functions/src/api/routes/
 
 ### Frontend — MODIFICAR
 
-| Arquivo | O que muda |
-|---|---|
-| `apps/web/src/app/share/transaction/[token]/_components/payment-modal.tsx` | Remover aba Cartão. Remover toda lógica MP-específica. Adaptar PIX/boleto para Asaas (sem mudança de UX para o cliente final — QR Code e boleto ficam iguais visualmente). |
-| `apps/web/src/app/share/transaction/[token]/_components/card-payment-brick.tsx` | **DELETAR** — cartão fora do escopo |
-| `apps/web/src/services/mercadopago-service.ts` | Substituir por `payment-service.ts` — tipos e chamadas para os novos endpoints |
-| `apps/web/src/app/settings/` (página de configurações do tenant) | Substituir seção "Conectar MercadoPago" por "Conectar Asaas" |
+| Arquivo                                                                         | O que muda                                                                                                                                                                 |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/src/app/share/transaction/[token]/_components/payment-modal.tsx`      | Remover aba Cartão. Remover toda lógica MP-específica. Adaptar PIX/boleto para Asaas (sem mudança de UX para o cliente final — QR Code e boleto ficam iguais visualmente). |
+| `apps/web/src/app/share/transaction/[token]/_components/card-payment-brick.tsx` | **DELETAR** — cartão fora do escopo                                                                                                                                        |
+| `apps/web/src/services/mercadopago-service.ts`                                  | Substituir por `payment-service.ts` — tipos e chamadas para os novos endpoints                                                                                             |
+| `apps/web/src/app/settings/` (página de configurações do tenant)                | Substituir seção "Conectar MercadoPago" por "Conectar Asaas"                                                                                                               |
 
 ### Frontend — CRIAR
 
-| Arquivo | Propósito |
-|---|---|
+| Arquivo                                                   | Propósito                                                   |
+| --------------------------------------------------------- | ----------------------------------------------------------- |
 | `apps/web/src/app/settings/_components/asaas-connect.tsx` | Componente para o tenant inserir sua API key Asaas e salvar |
 
 ### Entry point
 
-| Arquivo | O que muda |
-|---|---|
+| Arquivo                       | O que muda                                                                                                            |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | `apps/functions/src/index.ts` | Substituir export `stripeWebhook` → `mercadopagoWebhook` por `asaasWebhook`. Remover exports relacionados a MP OAuth. |
 
 ---
@@ -174,6 +190,7 @@ apps/functions/src/api/routes/
 ## 5. Modelo de dados Firestore
 
 ### Atual (MP)
+
 ```typescript
 // tenants/{tenantId}
 {
@@ -192,6 +209,7 @@ apps/functions/src/api/routes/
 ```
 
 ### Novo (Asaas)
+
 ```typescript
 // tenants/{tenantId}
 {
@@ -206,9 +224,10 @@ apps/functions/src/api/routes/
 }
 ```
 
-**Importante:** a API key da subconta Asaas é o único segredo necessário. Não há OAuth, não há refresh token — é só uma key que o tenant copia do painel Asaas e cola no ProOps.
+**Importante:** a API key da subconta Asaas é o único segredo necessário. Não há OAuth, não há refresh token — é só uma key que o tenant copia do painel Asaas e cola na ProOps.
 
 ### Coleção de tentativas de pagamento (manter estrutura)
+
 ```typescript
 // payment_attempts/{attemptId}
 {
@@ -226,6 +245,7 @@ apps/functions/src/api/routes/
 ```
 
 ### Idempotência do webhook
+
 ```typescript
 // webhookEvents/{asaasWebhookId}
 // Mesma estrutura da Phase 23 do MP — usar mesmo padrão
@@ -242,6 +262,7 @@ apps/functions/src/api/routes/
 ## 6. Variáveis de ambiente
 
 ### Remover do `.env.erp-softcode` e `.env.erp-softcode-prod`
+
 ```
 MERCADOPAGO_APP_ID
 MERCADOPAGO_CLIENT_SECRET
@@ -255,6 +276,7 @@ MERCADOPAGO_SANDBOX_BUYER_EMAIL
 ```
 
 ### Adicionar
+
 ```bash
 # Asaas
 ASAAS_WEBHOOK_SECRET=<string aleatória para validar webhooks>
@@ -269,6 +291,7 @@ ASAAS_SANDBOX_API_KEY=
 ## 7. Endpoints a criar/modificar
 
 ### Endpoints públicos (sem auth — usados no share link)
+
 ```
 GET  /v1/share/:token/payment-config   → retorna { gateway: "asaas", environment }
 POST /v1/share/:token/pay              → cria PIX ou boleto
@@ -276,6 +299,7 @@ GET  /v1/share/:token/payment-status/:paymentId  → polling de status
 ```
 
 ### Endpoints autenticados (tenant — settings)
+
 ```
 POST /v1/asaas/connect      → salva API key do Asaas, valida via GET /myAccount
 GET  /v1/asaas/status       → retorna status de conexão (sem expor API key)
@@ -283,6 +307,7 @@ DELETE /v1/asaas/disconnect → remove dados Asaas do tenant
 ```
 
 ### Remover
+
 ```
 GET  /v1/share/:token/mp-config       → substituído por /payment-config
 POST /v1/share/:token/card            → cartão fora do escopo
@@ -315,6 +340,7 @@ DELETE /v1/mercadopago/disconnect     → substituir por /v1/asaas/disconnect
 ```
 
 **Atenção:** busca de tenant por `asaas.apiKey` requer índice Firestore:
+
 ```json
 {
   "collectionGroup": "tenants",
@@ -342,12 +368,14 @@ DELETE /v1/mercadopago/disconnect     → substituir por /v1/asaas/disconnect
 ## 10. UX do frontend (payment-modal.tsx)
 
 Para o cliente final, a UX muda minimamente:
+
 - Aba "Cartão" removida (apenas PIX e Boleto)
 - QR Code PIX: igual ao atual (base64 da imagem + copia-cola)
 - Boleto: link para PDF do boleto (bankSlipUrl do Asaas) + linha digitável
 - Sandbox alert: substitui menção a MP por mensagem genérica de teste
 
 Para o tenant (settings):
+
 - Remover seção "Conectar MercadoPago"
 - Adicionar seção "Conectar Asaas" com campo para API key + botão "Conectar"
 - Instrução: "Acesse asaas.com → Minha Conta → Integração → API key"
@@ -357,10 +385,11 @@ Para o tenant (settings):
 ## 11. Onboarding do tenant no Asaas
 
 O tenant precisa:
+
 1. Criar conta em asaas.com (ou sandbox.asaas.com para teste)
 2. Completar KYC (Asaas faz — ProOps não precisa se envolver)
 3. Ir em: Minha Conta → Integrações → Gerar API key
-4. Colar a API key no ProOps (settings → Pagamentos Online)
+4. Colar a API key na ProOps (settings → Pagamentos Online)
 
 O ProOps valida a key chamando `GET /myAccount` na API do Asaas antes de salvar. Se a key for inválida, retorna erro com instruções.
 
@@ -390,14 +419,14 @@ Mocks necessários: `axios` (chamadas à API Asaas), `../../init` (db), `../../l
 7. **Frontend: settings** — remover MP connect, adicionar Asaas connect
 8. **Frontend: payment-modal** — remover aba cartão, adaptar PIX/boleto para Asaas
 9. **Remover arquivos MP** — `mercadopago-client.ts`, `mercadopago.service.ts`, `mercadopagoWebhook.ts`, `card-payment-brick.tsx`
-10. **Limpar env vars** — remover MERCADOPAGO_* do `.env.example` e `.env.erp-softcode`
+10. **Limpar env vars** — remover MERCADOPAGO\_\* do `.env.example` e `.env.erp-softcode`
 
 ---
 
 ## 14. Itens de atenção / armadilhas
 
 - **Boleto exige CPF/CNPJ** no Asaas — se o cliente no Firestore não tiver esse dado, o endpoint de boleto deve pedir antes de criar
-- **Webhook por subconta** — no Asaas, a URL de webhook é configurada por subconta no painel do Asaas. O tenant precisa configurar a URL do ProOps no painel Asaas após conectar. Considerar automatizar via API: `POST /webhooks` na API do Asaas durante o connect
+- **Webhook por subconta** — no Asaas, a URL de webhook é configurada por subconta no painel do Asaas. O tenant precisa configurar a URL da ProOps no painel Asaas após conectar. Considerar automatizar via API: `POST /webhooks` na API do Asaas durante o connect
 - **Índice Firestore** para busca por `asaas.apiKey` deve ser criado antes do webhook funcionar em produção
 - **Variável `gateway`** em `payment_attempts` — ao criar, salvar `gateway: "asaas"` para diferenciar de pagamentos MP antigos (que ficam históricos)
 - **Transações pagas via MP** não devem ser afetadas — o webhook Asaas só toca em transações com `payment_attempts` criados pelo novo serviço

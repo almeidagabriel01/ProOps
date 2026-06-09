@@ -79,7 +79,7 @@ export function LegalPage({
           <div className="mt-8 rounded-[28px] border border-black/10 bg-white shadow-sm dark:border-white/10 dark:bg-neutral-950">
             <div className="border-b border-black/10 px-8 py-5 dark:border-white/10">
               <p className="text-sm text-black/60 dark:text-white/60">
-                Este documento se aplica ao uso do ProOps em{" "}
+                Este documento se aplica ao uso da ProOps em{" "}
                 <a
                   href="https://proops.com.br"
                   target="_blank"

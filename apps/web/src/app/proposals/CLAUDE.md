@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Módulo de propostas comerciais do ProOps. Permite criar, editar, visualizar, duplicar, compartilhar e baixar propostas em PDF. Usado por membros da equipe com permissão `proposals` (visualizar/criar/editar/excluir).
+Módulo de propostas comerciais da ProOps. Permite criar, editar, visualizar, duplicar, compartilhar e baixar propostas em PDF. Usado por membros da equipe com permissão `proposals` (visualizar/criar/editar/excluir).
 
 O fluxo completo é: criar proposta em wizard multi-etapas → salvar → visualizar preview → personalizar PDF → compartilhar link público ou baixar PDF → ao aprovar, gera transações financeiras no módulo financeiro.
 
@@ -10,54 +10,54 @@ O fluxo completo é: criar proposta em wizard multi-etapas → salvar → visual
 
 ## Estrutura de Rotas
 
-| Rota | Arquivo | O que faz |
-|------|---------|-----------|
-| `/proposals` | `page.tsx` | Listagem paginada de propostas com busca, filtro, ações inline |
-| `/proposals/new` | `new/page.tsx` | Cria nova proposta — renderiza `SimpleProposalForm` sem `proposalId` |
-| `/proposals/[id]` | `[id]/page.tsx` | Edita proposta existente — renderiza `SimpleProposalForm` com `proposalId` |
-| `/proposals/[id]/view` | `[id]/view/page.tsx` | Preview da proposta renderizada como PDF (componente React) |
-| `/proposals/[id]/edit-pdf` | `[id]/edit-pdf/page.tsx` | Editor visual de PDF: tema, capa, seções, fontes (Pro+) |
-| `/share/[token]` | `src/app/share/[token]/page.tsx` | Visualização pública sem autenticação via token |
+| Rota                       | Arquivo                          | O que faz                                                                  |
+| -------------------------- | -------------------------------- | -------------------------------------------------------------------------- |
+| `/proposals`               | `page.tsx`                       | Listagem paginada de propostas com busca, filtro, ações inline             |
+| `/proposals/new`           | `new/page.tsx`                   | Cria nova proposta — renderiza `SimpleProposalForm` sem `proposalId`       |
+| `/proposals/[id]`          | `[id]/page.tsx`                  | Edita proposta existente — renderiza `SimpleProposalForm` com `proposalId` |
+| `/proposals/[id]/view`     | `[id]/view/page.tsx`             | Preview da proposta renderizada como PDF (componente React)                |
+| `/proposals/[id]/edit-pdf` | `[id]/edit-pdf/page.tsx`         | Editor visual de PDF: tema, capa, seções, fontes (Pro+)                    |
+| `/share/[token]`           | `src/app/share/[token]/page.tsx` | Visualização pública sem autenticação via token                            |
 
 ---
 
 ## Tabela de Arquivos Chave
 
-| Arquivo | Responsabilidade |
-|---------|-----------------|
-| `src/app/proposals/page.tsx` | Listagem com paginação infinita, busca, status kanban, download/share/duplicar/excluir |
-| `src/app/proposals/new/page.tsx` | Guard de permissão + renderiza `SimpleProposalForm` |
-| `src/app/proposals/[id]/page.tsx` | Guard de permissão/view + renderiza `SimpleProposalForm` |
-| `src/app/proposals/[id]/view/page.tsx` | Preview com sincronização de dados frescos de clients/products/sistemas |
-| `src/app/proposals/[id]/edit-pdf/page.tsx` | Layout do editor de PDF (painel esquerdo + preview ao vivo) |
-| `src/app/proposals/_components/proposals-skeleton.tsx` | Skeleton full-page para carregamento inicial |
-| `src/app/proposals/_components/proposals-table-skeleton.tsx` | Skeleton da tabela (carregamento de mais páginas) |
-| `src/app/proposals/_components/proposals-empty-skeleton.tsx` | Skeleton do estado vazio |
-| `src/components/features/proposal/simple-proposal-form.tsx` | Wizard multi-etapas: componente principal de criação/edição |
-| `src/components/features/proposal/proposal-form.tsx` | Form legado (ainda existente, não é o principal) |
-| `src/components/features/proposal/edit-pdf/use-edit-pdf-page.ts` | Hook completo do editor de PDF: estado + save + geração |
-| `src/components/features/proposal/pdf/use-pdf-generator.ts` | Hook centralizado para download de PDF via backend Playwright |
-| `src/components/pdf/proposal-pdf-viewer.tsx` | Renderizador React do PDF (usado em view e edit-pdf) |
-| `src/components/pdf/templates/ProposalPdfTemplate.tsx` | Template React do PDF com suporte a themes, seções, capa |
-| `src/hooks/proposal/useProposalForm.ts` | Entry-point do hook de formulário (delega para core) |
-| `src/hooks/proposal/useProposalForm.core.ts` | Core: auto-save de rascunho, load de proposta existente, orquestração |
-| `src/hooks/proposal/useProposalForm.types.ts` | Interfaces `UseProposalFormProps` e `UseProposalFormReturn` |
-| `src/hooks/proposal/useProposalForm.helpers.ts` | `createInitialProposalFormData()`, `buildFullFormSnapshot()` para dirty detection |
-| `src/hooks/proposal/useProposalForm.loading-effects.ts` | Efeito que carrega proposta existente, sync de master data |
-| `src/hooks/proposal/useProposalForm.product-submit.ts` | Handlers de produto + `handleSubmit` principal |
-| `src/hooks/proposal/useProposalForm.system-dirty.ts` | `addSistema/removeSistema/updateSistema`, `isDirty`, `resetToInitial` |
-| `src/hooks/proposal/useMasterDataTransaction.ts` | Operações otimistas em Ambientes e Sistemas com rollback |
-| `src/hooks/proposal/submit-helpers.ts` | `sanitizeProducts()`, `transformSistemas()`, `prepareCreatePayload()`, `updateProposal()` |
-| `src/hooks/proposal/product-handlers.ts` | `createToggleProduct()`, `createUpdateProductQuantity()`, `getExtraProducts()` |
-| `src/services/proposal-service.ts` | CRUD de propostas no Firestore + event bus + paginação |
-| `src/services/proposal-template-service.ts` | CRUD de templates de proposta via backend |
-| `src/services/shared-proposal-service.ts` | Geração de share link + busca pública via token |
-| `src/services/pdf/download-proposal-pdf.ts` | Download autenticado via `POST /v1/proposals/{id}/pdf` |
-| `src/services/pdf/download-shared-proposal-pdf.ts` | Download público via `GET /v1/share/{token}/pdf` |
-| `src/lib/niches/config.ts` | `getNicheConfig()` — determina `proposalWorkflow` por nicho |
-| `src/types/proposal.ts` | Interfaces `Proposal`, `ProposalProduct`, `ProposalSystemInstance`, `ProposalAmbienteInstance`, `ProposalAttachment` |
-| `src/types/shared-proposal.ts` | `SharedProposal`, `ShareLinkResponse` |
-| `src/types/pdf-display-settings.ts` | `PdfDisplaySettings` — flags de visibilidade no PDF |
+| Arquivo                                                          | Responsabilidade                                                                                                     |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `src/app/proposals/page.tsx`                                     | Listagem com paginação infinita, busca, status kanban, download/share/duplicar/excluir                               |
+| `src/app/proposals/new/page.tsx`                                 | Guard de permissão + renderiza `SimpleProposalForm`                                                                  |
+| `src/app/proposals/[id]/page.tsx`                                | Guard de permissão/view + renderiza `SimpleProposalForm`                                                             |
+| `src/app/proposals/[id]/view/page.tsx`                           | Preview com sincronização de dados frescos de clients/products/sistemas                                              |
+| `src/app/proposals/[id]/edit-pdf/page.tsx`                       | Layout do editor de PDF (painel esquerdo + preview ao vivo)                                                          |
+| `src/app/proposals/_components/proposals-skeleton.tsx`           | Skeleton full-page para carregamento inicial                                                                         |
+| `src/app/proposals/_components/proposals-table-skeleton.tsx`     | Skeleton da tabela (carregamento de mais páginas)                                                                    |
+| `src/app/proposals/_components/proposals-empty-skeleton.tsx`     | Skeleton do estado vazio                                                                                             |
+| `src/components/features/proposal/simple-proposal-form.tsx`      | Wizard multi-etapas: componente principal de criação/edição                                                          |
+| `src/components/features/proposal/proposal-form.tsx`             | Form legado (ainda existente, não é o principal)                                                                     |
+| `src/components/features/proposal/edit-pdf/use-edit-pdf-page.ts` | Hook completo do editor de PDF: estado + save + geração                                                              |
+| `src/components/features/proposal/pdf/use-pdf-generator.ts`      | Hook centralizado para download de PDF via backend Playwright                                                        |
+| `src/components/pdf/proposal-pdf-viewer.tsx`                     | Renderizador React do PDF (usado em view e edit-pdf)                                                                 |
+| `src/components/pdf/templates/ProposalPdfTemplate.tsx`           | Template React do PDF com suporte a themes, seções, capa                                                             |
+| `src/hooks/proposal/useProposalForm.ts`                          | Entry-point do hook de formulário (delega para core)                                                                 |
+| `src/hooks/proposal/useProposalForm.core.ts`                     | Core: auto-save de rascunho, load de proposta existente, orquestração                                                |
+| `src/hooks/proposal/useProposalForm.types.ts`                    | Interfaces `UseProposalFormProps` e `UseProposalFormReturn`                                                          |
+| `src/hooks/proposal/useProposalForm.helpers.ts`                  | `createInitialProposalFormData()`, `buildFullFormSnapshot()` para dirty detection                                    |
+| `src/hooks/proposal/useProposalForm.loading-effects.ts`          | Efeito que carrega proposta existente, sync de master data                                                           |
+| `src/hooks/proposal/useProposalForm.product-submit.ts`           | Handlers de produto + `handleSubmit` principal                                                                       |
+| `src/hooks/proposal/useProposalForm.system-dirty.ts`             | `addSistema/removeSistema/updateSistema`, `isDirty`, `resetToInitial`                                                |
+| `src/hooks/proposal/useMasterDataTransaction.ts`                 | Operações otimistas em Ambientes e Sistemas com rollback                                                             |
+| `src/hooks/proposal/submit-helpers.ts`                           | `sanitizeProducts()`, `transformSistemas()`, `prepareCreatePayload()`, `updateProposal()`                            |
+| `src/hooks/proposal/product-handlers.ts`                         | `createToggleProduct()`, `createUpdateProductQuantity()`, `getExtraProducts()`                                       |
+| `src/services/proposal-service.ts`                               | CRUD de propostas no Firestore + event bus + paginação                                                               |
+| `src/services/proposal-template-service.ts`                      | CRUD de templates de proposta via backend                                                                            |
+| `src/services/shared-proposal-service.ts`                        | Geração de share link + busca pública via token                                                                      |
+| `src/services/pdf/download-proposal-pdf.ts`                      | Download autenticado via `POST /v1/proposals/{id}/pdf`                                                               |
+| `src/services/pdf/download-shared-proposal-pdf.ts`               | Download público via `GET /v1/share/{token}/pdf`                                                                     |
+| `src/lib/niches/config.ts`                                       | `getNicheConfig()` — determina `proposalWorkflow` por nicho                                                          |
+| `src/types/proposal.ts`                                          | Interfaces `Proposal`, `ProposalProduct`, `ProposalSystemInstance`, `ProposalAmbienteInstance`, `ProposalAttachment` |
+| `src/types/shared-proposal.ts`                                   | `SharedProposal`, `ShareLinkResponse`                                                                                |
+| `src/types/pdf-display-settings.ts`                              | `PdfDisplaySettings` — flags de visibilidade no PDF                                                                  |
 
 ---
 
@@ -68,24 +68,24 @@ O fluxo completo é: criar proposta em wizard multi-etapas → salvar → visual
 ```typescript
 interface Proposal {
   id: string;
-  tenantId: string;          // Isolamento multi-tenant
+  tenantId: string; // Isolamento multi-tenant
   title: string;
-  status: ProposalStatus;    // Ver seção de status abaixo
-  clientId: string;          // ID no Firestore (coleção clients)
-  clientName: string;        // Snapshot desnormalizado
+  status: ProposalStatus; // Ver seção de status abaixo
+  clientId: string; // ID no Firestore (coleção clients)
+  clientName: string; // Snapshot desnormalizado
   clientEmail?: string;
   clientPhone?: string;
   clientAddress?: string;
-  validUntil?: string;       // YYYY-MM-DD
+  validUntil?: string; // YYYY-MM-DD
 
   products: ProposalProduct[];
   sistemas: ProposalSystemInstance[];
-  sections: Record<string, unknown>[];  // Legado — seções customizadas do PDF
+  sections: Record<string, unknown>[]; // Legado — seções customizadas do PDF
 
-  discount?: number;           // Percentual (ex: 10 = 10%)
-  totalValue?: number;         // Calculado: subtotal - desconto + extraExpense
+  discount?: number; // Percentual (ex: 10 = 10%)
+  totalValue?: number; // Calculado: subtotal - desconto + extraExpense
   closedValue?: number | null; // Valor negociado final (sobrescreve totalValue ao aprovar)
-  extraExpense?: number;       // Despesa extra adicionada ao total
+  extraExpense?: number; // Despesa extra adicionada ao total
 
   customNotes?: string;
   pdfSettings?: PdfDisplaySettings & ProposalPdfCustomSettings; // Configurações visuais do PDF
@@ -95,27 +95,27 @@ interface Proposal {
   downPaymentType?: "value" | "percentage";
   downPaymentPercentage?: number;
   downPaymentValue?: number;
-  downPaymentWallet?: string;       // ID da carteira (uso interno — não aparece no PDF)
-  downPaymentDueDate?: string;      // YYYY-MM-DD
-  downPaymentMethod?: string;       // Exibido no PDF
+  downPaymentWallet?: string; // ID da carteira (uso interno — não aparece no PDF)
+  downPaymentDueDate?: string; // YYYY-MM-DD
+  downPaymentMethod?: string; // Exibido no PDF
 
   installmentsEnabled?: boolean;
   installmentsCount?: number;
   installmentValue?: number;
-  installmentsWallet?: string;      // ID da carteira (uso interno — não aparece no PDF)
-  firstInstallmentDate?: string;    // YYYY-MM-DD
+  installmentsWallet?: string; // ID da carteira (uso interno — não aparece no PDF)
+  firstInstallmentDate?: string; // YYYY-MM-DD
   installmentsPaymentMethod?: string; // Exibido no PDF
 
-  paymentMethod?: string;    // Método padrão exibido no PDF
+  paymentMethod?: string; // Método padrão exibido no PDF
 
   attachments?: ProposalAttachment[];
   pdf?: ProposalPdfMetadata; // Metadados do último PDF gerado
 
   // Campos desnormalizados para ordenação no Firestore
-  primarySystem?: string;      // Nome do primeiro sistema (concatenado)
+  primarySystem?: string; // Nome do primeiro sistema (concatenado)
   primaryEnvironment?: string; // Nome do primeiro ambiente
 
-  createdAt: string;  // ISO
+  createdAt: string; // ISO
   updatedAt: string;
 }
 ```
@@ -124,11 +124,11 @@ interface Proposal {
 
 ```typescript
 type ProposalStatus =
-  | "draft"        // Rascunho — auto-salvo, não pode ser compartilhado ou ter PDF gerado
-  | "in_progress"  // Em progresso
-  | "sent"         // Enviada
-  | "approved"     // Aprovada — dispara criação de transações financeiras no backend
-  | "rejected"     // Rejeitada
+  | "draft" // Rascunho — auto-salvo, não pode ser compartilhado ou ter PDF gerado
+  | "in_progress" // Em progresso
+  | "sent" // Enviada
+  | "approved" // Aprovada — dispara criação de transações financeiras no backend
+  | "rejected" // Rejeitada
   | (string & {}); // ID de coluna Kanban customizada
 ```
 
@@ -138,16 +138,16 @@ type ProposalStatus =
 
 ```typescript
 interface ProposalProduct {
-  lineItemId?: string;    // UUID único por linha — gerado em ensureProposalProductLineItemId()
-  productId: string;      // ID no catálogo
+  lineItemId?: string; // UUID único por linha — gerado em ensureProposalProductLineItemId()
+  productId: string; // ID no catálogo
   itemType?: "product" | "service";
   productName: string;
   quantity: number;
-  unitPrice: number;      // Preço base/custo
-  markup?: number;        // Percentual de markup (apenas para products, não services)
+  unitPrice: number; // Preço base/custo
+  markup?: number; // Percentual de markup (apenas para products, não services)
   priceManuallyEdited?: boolean;
   pricingDetails?: ProposalProductPricingDetails; // Detalhes de medição/precificação
-  total: number;          // quantity * unitPrice * (1 + markup/100) para produtos; quantity * unitPrice para serviços
+  total: number; // quantity * unitPrice * (1 + markup/100) para produtos; quantity * unitPrice para serviços
   productImage?: string;
   productImages?: string[];
   productDescription?: string;
@@ -155,11 +155,11 @@ interface ProposalProduct {
   category?: string;
 
   // Vínculo com sistema/ambiente (nicho automacao_residencial)
-  ambienteInstanceId?: string;  // Formato: "{sistemaId}-{ambienteId}" — campo ATUAL
+  ambienteInstanceId?: string; // Formato: "{sistemaId}-{ambienteId}" — campo ATUAL
   /** @deprecated Use ambienteInstanceId */
-  systemInstanceId?: string;    // Alias mantido para migração
+  systemInstanceId?: string; // Alias mantido para migração
 
-  isExtra?: boolean;    // Produto adicionado manualmente (fora do template do sistema)
+  isExtra?: boolean; // Produto adicionado manualmente (fora do template do sistema)
   status?: "active" | "inactive";
 }
 ```
@@ -182,7 +182,7 @@ interface ProposalAmbienteInstance {
   ambienteId: string;
   ambienteName: string;
   description?: string;
-  productIds: string[];  // IDs dos produtos associados a este ambiente
+  productIds: string[]; // IDs dos produtos associados a este ambiente
 }
 ```
 
@@ -199,7 +199,7 @@ type ProposalTemplate = {
   paymentTerms: string;
   warrantyText: string;
   footerText: string;
-  coverImage?: string;   // Base64
+  coverImage?: string; // Base64
   theme: "modern" | "classic" | "minimal" | "tech" | "elegant" | "bold";
   primaryColor: string;
   fontFamily: string;
@@ -213,7 +213,7 @@ type ProposalTemplate = {
 interface PdfDisplaySettings {
   showProductImages: boolean;
   showProductDescriptions: boolean;
-  showProductPrices: boolean;       // Default: false
+  showProductPrices: boolean; // Default: false
   showProductMeasurements: boolean;
   showProductQuantities: boolean;
   showSubtotals: boolean;
@@ -232,10 +232,10 @@ interface SharedProposal {
   id: string;
   proposalId: string;
   tenantId: string;
-  token: string;         // Identificador único do link
+  token: string; // Identificador único do link
   createdAt: string;
   createdBy: string;
-  expiresAt: string;     // Link expira após prazo configurado no backend
+  expiresAt: string; // Link expira após prazo configurado no backend
   viewedAt?: string;
   viewerInfo?: ViewerInfo[];
 }
@@ -254,6 +254,7 @@ approved → (não pode voltar para draft se houver transações pagas — erro 
 ```
 
 A lógica de status no submit (`handleSubmit` em `useProposalForm.product-submit.ts`):
+
 - Se `finalize: false` e proposta existe e está em `draft` → mantém `draft`
 - Se proposta tem título + cliente + produtos → mantém status atual (ou promove `draft` para `in_progress`)
 - Se incompleta → salva como `draft`
@@ -263,6 +264,7 @@ A lógica de status no submit (`handleSubmit` em `useProposalForm.product-submit
 Implementado no `useEffect` de cleanup em `useProposalForm.core.ts`. Só ocorre para **novas** propostas (sem `proposalId`). Nunca ocorre para edições de propostas existentes.
 
 Condições para o auto-save disparar:
+
 1. `proposalId` ausente (nova proposta)
 2. `hasSaved === false` (usuário não clicou em Salvar)
 3. Há dados mínimos: `selectedClientId` ou `clientName` ou `title` ou `products`
@@ -303,6 +305,7 @@ totalValue = subtotal - discount_amount + extraExpense
 O componente principal (`src/components/features/proposal/simple-proposal-form.tsx`) usa `StepWizard` com etapas que variam por nicho:
 
 ### Nicho `automacao_residencial` (`workflow: "automation"`)
+
 1. **Contato** — dados do cliente
 2. **Soluções** — sistemas + ambientes (`SistemaSelector`)
 3. **Pagamento** — entrada e parcelas
@@ -310,6 +313,7 @@ O componente principal (`src/components/features/proposal/simple-proposal-form.t
 5. **Resumo** — `ProposalSummarySection` com botão Finalizar
 
 ### Nicho `cortinas` (`workflow: "environment"`)
+
 1. **Contato**
 2. **Ambientes** — seleção por ambiente (sem sistemas)
 3. **Pagamento**
@@ -317,6 +321,7 @@ O componente principal (`src/components/features/proposal/simple-proposal-form.t
 5. **Resumo**
 
 ### Nicho padrão (catalog, ou sem nicho)
+
 1. **Contato**
 2. **Produtos** — catálogo livre
 3. **Pagamento**
@@ -353,6 +358,7 @@ Todo PDF é gerado **server-side** via Playwright no backend (Cloud Functions). 
 ### Configurações salvas no PDF (`pdfSettings`)
 
 O campo `proposal.pdfSettings` no Firestore contém:
+
 - `PdfDisplaySettings` — flags de visibilidade (preços, descrições, etc.)
 - `ProposalPdfCustomSettings` — tema, cor, fonte, capa, seções customizadas
 
@@ -376,13 +382,14 @@ const isAutomacaoNiche = proposalWorkflow === "automation";
 const isEnvironmentProposal = proposalWorkflow === "environment";
 ```
 
-| Nicho | `workflow` | Etapa de itens | Unidade de inventário |
-|-------|-----------|---------------|----------------------|
-| `automacao_residencial` | `"automation"` | Sistemas + Ambientes via `SistemaSelector` | Unidades (`un`) |
-| `cortinas` | `"environment"` | Ambientes via seletor dedicado | Metros (`m`) |
-| padrão (sem nicho) | `"catalog"` | Catálogo livre de produtos | Unidades |
+| Nicho                   | `workflow`      | Etapa de itens                             | Unidade de inventário |
+| ----------------------- | --------------- | ------------------------------------------ | --------------------- |
+| `automacao_residencial` | `"automation"`  | Sistemas + Ambientes via `SistemaSelector` | Unidades (`un`)       |
+| `cortinas`              | `"environment"` | Ambientes via seletor dedicado             | Metros (`m`)          |
+| padrão (sem nicho)      | `"catalog"`     | Catálogo livre de produtos                 | Unidades              |
 
 O nicho também afeta:
+
 - Labels de campo no PDF (`sistemaName` vs `ambienteName`)
 - Modo da página Soluções (`automacao` vs `environment`)
 - Cálculo de `primarySystem`/`primaryEnvironment` para ordenação
@@ -423,6 +430,7 @@ O nicho também afeta:
 Orquestra os sub-hooks e retorna o contrato `UseProposalFormReturn`. Consumido exclusivamente por `SimpleProposalForm`.
 
 Sub-hooks:
+
 - `useProposalFormLoadingEffects` — carrega proposta existente + sync de master data (ambientes/sistemas)
 - `useProposalFormProductSubmit` — handlers de produtos, calculadoras, `handleSubmit`
 - `useProposalFormSystemDirty` — CRUD de sistemas na proposta, detecção de `isDirty`, `resetToInitial`
@@ -431,6 +439,7 @@ Sub-hooks:
 ### Detecção de alterações (`isDirty`)
 
 Usa snapshots JSON serializados para comparar estado atual vs. estado inicial:
+
 - `buildFullFormSnapshot()` — snapshot completo (inclui detalhes de produto)
 - `buildEssentialFormSnapshot()` — snapshot essencial (apenas IDs e quantidades)
 
@@ -449,9 +458,9 @@ Usa snapshots JSON serializados para comparar estado atual vs. estado inicial:
 `ProposalService` implementa um event bus simples:
 
 ```typescript
-ProposalService.notifySavingStarted() // → retorna função resolve()
-ProposalService.waitForSave()         // → Promise que aguarda resolve()
-ProposalService.subscribe(listener)   // → retorna unsubscribe()
+ProposalService.notifySavingStarted(); // → retorna função resolve()
+ProposalService.waitForSave(); // → Promise que aguarda resolve()
+ProposalService.subscribe(listener); // → retorna unsubscribe()
 ```
 
 Usado para sincronizar: listagem espera o save terminar antes de buscar dados atualizados.
@@ -460,16 +469,16 @@ Usado para sincronizar: listagem espera o save terminar antes de buscar dados at
 
 ## Chamadas de API
 
-| Operação | Endpoint | Autenticado |
-|----------|----------|-------------|
-| Criar proposta | `POST /v1/proposals` | Sim |
-| Atualizar proposta | `PUT /v1/proposals/{id}` | Sim |
-| Excluir proposta | `DELETE /v1/proposals/{id}` | Sim |
-| Gerar link de compartilhamento | `POST /v1/proposals/{id}/share-link` | Sim |
-| Baixar PDF (autenticado) | `GET /v1/proposals/{id}/pdf` | Sim |
-| Buscar proposta compartilhada | `GET /v1/share/{token}` | Não |
-| Baixar PDF compartilhado | `GET /v1/share/{token}/pdf` | Não |
-| CRUD de templates | `POST/PUT/DELETE /v1/aux/proposal-templates` | Sim |
+| Operação                       | Endpoint                                     | Autenticado |
+| ------------------------------ | -------------------------------------------- | ----------- |
+| Criar proposta                 | `POST /v1/proposals`                         | Sim         |
+| Atualizar proposta             | `PUT /v1/proposals/{id}`                     | Sim         |
+| Excluir proposta               | `DELETE /v1/proposals/{id}`                  | Sim         |
+| Gerar link de compartilhamento | `POST /v1/proposals/{id}/share-link`         | Sim         |
+| Baixar PDF (autenticado)       | `GET /v1/proposals/{id}/pdf`                 | Sim         |
+| Buscar proposta compartilhada  | `GET /v1/share/{token}`                      | Não         |
+| Baixar PDF compartilhado       | `GET /v1/share/{token}/pdf`                  | Não         |
+| CRUD de templates              | `POST/PUT/DELETE /v1/aux/proposal-templates` | Sim         |
 
 Leituras de listagem e detalhe são feitas **diretamente no Firestore** (client SDK), não via API. Apenas escritas e operações sensíveis passam pelo backend.
 

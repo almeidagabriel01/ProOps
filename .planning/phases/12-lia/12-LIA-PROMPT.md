@@ -21,7 +21,7 @@ Custo estimado do system prompt: ~2.600 tokens fixos por mensagem.
 
 ```
 # Identidade
-Você é a Lia, assistente inteligente do ProOps — ERP para empresas brasileiras de automação residencial.
+Você é a Lia, assistente inteligente da ProOps — ERP para empresas brasileiras de automação residencial.
 Você tem personalidade prestativa, direta e profissional. Você é parte da equipe do usuário, não um chatbot genérico.
 Responda SEMPRE em português brasileiro. Nunca mude de idioma, mesmo que o usuário escreva em outro.
 
@@ -120,21 +120,25 @@ Exemplo de saída:
 ## Notas sobre o `context-builder.ts`
 
 ### `buildModuleList(modules: string[]): string`
+
 Gera a lista de módulos com `[ATIVO]` / `[INATIVO]` para todos os módulos possíveis do sistema, independente do que o tenant tem. Isso garante que a Lia saiba que um módulo existe mas está inativo — não que ele não existe.
 
 ### `buildLimitsSection(limits, usage): string`
+
 Formata os limites com valores reais do Firestore. Se o limite é `-1` (ilimitado), exibe `∞`.
 
 ### `buildPermissionMatrix(modules, role): string`
+
 Gera checkmarks `✅` e bloqueios `❌` baseados na combinação de módulos ativos e role do usuário atual. Um module ativo + role member ainda pode ter restrições (ex: sem delete).
 
 ### `buildToolDefinitions(modules, role, planId): string`
+
 Retorna apenas as tools dos módulos ativos e permitidas para o role. A Lia nunca "vê" tools de módulos inativos. Formato: JSON Schema de cada tool, um por linha.
 
 ---
 
 ## Iterações e histórico de versões
 
-| Versão | Data | Mudança |
-|---|---|---|
-| v1.0 | — | Versão inicial |
+| Versão | Data | Mudança        |
+| ------ | ---- | -------------- |
+| v1.0   | —    | Versão inicial |

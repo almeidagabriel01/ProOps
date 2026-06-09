@@ -4,14 +4,14 @@ import { LegalPage } from "@/components/legal/legal-page";
 export const metadata: Metadata = {
   title: "Termos de Serviço | ProOps",
   description:
-    "Termos de Serviço do ProOps para uso da plataforma, módulos, integrações e funcionalidades operacionais.",
+    "Termos de Serviço da ProOps para uso da plataforma, módulos, integrações e funcionalidades operacionais.",
 };
 
 export default function TermsPage() {
   return (
     <LegalPage
       title="Termos de Serviço"
-      description="Estes Termos de Serviço regulam o acesso e o uso do ProOps por empresas, administradores e membros autorizados."
+      description="Estes Termos de Serviço regulam o acesso e o uso da ProOps por empresas, administradores e membros autorizados."
       updatedAt="19 de março de 2026"
       sections={[
         {
@@ -20,8 +20,8 @@ export default function TermsPage() {
             <>
               <p>
                 Ao acessar ou utilizar o ProOps, a empresa usuária e seus
-                usuários autorizados concordam com estes Termos de Serviço e com a
-                Política de Privacidade disponível em `proops.com.br/privacy`.
+                usuários autorizados concordam com estes Termos de Serviço e com
+                a Política de Privacidade disponível em `proops.com.br/privacy`.
               </p>
             </>
           ),
@@ -31,10 +31,10 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                O ProOps oferece uma plataforma de gestão com recursos de agenda,
-                CRM, propostas, financeiro, equipe, catálogo, automações e outras
-                rotinas operacionais disponibilizadas conforme o plano e os
-                módulos ativos da conta.
+                O ProOps oferece uma plataforma de gestão com recursos de
+                agenda, CRM, propostas, financeiro, equipe, catálogo, automações
+                e outras rotinas operacionais disponibilizadas conforme o plano
+                e os módulos ativos da conta.
               </p>
             </>
           ),
@@ -44,8 +44,8 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                A empresa é responsável pelas informações fornecidas no cadastro e
-                pela gestão dos acessos concedidos aos seus administradores e
+                A empresa é responsável pelas informações fornecidas no cadastro
+                e pela gestão dos acessos concedidos aos seus administradores e
                 membros.
               </p>
               <p>
@@ -76,14 +76,15 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                O ProOps pode disponibilizar integrações com serviços de terceiros,
-                como Google Agenda, para sincronização de dados e automação de
-                rotinas.
+                O ProOps pode disponibilizar integrações com serviços de
+                terceiros, como Google Agenda, para sincronização de dados e
+                automação de rotinas.
               </p>
               <p>
                 Ao ativar uma integração, a empresa autoriza o ProOps a utilizar
                 os acessos necessários para executar a funcionalidade escolhida,
-                dentro dos limites concedidos pelo próprio usuário administrador.
+                dentro dos limites concedidos pelo próprio usuário
+                administrador.
               </p>
               <p>
                 O uso dos serviços de terceiros também está sujeito aos termos e
@@ -97,10 +98,10 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                O ProOps busca manter a plataforma disponível e funcional, mas não
-                garante operação ininterrupta ou isenta de falhas. Melhorias,
-                correções, mudanças de interface e evoluções de produto podem ser
-                implementadas a qualquer momento.
+                O ProOps busca manter a plataforma disponível e funcional, mas
+                não garante operação ininterrupta ou isenta de falhas.
+                Melhorias, correções, mudanças de interface e evoluções de
+                produto podem ser implementadas a qualquer momento.
               </p>
             </>
           ),
@@ -149,8 +150,8 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                Dúvidas sobre estes Termos de Serviço podem ser encaminhadas para
-                `gestao@proops.com.br`.
+                Dúvidas sobre estes Termos de Serviço podem ser encaminhadas
+                para `gestao@proops.com.br`.
               </p>
             </>
           ),

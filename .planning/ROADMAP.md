@@ -202,7 +202,7 @@ Plans:
 
 ### Phase 14: Lia — Tool System
 
-**Goal**: Implementar o sistema completo de tools da Lia — definitions, schemas Zod, executor com validação dupla, e lógica de filtro de disponibilidade por planId, role e módulo. A Lia passa a executar ações reais no ProOps (criar propostas, buscar contatos, lançar transações, etc.) com confirmação obrigatória antes de qualquer delete.
+**Goal**: Implementar o sistema completo de tools da Lia — definitions, schemas Zod, executor com validação dupla, e lógica de filtro de disponibilidade por planId, role e módulo. A Lia passa a executar ações reais na ProOps (criar propostas, buscar contatos, lançar transações, etc.) com confirmação obrigatória antes de qualquer delete.
 **Depends on**: Phase 13
 **Requirements**: LIA-03
 **Success Criteria** (what must be TRUE):
@@ -233,8 +233,9 @@ Plans:
 3. User sees tool execution results in compact LiaToolResultCards that can be expanded for full details
 4. User is shown a confirmation dialog before Lia executes any delete action; cancelling leaves data unchanged
 5. Free plan tenants do not see the trigger button or panel; Pro/Enterprise tenants see a usage badge and chat history persists across sessions
-**Plans**: 10 plans
-Plans:
+   **Plans**: 10 plans
+   Plans:
+
 - [x] 15-01-PLAN.md -- SSE proxy passthrough and AI type definitions
 - [x] 15-02-PLAN.md -- Core chat hook (useAiChat) with streaming and confirmation
 - [x] 15-03-PLAN.md -- Session persistence (useLiaSession) and usage tracking (useLiaUsage)
@@ -245,7 +246,7 @@ Plans:
 - [x] 15-08-PLAN.md -- CHAT-08 free plan guard fix
 - [x] 15-09-PLAN.md -- Dashboard regression: clientName null safety
 - [x] 15-10-PLAN.md -- CHAT-08 auth loading guard bypass fix
-**UI hint**: yes
+      **UI hint**: yes
 
 ### Phase 16: Lia Segurança & Billing
 
@@ -259,8 +260,9 @@ Plans:
 3. User can view an AI usage section on the billing page showing a progress bar (messages used / limit) and the next reset date in Portuguese
 4. User sees an in-app warning when their message usage reaches 80% of the monthly limit
 5. Firestore rules enforce that `aiUsage` documents are read-only from client and `aiConversations` documents are accessible only to the owning user
-**Plans:** 4/4 plans complete
-Plans:
+   **Plans:** 4/4 plans complete
+   Plans:
+
 - [ ] 16-01-PLAN.md -- Wave 0: Install Progress component + verify AIBI-01, AIBI-03, AIBI-06
 - [x] 16-02-PLAN.md -- Backend: inactive subscription 403 check (AIBI-02)
 - [x] 16-03-PLAN.md -- Frontend: AI usage card on billing page (AIBI-04)
@@ -278,8 +280,9 @@ Plans:
 3. E2E scenario AI-08 passes: tenant at message limit sees disabled input with reset date displayed
 4. E2E scenarios AI-10 to AI-12 pass: cross-tenant data isolation holds; member role cannot execute admin actions; delete confirmation dialog appears and cancelling does not delete
 5. Seed data creates `ai-test` pro tenant with `ai-admin@test.com` (admin) and `ai-member@test.com` (member) and all modules active; Lia smoke test job runs on every CI PR
-**Plans:** 5/5 plans complete
-Plans:
+   **Plans:** 5/5 plans complete
+   Plans:
+
 - [x] 17-01-PLAN.md -- Seed infrastructure: AI tenants, page object, seed-factory, CI config (AIQA-05, AIQA-06)
 - [x] 17-02-PLAN.md -- Access control tests: AI-01 free tier, AI-02 starter badge, AI-03 pro badge (AIQA-01)
 - [x] 17-03-PLAN.md -- Plan limit tests: AI-06 429 at limit, AI-07 metadata, AI-08 disabled input (AIQA-02, AIQA-03)
@@ -294,6 +297,7 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
+
 - [x] 18-01-PLAN.md -- Backend: usage counter skipIncrement + system prompt ID-hiding rule (Bug 1 + Bug 5b)
 - [x] 18-02-PLAN.md -- Frontend: line break rendering + tool result chip redesign (Bug 3 + Bug 5a)
 - [x] 18-03-PLAN.md -- Frontend: always-mounted trigger + sessionId restoration fix (Bug 4 + Bug 2)
@@ -383,8 +387,9 @@ Plans:
 **Architecture note**: Extend `syncTenantPlanBillingSnapshot` — do NOT create a new parallel writer. Both top-level fields and nested `subscription.*` fields must be written in a single `db.runTransaction()` call.
 **Plans:** 6/6 plans complete
 Plans:
+
 - [x] 19-01-PLAN.md — Wave 0 foundation: install lru-cache@^11, define SubscriptionSnapshot types, scaffold BILL-06/07/08 test files
-- [x] 19-02-PLAN.md — Extend syncTenantPlanBillingSnapshot to write subscription.* atomically + consolidate in-file webhook handlers
+- [x] 19-02-PLAN.md — Extend syncTenantPlanBillingSnapshot to write subscription.\* atomically + consolidate in-file webhook handlers
 - [x] 19-03-PLAN.md — Consolidate external parallel writers (billing-sync.service, stripe.controller, stripeHelpers, applyScheduledPlanChanges)
 - [x] 19-04-PLAN.md — Replace billingStateCache and PLAN_CACHE Maps with bounded LRUCache (BILL-07)
 - [x] 19-05-PLAN.md — BILL-08 verification: emulator replay test asserting duplicate eventId is idempotent
@@ -405,11 +410,12 @@ Plans:
 **Note**: Phase 20 depends on Phase 19 — the canonical billing state fields (`subscription.status`, `subscription.cancelAtPeriodEnd`, `subscription.cancelAt`) must be reliably written before banners can read them correctly. STATE-03 changed from a 409-block to immediate-cancel during the discovery session — see `20-CONTEXT.md` for the locked decision.
 **Plans:** 4 plans
 Plans:
+
 - [x] 20-01-PLAN.md — Wave 0 foundation: update REQUIREMENTS.md STATE-03 wording, extend seed helper for past_due/cancelAtPeriodEnd states, create E2E spec stubs
 - [x] 20-02-PLAN.md — Backend: cancelSubscription past_due immediate-cancel branch + populate subscription.cancelAt from controller and stripeWebhook (closes Pitfalls 1+2)
 - [x] 20-03-PLAN.md — Frontend banners: BillingStateBanner component, ProtectedAppShell wiring, remove SubscriptionGuard's pre-existing past_due card (closes Pitfall 1 banner collision)
 - [x] 20-04-PLAN.md — Cancel dialog branch in MySubscriptionTab + human-verify checkpoint for the full past_due flow
-**UI hint**: yes
+      **UI hint**: yes
 
 ### Phase 21: Reactivation + Addon State Cleanup
 
@@ -425,10 +431,11 @@ Plans:
 
 **Plans**: 3 plans
 Plans:
+
 - [x] 21-01-PLAN.md — Backend: reactivateSubscription endpoint (STATE-04) + stripe-service.ts + route registration
 - [x] 21-02-PLAN.md — Frontend: wire reactivation CTA in ProtectedAppShell + fix stale "Cancelando em X" badges (ADDON-01)
 - [x] 21-03-PLAN.md — Backend: cleanupExpiredAddons() step in reconcileAddons cron (ADDON-02)
-**UI hint**: yes
+      **UI hint**: yes
 
 ### Phase 22: Login Redirect Hardening
 
@@ -444,9 +451,10 @@ Plans:
 **Note**: AUTH-05 has been moved to Out of Scope. Only the consumption of `redirect=` is removed. The `redirect_reason=` handling for the session-expired toast must be preserved.
 **Plans:** 2/2 plans complete
 Plans:
+
 - [x] 22-01-PLAN.md -- Strip redirect= consumption from useLoginForm + protected-route + page; add USER_SUPERADMIN seed
 - [x] 22-02-PLAN.md -- Rewrite login-redirect.spec.ts for LOGIN-01 hardened behavior
-**UI hint**: yes
+      **UI hint**: yes
 
 ### Phase 23: MP Webhook Hardening
 
@@ -463,6 +471,7 @@ Plans:
 **Architecture note (highest risk)**: HMAC signature uses a formatted string `id:<x>;request-id:<x>;ts:<x>` — the semicolon-separated format is required. Additionally, `merchant_order` topic events fire before `payment` topic events; the webhook must handle topic-based routing correctly and not assume payment data is available on first receipt.
 **Plans:** 2 plans
 Plans:
+
 - [x] 23-01-PLAN.md -- Entry-point hardening: HMAC manifest fix + structured entry log + webhookEvents idempotency gate (MPWH-01, MPWH-02)
 - [x] 23-02-PLAN.md -- Payment resolution: external_reference fallback + MERCADOPAGO_PLATFORM_ACCESS_TOKEN + mpGrossAmount/mpNetAmount/mpFeeAmount persistence (MPWH-03, MPWH-04)
 
@@ -488,29 +497,29 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24
 
-| Phase                             | Plans Complete | Status      | Completed  |
-| --------------------------------- | -------------- | ----------- | ---------- |
-| 1. Test Infrastructure            | 3/3            | Complete    | 2026-04-06 |
-| 2. Auth & Multi-Tenant E2E        | 4/4            | Complete    | 2026-04-29 |
-| 3. Proposals & CRM E2E            | 3/3            | Complete    | 2026-04-07 |
-| 4. Financial Module E2E           | 3/3            | Complete    | 2026-04-07 |
-| 5. Stripe & Billing E2E           | 3/3            | Complete    | 2026-04-08 |
-| 6. Performance Tests              | 2/2            | Complete    | 2026-04-08 |
-| 7. Security Tests                 | 2/2            | Complete    | 2026-04-08 |
-| 8. Contacts & Products CRUD E2E   | 2/2            | Complete    | 2026-04-09 |
-| 9. Auth Registration E2E          | 1/1            | Complete    | 2026-04-09 |
-| 10. Financial Gaps E2E            | 1/2            | In Progress | -          |
-| 11. Performance Expansion         | 0/1            | Not started | -          |
-| 12. Lia — Arquitetura & Pesquisa  | 1/1            | Complete    | 2026-04-13 |
-| 13. Lia — Backend Core            | 3/3            | Complete    | 2026-04-13 |
-| 14. Lia — Tool System             | 4/4            | Complete    | 2026-04-14 |
-| 15. Lia Frontend Chat UI          | 10/10          | Complete    | 2026-04-14 |
-| 16. Lia Segurança & Billing       | 4/4            | Complete    | 2026-04-14 |
-| 17. Lia Testes & QA               | 5/5            | Complete    | 2026-04-15 |
-| 18. fix(lia) 5 correções          | 3/3            | Complete    | 2026-04-15 |
-| 19. Single-Writer Billing Foundation | 6/6 | Complete   | 2026-05-07 |
-| 20. Subscription State Banners + Cancel Enforcement | 3/4 | In Progress | - |
-| 21. Reactivation + Addon State Cleanup | 0/TBD   | Not started | -          |
-| 22. Login Redirect Hardening      | 2/2            | Complete    | 2026-05-11 |
-| 23. MP Webhook Hardening          | 2/2            | Complete    | 2026-05-11 |
-| 24. MP Fee Configuration + Preview | 0/TBD         | Not started | -          |
+| Phase                                               | Plans Complete | Status      | Completed  |
+| --------------------------------------------------- | -------------- | ----------- | ---------- |
+| 1. Test Infrastructure                              | 3/3            | Complete    | 2026-04-06 |
+| 2. Auth & Multi-Tenant E2E                          | 4/4            | Complete    | 2026-04-29 |
+| 3. Proposals & CRM E2E                              | 3/3            | Complete    | 2026-04-07 |
+| 4. Financial Module E2E                             | 3/3            | Complete    | 2026-04-07 |
+| 5. Stripe & Billing E2E                             | 3/3            | Complete    | 2026-04-08 |
+| 6. Performance Tests                                | 2/2            | Complete    | 2026-04-08 |
+| 7. Security Tests                                   | 2/2            | Complete    | 2026-04-08 |
+| 8. Contacts & Products CRUD E2E                     | 2/2            | Complete    | 2026-04-09 |
+| 9. Auth Registration E2E                            | 1/1            | Complete    | 2026-04-09 |
+| 10. Financial Gaps E2E                              | 1/2            | In Progress | -          |
+| 11. Performance Expansion                           | 0/1            | Not started | -          |
+| 12. Lia — Arquitetura & Pesquisa                    | 1/1            | Complete    | 2026-04-13 |
+| 13. Lia — Backend Core                              | 3/3            | Complete    | 2026-04-13 |
+| 14. Lia — Tool System                               | 4/4            | Complete    | 2026-04-14 |
+| 15. Lia Frontend Chat UI                            | 10/10          | Complete    | 2026-04-14 |
+| 16. Lia Segurança & Billing                         | 4/4            | Complete    | 2026-04-14 |
+| 17. Lia Testes & QA                                 | 5/5            | Complete    | 2026-04-15 |
+| 18. fix(lia) 5 correções                            | 3/3            | Complete    | 2026-04-15 |
+| 19. Single-Writer Billing Foundation                | 6/6            | Complete    | 2026-05-07 |
+| 20. Subscription State Banners + Cancel Enforcement | 3/4            | In Progress | -          |
+| 21. Reactivation + Addon State Cleanup              | 0/TBD          | Not started | -          |
+| 22. Login Redirect Hardening                        | 2/2            | Complete    | 2026-05-11 |
+| 23. MP Webhook Hardening                            | 2/2            | Complete    | 2026-05-11 |
+| 24. MP Fee Configuration + Preview                  | 0/TBD          | Not started | -          |

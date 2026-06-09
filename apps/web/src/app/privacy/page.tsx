@@ -4,7 +4,7 @@ import { LegalPage } from "@/components/legal/legal-page";
 export const metadata: Metadata = {
   title: "Política de Privacidade | ProOps",
   description:
-    "Política de Privacidade do ProOps, incluindo o tratamento de dados pessoais e o uso da integração com Google Agenda.",
+    "Política de Privacidade da ProOps, incluindo o tratamento de dados pessoais e o uso da integração com Google Agenda.",
 };
 
 export default function PrivacyPage() {
@@ -106,7 +106,7 @@ export default function PrivacyPage() {
                 sincronização de agenda solicitada pelo usuário, e não são
                 utilizados para determinar a elegibilidade a crédito, fins de
                 empréstimo ou qualquer outra finalidade não relacionada
-                diretamente ao funcionamento do módulo de agenda do ProOps.
+                diretamente ao funcionamento do módulo de agenda da ProOps.
               </p>
             </>
           ),

@@ -1,27 +1,29 @@
-export interface MfaDisabledEmailData {
+export interface RecoveryCodeUsedEmailData {
   name?: string;
 }
 
-export interface MfaDisabledEmailContent {
+export interface RecoveryCodeUsedEmailContent {
   subject: string;
   html: string;
   text: string;
 }
 
-export function renderMfaDisabledEmail(
-  data: MfaDisabledEmailData,
-): MfaDisabledEmailContent {
-  const subject = "Sua verificação em dois fatores foi desativada — ProOps";
+export function renderRecoveryCodeUsedEmail(
+  data: RecoveryCodeUsedEmailData,
+): RecoveryCodeUsedEmailContent {
+  const subject = "Um código de recuperação foi usado — ProOps";
   const greetingName = data.name ? data.name.trim() : "";
   const greeting = greetingName ? `Olá, ${greetingName}` : "Olá";
 
-  const text = `Sua verificação em dois fatores foi desativada — ProOps
+  const text = `Um código de recuperação foi usado — ProOps
 
-${greeting}, a verificação em dois fatores da sua conta na ProOps foi desativada.
+${greeting}, um código de recuperação foi usado para entrar na sua conta na ProOps.
 
-Se foi você quem fez isso (por recuperação de acesso ou com ajuda do administrador), nenhuma ação é necessária. Recomendamos reconfigurar a verificação em dois fatores no seu perfil assim que possível.
+A verificação em dois fatores da sua conta continua ativa. Você usou um código de recuperação como alternativa de uso único ao desafio do aplicativo autenticador.
 
-Se você NÃO reconhece esta alteração, sua conta pode estar comprometida. Entre em contato com o suporte imediatamente respondendo este email ou escrevendo para gestao@proops.com.br.
+Se foi você, nenhuma ação é necessária. Recomendamos revisar seus códigos de recuperação e reconfigurar o aplicativo autenticador no seu perfil se você perdeu o acesso a ele.
+
+Se você NÃO reconhece este acesso, sua conta pode estar comprometida. Entre em contato com o suporte imediatamente respondendo este email ou escrevendo para gestao@proops.com.br.
 
 ProOps — Sistema ERP para gestão de serviços
 gestao@proops.com.br
@@ -32,7 +34,7 @@ gestao@proops.com.br
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sua verificação em dois fatores foi desativada — ProOps</title>
+  <title>Um código de recuperação foi usado — ProOps</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">
@@ -46,15 +48,18 @@ gestao@proops.com.br
           </tr>
           <tr>
             <td style="padding:40px;">
-              <h2 style="margin:0 0 16px;font-size:22px;color:#18181b;font-weight:700;">Verificação em dois fatores desativada</h2>
+              <h2 style="margin:0 0 16px;font-size:22px;color:#18181b;font-weight:700;">Código de recuperação usado</h2>
               <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6;">
-                ${escapeHtml(greeting)}, a verificação em dois fatores da sua conta na ProOps foi desativada.
+                ${escapeHtml(greeting)}, um código de recuperação foi usado para entrar na sua conta na ProOps.
               </p>
               <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6;">
-                Se foi você quem fez isso (por recuperação de acesso ou com ajuda do administrador), nenhuma ação é necessária. Recomendamos reconfigurar a verificação em dois fatores no seu perfil assim que possível.
+                A verificação em dois fatores da sua conta continua ativa. Você usou um código de recuperação como alternativa de uso único ao desafio do aplicativo autenticador.
+              </p>
+              <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6;">
+                Se foi você, nenhuma ação é necessária. Recomendamos revisar seus códigos de recuperação e reconfigurar o aplicativo autenticador no seu perfil se você perdeu o acesso a ele.
               </p>
               <p style="margin:0 0 24px;font-size:15px;color:#b91c1c;line-height:1.6;font-weight:600;">
-                Se você não reconhece esta alteração, sua conta pode estar comprometida. Entre em contato com o suporte imediatamente.
+                Se você não reconhece este acesso, sua conta pode estar comprometida. Entre em contato com o suporte imediatamente.
               </p>
               <p style="margin:0;font-size:13px;color:#71717a;line-height:1.6;">
                 Para falar com o suporte, responda este email ou escreva para gestao@proops.com.br.

@@ -4,7 +4,8 @@ import { Timestamp } from "firebase-admin/firestore";
 import { auth, db } from "../../init";
 import { logger } from "../../lib/logger";
 import { writeSecurityAuditEvent } from "../../lib/security-observability";
-import { clearUserMfaFactors } from "../../lib/mfa-reset";
+import { sendEmail } from "../../services/email/send-email";
+import { renderRecoveryCodeUsedEmail } from "../../services/email/templates/mfa-recovery-code-used";
 import {
   generateRecoveryCodes,
   hashRecoveryCode,
@@ -182,6 +183,16 @@ function hasPasswordProvider(
   providerData: Array<{ providerId: string }>,
 ): boolean {
   return providerData.some((p) => p.providerId === "password");
+}
+
+/**
+ * Super admins are TOTP-mandatory and must use the assisted reset flow. A custom
+ * token minted here would lack `sign_in_second_factor`, so the `hasMfa()` gate in
+ * the security rules would block them anyway. Detect via custom claims first
+ * (authoritative) and fall back to the user document role.
+ */
+function isSuperAdminRole(role: unknown): boolean {
+  return typeof role === "string" && role.toUpperCase() === "SUPERADMIN";
 }
 
 /**

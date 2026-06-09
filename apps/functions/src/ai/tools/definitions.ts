@@ -22,7 +22,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   search_help: {
     name: "search_help",
     description:
-      "Busca informações de ajuda sobre funcionalidades do ProOps. Use quando o usuário perguntar \"como fazer X\" ou \"o que é Y\".",
+      "Busca informações de ajuda sobre funcionalidades da ProOps. Use quando o usuário perguntar \"como fazer X\" ou \"o que é Y\".",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {

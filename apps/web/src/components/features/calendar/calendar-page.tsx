@@ -107,7 +107,9 @@ function toDateOnlyFromDate(date: Date): string {
   ).padStart(2, "0")}`;
 }
 
-function buildFormValuesFromSelection(selection: DateSelectArg): CalendarEventFormValues {
+function buildFormValuesFromSelection(
+  selection: DateSelectArg,
+): CalendarEventFormValues {
   if (selection.allDay) {
     return {
       ...createEmptyCalendarFormValues(),
@@ -138,16 +140,16 @@ function buildFormValuesFromSelection(selection: DateSelectArg): CalendarEventFo
 }
 
 function buildPayloadFromCalendarMove(
-  event:
-    | EventDropArg["event"]
-    | EventResizeDoneArg["event"],
+  event: EventDropArg["event"] | EventResizeDoneArg["event"],
   current: CalendarEvent,
 ) {
   if (event.allDay) {
     const startDate = event.startStr.slice(0, 10);
     const endDate = event.endStr
       ? event.endStr.slice(0, 10)
-      : toDateOnlyFromDate(new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000));
+      : toDateOnlyFromDate(
+          new Date(new Date(startDate).getTime() + 24 * 60 * 60 * 1000),
+        );
 
     return {
       title: current.title,
@@ -221,9 +223,12 @@ function GoogleCalendarCompanyCard(props: {
     <section className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold tracking-tight">Google Agenda da empresa</p>
+          <p className="text-sm font-semibold tracking-tight">
+            Google Agenda da empresa
+          </p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Sincronizacao central da agenda operacional com a conta Google principal.
+            Sincronizacao central da agenda operacional com a conta Google
+            principal.
           </p>
         </div>
         {props.isLoading ? (
@@ -260,7 +265,11 @@ function GoogleCalendarCompanyCard(props: {
 
           {props.canManage ? (
             <div className="grid gap-2 sm:grid-cols-2">
-              <Button variant="outline" onClick={props.onConnect} disabled={props.isConnecting}>
+              <Button
+                variant="outline"
+                onClick={props.onConnect}
+                disabled={props.isConnecting}
+              >
                 <RefreshCcw className="mr-2 h-4 w-4" />
                 Reconectar
               </Button>
@@ -275,7 +284,8 @@ function GoogleCalendarCompanyCard(props: {
             </div>
           ) : (
             <div className="rounded-[22px] border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-              A conexão da agenda da empresa é administrada por um usuário master.
+              A conexão da agenda da empresa é administrada por um usuário
+              master.
             </div>
           )}
         </>
@@ -285,16 +295,22 @@ function GoogleCalendarCompanyCard(props: {
             <div className="flex items-start gap-3">
               <CloudOff className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium">Conecte a agenda principal da empresa</p>
+                <p className="text-sm font-medium">
+                  Conecte a agenda principal da empresa
+                </p>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  Os compromissos do ProOps podem sincronizar com o Google Agenda
-                  assim que a integração for ativada.
+                  Os compromissos da ProOps podem sincronizar com o Google
+                  Agenda assim que a integração for ativada.
                 </p>
               </div>
             </div>
           </div>
           {props.canManage ? (
-            <Button onClick={props.onConnect} disabled={props.isConnecting} className="w-full">
+            <Button
+              onClick={props.onConnect}
+              disabled={props.isConnecting}
+              className="w-full"
+            >
               {props.isConnecting ? (
                 <Loader size="sm" variant="button" className="mr-2" />
               ) : (
@@ -320,7 +336,9 @@ function UpcomingEventsCard(props: {
   return (
     <section className="flex min-h-0 flex-1 flex-col">
       <div className="shrink-0">
-        <p className="text-sm font-semibold tracking-tight">Proximos compromissos</p>
+        <p className="text-sm font-semibold tracking-tight">
+          Proximos compromissos
+        </p>
         <p className="mt-1 text-sm text-muted-foreground">
           Lista viva baseada na visualizacao e nos filtros ativos.
         </p>
@@ -614,8 +632,12 @@ export function CalendarPage() {
       visibleEvents.map((event) => ({
         id: event.id,
         title: event.title,
-        start: event.isAllDay ? event.startDate || undefined : event.startsAt || undefined,
-        end: event.isAllDay ? event.endDate || undefined : event.endsAt || undefined,
+        start: event.isAllDay
+          ? event.startDate || undefined
+          : event.startsAt || undefined,
+        end: event.isAllDay
+          ? event.endDate || undefined
+          : event.endsAt || undefined,
         allDay: event.isAllDay,
         backgroundColor:
           event.status === "canceled" ? `${event.color}18` : `${event.color}20`,
@@ -635,7 +657,9 @@ export function CalendarPage() {
     setDialogMode("create");
     setActiveEvent(null);
     setFormValues(
-      selection ? buildFormValuesFromSelection(selection) : createEmptyCalendarFormValues(),
+      selection
+        ? buildFormValuesFromSelection(selection)
+        : createEmptyCalendarFormValues(),
     );
     setDialogOpen(true);
   }
@@ -700,7 +724,9 @@ export function CalendarPage() {
 
   async function handleGoogleConnect() {
     if (!GOOGLE_CALENDAR_SYNC_ENABLED) {
-      toast.info("A integracao com Google Agenda esta temporariamente desabilitada.");
+      toast.info(
+        "A integracao com Google Agenda esta temporariamente desabilitada.",
+      );
       return;
     }
 
@@ -809,7 +835,9 @@ export function CalendarPage() {
     return (
       <div className="calendar-event-chip">
         <div className="calendar-event-chip__header">
-          <span className="calendar-event-chip__title">{content.event.title}</span>
+          <span className="calendar-event-chip__title">
+            {content.event.title}
+          </span>
           {GOOGLE_CALENDAR_SYNC_ENABLED && syncStatus === "synced" ? (
             <span
               className="calendar-event-chip__sync"
@@ -835,7 +863,9 @@ export function CalendarPage() {
   }
 
   if (user?.role === "superadmin" && !tenant) {
-    return <SelectTenantState title="Selecione uma empresa para ver o calendario" />;
+    return (
+      <SelectTenantState title="Selecione uma empresa para ver o calendario" />
+    );
   }
 
   return (
@@ -849,11 +879,15 @@ export function CalendarPage() {
                   <div className="min-w-0">
                     <div className="flex flex-col items-start gap-2">
                       <h1 className="text-[2rem] font-semibold tracking-[-0.045em] text-foreground">
-                        Calendario <span className="text-muted-foreground">operacional</span>
+                        Calendario{" "}
+                        <span className="text-muted-foreground">
+                          operacional
+                        </span>
                       </h1>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Visualize, organize e reagende compromissos sem perder contexto.
+                      Visualize, organize e reagende compromissos sem perder
+                      contexto.
                     </p>
                   </div>
 
@@ -917,7 +951,10 @@ export function CalendarPage() {
 
                     <div className="flex h-10 items-center gap-2 rounded-full border border-border/60 bg-muted/20 px-3 text-sm text-foreground">
                       <CalendarRange className="h-4 w-4 text-muted-foreground" />
-                      <span>{currentTitle || formatRangeLabel(range.startMs, range.endMs)}</span>
+                      <span>
+                        {currentTitle ||
+                          formatRangeLabel(range.startMs, range.endMs)}
+                      </span>
                     </div>
 
                     <Tabs
@@ -926,16 +963,28 @@ export function CalendarPage() {
                       className="w-auto"
                     >
                       <TabsList className="h-10 rounded-full bg-muted/35 p-1">
-                        <TabsTrigger value="dayGridMonth" className="rounded-full px-3 py-1">
+                        <TabsTrigger
+                          value="dayGridMonth"
+                          className="rounded-full px-3 py-1"
+                        >
                           Mes
                         </TabsTrigger>
-                        <TabsTrigger value="timeGridWeek" className="rounded-full px-3 py-1">
+                        <TabsTrigger
+                          value="timeGridWeek"
+                          className="rounded-full px-3 py-1"
+                        >
                           Semana
                         </TabsTrigger>
-                        <TabsTrigger value="timeGridDay" className="rounded-full px-3 py-1">
+                        <TabsTrigger
+                          value="timeGridDay"
+                          className="rounded-full px-3 py-1"
+                        >
                           Dia
                         </TabsTrigger>
-                        <TabsTrigger value="listWeek" className="rounded-full px-3 py-1">
+                        <TabsTrigger
+                          value="listWeek"
+                          className="rounded-full px-3 py-1"
+                        >
                           Lista
                         </TabsTrigger>
                       </TabsList>
@@ -947,7 +996,9 @@ export function CalendarPage() {
                       <div className="w-full min-w-[280px] sm:flex-1 sm:max-w-[360px] xl:max-w-[420px]">
                         <Input
                           value={searchTerm}
-                          onChange={(event) => setSearchTerm(event.target.value)}
+                          onChange={(event) =>
+                            setSearchTerm(event.target.value)
+                          }
                           placeholder="Buscar por titulo, local ou observacao"
                           icon={<Search className="h-4 w-4" />}
                           className="h-10 rounded-full border-border/60 bg-background/80 py-2 shadow-none focus:shadow-lg"
@@ -955,8 +1006,13 @@ export function CalendarPage() {
                       </div>
 
                       <div className="flex h-10 items-center justify-between rounded-full border border-border/60 bg-muted/20 px-3 text-sm sm:min-w-[170px]">
-                        <span className="text-muted-foreground">Fim de semana</span>
-                        <Switch checked={showWeekends} onCheckedChange={setShowWeekends} />
+                        <span className="text-muted-foreground">
+                          Fim de semana
+                        </span>
+                        <Switch
+                          checked={showWeekends}
+                          onCheckedChange={setShowWeekends}
+                        />
                       </div>
 
                       <Button
@@ -968,7 +1024,9 @@ export function CalendarPage() {
                         disabled={isRefreshing || isLoadingEvents}
                         title="Atualizar compromissos"
                       >
-                        <RefreshCcw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                        <RefreshCcw
+                          className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                        />
                       </Button>
 
                       {canCreate ? (
@@ -982,31 +1040,35 @@ export function CalendarPage() {
                     </div>
 
                     <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
-                      {(["scheduled", "completed", "canceled"] as CalendarEvent["status"][]).map(
-                        (status) => {
-                          const enabled = statusFilter.includes(status);
-                          return (
-                            <button
-                              key={status}
-                              type="button"
-                              onClick={() =>
-                                setStatusFilter((current) =>
-                                  current.includes(status)
-                                    ? current.filter((item) => item !== status)
-                                    : [...current, status],
-                                )
-                              }
-                              className={`inline-flex h-9 items-center whitespace-nowrap rounded-full border px-3 text-sm transition ${
-                                enabled
-                                  ? "cursor-pointer border-primary/30 bg-primary/10 text-primary"
-                                  : "cursor-pointer border-border/60 bg-background/80 text-muted-foreground"
-                              }`}
-                            >
-                              {STATUS_LABELS[status]}
-                            </button>
-                          );
-                        },
-                      )}
+                      {(
+                        [
+                          "scheduled",
+                          "completed",
+                          "canceled",
+                        ] as CalendarEvent["status"][]
+                      ).map((status) => {
+                        const enabled = statusFilter.includes(status);
+                        return (
+                          <button
+                            key={status}
+                            type="button"
+                            onClick={() =>
+                              setStatusFilter((current) =>
+                                current.includes(status)
+                                  ? current.filter((item) => item !== status)
+                                  : [...current, status],
+                              )
+                            }
+                            className={`inline-flex h-9 items-center whitespace-nowrap rounded-full border px-3 text-sm transition ${
+                              enabled
+                                ? "cursor-pointer border-primary/30 bg-primary/10 text-primary"
+                                : "cursor-pointer border-border/60 bg-background/80 text-muted-foreground"
+                            }`}
+                          >
+                            {STATUS_LABELS[status]}
+                          </button>
+                        );
+                      })}
                       {isLoadingEvents ? (
                         <span className="text-sm text-muted-foreground">
                           Atualizando compromissos...
@@ -1021,7 +1083,12 @@ export function CalendarPage() {
             <div className="relative min-h-0 flex-1 px-3 pb-3 pt-2 xl:px-4 xl:pb-4">
               <FullCalendar
                 ref={calendarRef}
-                plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+                plugins={[
+                  dayGridPlugin,
+                  timeGridPlugin,
+                  listPlugin,
+                  interactionPlugin,
+                ]}
                 locale={ptBrLocale}
                 initialView="dayGridMonth"
                 height="100%"

@@ -219,7 +219,7 @@ async function main(): Promise<void> {
     console.log(`\n✅ Recuperação concluída!`);
     console.log(`\nPróximos passos:`);
     console.log(`  1. Remova ${await getPublicIp()} da whitelist Asaas (deixe vazia)`);
-    console.log(`  2. No ProOps: Settings → Asaas → Reconectar com mesmo email e CNPJ`);
+    console.log(`  2. Na ProOps: Settings → Asaas → Reconectar com mesmo email e CNPJ`);
     console.log(`  3. Deve funcionar sem erro (usa credenciais arquivadas, sem accessTokens)`);
   } catch (fbError) {
     // Firebase Admin failed — print values for manual entry
