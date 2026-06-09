@@ -222,6 +222,39 @@ body {
   will-change: transform, opacity;
 }
 
+/* OTP input — caret blink + digit enter animation (ported from HeroUI's input-otp) */
+@keyframes caret-blink {
+  0%,
+  70%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-caret-blink {
+  animation: caret-blink 1.25s ease-out infinite;
+}
+
+@keyframes otp-slot-value-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-otp-slot-value-in {
+  animation: otp-slot-value-in 250ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  transform-origin: bottom center;
+}
+
 /* GPU Performance Utilities */
 .gpu-accelerated {
   transform: translateZ(0);

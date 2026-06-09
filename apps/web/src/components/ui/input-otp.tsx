@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { OTPInput, OTPInputContext } from "input-otp";
-import { Minus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -43,17 +42,24 @@ const InputOTPSlot = React.forwardRef<
   return (
     <div
       ref={ref}
+      data-active={isActive ? "true" : undefined}
+      data-filled={char ? "true" : undefined}
       className={cn(
-        "relative flex h-11 w-11 items-center justify-center rounded-md border border-input text-base font-medium shadow-sm transition-all",
-        isActive && "z-10 border-ring ring-2 ring-ring ring-offset-background",
+        "relative flex h-12 w-12 items-center justify-center rounded-lg border-2 border-input text-lg font-semibold shadow-sm outline-none transition-[background-color,border-color,box-shadow] duration-150",
+        char && "bg-accent/30",
+        isActive && "z-10 border-ring bg-accent/30 ring-2 ring-ring/50",
         className,
       )}
       {...props}
     >
-      {char}
+      {char ? (
+        <span key={char} className="animate-otp-slot-value-in leading-6">
+          {char}
+        </span>
+      ) : null}
       {hasFakeCaret && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="h-5 w-px animate-pulse bg-foreground" />
+          <div className="h-5 w-0.5 animate-caret-blink rounded-sm bg-muted-foreground" />
         </div>
       )}
     </div>
@@ -66,7 +72,7 @@ const InputOTPSeparator = React.forwardRef<
   React.ComponentPropsWithoutRef<"div">
 >(({ ...props }, ref) => (
   <div ref={ref} role="separator" {...props}>
-    <Minus className="h-4 w-4 text-muted-foreground" />
+    <div className="h-0.5 w-1.5 rounded-sm bg-muted-foreground/40" />
   </div>
 ));
 InputOTPSeparator.displayName = "InputOTPSeparator";
