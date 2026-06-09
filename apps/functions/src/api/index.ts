@@ -264,6 +264,18 @@ const whatsappMfaLimiter = createRateLimiter({
   keyResolver: buildRateLimitIdentity,
 });
 
+// Recovery codes have their OWN counter (not shared with WhatsApp MFA) and a
+// more generous limit: `status` is a read-only GET polled on mount/refresh and
+// the enrollment flow bursts several calls. `verify` stays safe here — it is
+// authenticated and the code space (31^8 per code) makes brute force infeasible
+// well under this limit.
+const recoveryCodesLimiter = createRateLimiter({
+  keyPrefix: "recovery-codes",
+  maxRequests: Number(process.env.RATE_LIMIT_RECOVERY_CODES_MAX || 30),
+  windowMs: Number(process.env.RATE_LIMIT_RECOVERY_CODES_WINDOW_MS || 60_000),
+  keyResolver: buildRateLimitIdentity,
+});
+
 const corsMiddleware = cors({
   origin: (origin, callback) => {
     const decision = evaluateCorsDecision({
@@ -462,7 +474,7 @@ app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
 app.use("/v1/auth/whatsapp-mfa", whatsappMfaLimiter, whatsappMfaRoutes);
-app.use("/v1/auth/recovery-codes", whatsappMfaLimiter, recoveryCodesRoutes);
+app.use("/v1/auth/recovery-codes", recoveryCodesLimiter, recoveryCodesRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);
