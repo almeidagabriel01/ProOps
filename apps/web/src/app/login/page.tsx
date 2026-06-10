@@ -47,6 +47,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { AuthLayout } from "./_components/auth-layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader } from "@/components/ui/loader";
+import { FullPageLoading } from "@/components/ui/full-page-loading";
 import { formatResendLabel } from "@/hooks/useResendCountdown";
 import { shouldShowLoggedInLoader } from "./_lib/should-show-logged-in-loader";
 import { shouldShowInitialLoader } from "./_lib/should-show-initial-loader";
@@ -319,11 +320,7 @@ function LoginContent() {
       requiresWhatsappOtp,
     })
   ) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader size="lg" />
-      </div>
-    );
+    return <FullPageLoading />;
   }
 
   // Email verification pending must take precedence over the logged-in
@@ -360,11 +357,7 @@ function LoginContent() {
   ) {
     if (user.role === "free") return null;
 
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader size="lg" />
-      </div>
-    );
+    return <FullPageLoading />;
   }
 
   if (requiresMfaCode && whatsappFallbackStage === "otp") {
@@ -1291,13 +1284,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <Loader size="lg" />
-        </div>
-      }
-    >
+    <Suspense fallback={<FullPageLoading />}>
       <LoginContent />
     </Suspense>
   );
