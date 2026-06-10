@@ -20,6 +20,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useUpdatePermissions } from "@/hooks/useUpdatePermissions";
 import { TeamSkeleton } from "@/app/team/_components/team-skeleton";
+import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
@@ -184,6 +185,9 @@ export function TeamManagement() {
       setUpdatingKey(null);
     }
   };
+
+  // Drive the settings chrome skeleton (title + sidebar) while team data loads.
+  useReportSettingsLoading(permLoading || isLoading || authLoading);
 
   // Loading
   if (permLoading || isLoading || authLoading) {

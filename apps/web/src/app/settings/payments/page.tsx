@@ -3,11 +3,13 @@
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { AsaasConnectCard } from "@/app/settings/_components/asaas-connect-card";
 import { PaymentsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
+import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { usePermissions } from "@/providers/permissions-provider";
 import { CreditCard, Shield } from "lucide-react";
 
 export default function SettingsPaymentsPage() {
   const { isMaster, isLoading } = usePermissions();
+  useReportSettingsLoading(isLoading);
 
   return (
     <FormContainer>

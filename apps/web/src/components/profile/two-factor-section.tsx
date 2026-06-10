@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { RecoveryCodesService } from "@/services/recovery-codes-service";
 import { SecurityCardSkeleton } from "@/app/settings/_components/settings-skeleton";
+import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { MfaSection } from "./mfa-section";
 import { WhatsappMfaSection } from "./whatsapp-mfa-section";
 import {
@@ -42,6 +43,9 @@ export function TwoFactorSection() {
 
   const showWhatsapp = canUseWhatsappMfa(user?.role);
   const recoveryRef = React.useRef<RecoveryCodesSectionHandle>(null);
+
+  // Drive the settings chrome skeleton (title + sidebar) while the status loads.
+  useReportSettingsLoading(whatsappLoading);
 
   // After any first enroll, offer recovery codes if the user has none yet.
   const handleEnrolled = React.useCallback(async () => {
