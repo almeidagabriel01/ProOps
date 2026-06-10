@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
 import { AuthService } from "@/services/auth-service";
 import { interpretSessionResponse } from "@/lib/auth/interpret-session-response";
+import { shouldShortCircuitSync } from "@/lib/auth/should-short-circuit-sync";
 
 import { User, SubscriptionStatus } from "@/types";
 
@@ -209,6 +210,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSessionSynced, setIsSessionSynced] = React.useState(false);
   const [whatsappMfaPending, setWhatsappMfaPending] =
     React.useState<WhatsappMfaPending | null>(null);
+  // Synchronous mirror of `whatsappMfaPending` for the background-sync race:
+  // a listener firing in the same tick as a gate being set must read the gate
+  // WITHOUT waiting for a render. The security-critical direction (gate present)
+  // is set synchronously where the gate is raised; the effect below keeps it
+  // current for clears and other writes.
+  const whatsappMfaPendingRef = React.useRef<WhatsappMfaPending | null>(null);
+  React.useEffect(() => {
+    whatsappMfaPendingRef.current = whatsappMfaPending;
+  }, [whatsappMfaPending]);
   const isLoggingOutRef = React.useRef(false);
   const getIsLoggingOut = React.useCallback(() => isLoggingOutRef.current, []);
   const router = useRouter();
@@ -321,11 +331,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const syncServerSession = React.useCallback(
     async (firebaseUser: FirebaseUser): Promise<boolean> => {
       if (syncInProgressRef.current) return false;
-      // Skip if a successful sync happened recently (both onAuthStateChanged and
-      // onIdTokenChanged fire on startup; cooldown prevents the redundant call).
-      if (Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS) {
-        setIsSessionSynced(true);
-        setWhatsappMfaPending(null);
+      // Skip the redundant POST if a sync happened recently (both
+      // onAuthStateChanged and onIdTokenChanged fire on startup). The cooldown
+      // skip is what prevents the second startup listener from firing a SECOND
+      // WhatsApp challenge (duplicate code).
+      const cooldownActive =
+        Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS;
+      if (cooldownActive) {
+        if (
+          shouldShortCircuitSync({
+            cooldownActive,
+            whatsappGatePending: whatsappMfaPendingRef.current !== null,
+          })
+        ) {
+          // Safe shortcut: recently synced and no gate pending — treat as synced.
+          setIsSessionSynced(true);
+          setWhatsappMfaPending(null);
+        }
+        // When a WhatsApp gate IS pending we deliberately fall through to here
+        // WITHOUT marking the session synced or clearing the gate: a background
+        // sync must never flip isSessionSynced and let the redirect enter the app
+        // while the OTP is still owed (2FA bypass). We still skip the POST to
+        // avoid a duplicate challenge — the gate stays pending and the OTP screen
+        // remains until the user submits the code.
         return true;
       }
       syncInProgressRef.current = true;
@@ -336,17 +364,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Defense for when the listener runs OUTSIDE an explicit login (e.g. a
           // token-refresh while the user is still entering the WhatsApp OTP): the
           // route returns 200 WITHOUT a cookie. Treating that as success would
-          // falsely mark the session synced. Do not mark synced, do not prime the
-          // cooldown, and do not retry (the retry would re-POST and fire a second,
-          // non-idempotent challenge).
+          // falsely mark the session synced, so do NOT mark synced and do NOT
+          // retry (a retry would re-POST and fire a second challenge).
           if (interpretSessionResponse(session) === "whatsapp-otp-pending") {
             setIsSessionSynced(false);
             // Elevate the gate so the OTP screen can re-render after a reload
-            // (where there is no foreground login to set it).
-            setWhatsappMfaPending({
+            // (where there is no foreground login to set it). Mirror it into the
+            // ref synchronously so a listener firing this same tick sees the gate.
+            const pending: WhatsappMfaPending = {
               maskedPhone: session.maskedPhone,
               retryAfterSeconds: session.retryAfterSeconds,
-            });
+            };
+            whatsappMfaPendingRef.current = pending;
+            setWhatsappMfaPending(pending);
+            // Prime the cooldown so the OTHER startup listener short-circuits and
+            // does NOT fire a duplicate WhatsApp challenge. (The cooldown skip is
+            // now gate-aware — it will not mark the session synced while the gate
+            // is pending, so this is safe.)
+            lastSyncSuccessRef.current = Date.now();
             return true;
           }
           setIsSessionSynced(true);
