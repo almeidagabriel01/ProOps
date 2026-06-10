@@ -52,8 +52,8 @@ const SCATTER: ScatterConfig[] = [
   { x: -0.05, y: 0.32, rotation: -4, scale: 0.92, speed: 0.85 }, // últimas propostas → baixo central
 ];
 
-const SCRUB = 0.8;
-const END = "+=150%";
+const SCRUB = 0.4;
+const END = "+=90%";
 
 /* AJUSTE: textos e CTAs do hero */
 const HERO_COPY = {

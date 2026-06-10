@@ -157,29 +157,28 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
       >
         <div
           ref={containerRef}
-          className="relative flex h-16 w-full max-w-[1216px] items-center justify-between gap-3 md:justify-center"
+          className="relative flex h-12 w-full max-w-[1216px] items-center justify-between gap-3 md:justify-center"
         >
           {/* Logo pill — esquerda */}
           <motion.div
             ref={leftGroupRef}
             style={{ x: leftX }}
-            className={`flex h-14 shrink-0 items-center px-2.5 will-change-transform ${PILL_CLASSES}`}
+            className={`flex h-11 shrink-0 items-center overflow-hidden px-3 will-change-transform ${PILL_CLASSES}`}
           >
             <Link
               href="/"
-              className="group relative inline-flex shrink-0 items-center gap-3 overflow-hidden rounded-full leading-none"
+              className="group relative inline-flex shrink-0 items-center leading-none"
               aria-label="ProOps"
             >
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full md:h-11 md:w-11">
-                <ProOpsLogo
-                  variant="symbol"
-                  width={116}
-                  height={116}
-                  priority
-                  invertOnDark
-                  className="block h-full w-full scale-[2.55] object-contain md:scale-[2.7] group-hover:scale-[2.7] md:group-hover:scale-[2.85]"
-                />
-              </div>
+              <ProOpsLogo
+                variant="full"
+                width={220}
+                height={76}
+                priority
+                invertOnDark
+                interactive={false}
+                className="block h-14 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.04]"
+              />
             </Link>
           </motion.div>
 
@@ -192,7 +191,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
               pointerEvents: navPointerEvents,
               transformOrigin: "center",
             }}
-            className={`hidden h-14 items-center gap-1 px-3 will-change-[transform,opacity] md:flex ${PILL_CLASSES}`}
+            className={`hidden h-11 items-center gap-1 px-2.5 will-change-[transform,opacity] md:flex ${PILL_CLASSES}`}
           >
             {navLinks.map((link) => (
               <Link
@@ -214,7 +213,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
             className="flex shrink-0 items-center gap-2.5 will-change-transform"
           >
             {/* Auth pill — desktop sm+ */}
-            <div className={`hidden h-14 items-center px-4 sm:flex ${PILL_CLASSES}`}>
+            <div className={`hidden h-11 items-center px-4 sm:flex ${PILL_CLASSES}`}>
               {isNavbarLoading ? (
                 <div className="flex items-center gap-2">
                   <Skeleton className="h-7 w-7 rounded-full" />
@@ -341,7 +340,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
               <button
                 type="button"
                 onClick={() => scrollToAnchor("#pricing")}
-                className="hidden h-14 cursor-pointer items-center gap-1.5 rounded-full bg-black px-5 text-[13px] font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-transform hover:scale-[1.03] active:scale-[0.98] sm:flex dark:bg-white dark:text-black"
+                className="hidden h-11 cursor-pointer items-center gap-1.5 rounded-full bg-black px-4 text-[13px] font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-transform hover:scale-[1.03] active:scale-[0.98] sm:flex dark:bg-white dark:text-black"
               >
                 <Plus className="h-4 w-4" />
                 Quero assinar
@@ -350,7 +349,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
 
             {/* Theme toggle pill */}
             <div
-              className={`flex h-14 w-14 items-center justify-center ${PILL_CLASSES} max-sm:h-12 max-sm:w-12`}
+              className={`flex h-11 w-11 items-center justify-center ${PILL_CLASSES} max-sm:h-10 max-sm:w-10`}
             >
               <AnimatedThemeToggler
                 className="inline-flex h-8 w-8 cursor-pointer items-center justify-center text-black/75 transition-colors hover:text-black dark:text-white/80 dark:hover:text-white"
@@ -361,7 +360,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
             {/* Mobile menu button pill */}
             <button
               onClick={() => setMobileOpen((prev) => !prev)}
-              className={`flex h-12 w-12 items-center justify-center text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white md:hidden ${PILL_CLASSES}`}
+              className={`flex h-10 w-10 items-center justify-center text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white md:hidden ${PILL_CLASSES}`}
               aria-label="Abrir menu"
             >
               {mobileOpen ? (
