@@ -90,6 +90,11 @@ export function LandingHeroAssemble() {
       mm.add(
         "(min-width: 768px) and (prefers-reduced-motion: no-preference)",
         () => {
+          // revela o container escondido pelo CSS (md:motion-safe:invisible);
+          // os fromTo abaixo aplicam o estado espalhado neste mesmo tick
+          // (immediateRender), então não há frame com a dashboard montada
+          gsap.set(dashboard, { visibility: "visible" });
+
           const tl = gsap.timeline({
             defaults: { ease: "power3.out" },
             scrollTrigger: {
@@ -259,10 +264,13 @@ export function LandingHeroAssemble() {
            - [data-hero-static] = shell do app (janela, topbar, header do
              dashboard, dock) — fica fixo e só faz fade-in
            - [data-hero-card]   = widgets que voam até encaixar no shell */}
+      {/* md:motion-safe:invisible evita o "flash" da dashboard montada no
+           primeiro paint (SSR) — o GSAP revela no mesmo tick em que aplica o
+           estado espalhado. Mobile/reduced-motion nunca escondem. */}
       <div
         data-hero-dashboard
         aria-hidden="true"
-        className="pointer-events-none relative z-10 mx-auto mt-12 w-full max-w-7xl select-none will-change-transform md:motion-safe:mt-0"
+        className="pointer-events-none relative z-10 mx-auto mt-12 w-full max-w-7xl select-none will-change-transform md:motion-safe:mt-0 md:motion-safe:invisible"
       >
         {/* superfície da janela do app */}
         <div
