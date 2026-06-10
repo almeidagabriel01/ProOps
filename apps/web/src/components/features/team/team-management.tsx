@@ -205,17 +205,18 @@ export function TeamManagement() {
 
   return (
     <FormContainer>
-      <FormHeader
-        title="Equipe"
-        subtitle="Gerencie os membros da sua equipe e suas permissões"
-        icon={Users}
-      />
-
-      <div className="flex justify-end">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 [&>div]:mb-0">
+          <FormHeader
+            title="Equipe"
+            subtitle="Gerencie os membros da sua equipe e suas permissões"
+            icon={Users}
+          />
+        </div>
         <Button
           onClick={() => setIsCreatingMember(!isCreatingMember)}
           variant={isCreatingMember ? "outline" : "default"}
-          className="shrink-0"
+          className="shrink-0 w-full sm:mt-1 sm:w-auto"
         >
           {isCreatingMember ? (
             <>

@@ -92,13 +92,16 @@ export function SettingsNav() {
       {/* User identity chip */}
       <div className="hidden items-center gap-3 rounded-xl border border-border/60 bg-card p-3 lg:flex">
         <Avatar className="h-9 w-9 shrink-0 border border-border">
-          <AvatarImage src={logoUrl} alt={companyName} />
-          <AvatarFallback
-            style={{ backgroundColor: getUserColor(avatarSeed) }}
-            className="text-xs font-semibold text-white"
-          >
-            {getInitials(avatarSeed)}
-          </AvatarFallback>
+          {logoUrl ? (
+            <AvatarImage src={logoUrl} alt={companyName} />
+          ) : (
+            <AvatarFallback
+              style={{ backgroundColor: getUserColor(avatarSeed) }}
+              className="text-xs font-semibold text-white"
+            >
+              {getInitials(avatarSeed)}
+            </AvatarFallback>
+          )}
         </Avatar>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-foreground">
