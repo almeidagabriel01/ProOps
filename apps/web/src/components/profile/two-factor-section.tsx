@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/card";
 import { RecoveryCodesService } from "@/services/recovery-codes-service";
 import { SecurityCardSkeleton } from "@/app/settings/_components/settings-skeleton";
-import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { MfaSection } from "./mfa-section";
 import { WhatsappMfaSection } from "./whatsapp-mfa-section";
 import {
@@ -32,7 +31,13 @@ import {
  * methods, the recovery-codes panel lets the user generate/regenerate codes,
  * and the first time a method is enrolled with no codes yet we auto-offer them.
  */
-export function TwoFactorSection() {
+interface TwoFactorSectionProps {
+  /** Reports whether the verification-method status is still loading, so the
+   *  settings page can skeleton its header + the chrome in sync. */
+  onLoadingChange?: (loading: boolean) => void;
+}
+
+export function TwoFactorSection({ onLoadingChange }: TwoFactorSectionProps) {
   const { user, forceSyncSession } = useAuth();
   const {
     enabled: whatsappEnabled,
@@ -44,8 +49,10 @@ export function TwoFactorSection() {
   const showWhatsapp = canUseWhatsappMfa(user?.role);
   const recoveryRef = React.useRef<RecoveryCodesSectionHandle>(null);
 
-  // Drive the settings chrome skeleton (title + sidebar) while the status loads.
-  useReportSettingsLoading(whatsappLoading);
+  // Report status loading up so the page skeletons its header + the chrome.
+  React.useEffect(() => {
+    onLoadingChange?.(whatsappLoading);
+  }, [whatsappLoading, onLoadingChange]);
 
   // After any first enroll, offer recovery codes if the user has none yet.
   const handleEnrolled = React.useCallback(async () => {

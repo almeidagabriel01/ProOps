@@ -42,6 +42,7 @@ import {
 import { Loader } from "@/components/ui/loader";
 import { AsaasWebhookStatusAlert } from "./asaas-webhook-status-alert";
 import { AsaasPayoutConfigSection } from "./asaas-payout-config-section";
+import { PaymentsCardSkeleton } from "./settings-skeleton";
 
 const COMPANY_TYPES = [
   { value: "MEI", label: "MEI (Microempreendedor Individual)" },
@@ -125,7 +126,13 @@ interface ViaCepResponse {
   bairro?: string;
 }
 
-export function AsaasConnectCard() {
+interface AsaasConnectCardProps {
+  /** Reports whether the connection status is still loading, so the settings
+   *  page can skeleton its header + the chrome in sync. */
+  onLoadingChange?: (loading: boolean) => void;
+}
+
+export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
   const [status, setStatus] = React.useState<AsaasConnectionStatus | null>(
     null,
   );
@@ -172,6 +179,16 @@ export function AsaasConnectCard() {
   React.useEffect(() => {
     loadStatus();
   }, [loadStatus]);
+
+  // Only the INITIAL status load drives the page/chrome skeleton — later reloads
+  // (after connect/disconnect/retry) keep the loaded status, so they must not
+  // flash the whole section back to a skeleton.
+  const isInitialLoading = isLoadingStatus && status === null;
+
+  // Report initial loading up so the page skeletons its header + the chrome.
+  React.useEffect(() => {
+    onLoadingChange?.(isInitialLoading);
+  }, [isInitialLoading, onLoadingChange]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -306,6 +323,12 @@ export function AsaasConnectCard() {
       setShowDisconnectDialog(false);
     }
   };
+
+  // While the initial status loads, show the card skeleton (the page header and
+  // chrome are skeletoned in sync via onLoadingChange).
+  if (isInitialLoading) {
+    return <PaymentsCardSkeleton />;
+  }
 
   return (
     <>
