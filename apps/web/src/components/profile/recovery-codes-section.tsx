@@ -9,13 +9,6 @@ import {
 } from "@/services/recovery-codes-service";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RecoveryCodesModal } from "./recovery-codes-modal";
@@ -102,18 +95,21 @@ export const RecoveryCodesSection = React.forwardRef<
   const hasCodes = (status?.total ?? 0) > 0;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <KeyRound className="h-5 w-5 text-muted-foreground" />
-          Códigos de recuperação
-        </CardTitle>
-        <CardDescription>
-          Códigos de uso único para entrar caso você perca o acesso ao seu
-          segundo fator.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <section className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0">
+      <div className="flex items-start gap-3">
+        <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-semibold leading-none">
+            Códigos de recuperação
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Códigos de uso único para entrar caso você perca o acesso ao seu
+            segundo fator.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Spinner className="h-4 w-4" />
@@ -150,7 +146,7 @@ export const RecoveryCodesSection = React.forwardRef<
               ? "Regenerar códigos"
               : "Gerar códigos"}
         </Button>
-      </CardContent>
+      </div>
 
       <RecoveryCodesModal
         open={modalOpen}
@@ -160,6 +156,6 @@ export const RecoveryCodesSection = React.forwardRef<
         }}
         codes={codes}
       />
-    </Card>
+    </section>
   );
 });

@@ -11,13 +11,6 @@ import {
 import { isValidTotpCode, maskPhone } from "@/lib/mfa-helpers";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { VerificationCodeInput } from "@/components/shared/verification-code-input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -190,22 +183,23 @@ export function WhatsappMfaSection({
   const displayPhone = enabledPhone || maskedPhone;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {stage === "active" ? (
-            <MessageCircle className="h-5 w-5 text-emerald-600" />
-          ) : (
-            <MessageCircleOff className="h-5 w-5 text-muted-foreground" />
-          )}
-          Verificação por WhatsApp
-        </CardTitle>
-        <CardDescription>
-          Receba um código no seu WhatsApp ao entrar. Mais prático, porém menos
-          seguro que o aplicativo autenticador.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <section className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0">
+      <div className="flex items-start gap-3">
+        {stage === "active" ? (
+          <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+        ) : (
+          <MessageCircleOff className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+        )}
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-semibold leading-none">WhatsApp</h3>
+          <p className="text-sm text-muted-foreground">
+            Receba um código no seu WhatsApp ao entrar. Mais prático, porém
+            menos seguro que o aplicativo autenticador.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
         {error ? (
           <Alert variant="destructive">
             <AlertTitle>Erro</AlertTitle>
@@ -313,7 +307,7 @@ export function WhatsappMfaSection({
             </Button>
           </div>
         ) : null}
-      </CardContent>
+      </div>
 
       <AlertDialog
         open={confirmDisableOpen}
@@ -345,6 +339,6 @@ export function WhatsappMfaSection({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </section>
   );
 }

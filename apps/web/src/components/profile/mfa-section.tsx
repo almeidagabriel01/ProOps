@@ -11,13 +11,6 @@ import { canEnrollMfa } from "@/lib/mfa-helpers";
 import { AuthService } from "@/services/auth-service";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { VerificationCodeInput } from "@/components/shared/verification-code-input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -130,22 +123,25 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
   const showEnableFlow = !isEnrolled && stage !== "done";
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {isEnrolled ? (
-            <ShieldCheck className="h-5 w-5 text-emerald-600" />
-          ) : (
-            <ShieldOff className="h-5 w-5 text-muted-foreground" />
-          )}
-          Verificação em dois fatores
-        </CardTitle>
-        <CardDescription>
-          Proteja sua conta exigindo um código de um aplicativo autenticador
-          (Google Authenticator, Authy, etc.) além da senha ao entrar.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <section className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0">
+      <div className="flex items-start gap-3">
+        {isEnrolled ? (
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+        ) : (
+          <ShieldOff className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+        )}
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-semibold leading-none">
+            Aplicativo autenticador
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Proteja sua conta exigindo um código de um aplicativo autenticador
+            (Google Authenticator, Authy, etc.) além da senha ao entrar.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
         {error ? (
           <Alert variant="destructive">
             <AlertTitle>Erro</AlertTitle>
@@ -275,7 +271,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
             </Button>
           </div>
         ) : null}
-      </CardContent>
+      </div>
 
       <AlertDialog open={confirmDisableOpen} onOpenChange={setConfirmDisableOpen}>
         <AlertDialogContent>
@@ -304,6 +300,6 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </section>
   );
 }

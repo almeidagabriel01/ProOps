@@ -84,41 +84,33 @@ export function TwoFactorSection() {
   }, [forceSyncSession]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Verificação em dois fatores</CardTitle>
-          <CardDescription>
-            Adicione uma camada extra de segurança ao entrar. Você pode ativar o
-            aplicativo autenticador, o WhatsApp, ou ambos.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          <ul className="flex flex-col gap-1">
-            <li>Aplicativo autenticador — mais seguro (recomendado).</li>
-            {showWhatsapp ? (
-              <li>WhatsApp — mais prático (conveniência).</li>
-            ) : null}
-          </ul>
-        </CardContent>
-      </Card>
-
-      <MfaSection
-        onEnrolled={() => void handleEnrolled()}
-        onDisabled={() => void handleDisabled()}
-      />
-
-      {showWhatsapp ? (
-        <WhatsappMfaSection
-          isEnabled={whatsappEnabled}
-          enabledPhone={whatsappPhone ? maskPhone(whatsappPhone) : undefined}
-          onChanged={() => void refreshWhatsapp()}
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Métodos de verificação</CardTitle>
+        <CardDescription>
+          Adicione uma camada extra de segurança ao entrar. Ative o aplicativo
+          autenticador, o WhatsApp, ou ambos — e gere códigos de recuperação
+          para não perder o acesso à conta.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col divide-y divide-border">
+        <MfaSection
           onEnrolled={() => void handleEnrolled()}
           onDisabled={() => void handleDisabled()}
         />
-      ) : null}
 
-      <RecoveryCodesSection ref={recoveryRef} />
-    </div>
+        {showWhatsapp ? (
+          <WhatsappMfaSection
+            isEnabled={whatsappEnabled}
+            enabledPhone={whatsappPhone ? maskPhone(whatsappPhone) : undefined}
+            onChanged={() => void refreshWhatsapp()}
+            onEnrolled={() => void handleEnrolled()}
+            onDisabled={() => void handleDisabled()}
+          />
+        ) : null}
+
+        <RecoveryCodesSection ref={recoveryRef} />
+      </CardContent>
+    </Card>
   );
 }
