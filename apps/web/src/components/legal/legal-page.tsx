@@ -31,11 +31,11 @@ export function LegalPage({
           <Link href="/" className="inline-flex items-center">
             <ProOpsLogo
               variant="full"
-              width={180}
-              height={60}
+              width={220}
+              height={76}
               invertOnDark
               interactive={false}
-              className="h-10 w-auto"
+              className="h-14 w-auto"
             />
           </Link>
 
