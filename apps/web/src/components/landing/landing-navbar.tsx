@@ -1,9 +1,25 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, LayoutDashboard, LogOut, Menu, Sparkles, User as UserIcon, X } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import {
+  ChevronDown,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Plus,
+  Sparkles,
+  User as UserIcon,
+  X,
+} from "lucide-react";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+  useScroll,
+  useSpring,
+  useTransform,
+} from "motion/react";
 import { useRouter } from "next/navigation";
 import type { User } from "@/types";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
@@ -34,12 +50,18 @@ const navLinks = [
   { href: "#pricing", label: "Planos" },
 ];
 
+const PILL_CLASSES =
+  "rounded-full border border-black/10 bg-white/90 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/85 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]";
+
 export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }: LandingNavbarProps) {
-  const [hidden, setHidden] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const lastScrollY = useRef(0);
   const navRef = useRef<HTMLElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const leftGroupRef = useRef<HTMLDivElement>(null);
+  const rightGroupRef = useRef<HTMLDivElement>(null);
+  const [spread, setSpread] = useState({ left: 280, right: 280 });
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
   const { companyName, logoUrl, avatarSeed, isTenantLoading, isCompanyLoading } =
     useHeaderPresentation();
   const isNavbarLoading =
@@ -49,6 +71,19 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const isBlockedAccount = ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
     currentUser?.subscriptionStatus ?? "",
   );
+  const showSubscribeCta = !currentUser || isFreeAccount || isBlockedAccount;
+  const isLoggedIn = !!currentUser;
+
+  const { scrollY } = useScroll();
+  const rawProgress = useTransform(scrollY, [0, 150], [0, 1]);
+  const springProgress = useSpring(rawProgress, { stiffness: 260, damping: 30 });
+  const progress = prefersReducedMotion ? rawProgress : springProgress;
+  const navOpacity = useTransform(progress, [0, 1], [0, 1]);
+  const navScale = useTransform(progress, [0, 1], [0.97, 1]);
+  const navPointerEvents = useTransform(progress, (v) => (v < 0.4 ? "none" : "auto"));
+  const leftX = useTransform(progress, [0, 1], [-spread.left, 0]);
+  const rightX = useTransform(progress, [0, 1], [spread.right, 0]);
+
   const scrollToAnchor = (href: string, closeMobile = false) => {
     if (!href.startsWith("#")) return;
 
@@ -82,28 +117,28 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
     scrollToAnchor(href, closeMobile);
   };
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const latest = window.scrollY;
-      const direction = latest > lastScrollY.current ? "down" : "up";
-      lastScrollY.current = latest;
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-      if (latest > 80 && direction === "down") {
-        setHidden(true);
-        return;
-      }
-
-      if (direction === "up") {
-        setHidden(false);
-      }
+    const measure = () => {
+      // offsetLeft/offsetWidth ignoram transforms — mede a posição natural (centrada)
+      const leftEl = leftGroupRef.current;
+      const rightEl = rightGroupRef.current;
+      const left = leftEl ? Math.max(leftEl.offsetLeft, 0) : 0;
+      const right = rightEl
+        ? Math.max(container.clientWidth - (rightEl.offsetLeft + rightEl.offsetWidth), 0)
+        : 0;
+      setSpread({ left, right });
     };
 
-    lastScrollY.current = window.scrollY;
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    if (leftGroupRef.current) observer.observe(leftGroupRef.current);
+    if (rightGroupRef.current) observer.observe(rightGroupRef.current);
+    return () => observer.disconnect();
+  }, [isNavbarLoading, isLoggedIn, showSubscribeCta]);
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? "hidden" : "";
@@ -116,15 +151,20 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
     <>
       <motion.div
         initial={{ y: -100, opacity: 0 }}
-        animate={{ y: hidden ? -8 : 0, opacity: 1 }}
+        animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4"
       >
-        <nav
-          ref={navRef}
-          className="h-16 w-full max-w-[1200px] rounded-full border border-black/10 bg-white/90 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/85 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+        <div
+          ref={containerRef}
+          className="relative flex h-16 w-full max-w-[1216px] items-center justify-between gap-3 md:justify-center"
         >
-          <div className="flex h-full items-center justify-between gap-4 px-4 md:px-6">
+          {/* Logo pill — esquerda */}
+          <motion.div
+            ref={leftGroupRef}
+            style={{ x: leftX }}
+            className={`flex h-14 shrink-0 items-center px-2.5 will-change-transform ${PILL_CLASSES}`}
+          >
             <Link
               href="/"
               className="group relative inline-flex shrink-0 items-center gap-3 overflow-hidden rounded-full leading-none"
@@ -141,89 +181,107 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                 />
               </div>
             </Link>
+          </motion.div>
 
-            <div className="hidden items-center gap-1 md:flex">
-              {navLinks.map((link, i) => (
-                <motion.div
-                  key={link.href}
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + i * 0.05, duration: 0.35 }}
-                >
-                  <Link
-                    href={link.href}
-                    onClick={(event) => handleAnchorClick(event, link.href)}
-                    className="group relative rounded-full px-3.5 py-1.5 text-[13px] font-medium text-black/65 transition-colors duration-200 hover:bg-black/[0.03] hover:text-black dark:text-white/65 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                  >
-                    {link.label}
-                    <span className="absolute bottom-0 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-black transition-all duration-200 group-hover:w-3/5 dark:bg-white" />
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
+          {/* Nav pill — centro (somente desktop) */}
+          <motion.nav
+            ref={navRef}
+            style={{
+              opacity: navOpacity,
+              scale: navScale,
+              pointerEvents: navPointerEvents,
+              transformOrigin: "center",
+            }}
+            className={`hidden h-14 items-center gap-1 px-3 will-change-[transform,opacity] md:flex ${PILL_CLASSES}`}
+          >
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={(event) => handleAnchorClick(event, link.href)}
+                className="group relative rounded-full px-3.5 py-1.5 text-[13px] font-medium text-black/65 transition-colors duration-200 hover:bg-black/[0.03] hover:text-black dark:text-white/65 dark:hover:bg-white/[0.06] dark:hover:text-white"
+              >
+                {link.label}
+                <span className="absolute bottom-0 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-black transition-all duration-200 group-hover:w-3/5 dark:bg-white" />
+              </Link>
+            ))}
+          </motion.nav>
 
-            {/* Right cluster: [Auth Slot] [Theme Toggle] [Mobile Menu] */}
-            <div className="flex shrink-0 items-center gap-3">
-              {/* Auth slot — desktop sm+ */}
-              <div className="hidden items-center gap-3 sm:flex">
-                {isNavbarLoading ? (
-                  <>
-                    <Skeleton className="h-7 w-7 rounded-full" />
-                    <Skeleton className="h-4 w-24 rounded-full" />
-                  </>
-                ) : currentUser ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-black/70 transition-colors hover:bg-black/[0.04] hover:text-black dark:text-white/70 dark:hover:bg-white/[0.08] dark:hover:text-white"
-                      >
-                        <Avatar className="h-7 w-7 border border-black/10 dark:border-white/10">
-                          {logoUrl ? (
-                            <AvatarImage
-                              src={logoUrl}
-                              alt={companyName}
-                              className="object-cover"
-                            />
-                          ) : (
-                            <AvatarFallback
-                              className="text-[10px] font-medium text-white"
-                              style={{ backgroundColor: getUserColor(avatarSeed) }}
-                            >
-                              {getInitials(avatarSeed)}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <span className="max-w-[120px] truncate text-[13px] font-medium">
-                          {companyName}
-                        </span>
-                        <ChevronDown className="h-3 w-3 opacity-50" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="center"
-                      className="mt-2 w-52 rounded-2xl border border-black/10 bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.1)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/90 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+          {/* Grupo direito: [Auth pill] [Quero assinar] [Theme toggle] [Mobile menu] */}
+          <motion.div
+            ref={rightGroupRef}
+            style={{ x: rightX }}
+            className="flex shrink-0 items-center gap-2.5 will-change-transform"
+          >
+            {/* Auth pill — desktop sm+ */}
+            <div className={`hidden h-14 items-center px-4 sm:flex ${PILL_CLASSES}`}>
+              {isNavbarLoading ? (
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-7 w-7 rounded-full" />
+                  <Skeleton className="h-4 w-20 rounded-full" />
+                </div>
+              ) : currentUser ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex cursor-pointer items-center gap-2 rounded-full text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
                     >
-                      {/* Header: avatar + company name */}
-                      <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1">
-                        <Avatar className="h-8 w-8 shrink-0 border border-black/10 dark:border-white/10">
-                          {logoUrl ? (
-                            <AvatarImage src={logoUrl} alt={companyName} className="object-cover" />
-                          ) : (
-                            <AvatarFallback
-                              className="text-[10px] font-medium text-white"
-                              style={{ backgroundColor: getUserColor(avatarSeed) }}
-                            >
-                              {getInitials(avatarSeed)}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <span className="truncate text-[13px] font-semibold text-black dark:text-white">
-                          {companyName}
-                        </span>
-                      </div>
-                      <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
-                      {isBlockedAccount ? (
+                      <Avatar className="h-7 w-7 border border-black/10 dark:border-white/10">
+                        {logoUrl ? (
+                          <AvatarImage
+                            src={logoUrl}
+                            alt={companyName}
+                            className="object-cover"
+                          />
+                        ) : (
+                          <AvatarFallback
+                            className="text-[10px] font-medium text-white"
+                            style={{ backgroundColor: getUserColor(avatarSeed) }}
+                          >
+                            {getInitials(avatarSeed)}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <span className="max-w-[120px] truncate text-[13px] font-medium">
+                        {companyName}
+                      </span>
+                      <ChevronDown className="h-3 w-3 opacity-50" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="center"
+                    className="mt-2 w-52 rounded-2xl border border-black/10 bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.1)] backdrop-blur-2xl dark:border-white/10 dark:bg-neutral-950/90 dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+                  >
+                    {/* Header: avatar + company name */}
+                    <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1">
+                      <Avatar className="h-8 w-8 shrink-0 border border-black/10 dark:border-white/10">
+                        {logoUrl ? (
+                          <AvatarImage src={logoUrl} alt={companyName} className="object-cover" />
+                        ) : (
+                          <AvatarFallback
+                            className="text-[10px] font-medium text-white"
+                            style={{ backgroundColor: getUserColor(avatarSeed) }}
+                          >
+                            {getInitials(avatarSeed)}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <span className="truncate text-[13px] font-semibold text-black dark:text-white">
+                        {companyName}
+                      </span>
+                    </div>
+                    <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
+                    {isBlockedAccount ? (
+                      <DropdownMenuItem
+                        onClick={() => scrollToAnchor("#pricing")}
+                        className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Ver planos
+                      </DropdownMenuItem>
+                    ) : isFreeAccount ? (
+                      <>
                         <DropdownMenuItem
                           onClick={() => scrollToAnchor("#pricing")}
                           className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
@@ -231,81 +289,89 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                           <Sparkles className="h-4 w-4" />
                           Ver planos
                         </DropdownMenuItem>
-                      ) : isFreeAccount ? (
-                        <>
-                          <DropdownMenuItem
-                            onClick={() => scrollToAnchor("#pricing")}
-                            className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
-                          >
-                            <Sparkles className="h-4 w-4" />
-                            Ver planos
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => router.push("/profile")}
-                            className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
-                          >
-                            <UserIcon className="h-4 w-4" />
-                            Meu Perfil
-                          </DropdownMenuItem>
-                        </>
-                      ) : (
-                        <>
-                          <DropdownMenuItem
-                            onClick={() => router.push(appHref)}
-                            className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
-                          >
-                            <LayoutDashboard className="h-4 w-4" />
-                            Entrar no ERP
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => router.push("/profile")}
-                            className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
-                          >
-                            <UserIcon className="h-4 w-4" />
-                            Meu Perfil
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
-                      <DropdownMenuItem
-                        onClick={onSignOut}
-                        className="cursor-pointer gap-2 rounded-xl text-[13px] text-red-500 focus:bg-red-50 focus:text-red-600 dark:text-red-400 dark:focus:bg-red-950/30 dark:focus:text-red-400"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Sair
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Link
-                    href="/login"
-                    className="text-[13px] font-medium text-black/65 transition-colors hover:text-black dark:text-white/65 dark:hover:text-white"
-                  >
-                    Entrar
-                  </Link>
-                )}
-              </div>
+                        <DropdownMenuItem
+                          onClick={() => router.push("/profile")}
+                          className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                        >
+                          <UserIcon className="h-4 w-4" />
+                          Meu Perfil
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => router.push(appHref)}
+                          className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                          Entrar no ERP
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => router.push("/profile")}
+                          className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                        >
+                          <UserIcon className="h-4 w-4" />
+                          Meu Perfil
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
+                    <DropdownMenuItem
+                      onClick={onSignOut}
+                      className="cursor-pointer gap-2 rounded-xl text-[13px] text-red-500 focus:bg-red-50 focus:text-red-600 dark:text-red-400 dark:focus:bg-red-950/30 dark:focus:text-red-400"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sair
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex items-center gap-1.5 text-[13px] font-medium text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                >
+                  <UserIcon className="h-4 w-4" />
+                  Entrar
+                </Link>
+              )}
+            </div>
 
-              {/* Single theme toggle for all breakpoints */}
+            {/* CTA pill — Quero assinar */}
+            {showSubscribeCta && !isNavbarLoading && (
+              <button
+                type="button"
+                onClick={() => scrollToAnchor("#pricing")}
+                className="hidden h-14 cursor-pointer items-center gap-1.5 rounded-full bg-black px-5 text-[13px] font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-transform hover:scale-[1.03] active:scale-[0.98] sm:flex dark:bg-white dark:text-black"
+              >
+                <Plus className="h-4 w-4" />
+                Quero assinar
+              </button>
+            )}
+
+            {/* Theme toggle pill */}
+            <div
+              className={`flex h-14 w-14 items-center justify-center ${PILL_CLASSES} max-sm:h-12 max-sm:w-12`}
+            >
               <AnimatedThemeToggler
-                className="inline-flex h-8 w-8 items-center justify-center text-black/75 transition-colors hover:text-black dark:text-white/80 dark:hover:text-white"
+                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center text-black/75 transition-colors hover:text-black dark:text-white/80 dark:hover:text-white"
                 aria-label="Alternar tema"
               />
-
-              <button
-                onClick={() => setMobileOpen((prev) => !prev)}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-black/70 transition-colors hover:bg-black/[0.04] hover:text-black dark:text-white/70 dark:hover:bg-white/[0.08] dark:hover:text-white md:hidden"
-                aria-label="Abrir menu"
-              >
-                {mobileOpen ? (
-                  <X className="h-[18px] w-[18px]" />
-                ) : (
-                  <Menu className="h-[18px] w-[18px]" />
-                )}
-              </button>
             </div>
-          </div>
-        </nav>
+
+            {/* Mobile menu button pill */}
+            <button
+              onClick={() => setMobileOpen((prev) => !prev)}
+              className={`flex h-12 w-12 items-center justify-center text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white md:hidden ${PILL_CLASSES}`}
+              aria-label="Abrir menu"
+            >
+              {mobileOpen ? (
+                <X className="h-[18px] w-[18px]" />
+              ) : (
+                <Menu className="h-[18px] w-[18px]" />
+              )}
+            </button>
+          </motion.div>
+        </div>
       </motion.div>
 
       <AnimatePresence>
@@ -399,13 +465,23 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     </button>
                   </>
                 ) : (
-                  <Link
-                    href="/login"
-                    onClick={() => setMobileOpen(false)}
-                    className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
-                  >
-                    Entrar
-                  </Link>
+                  <>
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileOpen(false)}
+                      className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                    >
+                      Entrar
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => scrollToAnchor("#pricing", true)}
+                      className="flex items-center gap-1.5 rounded-full bg-black px-8 py-3 text-sm font-semibold text-white dark:bg-white dark:text-black"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Quero assinar
+                    </button>
+                  </>
                 )}
               </motion.div>
             </div>
