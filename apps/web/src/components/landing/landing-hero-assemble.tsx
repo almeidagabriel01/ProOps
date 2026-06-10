@@ -7,12 +7,12 @@ import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { ArrowRight } from "lucide-react";
 import {
-  HeroBarChartCard,
-  HeroTableCard,
-  HeroKpiCard,
-  HeroLineChartCard,
-  HeroDonutCard,
-} from "./hero-dashboard-cards";
+  HeroDashboardHeader,
+  HeroCashFlowCard,
+  HeroProposalStats,
+  HeroClientsStats,
+  HeroRecentProposals,
+} from "./hero-dashboard-demo";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -43,15 +43,15 @@ interface ScatterConfig {
 // do título no load (o grid já os afasta do centro; o offset empurra cada um
 // para a borda mais próxima sem sair totalmente da viewport)
 const SCATTER: ScatterConfig[] = [
-  { x: -0.16, y: -0.18, rotation: -8, scale: 0.9, speed: 1.0 }, // KPI → canto sup. esquerdo
-  { x: 0.03, y: -0.24, rotation: 5, scale: 0.92, speed: 0.85 }, // linha → topo central
-  { x: 0.19, y: -0.16, rotation: 8, scale: 0.9, speed: 1.15 }, // donut → canto sup. direito
-  { x: -0.24, y: 0.21, rotation: -6, scale: 0.9, speed: 0.9 }, // barras → canto inf. esquerdo
-  { x: 0.2, y: 0.22, rotation: 7, scale: 0.92, speed: 1.05 }, // tabela → canto inf. direito
+  { x: 0.0, y: -0.32, rotation: -4, scale: 0.92, speed: 1.0 }, // header → topo central
+  { x: -0.27, y: -0.16, rotation: -7, scale: 0.9, speed: 0.9 }, // fluxo de caixa → esquerda/cima
+  { x: 0.25, y: -0.12, rotation: 7, scale: 0.9, speed: 1.1 }, // propostas (donut) → direita/cima
+  { x: -0.24, y: 0.2, rotation: -6, scale: 0.9, speed: 1.05 }, // clientes → canto inf. esquerdo
+  { x: 0.2, y: 0.22, rotation: 6, scale: 0.92, speed: 0.85 }, // últimas propostas → inf. direito
 ];
 
-const SCRUB = 1;
-const END = "+=250%";
+const SCRUB = 0.8;
+const END = "+=150%";
 
 /* AJUSTE: textos e CTAs do hero */
 const HERO_COPY = {
@@ -200,7 +200,7 @@ export function LandingHeroAssemble() {
       // pinada de 1 dobra, copy absoluto sobre a dashboard); com
       // prefers-reduced-motion o layout fica empilhado (copy acima, dashboard
       // abaixo) e a página rola normalmente
-      className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-white px-4 pb-16 pt-28 dark:bg-neutral-950 sm:px-6 md:motion-safe:h-svh md:motion-safe:pb-0 md:motion-safe:pt-0"
+      className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-white px-4 pb-16 pt-28 dark:bg-neutral-950 sm:px-6 md:motion-safe:h-svh md:motion-safe:pb-4 md:motion-safe:pt-24"
     >
       {/* glow decorativo de fundo */}
       <div
@@ -243,9 +243,11 @@ export function LandingHeroAssemble() {
            Os cards já vivem nas posições do grid; o GSAP só os "espalha" no
            estado inicial via fromTo. Sem JS / com reduced-motion, a dashboard
            aparece montada — zero layout shift e encaixe pixel-perfect. */}
+      {/* dashboard demo é decorativa: sem interação (links/tooltips) */}
       <div
         data-hero-dashboard
-        className="relative z-10 mx-auto mt-12 grid w-full max-w-5xl grid-cols-1 gap-3 will-change-transform sm:grid-cols-12 sm:gap-4 md:motion-safe:mt-0"
+        aria-hidden="true"
+        className="pointer-events-none relative z-10 mx-auto mt-12 grid w-full max-w-6xl select-none grid-cols-1 gap-3 will-change-transform sm:grid-cols-12 sm:gap-4 md:motion-safe:mt-0"
       >
         {/* moldura de fundo da dashboard — só ela faz o fade-in */}
         <div
@@ -253,20 +255,20 @@ export function LandingHeroAssemble() {
           aria-hidden="true"
           className="pointer-events-none absolute -inset-3 rounded-3xl border border-black/8 bg-black/[0.02] will-change-transform transform-gpu dark:border-white/10 dark:bg-white/[0.03] sm:-inset-5"
         />
-        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-3">
-          <HeroKpiCard />
+        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-12">
+          <HeroDashboardHeader />
         </div>
-        <div data-hero-card className="min-h-36 will-change-transform transform-gpu sm:col-span-5">
-          <HeroLineChartCard />
-        </div>
-        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-4">
-          <HeroDonutCard />
-        </div>
-        <div data-hero-card className="min-h-44 will-change-transform transform-gpu sm:col-span-7">
-          <HeroBarChartCard />
+        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-7">
+          <HeroCashFlowCard />
         </div>
         <div data-hero-card className="will-change-transform transform-gpu sm:col-span-5">
-          <HeroTableCard />
+          <HeroProposalStats />
+        </div>
+        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-5">
+          <HeroClientsStats />
+        </div>
+        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-7">
+          <HeroRecentProposals />
         </div>
       </div>
     </section>
