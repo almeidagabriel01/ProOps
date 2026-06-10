@@ -1,6 +1,7 @@
 export { useLandingPage } from "./use-landing-page";
 export { LandingNavbar } from "./landing-navbar";
 export { LandingHeroFrames } from "./landing-hero-frames";
+export { LandingHeroAssemble } from "./landing-hero-assemble";
 export { LandingShowcase } from "./landing-showcase";
 export { LandingModules } from "./landing-modules";
 export { LandingHero } from "./landing-hero"; // fallback for old pages or history if needed

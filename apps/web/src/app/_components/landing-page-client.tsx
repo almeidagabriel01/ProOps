@@ -4,8 +4,7 @@ import React from "react";
 import {
   useLandingPage,
   LandingNavbar,
-  LandingHeroFrames,
-  LandingShowcase,
+  LandingHeroAssemble,
   LandingModules,
   LandingFeatures,
   LandingNiches,
@@ -15,6 +14,7 @@ import {
 } from "@/components/landing";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
+import Lenis from "lenis";
 
 export function LandingPageClient() {
   const {
@@ -28,14 +28,30 @@ export function LandingPageClient() {
   } = useLandingPage();
 
   React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      gsap.registerPlugin(ScrollTrigger);
-      const timeoutId = window.setTimeout(() => {
-        ScrollTrigger.refresh();
-      }, 500);
+    if (typeof window === "undefined") return;
 
-      return () => window.clearTimeout(timeoutId);
+    gsap.registerPlugin(ScrollTrigger);
+    const timeoutId = window.setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 500);
+
+    // Lenis (smooth scroll) sincronizado ao ScrollTrigger — só na landing e
+    // só quando o usuário não pediu redução de movimento
+    let lenis: Lenis | null = null;
+    let raf: ((time: number) => void) | null = null;
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      lenis = new Lenis();
+      lenis.on("scroll", ScrollTrigger.update);
+      raf = (time: number) => lenis?.raf(time * 1000);
+      gsap.ticker.add(raf);
+      gsap.ticker.lagSmoothing(0);
     }
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (raf) gsap.ticker.remove(raf);
+      lenis?.destroy();
+    };
   }, []);
 
   return (
@@ -43,8 +59,7 @@ export function LandingPageClient() {
       <LandingNavbar currentUser={currentUser} isAuthLoading={isAuthLoading} onSignOut={handleSignOut} />
 
       <main>
-        <LandingHeroFrames />
-        <LandingShowcase />
+        <LandingHeroAssemble />
         <LandingModules />
         <LandingFeatures />
         <LandingNiches />
