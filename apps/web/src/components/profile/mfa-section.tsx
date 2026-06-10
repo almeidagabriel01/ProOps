@@ -159,6 +159,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
               </span>
               <Button
                 type="button"
+                size="sm"
                 variant="outline"
                 onClick={() => void handleResendVerification()}
                 disabled={resending}
@@ -180,6 +181,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
             </p>
             <Button
               type="button"
+              size="sm"
               variant="outline"
               onClick={() => setConfirmDisableOpen(true)}
               disabled={busy}
@@ -194,12 +196,13 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
         {showEnableFlow && stage === "intro" ? (
           <Button
             type="button"
+            size="sm"
             onClick={() => void generate()}
             disabled={busy || !emailGate.ok}
             className="w-fit gap-2 cursor-pointer"
           >
             {busy && <Spinner className="h-4 w-4 text-white" />}
-            {busy ? "Gerando..." : "Ativar verificação em dois fatores"}
+            {busy ? "Gerando..." : "Ativar verificação"}
           </Button>
         ) : null}
 
@@ -241,6 +244,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
 
             <Button
               type="button"
+              size="sm"
               onClick={() => void enroll()}
               disabled={busy}
               className="w-fit gap-2 cursor-pointer"
@@ -264,6 +268,7 @@ export function MfaSection({ onEnrolled, onDisabled }: MfaSectionProps = {}) {
             </Alert>
             <Button
               type="button"
+              size="sm"
               onClick={() => void logout()}
               className="w-fit cursor-pointer"
             >

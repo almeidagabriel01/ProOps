@@ -227,6 +227,7 @@ export function WhatsappMfaSection({
             </div>
             <Button
               type="button"
+              size="sm"
               onClick={() => void handleStart()}
               disabled={
                 busy || Boolean(disabledReason) || resendSecondsLeft > 0
@@ -263,6 +264,7 @@ export function WhatsappMfaSection({
             <div className="flex gap-2">
               <Button
                 type="button"
+                size="sm"
                 onClick={() => void handleConfirm()}
                 disabled={busy || code.trim().length !== 6}
                 className="w-fit gap-2 cursor-pointer"
@@ -272,6 +274,7 @@ export function WhatsappMfaSection({
               </Button>
               <Button
                 type="button"
+                size="sm"
                 variant="outline"
                 onClick={() => {
                   setStage("intro");
@@ -298,6 +301,7 @@ export function WhatsappMfaSection({
             </p>
             <Button
               type="button"
+              size="sm"
               variant="outline"
               onClick={() => setConfirmDisableOpen(true)}
               disabled={busy}

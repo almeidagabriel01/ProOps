@@ -134,6 +134,7 @@ export const RecoveryCodesSection = React.forwardRef<
 
         <Button
           type="button"
+          size="sm"
           variant={hasCodes ? "outline" : "default"}
           onClick={() => void generateAndShow()}
           disabled={generating || loading}
