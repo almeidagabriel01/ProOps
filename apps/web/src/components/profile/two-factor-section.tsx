@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { RecoveryCodesService } from "@/services/recovery-codes-service";
+import { SecurityCardSkeleton } from "@/app/settings/_components/settings-skeleton";
 import { MfaSection } from "./mfa-section";
 import { WhatsappMfaSection } from "./whatsapp-mfa-section";
 import {
@@ -35,6 +36,7 @@ export function TwoFactorSection() {
   const {
     enabled: whatsappEnabled,
     phone: whatsappPhone,
+    loading: whatsappLoading,
     refresh: refreshWhatsapp,
   } = useWhatsappMfaStatus();
 
@@ -82,6 +84,12 @@ export function TwoFactorSection() {
     }
     await recoveryRef.current?.refresh();
   }, [forceSyncSession]);
+
+  // While the verification-method status loads, show the card skeleton so the
+  // section matches the rest of /settings (header stays; the card fills in).
+  if (whatsappLoading) {
+    return <SecurityCardSkeleton />;
+  }
 
   return (
     <Card>

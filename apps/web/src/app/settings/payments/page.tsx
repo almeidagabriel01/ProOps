@@ -2,6 +2,7 @@
 
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { AsaasConnectCard } from "@/app/settings/_components/asaas-connect-card";
+import { PaymentsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
 import { usePermissions } from "@/providers/permissions-provider";
 import { CreditCard, Shield } from "lucide-react";
 
@@ -15,7 +16,9 @@ export default function SettingsPaymentsPage() {
         subtitle="Receba pagamentos das suas propostas online via Asaas"
         icon={CreditCard}
       />
-      {isMaster ? (
+      {isLoading ? (
+        <PaymentsCardSkeleton />
+      ) : isMaster ? (
         <AsaasConnectCard />
       ) : (
         !isLoading && (

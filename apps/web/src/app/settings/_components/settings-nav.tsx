@@ -8,6 +8,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface NavItem {
   label: string;
@@ -42,7 +43,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 export function SettingsNav() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { companyName, logoUrl, avatarSeed } = useHeaderPresentation();
 
   const userName = user?.name?.trim() || companyName;
@@ -91,26 +92,38 @@ export function SettingsNav() {
 
       {/* User identity chip */}
       <div className="hidden items-center gap-3 rounded-xl border border-border/60 bg-card p-3 lg:flex">
-        <Avatar className="h-9 w-9 shrink-0 border border-border">
-          {logoUrl ? (
-            <AvatarImage src={logoUrl} alt={companyName} />
-          ) : (
-            <AvatarFallback
-              style={{ backgroundColor: getUserColor(avatarSeed) }}
-              className="text-xs font-semibold text-white"
-            >
-              {getInitials(avatarSeed)}
-            </AvatarFallback>
-          )}
-        </Avatar>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-foreground">
-            {userName}
-          </p>
-          {companyName && companyName !== userName && (
-            <p className="truncate text-xs text-primary">{companyName}</p>
-          )}
-        </div>
+        {authLoading ? (
+          <>
+            <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+            <div className="min-w-0 space-y-1.5">
+              <Skeleton className="h-3.5 w-28" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          </>
+        ) : (
+          <>
+            <Avatar className="h-9 w-9 shrink-0 border border-border">
+              {logoUrl ? (
+                <AvatarImage src={logoUrl} alt={companyName} />
+              ) : (
+                <AvatarFallback
+                  style={{ backgroundColor: getUserColor(avatarSeed) }}
+                  className="text-xs font-semibold text-white"
+                >
+                  {getInitials(avatarSeed)}
+                </AvatarFallback>
+              )}
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-foreground">
+                {userName}
+              </p>
+              {companyName && companyName !== userName && (
+                <p className="truncate text-xs text-primary">{companyName}</p>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </aside>
   );
