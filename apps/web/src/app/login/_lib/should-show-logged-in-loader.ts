@@ -9,6 +9,15 @@
  * Without this exclusion the logged-in loader swallowed the WhatsApp OTP screen
  * behind an infinite loader (most visibly on Google sign-in, where the user is
  * set before the gate is surfaced).
+ *
+ * It must ALSO wait for `isSessionSynced` before showing. A Firebase `user` is
+ * set the instant sign-in completes, but the server still has a round-trip to
+ * run that decides whether the user actually enters the app (cookie emitted) or
+ * is held at the WhatsApp gate. Showing the full-screen "entering app" loader
+ * during that undetermined window is misleading and, on the background/persisted
+ * session path, it appears before the WhatsApp OTP screen. Gate the loader on
+ * `isSessionSynced` so it only renders once the user is genuinely entering; the
+ * button spinner (`isLoggingIn`) covers the foreground wait until then.
  */
 export interface LoggedInLoaderState {
   isLoggingIn: boolean;
@@ -16,6 +25,7 @@ export interface LoggedInLoaderState {
   sessionRecoveryFailed: boolean;
   requiresMfaCode: boolean;
   requiresWhatsappOtp: boolean;
+  isSessionSynced: boolean;
 }
 
 export function shouldShowLoggedInLoader(state: LoggedInLoaderState): boolean {
@@ -23,6 +33,12 @@ export function shouldShowLoggedInLoader(state: LoggedInLoaderState): boolean {
     return false;
   }
   if (state.requiresMfaCode || state.requiresWhatsappOtp) {
+    return false;
+  }
+  // Only the genuine "entering app" state shows the loader. Until the session
+  // cookie is synced the outcome is undetermined (could still be the WhatsApp
+  // gate) — don't show the full-screen loader prematurely.
+  if (!state.isSessionSynced) {
     return false;
   }
   return true;

@@ -99,6 +99,7 @@ function LoginContent() {
     handleResendPhoneCode,
     isGoogleLoading,
     sessionRecoveryFailed,
+    isSessionSynced,
     requiresMfaCode,
     mfaLoginCode,
     setMfaLoginCode,
@@ -353,6 +354,7 @@ function LoginContent() {
       sessionRecoveryFailed,
       requiresMfaCode,
       requiresWhatsappOtp,
+      isSessionSynced,
     })
   ) {
     if (user.role === "free") return null;

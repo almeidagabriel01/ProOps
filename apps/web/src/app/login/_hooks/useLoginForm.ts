@@ -100,6 +100,7 @@ interface UseLoginFormReturn {
   isVerifyingSmsCode: boolean;
   isGoogleLoading: boolean;
   sessionRecoveryFailed: boolean;
+  isSessionSynced: boolean;
   redirectReason: string | null;
   requiresMfaCode: boolean;
   mfaLoginCode: string;
@@ -1438,6 +1439,7 @@ export function useLoginForm(): UseLoginFormReturn {
     isVerifyingSmsCode,
     isGoogleLoading,
     sessionRecoveryFailed,
+    isSessionSynced,
     redirectReason,
     requiresMfaCode,
     mfaLoginCode,
