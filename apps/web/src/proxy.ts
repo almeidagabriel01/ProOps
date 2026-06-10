@@ -40,6 +40,7 @@ const PUBLIC_ROUTES = [
   "/privacy",
   "/terms",
   "/data-deletion",
+  "/cookies",
   "/subscribe",
   "/checkout-success",
   "/pricing",
