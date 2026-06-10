@@ -22,7 +22,7 @@ import {
   hashPhone,
   maskPhone,
   toOtpRecord,
-  writeChallenge,
+  writeChallengeTx,
   type ChallengeDoc,
 } from "./whatsapp-mfa.controller";
 
@@ -186,73 +186,97 @@ export const sendWhatsappLoginFallback = async (
     const resend = parsed.data.resend === true;
 
     const challengeRef = db.collection(CHALLENGES_COLLECTION).doc(uid);
-    const existingSnap = await challengeRef.get();
-    const existing = existingSnap.exists
-      ? (existingSnap.data() as ChallengeDoc)
-      : null;
 
-    const nowMs = Date.now();
-    const sendDecision = canSendOtp(
-      existing ? toOtpRecord(existing) : null,
-      nowMs,
-    );
+    // Atomic read → canSendOtp → reserve-write so two concurrent fallback
+    // requests can't both pass canSendOtp and both deliver a code (duplicate
+    // WhatsApp codes). deliverOtp (external, non-retryable) runs after commit.
+    type ChallengeOutcome =
+      | { action: "send"; code: string; retryAfterSeconds: number }
+      | { action: "reuse" | "none"; retryAfterSeconds: number };
 
-    const existingExpiresMs =
-      typeof existing?.expiresAt === "number"
-        ? existing.expiresAt
-        : (existing?.expiresAt?.toMillis?.() ?? null);
-    const hasValidLoginCode =
-      existing !== null &&
-      existing.purpose === "login" &&
-      existingExpiresMs !== null &&
-      existingExpiresMs > nowMs;
+    const outcome = await db.runTransaction<ChallengeOutcome>(async (tx) => {
+      const snap = await tx.get(challengeRef);
+      const existing = snap.exists ? (snap.data() as ChallengeDoc) : null;
 
-    const sendNewCode = async (): Promise<void> => {
-      const code = generateOtpCode();
-      await writeChallenge({
-        uid,
-        tenantId: tenantId ?? "",
-        purpose: "login",
-        phoneHash: hashPhone(normalizedPhone),
-        codeHash: hashOtp(code),
+      const nowMs = Date.now();
+      const sendDecision = canSendOtp(
+        existing ? toOtpRecord(existing) : null,
         nowMs,
-        existing,
-      });
-      await deliverOtp(normalizedPhone, code);
-      logger.info("WhatsApp login fallback OTP sent", { uid, tenantId, resend });
-    };
+      );
+
+      const existingExpiresMs =
+        typeof existing?.expiresAt === "number"
+          ? existing.expiresAt
+          : (existing?.expiresAt?.toMillis?.() ?? null);
+      const hasValidLoginCode =
+        existing !== null &&
+        existing.purpose === "login" &&
+        existingExpiresMs !== null &&
+        existingExpiresMs > nowMs;
+
+      const reserveNewCode = (): string => {
+        const code = generateOtpCode();
+        writeChallengeTx(tx, {
+          uid,
+          tenantId: tenantId ?? "",
+          purpose: "login",
+          phoneHash: hashPhone(normalizedPhone),
+          codeHash: hashOtp(code),
+          nowMs,
+          existing,
+        });
+        return code;
+      };
+
+      if (resend) {
+        if (sendDecision.ok) {
+          return {
+            action: "send",
+            code: reserveNewCode(),
+            retryAfterSeconds: getOtpResendCooldownSeconds(),
+          };
+        }
+        return {
+          action: "none",
+          retryAfterSeconds:
+            sendDecision.retryAfterSeconds ?? getOtpResendCooldownSeconds(),
+        };
+      }
+
+      if (hasValidLoginCode) {
+        return {
+          action: "reuse",
+          retryAfterSeconds: sendDecision.ok
+            ? 0
+            : (sendDecision.retryAfterSeconds ?? 0),
+        };
+      }
+
+      if (sendDecision.ok) {
+        return {
+          action: "send",
+          code: reserveNewCode(),
+          retryAfterSeconds: getOtpResendCooldownSeconds(),
+        };
+      }
+      return {
+        action: "none",
+        retryAfterSeconds: sendDecision.retryAfterSeconds ?? 0,
+      };
+    });
 
     let otpSent = false;
-    let retryAfterSeconds: number;
-
-    if (resend) {
-      if (sendDecision.ok) {
-        await sendNewCode();
-        otpSent = true;
-        retryAfterSeconds = getOtpResendCooldownSeconds();
-      } else {
-        retryAfterSeconds =
-          sendDecision.retryAfterSeconds ?? getOtpResendCooldownSeconds();
-      }
-    } else if (hasValidLoginCode) {
-      retryAfterSeconds = sendDecision.ok
-        ? 0
-        : (sendDecision.retryAfterSeconds ?? 0);
-    } else {
-      if (sendDecision.ok) {
-        await sendNewCode();
-        otpSent = true;
-        retryAfterSeconds = getOtpResendCooldownSeconds();
-      } else {
-        retryAfterSeconds = sendDecision.retryAfterSeconds ?? 0;
-      }
+    if (outcome.action === "send") {
+      await deliverOtp(normalizedPhone, outcome.code);
+      logger.info("WhatsApp login fallback OTP sent", { uid, tenantId, resend });
+      otpSent = true;
     }
 
     return res.json({
       available: true,
       maskedPhone: maskPhone(normalizedPhone),
       otpSent,
-      retryAfterSeconds: Math.round(retryAfterSeconds),
+      retryAfterSeconds: Math.round(outcome.retryAfterSeconds),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";

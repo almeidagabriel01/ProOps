@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { createHash } from "crypto";
 import { z } from "zod";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, Transaction } from "firebase-admin/firestore";
 import { db } from "../../init";
 import { logger } from "../../lib/logger";
 import { isSuperAdminClaim } from "../../lib/request-auth";
@@ -111,11 +111,7 @@ export async function deliverOtp(
   );
 }
 
-/**
- * Persist (create or refresh) the OTP challenge for a uid, advancing the
- * hourly send-window counters. Always called after canSendOtp() approved a send.
- */
-export async function writeChallenge(params: {
+export interface WriteChallengeParams {
   uid: string;
   tenantId: string;
   purpose: OtpPurpose;
@@ -123,7 +119,15 @@ export async function writeChallenge(params: {
   codeHash: string;
   nowMs: number;
   existing: ChallengeDoc | null;
-}): Promise<void> {
+}
+
+/**
+ * Build the OTP challenge document for a (re)issued code, advancing the hourly
+ * send-window counters. Pure given `nowMs` and `existing` — persistence is done
+ * by writeChallenge (standalone) or writeChallengeTx (inside a transaction) so
+ * the read → decide → reserve sequence can be made atomic.
+ */
+export function buildChallengeDoc(params: WriteChallengeParams): ChallengeDoc {
   const { uid, tenantId, purpose, phoneHash, codeHash, nowMs, existing } =
     params;
   const now = Timestamp.fromMillis(nowMs);
@@ -138,23 +142,48 @@ export async function writeChallenge(params: {
     : now;
   const sendCount = windowStillOpen ? (existing?.sendCount ?? 0) + 1 : 1;
 
+  return {
+    uid,
+    tenantId,
+    purpose,
+    phoneHash,
+    codeHash,
+    expiresAt,
+    attempts: 0,
+    maxAttempts: getOtpMaxAttempts(),
+    lastSentAt: now,
+    sendCount,
+    sendWindowStart,
+    createdAt: existing?.createdAt ?? now,
+  } satisfies ChallengeDoc;
+}
+
+/**
+ * Persist (create or refresh) the OTP challenge for a uid, advancing the
+ * hourly send-window counters. Always called after canSendOtp() approved a send.
+ */
+export async function writeChallenge(
+  params: WriteChallengeParams,
+): Promise<void> {
   await db
     .collection(CHALLENGES_COLLECTION)
-    .doc(uid)
-    .set({
-      uid,
-      tenantId,
-      purpose,
-      phoneHash,
-      codeHash,
-      expiresAt,
-      attempts: 0,
-      maxAttempts: getOtpMaxAttempts(),
-      lastSentAt: now,
-      sendCount,
-      sendWindowStart,
-      createdAt: existing?.createdAt ?? now,
-    } satisfies ChallengeDoc);
+    .doc(params.uid)
+    .set(buildChallengeDoc(params));
+}
+
+/**
+ * Transactional variant of writeChallenge — reserves the send inside an open
+ * transaction so two concurrent challenge requests can't both pass canSendOtp
+ * and both deliver a code (duplicate WhatsApp codes).
+ */
+export function writeChallengeTx(
+  tx: Transaction,
+  params: WriteChallengeParams,
+): void {
+  tx.set(
+    db.collection(CHALLENGES_COLLECTION).doc(params.uid),
+    buildChallengeDoc(params),
+  );
 }
 
 /**
@@ -385,82 +414,113 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
 
     const normalizedPhone = userData.whatsappMfaPhone;
     const challengeRef = db.collection(CHALLENGES_COLLECTION).doc(uid);
-    const existingSnap = await challengeRef.get();
-    const existing = existingSnap.exists
-      ? (existingSnap.data() as ChallengeDoc)
-      : null;
 
-    const nowMs = Date.now();
-    const sendDecision = canSendOtp(existing ? toOtpRecord(existing) : null, nowMs);
+    // The read → canSendOtp → reserve-write MUST be atomic. This endpoint is hit
+    // concurrently on every login (foreground session POST + background token
+    // listeners, token refresh, Google redirect). Without a transaction two
+    // racing requests both read the same (stale) state, both pass canSendOtp,
+    // and both deliver a code — the user receives two WhatsApp codes. The
+    // transaction serializes the reservation: the loser retries, re-reads the
+    // just-written cooldown, and declines to send. deliverOtp (an external
+    // WhatsApp call, non-retryable) stays OUTSIDE the transaction.
+    //
+    // This endpoint is also invoked automatically by the login session flow and
+    // must always respond 200 with the gate (never 429) — a 429 would swallow
+    // the gate and stall the login. So "can't send" surfaces retryAfterSeconds
+    // rather than an error.
+    type ChallengeOutcome =
+      | { action: "send"; code: string; retryAfterSeconds: number }
+      | { action: "reuse" | "none"; retryAfterSeconds: number };
 
-    // Is there a still-valid login code we can reuse instead of issuing a new one?
-    // Defend against expiresAt being either a number or a Firestore Timestamp.
-    const existingExpiresMs =
-      typeof existing?.expiresAt === "number"
-        ? existing.expiresAt
-        : (existing?.expiresAt?.toMillis?.() ?? null);
-    const hasValidLoginCode =
-      existing !== null &&
-      existing.purpose === "login" &&
-      existingExpiresMs !== null &&
-      existingExpiresMs > nowMs;
+    const outcome = await db.runTransaction<ChallengeOutcome>(async (tx) => {
+      const snap = await tx.get(challengeRef);
+      const existing = snap.exists ? (snap.data() as ChallengeDoc) : null;
 
-    // "Sending" means: generateOtpCode() + writeChallenge() (which advances the
-    // cooldown / hourly send-count) + deliverOtp(). "Reusing" touches none of
-    // these, keeping the current code and counters intact.
-    const sendNewCode = async (): Promise<void> => {
-      const code = generateOtpCode();
-      await writeChallenge({
-        uid,
-        tenantId,
-        purpose: "login",
-        phoneHash: hashPhone(normalizedPhone),
-        codeHash: hashOtp(code),
+      const nowMs = Date.now();
+      const sendDecision = canSendOtp(
+        existing ? toOtpRecord(existing) : null,
         nowMs,
-        existing,
-      });
-      await deliverOtp(normalizedPhone, code);
-      logger.info("WhatsApp MFA login OTP sent", { uid, tenantId, resend });
-    };
+      );
 
-    // This endpoint is invoked automatically by the login session flow on every
-    // login/reload, and may be called concurrently (frontend login + background
-    // token listeners, token refresh, Google redirect). It must always respond
-    // 200 with the gate and never return 429 — a 429 would non-deterministically
-    // swallow the gate and stall the login.
-    let otpSent = false;
-    let retryAfterSeconds: number;
+      // Is there a still-valid login code we can reuse instead of issuing a new
+      // one? Defend against expiresAt being either a number or a Timestamp.
+      const existingExpiresMs =
+        typeof existing?.expiresAt === "number"
+          ? existing.expiresAt
+          : (existing?.expiresAt?.toMillis?.() ?? null);
+      const hasValidLoginCode =
+        existing !== null &&
+        existing.purpose === "login" &&
+        existingExpiresMs !== null &&
+        existingExpiresMs > nowMs;
 
-    if (resend) {
-      // Explicit "Resend" click: send a fresh code if the cooldown/cap allows;
-      // otherwise surface how long until the next send is permitted.
-      if (sendDecision.ok) {
-        await sendNewCode();
-        otpSent = true;
-        retryAfterSeconds = getOtpResendCooldownSeconds();
-      } else {
-        retryAfterSeconds =
-          sendDecision.retryAfterSeconds ?? getOtpResendCooldownSeconds();
+      // Reserve a fresh code: generateOtpCode() + writeChallengeTx() (advances
+      // the cooldown / hourly send-count inside the transaction). The actual
+      // WhatsApp delivery happens after the transaction commits.
+      const reserveNewCode = (): string => {
+        const code = generateOtpCode();
+        writeChallengeTx(tx, {
+          uid,
+          tenantId,
+          purpose: "login",
+          phoneHash: hashPhone(normalizedPhone),
+          codeHash: hashOtp(code),
+          nowMs,
+          existing,
+        });
+        return code;
+      };
+
+      if (resend) {
+        // Explicit "Resend" click: send a fresh code if the cooldown/cap allows;
+        // otherwise surface how long until the next send is permitted.
+        if (sendDecision.ok) {
+          return {
+            action: "send",
+            code: reserveNewCode(),
+            retryAfterSeconds: getOtpResendCooldownSeconds(),
+          };
+        }
+        return {
+          action: "none",
+          retryAfterSeconds:
+            sendDecision.retryAfterSeconds ?? getOtpResendCooldownSeconds(),
+        };
       }
-    } else if (hasValidLoginCode) {
-      // Auto-challenge with a still-valid pending code: reuse it. Do NOT send and
-      // do NOT advance the send counters — this is the core of the fix that keeps
-      // login/reload from burning the hourly send cap. retryAfterSeconds is 0
-      // once the cooldown has elapsed (resend already unlocked), otherwise the
-      // remaining cooldown.
-      retryAfterSeconds = sendDecision.ok
-        ? 0
-        : (sendDecision.retryAfterSeconds ?? 0);
-    } else {
+
+      if (hasValidLoginCode) {
+        // Auto-challenge with a still-valid pending code: reuse it. Do NOT send
+        // and do NOT advance the send counters — keeps login/reload from burning
+        // the hourly send cap. retryAfterSeconds is 0 once the cooldown elapsed
+        // (resend already unlocked), otherwise the remaining cooldown.
+        return {
+          action: "reuse",
+          retryAfterSeconds: sendDecision.ok
+            ? 0
+            : (sendDecision.retryAfterSeconds ?? 0),
+        };
+      }
+
       // Auto-challenge with no valid code (first access or expired): issue one if
       // allowed. Rare edge: no code AND capped — we simply can't send yet.
       if (sendDecision.ok) {
-        await sendNewCode();
-        otpSent = true;
-        retryAfterSeconds = getOtpResendCooldownSeconds();
-      } else {
-        retryAfterSeconds = sendDecision.retryAfterSeconds ?? 0;
+        return {
+          action: "send",
+          code: reserveNewCode(),
+          retryAfterSeconds: getOtpResendCooldownSeconds(),
+        };
       }
+      return {
+        action: "none",
+        retryAfterSeconds: sendDecision.retryAfterSeconds ?? 0,
+      };
+    });
+
+    let otpSent = false;
+    if (outcome.action === "send") {
+      await deliverOtp(normalizedPhone, outcome.code);
+      logger.info("WhatsApp MFA login OTP sent", { uid, tenantId, resend });
+      otpSent = true;
     }
 
     return res.json({
@@ -468,7 +528,7 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
       method: "whatsapp",
       maskedPhone: maskPhone(normalizedPhone),
       otpSent,
-      retryAfterSeconds: Math.round(retryAfterSeconds),
+      retryAfterSeconds: Math.round(outcome.retryAfterSeconds),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";

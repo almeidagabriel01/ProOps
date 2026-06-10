@@ -76,8 +76,36 @@ const mockCollection = jest.fn((collection: string) => ({
 
 const mockGetUser = jest.fn();
 
+// Serializing runTransaction mock: Firestore commits transactions atomically and
+// retries on conflict, so the observable outcome of two concurrent transactions
+// is that they run one-at-a-time. Chaining each call after the previous models
+// exactly that — the second transaction reads the first's committed write. The
+// `tx` exposes get/set backed by the same in-memory doc refs as non-tx writes,
+// so writeChallengeTx updates docStore (and mockSet) just like writeChallenge.
+let mockTxChain: Promise<unknown> = Promise.resolve();
+const mockRunTransaction = jest.fn(
+  (fn: (tx: unknown) => Promise<unknown>): Promise<unknown> => {
+    const tx = {
+      get: (ref: { get: () => Promise<unknown> }) => ref.get(),
+      set: (ref: { set: (v: unknown) => Promise<unknown> }, value: unknown) => {
+        void ref.set(value);
+      },
+    };
+    const result = mockTxChain.then(() => fn(tx));
+    mockTxChain = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  },
+);
+
 jest.mock("../../../init", () => ({
-  db: { collection: (name: string) => mockCollection(name) },
+  db: {
+    collection: (name: string) => mockCollection(name),
+    runTransaction: (fn: (tx: unknown) => Promise<unknown>) =>
+      mockRunTransaction(fn),
+  },
   auth: { getUser: (uid: string) => mockGetUser(uid) },
 }));
 
@@ -145,6 +173,7 @@ const PHONE_INPUT = "11999998888"; // normalizes to 5511999998888
 beforeEach(() => {
   jest.clearAllMocks();
   docStore.clear();
+  mockTxChain = Promise.resolve();
   process.env.WHATSAPP_OTP_TEMPLATE_NAME = "otp_template";
   // no TOTP factor by default
   mockGetUser.mockResolvedValue({ multiFactor: { enrolledFactors: [] } });
@@ -477,6 +506,38 @@ describe("challengeWhatsappLogin", () => {
         retryAfterSeconds: 60,
       }),
     );
+  });
+
+  it("two concurrent auto-challenges deliver only ONE code (atomic reservation)", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+
+    // No prior challenge: WITHOUT the transaction both requests read an empty
+    // challenge doc, both pass canSendOtp, and both deliver a code — the user
+    // gets two WhatsApp codes. The transactional reserve must let exactly ONE
+    // request send; the loser sees the just-committed code and reuses it.
+    const ra = makeRes();
+    const rb = makeRes();
+    await Promise.all([
+      challengeWhatsappLogin(makeReq({}, USER), ra.res),
+      challengeWhatsappLogin(makeReq({}, USER), rb.res),
+    ]);
+
+    expect(mockSendTemplate).toHaveBeenCalledTimes(1);
+
+    // Both responses still gate the login (cookie withheld until the OTP).
+    const bodies = [
+      ra.json.mock.calls[0][0],
+      rb.json.mock.calls[0][0],
+    ] as Array<{ mfaRequired: boolean; otpSent: boolean }>;
+    expect(bodies.every((b) => b.mfaRequired === true)).toBe(true);
+    // Exactly one of the two actually delivered a fresh code.
+    expect(bodies.filter((b) => b.otpSent === true)).toHaveLength(1);
+
+    // A single login challenge doc exists for the user.
+    expect(docStore.get("mfaOtpChallenges/user-1")?.purpose).toBe("login");
   });
 
   it("is idempotent: returns the gate WITHOUT resending when a valid challenge is within cooldown", async () => {

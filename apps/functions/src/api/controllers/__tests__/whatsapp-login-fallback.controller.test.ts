@@ -42,6 +42,27 @@ const mockCollection = jest.fn((collection: string) => ({
   doc: (id: string) => makeDocRef(collection, id),
 }));
 
+// Serializing runTransaction mock — see whatsapp-mfa.controller.test.ts. Models
+// Firestore's atomic commit so the second of two concurrent transactions reads
+// the first's committed write; tx.get/set are backed by the same doc refs.
+let mockTxChain: Promise<unknown> = Promise.resolve();
+const mockRunTransaction = jest.fn(
+  (fn: (tx: unknown) => Promise<unknown>): Promise<unknown> => {
+    const tx = {
+      get: (ref: { get: () => Promise<unknown> }) => ref.get(),
+      set: (ref: { set: (v: unknown) => Promise<unknown> }, value: unknown) => {
+        void ref.set(value);
+      },
+    };
+    const result = mockTxChain.then(() => fn(tx));
+    mockTxChain = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  },
+);
+
 const mockGetUserByEmail = jest.fn();
 const mockCreateCustomToken = jest.fn();
 jest.mock("../../../init", () => ({
@@ -51,6 +72,8 @@ jest.mock("../../../init", () => ({
   },
   db: {
     collection: (name: string) => mockCollection(name),
+    runTransaction: (fn: (tx: unknown) => Promise<unknown>) =>
+      mockRunTransaction(fn),
   },
 }));
 
@@ -131,6 +154,7 @@ const globalFetch = global.fetch;
 beforeEach(() => {
   jest.clearAllMocks();
   docStore.clear();
+  mockTxChain = Promise.resolve();
   // Default: password REST check succeeds (HTTP 200).
   global.fetch = jest.fn(async () => ({ status: 200 })) as unknown as typeof fetch;
 });
@@ -239,6 +263,31 @@ describe("sendWhatsappLoginFallback", () => {
       | { purpose: string }
       | undefined;
     expect(stored?.purpose).toBe("login");
+  });
+
+  it("two concurrent fallback requests deliver only ONE code (atomic reservation)", async () => {
+    setUser("user-1", GOOGLE_PROVIDER, {
+      tenantId: "t1",
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999991234",
+    });
+
+    const ra = makeRes();
+    const rb = makeRes();
+    await Promise.all([
+      sendWhatsappLoginFallback(makeReq({ email: "a@b.com" }), ra.res),
+      sendWhatsappLoginFallback(makeReq({ email: "a@b.com" }), rb.res),
+    ]);
+
+    // Without the transaction both reads see no challenge and both deliver a
+    // code; the transactional reserve must let exactly one send.
+    expect(mockSendTemplate).toHaveBeenCalledTimes(1);
+    const bodies = [
+      ra.json.mock.calls[0][0],
+      rb.json.mock.calls[0][0],
+    ] as Array<{ available: boolean; otpSent: boolean }>;
+    expect(bodies.every((b) => b.available === true)).toBe(true);
+    expect(bodies.filter((b) => b.otpSent === true)).toHaveLength(1);
   });
 
   it("reuses a still-valid login code without sending again (cooldown)", async () => {
