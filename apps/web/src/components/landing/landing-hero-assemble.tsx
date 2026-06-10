@@ -7,6 +7,8 @@ import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { ArrowRight } from "lucide-react";
 import {
+  HeroAppTopbar,
+  HeroAppDock,
   HeroDashboardHeader,
   HeroCashFlowCard,
   HeroProposalStats,
@@ -43,11 +45,11 @@ interface ScatterConfig {
 // do título no load (o grid já os afasta do centro; o offset empurra cada um
 // para a borda mais próxima sem sair totalmente da viewport)
 const SCATTER: ScatterConfig[] = [
-  { x: 0.0, y: -0.32, rotation: -4, scale: 0.92, speed: 1.0 }, // header → topo central
-  { x: -0.27, y: -0.16, rotation: -7, scale: 0.9, speed: 0.9 }, // fluxo de caixa → esquerda/cima
-  { x: 0.25, y: -0.12, rotation: 7, scale: 0.9, speed: 1.1 }, // propostas (donut) → direita/cima
-  { x: -0.24, y: 0.2, rotation: -6, scale: 0.9, speed: 1.05 }, // clientes → canto inf. esquerdo
-  { x: 0.2, y: 0.22, rotation: 6, scale: 0.92, speed: 0.85 }, // últimas propostas → inf. direito
+  { x: -0.24, y: -0.16, rotation: -7, scale: 0.9, speed: 0.9 }, // fluxo de caixa → esquerda/cima
+  { x: 0.12, y: -0.44, rotation: 4, scale: 0.9, speed: 1.1 }, // propostas (donut) → topo central
+
+  { x: 0.26, y: -0.12, rotation: 7, scale: 0.9, speed: 1.05 }, // clientes → direita/cima
+  { x: -0.05, y: 0.32, rotation: -4, scale: 0.92, speed: 0.85 }, // últimas propostas → baixo central
 ];
 
 const SCRUB = 0.8;
@@ -77,9 +79,9 @@ export function LandingHeroAssemble() {
 
       const copy = hero.querySelector<HTMLElement>("[data-hero-copy]");
       const dashboard = hero.querySelector<HTMLElement>("[data-hero-dashboard]");
-      const frame = hero.querySelector<HTMLElement>("[data-hero-frame]");
+      const statics = gsap.utils.toArray<HTMLElement>("[data-hero-static]", hero);
       const cards = gsap.utils.toArray<HTMLElement>("[data-hero-card]", hero);
-      if (!copy || !dashboard || !frame || cards.length === 0) return;
+      if (!copy || !dashboard || statics.length === 0 || cards.length === 0) return;
 
       // matchMedia faz o cleanup automático (revert) quando a condição muda
       // ou o componente desmonta — e respeita prefers-reduced-motion.
@@ -120,22 +122,31 @@ export function LandingHeroAssemble() {
           );
 
           // Passo 2 (0.1 → 1): o container da dashboard sobe e cresce de
-          // 0.9 → 1 (sem opacity — os cards espalhados vivem dentro dele e
-          // precisam estar visíveis desde o início)...
+          // 0.9 até o "fit scale" — 1.0, ou menos se a dashboard montada não
+          // couber na altura da viewport (ex.: notebooks 1366x768). Sem
+          // opacity: os cards espalhados vivem dentro dele e precisam estar
+          // visíveis desde o início.
           tl.fromTo(
             dashboard,
             { scale: 0.9, y: 80 },
-            { scale: 1, y: 0, duration: 0.9, ease: "power2.out" },
+            {
+              // 150px de folga = navbar flutuante + respiro vertical
+              scale: () =>
+                Math.min(1, (window.innerHeight - 150) / dashboard.offsetHeight),
+              y: 0,
+              duration: 0.9,
+              ease: "power2.out",
+            },
             0.1,
           );
 
-          // ...enquanto a "moldura" de fundo da dashboard faz o fade-in de
-          // {opacity: 0, scale: 0.8} → {opacity: 1, scale: 1}, materializando
-          // o palco onde os cards se encaixam
+          // ...enquanto o SHELL ESTÁTICO do app (janela, topbar, header do
+          // dashboard e dock) faz o fade-in — o pano de fundo fixo que os
+          // widgets voadores vêm completar, como no steep.app
           tl.fromTo(
-            frame,
-            { opacity: 0, scale: 0.8 },
-            { opacity: 1, scale: 1, duration: 0.9, ease: "power2.out" },
+            statics,
+            { opacity: 0 },
+            { opacity: 1, duration: 0.9, ease: "power2.out" },
             0.1,
           );
 
@@ -243,32 +254,59 @@ export function LandingHeroAssemble() {
            Os cards já vivem nas posições do grid; o GSAP só os "espalha" no
            estado inicial via fromTo. Sem JS / com reduced-motion, a dashboard
            aparece montada — zero layout shift e encaixe pixel-perfect. */}
-      {/* dashboard demo é decorativa: sem interação (links/tooltips) */}
+      {/* dashboard demo é decorativa: sem interação (links/tooltips).
+           Estrutura em camadas, como no steep.app:
+           - [data-hero-static] = shell do app (janela, topbar, header do
+             dashboard, dock) — fica fixo e só faz fade-in
+           - [data-hero-card]   = widgets que voam até encaixar no shell */}
       <div
         data-hero-dashboard
         aria-hidden="true"
-        className="pointer-events-none relative z-10 mx-auto mt-12 grid w-full max-w-6xl select-none grid-cols-1 gap-3 will-change-transform sm:grid-cols-12 sm:gap-4 md:motion-safe:mt-0"
+        className="pointer-events-none relative z-10 mx-auto mt-12 w-full max-w-7xl select-none will-change-transform md:motion-safe:mt-0"
       >
-        {/* moldura de fundo da dashboard — só ela faz o fade-in */}
+        {/* superfície da janela do app */}
         <div
-          data-hero-frame
-          aria-hidden="true"
-          className="pointer-events-none absolute -inset-3 rounded-3xl border border-black/8 bg-black/[0.02] will-change-transform transform-gpu dark:border-white/10 dark:bg-white/[0.03] sm:-inset-5"
+          data-hero-static
+          className="absolute inset-0 rounded-[1.75rem] border border-border/60 bg-card shadow-[0_1px_2px_rgba(0,0,0,0.05),0_24px_60px_-20px_rgba(0,0,0,0.25)]"
         />
-        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-12">
-          <HeroDashboardHeader />
+
+        {/* topbar do app (estático) */}
+        <div data-hero-static className="relative">
+          <HeroAppTopbar />
         </div>
-        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-7">
-          <HeroCashFlowCard />
+
+        {/* conteúdo do dashboard (pb menor: o dock flutua SOBRE o conteúdo,
+             como no app real) */}
+        <div className="relative px-4 pb-10 pt-4 sm:px-6 sm:pb-12">
+          {/* header do dashboard (estático) */}
+          <div data-hero-static>
+            <HeroDashboardHeader />
+          </div>
+
+          {/* widgets que voam e se encaixam (3 colunas em cima + lista
+               full-width embaixo: dashboard mais LARGA e mais baixa) */}
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-12 sm:gap-4">
+            <div data-hero-card className="will-change-transform transform-gpu sm:col-span-5">
+              <HeroCashFlowCard />
+            </div>
+            <div data-hero-card className="will-change-transform transform-gpu sm:col-span-4">
+              <HeroProposalStats />
+            </div>
+            <div data-hero-card className="will-change-transform transform-gpu sm:col-span-3">
+              <HeroClientsStats />
+            </div>
+            <div data-hero-card className="will-change-transform transform-gpu sm:col-span-12">
+              <HeroRecentProposals />
+            </div>
+          </div>
         </div>
-        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-5">
-          <HeroProposalStats />
-        </div>
-        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-5">
-          <HeroClientsStats />
-        </div>
-        <div data-hero-card className="will-change-transform transform-gpu sm:col-span-7">
-          <HeroRecentProposals />
+
+        {/* dock de navegação flutuante (estático), como no app real */}
+        <div
+          data-hero-static
+          className="absolute bottom-3 left-1/2 hidden -translate-x-1/2 sm:flex"
+        >
+          <HeroAppDock />
         </div>
       </div>
     </section>
