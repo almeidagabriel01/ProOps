@@ -177,7 +177,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                 priority
                 invertOnDark
                 interactive={false}
-                className="block h-14 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.04]"
+                className="block h-[74px] w-auto object-contain transition-transform duration-300 group-hover:scale-[1.04]"
               />
             </Link>
           </motion.div>
