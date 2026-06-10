@@ -43,8 +43,35 @@ function makeDocRef(collection: string, id: string) {
   };
 }
 
+// Minimal `where(field, ==, value).limit(n).get()` over the in-memory store,
+// enough for the global phone-uniqueness query in isWhatsappMfaPhoneTaken.
+function makeQuery(collection: string, field: string, value: unknown) {
+  const matchAll = () => {
+    const docs: Array<{ id: string; data: () => Record<string, unknown> | undefined }> = [];
+    for (const [key, data] of docStore.entries()) {
+      const slash = key.indexOf("/");
+      const coll = key.slice(0, slash);
+      const id = key.slice(slash + 1);
+      if (coll === collection && data && data[field] === value) {
+        docs.push({ id, data: () => data });
+      }
+    }
+    return docs;
+  };
+  const build = (limitN?: number) => ({
+    limit: (n: number) => build(n),
+    get: jest.fn(async () => {
+      const all = matchAll();
+      return { docs: limitN ? all.slice(0, limitN) : all };
+    }),
+  });
+  return build();
+}
+
 const mockCollection = jest.fn((collection: string) => ({
   doc: (id: string) => makeDocRef(collection, id),
+  where: (field: string, _op: string, value: unknown) =>
+    makeQuery(collection, field, value),
 }));
 
 const mockGetUser = jest.fn();
@@ -279,6 +306,112 @@ describe("verifyWhatsappEnroll", () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({ code: "mismatch", attemptsLeft: 2 }),
     );
+  });
+});
+
+describe("WhatsApp MFA phone uniqueness (one number = one account)", () => {
+  const NORMALIZED = "5511999998888"; // PHONE_INPUT normalized
+
+  it("startWhatsappEnroll rejects 409 when another account already uses the number (master + member)", async () => {
+    // The master account already enrolled this WhatsApp number.
+    docStore.set("users/master-uid", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: NORMALIZED,
+    });
+
+    // The member tries to enroll the SAME number.
+    const req = makeReq({ phone: PHONE_INPUT }, USER);
+    const { res, status, json } = makeRes();
+
+    await startWhatsappEnroll(req, res);
+
+    expect(status).toHaveBeenCalledWith(409);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "phone_in_use" }),
+    );
+    // No OTP is spent and no challenge is written for the member.
+    expect(mockSendTemplate).not.toHaveBeenCalled();
+    expect(docStore.get("mfaOtpChallenges/user-1")).toBeUndefined();
+  });
+
+  it("startWhatsappEnroll allows re-enrolling the SAME number on your OWN account", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: NORMALIZED,
+    });
+
+    const req = makeReq({ phone: PHONE_INPUT }, USER);
+    const { res, status } = makeRes();
+
+    await startWhatsappEnroll(req, res);
+
+    expect(status).not.toHaveBeenCalledWith(409);
+    expect(mockSendTemplate).toHaveBeenCalledTimes(1);
+  });
+
+  it("startWhatsappEnroll allows the number when only a DIFFERENT number is taken elsewhere", async () => {
+    docStore.set("users/other-uid", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511777776666",
+    });
+
+    const req = makeReq({ phone: PHONE_INPUT }, USER);
+    const { res, status } = makeRes();
+
+    await startWhatsappEnroll(req, res);
+
+    expect(status).not.toHaveBeenCalledWith(409);
+    expect(mockSendTemplate).toHaveBeenCalledTimes(1);
+  });
+
+  it("startWhatsappEnroll does NOT block on another account's PENDING (unconfirmed) number", async () => {
+    // Pending is not proven possession, so it must not reserve the number.
+    docStore.set("users/other-uid", { whatsappMfaPendingPhone: NORMALIZED });
+
+    const req = makeReq({ phone: PHONE_INPUT }, USER);
+    const { res, status } = makeRes();
+
+    await startWhatsappEnroll(req, res);
+
+    expect(status).not.toHaveBeenCalledWith(409);
+    expect(mockSendTemplate).toHaveBeenCalledTimes(1);
+  });
+
+  it("verifyWhatsappEnroll rejects 409 when another account claimed the number during the OTP window (race)", async () => {
+    const code = "123456";
+    docStore.set("mfaOtpChallenges/user-1", {
+      uid: "user-1",
+      tenantId: "tenant-1",
+      purpose: "enroll",
+      phoneHash: require("crypto")
+        .createHash("sha256")
+        .update(NORMALIZED)
+        .digest("hex"),
+      codeHash: hashOtp(code),
+      expiresAt: { toMillis: () => Date.now() + 60_000 },
+      attempts: 0,
+      maxAttempts: 3,
+    });
+    docStore.set("users/user-1", { whatsappMfaPendingPhone: NORMALIZED });
+    // A different account committed the same number after the member's start.
+    docStore.set("users/master-uid", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: NORMALIZED,
+    });
+
+    const req = makeReq({ code }, USER);
+    const { res, status, json } = makeRes();
+
+    await verifyWhatsappEnroll(req, res);
+
+    expect(status).toHaveBeenCalledWith(409);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "phone_in_use" }),
+    );
+    // The member's MFA is NOT enabled and the challenge is NOT consumed.
+    expect(docStore.get("users/user-1")?.whatsappMfaEnabled).toBeUndefined();
+    expect(docStore.get("users/user-1")?.whatsappMfaPhone).toBeUndefined();
+    expect(docStore.get("mfaOtpChallenges/user-1")).toBeDefined();
   });
 });
 

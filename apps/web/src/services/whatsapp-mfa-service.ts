@@ -19,10 +19,10 @@ export interface DisableWhatsappMfaResponse {
 /**
  * Authenticated client for the WhatsApp-MFA enrollment endpoints (Phase B).
  * These require a valid Firebase ID token, so they go through `callApi`
- * (NOT `callPublicApi`). Errors — 403 (super admin), 409 (TOTP already
- * enrolled / exclusivity), 429 (cooldown/cap), 400 (invalid code/phone with
- * optional `attemptsLeft`) — surface as `ApiError` and are propagated to the
- * UI so it can show the backend `message`/`attemptsLeft`.
+ * (NOT `callPublicApi`). Errors — 403 (super admin), 409 (number already
+ * enrolled as MFA on another account), 429 (cooldown/cap), 400 (invalid
+ * code/phone with optional `attemptsLeft`) — surface as `ApiError` and are
+ * propagated to the UI so it can show the backend `message`/`attemptsLeft`.
  */
 export const WhatsappMfaService = {
   /**

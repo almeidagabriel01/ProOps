@@ -157,6 +157,24 @@ export async function writeChallenge(params: {
     } satisfies ChallengeDoc);
 }
 
+/**
+ * Global "one WhatsApp number = one account" guard for MFA. Returns true when a
+ * DIFFERENT user already has this normalized phone as their active
+ * whatsappMfaPhone. Reads the live user docs (the source of truth), so disabling
+ * MFA frees the number automatically — there is no separate index to keep in sync.
+ */
+export async function isWhatsappMfaPhoneTaken(
+  normalizedPhone: string,
+  selfUid: string,
+): Promise<boolean> {
+  const snap = await db
+    .collection("users")
+    .where("whatsappMfaPhone", "==", normalizedPhone)
+    .limit(2)
+    .get();
+  return snap.docs.some((doc) => doc.id !== selfUid);
+}
+
 export const startWhatsappEnroll = async (req: Request, res: Response) => {
   try {
     const uid = req.user!.uid;
@@ -177,6 +195,15 @@ export const startWhatsappEnroll = async (req: Request, res: Response) => {
     const normalizedPhone = normalizePhoneNumber(parsed.data.phone);
     if (!normalizedPhone || normalizedPhone.length < 12) {
       return res.status(400).json({ message: "Telefone inválido." });
+    }
+
+    // One WhatsApp number = one account. Reject early (before spending an OTP)
+    // if this number is already enrolled as MFA on a different account.
+    if (await isWhatsappMfaPhoneTaken(normalizedPhone, uid)) {
+      return res.status(409).json({
+        message: "Este número de WhatsApp já está vinculado a outra conta.",
+        code: "phone_in_use",
+      });
     }
 
     const challengeRef = db.collection(CHALLENGES_COLLECTION).doc(uid);
@@ -263,6 +290,23 @@ export const verifyWhatsappEnroll = async (req: Request, res: Response) => {
         message: "Código incorreto ou expirado.",
         code: result.reason,
         attemptsLeft: result.reason === "mismatch" ? result.attemptsLeft : undefined,
+      });
+    }
+
+    // Authoritative uniqueness gate (closes the start→verify race): re-check that
+    // no OTHER account claimed this number while this OTP was outstanding.
+    const pendingSnap = await db.collection("users").doc(uid).get();
+    const pendingPhone = pendingSnap.data()?.whatsappMfaPendingPhone as
+      | string
+      | undefined;
+    if (
+      pendingPhone &&
+      hashPhone(pendingPhone) === record.phoneHash &&
+      (await isWhatsappMfaPhoneTaken(pendingPhone, uid))
+    ) {
+      return res.status(409).json({
+        message: "Este número de WhatsApp já está vinculado a outra conta.",
+        code: "phone_in_use",
       });
     }
 

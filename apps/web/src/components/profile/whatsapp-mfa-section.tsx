@@ -98,8 +98,10 @@ export function WhatsappMfaSection({
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
+          // 409 means the number is already enrolled as MFA on another account.
           setError(
-            "Você já tem o aplicativo autenticador ativo. Desative-o primeiro para usar o WhatsApp.",
+            err.message ||
+              "Este número de WhatsApp já está vinculado a outra conta.",
           );
         } else if (err.status === 429) {
           // 429 body carries the remaining cooldown — start the countdown from it.

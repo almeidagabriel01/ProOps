@@ -31,14 +31,14 @@ describe("WhatsappMfaService.startWhatsappEnroll", () => {
     expect(result).toEqual({ success: true, maskedPhone: "•••• 1234" });
   });
 
-  it("propagates a 409 (TOTP exclusivity) error to the caller", async () => {
+  it("propagates a 409 (number already in use on another account) error to the caller", async () => {
     mockedCallApi.mockRejectedValueOnce(
-      new Error("Desative o aplicativo autenticador primeiro."),
+      new Error("Este número de WhatsApp já está vinculado a outra conta."),
     );
 
     await expect(
       WhatsappMfaService.startWhatsappEnroll("+5511999991234"),
-    ).rejects.toThrow("Desative o aplicativo autenticador primeiro.");
+    ).rejects.toThrow("Este número de WhatsApp já está vinculado a outra conta.");
   });
 
   it("propagates a 429 (cooldown) error to the caller", async () => {
