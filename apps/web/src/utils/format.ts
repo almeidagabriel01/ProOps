@@ -48,6 +48,18 @@ export function getGreeting(): string {
 }
 
 /**
+ * Resolve the name shown in the dashboard greeting.
+ * Always prefers the logged-in user's name (member or master) over the
+ * tenant owner's name, so a member never sees the master's name greeting them.
+ */
+export function resolveGreetingName(
+    userName?: string | null,
+    tenantOwnerName?: string | null
+): string {
+    return userName || tenantOwnerName || "Usuário";
+}
+
+/**
  * Format limit value (-1 means unlimited)
  */
 export function formatLimit(value: number): string {

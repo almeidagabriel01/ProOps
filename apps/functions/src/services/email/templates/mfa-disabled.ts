@@ -1,0 +1,89 @@
+export interface MfaDisabledEmailData {
+  name?: string;
+}
+
+export interface MfaDisabledEmailContent {
+  subject: string;
+  html: string;
+  text: string;
+}
+
+export function renderMfaDisabledEmail(
+  data: MfaDisabledEmailData,
+): MfaDisabledEmailContent {
+  const subject = "Sua verificação em dois fatores foi desativada — ProOps";
+  const greetingName = data.name ? data.name.trim() : "";
+  const greeting = greetingName ? `Olá, ${greetingName}` : "Olá";
+
+  const text = `Sua verificação em dois fatores foi desativada — ProOps
+
+${greeting}, a verificação em dois fatores da sua conta na ProOps foi desativada.
+
+Se foi você quem fez isso (por recuperação de acesso ou com ajuda do administrador), nenhuma ação é necessária. Recomendamos reconfigurar a verificação em dois fatores no seu perfil assim que possível.
+
+Se você NÃO reconhece esta alteração, sua conta pode estar comprometida. Entre em contato com o suporte imediatamente respondendo este email ou escrevendo para gestao@proops.com.br.
+
+ProOps — Sistema ERP para gestão de serviços
+gestao@proops.com.br
+`;
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sua verificação em dois fatores foi desativada — ProOps</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:#18181b;padding:24px 40px;">
+              <h1 style="color:#ffffff;margin:0;font-size:20px;font-weight:700;letter-spacing:-0.3px;">ProOps</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:40px;">
+              <h2 style="margin:0 0 16px;font-size:22px;color:#18181b;font-weight:700;">Verificação em dois fatores desativada</h2>
+              <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6;">
+                ${escapeHtml(greeting)}, a verificação em dois fatores da sua conta na ProOps foi desativada.
+              </p>
+              <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6;">
+                Se foi você quem fez isso (por recuperação de acesso ou com ajuda do administrador), nenhuma ação é necessária. Recomendamos reconfigurar a verificação em dois fatores no seu perfil assim que possível.
+              </p>
+              <p style="margin:0 0 24px;font-size:15px;color:#b91c1c;line-height:1.6;font-weight:600;">
+                Se você não reconhece esta alteração, sua conta pode estar comprometida. Entre em contato com o suporte imediatamente.
+              </p>
+              <p style="margin:0;font-size:13px;color:#71717a;line-height:1.6;">
+                Para falar com o suporte, responda este email ou escreva para gestao@proops.com.br.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#f9f9f9;padding:24px 40px;border-top:1px solid #e4e4e7;">
+              <p style="margin:0;font-size:12px;color:#a1a1aa;line-height:1.6;">
+                ProOps · Sistema ERP para gestão de serviços<br/>
+                Precisa de ajuda? Responda este email ou escreva para gestao@proops.com.br
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return { subject, html, text };
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}

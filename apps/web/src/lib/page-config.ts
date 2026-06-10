@@ -132,6 +132,30 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  // Settings sub-tabs. Intentionally NOT masterOnly and WITHOUT requiredPermission
+  // so any authenticated user can open the page and see the in-page "Acesso
+  // restrito" message (master gate lives inside each section) instead of /403.
+  "/settings/team": {
+    pageId: "settings-team",
+    slug: "/settings/team",
+    name: "Equipe",
+    module: "settings",
+    requiresAuth: true,
+  },
+  "/settings/security": {
+    pageId: "settings-security",
+    slug: "/settings/security",
+    name: "Verificação em dois fatores",
+    module: "settings",
+    requiresAuth: true,
+  },
+  "/settings/payments": {
+    pageId: "settings-payments",
+    slug: "/settings/payments",
+    name: "Pagamento Online",
+    module: "settings",
+    requiresAuth: true,
+  },
   "/profile": {
     pageId: "profile",
     slug: "/profile",

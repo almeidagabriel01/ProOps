@@ -68,6 +68,82 @@ export async function sendWhatsAppMessage(to: string, body: string) {
   }
 }
 
+export async function sendWhatsAppTemplate(
+  to: string,
+  templateName: string,
+  languageCode: string,
+  components: unknown[],
+): Promise<void> {
+  const formattedTo = formatOutboundNumber(to);
+  console.log(
+    `[WhatsApp] Sending template "${templateName}" (${languageCode}) to ${formattedTo}`,
+  );
+
+  const config = getWhatsAppApiConfig();
+  if (!config) {
+    return;
+  }
+  const { token, phoneNumberId, tokenDiagnostics } = config;
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: formattedTo,
+          type: "template",
+          template: {
+            name: templateName,
+            language: { code: languageCode },
+            components,
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(
+        `[WhatsApp] Meta API Error sending template to ${formattedTo}:`,
+        errorData,
+        {
+          phoneNumberId,
+          templateName,
+          tokenDiagnostics,
+        },
+      );
+      throw new Error(`Meta API Error: ${errorData}`);
+    }
+
+    const successData = (await response
+      .json()
+      .catch(() => null)) as WhatsAppSendApiResponse | null;
+    const messageId = successData?.messages?.[0]?.id;
+    const messageStatus = successData?.messages?.[0]?.message_status;
+    console.log(
+      `[WhatsApp] Successfully sent template message to ${formattedTo}`,
+      {
+        messageId,
+        messageStatus,
+        templateName,
+      },
+    );
+  } catch (error) {
+    console.error(
+      `[WhatsApp] Exception sending template to ${formattedTo}:`,
+      error,
+    );
+    throw error;
+  }
+}
+
 export async function uploadMediaToWhatsApp(
   buffer: Buffer,
   token: string,

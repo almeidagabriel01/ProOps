@@ -47,17 +47,11 @@ export const callApi = async <T = unknown>(
     throw new Error("User not authenticated");
   }
 
-  const token = await user.getIdToken();
   const baseUrl = getBaseUrl();
 
   // Ensure endpoint starts with /
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const url = `${baseUrl}${path}`;
-
-  const headers: HeadersInit = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
 
   // When a super admin is viewing a specific tenant's panel, pass the tenant ID
   // so the backend can scope queries correctly (super admin has no tenantId in claims).
@@ -65,21 +59,33 @@ export const callApi = async <T = unknown>(
     typeof window !== "undefined"
       ? sessionStorage.getItem("viewingAsTenant")
       : null;
-  if (viewingTenantId) {
-    (headers as Record<string, string>)["x-tenant-id"] = viewingTenantId;
-  }
 
-  const config: RequestInit = {
-    method,
-    headers,
+  const sendOnce = async (forceRefresh: boolean): Promise<Response> => {
+    const token = await user.getIdToken(forceRefresh);
+    const headers: HeadersInit = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+    if (viewingTenantId) {
+      (headers as Record<string, string>)["x-tenant-id"] = viewingTenantId;
+    }
+    const config: RequestInit = { method, headers };
+    if (body) {
+      config.body = JSON.stringify(body);
+    }
+    return fetch(url, config);
   };
 
-  if (body) {
-    config.body = JSON.stringify(body);
-  }
-
   try {
-    const response = await fetch(url, config);
+    let response = await sendOnce(false);
+
+    // A 401/403 right after a native MFA factor change (the Firebase token is
+    // rotated/revoked on enroll/unenroll) can be a stale-token race. Retry ONCE
+    // with a force-refreshed token; a genuine authorization denial simply
+    // 401/403s again and is thrown below — no infinite loop.
+    if (response.status === 401 || response.status === 403) {
+      response = await sendOnce(true);
+    }
 
     if (!response.ok) {
       let errorData;

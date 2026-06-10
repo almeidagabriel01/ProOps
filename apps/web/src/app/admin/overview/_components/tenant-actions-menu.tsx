@@ -10,7 +10,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Copy, Settings2, ArrowRightLeft } from "lucide-react";
+import { MoreHorizontal, Copy, Settings2, ArrowRightLeft, ShieldOff } from "lucide-react";
 import { TenantBillingInfo, AdminService } from "@/services/admin-service";
 import { toast } from '@/lib/toast';
 
@@ -24,6 +24,7 @@ export function TenantActionsMenu({
     onEditLimits,
 }: TenantActionsMenuProps) {
     const [isMigrating, setIsMigrating] = useState(false);
+    const [isResettingMfa, setIsResettingMfa] = useState(false);
 
     const handleCopyAdminId = () => {
         navigator.clipboard.writeText(item.admin.id);
@@ -56,6 +57,23 @@ export function TenantActionsMenu({
             toast.error("Erro ao migrar preço. Tente novamente.");
         } finally {
             setIsMigrating(false);
+        }
+    };
+
+    const handleResetMfa = async () => {
+        const confirmed = window.confirm(
+            `Resetar a verificação em dois fatores do admin de "${item.tenant.name}"?\n\nOs fatores de MFA serão removidos e o usuário poderá entrar sem código e reconfigurar pelo perfil.`,
+        );
+        if (!confirmed) return;
+
+        setIsResettingMfa(true);
+        try {
+            await AdminService.resetMemberMfa(item.admin.id);
+            toast.success("Verificação em dois fatores redefinida.");
+        } catch {
+            toast.error("Erro ao resetar MFA. Tente novamente.");
+        } finally {
+            setIsResettingMfa(false);
         }
     };
 
@@ -98,6 +116,14 @@ export function TenantActionsMenu({
                 >
                     <Settings2 className="h-3.5 w-3.5" />
                     Editar Limites
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    onClick={handleResetMfa}
+                    disabled={isResettingMfa}
+                    className="flex items-center gap-2 cursor-pointer"
+                >
+                    <ShieldOff className="h-3.5 w-3.5" />
+                    {isResettingMfa ? "Resetando..." : "Resetar MFA do admin"}
                 </DropdownMenuItem>
                 {hasDrift && (
                     <>

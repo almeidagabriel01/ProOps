@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2 } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2, MessageCircle, KeyRound, Smartphone } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLoginForm } from "./_hooks/useLoginForm";
@@ -39,12 +39,18 @@ import {
 } from "@/components/ui/step-wizard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VerificationCodeInput } from "@/components/shared/verification-code-input";
+import { RecoveryCodeInput } from "@/components/shared/recovery-code-input";
 import { Select } from "@/components/ui/select";
 import { NICHE_LABELS, TenantNiche } from "@/types";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { AuthLayout } from "./_components/auth-layout";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader } from "@/components/ui/loader";
+import { FullPageLoading } from "@/components/ui/full-page-loading";
+import { formatResendLabel } from "@/hooks/useResendCountdown";
+import { shouldShowLoggedInLoader } from "./_lib/should-show-logged-in-loader";
+import { shouldShowInitialLoader } from "./_lib/should-show-initial-loader";
 
 function LoginContent() {
   const {
@@ -93,11 +99,55 @@ function LoginContent() {
     handleResendPhoneCode,
     isGoogleLoading,
     sessionRecoveryFailed,
+    isSessionSynced,
     requiresMfaCode,
     mfaLoginCode,
     setMfaLoginCode,
     isVerifyingMfaCode,
     handleConfirmMfaCode,
+    showTotpRecovery,
+    openTotpRecovery,
+    closeTotpRecovery,
+    totpRecoveryEmail,
+    setTotpRecoveryEmail,
+    totpRecoveryCode,
+    setTotpRecoveryCode,
+    totpRecoveryPassword,
+    setTotpRecoveryPassword,
+    isRecoveringTotp,
+    totpRecoveryError,
+    totpRecoverySuccess,
+    handleRecoverTotpWithCode,
+    whatsappFallbackAvailable,
+    whatsappFallbackStage,
+    whatsappFallbackMaskedPhone,
+    whatsappFallbackCode,
+    setWhatsappFallbackCode,
+    isSendingWhatsappFallback,
+    isVerifyingWhatsappFallback,
+    isResendingWhatsappFallback,
+    handleSwitchToWhatsappFallback,
+    handleBackToTotpFromFallback,
+    handleConfirmWhatsappFallback,
+    handleResendWhatsappFallback,
+    requiresWhatsappOtp,
+    whatsappOtpCode,
+    setWhatsappOtpCode,
+    whatsappMaskedPhone,
+    isVerifyingWhatsappOtp,
+    isResendingWhatsappOtp,
+    whatsappResendSecondsLeft,
+    whatsappResendNotice,
+    handleConfirmWhatsappOtp,
+    handleResendWhatsappOtp,
+    showWhatsappRecovery,
+    openWhatsappRecovery,
+    closeWhatsappRecovery,
+    whatsappRecoveryCode,
+    setWhatsappRecoveryCode,
+    isRecoveringWhatsapp,
+    whatsappRecoveryError,
+    handleConfirmWhatsappRecovery,
   } = useLoginForm();
 
   const [registerErrors, setRegisterErrors] = useState<Record<string, string>>(
@@ -261,12 +311,17 @@ function LoginContent() {
     }
   };
 
-  if (isLoading && !isLoggingIn && !isRegistering && !user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader size="lg" />
-      </div>
-    );
+  if (
+    shouldShowInitialLoader({
+      isLoading,
+      isLoggingIn,
+      isRegistering,
+      hasUser: Boolean(user),
+      requiresMfaCode,
+      requiresWhatsappOtp,
+    })
+  ) {
+    return <FullPageLoading />;
   }
 
   // Email verification pending must take precedence over the logged-in
@@ -291,13 +346,175 @@ function LoginContent() {
     );
   }
 
-  if (user && !isLoggingIn && !isRegistering && !sessionRecoveryFailed) {
+  if (
+    user &&
+    shouldShowLoggedInLoader({
+      isLoggingIn,
+      isRegistering,
+      sessionRecoveryFailed,
+      requiresMfaCode,
+      requiresWhatsappOtp,
+      isSessionSynced,
+    })
+  ) {
     if (user.role === "free") return null;
 
+    return <FullPageLoading />;
+  }
+
+  if (requiresMfaCode && whatsappFallbackStage === "otp") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader size="lg" />
-      </div>
+      <AuthLayout reverse={false}>
+        <div className="w-full max-w-sm mx-auto">
+          <h1 className="text-2xl font-semibold mb-2">
+            Verificação em duas etapas
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Enviamos um código para o WhatsApp
+            {whatsappFallbackMaskedPhone ? ` ${whatsappFallbackMaskedPhone}` : ""}.
+          </p>
+          <form
+            onSubmit={handleConfirmWhatsappFallback}
+            className="flex flex-col gap-4"
+          >
+            <div className="mb-2">
+              <VerificationCodeInput
+                id="whatsapp-fallback-code"
+                value={whatsappFallbackCode}
+                onChange={setWhatsappFallbackCode}
+                onComplete={() => {
+                  if (!isVerifyingWhatsappFallback)
+                    void handleConfirmWhatsappFallback();
+                }}
+                autoFocus
+              />
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <Button
+              type="submit"
+              disabled={
+                isVerifyingWhatsappFallback ||
+                whatsappFallbackCode.trim().length !== 6
+              }
+              className="cursor-pointer"
+            >
+              {isVerifyingWhatsappFallback ? "Verificando..." : "Entrar"}
+            </Button>
+            <button
+              type="button"
+              onClick={handleResendWhatsappFallback}
+              disabled={
+                isResendingWhatsappFallback || whatsappResendSecondsLeft > 0
+              }
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
+            >
+              {isResendingWhatsappFallback
+                ? "Reenviando..."
+                : formatResendLabel(whatsappResendSecondsLeft)}
+            </button>
+            {whatsappResendNotice ? (
+              <p className="text-sm text-emerald-600">{whatsappResendNotice}</p>
+            ) : null}
+          </form>
+          <div className="mt-6 border-t pt-6 flex flex-col gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleBackToTotpFromFallback}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <Smartphone className="h-4 w-4" />
+              Usar o código do aplicativo autenticador
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                handleBackToTotpFromFallback();
+                openTotpRecovery();
+              }}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <KeyRound className="h-4 w-4" />
+              Usar um código de recuperação
+            </Button>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (requiresMfaCode && showTotpRecovery) {
+    return (
+      <AuthLayout reverse={false}>
+        <div className="w-full max-w-sm mx-auto">
+          <h1 className="text-2xl font-semibold mb-2">
+            Entrar com código de recuperação
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Use um dos códigos de recuperação que você guardou. A verificação por
+            aplicativo continua ativa na sua conta.
+          </p>
+          <form
+            onSubmit={handleRecoverTotpWithCode}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="totp-recovery-email">E-mail</Label>
+              <Input
+                id="totp-recovery-email"
+                type="email"
+                autoComplete="email"
+                value={totpRecoveryEmail}
+                onChange={(e) => setTotpRecoveryEmail(e.target.value)}
+                placeholder="seu@email.com"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="totp-recovery-password">
+                Senha (se sua conta usa senha)
+              </Label>
+              <Input
+                id="totp-recovery-password"
+                type="password"
+                autoComplete="current-password"
+                value={totpRecoveryPassword}
+                onChange={(e) => setTotpRecoveryPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="totp-recovery-code">Código de recuperação</Label>
+              <RecoveryCodeInput
+                id="totp-recovery-code"
+                value={totpRecoveryCode}
+                onChange={setTotpRecoveryCode}
+              />
+            </div>
+            {totpRecoveryError ? (
+              <p className="text-sm text-destructive">{totpRecoveryError}</p>
+            ) : null}
+            <Button
+              type="submit"
+              disabled={isRecoveringTotp}
+              className="cursor-pointer"
+            >
+              {isRecoveringTotp ? "Entrando..." : "Entrar"}
+            </Button>
+          </form>
+          <div className="mt-6 border-t pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeTotpRecovery}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <Smartphone className="h-4 w-4" />
+              Usar o código do aplicativo autenticador
+            </Button>
+          </div>
+        </div>
+      </AuthLayout>
     );
   }
 
@@ -310,16 +527,14 @@ function LoginContent() {
             Digite o código de 6 dígitos do seu aplicativo autenticador.
           </p>
           <form onSubmit={handleConfirmMfaCode} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="mfa-login-code">Código</Label>
-              <Input
+            <div className="mb-2">
+              <VerificationCodeInput
                 id="mfa-login-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
                 value={mfaLoginCode}
-                onChange={(e) => setMfaLoginCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="000000"
+                onChange={setMfaLoginCode}
+                onComplete={() => {
+                  if (!isVerifyingMfaCode) void handleConfirmMfaCode();
+                }}
                 autoFocus
               />
             </div>
@@ -332,6 +547,152 @@ function LoginContent() {
               {isVerifyingMfaCode ? "Verificando..." : "Entrar"}
             </Button>
           </form>
+          <div className="mt-6 border-t pt-6 flex flex-col gap-2">
+            {whatsappFallbackAvailable ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSwitchToWhatsappFallback}
+                disabled={isSendingWhatsappFallback}
+                className="w-full justify-start gap-2 cursor-pointer"
+              >
+                <MessageCircle className="h-4 w-4" />
+                {isSendingWhatsappFallback
+                  ? "Enviando código..."
+                  : "Receber código por WhatsApp"}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={openTotpRecovery}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <KeyRound className="h-4 w-4" />
+              Usar um código de recuperação
+            </Button>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (requiresWhatsappOtp && showWhatsappRecovery) {
+    return (
+      <AuthLayout reverse={false}>
+        <div className="w-full max-w-sm mx-auto">
+          <h1 className="text-2xl font-semibold mb-2">
+            Entrar com código de recuperação
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Use um dos códigos de recuperação que você guardou. A verificação por
+            WhatsApp continua ativa na sua conta.
+          </p>
+          <form
+            onSubmit={handleConfirmWhatsappRecovery}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="whatsapp-recovery-code">
+                Código de recuperação
+              </Label>
+              <RecoveryCodeInput
+                id="whatsapp-recovery-code"
+                value={whatsappRecoveryCode}
+                onChange={setWhatsappRecoveryCode}
+                autoFocus
+              />
+            </div>
+            {whatsappRecoveryError ? (
+              <p className="text-sm text-destructive">{whatsappRecoveryError}</p>
+            ) : null}
+            <Button
+              type="submit"
+              disabled={isRecoveringWhatsapp}
+              className="cursor-pointer"
+            >
+              {isRecoveringWhatsapp ? "Entrando..." : "Entrar"}
+            </Button>
+          </form>
+          <div className="mt-6 border-t pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeWhatsappRecovery}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Usar o código do WhatsApp
+            </Button>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (requiresWhatsappOtp) {
+    return (
+      <AuthLayout reverse={false}>
+        <div className="w-full max-w-sm mx-auto">
+          <h1 className="text-2xl font-semibold mb-2">
+            Verificação em duas etapas
+          </h1>
+          <p className="text-sm text-muted-foreground mb-6">
+            Enviamos um código para o WhatsApp
+            {whatsappMaskedPhone ? ` ${whatsappMaskedPhone}` : ""}.
+          </p>
+          <form
+            onSubmit={handleConfirmWhatsappOtp}
+            className="flex flex-col gap-4"
+          >
+            <div className="mb-2">
+              <VerificationCodeInput
+                id="whatsapp-otp-code"
+                value={whatsappOtpCode}
+                onChange={setWhatsappOtpCode}
+                onComplete={() => {
+                  if (!isVerifyingWhatsappOtp) void handleConfirmWhatsappOtp();
+                }}
+                autoFocus
+              />
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <Button
+              type="submit"
+              disabled={
+                isVerifyingWhatsappOtp || whatsappOtpCode.trim().length !== 6
+              }
+              className="cursor-pointer"
+            >
+              {isVerifyingWhatsappOtp ? "Verificando..." : "Entrar"}
+            </Button>
+            <button
+              type="button"
+              onClick={handleResendWhatsappOtp}
+              disabled={
+                isResendingWhatsappOtp || whatsappResendSecondsLeft > 0
+              }
+              className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-60 cursor-pointer"
+            >
+              {isResendingWhatsappOtp
+                ? "Reenviando..."
+                : formatResendLabel(whatsappResendSecondsLeft)}
+            </button>
+            {whatsappResendNotice ? (
+              <p className="text-sm text-emerald-600">{whatsappResendNotice}</p>
+            ) : null}
+          </form>
+          <div className="mt-6 border-t pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={openWhatsappRecovery}
+              className="w-full justify-start gap-2 cursor-pointer"
+            >
+              <KeyRound className="h-4 w-4" />
+              Usar um código de recuperação
+            </Button>
+          </div>
         </div>
       </AuthLayout>
     );
@@ -666,12 +1027,12 @@ function LoginContent() {
                         <p className="text-sm text-muted-foreground">
                           Digite o código enviado por SMS para confirmar.
                         </p>
-                        <Input
+                        <VerificationCodeInput
                           value={smsCode}
-                          onChange={(e) => setSmsCode(e.target.value)}
-                          placeholder="000000"
-                          className="text-center tracking-widest font-mono text-lg"
-                          maxLength={6}
+                          onChange={setSmsCode}
+                          onComplete={() => {
+                            if (!isVerifyingSmsCode) void handleConfirmPhoneCode();
+                          }}
                         />
                         <div className="flex gap-2 pt-2">
                           <Button
@@ -819,6 +1180,14 @@ function LoginContent() {
                 </p>
               </div>
 
+              {totpRecoverySuccess ? (
+                <div className="mb-4 rounded-lg border border-green-500/20 bg-green-500/10 p-3">
+                  <p className="text-sm text-green-600 font-medium">
+                    {totpRecoverySuccess}
+                  </p>
+                </div>
+              ) : null}
+
               <form onSubmit={handleLogin} className="space-y-5">
                 <CredentialFields
                   email={email}
@@ -917,13 +1286,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <Loader size="lg" />
-        </div>
-      }
-    >
+    <Suspense fallback={<FullPageLoading />}>
       <LoginContent />
     </Suspense>
   );

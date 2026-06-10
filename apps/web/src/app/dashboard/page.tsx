@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { CalendarDays, Wallet } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
-import { getGreeting, formatCurrency } from "@/utils/format";
+import { getGreeting, formatCurrency, resolveGreetingName } from "@/utils/format";
 import { formatDateBR } from "@/utils/date-format";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { SimpleBarChart } from "@/components/charts/simple-bar-chart";
@@ -63,7 +63,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
-              {getGreeting()}, {tenantOwner?.name || user?.name || "Usuário"}!
+              {getGreeting()}, {resolveGreetingName(user?.name, tenantOwner?.name)}!
             </span>{" "}
             <span className="text-foreground">👋</span>
           </h1>

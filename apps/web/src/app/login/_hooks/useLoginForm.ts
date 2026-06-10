@@ -21,6 +21,10 @@ import { AuthService } from "@/services/auth-service";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { callPublicApi } from "@/lib/api-client";
+import { isValidTotpCode } from "@/lib/mfa-helpers";
+import { extractEmailFromAuthError } from "../_lib/extract-email-from-auth-error";
+import { shouldReflectWhatsappGate } from "../_lib/should-reflect-whatsapp-gate";
+import { useResendCountdown } from "@/hooks/useResendCountdown";
 import { getCaptchaToken } from "@/lib/captcha";
 import { toast } from "@/lib/toast";
 import { ALLOWED_TYPES } from "@/services/storage-service";
@@ -28,6 +32,10 @@ import { TenantNiche } from "@/types";
 
 type AuthMode = "login" | "register" | "forgot";
 const AUTH_MODES: AuthMode[] = ["login", "register", "forgot"];
+
+// Fallback cooldown when the backend does not return retryAfterSeconds on a
+// resend. Mirrors the backend's 60s WhatsApp OTP cooldown.
+const WHATSAPP_RESEND_COOLDOWN_SECONDS = 60;
 
 interface ContactValidationResponse {
   success: boolean;
@@ -92,15 +100,63 @@ interface UseLoginFormReturn {
   isVerifyingSmsCode: boolean;
   isGoogleLoading: boolean;
   sessionRecoveryFailed: boolean;
+  isSessionSynced: boolean;
   redirectReason: string | null;
   requiresMfaCode: boolean;
   mfaLoginCode: string;
   setMfaLoginCode: (value: string) => void;
   isVerifyingMfaCode: boolean;
+  // TOTP recovery-code flow (native TOTP screen)
+  showTotpRecovery: boolean;
+  openTotpRecovery: () => void;
+  closeTotpRecovery: () => void;
+  totpRecoveryEmail: string;
+  setTotpRecoveryEmail: (value: string) => void;
+  totpRecoveryCode: string;
+  setTotpRecoveryCode: (value: string) => void;
+  totpRecoveryPassword: string;
+  setTotpRecoveryPassword: (value: string) => void;
+  isRecoveringTotp: boolean;
+  totpRecoveryError: string;
+  totpRecoverySuccess: string;
+  requiresWhatsappOtp: boolean;
+  whatsappOtpCode: string;
+  setWhatsappOtpCode: (value: string) => void;
+  whatsappMaskedPhone: string;
+  isVerifyingWhatsappOtp: boolean;
+  isResendingWhatsappOtp: boolean;
+  whatsappResendSecondsLeft: number;
+  canResendWhatsapp: boolean;
+  whatsappResendNotice: string;
+  // WhatsApp recovery-code flow (WhatsApp OTP screen)
+  showWhatsappRecovery: boolean;
+  openWhatsappRecovery: () => void;
+  closeWhatsappRecovery: () => void;
+  whatsappRecoveryCode: string;
+  setWhatsappRecoveryCode: (value: string) => void;
+  isRecoveringWhatsapp: boolean;
+  whatsappRecoveryError: string;
+  // WhatsApp fallback on the native TOTP screen (alternative to the app code)
+  whatsappFallbackAvailable: boolean;
+  whatsappFallbackStage: "idle" | "otp";
+  whatsappFallbackMaskedPhone: string;
+  whatsappFallbackCode: string;
+  setWhatsappFallbackCode: (value: string) => void;
+  isSendingWhatsappFallback: boolean;
+  isVerifyingWhatsappFallback: boolean;
+  isResendingWhatsappFallback: boolean;
 
   // Handlers
   handleLogin: (e?: React.FormEvent) => Promise<void>;
   handleConfirmMfaCode: (e?: React.FormEvent) => Promise<void>;
+  handleConfirmWhatsappOtp: (e?: React.FormEvent) => Promise<void>;
+  handleResendWhatsappOtp: () => Promise<void>;
+  handleRecoverTotpWithCode: (e?: React.FormEvent) => Promise<void>;
+  handleConfirmWhatsappRecovery: (e?: React.FormEvent) => Promise<void>;
+  handleSwitchToWhatsappFallback: () => Promise<void>;
+  handleBackToTotpFromFallback: () => void;
+  handleConfirmWhatsappFallback: (e?: React.FormEvent) => Promise<void>;
+  handleResendWhatsappFallback: () => Promise<void>;
   handleRegister: (e?: React.FormEvent) => Promise<void>;
   handleForgotPassword: (e?: React.FormEvent) => Promise<void>;
   handleGoogleAuth: () => Promise<void>;
@@ -149,6 +205,55 @@ export function useLoginForm(): UseLoginFormReturn {
   const [requiresMfaCode, setRequiresMfaCode] = React.useState(false);
   const [mfaLoginCode, setMfaLoginCode] = React.useState("");
   const [isVerifyingMfaCode, setIsVerifyingMfaCode] = React.useState(false);
+  // TOTP recovery-code flow (native TOTP screen)
+  const [showTotpRecovery, setShowTotpRecovery] = React.useState(false);
+  const [totpRecoveryEmail, setTotpRecoveryEmail] = React.useState("");
+  const [totpRecoveryCode, setTotpRecoveryCode] = React.useState("");
+  const [totpRecoveryPassword, setTotpRecoveryPassword] = React.useState("");
+  const [isRecoveringTotp, setIsRecoveringTotp] = React.useState(false);
+  const [totpRecoveryError, setTotpRecoveryError] = React.useState("");
+  const [totpRecoverySuccess, setTotpRecoverySuccess] = React.useState("");
+  // WhatsApp recovery-code flow (WhatsApp OTP screen)
+  const [showWhatsappRecovery, setShowWhatsappRecovery] = React.useState(false);
+  const [whatsappRecoveryCode, setWhatsappRecoveryCode] = React.useState("");
+  const [isRecoveringWhatsapp, setIsRecoveringWhatsapp] = React.useState(false);
+  const [whatsappRecoveryError, setWhatsappRecoveryError] = React.useState("");
+  const [requiresWhatsappOtp, setRequiresWhatsappOtp] = React.useState(false);
+  const [whatsappOtpCode, setWhatsappOtpCode] = React.useState("");
+  const [whatsappMaskedPhone, setWhatsappMaskedPhone] = React.useState("");
+  const [isVerifyingWhatsappOtp, setIsVerifyingWhatsappOtp] =
+    React.useState(false);
+  const [isResendingWhatsappOtp, setIsResendingWhatsappOtp] =
+    React.useState(false);
+  const [whatsappResendNotice, setWhatsappResendNotice] = React.useState("");
+  const {
+    secondsLeft: whatsappResendSecondsLeft,
+    canResend: canResendWhatsapp,
+    start: startWhatsappResendCountdown,
+  } = useResendCountdown();
+  // WhatsApp fallback on the native TOTP screen: when an account has BOTH TOTP
+  // and WhatsApp MFA, the user may choose to receive the code via WhatsApp
+  // instead of the authenticator app. `mfaEmail` identifies the account at this
+  // pre-sign-in stage (the form email is empty on Google sign-in, so it is also
+  // captured from the MFA error). Reuses the WhatsApp resend countdown above.
+  const [mfaEmail, setMfaEmail] = React.useState("");
+  const [whatsappFallbackAvailable, setWhatsappFallbackAvailable] =
+    React.useState(false);
+  const [whatsappFallbackMaskedPhone, setWhatsappFallbackMaskedPhone] =
+    React.useState("");
+  const [whatsappFallbackStage, setWhatsappFallbackStage] = React.useState<
+    "idle" | "otp"
+  >("idle");
+  const [whatsappFallbackCode, setWhatsappFallbackCode] = React.useState("");
+  const [isSendingWhatsappFallback, setIsSendingWhatsappFallback] =
+    React.useState(false);
+  const [isVerifyingWhatsappFallback, setIsVerifyingWhatsappFallback] =
+    React.useState(false);
+  const [isResendingWhatsappFallback, setIsResendingWhatsappFallback] =
+    React.useState(false);
+  // Tracks the email already probed for availability so the effect runs once.
+  const fallbackCheckedEmailRef = React.useRef<string>("");
+
   const recaptchaRef = React.useRef<RecaptchaVerifier | null>(null);
 
   const normalizePhoneToE164 = React.useCallback((value: string): string => {
@@ -239,7 +344,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, user, isLoading, isSessionSynced, forceSyncSession, refreshUser } =
+  const { login, resolveTotpLogin, resolveWhatsappLogin, resolveWhatsappRecovery, signInWithRecoveryToken, resendWhatsappOtp, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, forceSyncSession, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -359,6 +464,10 @@ export function useLoginForm(): UseLoginFormReturn {
 
   // If already logged in, redirect
   React.useEffect(() => {
+    // While a WhatsApp OTP challenge is pending the cookie is withheld; never
+    // redirect (a racing background session sync could otherwise flip
+    // isSessionSynced before the OTP is entered).
+    if (requiresWhatsappOtp) return;
     if (!isLoading) {
       if (user) {
         const currentUser = auth.currentUser;
@@ -399,6 +508,7 @@ export function useLoginForm(): UseLoginFormReturn {
     handleRedirectAfterAuth,
     getGoogleSetupTarget,
     setIsEmailVerificationPending,
+    requiresWhatsappOtp,
   ]);
 
   React.useEffect(() => {
@@ -436,6 +546,28 @@ export function useLoginForm(): UseLoginFormReturn {
     return () => window.clearTimeout(id);
   }, [redirectReason, user, isLoading]);
 
+  // Reload survival for the WhatsApp OTP screen. On F5 the local
+  // requiresWhatsappOtp state is lost, but the still-signed-in Firebase user
+  // makes the background session sync re-detect the gate and set
+  // whatsappMfaPending on the provider. Reflect it back into the local OTP
+  // screen so the user sees the code form (with the correct remaining cooldown)
+  // instead of hanging on the logged-in loader. The guard (!requiresWhatsappOtp)
+  // prevents conflict with the foreground login paths (which already set it) and
+  // prevents a re-render loop. We do NOT trigger a new send here — the backend's
+  // retryAfterSeconds reflects the true remaining cooldown.
+  React.useEffect(() => {
+    if (
+      shouldReflectWhatsappGate({
+        hasWhatsappMfaPending: Boolean(whatsappMfaPending),
+        requiresWhatsappOtp,
+      })
+    ) {
+      setWhatsappMaskedPhone(whatsappMfaPending?.maskedPhone || "");
+      setRequiresWhatsappOtp(true);
+      startWhatsappResendCountdown(whatsappMfaPending?.retryAfterSeconds ?? 0);
+    }
+  }, [whatsappMfaPending, requiresWhatsappOtp, startWhatsappResendCountdown]);
+
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError("");
@@ -472,7 +604,12 @@ export function useLoginForm(): UseLoginFormReturn {
         if (result.code === "email-not-verified") {
           setIsEmailVerificationPending(true);
         } else if (result.code === "mfa-required") {
+          setMfaEmail(email);
           setRequiresMfaCode(true);
+        } else if (result.code === "whatsapp-mfa-required") {
+          setWhatsappMaskedPhone(result.maskedPhone || "");
+          setRequiresWhatsappOtp(true);
+          startWhatsappResendCountdown(result.retryAfterSeconds ?? 0);
         } else {
           setError("Falha no login. Verifique suas credenciais.");
         }
@@ -503,6 +640,346 @@ export function useLoginForm(): UseLoginFormReturn {
       }
     } finally {
       setIsVerifyingMfaCode(false);
+    }
+  };
+
+  // Silent availability probe: once the native TOTP screen is shown and we know
+  // the account email, ask the backend (reusing the form password when present)
+  // whether WhatsApp can serve as an alternative. Only reveals the option when
+  // truly available. Runs once per email; non-fatal failures hide the option.
+  React.useEffect(() => {
+    if (!requiresMfaCode || !mfaEmail) return;
+    if (whatsappFallbackStage !== "idle") return;
+    if (fallbackCheckedEmailRef.current === mfaEmail) return;
+    fallbackCheckedEmailRef.current = mfaEmail;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await AuthService.checkWhatsappLoginFallback(
+          mfaEmail,
+          password || undefined,
+        );
+        if (cancelled || !res.available) return;
+        setWhatsappFallbackAvailable(true);
+        setWhatsappFallbackMaskedPhone(res.maskedPhone || "");
+      } catch {
+        // non-fatal: silently leave the option hidden
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [requiresMfaCode, mfaEmail, password, whatsappFallbackStage]);
+
+  // User chose to receive the 2FA code via WhatsApp: send the OTP and switch the
+  // TOTP screen into the WhatsApp code-entry stage.
+  const handleSwitchToWhatsappFallback = async () => {
+    setError("");
+    setWhatsappResendNotice("");
+    setIsSendingWhatsappFallback(true);
+    try {
+      const res = await AuthService.sendWhatsappLoginFallback(
+        mfaEmail,
+        password || undefined,
+      );
+      if (!res.available) {
+        setError("Não foi possível enviar o código por WhatsApp.");
+        return;
+      }
+      setWhatsappFallbackMaskedPhone(
+        res.maskedPhone || whatsappFallbackMaskedPhone,
+      );
+      setWhatsappFallbackCode("");
+      setWhatsappFallbackStage("otp");
+      startWhatsappResendCountdown(
+        res.retryAfterSeconds ?? WHATSAPP_RESEND_COOLDOWN_SECONDS,
+      );
+    } catch {
+      setError("Não foi possível enviar o código por WhatsApp. Tente novamente.");
+    } finally {
+      setIsSendingWhatsappFallback(false);
+    }
+  };
+
+  // Back from the WhatsApp stage to the authenticator-app code input.
+  const handleBackToTotpFromFallback = () => {
+    setWhatsappFallbackStage("idle");
+    setWhatsappFallbackCode("");
+    setError("");
+  };
+
+  const handleConfirmWhatsappFallback = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setError("");
+    const trimmed = whatsappFallbackCode.trim();
+    if (!isValidTotpCode(trimmed)) {
+      setError("Digite o código de 6 dígitos enviado para o seu WhatsApp.");
+      return;
+    }
+
+    setIsVerifyingWhatsappFallback(true);
+    try {
+      const { customToken } = await AuthService.verifyWhatsappLoginFallback(
+        mfaEmail,
+        trimmed,
+      );
+      if (!customToken) {
+        setError("Não foi possível concluir a verificação.");
+        return;
+      }
+
+      // The custom token carries `whatsapp_login`, so the session gate does NOT
+      // re-challenge WhatsApp. TOTP stays enrolled; the post-login redirect
+      // effect takes over once the session is synced.
+      const result = await signInWithRecoveryToken(customToken);
+      if (result.success) {
+        setRequiresMfaCode(false);
+        setWhatsappFallbackStage("idle");
+        setWhatsappFallbackCode("");
+        setMfaLoginCode("");
+      } else if (result.code === "whatsapp-mfa-required") {
+        // Defensive: should not happen (claim skips the gate). Hand off to the
+        // standard WhatsApp OTP screen if it ever does.
+        setRequiresMfaCode(false);
+        setWhatsappFallbackStage("idle");
+        setWhatsappMaskedPhone(result.maskedPhone || "");
+        setRequiresWhatsappOtp(true);
+        startWhatsappResendCountdown(result.retryAfterSeconds ?? 0);
+      } else {
+        setError("Não foi possível concluir o login. Tente novamente.");
+      }
+    } catch (verifyError: unknown) {
+      const attemptsLeft = (verifyError as { attemptsLeft?: number })
+        ?.attemptsLeft;
+      if (typeof attemptsLeft === "number") {
+        setError(
+          attemptsLeft > 0
+            ? `Código inválido. Tentativas restantes: ${attemptsLeft}.`
+            : "Código inválido. Solicite um novo código.",
+        );
+      } else {
+        setError("Código inválido ou expirado. Tente novamente.");
+      }
+    } finally {
+      setIsVerifyingWhatsappFallback(false);
+    }
+  };
+
+  const handleResendWhatsappFallback = async () => {
+    if (!canResendWhatsapp) return;
+    setError("");
+    setWhatsappResendNotice("");
+    setWhatsappFallbackCode("");
+    setIsResendingWhatsappFallback(true);
+    try {
+      const { otpSent, retryAfterSeconds } =
+        await AuthService.sendWhatsappLoginFallback(
+          mfaEmail,
+          password || undefined,
+          true,
+        );
+      startWhatsappResendCountdown(
+        retryAfterSeconds ?? WHATSAPP_RESEND_COOLDOWN_SECONDS,
+      );
+      setWhatsappResendNotice(
+        otpSent ? "Novo código enviado." : "Aguarde para reenviar o código.",
+      );
+    } catch {
+      setError("Não foi possível reenviar o código. Tente novamente.");
+    } finally {
+      setIsResendingWhatsappFallback(false);
+    }
+  };
+
+  const handleConfirmWhatsappOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setError("");
+    const trimmed = whatsappOtpCode.trim();
+    if (!isValidTotpCode(trimmed)) {
+      setError("Digite o código de 6 dígitos enviado para o seu WhatsApp.");
+      return;
+    }
+
+    setIsVerifyingWhatsappOtp(true);
+    try {
+      const result = await resolveWhatsappLogin(trimmed);
+      if (result.success) {
+        // The user-state effect handles the post-login redirect once the cookie
+        // is in sync.
+        setRequiresWhatsappOtp(false);
+        setWhatsappOtpCode("");
+      } else if (typeof result.attemptsLeft === "number") {
+        setError(
+          result.attemptsLeft > 0
+            ? `Código inválido. Tentativas restantes: ${result.attemptsLeft}.`
+            : "Código inválido. Solicite um novo código.",
+        );
+      } else {
+        setError("Código inválido ou expirado. Tente novamente.");
+      }
+    } finally {
+      setIsVerifyingWhatsappOtp(false);
+    }
+  };
+
+  const handleResendWhatsappOtp = async () => {
+    // The countdown owns the gate: while seconds remain, resend is disabled.
+    if (!canResendWhatsapp) return;
+    setError("");
+    setWhatsappResendNotice("");
+    setWhatsappOtpCode("");
+    setIsResendingWhatsappOtp(true);
+    try {
+      // Explicit resend forces a fresh code (resend: true) subject to the
+      // backend cooldown/cap. otpSent === false means the cooldown/cap blocked a
+      // new send; we still restart the countdown from the backend's authoritative
+      // retryAfterSeconds so the button reflects the true wait.
+      const { otpSent, retryAfterSeconds } = await resendWhatsappOtp();
+      startWhatsappResendCountdown(
+        retryAfterSeconds ?? WHATSAPP_RESEND_COOLDOWN_SECONDS,
+      );
+      setWhatsappResendNotice(
+        otpSent ? "Novo código enviado." : "Fora realizadas várias tentativas em um curto período. Aguarde para reenviar.",
+      );
+    } catch {
+      // Network/transient error — keep the screen usable and let the user retry.
+      setError("Não foi possível reenviar o código. Tente novamente.");
+    } finally {
+      setIsResendingWhatsappOtp(false);
+    }
+  };
+
+  // Reveal the TOTP recovery-code form, prefilling the email from the login form
+  // when available (it is editable — on Google sign-in the form `email` is empty,
+  // so the user must type it). The native TOTP screen is reached BEFORE the
+  // Firebase sign-in completes (the multi-factor challenge is pending), so there
+  // is no signed-in user email to fall back to here.
+  const openTotpRecovery = React.useCallback(() => {
+    setTotpRecoveryError("");
+    setTotpRecoverySuccess("");
+    setTotpRecoveryCode("");
+    setTotpRecoveryPassword("");
+    setTotpRecoveryEmail((prev) => prev || email);
+    setShowTotpRecovery(true);
+  }, [email]);
+
+  // Return from the recovery-code form back to the authenticator-app code input.
+  const closeTotpRecovery = React.useCallback(() => {
+    setShowTotpRecovery(false);
+    setTotpRecoveryError("");
+    setTotpRecoveryCode("");
+    setTotpRecoveryPassword("");
+  }, []);
+
+  const handleRecoverTotpWithCode = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setTotpRecoveryError("");
+    setTotpRecoverySuccess("");
+
+    const trimmedEmail = totpRecoveryEmail.trim();
+    const trimmedCode = totpRecoveryCode.trim();
+    if (!trimmedEmail) {
+      setTotpRecoveryError("Informe o e-mail da sua conta.");
+      return;
+    }
+    if (!trimmedCode) {
+      setTotpRecoveryError("Informe um código de recuperação.");
+      return;
+    }
+
+    setIsRecoveringTotp(true);
+    try {
+      const password = totpRecoveryPassword.trim();
+      const { customToken } = await AuthService.recoverTotpWithCode(
+        trimmedEmail,
+        trimmedCode,
+        password ? password : undefined,
+      );
+      if (!customToken) {
+        setTotpRecoveryError("Não foi possível usar o código de recuperação.");
+        return;
+      }
+
+      // The recovery code is valid: sign the user in directly with the custom
+      // token (TOTP stays enrolled). If the account also has WhatsApp 2FA,
+      // finalizeLogin surfaces the gate and we route into the OTP screen.
+      const result = await signInWithRecoveryToken(customToken);
+      if (result.success) {
+        // Signed in. Clear the recovery/TOTP screens; the post-login redirect
+        // effect takes over from here.
+        setRequiresMfaCode(false);
+        setShowTotpRecovery(false);
+        setMfaLoginCode("");
+        setTotpRecoveryCode("");
+        setTotpRecoveryPassword("");
+        setError("");
+        setTotpRecoveryError("");
+        setTotpRecoverySuccess("Entrando...");
+      } else if (result.code === "whatsapp-mfa-required") {
+        // Account also has WhatsApp 2FA — hand off to the WhatsApp OTP screen.
+        setRequiresMfaCode(false);
+        setShowTotpRecovery(false);
+        setMfaLoginCode("");
+        setTotpRecoveryCode("");
+        setTotpRecoveryPassword("");
+        setTotpRecoveryError("");
+        setWhatsappMaskedPhone(result.maskedPhone || "");
+        setRequiresWhatsappOtp(true);
+        startWhatsappResendCountdown(result.retryAfterSeconds ?? 0);
+      } else {
+        setTotpRecoveryError(
+          "Não foi possível concluir o login com o código de recuperação.",
+        );
+      }
+    } catch (recoverError: unknown) {
+      const message =
+        recoverError instanceof Error
+          ? recoverError.message
+          : "Não foi possível usar o código de recuperação.";
+      setTotpRecoveryError(message);
+    } finally {
+      setIsRecoveringTotp(false);
+    }
+  };
+
+  const openWhatsappRecovery = React.useCallback(() => {
+    setWhatsappRecoveryError("");
+    setWhatsappRecoveryCode("");
+    setShowWhatsappRecovery(true);
+  }, []);
+
+  // Return from the recovery-code form back to the WhatsApp OTP input.
+  const closeWhatsappRecovery = React.useCallback(() => {
+    setShowWhatsappRecovery(false);
+    setWhatsappRecoveryError("");
+    setWhatsappRecoveryCode("");
+  }, []);
+
+  const handleConfirmWhatsappRecovery = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setWhatsappRecoveryError("");
+
+    const trimmedCode = whatsappRecoveryCode.trim();
+    if (!trimmedCode) {
+      setWhatsappRecoveryError("Informe um código de recuperação.");
+      return;
+    }
+
+    setIsRecoveringWhatsapp(true);
+    try {
+      const result = await resolveWhatsappRecovery(trimmedCode);
+      if (result.success) {
+        // The user-state effect handles the post-login redirect once the cookie
+        // is in sync.
+        setRequiresWhatsappOtp(false);
+        setShowWhatsappRecovery(false);
+        setWhatsappOtpCode("");
+        setWhatsappRecoveryCode("");
+      } else {
+        setWhatsappRecoveryError("Código de recuperação inválido.");
+      }
+    } finally {
+      setIsRecoveringWhatsapp(false);
     }
   };
 
@@ -566,6 +1043,16 @@ export function useLoginForm(): UseLoginFormReturn {
 
       if (additionalInfo?.isNewUser || !hasTenant) {
         router.replace(getGoogleSetupTarget());
+      } else {
+        // Existing tenant user: drive session creation so the WhatsApp-MFA gate
+        // can route into the OTP screen instead of silently withholding access.
+        const session = await completeSessionAfterSignIn();
+        if (session.code === "whatsapp-mfa-required") {
+          setWhatsappMaskedPhone(session.maskedPhone || "");
+          setRequiresWhatsappOtp(true);
+          startWhatsappResendCountdown(session.retryAfterSeconds ?? 0);
+          setIsGoogleLoading(false);
+        }
       }
     } catch (googleError: unknown) {
       if (popupWatchInterval) clearInterval(popupWatchInterval);
@@ -581,6 +1068,15 @@ export function useLoginForm(): UseLoginFormReturn {
         "auth/cancelled-popup-request",
       ];
       if (code && silentCodes.includes(code)) {
+        setIsGoogleLoading(false);
+        return;
+      }
+
+      // Account has MFA enrolled — route to the TOTP code screen instead of
+      // failing. The auth-provider stashes the resolver for resolveTotpLogin.
+      if (prepareMfaChallenge(googleError)) {
+        setMfaEmail(extractEmailFromAuthError(googleError));
+        setRequiresMfaCode(true);
         setIsGoogleLoading(false);
         return;
       }
@@ -611,9 +1107,25 @@ export function useLoginForm(): UseLoginFormReturn {
         const hasTenant = Boolean(userDoc.exists() && userDoc.data()?.tenantId);
         if (additionalInfo?.isNewUser || !hasTenant) {
           router.replace(getGoogleSetupTarget());
+        } else {
+          const session = await completeSessionAfterSignIn();
+          if (session.code === "whatsapp-mfa-required") {
+            setWhatsappMaskedPhone(session.maskedPhone || "");
+            setRequiresWhatsappOtp(true);
+            startWhatsappResendCountdown(session.retryAfterSeconds ?? 0);
+            setIsGoogleLoading(false);
+          }
         }
       })
       .catch((err) => {
+        // MFA-enrolled account returning from the redirect fallback — prompt
+        // for the TOTP code instead of surfacing a generic error.
+        if (prepareMfaChallenge(err)) {
+          setMfaEmail(extractEmailFromAuthError(err));
+          setRequiresMfaCode(true);
+          setIsGoogleLoading(false);
+          return;
+        }
         console.error("getRedirectResult error:", err);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -881,6 +1393,14 @@ export function useLoginForm(): UseLoginFormReturn {
     await sendPhoneVerificationCode(phone);
   };
 
+  // Effective OTP-screen flag. The reflection effect above sets the local state
+  // asynchronously, so on the very first render after a reload the provider can
+  // already hold the gate while requiresWhatsappOtp is still false. OR-ing the
+  // provider gate in here means the OTP screen wins over the logged-in loader on
+  // that first render too, eliminating any loader flash.
+  const effectiveRequiresWhatsappOtp =
+    requiresWhatsappOtp || Boolean(whatsappMfaPending);
+
   return {
     email,
     setEmail,
@@ -919,12 +1439,57 @@ export function useLoginForm(): UseLoginFormReturn {
     isVerifyingSmsCode,
     isGoogleLoading,
     sessionRecoveryFailed,
+    isSessionSynced,
     redirectReason,
     requiresMfaCode,
     mfaLoginCode,
     setMfaLoginCode,
     isVerifyingMfaCode,
+    showTotpRecovery,
+    openTotpRecovery,
+    closeTotpRecovery,
+    totpRecoveryEmail,
+    setTotpRecoveryEmail,
+    totpRecoveryCode,
+    setTotpRecoveryCode,
+    totpRecoveryPassword,
+    setTotpRecoveryPassword,
+    isRecoveringTotp,
+    totpRecoveryError,
+    totpRecoverySuccess,
+    requiresWhatsappOtp: effectiveRequiresWhatsappOtp,
+    whatsappOtpCode,
+    setWhatsappOtpCode,
+    whatsappMaskedPhone,
+    isVerifyingWhatsappOtp,
+    isResendingWhatsappOtp,
+    whatsappResendSecondsLeft,
+    canResendWhatsapp,
+    whatsappResendNotice,
+    showWhatsappRecovery,
+    openWhatsappRecovery,
+    closeWhatsappRecovery,
+    whatsappRecoveryCode,
+    setWhatsappRecoveryCode,
+    isRecoveringWhatsapp,
+    whatsappRecoveryError,
+    whatsappFallbackAvailable,
+    whatsappFallbackStage,
+    whatsappFallbackMaskedPhone,
+    whatsappFallbackCode,
+    setWhatsappFallbackCode,
+    isSendingWhatsappFallback,
+    isVerifyingWhatsappFallback,
+    isResendingWhatsappFallback,
     handleConfirmMfaCode,
+    handleConfirmWhatsappOtp,
+    handleResendWhatsappOtp,
+    handleRecoverTotpWithCode,
+    handleConfirmWhatsappRecovery,
+    handleSwitchToWhatsappFallback,
+    handleBackToTotpFromFallback,
+    handleConfirmWhatsappFallback,
+    handleResendWhatsappFallback,
     handleLogin,
     handleRegister,
     handleForgotPassword,

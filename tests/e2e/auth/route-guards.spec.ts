@@ -89,4 +89,22 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
       await ctx.dispose();
     }
   });
+
+  // Legal/bureaucratic pages must be reachable while logged out — the cookie
+  // banner links to /cookies, and a logged-out visitor must read the policy
+  // without being bounced to /login. Regression: /cookies was missing from the
+  // middleware PUBLIC_ROUTES, so it redirected to /login with session_expired.
+  for (const path of ["/cookies", "/privacy", "/terms", "/data-deletion"]) {
+    test(`public legal route ${path} is reachable without auth (no redirect to /login)`, async ({ playwright }) => {
+      const ctx = await playwright.request.newContext({ baseURL: "http://localhost:3001" });
+      try {
+        const resp = await ctx.fetch(path);
+        const url = new URL(resp.url());
+        expect(url.pathname).toBe(path);
+        expect(url.pathname).not.toBe("/login");
+      } finally {
+        await ctx.dispose();
+      }
+    });
+  }
 });

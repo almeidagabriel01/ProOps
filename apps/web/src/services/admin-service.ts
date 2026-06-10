@@ -85,6 +85,12 @@ export const AdminService = {
     await callApi("/v1/admin/credentials", "POST", data);
   },
 
+  // Removes a user's enrolled MFA factors (recovery when the authenticator is
+  // lost). Authorized server-side for super admins or the user's tenant admin.
+  resetMemberMfa: async (uid: string): Promise<void> => {
+    await callApi(`/v1/admin/members/${uid}/reset-mfa`, "POST");
+  },
+
   updateAdminCredentials: async (data: AdminCredentialsData): Promise<void> => {
     await callApi("/v1/admin/credentials", "POST", data);
   },

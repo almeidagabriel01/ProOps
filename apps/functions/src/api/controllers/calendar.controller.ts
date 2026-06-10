@@ -428,8 +428,8 @@ function buildGoogleDescription(eventData: CalendarEventDocument): string {
   const sections = [
     eventData.description,
     eventData.location ? `Local: ${eventData.location}` : null,
-    `Status no ProOps: ${eventData.status}`,
-    "Gerado automaticamente pelo calendario do ProOps.",
+    `Status na ProOps: ${eventData.status}`,
+    "Gerado automaticamente pelo calendario da ProOps.",
   ].filter(Boolean);
 
   return sections.join("\n\n");

@@ -51,7 +51,7 @@ gestao@proops.com.br
             <td style="padding:40px;">
               <h2 style="margin:0 0 16px;font-size:22px;color:#18181b;font-weight:700;">Falta escolher seu plano</h2>
               <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6;">
-                ${greetingName ? `Olá, ${escapeHtml(greetingName)}! ` : "Olá! "}Você criou sua conta no ProOps há alguns dias, mas ainda não escolheu um plano.
+                ${greetingName ? `Olá, ${escapeHtml(greetingName)}! ` : "Olá! "}Você criou sua conta na ProOps há alguns dias, mas ainda não escolheu um plano.
               </p>
               <p style="margin:0 0 32px;font-size:15px;color:#3f3f46;line-height:1.6;">
                 Escolha o plano ideal para o seu negócio e desbloqueie todos os recursos do sistema — propostas, CRM, financeiro e muito mais.

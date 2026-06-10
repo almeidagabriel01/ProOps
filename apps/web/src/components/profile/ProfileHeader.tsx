@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Mail, Shield, Crown, Users } from "lucide-react";
+import { Mail, Shield, Crown } from "lucide-react";
 import { User, Tenant, UserPlan } from "@/types";
 import { getRoleLabel, getRoleBadgeVariant } from "@/utils/format";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,7 +18,6 @@ export function ProfileHeader({
   user,
   tenant,
   userPlan,
-  isMaster,
 }: ProfileHeaderProps) {
   return (
     <div className="flex flex-col md:flex-row gap-6 items-center p-6 bg-gradient-to-r from-background to-muted/20 border rounded-xl shadow-sm">
@@ -82,15 +79,6 @@ export function ProfileHeader({
       </div>
 
       <div className="flex w-full flex-col items-center gap-3 md:w-auto md:items-end">
-        {isMaster && (
-          <Button asChild variant="outline" className="gap-2 w-full md:w-auto">
-            <Link href="/team">
-              <Users className="w-4 h-4" />
-              Gerenciar Equipe
-            </Link>
-          </Button>
-        )}
-
         <div className="py-2 text-center md:border-l md:pl-6 md:text-left">
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">

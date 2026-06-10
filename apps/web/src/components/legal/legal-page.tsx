@@ -28,15 +28,21 @@ export function LegalPage({
     <div className="min-h-screen bg-white text-black dark:bg-neutral-950 dark:text-neutral-100">
       <header className="border-b border-black/10 bg-white/90 backdrop-blur dark:border-white/10 dark:bg-neutral-950/90">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
-          <Link href="/" className="inline-flex items-center">
-            <ProOpsLogo
-              variant="full"
-              width={180}
-              height={60}
-              invertOnDark
-              interactive={false}
-              className="h-10 w-auto"
-            />
+          <Link
+            href="/"
+            aria-label="ProOps"
+            className="group relative inline-flex shrink-0 items-center gap-3 overflow-hidden rounded-full leading-none"
+          >
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full md:h-11 md:w-11">
+              <ProOpsLogo
+                variant="symbol"
+                width={116}
+                height={116}
+                priority
+                invertOnDark
+                className="block h-full w-full scale-[2.55] object-contain md:scale-[2.7] group-hover:scale-[2.7] md:group-hover:scale-[2.85]"
+              />
+            </div>
           </Link>
 
           <div className="flex items-center gap-4 text-sm">
@@ -79,7 +85,7 @@ export function LegalPage({
           <div className="mt-8 rounded-[28px] border border-black/10 bg-white shadow-sm dark:border-white/10 dark:bg-neutral-950">
             <div className="border-b border-black/10 px-8 py-5 dark:border-white/10">
               <p className="text-sm text-black/60 dark:text-white/60">
-                Este documento se aplica ao uso do ProOps em{" "}
+                Este documento se aplica ao uso da ProOps em{" "}
                 <a
                   href="https://proops.com.br"
                   target="_blank"

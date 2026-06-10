@@ -3,7 +3,13 @@
 import * as React from "react";
 import { toast } from "@/lib/toast";
 import { CreditCard, CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +42,7 @@ import {
 import { Loader } from "@/components/ui/loader";
 import { AsaasWebhookStatusAlert } from "./asaas-webhook-status-alert";
 import { AsaasPayoutConfigSection } from "./asaas-payout-config-section";
+import { PaymentsCardSkeleton } from "./settings-skeleton";
 
 const COMPANY_TYPES = [
   { value: "MEI", label: "MEI (Microempreendedor Individual)" },
@@ -43,7 +50,6 @@ const COMPANY_TYPES = [
   { value: "LIMITED", label: "Sociedade Limitada" },
   { value: "ASSOCIATION", label: "Associação" },
 ];
-
 
 function maskCpfCnpj(val: string): string {
   const d = val.replace(/\D/g, "").slice(0, 14);
@@ -65,7 +71,8 @@ function maskPhone(val: string): string {
   if (!d.length) return "";
   if (d.length <= 2) return `(${d}`;
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  if (d.length <= 10)
+    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
@@ -79,7 +86,10 @@ function maskCurrency(val: string): string {
   const digits = val.replace(/\D/g, "");
   if (!digits) return "";
   const num = parseInt(digits, 10) / 100;
-  return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return num.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -116,15 +126,25 @@ interface ViaCepResponse {
   bairro?: string;
 }
 
-export function AsaasConnectCard() {
-  const [status, setStatus] = React.useState<AsaasConnectionStatus | null>(null);
+interface AsaasConnectCardProps {
+  /** Reports whether the connection status is still loading, so the settings
+   *  page can skeleton its header + the chrome in sync. */
+  onLoadingChange?: (loading: boolean) => void;
+}
+
+export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
+  const [status, setStatus] = React.useState<AsaasConnectionStatus | null>(
+    null,
+  );
   const [isLoadingStatus, setIsLoadingStatus] = React.useState(true);
   const [showOnboardDialog, setShowOnboardDialog] = React.useState(false);
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [isDisconnecting, setIsDisconnecting] = React.useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = React.useState(false);
   const [form, setForm] = React.useState<FormState>(INITIAL_FORM);
-  const [errors, setErrors] = React.useState<Partial<Record<keyof FormState, string>>>({});
+  const [errors, setErrors] = React.useState<
+    Partial<Record<keyof FormState, string>>
+  >({});
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
   const loadStatus = React.useCallback(async () => {
     try {
@@ -141,11 +161,15 @@ export function AsaasConnectCard() {
   const handleRetryWebhook = async () => {
     try {
       const result = await AsaasService.retryWebhook();
-      setStatus((prev) => (prev ? { ...prev, webhookStatus: result.webhookStatus } : prev));
+      setStatus((prev) =>
+        prev ? { ...prev, webhookStatus: result.webhookStatus } : prev,
+      );
       if (result.webhookStatus.state === "registered") {
         toast.success("Recebimento de pagamentos configurado com sucesso!");
       } else {
-        toast.error("Não foi possível configurar o webhook. Verifique os detalhes.");
+        toast.error(
+          "Não foi possível configurar o webhook. Verifique os detalhes.",
+        );
       }
     } catch {
       toast.error("Erro ao tentar reconectar o webhook.");
@@ -155,6 +179,16 @@ export function AsaasConnectCard() {
   React.useEffect(() => {
     loadStatus();
   }, [loadStatus]);
+
+  // Only the INITIAL status load drives the page/chrome skeleton — later reloads
+  // (after connect/disconnect/retry) keep the loaded status, so they must not
+  // flash the whole section back to a skeleton.
+  const isInitialLoading = isLoadingStatus && status === null;
+
+  // Report initial loading up so the page skeletons its header + the chrome.
+  React.useEffect(() => {
+    onLoadingChange?.(isInitialLoading);
+  }, [isInitialLoading, onLoadingChange]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -199,27 +233,33 @@ export function AsaasConnectCard() {
 
     if (!form.name.trim()) nextErrors.name = "Nome é obrigatório";
     if (!form.email.trim()) nextErrors.email = "E-mail é obrigatório";
-    else if (!EMAIL_RE.test(form.email.trim())) nextErrors.email = "E-mail inválido";
+    else if (!EMAIL_RE.test(form.email.trim()))
+      nextErrors.email = "E-mail inválido";
 
     const cpfCnpj = form.cpfCnpj.replace(/\D/g, "");
     if (!cpfCnpj) nextErrors.cpfCnpj = "CPF/CNPJ é obrigatório";
     else if (cpfCnpj.length !== 11 && cpfCnpj.length !== 14)
       nextErrors.cpfCnpj = "CPF deve ter 11 dígitos ou CNPJ 14 dígitos";
 
-    if (!form.mobilePhone.replace(/\D/g, "")) nextErrors.mobilePhone = "Telefone é obrigatório";
+    if (!form.mobilePhone.replace(/\D/g, ""))
+      nextErrors.mobilePhone = "Telefone é obrigatório";
 
-    const incomeValueNum = parseFloat(form.incomeValue.replace(/\./g, "").replace(",", ".")) || 0;
+    const incomeValueNum =
+      parseFloat(form.incomeValue.replace(/\./g, "").replace(",", ".")) || 0;
     if (!form.incomeValue || incomeValueNum <= 0)
       nextErrors.incomeValue = "Faturamento mensal é obrigatório";
 
     const postalCode = form.postalCode.replace(/\D/g, "");
     if (!postalCode) nextErrors.postalCode = "CEP é obrigatório";
-    else if (postalCode.length !== 8) nextErrors.postalCode = "CEP deve ter 8 dígitos";
+    else if (postalCode.length !== 8)
+      nextErrors.postalCode = "CEP deve ter 8 dígitos";
 
     if (!form.address.trim()) nextErrors.address = "Endereço é obrigatório";
-    if (!form.addressNumber.trim()) nextErrors.addressNumber = "Número é obrigatório";
+    if (!form.addressNumber.trim())
+      nextErrors.addressNumber = "Número é obrigatório";
     if (!form.province.trim()) nextErrors.province = "Bairro é obrigatório";
-    if (!form.companyType) nextErrors.companyType = "Tipo de empresa é obrigatório";
+    if (!form.companyType)
+      nextErrors.companyType = "Tipo de empresa é obrigatório";
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -284,20 +324,32 @@ export function AsaasConnectCard() {
     }
   };
 
+  // While the initial status loads, show the card skeleton (the page header and
+  // chrome are skeletoned in sync via onLoadingChange).
+  if (isInitialLoading) {
+    return <PaymentsCardSkeleton />;
+  }
+
   return (
     <>
-      <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+      <AlertDialog
+        open={showDisconnectDialog}
+        onOpenChange={setShowDisconnectDialog}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Desativar pagamentos online?</AlertDialogTitle>
             <AlertDialogDescription>
-              Isso desativará os pagamentos nos links compartilhados. Você poderá reativar a
-              qualquer momento.
+              Isso desativará os pagamentos nos links compartilhados. Você
+              poderá reativar a qualquer momento.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDisconnect} disabled={isDisconnecting}>
+            <AlertDialogAction
+              onClick={handleConfirmDisconnect}
+              disabled={isDisconnecting}
+            >
               {isDisconnecting && <Loader size="sm" className="mr-2" />}
               Desativar
             </AlertDialogAction>
@@ -310,8 +362,8 @@ export function AsaasConnectCard() {
           <DialogHeader>
             <DialogTitle>Habilitar Pagamentos Online</DialogTitle>
             <DialogDescription>
-              Preencha os dados da sua empresa. A conta de recebimentos é criada automaticamente —
-              seus dados são enviados diretamente ao Asaas.
+              Preencha os dados da sua empresa. A conta de recebimentos é criada
+              automaticamente — seus dados são enviados diretamente ao Asaas.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleConnect} noValidate>
@@ -325,7 +377,9 @@ export function AsaasConnectCard() {
                   className={errors.name ? "border-destructive" : ""}
                 />
                 {errors.name && (
-                  <span className="text-sm text-destructive mt-1 block">{errors.name}</span>
+                  <span className="text-sm text-destructive mt-1 block">
+                    {errors.name}
+                  </span>
                 )}
               </div>
 
@@ -339,7 +393,9 @@ export function AsaasConnectCard() {
                   className={errors.email ? "border-destructive" : ""}
                 />
                 {errors.email && (
-                  <span className="text-sm text-destructive mt-1 block">{errors.email}</span>
+                  <span className="text-sm text-destructive mt-1 block">
+                    {errors.email}
+                  </span>
                 )}
               </div>
 
@@ -348,20 +404,26 @@ export function AsaasConnectCard() {
                   <Label>CPF / CNPJ</Label>
                   <Input
                     value={form.cpfCnpj}
-                    onChange={(e) => setField("cpfCnpj", maskCpfCnpj(e.target.value))}
+                    onChange={(e) =>
+                      setField("cpfCnpj", maskCpfCnpj(e.target.value))
+                    }
                     placeholder="00.000.000/0001-00"
                     inputMode="numeric"
                     className={errors.cpfCnpj ? "border-destructive" : ""}
                   />
                   {errors.cpfCnpj && (
-                    <span className="text-sm text-destructive mt-1 block">{errors.cpfCnpj}</span>
+                    <span className="text-sm text-destructive mt-1 block">
+                      {errors.cpfCnpj}
+                    </span>
                   )}
                 </div>
                 <div>
                   <Label>Telefone / WhatsApp</Label>
                   <Input
                     value={form.mobilePhone}
-                    onChange={(e) => setField("mobilePhone", maskPhone(e.target.value))}
+                    onChange={(e) =>
+                      setField("mobilePhone", maskPhone(e.target.value))
+                    }
                     placeholder="(11) 98765-4321"
                     inputMode="tel"
                     className={errors.mobilePhone ? "border-destructive" : ""}
@@ -382,14 +444,18 @@ export function AsaasConnectCard() {
                   </span>
                   <Input
                     value={form.incomeValue}
-                    onChange={(e) => setField("incomeValue", maskCurrency(e.target.value))}
+                    onChange={(e) =>
+                      setField("incomeValue", maskCurrency(e.target.value))
+                    }
                     placeholder="0,00"
                     inputMode="numeric"
                     className={`pl-9 ${errors.incomeValue ? "border-destructive" : ""}`}
                   />
                 </div>
                 {errors.incomeValue && (
-                  <span className="text-sm text-destructive mt-1 block">{errors.incomeValue}</span>
+                  <span className="text-sm text-destructive mt-1 block">
+                    {errors.incomeValue}
+                  </span>
                 )}
               </div>
 
@@ -408,7 +474,9 @@ export function AsaasConnectCard() {
                   ))}
                 </Select>
                 {errors.companyType && (
-                  <span className="text-sm text-destructive mt-1 block">{errors.companyType}</span>
+                  <span className="text-sm text-destructive mt-1 block">
+                    {errors.companyType}
+                  </span>
                 )}
               </div>
 
@@ -417,12 +485,16 @@ export function AsaasConnectCard() {
                 <div className="relative">
                   <Input
                     value={form.postalCode}
-                    onChange={(e) => setField("postalCode", maskCep(e.target.value))}
+                    onChange={(e) =>
+                      setField("postalCode", maskCep(e.target.value))
+                    }
                     onBlur={handleCepBlur}
                     placeholder="00000-000"
                     inputMode="numeric"
                     maxLength={9}
-                    className={errors.postalCode ? "border-destructive pr-8" : "pr-8"}
+                    className={
+                      errors.postalCode ? "border-destructive pr-8" : "pr-8"
+                    }
                   />
                   {isFetchingCep && (
                     <Loader2
@@ -432,7 +504,9 @@ export function AsaasConnectCard() {
                   )}
                 </div>
                 {errors.postalCode && (
-                  <span className="text-sm text-destructive mt-1 block">{errors.postalCode}</span>
+                  <span className="text-sm text-destructive mt-1 block">
+                    {errors.postalCode}
+                  </span>
                 )}
               </div>
 
@@ -446,7 +520,9 @@ export function AsaasConnectCard() {
                     className={errors.address ? "border-destructive" : ""}
                   />
                   {errors.address && (
-                    <span className="text-sm text-destructive mt-1 block">{errors.address}</span>
+                    <span className="text-sm text-destructive mt-1 block">
+                      {errors.address}
+                    </span>
                   )}
                 </div>
                 <div>
@@ -474,7 +550,9 @@ export function AsaasConnectCard() {
                   className={errors.province ? "border-destructive" : ""}
                 />
                 {errors.province && (
-                  <span className="text-sm text-destructive mt-1 block">{errors.province}</span>
+                  <span className="text-sm text-destructive mt-1 block">
+                    {errors.province}
+                  </span>
                 )}
               </div>
             </div>
@@ -502,10 +580,15 @@ export function AsaasConnectCard() {
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sky-500/10">
-                <CreditCard className="h-5 w-5 text-sky-500" aria-hidden="true" />
+                <CreditCard
+                  className="h-5 w-5 text-sky-500"
+                  aria-hidden="true"
+                />
               </div>
               <div>
-                <CardTitle className="text-base">Pagamentos Online (Asaas)</CardTitle>
+                <CardTitle className="text-base">
+                  Pagamentos Online (Asaas)
+                </CardTitle>
                 <CardDescription className="text-sm mt-0.5">
                   Aceite PIX e boleto nos links compartilhados
                 </CardDescription>
@@ -546,18 +629,25 @@ export function AsaasConnectCard() {
                 {status.environment && (
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Ambiente</span>
-                    <span>{status.environment === "production" ? "Produção" : "Sandbox"}</span>
+                    <span>
+                      {status.environment === "production"
+                        ? "Produção"
+                        : "Sandbox"}
+                    </span>
                   </div>
                 )}
                 {status.connectedAt && (
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Ativado em</span>
                     <span>
-                      {new Date(status.connectedAt).toLocaleDateString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                      })}
+                      {new Date(status.connectedAt).toLocaleDateString(
+                        "pt-BR",
+                        {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        },
+                      )}
                     </span>
                   </div>
                 )}
@@ -565,51 +655,62 @@ export function AsaasConnectCard() {
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Verificação</span>
                     <Badge variant="success" className="text-xs">
-                      <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" />
+                      <CheckCircle2
+                        className="mr-1 h-3 w-3"
+                        aria-hidden="true"
+                      />
                       Conta aprovada
                     </Badge>
                   </div>
                 )}
               </div>
 
-              {status.accountStatus && status.accountStatus.general !== "APPROVED" && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-                  <p className="text-sm font-medium text-amber-800">
-                    Conta pendente de aprovação
-                  </p>
-                  <p className="text-sm text-amber-700">
-                    Sua conta Asaas precisa de verificação de documentos antes de aceitar
-                    pagamentos.
-                  </p>
-                  {(status.accountStatus.pendingDocuments?.length ?? 0) > 0 && (
-                    <p className="text-sm text-amber-700">
-                      Documentos pendentes: {status.accountStatus.pendingDocuments!.length}
+              {status.accountStatus &&
+                status.accountStatus.general !== "APPROVED" && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                    <p className="text-sm font-medium text-amber-800">
+                      Conta pendente de aprovação
                     </p>
-                  )}
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {status.accountStatus.onboardingUrl && (
+                    <p className="text-sm text-amber-700">
+                      Sua conta Asaas precisa de verificação de documentos antes
+                      de aceitar pagamentos.
+                    </p>
+                    {(status.accountStatus.pendingDocuments?.length ?? 0) >
+                      0 && (
+                      <p className="text-sm text-amber-700">
+                        Documentos pendentes:{" "}
+                        {status.accountStatus.pendingDocuments!.length}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {status.accountStatus.onboardingUrl && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() =>
+                            window.open(
+                              status.accountStatus!.onboardingUrl,
+                              "_blank",
+                            )
+                          }
+                        >
+                          Completar verificação
+                        </Button>
+                      )}
                       <Button
                         size="sm"
-                        variant="default"
-                        onClick={() =>
-                          window.open(status.accountStatus!.onboardingUrl, "_blank")
-                        }
+                        variant="outline"
+                        onClick={loadStatus}
+                        disabled={isLoadingStatus}
                       >
-                        Completar verificação
+                        {isLoadingStatus && (
+                          <Loader size="sm" className="mr-2" />
+                        )}
+                        Verificar novamente
                       </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={loadStatus}
-                      disabled={isLoadingStatus}
-                    >
-                      {isLoadingStatus && <Loader size="sm" className="mr-2" />}
-                      Verificar novamente
-                    </Button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {status.webhookStatus && (
                 <AsaasWebhookStatusAlert
@@ -622,7 +723,9 @@ export function AsaasConnectCard() {
                 <AsaasPayoutConfigSection
                   initialPayout={status.payout ?? null}
                   onSaved={(next: AsaasPayoutConfig) =>
-                    setStatus((prev) => (prev ? { ...prev, payout: next } : prev))
+                    setStatus((prev) =>
+                      prev ? { ...prev, payout: next } : prev,
+                    )
                   }
                 />
               )}
@@ -640,8 +743,9 @@ export function AsaasConnectCard() {
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Habilite para aceitar PIX e boleto bancário nos links compartilhados. A conta de
-                recebimentos é criada automaticamente — você não precisa criar uma conta no Asaas.
+                Habilite para aceitar PIX e boleto bancário nos links
+                compartilhados. A conta de recebimentos é criada automaticamente
+                — você não precisa criar uma conta no Asaas.
               </p>
               <Button size="sm" onClick={() => setShowOnboardDialog(true)}>
                 <CreditCard className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -651,8 +755,9 @@ export function AsaasConnectCard() {
           )}
 
           <p className="text-xs text-muted-foreground leading-relaxed border-t pt-3">
-            Cada transação paga está sujeita às taxas do Asaas. O ProOps não cobra taxa adicional.
-            Você é responsável pela declaração fiscal dos valores recebidos.
+            Cada transação paga está sujeita às taxas do Asaas. A ProOps não
+            cobra taxa adicional. Você é responsável pela declaração fiscal dos
+            valores recebidos.
           </p>
         </CardContent>
       </Card>

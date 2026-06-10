@@ -18,6 +18,8 @@ import sharedProposalsRoutes from "./routes/shared-proposals.routes";
 import { sharedTransactionsRoutes } from "./routes/shared-transactions.routes";
 import notificationsRoutes from "./routes/notifications.routes";
 import { whatsappRoutes } from "./routes/whatsapp.routes";
+import { whatsappMfaRoutes } from "./routes/whatsapp-mfa.routes";
+import { recoveryCodesRoutes } from "./routes/recovery-codes.routes";
 import { kanbanRoutes } from "./routes/kanban.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
@@ -38,6 +40,11 @@ import {
   resolveAllowedCorsOrigins,
 } from "./security/cors-policy";
 import { createRateLimitStore } from "../lib/rate-limit/factory";
+import {
+  resolveEffectiveRateLimitMax,
+  emulatorRuntimeSignals,
+} from "../lib/rate-limit/emulator";
+import { WHATSAPP_MFA_OTP_LIMITED_PREFIXES } from "../lib/rate-limit/whatsapp-mfa-limiter-paths";
 import {
   attachRequestId,
   buildSecurityLogContext,
@@ -110,13 +117,12 @@ function createRateLimiter(options: {
   keyResolver?: (req: express.Request) => string;
 }): express.RequestHandler {
   const windowMs = options.windowMs || DEFAULT_PUBLIC_WINDOW_MS;
-  // In the Firebase emulator (FIRESTORE_EMULATOR_HOST is always injected by the
-  // emulator process), raise every limiter to a harmless ceiling so the full
-  // E2E suite can accumulate requests across specs without hitting fixed-window
-  // counters that never reset between specs. This var is NEVER set in Cloud Run.
-  const effectiveMax = process.env.FIRESTORE_EMULATOR_HOST
-    ? 1_000_000
-    : options.maxRequests;
+  // Inside any Firebase emulator, raise every limiter to a harmless ceiling so
+  // local dev and the full E2E suite can accumulate requests without hitting
+  // fixed-window counters. Covers both the Firestore emulator and the
+  // functions-emulator-only setup (`npm run dev:backend` against real Firestore).
+  // Neither signal is ever set in Cloud Run, so deployed limits are untouched.
+  const effectiveMax = resolveEffectiveRateLimitMax(options.maxRequests);
 
   return async (req, res, next) => {
     const route = sanitizeLoggedPath(req.path);
@@ -252,6 +258,35 @@ const privilegedLimiter = createRateLimiter({
   windowMs: Number(process.env.RATE_LIMIT_PRIVILEGED_WINDOW_MS || 60_000),
   keyResolver: buildRateLimitIdentity,
 });
+
+// Dedicated tight limiter for WhatsApp OTP endpoints (send/verify) — OTP costs
+// money per template message and is a brute-force surface.
+const whatsappMfaLimiter = createRateLimiter({
+  keyPrefix: "whatsapp-mfa",
+  maxRequests: Number(process.env.RATE_LIMIT_WHATSAPP_MFA_MAX || 5),
+  windowMs: Number(process.env.RATE_LIMIT_WHATSAPP_MFA_WINDOW_MS || 60_000),
+  keyResolver: buildRateLimitIdentity,
+});
+
+// Tight limiter applied ONLY to recovery-code `verify` — the brute-force
+// surface. `generate`/`reconcile`/`status` are NOT brute-force surfaces (they
+// are authenticated and act only on the caller's own account), so they rely on
+// the global protected limiter (240/min) instead; rate-limiting them tightly
+// caused spurious 429s during enrollment/testing bursts. `verify` is safe even
+// at a generous limit (31^8 per code) but keeps a dedicated counter.
+const recoveryCodesVerifyLimiter = createRateLimiter({
+  keyPrefix: "recovery-codes-verify",
+  maxRequests: Number(process.env.RATE_LIMIT_RECOVERY_CODES_VERIFY_MAX || 30),
+  windowMs: Number(process.env.RATE_LIMIT_RECOVERY_CODES_VERIFY_WINDOW_MS || 60_000),
+  keyResolver: buildRateLimitIdentity,
+});
+
+// One-time startup diagnostic (dev/emulator only — silent in Cloud Run, where
+// NODE_ENV==="production"). Confirms whether the rate-limit emulator bypass is
+// active so a misdetected runtime is obvious instead of surfacing as 429s.
+if (process.env.NODE_ENV !== "production") {
+  logger.info("rate-limit runtime", emulatorRuntimeSignals());
+}
 
 const corsMiddleware = cors({
   origin: (origin, callback) => {
@@ -450,6 +485,16 @@ app.use("/v1", financeRoutes);
 app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
+// Apply the tight OTP limiter ONLY to the OTP cost / brute-force surfaces
+// (enroll, challenge, verify). `/disable` is intentionally left to the global
+// protected limiter (240/min) — throttling it with the 5/min OTP budget locked
+// users out of turning OFF their own 2FA. Same pattern as recovery-codes verify.
+for (const prefix of WHATSAPP_MFA_OTP_LIMITED_PREFIXES) {
+  app.use(`/v1/auth/whatsapp-mfa${prefix}`, whatsappMfaLimiter);
+}
+app.use("/v1/auth/whatsapp-mfa", whatsappMfaRoutes);
+app.use("/v1/auth/recovery-codes/verify", recoveryCodesVerifyLimiter);
+app.use("/v1/auth/recovery-codes", recoveryCodesRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);

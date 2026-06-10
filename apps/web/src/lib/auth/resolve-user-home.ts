@@ -104,6 +104,7 @@ export function isFreeTierAllowedPath(path: string): boolean {
     "/subscribe",
     "/checkout-success",
     "/profile",
+    "/settings",
     "/subscription-blocked",
   ]);
   const base = path.split("?")[0];
@@ -111,6 +112,7 @@ export function isFreeTierAllowedPath(path: string): boolean {
     allowed.has(base) ||
     base.startsWith("/subscribe/") ||
     base.startsWith("/profile/") ||
+    base.startsWith("/settings/") ||
     base.startsWith("/checkout-success/")
   );
 }

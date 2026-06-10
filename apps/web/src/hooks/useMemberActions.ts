@@ -41,6 +41,26 @@ export function useMemberActions() {
     }
   };
 
+  const resetMfa = async (memberId: string): Promise<boolean> => {
+    if (!memberId) return false;
+
+    setIsLoading(true);
+    try {
+      await callApi(`v1/admin/members/${memberId}/reset-mfa`, "POST");
+
+      toast.success("Verificação em dois fatores redefinida.");
+      return true;
+    } catch (error: unknown) {
+      console.error("Error resetting member MFA:", error);
+      const message =
+        error instanceof Error ? error.message : "Erro ao resetar MFA.";
+      toast.error(message);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const updateMember = async (data: UpdateMemberData): Promise<boolean> => {
     if (!data.memberId) return false;
 
@@ -65,6 +85,7 @@ export function useMemberActions() {
   return {
     deleteMember,
     updateMember,
+    resetMfa,
     isLoading,
   };
 }

@@ -15,17 +15,17 @@ Skill para usar a coleção [awesome-design-md](https://github.com/VoltAgent/awe
 
 ## Brands disponíveis
 
-| Categoria | Brands |
-|-----------|--------|
-| AI & LLM | Claude, Cohere, ElevenLabs, Mistral AI, Ollama, Replicate, RunwayML, Together AI, xAI |
-| Dev Tools | Cursor, Expo, Lovable, Raycast, Superhuman, Vercel, Warp |
-| Backend/DB | ClickHouse, Composio, HashiCorp, MongoDB, PostHog, Sanity, Sentry, Supabase |
-| Produtividade | Cal.com, Intercom, Linear, Mintlify, Notion, Resend, Zapier |
-| Design Tools | Airtable, Clay, Figma, Framer, Miro, Webflow |
-| Fintech | Binance, Coinbase, Kraken, Mastercard, Revolut, Stripe, Wise |
-| E-commerce | Airbnb, Meta, Nike, Shopify, Starbucks |
-| Mídia | Apple, IBM, NVIDIA, Pinterest, PlayStation, SpaceX, Spotify, The Verge, Uber, WIRED |
-| Automotivo | BMW, Bugatti, Ferrari, Lamborghini, Renault, Tesla |
+| Categoria     | Brands                                                                                |
+| ------------- | ------------------------------------------------------------------------------------- |
+| AI & LLM      | Claude, Cohere, ElevenLabs, Mistral AI, Ollama, Replicate, RunwayML, Together AI, xAI |
+| Dev Tools     | Cursor, Expo, Lovable, Raycast, Superhuman, Vercel, Warp                              |
+| Backend/DB    | ClickHouse, Composio, HashiCorp, MongoDB, PostHog, Sanity, Sentry, Supabase           |
+| Produtividade | Cal.com, Intercom, Linear, Mintlify, Notion, Resend, Zapier                           |
+| Design Tools  | Airtable, Clay, Figma, Framer, Miro, Webflow                                          |
+| Fintech       | Binance, Coinbase, Kraken, Mastercard, Revolut, Stripe, Wise                          |
+| E-commerce    | Airbnb, Meta, Nike, Shopify, Starbucks                                                |
+| Mídia         | Apple, IBM, NVIDIA, Pinterest, PlayStation, SpaceX, Spotify, The Verge, Uber, WIRED   |
+| Automotivo    | BMW, Bugatti, Ferrari, Lamborghini, Renault, Tesla                                    |
 
 ## Workflow 1: Baixar e usar um DESIGN.md de brand
 
@@ -47,7 +47,7 @@ Quando o usuário pedir UI "no estilo [brand]":
 
 ## Workflow 2: Criar DESIGN.md do próprio projeto
 
-Quando o usuário pedir um DESIGN.md para documentar o design system do ProOps:
+Quando o usuário pedir um DESIGN.md para documentar o design system da ProOps:
 
 1. Analisar os componentes existentes em `src/components/` e `src/app/`
 2. Extrair tokens do CSS global (Tailwind v4, CSS variables)
@@ -73,16 +73,16 @@ Quando o usuário tiver um DESIGN.md e quiser gerar componentes:
 
 ## Slugs de instalação comuns
 
-| Brand | Comando |
-|-------|---------|
-| Stripe | `npx getdesign@latest add stripe` |
-| Vercel | `npx getdesign@latest add vercel` |
-| Linear | `npx getdesign@latest add linear` |
-| Notion | `npx getdesign@latest add notion` |
-| Figma | `npx getdesign@latest add figma` |
+| Brand    | Comando                             |
+| -------- | ----------------------------------- |
+| Stripe   | `npx getdesign@latest add stripe`   |
+| Vercel   | `npx getdesign@latest add vercel`   |
+| Linear   | `npx getdesign@latest add linear`   |
+| Notion   | `npx getdesign@latest add notion`   |
+| Figma    | `npx getdesign@latest add figma`    |
 | Supabase | `npx getdesign@latest add supabase` |
-| Sentry | `npx getdesign@latest add sentry` |
-| Spotify | `npx getdesign@latest add spotify` |
+| Sentry   | `npx getdesign@latest add sentry`   |
+| Spotify  | `npx getdesign@latest add spotify`  |
 
 Para ver todos os disponíveis: https://getdesign.md
 

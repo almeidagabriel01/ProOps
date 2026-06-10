@@ -7,7 +7,6 @@ import { UsePlanUsageReturn } from "@/hooks/usePlanUsage";
 import { PersonalForm } from "./personal-form";
 import { OrganizationForm } from "./organization-form";
 import { PasswordForm } from "./password-form";
-import { AsaasConnectCard } from "@/app/settings/_components/asaas-connect-card";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -49,7 +48,6 @@ export function OverviewTab({
         ) : (
           !isFree && <PlanUsageCard variant="profile" data={planUsageData} />
         )}
-        {isMaster && <AsaasConnectCard />}
       </div>
       {/* Right Column: Organization + Plan Usage */}
       <div className="flex flex-col gap-6">

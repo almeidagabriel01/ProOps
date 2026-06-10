@@ -83,7 +83,7 @@ export function renderContactFormEmail(data: ContactFormEmailData): { subject: s
           <tr>
             <td style="background:#f9f9f9;padding:24px 40px;border-top:1px solid #e4e4e7;">
               <p style="margin:0;font-size:12px;color:#a1a1aa;line-height:1.6;">
-                Mensagem recebida pelo formulário de contato do ProOps.<br/>
+                Mensagem recebida pelo formulário de contato da ProOps.<br/>
                 ProOps · gestao@proops.com.br
               </p>
             </td>

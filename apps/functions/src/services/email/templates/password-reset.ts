@@ -16,7 +16,7 @@ export function renderPasswordResetEmail(
 
   const text = `Redefinir senha — ProOps
 
-Olá, recebemos uma solicitação para redefinir a senha da sua conta no ProOps.
+Olá, recebemos uma solicitação para redefinir a senha da sua conta na ProOps.
 
 Para criar uma nova senha, abra o link abaixo no seu navegador:
 ${data.resetUrl}
@@ -48,7 +48,7 @@ gestao@proops.com.br
             <td style="padding:40px;">
               <h2 style="margin:0 0 16px;font-size:22px;color:#18181b;font-weight:700;">Redefinir sua senha</h2>
               <p style="margin:0 0 16px;font-size:15px;color:#3f3f46;line-height:1.6;">
-                Olá, recebemos uma solicitação para redefinir a senha da sua conta no ProOps.
+                Olá, recebemos uma solicitação para redefinir a senha da sua conta na ProOps.
               </p>
               <p style="margin:0 0 32px;font-size:15px;color:#3f3f46;line-height:1.6;">
                 Clique no botão abaixo para criar uma nova senha. O link expira em 1 hora.

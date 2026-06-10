@@ -6,6 +6,11 @@ import { DashboardSkeleton } from "@/app/dashboard/_components/dashboard-skeleto
 import { ProfileSkeleton } from "@/app/profile/_components/profile-skeleton";
 import { FinancialSkeleton } from "@/app/transactions/_components/financial-skeleton";
 import { TeamSkeleton } from "@/app/team/_components/team-skeleton";
+import {
+  SettingsShellSkeleton,
+  SettingsSecuritySkeleton,
+  SettingsPaymentsSkeleton,
+} from "@/app/settings/_components/settings-skeleton";
 import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
 import { AdminOverviewSkeleton } from "@/app/admin/overview/_components/admin-overview-skeleton";
 import { ProductsSkeleton } from "@/app/products/_components/products-skeleton";
@@ -90,6 +95,31 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
       <ContactsSkeleton />
     ) : (
       <SpinnerFallback message="Carregando Cliente..." />
+    );
+  }
+
+  if (pathname.startsWith("/settings")) {
+    // Rendered outside the settings layout (protected-route loading), so the
+    // shell skeleton supplies the title + sidebar; the section matches the route.
+    if (pathname.startsWith("/settings/security")) {
+      return (
+        <SettingsShellSkeleton>
+          <SettingsSecuritySkeleton />
+        </SettingsShellSkeleton>
+      );
+    }
+    if (pathname.startsWith("/settings/payments")) {
+      return (
+        <SettingsShellSkeleton>
+          <SettingsPaymentsSkeleton />
+        </SettingsShellSkeleton>
+      );
+    }
+    // /settings/team and bare /settings (redirects to team).
+    return (
+      <SettingsShellSkeleton>
+        <TeamSkeleton />
+      </SettingsShellSkeleton>
     );
   }
 

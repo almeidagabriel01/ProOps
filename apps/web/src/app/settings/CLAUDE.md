@@ -2,9 +2,9 @@
 
 ## Propósito
 
-A rota `/settings` centraliza a configuração do tenant/empresa ativa. É o ponto onde o administrador (role `master`) altera dados da organização, preferências e integrações que afetam toda a plataforma.
+A rota `/settings` centraliza a configuração da conta/empresa ativa, acessível pelo item **"Configurações"** no dropdown do perfil (header). É uma página de **duas colunas** (padrão SaaS enterprise): uma **sidebar de navegação vertical à esquerda agrupada por categoria** (`SettingsNav`) e o conteúdo da seção à direita. Cada seção é uma sub-rota navegável por URL. Em telas `< lg` a sidebar vira uma faixa horizontal rolável acima do conteúdo.
 
-> **Importante:** A maior parte das configurações de organização foi migrada para `/profile` (aba "Visão Geral"). A rota `/settings/team` é um redirect legado que envia o usuário para `/team`.
+> **Importante:** As seções Equipe e Pagamento Online são gated por `isMaster` **dentro do próprio componente** (mostram "Acesso Restrito" para membros) — as sub-rotas NÃO são `masterOnly` no `page-config.ts`, senão o membro cairia em `/403` em vez de ver a seção. A seção Verificação em dois fatores é acessível a todos (inclusive free e membros). Dados de organização (nome, cor, logo) continuam em `/profile` (aba "Visão Geral") via `OrganizationForm`.
 
 ---
 
@@ -12,20 +12,37 @@ A rota `/settings` centraliza a configuração do tenant/empresa ativa. É o pon
 
 ```
 src/app/settings/
-├── team/
-│   ├── page.tsx              # Redirect legado para /team
-│   └── _components/
-│       └── team-skeleton.tsx
+├── layout.tsx                # Server Component — título + grid 2 colunas + <SettingsNav/>
+├── page.tsx                  # redirect("/settings/team")
+├── team/page.tsx             # <TeamManagement/> (components/features/team/team-management.tsx)
+├── security/page.tsx         # <TwoFactorSection/> (Verificação em dois fatores)
+├── payments/page.tsx         # Asaas (master) ou "Acesso Restrito" (não-master)
+├── _components/
+│   ├── settings-nav.tsx      # Client — sidebar vertical agrupada (usePathname + <Link>)
+│   ├── asaas-connect-card.tsx
+│   ├── asaas-payout-config-section.tsx
+│   └── asaas-webhook-status-alert.tsx
 └── CLAUDE.md                 # Este arquivo
 ```
 
-### Redirects legados
+### Seções (sidebar `SettingsNav`)
 
-| Rota antiga | Destino atual |
-|---|---|
-| `/settings/team` | `/team` |
+Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e grupo **Organização** (admin):
 
-A equipe foi promovida a módulo próprio. O arquivo `page.tsx` de `/settings/team` contém apenas `redirect("/team")`.
+| Grupo | Sub-rota | Seção | Acesso |
+|---|---|---|---|
+| Conta | `/settings/security` | Verificação em dois fatores | Todos |
+| Organização | `/settings/team` | Equipe | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
+
+> Os itens master-only permanecem visíveis na sidebar para todos os usuários (cada página gateia o conteúdo); não esconder por permissão sem reavaliar os testes de acesso a `/settings/*`.
+
+A rota legada `/team` faz `redirect("/settings/team")`. O conteúdo de equipe vive em
+`components/features/team/team-management.tsx` (extraído da antiga page `/team`).
+
+Pré-requisitos de acesso (não remover ao mexer aqui):
+- `proxy.ts` **não** deve voltar a redirecionar `/settings/team` → `/team`.
+- `/settings` está na allowlist do plano free (`resolve-user-home.ts`) para preservar o 2FA do free.
 
 ---
 

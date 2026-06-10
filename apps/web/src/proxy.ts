@@ -40,6 +40,7 @@ const PUBLIC_ROUTES = [
   "/privacy",
   "/terms",
   "/data-deletion",
+  "/cookies",
   "/subscribe",
   "/checkout-success",
   "/pricing",
@@ -98,15 +99,6 @@ export async function proxy(request: NextRequest) {
   if (pathname === "/automation" || pathname.startsWith("/automation/")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = pathname.replace("/automation", "/solutions");
-    const resp = NextResponse.redirect(redirectUrl);
-    resp.headers.set("Content-Type", "text/plain");
-    return resp;
-  }
-
-  // Legacy route redirect: /settings/team -> /team
-  if (pathname === "/settings/team" || pathname.startsWith("/settings/team/")) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = pathname.replace("/settings/team", "/team");
     const resp = NextResponse.redirect(redirectUrl);
     resp.headers.set("Content-Type", "text/plain");
     return resp;

@@ -4,7 +4,7 @@ import { LegalPage } from "@/components/legal/legal-page";
 export const metadata: Metadata = {
   title: "Exclusão de Dados | ProOps",
   description:
-    "Saiba como solicitar a exclusão dos seus dados pessoais no ProOps e o que acontece após a solicitação.",
+    "Saiba como solicitar a exclusão dos seus dados pessoais na ProOps e o que acontece após a solicitação.",
 };
 
 export default function DataDeletionPage() {

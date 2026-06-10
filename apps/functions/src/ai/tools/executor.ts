@@ -565,7 +565,7 @@ const HANDLERS: Record<string, ToolHandler> = {
     return {
       success: false,
       error:
-        "Envio de WhatsApp via Lia sera habilitado em uma versao futura. Use o painel de WhatsApp do ProOps.",
+        "Envio de WhatsApp via Lia sera habilitado em uma versao futura. Use o painel de WhatsApp da ProOps.",
     };
   },
 };

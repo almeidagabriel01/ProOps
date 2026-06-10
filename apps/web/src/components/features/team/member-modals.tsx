@@ -345,3 +345,60 @@ export function DeleteMemberDialog({
     </AlertDialog>
   );
 }
+
+// ============================================
+// RESET MFA DIALOG
+// ============================================
+
+interface ResetMfaDialogProps {
+  member: TeamMember;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}
+
+export function ResetMfaDialog({
+  member,
+  open,
+  onOpenChange,
+  onSuccess,
+}: ResetMfaDialogProps) {
+  const { resetMfa, isLoading } = useMemberActions();
+
+  const handleReset = async () => {
+    const success = await resetMfa(member.id);
+    if (success) {
+      onSuccess();
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Resetar verificação em dois fatores?</AlertDialogTitle>
+          <AlertDialogDescription>
+            A verificação em dois fatores de <b>{member.name}</b> será removida.
+            O membro poderá entrar sem o código e reconfigurar pelo próprio
+            perfil. Use isto quando ele perder o acesso ao app autenticador.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              handleReset();
+            }}
+            disabled={isLoading}
+            className="gap-2"
+          >
+            {isLoading && <Spinner className="w-4 h-4 text-white" />}
+            {isLoading ? "Resetando..." : "Sim, resetar"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

@@ -8,6 +8,7 @@ import {
   Users,
   Mail,
   Shield,
+  ShieldOff,
   Edit3,
   Trash2,
   ChevronDown,
@@ -16,7 +17,11 @@ import {
 } from "lucide-react";
 import { TeamMember, AVAILABLE_PAGES } from "./team-types";
 import { PagePermissionRow } from "./page-permission-row";
-import { EditMemberModal, DeleteMemberDialog } from "./member-modals";
+import {
+  EditMemberModal,
+  DeleteMemberDialog,
+  ResetMfaDialog,
+} from "./member-modals";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 interface MemberCardProps {
@@ -42,6 +47,7 @@ export function MemberCard({
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [showEdit, setShowEdit] = React.useState(false);
   const [showDelete, setShowDelete] = React.useState(false);
+  const [showResetMfa, setShowResetMfa] = React.useState(false);
   const { hasFinancial } = usePlanLimits();
 
   return (
@@ -84,6 +90,15 @@ export function MemberCard({
                 onClick={() => setShowEdit(true)}
               >
                 <Edit3 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-neutral-500 hover:text-amber-600"
+                title="Resetar verificação em dois fatores"
+                onClick={() => setShowResetMfa(true)}
+              >
+                <ShieldOff className="w-4 h-4" />
               </Button>
               <Button
                 variant="ghost"
@@ -154,6 +169,12 @@ export function MemberCard({
         member={member}
         open={showDelete}
         onOpenChange={setShowDelete}
+        onSuccess={onRefresh}
+      />
+      <ResetMfaDialog
+        member={member}
+        open={showResetMfa}
+        onOpenChange={setShowResetMfa}
         onSuccess={onRefresh}
       />
     </>

@@ -1,6 +1,6 @@
 # Alternativas de Gateway — "Vincular o banco do tenant"
 
-> Documento de pesquisa — sem implementação. Objetivo: subsidiar decisão sobre evolução da camada de pagamentos do ProOps, especificamente para o requisito de que o **dinheiro caia direto na conta bancária do tenant** sem ele precisar criar conta num gateway de terceiro (Stripe, Asaas, etc.).
+> Documento de pesquisa — sem implementação. Objetivo: subsidiar decisão sobre evolução da camada de pagamentos da ProOps, especificamente para o requisito de que o **dinheiro caia direto na conta bancária do tenant** sem ele precisar criar conta num gateway de terceiro (Stripe, Asaas, etc.).
 
 ---
 
@@ -12,14 +12,14 @@ Cartão de crédito sempre exige uma cadeia licenciada: emissor → bandeira (Vi
 
 A única forma do tenant "usar o banco dele" para cartão é se o banco tem braço adquirente. Os bancos brasileiros com adquirência própria ou parceria direta:
 
-| Banco | Adquirente | Observação |
-|---|---|---|
-| Itaú | Rede | Parceria integral — conta no Itaú recebe via Rede |
-| Banco do Brasil + Bradesco | Cielo | Participação acionária — conta BB/Bradesco recebe via Cielo |
-| Santander | GetNet | Adquirente próprio do Santander |
-| Independente | Stone | Conta Stone = fintech, não banco incumbente |
-| UOL / Pagseguro | PagSeguro | Conta PagSeguro separada da conta bancária do tenant |
-| Nubank | — | **Sem adquirência própria** — Nubank PJ não tem API de recebimento de cartão |
+| Banco                      | Adquirente | Observação                                                                   |
+| -------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| Itaú                       | Rede       | Parceria integral — conta no Itaú recebe via Rede                            |
+| Banco do Brasil + Bradesco | Cielo      | Participação acionária — conta BB/Bradesco recebe via Cielo                  |
+| Santander                  | GetNet     | Adquirente próprio do Santander                                              |
+| Independente               | Stone      | Conta Stone = fintech, não banco incumbente                                  |
+| UOL / Pagseguro            | PagSeguro  | Conta PagSeguro separada da conta bancária do tenant                         |
+| Nubank                     | —          | **Sem adquirência própria** — Nubank PJ não tem API de recebimento de cartão |
 
 **Conclusão para cartão:** o tenant sempre precisará criar conta num gateway/adquirente. A melhor experiência é um gateway com onboarding rápido e split nativo (MP, Asaas, Pagar.me).
 
@@ -44,31 +44,31 @@ ProOps nunca toca no dinheiro. Sem split, sem float, sem KYC adicional do tenant
 
 **Tier 1 — API pública madura, DX boa, sandbox disponível**
 
-| Banco | API | Observação |
-|---|---|---|
-| Banco Inter PJ | Inter Developers (developers.inter.co) | OAuth2, webhooks, sandbox, documentação completa em PT |
-| BTG Empresas | BTG Pactual Business (developers.btgpactual.com) | mTLS, webhook, boa DX, foco em empresas |
-| Sicoob | Sisbr API (developers.sicoob.com.br) | PIX Cobrar + webhooks; cooperativa — tenant precisa ser associado |
-| Sicredi | Sicredi Developers | Similar ao Sicoob; cooperativa |
-| Banco Original | Original Developers | PIX Cobrar, mTLS, pouco adotado mas funcional |
+| Banco          | API                                              | Observação                                                        |
+| -------------- | ------------------------------------------------ | ----------------------------------------------------------------- |
+| Banco Inter PJ | Inter Developers (developers.inter.co)           | OAuth2, webhooks, sandbox, documentação completa em PT            |
+| BTG Empresas   | BTG Pactual Business (developers.btgpactual.com) | mTLS, webhook, boa DX, foco em empresas                           |
+| Sicoob         | Sisbr API (developers.sicoob.com.br)             | PIX Cobrar + webhooks; cooperativa — tenant precisa ser associado |
+| Sicredi        | Sicredi Developers                               | Similar ao Sicoob; cooperativa                                    |
+| Banco Original | Original Developers                              | PIX Cobrar, mTLS, pouco adotado mas funcional                     |
 
 **Tier 2 — API enterprise, onboarding mais lento**
 
-| Banco | API | Observação |
-|---|---|---|
-| Banco do Brasil | BB Developers / DTM | API PIX existe, onboarding via contrato |
-| Santander | Santander Developers | PIX Cobrar via API; requer credenciamento comercial |
-| Bradesco | Bradesco Developers | PIX Cobrar; documentação menos madura |
-| Itaú | Itaú Developers | PIX Cobrar; mTLS, sandbox disponível |
+| Banco           | API                  | Observação                                          |
+| --------------- | -------------------- | --------------------------------------------------- |
+| Banco do Brasil | BB Developers / DTM  | API PIX existe, onboarding via contrato             |
+| Santander       | Santander Developers | PIX Cobrar via API; requer credenciamento comercial |
+| Bradesco        | Bradesco Developers  | PIX Cobrar; documentação menos madura               |
+| Itaú            | Itaú Developers      | PIX Cobrar; mTLS, sandbox disponível                |
 
 **Sem API pública adequada hoje (maio/2026)**
 
-| Banco | Status |
-|---|---|
-| Nubank PJ | **Sem API PIX de recebimento**. Nubank não tem endpoint para gerar cobrança PIX programaticamente |
-| C6 Bank PJ | API parcial; sem webhook de confirmação de pagamento |
-| Inter PF | API disponível mas voltada para PF, não PJ |
-| Caixa Econômica | API existe mas onboarding é presencial |
+| Banco           | Status                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| Nubank PJ       | **Sem API PIX de recebimento**. Nubank não tem endpoint para gerar cobrança PIX programaticamente |
+| C6 Bank PJ      | API parcial; sem webhook de confirmação de pagamento                                              |
+| Inter PF        | API disponível mas voltada para PF, não PJ                                                        |
+| Caixa Econômica | API existe mas onboarding é presencial                                                            |
 
 ---
 
@@ -82,7 +82,7 @@ Boleto  → MP ou Asaas (emissão exige convênio bancário)
 
 ### Para PIX: connector multi-banco
 
-O tenant, durante o onboarding de pagamentos no ProOps, escolhe seu banco e faz OAuth2 com as credenciais daquele banco. O ProOps armazena os tokens de forma segura (análogo ao que já faz com `mercadoPago.accessToken`).
+O tenant, durante o onboarding de pagamentos na ProOps, escolhe seu banco e faz OAuth2 com as credenciais daquele banco. O ProOps armazena os tokens de forma segura (análogo ao que já faz com `mercadoPago.accessToken`).
 
 Para emitir cobrança: ProOps chama a API do banco do tenant (POST /pix/cob), retorna QR Code + copia-cola para o cliente.
 
@@ -94,18 +94,18 @@ Para confirmar: ProOps registra webhook na API do banco do tenant. Quando o banc
 
 ## 4. Comparativo de opções
 
-| Critério | MP atual | Asaas subconta | Pagar.me Recebedores | PIX-direct-bank (hybrid) |
-|---|---|---|---|---|
-| **Split automático** | Sim (marketplace OAuth) | Sim (white-label) | Sim (recebedores) | N/A — dinheiro vai direto |
-| **KYC do tenant** | MP faz (OAuth) | Asaas faz (link hosted) | Pagar.me faz | Banco do tenant já fez |
-| **Tenant cria conta** | Sim (conta MP) | Sim (conta Asaas) | Sim (conta Pagar.me) | **Não** — usa banco existente |
-| **Taxa cartão** | ~3.99% + R$0,40 | ~2.99%+ variável | ~2.79%+ variável | N/A — sem cartão |
-| **Taxa PIX** | Gratuito (Checkout) | Gratuito | Gratuito | Tarifa bancária (~R$0,00–0,10) |
-| **Branding** | Redirect p/ MP | White-label próprio | Redirect p/ Pagar.me | Invisible (QR Code nativo) |
-| **DX em sandbox** | Instável (issues ativos) | Boa | Boa | Por banco — Inter/BTG bons |
-| **Esforço de migração** | — (base atual) | Médio (nova integração) | Médio | Alto (multi-banco, 1 API por banco) |
-| **Nubank suportado** | Não (para PIX direto) | Não | Não | **Não** — sem API pública |
-| **BB suportado** | Não (para PIX direto) | Não | Não | Sim (Tier 2, onboarding) |
+| Critério                | MP atual                 | Asaas subconta          | Pagar.me Recebedores | PIX-direct-bank (hybrid)            |
+| ----------------------- | ------------------------ | ----------------------- | -------------------- | ----------------------------------- |
+| **Split automático**    | Sim (marketplace OAuth)  | Sim (white-label)       | Sim (recebedores)    | N/A — dinheiro vai direto           |
+| **KYC do tenant**       | MP faz (OAuth)           | Asaas faz (link hosted) | Pagar.me faz         | Banco do tenant já fez              |
+| **Tenant cria conta**   | Sim (conta MP)           | Sim (conta Asaas)       | Sim (conta Pagar.me) | **Não** — usa banco existente       |
+| **Taxa cartão**         | ~3.99% + R$0,40          | ~2.99%+ variável        | ~2.79%+ variável     | N/A — sem cartão                    |
+| **Taxa PIX**            | Gratuito (Checkout)      | Gratuito                | Gratuito             | Tarifa bancária (~R$0,00–0,10)      |
+| **Branding**            | Redirect p/ MP           | White-label próprio     | Redirect p/ Pagar.me | Invisible (QR Code nativo)          |
+| **DX em sandbox**       | Instável (issues ativos) | Boa                     | Boa                  | Por banco — Inter/BTG bons          |
+| **Esforço de migração** | — (base atual)           | Médio (nova integração) | Médio                | Alto (multi-banco, 1 API por banco) |
+| **Nubank suportado**    | Não (para PIX direto)    | Não                     | Não                  | **Não** — sem API pública           |
+| **BB suportado**        | Não (para PIX direto)    | Não                     | Não                  | Sim (Tier 2, onboarding)            |
 
 ---
 
@@ -124,7 +124,7 @@ Para confirmar: ProOps registra webhook na API do banco do tenant. Quando o banc
 
 - Modelo de recebedores (split via API)
 - KYC feito pelo Pagar.me na criação do recebedor
-- **Ponto negativo:** sem OAuth marketplace — você (ProOps) assume mais responsabilidade de onboarding e compliance. Pagar.me pode exigir due diligence adicional do ProOps como plataforma
+- **Ponto negativo:** sem OAuth marketplace — você (ProOps) assume mais responsabilidade de onboarding e compliance. Pagar.me pode exigir due diligence adicional da ProOps como plataforma
 - **Quando considerar:** se o volume de tenants for grande e o modelo de split for a principal feature
 
 ### Stripe Connect (não recomendado agora)
@@ -143,13 +143,13 @@ Para confirmar: ProOps registra webhook na API do banco do tenant. Quando o banc
 
 **Médio-longo prazo:** Se a demanda de tenants que "não querem criar conta MP" crescer, avaliar Asaas como gateway alternativo para cartão + boleto em paralelo ao connector PIX-direct-bank.
 
-**Não trocaria por agora:** Pagar.me (aumenta responsabilidade de compliance do ProOps), PagBank (onboarding lento), Iugu (foco em assinatura, não marketplace), Efi/Gerencianet (split só Efi-Efi).
+**Não trocaria por agora:** Pagar.me (aumenta responsabilidade de compliance da ProOps), PagBank (onboarding lento), Iugu (foco em assinatura, não marketplace), Efi/Gerencianet (split só Efi-Efi).
 
 ---
 
 ## 7. Próximos passos se optar pelo connector PIX-direct-bank
 
-1. **Spike Banco Inter** (2–3 dias): PoC com sandbox Inter PJ — `POST /pix/cob` + webhook de confirmação. Validar fluxo end-to-end no ProOps.
+1. **Spike Banco Inter** (2–3 dias): PoC com sandbox Inter PJ — `POST /pix/cob` + webhook de confirmação. Validar fluxo end-to-end na ProOps.
 2. **Design da coleta de credenciais**: tela de onboarding onde tenant faz OAuth2 com o banco dele (análoga à tela de conectar MP).
 3. **Modelo de armazenamento**: `tenants/{id}.pixConnectors[].bankCode` + tokens OAuth2 (mesmo padrão de `mercadoPago`).
 4. **Abstração de connector**: interface `PixConnector` com métodos `createCharge`, `cancelCharge`, `validateWebhook` — permite adicionar bancos sem mudar o controller.
