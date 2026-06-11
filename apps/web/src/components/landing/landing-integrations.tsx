@@ -36,9 +36,12 @@ const RIGHT: Integration[] = [
   { label: "Asaas", icon: Banknote },
 ];
 
-// Conectores curvos no espaço do viewBox 240x100 (mesma proporção do painel via
-// aspect-[240/100] → preserveAspectRatio="none" não distorce os traços/dashes).
-// Centro em (120,50); o início (x=40 / x=200) fica sob os pills, escondendo a junção.
+// Posições verticais (% da altura do painel) dos badges e dos pontos de conexão.
+const ROWS = [22, 50, 78];
+
+// Conectores no espaço do viewBox 240x100 (mesma proporção do painel via
+// aspect-[240/100]). Centro em (120,50); cada linha sai na altura ROWS[i] (= centro
+// do badge correspondente) e o início (x=40 / x=200) fica sob o badge.
 const CONNECTORS = [
   "M 40 22 C 95 22, 95 50, 120 50",
   "M 40 50 L 120 50",
@@ -57,27 +60,28 @@ function Pill({
   label: string;
   index: number;
 }) {
-  const delay = `${(index % 3) * 0.4}s`;
+  const delay = `${(index % 3) * 0.45}s`;
   return (
-    <div className="integration-node relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white/80 px-4 py-2.5 backdrop-blur transition-colors duration-300 hover:border-black/25 dark:border-white/10 dark:bg-white/[0.05] dark:hover:border-white/30">
-      {/* pulse do badge */}
-      <span
-        aria-hidden
-        className="animate-pulse-slow pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_28%_50%,rgba(0,0,0,0.06),transparent_72%)] dark:bg-[radial-gradient(circle_at_28%_50%,rgba(255,255,255,0.09),transparent_72%)]"
+    // wrapper externo = alvo do reveal do GSAP (scale/opacity) — separado do
+    // pulse para os transforms não conflitarem
+    <div className="integration-node inline-block">
+      <div
+        className="animate-badge-pulse relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white/80 px-4 py-2.5 backdrop-blur dark:border-white/10 dark:bg-white/[0.05]"
         style={{ animationDelay: delay }}
-      />
-      <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.06] text-black dark:bg-white/10 dark:text-white">
-        {/* pulse do ícone, sincronizado com o badge */}
-        <span
-          aria-hidden
-          className="animate-pulse-slow absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.16),transparent_65%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.24),transparent_65%)]"
-          style={{ animationDelay: delay }}
-        />
-        <Icon className="relative h-4 w-4" />
-      </span>
-      <span className="relative truncate text-sm font-medium text-black dark:text-white">
-        {label}
-      </span>
+      >
+        <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.06] text-black dark:bg-white/10 dark:text-white">
+          {/* glow do ícone, sincronizado com o pulse do badge */}
+          <span
+            aria-hidden
+            className="animate-pulse-slow absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.18),transparent_64%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.28),transparent_64%)]"
+            style={{ animationDelay: delay }}
+          />
+          <Icon className="relative h-4 w-4" />
+        </span>
+        <span className="relative truncate text-sm font-medium text-black dark:text-white">
+          {label}
+        </span>
+      </div>
     </div>
   );
 }
@@ -99,10 +103,10 @@ function CenterLogo() {
 
 /**
  * Integrações — hub central com a marca ProOps e os serviços à esquerda/direita,
- * ligados por conectores contínuos (linha base sólida) com um pulso de luz que
- * corre até o centro (`.animate-flow`, desativado sob prefers-reduced-motion).
- * Os badges têm largura fixa, visual flat e pulse sincronizado com o ícone. No
- * mobile vira um empilhamento simples sem os conectores.
+ * ligados por conectores contínuos com um único traço de luz percorrendo até o
+ * centro (`.animate-flow`). Badges com largura fixa, visual flat, pulse de escala
+ * (ícone acompanha) e posicionamento absoluto alinhado às conexões. No mobile vira
+ * um empilhamento simples sem os conectores.
  */
 export function LandingIntegrations() {
   const containerRef = useRef<HTMLElement>(null);
@@ -165,7 +169,7 @@ export function LandingIntegrations() {
           <div className="grain-overlay opacity-[0.03]" />
 
           {/* ===== Desktop: hub com conectores ===== */}
-          <div className="relative hidden aspect-[240/100] grid-cols-[1fr_auto_1fr] items-stretch gap-4 md:grid">
+          <div className="relative hidden aspect-[240/100] md:block">
             <svg
               aria-hidden
               viewBox="0 0 240 100"
@@ -178,41 +182,48 @@ export function LandingIntegrations() {
                   <path
                     d={d}
                     fill="none"
-                    strokeWidth={1.2}
-                    vectorEffect="non-scaling-stroke"
+                    strokeWidth={0.35}
                     className="stroke-black/18 dark:stroke-white/22"
                   />
-                  {/* pulso de luz que corre pela linha */}
+                  {/* único traço de luz percorrendo a linha */}
                   <path
                     d={d}
                     fill="none"
                     pathLength={100}
-                    strokeDasharray="22 78"
-                    strokeWidth={1.6}
+                    strokeDasharray="16 84"
+                    strokeWidth={0.5}
                     strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
                     className="animate-flow stroke-black/55 dark:stroke-white/90"
-                    style={{ animationDelay: `${i * 0.28}s` }}
+                    style={{ animationDelay: `${i * 0.26}s` }}
                   />
                 </g>
               ))}
             </svg>
 
-            <div className="relative z-10 flex h-full flex-col items-start justify-between py-4">
-              {LEFT.map((item, i) => (
-                <Pill key={item.label} icon={item.icon} label={item.label} index={i} />
-              ))}
-            </div>
-
-            <div className="relative z-10 flex h-full items-center justify-center px-2">
+            {/* marca central */}
+            <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
               <CenterLogo />
             </div>
 
-            <div className="relative z-10 flex h-full flex-col items-end justify-between py-4">
-              {RIGHT.map((item, i) => (
-                <Pill key={item.label} icon={item.icon} label={item.label} index={i} />
-              ))}
-            </div>
+            {/* badges posicionados nas alturas exatas das conexões */}
+            {LEFT.map((item, i) => (
+              <div
+                key={item.label}
+                className="absolute left-0 z-10 -translate-y-1/2"
+                style={{ top: `${ROWS[i]}%` }}
+              >
+                <Pill icon={item.icon} label={item.label} index={i} />
+              </div>
+            ))}
+            {RIGHT.map((item, i) => (
+              <div
+                key={item.label}
+                className="absolute right-0 z-10 -translate-y-1/2"
+                style={{ top: `${ROWS[i]}%` }}
+              >
+                <Pill icon={item.icon} label={item.label} index={i} />
+              </div>
+            ))}
           </div>
 
           {/* ===== Mobile: empilhamento simples ===== */}

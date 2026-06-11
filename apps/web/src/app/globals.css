@@ -904,10 +904,26 @@ html[data-shell="locked"] body {
   will-change: stroke-dashoffset;
 }
 
+/* Pulse de escala dos badges de integração (o ícone interno acompanha) */
+@keyframes badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+.animate-badge-pulse {
+  animation: badge-pulse 2.8s ease-in-out infinite;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-mono-drift,
   .animate-marquee-x,
-  .animate-flow {
+  .animate-flow,
+  .animate-badge-pulse {
     animation: none !important;
   }
 }
