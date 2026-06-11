@@ -101,10 +101,10 @@ export function LiaInputBar({
           className={cn(
             "flex-1 resize-none overflow-y-hidden bg-transparent py-2 text-sm leading-6",
             // Scrollbar fina e arredondada, afastada da borda do container
-            "-my-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]",
+            "-my-1 [scrollbar-width:thin] [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_55%,transparent)_transparent]",
             "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent",
-            "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border",
-            "hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40",
+            "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/55",
+            "hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/75",
             "placeholder:text-muted-foreground/60",
             "focus:outline-none focus-visible:outline-none",
             "disabled:cursor-not-allowed",
