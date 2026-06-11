@@ -40,15 +40,16 @@ const RIGHT: Integration[] = [
 const ROWS = [22, 50, 78];
 
 // Conectores no espaço do viewBox 240x100 (mesma proporção do painel via
-// aspect-[240/100]). Centro em (120,50); cada linha sai na altura ROWS[i] (= centro
-// do badge correspondente) e o início (x=40 / x=200) fica sob o badge.
+// aspect-[240/100]). As linhas saem na altura ROWS[i] (= centro do badge), o
+// início (x=40 / x=200) fica sob o badge, e o fim (x=101 / x=139) para na beirada
+// da logo central — sem ir até o centro (120,50) atrás dela.
 const CONNECTORS = [
-  "M 40 22 C 95 22, 95 50, 120 50",
-  "M 40 50 L 120 50",
-  "M 40 78 C 95 78, 95 50, 120 50",
-  "M 200 22 C 145 22, 145 50, 120 50",
-  "M 200 50 L 120 50",
-  "M 200 78 C 145 78, 145 50, 120 50",
+  "M 40 22 C 78 22, 93 50, 101 50",
+  "M 40 50 L 101 50",
+  "M 40 78 C 78 78, 93 50, 101 50",
+  "M 200 22 C 162 22, 147 50, 139 50",
+  "M 200 50 L 139 50",
+  "M 200 78 C 162 78, 147 50, 139 50",
 ];
 
 function Pill({
@@ -66,30 +67,21 @@ function Pill({
     // pulse para os transforms não conflitarem
     <div className="integration-node inline-block">
       <div
-        className="animate-badge-pulse relative"
+        className="animate-badge-pulse relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 dark:border-white/20 dark:bg-gradient-to-b dark:from-neutral-800 dark:to-neutral-900"
         style={{ animationDelay: delay }}
       >
-        {/* halo de brilho pulsante atrás do badge */}
-        <span
-          aria-hidden
-          className="animate-badge-glow absolute -inset-2.5 rounded-[1.6rem] bg-[radial-gradient(circle,rgba(0,0,0,0.18),transparent_70%)] blur-[2px] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.4),transparent_70%)]"
-          style={{ animationDelay: delay }}
-        />
-        {/* badge opaco */}
-        <div className="relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 shadow-[0_6px_18px_-10px_rgba(0,0,0,0.35)] dark:border-white/20 dark:bg-gradient-to-b dark:from-neutral-800 dark:to-neutral-900 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_26px_-10px_rgba(0,0,0,0.85)]">
-          <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.06] text-black dark:bg-white/15 dark:text-white">
-            {/* glow do ícone, sincronizado com o pulse do badge */}
-            <span
-              aria-hidden
-              className="animate-pulse-slow absolute -inset-1 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.3),transparent_68%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.5),transparent_68%)]"
-              style={{ animationDelay: delay }}
-            />
-            <Icon className="relative h-4 w-4" />
-          </span>
-          <span className="relative truncate text-sm font-medium text-black dark:text-white">
-            {label}
-          </span>
-        </div>
+        <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-950 text-white">
+          {/* glow do ícone pulsante */}
+          <span
+            aria-hidden
+            className="animate-pulse-slow absolute -inset-1 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.4),transparent_68%)]"
+            style={{ animationDelay: delay }}
+          />
+          <Icon className="relative h-4 w-4" />
+        </span>
+        <span className="relative truncate text-sm font-medium text-black dark:text-white">
+          {label}
+        </span>
       </div>
     </div>
   );
@@ -100,14 +92,14 @@ function CenterLogo() {
   // recortamos via janela overflow-hidden + scale (transform não sofre o
   // max-width:100% do preflight, ao contrário de largar a largura).
   return (
-    <div className="integration-node relative grid h-24 w-24 place-items-center overflow-hidden">
+    <div className="integration-node relative grid h-40 w-40 place-items-center overflow-hidden">
       <ProOpsLogo
         variant="symbol"
-        width={420}
-        height={236}
+        width={720}
+        height={405}
         invertOnDark
         interactive={false}
-        className="h-auto w-24 origin-center scale-[3.8]"
+        className="h-auto w-40 origin-center scale-[4]"
       />
     </div>
   );
