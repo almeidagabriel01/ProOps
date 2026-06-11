@@ -1,23 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+const QUERY = "(prefers-reduced-motion: reduce)";
+
+function subscribe(callback: () => void): () => void {
+  const mq = window.matchMedia(QUERY);
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function getSnapshot(): boolean {
+  return window.matchMedia(QUERY).matches;
+}
+
+function getServerSnapshot(): boolean {
+  return false;
+}
 
 /**
- * Reads `prefers-reduced-motion` reactively. Used by the redesigned landing
- * sections to disable pointer-driven motion (tilt/spotlight/parallax) for users
- * who asked for reduced movement — the Lenis smooth-scroll setup already honors
- * the same preference in landing-page-client.tsx.
+ * Reads `prefers-reduced-motion` reactively via useSyncExternalStore (no
+ * setState-in-effect, SSR-safe). Used by the redesigned landing sections to
+ * disable pointer-driven motion (tilt/spotlight/parallax) for users who asked
+ * for reduced movement — the Lenis smooth-scroll setup honors the same
+ * preference in landing-page-client.tsx.
  */
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  return reduced;
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
