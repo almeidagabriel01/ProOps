@@ -8,19 +8,11 @@ import { useGSAP } from "@gsap/react";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { MonoField } from "./_shared/mono-field";
 import { Accent } from "./_shared/section-heading";
+import { WHATSAPP_HREF } from "./_shared/whatsapp";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
-
-// Reaproveita o padrão da navegação do app: link wa.me construído a partir do
-// NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER. Sem número configurado, cai no mailto.
-const WHATSAPP_PHONE_DIGITS = (
-  process.env.NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER ?? ""
-).replace(/\D/g, "");
-const WHATSAPP_HREF = WHATSAPP_PHONE_DIGITS
-  ? `https://wa.me/${WHATSAPP_PHONE_DIGITS}`
-  : "";
 
 export function LandingCTA() {
   const containerRef = useRef<HTMLElement>(null);

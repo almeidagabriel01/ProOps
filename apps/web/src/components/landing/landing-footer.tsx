@@ -3,7 +3,10 @@
 import React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
+import { Instagram } from "lucide-react";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
+import { INSTAGRAM_HREF, WHATSAPP_HREF } from "./_shared/whatsapp";
+import { WhatsAppGlyph } from "./_shared/whatsapp-glyph";
 
 export function LandingFooter() {
   return (
@@ -44,6 +47,29 @@ export function LandingFooter() {
                 gestao@proops.com.br
               </a>
             </p>
+
+            <div className="mt-6 flex items-center gap-3">
+              <a
+                href={INSTAGRAM_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram da ProOps"
+                className="grid h-10 w-10 place-items-center rounded-full border border-black/10 text-black/70 transition-colors hover:border-black/25 hover:text-black dark:border-white/10 dark:text-white/70 dark:hover:border-white/25 dark:hover:text-white"
+              >
+                <Instagram className="h-5 w-5" />
+              </a>
+              {WHATSAPP_HREF && (
+                <a
+                  href={WHATSAPP_HREF}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="WhatsApp da ProOps"
+                  className="grid h-10 w-10 place-items-center rounded-full border border-black/10 text-black/70 transition-colors hover:border-black/25 hover:text-black dark:border-white/10 dark:text-white/70 dark:hover:border-white/25 dark:hover:text-white"
+                >
+                  <WhatsAppGlyph className="h-5 w-5" />
+                </a>
+              )}
+            </div>
           </motion.div>
 
           <motion.div

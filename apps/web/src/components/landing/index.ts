@@ -14,4 +14,5 @@ export { LandingPricing } from "./landing-pricing";
 export { LandingFAQ } from "./landing-faq";
 export { LandingCTA } from "./landing-cta";
 export { LandingFooter } from "./landing-footer";
+export { WhatsAppFloat } from "./whatsapp-float";
 export { LandingNiches } from "./landing-niches";

@@ -16,6 +16,7 @@ import {
   LandingFAQ,
   LandingCTA,
   LandingFooter,
+  WhatsAppFloat,
 } from "@/components/landing";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
@@ -86,6 +87,8 @@ export function LandingPageClient() {
       </main>
 
       <LandingFooter />
+
+      <WhatsAppFloat />
     </div>
   );
 }
