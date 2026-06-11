@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { Check } from "lucide-react";
+import { Check, CreditCard, RefreshCw, ShieldCheck } from "lucide-react";
 import { LandingPlan } from "./use-landing-page";
+import { Accent, SectionHeading } from "./_shared/section-heading";
 import { User } from "@/types";
 import { toast } from "@/lib/toast";
 import { ApiError } from "@/lib/api-client";
@@ -321,16 +322,16 @@ export function LandingPricing({
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center mb-14">
-          <h2 className="text-sm font-semibold text-black/65 dark:text-white/65 uppercase tracking-wider mb-3 pricing-heading-item">
-            Planos ProOps
-          </h2>
-          <h3 className="text-4xl md:text-5xl font-bold mb-6 text-black dark:text-white pricing-heading-item">
-            Evolua no ritmo da sua operação.
-          </h3>
-          <p className="text-black/65 dark:text-white/70 text-lg max-w-2xl mx-auto pricing-heading-item">
-            Planos com recursos progressivos para você sair do básico e chegar
-            em uma gestão integrada de ponta a ponta.
-          </p>
+          <SectionHeading
+            eyebrow="Planos ProOps"
+            title={
+              <>
+                Evolua no ritmo da sua <Accent>operação</Accent>
+              </>
+            }
+            description="Planos com recursos progressivos para você sair do básico e chegar em uma gestão integrada de ponta a ponta."
+            className="pricing-heading-item"
+          />
 
           <div className="flex items-center justify-center gap-4 mt-10 pricing-heading-item">
             <span
@@ -407,6 +408,7 @@ export function LandingPricing({
                       : "border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 text-black dark:text-white hover:-translate-y-1 hover:shadow-[0_14px_32px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_14px_32px_rgba(0,0,0,0.45)]"
                   }`}
                 >
+                  {plan.popular && <span aria-hidden className="card-border-beam" />}
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 z-20">
                       <span className="bg-white dark:bg-neutral-950 text-black dark:text-white text-xs font-bold uppercase tracking-[0.14em] px-4 py-1.5 rounded-full">
@@ -514,6 +516,25 @@ export function LandingPricing({
             })}
           </div>
         )}
+
+        <div className="pricing-heading-item mx-auto mt-14 flex max-w-3xl flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm text-black/60 dark:text-white/65">
+          <span className="inline-flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            Sem cartão para começar
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <Check className="h-4 w-4" />
+            Pix e boleto
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Cancele quando quiser
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Dados protegidos (LGPD)
+          </span>
+        </div>
       </div>
     </section>
   );
