@@ -220,7 +220,11 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                   <Skeleton className="h-4 w-20 rounded-full" />
                 </div>
               ) : currentUser ? (
-                <DropdownMenu>
+                // wrapper com [&>div]:mt-0 neutraliza o `mt-1` hardcoded no
+                // wrapper interno do DropdownMenu (components/ui), que empurrava
+                // o conteúdo 4px para baixo e descentralizava a pill na vertical
+                <div className="flex items-center [&>div]:mt-0">
+                  <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
@@ -323,7 +327,8 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       Sair
                     </DropdownMenuItem>
                   </DropdownMenuContent>
-                </DropdownMenu>
+                  </DropdownMenu>
+                </div>
               ) : (
                 <Link
                   href="/login"
