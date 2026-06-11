@@ -20,24 +20,24 @@ const FEATURES: FeatureItem[] = [
     title: "Automação com IA",
     description:
       "A Lia, assistente de IA da ProOps, responde sobre seu negócio em segundos: faturamento, pendências e próximos passos. Ela também preenche formulários e automatiza tarefas repetitivas para você focar no que importa.",
-    src: "/features/feature-1.webm",
+    src: "/features/Lia.mp4",
   },
   {
     title: "Gestão financeira completa",
     description:
       "Receitas, despesas, carteiras e parcelamentos em um só lugar. Acompanhe o fluxo de caixa, a projeção de balanço futuro e os pagamentos atrasados com filtros que deixam tudo à mão.",
-    src: "/features/feature-2.webm",
+    src: "/features/Financeiro.mp4",
   },
   {
     title: "Proposta pronta, PDF na hora",
     description:
       "Finalize o preenchimento da proposta e visualize o PDF profissional instantaneamente. Personalize o template, envie ao cliente e acompanhe o status de aprovação sem sair da plataforma.",
-    src: "/features/feature-3.webm",
+    src: "/features/PDF.mp4",
   },
 ];
 
 const SECTION_HEADING = (
-  <h2 className="text-center text-4xl font-bold tracking-tight text-black dark:text-white md:text-5xl">
+  <h2 className="text-center text-4xl font-bold tracking-tight text-black dark:text-white md:text-5xl lg:text-6xl">
     Conheça a{" "}
     <em className="[font-family:var(--font-pdf-playfair)] font-medium italic">
       plataforma
@@ -49,7 +49,8 @@ const SECTION_HEADING = (
 /**
  * Seção "feature scroll" com pin: o conteúdo fica fixo enquanto o usuário rola
  * ~2.5x a viewport; o progresso é dividido em 3 etapas que trocam o item ativo
- * (texto + barra de progresso) e fazem crossfade entre os vídeos.
+ * (texto + barra lateral) e fazem crossfade entre os vídeos, que tocam em loop.
+ * Clicar num item rola direto para a etapa correspondente.
  *
  * Desktop + motion-safe: pin via ScrollTrigger. Mobile ou prefers-reduced-motion:
  * versão estática empilhada (CSS `md:motion-safe:` decide qual renderiza).
@@ -57,33 +58,10 @@ const SECTION_HEADING = (
 export function LandingFeatureScroll() {
   const sectionRef = useRef<HTMLElement>(null);
   const pinRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [active, setActive] = useState(0);
-  const [indicator, setIndicator] = useState({ top: 0, height: 0 });
 
-  // Posiciona o segmento da barra de progresso alinhado ao item ativo
-  const updateIndicator = useCallback((index: number) => {
-    const list = listRef.current;
-    const item = itemRefs.current[index];
-    if (!list || !item) return;
-    const listBox = list.getBoundingClientRect();
-    const itemBox = item.getBoundingClientRect();
-    setIndicator({ top: itemBox.top - listBox.top, height: itemBox.height });
-  }, []);
-
-  useEffect(() => {
-    updateIndicator(active);
-  }, [active, updateIndicator]);
-
-  useEffect(() => {
-    const onResize = () => updateIndicator(active);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [active, updateIndicator]);
-
-  // Play no vídeo ativo, pause nos demais (crossfade fica por conta do CSS)
+  // Play em loop no vídeo ativo, pause nos demais (crossfade fica por conta do CSS)
   useEffect(() => {
     videoRefs.current.forEach((video, i) => {
       if (!video) return;
@@ -94,6 +72,15 @@ export function LandingFeatureScroll() {
       }
     });
   }, [active]);
+
+  // Clique num item rola até a posição de scroll da etapa correspondente
+  const jumpTo = useCallback((index: number) => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const distance = section.offsetHeight - window.innerHeight;
+    const top = section.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({ top: top + (index / 2) * distance, behavior: "smooth" });
+  }, []);
 
   useGSAP(
     () => {
@@ -149,34 +136,37 @@ export function LandingFeatureScroll() {
       >
         <div
           ref={pinRef}
-          className="flex h-screen flex-col items-center justify-center gap-12 px-6"
+          className="flex h-screen flex-col items-center justify-center gap-14 px-6"
         >
           {SECTION_HEADING}
 
-          <div className="mx-auto grid w-full max-w-6xl grid-cols-2 items-center gap-14">
-            {/* Coluna esquerda: barra de progresso + itens */}
-            <div ref={listRef} className="relative pl-7">
-              {/* trilho */}
+          <div className="mx-auto grid w-full max-w-[88rem] grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-center gap-16 lg:gap-24">
+            {/* Coluna esquerda: itens com barra lateral por item */}
+            <div className="relative">
+              {/* trilho contínuo */}
               <div className="absolute left-0 top-0 h-full w-px bg-black/20 dark:bg-white/20" />
-              {/* segmento ativo */}
-              <div
-                className="absolute left-0 w-px bg-black/80 transition-[top,height] duration-[400ms] ease-out dark:bg-white/80"
-                style={{ top: indicator.top, height: indicator.height }}
-              />
 
-              <div className="flex flex-col gap-9">
+              <div className="flex flex-col gap-10">
                 {FEATURES.map((feature, i) => (
-                  <div
+                  <button
                     key={feature.title}
-                    ref={(el) => {
-                      itemRefs.current[i] = el;
-                    }}
+                    type="button"
+                    onClick={() => jumpTo(i)}
+                    aria-current={i === active}
+                    className="relative cursor-pointer pl-8 text-left"
                   >
+                    {/* segmento da barra: cobre a altura inteira do item ativo */}
+                    <span
+                      aria-hidden
+                      className={`absolute inset-y-0 left-0 w-px bg-black/80 transition-opacity duration-[400ms] ease-out dark:bg-white/80 ${
+                        i === active ? "opacity-100" : "opacity-0"
+                      }`}
+                    />
                     <h3
-                      className={`text-xl font-semibold transition-opacity duration-300 ease-out ${
+                      className={`text-2xl font-semibold transition-opacity duration-300 ease-out lg:text-[1.7rem] ${
                         i === active
                           ? "text-black opacity-100 dark:text-white"
-                          : "text-black opacity-60 dark:text-white"
+                          : "text-black opacity-60 hover:opacity-80 dark:text-white"
                       }`}
                     >
                       {feature.title}
@@ -189,12 +179,12 @@ export function LandingFeatureScroll() {
                       }`}
                     >
                       <div className="overflow-hidden">
-                        <p className="pt-2 text-sm leading-relaxed text-black/65 dark:text-white/65">
+                        <p className="pt-3 text-base leading-relaxed text-black/65 dark:text-white/65">
                           {feature.description}
                         </p>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

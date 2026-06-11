@@ -2,9 +2,7 @@ import { chromium } from "playwright";
 
 const BASE = "http://localhost:3000";
 const browser = await chromium.launch();
-
-// Desktop: percorre a seção pinada
-const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
+const page = await (await browser.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
 await page.goto(BASE);
 await page.waitForLoadState("networkidle").catch(() => {});
 await page.waitForTimeout(2000);
@@ -15,34 +13,26 @@ const sectionTop = await page.evaluate(() => {
 });
 console.log("sectionTop:", sectionTop);
 
-const vh = 900;
-const stops = [0, 0.85, 1.7]; // progresso ~0, ~0.5, ~1 dentro dos 250vh-100vh de distância
-for (let i = 0; i < stops.length; i++) {
-  await page.evaluate(([top, off]) => window.scrollTo(0, top + off), [sectionTop, stops[i] * vh]);
+// Etapas via scroll
+for (const [i, off] of [0, 700, 1340].entries()) {
+  await page.evaluate(([t, o]) => window.scrollTo(0, t + o), [sectionTop, off]);
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `scripts/.recordings/verify-desktop-${i}.png` });
 }
 
-// Mobile
-const mob = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
-await mob.goto(BASE);
-await mob.waitForTimeout(2500);
-await mob.evaluate(() => {
-  document.querySelector('section[aria-label="Conheça a plataforma ProOps"]')?.scrollIntoView();
-});
-await mob.waitForTimeout(1500);
-await mob.screenshot({ path: "scripts/.recordings/verify-mobile.png" });
-
-// Reduced motion (desktop)
-const rm = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" })).newPage();
-await rm.goto(BASE);
-await rm.waitForTimeout(2500);
-await rm.evaluate(() => {
-  const els = document.querySelectorAll('section[aria-label="Conheça a plataforma ProOps"]');
-  els[els.length - 1]?.scrollIntoView();
-});
-await rm.waitForTimeout(1500);
-await rm.screenshot({ path: "scripts/.recordings/verify-reduced.png" });
+// Clique para pular de etapa: volta ao topo da seção e clica no item 2
+await page.evaluate((t) => window.scrollTo(0, t), sectionTop);
+await page.waitForTimeout(1200);
+await page.click('button:has-text("Gestão financeira completa")');
+await page.waitForTimeout(2500);
+const state = await page.evaluate(() => ({
+  scrollY: window.scrollY,
+  active: [...document.querySelectorAll("section h3")].findIndex((h) =>
+    h.className.includes("opacity-100")
+  ),
+}));
+console.log("after click:", state);
+await page.screenshot({ path: "scripts/.recordings/verify-click.png" });
 
 await browser.close();
 console.log("ok");
