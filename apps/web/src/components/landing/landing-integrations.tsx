@@ -66,35 +66,48 @@ function Pill({
     // pulse para os transforms não conflitarem
     <div className="integration-node inline-block">
       <div
-        className="animate-badge-pulse relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 shadow-[0_6px_18px_-10px_rgba(0,0,0,0.35)] dark:border-white/12 dark:bg-neutral-900 dark:shadow-[0_8px_22px_-10px_rgba(0,0,0,0.8)]"
+        className="animate-badge-pulse relative"
         style={{ animationDelay: delay }}
       >
-        <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.06] text-black dark:bg-white/10 dark:text-white">
-          {/* glow do ícone, sincronizado com o pulse do badge */}
-          <span
-            aria-hidden
-            className="animate-pulse-slow absolute -inset-1 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.28),transparent_68%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.4),transparent_68%)]"
-            style={{ animationDelay: delay }}
-          />
-          <Icon className="relative h-4 w-4" />
-        </span>
-        <span className="relative truncate text-sm font-medium text-black dark:text-white">
-          {label}
-        </span>
+        {/* halo de brilho pulsante atrás do badge */}
+        <span
+          aria-hidden
+          className="animate-badge-glow absolute -inset-2.5 rounded-[1.6rem] bg-[radial-gradient(circle,rgba(0,0,0,0.18),transparent_70%)] blur-[2px] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.4),transparent_70%)]"
+          style={{ animationDelay: delay }}
+        />
+        {/* badge opaco */}
+        <div className="relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 shadow-[0_6px_18px_-10px_rgba(0,0,0,0.35)] dark:border-white/20 dark:bg-gradient-to-b dark:from-neutral-800 dark:to-neutral-900 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_26px_-10px_rgba(0,0,0,0.85)]">
+          <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.06] text-black dark:bg-white/15 dark:text-white">
+            {/* glow do ícone, sincronizado com o pulse do badge */}
+            <span
+              aria-hidden
+              className="animate-pulse-slow absolute -inset-1 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.3),transparent_68%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.5),transparent_68%)]"
+              style={{ animationDelay: delay }}
+            />
+            <Icon className="relative h-4 w-4" />
+          </span>
+          <span className="relative truncate text-sm font-medium text-black dark:text-white">
+            {label}
+          </span>
+        </div>
       </div>
     </div>
   );
 }
 
 function CenterLogo() {
+  // O PNG do símbolo (1600x900) tem muito espaço transparente em volta da marca;
+  // recortamos via janela overflow-hidden + scale (transform não sofre o
+  // max-width:100% do preflight, ao contrário de largar a largura).
   return (
-    <div className="integration-node relative">
+    <div className="integration-node relative grid h-24 w-24 place-items-center overflow-hidden">
       <ProOpsLogo
         variant="symbol"
-        width={104}
-        height={104}
+        width={420}
+        height={236}
         invertOnDark
-        className="h-24 w-24"
+        interactive={false}
+        className="h-auto w-24 origin-center scale-[3.8]"
       />
     </div>
   );

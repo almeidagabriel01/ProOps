@@ -915,15 +915,31 @@ html[data-shell="locked"] body {
   }
 }
 .animate-badge-pulse {
-  animation: badge-pulse 2.8s ease-in-out infinite;
+  animation: badge-pulse 2.2s ease-in-out infinite;
   will-change: transform;
+}
+
+/* Halo de brilho pulsante atrás dos badges (mais evidente que só a escala) */
+@keyframes badge-glow {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+.animate-badge-glow {
+  animation: badge-glow 2.2s ease-in-out infinite;
+  will-change: opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-mono-drift,
   .animate-marquee-x,
   .animate-flow,
-  .animate-badge-pulse {
+  .animate-badge-pulse,
+  .animate-badge-glow {
     animation: none !important;
   }
 }
