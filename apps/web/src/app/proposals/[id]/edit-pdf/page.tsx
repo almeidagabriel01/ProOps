@@ -42,6 +42,8 @@ export default function EditPdfPage() {
     setCoverLogo,
     logoStyle,
     setLogoStyle,
+    coverLogoSettings,
+    setCoverLogoSettings,
     coverImageOpacity,
     setCoverImageOpacity,
     coverImageFit,
@@ -192,6 +194,8 @@ export default function EditPdfPage() {
             setCoverLogo={setCoverLogo}
             logoStyle={logoStyle}
             setLogoStyle={setLogoStyle}
+            coverLogoSettings={coverLogoSettings}
+            setCoverLogoSettings={setCoverLogoSettings}
             coverImageOpacity={coverImageOpacity}
             setCoverImageOpacity={setCoverImageOpacity}
             coverImageFit={coverImageFit}
@@ -282,6 +286,7 @@ export default function EditPdfPage() {
                       coverImage,
                       coverLogo,
                       logoStyle,
+                      coverLogoSettings,
                       coverImageOpacity,
                       coverImageFit,
                       coverImagePosition: coverImagePosition as string,

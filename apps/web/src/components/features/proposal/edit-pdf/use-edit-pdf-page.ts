@@ -22,6 +22,7 @@ import {
   normalizeCoverElements,
 } from "../pdf-section-editor";
 import { ProposalTemplate } from "@/types";
+import type { CoverLogoSettings } from "@/types/pdf.types";
 import { ThemeType } from "./pdf-theme-utils";
 import {
   DEFAULT_PAYMENT_TERMS_TEXT,
@@ -47,6 +48,7 @@ interface PdfSettings {
   sections?: unknown[];
   coverElements?: CoverElement[];
   logoStyle?: "original" | "rounded" | "circle";
+  coverLogoSettings?: CoverLogoSettings | null;
 }
 
 function normalizeText(value?: string): string {
@@ -299,6 +301,8 @@ export function useEditPdfPage() {
   const [logoStyle, setLogoStyle] = useState<"original" | "rounded" | "circle">(
     "original",
   );
+  const [coverLogoSettings, setCoverLogoSettings] =
+    useState<CoverLogoSettings | null>(null);
   const [coverImageOpacity, setCoverImageOpacity] = useState(30);
   const [coverImageFit, setCoverImageFit] = useState<"cover" | "contain">(
     "cover",
@@ -349,6 +353,7 @@ export function useEditPdfPage() {
     coverImage,
     coverLogo,
     logoStyle,
+    coverLogoSettings,
     coverImageOpacity,
     coverImageFit,
     coverImagePosition,
@@ -492,6 +497,7 @@ export function useEditPdfPage() {
               else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
 
               if (s.logoStyle) setLogoStyle(s.logoStyle);
+              if (s.coverLogoSettings) setCoverLogoSettings(s.coverLogoSettings);
 
               if (s.coverImageOpacity !== undefined)
                 setCoverImageOpacity(s.coverImageOpacity);
@@ -558,6 +564,7 @@ export function useEditPdfPage() {
               else if (tenant.logoUrl) setCoverLogo(tenant.logoUrl);
 
               if (s.logoStyle) setLogoStyle(s.logoStyle);
+              if (s.coverLogoSettings) setCoverLogoSettings(s.coverLogoSettings);
 
               if (s.coverImageOpacity !== undefined)
                 setCoverImageOpacity(s.coverImageOpacity);
@@ -731,6 +738,8 @@ export function useEditPdfPage() {
     setCoverLogo,
     logoStyle,
     setLogoStyle,
+    coverLogoSettings,
+    setCoverLogoSettings,
     coverImageOpacity,
     setCoverImageOpacity,
     coverImageFit,

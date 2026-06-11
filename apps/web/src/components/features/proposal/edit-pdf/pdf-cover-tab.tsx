@@ -4,7 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, X, Crown } from "lucide-react";
+import { Upload, X, Crown, Move } from "lucide-react";
+import {
+  DEFAULT_COVER_LOGO_SETTINGS,
+  type CoverLogoSettings,
+} from "@/types/pdf.types";
 import { ThemeType, themeOptions } from "./pdf-theme-utils";
 import {
   PdfSection,
@@ -22,6 +26,8 @@ interface PdfCoverTabProps {
   setCoverLogo: (val: string) => void;
   logoStyle?: "original" | "rounded" | "circle";
   setLogoStyle?: (val: "original" | "rounded" | "circle") => void;
+  coverLogoSettings?: CoverLogoSettings | null;
+  setCoverLogoSettings?: (val: CoverLogoSettings | null) => void;
   coverImageOpacity: number;
   setCoverImageOpacity: (val: number) => void;
   coverImageFit: "cover" | "contain";
@@ -53,6 +59,8 @@ export function PdfCoverTab({
   setCoverLogo,
   logoStyle,
   setLogoStyle,
+  coverLogoSettings,
+  setCoverLogoSettings,
   coverImageOpacity,
   setCoverImageOpacity,
   coverImageFit,
@@ -117,6 +125,11 @@ export function PdfCoverTab({
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const logoSettings = coverLogoSettings ?? DEFAULT_COVER_LOGO_SETTINGS;
+  const updateLogoSetting = (key: keyof CoverLogoSettings, value: number) => {
+    setCoverLogoSettings?.({ ...logoSettings, [key]: value });
   };
 
   return (
@@ -225,6 +238,122 @@ export function PdfCoverTab({
                 <option value="rounded">Arredondado</option>
                 <option value="circle">Circular</option>
               </Select>
+            </div>
+          )}
+
+          {coverLogo && setCoverLogoSettings && (
+            <div className="grid gap-4 p-3 border rounded-lg bg-muted/20 mt-2">
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold flex items-center gap-2">
+                  <Move className="w-4 h-4" />
+                  Posição e Tamanho do Logo
+                </Label>
+                {coverLogoSettings && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground"
+                    onClick={() => setCoverLogoSettings(null)}
+                  >
+                    Usar posição do tema
+                  </Button>
+                )}
+              </div>
+              {!coverLogoSettings && (
+                <p className="text-xs text-muted-foreground">
+                  O logo está usando a posição padrão do tema. Ajuste um
+                  controle abaixo para posicionar livremente.
+                </p>
+              )}
+
+              <div className="grid gap-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs">
+                    Posição Horizontal (X): {Math.round(logoSettings.x)}%
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    {logoSettings.x < 33
+                      ? "Esquerda"
+                      : logoSettings.x > 66
+                        ? "Direita"
+                        : "Centro"}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={logoSettings.x}
+                  onChange={(e) =>
+                    updateLogoSetting("x", parseInt(e.target.value))
+                  }
+                  className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs">
+                    Posição Vertical (Y): {Math.round(logoSettings.y)}%
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    {logoSettings.y < 33
+                      ? "Topo"
+                      : logoSettings.y > 66
+                        ? "Base"
+                        : "Centro"}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="95"
+                  value={logoSettings.y}
+                  onChange={(e) =>
+                    updateLogoSetting("y", parseInt(e.target.value))
+                  }
+                  className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs">
+                    Largura: {logoSettings.imageWidth}%
+                  </Label>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="100"
+                  value={logoSettings.imageWidth}
+                  onChange={(e) =>
+                    updateLogoSetting("imageWidth", parseInt(e.target.value))
+                  }
+                  className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs">
+                    Opacidade: {Math.round((logoSettings.opacity ?? 1) * 100)}%
+                  </Label>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={Math.round((logoSettings.opacity ?? 1) * 100)}
+                  onChange={(e) =>
+                    updateLogoSetting(
+                      "opacity",
+                      parseInt(e.target.value) / 100,
+                    )
+                  }
+                  className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+              </div>
             </div>
           )}
         </div>
