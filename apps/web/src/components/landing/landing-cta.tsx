@@ -1,15 +1,26 @@
 "use client";
 
 import React, { useRef } from "react";
+import Link from "next/link";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { ArrowRight } from "lucide-react";
-import { ProOpsLogo } from "@/components/branding/proops-logo";
+import { ArrowRight, MessageCircle } from "lucide-react";
+import { MonoField } from "./_shared/mono-field";
+import { Accent } from "./_shared/section-heading";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
+
+// Reaproveita o padrão da navegação do app: link wa.me construído a partir do
+// NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER. Sem número configurado, cai no mailto.
+const WHATSAPP_PHONE_DIGITS = (
+  process.env.NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER ?? ""
+).replace(/\D/g, "");
+const WHATSAPP_HREF = WHATSAPP_PHONE_DIGITS
+  ? `https://wa.me/${WHATSAPP_PHONE_DIGITS}`
+  : "";
 
 export function LandingCTA() {
   const containerRef = useRef<HTMLElement>(null);
@@ -49,39 +60,56 @@ export function LandingCTA() {
   return (
     <section
       ref={containerRef}
-      className="py-28 relative overflow-hidden bg-white dark:bg-neutral-950"
+      className="relative overflow-hidden bg-[#0a0a0a] py-32 text-white dark:bg-black"
     >
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_top,rgba(0,0,0,0.08)_0,transparent_55%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12)_0,transparent_55%)]" />
+      <MonoField />
 
-      <div className="max-w-4xl mx-auto px-6 relative z-10 text-center">
-        <div className="flex justify-center mb-2 cta-fade-item">
-          <ProOpsLogo
-            variant="full"
-            width={440}
-            height={148}
-            invertOnDark
-            className="h-32 w-auto"
-          />
-        </div>
-
-        <h2 className="text-4xl md:text-6xl font-bold mb-6 text-black dark:text-white cta-fade-item">
-          Leve a operação para o próximo nível.
-        </h2>
-        <p className="text-xl text-black/65 dark:text-white/70 mb-10 max-w-3xl mx-auto cta-fade-item">
-          Estruture propostas, financeiro, CRM, equipe e automações em uma base
-          única com onboarding guiado para o seu time.
+      <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
+        <p className="cta-fade-item mb-5 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
+          <span className="h-px w-6 bg-white/45" />
+          Comece agora
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 cta-fade-item">
-          <a
-            href="mailto:gestao@proops.com.br"
-            className="w-full sm:w-auto px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold hover:bg-black/85 dark:hover:bg-white/90 transition-all flex items-center justify-center gap-2 text-lg cursor-pointer"
+
+        <h2 className="cta-fade-item [font-family:var(--font-pdf-montserrat)] text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl">
+          Leve sua operação para o <Accent>próximo nível</Accent>
+        </h2>
+
+        <p className="cta-fade-item mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/65">
+          Estruture propostas, financeiro, CRM, equipe e automações em uma base
+          única, com onboarding guiado para o seu time.
+        </p>
+
+        <div className="cta-fade-item mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <Link
+            href="/register"
+            className="btn-sweep flex w-full items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-lg font-bold text-black transition-colors hover:bg-white/90 sm:w-auto"
           >
-            Solicitar demonstração
-            <ArrowRight className="w-5 h-5" />
-          </a>
+            Começar grátis
+            <ArrowRight className="h-5 w-5" />
+          </Link>
+
+          {WHATSAPP_HREF ? (
+            <a
+              href={WHATSAPP_HREF}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-white/25 px-8 py-4 text-lg font-semibold text-white transition-colors hover:border-white/50 hover:bg-white/[0.06] sm:w-auto"
+            >
+              <MessageCircle className="h-5 w-5" />
+              Falar no WhatsApp
+            </a>
+          ) : (
+            <a
+              href="mailto:gestao@proops.com.br"
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-white/25 px-8 py-4 text-lg font-semibold text-white transition-colors hover:border-white/50 hover:bg-white/[0.06] sm:w-auto"
+            >
+              Solicitar demonstração
+            </a>
+          )}
         </div>
-        <p className="mt-8 text-sm text-black/55 dark:text-white/55 cta-fade-item">
-          Implantação assistida, suporte contínuo e sem lock-in.
+
+        <p className="cta-fade-item mt-8 text-sm text-white/55">
+          Sem cartão de crédito · Implantação assistida · Sem lock-in
         </p>
       </div>
     </section>
