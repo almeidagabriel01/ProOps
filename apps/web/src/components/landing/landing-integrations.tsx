@@ -10,7 +10,7 @@ import {
   CreditCard,
   MessageCircle,
   QrCode,
-  ShoppingBag,
+  Sparkles,
 } from "lucide-react";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
 import { Accent, SectionHeading } from "./_shared/section-heading";
@@ -27,12 +27,12 @@ type Integration = {
 const LEFT: Integration[] = [
   { label: "WhatsApp", icon: MessageCircle },
   { label: "Google Agenda", icon: Calendar },
-  { label: "Pix", icon: QrCode },
+  { label: "Lia (IA)", icon: Sparkles },
 ];
 
 const RIGHT: Integration[] = [
   { label: "Stripe", icon: CreditCard },
-  { label: "MercadoPago", icon: ShoppingBag },
+  { label: "Pix", icon: QrCode },
   { label: "Asaas", icon: Banknote },
 ];
 
@@ -66,14 +66,14 @@ function Pill({
     // pulse para os transforms não conflitarem
     <div className="integration-node inline-block">
       <div
-        className="animate-badge-pulse relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white/80 px-4 py-2.5 backdrop-blur dark:border-white/10 dark:bg-white/[0.05]"
+        className="animate-badge-pulse relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 shadow-[0_6px_18px_-10px_rgba(0,0,0,0.35)] dark:border-white/12 dark:bg-neutral-900 dark:shadow-[0_8px_22px_-10px_rgba(0,0,0,0.8)]"
         style={{ animationDelay: delay }}
       >
         <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-black/[0.06] text-black dark:bg-white/10 dark:text-white">
           {/* glow do ícone, sincronizado com o pulse do badge */}
           <span
             aria-hidden
-            className="animate-pulse-slow absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.18),transparent_64%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.28),transparent_64%)]"
+            className="animate-pulse-slow absolute -inset-1 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.28),transparent_68%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.4),transparent_68%)]"
             style={{ animationDelay: delay }}
           />
           <Icon className="relative h-4 w-4" />
@@ -88,14 +88,13 @@ function Pill({
 
 function CenterLogo() {
   return (
-    <div className="integration-node relative grid h-28 w-28 place-items-center rounded-[1.7rem] border border-black/10 bg-white shadow-[0_20px_50px_-18px_rgba(0,0,0,0.45)] dark:border-white/15 dark:bg-neutral-900 dark:shadow-[0_24px_60px_-20px_rgba(0,0,0,0.85)]">
-      <div className="animate-pulse-slow absolute -inset-3 rounded-[2.1rem] bg-[radial-gradient(circle,rgba(0,0,0,0.08),transparent_65%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.16),transparent_65%)]" />
+    <div className="integration-node relative">
       <ProOpsLogo
         variant="symbol"
-        width={56}
-        height={56}
+        width={104}
+        height={104}
         invertOnDark
-        className="relative h-14 w-14"
+        className="h-24 w-24"
       />
     </div>
   );

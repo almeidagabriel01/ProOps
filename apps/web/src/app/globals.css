@@ -900,7 +900,7 @@ html[data-shell="locked"] body {
   }
 }
 .animate-flow {
-  animation: flow-dash 2.4s linear infinite;
+  animation: flow-dash 4s linear infinite;
   will-change: stroke-dashoffset;
 }
 
@@ -911,7 +911,7 @@ html[data-shell="locked"] body {
     transform: scale(1);
   }
   50% {
-    transform: scale(1.035);
+    transform: scale(1.06);
   }
 }
 .animate-badge-pulse {
