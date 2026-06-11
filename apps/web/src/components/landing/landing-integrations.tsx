@@ -41,15 +41,16 @@ const ROWS = [22, 50, 78];
 
 // Conectores no espaço do viewBox 240x100 (mesma proporção do painel via
 // aspect-[240/100]). As linhas saem na altura ROWS[i] (= centro do badge), o
-// início (x=40 / x=200) fica sob o badge, e o fim (x=101 / x=139) para na beirada
-// da logo central — sem ir até o centro (120,50) atrás dela.
+// início (x=40 / x=200) fica sob o badge, e o fim (x=106 / x=134) entra um pouco
+// sob a marca opaca da logo — assim a linha "encaixa" exatamente na borda visível
+// da logo em qualquer largura, sem gap nem atravessar.
 const CONNECTORS = [
-  "M 40 22 C 78 22, 93 50, 101 50",
-  "M 40 50 L 101 50",
-  "M 40 78 C 78 78, 93 50, 101 50",
-  "M 200 22 C 162 22, 147 50, 139 50",
-  "M 200 50 L 139 50",
-  "M 200 78 C 162 78, 147 50, 139 50",
+  "M 40 22 C 78 22, 98 50, 106 50",
+  "M 40 50 L 106 50",
+  "M 40 78 C 78 78, 98 50, 106 50",
+  "M 200 22 C 162 22, 142 50, 134 50",
+  "M 200 50 L 134 50",
+  "M 200 78 C 162 78, 142 50, 134 50",
 ];
 
 function Pill({
@@ -86,14 +87,14 @@ function CenterLogo() {
   // recortamos via janela overflow-hidden + scale (transform não sofre o
   // max-width:100% do preflight, ao contrário de largar a largura).
   return (
-    <div className="integration-node relative grid h-40 w-40 place-items-center overflow-hidden">
+    <div className="integration-node relative grid h-48 w-48 place-items-center overflow-hidden">
       <ProOpsLogo
         variant="symbol"
-        width={720}
-        height={405}
+        width={800}
+        height={450}
         invertOnDark
         interactive={false}
-        className="h-auto w-40 origin-center translate-x-[8px] scale-[4]"
+        className="h-auto w-48 origin-center translate-x-[9px] scale-[3.9]"
       />
     </div>
   );
