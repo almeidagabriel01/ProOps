@@ -16,7 +16,11 @@ import {
   DEFAULT_PDF_FONT_FAMILY,
   normalizePdfFontFamily,
 } from "@/services/pdf/pdf-fonts";
-import type { PdfSection, CoverElement } from "@/types/pdf.types";
+import type {
+  PdfSection,
+  CoverElement,
+  CoverLogoSettings,
+} from "@/types/pdf.types";
 import { generateProposalPaymentTerms } from "@/lib/proposal-payment";
 
 // Re-exportados para retrocompatibilidade com importadores existentes.
@@ -41,6 +45,7 @@ export interface ProposalPdfCustomSettings {
   repeatHeader?: boolean;
   pageNumberStart?: number;
   logoStyle?: "original" | "rounded" | "circle";
+  coverLogoSettings?: CoverLogoSettings | null;
 }
 
 export interface ProposalPdfTemplateProps {
@@ -634,6 +639,11 @@ export function ProposalPdfTemplate({
           proposal={proposalData}
           fontFamily={fontFamily}
           coverElements={coverElements}
+          coverLogoSettings={
+            customSettings?.coverLogoSettings !== undefined
+              ? customSettings.coverLogoSettings
+              : savedPdfSettings?.coverLogoSettings
+          }
           logoStyle={
             customSettings?.logoStyle ||
             savedPdfSettings?.logoStyle ||

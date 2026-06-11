@@ -8,6 +8,10 @@ import {
 } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { PAGE_HEIGHT_PX, PAGE_WIDTH_PX, PADDING_X } from "@/components/pdf/pdf-layout";
 import type { CoverElement } from "@/components/features/proposal/pdf-section-editor";
+import {
+  DEFAULT_COVER_LOGO_SETTINGS,
+  type CoverLogoSettings,
+} from "@/types/pdf.types";
 import { formatDateBR } from "@/utils/date-format";
 
 interface PdfCoverPageProps {
@@ -24,8 +28,42 @@ interface PdfCoverPageProps {
   fontFamily: string;
   coverElements?: CoverElement[];
   logoStyle?: "original" | "rounded" | "circle";
+  coverLogoSettings?: CoverLogoSettings | null;
   validUntil?: string;
 }
+
+const getLogoBorderRadius = (
+  logoStyle?: "original" | "rounded" | "circle",
+): string =>
+  logoStyle === "circle" ? "50%" : logoStyle === "rounded" ? "8px" : "0";
+
+// Render the cover logo with free X/Y positioning (mirrors image cover elements)
+const renderPositionedLogo = (
+  coverLogo: string,
+  settings: CoverLogoSettings,
+  logoStyle?: "original" | "rounded" | "circle",
+) => {
+  const absoluteWidth = (PAGE_WIDTH_PX * (settings.imageWidth || 15)) / 100;
+  return (
+    <img
+      src={coverLogo}
+      alt="Logo"
+      style={{
+        position: "absolute",
+        left: `${settings.x ?? 50}%`,
+        top: `${settings.y ?? 50}%`,
+        transform: "translate(-50%, -50%)",
+        zIndex: 10,
+        width: `${absoluteWidth}px`,
+        height: "auto",
+        objectFit: "contain",
+        opacity: settings.opacity ?? 1,
+        borderRadius: getLogoBorderRadius(logoStyle),
+        display: "block",
+      }}
+    />
+  );
+};
 
 // Helper to format date for display
 const formatValidUntil = (dateString: string): string => {
@@ -264,8 +302,33 @@ export function PdfCoverPage({
   fontFamily,
   coverElements,
   logoStyle,
+  coverLogoSettings,
   validUntil,
 }: PdfCoverPageProps) {
+  const hasLogoElement = Boolean(
+    coverElements?.some((el) => el.type === "logo"),
+  );
+
+  // Logo posicionado livremente:
+  // - qualquer tema: quando há configuração explícita de posicionamento
+  // - tema livre: sempre que há logo e nenhum elemento "logo" na capa
+  //   (caso contrário o logo enviado nunca apareceria)
+  const shouldRenderPositionedLogo = Boolean(
+    coverLogo &&
+      (coverLogoSettings || (theme === "livre" && !hasLogoElement)),
+  );
+
+  const positionedLogo = shouldRenderPositionedLogo
+    ? renderPositionedLogo(
+        coverLogo,
+        coverLogoSettings ?? DEFAULT_COVER_LOGO_SETTINGS,
+        logoStyle,
+      )
+    : null;
+
+  // Quando o logo é posicionado livremente, o slot fixo do tema não renderiza
+  const inlineLogo = coverLogoSettings ? "" : coverLogo;
+
   const coverStyle: React.CSSProperties = {
     height: `${PAGE_HEIGHT_PX}px`,
     width: `${PAGE_WIDTH_PX}px`,
@@ -305,10 +368,11 @@ export function PdfCoverPage({
               }}
             />
           )}
+          {positionedLogo}
           {/* Header with logo */}
           <div className="relative z-10 flex justify-between items-start text-white">
             <div className="text-2xl font-bold">{tenant?.name}</div>
-            {coverLogo && (
+            {inlineLogo && (
               <img
                 src={coverLogo}
                 alt="Logo"
@@ -392,9 +456,10 @@ export function PdfCoverPage({
               }}
             />
           )}
+          {positionedLogo}
           <div className="relative z-10 flex flex-col h-full text-white">
             <div className="flex items-center gap-3">
-              {coverLogo && (
+              {inlineLogo && (
                 <img
                   src={coverLogo}
                   alt="Logo"
@@ -458,8 +523,9 @@ export function PdfCoverPage({
               }}
             />
           )}
+          {positionedLogo}
           <div className="relative z-10 flex flex-col h-full items-center justify-center text-center text-white">
-            {coverLogo && (
+            {inlineLogo && (
               <img
                 src={coverLogo}
                 alt="Logo"
@@ -528,10 +594,11 @@ export function PdfCoverPage({
               }}
             />
           )}
+          {positionedLogo}
           <div className="relative z-10 flex flex-col h-full text-white">
             <div className="flex justify-between items-start">
               <div className="text-2xl font-black">{tenant?.name}</div>
-              {coverLogo && (
+              {inlineLogo && (
                 <img
                   src={coverLogo}
                   alt="Logo"
@@ -570,6 +637,7 @@ export function PdfCoverPage({
             padding: "40px", // Extra padding for border
           }}
         >
+          {positionedLogo}
           {/* Classic Border Frame */}
           <div
             className="absolute inset-6 border-4 border-double pointer-events-none"
@@ -591,7 +659,7 @@ export function PdfCoverPage({
           )}
 
           <div className="relative z-10 flex flex-col h-full items-center justify-center text-center">
-            {coverLogo && (
+            {inlineLogo && (
               <img
                 src={coverLogo}
                 alt="Logo"
@@ -652,8 +720,9 @@ export function PdfCoverPage({
               }}
             />
           )}
+          {positionedLogo}
           <div className="relative z-10 flex flex-col h-full items-center justify-center text-center">
-            {coverLogo && (
+            {inlineLogo && (
               <img
                 src={coverLogo}
                 alt="Logo"
@@ -710,6 +779,7 @@ export function PdfCoverPage({
               }}
             />
           )}
+          {positionedLogo}
           {/* No tema livre, TODOS os elementos vêm do coverElements */}
           {coverElements && coverElements.length > 0 ? (
             renderCoverElements(

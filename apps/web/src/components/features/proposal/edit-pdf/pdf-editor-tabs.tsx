@@ -8,6 +8,7 @@ import {
   CoverElement,
 } from "@/components/features/proposal/pdf-section-editor";
 import type { PdfSectionProposalContext } from "@/components/features/proposal/pdf-editor/content-editor/section-editors";
+import type { CoverLogoSettings } from "@/types/pdf.types";
 import { PdfCoverTab } from "./pdf-cover-tab";
 import { PdfStyleTab } from "./pdf-style-tab";
 import { ThemeType } from "./pdf-theme-utils";
@@ -22,6 +23,8 @@ interface PdfEditorTabsProps {
   setCoverLogo: (val: string) => void;
   logoStyle?: "original" | "rounded" | "circle";
   setLogoStyle?: (val: "original" | "rounded" | "circle") => void;
+  coverLogoSettings?: CoverLogoSettings | null;
+  setCoverLogoSettings?: (val: CoverLogoSettings | null) => void;
   coverImageOpacity: number;
   setCoverImageOpacity: (val: number) => void;
   coverImageFit: "cover" | "contain";
@@ -69,6 +72,8 @@ export function PdfEditorTabs({
   setCoverLogo,
   logoStyle,
   setLogoStyle,
+  coverLogoSettings,
+  setCoverLogoSettings,
   coverImageOpacity,
   setCoverImageOpacity,
   coverImageFit,
@@ -143,6 +148,8 @@ export function PdfEditorTabs({
           setCoverLogo={setCoverLogo}
           logoStyle={logoStyle}
           setLogoStyle={setLogoStyle}
+          coverLogoSettings={coverLogoSettings}
+          setCoverLogoSettings={setCoverLogoSettings}
           coverImageOpacity={coverImageOpacity}
           setCoverImageOpacity={setCoverImageOpacity}
           coverImageFit={coverImageFit}

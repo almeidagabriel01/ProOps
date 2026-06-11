@@ -48,6 +48,30 @@ export interface PdfSection {
 }
 
 // ---------------------------------------------------------------------------
+// CoverLogoSettings — posicionamento livre do logo da capa
+// ---------------------------------------------------------------------------
+
+/** Posicionamento e aparência do logo da capa (espelha os controles de elementos de imagem) */
+export interface CoverLogoSettings {
+  /** Posição horizontal em percentagem (0–100) */
+  x: number;
+  /** Posição vertical em percentagem (0–100) */
+  y: number;
+  /** Largura do logo em percentagem da página (10–100) */
+  imageWidth: number;
+  /** Opacidade (0–1) */
+  opacity: number;
+}
+
+/** Valores padrão usados quando o logo é renderizado posicionado sem configuração salva */
+export const DEFAULT_COVER_LOGO_SETTINGS: CoverLogoSettings = {
+  x: 85,
+  y: 8,
+  imageWidth: 15,
+  opacity: 1,
+};
+
+// ---------------------------------------------------------------------------
 // CoverElement — elementos posicionados livremente na capa
 // ---------------------------------------------------------------------------
 
