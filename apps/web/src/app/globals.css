@@ -889,9 +889,25 @@ html[data-shell="locked"] body {
   will-change: transform;
 }
 
+/* Pulso de luz que corre pelos conectores das Integrações (toward center).
+   Usar com pathLength=100 + stroke-dasharray curto no path animado. */
+@keyframes flow-dash {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-flow {
+  animation: flow-dash 2.4s linear infinite;
+  will-change: stroke-dashoffset;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-mono-drift,
-  .animate-marquee-x {
+  .animate-marquee-x,
+  .animate-flow {
     animation: none !important;
   }
 }

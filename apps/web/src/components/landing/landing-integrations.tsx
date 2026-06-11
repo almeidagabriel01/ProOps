@@ -6,7 +6,6 @@ import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import {
   Banknote,
-  Barcode,
   Calendar,
   CreditCard,
   MessageCircle,
@@ -20,28 +19,73 @@ if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-type Node = {
+type Integration = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  x: number;
-  y: number;
 };
 
-// posições em % numa circunferência ao redor do centro (50,50), raio ~38
-const NODES: Node[] = [
-  { label: "WhatsApp", icon: MessageCircle, x: 50, y: 12 },
-  { label: "Stripe", icon: CreditCard, x: 80, y: 26 },
-  { label: "MercadoPago", icon: ShoppingBag, x: 87, y: 58 },
-  { label: "Asaas", icon: Banknote, x: 66, y: 84 },
-  { label: "Pix", icon: QrCode, x: 34, y: 84 },
-  { label: "Boleto", icon: Barcode, x: 13, y: 58 },
-  { label: "Google Agenda", icon: Calendar, x: 20, y: 26 },
+const LEFT: Integration[] = [
+  { label: "WhatsApp", icon: MessageCircle },
+  { label: "Google Agenda", icon: Calendar },
+  { label: "Pix", icon: QrCode },
 ];
 
+const RIGHT: Integration[] = [
+  { label: "Stripe", icon: CreditCard },
+  { label: "MercadoPago", icon: ShoppingBag },
+  { label: "Asaas", icon: Banknote },
+];
+
+// Conectores curvos (viewBox 0..100) do pillar ao centro (50,50). O início
+// (x=18 / x=82) fica sob os pills, escondendo a junção.
+const CONNECTORS = [
+  "M 18 22 C 38 22, 38 50, 50 50",
+  "M 18 50 L 50 50",
+  "M 18 78 C 38 78, 38 50, 50 50",
+  "M 82 22 C 62 22, 62 50, 50 50",
+  "M 82 50 L 50 50",
+  "M 82 78 C 62 78, 62 50, 50 50",
+];
+
+function Pill({
+  icon: Icon,
+  label,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <div className="integration-node inline-flex items-center gap-2.5 rounded-full border border-black/10 bg-white/85 px-4 py-2.5 shadow-[0_8px_20px_-12px_rgba(0,0,0,0.4)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-black/20 dark:border-white/10 dark:bg-white/[0.06] dark:shadow-[0_10px_24px_-12px_rgba(0,0,0,0.75)] dark:hover:border-white/25">
+      <span className="grid h-7 w-7 place-items-center rounded-full bg-black/[0.05] text-black dark:bg-white/10 dark:text-white">
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="whitespace-nowrap text-sm font-medium text-black dark:text-white">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function CenterLogo() {
+  return (
+    <div className="integration-node relative grid h-28 w-28 place-items-center rounded-[1.7rem] border border-black/10 bg-white shadow-[0_20px_50px_-18px_rgba(0,0,0,0.45)] dark:border-white/15 dark:bg-neutral-900 dark:shadow-[0_24px_60px_-20px_rgba(0,0,0,0.85)]">
+      <div className="animate-pulse-slow absolute -inset-3 rounded-[2.1rem] bg-[radial-gradient(circle,rgba(0,0,0,0.08),transparent_65%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.16),transparent_65%)]" />
+      <ProOpsLogo
+        variant="symbol"
+        width={56}
+        height={56}
+        invertOnDark
+        className="relative h-14 w-14"
+      />
+    </div>
+  );
+}
+
 /**
- * Integrações — constelação: marca ProOps ao centro, integrações como satélites
- * ligados por linhas finas. Nós entram em stagger via GSAP. Em telas pequenas a
- * constelação encolhe e há uma legenda de chips para clareza/acessibilidade.
+ * Integrações — hub central com a marca ProOps e os serviços à esquerda/direita,
+ * ligados por conectores curvos com um pulso de luz que corre até o centro
+ * (`.animate-flow`, desativado sob prefers-reduced-motion). No mobile vira um
+ * empilhamento simples sem os conectores.
  */
 export function LandingIntegrations() {
   const containerRef = useRef<HTMLElement>(null);
@@ -57,16 +101,16 @@ export function LandingIntegrations() {
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         gsap.fromTo(
           nodes,
-          { scale: 0.4, opacity: 0 },
+          { scale: 0.6, opacity: 0 },
           {
             scale: 1,
             opacity: 1,
-            duration: 0.6,
-            ease: "back.out(1.8)",
-            stagger: 0.08,
+            duration: 0.55,
+            ease: "back.out(1.7)",
+            stagger: 0.07,
             scrollTrigger: {
               trigger: section,
-              start: "top 70%",
+              start: "top 72%",
               invalidateOnRefresh: true,
             },
           },
@@ -96,62 +140,71 @@ export function LandingIntegrations() {
             </>
           }
           description="Pagamentos, mensagens e agenda em um fluxo só. Pix, boleto e cartão via Stripe, MercadoPago e Asaas — sem trocar de tela."
-          className="mb-16"
+          className="mb-14"
         />
 
-        <div className="relative mx-auto aspect-square w-full max-w-xl">
-          {/* linhas de conexão centro → satélites */}
-          <svg
-            aria-hidden
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            className="absolute inset-0 h-full w-full"
-          >
-            {NODES.map((node) => (
-              <line
-                key={node.label}
-                x1="50"
-                y1="50"
-                x2={node.x}
-                y2={node.y}
-                className="stroke-black/12 dark:stroke-white/15"
-                strokeWidth="0.4"
-              />
-            ))}
-          </svg>
+        <div className="relative overflow-hidden rounded-[2rem] border border-black/10 bg-gradient-to-b from-black/[0.02] to-transparent p-6 dark:border-white/10 dark:from-white/[0.04] sm:p-10">
+          <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.05),transparent_70%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.08),transparent_70%)]" />
+          <div className="grain-overlay opacity-[0.03]" />
 
-          {/* centro: marca ProOps */}
-          <div className="integration-node absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="relative grid h-24 w-24 place-items-center rounded-3xl border border-black/10 bg-white shadow-[0_20px_50px_-20px_rgba(0,0,0,0.4)] dark:border-white/15 dark:bg-neutral-900 dark:shadow-[0_20px_50px_-18px_rgba(0,0,0,0.8)]">
-              <div className="animate-pulse-slow absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.06),transparent_70%)] dark:bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.12),transparent_70%)]" />
-              <ProOpsLogo
-                variant="symbol"
-                width={44}
-                height={44}
-                invertOnDark
-                className="relative h-11 w-11"
-              />
+          {/* ===== Desktop: hub com conectores ===== */}
+          <div className="relative hidden min-h-[24rem] grid-cols-[1fr_auto_1fr] items-center gap-4 md:grid">
+            <svg
+              aria-hidden
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+            >
+              {CONNECTORS.map((d, i) => (
+                <g key={d}>
+                  <path
+                    d={d}
+                    fill="none"
+                    strokeWidth={1}
+                    vectorEffect="non-scaling-stroke"
+                    className="stroke-black/12 dark:stroke-white/15"
+                  />
+                  <path
+                    d={d}
+                    fill="none"
+                    pathLength={100}
+                    strokeDasharray="10 90"
+                    strokeWidth={1.4}
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                    className="animate-flow stroke-black/45 dark:stroke-white/80"
+                    style={{ animationDelay: `${i * 0.32}s` }}
+                  />
+                </g>
+              ))}
+            </svg>
+
+            <div className="relative z-10 flex min-h-[20rem] flex-col items-start justify-between py-2">
+              {LEFT.map((item) => (
+                <Pill key={item.label} icon={item.icon} label={item.label} />
+              ))}
+            </div>
+
+            <div className="relative z-10 flex justify-center px-2">
+              <CenterLogo />
+            </div>
+
+            <div className="relative z-10 flex min-h-[20rem] flex-col items-end justify-between py-2">
+              {RIGHT.map((item) => (
+                <Pill key={item.label} icon={item.icon} label={item.label} />
+              ))}
             </div>
           </div>
 
-          {/* satélites */}
-          {NODES.map((node) => {
-            const Icon = node.icon;
-            return (
-              <div
-                key={node.label}
-                className="integration-node group absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2"
-                style={{ left: `${node.x}%`, top: `${node.y}%` }}
-              >
-                <div className="grid h-14 w-14 place-items-center rounded-2xl border border-black/10 bg-white/80 backdrop-blur transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-black/25 group-hover:shadow-[0_12px_30px_-12px_rgba(0,0,0,0.4)] dark:border-white/10 dark:bg-white/[0.06] dark:group-hover:border-white/30">
-                  <Icon className="h-6 w-6 text-black dark:text-white" />
-                </div>
-                <span className="text-xs font-medium text-black/60 dark:text-white/60">
-                  {node.label}
-                </span>
-              </div>
-            );
-          })}
+          {/* ===== Mobile: empilhamento simples ===== */}
+          <div className="relative flex flex-col items-center gap-8 md:hidden">
+            <CenterLogo />
+            <div className="grid w-full grid-cols-2 gap-3">
+              {[...LEFT, ...RIGHT].map((item) => (
+                <Pill key={item.label} icon={item.icon} label={item.label} />
+              ))}
+            </div>
+          </div>
         </div>
 
         <p className="mx-auto mt-10 max-w-xl text-center text-sm text-black/55 dark:text-white/55">
