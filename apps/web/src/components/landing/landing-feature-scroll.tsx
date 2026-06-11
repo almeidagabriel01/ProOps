@@ -190,7 +190,7 @@ export function LandingFeatureScroll() {
             </div>
 
             {/* Coluna direita: quadro de vídeo com crossfade */}
-            <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl border border-black/10 bg-neutral-100 shadow-xl shadow-black/5 dark:border-white/10 dark:bg-neutral-900 dark:shadow-black/30">
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-black/10 bg-neutral-100 shadow-xl shadow-black/5 dark:border-white/10 dark:bg-neutral-900 dark:shadow-black/30">
               {FEATURES.map((feature, i) => (
                 <video
                   key={feature.src}
@@ -223,7 +223,7 @@ export function LandingFeatureScroll() {
 
           {FEATURES.map((feature) => (
             <div key={feature.title} className="flex flex-col gap-5">
-              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl border border-black/10 bg-neutral-100 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-neutral-900 dark:shadow-black/30">
+              <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-black/10 bg-neutral-100 shadow-lg shadow-black/5 dark:border-white/10 dark:bg-neutral-900 dark:shadow-black/30">
                 <StaticVideo src={feature.src} />
               </div>
               <div>
