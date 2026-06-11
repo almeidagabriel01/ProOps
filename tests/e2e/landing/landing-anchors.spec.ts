@@ -29,8 +29,10 @@ test.describe("LANDING-ANCHORS-01: navbar/footer anchors resolve", () => {
     });
   }
 
-  test("real section targets are visible (modulos, recursos, pricing)", async ({ page }) => {
-    for (const id of ["modulos", "recursos", "pricing"]) {
+  test("real section targets are visible (recursos, pricing)", async ({ page }) => {
+    // #showcase and #modulos are lightweight scroll anchors (the dedicated
+    // Módulos section was removed) — they only need to resolve, not be visible.
+    for (const id of ["recursos", "pricing"]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
     }
   });

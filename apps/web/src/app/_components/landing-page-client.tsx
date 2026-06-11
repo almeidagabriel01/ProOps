@@ -6,7 +6,6 @@ import {
   LandingNavbar,
   LandingHeroAssemble,
   LandingFeatureScroll,
-  LandingModules,
   LandingHowItWorks,
   LandingFeatures,
   LandingIntegrations,
@@ -67,7 +66,6 @@ export function LandingPageClient() {
       <main>
         <LandingHeroAssemble />
         <LandingFeatureScroll />
-        <LandingModules />
         <LandingHowItWorks />
         <LandingFeatures />
         <LandingIntegrations />

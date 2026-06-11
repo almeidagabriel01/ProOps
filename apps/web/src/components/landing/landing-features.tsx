@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import {
+  ArrowUpRight,
   Bot,
   FileSpreadsheet,
   Layers,
@@ -12,90 +13,62 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { MonoGlassCard } from "./_shared/mono-glass-card";
 import { Accent, SectionHeading } from "./_shared/section-heading";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-type FeatureCard = {
+type Feature = {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
-  span: string;
-  hero?: boolean;
 };
 
-const FEATURE_CARDS: FeatureCard[] = [
+const FEATURES: Feature[] = [
   {
     icon: Bot,
     title: "WhatsApp integrado",
     description:
-      "Consulte propostas, financeiro e documentos direto no celular. A Lia responde sobre o seu negócio em segundos, sem abrir o sistema.",
-    span: "lg:col-span-2 lg:row-span-2",
-    hero: true,
+      "Consulte propostas, financeiro e documentos pelo WhatsApp. A Lia responde sobre o seu negócio em segundos.",
   },
   {
     icon: Users,
     title: "Clientes e fornecedores",
     description:
       "Base única de contatos com cadastro completo para vendas, pós-venda e operação financeira.",
-    span: "lg:col-span-2",
   },
   {
     icon: Package,
     title: "Catálogo comercial",
     description:
       "Produtos e serviços com preço, margem e estoque, prontos para usar nas propostas.",
-    span: "lg:col-span-1",
   },
   {
     icon: ShieldCheck,
     title: "Equipe e permissões",
     description:
-      "Controle de acesso por módulo e ação para delegar com segurança.",
-    span: "lg:col-span-1",
+      "Controle de acesso por módulo e ação para delegar tarefas com segurança operacional.",
   },
   {
     icon: Layers,
     title: "Soluções e ambientes",
     description:
       "Templates de soluções com ambientes e itens padrão para acelerar propostas complexas.",
-    span: "lg:col-span-2",
   },
   {
     icon: FileSpreadsheet,
     title: "Planilhas personalizadas",
     description:
-      "Crie planilhas internas por empresa para organizar dados fora do fluxo padrão.",
-    span: "lg:col-span-2",
+      "Crie planilhas internas por empresa para organizar dados de operação fora do fluxo padrão.",
   },
 ];
 
-function WhatsAppMock() {
-  return (
-    <div className="mt-6 space-y-2.5">
-      <div className="max-w-[80%] rounded-2xl rounded-tl-sm border border-black/10 bg-black/[0.04] px-3.5 py-2 text-sm text-black/75 dark:border-white/10 dark:bg-white/[0.06] dark:text-white/75">
-        Qual o faturamento deste mês?
-      </div>
-      <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-black px-3.5 py-2 text-sm text-white dark:bg-white dark:text-black">
-        R$ 48.250 em propostas aprovadas, com 3 pagamentos pendentes para esta
-        semana.
-      </div>
-      <div className="flex items-center gap-1 pl-1 pt-1">
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-black/30 [animation-delay:-0.3s] dark:bg-white/40" />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-black/30 [animation-delay:-0.15s] dark:bg-white/40" />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-black/30 dark:bg-white/40" />
-      </div>
-    </div>
-  );
-}
-
 /**
- * Recursos — bento assimétrico (4 col no desktop) com célula-herói do WhatsApp/Lia
- * e mock de conversa. Cada célula é um MonoGlassCard (tilt + spotlight); reveal em
- * stagger via GSAP. Quebra o antigo grid 3-col chapado.
+ * Recursos — formato editorial de "ledger" (lista dividida por hairlines), sem
+ * cards. Layout assimétrico: heading sticky à esquerda, lista de capacidades à
+ * direita com índice, ícone e reveal em stagger. Hospeda as âncoras `#modulos` e
+ * `#showcase` (a antiga seção Módulos foi removida) além do `#recursos`.
  */
 export function LandingFeatures() {
   const containerRef = useRef<HTMLElement>(null);
@@ -119,7 +92,7 @@ export function LandingFeatures() {
               scrollTrigger: {
                 trigger: item,
                 start: "top 94%",
-                end: "top 68%",
+                end: "top 64%",
                 scrub: true,
                 invalidateOnRefresh: true,
               },
@@ -127,19 +100,19 @@ export function LandingFeatures() {
           );
         });
 
-      gsap.utils.toArray<HTMLElement>(".feature-card").forEach((card, i) => {
+      gsap.utils.toArray<HTMLElement>(".feature-row").forEach((row, i) => {
         gsap.fromTo(
-          card,
-          { y: 30, opacity: 0, autoAlpha: 0 },
+          row,
+          { y: 24, opacity: 0, autoAlpha: 0 },
           {
             y: 0,
             opacity: 1,
             autoAlpha: 1,
-            duration: 0.7,
-            delay: (i % 3) * 0.06,
+            duration: 0.6,
+            delay: i * 0.05,
             ease: "power3.out",
             scrollTrigger: {
-              trigger: card,
+              trigger: row,
               start: "top 92%",
               invalidateOnRefresh: true,
             },
@@ -156,42 +129,52 @@ export function LandingFeatures() {
       id="recursos"
       className="relative border-t border-black/10 bg-black/[0.015] py-28 dark:border-white/10 dark:bg-white/[0.02]"
     >
-      <div className="mx-auto max-w-7xl px-6">
-        <SectionHeading
-          eyebrow="Recursos da plataforma"
-          title={
-            <>
-              Tudo que você precisa para <Accent>operar</Accent>
-            </>
-          }
-          description="Os recursos que sustentam o dia a dia — do primeiro contato ao pós-venda — em uma base única."
-          className="features-heading mb-16"
-        />
+      {/* âncoras herdadas (navbar/footer) da antiga seção Módulos */}
+      <span id="showcase" aria-hidden className="absolute -top-24" />
+      <span id="modulos" aria-hidden className="absolute -top-24" />
 
-        <div className="grid auto-rows-[minmax(13rem,1fr)] grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURE_CARDS.map((feature) => {
+      <div className="mx-auto grid max-w-7xl gap-12 px-6 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
+        <div className="lg:sticky lg:top-28 lg:self-start">
+          <SectionHeading
+            align="left"
+            eyebrow="Recursos da plataforma"
+            title={
+              <>
+                Tudo que você precisa para <Accent>operar</Accent>
+              </>
+            }
+            description="Os recursos que sustentam o dia a dia — do primeiro contato ao pós-venda — em uma base única e conectada."
+            className="features-heading"
+          />
+        </div>
+
+        <div className="border-b border-black/10 dark:border-white/10">
+          {FEATURES.map((feature, index) => {
             const Icon = feature.icon;
             return (
-              <MonoGlassCard
+              <div
                 key={feature.title}
-                maxTilt={4}
-                className={`feature-card p-7 ${feature.span}`}
+                className="feature-row group relative flex items-start gap-5 border-t border-black/10 px-4 py-7 transition-colors duration-300 hover:bg-black/[0.02] dark:border-white/10 dark:hover:bg-white/[0.03] sm:gap-6"
               >
-                <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-black/[0.04] dark:border-white/10 dark:bg-white/[0.08]">
-                  <Icon className="h-5 w-5 text-black dark:text-white" />
+                <span className="mt-1 hidden w-8 shrink-0 text-sm font-semibold tabular-nums text-black/35 dark:text-white/35 sm:block">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+
+                <span className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-black/10 bg-white text-black transition-transform duration-300 group-hover:-translate-y-0.5 dark:border-white/15 dark:bg-white/[0.05] dark:text-white">
+                  <Icon className="h-5 w-5" />
+                </span>
+
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-black dark:text-white md:text-xl">
+                    {feature.title}
+                  </h3>
+                  <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-black/60 dark:text-white/65 md:text-[15px]">
+                    {feature.description}
+                  </p>
                 </div>
-                <h3
-                  className={`font-semibold text-black dark:text-white ${
-                    feature.hero ? "text-2xl" : "text-xl"
-                  }`}
-                >
-                  {feature.title}
-                </h3>
-                <p className="mt-3 text-sm leading-relaxed text-black/65 dark:text-white/70">
-                  {feature.description}
-                </p>
-                {feature.hero && <WhatsAppMock />}
-              </MonoGlassCard>
+
+                <ArrowUpRight className="mt-1 h-5 w-5 shrink-0 -translate-x-1 text-black/40 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 dark:text-white/40" />
+              </div>
             );
           })}
         </div>
