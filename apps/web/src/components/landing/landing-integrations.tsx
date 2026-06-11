@@ -55,27 +55,21 @@ const CONNECTORS = [
 function Pill({
   icon: Icon,
   label,
-  index,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  index: number;
 }) {
-  const delay = `${(index % 3) * 0.45}s`;
+  // Sem animationDelay → todos os badges pulsam em sincronia.
   return (
     // wrapper externo = alvo do reveal do GSAP (scale/opacity) — separado do
     // pulse para os transforms não conflitarem
     <div className="integration-node inline-block">
-      <div
-        className="animate-badge-pulse relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 dark:border-white/20 dark:bg-gradient-to-b dark:from-neutral-800 dark:to-neutral-900"
-        style={{ animationDelay: delay }}
-      >
+      <div className="animate-badge-pulse relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 dark:border-white/20 dark:bg-gradient-to-b dark:from-neutral-800 dark:to-neutral-900">
         <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-950 text-white">
           {/* glow do ícone pulsante */}
           <span
             aria-hidden
             className="animate-pulse-slow absolute -inset-1 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.4),transparent_68%)]"
-            style={{ animationDelay: delay }}
           />
           <Icon className="relative h-4 w-4" />
         </span>
@@ -99,7 +93,7 @@ function CenterLogo() {
         height={405}
         invertOnDark
         interactive={false}
-        className="h-auto w-40 origin-center scale-[4]"
+        className="h-auto w-40 origin-center translate-x-[8px] scale-[4]"
       />
     </div>
   );
@@ -216,7 +210,7 @@ export function LandingIntegrations() {
                 className="absolute left-0 z-10 -translate-y-1/2"
                 style={{ top: `${ROWS[i]}%` }}
               >
-                <Pill icon={item.icon} label={item.label} index={i} />
+                <Pill icon={item.icon} label={item.label} />
               </div>
             ))}
             {RIGHT.map((item, i) => (
@@ -225,7 +219,7 @@ export function LandingIntegrations() {
                 className="absolute right-0 z-10 -translate-y-1/2"
                 style={{ top: `${ROWS[i]}%` }}
               >
-                <Pill icon={item.icon} label={item.label} index={i} />
+                <Pill icon={item.icon} label={item.label} />
               </div>
             ))}
           </div>
@@ -234,8 +228,8 @@ export function LandingIntegrations() {
           <div className="relative flex flex-col items-center gap-8 md:hidden">
             <CenterLogo />
             <div className="grid w-full grid-cols-2 place-items-center gap-3">
-              {[...LEFT, ...RIGHT].map((item, i) => (
-                <Pill key={item.label} icon={item.icon} label={item.label} index={i} />
+              {[...LEFT, ...RIGHT].map((item) => (
+                <Pill key={item.label} icon={item.icon} label={item.label} />
               ))}
             </div>
           </div>
