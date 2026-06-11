@@ -1,7 +1,7 @@
 // Número de WhatsApp da ProOps usado na landing (float button, CTA, footer).
 // Pode ser sobrescrito por NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER; senão usa o padrão.
 const RAW_PHONE =
-  process.env.NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER || "+55 51 9348-9758";
+  process.env.NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER || "+55 51 99348-9758";
 
 export const WHATSAPP_PHONE_DIGITS = RAW_PHONE.replace(/\D/g, "");
 
