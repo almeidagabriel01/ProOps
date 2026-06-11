@@ -3,6 +3,7 @@ export { LandingNavbar } from "./landing-navbar";
 export { LandingHeroFrames } from "./landing-hero-frames";
 export { LandingHeroAssemble } from "./landing-hero-assemble";
 export { LandingShowcase } from "./landing-showcase";
+export { LandingFeatureScroll } from "./landing-feature-scroll";
 export { LandingModules } from "./landing-modules";
 export { LandingHero } from "./landing-hero"; // fallback for old pages or history if needed
 export { LandingFeatures } from "./landing-features";

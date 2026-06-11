@@ -19,6 +19,7 @@ describe("proxy matcher", () => {
     "/icons/icon-dark-192.png",
     "/apple-icon.png",
     "/opengraph-image.png",
+    "/features/feature-1.webm",
   ])("does NOT intercept static asset %s", (path) => {
     expect(matcher.test(path)).toBe(false);
   });
