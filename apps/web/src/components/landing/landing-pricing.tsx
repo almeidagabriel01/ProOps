@@ -318,8 +318,6 @@ export function LandingPricing({
       id="pricing"
       className="py-28 relative border-y border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 overflow-hidden"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(0,0,0,0.045)_0,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.08)_0,transparent_70%)]" />
-
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center mb-14">
           <SectionHeading
