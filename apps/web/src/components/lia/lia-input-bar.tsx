@@ -82,7 +82,7 @@ export function LiaInputBar({
     <div className="shrink-0 border-t border-border bg-card px-3 py-3">
       <div
         className={cn(
-          "relative flex items-center rounded-2xl border border-border/70 bg-background px-3 py-1.5",
+          "flex items-center gap-2 rounded-2xl border border-border/70 bg-background px-3 py-1.5",
           "shadow-sm transition-[border-color,box-shadow] duration-200 ease-out",
           "focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/30",
           disabled && "opacity-70",
@@ -100,29 +100,24 @@ export function LiaInputBar({
           rows={1}
           className={cn(
             "flex-1 resize-none overflow-y-hidden bg-transparent py-2 text-sm leading-6",
-            // Estende além da borda direita do container para a scrollbar ficar do lado de fora;
-            // pr reserva espaço para o botão de enviar (posicionado absoluto)
-            "-mr-[26px] pr-[56px]",
-            // Scrollbar fina e arredondada
-            "[scrollbar-width:thin] [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_50%,transparent)_transparent]",
+            // Scrollbar fina e arredondada, afastada da borda do container
+            "-my-1 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]",
             "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent",
-            "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/50",
-            "hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/70",
+            "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border",
+            "hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40",
             "placeholder:text-muted-foreground/60",
             "focus:outline-none focus-visible:outline-none",
             "disabled:cursor-not-allowed",
           )}
         />
 
-        <div className="absolute right-2 top-1/2 -translate-y-1/2">
-          {isAtLimit ? (
-            <Tooltip content={`Limite atingido. Renova em ${resetDate}.`} side="top">
-              {sendButton}
-            </Tooltip>
-          ) : (
-            sendButton
-          )}
-        </div>
+        {isAtLimit ? (
+          <Tooltip content={`Limite atingido. Renova em ${resetDate}.`} side="top">
+            {sendButton}
+          </Tooltip>
+        ) : (
+          sendButton
+        )}
       </div>
     </div>
   );
