@@ -2,10 +2,12 @@
 
 import React, { useRef } from "react";
 import Link from "next/link";
-import { Cpu, Layers, ArrowRight } from "lucide-react";
+import { ArrowRight, Cpu, Layers } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
+import { MonoGlassCard } from "./_shared/mono-glass-card";
+import { Accent, SectionHeading } from "./_shared/section-heading";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -30,6 +32,11 @@ const NICHE_CARDS = [
   },
 ];
 
+/**
+ * Nichos — dois cards imersivos e altos com motivo de ícone "watermark", borda
+ * light-sweep no hover (beam) e tilt/spotlight via MonoGlassCard. Links de nicho
+ * e o CTA "Fale com a gente" preservados.
+ */
 export function LandingNiches() {
   const containerRef = useRef<HTMLElement>(null);
 
@@ -58,29 +65,25 @@ export function LandingNiches() {
         );
       });
 
-      section
-        .querySelectorAll<HTMLElement>(".niche-card")
-        .forEach((card, i) => {
-          gsap.fromTo(
-            card,
-            { y: 32, opacity: 0, autoAlpha: 0 },
-            {
-              y: 0,
-              opacity: 1,
-              autoAlpha: 1,
-              duration: 1.0,
-              delay: i * 0.12,
-              ease: "power3.out",
-              scrollTrigger: {
-                trigger: card,
-                start: "top 94%",
-                end: "bottom 50%",
-                toggleActions: "play none none reverse",
-                invalidateOnRefresh: true,
-              },
+      gsap.utils.toArray<HTMLElement>(".niche-card").forEach((card, i) => {
+        gsap.fromTo(
+          card,
+          { y: 36, opacity: 0, autoAlpha: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            autoAlpha: 1,
+            duration: 0.9,
+            delay: i * 0.12,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: card,
+              start: "top 90%",
+              invalidateOnRefresh: true,
             },
-          );
-        });
+          },
+        );
+      });
     },
     { scope: containerRef },
   );
@@ -88,64 +91,68 @@ export function LandingNiches() {
   return (
     <section
       ref={containerRef}
-      className="py-24 px-4 bg-white dark:bg-neutral-950"
+      className="bg-white px-6 py-28 dark:bg-neutral-950"
     >
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-14">
-          <p className="niches-heading text-xs font-semibold uppercase tracking-wider text-black/55 dark:text-white/55 mb-3">
-            Especializado no seu segmento
-          </p>
-          <h2 className="niches-heading text-3xl font-bold tracking-tight text-black dark:text-white mb-3">
-            Feito para o seu nicho
-          </h2>
-          <p className="niches-heading text-black/60 dark:text-white/60 max-w-xl mx-auto">
-            Estes pacotes já vêm prontos na ProOps. Atua em outro segmento?
-            Adaptamos para o seu nicho.
-          </p>
+      <div className="mx-auto max-w-6xl">
+        <SectionHeading
+          eyebrow="Especializado no seu segmento"
+          title={
+            <>
+              Feito para o seu <Accent>nicho</Accent>
+            </>
+          }
+          description="Estes pacotes já vêm prontos na ProOps. Atua em outro segmento? Adaptamos para o seu nicho."
+          className="niches-heading mb-14"
+        />
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {NICHE_CARDS.map(({ icon: Icon, eyebrow, title, description, href }) => (
+            <Link
+              key={href}
+              href={href}
+              className="niche-card group block"
+            >
+              <MonoGlassCard
+                beam
+                maxTilt={4}
+                className="min-h-[24rem] justify-between p-9"
+              >
+                <Icon
+                  aria-hidden
+                  className="pointer-events-none absolute -bottom-8 -right-6 h-52 w-52 text-black/[0.035] dark:text-white/[0.05]"
+                />
+
+                <div>
+                  <div className="mb-7 flex h-16 w-16 items-center justify-center rounded-2xl border border-black/10 bg-black/[0.03] dark:border-white/10 dark:bg-white/[0.06]">
+                    <Icon className="h-8 w-8 text-black dark:text-white" />
+                  </div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-black/50 dark:text-white/50">
+                    {eyebrow}
+                  </p>
+                  <h3 className="mb-3 text-2xl font-bold text-black dark:text-white">
+                    {title}
+                  </h3>
+                  <p className="max-w-md leading-relaxed text-black/60 dark:text-white/65">
+                    {description}
+                  </p>
+                </div>
+
+                <div className="mt-8 inline-flex items-center gap-1.5 text-sm font-semibold text-black dark:text-white">
+                  Saiba mais
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1.5" />
+                </div>
+              </MonoGlassCard>
+            </Link>
+          ))}
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {NICHE_CARDS.map(
-            ({ icon: Icon, eyebrow, title, description, href }) => (
-              <div key={href} className="niche-card relative rounded-2xl">
-                <div className="card-border-beam" aria-hidden />
-                <Link
-                  href={href}
-                  className="card-shine-on-hover group relative flex flex-col gap-5 rounded-2xl border border-black/10 bg-white p-8 transition-all duration-300 hover:-translate-y-1 hover:border-black/20 hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:border-white/10 dark:bg-neutral-900 dark:hover:border-white/20 dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.45)]"
-                >
-                  <div className="relative h-14 w-14 grid place-items-center rounded-2xl border border-black/10 bg-black/[0.03] dark:border-white/10 dark:bg-white/[0.05]">
-                    <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.07)_0%,transparent_70%)] dark:bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_70%)] animate-pulse-slow" />
-                    <Icon className="relative h-7 w-7 text-black dark:text-white" />
-                  </div>
-
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-black/55 dark:text-white/55 mb-1">
-                      {eyebrow}
-                    </p>
-                    <h3 className="text-xl font-bold text-black dark:text-white mb-2">
-                      {title}
-                    </h3>
-                    <p className="text-sm leading-relaxed text-black/60 dark:text-white/60">
-                      {description}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-sm font-medium text-black dark:text-white">
-                    Saiba mais
-                    <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-                  </div>
-                </Link>
-              </div>
-            ),
-          )}
-        </div>
-        <div className="mt-10 text-center">
-          <p className="text-sm text-black/60 dark:text-white/60 mb-3">
+        <div className="mt-12 text-center">
+          <p className="mb-3 text-sm text-black/60 dark:text-white/60">
             Atua em outro segmento? O ProOps adapta-se ao seu nicho.
           </p>
           <Link
             href="/contato"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-black dark:text-white hover:opacity-70 transition-opacity"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-black transition-opacity hover:opacity-70 dark:text-white"
           >
             Fale com a gente
             <ArrowRight className="h-4 w-4" />
