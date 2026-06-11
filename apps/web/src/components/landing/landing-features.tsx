@@ -127,7 +127,7 @@ export function LandingFeatures() {
     <section
       ref={containerRef}
       id="recursos"
-      className="relative border-t border-black/10 bg-black/[0.015] py-28 dark:border-white/10 dark:bg-white/[0.02]"
+      className="relative border-t border-black/10 bg-white py-28 dark:border-white/10 dark:bg-neutral-950"
     >
       {/* âncoras herdadas (navbar/footer) da antiga seção Módulos */}
       <span id="showcase" aria-hidden className="absolute -top-24" />

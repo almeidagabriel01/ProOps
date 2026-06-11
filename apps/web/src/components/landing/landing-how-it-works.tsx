@@ -5,7 +5,6 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { FileText, LayoutDashboard, Send, UserPlus } from "lucide-react";
-import { MonoField } from "./_shared/mono-field";
 import { Accent, SectionHeading } from "./_shared/section-heading";
 
 if (typeof window !== "undefined") {
@@ -46,10 +45,10 @@ const STEPS: Step[] = [
 ];
 
 /**
- * Como Funciona — faixa full-bleed escura (em ambos os temas) com uma "espinha"
- * vertical que se desenha conforme o scroll (scaleY) e nós que acendem ao serem
- * alcançados. Sob prefers-reduced-motion a linha aparece completa e os nós ficam
- * visíveis, sem animação.
+ * Como Funciona — "espinha" vertical que se desenha conforme o scroll (scaleY) e
+ * nós que acendem ao serem alcançados. Background padronizado com a hero
+ * (bg-white dark:bg-neutral-950) e cores theme-adaptive. Sob prefers-reduced-motion
+ * a linha aparece completa e os nós ficam visíveis, sem animação.
  */
 export function LandingHowItWorks() {
   const containerRef = useRef<HTMLElement>(null);
@@ -127,13 +126,10 @@ export function LandingHowItWorks() {
   return (
     <section
       ref={containerRef}
-      className="relative overflow-hidden bg-[#0a0a0a] py-28 text-white dark:bg-black"
+      className="relative overflow-hidden bg-white py-28 dark:bg-neutral-950"
     >
-      <MonoField />
-
-      <div className="relative z-10 mx-auto max-w-3xl px-6">
+      <div className="mx-auto max-w-3xl px-6">
         <SectionHeading
-          invert
           eyebrow="Como funciona"
           title={
             <>
@@ -148,11 +144,11 @@ export function LandingHowItWorks() {
           {/* trilho + preenchimento que se desenha no scroll */}
           <div
             aria-hidden
-            className="absolute bottom-6 left-[27px] top-6 w-px bg-white/15"
+            className="absolute bottom-6 left-[27px] top-6 w-px bg-black/15 dark:bg-white/15"
           />
           <div
             aria-hidden
-            className="how-line-fill absolute bottom-6 left-[27px] top-6 w-px origin-top bg-gradient-to-b from-white via-white to-white/40"
+            className="how-line-fill absolute bottom-6 left-[27px] top-6 w-px origin-top bg-gradient-to-b from-black via-black to-black/40 dark:from-white dark:via-white dark:to-white/40"
           />
 
           <ol className="space-y-12">
@@ -164,19 +160,19 @@ export function LandingHowItWorks() {
                   className="relative grid grid-cols-[56px_1fr] items-start gap-6"
                 >
                   <div className="relative flex justify-center">
-                    <div className="how-node relative grid h-14 w-14 place-items-center rounded-full border border-white/20 bg-[#0a0a0a] shadow-[0_0_0_6px_rgba(10,10,10,1)] dark:bg-black dark:shadow-[0_0_0_6px_#000]">
-                      <Icon className="h-5 w-5 text-white" />
-                      <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-white text-[11px] font-bold text-black">
+                    <div className="how-node relative grid h-14 w-14 place-items-center rounded-full border border-black/15 bg-white shadow-[0_0_0_6px_#fff] dark:border-white/20 dark:bg-neutral-950 dark:shadow-[0_0_0_6px_#0a0a0a]">
+                      <Icon className="h-5 w-5 text-black dark:text-white" />
+                      <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-black text-[11px] font-bold text-white dark:bg-white dark:text-black">
                         {index + 1}
                       </span>
                     </div>
                   </div>
 
-                  <div className="how-card rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm transition-colors duration-300 hover:border-white/20 hover:bg-white/[0.07]">
-                    <h3 className="text-xl font-semibold text-white">
+                  <div className="how-card rounded-2xl border border-black/10 bg-black/[0.02] p-6 backdrop-blur-sm transition-colors duration-300 hover:border-black/20 hover:bg-black/[0.04] dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-white/20 dark:hover:bg-white/[0.07]">
+                    <h3 className="text-xl font-semibold text-black dark:text-white">
                       {step.title}
                     </h3>
-                    <p className="mt-2 leading-relaxed text-white/65">
+                    <p className="mt-2 leading-relaxed text-black/65 dark:text-white/65">
                       {step.description}
                     </p>
                   </div>

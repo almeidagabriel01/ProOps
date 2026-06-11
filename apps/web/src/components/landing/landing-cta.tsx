@@ -6,7 +6,6 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { ArrowRight, MessageCircle } from "lucide-react";
-import { MonoField } from "./_shared/mono-field";
 import { Accent } from "./_shared/section-heading";
 import { WHATSAPP_HREF } from "./_shared/whatsapp";
 
@@ -52,21 +51,19 @@ export function LandingCTA() {
   return (
     <section
       ref={containerRef}
-      className="relative overflow-hidden bg-[#0a0a0a] py-32 text-white dark:bg-black"
+      className="relative overflow-hidden bg-white py-32 dark:bg-neutral-950"
     >
-      <MonoField />
-
-      <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
-        <p className="cta-fade-item mb-5 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
-          <span className="h-px w-6 bg-white/45" />
+      <div className="mx-auto max-w-4xl px-6 text-center">
+        <p className="cta-fade-item mb-5 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/55 dark:text-white/60">
+          <span className="h-px w-6 bg-black/30 dark:bg-white/45" />
           Comece agora
         </p>
 
-        <h2 className="cta-fade-item [font-family:var(--font-pdf-montserrat)] text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl">
+        <h2 className="cta-fade-item [font-family:var(--font-pdf-montserrat)] text-4xl font-bold leading-[1.05] tracking-tight text-black dark:text-white md:text-6xl">
           Leve sua operação para o <Accent>próximo nível</Accent>
         </h2>
 
-        <p className="cta-fade-item mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/65">
+        <p className="cta-fade-item mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-black/65 dark:text-white/65">
           Estruture propostas, financeiro, CRM, equipe e automações em uma base
           única, com onboarding guiado para o seu time.
         </p>
@@ -74,7 +71,7 @@ export function LandingCTA() {
         <div className="cta-fade-item mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Link
             href="/register"
-            className="btn-sweep flex w-full items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-lg font-bold text-black transition-colors hover:bg-white/90 sm:w-auto"
+            className="btn-sweep flex w-full items-center justify-center gap-2 rounded-full bg-black px-8 py-4 text-lg font-bold text-white transition-colors hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 sm:w-auto"
           >
             Começar grátis
             <ArrowRight className="h-5 w-5" />
@@ -85,7 +82,7 @@ export function LandingCTA() {
               href={WHATSAPP_HREF}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-white/25 px-8 py-4 text-lg font-semibold text-white transition-colors hover:border-white/50 hover:bg-white/[0.06] sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-black/20 px-8 py-4 text-lg font-semibold text-black transition-colors hover:border-black/40 hover:bg-black/[0.04] dark:border-white/25 dark:text-white dark:hover:border-white/50 dark:hover:bg-white/[0.06] sm:w-auto"
             >
               <MessageCircle className="h-5 w-5" />
               Falar no WhatsApp
@@ -93,14 +90,14 @@ export function LandingCTA() {
           ) : (
             <a
               href="mailto:gestao@proops.com.br"
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-white/25 px-8 py-4 text-lg font-semibold text-white transition-colors hover:border-white/50 hover:bg-white/[0.06] sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-black/20 px-8 py-4 text-lg font-semibold text-black transition-colors hover:border-black/40 hover:bg-black/[0.04] dark:border-white/25 dark:text-white dark:hover:border-white/50 dark:hover:bg-white/[0.06] sm:w-auto"
             >
               Solicitar demonstração
             </a>
           )}
         </div>
 
-        <p className="cta-fade-item mt-8 text-sm text-white/55">
+        <p className="cta-fade-item mt-8 text-sm text-black/55 dark:text-white/55">
           Sem cartão de crédito · Implantação assistida · Sem lock-in
         </p>
       </div>
