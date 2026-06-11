@@ -140,13 +140,13 @@ export function LandingFeatureScroll() {
         >
           {SECTION_HEADING}
 
-          <div className="mx-auto grid w-full max-w-[88rem] grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-center gap-16 lg:gap-24">
+          <div className="mx-auto grid w-full max-w-[88rem] grid-cols-[minmax(0,2fr)_minmax(0,3fr)] items-stretch gap-16 lg:gap-24">
             {/* Coluna esquerda: itens com barra lateral por item */}
             <div className="relative">
               {/* trilho contínuo */}
               <div className="absolute left-0 top-0 h-full w-px bg-black/20 dark:bg-white/20" />
 
-              <div className="flex flex-col gap-10">
+              <div className="flex h-full flex-col justify-between gap-10 py-2">
                 {FEATURES.map((feature, i) => (
                   <button
                     key={feature.title}
