@@ -7,9 +7,13 @@ import {
   LandingHeroAssemble,
   LandingFeatureScroll,
   LandingModules,
+  LandingHowItWorks,
   LandingFeatures,
+  LandingIntegrations,
   LandingNiches,
+  LandingSecurity,
   LandingPricing,
+  LandingFAQ,
   LandingCTA,
   LandingFooter,
 } from "@/components/landing";
@@ -63,10 +67,11 @@ export function LandingPageClient() {
         <LandingHeroAssemble />
         <LandingFeatureScroll />
         <LandingModules />
+        <LandingHowItWorks />
         <LandingFeatures />
+        <LandingIntegrations />
         <LandingNiches />
-
-        <div className="mx-auto h-px w-full max-w-7xl bg-gradient-to-r from-transparent via-black/15 to-transparent dark:via-white/15" />
+        <LandingSecurity />
 
         <LandingPricing
           plans={plans}
@@ -76,8 +81,7 @@ export function LandingPageClient() {
           isLoading={isLoadingPlans}
         />
 
-        <div className="mx-auto h-px w-full max-w-7xl bg-gradient-to-r from-transparent via-black/15 to-transparent dark:via-white/15" />
-
+        <LandingFAQ />
         <LandingCTA />
       </main>
 
