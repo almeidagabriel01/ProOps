@@ -6,14 +6,98 @@ import { ArrowRight, Cpu, Layers } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { MonoGlassCard } from "./_shared/mono-glass-card";
 import { Accent, SectionHeading } from "./_shared/section-heading";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
 
-const NICHE_CARDS = [
+/** Motif "automação": grade de pontos + linhas de circuito com pulso de luz. */
+function AutomationMotif() {
+  const LINES = ["M6 26 H34 V58 H62", "M94 18 H66 V44 H50", "M50 92 V60 H78 V40"];
+  const NODES: Array<[number, number]> = [
+    [34, 58],
+    [66, 44],
+    [50, 60],
+    [78, 40],
+  ];
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.16)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_at_55%_38%,black,transparent_72%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.16)_1px,transparent_1px)]" />
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="absolute inset-0 h-full w-full"
+      >
+        {LINES.map((d, i) => (
+          <g key={d}>
+            <path
+              d={d}
+              fill="none"
+              strokeWidth={0.5}
+              className="stroke-black/15 dark:stroke-white/15"
+            />
+            <path
+              d={d}
+              fill="none"
+              pathLength={100}
+              strokeDasharray="14 86"
+              strokeWidth={0.9}
+              strokeLinecap="round"
+              className="animate-flow stroke-black/45 dark:stroke-white/70"
+              style={{ animationDelay: `${i * 0.6}s` }}
+            />
+          </g>
+        ))}
+        {NODES.map(([x, y]) => (
+          <circle
+            key={`${x}-${y}`}
+            cx={x}
+            cy={y}
+            r={1.2}
+            className="fill-black/35 dark:fill-white/50"
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+/** Motif "decoração": ondas horizontais fluindo (drapeado de tecido). */
+function DecorationMotif() {
+  const Y = [26, 44, 62, 80];
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      <svg
+        viewBox="0 0 200 100"
+        preserveAspectRatio="none"
+        className="animate-marquee-x absolute inset-0 h-full w-[200%]"
+      >
+        {Y.map((y, i) => (
+          <path
+            key={y}
+            d={`M0 ${y} Q25 ${y - 9} 50 ${y} T100 ${y} T150 ${y} T200 ${y}`}
+            fill="none"
+            strokeWidth={0.6}
+            className="stroke-black/14 dark:stroke-white/16"
+            style={{ opacity: 1 - i * 0.14 }}
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+type Niche = {
+  icon: React.ComponentType<{ className?: string }>;
+  eyebrow: string;
+  title: string;
+  description: string;
+  href: string;
+  motif: "automation" | "decoration";
+};
+
+const NICHES: Niche[] = [
   {
     icon: Cpu,
     eyebrow: "Pacote pronto",
@@ -21,6 +105,7 @@ const NICHE_CARDS = [
     description:
       "Gerencie projetos de automação com catálogo de produtos, sistemas por ambiente e propostas técnicas em PDF profissional.",
     href: "/automacao-residencial",
+    motif: "automation",
   },
   {
     icon: Layers,
@@ -29,13 +114,15 @@ const NICHE_CARDS = [
     description:
       "Crie propostas com cálculo automático por m², largura ou altura. Catálogo de tecidos, persianas e papéis de parede integrado.",
     href: "/decoracao",
+    motif: "decoration",
   },
 ];
 
 /**
- * Nichos — dois cards imersivos e altos com motivo de ícone "watermark", borda
- * light-sweep no hover (beam) e tilt/spotlight via MonoGlassCard. Links de nicho
- * e o CTA "Fale com a gente" preservados.
+ * Nichos — painéis interativos que expandem no hover (split expansível). Cada
+ * nicho tem um motif monocromático animado próprio (automação = circuito com
+ * pulsos; decoração = ondas/drapeado fluindo), grão e numeral fantasma. No mobile
+ * empilham e ficam abertos. Links de nicho e CTA "Fale com a gente" preservados.
  */
 export function LandingNiches() {
   const containerRef = useRef<HTMLElement>(null);
@@ -65,16 +152,16 @@ export function LandingNiches() {
         );
       });
 
-      gsap.utils.toArray<HTMLElement>(".niche-card").forEach((card, i) => {
+      gsap.utils.toArray<HTMLElement>(".niche-panel").forEach((card, i) => {
         gsap.fromTo(
           card,
-          { y: 36, opacity: 0, autoAlpha: 0 },
+          { y: 40, opacity: 0, autoAlpha: 0 },
           {
             y: 0,
             opacity: 1,
             autoAlpha: 1,
             duration: 0.9,
-            delay: i * 0.12,
+            delay: i * 0.14,
             ease: "power3.out",
             scrollTrigger: {
               trigger: card,
@@ -101,47 +188,60 @@ export function LandingNiches() {
               Feito para o seu <Accent>nicho</Accent>
             </>
           }
-          description="Estes pacotes já vêm prontos na ProOps. Atua em outro segmento? Adaptamos para o seu nicho."
+          description="Estes pacotes já vêm prontos na ProOps. Passe o mouse para explorar — atua em outro segmento? Adaptamos para o seu nicho."
           className="niches-heading mb-14"
         />
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {NICHE_CARDS.map(({ icon: Icon, eyebrow, title, description, href }) => (
+        <div className="flex flex-col gap-5 md:h-[28rem] md:flex-row">
+          {NICHES.map(({ icon: Icon, eyebrow, title, description, href, motif }, index) => (
             <Link
               key={href}
               href={href}
-              className="niche-card group block"
+              aria-label={title}
+              className="niche-panel group relative min-h-[20rem] basis-0 grow overflow-hidden rounded-3xl border border-black/10 bg-black/[0.015] transition-[flex-grow,border-color,box-shadow] duration-500 ease-out hover:border-black/20 dark:border-white/10 dark:bg-white/[0.025] dark:hover:border-white/25 md:min-h-0 md:hover:grow-[1.65] md:hover:shadow-[0_40px_80px_-40px_rgba(0,0,0,0.5)] md:dark:hover:shadow-[0_40px_90px_-40px_rgba(0,0,0,0.85)]"
             >
-              <MonoGlassCard
-                beam
-                maxTilt={4}
-                className="min-h-[24rem] justify-between p-9"
-              >
-                <Icon
-                  aria-hidden
-                  className="pointer-events-none absolute -bottom-8 -right-6 h-52 w-52 text-black/[0.035] dark:text-white/[0.05]"
-                />
+              {motif === "automation" ? <AutomationMotif /> : <DecorationMotif />}
 
-                <div>
-                  <div className="mb-7 flex h-16 w-16 items-center justify-center rounded-2xl border border-black/10 bg-black/[0.03] dark:border-white/10 dark:bg-white/[0.06]">
-                    <Icon className="h-8 w-8 text-black dark:text-white" />
-                  </div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-black/50 dark:text-white/50">
+              <div className="grain-overlay opacity-[0.05]" />
+
+              {/* numeral fantasma */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute right-6 top-2 select-none text-[7rem] font-black leading-none text-black/[0.04] dark:text-white/[0.05]"
+              >
+                {String(index + 1).padStart(2, "0")}
+              </span>
+
+              {/* ícone watermark grande */}
+              <Icon
+                aria-hidden
+                className="pointer-events-none absolute -bottom-10 -right-8 h-56 w-56 text-black/[0.04] transition-transform duration-700 group-hover:scale-105 dark:text-white/[0.06]"
+              />
+
+              <div className="relative z-10 flex h-full flex-col p-8">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-12 w-12 place-items-center rounded-2xl border border-black/10 bg-white/70 backdrop-blur transition-colors duration-300 group-hover:border-black/20 dark:border-white/10 dark:bg-white/[0.06] dark:group-hover:border-white/25">
+                    <Icon className="h-6 w-6 text-black dark:text-white" />
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-black/50 dark:text-white/50">
                     {eyebrow}
-                  </p>
-                  <h3 className="mb-3 text-2xl font-bold text-black dark:text-white">
+                  </span>
+                </div>
+
+                <div className="mt-auto pt-10">
+                  <h3 className="text-2xl font-bold text-black dark:text-white md:text-3xl">
                     {title}
                   </h3>
-                  <p className="max-w-md leading-relaxed text-black/60 dark:text-white/65">
+                  {/* descrição revela/expande no hover (desktop); sempre visível no mobile */}
+                  <p className="mt-3 max-w-md leading-relaxed text-black/60 dark:text-white/65 md:max-h-0 md:-translate-y-1 md:overflow-hidden md:opacity-0 md:transition-all md:duration-500 md:group-hover:max-h-40 md:group-hover:translate-y-0 md:group-hover:opacity-100">
                     {description}
                   </p>
+                  <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-black dark:text-white">
+                    Saiba mais
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1.5" />
+                  </span>
                 </div>
-
-                <div className="mt-8 inline-flex items-center gap-1.5 text-sm font-semibold text-black dark:text-white">
-                  Saiba mais
-                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1.5" />
-                </div>
-              </MonoGlassCard>
+              </div>
             </Link>
           ))}
         </div>
