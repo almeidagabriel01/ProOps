@@ -159,7 +159,7 @@ export function LandingIntegrations() {
               Conectado ao que você <Accent>já usa</Accent>
             </>
           }
-          description="Pagamentos, mensagens e agenda em um fluxo só. Pix, boleto e cartão via Stripe, MercadoPago e Asaas — sem trocar de tela."
+          description="Pagamentos, mensagens e agenda em um fluxo só. Cartão via Stripe, pix e boleto via Asaas — sem trocar de tela."
           className="mb-14"
         />
 
