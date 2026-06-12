@@ -45,12 +45,12 @@ const ROWS = [22, 50, 78];
 // sob a marca opaca da logo — assim a linha "encaixa" exatamente na borda visível
 // da logo em qualquer largura, sem gap nem atravessar.
 const CONNECTORS = [
-  "M 40 22 C 78 22, 98 50, 106 50",
-  "M 40 50 L 106 50",
-  "M 40 78 C 78 78, 98 50, 106 50",
-  "M 200 22 C 162 22, 142 50, 134 50",
-  "M 200 50 L 134 50",
-  "M 200 78 C 162 78, 142 50, 134 50",
+  "M 40 22 C 78 22, 96 50, 103 50",
+  "M 40 50 L 103 50",
+  "M 40 78 C 78 78, 96 50, 103 50",
+  "M 200 22 C 162 22, 144 50, 137 50",
+  "M 200 50 L 137 50",
+  "M 200 78 C 162 78, 144 50, 137 50",
 ];
 
 function Pill({
