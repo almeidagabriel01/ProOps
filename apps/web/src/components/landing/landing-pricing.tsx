@@ -316,7 +316,7 @@ export function LandingPricing({
     <section
       ref={containerRef}
       id="pricing"
-      className="py-28 relative border-y border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 overflow-hidden"
+      className="py-28 relative border-t border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 overflow-hidden"
     >
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center mb-14">

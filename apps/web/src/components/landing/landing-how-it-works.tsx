@@ -126,7 +126,7 @@ export function LandingHowItWorks() {
   return (
     <section
       ref={containerRef}
-      className="relative overflow-hidden bg-white py-28 dark:bg-neutral-950"
+      className="relative overflow-hidden border-t border-black/10 bg-white py-28 dark:border-white/10 dark:bg-neutral-950"
     >
       <div className="mx-auto max-w-3xl px-6">
         <SectionHeading

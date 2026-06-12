@@ -91,7 +91,7 @@ export function LandingNiches() {
   return (
     <section
       ref={containerRef}
-      className="bg-white px-6 py-28 dark:bg-neutral-950"
+      className="border-t border-black/10 bg-white px-6 py-28 dark:border-white/10 dark:bg-neutral-950"
     >
       <div className="mx-auto max-w-6xl">
         <SectionHeading

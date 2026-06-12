@@ -51,7 +51,7 @@ export function LandingCTA() {
   return (
     <section
       ref={containerRef}
-      className="relative overflow-hidden bg-white py-32 dark:bg-neutral-950"
+      className="relative overflow-hidden border-t border-black/10 bg-white py-32 dark:border-white/10 dark:bg-neutral-950"
     >
       <div className="mx-auto max-w-4xl px-6 text-center">
         <p className="cta-fade-item mb-5 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/55 dark:text-white/60">

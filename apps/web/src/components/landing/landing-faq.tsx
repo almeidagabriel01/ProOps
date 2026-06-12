@@ -89,7 +89,7 @@ export function LandingFAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="bg-white px-6 py-28 dark:bg-neutral-950">
+    <section id="faq" className="border-t border-black/10 bg-white px-6 py-28 dark:border-white/10 dark:bg-neutral-950">
       <div className="mx-auto max-w-3xl">
         <SectionHeading
           eyebrow="Perguntas frequentes"
