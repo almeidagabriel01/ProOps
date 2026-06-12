@@ -28,7 +28,7 @@ export function WhatsAppFloat() {
       </span>
 
       {/* rótulo que expande no hover (desktop) */}
-      <span className="pointer-events-none ml-0 hidden max-w-0 items-center overflow-hidden whitespace-nowrap rounded-full bg-black text-sm font-semibold text-white opacity-0 transition-all duration-300 group-hover:ml-3 group-hover:max-w-[12rem] group-hover:px-4 group-hover:py-2.5 group-hover:opacity-100 dark:bg-white dark:text-black md:inline-flex">
+      <span className="pointer-events-none ml-0 hidden max-w-0 items-center overflow-hidden whitespace-nowrap rounded-full bg-black text-sm font-semibold text-white opacity-0 transition-all duration-500 ease-out group-hover:ml-3 group-hover:max-w-[12rem] group-hover:px-4 group-hover:py-2.5 group-hover:opacity-100 dark:bg-white dark:text-black md:inline-flex">
         Falar no WhatsApp
       </span>
     </a>
