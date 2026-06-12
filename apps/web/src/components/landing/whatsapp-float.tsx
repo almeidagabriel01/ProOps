@@ -22,7 +22,7 @@ export function WhatsAppFloat() {
       <span className="relative grid h-14 w-14 place-items-center rounded-full bg-black text-white shadow-[0_12px_30px_-8px_rgba(0,0,0,0.5)] transition-transform duration-300 hover:scale-105 dark:bg-white dark:text-black">
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full bg-black/40 motion-safe:animate-ping dark:bg-white/40"
+          className="animate-fab-ping absolute inset-0 rounded-full bg-black/40 dark:bg-white/40"
         />
         <WhatsAppGlyph className="relative h-7 w-7" />
       </span>

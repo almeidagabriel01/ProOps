@@ -919,11 +919,25 @@ html[data-shell="locked"] body {
   will-change: transform;
 }
 
+/* Ping suave (mais lento que o animate-ping padrão) do float button do WhatsApp */
+@keyframes fab-ping {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+.animate-fab-ping {
+  animation: fab-ping 2.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  will-change: transform, opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-mono-drift,
   .animate-marquee-x,
   .animate-flow,
-  .animate-badge-pulse {
+  .animate-badge-pulse,
+  .animate-fab-ping {
     animation: none !important;
   }
 }
