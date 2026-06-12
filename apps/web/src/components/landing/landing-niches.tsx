@@ -23,7 +23,7 @@ function AutomationMotif() {
   ];
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0">
-      <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.16)_1px,transparent_1px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_at_55%_38%,black,transparent_72%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.16)_1px,transparent_1px)]" />
+      <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.18)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:radial-gradient(ellipse_at_50%_45%,black,transparent_78%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.18)_1px,transparent_1px)]" />
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
@@ -44,7 +44,7 @@ function AutomationMotif() {
               strokeDasharray="14 86"
               strokeWidth={0.9}
               strokeLinecap="round"
-              className="animate-flow stroke-black/45 dark:stroke-white/70"
+              className="animate-flow stroke-black/50 dark:stroke-white/75"
               style={{ animationDelay: `${i * 0.6}s` }}
             />
           </g>
@@ -54,8 +54,8 @@ function AutomationMotif() {
             key={`${x}-${y}`}
             cx={x}
             cy={y}
-            r={1.2}
-            className="fill-black/35 dark:fill-white/50"
+            r={1.3}
+            className="fill-black/40 dark:fill-white/55"
           />
         ))}
       </svg>
@@ -65,7 +65,7 @@ function AutomationMotif() {
 
 /** Motif "decoração": ondas horizontais fluindo (drapeado de tecido). */
 function DecorationMotif() {
-  const Y = [26, 44, 62, 80];
+  const Y = [22, 38, 54, 70, 86];
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <svg
@@ -78,9 +78,9 @@ function DecorationMotif() {
             key={y}
             d={`M0 ${y} Q25 ${y - 9} 50 ${y} T100 ${y} T150 ${y} T200 ${y}`}
             fill="none"
-            strokeWidth={0.6}
-            className="stroke-black/14 dark:stroke-white/16"
-            style={{ opacity: 1 - i * 0.14 }}
+            strokeWidth={0.7}
+            className="stroke-black/16 dark:stroke-white/18"
+            style={{ opacity: 1 - i * 0.12 }}
           />
         ))}
       </svg>
@@ -93,6 +93,7 @@ type Niche = {
   eyebrow: string;
   title: string;
   description: string;
+  features: string[];
   href: string;
   motif: "automation" | "decoration";
 };
@@ -104,6 +105,7 @@ const NICHES: Niche[] = [
     title: "Automação Residencial",
     description:
       "Gerencie projetos de automação com catálogo de produtos, sistemas por ambiente e propostas técnicas em PDF profissional.",
+    features: ["Catálogo de produtos", "Sistemas por ambiente", "PDF técnico"],
     href: "/automacao-residencial",
     motif: "automation",
   },
@@ -113,16 +115,20 @@ const NICHES: Niche[] = [
     title: "Decoração de Interiores",
     description:
       "Crie propostas com cálculo automático por m², largura ou altura. Catálogo de tecidos, persianas e papéis de parede integrado.",
+    features: ["Cálculo por medidas", "Tecidos e persianas", "Orçamento automático"],
     href: "/decoracao",
     motif: "decoration",
   },
 ];
 
 /**
- * Nichos — painéis interativos que expandem no hover (split expansível). Cada
- * nicho tem um motif monocromático animado próprio (automação = circuito com
- * pulsos; decoração = ondas/drapeado fluindo), grão e numeral fantasma. No mobile
- * empilham e ficam abertos. Links de nicho e CTA "Fale com a gente" preservados.
+ * Nichos — dois cards "pacote pronto" totalmente legíveis (sem conteúdo escondido
+ * no hover). Cada card abre com uma janela de preview emoldurada onde vive um motif
+ * monocromático animado próprio (automação = circuito com pulsos; decoração =
+ * ondas/drapeado fluindo), seguida de ícone, título, descrição sempre visível e
+ * chips de recursos. Reveal coreografado por card (entrada → wipe do preview →
+ * stagger dos chips) com guarda de prefers-reduced-motion. Links de nicho e CTA
+ * "Fale com a gente" preservados.
  */
 export function LandingNiches() {
   const containerRef = useRef<HTMLElement>(null);
@@ -132,45 +138,82 @@ export function LandingNiches() {
       const section = containerRef.current;
       if (!section) return;
 
-      section.querySelectorAll<HTMLElement>(".niches-heading").forEach((el) => {
-        gsap.fromTo(
-          el,
-          { y: 22, opacity: 0, autoAlpha: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            autoAlpha: 1,
-            ease: "none",
+      const mm = gsap.matchMedia();
+
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        section.querySelectorAll<HTMLElement>(".niches-heading").forEach((el) => {
+          gsap.fromTo(
+            el,
+            { y: 22, opacity: 0, autoAlpha: 0 },
+            {
+              y: 0,
+              opacity: 1,
+              autoAlpha: 1,
+              ease: "none",
+              scrollTrigger: {
+                trigger: el,
+                start: "top 94%",
+                end: "top 68%",
+                scrub: true,
+                invalidateOnRefresh: true,
+              },
+            },
+          );
+        });
+
+        gsap.utils.toArray<HTMLElement>(".niche-panel").forEach((card, i) => {
+          const preview = card.querySelector<HTMLElement>(".niche-preview");
+          const features = card.querySelectorAll<HTMLElement>(".niche-feature");
+
+          const tl = gsap.timeline({
+            delay: i * 0.1,
             scrollTrigger: {
-              trigger: el,
-              start: "top 94%",
-              end: "top 68%",
-              scrub: true,
+              trigger: card,
+              start: "top 88%",
               invalidateOnRefresh: true,
             },
-          },
+          });
+
+          tl.fromTo(
+            card,
+            { y: 42, autoAlpha: 0 },
+            { y: 0, autoAlpha: 1, duration: 0.85, ease: "power3.out" },
+          );
+
+          if (preview) {
+            tl.fromTo(
+              preview,
+              { clipPath: "inset(0 0 100% 0)" },
+              { clipPath: "inset(0 0 0% 0)", duration: 0.7, ease: "power2.out" },
+              "-=0.55",
+            );
+          }
+
+          if (features.length) {
+            tl.fromTo(
+              features,
+              { y: 12, autoAlpha: 0 },
+              {
+                y: 0,
+                autoAlpha: 1,
+                duration: 0.5,
+                stagger: 0.07,
+                ease: "power2.out",
+              },
+              "-=0.35",
+            );
+          }
+        });
+      });
+
+      mm.add("(prefers-reduced-motion: reduce)", () => {
+        gsap.set(
+          [".niches-heading", ".niche-panel", ".niche-preview", ".niche-feature"],
+          { autoAlpha: 1, opacity: 1, y: 0, clipPath: "none" },
         );
       });
 
-      gsap.utils.toArray<HTMLElement>(".niche-panel").forEach((card, i) => {
-        gsap.fromTo(
-          card,
-          { y: 40, opacity: 0, autoAlpha: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            autoAlpha: 1,
-            duration: 0.9,
-            delay: i * 0.14,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: card,
-              start: "top 90%",
-              invalidateOnRefresh: true,
-            },
-          },
-        );
-      });
+      return () => mm.revert();
     },
     { scope: containerRef },
   );
@@ -188,62 +231,81 @@ export function LandingNiches() {
               Feito para o seu <Accent>nicho</Accent>
             </>
           }
-          description="Estes pacotes já vêm prontos na ProOps. Passe o mouse para explorar — atua em outro segmento? Adaptamos para o seu nicho."
+          description="Estes pacotes já vêm prontos na ProOps, com catálogos e cálculos sob medida para cada operação. Atua em outro segmento? Adaptamos para o seu nicho."
           className="niches-heading mb-14"
         />
 
-        <div className="flex flex-col gap-5 md:h-[28rem] md:flex-row">
-          {NICHES.map(({ icon: Icon, eyebrow, title, description, href, motif }, index) => (
-            <Link
-              key={href}
-              href={href}
-              aria-label={title}
-              className="niche-panel group relative min-h-[20rem] basis-0 grow overflow-hidden rounded-3xl border border-black/10 bg-black/[0.015] transition-[flex-grow,border-color,box-shadow] duration-500 ease-out hover:border-black/20 dark:border-white/10 dark:bg-white/[0.025] dark:hover:border-white/25 md:min-h-0 md:hover:grow-[1.65] md:hover:shadow-[0_40px_80px_-40px_rgba(0,0,0,0.5)] md:dark:hover:shadow-[0_40px_90px_-40px_rgba(0,0,0,0.85)]"
-            >
-              {motif === "automation" ? <AutomationMotif /> : <DecorationMotif />}
-
-              <div className="grain-overlay opacity-[0.05]" />
-
-              {/* numeral fantasma */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute right-6 top-2 select-none text-[7rem] font-black leading-none text-black/[0.04] dark:text-white/[0.05]"
+        <div className="grid gap-6 md:grid-cols-2">
+          {NICHES.map(
+            ({ icon: Icon, eyebrow, title, description, features, href, motif }, index) => (
+              <Link
+                key={href}
+                href={href}
+                aria-label={title}
+                className="niche-panel group relative flex flex-col overflow-hidden rounded-3xl border border-black/10 bg-white transition-[border-color,box-shadow,transform] duration-500 ease-out hover:-translate-y-1 hover:border-black/20 hover:shadow-[0_30px_70px_-40px_rgba(0,0,0,0.45)] dark:border-white/10 dark:bg-neutral-900/40 dark:hover:border-white/25 dark:hover:shadow-[0_30px_80px_-40px_rgba(0,0,0,0.85)]"
               >
-                {String(index + 1).padStart(2, "0")}
-              </span>
+                {/* janela de preview emoldurada — o motif animado vira destaque */}
+                <div className="niche-preview relative h-44 overflow-hidden border-b border-black/10 bg-gradient-to-b from-black/[0.04] to-transparent dark:border-white/10 dark:from-white/[0.05] md:h-52">
+                  <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-[1.04]">
+                    {motif === "automation" ? <AutomationMotif /> : <DecorationMotif />}
+                  </div>
 
-              {/* ícone watermark grande */}
-              <Icon
-                aria-hidden
-                className="pointer-events-none absolute -bottom-10 -right-8 h-56 w-56 text-black/[0.04] transition-transform duration-700 group-hover:scale-105 dark:text-white/[0.06]"
-              />
+                  <div className="grain-overlay opacity-[0.04]" />
 
-              <div className="relative z-10 flex h-full flex-col p-8">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-12 w-12 place-items-center rounded-2xl border border-black/10 bg-white/70 backdrop-blur transition-colors duration-300 group-hover:border-black/20 dark:border-white/10 dark:bg-white/[0.06] dark:group-hover:border-white/25">
-                    <Icon className="h-6 w-6 text-black dark:text-white" />
+                  {/* numeral fantasma */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute right-5 top-2 select-none text-[5.5rem] font-black leading-none text-black/[0.05] dark:text-white/[0.06]"
+                  >
+                    {String(index + 1).padStart(2, "0")}
                   </span>
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-black/50 dark:text-white/50">
-                    {eyebrow}
-                  </span>
+
+                  {/* ícone watermark grande */}
+                  <Icon
+                    aria-hidden
+                    className="pointer-events-none absolute -bottom-7 -right-6 h-40 w-40 text-black/[0.05] transition-transform duration-700 group-hover:scale-110 dark:text-white/[0.07]"
+                  />
                 </div>
 
-                <div className="mt-auto pt-10">
-                  <h3 className="text-2xl font-bold text-black dark:text-white md:text-3xl">
+                {/* conteúdo sempre visível */}
+                <div className="relative flex flex-1 flex-col p-7 md:p-8">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-11 w-11 place-items-center rounded-2xl border border-black/10 bg-white/70 backdrop-blur transition-colors duration-300 group-hover:border-black/20 dark:border-white/10 dark:bg-white/[0.06] dark:group-hover:border-white/25">
+                      <Icon className="h-5 w-5 text-black dark:text-white" />
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-black/50 dark:text-white/50">
+                      {eyebrow}
+                    </span>
+                  </div>
+
+                  <h3 className="mt-5 text-2xl font-bold text-black dark:text-white md:text-[1.7rem]">
                     {title}
                   </h3>
-                  {/* descrição revela/expande no hover (desktop); sempre visível no mobile */}
-                  <p className="mt-3 max-w-md leading-relaxed text-black/60 dark:text-white/65 md:max-h-0 md:-translate-y-1 md:overflow-hidden md:opacity-0 md:transition-all md:duration-500 md:group-hover:max-h-40 md:group-hover:translate-y-0 md:group-hover:opacity-100">
+
+                  <p className="mt-3 leading-relaxed text-black/60 dark:text-white/65">
                     {description}
                   </p>
-                  <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-black dark:text-white">
+
+                  <ul className="mt-5 flex flex-wrap gap-2">
+                    {features.map((feature) => (
+                      <li
+                        key={feature}
+                        className="niche-feature inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-black/[0.03] px-3 py-1 text-xs font-medium text-black/70 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/70"
+                      >
+                        <span className="h-1 w-1 rounded-full bg-black/40 dark:bg-white/45" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <span className="mt-auto inline-flex items-center gap-1.5 pt-7 text-sm font-semibold text-black dark:text-white">
                     Saiba mais
                     <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1.5" />
                   </span>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ),
+          )}
         </div>
 
         <div className="mt-12 text-center">
