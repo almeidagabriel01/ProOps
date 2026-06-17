@@ -94,7 +94,7 @@ function CenterLogo() {
         height={450}
         invertOnDark
         interactive={false}
-        className="h-auto w-48 origin-center translate-x-[9px] scale-[3.9]"
+        className="h-auto w-48 origin-center translate-x-[16px] scale-[3.9]"
       />
     </div>
   );

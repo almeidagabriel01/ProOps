@@ -203,6 +203,7 @@ export function LandingFeatureScroll() {
                   playsInline
                   preload="metadata"
                   aria-hidden={i !== active}
+                  suppressHydrationWarning
                   className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[450ms] ease-out ${
                     i === active ? "opacity-100" : "opacity-0"
                   }`}
@@ -280,6 +281,7 @@ function StaticVideo({ src }: StaticVideoProps) {
       loop
       playsInline
       preload="metadata"
+      suppressHydrationWarning
       className="absolute inset-0 h-full w-full object-cover"
     />
   );
