@@ -253,49 +253,54 @@ export function LandingSecurity() {
     </div>
   );
 
-  // ---- Fallback estático ----
-  if (reduce) {
-    return (
-      <section className="border-t border-black/10 bg-white px-6 py-24 dark:border-white/10 dark:bg-neutral-950">
-        <div className="mx-auto grid max-w-6xl items-center gap-16 lg:grid-cols-2">
-          <div>
-            <SectionHeading
-              align="left"
-              eyebrow="Segurança & privacidade"
-              title={
-                <>
-                  Seus dados <Accent>protegidos</Accent> por padrão
-                </>
-              }
-              description="Segurança não é um recurso à parte — é a base da plataforma. Veja como cuidamos das informações do seu negócio e dos seus clientes."
-              className="mb-8"
-            />
-            <div className="border-y border-black/10 dark:border-white/10">
-              {PILLARS.map((pillar, i) => (
-                <PillarReveal
-                  key={pillar.title}
-                  pillar={pillar}
-                  index={i}
-                  progress={scrollYProgress}
-                  draw={false}
-                />
-              ))}
-            </div>
+  // ---- Fallback estático (reduced-motion em qualquer largura, e mobile) ----
+  const staticView = (
+    <section className="border-t border-black/10 bg-white px-6 py-24 dark:border-white/10 dark:bg-neutral-950">
+      <div className="mx-auto grid max-w-6xl items-center gap-16 lg:grid-cols-2">
+        <div>
+          <SectionHeading
+            align="left"
+            eyebrow="Segurança & privacidade"
+            title={
+              <>
+                Seus dados <Accent>protegidos</Accent> por padrão
+              </>
+            }
+            description="Segurança não é um recurso à parte — é a base da plataforma. Veja como cuidamos das informações do seu negócio e dos seus clientes."
+            className="mb-8"
+          />
+          <div className="border-y border-black/10 dark:border-white/10">
+            {PILLARS.map((pillar, i) => (
+              <PillarReveal
+                key={pillar.title}
+                pillar={pillar}
+                index={i}
+                progress={scrollYProgress}
+                draw={false}
+              />
+            ))}
           </div>
-          <div className="flex justify-center">{Emblem}</div>
         </div>
-      </section>
-    );
-  }
+        <div className="flex justify-center">{Emblem}</div>
+      </div>
+    </section>
+  );
 
-  // ---- Scrollytelling ----
+  if (reduce) return staticView;
+
+  // ---- Scrollytelling (desktop ≥768px) ----
   return (
-    <section
-      ref={trackRef}
-      className="relative border-t border-black/10 bg-white dark:border-white/10 dark:bg-neutral-950"
-      style={{ height: "320vh" }}
-    >
-      <div className="sticky top-0 h-screen overflow-hidden">
+    <>
+      {/* Mobile: layout estático empilhado — evita o scrollytelling 320vh quebrar */}
+      <div className="md:hidden">{staticView}</div>
+
+      {/* Desktop: scrollytelling pinado — intacto */}
+      <section
+        ref={trackRef}
+        className="relative hidden border-t border-black/10 bg-white dark:border-white/10 dark:bg-neutral-950 md:block"
+        style={{ height: "320vh" }}
+      >
+        <div className="sticky top-0 h-screen overflow-hidden">
         {/* grade de pontos sutil */}
         <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.06)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_82%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.07)_1px,transparent_1px)]" />
 
@@ -337,7 +342,8 @@ export function LandingSecurity() {
         >
           Role para blindar
         </motion.div>
-      </div>
-    </section>
+        </div>
+      </section>
+    </>
   );
 }

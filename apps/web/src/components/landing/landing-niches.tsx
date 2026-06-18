@@ -219,32 +219,37 @@ export function LandingNiches() {
     ["0vw", `-${(panelCount - 1) * 100}vw`],
   );
 
-  // ---- Fallback estático (movimento reduzido) ----
-  if (reduce) {
-    return (
-      <section className="border-t border-black/10 bg-white px-6 py-24 dark:border-white/10 dark:bg-neutral-950">
-        <div className="mx-auto max-w-6xl space-y-16">
-          <div>
-            <p className="mb-4 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/55 dark:text-white/60">
-              <span className="h-px w-6 bg-black/30 dark:bg-white/45" />
-              Especializado no seu segmento
-            </p>
-            <h2 className="[font-family:var(--font-pdf-montserrat)] text-4xl font-bold tracking-tight text-black dark:text-white md:text-5xl">
-              Feito para o seu <Accent>nicho</Accent>
-            </h2>
-          </div>
-          {NICHES.map((niche) => (
-            <NichePanelStatic key={niche.href} niche={niche} />
-          ))}
-          <NicheFooterCTA />
+  // ---- Fallback estático (movimento reduzido em qualquer largura, e mobile) ----
+  const staticView = (
+    <section className="border-t border-black/10 bg-white px-6 py-24 dark:border-white/10 dark:bg-neutral-950">
+      <div className="mx-auto max-w-6xl space-y-16">
+        <div>
+          <p className="mb-4 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/55 dark:text-white/60">
+            <span className="h-px w-6 bg-black/30 dark:bg-white/45" />
+            Especializado no seu segmento
+          </p>
+          <h2 className="[font-family:var(--font-pdf-montserrat)] text-4xl font-bold tracking-tight text-black dark:text-white md:text-5xl">
+            Feito para o seu <Accent>nicho</Accent>
+          </h2>
         </div>
-      </section>
-    );
-  }
+        {NICHES.map((niche) => (
+          <NichePanelStatic key={niche.href} niche={niche} />
+        ))}
+        <NicheFooterCTA />
+      </div>
+    </section>
+  );
 
-  // ---- Scroll horizontal ----
+  if (reduce) return staticView;
+
+  // ---- Scroll horizontal (desktop ≥768px) ----
   return (
     <>
+      {/* Mobile: stack vertical estático — evita o scroll horizontal pinado quebrar */}
+      <div className="md:hidden">{staticView}</div>
+
+      {/* Desktop: galeria horizontal pinada — intacta */}
+      <div className="hidden md:block">
       <section
         ref={trackRef}
         className="relative border-t border-black/10 bg-white dark:border-white/10 dark:bg-neutral-950"
@@ -274,6 +279,7 @@ export function LandingNiches() {
       <section className="border-t border-black/10 bg-white px-6 py-16 dark:border-white/10 dark:bg-neutral-950">
         <NicheFooterCTA />
       </section>
+      </div>
     </>
   );
 }

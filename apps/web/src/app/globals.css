@@ -369,39 +369,26 @@ body {
   align-items: center;
   gap: 0.5rem;
 }
-.landing-btn__fill {
+/* Tinta que sobe do rodapé pro topo no hover. A onda (SVG) é a linha-d'água. */
+.landing-btn__ink {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -20%;
-  width: 140%;
+  inset: 0;
   z-index: 1;
   pointer-events: none;
-  transform: translateX(-118%) skewX(-12deg);
+  transform: translateY(calc(100% + 12px));
   transition: transform 0.55s cubic-bezier(0.65, 0, 0.35, 1);
 }
-.landing-btn:hover .landing-btn__fill {
-  transform: translateX(0) skewX(-12deg);
+.landing-btn:hover .landing-btn__ink {
+  transform: translateY(0);
 }
-.landing-btn__trace {
+.landing-btn__wave {
   position: absolute;
-  inset: 1px;
-  z-index: 3;
-  width: auto;
-  height: auto;
-  overflow: visible;
-  pointer-events: none;
-}
-.landing-btn__trace rect {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  transition: stroke-dashoffset 0.5s ease;
-}
-.landing-btn:hover .landing-btn__trace rect {
-  stroke-dashoffset: 0;
+  left: 0;
+  right: 0;
+  top: -9px;
+  width: 100%;
+  height: 10px;
+  display: block;
 }
 
 /* Link variant — sublinhado que se desenha da esquerda no hover */
@@ -1023,8 +1010,7 @@ html[data-shell="locked"] body {
   .animate-card-sheen {
     animation: none !important;
   }
-  .landing-btn__fill,
-  .landing-btn__trace rect,
+  .landing-btn__ink,
   .landing-link__bar {
     transition: none;
   }

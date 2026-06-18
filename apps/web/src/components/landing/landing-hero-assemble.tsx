@@ -216,12 +216,12 @@ export function LandingHeroAssemble() {
       // pinada de 1 dobra, copy absoluto sobre a dashboard); com
       // prefers-reduced-motion o layout fica empilhado (copy acima, dashboard
       // abaixo) e a página rola normalmente
-      className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-white px-4 pb-16 pt-28 dark:bg-neutral-950 sm:px-6 md:motion-safe:h-svh md:motion-safe:pb-4 md:motion-safe:pt-24"
+      className="relative flex min-h-svh flex-col items-center justify-start overflow-hidden bg-white px-4 pb-16 pt-28 dark:bg-neutral-950 sm:px-6 md:justify-center md:motion-safe:h-svh md:motion-safe:pb-4 md:motion-safe:pt-24"
     >
       {/* glow decorativo de fundo */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-0 h-[60vh] w-[120vw] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(0,0,0,0.05),transparent_65%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.06),transparent_65%)]"
+        className="pointer-events-none absolute left-1/2 top-0 h-[42vh] w-[120vw] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(0,0,0,0.05),transparent_65%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.06),transparent_65%)] md:h-[60vh]"
       />
 
       {/* ── Título + subtítulo + CTAs (centro, sai de cena com o scroll) ── */}
@@ -270,7 +270,7 @@ export function LandingHeroAssemble() {
       <div
         data-hero-dashboard
         aria-hidden="true"
-        className="pointer-events-none relative z-10 mx-auto mt-12 w-full max-w-7xl select-none will-change-transform md:motion-safe:mt-0 md:motion-safe:invisible"
+        className="pointer-events-none relative z-10 mx-auto mt-8 w-full max-w-7xl select-none will-change-transform md:motion-safe:mt-0 md:motion-safe:invisible"
       >
         {/* superfície da janela do app */}
         <div
@@ -297,13 +297,14 @@ export function LandingHeroAssemble() {
             <div data-hero-card className="will-change-transform transform-gpu sm:col-span-5">
               <HeroCashFlowCard />
             </div>
-            <div data-hero-card className="will-change-transform transform-gpu sm:col-span-4">
+            {/* mobile compacto: só o card de Fluxo de Caixa; demais voltam no desktop (md+) */}
+            <div data-hero-card className="hidden transform-gpu will-change-transform sm:col-span-4 md:block">
               <HeroProposalStats />
             </div>
-            <div data-hero-card className="will-change-transform transform-gpu sm:col-span-3">
+            <div data-hero-card className="hidden transform-gpu will-change-transform sm:col-span-3 md:block">
               <HeroClientsStats />
             </div>
-            <div data-hero-card className="will-change-transform transform-gpu sm:col-span-12">
+            <div data-hero-card className="hidden transform-gpu will-change-transform sm:col-span-12 md:block">
               <HeroRecentProposals />
             </div>
           </div>

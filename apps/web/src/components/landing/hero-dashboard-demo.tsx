@@ -149,10 +149,10 @@ export function HeroDashboardHeader() {
   return (
     <div className="flex flex-col justify-between gap-3 border-b border-border/60 px-1 pb-3 sm:flex-row sm:items-center">
       <div>
-        <h3 className="text-xl font-bold tracking-tight sm:text-2xl">
+        <h3 className="inline-flex items-center gap-1.5 whitespace-nowrap text-xl font-bold tracking-tight sm:text-2xl">
           <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
             Bom dia, ProOps!
-          </span>{" "}
+          </span>
           <span className="text-foreground">👋</span>
         </h3>
         <p className="text-muted-foreground mt-1 flex items-center gap-2 text-xs sm:text-sm">

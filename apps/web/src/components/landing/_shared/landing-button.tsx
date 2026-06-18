@@ -7,14 +7,14 @@ import { cn } from "@/lib/utils";
 /* -------------------------------------------------------------------------- */
 /*  LandingButton                                                             */
 /*                                                                            */
-/*  Botão único e padronizado da landing page. Assinatura "draw + invert":    */
-/*  - a borda se desenha sozinha ao redor do botão no hover (SVG dashoffset)   */
-/*  - um preenchimento varre na diagonal e inverte as cores (preto↔branco)    */
-/*  - seta deslizante no trailingIcon · press tátil (active:scale)             */
+/*  Botão único e padronizado da landing page. Assinatura "ink rise":         */
+/*  - no hover um preenchimento sobe do rodapé pro topo, como tinta enchendo   */
+/*  - a linha da tinta é ondulada (SVG wave) → orgânico                        */
+/*  - o texto inverte de cor conforme enche · seta deslizante · press tátil    */
 /*  Sem deslocamento do botão — só efeitos na superfície.                     */
 /*                                                                            */
-/*  Monocromático. Respeita prefers-reduced-motion (efeitos viram instantâneos */
-/*  via @media em globals.css, sem movimento).                                */
+/*  Monocromático. Respeita prefers-reduced-motion (vira instantâneo via      */
+/*  @media em globals.css).                                                    */
 /* -------------------------------------------------------------------------- */
 
 type LandingVariant = "solid" | "inverted" | "outline" | "link";
@@ -38,27 +38,22 @@ interface LandingButtonProps {
 
 interface VariantConfig {
   root: string;
-  /** cor do preenchimento que entra no hover */
-  fill: string;
-  /** cor do traço da borda que se desenha (= cor do fill p/ fundir no fim) */
-  trace: string;
+  /** cor da tinta que sobe (bg + text iguais → a onda usa currentColor) */
+  ink: string;
 }
 
 const VARIANT: Record<Exclude<LandingVariant, "link">, VariantConfig> = {
   solid: {
     root: "landing-btn rounded-full bg-black text-white hover:text-black shadow-[0_8px_30px_rgba(0,0,0,0.16)] dark:bg-white dark:text-black dark:hover:text-white",
-    fill: "bg-white dark:bg-black",
-    trace: "text-white dark:text-black",
+    ink: "bg-white text-white dark:bg-black dark:text-black",
   },
   inverted: {
     root: "landing-btn rounded-full bg-white text-black hover:text-white shadow-[0_8px_30px_rgba(0,0,0,0.20)]",
-    fill: "bg-black",
-    trace: "text-black",
+    ink: "bg-black text-black",
   },
   outline: {
     root: "landing-btn rounded-full border border-black/25 text-black hover:text-white dark:border-white/25 dark:text-white dark:hover:text-black",
-    fill: "bg-black dark:bg-white",
-    trace: "text-black dark:text-white",
+    ink: "bg-black text-black dark:bg-white dark:text-white",
   },
 };
 
@@ -132,18 +127,19 @@ export function LandingButton({
     );
     inner = (
       <>
-        <span aria-hidden className={cn("landing-btn__fill", cfg.fill)} />
-        <svg aria-hidden className={cn("landing-btn__trace", cfg.trace)}>
-          <rect
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            rx="999"
-            ry="999"
-            pathLength="100"
-          />
-        </svg>
+        <span aria-hidden className={cn("landing-btn__ink", cfg.ink)}>
+          <svg
+            className="landing-btn__wave"
+            viewBox="0 0 120 12"
+            preserveAspectRatio="none"
+            aria-hidden
+          >
+            <path
+              d="M0 12 V6 Q15 0 30 6 T60 6 T90 6 T120 6 V12 Z"
+              fill="currentColor"
+            />
+          </svg>
+        </span>
         {label}
       </>
     );

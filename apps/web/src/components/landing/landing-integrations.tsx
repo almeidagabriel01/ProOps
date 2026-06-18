@@ -65,8 +65,8 @@ function Pill({
   return (
     // wrapper externo = alvo do reveal do GSAP (scale/opacity) — separado do
     // pulse para os transforms não conflitarem
-    <div className="integration-node inline-block">
-      <div className="animate-badge-pulse relative flex w-48 items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 dark:border-white/20 dark:bg-gradient-to-b dark:from-neutral-800 dark:to-neutral-900">
+    <div className="integration-node w-full md:inline-block md:w-auto">
+      <div className="animate-badge-pulse relative flex w-full items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 dark:border-white/20 dark:bg-gradient-to-b dark:from-neutral-800 dark:to-neutral-900 md:w-48">
         <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-950 text-white">
           {/* glow do ícone pulsante */}
           <span
