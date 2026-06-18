@@ -62,29 +62,33 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
   });
 
-  test("redirect URL includes the original path as 'redirect' query param", async ({ playwright }) => {
+  // The proxy routes an unauthenticated protected request through the silent
+  // re-mint interstitial (/auth/refresh), preserving the intended path in
+  // `next`. /auth/refresh then recovers the session or bounces to /login
+  // CLIENT-SIDE — so a raw APIRequestContext (no JS) observes the proxy's
+  // immediate redirect to /auth/refresh, not the eventual /login. The
+  // browser-based tests above assert the eventual /login.
+  test("proxy routes /dashboard through /auth/refresh, preserving the path in 'next'", async ({ playwright }) => {
     // playwright.request.newContext() creates a fully isolated APIRequestContext
     // with an empty cookie jar — no __session cookie, no browser state.
-    // Following the redirect lets us inspect the final URL the middleware sends
-    // the user to, without depending on maxRedirects:0 edge-case behavior.
     const ctx = await playwright.request.newContext({ baseURL: "http://localhost:3001" });
     try {
       const resp = await ctx.fetch("/dashboard");
       const url = new URL(resp.url());
-      expect(url.pathname).toBe("/login");
-      expect(url.searchParams.get("redirect")).toBe("/dashboard");
+      expect(url.pathname).toBe("/auth/refresh");
+      expect(url.searchParams.get("next")).toBe("/dashboard");
     } finally {
       await ctx.dispose();
     }
   });
 
-  test("redirect URL includes 'redirect_reason=session_expired' query param", async ({ playwright }) => {
+  test("proxy preserves a different protected path (/proposals) in 'next'", async ({ playwright }) => {
     const ctx = await playwright.request.newContext({ baseURL: "http://localhost:3001" });
     try {
       const resp = await ctx.fetch("/proposals");
       const url = new URL(resp.url());
-      expect(url.pathname).toBe("/login");
-      expect(url.searchParams.get("redirect_reason")).toBe("session_expired");
+      expect(url.pathname).toBe("/auth/refresh");
+      expect(url.searchParams.get("next")).toBe("/proposals");
     } finally {
       await ctx.dispose();
     }
