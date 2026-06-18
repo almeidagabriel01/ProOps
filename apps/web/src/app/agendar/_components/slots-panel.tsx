@@ -138,7 +138,7 @@ export function SlotsPanel({
                   {free && (
                     <span
                       aria-hidden
-                      className="absolute inset-0 -translate-x-full bg-black transition-transform duration-300 ease-out group-hover:translate-x-0 dark:bg-white"
+                      className="absolute inset-0 -translate-x-[102%] bg-black transition-transform duration-300 ease-out group-hover:translate-x-0 dark:bg-white"
                     />
                   )}
                   <span
