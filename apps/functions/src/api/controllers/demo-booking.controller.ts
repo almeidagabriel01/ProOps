@@ -56,6 +56,19 @@ function durationLabel(min: number): string {
   return `${min} minutos`;
 }
 
+function nowSaoPauloParts(): { dateStr: string; minutes: number } {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  const dateStr = `${get("year")}-${get("month")}-${get("day")}`;
+  const hour = Number(get("hour")) % 24;
+  return { dateStr, minutes: hour * 60 + Number(get("minute")) };
+}
+
 // Fim de semana é bloqueado (janela Seg–Sex).
 function isWeekendDate(dateStr: string): boolean {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -125,6 +138,15 @@ export async function submitDemoBooking(
   }
   if (isWeekendDate(data.date)) {
     res.status(400).json({ message: "Reuniões apenas em dias úteis." });
+    return;
+  }
+
+  const nowBrt = nowSaoPauloParts();
+  if (
+    data.date < nowBrt.dateStr ||
+    (data.date === nowBrt.dateStr && data.startMinutes <= nowBrt.minutes)
+  ) {
+    res.status(400).json({ message: "Horário no passado." });
     return;
   }
 

@@ -81,6 +81,16 @@ const validBody = {
 };
 
 describe("submitDemoBooking", () => {
+  beforeAll(() => {
+    jest.useFakeTimers();
+    // Freeze clock at 2026-06-17 12:00 BRT (= UTC-3) so "2026-06-19" is always future.
+    jest.setSystemTime(new Date("2026-06-17T15:00:00.000Z"));
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     bookings.length = 0;
     mockSendEmail.mockClear();
@@ -118,6 +128,15 @@ describe("submitDemoBooking", () => {
     const res = mockRes();
     await submitDemoBooking(
       { body: { ...validBody, startMinutes: 545 } } as never,
+      res as never,
+    );
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("rejeita agendamento no passado com 400", async () => {
+    const res = mockRes();
+    await submitDemoBooking(
+      { body: { ...validBody, date: "2026-06-16" } } as never,
       res as never,
     );
     expect(res.statusCode).toBe(400);

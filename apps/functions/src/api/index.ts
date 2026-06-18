@@ -230,6 +230,12 @@ const contactFormLimiter = createRateLimiter({
   windowMs: 60_000,
 });
 
+const demoBookingLimiter = createRateLimiter({
+  keyPrefix: "public-demo-booking",
+  maxRequests: 30,
+  windowMs: 60_000,
+});
+
 const passwordResetLimiter = createRateLimiter({
   keyPrefix: "public-password-reset",
   maxRequests: 5,
@@ -447,7 +453,7 @@ app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
 app.use("/v1/public", contactFormLimiter, contactRoutes);
-app.use("/v1/public", contactFormLimiter, demoBookingRoutes);
+app.use("/v1/public", demoBookingLimiter, demoBookingRoutes);
 
 // Public auth routes (forgot password) — strict rate limit
 app.use("/v1/auth", passwordResetLimiter, publicAuthRoutes);
