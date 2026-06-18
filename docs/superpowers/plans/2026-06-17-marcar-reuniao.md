@@ -17,7 +17,7 @@
 - Booking ocupa `[startMinutes, endMinutes)`. Overlap: `aStart < bEnd && bStart < aEnd`.
 - Email interno SEMPRE para `gestao@proops.com.br`. Confirmação para o email do visitante.
 - Honeypot: campo `website` deve ser vazio (paridade com `contact.controller.ts`). Se preenchido → responder 200 sem efeito.
-- Commits: autor único `Mauricio Krziminski <mauricio@proops.com.br>` (use `--author`). Sem `Co-Authored-By`. Nunca `git push`. Branch `develop`.
+- Commits: autor = git user atual do repo (NÃO usar `--author`, NÃO hardcodar nome/email). Sem `Co-Authored-By`. Nunca `git push`. Branch `develop`.
 - Coleção `demo_bookings` NÃO tem `tenantId` (exceção justificada: calendário público global). Regras Firestore: deny-all no cliente.
 
 ---
@@ -48,7 +48,7 @@ Expected: PASS (sem erros).
 
 ```bash
 git add apps/web/src/components/landing/landing-hero-assemble.tsx
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "feat(landing): CTA da hero leva para /agendar (marcar reunião)"
+git commit -m "feat(landing): CTA da hero leva para /agendar (marcar reunião)"
 ```
 
 ---
@@ -284,7 +284,7 @@ Expected: PASS (todos os testes verdes).
 
 ```bash
 git add apps/web/src/lib/booking/slots.ts apps/web/src/lib/booking/__tests__/slots.test.ts
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "feat(booking): lógica pura de slots e bloqueio de conflito + testes"
+git commit -m "feat(booking): lógica pura de slots e bloqueio de conflito + testes"
 ```
 
 ---
@@ -371,7 +371,7 @@ Expected: PASS.
 
 ```bash
 git add apps/web/src/lib/validations/demo-booking.ts apps/web/src/services/demo-booking-service.ts
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "feat(booking): schema do form e service de agendamento (frontend)"
+git commit -m "feat(booking): schema do form e service de agendamento (frontend)"
 ```
 
 ---
@@ -508,7 +508,7 @@ Expected: PASS.
 
 ```bash
 git add apps/functions/src/lib/booking-slots.ts apps/functions/src/lib/__tests__/booking-slots.test.ts
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "feat(booking): validação pura de slot/conflito no backend + testes"
+git commit -m "feat(booking): validação pura de slot/conflito no backend + testes"
 ```
 
 ---
@@ -629,7 +629,7 @@ Expected: PASS.
 
 ```bash
 git add apps/functions/src/services/email/templates/demo-booking.ts
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "feat(booking): templates de email interno e de confirmação"
+git commit -m "feat(booking): templates de email interno e de confirmação"
 ```
 
 ---
@@ -1054,7 +1054,7 @@ Expected: PASS.
 
 ```bash
 git add apps/functions/src/api/controllers/demo-booking.controller.ts apps/functions/src/api/routes/demo-booking.routes.ts apps/functions/src/api/index.ts apps/functions/src/api/controllers/__tests__/demo-booking.controller.test.ts
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "feat(booking): rotas públicas de disponibilidade e agendamento com transação race-safe"
+git commit -m "feat(booking): rotas públicas de disponibilidade e agendamento com transação race-safe"
 ```
 
 ---
@@ -1095,7 +1095,7 @@ Expected: PASS (a nova regra não quebra as existentes; DENY-by-default já cobr
 
 ```bash
 git add firebase/firestore.rules
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "feat(booking): regra Firestore deny-all para demo_bookings"
+git commit -m "feat(booking): regra Firestore deny-all para demo_bookings"
 ```
 
 ---
@@ -1547,7 +1547,7 @@ Expected: PASS (sem erros).
 
 ```bash
 git add apps/web/src/app/agendar/page.tsx apps/web/src/app/agendar/_components/host-card.tsx apps/web/src/app/agendar/_components/booking-calendar.tsx apps/web/src/app/agendar/_components/agendar-client.tsx
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "feat(agendar): página /agendar com card do host e calendário animado"
+git commit -m "feat(agendar): página /agendar com card do host e calendário animado"
 ```
 
 ---
@@ -2043,7 +2043,7 @@ Expected: PASS.
 
 ```bash
 git add apps/web/src/app/agendar/_components/slots-panel.tsx apps/web/src/app/agendar/_components/booking-success.tsx apps/web/src/app/agendar/_components/agendar-client.tsx
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "feat(agendar): painel de horários, mini-form, sucesso e tratamento de conflito (409)"
+git commit -m "feat(agendar): painel de horários, mini-form, sucesso e tratamento de conflito (409)"
 ```
 
 ---
@@ -2079,7 +2079,7 @@ Expected: tudo PASS.
 
 ```bash
 git add -A
-git commit --author="Mauricio Krziminski <mauricio@proops.com.br>" -m "fix(agendar): ajustes da verificação manual"
+git commit -m "fix(agendar): ajustes da verificação manual"
 ```
 
 ---
