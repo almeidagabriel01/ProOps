@@ -64,8 +64,8 @@ export function SlotsPanel({
   }
 
   function handleSubmit(e: React.FormEvent) {
-    if (isSubmitting) return;
     e.preventDefault();
+    if (isSubmitting) return;
     if (selectedStart === null) return;
     if (!validateForm(form)) return;
     onConfirm(selectedStart, form);
