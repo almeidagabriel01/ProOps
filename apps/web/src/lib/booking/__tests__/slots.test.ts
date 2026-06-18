@@ -82,11 +82,14 @@ describe("helpers de data", () => {
     expect(isPastDate("2026-06-18", "2026-06-19")).toBe(true);
     expect(isPastDate("2026-06-19", "2026-06-19")).toBe(false);
     expect(isPastDate("2026-06-20", "2026-06-19")).toBe(false);
+    expect(isPastDate("2026-06-30", "2026-07-01")).toBe(true);
+    expect(isPastDate("2026-07-01", "2026-06-30")).toBe(false);
   });
   it("isSlotInPast só no mesmo dia e horário já passado", () => {
     const now = { dateStr: "2026-06-19", minutes: 600 };
     expect(isSlotInPast("2026-06-19", 540, now)).toBe(true);
     expect(isSlotInPast("2026-06-19", 660, now)).toBe(false);
     expect(isSlotInPast("2026-06-20", 540, now)).toBe(false);
+    expect(isSlotInPast("2026-06-19", 600, now)).toBe(true);
   });
 });
