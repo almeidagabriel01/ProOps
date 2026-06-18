@@ -6,7 +6,7 @@ Two distinct layers prevent redundant work:
 
 | Layer | Workflow | Trigger | Wall-clock | Purpose |
 |---|---|---|---|---|
-| **Fast gate** | `push-checks.yml` | Every push except `main` | ~5 min | Structural health (types, lint, audit, rules) |
+| **Fast gate** | `push-checks.yml` | Every push except `main` | ~5 min | Structural health (types, lint, unit tests, audit, rules) |
 | **Full gate** | `test-suite.yml` | PRs to `main`/`develop` + Merge Queue | ~15 min | Behavioral correctness (E2E, performance, ZAP) |
 
 E2E, performance, and ZAP run **only in test-suite** — never on every push.
@@ -30,6 +30,7 @@ Jobs shared between `push-checks` and `test-suite` live in dedicated reusable wo
 |---|---|
 | `_reusable-type-check.yml` | push-checks, test-suite |
 | `_reusable-lint.yml` | push-checks, test-suite |
+| `_reusable-unit-tests.yml` | push-checks, test-suite |
 | `_reusable-firestore-rules.yml` | push-checks, test-suite |
 
 ## Push Checks Pipeline (`push-checks.yml`)
@@ -37,6 +38,7 @@ Jobs shared between `push-checks` and `test-suite` live in dedicated reusable wo
 Runs in parallel on every push to non-main branches:
 - `type-check` — TypeScript on frontend and functions (reusable)
 - `lint` — ESLint on frontend and functions (reusable)
+- `unit-tests` — Vitest frontend unit tests `npm run test:web` (reusable)
 - `security-audit` — `npm audit --audit-level=critical` on both
 - `firestore-rules` — Jest security rules with Firestore emulator (reusable)
 - `push-gate` — final job that fails if any job above failed
@@ -46,6 +48,7 @@ Runs in parallel on every push to non-main branches:
 Runs on PRs and Merge Queue events:
 - `type-check` — TypeScript on the merge commit (reusable)
 - `lint` — ESLint on the merge commit (reusable)
+- `unit-tests` — Vitest frontend unit tests `npm run test:web` (reusable)
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
 - `performance` — Core Web Vitals + API baseline (runs after all E2E shards pass)

@@ -1,0 +1,31 @@
+name: Reusable — Unit Tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            apps/functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Vitest unit tests for the frontend (pure helpers, hooks, decision logic).
+      # Co-located in apps/web/src/**/__tests__ per the Bug Fix Policy in CLAUDE.md.
+      - name: Run frontend unit tests (vitest)
+        run: npm run test:web

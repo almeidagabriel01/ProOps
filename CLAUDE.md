@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commit & PR Rules
 
 - **Never** include `Co-Authored-By` or any attribution to Claude/Anthropic in commit messages.
-- The only author on every commit is Mauricio Krziminski. No exceptions.
+- Every commit is authored by the repository's **current git user** (the developer's own configured `user.name` / `user.email`). Do **not** override the author with `--author` or any hardcoded name/email. No co-author lines.
 - **Commit after each task completes** — one logical commit per completed task.
 - **Never run `git push`** — the user pushes manually.
 - **Never merge to `main`** — only the user does that.

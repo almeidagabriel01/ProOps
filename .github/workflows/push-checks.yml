@@ -27,6 +27,9 @@ jobs:
   lint:
     uses: ./.github/workflows/_reusable-lint.yml
 
+  unit-tests:
+    uses: ./.github/workflows/_reusable-unit-tests.yml
+
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -66,6 +69,7 @@ jobs:
     needs:
       - type-check
       - lint
+      - unit-tests
       - security-audit
       - firestore-rules
     steps:
@@ -74,6 +78,7 @@ jobs:
           results=(
             "type-check=${{ needs.type-check.result }}"
             "lint=${{ needs.lint.result }}"
+            "unit-tests=${{ needs.unit-tests.result }}"
             "security-audit=${{ needs.security-audit.result }}"
             "firestore-rules=${{ needs.firestore-rules.result }}"
           )

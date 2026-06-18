@@ -29,6 +29,9 @@ jobs:
   lint:
     uses: ./.github/workflows/_reusable-lint.yml
 
+  unit-tests:
+    uses: ./.github/workflows/_reusable-unit-tests.yml
+
   firestore-rules:
     uses: ./.github/workflows/_reusable-firestore-rules.yml
 
@@ -352,13 +355,14 @@ jobs:
     name: all-checks-passed
     runs-on: ubuntu-latest
     if: always()
-    needs: [type-check, lint, e2e, e2e-financial, performance, firestore-rules, security]
+    needs: [type-check, lint, unit-tests, e2e, e2e-financial, performance, firestore-rules, security]
     steps:
       - name: Check all jobs passed
         run: |
           results=(
             "type-check=${{ needs.type-check.result }}"
             "lint=${{ needs.lint.result }}"
+            "unit-tests=${{ needs.unit-tests.result }}"
             "e2e=${{ needs.e2e.result }}"
             "e2e-financial=${{ needs.e2e-financial.result }}"
             "performance=${{ needs.performance.result }}"
