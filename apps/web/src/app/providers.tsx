@@ -18,7 +18,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     pathname === "/" ||
     pathname === "/automacao-residencial" ||
     pathname === "/decoracao" ||
-    pathname === "/contato";
+    pathname === "/contato" ||
+    pathname === "/agendar";
 
   const isAuthOnlyPage = isAuthOnlyRoute(pathname);
 
