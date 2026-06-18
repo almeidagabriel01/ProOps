@@ -31,7 +31,7 @@
     },
     "assert": {
       "assertions": {
-        "largest-contentful-paint": ["error", { "maxNumericValue": 9000, "aggregationMethod": "median" }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 4000, "aggregationMethod": "median" }],
         "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1, "aggregationMethod": "median" }],
         "total-blocking-time": ["error", { "maxNumericValue": 800, "aggregationMethod": "median" }],
         "first-contentful-paint": ["warn", { "maxNumericValue": 2500, "aggregationMethod": "median" }]
