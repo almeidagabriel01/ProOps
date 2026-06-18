@@ -1,25 +1,52 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import {
   useLandingPage,
   LandingNavbar,
   LandingHeroAssemble,
-  LandingFeatureScroll,
-  LandingHowItWorks,
-  LandingFeatures,
-  LandingIntegrations,
-  LandingNiches,
-  LandingSecurity,
-  LandingPricing,
-  LandingFAQ,
-  LandingCTA,
-  LandingFooter,
-  WhatsAppFloat,
 } from "@/components/landing";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import Lenis from "lenis";
+
+// Seções abaixo da dobra: code-split com next/dynamic (ssr: true por padrão),
+// mantendo HTML server-rendered e animações scroll-triggered intactas.
+// Import por caminho direto (não pelo barrel) para o webpack dividir de fato.
+const LandingFeatureScroll = dynamic(() =>
+  import("@/components/landing/landing-feature-scroll").then((m) => m.LandingFeatureScroll),
+);
+const LandingHowItWorks = dynamic(() =>
+  import("@/components/landing/landing-how-it-works").then((m) => m.LandingHowItWorks),
+);
+const LandingFeatures = dynamic(() =>
+  import("@/components/landing/landing-features").then((m) => m.LandingFeatures),
+);
+const LandingIntegrations = dynamic(() =>
+  import("@/components/landing/landing-integrations").then((m) => m.LandingIntegrations),
+);
+const LandingNiches = dynamic(() =>
+  import("@/components/landing/landing-niches").then((m) => m.LandingNiches),
+);
+const LandingSecurity = dynamic(() =>
+  import("@/components/landing/landing-security").then((m) => m.LandingSecurity),
+);
+const LandingPricing = dynamic(() =>
+  import("@/components/landing/landing-pricing").then((m) => m.LandingPricing),
+);
+const LandingFAQ = dynamic(() =>
+  import("@/components/landing/landing-faq").then((m) => m.LandingFAQ),
+);
+const LandingCTA = dynamic(() =>
+  import("@/components/landing/landing-cta").then((m) => m.LandingCTA),
+);
+const LandingFooter = dynamic(() =>
+  import("@/components/landing/landing-footer").then((m) => m.LandingFooter),
+);
+const WhatsAppFloat = dynamic(() =>
+  import("@/components/landing/whatsapp-float").then((m) => m.WhatsAppFloat),
+);
 
 export function LandingPageClient() {
   const {
