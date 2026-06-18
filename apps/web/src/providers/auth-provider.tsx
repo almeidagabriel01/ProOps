@@ -17,11 +17,13 @@ import { auth, db } from "@/lib/firebase";
 import { isMfaRequiredError } from "@/lib/mfa-helpers";
 import { doc, getDoc } from "firebase/firestore";
 import { retryUntil } from "@/lib/async/retry";
+import { withTimeout } from "@/lib/async/with-timeout";
 import { useRouter } from "next/navigation";
 import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
 import { AuthService } from "@/services/auth-service";
 import { interpretSessionResponse } from "@/lib/auth/interpret-session-response";
 import { shouldShortCircuitSync } from "@/lib/auth/should-short-circuit-sync";
+import { shouldForceTerminalAuthState } from "@/lib/auth/should-force-terminal-auth-state";
 
 import { User, SubscriptionStatus } from "@/types";
 
@@ -43,6 +45,13 @@ export interface WhatsappMfaPending {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  /**
+   * True once the auth-init watchdog forced `isLoading` to false because the
+   * Firebase identity never resolved within the hard ceiling (e.g. a hung
+   * network call on wake). Lets consumers render a deterministic "couldn't
+   * verify your session" terminal state instead of an eternal spinner.
+   */
+  authInitTimedOut: boolean;
   /** Whether the __session cookie is known to be in sync with the current token. */
   isSessionSynced: boolean;
   /**
@@ -142,6 +151,7 @@ interface AuthContextType {
 const AuthContext = React.createContext<AuthContextType>({
   user: null,
   isLoading: true,
+  authInitTimedOut: false,
   isSessionSynced: false,
   whatsappMfaPending: null,
   getIsLoggingOut: () => false,
@@ -160,6 +170,22 @@ const AuthContext = React.createContext<AuthContextType>({
 
 /** Delay helper */
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Dedup window: both onAuthStateChanged and onIdTokenChanged fire on startup; the
+// cooldown lets the second listener skip the redundant /api/auth/session POST.
+const SYNC_COOLDOWN_MS = 30_000;
+
+// Hard ceilings for the auth-init critical path. Every awaited network call is
+// bounded so a stall becomes a deterministic failure instead of an eternal
+// loader. SESSION_FETCH sits ABOVE the server's WHATSAPP_MFA_TIMEOUT_MS (8s in
+// app/api/auth/session/route.ts) so a slow-but-succeeding WhatsApp challenge is
+// never aborted client-side first.
+const SESSION_FETCH_TIMEOUT_MS = 10_000;
+const FIRESTORE_READ_TIMEOUT_MS = 6_000;
+const TOKEN_REFRESH_TIMEOUT_MS = 8_000;
+// Last-resort net: above every per-call ceiling above. If Firebase identity is
+// still unresolved at this point, force the loader off so the login form shows.
+const AUTH_INIT_WATCHDOG_MS = 12_000;
 
 function toIsoDate(value: unknown): string | undefined {
   if (!value) return undefined;
@@ -207,7 +233,14 @@ function normalizeOnboardingState(value: unknown): User["onboarding"] {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [authInitTimedOut, setAuthInitTimedOut] = React.useState(false);
   const [isSessionSynced, setIsSessionSynced] = React.useState(false);
+  // Synchronous mirror of `isLoading` so the init watchdog can read the live
+  // value at its deadline without depending on a render/closure.
+  const isLoadingRef = React.useRef(true);
+  React.useEffect(() => {
+    isLoadingRef.current = isLoading;
+  }, [isLoading]);
   const [whatsappMfaPending, setWhatsappMfaPending] =
     React.useState<WhatsappMfaPending | null>(null);
   // Synchronous mirror of `whatsappMfaPending` for the background-sync race:
@@ -226,9 +259,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Guards against concurrent and rapid sequential syncServerSession calls.
   // Both onAuthStateChanged and onIdTokenChanged fire on startup; the cooldown
   // prevents the second listener from making a redundant /api/auth/session call.
-  const syncInProgressRef = React.useRef(false);
+  // Holds the single in-flight syncServerSession promise. A concurrent caller
+  // (e.g. the /auth/refresh recovery) awaits this SAME promise and gets the real
+  // outcome, instead of a spurious `false` from a plain "busy" flag — while the
+  // single-POST guarantee (no duplicate WhatsApp challenge) is preserved.
+  const inFlightSyncRef = React.useRef<Promise<boolean> | null>(null);
   const lastSyncSuccessRef = React.useRef(0);
-  const SYNC_COOLDOWN_MS = 30_000;
 
   // True while an EXPLICIT sign-in is being driven by login()/resolveTotpLogin()
   // or completeSessionAfterSignIn() (Google popup/redirect). During this window
@@ -265,6 +301,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        // Bound the request so a hung connection can't trap the auth-init loader.
+        signal: AbortSignal.timeout(SESSION_FETCH_TIMEOUT_MS),
         body: JSON.stringify(
           otpCode
             ? { idToken, otpCode }
@@ -330,7 +368,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const syncServerSession = React.useCallback(
     async (firebaseUser: FirebaseUser): Promise<boolean> => {
-      if (syncInProgressRef.current) return false;
+      // Share the single in-flight sync. A concurrent caller (startup listener,
+      // /auth/refresh recovery) awaits the SAME promise and receives the REAL
+      // outcome instead of a spurious `false`. The single-POST guarantee — which
+      // prevents a duplicate WhatsApp challenge — is preserved because only one
+      // promise ever runs the POST.
+      if (inFlightSyncRef.current) return inFlightSyncRef.current;
       // Skip the redundant POST if a sync happened recently (both
       // onAuthStateChanged and onIdTokenChanged fire on startup). The cooldown
       // skip is what prevents the second startup listener from firing a SECOND
@@ -356,7 +399,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // remains until the user submits the code.
         return true;
       }
-      syncInProgressRef.current = true;
 
       const attempt = async (): Promise<boolean> => {
         try {
@@ -393,17 +435,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
-      try {
+      const run = (async (): Promise<boolean> => {
         // First attempt
         if (await attempt()) return true;
 
         // Retry once after a short delay with a fresh token
-        await wait(2000);
+        await wait(1000);
         try {
-          // Force-refresh the ID token before retrying
-          await firebaseUser.getIdToken(true);
+          // Force-refresh the ID token before retrying — bounded so a stalled
+          // refresh can't hang the whole sync (and, transitively, the loader).
+          await withTimeout(
+            firebaseUser.getIdToken(true),
+            TOKEN_REFRESH_TIMEOUT_MS,
+          );
         } catch {
-          // If token refresh fails, the user's auth state is truly broken
+          // If token refresh fails/times out, the user's auth state is broken.
           setIsSessionSynced(false);
           return false;
         }
@@ -416,8 +462,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsSessionSynced(false);
         }
         return success;
+      })();
+
+      inFlightSyncRef.current = run;
+      try {
+        return await run;
       } finally {
-        syncInProgressRef.current = false;
+        inFlightSyncRef.current = null;
       }
     },
     [createServerSession],
@@ -432,10 +483,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // user in (firing this listener) before handleRegister's setDoc lands.
       // Retry while the doc is missing so we read the freshly-written profile
       // instead of falling back to a degraded free-user shape.
-      const userDoc = await retryUntil(
-        () => getDoc(userDocRef),
-        (snap) => snap.exists(),
-        { attempts: 4, delayMs: 400 },
+      // Bounded so a stalled Firestore read can't keep the auth-init loader up
+      // forever. On timeout the catch below returns the degraded free-user shape
+      // (user is still non-null → the loader clears and redirect logic runs).
+      const userDoc = await withTimeout(
+        retryUntil(
+          () => getDoc(userDocRef),
+          (snap) => snap.exists(),
+          { attempts: 4, delayMs: 400 },
+        ),
+        FIRESTORE_READ_TIMEOUT_MS,
       );
 
       if (userDoc.exists()) {
@@ -552,6 +609,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // ── Auth-init watchdog ──
+  // Absolute ceiling on the loading state. If Firebase identity is still
+  // unresolved when the deadline elapses (a hung network call on wake, a stalled
+  // SDK init), force the loader off and flag the timeout so the UI shows a
+  // deterministic terminal state instead of an eternal spinner. Never fabricates
+  // a user and never touches isSessionSynced — a late sync can still succeed.
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (
+        shouldForceTerminalAuthState({
+          watchdogFired: true,
+          stillLoading: isLoadingRef.current,
+        })
+      ) {
+        setIsLoading(false);
+        setAuthInitTimedOut(true);
+      }
+    }, AUTH_INIT_WATCHDOG_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   React.useEffect(() => {
     // ── Primary auth state listener (login / logout transitions) ──
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -563,6 +641,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (firebaseUser.emailVerified || skipEmailVerification) {
             const userData = await fetchUserData(firebaseUser);
             setUser(userData);
+            // Identity is resolved — release the full-screen loader NOW, BEFORE
+            // the (slower, bounded) session sync. `isLoading` means "Firebase
+            // identity known"; `isSessionSynced` means "cookie ready". This split
+            // is what prevents a slow/stalled sync from trapping the loader. The
+            // redirect still waits for `isSessionSynced` (useLoginForm) and the
+            // OTP screen still waits for the WhatsApp gate, so clearing the loader
+            // early can neither expose the app nor break 2FA.
+            setIsLoading(false);
             // Skip the background sync while an explicit sign-in owns the single
             // session POST — otherwise two concurrent POSTs race the WhatsApp gate.
             if (!explicitSignInInProgressRef.current) {
@@ -570,9 +656,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           } else {
             setUser(null);
+            setIsLoading(false);
           }
         } else {
           setUser(null);
+          setIsLoading(false);
           try {
             await clearServerSession();
           } catch (error) {
@@ -582,6 +670,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("Unexpected error in onAuthStateChanged handler:", error);
       } finally {
+        // Idempotent belt-and-suspenders: if an early return path above was
+        // missed, the loader is still released here.
         setIsLoading(false);
       }
     });
@@ -1078,6 +1168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         isLoading,
+        authInitTimedOut,
         isSessionSynced,
         whatsappMfaPending,
         getIsLoggingOut,

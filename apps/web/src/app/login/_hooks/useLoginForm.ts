@@ -99,7 +99,6 @@ interface UseLoginFormReturn {
   isSendingSms: boolean;
   isVerifyingSmsCode: boolean;
   isGoogleLoading: boolean;
-  sessionRecoveryFailed: boolean;
   isSessionSynced: boolean;
   redirectReason: string | null;
   requiresMfaCode: boolean;
@@ -201,7 +200,6 @@ export function useLoginForm(): UseLoginFormReturn {
   const [isSendingSms, setIsSendingSms] = React.useState(false);
   const [isVerifyingSmsCode, setIsVerifyingSmsCode] = React.useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
-  const [sessionRecoveryFailed, setSessionRecoveryFailed] = React.useState(false);
   const [requiresMfaCode, setRequiresMfaCode] = React.useState(false);
   const [mfaLoginCode, setMfaLoginCode] = React.useState("");
   const [isVerifyingMfaCode, setIsVerifyingMfaCode] = React.useState(false);
@@ -344,7 +342,7 @@ export function useLoginForm(): UseLoginFormReturn {
       setIsResetting(false);
     }
   };
-  const { login, resolveTotpLogin, resolveWhatsappLogin, resolveWhatsappRecovery, signInWithRecoveryToken, resendWhatsappOtp, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, forceSyncSession, refreshUser } =
+  const { login, resolveTotpLogin, resolveWhatsappLogin, resolveWhatsappRecovery, signInWithRecoveryToken, resendWhatsappOtp, completeSessionAfterSignIn, prepareMfaChallenge, user, isLoading, isSessionSynced, whatsappMfaPending, refreshUser } =
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -511,28 +509,11 @@ export function useLoginForm(): UseLoginFormReturn {
     requiresWhatsappOtp,
   ]);
 
-  React.useEffect(() => {
-    if (isLoading) return;
-    if (!user) return;
-    if (redirectReason !== "session_expired") return;
-    if (isSessionSynced) return;
-    if (sessionRecoveryFailed) return;
-
-    const timeoutId = window.setTimeout(async () => {
-      const ok = await forceSyncSession();
-      if (!ok) setSessionRecoveryFailed(true);
-    }, 4000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [
-    isLoading,
-    user,
-    redirectReason,
-    isSessionSynced,
-    sessionRecoveryFailed,
-    forceSyncSession,
-  ]);
-
+  // NOTE: in-place session recovery for `redirect_reason=session_expired` used to
+  // live here as a fixed 4000ms setTimeout → forceSyncSession. It was racy (could
+  // report failure mid-sync) and could hang. Recovery now happens deterministically
+  // in the /auth/refresh interstitial (the proxy routes expired sessions there).
+  // Only the "session expired" toast for the terminal re-auth case remains below.
   React.useEffect(() => {
     if (isLoading) return;
     if (user) return;
@@ -1438,7 +1419,6 @@ export function useLoginForm(): UseLoginFormReturn {
     isSendingSms,
     isVerifyingSmsCode,
     isGoogleLoading,
-    sessionRecoveryFailed,
     isSessionSynced,
     redirectReason,
     requiresMfaCode,

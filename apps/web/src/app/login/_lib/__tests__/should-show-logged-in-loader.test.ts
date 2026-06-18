@@ -7,7 +7,6 @@ import {
 const base: LoggedInLoaderState = {
   isLoggingIn: false,
   isRegistering: false,
-  sessionRecoveryFailed: false,
   requiresMfaCode: false,
   requiresWhatsappOtp: false,
   isSessionSynced: true,
@@ -53,13 +52,10 @@ describe("shouldShowLoggedInLoader", () => {
     );
   });
 
-  it("does NOT show the loader mid sign-in / registration / recovery failure", () => {
+  it("does NOT show the loader mid sign-in / registration", () => {
     expect(shouldShowLoggedInLoader({ ...base, isLoggingIn: true })).toBe(false);
     expect(shouldShowLoggedInLoader({ ...base, isRegistering: true })).toBe(
       false,
     );
-    expect(
-      shouldShowLoggedInLoader({ ...base, sessionRecoveryFailed: true }),
-    ).toBe(false);
   });
 });

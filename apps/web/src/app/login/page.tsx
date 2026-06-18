@@ -98,7 +98,6 @@ function LoginContent() {
     handleConfirmPhoneCode,
     handleResendPhoneCode,
     isGoogleLoading,
-    sessionRecoveryFailed,
     isSessionSynced,
     requiresMfaCode,
     mfaLoginCode,
@@ -351,7 +350,6 @@ function LoginContent() {
     shouldShowLoggedInLoader({
       isLoggingIn,
       isRegistering,
-      sessionRecoveryFailed,
       requiresMfaCode,
       requiresWhatsappOtp,
       isSessionSynced,

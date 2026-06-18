@@ -394,6 +394,11 @@ export async function POST(req: NextRequest) {
     }
     // --- end WhatsApp-MFA gate ---
 
+    // Sliding refresh is ALREADY handled: createSessionCookie always stamps
+    // `expiresIn` from NOW, and the client's onIdTokenChanged listener re-POSTs
+    // here ~hourly while a tab is open, re-minting with a fresh window. Do NOT
+    // add a redundant proactive timer. The only gap — a tab fully closed past the
+    // cookie lifetime — is covered by the proxy → /auth/refresh silent re-mint.
     const maxAgeSeconds = resolveSessionMaxAgeSeconds();
     const expiresInMs = maxAgeSeconds * 1000;
     const sessionCookie = await adminAuth.createSessionCookie(idToken, {

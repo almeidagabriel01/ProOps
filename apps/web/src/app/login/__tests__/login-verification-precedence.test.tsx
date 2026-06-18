@@ -93,7 +93,6 @@ function baseState(overrides: Record<string, unknown> = {}) {
     handleConfirmPhoneCode: vi.fn(),
     handleResendPhoneCode: vi.fn(),
     isGoogleLoading: false,
-    sessionRecoveryFailed: false,
     requiresMfaCode: false,
     mfaLoginCode: "",
     setMfaLoginCode: vi.fn(),
@@ -133,7 +132,13 @@ describe("LoginPage — email-verification precedence", () => {
 
   it("does NOT show the pending screen for a logged-in free user when verification is not pending", () => {
     mockUseLoginForm.mockReturnValue(
-      baseState({ isEmailVerificationPending: false, user: { role: "free" } }),
+      baseState({
+        isEmailVerificationPending: false,
+        user: { role: "free" },
+        // A free user reaching the logged-in redirect gate has a synced session;
+        // the loader block returns null for them while the redirect runs.
+        isSessionSynced: true,
+      }),
     );
 
     const { container } = render(<LoginPage />);
