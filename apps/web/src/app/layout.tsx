@@ -165,14 +165,19 @@ export default function RootLayout({
       >
         {/*
           Browser back/forward recovery. A back/forward navigation restores a
-          cached render where Framer Motion entrance animations never re-fire,
-          leaving content stuck at its `initial` hidden state — a blank white
-          page that only a manual reload fixes. This document-level listener
-          (attached at parse time, never removed, so it survives the restore —
-          a React effect listener does NOT, the tree isn't re-mounted on
-          restore) reloads on any back/forward restore. Mirror of
-          shouldReloadOnPageShow() in lib/auth/decide-bfcache-recovery.ts
-          (unit-tested). No loop: after reload the nav type is "reload".
+          cached render WITHOUT re-executing JS (React never re-mounts), so the
+          Framer Motion entrance animations never re-fire and the content stays
+          at its server-rendered `initial` hidden state (opacity:0) — a blank
+          white page that only a manual reload fixed. Since JS can't run to
+          "replay" the animation on the restore, a reload is the only recovery.
+
+          This must be a document-level listener attached at parse time and
+          never removed, so it survives the restore (a React-effect listener
+          does not — the tree isn't re-mounted). It reloads when the page was
+          restored from bfcache (`event.persisted`) or the navigation is a
+          history traversal (`PerformanceNavigationTiming.type === "back_forward"`).
+          End-to-end regression coverage: tests/e2e/navigation/back-forward-recovery.spec.ts.
+          No loop: after the reload the navigation type is "reload".
         */}
         <script
           id="bfcache-recovery"
