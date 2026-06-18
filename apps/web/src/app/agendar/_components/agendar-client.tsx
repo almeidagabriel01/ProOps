@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { LandingNavbar, LandingFooter, useLandingPage } from "@/components/landing";
 import { useReducedMotion } from "@/components/landing/_shared/use-reduced-motion";
 import {
@@ -10,12 +11,18 @@ import {
 import {
   generateSlotStarts,
   isSlotAvailable,
+  minutesToLabel,
   nowSaoPaulo,
   type BookedInterval,
   type DurationMinutes,
 } from "@/lib/booking/slots";
+import { ApiError } from "@/lib/api-client";
+import { toast } from "@/lib/toast";
+import type { DemoBookingFormData } from "@/lib/validations/demo-booking";
 import { HostCard } from "./host-card";
 import { BookingCalendar } from "./booking-calendar";
+import { SlotsPanel } from "./slots-panel";
+import { BookingSuccess } from "./booking-success";
 
 function monthKey(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
@@ -27,7 +34,6 @@ export function AgendarClient() {
 
   const initial = useMemo(() => nowSaoPaulo(), []);
   const [todayStr] = useState(initial.dateStr);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [now] = useState(initial);
 
   const [year, setYear] = useState(() => Number(initial.dateStr.slice(0, 4)));
@@ -35,6 +41,8 @@ export function AgendarClient() {
   const [duration, setDuration] = useState<DurationMinutes>(30);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [bookings, setBookings] = useState<AvailabilityBooking[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState<{ dateLabel: string; timeLabel: string } | null>(null);
 
   // Carrega disponibilidade do mês visível.
   useEffect(() => {
@@ -87,6 +95,68 @@ export function AgendarClient() {
     } else setMonth((m) => m + 1);
   }
 
+  function refetchMonth() {
+    DemoBookingService.getAvailability(monthKey(year, month))
+      .then((r) => setBookings(r.bookings))
+      .catch(() => {});
+  }
+
+  function shortDateHeading(dateStr: string): string {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const dow = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][
+      new Date(y, m - 1, d).getDay()
+    ];
+    return `${dow}. ${d}`;
+  }
+
+  function longDateLabel(dateStr: string): string {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const months = [
+      "jan", "fev", "mar", "abr", "mai", "jun",
+      "jul", "ago", "set", "out", "nov", "dez",
+    ];
+    return `${d} de ${months[m - 1]} de ${y}`;
+  }
+
+  async function handleConfirm(startMinutes: number, form: DemoBookingFormData) {
+    if (!selectedDate) return;
+    setIsSubmitting(true);
+    try {
+      await DemoBookingService.book({
+        name: form.name,
+        email: form.email,
+        phone: form.phone || undefined,
+        company: form.company || undefined,
+        message: form.message || undefined,
+        date: selectedDate,
+        startMinutes,
+        durationMinutes: duration,
+        website: form.website ?? "",
+      });
+      setSuccess({
+        dateLabel: longDateLabel(selectedDate),
+        timeLabel: `${minutesToLabel(startMinutes)}–${minutesToLabel(startMinutes + duration)}`,
+      });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        toast.error("Este horário acabou de ser reservado. Escolha outro.");
+        refetchMonth();
+      } else if (err instanceof ApiError) {
+        toast.error(err.message);
+      } else {
+        toast.error("Erro ao agendar. Tente novamente.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function handleReset() {
+    setSuccess(null);
+    setSelectedDate(null);
+    refetchMonth();
+  }
+
   return (
     <div className="min-h-screen overflow-x-clip bg-white text-black selection:bg-black selection:text-white dark:bg-neutral-950 dark:text-neutral-100 dark:selection:bg-white dark:selection:text-black">
       <LandingNavbar
@@ -114,14 +184,49 @@ export function AgendarClient() {
               />
             </div>
 
-            {/* Painel de slots + form entra na Task 9 */}
-            <div aria-hidden className="hidden lg:block" />
+            <div className="lg:pl-2">
+              <AnimatePresence mode="wait">
+                {selectedDate ? (
+                  <motion.div
+                    key={selectedDate}
+                    initial={{ opacity: 0, x: 32 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 32 }}
+                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <SlotsPanel
+                      dateStr={selectedDate}
+                      dateHeading={shortDateHeading(selectedDate)}
+                      duration={duration}
+                      dayBookings={bookingsByDate.get(selectedDate) ?? []}
+                      now={now}
+                      isSubmitting={isSubmitting}
+                      onConfirm={handleConfirm}
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.p
+                    key="empty"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="hidden text-sm text-black/40 dark:text-white/40 lg:block lg:pt-2"
+                  >
+                    Escolha um dia para ver os horários.
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </section>
       </main>
       <LandingFooter />
+      <BookingSuccess
+        open={success !== null}
+        dateLabel={success?.dateLabel ?? ""}
+        timeLabel={success?.timeLabel ?? ""}
+        onReset={handleReset}
+      />
     </div>
   );
 }
-
-export { nowSaoPaulo };
