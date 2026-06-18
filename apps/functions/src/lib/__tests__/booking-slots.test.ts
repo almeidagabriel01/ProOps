@@ -34,6 +34,15 @@ describe("isValidSlotStart", () => {
   });
 });
 
+describe("intervalsOverlap", () => {
+  it("intervalos adjacentes não sobrepõem", () => {
+    expect(intervalsOverlap(600, 660, 660, 720)).toBe(false);
+  });
+  it("intervalos que se cruzam sobrepõem", () => {
+    expect(intervalsOverlap(600, 660, 630, 690)).toBe(true);
+  });
+});
+
 describe("hasConflict", () => {
   const existing = [{ startMinutes: 600, endMinutes: 660 }]; // 10:00-11:00
   it("detecta sobreposição", () => {
@@ -43,5 +52,8 @@ describe("hasConflict", () => {
   it("sem sobreposição quando adjacente", () => {
     expect(hasConflict(540, 60, existing)).toBe(false); // 09:00-10:00
     expect(hasConflict(660, 60, existing)).toBe(false); // 11:00-12:00
+  });
+  it("sem bookings → sem conflito", () => {
+    expect(hasConflict(600, 60, [])).toBe(false);
   });
 });
