@@ -30,14 +30,15 @@ export function HostCard({ duration, onDurationChange }: HostCardProps) {
     <div className="flex flex-col gap-7">
       {/* identidade do host */}
       <motion.div {...item(0)} className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-black/10 bg-white shadow-[0_6px_20px_-8px_rgba(0,0,0,0.3)] dark:border-white/15 dark:bg-neutral-900">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-black/10 bg-white shadow-[0_6px_20px_-8px_rgba(0,0,0,0.3)] dark:border-white/15 dark:bg-neutral-900">
           <ProOpsLogo
             variant="symbol"
-            width={28}
-            height={28}
+            width={32}
+            height={32}
+            priority
             invertOnDark
             interactive={false}
-            className="h-7 w-7"
+            className="!h-8 !w-8 object-contain"
           />
         </div>
         <div>

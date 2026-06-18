@@ -80,7 +80,7 @@ export function SlotsPanel({
   ];
 
   return (
-    <div className="lg:min-h-[460px]">
+    <div className="lg:min-h-[400px]">
       <div className="mb-5 flex items-baseline gap-2">
         <h3 className="text-base font-bold tracking-tight [font-family:var(--font-pdf-montserrat)]">
           {dateHeading}
@@ -98,7 +98,7 @@ export function SlotsPanel({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -28 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="flex max-h-[480px] flex-col gap-2.5 overflow-y-auto pr-1.5"
+            className="grid max-h-[400px] grid-cols-2 content-start gap-2.5 overflow-y-auto pr-1.5 [mask-image:linear-gradient(to_bottom,transparent,black_4%,black_95%,transparent)] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar]:w-1.5"
           >
             {starts.map((s, i) => {
               const free =
@@ -110,17 +110,17 @@ export function SlotsPanel({
                   type="button"
                   disabled={!free}
                   onClick={() => setSelectedStart(s)}
-                  initial={{ opacity: 0, y: 14 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
-                    delay: 0.03 * i,
+                    delay: Math.min(0.02 * i, 0.4),
                     type: "spring",
-                    stiffness: 320,
+                    stiffness: 340,
                     damping: 26,
                   }}
-                  whileTap={free ? { scale: 0.98 } : undefined}
+                  whileTap={free ? { scale: 0.96 } : undefined}
                   className={[
-                    "group relative w-full overflow-hidden rounded-2xl border py-3.5 text-center text-sm font-bold tracking-tight transition-colors",
+                    "group relative h-[42px] shrink-0 overflow-hidden rounded-xl border text-center text-[13px] font-bold tracking-tight transition-colors",
                     free
                       ? "border-black/12 dark:border-white/15"
                       : "cursor-not-allowed border-black/5 text-black/25 line-through dark:border-white/5 dark:text-white/25",
@@ -133,11 +133,12 @@ export function SlotsPanel({
                     />
                   )}
                   <span
-                    className={
+                    className={[
+                      "relative z-10 flex h-full items-center justify-center",
                       free
-                        ? "relative z-10 transition-colors duration-200 group-hover:text-white dark:group-hover:text-black"
-                        : "relative z-10"
-                    }
+                        ? "transition-colors duration-200 group-hover:text-white dark:group-hover:text-black"
+                        : "",
+                    ].join(" ")}
                   >
                     {minutesToLabel(s)}
                   </span>

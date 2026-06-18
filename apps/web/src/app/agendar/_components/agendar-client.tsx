@@ -33,7 +33,7 @@ function monthKey(year: number, month: number): string {
 /** Linhas do título que escorregam de baixo p/ cima no load. */
 function RisingTitle({ lines, reduce }: { lines: string[]; reduce: boolean }) {
   return (
-    <h1 className="text-5xl font-bold leading-[0.95] tracking-tight [font-family:var(--font-pdf-montserrat)] md:text-7xl">
+    <h1 className="text-4xl font-bold leading-[0.95] tracking-tight [font-family:var(--font-pdf-montserrat)] md:text-6xl">
       {lines.map((line, i) => (
         <span key={line} className="block overflow-hidden pb-[0.06em]">
           <motion.span
@@ -196,13 +196,13 @@ export function AgendarClient() {
       />
 
       <main className="mx-auto max-w-6xl px-6">
-        {/* banda hero */}
-        <section className="pt-36 pb-12 md:pt-44">
+        {/* banda hero — compacta p/ caber em uma tela */}
+        <section className="pt-28 pb-7 md:pt-32">
           <motion.div
             initial={reduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: EASE }}
-            className="mb-6 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50 dark:text-white/55"
+            className="mb-4 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50 dark:text-white/55"
           >
             <span className="h-px w-7 bg-black/30 dark:bg-white/40" />
             Agendamento
@@ -214,11 +214,10 @@ export function AgendarClient() {
             initial={reduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.75, ease: EASE, delay: 0.5 }}
-            className="mt-7 max-w-lg text-lg leading-relaxed text-black/60 dark:text-white/60"
+            className="mt-5 max-w-lg text-base leading-relaxed text-black/60 dark:text-white/60"
           >
-            Escolha um dia, um horário e pronto — a gente envia o link da
-            videochamada por email. Uma conversa direta sobre a ProOps no seu
-            contexto.
+            Escolha um dia e um horário — a gente envia o link da videochamada
+            por email. Uma conversa direta sobre a ProOps no seu contexto.
           </motion.p>
         </section>
 
@@ -228,9 +227,9 @@ export function AgendarClient() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.8, ease: EASE }}
-          className="mb-24 rounded-[2rem] border border-black/10 bg-white/70 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-900/50 md:p-10"
+          className="mb-16 rounded-[2rem] border border-black/10 bg-white/70 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-900/50 md:p-9"
         >
-          <div className="grid gap-10 lg:grid-cols-[260px_1fr_minmax(0,340px)] lg:gap-12">
+          <div className="grid gap-10 lg:grid-cols-[250px_1fr_minmax(0,320px)] lg:items-start lg:gap-12">
             <HostCard
               duration={duration}
               onDurationChange={(d) => {
@@ -280,7 +279,7 @@ export function AgendarClient() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="hidden h-full flex-col justify-center gap-3 lg:flex"
+                    className="hidden min-h-[400px] flex-col justify-center gap-3 lg:flex"
                   >
                     <div className="h-10 w-10 rounded-2xl border border-dashed border-black/20 dark:border-white/20" />
                     <p className="max-w-[12rem] text-sm leading-relaxed text-black/45 dark:text-white/45">
