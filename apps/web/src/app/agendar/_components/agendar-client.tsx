@@ -42,6 +42,7 @@ export function AgendarClient() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [bookings, setBookings] = useState<AvailabilityBooking[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [panelResetKey, setPanelResetKey] = useState(0);
   const [success, setSuccess] = useState<{ dateLabel: string; timeLabel: string } | null>(null);
 
   // Carrega disponibilidade do mês visível.
@@ -141,6 +142,7 @@ export function AgendarClient() {
       if (err instanceof ApiError && err.status === 409) {
         toast.error("Este horário acabou de ser reservado. Escolha outro.");
         refetchMonth();
+        setPanelResetKey((k) => k + 1);
       } else if (err instanceof ApiError) {
         toast.error(err.message);
       } else {
@@ -188,7 +190,7 @@ export function AgendarClient() {
               <AnimatePresence mode="wait">
                 {selectedDate ? (
                   <motion.div
-                    key={selectedDate}
+                    key={`${selectedDate}-${panelResetKey}`}
                     initial={{ opacity: 0, x: 32 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 32 }}
