@@ -35,7 +35,7 @@
 Em `apps/web/src/components/landing/landing-hero-assemble.tsx`, no objeto `HERO_COPY`, trocar:
 
 ```tsx
-  primaryCta: { label: "Começar grátis", href: "/register" },
+  primaryCta: { label: "Começar agora", href: "/register" },
   secondaryCta: { label: "Marcar uma reunião", href: "/agendar" },
 ```
 

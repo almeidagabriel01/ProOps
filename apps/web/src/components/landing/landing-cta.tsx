@@ -76,7 +76,7 @@ export function LandingCTA() {
             className="sm:w-auto"
             trailingIcon={<ArrowRight className="h-5 w-5" />}
           >
-            Começar grátis
+            Começar agora
           </LandingButton>
 
           <LandingButton
@@ -87,10 +87,6 @@ export function LandingCTA() {
             Entre em contato
           </LandingButton>
         </div>
-
-        <p className="cta-fade-item mt-8 text-sm text-black/55 dark:text-white/55">
-          Sem cartão de crédito · Implantação assistida · Sem lock-in
-        </p>
       </div>
     </section>
   );
