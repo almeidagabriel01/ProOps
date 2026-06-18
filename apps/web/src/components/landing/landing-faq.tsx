@@ -4,6 +4,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { CornerDownLeft, Search } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Accent, SectionHeading } from "./_shared/section-heading";
+import { LandingButton } from "./_shared/landing-button";
 import { FAQS } from "./_shared/faq-data";
 
 /**
@@ -92,9 +93,14 @@ export function LandingFAQ() {
           {/* lista de perguntas */}
           <div className="max-h-[28rem] overflow-y-auto p-2">
             {filtered.length === 0 ? (
-              <p className="px-4 py-10 text-center text-sm text-black/45 dark:text-white/45">
-                Nenhuma pergunta encontrada.
-              </p>
+              <div className="flex flex-col items-center gap-4 px-4 py-10 text-center">
+                <p className="text-sm text-black/45 dark:text-white/45">
+                  Nenhuma resposta para “{query}”. Fale direto com a gente.
+                </p>
+                <LandingButton href="/contato" variant="solid" size="sm">
+                  Entre em contato
+                </LandingButton>
+              </div>
             ) : (
               filtered.map((faq, idx) => {
                 const isActive = idx === active;
@@ -189,6 +195,16 @@ export function LandingFAQ() {
                 ↵
               </kbd>
               abrir
+            </span>
+            <span className="ml-auto">
+              <LandingButton
+                href="/contato"
+                variant="link"
+                tone="muted"
+                className="text-[0.72rem]"
+              >
+                Não achou? Fale com a gente
+              </LandingButton>
             </span>
           </div>
         </div>

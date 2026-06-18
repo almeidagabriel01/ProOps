@@ -7,7 +7,6 @@ import { useGSAP } from "@gsap/react";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { Accent } from "./_shared/section-heading";
 import { LandingButton } from "./_shared/landing-button";
-import { WHATSAPP_HREF } from "./_shared/whatsapp";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -80,24 +79,13 @@ export function LandingCTA() {
             Começar grátis
           </LandingButton>
 
-          {WHATSAPP_HREF ? (
-            <LandingButton
-              href={WHATSAPP_HREF}
-              external
-              variant="link"
-              icon={<MessageCircle className="h-5 w-5" />}
-            >
-              Falar no WhatsApp
-            </LandingButton>
-          ) : (
-            <LandingButton
-              href="mailto:gestao@proops.com.br"
-              external
-              variant="link"
-            >
-              Solicitar demonstração
-            </LandingButton>
-          )}
+          <LandingButton
+            href="/contato"
+            variant="link"
+            icon={<MessageCircle className="h-5 w-5" />}
+          >
+            Entre em contato
+          </LandingButton>
         </div>
 
         <p className="cta-fade-item mt-8 text-sm text-black/55 dark:text-white/55">
