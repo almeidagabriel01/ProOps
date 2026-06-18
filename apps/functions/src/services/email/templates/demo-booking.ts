@@ -7,6 +7,7 @@ export interface DemoBookingEmailData {
   dateLabel: string; // ex.: "sexta-feira, 19 de junho de 2026"
   timeLabel: string; // ex.: "10:00–11:00"
   durationLabel: string; // ex.: "1 hora"
+  meetingUrl: string; // link da videochamada (Jitsi)
 }
 
 function escapeHtml(str: string): string {
@@ -28,7 +29,15 @@ function row(label: string, value: string, first = false): string {
   </td></tr>`;
 }
 
-function shell(title: string, heading: string, rowsHtml: string, footer: string): string {
+function meetingButton(url: string): string {
+  // url é gerado pelo backend (não é input do usuário) — seguro no href.
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;"><tr><td align="center">
+    <a href="${url}" target="_blank" style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 32px;border-radius:9999px;">Entrar na videochamada</a>
+    <p style="margin:12px 0 0;font-size:12px;color:#71717a;word-break:break-all;">${url}</p>
+  </td></tr></table>`;
+}
+
+function shell(title: string, heading: string, rowsHtml: string, footer: string, ctaHtml = ""): string {
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${title}</title></head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
@@ -40,6 +49,7 @@ function shell(title: string, heading: string, rowsHtml: string, footer: string)
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;border-radius:8px;padding:24px;margin-bottom:24px;"><tr><td>
           <table width="100%" cellpadding="0" cellspacing="0" border="0">${rowsHtml}</table>
         </td></tr></table>
+        ${ctaHtml}
       </td></tr>
       <tr><td style="background:#f9f9f9;padding:24px 40px;border-top:1px solid #e4e4e7;">
         <p style="margin:0;font-size:12px;color:#a1a1aa;line-height:1.6;">${footer}</p>
@@ -67,6 +77,7 @@ export function renderDemoBookingInternalEmail(
     "Nova reunião agendada",
     rows,
     "Agendamento recebido pela página /agendar da ProOps.<br/>ProOps · gestao@proops.com.br",
+    meetingButton(data.meetingUrl),
   );
   return { subject, html };
 }
@@ -84,6 +95,7 @@ export function renderDemoBookingConfirmationEmail(
     `Tudo certo, ${escapeHtml(data.name.split(" ")[0])}!`,
     rows,
     "Sua reunião com a ProOps está confirmada. Se precisar remarcar, responda este email.<br/>ProOps · gestao@proops.com.br",
+    meetingButton(data.meetingUrl),
   );
   return { subject, html };
 }

@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { randomUUID } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { db } from "../../init";
@@ -152,6 +153,8 @@ export async function submitDemoBooking(
 
   const endMinutes = data.startMinutes + data.durationMinutes;
   const ref = db.collection(COLLECTION).doc();
+  // Sala de vídeo dedicada (Jitsi Meet — sem login, funciona em qualquer navegador).
+  const meetingUrl = `https://meet.jit.si/ProOps-Reuniao-${randomUUID().slice(0, 8)}`;
 
   try {
     await db.runTransaction(async (tx) => {
@@ -186,6 +189,7 @@ export async function submitDemoBooking(
         phone: data.phone ?? null,
         company: data.company ?? null,
         message: data.message ?? null,
+        meetingUrl,
         createdAt: FieldValue.serverTimestamp(),
       });
     });
@@ -213,6 +217,7 @@ export async function submitDemoBooking(
     dateLabel: dateLabel(data.date),
     timeLabel: `${minutesToLabel(data.startMinutes)}–${minutesToLabel(endMinutes)}`,
     durationLabel: durationLabel(data.durationMinutes),
+    meetingUrl,
   };
   try {
     const internal = renderDemoBookingInternalEmail(emailData);
