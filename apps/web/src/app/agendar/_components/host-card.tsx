@@ -90,7 +90,7 @@ export function HostCard({ duration, onDurationChange }: HostCardProps) {
       >
         <div className="flex items-center gap-2.5">
           <Clock className="h-4 w-4 opacity-55" />
-          <span>Reunião de {duration === 60 ? "1 hora" : `${duration} minutos`}</span>
+          <span>Demonstração de {duration === 60 ? "1 hora" : `${duration} minutos`}</span>
         </div>
         <div className="flex items-center gap-2.5">
           <Video className="h-4 w-4 opacity-55" />

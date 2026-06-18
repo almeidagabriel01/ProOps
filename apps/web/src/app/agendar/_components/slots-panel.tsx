@@ -225,7 +225,7 @@ export function SlotsPanel({
                     Confirmando...
                   </span>
                 ) : (
-                  "Confirmar reunião"
+                  "Confirmar demonstração"
                 )}
               </LandingButton>
             </motion.div>

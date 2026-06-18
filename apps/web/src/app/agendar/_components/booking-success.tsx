@@ -63,7 +63,7 @@ export function BookingSuccess({ open, dateLabel, timeLabel, onReset }: BookingS
               transition={{ duration: 0.6, delay: 0.5, ease: EASE }}
               className="text-3xl font-bold [font-family:var(--font-pdf-montserrat)]"
             >
-              Reunião confirmada!
+              Demonstração confirmada!
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 16 }}

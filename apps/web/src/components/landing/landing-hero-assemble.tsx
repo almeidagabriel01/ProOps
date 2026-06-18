@@ -61,8 +61,8 @@ const HERO_COPY = {
   title: "Tudo que sua operação precisa, em um só lugar",
   subtitle:
     "Propostas, CRM, financeiro e equipe — conectados em uma plataforma que monta o quadro completo do seu negócio.",
-  primaryCta: { label: "Começar grátis", href: "/register" },
-  secondaryCta: { label: "Marcar uma reunião", href: "/agendar" },
+  primaryCta: { label: "Começar agora", href: "/register" },
+  secondaryCta: { label: "Marcar demonstração", href: "/agendar" },
 };
 
 /* ────────────────────────────────────────────────────────────────────────────

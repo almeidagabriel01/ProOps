@@ -33,7 +33,7 @@ function monthKey(year: number, month: number): string {
 /** Linhas do título que escorregam de baixo p/ cima no load. */
 function RisingTitle({ lines, reduce }: { lines: string[]; reduce: boolean }) {
   return (
-    <h1 className="text-4xl font-bold leading-[0.95] tracking-tight [font-family:var(--font-pdf-montserrat)] md:text-6xl">
+    <h1 className="text-5xl font-bold leading-[0.95] tracking-tight [font-family:var(--font-pdf-montserrat)] md:text-7xl">
       {lines.map((line, i) => (
         <span key={line} className="block overflow-hidden pb-[0.06em]">
           <motion.span
@@ -195,9 +195,9 @@ export function AgendarClient() {
         onSignOut={handleSignOut}
       />
 
-      <main className="mx-auto max-w-6xl px-6">
+      <main className="mx-auto max-w-7xl px-6 lg:px-10">
         <section className="flex min-h-svh items-center pt-24 pb-10">
-          <div className="grid w-full gap-12 lg:grid-cols-[0.92fr_1.28fr] lg:items-center lg:gap-16">
+          <div className="grid w-full gap-12 lg:grid-cols-[1fr_1.2fr] lg:items-center lg:gap-20">
             {/* coluna narrativa — título + host + duração */}
             <div className="flex flex-col gap-7">
               <motion.div
@@ -210,17 +210,17 @@ export function AgendarClient() {
                 Agendamento
               </motion.div>
 
-              <RisingTitle reduce={reduce} lines={["Vamos marcar", "uma reunião."]} />
+              <RisingTitle reduce={reduce} lines={["Agende uma", "demonstração."]} />
 
               <motion.p
                 initial={reduce ? false : { opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.75, ease: EASE, delay: 0.5 }}
-                className="max-w-md text-base leading-relaxed text-black/60 dark:text-white/60"
+                className="max-w-xl text-lg leading-relaxed text-black/60 dark:text-white/60"
               >
                 Escolha um dia e um horário — a gente envia o link da
-                videochamada por email. Uma conversa direta sobre a ProOps no
-                seu contexto.
+                videochamada por email. Uma demonstração direta da ProOps no
+                seu contexto, sem compromisso.
               </motion.p>
 
               <HostCard
