@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useRef } from "react";
-import Link from "next/link";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { ArrowRight } from "lucide-react";
+import { LandingButton } from "./_shared/landing-button";
 import {
   HeroAppTopbar,
   HeroAppDock,
@@ -239,19 +239,21 @@ export function LandingHeroAssemble() {
           {HERO_COPY.subtitle}
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
+          <LandingButton
             href={HERO_COPY.primaryCta.href}
-            className="group inline-flex items-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-semibold text-white transition-colors duration-200 hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-100 sm:px-7 sm:py-3.5"
+            variant="solid"
+            size="md"
+            trailingIcon={<ArrowRight className="h-4 w-4" />}
           >
             {HERO_COPY.primaryCta.label}
-            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-          </Link>
-          <Link
+          </LandingButton>
+          <LandingButton
             href={HERO_COPY.secondaryCta.href}
-            className="inline-flex items-center gap-2 rounded-full border border-black/15 px-6 py-3 text-sm font-semibold text-black/60 transition-all duration-200 hover:border-black/30 hover:text-black dark:border-white/15 dark:text-white/50 dark:hover:border-white/30 dark:hover:text-white sm:px-7 sm:py-3.5"
+            variant="outline"
+            size="md"
           >
             {HERO_COPY.secondaryCta.label}
-          </Link>
+          </LandingButton>
         </div>
       </div>
 

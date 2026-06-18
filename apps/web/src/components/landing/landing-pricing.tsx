@@ -561,7 +561,7 @@ export function LandingPricing({
                     )}
 
                     <LandingButton
-                      variant={plan.popular ? "inverted" : "solid"}
+                      variant={plan.popular ? "inverted" : "outline"}
                       size="md"
                       fullWidth
                       className="mt-7"

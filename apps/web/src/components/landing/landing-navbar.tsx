@@ -468,7 +468,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     )}
 
                     <LandingButton
-                      variant="solid"
+                      variant="outline"
                       size="md"
                       onClick={() => {
                         onSignOut();
