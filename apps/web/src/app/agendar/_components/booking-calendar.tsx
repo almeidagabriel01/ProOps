@@ -53,7 +53,7 @@ export function BookingCalendar({
   const prevDisabled = isPastDate(monthEndStr, todayStr);
 
   const navBtn =
-    "flex h-9 w-9 items-center justify-center rounded-full border border-black/10 text-black/70 transition hover:border-black hover:bg-black hover:text-white disabled:pointer-events-none disabled:opacity-25 dark:border-white/15 dark:text-white/70 dark:hover:border-white dark:hover:bg-white dark:hover:text-black";
+    "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-black/10 text-black/70 transition hover:border-black hover:bg-black hover:text-white disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-25 dark:border-white/15 dark:text-white/70 dark:hover:border-white dark:hover:bg-white dark:hover:text-black";
 
   return (
     <div className="w-full">
@@ -150,7 +150,7 @@ export function BookingCalendar({
                   "relative flex aspect-square items-center justify-center rounded-2xl text-sm font-semibold transition-colors",
                   disabled
                     ? "cursor-not-allowed text-black/20 line-through decoration-1 dark:text-white/20"
-                    : "text-black/80 hover:bg-black/[0.04] dark:text-white/80 dark:hover:bg-white/[0.07]",
+                    : "cursor-pointer text-black/80 hover:bg-black/[0.04] dark:text-white/80 dark:hover:bg-white/[0.07]",
                 ].join(" ")}
               >
                 {selected && (

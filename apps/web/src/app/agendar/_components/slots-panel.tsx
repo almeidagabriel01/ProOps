@@ -131,7 +131,7 @@ export function SlotsPanel({
                   className={[
                     "group relative h-12 shrink-0 overflow-hidden rounded-xl border text-center text-[13px] font-bold tabular-nums tracking-tight transition-shadow",
                     free
-                      ? "border-black/10 bg-gradient-to-b from-white to-black/[0.025] text-black/85 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_22px_-10px_rgba(0,0,0,0.45)] dark:border-white/12 dark:from-neutral-900 dark:to-white/[0.03] dark:text-white/85"
+                      ? "cursor-pointer border-black/10 bg-gradient-to-b from-white to-black/[0.025] text-black/85 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_22px_-10px_rgba(0,0,0,0.45)] dark:border-white/12 dark:from-neutral-900 dark:to-white/[0.03] dark:text-white/85"
                       : "cursor-not-allowed border-dashed border-black/8 text-black/25 line-through dark:border-white/8 dark:text-white/25",
                   ].join(" ")}
                 >
@@ -172,7 +172,7 @@ export function SlotsPanel({
             <button
               type="button"
               onClick={() => setSelectedStart(null)}
-              className="group inline-flex w-fit items-center gap-2 rounded-full border border-black/12 px-3 py-1.5 text-xs font-bold tracking-tight text-black/70 transition hover:border-black hover:text-black dark:border-white/15 dark:text-white/70 dark:hover:border-white dark:hover:text-white"
+              className="group inline-flex w-fit cursor-pointer items-center gap-2 rounded-full border border-black/12 px-3 py-1.5 text-xs font-bold tracking-tight text-black/70 transition hover:border-black hover:text-black dark:border-white/15 dark:text-white/70 dark:hover:border-white dark:hover:text-white"
             >
               <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
               {minutesToLabel(selectedStart)}–{minutesToLabel(selectedStart + duration)}

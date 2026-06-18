@@ -59,7 +59,7 @@ export function HostCard({ duration, onDurationChange }: HostCardProps) {
                 key={d.value}
                 type="button"
                 onClick={() => onDurationChange(d.value)}
-                className="relative px-4 py-1.5 text-xs font-semibold"
+                className="relative cursor-pointer px-4 py-1.5 text-xs font-semibold"
               >
                 {active && (
                   <motion.span
