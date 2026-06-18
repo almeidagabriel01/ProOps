@@ -605,6 +605,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Calendário público de reuniões (/agendar). Sem tenantId — coleção global.
+    // Apenas o backend (Admin SDK) lê/escreve. Cliente nunca acessa.
+    match /demo_bookings/{bookingId} {
+      allow read, write: if false;
+    }
+
     // ============================================
     // CATCH-ALL
     // ============================================
