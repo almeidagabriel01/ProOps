@@ -24,6 +24,7 @@ import { AuthService } from "@/services/auth-service";
 import { interpretSessionResponse } from "@/lib/auth/interpret-session-response";
 import { shouldShortCircuitSync } from "@/lib/auth/should-short-circuit-sync";
 import { shouldForceTerminalAuthState } from "@/lib/auth/should-force-terminal-auth-state";
+import { shouldReloadOnPageShow } from "@/lib/auth/decide-bfcache-recovery";
 
 import { User, SubscriptionStatus } from "@/types";
 
@@ -773,12 +774,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // ── bfcache restore guard ──
-    // Back-button after logout can restore the authenticated page from bfcache.
-    // Detect the persisted restore and redirect to /login if auth is gone.
+    // A back/forward bfcache restore re-displays a frozen snapshot: React state
+    // is frozen so the SPA never re-renders, which surfaces as a blank/white
+    // page (the user has to reload manually). The auth context is stale too, so
+    // a page restored after logout could still show protected content. A full
+    // reload is the only reliable recovery — it repaints the page AND re-runs
+    // the server-side auth/billing proxy, so a logged-out restore lands on
+    // /login while a public page simply re-renders. After the reload the next
+    // pageshow is a fresh load (persisted=false), so this never loops.
     const handlePageShow = (event: PageTransitionEvent) => {
-      if (!event.persisted) return;
-      if (auth.currentUser) return;
-      window.location.replace("/login");
+      if (shouldReloadOnPageShow({ persisted: event.persisted })) {
+        window.location.reload();
+      }
     };
     window.addEventListener("pageshow", handlePageShow);
 
