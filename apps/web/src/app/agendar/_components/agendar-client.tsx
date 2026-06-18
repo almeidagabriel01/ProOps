@@ -24,8 +24,30 @@ import { BookingCalendar } from "./booking-calendar";
 import { SlotsPanel } from "./slots-panel";
 import { BookingSuccess } from "./booking-success";
 
+const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
 function monthKey(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/** Linhas do título que escorregam de baixo p/ cima no load. */
+function RisingTitle({ lines, reduce }: { lines: string[]; reduce: boolean }) {
+  return (
+    <h1 className="text-5xl font-bold leading-[0.95] tracking-tight [font-family:var(--font-pdf-montserrat)] md:text-7xl">
+      {lines.map((line, i) => (
+        <span key={line} className="block overflow-hidden pb-[0.06em]">
+          <motion.span
+            className="inline-block"
+            initial={reduce ? false : { y: "110%" }}
+            animate={{ y: "0%" }}
+            transition={{ duration: 0.9, ease: EASE, delay: reduce ? 0 : 0.15 + i * 0.12 }}
+          >
+            {line}
+          </motion.span>
+        </span>
+      ))}
+    </h1>
+  );
 }
 
 export function AgendarClient() {
@@ -160,16 +182,62 @@ export function AgendarClient() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-white text-black selection:bg-black selection:text-white dark:bg-neutral-950 dark:text-neutral-100 dark:selection:bg-white dark:selection:text-black">
+    <div className="relative min-h-screen overflow-x-clip bg-white text-black selection:bg-black selection:text-white dark:bg-neutral-950 dark:text-neutral-100 dark:selection:bg-white dark:selection:text-black">
+      {/* atmosfera de fundo */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute left-1/2 top-0 h-[55vh] w-[130vw] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(0,0,0,0.06),transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.07),transparent_60%)]" />
+        <div className="absolute inset-0 opacity-[0.04] dark:opacity-[0.06] [background-image:linear-gradient(to_right,currentColor_1px,transparent_1px),linear-gradient(to_bottom,currentColor_1px,transparent_1px)] [background-size:64px_64px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" />
+      </div>
+
       <LandingNavbar
         currentUser={currentUser}
         isAuthLoading={isAuthLoading}
         onSignOut={handleSignOut}
       />
-      <main>
-        <section className="mx-auto max-w-6xl px-6 py-16">
-          <div className="grid gap-10 lg:grid-cols-[300px_1fr_minmax(0,360px)] lg:gap-12">
-            <HostCard duration={duration} onDurationChange={(d) => { setDuration(d); setSelectedDate(null); }} />
+
+      <main className="mx-auto max-w-6xl px-6">
+        {/* banda hero */}
+        <section className="pt-36 pb-12 md:pt-44">
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: EASE }}
+            className="mb-6 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50 dark:text-white/55"
+          >
+            <span className="h-px w-7 bg-black/30 dark:bg-white/40" />
+            Agendamento
+          </motion.div>
+
+          <RisingTitle reduce={reduce} lines={["Vamos marcar", "uma reunião."]} />
+
+          <motion.p
+            initial={reduce ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.75, ease: EASE, delay: 0.5 }}
+            className="mt-7 max-w-lg text-lg leading-relaxed text-black/60 dark:text-white/60"
+          >
+            Escolha um dia, um horário e pronto — a gente envia o link da
+            videochamada por email. Uma conversa direta sobre a ProOps no seu
+            contexto.
+          </motion.p>
+        </section>
+
+        {/* superfície de agendamento — revela ao entrar na viewport */}
+        <motion.section
+          initial={reduce ? false : { opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.8, ease: EASE }}
+          className="mb-24 rounded-[2rem] border border-black/10 bg-white/70 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-900/50 md:p-10"
+        >
+          <div className="grid gap-10 lg:grid-cols-[260px_1fr_minmax(0,340px)] lg:gap-12">
+            <HostCard
+              duration={duration}
+              onDurationChange={(d) => {
+                setDuration(d);
+                setSelectedDate(null);
+              }}
+            />
 
             <div className="lg:border-x lg:border-black/8 lg:px-12 dark:lg:border-white/10">
               <BookingCalendar
@@ -194,7 +262,7 @@ export function AgendarClient() {
                     initial={{ opacity: 0, x: 32 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 32 }}
-                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    transition={{ duration: 0.4, ease: EASE }}
                   >
                     <SlotsPanel
                       dateStr={selectedDate}
@@ -207,21 +275,26 @@ export function AgendarClient() {
                     />
                   </motion.div>
                 ) : (
-                  <motion.p
+                  <motion.div
                     key="empty"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="hidden text-sm text-black/40 dark:text-white/40 lg:block lg:pt-2"
+                    className="hidden h-full flex-col justify-center gap-3 lg:flex"
                   >
-                    Escolha um dia para ver os horários.
-                  </motion.p>
+                    <div className="h-10 w-10 rounded-2xl border border-dashed border-black/20 dark:border-white/20" />
+                    <p className="max-w-[12rem] text-sm leading-relaxed text-black/45 dark:text-white/45">
+                      Selecione um dia no calendário para ver os horários
+                      disponíveis.
+                    </p>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </div>
-        </section>
+        </motion.section>
       </main>
+
       <LandingFooter />
       <BookingSuccess
         open={success !== null}

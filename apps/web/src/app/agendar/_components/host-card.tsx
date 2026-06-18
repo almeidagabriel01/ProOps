@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { Clock, Globe, Video } from "lucide-react";
+import { ProOpsLogo } from "@/components/branding/proops-logo";
 import type { DurationMinutes } from "@/lib/booking/slots";
 
 interface HostCardProps {
@@ -15,75 +16,105 @@ const DURATIONS: { value: DurationMinutes; label: string }[] = [
   { value: 60, label: "1h" },
 ];
 
+const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
+// entrada em cascata de cada bloco do card
+const item = (i: number) => ({
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6, ease: EASE, delay: 0.05 + i * 0.08 },
+});
+
 export function HostCard({ duration, onDurationChange }: HostCardProps) {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black text-white dark:bg-white dark:text-black">
-          <span className="text-lg font-bold [font-family:var(--font-pdf-montserrat)]">P</span>
+    <div className="flex flex-col gap-7">
+      {/* identidade do host */}
+      <motion.div {...item(0)} className="flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-black/10 bg-white shadow-[0_6px_20px_-8px_rgba(0,0,0,0.3)] dark:border-white/15 dark:bg-neutral-900">
+          <ProOpsLogo
+            variant="symbol"
+            width={28}
+            height={28}
+            invertOnDark
+            interactive={false}
+            className="h-7 w-7"
+          />
         </div>
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-black/45 dark:text-white/45">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-black/45 dark:text-white/45">
             Time ProOps
           </p>
-          <p className="text-sm font-semibold">Conversa de demonstração</p>
+          <p className="text-sm font-semibold tracking-tight">
+            Conversa de demonstração
+          </p>
         </div>
-      </div>
+      </motion.div>
 
-      <h1 className="text-3xl font-bold leading-[1.05] tracking-tight [font-family:var(--font-pdf-montserrat)] md:text-4xl">
-        Vamos marcar
-        <br />
-        uma reunião.
-      </h1>
-
-      <p className="max-w-xs text-sm leading-relaxed text-black/60 dark:text-white/60">
+      <motion.p
+        {...item(1)}
+        className="max-w-xs text-[15px] leading-relaxed text-black/60 dark:text-white/60"
+      >
         Escolha o dia e o horário. A gente mostra a ProOps funcionando no seu
-        contexto — sem compromisso.
-      </p>
+        contexto — sem compromisso, sem enrolação.
+      </motion.p>
 
-      <div className="flex flex-col gap-3 text-sm text-black/70 dark:text-white/70">
-        <div className="flex items-center gap-2.5">
-          <Clock className="h-4 w-4 opacity-60" />
-          <div className="relative inline-flex rounded-full border border-black/12 p-1 dark:border-white/15">
-            {DURATIONS.map((d) => {
-              const active = d.value === duration;
-              return (
-                <button
-                  key={d.value}
-                  type="button"
-                  onClick={() => onDurationChange(d.value)}
-                  className="relative px-3.5 py-1 text-xs font-semibold"
+      <motion.div {...item(2)} className="h-px w-full bg-black/8 dark:bg-white/10" />
+
+      {/* seletor de duração */}
+      <motion.div {...item(3)} className="flex flex-col gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40 dark:text-white/40">
+          Duração
+        </span>
+        <div className="relative inline-flex w-fit rounded-full border border-black/12 p-1 dark:border-white/15">
+          {DURATIONS.map((d) => {
+            const active = d.value === duration;
+            return (
+              <button
+                key={d.value}
+                type="button"
+                onClick={() => onDurationChange(d.value)}
+                className="relative px-4 py-1.5 text-xs font-semibold"
+              >
+                {active && (
+                  <motion.span
+                    layoutId="duration-pill"
+                    className="absolute inset-0 rounded-full bg-black dark:bg-white"
+                    transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                  />
+                )}
+                <span
+                  className={
+                    active
+                      ? "relative z-10 text-white dark:text-black"
+                      : "relative z-10 text-black/55 transition-colors hover:text-black dark:text-white/55 dark:hover:text-white"
+                  }
                 >
-                  {active && (
-                    <motion.span
-                      layoutId="duration-pill"
-                      className="absolute inset-0 rounded-full bg-black dark:bg-white"
-                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                    />
-                  )}
-                  <span
-                    className={
-                      active
-                        ? "relative z-10 text-white dark:text-black"
-                        : "relative z-10 text-black/60 dark:text-white/60"
-                    }
-                  >
-                    {d.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  {d.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      {/* meta */}
+      <motion.div
+        {...item(4)}
+        className="flex flex-col gap-3 text-sm text-black/65 dark:text-white/65"
+      >
+        <div className="flex items-center gap-2.5">
+          <Clock className="h-4 w-4 opacity-55" />
+          <span>Reunião de {duration === 60 ? "1 hora" : `${duration} minutos`}</span>
         </div>
         <div className="flex items-center gap-2.5">
-          <Video className="h-4 w-4 opacity-60" />
-          <span>Vídeochamada (link enviado por email)</span>
+          <Video className="h-4 w-4 opacity-55" />
+          <span>Vídeochamada — link enviado por email</span>
         </div>
         <div className="flex items-center gap-2.5">
-          <Globe className="h-4 w-4 opacity-60" />
+          <Globe className="h-4 w-4 opacity-55" />
           <span>America/Sao_Paulo</span>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

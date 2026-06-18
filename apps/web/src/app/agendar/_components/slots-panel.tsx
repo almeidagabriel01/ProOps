@@ -71,23 +71,34 @@ export function SlotsPanel({
     onConfirm(selectedStart, form);
   }
 
+  const fields: { name: keyof DemoBookingFormData; label: string; type?: string; multiline?: boolean }[] = [
+    { name: "name", label: "Nome" },
+    { name: "email", label: "Email", type: "email" },
+    { name: "phone", label: "Telefone", type: "tel" },
+    { name: "company", label: "Empresa (opcional)" },
+    { name: "message", label: "Algo que devemos saber? (opcional)", multiline: true },
+  ];
+
   return (
-    <div className="lg:min-h-[440px]">
-      <div className="mb-5 flex items-center justify-between">
-        <h3 className="text-base font-semibold [font-family:var(--font-pdf-montserrat)]">
+    <div className="lg:min-h-[460px]">
+      <div className="mb-5 flex items-baseline gap-2">
+        <h3 className="text-base font-bold tracking-tight [font-family:var(--font-pdf-montserrat)]">
           {dateHeading}
         </h3>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-black/35 dark:text-white/35">
+          {selectedStart === null ? "horários" : "seus dados"}
+        </span>
       </div>
 
       <AnimatePresence mode="wait">
         {selectedStart === null ? (
           <motion.div
             key="slots"
-            initial={{ opacity: 0, x: 24 }}
+            initial={{ opacity: 0, x: 28 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
+            exit={{ opacity: 0, x: -28 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="flex max-h-[460px] flex-col gap-2 overflow-y-auto pr-1"
+            className="flex max-h-[480px] flex-col gap-2.5 overflow-y-auto pr-1.5"
           >
             {starts.map((s, i) => {
               const free =
@@ -99,18 +110,37 @@ export function SlotsPanel({
                   type="button"
                   disabled={!free}
                   onClick={() => setSelectedStart(s)}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.025 * i, ease: EASE }}
-                  whileHover={free ? { scale: 1.02 } : undefined}
+                  transition={{
+                    delay: 0.03 * i,
+                    type: "spring",
+                    stiffness: 320,
+                    damping: 26,
+                  }}
+                  whileTap={free ? { scale: 0.98 } : undefined}
                   className={[
-                    "w-full rounded-xl border py-3 text-center text-sm font-semibold transition",
+                    "group relative w-full overflow-hidden rounded-2xl border py-3.5 text-center text-sm font-bold tracking-tight transition-colors",
                     free
-                      ? "border-black/12 hover:border-black hover:bg-black hover:text-white dark:border-white/15 dark:hover:border-white dark:hover:bg-white dark:hover:text-black"
+                      ? "border-black/12 dark:border-white/15"
                       : "cursor-not-allowed border-black/5 text-black/25 line-through dark:border-white/5 dark:text-white/25",
                   ].join(" ")}
                 >
-                  {minutesToLabel(s)}
+                  {free && (
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 -translate-x-full bg-black transition-transform duration-300 ease-out group-hover:translate-x-0 dark:bg-white"
+                    />
+                  )}
+                  <span
+                    className={
+                      free
+                        ? "relative z-10 transition-colors duration-200 group-hover:text-white dark:group-hover:text-black"
+                        : "relative z-10"
+                    }
+                  >
+                    {minutesToLabel(s)}
+                  </span>
                 </motion.button>
               );
             })}
@@ -120,18 +150,18 @@ export function SlotsPanel({
             key="form"
             onSubmit={handleSubmit}
             noValidate
-            initial={{ opacity: 0, x: 24 }}
+            initial={{ opacity: 0, x: 28 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
+            exit={{ opacity: 0, x: -28 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="flex flex-col gap-4"
+            className="flex flex-col gap-5"
           >
             <button
               type="button"
               onClick={() => setSelectedStart(null)}
-              className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-black/55 hover:text-black dark:text-white/55 dark:hover:text-white"
+              className="group inline-flex w-fit items-center gap-2 rounded-full border border-black/12 px-3 py-1.5 text-xs font-bold tracking-tight text-black/70 transition hover:border-black hover:text-black dark:border-white/15 dark:text-white/70 dark:hover:border-white dark:hover:text-white"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
               {minutesToLabel(selectedStart)}–{minutesToLabel(selectedStart + duration)}
             </button>
 
@@ -147,29 +177,48 @@ export function SlotsPanel({
               onChange={handleChange}
             />
 
-            <Field name="name" label="Nome" value={form.name} onChange={handleChange} error={errors.name} />
-            <Field name="email" label="Email" type="email" value={form.email} onChange={handleChange} error={errors.email} />
-            <Field name="phone" label="Telefone" type="tel" value={form.phone ?? ""} onChange={handleChange} error={errors.phone} />
-            <Field name="company" label="Empresa (opcional)" value={form.company ?? ""} onChange={handleChange} error={errors.company} />
-            <Field name="message" label="Algo que devemos saber? (opcional)" value={form.message ?? ""} onChange={handleChange} error={errors.message} multiline />
+            {fields.map((f, i) => (
+              <motion.div
+                key={f.name}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 + i * 0.06, duration: 0.45, ease: EASE }}
+              >
+                <Field
+                  name={f.name}
+                  label={f.label}
+                  type={f.type}
+                  multiline={f.multiline}
+                  value={(form[f.name] as string) ?? ""}
+                  onChange={handleChange}
+                  error={errors[f.name]}
+                />
+              </motion.div>
+            ))}
 
-            <LandingButton
-              type="submit"
-              variant="solid"
-              size="md"
-              fullWidth
-              disabled={isSubmitting}
-              trailingIcon={isSubmitting ? undefined : <ArrowRight className="h-4 w-4" />}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 + fields.length * 0.06, duration: 0.45, ease: EASE }}
             >
-              {isSubmitting ? (
-                <span className="inline-flex items-center justify-center gap-2 leading-none">
-                  <Loader size="sm" variant="button" />
-                  Confirmando...
-                </span>
-              ) : (
-                "Confirmar reunião"
-              )}
-            </LandingButton>
+              <LandingButton
+                type="submit"
+                variant="solid"
+                size="md"
+                fullWidth
+                disabled={isSubmitting}
+                trailingIcon={isSubmitting ? undefined : <ArrowRight className="h-4 w-4" />}
+              >
+                {isSubmitting ? (
+                  <span className="inline-flex items-center justify-center gap-2 leading-none">
+                    <Loader size="sm" variant="button" />
+                    Confirmando...
+                  </span>
+                ) : (
+                  "Confirmar reunião"
+                )}
+              </LandingButton>
+            </motion.div>
           </motion.form>
         )}
       </AnimatePresence>
@@ -189,11 +238,11 @@ interface FieldProps {
 
 function Field({ name, label, value, onChange, error, type = "text", multiline }: FieldProps) {
   const base =
-    "w-full border-b bg-transparent pb-2 pt-1 text-sm outline-none transition placeholder:text-black/30 focus:border-black dark:placeholder:text-white/30 dark:focus:border-white";
+    "w-full border-b bg-transparent pb-2 pt-1 text-sm outline-none transition-colors placeholder:text-black/30 focus:border-black dark:placeholder:text-white/30 dark:focus:border-white";
   const border = error ? "border-red-500" : "border-black/15 dark:border-white/15";
   return (
     <label className="block">
-      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-black/45 dark:text-white/45">
+      <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-black/45 dark:text-white/45">
         {label}
       </span>
       {multiline ? (
