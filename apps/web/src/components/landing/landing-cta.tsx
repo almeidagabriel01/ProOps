@@ -6,7 +6,7 @@ import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { Accent } from "./_shared/section-heading";
-import { MagneticButton } from "./_shared/magnetic-button";
+import { LandingButton } from "./_shared/landing-button";
 import { WHATSAPP_HREF } from "./_shared/whatsapp";
 
 if (typeof window !== "undefined") {
@@ -69,7 +69,7 @@ export function LandingCTA() {
         </p>
 
         <div className="cta-fade-item mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <MagneticButton
+          <LandingButton
             href="/register"
             variant="solid"
             size="lg"
@@ -78,10 +78,10 @@ export function LandingCTA() {
             trailingIcon={<ArrowRight className="h-5 w-5" />}
           >
             Começar grátis
-          </MagneticButton>
+          </LandingButton>
 
           {WHATSAPP_HREF ? (
-            <MagneticButton
+            <LandingButton
               href={WHATSAPP_HREF}
               external
               variant="outline"
@@ -91,9 +91,9 @@ export function LandingCTA() {
               icon={<MessageCircle className="h-5 w-5" />}
             >
               Falar no WhatsApp
-            </MagneticButton>
+            </LandingButton>
           ) : (
-            <MagneticButton
+            <LandingButton
               href="mailto:gestao@proops.com.br"
               external
               variant="outline"
@@ -102,7 +102,7 @@ export function LandingCTA() {
               className="sm:w-auto"
             >
               Solicitar demonstração
-            </MagneticButton>
+            </LandingButton>
           )}
         </div>
 

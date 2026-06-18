@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Cpu, Layers, MoveHorizontal } from "lucide-react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Accent, SectionHeading } from "./_shared/section-heading";
-import { MagneticButton } from "./_shared/magnetic-button";
+import { LandingButton } from "./_shared/landing-button";
 import { usePauseOffscreen } from "./_shared/use-pause-offscreen";
 
 type Niche = {
@@ -179,14 +179,14 @@ function NichePanel({ niche, animated }: { niche: Niche; animated: boolean }) {
 
         <FeatureRows features={niche.features} />
 
-        <MagneticButton
+        <LandingButton
           href={niche.href}
           variant="link"
           className="mt-8"
           trailingIcon={<ArrowRight className="h-4 w-4" />}
         >
           Saiba mais
-        </MagneticButton>
+        </LandingButton>
       </div>
     </div>
   );
@@ -315,13 +315,13 @@ function NicheFooterCTA() {
       <p className="mb-3 text-sm text-black/60 dark:text-white/60">
         Atua em outro segmento? O ProOps adapta-se ao seu nicho.
       </p>
-      <MagneticButton
+      <LandingButton
         href="/contato"
         variant="link"
         trailingIcon={<ArrowRight className="h-4 w-4" />}
       >
         Fale com a gente
-      </MagneticButton>
+      </LandingButton>
     </div>
   );
 }

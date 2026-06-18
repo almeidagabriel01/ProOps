@@ -36,7 +36,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
-import { MagneticButton } from "./_shared/magnetic-button";
+import { LandingButton } from "./_shared/landing-button";
 
 interface LandingNavbarProps {
   currentUser: User | null;
@@ -343,7 +343,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
 
             {/* CTA pill — Quero assinar */}
             {showSubscribeCta && !isNavbarLoading && (
-              <MagneticButton
+              <LandingButton
                 variant="solid"
                 size="sm"
                 onClick={() => scrollToAnchor("#pricing")}
@@ -351,7 +351,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                 className="hidden sm:inline-flex"
               >
                 Quero assinar
-              </MagneticButton>
+              </LandingButton>
             )}
 
             {/* Theme toggle pill */}
@@ -460,7 +460,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       </Link>
                     )}
 
-                    <MagneticButton
+                    <LandingButton
                       variant="solid"
                       size="md"
                       onClick={() => {
@@ -469,7 +469,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       }}
                     >
                       Sair
-                    </MagneticButton>
+                    </LandingButton>
                   </>
                 ) : (
                   <>
@@ -480,14 +480,14 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     >
                       Entrar
                     </Link>
-                    <MagneticButton
+                    <LandingButton
                       variant="solid"
                       size="md"
                       onClick={() => scrollToAnchor("#pricing", true)}
                       icon={<Plus className="h-4 w-4" />}
                     >
                       Quero assinar
-                    </MagneticButton>
+                    </LandingButton>
                   </>
                 )}
               </motion.div>

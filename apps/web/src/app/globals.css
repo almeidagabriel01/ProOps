@@ -359,26 +359,65 @@ body {
   background: linear-gradient(120deg, transparent 0%, rgba(0,0,0,0.18) 50%, transparent 100%);
 }
 
-/* Magnetic button — brilho líquido que varre no hover.
-   Usa currentColor → adapta sozinho a cada variante (solid/inverted/outline)
-   e ao dark mode, sem seletores extras. */
-.magnetic-btn::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    100deg,
-    transparent 22%,
-    color-mix(in srgb, currentColor 24%, transparent) 50%,
-    transparent 78%
-  );
-  transform: translateX(-130%) skewX(-16deg);
-  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+/* Landing button — assinatura "draw + invert".
+   A borda se desenha (SVG dashoffset) e um preenchimento varre na diagonal
+   invertendo as cores. Sem deslocar o botão. */
+.landing-btn__label {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
-.magnetic-btn:hover::after {
-  transform: translateX(130%) skewX(-16deg);
+.landing-btn__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -20%;
+  width: 140%;
+  z-index: 1;
+  pointer-events: none;
+  transform: translateX(-118%) skewX(-12deg);
+  transition: transform 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.landing-btn:hover .landing-btn__fill {
+  transform: translateX(0) skewX(-12deg);
+}
+.landing-btn__trace {
+  position: absolute;
+  inset: 1px;
+  z-index: 3;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+}
+.landing-btn__trace rect {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  transition: stroke-dashoffset 0.5s ease;
+}
+.landing-btn:hover .landing-btn__trace rect {
+  stroke-dashoffset: 0;
+}
+
+/* Link variant — sublinhado que se desenha da esquerda no hover */
+.landing-link__bar {
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 1.5px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.landing-link:hover .landing-link__bar {
+  transform: scaleX(1);
 }
 
 /* Border beam for idle card animation */
@@ -984,7 +1023,9 @@ html[data-shell="locked"] body {
   .animate-card-sheen {
     animation: none !important;
   }
-  .magnetic-btn::after {
-    display: none;
+  .landing-btn__fill,
+  .landing-btn__trace rect,
+  .landing-link__bar {
+    transition: none;
   }
 }
