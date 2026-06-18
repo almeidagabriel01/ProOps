@@ -74,6 +74,7 @@ export async function getDemoBookingAvailability(
   }
   try {
     const start = `${month.data}-01`;
+    // Sentinela lexicográfica: "-31" cobre o mês inteiro em qualquer calendário (comparação de string YYYY-MM-DD).
     const end = `${month.data}-31`;
     const snap = await db
       .collection(COLLECTION)
@@ -128,6 +129,7 @@ export async function submitDemoBooking(
   }
 
   const endMinutes = data.startMinutes + data.durationMinutes;
+  const ref = db.collection(COLLECTION).doc();
 
   try {
     await db.runTransaction(async (tx) => {
@@ -152,7 +154,6 @@ export async function submitDemoBooking(
         throw conflict;
       }
 
-      const ref = db.collection(COLLECTION).doc();
       tx.set(ref, {
         date: data.date,
         startMinutes: data.startMinutes,
