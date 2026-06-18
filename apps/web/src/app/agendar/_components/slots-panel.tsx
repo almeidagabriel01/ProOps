@@ -98,7 +98,7 @@ export function SlotsPanel({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -28 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="grid max-h-[400px] grid-cols-2 content-start gap-2.5 overflow-y-auto pr-1.5 [mask-image:linear-gradient(to_bottom,transparent,black_4%,black_95%,transparent)] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar]:w-1.5"
+            className="grid max-h-[404px] grid-cols-2 content-start gap-2.5 overflow-y-auto px-0.5 py-1 pr-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar]:w-1.5"
           >
             {starts.map((s, i) => {
               const free =
@@ -118,12 +118,13 @@ export function SlotsPanel({
                     stiffness: 340,
                     damping: 26,
                   }}
+                  whileHover={free ? { y: -2 } : undefined}
                   whileTap={free ? { scale: 0.96 } : undefined}
                   className={[
-                    "group relative h-[42px] shrink-0 overflow-hidden rounded-xl border text-center text-[13px] font-bold tracking-tight transition-colors",
+                    "group relative h-12 shrink-0 overflow-hidden rounded-xl border text-center text-[13px] font-bold tabular-nums tracking-tight transition-shadow",
                     free
-                      ? "border-black/12 dark:border-white/15"
-                      : "cursor-not-allowed border-black/5 text-black/25 line-through dark:border-white/5 dark:text-white/25",
+                      ? "border-black/10 bg-gradient-to-b from-white to-black/[0.025] text-black/85 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_22px_-10px_rgba(0,0,0,0.45)] dark:border-white/12 dark:from-neutral-900 dark:to-white/[0.03] dark:text-white/85"
+                      : "cursor-not-allowed border-dashed border-black/8 text-black/25 line-through dark:border-white/8 dark:text-white/25",
                   ].join(" ")}
                 >
                   {free && (
@@ -134,12 +135,15 @@ export function SlotsPanel({
                   )}
                   <span
                     className={[
-                      "relative z-10 flex h-full items-center justify-center",
+                      "relative z-10 flex h-full items-center justify-center gap-2",
                       free
                         ? "transition-colors duration-200 group-hover:text-white dark:group-hover:text-black"
                         : "",
                     ].join(" ")}
                   >
+                    {free && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-current opacity-30 transition-opacity duration-200 group-hover:opacity-100" />
+                    )}
                     {minutesToLabel(s)}
                   </span>
                 </motion.button>
