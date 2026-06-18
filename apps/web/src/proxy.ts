@@ -203,6 +203,6 @@ export const config = {
      * - public folder assets (hero/, etc.)
      * - robots.txt, sitemap.xml, manifest.webmanifest (must be publicly accessible for crawlers)
      */
-    "/((?!_next/static|_next/image|favicon.ico|icons/|apple-icon.png|opengraph-image.png|hero/|logo/|features/|robots.txt|sitemap.xml|manifest.webmanifest).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons/|apple-icon.png|opengraph-image.png|hero/|logo/|features/|robots.txt|sitemap.xml|manifest.webmanifest|bfcache-recovery.js).*)",
   ],
 };

@@ -12,6 +12,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import Script from "next/script";
 import { Providers } from "./providers";
 import { CookieConsentBanner } from "@/components/legal/cookie-consent-banner";
 
@@ -164,28 +165,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${interPdf.variable} ${robotoPdf.variable} ${latoPdf.variable} ${montserratPdf.variable} ${playfairPdf.variable} antialiased`}
       >
         {/*
-          Browser back/forward recovery. A back/forward navigation restores a
-          cached render WITHOUT re-executing JS (React never re-mounts), so the
-          Framer Motion entrance animations never re-fire and the content stays
-          at its server-rendered `initial` hidden state (opacity:0) — a blank
-          white page that only a manual reload fixed. Since JS can't run to
-          "replay" the animation on the restore, a reload is the only recovery.
-
-          This must be a document-level listener attached at parse time and
-          never removed, so it survives the restore (a React-effect listener
-          does not — the tree isn't re-mounted). It reloads when the page was
-          restored from bfcache (`event.persisted`) or the navigation is a
-          history traversal (`PerformanceNavigationTiming.type === "back_forward"`).
-          End-to-end regression coverage: tests/e2e/navigation/back-forward-recovery.spec.ts.
-          No loop: after the reload the navigation type is "reload".
+          Browser back/forward recovery — see public/bfcache-recovery.js for the
+          full rationale. Loaded as a same-origin external script (beforeInteractive)
+          so it satisfies CSP `script-src 'self'` WITHOUT depending on
+          'unsafe-inline', and attaches its pageshow listener before hydration so
+          it survives a back/forward restore (where the React tree never re-mounts).
         */}
-        <script
-          id="bfcache-recovery"
-          dangerouslySetInnerHTML={{
-            __html:
-              "(function(){window.addEventListener('pageshow',function(e){try{var n=performance.getEntriesByType('navigation')[0];if(e.persisted||(n&&n.type==='back_forward')){window.location.reload();}}catch(_){}});})();",
-          }}
-        />
+        <Script src="/bfcache-recovery.js" strategy="beforeInteractive" />
         <Providers>{children}</Providers>
         <CookieConsentBanner />
         <Analytics />
