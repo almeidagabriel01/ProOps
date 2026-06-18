@@ -17,22 +17,21 @@ const DURATIONS: { value: DurationMinutes; label: string }[] = [
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
-// entrada em cascata de cada bloco do card
 const item = (i: number) => ({
   initial: { opacity: 0, y: 14 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.6, ease: EASE, delay: 0.05 + i * 0.08 },
+  transition: { duration: 0.6, ease: EASE, delay: 0.55 + i * 0.08 },
 });
 
 export function HostCard({ duration, onDurationChange }: HostCardProps) {
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-6">
       {/* identidade do host */}
       <motion.div {...item(0)} className="flex items-center gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-black/10 bg-black shadow-[0_8px_22px_-8px_rgba(0,0,0,0.5)] dark:border-white/15">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-black/10 bg-black shadow-[0_8px_22px_-8px_rgba(0,0,0,0.5)] dark:border-white/15">
           <div
             aria-hidden
-            className="h-[26px] w-[26px] bg-[url('/logo/logo2-cropped.svg')] bg-contain bg-[position:52%_51%] bg-no-repeat"
+            className="h-6 w-6 bg-[url('/logo/logo2-cropped.svg')] bg-contain bg-[position:52%_51%] bg-no-repeat"
           />
         </div>
         <div>
@@ -45,18 +44,10 @@ export function HostCard({ duration, onDurationChange }: HostCardProps) {
         </div>
       </motion.div>
 
-      <motion.p
-        {...item(1)}
-        className="max-w-xs text-[15px] leading-relaxed text-black/60 dark:text-white/60"
-      >
-        Escolha o dia e o horário. A gente mostra a ProOps funcionando no seu
-        contexto — sem compromisso, sem enrolação.
-      </motion.p>
-
-      <motion.div {...item(2)} className="h-px w-full bg-black/8 dark:bg-white/10" />
+      <motion.div {...item(1)} className="h-px w-full bg-black/8 dark:bg-white/10" />
 
       {/* seletor de duração */}
-      <motion.div {...item(3)} className="flex flex-col gap-3">
+      <motion.div {...item(2)} className="flex flex-col gap-2.5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/40 dark:text-white/40">
           Duração
         </span>
@@ -94,8 +85,8 @@ export function HostCard({ duration, onDurationChange }: HostCardProps) {
 
       {/* meta */}
       <motion.div
-        {...item(4)}
-        className="flex flex-col gap-3 text-sm text-black/65 dark:text-white/65"
+        {...item(3)}
+        className="flex flex-col gap-2.5 text-sm text-black/65 dark:text-white/65"
       >
         <div className="flex items-center gap-2.5">
           <Clock className="h-4 w-4 opacity-55" />

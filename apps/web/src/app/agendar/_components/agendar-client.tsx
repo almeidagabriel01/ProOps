@@ -196,102 +196,103 @@ export function AgendarClient() {
       />
 
       <main className="mx-auto max-w-6xl px-6">
-        {/* banda hero — compacta p/ caber em uma tela */}
-        <section className="pt-28 pb-7 md:pt-32">
-          <motion.div
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: EASE }}
-            className="mb-4 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50 dark:text-white/55"
-          >
-            <span className="h-px w-7 bg-black/30 dark:bg-white/40" />
-            Agendamento
-          </motion.div>
+        <section className="flex min-h-svh items-center pt-24 pb-10">
+          <div className="grid w-full gap-12 lg:grid-cols-[0.92fr_1.28fr] lg:items-center lg:gap-16">
+            {/* coluna narrativa — título + host + duração */}
+            <div className="flex flex-col gap-7">
+              <motion.div
+                initial={reduce ? false : { opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: EASE }}
+                className="inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50 dark:text-white/55"
+              >
+                <span className="h-px w-7 bg-black/30 dark:bg-white/40" />
+                Agendamento
+              </motion.div>
 
-          <RisingTitle reduce={reduce} lines={["Vamos marcar", "uma reunião."]} />
+              <RisingTitle reduce={reduce} lines={["Vamos marcar", "uma reunião."]} />
 
-          <motion.p
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.75, ease: EASE, delay: 0.5 }}
-            className="mt-5 max-w-lg text-base leading-relaxed text-black/60 dark:text-white/60"
-          >
-            Escolha um dia e um horário — a gente envia o link da videochamada
-            por email. Uma conversa direta sobre a ProOps no seu contexto.
-          </motion.p>
-        </section>
+              <motion.p
+                initial={reduce ? false : { opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.75, ease: EASE, delay: 0.5 }}
+                className="max-w-md text-base leading-relaxed text-black/60 dark:text-white/60"
+              >
+                Escolha um dia e um horário — a gente envia o link da
+                videochamada por email. Uma conversa direta sobre a ProOps no
+                seu contexto.
+              </motion.p>
 
-        {/* superfície de agendamento — revela ao entrar na viewport */}
-        <motion.section
-          initial={reduce ? false : { opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.8, ease: EASE }}
-          className="mb-16 rounded-[2rem] border border-black/10 bg-white/70 p-6 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.35)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-900/50 md:p-9"
-        >
-          <div className="grid gap-10 lg:grid-cols-[250px_1fr_minmax(0,320px)] lg:items-start lg:gap-12">
-            <HostCard
-              duration={duration}
-              onDurationChange={(d) => {
-                setDuration(d);
-                setSelectedDate(null);
-              }}
-            />
-
-            <div className="lg:border-x lg:border-black/8 lg:px-12 dark:lg:border-white/10">
-              <BookingCalendar
-                viewYear={year}
-                viewMonth={month}
-                todayStr={todayStr}
-                selectedDate={selectedDate}
-                fullyBookedDates={fullyBookedDates}
-                reduce={reduce}
+              <HostCard
                 duration={duration}
-                onPrevMonth={goPrevMonth}
-                onNextMonth={goNextMonth}
-                onSelectDate={setSelectedDate}
+                onDurationChange={(d) => {
+                  setDuration(d);
+                  setSelectedDate(null);
+                }}
               />
             </div>
 
-            <div className="lg:pl-2">
-              <AnimatePresence mode="wait">
-                {selectedDate ? (
-                  <motion.div
-                    key={`${selectedDate}-${panelResetKey}`}
-                    initial={{ opacity: 0, x: 32 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 32 }}
-                    transition={{ duration: 0.4, ease: EASE }}
-                  >
-                    <SlotsPanel
-                      dateStr={selectedDate}
-                      dateHeading={shortDateHeading(selectedDate)}
-                      duration={duration}
-                      dayBookings={bookingsByDate.get(selectedDate) ?? []}
-                      now={now}
-                      isSubmitting={isSubmitting}
-                      onConfirm={handleConfirm}
-                    />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="hidden min-h-[400px] flex-col justify-center gap-3 lg:flex"
-                  >
-                    <div className="h-10 w-10 rounded-2xl border border-dashed border-black/20 dark:border-white/20" />
-                    <p className="max-w-[12rem] text-sm leading-relaxed text-black/45 dark:text-white/45">
-                      Selecione um dia no calendário para ver os horários
-                      disponíveis.
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* card interativo — calendário + horários lado a lado */}
+            <motion.div
+              initial={reduce ? false : { opacity: 0, y: 30, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.85, ease: EASE, delay: 0.2 }}
+              className="rounded-[1.75rem] border border-black/10 bg-white/70 p-5 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-900/50 md:p-7"
+            >
+              <div className="grid gap-7 sm:grid-cols-[1fr_minmax(0,248px)] sm:gap-8">
+                <BookingCalendar
+                  viewYear={year}
+                  viewMonth={month}
+                  todayStr={todayStr}
+                  selectedDate={selectedDate}
+                  fullyBookedDates={fullyBookedDates}
+                  reduce={reduce}
+                  duration={duration}
+                  onPrevMonth={goPrevMonth}
+                  onNextMonth={goNextMonth}
+                  onSelectDate={setSelectedDate}
+                />
+
+                <div className="sm:border-l sm:border-black/8 sm:pl-8 dark:sm:border-white/10">
+                  <AnimatePresence mode="wait">
+                    {selectedDate ? (
+                      <motion.div
+                        key={`${selectedDate}-${panelResetKey}`}
+                        initial={{ opacity: 0, x: 24 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 24 }}
+                        transition={{ duration: 0.4, ease: EASE }}
+                      >
+                        <SlotsPanel
+                          dateStr={selectedDate}
+                          dateHeading={shortDateHeading(selectedDate)}
+                          duration={duration}
+                          dayBookings={bookingsByDate.get(selectedDate) ?? []}
+                          now={now}
+                          isSubmitting={isSubmitting}
+                          onConfirm={handleConfirm}
+                        />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="empty"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex min-h-[300px] flex-col justify-center gap-3"
+                      >
+                        <div className="h-10 w-10 rounded-2xl border border-dashed border-black/20 dark:border-white/20" />
+                        <p className="max-w-[12rem] text-sm leading-relaxed text-black/45 dark:text-white/45">
+                          Selecione um dia no calendário para ver os horários.
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </motion.section>
+        </section>
       </main>
 
       <LandingFooter />

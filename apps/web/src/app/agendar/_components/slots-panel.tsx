@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { Loader } from "@/components/ui/loader";
+import { FloatingField } from "@/app/contato/_components/floating-field";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import {
   demoBookingFormSchema,
@@ -71,16 +72,23 @@ export function SlotsPanel({
     onConfirm(selectedStart, form);
   }
 
-  const fields: { name: keyof DemoBookingFormData; label: string; type?: string; multiline?: boolean }[] = [
-    { name: "name", label: "Nome" },
-    { name: "email", label: "Email", type: "email" },
-    { name: "phone", label: "Telefone", type: "tel" },
-    { name: "company", label: "Empresa (opcional)" },
-    { name: "message", label: "Algo que devemos saber? (opcional)", multiline: true },
+  const fields: {
+    name: keyof DemoBookingFormData;
+    label: string;
+    type?: "text" | "email" | "tel";
+    multiline?: boolean;
+    required?: boolean;
+    autoComplete?: string;
+  }[] = [
+    { name: "name", label: "Nome", required: true, autoComplete: "name" },
+    { name: "email", label: "Email", type: "email", required: true, autoComplete: "email" },
+    { name: "phone", label: "Telefone", type: "tel", autoComplete: "tel" },
+    { name: "company", label: "Empresa", autoComplete: "organization" },
+    { name: "message", label: "Algo que devemos saber?", multiline: true },
   ];
 
   return (
-    <div className="lg:min-h-[400px]">
+    <div className="lg:min-h-[340px]">
       <div className="mb-5 flex items-baseline gap-2">
         <h3 className="text-base font-bold tracking-tight [font-family:var(--font-pdf-montserrat)]">
           {dateHeading}
@@ -98,7 +106,7 @@ export function SlotsPanel({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -28 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="grid max-h-[404px] grid-cols-2 content-start gap-2.5 overflow-y-auto px-0.5 py-1 pr-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar]:w-1.5"
+            className="grid max-h-[344px] grid-cols-2 content-start gap-2.5 overflow-y-auto px-0.5 py-1 pr-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar]:w-1.5"
           >
             {starts.map((s, i) => {
               const free =
@@ -159,7 +167,7 @@ export function SlotsPanel({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -28 }}
             transition={{ duration: 0.35, ease: EASE }}
-            className="flex flex-col gap-5"
+            className="flex flex-col gap-6"
           >
             <button
               type="button"
@@ -183,28 +191,25 @@ export function SlotsPanel({
             />
 
             {fields.map((f, i) => (
-              <motion.div
+              <FloatingField
                 key={f.name}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 + i * 0.06, duration: 0.45, ease: EASE }}
-              >
-                <Field
-                  name={f.name}
-                  label={f.label}
-                  type={f.type}
-                  multiline={f.multiline}
-                  value={(form[f.name] as string) ?? ""}
-                  onChange={handleChange}
-                  error={errors[f.name]}
-                />
-              </motion.div>
+                name={f.name}
+                label={f.label}
+                type={f.type}
+                multiline={f.multiline}
+                required={f.required}
+                autoComplete={f.autoComplete}
+                index={i}
+                value={(form[f.name] as string) ?? ""}
+                onChange={handleChange}
+                error={errors[f.name]}
+              />
             ))}
 
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 + fields.length * 0.06, duration: 0.45, ease: EASE }}
+              transition={{ delay: 0.45 + fields.length * 0.08, duration: 0.45, ease: EASE }}
             >
               <LandingButton
                 type="submit"
@@ -228,34 +233,5 @@ export function SlotsPanel({
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-interface FieldProps {
-  name: string;
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-  error?: string;
-  type?: string;
-  multiline?: boolean;
-}
-
-function Field({ name, label, value, onChange, error, type = "text", multiline }: FieldProps) {
-  const base =
-    "w-full border-b bg-transparent pb-2 pt-1 text-sm outline-none transition-colors placeholder:text-black/30 focus:border-black dark:placeholder:text-white/30 dark:focus:border-white";
-  const border = error ? "border-red-500" : "border-black/15 dark:border-white/15";
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-black/45 dark:text-white/45">
-        {label}
-      </span>
-      {multiline ? (
-        <textarea name={name} value={value} onChange={onChange} rows={2} className={`${base} ${border} resize-none`} />
-      ) : (
-        <input name={name} type={type} value={value} onChange={onChange} className={`${base} ${border}`} />
-      )}
-      {error && <span className="mt-1 block text-xs text-red-500">{error}</span>}
-    </label>
   );
 }
