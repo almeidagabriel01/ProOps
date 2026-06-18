@@ -27,6 +27,7 @@ import { paymentPublicRoutes } from "./routes/payment-public.routes";
 import { asaasRoutes } from "./routes/asaas.routes";
 import { asaasWebhookRoutes } from "./routes/asaas-webhook.routes";
 import { contactRoutes } from "./routes/contact.routes";
+import { demoBookingRoutes } from "./routes/demo-booking.routes";
 import {
   publicAuthRoutes,
   protectedAuthRoutes,
@@ -446,6 +447,7 @@ app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
 app.use("/v1/public", contactFormLimiter, contactRoutes);
+app.use("/v1/public", contactFormLimiter, demoBookingRoutes);
 
 // Public auth routes (forgot password) — strict rate limit
 app.use("/v1/auth", passwordResetLimiter, publicAuthRoutes);
