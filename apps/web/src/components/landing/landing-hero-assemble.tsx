@@ -62,7 +62,7 @@ const HERO_COPY = {
   subtitle:
     "Propostas, CRM, financeiro e equipe — conectados em uma plataforma que monta o quadro completo do seu negócio.",
   primaryCta: { label: "Começar grátis", href: "/register" },
-  secondaryCta: { label: "Ver planos", href: "#pricing" },
+  secondaryCta: { label: "Marcar uma reunião", href: "/agendar" },
 };
 
 /* ────────────────────────────────────────────────────────────────────────────
