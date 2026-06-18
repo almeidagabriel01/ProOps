@@ -20,52 +20,74 @@ export function LandingShowcase() {
       if (!section) return;
 
       const headingItems = section.querySelectorAll<HTMLElement>(".showcase-heading");
-      headingItems.forEach((item) => {
-        gsap.fromTo(
-          item,
-          { y: 26, opacity: 0, autoAlpha: 0 },
-          {
+      const mockupElement = section.querySelector<HTMLElement>(".showcase-mockup");
+
+      const mm = gsap.matchMedia();
+
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        headingItems.forEach((item) => {
+          gsap.fromTo(
+            item,
+            { y: 26, opacity: 0, autoAlpha: 0 },
+            {
+              y: 0,
+              opacity: 1,
+              autoAlpha: 1,
+              ease: "none",
+              scrollTrigger: {
+                trigger: item,
+                start: "top 95%",
+                end: "top 72%",
+                scrub: 0.5,
+                invalidateOnRefresh: true,
+              },
+            },
+          );
+        });
+
+        if (!mockupElement) return;
+
+        gsap.set(mockupElement, {
+          rotationX: 12,
+          rotationY: -6,
+          scale: 0.9,
+          y: 110,
+          opacity: 0.35,
+          force3D: true,
+        });
+
+        gsap.to(mockupElement, {
+          scrollTrigger: {
+            trigger: mockupElement,
+            start: "top 92%",
+            end: "top 58%",
+            scrub: 0.5,
+            invalidateOnRefresh: true,
+          },
+          rotationX: 0,
+          rotationY: 0,
+          scale: 1,
+          y: 0,
+          opacity: 1,
+          ease: "none",
+          force3D: true,
+        });
+      });
+
+      mm.add("(prefers-reduced-motion: reduce)", () => {
+        headingItems.forEach((item) => gsap.set(item, { y: 0, opacity: 1, autoAlpha: 1 }));
+        if (mockupElement) {
+          gsap.set(mockupElement, {
+            rotationX: 0,
+            rotationY: 0,
+            scale: 1,
             y: 0,
             opacity: 1,
-            autoAlpha: 1,
-            ease: "none",
-            scrollTrigger: {
-              trigger: item,
-              start: "top 95%",
-              end: "top 72%",
-              scrub: true,
-              invalidateOnRefresh: true,
-            },
-          },
-        );
+          });
+        }
       });
 
-      const mockupElement = section.querySelector<HTMLElement>(".showcase-mockup");
-      if (!mockupElement) return;
-
-      gsap.set(mockupElement, {
-        rotationX: 22,
-        rotationY: -10,
-        scale: 0.84,
-        y: 110,
-        opacity: 0.35,
-      });
-
-      gsap.to(mockupElement, {
-        scrollTrigger: {
-          trigger: mockupElement,
-          start: "top 92%",
-          end: "top 58%",
-          scrub: true,
-          invalidateOnRefresh: true,
-        },
-        rotationX: 0,
-        rotationY: 0,
-        scale: 1,
-        y: 0,
-        opacity: 1,
-        ease: "none",
-      });
+      return () => mm.revert();
     },
     { scope: containerRef },
   );

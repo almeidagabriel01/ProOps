@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
 import { Accent, SectionHeading } from "./_shared/section-heading";
+import { usePauseOffscreen } from "./_shared/use-pause-offscreen";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -109,6 +110,7 @@ function CenterLogo() {
  */
 export function LandingIntegrations() {
   const containerRef = useRef<HTMLElement>(null);
+  const { ref: hubRef } = usePauseOffscreen<HTMLDivElement>();
 
   useGSAP(
     () => {
@@ -163,7 +165,10 @@ export function LandingIntegrations() {
           className="mb-14"
         />
 
-        <div className="relative overflow-hidden rounded-[2rem] border border-black/10 bg-gradient-to-b from-black/[0.02] to-transparent p-6 dark:border-white/10 dark:from-white/[0.04] sm:p-10">
+        <div
+          ref={hubRef}
+          className="relative overflow-hidden rounded-[2rem] border border-black/10 bg-gradient-to-b from-black/[0.02] to-transparent p-6 dark:border-white/10 dark:from-white/[0.04] sm:p-10"
+        >
           <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.05),transparent_70%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.08),transparent_70%)]" />
           <div className="grain-overlay opacity-[0.03]" />
 

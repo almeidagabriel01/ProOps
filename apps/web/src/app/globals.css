@@ -359,6 +359,28 @@ body {
   background: linear-gradient(120deg, transparent 0%, rgba(0,0,0,0.18) 50%, transparent 100%);
 }
 
+/* Magnetic button — brilho líquido que varre no hover.
+   Usa currentColor → adapta sozinho a cada variante (solid/inverted/outline)
+   e ao dark mode, sem seletores extras. */
+.magnetic-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 22%,
+    color-mix(in srgb, currentColor 24%, transparent) 50%,
+    transparent 78%
+  );
+  transform: translateX(-130%) skewX(-16deg);
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.magnetic-btn:hover::after {
+  transform: translateX(130%) skewX(-16deg);
+}
+
 /* Border beam for idle card animation */
 @property --card-beam-angle {
   syntax: '<angle>';
@@ -947,6 +969,12 @@ html[data-shell="locked"] body {
   will-change: transform;
 }
 
+/* Pausa loops de animação CSS quando a seção sai da viewport (ver use-pause-offscreen) */
+.anim-paused,
+.anim-paused * {
+  animation-play-state: paused !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-mono-drift,
   .animate-marquee-x,
@@ -955,5 +983,8 @@ html[data-shell="locked"] body {
   .animate-fab-ping,
   .animate-card-sheen {
     animation: none !important;
+  }
+  .magnetic-btn::after {
+    display: none;
   }
 }

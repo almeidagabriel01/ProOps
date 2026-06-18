@@ -18,11 +18,13 @@ import { CookieConsentBanner } from "@/components/legal/cookie-consent-banner";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const interPdf = Inter({

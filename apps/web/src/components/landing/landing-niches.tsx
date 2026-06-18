@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowRight, Cpu, Layers, MoveHorizontal } from "lucide-react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Accent, SectionHeading } from "./_shared/section-heading";
+import { MagneticButton } from "./_shared/magnetic-button";
+import { usePauseOffscreen } from "./_shared/use-pause-offscreen";
 
 type Niche = {
   index: string;
@@ -152,12 +154,12 @@ function NicheIndex({
   );
 }
 
-function NichePanel({ niche }: { niche: Niche }) {
+function NichePanel({ niche, animated }: { niche: Niche; animated: boolean }) {
   const Icon = niche.icon;
   return (
     <div className="relative flex h-full w-screen shrink-0 items-center overflow-hidden px-6 md:px-16 lg:px-24">
       {/* índice editorial: traço de gradiente teal com brilho girando */}
-      <NicheIndex value={niche.index} animated />
+      <NicheIndex value={niche.index} animated={animated} />
 
       <div className="relative max-w-xl">
         <div className="flex items-center gap-3">
@@ -177,13 +179,14 @@ function NichePanel({ niche }: { niche: Niche }) {
 
         <FeatureRows features={niche.features} />
 
-        <Link
+        <MagneticButton
           href={niche.href}
-          className="group/link mt-8 inline-flex items-center gap-1.5 text-sm font-semibold text-black dark:text-white"
+          variant="link"
+          className="mt-8"
+          trailingIcon={<ArrowRight className="h-4 w-4" />}
         >
           Saiba mais
-          <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/link:translate-x-1.5" />
-        </Link>
+        </MagneticButton>
       </div>
     </div>
   );
@@ -203,6 +206,7 @@ function NichePanel({ niche }: { niche: Niche }) {
 export function LandingNiches() {
   const reduce = useReducedMotion();
   const trackRef = useRef<HTMLDivElement>(null);
+  const { ref: stageRef, inView } = usePauseOffscreen<HTMLDivElement>();
   const { scrollYProgress } = useScroll({
     target: trackRef,
     offset: ["start start", "end end"],
@@ -214,7 +218,6 @@ export function LandingNiches() {
     [0, 1],
     ["0vw", `-${(panelCount - 1) * 100}vw`],
   );
-  const railFill = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
 
   // ---- Fallback estático (movimento reduzido) ----
   if (reduce) {
@@ -247,22 +250,22 @@ export function LandingNiches() {
         className="relative border-t border-black/10 bg-white dark:border-white/10 dark:bg-neutral-950"
         style={{ height: `${panelCount * 100}vh` }}
       >
-        <div className="sticky top-0 h-screen overflow-hidden">
+        <div ref={stageRef} className="sticky top-0 h-screen overflow-hidden">
           {/* grade de pontos sutil (estática) */}
           <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.06)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_82%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.07)_1px,transparent_1px)]" />
 
           <motion.div style={{ x }} className="flex h-full w-max">
             <IntroPanel />
             {NICHES.map((niche) => (
-              <NichePanel key={niche.href} niche={niche} />
+              <NichePanel key={niche.href} niche={niche} animated={inView} />
             ))}
           </motion.div>
 
           {/* barra de progresso */}
           <div className="absolute bottom-10 left-8 right-8 z-10 h-px bg-black/10 dark:bg-white/10 md:left-20 md:right-20 lg:left-28 lg:right-28">
             <motion.div
-              style={{ width: railFill }}
-              className="h-px bg-black dark:bg-white"
+              style={{ scaleX: scrollYProgress }}
+              className="h-px w-full origin-left bg-black dark:bg-white"
             />
           </div>
         </div>
@@ -312,13 +315,13 @@ function NicheFooterCTA() {
       <p className="mb-3 text-sm text-black/60 dark:text-white/60">
         Atua em outro segmento? O ProOps adapta-se ao seu nicho.
       </p>
-      <Link
+      <MagneticButton
         href="/contato"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-black transition-opacity hover:opacity-70 dark:text-white"
+        variant="link"
+        trailingIcon={<ArrowRight className="h-4 w-4" />}
       >
         Fale com a gente
-        <ArrowRight className="h-4 w-4" />
-      </Link>
+      </MagneticButton>
     </div>
   );
 }
