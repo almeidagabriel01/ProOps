@@ -54,9 +54,12 @@ const VARIANT: Record<Exclude<LandingVariant, "link">, VariantConfig> = {
     root: "landing-btn rounded-full bg-white text-black hover:text-white shadow-[0_8px_30px_rgba(0,0,0,0.20)]",
     ink: "bg-black text-black",
   },
+  // Secundário: pill TONAL (cinza-suave) que faz uma varredura translúcida no
+  // hover e permanece claro — nunca vira o preto/branco sólido do primário.
+  // Mantém o contraste de hierarquia no repouso e no hover.
   outline: {
-    root: "landing-btn landing-btn--wipe rounded-full border border-black/25 text-black hover:text-white dark:border-white/25 dark:text-white dark:hover:text-black",
-    ink: "bg-black text-black dark:bg-white dark:text-white",
+    root: "landing-btn landing-btn--wipe rounded-full border border-black/10 bg-black/[0.05] text-black hover:bg-black/[0.08] dark:border-white/15 dark:bg-white/[0.07] dark:text-white dark:hover:bg-white/[0.11]",
+    ink: "bg-black/12 text-black dark:bg-white/15 dark:text-white",
   },
 };
 

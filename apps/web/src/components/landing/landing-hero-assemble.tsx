@@ -199,6 +199,12 @@ export function LandingHeroAssemble() {
       mm.add(
         "(max-width: 767px) and (prefers-reduced-motion: no-preference)",
         () => {
+          // Ao ENTRAR no contexto mobile (ex.: DevTools redimensiona de
+          // desktop p/ mobile sem reload), zera qualquer estilo inline que o
+          // scrub do desktop deixou — senão o copy fica invisível e sobra o
+          // vazio do pin. Garante o hero mobile correto sem precisar recarregar.
+          gsap.set([copy, dashboard, ...statics, ...cards], { clearProps: "all" });
+
           gsap.from(dashboard, {
             opacity: 0,
             y: 40,
