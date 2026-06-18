@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
+import { motion } from "motion/react";
 import {
   Banknote,
   Calendar,
@@ -23,18 +24,20 @@ if (typeof window !== "undefined") {
 type Integration = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** categoria — exibida no layout vertical do mobile */
+  tag?: string;
 };
 
 const LEFT: Integration[] = [
-  { label: "WhatsApp", icon: MessageCircle },
-  { label: "Google Agenda", icon: Calendar },
-  { label: "Lia (IA)", icon: Sparkles },
+  { label: "WhatsApp", icon: MessageCircle, tag: "Mensagens" },
+  { label: "Google Agenda", icon: Calendar, tag: "Agenda" },
+  { label: "Lia (IA)", icon: Sparkles, tag: "Assistente IA" },
 ];
 
 const RIGHT: Integration[] = [
-  { label: "Stripe", icon: CreditCard },
-  { label: "Pix", icon: QrCode },
-  { label: "Asaas", icon: Banknote },
+  { label: "Stripe", icon: CreditCard, tag: "Pagamento" },
+  { label: "Pix", icon: QrCode, tag: "Pagamento" },
+  { label: "Asaas", icon: Banknote, tag: "Cobrança" },
 ];
 
 // Posições verticais (% da altura do painel) dos badges e dos pontos de conexão.
@@ -230,14 +233,45 @@ export function LandingIntegrations() {
             ))}
           </div>
 
-          {/* ===== Mobile: empilhamento simples (1 coluna p/ rótulos inteiros) ===== */}
-          <div className="relative flex flex-col items-center gap-8 md:hidden">
-            <CenterLogo />
-            <div className="grid w-full grid-cols-1 gap-2.5">
-              {[...LEFT, ...RIGHT].map((item) => (
-                <Pill key={item.label} icon={item.icon} label={item.label} />
-              ))}
-            </div>
+          {/* ===== Mobile: "espinha" vertical — nós conectados por um trilho,
+               estilo circuito (sem a logo, mais editorial que cards soltos) ===== */}
+          <div className="relative md:hidden">
+            {/* trilho vertical que liga todas as integrações */}
+            <span
+              aria-hidden
+              className="absolute bottom-4 left-[1.375rem] top-4 w-px bg-gradient-to-b from-transparent via-black/15 to-transparent dark:via-white/25"
+            />
+            <ul className="relative space-y-1">
+              {[...LEFT, ...RIGHT].map((item, i) => {
+                const Icon = item.icon;
+                const last = i === LEFT.length + RIGHT.length - 1;
+                return (
+                  <motion.li
+                    key={item.label}
+                    initial={{ opacity: 0, x: -14 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, amount: 0.6 }}
+                    transition={{ duration: 0.4, ease: "easeOut", delay: i * 0.06 }}
+                    className="relative flex items-center gap-4 py-2"
+                  >
+                    {/* nó assentado sobre o trilho */}
+                    <span className="relative z-10 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-black/10 bg-white text-black dark:border-white/20 dark:bg-neutral-900 dark:text-white">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div
+                      className={`min-w-0 flex-1 pb-3 ${last ? "" : "border-b border-black/[0.08] dark:border-white/10"}`}
+                    >
+                      <span className="block text-sm font-semibold text-black dark:text-white">
+                        {item.label}
+                      </span>
+                      <span className="block text-xs text-black/45 dark:text-white/45">
+                        {item.tag}
+                      </span>
+                    </div>
+                  </motion.li>
+                );
+              })}
+            </ul>
           </div>
         </div>
 

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef } from "react";
-import Link from "next/link";
 import { ArrowRight, Cpu, Layers, MoveHorizontal } from "lucide-react";
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Accent, SectionHeading } from "./_shared/section-heading";
@@ -305,13 +304,14 @@ function NichePanelStatic({ niche }: { niche: Niche }) {
           {niche.description}
         </p>
         <FeatureRows features={niche.features} />
-        <Link
+        <LandingButton
           href={niche.href}
-          className="mt-8 inline-flex items-center gap-1.5 text-sm font-semibold text-black dark:text-white"
+          variant="link"
+          className="mt-8"
+          trailingIcon={<ArrowRight className="h-4 w-4" />}
         >
           Saiba mais
-          <ArrowRight className="h-4 w-4" />
-        </Link>
+        </LandingButton>
       </div>
     </div>
   );
@@ -325,7 +325,8 @@ function NicheFooterCTA() {
       </p>
       <LandingButton
         href="/contato"
-        variant="link"
+        variant="outline"
+        size="md"
         trailingIcon={<ArrowRight className="h-4 w-4" />}
       >
         Fale com a gente

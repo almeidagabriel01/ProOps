@@ -182,6 +182,15 @@ export function LandingHeroAssemble() {
               0.1 + i * 0.04,
             );
           });
+
+          // Cleanup ao SAIR do contexto desktop (ex.: DevTools redimensiona
+          // para mobile sem reload): limpa os estilos inline que o scrub
+          // deixou em copy/dashboard/cards, senão o hero mobile aparece
+          // quebrado (copy invisível, vazio do pin) até dar reload.
+          return () => {
+            gsap.set([copy, dashboard, ...cards], { clearProps: "all" });
+            gsap.set(statics, { clearProps: "opacity" });
+          };
         },
       );
 
