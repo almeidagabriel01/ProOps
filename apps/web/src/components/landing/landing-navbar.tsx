@@ -36,6 +36,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
+import { MagneticButton } from "./_shared/magnetic-button";
 
 interface LandingNavbarProps {
   currentUser: User | null;
@@ -342,14 +343,15 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
 
             {/* CTA pill — Quero assinar */}
             {showSubscribeCta && !isNavbarLoading && (
-              <button
-                type="button"
+              <MagneticButton
+                variant="solid"
+                size="sm"
                 onClick={() => scrollToAnchor("#pricing")}
-                className="hidden h-11 cursor-pointer items-center gap-1.5 rounded-full bg-black px-4 text-[13px] font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.15)] transition-transform hover:scale-[1.03] active:scale-[0.98] sm:flex dark:bg-white dark:text-black"
+                icon={<Plus className="h-4 w-4" />}
+                className="hidden sm:inline-flex"
               >
-                <Plus className="h-4 w-4" />
                 Quero assinar
-              </button>
+              </MagneticButton>
             )}
 
             {/* Theme toggle pill */}
@@ -458,15 +460,16 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       </Link>
                     )}
 
-                    <button
+                    <MagneticButton
+                      variant="solid"
+                      size="md"
                       onClick={() => {
                         onSignOut();
                         setMobileOpen(false);
                       }}
-                      className="rounded-full bg-black px-8 py-3 text-sm font-semibold text-white dark:bg-white dark:text-black"
                     >
                       Sair
-                    </button>
+                    </MagneticButton>
                   </>
                 ) : (
                   <>
@@ -477,14 +480,14 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     >
                       Entrar
                     </Link>
-                    <button
-                      type="button"
+                    <MagneticButton
+                      variant="solid"
+                      size="md"
                       onClick={() => scrollToAnchor("#pricing", true)}
-                      className="flex items-center gap-1.5 rounded-full bg-black px-8 py-3 text-sm font-semibold text-white dark:bg-white dark:text-black"
+                      icon={<Plus className="h-4 w-4" />}
                     >
-                      <Plus className="h-4 w-4" />
                       Quero assinar
-                    </button>
+                    </MagneticButton>
                   </>
                 )}
               </motion.div>

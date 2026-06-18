@@ -8,6 +8,7 @@ import { useGSAP } from "@gsap/react";
 import { Check, CreditCard, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 import { LandingPlan } from "./use-landing-page";
 import { Accent, SectionHeading } from "./_shared/section-heading";
+import { MagneticButton } from "./_shared/magnetic-button";
 import { User } from "@/types";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
@@ -559,22 +560,18 @@ export function LandingPricing({
                       </p>
                     )}
 
-                    <button
-                      type="button"
+                    <MagneticButton
+                      variant={plan.popular ? "inverted" : "solid"}
+                      size="md"
+                      fullWidth
+                      className="mt-7"
                       onClick={() => void handleSubscribe(plan.tier)}
                       disabled={processingTier === plan.tier}
-                      className={cn(
-                        "btn-sweep relative mt-7 w-full overflow-hidden rounded-full px-4 py-3 text-sm font-semibold transition-colors",
-                        "cursor-pointer disabled:cursor-not-allowed disabled:opacity-70",
-                        plan.popular
-                          ? "bg-white text-black hover:bg-white/90"
-                          : "bg-black text-white hover:bg-black/85 dark:bg-white dark:text-black dark:hover:bg-white/90",
-                      )}
                     >
                       {processingTier === plan.tier
                         ? "Redirecionando..."
                         : ctaLabel}
-                    </button>
+                    </MagneticButton>
 
                     <div className="mt-8 flex flex-1 flex-col">
                       <div className="mb-4 flex items-center gap-3">

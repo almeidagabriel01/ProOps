@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useRef } from "react";
-import Link from "next/link";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { Accent } from "./_shared/section-heading";
+import { MagneticButton } from "./_shared/magnetic-button";
 import { WHATSAPP_HREF } from "./_shared/whatsapp";
 
 if (typeof window !== "undefined") {
@@ -69,31 +69,40 @@ export function LandingCTA() {
         </p>
 
         <div className="cta-fade-item mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link
+          <MagneticButton
             href="/register"
-            className="btn-sweep flex w-full items-center justify-center gap-2 rounded-full bg-black px-8 py-4 text-lg font-bold text-white transition-colors hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 sm:w-auto"
+            variant="solid"
+            size="lg"
+            fullWidth
+            className="sm:w-auto"
+            trailingIcon={<ArrowRight className="h-5 w-5" />}
           >
             Começar grátis
-            <ArrowRight className="h-5 w-5" />
-          </Link>
+          </MagneticButton>
 
           {WHATSAPP_HREF ? (
-            <a
+            <MagneticButton
               href={WHATSAPP_HREF}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-black/20 px-8 py-4 text-lg font-semibold text-black transition-colors hover:border-black/40 hover:bg-black/[0.04] dark:border-white/25 dark:text-white dark:hover:border-white/50 dark:hover:bg-white/[0.06] sm:w-auto"
+              external
+              variant="outline"
+              size="lg"
+              fullWidth
+              className="sm:w-auto"
+              icon={<MessageCircle className="h-5 w-5" />}
             >
-              <MessageCircle className="h-5 w-5" />
               Falar no WhatsApp
-            </a>
+            </MagneticButton>
           ) : (
-            <a
+            <MagneticButton
               href="mailto:gestao@proops.com.br"
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-black/20 px-8 py-4 text-lg font-semibold text-black transition-colors hover:border-black/40 hover:bg-black/[0.04] dark:border-white/25 dark:text-white dark:hover:border-white/50 dark:hover:bg-white/[0.06] sm:w-auto"
+              external
+              variant="outline"
+              size="lg"
+              fullWidth
+              className="sm:w-auto"
             >
               Solicitar demonstração
-            </a>
+            </MagneticButton>
           )}
         </div>
 
