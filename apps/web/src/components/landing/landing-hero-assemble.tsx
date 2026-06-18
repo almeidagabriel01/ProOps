@@ -264,8 +264,8 @@ export function LandingHeroAssemble() {
           </LandingButton>
           <LandingButton
             href={HERO_COPY.secondaryCta.href}
-            variant="outline"
-            size="md"
+            variant="link"
+            trailingIcon={<ArrowRight className="h-4 w-4" />}
           >
             {HERO_COPY.secondaryCta.label}
           </LandingButton>

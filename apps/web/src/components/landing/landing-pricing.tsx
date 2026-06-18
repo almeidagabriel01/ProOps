@@ -476,7 +476,7 @@ export function LandingPricing({
           </div>
         ) : (
           <div className="group/row mx-auto flex max-w-6xl flex-col items-stretch gap-6 lg:flex-row lg:justify-center lg:gap-0 lg:px-2">
-            {pricingCards.map((plan, index) => {
+            {pricingCards.map((plan) => {
               const monthlyPrice = plan.prices.monthly;
               const yearlyPrice = plan.prices.yearly;
               const annualMonthlyPrice = yearlyPrice > 0 ? yearlyPrice / 12 : 0;
@@ -484,15 +484,9 @@ export function LandingPricing({
               const isEnterprise =
                 plan.tier.toLowerCase() === "enterprise" || displayPrice <= 0;
               const ctaLabel = isEnterprise ? "Entrar em contato" : plan.cta;
-              // Varia o visual por tier: popular em destaque (filled), enterprise
-              // secundário (outline), demais alternam solid/outline pelo índice.
-              const ctaVariant = plan.popular
-                ? "inverted"
-                : isEnterprise
-                  ? "outline"
-                  : index % 2 === 0
-                    ? "solid"
-                    : "outline";
+              // Planos são ações primárias (compra): popular em destaque (inverted),
+              // demais em solid. Sem variante secundária aqui.
+              const ctaVariant = plan.popular ? "inverted" : "solid";
               const priceText = isEnterprise
                 ? "Sob consulta"
                 : formatPrice(displayPrice);

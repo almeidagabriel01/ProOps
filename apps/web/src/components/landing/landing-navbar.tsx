@@ -468,8 +468,9 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     )}
 
                     <LandingButton
-                      variant="outline"
-                      size="md"
+                      variant="link"
+                      tone="muted"
+                      className="text-lg"
                       onClick={() => {
                         onSignOut();
                         setMobileOpen(false);

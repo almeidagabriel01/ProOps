@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
 import { motion } from "motion/react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LandingButton } from "../_shared/landing-button";
 import { AnimatedGradientText } from "@/components/ui/animated-text";
 import type { User } from "@/types";
 import { getAuthenticatedHome } from "@/lib/landing/auth-redirect";
@@ -73,23 +72,14 @@ export function NicheHero({ hero, currentUser, isAuthLoading }: NicheHeroProps) 
             </>
           ) : (
             <>
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Button asChild size="lg" className="btn-sweep rounded-full px-8 font-semibold bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
-                  <Link href={appHref}>{primaryLabel}</Link>
-                </Button>
-              </motion.div>
+              <LandingButton href={appHref} variant="solid" size="lg">
+                {primaryLabel}
+              </LandingButton>
 
               {showSecondaryCta && (
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="lg"
-                    className="btn-sweep rounded-full px-8 font-semibold border-black/20 text-black hover:bg-black/[0.04] dark:border-white/20 dark:text-white dark:hover:bg-white/[0.06]"
-                  >
-                    <Link href={hero.secondaryCta.href}>{hero.secondaryCta.label}</Link>
-                  </Button>
-                </motion.div>
+                <LandingButton href={hero.secondaryCta.href} variant="link">
+                  {hero.secondaryCta.label}
+                </LandingButton>
               )}
             </>
           )}

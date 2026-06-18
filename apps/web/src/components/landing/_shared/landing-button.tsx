@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 /*  @media em globals.css).                                                    */
 /* -------------------------------------------------------------------------- */
 
-type LandingVariant = "solid" | "inverted" | "outline" | "link";
+type LandingVariant = "solid" | "inverted" | "link";
 type LandingSize = "sm" | "md" | "lg";
 /** Só afeta a variante link: "strong" = cor cheia · "muted" = tom suave (menu/rodapé). */
 type LandingTone = "strong" | "muted";
@@ -53,13 +53,6 @@ const VARIANT: Record<Exclude<LandingVariant, "link">, VariantConfig> = {
   inverted: {
     root: "landing-btn rounded-full bg-white text-black hover:text-white shadow-[0_8px_30px_rgba(0,0,0,0.20)]",
     ink: "bg-black text-black",
-  },
-  // Secundário: pill TONAL (cinza-suave) que faz uma varredura translúcida no
-  // hover e permanece claro — nunca vira o preto/branco sólido do primário.
-  // Mantém o contraste de hierarquia no repouso e no hover.
-  outline: {
-    root: "landing-btn landing-btn--wipe rounded-full border border-black/10 bg-black/[0.05] text-black hover:bg-black/[0.08] dark:border-white/15 dark:bg-white/[0.07] dark:text-white dark:hover:bg-white/[0.11]",
-    ink: "bg-black/12 text-black dark:bg-white/15 dark:text-white",
   },
 };
 

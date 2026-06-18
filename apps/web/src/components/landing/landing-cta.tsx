@@ -84,10 +84,7 @@ export function LandingCTA() {
             <LandingButton
               href={WHATSAPP_HREF}
               external
-              variant="outline"
-              size="lg"
-              fullWidth
-              className="sm:w-auto"
+              variant="link"
               icon={<MessageCircle className="h-5 w-5" />}
             >
               Falar no WhatsApp
@@ -96,10 +93,7 @@ export function LandingCTA() {
             <LandingButton
               href="mailto:gestao@proops.com.br"
               external
-              variant="outline"
-              size="lg"
-              fullWidth
-              className="sm:w-auto"
+              variant="link"
             >
               Solicitar demonstração
             </LandingButton>

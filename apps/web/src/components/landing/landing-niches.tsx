@@ -325,8 +325,7 @@ function NicheFooterCTA() {
       </p>
       <LandingButton
         href="/contato"
-        variant="outline"
-        size="md"
+        variant="link"
         trailingIcon={<ArrowRight className="h-4 w-4" />}
       >
         Fale com a gente

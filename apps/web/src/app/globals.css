@@ -391,20 +391,6 @@ body {
   display: block;
 }
 
-/* Variante secundária: em vez da tinta subir, o preenchimento varre na
-   diagonal (esquerda→direita). Diferencia o secundário do primário. */
-.landing-btn--wipe .landing-btn__ink {
-  inset: 0 auto 0 -20%;
-  width: 140%;
-  transform: translateX(-118%) skewX(-12deg);
-}
-.landing-btn--wipe:hover .landing-btn__ink {
-  transform: translateX(0) skewX(-12deg);
-}
-.landing-btn--wipe .landing-btn__wave {
-  display: none;
-}
-
 /* Link variant — sublinhado que se desenha da esquerda no hover */
 .landing-link__bar {
   position: absolute;
