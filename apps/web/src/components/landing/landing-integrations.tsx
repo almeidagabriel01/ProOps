@@ -230,10 +230,10 @@ export function LandingIntegrations() {
             ))}
           </div>
 
-          {/* ===== Mobile: empilhamento simples ===== */}
+          {/* ===== Mobile: empilhamento simples (1 coluna p/ rótulos inteiros) ===== */}
           <div className="relative flex flex-col items-center gap-8 md:hidden">
             <CenterLogo />
-            <div className="grid w-full grid-cols-2 place-items-center gap-3">
+            <div className="grid w-full grid-cols-1 gap-2.5">
               {[...LEFT, ...RIGHT].map((item) => (
                 <Pill key={item.label} icon={item.icon} label={item.label} />
               ))}

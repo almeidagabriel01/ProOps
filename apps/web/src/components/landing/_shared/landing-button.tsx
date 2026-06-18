@@ -19,11 +19,14 @@ import { cn } from "@/lib/utils";
 
 type LandingVariant = "solid" | "inverted" | "outline" | "link";
 type LandingSize = "sm" | "md" | "lg";
+/** Só afeta a variante link: "strong" = cor cheia · "muted" = tom suave (menu/rodapé). */
+type LandingTone = "strong" | "muted";
 
 interface LandingButtonProps {
   children: React.ReactNode;
   variant?: LandingVariant;
   size?: LandingSize;
+  tone?: LandingTone;
   href?: string;
   external?: boolean;
   onClick?: (event: React.MouseEvent<HTMLElement>) => void;
@@ -52,7 +55,7 @@ const VARIANT: Record<Exclude<LandingVariant, "link">, VariantConfig> = {
     ink: "bg-black text-black",
   },
   outline: {
-    root: "landing-btn rounded-full border border-black/25 text-black hover:text-white dark:border-white/25 dark:text-white dark:hover:text-black",
+    root: "landing-btn landing-btn--wipe rounded-full border border-black/25 text-black hover:text-white dark:border-white/25 dark:text-white dark:hover:text-black",
     ink: "bg-black text-black dark:bg-white dark:text-white",
   },
 };
@@ -64,12 +67,13 @@ const SIZE: Record<LandingSize, string> = {
 };
 
 const BASE =
-  "group relative inline-flex select-none items-center justify-center gap-2 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:ring-offset-2 dark:focus-visible:ring-white/40 disabled:pointer-events-none disabled:opacity-70";
+  "group relative inline-flex cursor-pointer select-none items-center justify-center gap-2 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 focus-visible:ring-offset-2 dark:focus-visible:ring-white/40 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-70";
 
 export function LandingButton({
   children,
   variant = "solid",
   size = "md",
+  tone = "strong",
   href,
   external,
   onClick,
@@ -106,7 +110,10 @@ export function LandingButton({
   if (isLink) {
     rootClassName = cn(
       BASE,
-      "landing-link text-sm text-black dark:text-white",
+      "landing-link text-sm",
+      tone === "muted"
+        ? "text-black/65 hover:text-black dark:text-white/70 dark:hover:text-white"
+        : "text-black dark:text-white",
       className,
     );
     inner = (

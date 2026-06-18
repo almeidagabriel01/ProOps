@@ -102,8 +102,10 @@ function NicheIndex({
   corner?: boolean;
 }) {
   const id = `niche-grad-${value}`;
+  // No mobile o numeral vira marca d'água discreta no canto (menor + opaco) para
+  // não colidir com o título; no desktop (md+) mantém o tamanho/posição original.
   const position = corner
-    ? "-top-6 right-0 h-32"
+    ? "-top-3 right-0 h-20 opacity-30 md:-top-6 md:right-0 md:h-32 md:opacity-100"
     : "right-2 top-1/2 h-[42vh] -translate-y-1/2 md:right-12 md:h-[56vh]";
   return (
     <svg
@@ -296,7 +298,7 @@ function NichePanelStatic({ niche }: { niche: Niche }) {
             {niche.eyebrow}
           </span>
         </div>
-        <h3 className="mt-5 [font-family:var(--font-pdf-montserrat)] text-4xl font-bold tracking-tight text-black dark:text-white md:text-5xl">
+        <h3 className="mt-5 max-w-[78%] [font-family:var(--font-pdf-montserrat)] text-4xl font-bold tracking-tight text-black dark:text-white md:max-w-none md:text-5xl">
           {niche.title}
         </h3>
         <p className="mt-4 max-w-xl text-base leading-relaxed text-black/60 dark:text-white/65 md:text-lg">

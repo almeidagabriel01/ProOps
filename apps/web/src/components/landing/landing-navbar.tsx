@@ -331,13 +331,15 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                   </DropdownMenu>
                 </div>
               ) : (
-                <Link
+                <LandingButton
                   href="/login"
-                  className="flex items-center gap-1.5 text-[13px] font-medium text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                  variant="link"
+                  tone="muted"
+                  icon={<UserIcon className="h-4 w-4" />}
+                  className="text-[13px]"
                 >
-                  <UserIcon className="h-4 w-4" />
                   Entrar
-                </Link>
+                </LandingButton>
               )}
             </div>
 
@@ -426,13 +428,14 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       {companyName}
                     </span>
                     {isBlockedAccount ? (
-                      <button
-                        type="button"
+                      <LandingButton
+                        variant="link"
+                        tone="muted"
                         onClick={() => scrollToAnchor("#pricing", true)}
-                        className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                        className="text-lg"
                       >
                         Ver planos
-                      </button>
+                      </LandingButton>
                     ) : isFreeAccount ? (
                       <>
                         <button
@@ -442,22 +445,26 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                         >
                           Ver planos
                         </button>
-                        <Link
+                        <LandingButton
                           href="/profile"
+                          variant="link"
+                          tone="muted"
                           onClick={() => setMobileOpen(false)}
-                          className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                          className="text-lg"
                         >
                           Meu Perfil
-                        </Link>
+                        </LandingButton>
                       </>
                     ) : (
-                      <Link
+                      <LandingButton
                         href={appHref}
+                        variant="link"
+                        tone="muted"
                         onClick={() => setMobileOpen(false)}
-                        className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                        className="text-lg"
                       >
                         Entrar no ERP
-                      </Link>
+                      </LandingButton>
                     )}
 
                     <LandingButton
@@ -473,13 +480,15 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                   </>
                 ) : (
                   <>
-                    <Link
+                    <LandingButton
                       href="/login"
+                      variant="link"
+                      tone="muted"
                       onClick={() => setMobileOpen(false)}
-                      className="text-lg text-black/70 transition-colors hover:text-black dark:text-white/70 dark:hover:text-white"
+                      className="text-lg"
                     >
                       Entrar
-                    </Link>
+                    </LandingButton>
                     <LandingButton
                       variant="solid"
                       size="md"

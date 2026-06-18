@@ -187,6 +187,37 @@ function PillarReveal({
 }
 
 /* ===================================================================== */
+/* Emblema mobile — escudo com anéis "radar" pulsando (substitui o emblema  */
+/* de camadas do desktop, que só faz sentido com o scroll)                 */
+/* ===================================================================== */
+
+function MobileShield() {
+  return (
+    <div className="relative grid h-44 w-44 place-items-center">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          aria-hidden
+          className="absolute inset-0 rounded-full border border-black/15 dark:border-white/15"
+          initial={{ scale: 0.55, opacity: 0 }}
+          animate={{ scale: 1, opacity: [0, 0.5, 0] }}
+          transition={{
+            duration: 2.6,
+            repeat: Infinity,
+            delay: i * 0.85,
+            ease: "easeOut",
+          }}
+        />
+      ))}
+      <div className="relative grid h-20 w-20 place-items-center rounded-full border border-black/15 bg-black/[0.03] dark:border-white/15 dark:bg-white/[0.05]">
+        <span className="animate-pulse-slow absolute inset-0 rounded-full bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.12),transparent_70%)] dark:bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.18),transparent_70%)]" />
+        <ShieldCheck className="relative h-9 w-9 text-black dark:text-white" />
+      </div>
+    </div>
+  );
+}
+
+/* ===================================================================== */
 /* Seção                                                                 */
 /* ===================================================================== */
 
@@ -288,11 +319,43 @@ export function LandingSecurity() {
 
   if (reduce) return staticView;
 
+  // Mobile (com movimento): escudo animado simples + lista de pilares — o
+  // emblema de camadas do desktop só faz sentido dirigido pelo scroll.
+  const mobileView = (
+    <section className="border-t border-black/10 bg-white px-6 py-20 dark:border-white/10 dark:bg-neutral-950 md:hidden">
+      <SectionHeading
+        align="left"
+        eyebrow="Segurança & privacidade"
+        title={
+          <>
+            Seus dados <Accent>protegidos</Accent> por padrão
+          </>
+        }
+        description="Segurança não é um recurso à parte — é a base da plataforma. Veja como cuidamos das informações do seu negócio e dos seus clientes."
+        className="mb-10"
+      />
+      <div className="mb-12 flex justify-center">
+        <MobileShield />
+      </div>
+      <div className="border-y border-black/10 dark:border-white/10">
+        {PILLARS.map((pillar, i) => (
+          <PillarReveal
+            key={pillar.title}
+            pillar={pillar}
+            index={i}
+            progress={scrollYProgress}
+            draw={false}
+          />
+        ))}
+      </div>
+    </section>
+  );
+
   // ---- Scrollytelling (desktop ≥768px) ----
   return (
     <>
-      {/* Mobile: layout estático empilhado — evita o scrollytelling 320vh quebrar */}
-      <div className="md:hidden">{staticView}</div>
+      {/* Mobile: escudo animado + pilares — evita o scrollytelling 320vh quebrar */}
+      {mobileView}
 
       {/* Desktop: scrollytelling pinado — intacto */}
       <section
