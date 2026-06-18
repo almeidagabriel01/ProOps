@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { CheckCircle, Clock, AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TransactionStatus } from "@/services/transaction-service";

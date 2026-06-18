@@ -17,7 +17,7 @@ import { ALLOWED_TYPES } from "@/services/storage-service";
 import { NICHE_LABELS, TenantNiche } from "@/types";
 import { ArrowLeft, Building2, Palette, Upload } from "lucide-react";
 import { AuthLayout } from "@/app/login/_components/auth-layout";
-import { motion } from "framer-motion";
+import { m as motion } from "motion/react";
 import Image from "next/image";
 import { Loader } from "@/components/ui/loader";
 

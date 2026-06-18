@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { Trophy } from "lucide-react";
 import type { ActivityLeaderboardItem } from "../_hooks/useAnalyticsData";
 

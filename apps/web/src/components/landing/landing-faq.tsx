@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { CornerDownLeft, Search } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, m as motion, useReducedMotion } from "motion/react";
 import { Accent, SectionHeading } from "./_shared/section-heading";
 import { LandingButton } from "./_shared/landing-button";
 import { FAQS } from "./_shared/faq-data";

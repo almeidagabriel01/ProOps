@@ -3,7 +3,7 @@
 import React, { PropsWithChildren, useEffect, useRef } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import {
-  motion,
+  m as motion,
   MotionValue,
   useMotionValue,
   useSpring,

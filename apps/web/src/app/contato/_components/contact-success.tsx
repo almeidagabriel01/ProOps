@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { useReducedMotion } from "@/components/landing/_shared/use-reduced-motion";
 

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { useAnalyticsData } from "./_hooks/useAnalyticsData";
 import {
   AnalyticsKPIs,

@@ -2,7 +2,7 @@
 
 import React, { useRef } from "react";
 import { ArrowRight, Cpu, Layers, MoveHorizontal } from "lucide-react";
-import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { m as motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { Accent, SectionHeading } from "./_shared/section-heading";
 import { LandingButton } from "./_shared/landing-button";
 import { usePauseOffscreen } from "./_shared/use-pause-offscreen";

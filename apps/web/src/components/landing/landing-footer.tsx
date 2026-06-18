@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { Instagram } from "lucide-react";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
 import { INSTAGRAM_HREF, WHATSAPP_HREF } from "./_shared/whatsapp";

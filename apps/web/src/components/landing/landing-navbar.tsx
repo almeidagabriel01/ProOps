@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import {
   AnimatePresence,
-  motion,
+  m as motion,
   useReducedMotion,
   useScroll,
   useSpring,

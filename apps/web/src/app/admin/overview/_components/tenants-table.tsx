@@ -25,7 +25,7 @@ import {
   FileText,
 } from "lucide-react";
 import { TenantBillingInfo } from "@/services/admin-service";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 
 import { UsageIndicator } from "./usage-indicator";
 import { StatusBadge } from "./status-badge";

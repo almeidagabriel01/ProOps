@@ -27,7 +27,7 @@ import {
   Trash2,
   Settings,
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { m as motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import {
   compareCatalogDisplayItem,

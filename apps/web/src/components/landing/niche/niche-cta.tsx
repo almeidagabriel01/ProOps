@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { LandingButton } from "../_shared/landing-button";
 import type { NicheLandingConfig } from "./types";
 

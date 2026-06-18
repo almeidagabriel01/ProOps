@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { LandingNavbar, LandingFooter, useLandingPage } from "@/components/landing";
 import { useReducedMotion } from "@/components/landing/_shared/use-reduced-motion";
 import {

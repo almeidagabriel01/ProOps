@@ -11,7 +11,7 @@ import {
   AdminOverviewSkeleton,
   SubscriptionSyncCard,
 } from "./_components";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 
 export default function AdminOverviewPage() {
   const router = useRouter();

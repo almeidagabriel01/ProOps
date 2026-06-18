@@ -9,7 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  motion,
+  m as motion,
   useReducedMotion,
   useScroll,
   useTransform,

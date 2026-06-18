@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useId, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/components/landing/_shared/use-reduced-motion";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { m as motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {

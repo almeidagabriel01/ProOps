@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   formatDateStr,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, m as motion } from "motion/react";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { Loader } from "@/components/ui/loader";
