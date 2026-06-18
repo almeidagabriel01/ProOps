@@ -163,6 +163,24 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${interPdf.variable} ${robotoPdf.variable} ${latoPdf.variable} ${montserratPdf.variable} ${playfairPdf.variable} antialiased`}
       >
+        {/*
+          Browser back/forward recovery. A back/forward navigation restores a
+          cached render where Framer Motion entrance animations never re-fire,
+          leaving content stuck at its `initial` hidden state — a blank white
+          page that only a manual reload fixes. This document-level listener
+          (attached at parse time, never removed, so it survives the restore —
+          a React effect listener does NOT, the tree isn't re-mounted on
+          restore) reloads on any back/forward restore. Mirror of
+          shouldReloadOnPageShow() in lib/auth/decide-bfcache-recovery.ts
+          (unit-tested). No loop: after reload the nav type is "reload".
+        */}
+        <script
+          id="bfcache-recovery"
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){window.addEventListener('pageshow',function(e){try{var n=performance.getEntriesByType('navigation')[0];if(e.persisted||(n&&n.type==='back_forward')){window.location.reload();}}catch(_){}});})();",
+          }}
+        />
         <Providers>{children}</Providers>
         <CookieConsentBanner />
         <Analytics />

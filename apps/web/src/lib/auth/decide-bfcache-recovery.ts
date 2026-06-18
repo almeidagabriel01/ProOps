@@ -27,7 +27,11 @@
  * this never loops. A normal fresh load is type "navigate" → no reload.
  *
  * Kept pure (no DOM, no React) so it is unit-testable and the intent can't
- * silently regress.
+ * silently regress. The actual runtime listener is a document-level inline
+ * script in app/layout.tsx (it must be attached at parse time and never
+ * removed, so it survives the restore — a React effect listener does not,
+ * because the tree is not re-mounted on a back/forward restore). That script
+ * mirrors this exact condition; keep the two in sync.
  */
 export interface BfcacheRecoveryInput {
   /** The `pageshow` event's `persisted` flag — true only on a bfcache restore. */
