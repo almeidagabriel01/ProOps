@@ -46,6 +46,7 @@ const PUBLIC_ROUTES = [
   "/checkout-success",
   "/pricing",
   "/contato",
+  "/agendar", // Public booking page (host card + calendar) — classified public in providers.tsx, no ERP shell
   "/auth/refresh", // Silent session re-mint interstitial — must run without a cookie
   "/api/webhooks", // Webhooks need to be public
   "/share", // Public shared proposal pages

@@ -107,4 +107,22 @@ test.describe("AUTH-05: Route guards — unauthenticated redirect", () => {
       }
     });
   }
+
+  // Public booking page (hero CTA "marcar reunião" links here). It's classified
+  // public in providers.tsx (no ERP shell / ProtectedRoute), so the proxy must
+  // also treat it as public. Regression: /agendar was missing from PUBLIC_ROUTES,
+  // so a visitor (or a logged-in user whose __session cookie expired) was bounced
+  // to /auth/refresh?next=/agendar and the recovery interstitial spun there.
+  test("public booking route /agendar is reachable without auth (no redirect to /auth/refresh or /login)", async ({ playwright }) => {
+    const ctx = await playwright.request.newContext({ baseURL: "http://localhost:3001" });
+    try {
+      const resp = await ctx.fetch("/agendar");
+      const url = new URL(resp.url());
+      expect(url.pathname).toBe("/agendar");
+      expect(url.pathname).not.toBe("/auth/refresh");
+      expect(url.pathname).not.toBe("/login");
+    } finally {
+      await ctx.dispose();
+    }
+  });
 });
