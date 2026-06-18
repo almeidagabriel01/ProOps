@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "../../init";
 import { logger } from "../../lib/logger";
 import { sendEmail } from "../../services/email/send-email";
+import { createZoomMeeting } from "../../services/zoom/create-meeting";
 import {
   renderDemoBookingInternalEmail,
   renderDemoBookingConfirmationEmail,
@@ -153,8 +154,16 @@ export async function submitDemoBooking(
 
   const endMinutes = data.startMinutes + data.durationMinutes;
   const ref = db.collection(COLLECTION).doc();
-  // Sala de vídeo dedicada (Jitsi Meet — sem login, funciona em qualquer navegador).
-  const meetingUrl = `https://meet.jit.si/ProOps-Reuniao-${randomUUID().slice(0, 8)}`;
+  // Link da videochamada: tenta Zoom (se configurado); senão cai para uma sala
+  // Jitsi dedicada (sem login, funciona em qualquer navegador).
+  const zoomUrl = await createZoomMeeting({
+    topic: `Demonstração ProOps — ${data.name}`,
+    date: data.date,
+    startMinutes: data.startMinutes,
+    durationMinutes: data.durationMinutes,
+  });
+  const meetingUrl =
+    zoomUrl ?? `https://meet.jit.si/ProOps-Demo-${randomUUID().slice(0, 8)}`;
 
   try {
     await db.runTransaction(async (tx) => {
