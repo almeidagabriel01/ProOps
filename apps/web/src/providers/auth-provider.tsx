@@ -773,29 +773,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // ── bfcache restore guard ──
-    // A back/forward bfcache restore re-displays a frozen snapshot: React state
-    // is frozen so the SPA never re-renders, which surfaces as a blank/white
-    // page (the user has to reload manually). The auth context is stale too, so
-    // a page restored after logout could still show protected content. A full
-    // reload is the only reliable recovery — it repaints the page AND re-runs
-    // the server-side auth/billing proxy, so a logged-out restore lands on
-    // /login while a public page simply re-renders. After the reload the next
-    // pageshow is a fresh load (persisted=false), so this never loops.
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (shouldReloadOnPageShow({ persisted: event.persisted })) {
-        window.location.reload();
-      }
-    };
-    window.addEventListener("pageshow", handlePageShow);
-
     return () => {
       unsubscribeAuth();
       unsubscribeToken();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pageshow", handlePageShow);
     };
   }, [clearServerSession, syncServerSession]);
+
+  // ── Browser back/forward recovery ──
+  // A back/forward navigation restores a cached render where Framer Motion
+  // entrance animations never re-fire, leaving content stuck at its `initial`
+  // hidden state — a blank white page that only a manual reload fixes. We
+  // replicate that reload automatically. See decide-bfcache-recovery for the
+  // two restore signals (bfcache `persisted` and the `back_forward` nav type)
+  // and why this never loops.
+  React.useEffect(() => {
+    const navigationType = () => {
+      const entry = performance.getEntriesByType("navigation")[0] as
+        | PerformanceNavigationTiming
+        | undefined;
+      return entry?.type ?? "navigate";
+    };
+
+    // Mount-time check: a non-bfcache history nav fully reloads the document,
+    // and `pageshow` may fire before React hydrates and attaches the listener
+    // below — so catch the `back_forward` nav type here, on mount.
+    if (shouldReloadOnPageShow({ persisted: false, navigationType: navigationType() })) {
+      window.location.reload();
+      return;
+    }
+
+    // pageshow catches the bfcache restore (production), where the React tree is
+    // NOT re-mounted and the mount check above never re-runs.
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (
+        shouldReloadOnPageShow({
+          persisted: event.persisted,
+          navigationType: navigationType(),
+        })
+      ) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
 
   const refreshUser = async () => {
     const firebaseUser = auth.currentUser;
