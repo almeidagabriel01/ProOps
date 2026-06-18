@@ -22,68 +22,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { shouldAcceptLegacyAuthCookie } from "@/lib/legacy-auth-cookie";
 import { decideExpiredRedirect } from "@/lib/auth/decide-expired-redirect";
+import {
+  isBillingAllowedRoute,
+  isPublicRoute,
+  shouldSkipRoute,
+} from "@/lib/auth/route-access";
 
-// ============================================
-// ROUTE CONFIGURATION
-// ============================================
-
-// Routes that bypass the billing gate (accessible even when subscription is blocked)
-const BILLING_ALLOWED_ROUTES = ["/subscription-blocked"];
-
-// Public routes that don't require authentication
-const PUBLIC_ROUTES = [
-  "/",
-  "/automacao-residencial",
-  "/decoracao",
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/privacy",
-  "/terms",
-  "/data-deletion",
-  "/cookies",
-  "/subscribe",
-  "/checkout-success",
-  "/pricing",
-  "/contato",
-  "/agendar", // Public booking page (host card + calendar) — classified public in providers.tsx, no ERP shell
-  "/auth/refresh", // Silent session re-mint interstitial — must run without a cookie
-  "/api/webhooks", // Webhooks need to be public
-  "/share", // Public shared proposal pages
-  "/auth/action", // Legacy Firebase Auth action handler (kept for in-flight emails)
-  "/reset", // Custom password reset flow (oobCode via clean URL)
-  "/verify", // Custom email verification flow (oobCode via clean URL)
-];
-
-// Static assets and API routes to skip
-const SKIP_PATTERNS = [
-  "/_next",
-  "/favicon.ico",
-  "/public",
-  "/hero",
-  "/logo",
-  "/api/", // Let API routes handle their own auth
-];
-
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
-
-function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
-  );
-}
-
-function shouldSkip(pathname: string): boolean {
-  return SKIP_PATTERNS.some((pattern) => pathname.startsWith(pattern));
-}
-
-function isBillingAllowed(pathname: string): boolean {
-  return BILLING_ALLOWED_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
-  );
-}
+// Route classification (public / billing-exempt / skip) lives in the pure,
+// unit-tested @/lib/auth/route-access module so the proxy and providers.tsx
+// share ONE source of truth and can't drift.
 
 interface BillingStatusResponse {
   allowed: boolean;
@@ -108,14 +55,14 @@ export async function proxy(request: NextRequest) {
   }
 
   // Skip static assets and API routes
-  if (shouldSkip(pathname)) {
+  if (shouldSkipRoute(pathname)) {
     return NextResponse.next();
   }
 
   // Billing-allowed routes (e.g., /subscription-blocked) are accessible to everyone, including
   // unauthenticated users. The layout.tsx server component handles role/subscription redirects
   // for authenticated visitors.
-  if (isBillingAllowed(pathname)) {
+  if (isBillingAllowedRoute(pathname)) {
     const resp = NextResponse.next();
     resp.headers.set("Cache-Control", "no-store, must-revalidate");
     return resp;
@@ -153,7 +100,7 @@ export async function proxy(request: NextRequest) {
   // Skipped for BILLING_ALLOWED_ROUTES so blocked users can still reach /subscription-blocked.
   // No client-side cache — the route call is ~50ms and other layers (backend, Firestore Rules)
   // are the primary enforcement; this gate prevents SSR of protected pages before HTML is served.
-  if (!isBillingAllowed(pathname)) {
+  if (!isBillingAllowedRoute(pathname)) {
     try {
       const billingUrl = new URL("/api/auth/billing-status", request.url);
       // Forward the requested path so billing-status can enforce the free
