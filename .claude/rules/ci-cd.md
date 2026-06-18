@@ -51,8 +51,25 @@ Runs on PRs and Merge Queue events:
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
 - `performance` — Core Web Vitals + API baseline (runs after all E2E shards pass)
+- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build (`npm run test:lighthouse`, runs after all E2E shards pass)
 - `security` — OWASP ZAP baseline (runs after all E2E shards pass)
 - `all-checks-passed` — consolidated gate required by branch protection
+
+## Lighthouse Perf Budget (`lighthouse` job + `lighthouserc.json`)
+
+Distinct from the dev-mode `performance` job: this one builds Next.js for production,
+starts `next start -p 3001`, and runs Lighthouse 3x per URL (`/` and `/agendar`) under
+**mobile + 4x CPU throttling** — the load path real users get. The dev-mode perf check
+ran unthrottled and missed an LCP of ~7s, which is why this gate exists.
+
+- Config: `lighthouserc.json` at repo root (uses `@lhci/cli`, already a devDependency).
+- Server lifecycle is managed by lhci via `startServerCommand` — no manual start/stop.
+- Budget asserts (median of 3 runs): `largest-contentful-paint` ≤ 9000ms (error),
+  `cumulative-layout-shift` ≤ 0.1 (error), `total-blocking-time` ≤ 800ms (error),
+  `first-contentful-paint` ≤ 2500ms (warn). The LCP ceiling has headroom over the
+  measured ~7.7s so noise doesn't flake the gate, but a real regression past 9s fails it.
+- Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
+- Report artifact: `lighthouse-report-<run>` (from `lhci-report/`).
 
 ## E2E Sharding
 
