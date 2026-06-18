@@ -108,13 +108,22 @@ function PricingCard({
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<number | null>(null);
 
+  // Spotlight follows the cursor via CSS vars. Coalesce the layout read +
+  // write into a single rAF per frame so rapid pointermove events (60-120/s)
+  // don't each force a synchronous reflow. Visually identical (one update per
+  // animation frame); only the per-event layout thrash is removed.
   const handleMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    el.style.setProperty("--mx", `${e.clientX - r.left}px`);
-    el.style.setProperty("--my", `${e.clientY - r.top}px`);
+    if (!el || frameRef.current !== null) return;
+    const { clientX, clientY } = e;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", `${clientX - r.left}px`);
+      el.style.setProperty("--my", `${clientY - r.top}px`);
+    });
   };
 
   return (
