@@ -82,3 +82,42 @@ describe("error_metrics client access", () => {
     await assertFails(setDoc(doc(superAdminMfaDb(), "error_metrics", "x"), { counters: {} }));
   });
 });
+
+describe("error_issues/occurrences subcollection client access", () => {
+  beforeEach(async () => {
+    await seed("error_issues/fp1/occurrences", "occ1", { ts: 0, message: "boom" });
+  });
+
+  test("MFA superadmin can read occ1", async () => {
+    await assertSucceeds(getDoc(doc(superAdminMfaDb(), "error_issues/fp1/occurrences", "occ1")));
+  });
+  test("tenant admin is denied", async () => {
+    await assertFails(getDoc(doc(tenantAdminDb(), "error_issues/fp1/occurrences", "occ1")));
+  });
+  test("unauthenticated is denied", async () => {
+    await assertFails(getDoc(doc(unauthDb(), "error_issues/fp1/occurrences", "occ1")));
+  });
+  test("MFA superadmin client write is denied", async () => {
+    await assertFails(
+      setDoc(doc(superAdminMfaDb(), "error_issues/fp1/occurrences", "occ2"), { ts: 1, message: "forged" })
+    );
+  });
+});
+
+describe("error_issues/_agg subcollection client access", () => {
+  beforeEach(async () => {
+    await seed("error_issues/fp1/_agg", "affected", { users: [], tenants: [] });
+  });
+
+  test("MFA superadmin can read affected", async () => {
+    await assertSucceeds(getDoc(doc(superAdminMfaDb(), "error_issues/fp1/_agg", "affected")));
+  });
+  test("tenant admin is denied", async () => {
+    await assertFails(getDoc(doc(tenantAdminDb(), "error_issues/fp1/_agg", "affected")));
+  });
+  test("MFA superadmin client write is denied", async () => {
+    await assertFails(
+      setDoc(doc(superAdminMfaDb(), "error_issues/fp1/_agg", "affected"), { users: ["x"], tenants: [] })
+    );
+  });
+});
