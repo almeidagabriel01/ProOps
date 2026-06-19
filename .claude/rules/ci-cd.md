@@ -68,12 +68,22 @@ ran unthrottled and missed an LCP of ~7s, which is why this gate exists.
   see note), `cumulative-layout-shift` ≤ 0.1 (error), `total-blocking-time` ≤ 800ms
   (error), `first-contentful-paint` ≤ 2500ms (warn).
 - **LCP is a WARN at the real 4000ms target, not a blocking error — on purpose.**
-  Measured LCP is currently ~7.7s (`/`) and ~9.2s (`/agendar`), render-delay-bound by
-  the hero's JS/animation bootstrap (GSAP + Lenis + Montserrat font swap), not yet
-  fixed. A blocking `error` here would either be born red (the ~9.2s `/agendar`) or be
-  set so loose (>9s) it guards nothing. So LCP surfaces loudly as a warning every run
-  until the hero LCP is fixed; CLS and TBT stay hard `error` gates. Once the hero LCP
-  is brought under control, switch LCP to `error` at ≤ 2500–4000ms.
+  Lighthouse's *default simulated* (Lantern) LCP reports ~7.8s (`/`) and ~9.4s
+  (`/agendar`). **That number is a simulation artifact, not real render delay.**
+  Verified 2026-06-19: under *real* devtools throttling (`--throttling-method=devtools`,
+  4x CPU + slow 3G) the h1 LCP paints at **~2.2–2.9s** with CLS 0 (single LCP candidate,
+  h1 already `opacity:1` — confirmed via PerformanceObserver). The simulated 7.8s comes
+  from Lantern modeling the LCP as blocked behind ~3.8s of **TBT** during hydration; the
+  hot path is one ~203KB chunk dominated by the hero's *synchronous* `useGSAP`
+  (GSAP+ScrollTrigger parse/exec on mount) plus React hydration — **not** the font and
+  **not** Lenis (already deferred via `requestIdleCallback`, commit `550a9bbd`). Levers
+  ruled out by measurement: `montserrat` `block→swap` moved LCP 0ms (h1 paints before the
+  font matters); LazyMotion async `features` left simulated LCP and devtools TBT flat
+  (framer is not the hot chunk). Cutting the simulated number further means deferring the
+  hero GSAP — which reintroduces a first-paint flash the hero design forbids. So LCP
+  stays a loud WARN; CLS and TBT stay hard `error` gates. To make the gate reflect
+  reality, switch the `lighthouse` job to `--throttling-method=devtools` (real ~2.8s LCP)
+  before promoting LCP to `error` at ≤ 2500–4000ms.
 - Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
 - Report artifact: `lighthouse-report-<run>` (from `lhci-report/`).
 
