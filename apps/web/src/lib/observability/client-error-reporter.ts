@@ -42,6 +42,7 @@ function flush(): void {
 }
 
 export function reportClientError(err: unknown, ctx?: { route?: string }): void {
+  if (typeof window === "undefined") return;
   try {
     const route =
       ctx?.route ?? (typeof window !== "undefined" ? window.location.pathname : null) ?? undefined;
@@ -66,17 +67,24 @@ export function installClientErrorReporter(): () => void {
   const onRejection = (event: PromiseRejectionEvent) => reportClientError(event.reason);
   const onHide = () => flush();
 
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "hidden") flush();
+  };
+
   window.addEventListener("error", onError);
   window.addEventListener("unhandledrejection", onRejection);
   window.addEventListener("pagehide", onHide);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") flush();
-  });
+  document.addEventListener("visibilitychange", onVisibilityChange);
 
   return () => {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
     window.removeEventListener("error", onError);
     window.removeEventListener("unhandledrejection", onRejection);
     window.removeEventListener("pagehide", onHide);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
     installed = false;
   };
 }
