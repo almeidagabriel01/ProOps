@@ -30,6 +30,7 @@
     "axios": "^1.13.5",
     "cors": "^2.8.5",
     "cpf-cnpj-validator": "^2.1.0",
+    "evlog": "^2.19.1",
     "express": "^5.2.1",
     "firebase-admin": "^13.6.1",
     "firebase-functions": "^7.2.5",
