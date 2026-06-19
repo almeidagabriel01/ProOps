@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { reportClientError } from "@/lib/observability/client-error-reporter";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export class ErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error("[ErrorBoundary]", error, errorInfo.componentStack);
+    reportClientError(error);
   }
 
   render() {

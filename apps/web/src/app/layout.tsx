@@ -16,6 +16,7 @@ import Script from "next/script";
 import { Providers } from "./providers";
 import { MotionProvider } from "@/providers/motion-provider";
 import { CookieConsentBanner } from "@/components/legal/cookie-consent-banner";
+import { ErrorReporterInstaller } from "@/components/observability/error-reporter-installer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -173,6 +174,7 @@ export default function RootLayout({
           it survives a back/forward restore (where the React tree never re-mounts).
         */}
         <Script src="/bfcache-recovery.js" strategy="beforeInteractive" />
+        <ErrorReporterInstaller />
         <MotionProvider>
           <Providers>{children}</Providers>
           <CookieConsentBanner />
