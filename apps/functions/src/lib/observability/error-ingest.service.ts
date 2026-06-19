@@ -159,6 +159,9 @@ async function updateAffectedAgg(fingerprint: string, input: IngestErrorInput): 
   const issueRef = db.collection(ERROR_ISSUES_COLLECTION).doc(fingerprint);
 
   await db.runTransaction(async (tx) => {
+    // Read issueRef so its count fields are OCC-locked against concurrent
+    // affected-agg writers (prevents lost-update undercount).
+    await tx.get(issueRef);
     const aggSnap = await tx.get(aggRef);
     const agg = (aggSnap.data() as { users?: string[]; tenants?: string[] } | undefined) || {};
     const users = new Set(agg.users || []);

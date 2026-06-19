@@ -22,8 +22,7 @@ const baseInput = {
 };
 
 async function wipe() {
-  const snap = await db.collection(ERROR_ISSUES_COLLECTION).get();
-  await Promise.all(snap.docs.map((d) => d.ref.delete()));
+  await db.recursiveDelete(db.collection(ERROR_ISSUES_COLLECTION));
 }
 
 describe("ingestError", () => {
