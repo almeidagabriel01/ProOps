@@ -78,6 +78,14 @@ cd apps/functions && npm run lint
 - Novos índices: criar no console Firebase e exportar para `firestore.indexes.json`
 - Mudanças de schema: plano de migração antes de qualquer deploy
 
+### Error Observability (collections)
+- `error_issues/{fingerprint}` — grouped, deduplicated error issues (Admin SDK writes only; MFA superadmin client reads via dashboard).
+- `error_issues/{fingerprint}/occurrences/{id}` — capped sample of recent occurrences; `expiresAt` field for Firestore TTL.
+- `error_issues/{fingerprint}/_agg/affected` — capped hashed-id sets backing `affectedUsers`/`affectedTenants`.
+- `error_metrics/{YYYYMMDDhh}` — hourly severity/source counters.
+
+**Deploy note:** enable a Firestore **TTL policy** on the `occurrences` collection group, field `expiresAt` (Firebase console → Firestore → TTL). Not expressible in `firestore.indexes.json`.
+
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`
 - Nunca commitar — arquivos ignorados pelo `.gitignore`
