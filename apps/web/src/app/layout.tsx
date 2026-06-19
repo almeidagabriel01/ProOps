@@ -37,10 +37,16 @@ const interPdf = Inter({
   weight: ["400", "500", "600", "700"],
 });
 
+// PDF-only fonts (Roboto/Lato): used exclusively by the PDF editor/generation,
+// never on marketing or app shell pages. preload:false stops next/font from
+// injecting a render-competing <link rel="preload"> on every page; the @font-face
+// still loads on demand wherever the var is actually applied (PDF capture waits
+// for document.fonts.ready, so generated PDFs are unaffected).
 const robotoPdf = Roboto({
   variable: "--font-pdf-roboto",
   subsets: ["latin"],
   display: "block",
+  preload: false,
   weight: ["400", "500", "700"],
 });
 
@@ -48,6 +54,7 @@ const latoPdf = Lato({
   variable: "--font-pdf-lato",
   subsets: ["latin"],
   display: "block",
+  preload: false,
   weight: ["400", "700"],
 });
 
