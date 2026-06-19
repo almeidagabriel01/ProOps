@@ -62,25 +62,52 @@ export function LandingPageClient() {
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
-    gsap.registerPlugin(ScrollTrigger);
-    const timeoutId = window.setTimeout(() => {
-      ScrollTrigger.refresh();
-    }, 500);
-
-    // Lenis (smooth scroll) sincronizado ao ScrollTrigger — só na landing e
-    // só quando o usuário não pediu redução de movimento
+    // O hero é scroll-scrubbed + pinned: no load (scroll=0) já está no estado
+    // visível natural. Lenis (smooth scroll) e o ScrollTrigger.refresh só são
+    // necessários quando o usuário começa a rolar. Inicializá-los DEPOIS do
+    // primeiro paint (requestIdleCallback / fallback setTimeout) tira esse JS
+    // do caminho crítico do LCP do hero sem mudar nada visualmente — o usuário
+    // não rolou ainda no primeiro ~1s.
     let lenis: Lenis | null = null;
     let raf: ((time: number) => void) | null = null;
-    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      lenis = new Lenis();
-      lenis.on("scroll", ScrollTrigger.update);
-      raf = (time: number) => lenis?.raf(time * 1000);
-      gsap.ticker.add(raf);
-      gsap.ticker.lagSmoothing(0);
-    }
+    let refreshTimeoutId: number | undefined;
+    let cancelled = false;
+
+    const init = () => {
+      if (cancelled) return;
+
+      gsap.registerPlugin(ScrollTrigger);
+      // refresh não-bloqueante: roda após o paint, recalcula os ScrollTriggers
+      // (pin/scrub) já registrados pelo hero. Sem o setTimeout de 500ms síncrono.
+      refreshTimeoutId = window.setTimeout(() => {
+        ScrollTrigger.refresh();
+      }, 0);
+
+      // Lenis (smooth scroll) sincronizado ao ScrollTrigger — só na landing e
+      // só quando o usuário não pediu redução de movimento
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        lenis = new Lenis();
+        lenis.on("scroll", ScrollTrigger.update);
+        raf = (time: number) => lenis?.raf(time * 1000);
+        gsap.ticker.add(raf);
+        gsap.ticker.lagSmoothing(0);
+      }
+    };
+
+    // Adia para depois do primeiro paint, cedendo a thread principal ao LCP.
+    const hasRic = typeof window.requestIdleCallback === "function";
+    const idleId = hasRic
+      ? window.requestIdleCallback(init, { timeout: 2000 })
+      : window.setTimeout(init, 1);
 
     return () => {
-      window.clearTimeout(timeoutId);
+      cancelled = true;
+      if (hasRic) {
+        window.cancelIdleCallback?.(idleId as number);
+      } else {
+        window.clearTimeout(idleId as number);
+      }
+      if (refreshTimeoutId !== undefined) window.clearTimeout(refreshTimeoutId);
       if (raf) gsap.ticker.remove(raf);
       lenis?.destroy();
     };
