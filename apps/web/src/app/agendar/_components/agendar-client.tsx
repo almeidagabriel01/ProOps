@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, m as motion } from "motion/react";
 import { LandingNavbar, LandingFooter, useLandingPage } from "@/components/landing";
 import { useReducedMotion } from "@/components/landing/_shared/use-reduced-motion";
@@ -32,18 +32,24 @@ function monthKey(year: number, month: number): string {
 
 /** Linhas do título que escorregam de baixo p/ cima no load. */
 function RisingTitle({ lines, reduce }: { lines: string[]; reduce: boolean }) {
+  // CSS-driven so the masked LCP heading paints at first paint instead of after
+  // hydration. reduce is honoured by the .hero-rise-line @media rule in globals.
+  void reduce;
   return (
     <h1 className="text-4xl font-bold leading-[0.96] tracking-tight [font-family:var(--font-pdf-montserrat)] md:text-[2.6rem]">
       {lines.map((line, i) => (
         <span key={line} className="block overflow-hidden pb-[0.06em]">
-          <motion.span
-            className="inline-block"
-            initial={reduce ? false : { y: "110%" }}
-            animate={{ y: "0%" }}
-            transition={{ duration: 0.9, ease: EASE, delay: reduce ? 0 : 0.15 + i * 0.12 }}
+          <span
+            className="hero-rise-line"
+            style={
+              {
+                "--hero-dur": "0.9s",
+                "--hero-delay": `${0.15 + i * 0.12}s`,
+              } as React.CSSProperties
+            }
           >
             {line}
-          </motion.span>
+          </span>
         </span>
       ))}
     </h1>
@@ -200,27 +206,36 @@ export function AgendarClient() {
           <div className="grid w-full gap-12 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.55fr)] lg:items-center lg:gap-16">
             {/* coluna narrativa — título + host + duração */}
             <div className="flex flex-col gap-7">
-              <motion.div
-                initial={reduce ? false : { opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: EASE }}
-                className="inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50 dark:text-white/55"
+              <div
+                style={
+                  {
+                    "--hero-y": "16px",
+                    "--hero-dur": "0.7s",
+                    "--hero-ease": "cubic-bezier(0.16, 1, 0.3, 1)",
+                  } as React.CSSProperties
+                }
+                className="hero-enter inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-black/50 dark:text-white/55"
               >
                 <span className="h-px w-7 bg-black/30 dark:bg-white/40" />
                 Agendamento
-              </motion.div>
+              </div>
 
               <RisingTitle reduce={reduce} lines={["Agende uma", "demonstração."]} />
 
-              <motion.p
-                initial={reduce ? false : { opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.75, ease: EASE, delay: 0.5 }}
-                className="max-w-sm text-base leading-relaxed text-black/60 dark:text-white/60"
+              <p
+                style={
+                  {
+                    "--hero-y": "16px",
+                    "--hero-dur": "0.75s",
+                    "--hero-ease": "cubic-bezier(0.16, 1, 0.3, 1)",
+                    "--hero-delay": "0.5s",
+                  } as React.CSSProperties
+                }
+                className="hero-enter max-w-sm text-base leading-relaxed text-black/60 dark:text-white/60"
               >
                 Escolha um dia e um horário — enviamos o link da videochamada
                 por email. Uma demonstração direta da ProOps, sem compromisso.
-              </motion.p>
+              </p>
 
               <HostCard
                 duration={duration}
@@ -232,11 +247,17 @@ export function AgendarClient() {
             </div>
 
             {/* card interativo — calendário + horários lado a lado */}
-            <motion.div
-              initial={reduce ? false : { opacity: 0, y: 30, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.85, ease: EASE, delay: 0.2 }}
-              className="rounded-[1.75rem] border border-black/10 bg-white/70 p-5 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-900/50 md:p-7"
+            <div
+              style={
+                {
+                  "--hero-y": "30px",
+                  "--hero-s": "0.98",
+                  "--hero-dur": "0.85s",
+                  "--hero-ease": "cubic-bezier(0.16, 1, 0.3, 1)",
+                  "--hero-delay": "0.2s",
+                } as React.CSSProperties
+              }
+              className="hero-enter rounded-[1.75rem] border border-black/10 bg-white/70 p-5 shadow-[0_30px_80px_-40px_rgba(0,0,0,0.4)] backdrop-blur-xl dark:border-white/10 dark:bg-neutral-900/50 md:p-7"
             >
               <div className="grid gap-7 sm:grid-cols-[1fr_minmax(0,248px)] sm:gap-8">
                 <BookingCalendar
@@ -289,7 +310,7 @@ export function AgendarClient() {
                   </AnimatePresence>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </section>
       </main>

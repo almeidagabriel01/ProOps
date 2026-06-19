@@ -1022,12 +1022,32 @@ html[data-shell="locked"] body {
   }
 }
 .hero-enter {
-  animation: hero-enter var(--hero-dur, 0.6s) cubic-bezier(0.22, 1, 0.36, 1)
-    var(--hero-delay, 0s) both;
+  animation: hero-enter var(--hero-dur, 0.6s)
+    var(--hero-ease, cubic-bezier(0.22, 1, 0.36, 1)) var(--hero-delay, 0s) both;
   will-change: transform, opacity;
 }
+
+/* Clip-mask line reveal (text slides up from inside an overflow-hidden parent).
+   Same shape as the framer RisingLines (translateY 110% -> 0). CSS auto-play so
+   the masked LCP heading paints at first paint instead of after hydration. */
+@keyframes hero-rise-line {
+  from {
+    transform: translateY(110%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.hero-rise-line {
+  display: inline-block;
+  animation: hero-rise-line var(--hero-dur, 0.9s)
+    var(--hero-ease, cubic-bezier(0.16, 1, 0.3, 1)) var(--hero-delay, 0s) both;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .hero-enter {
+  .hero-enter,
+  .hero-rise-line {
     animation: none;
   }
 }

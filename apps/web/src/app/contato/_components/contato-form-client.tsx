@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { m as motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import { LandingNavbar, LandingFooter, useLandingPage } from "@/components/landing";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
@@ -26,8 +25,6 @@ const EMPTY_FORM: ContactFormData = {
   website: "",
 };
 
-const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
-
 /**
  * Frase grande cujas linhas escorregam de baixo pra cima no carregamento
  * (text reveal — não depende de scroll).
@@ -43,22 +40,24 @@ function RisingLines({
   reduce: boolean;
   baseDelay?: number;
 }) {
+  // CSS-driven so the masked LCP heading paints at first paint instead of after
+  // hydration. reduce is honoured by the .hero-rise-line @media rule in globals.
+  void reduce;
   return (
     <h1 className={className}>
       {lines.map((line, i) => (
         <span key={line} className="block overflow-hidden pb-[0.08em]">
-          <motion.span
-            className="inline-block"
-            initial={reduce ? false : { y: "110%" }}
-            animate={reduce ? undefined : { y: "0%" }}
-            transition={{
-              duration: 0.9,
-              ease: EASE_OUT,
-              delay: reduce ? 0 : baseDelay + i * 0.12,
-            }}
+          <span
+            className="hero-rise-line"
+            style={
+              {
+                "--hero-dur": "0.9s",
+                "--hero-delay": `${baseDelay + i * 0.12}s`,
+              } as React.CSSProperties
+            }
           >
             {line}
-          </motion.span>
+          </span>
         </span>
       ))}
     </h1>
@@ -115,15 +114,16 @@ export function ContatoFormClient() {
     }
   }
 
-  // fade+sobe no load, com atraso configurável
-  const rise = (delay: number) =>
-    reduce
-      ? {}
-      : {
-          initial: { opacity: 0, y: 18 },
-          animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.75, ease: EASE_OUT, delay },
-        };
+  // fade+sobe no load, com atraso configurável. CSS-driven (hero-enter) para o
+  // texto LCP do herói pintar no primeiro paint, sem esperar a hidratação;
+  // reduced-motion é tratado pelo @media em globals. Mantém o ease EASE_OUT.
+  const riseStyle = (delay: number): React.CSSProperties =>
+    ({
+      "--hero-y": "18px",
+      "--hero-dur": "0.75s",
+      "--hero-ease": "cubic-bezier(0.16, 1, 0.3, 1)",
+      "--hero-delay": `${delay}s`,
+    }) as React.CSSProperties;
 
   return (
     <div className="min-h-screen overflow-x-clip bg-white text-black selection:bg-black selection:text-white dark:bg-neutral-950 dark:text-neutral-100 dark:selection:bg-white dark:selection:text-black">
@@ -138,13 +138,13 @@ export function ContatoFormClient() {
           <div className="grid w-full items-center gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
             {/* manifesto — text reveal no load */}
             <div>
-              <motion.p
-                {...rise(0)}
-                className="mb-7 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.24em] text-black/55 dark:text-white/60"
+              <p
+                style={riseStyle(0)}
+                className="hero-enter mb-7 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.24em] text-black/55 dark:text-white/60"
               >
                 <span className="h-px w-6 bg-black/30 dark:bg-white/45" />
                 Fale com a gente
-              </motion.p>
+              </p>
 
               <RisingLines
                 reduce={reduce}
@@ -153,13 +153,13 @@ export function ContatoFormClient() {
                 className="[font-family:var(--font-pdf-montserrat)] text-5xl font-bold leading-[0.95] tracking-tight md:text-7xl"
               />
 
-              <motion.p
-                {...rise(0.5)}
-                className="mt-7 max-w-md text-lg leading-relaxed text-black/65 dark:text-white/65"
+              <p
+                style={riseStyle(0.5)}
+                className="hero-enter mt-7 max-w-md text-lg leading-relaxed text-black/65 dark:text-white/65"
               >
                 Tirou uma dúvida que o FAQ não respondeu? Conte o que você precisa
                 — sem robô, sem fila. Retornamos por email.
-              </motion.p>
+              </p>
             </div>
 
             {/* formulário — campos entram em cascata no load */}
@@ -243,7 +243,7 @@ export function ContatoFormClient() {
                 />
               </div>
 
-              <motion.div {...rise(1.05)} className="mt-10">
+              <div style={riseStyle(1.05)} className="hero-enter mt-10">
                 <LandingButton
                   type="submit"
                   variant="solid"
@@ -263,7 +263,7 @@ export function ContatoFormClient() {
                     "Enviar mensagem"
                   )}
                 </LandingButton>
-              </motion.div>
+              </div>
             </form>
           </div>
         </section>
