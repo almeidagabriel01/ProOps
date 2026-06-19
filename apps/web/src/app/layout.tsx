@@ -181,6 +181,9 @@ export default function RootLayout({
           it survives a back/forward restore (where the React tree never re-mounts).
         */}
         <Script src="/bfcache-recovery.js" strategy="beforeInteractive" />
+        {/* Reveals the consent banner at first paint (before hydration) so it is
+            never the late-painting LCP element — see cookie-consent-init.js. */}
+        <Script src="/cookie-consent-init.js" strategy="beforeInteractive" />
         <ErrorReporterInstaller />
         <MotionProvider>
           <Providers>{children}</Providers>

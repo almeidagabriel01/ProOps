@@ -20,6 +20,11 @@ describe("proxy matcher", () => {
     "/apple-icon.png",
     "/opengraph-image.png",
     "/features/feature-1.webm",
+    // beforeInteractive static scripts: must bypass the auth proxy, otherwise
+    // they 307-redirect to /auth/refresh and never execute (the consent banner
+    // would then paint ~6s late after hydration and become the LCP element).
+    "/bfcache-recovery.js",
+    "/cookie-consent-init.js",
   ])("does NOT intercept static asset %s", (path) => {
     expect(matcher.test(path)).toBe(false);
   });

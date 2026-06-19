@@ -1052,6 +1052,18 @@ html[data-shell="locked"] body {
   }
 }
 
+/* Cookie-consent banner: DOM is always server-rendered but hidden; visibility is
+   gated by the html attribute that public/cookie-consent-init.js sets at first
+   paint (before hydration). This keeps the banner off the LCP critical path —
+   it paints with the first frame for non-consented users, or never for
+   consented ones — instead of appearing ~6s late after React hydrates. */
+.cookie-banner {
+  display: none;
+}
+html[data-cookie-consent="pending"] .cookie-banner {
+  display: block;
+}
+
 /* Pausa loops de animação CSS quando a seção sai da viewport (ver use-pause-offscreen) */
 .anim-paused,
 .anim-paused * {
