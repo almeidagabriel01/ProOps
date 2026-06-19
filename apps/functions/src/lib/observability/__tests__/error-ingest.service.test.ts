@@ -76,6 +76,18 @@ describe("ingestError", () => {
     expect(occ.size).toBeLessThanOrEqual(50);
   });
 
+  it("never downgrades severity on recurrence (max-severity-ever)", async () => {
+    // Use a distinct route to get a fresh fingerprint unaffected by the rate guard
+    // state accumulated by earlier tests (the guard is a module-level singleton).
+    const severityInput = { ...baseInput, route: "/v1/severity-test" };
+    const { fingerprint } = await ingestError(severityInput, { handled: false }); // status 500 -> critical
+    // Same fingerprint (fingerprint ignores status/handled), now a handled 4xx -> warning.
+    await ingestError({ ...severityInput, status: 400 }, { handled: true });
+    const doc = await db.collection(ERROR_ISSUES_COLLECTION).doc(fingerprint).get();
+    expect(doc.data()!.severity).toBe("critical");
+    expect(doc.data()!.count).toBe(2);
+  });
+
   it("never throws even if the input is degenerate", async () => {
     await expect(
       ingestError(

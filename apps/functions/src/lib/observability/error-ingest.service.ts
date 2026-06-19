@@ -14,6 +14,8 @@ const TENANT_DISPLAY_CAP = 20;
 const STACK_MAX = 8000;
 const OCCURRENCE_RETENTION_DAYS = 30;
 
+const SEVERITY_RANK: Record<string, number> = { warning: 1, error: 2, critical: 3 };
+
 const guard = new IngestRateGuard(
   Number(process.env.ERROR_INGEST_MAX_PER_WINDOW || 30),
   Number(process.env.ERROR_INGEST_WINDOW_MS || 10_000),
@@ -94,8 +96,11 @@ export async function ingestError(
       const update: Record<string, unknown> = {
         count: FieldValue.increment(1),
         lastSeen: nowIso,
-        severity, // keep latest severity classification
       };
+      // Escalate severity only — never downgrade a previously higher-severity issue.
+      if (SEVERITY_RANK[severity] > (SEVERITY_RANK[data.severity] ?? 0)) {
+        update.severity = severity;
+      }
       if (data.status === "resolved") {
         update.status = "unresolved";
         update.resolvedAt = null;
