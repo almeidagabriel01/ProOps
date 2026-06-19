@@ -585,6 +585,29 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ERROR OBSERVABILITY — written exclusively by Cloud Functions (Admin SDK).
+    // Read is allowed ONLY to an MFA'd super admin (isSuperAdmin() already requires
+    // hasMfa()), to power the live superadmin dashboard via onSnapshot. Client
+    // writes are denied entirely — the ingest pipeline is server-side only.
+    match /error_issues/{fingerprint} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+
+      match /occurrences/{occurrenceId} {
+        allow read: if isSuperAdmin();
+        allow write: if false;
+      }
+      match /_agg/{aggId} {
+        allow read: if isSuperAdmin();
+        allow write: if false;
+      }
+    }
+
+    match /error_metrics/{windowId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
     match /security_metrics/{windowId} {
       allow read, write: if false;
     }
