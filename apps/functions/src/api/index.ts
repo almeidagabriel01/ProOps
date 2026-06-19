@@ -8,6 +8,7 @@ import { verifyTurnstileToken } from "./middleware/verify-captcha";
 import { CORS_OPTIONS } from "../deploymentConfig";
 
 import { observabilityRoutes } from "./routes/observability.routes";
+import { observabilityAdminRoutes } from "./routes/observability-admin.routes";
 import { attachUserIfPresent } from "./middleware/optional-auth";
 import { coreRoutes } from "./routes/core.routes";
 import { financeRoutes } from "./routes/finance.routes";
@@ -510,6 +511,7 @@ app.use((req, res, next) => {
 app.use("/v1", coreRoutes);
 app.use("/v1", financeRoutes);
 app.use("/v1/admin", privilegedLimiter, adminRoutes);
+app.use("/v1/admin/observability", privilegedLimiter, observabilityAdminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
 // Apply the tight OTP limiter ONLY to the OTP cost / brute-force surfaces
