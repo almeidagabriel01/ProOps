@@ -7,8 +7,6 @@ import {
   query,
   orderBy,
   limit,
-  where,
-  type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ObservabilityService } from "@/services/observability-service";
@@ -18,31 +16,42 @@ import type { ErrorIssue, ErrorIssueStatus, IssueFilters } from "@/types/observa
 const MAX_ISSUES = 200;
 
 export function useErrorIssues(filters: IssueFilters) {
-  const [issues, setIssues] = React.useState<ErrorIssue[]>([]);
+  const [allIssues, setAllIssues] = React.useState<ErrorIssue[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     setIsLoading(true);
-    const clauses: QueryConstraint[] = [orderBy("lastSeen", "desc"), limit(MAX_ISSUES)];
-    if (filters.status !== "all") clauses.unshift(where("status", "==", filters.status));
-    if (filters.severity !== "all") clauses.unshift(where("severity", "==", filters.severity));
-    if (filters.source !== "all") clauses.unshift(where("source", "==", filters.source));
-    const q = query(collection(db, "error_issues"), ...clauses);
+    const q = query(
+      collection(db, "error_issues"),
+      orderBy("lastSeen", "desc"),
+      limit(MAX_ISSUES),
+    );
     const unsub = onSnapshot(
       q,
       (snap) => {
         const rows = snap.docs.map((d) => ({ ...(d.data() as ErrorIssue), fingerprint: d.id }));
-        setIssues(sortIssues(rows));
+        setAllIssues(sortIssues(rows));
         setIsLoading(false);
       },
       () => setIsLoading(false),
     );
     return () => unsub();
-  }, [filters.status, filters.severity, filters.source]);
+  }, []);
+
+  const issues = React.useMemo(
+    () =>
+      allIssues.filter(
+        (i) =>
+          (filters.status === "all" || i.status === filters.status) &&
+          (filters.severity === "all" || i.severity === filters.severity) &&
+          (filters.source === "all" || i.source === filters.source),
+      ),
+    [allIssues, filters.status, filters.severity, filters.source],
+  );
 
   const triage = React.useCallback(async (fp: string, status: ErrorIssueStatus) => {
     // Optimistic — the onSnapshot stream will reconcile to server truth.
-    setIssues((prev) => prev.map((i) => (i.fingerprint === fp ? { ...i, status } : i)));
+    setAllIssues((prev) => prev.map((i) => (i.fingerprint === fp ? { ...i, status } : i)));
     try {
       await ObservabilityService.triageIssue(fp, status);
     } catch (err) {
