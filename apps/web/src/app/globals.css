@@ -1000,6 +1000,38 @@ html[data-shell="locked"] body {
   will-change: transform;
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Hero entrance (CSS-driven) — above-the-fold fade-up that AUTO-PLAYS at first
+   paint instead of waiting for JS hydration. A framer `initial={{opacity:0}}`
+   keeps the LCP hero text invisible until the motion bundle hydrates (~6.6s on
+   throttled mobile), wrecking LCP. This keyframe reproduces the same fade-up
+   (opacity + translateY, optional scale/blur for the eyebrow) but starts at
+   first paint with zero JS — so the text paints ~FCP and the animation is
+   visually identical. Per-element start offset/scale/blur/duration/delay are
+   passed via CSS custom properties so one keyframe covers every hero element. */
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--hero-y, 16px)) scale(var(--hero-s, 1));
+    filter: blur(var(--hero-blur, 0));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+.hero-enter {
+  animation: hero-enter var(--hero-dur, 0.6s) cubic-bezier(0.22, 1, 0.36, 1)
+    var(--hero-delay, 0s) both;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-enter {
+    animation: none;
+  }
+}
+
 /* Pausa loops de animação CSS quando a seção sai da viewport (ver use-pause-offscreen) */
 .anim-paused,
 .anim-paused * {
