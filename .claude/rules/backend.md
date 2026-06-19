@@ -28,7 +28,7 @@
 - New code: use `logger` from `../lib/logger` (emits JSON with `severity` for GCP Cloud Logging)
 - Existing code using `console.log` is acceptable — don't migrate unless touching the code anyway
 - Never log: tokens, passwords, private keys, CPF, full emails, phone numbers
-- Errors are auto-reported to Sentry by the global error handler in `apps/functions/src/api/index.ts`
+- Errors are auto-captured by the global error handler in `apps/functions/src/api/index.ts` — logged structurally and fed into the error observability pipeline (grouped issues in Firestore)
 
 ## Scheduled Functions (Crons)
 - All cron exports live in `apps/functions/src/index.ts`

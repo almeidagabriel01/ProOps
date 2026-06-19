@@ -133,7 +133,7 @@ pending ──(pay)──> paid ──(revert)──> pending
 **Frontend Entry Point:**
 - Location: `apps/web/src/app/layout.tsx`
 - Triggers: Browser navigation to `https://<domain>`
-- Responsibilities: Root layout (fonts, Sentry/Vercel setup), provider initialization (Auth, Tenant, Theme, Permissions), shell rendering
+- Responsibilities: Root layout (fonts, Vercel analytics setup), provider initialization (Auth, Tenant, Theme, Permissions), shell rendering
 
 **Protected Routes (Frontend):**
 - Location: `apps/web/src/app/*/page.tsx` (54 route pages total)
@@ -165,14 +165,14 @@ pending ──(pay)──> paid ──(revert)──> pending
 - Service layer propagates errors to consuming hooks (never silent catch blocks)
 - Hooks return error state; components display error UI or user-friendly message
 - Unhandled errors caught by `ErrorBoundary` component (`apps/web/src/components/shared/error-boundary.tsx`)
-- Sentry (`@sentry/nextjs`) auto-captures unhandled errors; requires `NEXT_PUBLIC_SENTRY_DSN` to initialize
+- The error boundary + client reporter forward errors to the backend observability endpoint (no Sentry)
 
 **Backend (Server-Side):**
 - Controllers validate input first; return 400 for invalid input
 - Business logic throws errors with semantic keywords (`FORBIDDEN_*`, `not found`, `invalid`)
 - Controllers map errors to HTTP status via `mapXxxErrorStatus()` helper
 - Unhandled errors caught by global error handler in `apps/functions/src/api/index.ts`
-- Global handler logs structured JSON, reports to Sentry (if `SENTRY_DSN` set), returns 500
+- Global handler logs structured JSON, feeds the error observability pipeline, returns 500
 
 **Patterns:**
 ```typescript
@@ -205,7 +205,7 @@ const createProposal = async (data: ProposalInput) => {
 ## Cross-Cutting Concerns
 
 **Logging:**
-- Frontend: Sentry + console (browser DevTools)
+- Frontend: error boundaries + client reporter (→ backend) + console (browser DevTools)
 - Backend: Structured logger (`apps/functions/src/lib/logger.ts`) emits JSON with `severity` field recognized by GCP Cloud Logging
 - New backend code should use `logger.info/warn/error()` instead of `console.log`
 
@@ -232,7 +232,7 @@ const createProposal = async (data: ProposalInput) => {
 
 **Security Observability:**
 - Backend: `security-observability.ts` emits audit events (auth failures, CORS denials, plan violations) to `security_audit_events` and `security_metrics` Firestore collections
-- Sentry: Error context includes `tenantId` and `uid` for tracing; secrets never logged
+- Error observability: error context includes `tenantId` and `uid` for tracing; secrets/PII never logged (evlog redacts)
 
 ---
 

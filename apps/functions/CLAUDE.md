@@ -93,7 +93,7 @@ cd apps/functions && npm run lint
 - O logger emite JSON com campo `severity` reconhecido pelo GCP Cloud Logging, permitindo filtrar por severity no console.
 - Em código existente que usa `console.log/error`, não é necessário migrar — o GCP ainda captura esses logs.
 - NUNCA logar tokens, senhas, `FIREBASE_PRIVATE_KEY` ou dados pessoais (CPF, email completo, telefone).
-- Erros não tratados em rotas Express são capturados automaticamente pelo global error handler em `api/index.ts` (reporta ao Sentry + loga estruturado).
+- Erros não tratados em rotas Express são capturados automaticamente pelo global error handler em `api/index.ts` (loga estruturado + alimenta o pipeline de error observability — issues agrupadas no Firestore). Não há Sentry no projeto.
 
 ## Módulo Financeiro: Lançamentos & Carteiras (backend)
 

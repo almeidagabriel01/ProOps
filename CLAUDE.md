@@ -137,8 +137,8 @@ Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/
 - `/document-api` — API documentation for a route or controller
 
 ## Observability
-- **Frontend**: Sentry (`NEXT_PUBLIC_SENTRY_DSN`), Vercel Analytics, Speed Insights
-- **Backend**: Sentry (`SENTRY_DSN`), structured logger (`logger.ts`), security audit events in Firestore
+- **Frontend**: Vercel Analytics, Speed Insights. Client errors are captured by error boundaries and reported to the backend observability endpoint (see error observability module).
+- **Backend**: structured logger (`logger.ts`, JSON + `severity` for GCP Cloud Logging), security audit events in Firestore, and the error observability pipeline (grouped error issues in Firestore, surfaced in the superadmin dashboard). No third-party error-monitoring SaaS (no Sentry).
 
 ## Module Docs
 Detailed documentation per module lives in CLAUDE.md files within each folder:

@@ -122,10 +122,10 @@
 - Log business events: "Wallet created", "Proposal sent", "WhatsApp message queued"
 - Log security events: auth failures, permission denials, plan violations
 - Never log: tokens, passwords, `FIREBASE_PRIVATE_KEY`, CPF, full email, phone numbers
-- Errors are auto-reported to Sentry by global error handler in `apps/functions/src/api/index.ts`
+- Errors are auto-captured by the global error handler in `apps/functions/src/api/index.ts` (structured log + error observability pipeline)
 
 **Frontend Logging:**
-- Use Sentry for error tracking (requires `NEXT_PUBLIC_SENTRY_DSN` in env)
+- Client errors are caught by error boundaries and reported to the backend observability endpoint (no Sentry)
 - Use `console.log` for debugging (development only, not persisted)
 - Errors in components: caught by ErrorBoundary and logged with component stack
 - Network errors: propagated from services to hooks to UI

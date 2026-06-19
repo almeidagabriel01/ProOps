@@ -119,11 +119,11 @@
 ## Monitoring & Observability
 
 **Error Tracking:**
-- **Sentry**
-  - Frontend: `@sentry/nextjs` with `NEXT_PUBLIC_SENTRY_DSN`
-  - Backend: `@sentry/node` with `SENTRY_DSN`
-  - Purpose: Error aggregation, context capture (tenant/user), alerting
-  - Initialization: Automatic on both frontend and backend if env var present
+- **Error observability pipeline (in-house — no Sentry)**
+  - Frontend: error boundaries + client reporter POST errors to the backend
+  - Backend: global error handler + evlog (format + PII redaction) → grouped error issues in Firestore
+  - Purpose: error aggregation/dedup, context capture (tenant/user/route), superadmin dashboard
+  - Storage: Firestore collections (`error_issues`, `error_metrics`); no external SaaS
 
 **Logs:**
 - **Google Cloud Logging**
@@ -154,7 +154,7 @@
   - Deployment: Automatic on git push/merge
   - Environments: Production (main), Preview (PRs)
   - Configuration: `vercel.json` (if exists) or Next.js config
-  - Env Secrets: Firebase config, Search Console token, GA ID, Sentry DSN
+  - Env Secrets: Firebase config, Search Console token, GA ID
 
 - **Google Cloud Run** - Firebase Cloud Functions backend
   - Region: `southamerica-east1`
