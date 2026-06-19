@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { captureError } from "../../lib/observability/error-logger";
+import { logger } from "../../lib/logger";
 
 const MESSAGE_MAX = 2000;
 const STACK_MAX = 8000;
@@ -48,6 +49,7 @@ export async function ingestClientError(req: Request, res: Response): Promise<Re
     return res.status(202).json({ accepted: true });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "unexpected";
+    logger.warn("observability client-error ingest failed", { error: msg });
     return res.status(mapObservabilityErrorStatus(msg)).json({ message: "Internal server error" });
   }
 }

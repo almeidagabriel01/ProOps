@@ -295,6 +295,7 @@ const observabilityIngestLimiter = createRateLimiter({
   keyPrefix: "observability_ingest",
   maxRequests: Number(process.env.RATE_LIMIT_OBSERVABILITY_MAX || 60),
   windowMs: Number(process.env.RATE_LIMIT_OBSERVABILITY_WINDOW_MS || 60_000),
+  keyResolver: buildRateLimitIdentity,
 });
 
 // One-time startup diagnostic (dev/emulator only — silent in Cloud Run, where
