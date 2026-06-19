@@ -7,6 +7,8 @@ import { requireActiveSubscription } from "./middleware/require-active-subscript
 import { verifyTurnstileToken } from "./middleware/verify-captcha";
 import { CORS_OPTIONS } from "../deploymentConfig";
 
+import { observabilityRoutes } from "./routes/observability.routes";
+import { attachUserIfPresent } from "./middleware/optional-auth";
 import { coreRoutes } from "./routes/core.routes";
 import { financeRoutes } from "./routes/finance.routes";
 import { adminRoutes } from "./routes/admin.routes";
@@ -289,6 +291,12 @@ const recoveryCodesVerifyLimiter = createRateLimiter({
   keyResolver: buildRateLimitIdentity,
 });
 
+const observabilityIngestLimiter = createRateLimiter({
+  keyPrefix: "observability_ingest",
+  maxRequests: Number(process.env.RATE_LIMIT_OBSERVABILITY_MAX || 60),
+  windowMs: Number(process.env.RATE_LIMIT_OBSERVABILITY_WINDOW_MS || 60_000),
+});
+
 // One-time startup diagnostic (dev/emulator only — silent in Cloud Run, where
 // NODE_ENV==="production"). Confirms whether the rate-limit emulator bypass is
 // active so a misdetected runtime is obvious instead of surfacing as 429s.
@@ -462,6 +470,15 @@ app.use("/v1/auth", passwordResetLimiter, publicAuthRoutes);
 // Debug-only internal endpoints — gated by x-cron-secret, mounted before auth
 // so E2E fixtures can invalidate caches without a Firebase ID token.
 app.use("/internal", internalDebugRoutes);
+
+// Client-error ingestion — accepts anonymous and authenticated errors.
+// Mounted BEFORE the auth barrier so pre-login crashes are captured (uid: null).
+app.use(
+  "/v1/observability",
+  observabilityIngestLimiter,
+  attachUserIfPresent,
+  observabilityRoutes,
+);
 
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
