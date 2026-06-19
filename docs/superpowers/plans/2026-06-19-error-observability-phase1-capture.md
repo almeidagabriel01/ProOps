@@ -993,17 +993,50 @@ git commit -m "feat(observability): capture unhandled express errors into the pi
 ## Task 8: Backend client-error ingest endpoint (rate-limited, validated)
 
 **Files:**
+- Create: `apps/functions/src/api/middleware/optional-auth.ts`
 - Create: `apps/functions/src/api/controllers/observability.controller.ts`
 - Create: `apps/functions/src/api/routes/observability.routes.ts`
-- Modify: `apps/functions/src/api/index.ts` (register routes + a dedicated limiter)
+- Modify: `apps/functions/src/api/index.ts` (register routes + a dedicated limiter + the optional-auth shim)
 
 **Interfaces:**
-- Consumes: `captureError` (Task 6), `createRateLimiter` (existing in `api/index.ts`).
-- Produces: `observabilityRoutes` (Express Router), `ingestClientError` handler, `mapObservabilityErrorStatus(message: string): number`.
+- Consumes: `captureError` (Task 6), `createRateLimiter` (existing in `api/index.ts`), `resolveAuthContextFromRequest` (existing in `../../lib/auth-context`).
+- Produces: `attachUserIfPresent` (Express middleware), `observabilityRoutes` (Express Router), `ingestClientError` handler, `mapObservabilityErrorStatus(message: string): number`.
 
 The endpoint accepts authenticated or pre-auth (anonymous) client errors. `tenantId`/`uid` come from `req.user` when present — **never trusted from the body**. Body is size/shape validated; strings truncated.
 
-- [ ] **Step 1: Write the controller**
+**Decision (resolved):** mount the route BEFORE the global `validateFirebaseIdToken` barrier, fronted by an **optional-auth shim** so anonymous (pre-login) errors are captured with `uid: null` while logged-in users' errors get full `uid`/`tenantId` attribution. The shim never rejects and never enforces MFA — it only attaches `req.user` when a valid token/cookie is present.
+
+- [ ] **Step 1: Write the optional-auth shim**
+
+```typescript
+// apps/functions/src/api/middleware/optional-auth.ts
+import { Request, Response, NextFunction } from "express";
+import { resolveAuthContextFromRequest } from "../../lib/auth-context";
+
+/**
+ * Best-effort auth: populates req.user when a valid token/session cookie is
+ * present, but NEVER rejects and NEVER enforces MFA. Used by endpoints that must
+ * accept anonymous traffic (e.g. client-error ingestion that may fire before
+ * login or during a crash) while still attributing logged-in users' requests.
+ */
+export const attachUserIfPresent = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const authContext = await resolveAuthContextFromRequest(req, {
+      requireStrictClaims: false,
+    });
+    req.user = authContext;
+  } catch {
+    // Anonymous / invalid token — leave req.user undefined and continue.
+  }
+  next();
+};
+```
+
+- [ ] **Step 2: Write the controller**
 
 ```typescript
 // apps/functions/src/api/controllers/observability.controller.ts
@@ -1062,7 +1095,7 @@ export async function ingestClientError(req: Request, res: Response): Promise<Re
 }
 ```
 
-- [ ] **Step 2: Write the routes**
+- [ ] **Step 3: Write the routes**
 
 ```typescript
 // apps/functions/src/api/routes/observability.routes.ts
@@ -1077,12 +1110,13 @@ router.post("/client-error", ingestClientError);
 export const observabilityRoutes = router;
 ```
 
-- [ ] **Step 3: Register the route with a dedicated rate limiter in `api/index.ts`**
+- [ ] **Step 4: Register the route (optional-auth + rate limiter) in `api/index.ts`**
 
-Add the import alongside the other route imports:
+Add the imports alongside the other route/middleware imports:
 
 ```typescript
 import { observabilityRoutes } from "./routes/observability.routes";
+import { attachUserIfPresent } from "./middleware/optional-auth";
 ```
 
 Create a dedicated limiter near the other `createRateLimiter(...)` instantiations (keyed by uid-or-ip via the existing `buildRateLimitIdentity`):
@@ -1095,24 +1129,29 @@ const observabilityIngestLimiter = createRateLimiter({
 });
 ```
 
-Mount the route. Place it so the ingest endpoint is reachable pre-auth (client errors can happen before login) but still rate-limited — mount it in the same public-routes region where other pre-auth routes are registered, BEFORE `validateFirebaseIdToken`:
+Mount the route in the public-routes region (BEFORE `app.use(validateFirebaseIdToken)`), fronted by the rate limiter then the optional-auth shim so anonymous errors are accepted (`uid: null`) and logged-in errors are attributed:
 
 ```typescript
-app.use("/v1/observability", observabilityIngestLimiter, observabilityRoutes);
+app.use(
+  "/v1/observability",
+  observabilityIngestLimiter,
+  attachUserIfPresent,
+  observabilityRoutes,
+);
 ```
 
-> If `req.user` population requires the auth middleware, that's fine: pre-auth requests simply have `uid: null`/`tenantId: null`, which the controller already handles. Authenticated requests that pass through earlier optional-auth still get their `req.user`.
+> Because this is mounted before the global auth barrier, also add `/v1/observability` is NOT needed in the `validateFirebaseIdToken` bypass list (the barrier is registered after this mount, so the request is already handled). Verify placement: this `app.use` must appear above the `app.use(validateFirebaseIdToken)` line.
 
-- [ ] **Step 4: Type-check + build**
+- [ ] **Step 5: Type-check + build**
 
 Run: `cd apps/functions && npx tsc --noEmit && npm run build`
 Expected: PASS, compiles to `lib/`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add apps/functions/src/api/controllers/observability.controller.ts apps/functions/src/api/routes/observability.routes.ts apps/functions/src/api/index.ts
-git commit -m "feat(observability): rate-limited client-error ingest endpoint"
+git add apps/functions/src/api/middleware/optional-auth.ts apps/functions/src/api/controllers/observability.controller.ts apps/functions/src/api/routes/observability.routes.ts apps/functions/src/api/index.ts
+git commit -m "feat(observability): rate-limited client-error ingest endpoint with optional auth"
 ```
 
 ---
