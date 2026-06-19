@@ -54,6 +54,7 @@ import {
   writeSecurityAuditEvent,
 } from "../lib/security-observability";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
+import { captureError } from "../lib/observability/error-logger";
 
 const app = express();
 
@@ -550,6 +551,17 @@ app.use(
       method: req.method,
       tenantId: String((req.user as { tenantId?: string })?.tenantId || ""),
       uid: String((req.user as { uid?: string })?.uid || ""),
+    });
+
+    // Feed the error observability pipeline (best-effort, never blocks response).
+    void captureError(err, {
+      source: "functions",
+      route: sanitizeLoggedPath(req.path),
+      method: req.method,
+      status: 500,
+      uid: String((req.user as { uid?: string })?.uid || "") || null,
+      tenantId: String((req.user as { tenantId?: string })?.tenantId || "") || null,
+      handled: false,
     });
 
     if (!res.headersSent) {
