@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Building2, CreditCard, ShieldCheck } from "lucide-react";
+import { Plus, Search, Building2, CreditCard, ShieldCheck, Activity } from "lucide-react";
 import { TenantDialog } from "@/components/admin/tenant-dialog";
 import { useTenantManagement } from "./_hooks/useTenantManagement";
 import { TenantCard, CopyDataDialog } from "./_components";
@@ -94,6 +94,14 @@ export default function AdminPage() {
             className="shadow-sm hover:shadow transition-all"
           >
             <CreditCard className="w-5 h-5 mr-2" /> Visão Geral
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => router.push("/admin/observability")}
+            className="shadow-sm hover:shadow transition-all"
+          >
+            <Activity className="w-5 h-5 mr-2" /> Observabilidade
           </Button>
           <Button
             onClick={openCreate}
