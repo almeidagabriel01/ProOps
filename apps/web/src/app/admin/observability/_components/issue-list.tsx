@@ -3,22 +3,31 @@
 
 import { AnimatePresence, m } from "motion/react";
 import { GlassCard } from "./glass-card";
-import { FilterChips } from "./filter-chips";
+import { FilterBar } from "./filter-bar";
 import { IssueRow } from "./issue-row";
+import { Button } from "@/components/ui/button";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 import type { ErrorIssue, IssueFilters } from "@/types/observability";
+
+interface IssueListProps {
+  issues: ErrorIssue[];
+  filters: IssueFilters;
+  errorTypes: string[];
+  onChange: (f: IssueFilters) => void;
+  onSelect: (i: ErrorIssue) => void;
+  nextCursor: string | null;
+  onLoadMore: () => void;
+}
 
 export function IssueList({
   issues,
   filters,
+  errorTypes,
   onChange,
   onSelect,
-}: {
-  issues: ErrorIssue[];
-  filters: IssueFilters;
-  onChange: (f: IssueFilters) => void;
-  onSelect: (i: ErrorIssue) => void;
-}) {
+  nextCursor,
+  onLoadMore,
+}: IssueListProps) {
   const reduced = usePrefersReducedMotion();
   return (
     <GlassCard className="p-5">
@@ -26,7 +35,7 @@ export function IssueList({
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/50 dark:text-white/50">
           Issues ({issues.length})
         </h2>
-        <FilterChips filters={filters} onChange={onChange} />
+        <FilterBar filters={filters} errorTypes={errorTypes} onChange={onChange} />
       </div>
       <div className="mt-3 flex flex-col">
         {issues.length === 0 && (
@@ -47,6 +56,13 @@ export function IssueList({
           ))}
         </AnimatePresence>
       </div>
+      {nextCursor && (
+        <div className="mt-3 flex justify-center">
+          <Button variant="outline" size="sm" onClick={onLoadMore}>
+            Carregar mais
+          </Button>
+        </div>
+      )}
     </GlassCard>
   );
 }

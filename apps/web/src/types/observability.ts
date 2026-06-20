@@ -44,8 +44,44 @@ export interface ErrorMetricWindow {
   counters: Record<string, number>; // `${severity}_${source}` -> count
 }
 
+export interface ResolvedUser {
+  name: string;
+  email: string;
+}
+
+export interface ResolvedTenant {
+  name: string;
+}
+
+export type IssueSort = "recent" | "frequent" | "newest";
+export type IssueTimeRange = "1h" | "24h" | "7d" | "30d" | "all";
+
 export interface IssueFilters {
   status: ErrorIssueStatus | "all";
   severity: ErrorSeverity | "all";
   source: ErrorSource | "all";
+  errorType: string | "all";
+  q: string;
+  range: IssueTimeRange;
+  sort: IssueSort;
 }
+
+export interface ResolveIdentitiesResponse {
+  users: Record<string, ResolvedUser>;
+  tenants: Record<string, ResolvedTenant>;
+}
+
+export interface IssueSearchResponse {
+  issues: ErrorIssue[];
+  nextCursor: string | null;
+}
+
+export const DEFAULT_ISSUE_FILTERS: IssueFilters = {
+  status: "all",
+  severity: "all",
+  source: "all",
+  errorType: "all",
+  q: "",
+  range: "all",
+  sort: "recent",
+};

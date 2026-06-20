@@ -1,36 +1,28 @@
 "use client";
 
 import * as React from "react";
-import {
-  collection,
-  onSnapshot,
-  query,
-  orderBy,
-  limit,
-} from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ObservabilityService } from "@/services/observability-service";
-import { sortIssues } from "@/lib/observability/issue-format";
+import { applyClientFilters, isQueryMode, rangeToFrom } from "@/lib/observability/issue-filtering";
 import type { ErrorIssue, ErrorIssueStatus, IssueFilters } from "@/types/observability";
 
 const MAX_ISSUES = 200;
 
 export function useErrorIssues(filters: IssueFilters) {
-  const [allIssues, setAllIssues] = React.useState<ErrorIssue[]>([]);
+  const [liveIssues, setLiveIssues] = React.useState<ErrorIssue[]>([]);
+  const [queryIssues, setQueryIssues] = React.useState<ErrorIssue[]>([]);
+  const [nextCursor, setNextCursor] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const queryMode = isQueryMode(filters);
 
+  // Live snapshot — always running (also feeds errorTypes dropdown).
   React.useEffect(() => {
-    setIsLoading(true);
-    const q = query(
-      collection(db, "error_issues"),
-      orderBy("lastSeen", "desc"),
-      limit(MAX_ISSUES),
-    );
+    const q = query(collection(db, "error_issues"), orderBy("lastSeen", "desc"), limit(MAX_ISSUES));
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const rows = snap.docs.map((d) => ({ ...(d.data() as ErrorIssue), fingerprint: d.id }));
-        setAllIssues(sortIssues(rows));
+        setLiveIssues(snap.docs.map((d) => ({ ...(d.data() as ErrorIssue), fingerprint: d.id })));
         setIsLoading(false);
       },
       () => setIsLoading(false),
@@ -38,27 +30,47 @@ export function useErrorIssues(filters: IssueFilters) {
     return () => unsub();
   }, []);
 
-  const issues = React.useMemo(
-    () =>
-      allIssues.filter(
-        (i) =>
-          (filters.status === "all" || i.status === filters.status) &&
-          (filters.severity === "all" || i.severity === filters.severity) &&
-          (filters.source === "all" || i.source === filters.source),
-      ),
-    [allIssues, filters.status, filters.severity, filters.source],
+  // Query mode — server-backed search. Re-runs when filters change.
+  const runSearch = React.useCallback(
+    async (cursor: string | null, append: boolean) => {
+      const from = rangeToFrom(filters.range, Date.now());
+      setIsLoading(true);
+      try {
+        const res = await ObservabilityService.searchIssues({ ...filters, from, cursor, limit: 50 });
+        setQueryIssues((prev) => (append ? [...prev, ...res.issues] : res.issues));
+        setNextCursor(res.nextCursor);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [filters],
   );
 
-  const triage = React.useCallback(async (fp: string, status: ErrorIssueStatus) => {
-    // Optimistic — the onSnapshot stream will reconcile to server truth.
-    setAllIssues((prev) => prev.map((i) => (i.fingerprint === fp ? { ...i, status } : i)));
-    try {
-      await ObservabilityService.triageIssue(fp, status);
-    } catch (err) {
-      // Reconciliation happens via onSnapshot; surface the error to the caller.
-      throw err;
+  React.useEffect(() => {
+    if (!queryMode) {
+      setQueryIssues([]);
+      setNextCursor(null);
+      return;
     }
+    void runSearch(null, false);
+  }, [queryMode, runSearch]);
+
+  const triage = React.useCallback(async (fp: string, status: ErrorIssueStatus) => {
+    setLiveIssues((prev) => prev.map((i) => (i.fingerprint === fp ? { ...i, status } : i)));
+    setQueryIssues((prev) => prev.map((i) => (i.fingerprint === fp ? { ...i, status } : i)));
+    await ObservabilityService.triageIssue(fp, status);
   }, []);
 
-  return { issues, isLoading, triage };
+  const issues = queryMode ? queryIssues : applyClientFilters(liveIssues, filters);
+
+  const errorTypes = React.useMemo(
+    () => [...new Set(liveIssues.map((i) => i.errorType).filter(Boolean))].sort(),
+    [liveIssues],
+  );
+
+  const loadMore = React.useCallback(() => {
+    if (queryMode && nextCursor) void runSearch(nextCursor, true);
+  }, [queryMode, nextCursor, runSearch]);
+
+  return { issues, isLoading, triage, errorTypes, nextCursor: queryMode ? nextCursor : null, loadMore };
 }

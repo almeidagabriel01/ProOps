@@ -23,8 +23,13 @@ export function IssueRow({ issue, onSelect }: { issue: ErrorIssue; onSelect: (i:
       <span className={cn("h-2 w-2 shrink-0 rounded-full", severityAccent(issue.severity).dot)} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-black dark:text-white">{issue.title}</span>
-        <span className="block truncate font-mono text-[11px] text-black/40 dark:text-white/40">
-          {issue.method ? `${issue.method} ` : ""}{issue.route ?? "—"}
+        <span className="flex items-center gap-1.5 truncate">
+          <span className="rounded bg-black/5 px-1.5 py-0.5 font-mono text-[10px] text-black/60 dark:bg-white/10 dark:text-white/60">
+            {issue.errorType}
+          </span>
+          <span className="truncate font-mono text-[11px] text-black/40 dark:text-white/40">
+            {issue.method ? `${issue.method} ` : ""}{issue.route ?? "—"}
+          </span>
         </span>
       </span>
       <span className="hidden shrink-0 text-xs tabular-nums text-black/50 dark:text-white/50 sm:block">
