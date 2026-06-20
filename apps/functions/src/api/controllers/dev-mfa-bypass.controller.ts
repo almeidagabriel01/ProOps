@@ -18,12 +18,18 @@ import {
  * superadmin can log in on localhost without typing the authenticator code.
  *
  * It is gated THREE independent ways and fails closed on any of them — so it can
- * never be reached in production:
- *   1. `DEV_MFA_BYPASS_ENABLED === "true"` — a flag present ONLY in
- *      `.env.erp-softcode` (dev), never in the prod env file.
- *   2. `GCLOUD_PROJECT === "erp-softcode"` — the runtime project id. Prod runs in
- *      `erp-softcode-prod`, so the equality fails there.
- *   3. The request Origin/Referer host is `localhost`/`127.0.0.1`.
+ * never be reached on a deployed backend (prod, dev, or a Vercel preview that
+ * proxies to the deployed dev functions):
+ *   1. `FUNCTIONS_EMULATOR === "true"` — the AUTHORITATIVE gate. This is set only
+ *      by the local Firebase emulator runtime and NEVER on deployed Cloud
+ *      Functions/Run. It is a server-side runtime signal, not a request header,
+ *      so it cannot be spoofed by a client (unlike an Origin/X-Forwarded-Host
+ *      check, which a caller hitting the public dev URL could forge).
+ *   2. `DEV_MFA_BYPASS_ENABLED === "true"` — an explicit opt-in flag present only
+ *      in `.env.erp-softcode`, so the bypass isn't silently active for everyone
+ *      running the emulator.
+ *   3. `GCLOUD_PROJECT === "erp-softcode"` — guards against running the emulator
+ *      against another project.
  *
  * Authorization is still enforced: only a SUPERADMIN account is accepted, and the
  * password is validated against Identity Platform (password accounts).
@@ -51,40 +57,19 @@ const bypassSchema = z.object({
   password: z.string().min(1).max(1024),
 });
 
-/** True only in the dev project with the explicit opt-in flag set. Fails closed. */
+/**
+ * The authoritative gate: true only inside the local Firebase emulator runtime
+ * AND with the explicit opt-in flag set, in the dev project. `FUNCTIONS_EMULATOR`
+ * is a runtime env the emulator sets and deployed Cloud Functions never do — it
+ * cannot be spoofed by a request, so a deployed backend (prod/dev/preview) can
+ * never satisfy this. Fails closed.
+ */
 export function isDevMfaBypassEnabled(): boolean {
   return (
+    process.env.FUNCTIONS_EMULATOR === "true" &&
     process.env.DEV_MFA_BYPASS_ENABLED === "true" &&
     process.env.GCLOUD_PROJECT === DEV_PROJECT_ID
   );
-}
-
-/**
- * True only when the request originates from a localhost page. The Next.js
- * `/api/backend` proxy strips `Origin`/`Referer` but forwards `x-forwarded-host`
- * (set to the browser host, e.g. `localhost:3000`), so that is the authoritative
- * signal here; the raw headers are kept as a fallback for direct calls.
- */
-function isLocalhostHost(value: string | undefined): boolean {
-  if (!value) return false;
-  // value may be "localhost:3000", a bare host, or a full URL.
-  const host = value.includes("://")
-    ? (() => {
-        try {
-          return new URL(value).hostname;
-        } catch {
-          return "";
-        }
-      })()
-    : value.split(":")[0].trim();
-  return host === "localhost" || host === "127.0.0.1";
-}
-
-function isLocalhostOrigin(req: Request): boolean {
-  const forwardedHost = req.get("x-forwarded-host");
-  if (isLocalhostHost(forwardedHost)) return true;
-  const origin = req.get("origin") || req.get("referer");
-  return isLocalhostHost(origin);
 }
 
 /**
@@ -95,7 +80,7 @@ export const devMfaBypass = async (
   res: Response,
 ): Promise<Response> => {
   // Hard gate. A failure here is indistinguishable from "route does not exist".
-  if (!isDevMfaBypassEnabled() || !isLocalhostOrigin(req)) {
+  if (!isDevMfaBypassEnabled()) {
     return res.status(404).json({ message: GENERIC_FAILURE });
   }
 

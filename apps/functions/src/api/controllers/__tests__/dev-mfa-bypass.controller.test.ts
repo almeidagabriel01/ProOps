@@ -1,10 +1,9 @@
 /**
  * Unit tests for dev-mfa-bypass.controller.ts — the LOCAL DEV ONLY superadmin
- * TOTP bypass. Asserts the triple gate (flag + project + localhost), the
+ * TOTP bypass. Asserts the triple gate (emulator runtime + flag + project), the
  * superadmin-only + password authorization, and the account preparation
- * (unenroll TOTP + set the `dev_mfa_bypass` claim). The localhost signal must
- * come from `x-forwarded-host` (what the Next.js /api/backend proxy forwards),
- * e.g. `localhost:3000`.
+ * (unenroll TOTP + set the `dev_mfa_bypass` claim). The authoritative gate is
+ * `FUNCTIONS_EMULATOR === "true"`, which deployed Cloud Functions never set.
  */
 
 process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "test-api-key";
@@ -52,12 +51,12 @@ import { devMfaBypass } from "../dev-mfa-bypass.controller";
 
 const PASSWORD_PROVIDER = [{ providerId: "password" }];
 
-function makeReq(body: unknown, headers: Record<string, string>): Request {
+function makeReq(body: unknown): Request {
   return {
     body,
     path: "/v1/auth/dev-mfa-bypass",
-    get(name: string) {
-      return headers[name.toLowerCase()];
+    get() {
+      return undefined;
     },
   } as unknown as Request;
 }
@@ -68,8 +67,6 @@ function makeRes(): { res: Response; json: jest.Mock; status: jest.Mock } {
   const res = { status, json } as unknown as Response;
   return { res, json, status };
 }
-
-const LOCALHOST_HEADERS = { "x-forwarded-host": "localhost:3000" };
 
 function setSuperAdmin(email: string) {
   mockGetUserByEmail.mockResolvedValue({
@@ -86,6 +83,7 @@ const globalFetch = global.fetch;
 beforeEach(() => {
   jest.clearAllMocks();
   docStore.clear();
+  process.env.FUNCTIONS_EMULATOR = "true";
   process.env.DEV_MFA_BYPASS_ENABLED = "true";
   process.env.GCLOUD_PROJECT = "erp-softcode";
   mockUpdateUser.mockResolvedValue(undefined);
@@ -99,12 +97,24 @@ afterAll(() => {
 });
 
 describe("devMfaBypass — gate", () => {
+  test("404 on a deployed backend (FUNCTIONS_EMULATOR unset)", async () => {
+    delete process.env.FUNCTIONS_EMULATOR;
+    setSuperAdmin("super@softcode.com");
+    const { res, status } = makeRes();
+    await devMfaBypass(
+      makeReq({ email: "super@softcode.com", password: "pw" }),
+      res,
+    );
+    expect(status).toHaveBeenCalledWith(404);
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+  });
+
   test("404 when the flag is off", async () => {
     process.env.DEV_MFA_BYPASS_ENABLED = "false";
     setSuperAdmin("super@softcode.com");
     const { res, status } = makeRes();
     await devMfaBypass(
-      makeReq({ email: "super@softcode.com", password: "pw" }, LOCALHOST_HEADERS),
+      makeReq({ email: "super@softcode.com", password: "pw" }),
       res,
     );
     expect(status).toHaveBeenCalledWith(404);
@@ -116,20 +126,7 @@ describe("devMfaBypass — gate", () => {
     setSuperAdmin("super@softcode.com");
     const { res, status } = makeRes();
     await devMfaBypass(
-      makeReq({ email: "super@softcode.com", password: "pw" }, LOCALHOST_HEADERS),
-      res,
-    );
-    expect(status).toHaveBeenCalledWith(404);
-  });
-
-  test("404 when the request is not from localhost", async () => {
-    setSuperAdmin("super@softcode.com");
-    const { res, status } = makeRes();
-    await devMfaBypass(
-      makeReq(
-        { email: "super@softcode.com", password: "pw" },
-        { "x-forwarded-host": "app.proops.com.br" },
-      ),
+      makeReq({ email: "super@softcode.com", password: "pw" }),
       res,
     );
     expect(status).toHaveBeenCalledWith(404);
@@ -147,7 +144,7 @@ describe("devMfaBypass — authorization", () => {
     docStore.set("users/uid-a", { tenantId: "t-a", role: "admin" });
     const { res, status } = makeRes();
     await devMfaBypass(
-      makeReq({ email: "user@x.com", password: "pw" }, LOCALHOST_HEADERS),
+      makeReq({ email: "user@x.com", password: "pw" }),
       res,
     );
     expect(status).toHaveBeenCalledWith(403);
@@ -159,18 +156,18 @@ describe("devMfaBypass — authorization", () => {
     global.fetch = jest.fn(async () => ({ status: 400 })) as unknown as typeof fetch;
     const { res, status } = makeRes();
     await devMfaBypass(
-      makeReq({ email: "super@softcode.com", password: "wrong" }, LOCALHOST_HEADERS),
+      makeReq({ email: "super@softcode.com", password: "wrong" }),
       res,
     );
     expect(status).toHaveBeenCalledWith(400);
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
-  test("unenrolls TOTP and sets the dev_mfa_bypass claim via localhost:3000", async () => {
+  test("unenrolls TOTP and sets the dev_mfa_bypass claim for the superadmin", async () => {
     setSuperAdmin("super@softcode.com");
     const { res, json } = makeRes();
     await devMfaBypass(
-      makeReq({ email: "super@softcode.com", password: "pw" }, LOCALHOST_HEADERS),
+      makeReq({ email: "super@softcode.com", password: "pw" }),
       res,
     );
     expect(mockUpdateUser).toHaveBeenCalledWith("uid-super", {
