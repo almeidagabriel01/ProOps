@@ -12,11 +12,12 @@ import { LiveTicker } from "./_components/live-ticker";
 import { IssueDrawer } from "./_components/issue-drawer";
 import { DashboardSkeleton } from "./_components/dashboard-skeleton";
 import type { ErrorIssue, ErrorIssueStatus, IssueFilters } from "@/types/observability";
+import { DEFAULT_ISSUE_FILTERS } from "@/types/observability";
 
 export default function ObservabilityPage() {
-  const [filters, setFilters] = React.useState<IssueFilters>({ status: "all", severity: "all", source: "all" });
+  const [filters, setFilters] = React.useState<IssueFilters>(DEFAULT_ISSUE_FILTERS);
   const [selected, setSelected] = React.useState<ErrorIssue | null>(null);
-  const { issues, isLoading, triage } = useErrorIssues(filters);
+  const { issues, isLoading, triage, errorTypes, nextCursor, loadMore } = useErrorIssues(filters);
   const { windows } = useErrorMetrics(24);
 
   const openIssues = React.useMemo(() => issues.filter((i) => i.status === "unresolved").length, [issues]);
@@ -55,7 +56,15 @@ export default function ObservabilityPage() {
         <div className="space-y-4">
           <HeroMetrics openIssues={openIssues} events24h={events24h} affectedTenants={affectedTenants} />
           <SeverityHeatmap windows={windows} />
-          <IssueList issues={issues} filters={filters} onChange={setFilters} onSelect={setSelected} />
+          <IssueList
+            issues={issues}
+            filters={filters}
+            errorTypes={errorTypes}
+            onChange={setFilters}
+            onSelect={setSelected}
+            nextCursor={nextCursor}
+            onLoadMore={loadMore}
+          />
         </div>
       )}
 
