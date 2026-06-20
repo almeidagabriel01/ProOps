@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { ArrowRight, Cpu, Layers, MoveHorizontal } from "lucide-react";
-import { m as motion, useReducedMotion, useScroll, useTransform } from "motion/react";
+import { m as motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { Accent, SectionHeading } from "./_shared/section-heading";
 import { LandingButton } from "./_shared/landing-button";
 import { usePauseOffscreen } from "./_shared/use-pause-offscreen";
@@ -208,10 +210,26 @@ export function LandingNiches() {
   const reduce = useReducedMotion();
   const trackRef = useRef<HTMLDivElement>(null);
   const { ref: stageRef, inView } = usePauseOffscreen<HTMLDivElement>();
-  const { scrollYProgress } = useScroll({
-    target: trackRef,
-    offset: ["start start", "end end"],
-  });
+  // Progress from GSAP ScrollTrigger (synced with Lenis + the page's other pins)
+  // instead of Framer useScroll, which read scroll independently and drifted
+  // ahead — sliding the horizontal panels out of step with the scroll position.
+  // start/end mirror the old offset ["start start","end end"]; the useTransform
+  // binding below is unchanged.
+  const scrollYProgress = useMotionValue(0);
+  useEffect(() => {
+    if (reduce) return;
+    const el = trackRef.current;
+    if (!el) return;
+    gsap.registerPlugin(ScrollTrigger);
+    const st = ScrollTrigger.create({
+      trigger: el,
+      start: "top top",
+      end: "bottom bottom",
+      onUpdate: (self) => scrollYProgress.set(self.progress),
+      onRefresh: (self) => scrollYProgress.set(self.progress),
+    });
+    return () => st.kill();
+  }, [reduce, scrollYProgress]);
 
   const panelCount = NICHES.length + 1; // intro + nichos
   const x = useTransform(
