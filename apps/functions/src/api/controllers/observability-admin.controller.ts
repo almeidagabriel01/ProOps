@@ -59,3 +59,52 @@ export async function triageIssue(req: Request, res: Response): Promise<Response
     return res.status(mapTriageErrorStatus(message)).json({ message: "Erro ao atualizar issue." });
   }
 }
+
+const ID_CAP = 100;
+
+/**
+ * POST /v1/admin/observability/resolve-identities
+ * Body: { uids: string[]; tenantIds: string[] }
+ * Resolves uid -> {name,email} and tenantId -> {name}. Superadmin only.
+ */
+export async function resolveIdentities(req: Request, res: Response): Promise<Response> {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Acesso negado." });
+    }
+    const body = (req.body || {}) as { uids?: unknown; tenantIds?: unknown };
+    if (!Array.isArray(body.uids) || !Array.isArray(body.tenantIds)) {
+      return res.status(400).json({ message: "uids e tenantIds inválidos" });
+    }
+    const uids = [...new Set(body.uids.filter((x): x is string => typeof x === "string"))];
+    const tenantIds = [...new Set(body.tenantIds.filter((x): x is string => typeof x === "string"))];
+    if (uids.length > ID_CAP || tenantIds.length > ID_CAP) {
+      return res.status(400).json({ message: "limite de ids excedido" });
+    }
+
+    const users: Record<string, { name: string; email: string }> = {};
+    const tenants: Record<string, { name: string }> = {};
+
+    await Promise.all([
+      ...uids.map(async (uid) => {
+        const snap = await db.collection("users").doc(uid).get();
+        if (snap.exists) {
+          const d = snap.data() as { name?: string; email?: string };
+          users[uid] = { name: d.name || "—", email: d.email || "—" };
+        }
+      }),
+      ...tenantIds.map(async (id) => {
+        const snap = await db.collection("tenants").doc(id).get();
+        if (snap.exists) {
+          const d = snap.data() as { name?: string };
+          tenants[id] = { name: d.name || "—" };
+        }
+      }),
+    ]);
+
+    return res.status(200).json({ users, tenants });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unexpected";
+    return res.status(mapTriageErrorStatus(message)).json({ message: "Erro ao resolver identidades." });
+  }
+}
