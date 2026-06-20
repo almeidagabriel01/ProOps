@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { SeverityBadge } from "./severity-badge";
 import { StatusPill } from "./status-pill";
 import { OccurrenceSparkline } from "./occurrence-sparkline";
+import { OccurrenceTable } from "./occurrence-table";
 import { useIssueOccurrences } from "../_hooks/use-issue-occurrences";
+import { useResolveIdentities } from "../_hooks/use-resolve-identities";
 import { relativeTime } from "@/lib/observability/issue-format";
 import type { ErrorIssue, ErrorIssueStatus } from "@/types/observability";
 
@@ -29,6 +31,7 @@ export function IssueDrawer({
   onTriage: (fp: string, status: ErrorIssueStatus) => void;
 }) {
   const { occurrences } = useIssueOccurrences(issue?.fingerprint ?? null);
+  const { users, tenants } = useResolveIdentities(occurrences);
   return (
     <Sheet open={!!issue} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full overflow-y-auto border-l border-black/10 bg-white/80 backdrop-blur-2xl dark:border-white/10 dark:bg-black/80 sm:max-w-xl">
@@ -67,10 +70,21 @@ export function IssueDrawer({
               )}
 
               <div>
-                <p className="mb-2 text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40">
-                  Ocorrências recentes
-                </p>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40">
+                    Ocorrências recentes ({occurrences.length})
+                  </p>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(issue.fingerprint)}
+                    className="text-[11px] text-black/40 underline dark:text-white/40"
+                  >
+                    Copiar fingerprint
+                  </button>
+                </div>
                 <OccurrenceSparkline occurrences={occurrences} />
+                <div className="mt-3">
+                  <OccurrenceTable occurrences={occurrences} users={users} tenants={tenants} />
+                </div>
               </div>
 
               <div>
