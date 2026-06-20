@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Database,
   Lock,
@@ -10,11 +10,13 @@ import {
 } from "lucide-react";
 import {
   m as motion,
+  useMotionValue,
   useReducedMotion,
-  useScroll,
   useTransform,
   type MotionValue,
 } from "motion/react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { Accent, SectionHeading } from "./_shared/section-heading";
 
 type Pillar = {
@@ -232,10 +234,28 @@ export function LandingSecurity() {
   const reduce = useReducedMotion();
   const draw = !reduce;
   const trackRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: trackRef,
-    offset: ["start start", "end end"],
-  });
+  // Drive the scroll progress from GSAP ScrollTrigger instead of Framer's
+  // useScroll. The page runs Lenis (smooth scroll) + GSAP pins (hero/feature),
+  // and Lenis is wired to ScrollTrigger.update — but Framer's useScroll reads
+  // scroll independently, so its progress drifted ahead of the real position and
+  // the pillars lit before the reveal reached them. Sourcing progress from the
+  // SAME ScrollTrigger the rest of the page uses keeps it perfectly in sync.
+  // start/end mirror the old Framer offset ["start start","end end"] exactly.
+  const scrollYProgress = useMotionValue(0);
+  useEffect(() => {
+    if (reduce) return;
+    const el = trackRef.current;
+    if (!el) return;
+    gsap.registerPlugin(ScrollTrigger);
+    const st = ScrollTrigger.create({
+      trigger: el,
+      start: "top top",
+      end: "bottom bottom",
+      onUpdate: (self) => scrollYProgress.set(self.progress),
+      onRefresh: (self) => scrollYProgress.set(self.progress),
+    });
+    return () => st.kill();
+  }, [reduce, scrollYProgress]);
 
   const corePulse = useTransform(scrollYProgress, [0, 0.5, 1], [1, 1.06, 1]);
   const sealOpacity = useTransform(scrollYProgress, [0.86, 0.96], [0, 1]);
