@@ -23,6 +23,7 @@ import { auth, db } from "@/lib/firebase";
 import { callPublicApi } from "@/lib/api-client";
 import { isValidTotpCode } from "@/lib/mfa-helpers";
 import { extractEmailFromAuthError } from "../_lib/extract-email-from-auth-error";
+import { isDevMfaBypassClientEnabled } from "../_lib/dev-mfa-bypass";
 import { shouldReflectWhatsappGate } from "../_lib/should-reflect-whatsapp-gate";
 import { useResendCountdown } from "@/hooks/useResendCountdown";
 import { getCaptchaToken } from "@/lib/captcha";
@@ -549,6 +550,37 @@ export function useLoginForm(): UseLoginFormReturn {
     }
   }, [whatsappMfaPending, requiresWhatsappOtp, startWhatsappResendCountdown]);
 
+  // LOCAL DEV ONLY. Attempts the superadmin TOTP bypass on localhost. Returns
+  // true when it signed the user in (caller must NOT show the TOTP screen),
+  // false otherwise (not localhost/dev, not a superadmin, wrong password, or the
+  // backend refused) so the caller falls back to the native TOTP flow.
+  const tryDevMfaBypass = async (
+    accountEmail: string,
+    accountPassword: string,
+  ): Promise<boolean> => {
+    if (
+      !isDevMfaBypassClientEnabled(
+        typeof window !== "undefined" ? window.location.hostname : undefined,
+        process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      )
+    ) {
+      return false;
+    }
+    try {
+      const { customToken } = await AuthService.devMfaBypass(
+        accountEmail,
+        accountPassword,
+      );
+      if (!customToken) return false;
+      const result = await signInWithRecoveryToken(customToken);
+      return result.success === true;
+    } catch {
+      // Backend refused (not a superadmin, wrong password, gate off) — fall back
+      // to the normal TOTP screen.
+      return false;
+    }
+  };
+
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError("");
@@ -585,8 +617,15 @@ export function useLoginForm(): UseLoginFormReturn {
         if (result.code === "email-not-verified") {
           setIsEmailVerificationPending(true);
         } else if (result.code === "mfa-required") {
-          setMfaEmail(email);
-          setRequiresMfaCode(true);
+          // LOCAL DEV ONLY: on localhost against the erp-softcode dev project,
+          // try to skip the native TOTP challenge for the superadmin. The backend
+          // refuses (404/403) for anything else, so we just fall through to the
+          // normal TOTP screen when the bypass is not applicable.
+          const bypassed = await tryDevMfaBypass(email, password);
+          if (!bypassed) {
+            setMfaEmail(email);
+            setRequiresMfaCode(true);
+          }
         } else if (result.code === "whatsapp-mfa-required") {
           setWhatsappMaskedPhone(result.maskedPhone || "");
           setRequiresWhatsappOtp(true);

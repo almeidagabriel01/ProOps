@@ -19,6 +19,17 @@ export interface RecoverTotpWithCodeResponse {
   customToken?: string;
 }
 
+export interface DevMfaBypassResponse {
+  success: boolean;
+  /**
+   * Firebase custom token returned on success. Carries the `dev_mfa_bypass`
+   * claim and is used with `signInWithCustomToken` to sign the superadmin in
+   * WITHOUT the native TOTP challenge. LOCAL DEV ONLY — the backend hard-gates
+   * this to the dev project + localhost.
+   */
+  customToken?: string;
+}
+
 export interface WhatsappLoginFallbackAvailability {
   available: boolean;
   /** Masked enrolled phone (e.g. `••••1234`), present only when available. */
@@ -89,6 +100,23 @@ export const AuthService = {
       "v1/auth/mfa-recovery/recover-totp",
       "POST",
       password !== undefined ? { email, code, password } : { email, code },
+    );
+  },
+
+  /**
+   * LOCAL DEV ONLY. Skips the native TOTP challenge for the softcode superadmin
+   * on localhost, returning a `customToken` for `signInWithCustomToken`. The
+   * backend hard-gates this to the dev project (`erp-softcode`) + localhost and
+   * rejects everything else with 404/403 — so it is inert in production.
+   */
+  async devMfaBypass(
+    email: string,
+    password: string,
+  ): Promise<DevMfaBypassResponse> {
+    return callPublicApi<DevMfaBypassResponse>(
+      "v1/auth/dev-mfa-bypass",
+      "POST",
+      { email, password },
     );
   },
 

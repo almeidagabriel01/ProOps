@@ -164,7 +164,12 @@ service cloud.firestore {
      */
     function hasMfa() {
       return isAuthenticated()
-             && request.auth.token.firebase.sign_in_second_factor != null;
+             && (request.auth.token.firebase.sign_in_second_factor != null
+                 // LOCAL DEV ONLY: the `dev_mfa_bypass` custom-token claim is
+                 // minted exclusively by POST /v1/auth/dev-mfa-bypass, which is
+                 // hard-gated to the `erp-softcode` dev project + localhost. Prod
+                 // sessions can never carry it, so this does not weaken prod.
+                 || request.auth.token.get('dev_mfa_bypass', false) == true);
     }
 
     /**
