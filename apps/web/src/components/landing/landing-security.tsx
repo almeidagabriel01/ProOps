@@ -154,11 +154,15 @@ function PillarReveal({
   index,
   progress,
   draw,
+  dense = false,
 }: {
   pillar: Pillar;
   index: number;
   progress: MotionValue<number>;
   draw: boolean;
+  /** Desktop pinado: comprime o espaçamento vertical em telas baixas para os
+   * últimos pilares não serem cortados pelo overflow-hidden da seção h-screen. */
+  dense?: boolean;
 }) {
   const Icon = pillar.icon;
   const s = startOf(index);
@@ -168,7 +172,11 @@ function PillarReveal({
   return (
     <motion.div
       style={draw ? { opacity, x } : undefined}
-      className="relative flex items-start gap-4 py-4 pl-5"
+      className={`relative flex items-start gap-4 pl-5 ${
+        dense
+          ? "py-4 [@media(max-height:820px)]:py-2.5 [@media(max-height:700px)]:py-1.5"
+          : "py-4"
+      }`}
     >
       <motion.span
         aria-hidden
@@ -280,7 +288,7 @@ export function LandingSecurity() {
   const hintOpacity = useTransform(scrollYProgress, [0, 0.05], [1, 0]);
 
   const Emblem = (
-    <div className="relative aspect-square w-full max-w-[24rem]">
+    <div className="relative aspect-square w-full max-w-[24rem] [@media(max-height:820px)]:max-w-[20rem] [@media(max-height:700px)]:max-w-[16rem]">
       <svg viewBox="0 0 200 200" fill="none" className="absolute inset-0 h-full w-full">
         {PILLARS.map((pillar, i) => (
           <RingPath
@@ -402,10 +410,12 @@ export function LandingSecurity() {
         style={{ height: "320vh" }}
       >
         <div className="sticky top-0 h-screen overflow-hidden">
-        {/* grade de pontos sutil */}
-        <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.06)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_82%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.07)_1px,transparent_1px)]" />
+        {/* grade de pontos sutil — decorativa: pointer-events-none para não capturar
+            o clique e impedir a seleção do texto da coluna (ela é posicionada por
+            cima do conteúdo na ordem de pintura). */}
+        <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.06)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_82%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.07)_1px,transparent_1px)]" />
 
-        <div className="mx-auto grid h-full max-w-6xl items-center gap-12 px-6 lg:grid-cols-2 lg:gap-16">
+        <div className="relative mx-auto grid h-full max-w-6xl items-center gap-12 px-6 lg:grid-cols-2 lg:gap-16">
           {/* coluna de texto */}
           <div>
             <SectionHeading
@@ -417,7 +427,7 @@ export function LandingSecurity() {
                 </>
               }
               description="Segurança não é um recurso à parte — é a base da plataforma. Cada camada protege as informações do seu negócio e dos seus clientes."
-              className="mb-8"
+              className="mb-8 [@media(max-height:820px)]:mb-4"
             />
             <div>
               {PILLARS.map((pillar, i) => (
@@ -427,6 +437,7 @@ export function LandingSecurity() {
                   index={i}
                   progress={scrollYProgress}
                   draw={draw}
+                  dense
                 />
               ))}
             </div>

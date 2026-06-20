@@ -102,7 +102,11 @@ function NicheIndex({
   animated: boolean;
   corner?: boolean;
 }) {
-  const id = `niche-grad-${value}`;
+  // ID único por instância: o mesmo numeral é montado nas árvores mobile (md:hidden)
+  // e desktop ao mesmo tempo. Derivar o id de `value` gerava ids duplicados, e o
+  // desktop resolvia `url(#…)` para a primeira ocorrência — que vive na subárvore
+  // display:none do mobile — deixando o traço sem paint server (numeral sumia).
+  const id = `niche-grad-${React.useId()}`;
   // No mobile o numeral vira marca d'água discreta no canto (menor + opaco) para
   // não colidir com o título; no desktop (md+) mantém o tamanho/posição original.
   const position = corner
@@ -220,31 +224,40 @@ export function LandingNiches() {
     if (reduce) return;
     const el = trackRef.current;
     if (!el) return;
-    // Below the fold: only create the ScrollTrigger when the section approaches
-    // the viewport, so its layout measurement does not inflate the home page's
-    // TBT at load (see landing-security).
-    let st: ScrollTrigger | undefined;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !st) {
-          gsap.registerPlugin(ScrollTrigger);
-          st = ScrollTrigger.create({
-            trigger: el,
-            start: "top top",
-            end: "bottom bottom",
-            onUpdate: (self) => scrollYProgress.set(self.progress),
-            onRefresh: (self) => scrollYProgress.set(self.progress),
-          });
-          io.disconnect();
-        }
-      },
-      { rootMargin: "150% 0px" },
-    );
-    io.observe(el);
-    return () => {
-      io.disconnect();
-      st?.kill();
-    };
+    // Só existe no desktop (≥768px). gsap.matchMedia destrói o ScrollTrigger ao
+    // sair do breakpoint e re-roda este callback ao voltar — então redimensionar
+    // mobile→desktop reconstrói um trigger medido corretamente, em vez de reusar um
+    // medido enquanto a seção estava display:none (que pulava o painel de intro).
+    const mm = gsap.matchMedia();
+    mm.add("(min-width: 768px)", () => {
+      // Below the fold: only create the ScrollTrigger when the section approaches
+      // the viewport, so its layout measurement does not inflate the home page's
+      // TBT at load (see landing-security).
+      let st: ScrollTrigger | undefined;
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && !st) {
+            gsap.registerPlugin(ScrollTrigger);
+            st = ScrollTrigger.create({
+              trigger: el,
+              start: "top top",
+              end: "bottom bottom",
+              onUpdate: (self) => scrollYProgress.set(self.progress),
+              onRefresh: (self) => scrollYProgress.set(self.progress),
+            });
+            io.disconnect();
+          }
+        },
+        { rootMargin: "150% 0px" },
+      );
+      io.observe(el);
+      return () => {
+        io.disconnect();
+        st?.kill();
+        scrollYProgress.set(0);
+      };
+    });
+    return () => mm.revert();
   }, [reduce, scrollYProgress]);
 
   const panelCount = NICHES.length + 1; // intro + nichos
@@ -292,7 +305,7 @@ export function LandingNiches() {
       >
         <div ref={stageRef} className="sticky top-0 h-screen overflow-hidden">
           {/* grade de pontos sutil (estática) */}
-          <div className="absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.06)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_82%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.07)_1px,transparent_1px)]" />
+          <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.06)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_82%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.07)_1px,transparent_1px)]" />
 
           <motion.div style={{ x }} className="flex h-full w-max">
             <IntroPanel />
