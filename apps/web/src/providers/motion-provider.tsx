@@ -1,24 +1,28 @@
 "use client";
 
-import { LazyMotion, domMax } from "motion/react";
+import { LazyMotion } from "motion/react";
+
+// Load the domMax feature bundle via dynamic import so it is fetched/parsed AFTER
+// hydration instead of during it — halving TBT on the public pages (the static
+// `features={domMax}` form runs ~34kb of features on the main thread while the
+// page hydrates). The whole app's `m` components stay at their static initial
+// state until the features resolve a tick later, then animate normally.
+//
+// Verified in a CLEAN production build: scroll-driven animations (e.g. the home
+// Security section) reach their final state and there is no ChunkLoadError. A
+// ChunkLoadError seen earlier was a stale Turbopack DEV/HMR chunk reference from
+// rapidly editing this file — not a production failure. If the dev server ever
+// shows it, clear it with `rm -rf apps/web/.next` and restart `npm run dev`;
+// motion-features.ts never changes in normal development, so the chunk is stable.
+const loadMotionFeatures = () =>
+  import("./motion-features").then((res) => res.default);
 
 /**
- * Lazy-loads Framer Motion's feature bundle ONCE for the whole app.
- *
- * Components import `m as motion` from "motion/react" instead of the full
- * `motion` object; the heavy animation features are provided here via
- * <LazyMotion> instead of being bundled with every component. This shrinks the
- * client bundle with ZERO behavioural change — `m` renders identically to
- * `motion` once the features are loaded.
- *
- * `domMax` is passed as a STATIC value (not a dynamic import). The async form
- * (`features={() => import(...)}`) shaved ~50% off TBT, but it puts the whole
- * app's framer animations behind a separate chunk: if that chunk fails to load
- * (or a stale dev/HMR reference), LazyMotion never receives features and every
- * `m` component is stuck at its initial state — scroll reveals never fire, items
- * stay dimmed/overlapping. Animation correctness outranks the TBT win, so the
- * bundle stays static and always available.
+ * Lazy-loads Framer Motion's domMax feature bundle ONCE for the whole app, after
+ * hydration. Components import `m as motion`; domMax is the superset covering the
+ * layout animations (`layout` / `layoutId`) the app uses, so behaviour is
+ * unchanged — only load timing differs.
  */
 export function MotionProvider({ children }: { children: React.ReactNode }) {
-  return <LazyMotion features={domMax}>{children}</LazyMotion>;
+  return <LazyMotion features={loadMotionFeatures}>{children}</LazyMotion>;
 }
