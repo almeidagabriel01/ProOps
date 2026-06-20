@@ -246,15 +246,33 @@ export function LandingSecurity() {
     if (reduce) return;
     const el = trackRef.current;
     if (!el) return;
-    gsap.registerPlugin(ScrollTrigger);
-    const st = ScrollTrigger.create({
-      trigger: el,
-      start: "top top",
-      end: "bottom bottom",
-      onUpdate: (self) => scrollYProgress.set(self.progress),
-      onRefresh: (self) => scrollYProgress.set(self.progress),
-    });
-    return () => st.kill();
+    // The section is far below the fold, so only create the ScrollTrigger when it
+    // approaches the viewport (IntersectionObserver), not during page load.
+    // ScrollTrigger.create does synchronous layout measurement; running it at load
+    // added ~1.7s of TBT on the home page. Creating it ~1.5 viewports out keeps it
+    // off the load critical path while still being ready before the user reaches it.
+    let st: ScrollTrigger | undefined;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !st) {
+          gsap.registerPlugin(ScrollTrigger);
+          st = ScrollTrigger.create({
+            trigger: el,
+            start: "top top",
+            end: "bottom bottom",
+            onUpdate: (self) => scrollYProgress.set(self.progress),
+            onRefresh: (self) => scrollYProgress.set(self.progress),
+          });
+          io.disconnect();
+        }
+      },
+      { rootMargin: "150% 0px" },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      st?.kill();
+    };
   }, [reduce, scrollYProgress]);
 
   const corePulse = useTransform(scrollYProgress, [0, 0.5, 1], [1, 1.06, 1]);

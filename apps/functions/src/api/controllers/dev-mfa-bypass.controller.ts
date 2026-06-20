@@ -48,15 +48,32 @@ export function isDevMfaBypassEnabled(): boolean {
   );
 }
 
-/** True only when the request originates from a localhost page. */
+/**
+ * True only when the request originates from a localhost page. The Next.js
+ * `/api/backend` proxy strips `Origin`/`Referer` but forwards `x-forwarded-host`
+ * (set to the browser host, e.g. `localhost:3000`), so that is the authoritative
+ * signal here; the raw headers are kept as a fallback for direct calls.
+ */
+function isLocalhostHost(value: string | undefined): boolean {
+  if (!value) return false;
+  // value may be "localhost:3000", a bare host, or a full URL.
+  const host = value.includes("://")
+    ? (() => {
+        try {
+          return new URL(value).hostname;
+        } catch {
+          return "";
+        }
+      })()
+    : value.split(":")[0].trim();
+  return host === "localhost" || host === "127.0.0.1";
+}
+
 function isLocalhostOrigin(req: Request): boolean {
-  const origin = req.get("origin") || req.get("referer") || "";
-  try {
-    const host = new URL(origin).hostname;
-    return host === "localhost" || host === "127.0.0.1";
-  } catch {
-    return false;
-  }
+  const forwardedHost = req.get("x-forwarded-host");
+  if (isLocalhostHost(forwardedHost)) return true;
+  const origin = req.get("origin") || req.get("referer");
+  return isLocalhostHost(origin);
 }
 
 /**

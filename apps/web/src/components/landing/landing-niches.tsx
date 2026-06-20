@@ -220,15 +220,31 @@ export function LandingNiches() {
     if (reduce) return;
     const el = trackRef.current;
     if (!el) return;
-    gsap.registerPlugin(ScrollTrigger);
-    const st = ScrollTrigger.create({
-      trigger: el,
-      start: "top top",
-      end: "bottom bottom",
-      onUpdate: (self) => scrollYProgress.set(self.progress),
-      onRefresh: (self) => scrollYProgress.set(self.progress),
-    });
-    return () => st.kill();
+    // Below the fold: only create the ScrollTrigger when the section approaches
+    // the viewport, so its layout measurement does not inflate the home page's
+    // TBT at load (see landing-security).
+    let st: ScrollTrigger | undefined;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !st) {
+          gsap.registerPlugin(ScrollTrigger);
+          st = ScrollTrigger.create({
+            trigger: el,
+            start: "top top",
+            end: "bottom bottom",
+            onUpdate: (self) => scrollYProgress.set(self.progress),
+            onRefresh: (self) => scrollYProgress.set(self.progress),
+          });
+          io.disconnect();
+        }
+      },
+      { rootMargin: "150% 0px" },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      st?.kill();
+    };
   }, [reduce, scrollYProgress]);
 
   const panelCount = NICHES.length + 1; // intro + nichos
