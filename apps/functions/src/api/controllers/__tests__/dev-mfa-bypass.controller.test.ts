@@ -1,9 +1,10 @@
 /**
  * Unit tests for dev-mfa-bypass.controller.ts — the LOCAL DEV ONLY superadmin
  * TOTP bypass. Asserts the triple gate (flag + project + localhost), the
- * superadmin-only + password authorization, and the minted custom token's
- * `dev_mfa_bypass` claim. The localhost signal must come from `x-forwarded-host`
- * (what the Next.js /api/backend proxy actually forwards), e.g. `localhost:3000`.
+ * superadmin-only + password authorization, and the account preparation
+ * (unenroll TOTP + set the `dev_mfa_bypass` claim). The localhost signal must
+ * come from `x-forwarded-host` (what the Next.js /api/backend proxy forwards),
+ * e.g. `localhost:3000`.
  */
 
 process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "test-api-key";
@@ -11,11 +12,13 @@ process.env.NEXT_PUBLIC_FIREBASE_API_KEY = "test-api-key";
 const docStore = new Map<string, Record<string, unknown> | undefined>();
 
 const mockGetUserByEmail = jest.fn();
-const mockCreateCustomToken = jest.fn();
+const mockUpdateUser = jest.fn();
+const mockSetCustomUserClaims = jest.fn();
 jest.mock("../../../init", () => ({
   auth: {
     getUserByEmail: (...args: unknown[]) => mockGetUserByEmail(...args),
-    createCustomToken: (...args: unknown[]) => mockCreateCustomToken(...args),
+    updateUser: (...args: unknown[]) => mockUpdateUser(...args),
+    setCustomUserClaims: (...args: unknown[]) => mockSetCustomUserClaims(...args),
   },
   db: {
     collection: (collection: string) => ({
@@ -85,7 +88,8 @@ beforeEach(() => {
   docStore.clear();
   process.env.DEV_MFA_BYPASS_ENABLED = "true";
   process.env.GCLOUD_PROJECT = "erp-softcode";
-  mockCreateCustomToken.mockResolvedValue("custom-token-123");
+  mockUpdateUser.mockResolvedValue(undefined);
+  mockSetCustomUserClaims.mockResolvedValue(undefined);
   // Password REST check succeeds by default (HTTP 200).
   global.fetch = jest.fn(async () => ({ status: 200 })) as unknown as typeof fetch;
 });
@@ -104,7 +108,7 @@ describe("devMfaBypass — gate", () => {
       res,
     );
     expect(status).toHaveBeenCalledWith(404);
-    expect(mockCreateCustomToken).not.toHaveBeenCalled();
+    expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
   test("404 in the prod project even with the flag on", async () => {
@@ -147,7 +151,7 @@ describe("devMfaBypass — authorization", () => {
       res,
     );
     expect(status).toHaveBeenCalledWith(403);
-    expect(mockCreateCustomToken).not.toHaveBeenCalled();
+    expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
   test("400 on a wrong password", async () => {
@@ -159,22 +163,24 @@ describe("devMfaBypass — authorization", () => {
       res,
     );
     expect(status).toHaveBeenCalledWith(400);
-    expect(mockCreateCustomToken).not.toHaveBeenCalled();
+    expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
-  test("mints a dev_mfa_bypass custom token for the superadmin via localhost:3000", async () => {
+  test("unenrolls TOTP and sets the dev_mfa_bypass claim via localhost:3000", async () => {
     setSuperAdmin("super@softcode.com");
     const { res, json } = makeRes();
     await devMfaBypass(
       makeReq({ email: "super@softcode.com", password: "pw" }, LOCALHOST_HEADERS),
       res,
     );
-    expect(mockCreateCustomToken).toHaveBeenCalledWith("uid-super", {
+    expect(mockUpdateUser).toHaveBeenCalledWith("uid-super", {
+      multiFactor: { enrolledFactors: null },
+    });
+    // Existing claims (role) preserved, dev_mfa_bypass added.
+    expect(mockSetCustomUserClaims).toHaveBeenCalledWith("uid-super", {
+      role: "superadmin",
       dev_mfa_bypass: true,
     });
-    expect(json).toHaveBeenCalledWith({
-      success: true,
-      customToken: "custom-token-123",
-    });
+    expect(json).toHaveBeenCalledWith({ success: true });
   });
 });

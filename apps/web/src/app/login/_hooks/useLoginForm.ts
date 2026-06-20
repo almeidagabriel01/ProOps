@@ -550,10 +550,11 @@ export function useLoginForm(): UseLoginFormReturn {
     }
   }, [whatsappMfaPending, requiresWhatsappOtp, startWhatsappResendCountdown]);
 
-  // LOCAL DEV ONLY. Attempts the superadmin TOTP bypass on localhost. Returns
-  // true when it signed the user in (caller must NOT show the TOTP screen),
-  // false otherwise (not localhost/dev, not a superadmin, wrong password, or the
-  // backend refused) so the caller falls back to the native TOTP flow.
+  // LOCAL DEV ONLY. Attempts the superadmin MFA bypass on localhost. The backend
+  // unenrolls the native TOTP factor and sets the dev_mfa_bypass claim; we then
+  // retry the email/password sign-in (now unchallenged) and return true when it
+  // signs the user in. Returns false (not localhost/dev, not a superadmin, wrong
+  // password, or the backend refused) so the caller falls back to the TOTP flow.
   const tryDevMfaBypass = async (
     accountEmail: string,
     accountPassword: string,
@@ -567,12 +568,13 @@ export function useLoginForm(): UseLoginFormReturn {
       return false;
     }
     try {
-      const { customToken } = await AuthService.devMfaBypass(
+      const { success } = await AuthService.devMfaBypass(
         accountEmail,
         accountPassword,
       );
-      if (!customToken) return false;
-      const result = await signInWithRecoveryToken(customToken);
+      if (!success) return false;
+      // TOTP is now unenrolled — a plain password sign-in goes straight through.
+      const result = await login(accountEmail, accountPassword);
       return result.success === true;
     } catch {
       // Backend refused (not a superadmin, wrong password, gate off) — fall back

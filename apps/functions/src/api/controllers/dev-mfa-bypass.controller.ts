@@ -26,10 +26,21 @@ import {
  *   3. The request Origin/Referer host is `localhost`/`127.0.0.1`.
  *
  * Authorization is still enforced: only a SUPERADMIN account is accepted, and the
- * password is validated against Identity Platform (password accounts). The minted
- * token carries `dev_mfa_bypass: true`, which the Firestore rules' `hasMfa()` gate
- * accepts in lieu of `sign_in_second_factor` — that claim can ONLY be obtained
- * here, so privileged client-SDK access stays MFA-gated everywhere else.
+ * password is validated against Identity Platform (password accounts).
+ *
+ * Rather than minting a custom token (which requires a local signing credential
+ * the dev machine doesn't have), it performs two Admin SDK writes — which work
+ * with ambient gcloud ADC, NO private key needed:
+ *   1. Unenrolls the native TOTP factor, so a plain password sign-in is no longer
+ *      blocked by the MFA challenge.
+ *   2. Sets the `dev_mfa_bypass: true` custom claim (merged with existing claims),
+ *      which the Firestore rules' `hasMfa()` gate accepts in lieu of
+ *      `sign_in_second_factor` — so the now-single-factor superadmin keeps full
+ *      privileged client-SDK access. That claim is only ever set here.
+ *
+ * The client then simply retries the email/password sign-in. The change persists
+ * on the dev account, so subsequent logins need no second factor (the endpoint is
+ * idempotent — re-running it is a no-op on an already-unenrolled account).
  */
 
 const DEV_PROJECT_ID = "erp-softcode";
@@ -125,25 +136,27 @@ export const devMfaBypass = async (
       return res.status(400).json({ message: "Senha incorreta." });
     }
 
-    let customToken: string;
+    // Unenroll all native MFA factors (TOTP) so the password sign-in is no longer
+    // challenged, and set the dev_mfa_bypass claim (merged) so the Firestore rules
+    // still grant superadmin access. Both are plain Admin writes — no signing.
     try {
-      customToken = await auth.createCustomToken(uid, {
+      await auth.updateUser(uid, { multiFactor: { enrolledFactors: null } });
+      await auth.setCustomUserClaims(uid, {
+        ...(userRecord.customClaims ?? {}),
         dev_mfa_bypass: true,
       });
-    } catch (tokenError: unknown) {
+    } catch (writeError: unknown) {
       const detail =
-        tokenError instanceof Error ? tokenError.message : String(tokenError);
-      logger.error("devMfaBypass: createCustomToken failed", { uid, detail });
-      // Dev/localhost-only endpoint — safe to surface the real reason so the
-      // developer can fix local credentials (e.g. missing Service Account Token
-      // Creator role / no signing credential).
-      return res.status(500).json({
-        message: `Falha ao gerar token (credencial de assinatura local): ${detail}`,
-      });
+        writeError instanceof Error ? writeError.message : String(writeError);
+      logger.error("devMfaBypass: account update failed", { uid, detail });
+      // Dev/localhost-only endpoint — safe to surface the real reason.
+      return res
+        .status(500)
+        .json({ message: `Falha ao preparar a conta para o bypass: ${detail}` });
     }
 
     void writeSecurityAuditEvent({
-      eventType: "dev_mfa_bypass_signin",
+      eventType: "dev_mfa_bypass_prepared",
       uid,
       tenantId: userData?.tenantId,
       route: req.path,
@@ -151,9 +164,11 @@ export const devMfaBypass = async (
       source: "dev_mfa_bypass",
     });
 
-    logger.warn("DEV MFA bypass used to sign in superadmin", { uid });
+    logger.warn("DEV MFA bypass: unenrolled TOTP + set claim for superadmin", {
+      uid,
+    });
 
-    return res.json({ success: true, customToken });
+    return res.json({ success: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro desconhecido";
     logger.error("devMfaBypass failed", { message });
