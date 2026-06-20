@@ -125,9 +125,22 @@ export const devMfaBypass = async (
       return res.status(400).json({ message: "Senha incorreta." });
     }
 
-    const customToken = await auth.createCustomToken(uid, {
-      dev_mfa_bypass: true,
-    });
+    let customToken: string;
+    try {
+      customToken = await auth.createCustomToken(uid, {
+        dev_mfa_bypass: true,
+      });
+    } catch (tokenError: unknown) {
+      const detail =
+        tokenError instanceof Error ? tokenError.message : String(tokenError);
+      logger.error("devMfaBypass: createCustomToken failed", { uid, detail });
+      // Dev/localhost-only endpoint — safe to surface the real reason so the
+      // developer can fix local credentials (e.g. missing Service Account Token
+      // Creator role / no signing credential).
+      return res.status(500).json({
+        message: `Falha ao gerar token (credencial de assinatura local): ${detail}`,
+      });
+    }
 
     void writeSecurityAuditEvent({
       eventType: "dev_mfa_bypass_signin",
