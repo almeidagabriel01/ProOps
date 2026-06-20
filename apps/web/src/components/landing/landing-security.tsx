@@ -174,7 +174,7 @@ function PillarReveal({
       style={draw ? { opacity, x } : undefined}
       className={`relative flex items-start gap-4 pl-5 ${
         dense
-          ? "py-4 [@media(max-height:820px)]:py-2.5 [@media(max-height:700px)]:py-1.5"
+          ? "py-4 [@media(max-height:860px)]:py-3 [@media(max-height:740px)]:py-2 [@media(max-height:680px)]:py-1.5"
           : "py-4"
       }`}
     >
@@ -288,7 +288,7 @@ export function LandingSecurity() {
   const hintOpacity = useTransform(scrollYProgress, [0, 0.05], [1, 0]);
 
   const Emblem = (
-    <div className="relative aspect-square w-full max-w-[24rem] [@media(max-height:820px)]:max-w-[20rem] [@media(max-height:700px)]:max-w-[16rem]">
+    <div className="relative aspect-square w-full max-w-[24rem] [@media(max-height:860px)]:max-w-[19rem] [@media(max-height:740px)]:max-w-[15rem]">
       <svg viewBox="0 0 200 200" fill="none" className="absolute inset-0 h-full w-full">
         {PILLARS.map((pillar, i) => (
           <RingPath
@@ -416,8 +416,10 @@ export function LandingSecurity() {
         <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle,rgba(0,0,0,0.06)_1px,transparent_1px)] [background-size:36px_36px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_82%)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.07)_1px,transparent_1px)]" />
 
         <div className="relative mx-auto grid h-full max-w-6xl items-center gap-12 px-6 lg:grid-cols-2 lg:gap-16">
-          {/* coluna de texto */}
-          <div>
+          {/* coluna de texto — em viewports baixos o título grande (3 linhas) e as
+              descrições são encolhidos via variantes max-height para os 4 pilares
+              caberem na seção pinada (h-screen overflow-hidden) sem cortar. */}
+          <div className="[@media(max-height:860px)]:[&_h2]:text-[2.4rem] [@media(max-height:860px)]:[&_h2]:leading-tight [@media(max-height:740px)]:[&_h2]:text-[2rem] [@media(max-height:740px)]:[&_p]:text-sm [@media(max-height:740px)]:[&_p]:leading-snug">
             <SectionHeading
               align="left"
               eyebrow="Segurança & privacidade"
@@ -427,7 +429,7 @@ export function LandingSecurity() {
                 </>
               }
               description="Segurança não é um recurso à parte — é a base da plataforma. Cada camada protege as informações do seu negócio e dos seus clientes."
-              className="mb-8 [@media(max-height:820px)]:mb-4"
+              className="mb-8 [@media(max-height:860px)]:mb-4 [@media(max-height:740px)]:mb-2"
             />
             <div>
               {PILLARS.map((pillar, i) => (

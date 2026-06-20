@@ -72,11 +72,28 @@ export function LandingPageClient() {
     let raf: ((time: number) => void) | null = null;
     let refreshTimeoutId: number | undefined;
     let cancelled = false;
+    let mq: MediaQueryList | undefined;
+    let onBreakpointCross: (() => void) | undefined;
 
     const init = () => {
       if (cancelled) return;
 
       gsap.registerPlugin(ScrollTrigger);
+
+      // Cruzar o breakpoint md (ex.: ligar/desligar o device toolbar do devtools)
+      // troca seções pinadas entre os layouts mobile/desktop (md:hidden ↔ hidden
+      // md:block). Sem recalcular, o Lenis e os ScrollTriggers acima mantêm alturas
+      // obsoletas, deslocando a posição de scroll que a galeria de nichos mapeia —
+      // ela começava no 2º painel até dar reload. Recalcular na virada conserta
+      // sem custo no caminho normal (só dispara ao cruzar 768px).
+      mq = window.matchMedia("(min-width: 768px)");
+      onBreakpointCross = () => {
+        requestAnimationFrame(() => {
+          lenis?.resize();
+          ScrollTrigger.refresh();
+        });
+      };
+      mq.addEventListener("change", onBreakpointCross);
       // refresh não-bloqueante: roda após o paint, recalcula os ScrollTriggers
       // (pin/scrub) já registrados pelo hero. Sem o setTimeout de 500ms síncrono.
       refreshTimeoutId = window.setTimeout(() => {
@@ -108,6 +125,7 @@ export function LandingPageClient() {
         window.clearTimeout(idleId as number);
       }
       if (refreshTimeoutId !== undefined) window.clearTimeout(refreshTimeoutId);
+      if (mq && onBreakpointCross) mq.removeEventListener("change", onBreakpointCross);
       if (raf) gsap.ticker.remove(raf);
       lenis?.destroy();
     };
