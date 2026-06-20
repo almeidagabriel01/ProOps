@@ -1,7 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useLandingPage, LandingNavbar } from "@/components/landing";
+// Direct imports (not the @/components/landing barrel): the barrel re-exports
+// LandingHeroAssemble → hero-dashboard-demo → Recharts, which webpack then can't
+// tree-shake out, dragging ~100KB of charts the niche pages never use into their
+// chunk. Importing the source files directly keeps that off these routes.
+import { useLandingPage } from "@/components/landing/use-landing-page";
+import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { NicheHero } from "./niche-hero";
 import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
 

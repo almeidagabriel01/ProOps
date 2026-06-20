@@ -2,7 +2,11 @@
 
 import React, { useState } from "react";
 import { ArrowRight } from "lucide-react";
-import { LandingNavbar, LandingFooter, useLandingPage } from "@/components/landing";
+// Direct imports (not the @/components/landing barrel) so the home-only chart
+// stack (Recharts via hero-dashboard-demo) is not pulled into this route's chunk.
+import { LandingNavbar } from "@/components/landing/landing-navbar";
+import { LandingFooter } from "@/components/landing/landing-footer";
+import { useLandingPage } from "@/components/landing/use-landing-page";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { useReducedMotion } from "@/components/landing/_shared/use-reduced-motion";
 import { useFormValidation } from "@/hooks/useFormValidation";
