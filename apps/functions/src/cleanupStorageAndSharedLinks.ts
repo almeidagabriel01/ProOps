@@ -62,7 +62,7 @@ export const cleanupStorageAndSharedLinks = onSchedule(
         "[cleanupStorageAndSharedLinks] failed during expired link cleanup",
         error,
       );
-      void captureError(error, { source: "functions", route: "cron/cleanupStorageAndSharedLinks", handled: false });
+      void captureError(error, { source: "functions", route: "cron/cleanupStorageAndSharedLinks", handled: true });
     }
 
     let gcStats = {
@@ -78,6 +78,7 @@ export const cleanupStorageAndSharedLinks = onSchedule(
         "[cleanupStorageAndSharedLinks] failed during storage gc processing",
         error,
       );
+      void captureError(error, { source: "functions", route: "cron/cleanupStorageAndSharedLinks", handled: true });
     }
 
     let deletedWalletCascadeJobs = 0;
@@ -88,6 +89,7 @@ export const cleanupStorageAndSharedLinks = onSchedule(
         "[cleanupStorageAndSharedLinks] failed during wallet_cascade_jobs cleanup",
         error,
       );
+      void captureError(error, { source: "functions", route: "cron/cleanupStorageAndSharedLinks", handled: true });
     }
 
     console.log("[cleanupStorageAndSharedLinks] job finished", {
