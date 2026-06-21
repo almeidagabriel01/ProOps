@@ -1,5 +1,17 @@
 import { auth } from "./firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { reportClientError } from "@/lib/observability/client-error-reporter";
+
+const OBSERVABILITY_PREFIX = "/v1/observability";
+
+function reportApiFailure(method: string, path: string, error: unknown): void {
+  // Never report failures of the observability pipeline itself (loop guard).
+  if (path.startsWith(OBSERVABILITY_PREFIX)) return;
+  // 402 is the plan-limit signal, not an error.
+  if (error instanceof ApiError && error.status === 402) return;
+  const status = error instanceof ApiError ? error.status : undefined;
+  reportClientError(error, { route: `${method} ${path}`, status });
+}
 
 /**
  * Browser-side application API always uses the same-origin Next.js proxy.
@@ -112,17 +124,7 @@ export const callApi = async <T = unknown>(
 
     return await response.json();
   } catch (error) {
-    if (!(error instanceof ApiError && error.status === 402)) {
-      console.error(
-        `API Call Failed [${method} ${url}]`,
-        {
-          baseUrl,
-          origin:
-            typeof window !== "undefined" ? window.location.origin : "server",
-        },
-        error,
-      );
-    }
+    reportApiFailure(method, path, error);
     throw error;
   }
 };
@@ -184,17 +186,7 @@ export const callPublicApi = async <T = unknown>(
 
     return await response.json();
   } catch (error) {
-    if (!(error instanceof ApiError && error.status === 402)) {
-      console.error(
-        `Public API Call Failed [${method} ${url}]`,
-        {
-          baseUrl,
-          origin:
-            typeof window !== "undefined" ? window.location.origin : "server",
-        },
-        error,
-      );
-    }
+    reportApiFailure(method, path, error);
     throw error;
   }
 };
