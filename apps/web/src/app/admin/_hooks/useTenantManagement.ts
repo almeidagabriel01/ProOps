@@ -124,10 +124,11 @@ export function useTenantManagement(): UseTenantManagementReturn {
       const tenantId = tenant.tenant.id;
       if (!tenantId) continue;
 
-      // Baseline: the sync timestamp we already have. A later snapshot whose
-      // billingSyncedAt is strictly greater means the triggering sync completed.
-      // ISO strings from new Date().toISOString() are lexicographically ordered.
-      const baselineSyncedAt = tenant.billingSyncedAt ?? "";
+      // Baseline: the sync timestamp we already have, as epoch ms. A later
+      // snapshot whose billingSyncedAt parses to a strictly greater instant means
+      // the triggering sync completed. Comparing parsed instants (not raw ISO
+      // strings) is robust to mixed precision/timezone offsets across writers.
+      const baselineSyncedMs = Date.parse(tenant.billingSyncedAt ?? "");
 
       const timer = setTimeout(() => clearStaleFlag(tenantId), SYNC_WAIT_MS);
       timeouts.push(timer);
@@ -147,7 +148,10 @@ export function useTenantManagement(): UseTenantManagementReturn {
 
           // Gate: only apply once the sync that we are waiting for has landed.
           // `free` resolves immediately (no Stripe round-trip needed).
-          const synced = Boolean(syncedAt && syncedAt > baselineSyncedAt);
+          const syncedMs = syncedAt ? Date.parse(syncedAt) : NaN;
+          const synced =
+            Number.isFinite(syncedMs) &&
+            (!Number.isFinite(baselineSyncedMs) || syncedMs > baselineSyncedMs);
           if (!synced && plan !== "free") return;
 
           const rawStatus =

@@ -1,5 +1,6 @@
 // apps/web/src/lib/observability/client-error-reporter.ts
 import { buildClientErrorPayload, dedupeKey } from "./report-error";
+import { getCachedIdToken, installIdentityTokenCache } from "./identity-token-cache";
 
 const ENDPOINT = "/api/backend/v1/observability/client-error";
 const FLUSH_DEBOUNCE_MS = 2000;
@@ -14,7 +15,8 @@ let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 function send(payload: Payload): void {
   try {
-    const body = JSON.stringify(payload);
+    const idToken = getCachedIdToken();
+    const body = JSON.stringify(idToken ? { ...payload, idToken } : payload);
     if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
       const blob = new Blob([body], { type: "application/json" });
       navigator.sendBeacon(ENDPOINT, blob);
@@ -74,6 +76,8 @@ export function installClientErrorReporter(): () => void {
   if (installed || typeof window === "undefined") return () => undefined;
   installed = true;
 
+  const uninstallTokenCache = installIdentityTokenCache();
+
   const onError = (event: ErrorEvent) => reportClientError(event.error ?? event.message);
   const onRejection = (event: PromiseRejectionEvent) => reportClientError(event.reason);
   const onHide = () => flush();
@@ -113,6 +117,7 @@ export function installClientErrorReporter(): () => void {
     window.removeEventListener("unhandledrejection", onRejection);
     window.removeEventListener("pagehide", onHide);
     document.removeEventListener("visibilitychange", onVisibilityChange);
+    uninstallTokenCache();
     installed = false;
   };
 }

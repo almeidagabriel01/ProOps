@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { captureError } from "../../lib/observability/error-logger";
+import { verifyReportIdentity } from "../../lib/observability/verify-report-identity";
 import { logger } from "../../lib/logger";
 
 const MESSAGE_MAX = 2000;
@@ -35,13 +36,24 @@ export async function ingestClientError(req: Request, res: Response): Promise<Re
     });
     const status = typeof body.status === "number" ? body.status : null;
 
+    const reqUser = req.user as { uid?: string; tenantId?: string } | undefined;
+    let uid: string | null = reqUser?.uid ?? null;
+    let tenantId: string | null = reqUser?.tenantId ?? null;
+    if (!uid) {
+      const verified = await verifyReportIdentity((req.body as { idToken?: unknown })?.idToken);
+      if (verified) {
+        uid = verified.uid;
+        tenantId = verified.tenantId;
+      }
+    }
+
     void captureError(err, {
       source: "web",
       route: str(body.route, 500),
       method: null,
       status,
-      uid: (req.user as { uid?: string })?.uid || null,
-      tenantId: (req.user as { tenantId?: string })?.tenantId || null,
+      uid,
+      tenantId,
       userAgent: str(req.headers["user-agent"], 500),
       handled: true,
     });

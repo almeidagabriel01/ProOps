@@ -3,6 +3,13 @@ import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { captureError } from "./lib/observability/error-logger";
 
+/** Resolve the tenant id from a user doc (tenantId, legacy companyId fallback). */
+function mirrorTenantId(userData: FirebaseFirestore.DocumentData): string | null {
+  const raw = userData?.["tenantId"] ?? userData?.["companyId"];
+  const tid = typeof raw === "string" ? raw.trim() : "";
+  return tid || null;
+}
+
 export const checkManualSubscriptions = onSchedule(
   {
     ...SCHEDULE_OPTIONS,
@@ -27,14 +34,27 @@ export const checkManualSubscriptions = onSchedule(
       if (!activeSnapshot.empty) {
         const batch = db.batch();
         let count = 0;
+        const nowIso = new Date().toISOString();
 
         activeSnapshot.docs.forEach((doc) => {
           // Double check to be safe (client-side filter if index issues)
           // But query should handle it.
           batch.update(doc.ref, {
             subscriptionStatus: "past_due",
-            updatedAt: new Date().toISOString(),
+            updatedAt: nowIso,
           });
+          // Mirror to the tenant doc — the SuperAdmin dashboard treats the
+          // tenant doc as authoritative, so a user-doc-only write would leave a
+          // stale status on the card. Keep both sources in sync (same contract
+          // the Stripe path already follows).
+          const tenantId = mirrorTenantId(doc.data());
+          if (tenantId) {
+            batch.set(
+              db.collection("tenants").doc(tenantId),
+              { subscriptionStatus: "past_due", updatedAt: nowIso },
+              { merge: true },
+            );
+          }
           count++;
         });
 
@@ -59,13 +79,25 @@ export const checkManualSubscriptions = onSchedule(
       if (!pastDueSnapshot.empty) {
         const batch = db.batch();
         let count = 0;
+        const nowIso = new Date().toISOString();
 
         pastDueSnapshot.docs.forEach((doc) => {
           batch.update(doc.ref, {
             subscriptionStatus: "canceled",
             planId: "free", // Downgrade to free
-            updatedAt: new Date().toISOString(),
+            updatedAt: nowIso,
           });
+          // Mirror status + plan to the tenant doc (dashboard authoritative
+          // source). plan:free keeps the badge/derivation consistent; the
+          // canceled status still wins over the free tier in display.
+          const tenantId = mirrorTenantId(doc.data());
+          if (tenantId) {
+            batch.set(
+              db.collection("tenants").doc(tenantId),
+              { subscriptionStatus: "canceled", plan: "free", updatedAt: nowIso },
+              { merge: true },
+            );
+          }
           count++;
         });
 
