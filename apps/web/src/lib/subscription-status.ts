@@ -55,22 +55,28 @@ function isPeriodLapsed(currentPeriodEnd?: string | null, nowMs?: number): boole
 
 /**
  * Map a raw billing state to a display status. Rule order (first match wins):
- *  1. plan `free` -> `free`
- *  2. `past_due` -> `past_due`
- *  3. `unpaid` | `inactive` | `payment_failed` -> `inactive`
- *  4. `canceled` -> `canceled`  (strictly above cancel-at-period-end handling)
- *  5. (`active` | `trialing` | empty) + cancelAtPeriodEnd:
+ *
+ * Lifecycle/terminal statuses are evaluated BEFORE the free tier, on purpose:
+ * when a paid subscription is cancelled, billing sync downgrades the tenant's
+ * `plan` to `free` while `subscriptionStatus` becomes `canceled`. The plan tier
+ * must NOT mask that — a cancelled Pro must read "Cancelado", never "Gratuito".
+ *
+ *  1. `past_due` -> `past_due`
+ *  2. `unpaid` | `inactive` | `payment_failed` -> `inactive`
+ *  3. `canceled` -> `canceled`  (strictly above cancel-at-period-end handling)
+ *  4. (`active` | `trialing` | empty) + cancelAtPeriodEnd:
  *        period lapsed -> `canceled`, else -> `canceling`
+ *  5. explicit `free` status OR plan tier `free` -> `free` (genuine free tier;
+ *        reached only when the status above is benign)
  *  6. empty status + period lapsed -> `inactive`
  *  7. otherwise (active / trialing / unknown-non-blocking) -> `active`
  */
 export function deriveSubscriptionDisplayStatus(
   input: DeriveSubscriptionStatusInput,
 ): SubscriptionDisplayStatus {
-  const planId = String(input.planId ?? "").trim().toLowerCase();
-  if (planId === "free") return "free";
-
   const status = normalizeStatus(input.storedStatus);
+  const cancelAtPeriodEnd = Boolean(input.cancelAtPeriodEnd);
+  const lapsed = isPeriodLapsed(input.currentPeriodEnd, input.nowMs);
 
   if (status === "past_due") return "past_due";
   if (status === "unpaid" || status === "inactive" || status === "payment_failed") {
@@ -78,12 +84,12 @@ export function deriveSubscriptionDisplayStatus(
   }
   if (status === "canceled") return "canceled";
 
-  const cancelAtPeriodEnd = Boolean(input.cancelAtPeriodEnd);
-  const lapsed = isPeriodLapsed(input.currentPeriodEnd, input.nowMs);
-
   if ((status === "active" || status === "trialing" || status === "") && cancelAtPeriodEnd) {
     return lapsed ? "canceled" : "canceling";
   }
+
+  const planId = String(input.planId ?? "").trim().toLowerCase();
+  if (status === "free" || planId === "free") return "free";
 
   if (status === "" && lapsed) return "inactive";
 

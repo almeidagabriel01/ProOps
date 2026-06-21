@@ -807,6 +807,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       primaryColor?: string;
       niche?: string;
       whatsappEnabled?: boolean;
+      plan?: string;
       subscriptionStatus?: string;
       currentPeriodEnd?: string;
       cancelAtPeriodEnd?: boolean;
@@ -1040,7 +1041,9 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         const tenantPeriodEnd = parsePeriodEnd(tenantData.currentPeriodEnd);
         const displayStatus = tenantHasBilling
           ? deriveSubscriptionDisplayStatus({
-              planId,
+              // Use the tenant doc's own plan tier so this matches the onSnapshot
+              // derivation exactly; fall back to the user-doc tier if absent.
+              planId: tenantData.plan ?? planId,
               storedStatus: tenantData.subscriptionStatus,
               cancelAtPeriodEnd: tenantData.cancelAtPeriodEnd,
               currentPeriodEnd: tenantPeriodEnd ? tenantPeriodEnd.toISOString() : null,

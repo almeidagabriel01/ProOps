@@ -139,6 +139,27 @@ describe("useTenantManagement — billing snapshot gating", () => {
     expect(result.current.tenantsData[0].isBillingStale).toBe(false);
   });
 
+  it("shows canceled (not free) when sync downgraded plan to free but status is canceled", async () => {
+    const { result } = await mounted();
+
+    // Real scenario: cancel-at-period-end Pro lapsed; billing sync wrote
+    // subscriptionStatus=canceled and plan=free (price did not map to a tier).
+    // The plan tier must NOT mask the cancellation as "Gratuito".
+    act(() => {
+      snapshotCb!(
+        snap({
+          subscriptionStatus: "canceled",
+          billingSyncedAt: "2026-06-21T10:05:00.000Z",
+          plan: "free",
+          currentPeriodEnd: "2026-06-19T00:00:00.000Z",
+          cancelAtPeriodEnd: false,
+        }),
+      );
+    });
+
+    expect(result.current.tenantsData[0].subscriptionStatus).toBe("canceled");
+  });
+
   it("normalizes a landed raw active whose cancel-at-period-end has lapsed to canceled", async () => {
     const { result } = await mounted();
 
