@@ -4,7 +4,7 @@ import { Ambiente } from "@/types/automation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Home, Pencil, Trash2, ArrowRight, Package } from "lucide-react";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 
 interface AmbienteTemplateListProps {
   ambientes: Ambiente[];

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { BillingInterval } from "@/types";
 import { useTheme } from "next-themes";

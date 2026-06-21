@@ -25,7 +25,7 @@ import {
   FileText,
 } from "lucide-react";
 import { TenantBillingInfo } from "@/services/admin-service";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 
 import { UsageIndicator } from "./usage-indicator";
 import { StatusBadge } from "./status-badge";
@@ -167,6 +167,9 @@ export function TenantsTable({
               >
                 <option value="all">Todos</option>
                 <option value="active">Ativos</option>
+                <option value="canceling">Encerrando</option>
+                <option value="past_due">Atrasados</option>
+                <option value="canceled">Cancelados</option>
                 <option value="inactive">Inativos</option>
                 <option value="free">Gratuito</option>
               </Select>

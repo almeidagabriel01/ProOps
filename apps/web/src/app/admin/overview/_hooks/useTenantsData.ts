@@ -98,8 +98,12 @@ export function useTenantsData(): UseTenantsDataReturn {
       (acc, curr) => acc + curr.usage.proposals,
       0
     );
+    // "canceling" tenants are still paying through the end of the period, so
+    // they count toward the active headline alongside "active".
     const activeTenants = tenantsData.filter(
-      (t) => t.subscriptionStatus === "active"
+      (t) =>
+        t.subscriptionStatus === "active" ||
+        t.subscriptionStatus === "canceling"
     ).length;
 
     return {

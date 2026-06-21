@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { motion } from "motion/react";
-import { Button } from "@/components/ui/button";
+import { m as motion } from "motion/react";
+import { LandingButton } from "../_shared/landing-button";
 import type { NicheLandingConfig } from "./types";
 
 interface NicheCtaProps {
@@ -47,22 +46,13 @@ export function NicheCta({ cta }: NicheCtaProps) {
           transition={{ duration: 0.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-wrap items-center justify-center gap-4"
         >
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-            <Button asChild size="lg" className="btn-sweep rounded-full px-8 font-semibold bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
-              <Link href="/register">Criar conta</Link>
-            </Button>
-          </motion.div>
+          <LandingButton href="/register" variant="solid" size="lg">
+            Criar conta
+          </LandingButton>
 
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="btn-sweep rounded-full px-8 font-semibold border-black/20 text-black hover:bg-black/[0.04] dark:border-white/20 dark:text-white dark:hover:bg-white/[0.06]"
-            >
-              <Link href={cta.crossLink.href}>{cta.crossLink.label}</Link>
-            </Button>
-          </motion.div>
+          <LandingButton href={cta.crossLink.href} variant="link">
+            {cta.crossLink.label}
+          </LandingButton>
         </motion.div>
       </div>
     </motion.section>

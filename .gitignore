@@ -104,3 +104,5 @@ report_html.html
 
 # Claude Code tooling artifacts (cache gerado, não pertence ao repo)
 .agents/
+
+scripts/.recordings/

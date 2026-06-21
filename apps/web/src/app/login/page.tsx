@@ -45,7 +45,7 @@ import { Select } from "@/components/ui/select";
 import { NICHE_LABELS, TenantNiche } from "@/types";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { AuthLayout } from "./_components/auth-layout";
-import { motion, AnimatePresence } from "framer-motion";
+import { m as motion, AnimatePresence } from "motion/react";
 import { Loader } from "@/components/ui/loader";
 import { FullPageLoading } from "@/components/ui/full-page-loading";
 import { formatResendLabel } from "@/hooks/useResendCountdown";
@@ -98,7 +98,6 @@ function LoginContent() {
     handleConfirmPhoneCode,
     handleResendPhoneCode,
     isGoogleLoading,
-    sessionRecoveryFailed,
     isSessionSynced,
     requiresMfaCode,
     mfaLoginCode,
@@ -351,7 +350,6 @@ function LoginContent() {
     shouldShowLoggedInLoader({
       isLoggingIn,
       isRegistering,
-      sessionRecoveryFailed,
       requiresMfaCode,
       requiresWhatsappOtp,
       isSessionSynced,

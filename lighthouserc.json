@@ -1,0 +1,66 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "npm --workspace proops-web run start -- -p 3001",
+      "startServerReadyPattern": "Ready in|started server on|Local:",
+      "startServerReadyTimeout": 60000,
+      "url": [
+        "http://localhost:3001/",
+        "http://localhost:3001/automacao-residencial",
+        "http://localhost:3001/decoracao",
+        "http://localhost:3001/contato",
+        "http://localhost:3001/agendar"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "perf",
+        "chromeFlags": "--headless --no-sandbox --disable-gpu",
+        "formFactor": "mobile",
+        "throttlingMethod": "devtools",
+        "screenEmulation": {
+          "mobile": true,
+          "width": 412,
+          "height": 823,
+          "deviceScaleFactor": 1.75,
+          "disabled": false
+        },
+        "throttling": {
+          "rttMs": 150,
+          "throughputKbps": 1638.4,
+          "cpuSlowdownMultiplier": 4,
+          "requestLatencyMs": 562.5,
+          "downloadThroughputKbps": 1474.56,
+          "uploadThroughputKbps": 675,
+          "disabled": false
+        },
+        "maxWaitForLoad": 60000
+      }
+    },
+    "assert": {
+      "assertMatrix": [
+        {
+          "matchingUrlPattern": "http://[^/]+/$",
+          "assertions": {
+            "largest-contentful-paint": ["warn", { "maxNumericValue": 4000, "aggregationMethod": "median" }],
+            "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1, "aggregationMethod": "median" }],
+            "total-blocking-time": ["warn", { "maxNumericValue": 4000, "aggregationMethod": "median" }],
+            "first-contentful-paint": ["warn", { "maxNumericValue": 2500, "aggregationMethod": "median" }]
+          }
+        },
+        {
+          "matchingUrlPattern": "http://[^/]+/.+",
+          "assertions": {
+            "largest-contentful-paint": ["warn", { "maxNumericValue": 4000, "aggregationMethod": "median" }],
+            "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1, "aggregationMethod": "median" }],
+            "total-blocking-time": ["error", { "maxNumericValue": 800, "aggregationMethod": "median" }],
+            "first-contentful-paint": ["warn", { "maxNumericValue": 2500, "aggregationMethod": "median" }]
+          }
+        }
+      ]
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "lhci-report"
+    }
+  }
+}

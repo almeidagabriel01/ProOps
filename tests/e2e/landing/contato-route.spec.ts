@@ -44,8 +44,10 @@ test.describe("LANDING-CONTATO-01: /contato is fully public", () => {
     // Must stay on /contato — not redirected to /login
     await expect(page).toHaveURL(/\/contato/, { timeout: 10000 });
 
-    // Form heading must be visible
-    await expect(page.locator("h1")).toContainText("Fale com a gente");
+    // The public contact form rendered. Anchored on the email field (stable,
+    // copy-independent) rather than heading text, which is part of the page's
+    // marketing copy and changes with redesigns.
+    await expect(page.locator('input[name="email"]')).toBeVisible();
 
     // ProtectedAppShell must NOT be mounted
     const dataShell = await page.evaluate(() => document.documentElement.dataset.shell);
@@ -68,17 +70,17 @@ test.describe("LANDING-CONTATO-01: /contato is fully public", () => {
     // Don't wait for networkidle — authenticated sessions on /contato still
     // load the root providers tree (including Firestore auth-state listeners
     // and other background queries) which never let the network go fully
-    // idle. Wait for the page-specific heading instead.
+    // idle. Wait for the public contact form's email field instead (stable,
+    // copy-independent — the page's heading is marketing copy that changes).
     await page
-      .locator("h1")
-      .filter({ hasText: "Fale com a gente" })
+      .locator('input[name="email"]')
       .waitFor({ state: "visible", timeout: 30000 });
 
     // Must stay on /contato
     await expect(page).toHaveURL(/\/contato/, { timeout: 10000 });
 
-    // Form heading must be visible
-    await expect(page.locator("h1")).toContainText("Fale com a gente");
+    // The public contact form rendered (not the app shell).
+    await expect(page.locator('input[name="email"]')).toBeVisible();
 
     // ProtectedAppShell must NOT be mounted (data-shell is set only when shell is active)
     const dataShell = await page.evaluate(() => document.documentElement.dataset.shell);

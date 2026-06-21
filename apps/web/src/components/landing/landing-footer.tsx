@@ -2,8 +2,12 @@
 
 import React from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
+import { Instagram } from "lucide-react";
 import { ProOpsLogo } from "@/components/branding/proops-logo";
+import { INSTAGRAM_HREF, WHATSAPP_HREF } from "./_shared/whatsapp";
+import { WhatsAppGlyph } from "./_shared/whatsapp-glyph";
+import { LandingButton } from "./_shared/landing-button";
 
 export function LandingFooter() {
   return (
@@ -37,13 +41,38 @@ export function LandingFooter() {
             </p>
             <p className="mt-4 text-sm text-black/55 dark:text-white/55">
               Suporte oficial:{" "}
-              <a
+              <LandingButton
                 href="mailto:gestao@proops.com.br"
-                className="transition-colors hover:text-black dark:hover:text-white"
+                external
+                variant="link"
+                tone="muted"
               >
                 gestao@proops.com.br
-              </a>
+              </LandingButton>
             </p>
+
+            <div className="mt-6 flex items-center gap-3">
+              <a
+                href={INSTAGRAM_HREF}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram da ProOps"
+                className="grid h-10 w-10 place-items-center rounded-full border border-black/10 text-black/70 transition-colors hover:border-black/25 hover:text-black dark:border-white/10 dark:text-white/70 dark:hover:border-white/25 dark:hover:text-white"
+              >
+                <Instagram className="h-5 w-5" />
+              </a>
+              {WHATSAPP_HREF && (
+                <a
+                  href={WHATSAPP_HREF}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="WhatsApp da ProOps"
+                  className="grid h-10 w-10 place-items-center rounded-full border border-black/10 text-black/70 transition-colors hover:border-black/25 hover:text-black dark:border-white/10 dark:text-white/70 dark:hover:border-white/25 dark:hover:text-white"
+                >
+                  <WhatsAppGlyph className="h-5 w-5" />
+                </a>
+              )}
+            </div>
           </motion.div>
 
           <motion.div
@@ -55,30 +84,21 @@ export function LandingFooter() {
             <h4 className="mb-4 font-semibold text-black dark:text-white">
               Produto
             </h4>
-            <ul className="space-y-3 text-sm text-black/65 dark:text-white/70">
+            <ul className="space-y-3 text-sm">
               <li>
-                <Link
-                  href="#showcase"
-                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
-                >
+                <LandingButton href="#showcase" variant="link" tone="muted">
                   Plataforma
-                </Link>
+                </LandingButton>
               </li>
               <li>
-                <Link
-                  href="#modulos"
-                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
-                >
+                <LandingButton href="#modulos" variant="link" tone="muted">
                   Módulos
-                </Link>
+                </LandingButton>
               </li>
               <li>
-                <Link
-                  href="#recursos"
-                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
-                >
+                <LandingButton href="#recursos" variant="link" tone="muted">
                   Recursos
-                </Link>
+                </LandingButton>
               </li>
             </ul>
           </motion.div>
@@ -92,54 +112,41 @@ export function LandingFooter() {
             <h4 className="mb-4 font-semibold text-black dark:text-white">
               Institucional
             </h4>
-            <ul className="space-y-3 text-sm text-black/65 dark:text-white/70">
+            <ul className="space-y-3 text-sm">
               <li>
-                <Link
-                  href="/privacy"
-                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
-                >
+                <LandingButton href="/privacy" variant="link" tone="muted">
                   Política de Privacidade
-                </Link>
+                </LandingButton>
               </li>
               <li>
-                <Link
-                  href="/terms"
-                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
-                >
+                <LandingButton href="/terms" variant="link" tone="muted">
                   Termos de Serviço
-                </Link>
+                </LandingButton>
               </li>
               <li>
-                <Link
-                  href="/data-deletion"
-                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
-                >
+                <LandingButton href="/data-deletion" variant="link" tone="muted">
                   Exclusão de Dados
-                </Link>
+                </LandingButton>
               </li>
               <li>
-                <Link
-                  href="/cookies"
-                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
-                >
+                <LandingButton href="/cookies" variant="link" tone="muted">
                   Política de Cookies
-                </Link>
+                </LandingButton>
               </li>
               <li>
-                <Link
-                  href="/login"
-                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
-                >
+                <LandingButton href="/login" variant="link" tone="muted">
                   Área do Cliente
-                </Link>
+                </LandingButton>
               </li>
               <li>
-                <a
+                <LandingButton
                   href="mailto:gestao@proops.com.br"
-                  className="cursor-pointer transition-colors hover:text-black dark:hover:text-white"
+                  external
+                  variant="link"
+                  tone="muted"
                 >
                   gestao@proops.com.br
-                </a>
+                </LandingButton>
               </li>
             </ul>
           </motion.div>

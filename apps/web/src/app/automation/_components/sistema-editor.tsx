@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/dialog"; // Added imports
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
-import { motion, AnimatePresence } from "motion/react";
+import { m as motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 import {
   compareCatalogDisplayItem,

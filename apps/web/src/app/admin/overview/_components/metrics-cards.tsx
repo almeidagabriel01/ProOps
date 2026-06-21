@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, Users, Package, FileText, TrendingUp } from "lucide-react";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 
 interface TenantsMetrics {
   totalTenants: number;

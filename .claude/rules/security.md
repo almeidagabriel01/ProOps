@@ -32,7 +32,7 @@
 ## Security Observability
 - Auth failures, CORS denials, plan violations → emit events to `security_metrics` and `security_audit_events` collections
 - Don't remove or skip security event emission when modifying auth/CORS/plan-limit flows
-- Sentry receives error context with tenant/user info — never include raw tokens or passwords in error metadata
+- Error observability records error context with tenant/user info — never include raw tokens, passwords, or PII (evlog redacts before persisting; keep it that way)
 
 ## General
 - Financial and billing operations must run server-side in Cloud Functions — never in Next.js frontend or client

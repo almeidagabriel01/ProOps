@@ -760,7 +760,7 @@ export class TransactionPaymentService {
         await processAsaasPaymentLocally(tenantId, paymentId, externalReference, value);
       } catch (localProcessErr) {
         // Non-fatal: the real webhook may still arrive in deployed environments.
-        // Log as error so failures are visible in GCP Cloud Logging / Sentry.
+        // Log as error so failures are visible in GCP Cloud Logging.
         logger.error("simulateSandboxPayment: local payment processing failed", {
           tenantId,
           paymentId,

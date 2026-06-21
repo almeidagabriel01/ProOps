@@ -1,0 +1,285 @@
+"use client";
+
+import React, { useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
+import { useGSAP } from "@gsap/react";
+import { m as motion } from "motion/react";
+import {
+  Banknote,
+  Calendar,
+  CreditCard,
+  MessageCircle,
+  QrCode,
+  Sparkles,
+} from "lucide-react";
+import { ProOpsLogo } from "@/components/branding/proops-logo";
+import { Accent, SectionHeading } from "./_shared/section-heading";
+import { usePauseOffscreen } from "./_shared/use-pause-offscreen";
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger);
+}
+
+type Integration = {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** categoria — exibida no layout vertical do mobile */
+  tag?: string;
+};
+
+const LEFT: Integration[] = [
+  { label: "WhatsApp", icon: MessageCircle, tag: "Mensagens" },
+  { label: "Google Agenda", icon: Calendar, tag: "Agenda" },
+  { label: "Lia (IA)", icon: Sparkles, tag: "Assistente IA" },
+];
+
+const RIGHT: Integration[] = [
+  { label: "Stripe", icon: CreditCard, tag: "Pagamento" },
+  { label: "Pix", icon: QrCode, tag: "Pagamento" },
+  { label: "Asaas", icon: Banknote, tag: "Cobrança" },
+];
+
+// Posições verticais (% da altura do painel) dos badges e dos pontos de conexão.
+const ROWS = [22, 50, 78];
+
+// Conectores no espaço do viewBox 240x100 (mesma proporção do painel via
+// aspect-[240/100]). As linhas saem na altura ROWS[i] (= centro do badge), o
+// início (x=40 / x=200) fica sob o badge, e o fim (x=106 / x=134) entra um pouco
+// sob a marca opaca da logo — assim a linha "encaixa" exatamente na borda visível
+// da logo em qualquer largura, sem gap nem atravessar.
+const CONNECTORS = [
+  "M 40 22 C 78 22, 96 50, 103 50",
+  "M 40 50 L 103 50",
+  "M 40 78 C 78 78, 96 50, 103 50",
+  "M 200 22 C 162 22, 144 50, 137 50",
+  "M 200 50 L 137 50",
+  "M 200 78 C 162 78, 144 50, 137 50",
+];
+
+function Pill({
+  icon: Icon,
+  label,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  // Sem animationDelay → todos os badges pulsam em sincronia.
+  return (
+    // wrapper externo = alvo do reveal do GSAP (scale/opacity) — separado do
+    // pulse para os transforms não conflitarem
+    <div className="integration-node w-full md:inline-block md:w-auto">
+      <div className="animate-badge-pulse relative flex w-full items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 py-2.5 dark:border-white/20 dark:bg-gradient-to-b dark:from-neutral-800 dark:to-neutral-900 md:w-48">
+        <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-neutral-950 text-white">
+          {/* glow do ícone pulsante */}
+          <span
+            aria-hidden
+            className="animate-pulse-slow absolute -inset-1 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.4),transparent_68%)]"
+          />
+          <Icon className="relative h-4 w-4" />
+        </span>
+        <span className="relative truncate text-sm font-medium text-black dark:text-white">
+          {label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function CenterLogo() {
+  // O PNG do símbolo (1600x900) tem muito espaço transparente em volta da marca;
+  // recortamos via janela overflow-hidden + scale (transform não sofre o
+  // max-width:100% do preflight, ao contrário de largar a largura).
+  return (
+    <div className="integration-node relative grid h-48 w-48 place-items-center overflow-hidden">
+      <ProOpsLogo
+        variant="symbol"
+        width={800}
+        height={450}
+        invertOnDark
+        interactive={false}
+        className="h-auto w-48 origin-center translate-x-[16px] scale-[3.9]"
+      />
+    </div>
+  );
+}
+
+/**
+ * Integrações — hub central com a marca ProOps e os serviços à esquerda/direita,
+ * ligados por conectores contínuos com um único traço de luz percorrendo até o
+ * centro (`.animate-flow`). Badges com largura fixa, visual flat, pulse de escala
+ * (ícone acompanha) e posicionamento absoluto alinhado às conexões. No mobile vira
+ * um empilhamento simples sem os conectores.
+ */
+export function LandingIntegrations() {
+  const containerRef = useRef<HTMLElement>(null);
+  const { ref: hubRef } = usePauseOffscreen<HTMLDivElement>();
+
+  useGSAP(
+    () => {
+      const section = containerRef.current;
+      if (!section) return;
+
+      const nodes = gsap.utils.toArray<HTMLElement>(".integration-node");
+      const mm = gsap.matchMedia();
+
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.fromTo(
+          nodes,
+          { scale: 0.6, opacity: 0 },
+          {
+            scale: 1,
+            opacity: 1,
+            duration: 0.55,
+            ease: "back.out(1.7)",
+            stagger: 0.07,
+            scrollTrigger: {
+              trigger: section,
+              start: "top 72%",
+              invalidateOnRefresh: true,
+            },
+          },
+        );
+      });
+
+      mm.add("(prefers-reduced-motion: reduce)", () => {
+        gsap.set(nodes, { opacity: 1, scale: 1 });
+      });
+
+      return () => mm.revert();
+    },
+    { scope: containerRef },
+  );
+
+  return (
+    <section
+      ref={containerRef}
+      className="relative overflow-hidden border-t border-black/10 bg-white py-28 dark:border-white/10 dark:bg-neutral-950"
+    >
+      <div className="mx-auto max-w-5xl px-6">
+        <SectionHeading
+          eyebrow="Integrações"
+          title={
+            <>
+              Conectado ao que você <Accent>já usa</Accent>
+            </>
+          }
+          description="Pagamentos, mensagens e agenda em um fluxo só. Cartão via Stripe, pix e boleto via Asaas — sem trocar de tela."
+          className="mb-14"
+        />
+
+        <div
+          ref={hubRef}
+          className="relative overflow-hidden rounded-[2rem] border border-black/10 bg-gradient-to-b from-black/[0.02] to-transparent p-6 dark:border-white/10 dark:from-white/[0.04] sm:p-10"
+        >
+          <div className="absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(0,0,0,0.05),transparent_70%)] dark:bg-[radial-gradient(circle,rgba(255,255,255,0.08),transparent_70%)]" />
+          <div className="grain-overlay opacity-[0.03]" />
+
+          {/* ===== Desktop: hub com conectores ===== */}
+          <div className="relative hidden aspect-[240/100] md:block">
+            <svg
+              aria-hidden
+              viewBox="0 0 240 100"
+              preserveAspectRatio="none"
+              className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+            >
+              {CONNECTORS.map((d, i) => (
+                <g key={d}>
+                  {/* linha base contínua */}
+                  <path
+                    d={d}
+                    fill="none"
+                    strokeWidth={0.35}
+                    className="stroke-black/18 dark:stroke-white/22"
+                  />
+                  {/* único traço de luz percorrendo a linha */}
+                  <path
+                    d={d}
+                    fill="none"
+                    pathLength={100}
+                    strokeDasharray="16 84"
+                    strokeWidth={0.5}
+                    strokeLinecap="round"
+                    className="animate-flow stroke-black/55 dark:stroke-white/90"
+                    style={{ animationDelay: `${i * 0.26}s` }}
+                  />
+                </g>
+              ))}
+            </svg>
+
+            {/* marca central */}
+            <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+              <CenterLogo />
+            </div>
+
+            {/* badges posicionados nas alturas exatas das conexões */}
+            {LEFT.map((item, i) => (
+              <div
+                key={item.label}
+                className="absolute left-0 z-10 -translate-y-1/2"
+                style={{ top: `${ROWS[i]}%` }}
+              >
+                <Pill icon={item.icon} label={item.label} />
+              </div>
+            ))}
+            {RIGHT.map((item, i) => (
+              <div
+                key={item.label}
+                className="absolute right-0 z-10 -translate-y-1/2"
+                style={{ top: `${ROWS[i]}%` }}
+              >
+                <Pill icon={item.icon} label={item.label} />
+              </div>
+            ))}
+          </div>
+
+          {/* ===== Mobile: "espinha" vertical — nós conectados por um trilho,
+               estilo circuito (sem a logo, mais editorial que cards soltos) ===== */}
+          <div className="relative md:hidden">
+            {/* trilho vertical que liga todas as integrações */}
+            <span
+              aria-hidden
+              className="absolute bottom-4 left-[1.375rem] top-4 w-px bg-gradient-to-b from-transparent via-black/15 to-transparent dark:via-white/25"
+            />
+            <ul className="relative space-y-1">
+              {[...LEFT, ...RIGHT].map((item, i) => {
+                const Icon = item.icon;
+                const last = i === LEFT.length + RIGHT.length - 1;
+                return (
+                  <motion.li
+                    key={item.label}
+                    initial={{ opacity: 0, x: -14 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true, amount: 0.6 }}
+                    transition={{ duration: 0.4, ease: "easeOut", delay: i * 0.06 }}
+                    className="relative flex items-center gap-4 py-2"
+                  >
+                    {/* nó assentado sobre o trilho */}
+                    <span className="relative z-10 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-black/10 bg-white text-black dark:border-white/20 dark:bg-neutral-900 dark:text-white">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <div
+                      className={`min-w-0 flex-1 pb-3 ${last ? "" : "border-b border-black/[0.08] dark:border-white/10"}`}
+                    >
+                      <span className="block text-sm font-semibold text-black dark:text-white">
+                        {item.label}
+                      </span>
+                      <span className="block text-xs text-black/45 dark:text-white/45">
+                        {item.tag}
+                      </span>
+                    </div>
+                  </motion.li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+
+        <p className="mx-auto mt-10 max-w-xl text-center text-sm text-black/55 dark:text-white/55">
+          Não vê a integração que precisa? Fale com a gente — avaliamos novas
+          conexões conforme a demanda.
+        </p>
+      </div>
+    </section>
+  );
+}

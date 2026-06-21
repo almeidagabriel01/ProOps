@@ -19,6 +19,11 @@ module.exports = {
   },
   testTimeout: 15000,
   forceExit: true,
+  // Resource caps: locally limit to 2 workers and restart any worker over
+  // 512MB so ts-jest transpilation can't saturate CPU/RAM and freeze the dev
+  // machine. CI (few cores) uses 50%.
+  maxWorkers: process.env.CI ? '50%' : 2,
+  workerIdleMemoryLimit: '512MB',
   collectCoverageFrom: [
     'src/ai/**/*.ts',
     '!src/ai/**/*.test.ts',

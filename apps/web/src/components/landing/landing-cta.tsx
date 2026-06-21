@@ -4,8 +4,9 @@ import React, { useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { ArrowRight } from "lucide-react";
-import { ProOpsLogo } from "@/components/branding/proops-logo";
+import { ArrowRight, MessageCircle } from "lucide-react";
+import { Accent } from "./_shared/section-heading";
+import { LandingButton } from "./_shared/landing-button";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -49,40 +50,43 @@ export function LandingCTA() {
   return (
     <section
       ref={containerRef}
-      className="py-28 relative overflow-hidden bg-white dark:bg-neutral-950"
+      className="relative overflow-hidden border-t border-black/10 bg-white py-32 dark:border-white/10 dark:bg-neutral-950"
     >
-      <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_top,rgba(0,0,0,0.08)_0,transparent_55%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12)_0,transparent_55%)]" />
+      <div className="mx-auto max-w-4xl px-6 text-center">
+        <p className="cta-fade-item mb-5 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/55 dark:text-white/60">
+          <span className="h-px w-6 bg-black/30 dark:bg-white/45" />
+          Comece agora
+        </p>
 
-      <div className="max-w-4xl mx-auto px-6 relative z-10 text-center">
-        <div className="flex justify-center mb-2 cta-fade-item">
-          <ProOpsLogo
-            variant="full"
-            width={440}
-            height={148}
-            invertOnDark
-            className="h-32 w-auto"
-          />
-        </div>
-
-        <h2 className="text-4xl md:text-6xl font-bold mb-6 text-black dark:text-white cta-fade-item">
-          Leve a operação para o próximo nível.
+        <h2 className="cta-fade-item [font-family:var(--font-pdf-montserrat)] text-4xl font-bold leading-[1.05] tracking-tight text-black dark:text-white md:text-6xl">
+          Leve sua operação para o <Accent>próximo nível</Accent>
         </h2>
-        <p className="text-xl text-black/65 dark:text-white/70 mb-10 max-w-3xl mx-auto cta-fade-item">
+
+        <p className="cta-fade-item mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-black/65 dark:text-white/65">
           Estruture propostas, financeiro, CRM, equipe e automações em uma base
-          única com onboarding guiado para o seu time.
+          única, com onboarding guiado para o seu time.
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 cta-fade-item">
-          <a
-            href="mailto:gestao@proops.com.br"
-            className="w-full sm:w-auto px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold hover:bg-black/85 dark:hover:bg-white/90 transition-all flex items-center justify-center gap-2 text-lg cursor-pointer"
+
+        <div className="cta-fade-item mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <LandingButton
+            href="/register"
+            variant="solid"
+            size="lg"
+            fullWidth
+            className="sm:w-auto"
+            trailingIcon={<ArrowRight className="h-5 w-5" />}
           >
-            Solicitar demonstração
-            <ArrowRight className="w-5 h-5" />
-          </a>
+            Começar agora
+          </LandingButton>
+
+          <LandingButton
+            href="/contato"
+            variant="link"
+            icon={<MessageCircle className="h-5 w-5" />}
+          >
+            Entre em contato
+          </LandingButton>
         </div>
-        <p className="mt-8 text-sm text-black/55 dark:text-white/55 cta-fade-item">
-          Implantação assistida, suporte contínuo e sem lock-in.
-        </p>
       </div>
     </section>
   );

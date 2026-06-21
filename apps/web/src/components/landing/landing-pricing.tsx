@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { Check } from "lucide-react";
+import { Check, CreditCard, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 import { LandingPlan } from "./use-landing-page";
+import { Accent, SectionHeading } from "./_shared/section-heading";
+import { LandingButton } from "./_shared/landing-button";
 import { User } from "@/types";
+import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { ApiError } from "@/lib/api-client";
 
@@ -89,6 +92,105 @@ const FALLBACK_PLANS: PricingCard[] = [
     ],
   },
 ];
+
+/**
+ * Card de plano mono premium: superfície com grade de pontos, brilho de topo,
+ * borda em feixe cônico girando (`card-border-beam` — sempre no popular, no hover
+ * nos demais), shine diagonal e spotlight branco seguindo o cursor. O popular é
+ * invertido (escuro) para virar foco. Só vars CSS de ponteiro; degrada com
+ * motion-reduce. Sem cor — preto/branco apenas.
+ */
+function PricingCard({
+  popular,
+  children,
+}: {
+  popular: boolean;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<number | null>(null);
+
+  // Spotlight follows the cursor via CSS vars. Coalesce the layout read +
+  // write into a single rAF per frame so rapid pointermove events (60-120/s)
+  // don't each force a synchronous reflow. Visually identical (one update per
+  // animation frame); only the per-event layout thrash is removed.
+  const handleMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = ref.current;
+    if (!el || frameRef.current !== null) return;
+    const { clientX, clientY } = e;
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", `${clientX - r.left}px`);
+      el.style.setProperty("--my", `${clientY - r.top}px`);
+    });
+  };
+
+  return (
+    <div
+      ref={ref}
+      onPointerMove={handleMove}
+      className={cn(
+        "card-shine-on-hover group/card relative h-full rounded-3xl border p-8",
+        "transition-[border-color] duration-300 ease-out",
+        popular
+          ? "border-white/15 bg-neutral-950 text-white shadow-[0_34px_80px_-30px_rgba(0,0,0,0.65)] lg:scale-105 dark:bg-black"
+          : "border-black/10 bg-white shadow-[0_18px_50px_-36px_rgba(0,0,0,0.5)] hover:border-black/25 dark:border-white/10 dark:bg-neutral-900/60 dark:hover:border-white/25",
+      )}
+    >
+      {/* grade de pontos */}
+      <span
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-0 rounded-3xl [background-size:26px_26px] [mask-image:radial-gradient(ellipse_at_50%_0%,black,transparent_75%)]",
+          popular
+            ? "[background-image:radial-gradient(circle,rgba(255,255,255,0.09)_1px,transparent_1px)]"
+            : "[background-image:radial-gradient(circle,rgba(0,0,0,0.05)_1px,transparent_1px)] dark:[background-image:radial-gradient(circle,rgba(255,255,255,0.06)_1px,transparent_1px)]",
+        )}
+      />
+
+      {/* brilho de topo */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent to-transparent",
+          popular ? "via-white/50" : "via-black/20 dark:via-white/30",
+        )}
+      />
+
+      {/* feixe cônico: sempre no popular, no hover nos demais */}
+      <span
+        aria-hidden
+        className={cn(
+          "card-border-beam",
+          !popular &&
+            "opacity-0 transition-opacity duration-500 group-hover/card:opacity-100",
+        )}
+      />
+
+      {/* spotlight seguindo o cursor */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-3xl opacity-0 transition-opacity duration-300 group-hover/card:opacity-100"
+        style={{
+          background: popular
+            ? "radial-gradient(360px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,0.10), transparent 60%)"
+            : "radial-gradient(360px circle at var(--mx,50%) var(--my,50%), rgba(120,120,120,0.16), transparent 60%)",
+        }}
+      />
+
+      {/* efeito contínuo: luz varrendo o card em loop (só no popular) */}
+      {popular && (
+        <span
+          aria-hidden
+          className="animate-card-sheen pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/[0.14] to-transparent"
+        />
+      )}
+
+      <div className="relative z-10 flex h-full flex-col">{children}</div>
+    </div>
+  );
+}
 
 function formatPrice(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -315,22 +417,20 @@ export function LandingPricing({
     <section
       ref={containerRef}
       id="pricing"
-      className="py-28 relative border-y border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 overflow-hidden"
+      className="py-28 relative border-t border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950 overflow-hidden"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(0,0,0,0.045)_0,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.08)_0,transparent_70%)]" />
-
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="text-center mb-14">
-          <h2 className="text-sm font-semibold text-black/65 dark:text-white/65 uppercase tracking-wider mb-3 pricing-heading-item">
-            Planos ProOps
-          </h2>
-          <h3 className="text-4xl md:text-5xl font-bold mb-6 text-black dark:text-white pricing-heading-item">
-            Evolua no ritmo da sua operação.
-          </h3>
-          <p className="text-black/65 dark:text-white/70 text-lg max-w-2xl mx-auto pricing-heading-item">
-            Planos com recursos progressivos para você sair do básico e chegar
-            em uma gestão integrada de ponta a ponta.
-          </p>
+          <SectionHeading
+            eyebrow="Planos ProOps"
+            title={
+              <>
+                Evolua no ritmo da sua <Accent>operação</Accent>
+              </>
+            }
+            description="Planos com recursos progressivos para você sair do básico e chegar em uma gestão integrada de ponta a ponta."
+            className="pricing-heading-item"
+          />
 
           <div className="flex items-center justify-center gap-4 mt-10 pricing-heading-item">
             <span
@@ -384,7 +484,7 @@ export function LandingPricing({
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          <div className="group/row mx-auto flex max-w-6xl flex-col items-stretch gap-6 lg:flex-row lg:justify-center lg:gap-0 lg:px-2">
             {pricingCards.map((plan) => {
               const monthlyPrice = plan.prices.monthly;
               const yearlyPrice = plan.prices.yearly;
@@ -393,127 +493,148 @@ export function LandingPricing({
               const isEnterprise =
                 plan.tier.toLowerCase() === "enterprise" || displayPrice <= 0;
               const ctaLabel = isEnterprise ? "Entrar em contato" : plan.cta;
+              // Planos são ações primárias (compra): popular em destaque (inverted),
+              // demais em solid. Sem variante secundária aqui.
+              const ctaVariant = plan.popular ? "inverted" : "solid";
               const priceText = isEnterprise
                 ? "Sob consulta"
                 : formatPrice(displayPrice);
               const periodLabel = isEnterprise ? "" : "/mês";
 
+              const fg = plan.popular ? "text-white" : "text-black dark:text-white";
+              const fgMuted = plan.popular
+                ? "text-white/65"
+                : "text-black/60 dark:text-white/65";
+              const fgFaint = plan.popular
+                ? "text-white/45"
+                : "text-black/45 dark:text-white/50";
+              const hairline = plan.popular
+                ? "bg-white/15"
+                : "bg-black/10 dark:bg-white/10";
+
               return (
                 <div
                   key={plan.name}
-                  className={`pricing-card relative flex flex-col p-8 rounded-3xl border transition-all duration-300 h-full group ${
+                  className={cn(
+                    "pricing-card relative",
                     plan.popular
-                      ? "border-black dark:border-white bg-black dark:bg-white text-white dark:text-black md:-translate-y-3 shadow-[0_22px_50px_rgba(0,0,0,0.22)] dark:shadow-[0_22px_50px_rgba(0,0,0,0.5)]"
-                      : "border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 text-black dark:text-white hover:-translate-y-1 hover:shadow-[0_14px_32px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_14px_32px_rgba(0,0,0,0.45)]"
-                  }`}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 z-20">
-                      <span className="bg-white dark:bg-neutral-950 text-black dark:text-white text-xs font-bold uppercase tracking-[0.14em] px-4 py-1.5 rounded-full">
-                        Mais popular
-                      </span>
-                    </div>
+                      ? "lg:z-20 lg:-mx-5 lg:w-[38%]"
+                      : "lg:z-10 lg:w-[31%]",
                   )}
+                >
+                  <PricingCard popular={plan.popular}>
+                    <div className="flex items-center justify-between gap-3">
+                      <h4
+                        className={cn(
+                          "[font-family:var(--font-pdf-montserrat)] text-lg font-bold",
+                          fg,
+                        )}
+                      >
+                        {plan.name}
+                      </h4>
+                      {plan.popular && (
+                        <span className="relative inline-flex items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full bg-white px-3 py-1 text-[0.6rem] font-bold uppercase tracking-[0.16em] text-black">
+                          <Sparkles className="h-3 w-3" />
+                          Mais popular
+                          <span
+                            aria-hidden
+                            className="animate-card-sheen absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-black/25 to-transparent"
+                          />
+                        </span>
+                      )}
+                    </div>
 
-                  <h4 className="text-xl font-semibold mb-2 mt-1">
-                    {plan.name}
-                  </h4>
-                  <p
-                    className={`text-sm mb-6 min-h-10 ${
-                      plan.popular
-                        ? "text-white/75 dark:text-black/70"
-                        : "text-black/60 dark:text-white/65"
-                    }`}
-                  >
-                    {plan.description}
-                  </p>
+                    <p className={cn("mt-2 min-h-10 text-sm leading-relaxed", fgMuted)}>
+                      {plan.description}
+                    </p>
 
-                  <div className="mb-8">
-                    <span className="text-4xl font-bold">
+                    <div className="mt-6 flex items-end gap-1.5">
                       <span
-                        className="price-value"
+                        className={cn(
+                          "price-value [font-family:var(--font-pdf-montserrat)] text-5xl font-bold tracking-tight",
+                          fg,
+                        )}
                         data-monthly={monthlyPrice}
                         data-annual-monthly={annualMonthlyPrice}
                         data-enterprise={isEnterprise ? "true" : "false"}
                       >
                         {priceText}
                       </span>
-                    </span>
-                    {periodLabel && (
-                      <span
-                        className={`text-sm ml-1 ${
-                          plan.popular
-                            ? "text-white/75 dark:text-black/70"
-                            : "text-black/55 dark:text-white/60"
-                        }`}
-                      >
-                        {periodLabel}
-                      </span>
-                    )}
+                      {periodLabel && (
+                        <span className={cn("mb-1.5 text-sm", fgMuted)}>
+                          {periodLabel}
+                        </span>
+                      )}
+                    </div>
                     {isAnnual && !isEnterprise && (
-                      <div
-                        className={`mt-2 text-xs font-medium ${
-                          plan.popular
-                            ? "text-white/80 dark:text-black/80"
-                            : "text-black/60 dark:text-white/65"
-                        }`}
-                      >
+                      <p className={cn("mt-2 text-xs font-medium", fgMuted)}>
                         Em 12x no cartão • 15% de desconto no anual
-                      </div>
+                      </p>
                     )}
-                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => void handleSubscribe(plan.tier)}
-                    disabled={processingTier === plan.tier}
-                    className={`w-full py-3 px-4 rounded-full font-semibold mb-2 transition-colors ${
-                      plan.popular
-                        ? "bg-white dark:bg-neutral-950 text-black dark:text-white hover:bg-white/90 dark:hover:bg-neutral-900"
-                        : "bg-black dark:bg-white text-white dark:text-black hover:bg-black/85 dark:hover:bg-white/90"
-                    } cursor-pointer disabled:cursor-not-allowed disabled:opacity-70`}
-                  >
-                    {processingTier === plan.tier ? "Redirecionando..." : ctaLabel}
-                  </button>
-
-                  <div className="space-y-4 flex-1">
-                    <p
-                      className={`text-xs font-semibold uppercase tracking-wider ${
-                        plan.popular
-                          ? "text-white/65 dark:text-black/60"
-                          : "text-black/45 dark:text-white/55"
-                      }`}
+                    <LandingButton
+                      variant={ctaVariant}
+                      size="md"
+                      fullWidth
+                      className="mt-7"
+                      onClick={() => void handleSubscribe(plan.tier)}
+                      disabled={processingTier === plan.tier}
                     >
-                      Recursos incluídos
-                    </p>
+                      {processingTier === plan.tier
+                        ? "Redirecionando..."
+                        : ctaLabel}
+                    </LandingButton>
 
-                    <ul className="space-y-3">
-                      {plan.features.map((feature) => (
-                        <li
-                          key={feature}
-                          className={`flex items-start gap-3 text-sm ${
-                            plan.popular
-                              ? "text-white/90 dark:text-black/90"
-                              : "text-black/80 dark:text-white/80"
-                          }`}
+                    <div className="mt-8 flex flex-1 flex-col">
+                      <div className="mb-4 flex items-center gap-3">
+                        <span
+                          className={cn(
+                            "text-[0.7rem] font-semibold uppercase tracking-[0.16em]",
+                            fgFaint,
+                          )}
                         >
-                          <Check
-                            className={`w-4 h-4 mt-0.5 shrink-0 ${
+                          Recursos incluídos
+                        </span>
+                        <span className={cn("h-px flex-1", hairline)} />
+                      </div>
+                      <ul className="space-y-3">
+                        {plan.features.map((feature) => (
+                          <li
+                            key={feature}
+                            className={cn(
+                              "flex items-start gap-3 text-sm",
                               plan.popular
-                                ? "text-white dark:text-black"
-                                : "text-black dark:text-white"
-                            }`}
-                          />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                                ? "text-white/85"
+                                : "text-black/80 dark:text-white/80",
+                            )}
+                          >
+                            <Check className={cn("mt-0.5 h-4 w-4 shrink-0", fg)} />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </PricingCard>
                 </div>
               );
             })}
           </div>
         )}
+
+        <div className="pricing-heading-item mx-auto mt-16 flex max-w-3xl flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm text-black/60 dark:text-white/65">
+          <span className="inline-flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            Pagamento por cartão
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Cancele quando quiser
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            Dados protegidos (LGPD)
+          </span>
+        </div>
       </div>
     </section>
   );

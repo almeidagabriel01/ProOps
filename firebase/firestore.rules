@@ -164,7 +164,12 @@ service cloud.firestore {
      */
     function hasMfa() {
       return isAuthenticated()
-             && request.auth.token.firebase.sign_in_second_factor != null;
+             && (request.auth.token.firebase.sign_in_second_factor != null
+                 // LOCAL DEV ONLY: the `dev_mfa_bypass` custom-token claim is
+                 // minted exclusively by POST /v1/auth/dev-mfa-bypass, which is
+                 // hard-gated to the `erp-softcode` dev project + localhost. Prod
+                 // sessions can never carry it, so this does not weaken prod.
+                 || request.auth.token.get('dev_mfa_bypass', false) == true);
     }
 
     /**
@@ -585,6 +590,29 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ERROR OBSERVABILITY — written exclusively by Cloud Functions (Admin SDK).
+    // Read is allowed ONLY to an MFA'd super admin (isSuperAdmin() already requires
+    // hasMfa()), to power the live superadmin dashboard via onSnapshot. Client
+    // writes are denied entirely — the ingest pipeline is server-side only.
+    match /error_issues/{fingerprint} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+
+      match /occurrences/{occurrenceId} {
+        allow read: if isSuperAdmin();
+        allow write: if false;
+      }
+      match /_agg/{aggId} {
+        allow read: if isSuperAdmin();
+        allow write: if false;
+      }
+    }
+
+    match /error_metrics/{windowId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
     match /security_metrics/{windowId} {
       allow read, write: if false;
     }
@@ -602,6 +630,12 @@ service cloud.firestore {
     // MFA recovery (backup) codes — hashed, single-use. Written, read and
     // consumed exclusively by Cloud Functions (Admin SDK). Never client-visible.
     match /mfaRecoveryCodes/{uid} {
+      allow read, write: if false;
+    }
+
+    // Calendário público de reuniões (/agendar). Sem tenantId — coleção global.
+    // Apenas o backend (Admin SDK) lê/escreve. Cliente nunca acessa.
+    match /demo_bookings/{bookingId} {
       allow read, write: if false;
     }
 

@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { motion, AnimatePresence } from "motion/react";
+import { m as motion, AnimatePresence } from "motion/react";
 import { AmbienteProductsDialog } from "@/components/features/automation/ambiente-products-dialog";
 import { Loader } from "@/components/ui/loader";
 

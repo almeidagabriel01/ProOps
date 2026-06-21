@@ -20,6 +20,7 @@ import {
   reconcilePlanTier,
 } from "../billing";
 import { db } from "../init";
+import { captureError } from "../lib/observability/error-logger";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import Stripe from "stripe";
 import {
@@ -1459,6 +1460,12 @@ export const stripeWebhook = onRequest(
           reason: failedContext.reason,
           source: failedContext.source,
         });
+        void captureError(handlerError, {
+          source: "functions",
+          route: `stripeWebhook/${event.type}`,
+          status: 500,
+          handled: false,
+        });
         throw handlerError;
       }
     } catch (error) {
@@ -1481,6 +1488,12 @@ export const stripeWebhook = onRequest(
         uid: genericErrorContext.uid,
         reason: genericErrorContext.reason,
         source: genericErrorContext.source,
+      });
+      void captureError(error, {
+        source: "functions",
+        route: "stripeWebhook/unknown",
+        status: 500,
+        handled: false,
       });
       res.status(500).json({ error: "Webhook handler failed" });
     }

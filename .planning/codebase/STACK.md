@@ -84,8 +84,8 @@
 - `@tiptap/starter-kit@3.22.5` - Rich text editor
 
 **Observability & Monitoring:**
-- `@sentry/nextjs` - Error tracking client (configured via `NEXT_PUBLIC_SENTRY_DSN`)
-- `@sentry/node` - Error tracking server (configured via `SENTRY_DSN` in backend)
+- Error observability pipeline (in-house) — evlog-formatted, grouped error issues persisted to Firestore, surfaced in the superadmin dashboard. No third-party error-monitoring SaaS (no Sentry).
+- Google Cloud Logging - structured JSON logs from the backend `logger.ts`
 - `@vercel/analytics@2.0.1` - Page views/sessions
 - `@vercel/speed-insights@2.0.0` - Core Web Vitals monitoring
 - `@opentelemetry/api@1.9.1` - Observability instrumentation

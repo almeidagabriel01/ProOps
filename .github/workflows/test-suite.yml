@@ -29,6 +29,9 @@ jobs:
   lint:
     uses: ./.github/workflows/_reusable-lint.yml
 
+  unit-tests:
+    uses: ./.github/workflows/_reusable-unit-tests.yml
+
   firestore-rules:
     uses: ./.github/workflows/_reusable-firestore-rules.yml
 
@@ -249,6 +252,62 @@ jobs:
           path: performance-report/
           retention-days: 14
 
+  lighthouse:
+    name: Lighthouse Perf Budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [e2e, e2e-financial]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            apps/functions/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium (Lighthouse browser)
+        run: npx playwright install chromium --with-deps
+
+      # Production build — the budget runs against `next start`, not dev mode,
+      # so it reflects the real throttled-mobile load path (catches LCP regressions
+      # the dev-mode perf check missed).
+      - name: Build Next.js (production)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: demo-api-key
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: demo-proops-test.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: demo-proops-test
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: demo-proops-test.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
+          NEXT_PUBLIC_FIREBASE_APP_ID: '1:000000000000:web:0000000000000000'
+
+      # lhci autorun starts `next start -p 3001`, runs throttled-mobile Lighthouse
+      # 3x per URL, then asserts the budget in lighthouserc.json. Fails the job if
+      # LCP/TBT/CLS regress past the ceiling.
+      - name: Run Lighthouse budget (lhci)
+        run: npm run test:lighthouse
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: demo-api-key
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: demo-proops-test.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: demo-proops-test
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: demo-proops-test.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
+          NEXT_PUBLIC_FIREBASE_APP_ID: '1:000000000000:web:0000000000000000'
+
+      - name: Upload Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report-${{ github.run_number }}
+          path: lhci-report/
+          retention-days: 7
+
   security:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -352,16 +411,18 @@ jobs:
     name: all-checks-passed
     runs-on: ubuntu-latest
     if: always()
-    needs: [type-check, lint, e2e, e2e-financial, performance, firestore-rules, security]
+    needs: [type-check, lint, unit-tests, e2e, e2e-financial, performance, lighthouse, firestore-rules, security]
     steps:
       - name: Check all jobs passed
         run: |
           results=(
             "type-check=${{ needs.type-check.result }}"
             "lint=${{ needs.lint.result }}"
+            "unit-tests=${{ needs.unit-tests.result }}"
             "e2e=${{ needs.e2e.result }}"
             "e2e-financial=${{ needs.e2e-financial.result }}"
             "performance=${{ needs.performance.result }}"
+            "lighthouse=${{ needs.lighthouse.result }}"
             "firestore-rules=${{ needs.firestore-rules.result }}"
             "security=${{ needs.security.result }}"
           )

@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef } from "react";
-import { motion, useInView, useAnimation, Variant } from "motion/react";
+import { m as motion, useInView, useAnimation, Variant } from "motion/react";
 
 interface AnimatedTextProps {
     text: string;

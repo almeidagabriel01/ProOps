@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect } from "react";
 import Link from "next/link";
 import {
   getCookieConsentDismissed,
@@ -8,35 +8,40 @@ import {
 } from "@/lib/cookie-consent-storage";
 
 const CONSENT_CHANGED_EVENT = "proops:cookie-consent-changed";
+const CONSENT_ATTR = "data-cookie-consent";
 
-function subscribe(callback: () => void) {
-  window.addEventListener(CONSENT_CHANGED_EVENT, callback);
-  window.addEventListener("storage", callback);
-  return () => {
-    window.removeEventListener(CONSENT_CHANGED_EVENT, callback);
-    window.removeEventListener("storage", callback);
-  };
-}
-
+/**
+ * Visibility is driven by the `html[data-cookie-consent="pending"]` attribute
+ * (see globals.css), which `public/cookie-consent-init.js` sets at first paint
+ * BEFORE hydration — so the banner is never the late-painting LCP element. The
+ * DOM is always server-rendered (hidden by CSS for consented users); React only
+ * owns the dismiss interaction and keeps the attribute in sync across tabs.
+ */
 export function CookieConsentBanner() {
-  // Server/hydration snapshot returns `true` (treated as dismissed) so nothing
-  // renders during SSR; the banner appears only after the client reads
-  // localStorage, avoiding a hydration mismatch.
-  const dismissed = useSyncExternalStore(
-    subscribe,
-    getCookieConsentDismissed,
-    () => true,
-  );
-
   const handleDismiss = useCallback(() => {
     setCookieConsentDismissed();
+    document.documentElement.removeAttribute(CONSENT_ATTR);
     window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
   }, []);
 
-  if (dismissed) return null;
+  useEffect(() => {
+    const sync = () => {
+      if (getCookieConsentDismissed()) {
+        document.documentElement.removeAttribute(CONSENT_ATTR);
+      } else {
+        document.documentElement.setAttribute(CONSENT_ATTR, "pending");
+      }
+    };
+    window.addEventListener("storage", sync);
+    window.addEventListener(CONSENT_CHANGED_EVENT, sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener(CONSENT_CHANGED_EVENT, sync);
+    };
+  }, []);
 
   return (
-    <div data-pdf-ui className="fixed inset-x-0 bottom-0 z-[100] px-4 pb-4">
+    <div data-pdf-ui className="cookie-banner fixed inset-x-0 bottom-0 z-[100] px-4 pb-4">
       <div className="mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl border border-black/10 bg-white/95 p-4 shadow-lg backdrop-blur dark:border-white/10 dark:bg-neutral-950/95 sm:flex-row sm:items-center sm:gap-4">
         <p className="text-sm leading-6 text-black/75 dark:text-white/75">
           <span aria-hidden="true">🍪</span> Usamos cookies para melhorar sua

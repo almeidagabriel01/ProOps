@@ -12,17 +12,22 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import Script from "next/script";
 import { Providers } from "./providers";
+import { MotionProvider } from "@/providers/motion-provider";
 import { CookieConsentBanner } from "@/components/legal/cookie-consent-banner";
+import { ErrorReporterInstaller } from "@/components/observability/error-reporter-installer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const interPdf = Inter({
@@ -32,10 +37,16 @@ const interPdf = Inter({
   weight: ["400", "500", "600", "700"],
 });
 
+// PDF-only fonts (Roboto/Lato): used exclusively by the PDF editor/generation,
+// never on marketing or app shell pages. preload:false stops next/font from
+// injecting a render-competing <link rel="preload"> on every page; the @font-face
+// still loads on demand wherever the var is actually applied (PDF capture waits
+// for document.fonts.ready, so generated PDFs are unaffected).
 const robotoPdf = Roboto({
   variable: "--font-pdf-roboto",
   subsets: ["latin"],
   display: "block",
+  preload: false,
   weight: ["400", "500", "700"],
 });
 
@@ -43,6 +54,7 @@ const latoPdf = Lato({
   variable: "--font-pdf-lato",
   subsets: ["latin"],
   display: "block",
+  preload: false,
   weight: ["400", "700"],
 });
 
@@ -161,8 +173,22 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${interPdf.variable} ${robotoPdf.variable} ${latoPdf.variable} ${montserratPdf.variable} ${playfairPdf.variable} antialiased`}
       >
-        <Providers>{children}</Providers>
-        <CookieConsentBanner />
+        {/*
+          Browser back/forward recovery — see public/bfcache-recovery.js for the
+          full rationale. Loaded as a same-origin external script (beforeInteractive)
+          so it satisfies CSP `script-src 'self'` WITHOUT depending on
+          'unsafe-inline', and attaches its pageshow listener before hydration so
+          it survives a back/forward restore (where the React tree never re-mounts).
+        */}
+        <Script src="/bfcache-recovery.js" strategy="beforeInteractive" />
+        {/* Reveals the consent banner at first paint (before hydration) so it is
+            never the late-painting LCP element — see cookie-consent-init.js. */}
+        <Script src="/cookie-consent-init.js" strategy="beforeInteractive" />
+        <ErrorReporterInstaller />
+        <MotionProvider>
+          <Providers>{children}</Providers>
+          <CookieConsentBanner />
+        </MotionProvider>
         <Analytics />
         <SpeedInsights />
         {process.env.NEXT_PUBLIC_GA_ID && (

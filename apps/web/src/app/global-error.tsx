@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { reportClientError } from "@/lib/observability/client-error-reporter";
+
 // global-error.tsx replaces the root layout — cannot rely on CSS being loaded.
 // Uses inline styles as a safe fallback for critical error rendering.
 export default function GlobalError({
@@ -9,6 +12,9 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    reportClientError(error);
+  }, [error]);
 
   return (
     <html lang="pt-BR">

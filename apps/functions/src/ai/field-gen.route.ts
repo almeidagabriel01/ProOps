@@ -174,7 +174,7 @@ router.post("/generate-field", fieldGenRateLimiter, async (req: Request, res: Re
   } catch (err) {
     await refundAiMessage(user.tenantId).catch(() => {});
     logger.error("AI field-gen error", { tenantId: user.tenantId, uid: user.uid, field, error: String(err) });
-    throw err; // let global error handler report to Sentry
+    throw err; // let the global error handler capture and log it
   }
 });
 

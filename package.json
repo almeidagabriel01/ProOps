@@ -13,7 +13,7 @@
     "start": "npm -w proops-web run start",
     "lint": "npm -w proops-web run lint",
     "predev:backend": "npm --prefix apps/functions run build",
-    "dev:backend": "concurrently -k -n functions,emulator \"npm --prefix apps/functions run build:watch\" \"npx firebase emulators:start --project dev --only functions\"",
+    "dev:backend": "concurrently -k -n functions,emulator \"npm --prefix apps/functions run build:watch\" \"cross-env FUNCTIONS_DISCOVERY_TIMEOUT=120 npx firebase emulators:start --project dev --only functions\"",
     "deploy:dev": "npx firebase deploy --project dev --only functions,firestore:rules",
     "deploy:prod": "npx firebase deploy --project prod --only functions,firestore:rules",
     "security:audit:runtime": "npm audit --omit=dev --audit-level=critical",
@@ -26,6 +26,7 @@
     "test:security": "npx tsx tests/e2e/security/run-security-scan.ts",
     "test:rules": "jest --config tests/jest.config.js --runInBand",
     "test:web": "npm --workspace proops-web run test",
+    "test:lighthouse": "lhci autorun --config=lighthouserc.json",
     "test:functions": "npm --prefix apps/functions test"
   },
   "devDependencies": {

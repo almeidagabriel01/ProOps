@@ -359,6 +359,59 @@ body {
   background: linear-gradient(120deg, transparent 0%, rgba(0,0,0,0.18) 50%, transparent 100%);
 }
 
+/* Landing button — assinatura "draw + invert".
+   A borda se desenha (SVG dashoffset) e um preenchimento varre na diagonal
+   invertendo as cores. Sem deslocar o botão. */
+.landing-btn__label {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+/* Tinta que sobe do rodapé pro topo no hover. A onda (SVG) é a linha-d'água. */
+.landing-btn__ink {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  transform: translateY(calc(100% + 12px));
+  transition: transform 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.landing-btn:hover .landing-btn__ink {
+  transform: translateY(0);
+}
+.landing-btn__wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -9px;
+  width: 100%;
+  height: 10px;
+  display: block;
+}
+
+/* Link variant — sublinhado que se desenha da esquerda no hover */
+.landing-link__bar {
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 2px;
+  width: 100%;
+  background: currentColor;
+  /* translateZ(0) + will-change mantêm a barra numa camada do compositor de
+     forma permanente → mesma rasterização antes/durante/depois da animação
+     (sem afinar ao terminar, inclusive em telas com escala fracionária). */
+  transform: scaleX(0) translateZ(0);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+.landing-link:hover .landing-link__bar {
+  transform: scaleX(1) translateZ(0);
+}
+
 /* Border beam for idle card animation */
 @property --card-beam-angle {
   syntax: '<angle>';
@@ -826,5 +879,208 @@ html[data-shell="locked"] body {
 @media print {
   [data-pdf-ui] {
     display: none !important;
+  }
+}
+
+/* ===================================================================== */
+/* Landing redesign (mono premium) — primitives for the sections below   */
+/* "Conheça a plataforma ProOps". Monochrome only: depth from glass,      */
+/* grain, dramatic shadows and motion — no accent color.                 */
+/* ===================================================================== */
+
+/* Slow-drifting atmospheric glows for the full-bleed near-black bands */
+@keyframes mono-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, -3%, 0) scale(1.14);
+  }
+}
+.animate-mono-drift {
+  animation: mono-drift 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Monochrome film grain — place inside a relative/absolute parent */
+.grain-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dark .grain-overlay {
+  opacity: 0.06;
+}
+
+/* Long, dramatic depth shadow for hero/device cards */
+.shadow-dramatic {
+  box-shadow:
+    0 40px 80px -32px rgba(0, 0, 0, 0.45),
+    0 8px 24px -12px rgba(0, 0, 0, 0.25);
+}
+.dark .shadow-dramatic {
+  box-shadow:
+    0 50px 120px -40px rgba(0, 0, 0, 0.85),
+    0 10px 30px -14px rgba(0, 0, 0, 0.6);
+}
+
+/* Infinite marquee track (integrations) — child should be duplicated 2x */
+@keyframes marquee-x {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+.animate-marquee-x {
+  animation: marquee-x 32s linear infinite;
+  will-change: transform;
+}
+
+/* Pulso de luz que corre pelos conectores das Integrações (toward center).
+   Usar com pathLength=100 + stroke-dasharray curto no path animado. */
+@keyframes flow-dash {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-flow {
+  animation: flow-dash 4s linear infinite;
+  will-change: stroke-dashoffset;
+}
+
+/* Pulse de escala dos badges de integração (o ícone interno acompanha) */
+@keyframes badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+.animate-badge-pulse {
+  animation: badge-pulse 2.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Ping suave (mais lento que o animate-ping padrão) do float button do WhatsApp */
+@keyframes fab-ping {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+.animate-fab-ping {
+  animation: fab-ping 2.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+  will-change: transform, opacity;
+}
+
+/* Luz contínua varrendo o card de plano popular (loop com pausa entre passadas) */
+@keyframes card-sheen {
+  0% {
+    transform: translateX(-160%) skewX(-18deg);
+  }
+  55%,
+  100% {
+    transform: translateX(320%) skewX(-18deg);
+  }
+}
+.animate-card-sheen {
+  animation: card-sheen 5s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Hero entrance (CSS-driven) — above-the-fold fade-up that AUTO-PLAYS at first
+   paint instead of waiting for JS hydration. A framer `initial={{opacity:0}}`
+   keeps the LCP hero text invisible until the motion bundle hydrates (~6.6s on
+   throttled mobile), wrecking LCP. This keyframe reproduces the same fade-up
+   (opacity + translateY, optional scale/blur for the eyebrow) but starts at
+   first paint with zero JS — so the text paints ~FCP and the animation is
+   visually identical. Per-element start offset/scale/blur/duration/delay are
+   passed via CSS custom properties so one keyframe covers every hero element. */
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--hero-y, 16px)) scale(var(--hero-s, 1));
+    filter: blur(var(--hero-blur, 0));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+.hero-enter {
+  animation: hero-enter var(--hero-dur, 0.6s)
+    var(--hero-ease, cubic-bezier(0.22, 1, 0.36, 1)) var(--hero-delay, 0s) both;
+  will-change: transform, opacity;
+}
+
+/* Clip-mask line reveal (text slides up from inside an overflow-hidden parent).
+   Same shape as the framer RisingLines (translateY 110% -> 0). CSS auto-play so
+   the masked LCP heading paints at first paint instead of after hydration. */
+@keyframes hero-rise-line {
+  from {
+    transform: translateY(110%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.hero-rise-line {
+  display: inline-block;
+  animation: hero-rise-line var(--hero-dur, 0.9s)
+    var(--hero-ease, cubic-bezier(0.16, 1, 0.3, 1)) var(--hero-delay, 0s) both;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-enter,
+  .hero-rise-line {
+    animation: none;
+  }
+}
+
+/* Cookie-consent banner: DOM is always server-rendered but hidden; visibility is
+   gated by the html attribute that public/cookie-consent-init.js sets at first
+   paint (before hydration). This keeps the banner off the LCP critical path —
+   it paints with the first frame for non-consented users, or never for
+   consented ones — instead of appearing ~6s late after React hydrates. */
+.cookie-banner {
+  display: none;
+}
+html[data-cookie-consent="pending"] .cookie-banner {
+  display: block;
+}
+
+/* Pausa loops de animação CSS quando a seção sai da viewport (ver use-pause-offscreen) */
+.anim-paused,
+.anim-paused * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-mono-drift,
+  .animate-marquee-x,
+  .animate-flow,
+  .animate-badge-pulse,
+  .animate-fab-ping,
+  .animate-card-sheen {
+    animation: none !important;
+  }
+  .landing-btn__ink,
+  .landing-link__bar {
+    transition: none;
   }
 }

@@ -22,14 +22,13 @@
 export interface LoggedInLoaderState {
   isLoggingIn: boolean;
   isRegistering: boolean;
-  sessionRecoveryFailed: boolean;
   requiresMfaCode: boolean;
   requiresWhatsappOtp: boolean;
   isSessionSynced: boolean;
 }
 
 export function shouldShowLoggedInLoader(state: LoggedInLoaderState): boolean {
-  if (state.isLoggingIn || state.isRegistering || state.sessionRecoveryFailed) {
+  if (state.isLoggingIn || state.isRegistering) {
     return false;
   }
   if (state.requiresMfaCode || state.requiresWhatsappOtp) {

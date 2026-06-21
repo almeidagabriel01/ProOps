@@ -3,7 +3,7 @@
 import { Sistema } from "@/types/automation";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, Box, Cpu, ArrowRight } from "lucide-react";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 
 interface SistemaListProps {

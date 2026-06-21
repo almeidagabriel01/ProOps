@@ -4,7 +4,7 @@ import React, { useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { CheckCircle2 } from "lucide-react";
 import type { NicheLandingConfig } from "./types";
 

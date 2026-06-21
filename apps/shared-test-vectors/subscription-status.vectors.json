@@ -1,0 +1,33 @@
+{
+  "_comment": "Canonical test vectors for deriveSubscriptionDisplayStatus. Consumed by BOTH apps/web (Vitest) and apps/functions (Jest) to keep the two mirrored implementations from drifting. Keep in sync with both modules. nowMs (1782000000000) is fixed at 2026-06-21T00:00:00.000Z; lapsed cases use 2026-06-11 / 2026-06-19, non-lapsed use 2026-07-09 / 2026-12-01.",
+  "nowMs": 1782000000000,
+  "cases": [
+    { "name": "genuine free tier (free plan + benign active status)", "input": { "planId": "free", "storedStatus": "active" }, "expected": "free" },
+    { "name": "genuine free tier (free plan + empty status)", "input": { "planId": "free", "storedStatus": "" }, "expected": "free" },
+    { "name": "explicit free status on a paid-tier plan still reads free", "input": { "planId": "pro", "storedStatus": "free" }, "expected": "free" },
+    { "name": "BUG GUARD: canceled wins over a downgraded free plan (cancelled Pro must not read Gratuito)", "input": { "planId": "free", "storedStatus": "canceled", "currentPeriodEnd": "2026-06-19T00:00:00.000Z" }, "expected": "canceled" },
+    { "name": "past_due wins over free plan tier", "input": { "planId": "free", "storedStatus": "past_due" }, "expected": "past_due" },
+    { "name": "inactive wins over free plan tier", "input": { "planId": "free", "storedStatus": "inactive" }, "expected": "inactive" },
+    { "name": "cancel-at-period-end future wins over free plan tier", "input": { "planId": "free", "storedStatus": "active", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "canceling" },
+    { "name": "active no flags", "input": { "planId": "pro", "storedStatus": "active", "currentPeriodEnd": "2026-07-09T00:00:00.000Z" }, "expected": "active" },
+    { "name": "trialing maps to active", "input": { "planId": "pro", "storedStatus": "trialing", "currentPeriodEnd": "2026-07-09T00:00:00.000Z" }, "expected": "active" },
+    { "name": "past_due", "input": { "planId": "pro", "storedStatus": "past_due" }, "expected": "past_due" },
+    { "name": "unpaid -> inactive", "input": { "planId": "pro", "storedStatus": "unpaid" }, "expected": "inactive" },
+    { "name": "inactive stays inactive", "input": { "planId": "pro", "storedStatus": "inactive" }, "expected": "inactive" },
+    { "name": "payment_failed -> inactive", "input": { "planId": "pro", "storedStatus": "payment_failed" }, "expected": "inactive" },
+    { "name": "canceled status", "input": { "planId": "pro", "storedStatus": "canceled" }, "expected": "canceled" },
+    { "name": "cancelled (british) normalizes to canceled", "input": { "planId": "pro", "storedStatus": "cancelled" }, "expected": "canceled" },
+    { "name": "canceled wins over cancelAtPeriodEnd", "input": { "planId": "pro", "storedStatus": "canceled", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "canceled" },
+    { "name": "active + cancelAtPeriodEnd + future period = canceling", "input": { "planId": "pro", "storedStatus": "active", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "canceling" },
+    { "name": "active + cancelAtPeriodEnd + lapsed period = canceled", "input": { "planId": "pro", "storedStatus": "active", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-06-11T00:00:00.000Z" }, "expected": "canceled" },
+    { "name": "trialing + cancelAtPeriodEnd + future = canceling", "input": { "planId": "pro", "storedStatus": "trialing", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "canceling" },
+    { "name": "empty status + lapsed period = inactive", "input": { "planId": "pro", "storedStatus": "", "currentPeriodEnd": "2026-06-11T00:00:00.000Z" }, "expected": "inactive" },
+    { "name": "empty status + future period = active", "input": { "planId": "pro", "storedStatus": "", "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "active" },
+    { "name": "active + lapsed period + NOT canceling stays active (avoid flagging healthy renewals)", "input": { "planId": "pro", "storedStatus": "active", "cancelAtPeriodEnd": false, "currentPeriodEnd": "2026-06-19T00:00:00.000Z" }, "expected": "active" },
+    { "name": "empty status + no period = active", "input": { "planId": "pro", "storedStatus": "" }, "expected": "active" },
+    { "name": "uppercase FREE plan + canceled status -> canceled (status precedence)", "input": { "planId": "FREE", "storedStatus": "canceled" }, "expected": "canceled" },
+    { "name": "uppercase FREE plan + benign active status -> free", "input": { "planId": "FREE", "storedStatus": "active" }, "expected": "free" },
+    { "name": "status uppercase + whitespace normalizes", "input": { "planId": "pro", "storedStatus": "  CANCELED  " }, "expected": "canceled" },
+    { "name": "invalid currentPeriodEnd ignored, active", "input": { "planId": "pro", "storedStatus": "active", "currentPeriodEnd": "not-a-date" }, "expected": "active" }
+  ]
+}

@@ -30,6 +30,7 @@ Jobs shared between `push-checks` and `test-suite` live in dedicated reusable wo
 |---|---|
 | `_reusable-type-check.yml` | push-checks, test-suite |
 | `_reusable-lint.yml` | push-checks, test-suite |
+| `_reusable-unit-tests.yml` | test-suite |
 | `_reusable-firestore-rules.yml` | push-checks, test-suite |
 
 ## Push Checks Pipeline (`push-checks.yml`)
@@ -46,11 +47,45 @@ Runs in parallel on every push to non-main branches:
 Runs on PRs and Merge Queue events:
 - `type-check` — TypeScript on the merge commit (reusable)
 - `lint` — ESLint on the merge commit (reusable)
+- `unit-tests` — Vitest frontend unit tests `npm run test:web` (reusable)
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
 - `performance` — Core Web Vitals + API baseline (runs after all E2E shards pass)
+- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build (`npm run test:lighthouse`, runs after all E2E shards pass)
 - `security` — OWASP ZAP baseline (runs after all E2E shards pass)
 - `all-checks-passed` — consolidated gate required by branch protection
+
+## Lighthouse Perf Budget (`lighthouse` job + `lighthouserc.json`)
+
+Builds Next.js for production, starts `next start -p 3001`, and runs Lighthouse 3x per
+URL across the **5 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
+`/contato`, `/agendar`) under **mobile + 4x CPU + slow-3G, REAL `devtools` throttling**.
+
+- Config: `lighthouserc.json` at repo root (uses `@lhci/cli`, already a devDependency).
+- Server lifecycle is managed by lhci via `startServerCommand` — no manual start/stop.
+- **`throttlingMethod: "devtools"` (real), not the default simulated/Lantern.** Lantern
+  reported ~7–9s LCP for every route — a *simulation artifact*: it models LCP as blocked
+  behind hydration TBT and ignores that the text paints early. Verified 2026-06-19 with
+  PerformanceObserver + devtools throttling, real LCP is **~1.8–3.1s** across all five
+  routes (CLS 0). The CI now measures that real number.
+- Asserts use `assertMatrix` (median of 3): all routes — `largest-contentful-paint`
+  ≤ 4000ms (warn), `cumulative-layout-shift` ≤ 0.1 (**error**), `first-contentful-paint`
+  ≤ 2500ms (warn). `total-blocking-time` ≤ 800ms is a hard **error** on the 4 secondary
+  routes but a **warn on `/` only** — the home hero is a scroll-pinned GSAP timeline that
+  must hydrate synchronously (deferring it flashes first paint), and under real CPU
+  throttling that costs ~3s TBT, an accepted animation-bound floor.
+- **History (how the LCP was actually fixed — don't re-chase dead ends):** the heroes used
+  framer `initial={opacity:0}`+`whileInView`, so the above-the-fold LCP text stayed
+  invisible until hydration (~6.6s throttled) → real LCP ~9s. Fixed by moving those
+  above-the-fold entrances to CSS keyframes (`hero-enter`/`hero-rise-line` in globals.css)
+  that auto-play at first paint — visually identical, real LCP → ~1.8s. The consent banner
+  then became the late LCP element (client-gated, painted ~6s after hydration); fixed by
+  rendering it at first paint via `public/cookie-consent-init.js` (commit `cbaf2dea`).
+  Dead ends proven by measurement (do not retry): `montserrat` `block→swap` (0ms), and
+  LazyMotion async `features` (flat — framer is not the hot chunk). Lenis is already
+  deferred (`requestIdleCallback`, commit `550a9bbd`).
+- Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
+- Report artifact: `lighthouse-report-<run>` (from `lhci-report/`).
 
 ## E2E Sharding
 

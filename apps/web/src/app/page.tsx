@@ -3,7 +3,9 @@ import {
   OrganizationJsonLd,
   WebSiteJsonLd,
   SoftwareApplicationJsonLd,
+  FAQPageJsonLd,
 } from "@/components/seo/json-ld";
+import { FAQS } from "@/components/landing/_shared/faq-data";
 import { LandingPageClient } from "./_components/landing-page-client";
 
 export const metadata: Metadata = {
@@ -25,6 +27,7 @@ export default function Page() {
       <OrganizationJsonLd />
       <WebSiteJsonLd />
       <SoftwareApplicationJsonLd />
+      <FAQPageJsonLd items={FAQS} />
       <LandingPageClient />
     </>
   );

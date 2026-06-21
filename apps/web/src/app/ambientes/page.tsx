@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "motion/react";
+import { m as motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Plus, Home } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";

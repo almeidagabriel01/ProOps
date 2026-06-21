@@ -1,10 +1,8 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { motion } from "motion/react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LandingButton } from "../_shared/landing-button";
 import { AnimatedGradientText } from "@/components/ui/animated-text";
 import type { User } from "@/types";
 import { getAuthenticatedHome } from "@/lib/landing/auth-redirect";
@@ -27,44 +25,45 @@ export function NicheHero({ hero, currentUser, isAuthLoading }: NicheHeroProps) 
 
       <div className="relative mx-auto max-w-4xl">
         {hero.eyebrow && (
-          <motion.span
-            initial={{ opacity: 0, y: -12, scale: 0.85, filter: "blur(8px)" }}
-            whileInView={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            viewport={{ once: false, amount: 0.3 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="mb-5 inline-flex items-center rounded-full border border-black/10 bg-black/[0.03] px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-black/60 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/60"
+          <span
+            style={
+              {
+                "--hero-y": "-12px",
+                "--hero-s": "0.85",
+                "--hero-blur": "8px",
+                "--hero-dur": "0.5s",
+              } as React.CSSProperties
+            }
+            className="hero-enter mb-5 inline-flex items-center rounded-full border border-black/10 bg-black/[0.03] px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-black/60 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/60"
           >
             {hero.eyebrow}
-          </motion.span>
+          </span>
         )}
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.3 }}
-          transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-6 text-4xl font-bold tracking-tight text-black dark:text-white md:text-6xl"
+        <h1
+          style={
+            { "--hero-y": "20px", "--hero-delay": "0.1s" } as React.CSSProperties
+          }
+          className="hero-enter mb-6 text-4xl font-bold tracking-tight text-black dark:text-white md:text-6xl"
         >
           {hero.title}{" "}
           <AnimatedGradientText>{hero.titleHighlight}</AnimatedGradientText>
-        </motion.h1>
+        </h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.3 }}
-          transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-black/65 dark:text-white/65"
+        <p
+          style={
+            { "--hero-y": "16px", "--hero-delay": "0.2s" } as React.CSSProperties
+          }
+          className="hero-enter mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-black/65 dark:text-white/65"
         >
           {hero.subtitle}
-        </motion.p>
+        </p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.3 }}
-          transition={{ duration: 0.5, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="flex min-h-[52px] flex-wrap items-center justify-center gap-4"
+        <div
+          style={
+            { "--hero-y": "12px", "--hero-delay": "0.3s", "--hero-dur": "0.5s" } as React.CSSProperties
+          }
+          className="hero-enter flex min-h-[52px] flex-wrap items-center justify-center gap-4"
         >
           {isAuthLoading ? (
             <>
@@ -73,27 +72,18 @@ export function NicheHero({ hero, currentUser, isAuthLoading }: NicheHeroProps) 
             </>
           ) : (
             <>
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                <Button asChild size="lg" className="btn-sweep rounded-full px-8 font-semibold bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200">
-                  <Link href={appHref}>{primaryLabel}</Link>
-                </Button>
-              </motion.div>
+              <LandingButton href={appHref} variant="solid" size="lg">
+                {primaryLabel}
+              </LandingButton>
 
               {showSecondaryCta && (
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="lg"
-                    className="btn-sweep rounded-full px-8 font-semibold border-black/20 text-black hover:bg-black/[0.04] dark:border-white/20 dark:text-white dark:hover:bg-white/[0.06]"
-                  >
-                    <Link href={hero.secondaryCta.href}>{hero.secondaryCta.label}</Link>
-                  </Button>
-                </motion.div>
+                <LandingButton href={hero.secondaryCta.href} variant="link">
+                  {hero.secondaryCta.label}
+                </LandingButton>
               )}
             </>
           )}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

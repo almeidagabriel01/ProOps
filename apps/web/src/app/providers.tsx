@@ -10,15 +10,15 @@ import { PlanProvider } from "@/providers/plan-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { isAuthOnlyRoute } from "@/lib/auth/auth-only-routes";
+import { isPublicMarketingRoute } from "@/lib/auth/route-access";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  const isPublicMarketingPage =
-    pathname === "/" ||
-    pathname === "/automacao-residencial" ||
-    pathname === "/decoracao" ||
-    pathname === "/contato";
+  // Shared with the server proxy via @/lib/auth/route-access — a public marketing
+  // page rendered here without <ProtectedRoute> is guaranteed to also be public
+  // at the proxy, so it can never be bounced into /auth/refresh.
+  const isPublicMarketingPage = isPublicMarketingRoute(pathname);
 
   const isAuthOnlyPage = isAuthOnlyRoute(pathname);
 

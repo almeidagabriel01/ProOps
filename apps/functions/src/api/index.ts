@@ -7,6 +7,9 @@ import { requireActiveSubscription } from "./middleware/require-active-subscript
 import { verifyTurnstileToken } from "./middleware/verify-captcha";
 import { CORS_OPTIONS } from "../deploymentConfig";
 
+import { observabilityRoutes } from "./routes/observability.routes";
+import { observabilityAdminRoutes } from "./routes/observability-admin.routes";
+import { attachUserIfPresent } from "./middleware/optional-auth";
 import { coreRoutes } from "./routes/core.routes";
 import { financeRoutes } from "./routes/finance.routes";
 import { adminRoutes } from "./routes/admin.routes";
@@ -27,6 +30,7 @@ import { paymentPublicRoutes } from "./routes/payment-public.routes";
 import { asaasRoutes } from "./routes/asaas.routes";
 import { asaasWebhookRoutes } from "./routes/asaas-webhook.routes";
 import { contactRoutes } from "./routes/contact.routes";
+import { demoBookingRoutes } from "./routes/demo-booking.routes";
 import {
   publicAuthRoutes,
   protectedAuthRoutes,
@@ -53,6 +57,8 @@ import {
   writeSecurityAuditEvent,
 } from "../lib/security-observability";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
+import { captureError } from "../lib/observability/error-logger";
+import { captureResponseErrors } from "./middleware/error-response-capture";
 
 const app = express();
 
@@ -229,6 +235,12 @@ const contactFormLimiter = createRateLimiter({
   windowMs: 60_000,
 });
 
+const demoBookingLimiter = createRateLimiter({
+  keyPrefix: "public-demo-booking",
+  maxRequests: 30,
+  windowMs: 60_000,
+});
+
 const passwordResetLimiter = createRateLimiter({
   keyPrefix: "public-password-reset",
   maxRequests: 5,
@@ -278,6 +290,13 @@ const recoveryCodesVerifyLimiter = createRateLimiter({
   keyPrefix: "recovery-codes-verify",
   maxRequests: Number(process.env.RATE_LIMIT_RECOVERY_CODES_VERIFY_MAX || 30),
   windowMs: Number(process.env.RATE_LIMIT_RECOVERY_CODES_VERIFY_WINDOW_MS || 60_000),
+  keyResolver: buildRateLimitIdentity,
+});
+
+const observabilityIngestLimiter = createRateLimiter({
+  keyPrefix: "observability_ingest",
+  maxRequests: Number(process.env.RATE_LIMIT_OBSERVABILITY_MAX || 60),
+  windowMs: Number(process.env.RATE_LIMIT_OBSERVABILITY_WINDOW_MS || 60_000),
   keyResolver: buildRateLimitIdentity,
 });
 
@@ -342,6 +361,11 @@ app.use((req, res, next) => {
 
   next();
 });
+
+// Capture every >=400 response that did NOT throw (non-throw error responses).
+// Registered immediately after requestId so it covers public AND protected routes.
+// req.user is read lazily inside the finish handler — safe to register before auth.
+app.use(captureResponseErrors);
 
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -446,6 +470,7 @@ app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
 app.use("/v1/public", contactFormLimiter, contactRoutes);
+app.use("/v1/public", demoBookingLimiter, demoBookingRoutes);
 
 // Public auth routes (forgot password) — strict rate limit
 app.use("/v1/auth", passwordResetLimiter, publicAuthRoutes);
@@ -453,6 +478,15 @@ app.use("/v1/auth", passwordResetLimiter, publicAuthRoutes);
 // Debug-only internal endpoints — gated by x-cron-secret, mounted before auth
 // so E2E fixtures can invalidate caches without a Firebase ID token.
 app.use("/internal", internalDebugRoutes);
+
+// Client-error ingestion — accepts anonymous and authenticated errors.
+// Mounted BEFORE the auth barrier so pre-login crashes are captured (uid: null).
+app.use(
+  "/v1/observability",
+  observabilityIngestLimiter,
+  attachUserIfPresent,
+  observabilityRoutes,
+);
 
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
@@ -483,6 +517,7 @@ app.use((req, res, next) => {
 app.use("/v1", coreRoutes);
 app.use("/v1", financeRoutes);
 app.use("/v1/admin", privilegedLimiter, adminRoutes);
+app.use("/v1/admin/observability", privilegedLimiter, observabilityAdminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
 // Apply the tight OTP limiter ONLY to the OTP cost / brute-force surfaces
@@ -542,6 +577,20 @@ app.use(
       method: req.method,
       tenantId: String((req.user as { tenantId?: string })?.tenantId || ""),
       uid: String((req.user as { uid?: string })?.uid || ""),
+    });
+
+    // Mark as captured so the finish-middleware does not double-capture this error.
+    res.locals.__obsCaptured = true;
+
+    // Feed the error observability pipeline (best-effort, never blocks response).
+    void captureError(err, {
+      source: "functions",
+      route: sanitizeLoggedPath(req.path),
+      method: req.method,
+      status: 500,
+      uid: String((req.user as { uid?: string })?.uid || "") || null,
+      tenantId: String((req.user as { tenantId?: string })?.tenantId || "") || null,
+      handled: false,
     });
 
     if (!res.headersSent) {

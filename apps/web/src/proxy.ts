@@ -21,66 +21,16 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { shouldAcceptLegacyAuthCookie } from "@/lib/legacy-auth-cookie";
+import { decideExpiredRedirect } from "@/lib/auth/decide-expired-redirect";
+import {
+  isBillingAllowedRoute,
+  isPublicRoute,
+  shouldSkipRoute,
+} from "@/lib/auth/route-access";
 
-// ============================================
-// ROUTE CONFIGURATION
-// ============================================
-
-// Routes that bypass the billing gate (accessible even when subscription is blocked)
-const BILLING_ALLOWED_ROUTES = ["/subscription-blocked"];
-
-// Public routes that don't require authentication
-const PUBLIC_ROUTES = [
-  "/",
-  "/automacao-residencial",
-  "/decoracao",
-  "/login",
-  "/register",
-  "/forgot-password",
-  "/privacy",
-  "/terms",
-  "/data-deletion",
-  "/cookies",
-  "/subscribe",
-  "/checkout-success",
-  "/pricing",
-  "/contato",
-  "/api/webhooks", // Webhooks need to be public
-  "/share", // Public shared proposal pages
-  "/auth/action", // Legacy Firebase Auth action handler (kept for in-flight emails)
-  "/reset", // Custom password reset flow (oobCode via clean URL)
-  "/verify", // Custom email verification flow (oobCode via clean URL)
-];
-
-// Static assets and API routes to skip
-const SKIP_PATTERNS = [
-  "/_next",
-  "/favicon.ico",
-  "/public",
-  "/hero",
-  "/logo",
-  "/api/", // Let API routes handle their own auth
-];
-
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
-
-function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
-  );
-}
-
-function shouldSkip(pathname: string): boolean {
-  return SKIP_PATTERNS.some((pattern) => pathname.startsWith(pattern));
-}
-
-function isBillingAllowed(pathname: string): boolean {
-  return BILLING_ALLOWED_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
-  );
-}
+// Route classification (public / billing-exempt / skip) lives in the pure,
+// unit-tested @/lib/auth/route-access module so the proxy and providers.tsx
+// share ONE source of truth and can't drift.
 
 interface BillingStatusResponse {
   allowed: boolean;
@@ -105,14 +55,14 @@ export async function proxy(request: NextRequest) {
   }
 
   // Skip static assets and API routes
-  if (shouldSkip(pathname)) {
+  if (shouldSkipRoute(pathname)) {
     return NextResponse.next();
   }
 
   // Billing-allowed routes (e.g., /subscription-blocked) are accessible to everyone, including
   // unauthenticated users. The layout.tsx server component handles role/subscription redirects
   // for authenticated visitors.
-  if (isBillingAllowed(pathname)) {
+  if (isBillingAllowedRoute(pathname)) {
     const resp = NextResponse.next();
     resp.headers.set("Cache-Control", "no-store, must-revalidate");
     return resp;
@@ -132,12 +82,16 @@ export async function proxy(request: NextRequest) {
     host: request.headers.get("host"),
   });
 
-  // If no session, redirect to login
+  // If no session, route through the silent re-mint interstitial instead of
+  // bouncing straight to /login. If the Firebase refresh token is still valid,
+  // /auth/refresh re-creates the __session cookie and forwards to `next` — the
+  // returning user never sees the login form. /auth/refresh is itself terminal
+  // (it redirects to /login when it can't recover) and is PUBLIC, so this can't
+  // loop.
   if (!sessionCookie && !(acceptLegacyCookieHint && legacyAuthHint)) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    loginUrl.searchParams.set("redirect_reason", "session_expired");
-    const resp = NextResponse.redirect(loginUrl);
+    const refreshUrl = new URL("/auth/refresh", request.url);
+    refreshUrl.searchParams.set("next", pathname);
+    const resp = NextResponse.redirect(refreshUrl);
     resp.headers.set("Content-Type", "text/plain");
     return resp;
   }
@@ -146,7 +100,7 @@ export async function proxy(request: NextRequest) {
   // Skipped for BILLING_ALLOWED_ROUTES so blocked users can still reach /subscription-blocked.
   // No client-side cache — the route call is ~50ms and other layers (backend, Firestore Rules)
   // are the primary enforcement; this gate prevents SSR of protected pages before HTML is served.
-  if (!isBillingAllowed(pathname)) {
+  if (!isBillingAllowedRoute(pathname)) {
     try {
       const billingUrl = new URL("/api/auth/billing-status", request.url);
       // Forward the requested path so billing-status can enforce the free
@@ -155,6 +109,10 @@ export async function proxy(request: NextRequest) {
       billingUrl.searchParams.set("path", pathname);
       const billingRes = await fetch(billingUrl.toString(), {
         headers: { cookie: request.headers.get("cookie") ?? "" },
+        // Bound the SSR gate so a slow/unreachable billing route can't hang the
+        // request. On abort the outer catch fails closed (→ /subscription-blocked),
+        // preserving the existing no-bypass guarantee.
+        signal: AbortSignal.timeout(5000),
       });
       if (billingRes.ok) {
         const billing = (await billingRes.json()) as BillingStatusResponse;
@@ -163,9 +121,24 @@ export async function proxy(request: NextRequest) {
             billing.reason === "session_revoked" ||
             billing.reason === "session_expired"
           ) {
-            const loginUrl = new URL("/login", request.url);
-            loginUrl.searchParams.set("reason", billing.reason);
-            const resp = NextResponse.redirect(loginUrl);
+            // Expired → try a silent re-mint (refresh token may still be valid).
+            // Revoked → re-mint would fail, so go straight to /login. The login
+            // page recovery reads `redirect_reason` (not `reason`), so emit that.
+            const target = decideExpiredRedirect({ reason: billing.reason });
+            const dest =
+              target === "refresh"
+                ? (() => {
+                    const u = new URL("/auth/refresh", request.url);
+                    u.searchParams.set("next", pathname);
+                    u.searchParams.set("reason", "session_expired");
+                    return u;
+                  })()
+                : (() => {
+                    const u = new URL("/login", request.url);
+                    u.searchParams.set("redirect_reason", billing.reason);
+                    return u;
+                  })();
+            const resp = NextResponse.redirect(dest);
             resp.cookies.set({
               name: "__session",
               value: "",
@@ -230,6 +203,6 @@ export const config = {
      * - public folder assets (hero/, etc.)
      * - robots.txt, sitemap.xml, manifest.webmanifest (must be publicly accessible for crawlers)
      */
-    "/((?!_next/static|_next/image|favicon.ico|icons/|apple-icon.png|opengraph-image.png|hero/|logo/|robots.txt|sitemap.xml|manifest.webmanifest).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons/|apple-icon.png|opengraph-image.png|hero/|logo/|features/|robots.txt|sitemap.xml|manifest.webmanifest|bfcache-recovery.js|cookie-consent-init.js).*)",
   ],
 };

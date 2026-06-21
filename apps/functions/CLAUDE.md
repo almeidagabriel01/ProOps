@@ -78,6 +78,14 @@ cd apps/functions && npm run lint
 - Novos índices: criar no console Firebase e exportar para `firestore.indexes.json`
 - Mudanças de schema: plano de migração antes de qualquer deploy
 
+### Error Observability (collections)
+- `error_issues/{fingerprint}` — grouped, deduplicated error issues (Admin SDK writes only; MFA superadmin client reads via dashboard).
+- `error_issues/{fingerprint}/occurrences/{id}` — capped sample of recent occurrences; `expiresAt` field for Firestore TTL.
+- `error_issues/{fingerprint}/_agg/affected` — capped hashed-id sets backing `affectedUsers`/`affectedTenants`.
+- `error_metrics/{YYYYMMDDhh}` — hourly severity/source counters.
+
+**Deploy note:** enable a Firestore **TTL policy** on the `occurrences` collection group, field `expiresAt` (Firebase console → Firestore → TTL). Not expressible in `firestore.indexes.json`.
+
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`
 - Nunca commitar — arquivos ignorados pelo `.gitignore`
@@ -93,7 +101,7 @@ cd apps/functions && npm run lint
 - O logger emite JSON com campo `severity` reconhecido pelo GCP Cloud Logging, permitindo filtrar por severity no console.
 - Em código existente que usa `console.log/error`, não é necessário migrar — o GCP ainda captura esses logs.
 - NUNCA logar tokens, senhas, `FIREBASE_PRIVATE_KEY` ou dados pessoais (CPF, email completo, telefone).
-- Erros não tratados em rotas Express são capturados automaticamente pelo global error handler em `api/index.ts` (reporta ao Sentry + loga estruturado).
+- Erros não tratados em rotas Express são capturados automaticamente pelo global error handler em `api/index.ts` (loga estruturado + alimenta o pipeline de error observability — issues agrupadas no Firestore). Não há Sentry no projeto.
 
 ## Módulo Financeiro: Lançamentos & Carteiras (backend)
 

@@ -5,7 +5,9 @@ import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { CheckCircle2, FileText, Kanban, Wallet } from "lucide-react";
+import { Check, FileText, Kanban, Wallet } from "lucide-react";
+import { MonoGlassCard } from "./_shared/mono-glass-card";
+import { Accent, SectionHeading } from "./_shared/section-heading";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -66,13 +68,50 @@ const MODULES: ModuleHighlight[] = [
   },
 ];
 
+function DeviceFrame({ src, alt }: { src: string; alt: string }) {
+  return (
+    <MonoGlassCard
+      tilt
+      spotlight
+      maxTilt={4}
+      className="shadow-dramatic rounded-2xl"
+    >
+      <div className="flex items-center gap-2 border-b border-black/10 px-4 py-3 dark:border-white/10">
+        <span className="h-2.5 w-2.5 rounded-full bg-black/15 dark:bg-white/20" />
+        <span className="h-2.5 w-2.5 rounded-full bg-black/15 dark:bg-white/20" />
+        <span className="h-2.5 w-2.5 rounded-full bg-black/15 dark:bg-white/20" />
+        <div className="ml-3 flex-1 truncate rounded-md border border-black/10 bg-black/[0.03] px-3 py-1 text-[11px] font-medium text-black/45 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/45">
+          app.proops.com.br
+        </div>
+      </div>
+      <div className="module-media overflow-hidden">
+        <Image
+          src={src}
+          alt={alt}
+          width={1920}
+          height={944}
+          className="h-auto w-full object-cover object-top"
+        />
+      </div>
+    </MonoGlassCard>
+  );
+}
+
+/**
+ * Módulos — showcase com profundidade. Cada módulo aparece em moldura "device"
+ * (chrome de navegador) com tilt/spotlight e parallax sutil no scroll; numeral
+ * fantasma editorial atrás do texto. Recebe `id="showcase"` (âncora "Plataforma"
+ * da navbar/footer) além do `id="modulos"` já existente.
+ */
 export function LandingModules() {
   const containerRef = useRef<HTMLElement>(null);
 
   useGSAP(
     () => {
-      gsap.utils.toArray(".gsap-fade-up").forEach((el: unknown) => {
-        const element = el as Element;
+      const section = containerRef.current;
+      if (!section) return;
+
+      gsap.utils.toArray<HTMLElement>(".gsap-fade-up").forEach((element) => {
         gsap.fromTo(
           element,
           { y: 32, opacity: 0, autoAlpha: 0 },
@@ -84,8 +123,7 @@ export function LandingModules() {
             ease: "power3.out",
             scrollTrigger: {
               trigger: element,
-              start: "top 94%",
-              end: "bottom 50%",
+              start: "top 92%",
               toggleActions: "play none none reverse",
               invalidateOnRefresh: true,
             },
@@ -93,49 +131,29 @@ export function LandingModules() {
         );
       });
 
-      gsap.utils.toArray(".gsap-media-right").forEach((el: unknown) => {
-        const element = el as Element;
-        gsap.fromTo(
-          element,
-          { x: 56, opacity: 0, autoAlpha: 0 },
-          {
-            x: 0,
-            opacity: 1,
-            autoAlpha: 1,
-            duration: 1.1,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: element,
-              start: "top 93%",
-              end: "bottom 46%",
-              toggleActions: "play none none reverse",
-              invalidateOnRefresh: true,
+      // Parallax sutil na moldura — apenas com motion habilitado
+      const mm = gsap.matchMedia();
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        gsap.utils.toArray<HTMLElement>(".module-media").forEach((media) => {
+          gsap.fromTo(
+            media,
+            { yPercent: -5 },
+            {
+              yPercent: 5,
+              ease: "none",
+              scrollTrigger: {
+                trigger: media,
+                start: "top bottom",
+                end: "bottom top",
+                scrub: true,
+                invalidateOnRefresh: true,
+              },
             },
-          },
-        );
+          );
+        });
       });
 
-      gsap.utils.toArray(".gsap-media-left").forEach((el: unknown) => {
-        const element = el as Element;
-        gsap.fromTo(
-          element,
-          { x: -56, opacity: 0, autoAlpha: 0 },
-          {
-            x: 0,
-            opacity: 1,
-            autoAlpha: 1,
-            duration: 1.1,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: element,
-              start: "top 93%",
-              end: "bottom 46%",
-              toggleActions: "play none none reverse",
-              invalidateOnRefresh: true,
-            },
-          },
-        );
-      });
+      return () => mm.revert();
     },
     { scope: containerRef },
   );
@@ -144,70 +162,80 @@ export function LandingModules() {
     <section
       ref={containerRef}
       id="modulos"
-      className="py-20 relative border-y border-black/10 dark:border-white/10 bg-white dark:bg-neutral-950"
+      className="relative overflow-hidden border-y border-black/10 bg-white py-24 dark:border-white/10 dark:bg-neutral-950"
     >
-      <div className="max-w-7xl mx-auto px-6">
-        {MODULES.map((module, index) => {
-          const isReversed = index % 2 === 1;
-          const Icon = module.icon;
+      {/* âncora "Plataforma" (navbar/footer #showcase) */}
+      <span id="showcase" aria-hidden className="absolute -top-24" />
 
-          return (
-            <div
-              key={module.title}
-              className={`flex flex-col items-center gap-14 py-16 ${
-                isReversed ? "lg:flex-row-reverse" : "lg:flex-row"
-              } ${index > 0 ? "border-t border-black/10 dark:border-white/10" : ""}`}
-            >
+      <div className="mx-auto max-w-7xl px-6">
+        <SectionHeading
+          eyebrow="A plataforma por dentro"
+          title={
+            <>
+              Três módulos, uma <Accent>operação</Accent> sem atrito
+            </>
+          }
+          description="Financeiro, CRM e propostas compartilham a mesma base de dados — o que você lança em um já reflete nos outros, sem retrabalho."
+          className="gsap-fade-up mb-20"
+        />
+
+        <div className="flex flex-col gap-24 lg:gap-32">
+          {MODULES.map((module, index) => {
+            const isReversed = index % 2 === 1;
+            const Icon = module.icon;
+
+            return (
               <div
-                className={`w-full lg:w-1/2 space-y-7 ${
-                  isReversed ? "lg:pl-8" : ""
-                }`}
+                key={module.title}
+                className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20"
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-black/15 dark:border-white/15 bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white text-sm font-medium gsap-fade-up">
-                  <Icon className="w-4 h-4" />
-                  Módulo {module.badgeLabel}
+                <div
+                  className={`relative ${isReversed ? "lg:order-2 lg:pl-6" : "lg:pr-6"}`}
+                >
+                  <span
+                    aria-hidden
+                    className="gsap-fade-up pointer-events-none absolute -left-2 -top-16 select-none text-[8rem] font-black leading-none text-black/[0.04] dark:text-white/[0.05] lg:text-[10rem]"
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+
+                  <div className="relative space-y-6">
+                    <div className="gsap-fade-up inline-flex items-center gap-2 rounded-full border border-black/15 bg-black/[0.02] px-3.5 py-1.5 text-sm font-medium text-black dark:border-white/15 dark:bg-white/[0.04] dark:text-white">
+                      <Icon className="h-4 w-4" />
+                      Módulo {module.badgeLabel}
+                    </div>
+
+                    <h3 className="gsap-fade-up text-3xl font-bold leading-tight text-black dark:text-white md:text-4xl">
+                      {module.title}
+                    </h3>
+
+                    <p className="gsap-fade-up text-lg leading-relaxed text-black/65 dark:text-white/70">
+                      {module.description}
+                    </p>
+
+                    <ul className="gsap-fade-up space-y-3.5 pt-1">
+                      {module.bullets.map((bullet) => (
+                        <li
+                          key={bullet}
+                          className="flex items-start gap-3 text-black/80 dark:text-white/80"
+                        >
+                          <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border border-black/15 bg-black/[0.03] dark:border-white/15 dark:bg-white/[0.06]">
+                            <Check className="h-3 w-3 text-black dark:text-white" />
+                          </span>
+                          {bullet}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
 
-                <h3 className="text-3xl md:text-5xl font-bold leading-tight text-black dark:text-white gsap-fade-up">
-                  {module.title}
-                </h3>
-
-                <p className="text-black/65 dark:text-white/70 text-lg leading-relaxed gsap-fade-up">
-                  {module.description}
-                </p>
-
-                <ul className="space-y-3 pt-2 gsap-fade-up">
-                  {module.bullets.map((bullet) => (
-                    <li
-                      key={bullet}
-                      className="flex items-center gap-3 text-black/80 dark:text-white/80"
-                    >
-                      <CheckCircle2 className="w-5 h-5 text-black dark:text-white" />
-                      {bullet}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div
-                className={`w-full lg:w-1/2 relative flex items-center ${
-                  isReversed ? "gsap-media-left" : "gsap-media-right"
-                }`}
-              >
-                <div className="absolute -inset-10 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.07)_0,transparent_65%)] dark:bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08)_0,transparent_65%)] z-0" />
-                <div className="relative rounded-2xl border border-black/15 dark:border-white/15 overflow-hidden bg-white dark:bg-neutral-900 z-10 shadow-[0_20px_50px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                  <Image
-                    src={module.imageSrc}
-                    alt={module.imageAlt}
-                    width={1920}
-                    height={944}
-                    className="w-full h-auto object-contain object-top transition-transform duration-700 hover:scale-[1.01]"
-                  />
+                <div className={`gsap-fade-up ${isReversed ? "lg:order-1" : ""}`}>
+                  <DeviceFrame src={module.imageSrc} alt={module.imageAlt} />
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </section>
   );
