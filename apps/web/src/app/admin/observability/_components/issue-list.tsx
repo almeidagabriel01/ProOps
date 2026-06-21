@@ -31,7 +31,7 @@ export function IssueList({
   const reduced = usePrefersReducedMotion();
   return (
     <GlassCard className="p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3">
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/50 dark:text-white/50">
           Issues ({issues.length})
         </h2>

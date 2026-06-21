@@ -58,6 +58,34 @@ const SOURCE_OPTIONS = [
   { value: "functions", label: "Backend" },
 ];
 
+function LabeledSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-black/40 dark:text-white/40">
+        {label}
+      </span>
+      <Select
+        inputSize="sm"
+        disableSort
+        value={value}
+        options={options}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full"
+      />
+    </label>
+  );
+}
+
 export function FilterBar({ filters, errorTypes, onChange }: FilterBarProps) {
   const set = (patch: Partial<IssueFilters>) => onChange({ ...filters, ...patch });
   const active = countActive(filters);
@@ -68,73 +96,64 @@ export function FilterBar({ filters, errorTypes, onChange }: FilterBarProps) {
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-black/10 bg-white/60 p-3 dark:border-white/10 dark:bg-white/[0.03]">
-      <Input
-        value={filters.q}
-        onChange={(e) => set({ q: e.target.value })}
-        placeholder="Buscar por mensagem ou rota…"
-        className="h-9 w-full sm:w-64"
-      />
+    <div className="space-y-3 rounded-xl border border-black/10 bg-white/60 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          value={filters.q}
+          onChange={(e) => set({ q: e.target.value })}
+          placeholder="Buscar por mensagem ou rota…"
+          className="h-9 flex-1"
+        />
+        {active > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 shrink-0 self-start sm:self-auto"
+            onClick={() => onChange({ ...DEFAULT_ISSUE_FILTERS })}
+          >
+            Limpar filtros ({active})
+          </Button>
+        )}
+      </div>
 
-      <Select
-        inputSize="sm"
-        disableSort
-        value={filters.range}
-        options={RANGE_OPTIONS}
-        onChange={(e) => set({ range: e.target.value as IssueFilters["range"] })}
-        className="w-32"
-      />
-
-      <Select
-        inputSize="sm"
-        disableSort
-        value={filters.sort}
-        options={SORT_OPTIONS}
-        onChange={(e) => set({ sort: e.target.value as IssueFilters["sort"] })}
-        className="w-40"
-      />
-
-      <Select
-        inputSize="sm"
-        disableSort
-        value={filters.status}
-        options={STATUS_OPTIONS}
-        onChange={(e) => set({ status: e.target.value as IssueFilters["status"] })}
-        className="w-36"
-      />
-
-      <Select
-        inputSize="sm"
-        disableSort
-        value={filters.severity}
-        options={SEVERITY_OPTIONS}
-        onChange={(e) => set({ severity: e.target.value as IssueFilters["severity"] })}
-        className="w-36"
-      />
-
-      <Select
-        inputSize="sm"
-        disableSort
-        value={filters.source}
-        options={SOURCE_OPTIONS}
-        onChange={(e) => set({ source: e.target.value as IssueFilters["source"] })}
-        className="w-32"
-      />
-
-      <Select
-        inputSize="sm"
-        disableSort
-        value={filters.errorType}
-        options={errorTypeOptions}
-        onChange={(e) => set({ errorType: e.target.value })}
-        className="w-40"
-      />
-
-      {active > 0 && (
-        <Button variant="ghost" size="sm" className="h-9" onClick={() => onChange({ ...DEFAULT_ISSUE_FILTERS })}>
-          Limpar ({active})
-        </Button>
-      )}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <LabeledSelect
+          label="Período"
+          value={filters.range}
+          options={RANGE_OPTIONS}
+          onChange={(v) => set({ range: v as IssueFilters["range"] })}
+        />
+        <LabeledSelect
+          label="Ordenar"
+          value={filters.sort}
+          options={SORT_OPTIONS}
+          onChange={(v) => set({ sort: v as IssueFilters["sort"] })}
+        />
+        <LabeledSelect
+          label="Status"
+          value={filters.status}
+          options={STATUS_OPTIONS}
+          onChange={(v) => set({ status: v as IssueFilters["status"] })}
+        />
+        <LabeledSelect
+          label="Severidade"
+          value={filters.severity}
+          options={SEVERITY_OPTIONS}
+          onChange={(v) => set({ severity: v as IssueFilters["severity"] })}
+        />
+        <LabeledSelect
+          label="Origem"
+          value={filters.source}
+          options={SOURCE_OPTIONS}
+          onChange={(v) => set({ source: v as IssueFilters["source"] })}
+        />
+        <LabeledSelect
+          label="Tipo"
+          value={filters.errorType}
+          options={errorTypeOptions}
+          onChange={(v) => set({ errorType: v })}
+        />
+      </div>
     </div>
   );
 }
