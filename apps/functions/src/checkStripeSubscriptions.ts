@@ -116,6 +116,7 @@ export const checkStripeSubscriptions = onSchedule(
         logger.info(`Notified ${superAdminsSnap.size} superadmins.`);
       } catch (error) {
         logger.error("Error notifying superadmins:", { error });
+        void captureError(error, { source: "functions", route: "cron/checkStripeSubscriptions", handled: true });
       }
     } catch (error) {
       logger.error("checkStripeSubscriptions failed", { error });
