@@ -50,26 +50,17 @@ function getHostFromRequest(req: NextRequest): string {
     .toLowerCase();
 }
 
-export function resolveFunctionsApiUpstream(req: NextRequest): UpstreamTarget {
-  const host = getHostFromRequest(req);
+export function resolveUpstreamForHost(host: string | null): UpstreamTarget {
   const isLocalHost = host === "localhost" || host === "127.0.0.1";
-
   if (isLocalHost) {
-    return {
-      baseUrl: getValidatedOverride(process.env.FUNCTIONS_LOCAL_API_URL, LOCAL_UPSTREAM),
-      target: "local",
-    };
+    return { baseUrl: getValidatedOverride(process.env.FUNCTIONS_LOCAL_API_URL, LOCAL_UPSTREAM), target: "local" };
   }
-
-  if (PRODUCTION_HOSTS.has(host)) {
-    return {
-      baseUrl: getValidatedOverride(process.env.FUNCTIONS_PROD_API_URL, PROD_UPSTREAM),
-      target: "prod",
-    };
+  if (host && PRODUCTION_HOSTS.has(host)) {
+    return { baseUrl: getValidatedOverride(process.env.FUNCTIONS_PROD_API_URL, PROD_UPSTREAM), target: "prod" };
   }
+  return { baseUrl: getValidatedOverride(process.env.FUNCTIONS_DEV_API_URL, DEV_UPSTREAM), target: "dev" };
+}
 
-  return {
-    baseUrl: getValidatedOverride(process.env.FUNCTIONS_DEV_API_URL, DEV_UPSTREAM),
-    target: "dev",
-  };
+export function resolveFunctionsApiUpstream(req: NextRequest): UpstreamTarget {
+  return resolveUpstreamForHost(getHostFromRequest(req));
 }

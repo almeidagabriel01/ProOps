@@ -1,6 +1,7 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
+import { captureError } from "./lib/observability/error-logger";
 
 export const checkManualSubscriptions = onSchedule(
   {
@@ -79,6 +80,7 @@ export const checkManualSubscriptions = onSchedule(
       }
     } catch (error) {
       console.error("Error checking manual subscriptions:", error);
+      void captureError(error, { source: "functions", route: "cron/checkManualSubscriptions", handled: false });
     }
   }
 );

@@ -2,6 +2,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import { getStripe } from "./stripe/stripeConfig"; // Assumes we can use the shared stripe instance
 import { db } from "./init";
+import { captureError } from "./lib/observability/error-logger";
 
 const WHATSAPP_OVERAGE_EVENT_NAME = "whatsapp_messages";
 
@@ -133,6 +134,7 @@ export const reportWhatsappOverage = onSchedule(
         "[Cron] whatsapp overage report failed to run globally",
         error,
       );
+      void captureError(error, { source: "functions", route: "cron/reportWhatsappOverage", handled: false });
     }
   },
 );

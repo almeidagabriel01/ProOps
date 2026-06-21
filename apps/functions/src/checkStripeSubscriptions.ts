@@ -5,6 +5,7 @@ import { NotificationService } from "./api/services/notification.service";
 import { enqueueTenantSync } from "./billing";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "./lib/logger";
+import { captureError } from "./lib/observability/error-logger";
 
 /**
  * Cloud Function agendada diariamente para verificar o status das assinaturas
@@ -21,99 +22,105 @@ export const checkStripeSubscriptions = onSchedule(
   async () => {
     logger.info("Starting daily Stripe subscription check...");
 
-    let totalSynced = 0;
-    let totalFailed = 0;
-
-    const tenantsSnap = await db
-      .collection("tenants")
-      .where("subscriptionStatus", "!=", "free")
-      .get();
-
-    logger.info(`[checkStripeSubscriptions] Found ${tenantsSnap.docs.length} tenants to sync`);
-
-    await Promise.allSettled(
-      tenantsSnap.docs.map(async (doc) => {
-        try {
-          await enqueueTenantSync(doc.id, "cron");
-          totalSynced++;
-        } catch (err) {
-          logger.error(`[checkStripeSubscriptions] Failed to sync tenant ${doc.id}`, {
-            tenantId: doc.id,
-            error: err instanceof Error ? err.message : String(err),
-          });
-          totalFailed++;
-        }
-      })
-    );
-
-    logger.info(`Sync complete. Synced: ${totalSynced}, Failed: ${totalFailed}`);
-
-    // Notify superadmins with summary
     try {
-      const superAdminsSnap = await db
-        .collection("users")
-        .where("role", "in", ["superadmin", "SUPERADMIN"])
+      let totalSynced = 0;
+      let totalFailed = 0;
+
+      const tenantsSnap = await db
+        .collection("tenants")
+        .where("subscriptionStatus", "!=", "free")
         .get();
 
-      if (superAdminsSnap.empty) {
-        logger.info("No superadmins found to notify.");
-        return;
-      }
+      logger.info(`[checkStripeSubscriptions] Found ${tenantsSnap.docs.length} tenants to sync`);
 
-      const title = "Sincronização de Assinaturas";
-      const message = `Sincronização diária concluída. Sincronizados: ${totalSynced}${totalFailed > 0 ? `, falhas: ${totalFailed}` : ""}.`;
+      await Promise.allSettled(
+        tenantsSnap.docs.map(async (doc) => {
+          try {
+            await enqueueTenantSync(doc.id, "cron");
+            totalSynced++;
+          } catch (err) {
+            logger.error(`[checkStripeSubscriptions] Failed to sync tenant ${doc.id}`, {
+              tenantId: doc.id,
+              error: err instanceof Error ? err.message : String(err),
+            });
+            totalFailed++;
+          }
+        })
+      );
 
-      const notificationPromises = superAdminsSnap.docs.map(async (adminDoc) => {
-        const tenantId = "system";
+      logger.info(`Sync complete. Synced: ${totalSynced}, Failed: ${totalFailed}`);
 
-        const existingSnap = await db
-          .collection("notifications")
-          .where("tenantId", "==", tenantId)
-          .where("userId", "==", adminDoc.id)
-          .where("type", "==", "system")
+      // Notify superadmins with summary
+      try {
+        const superAdminsSnap = await db
+          .collection("users")
+          .where("role", "in", ["superadmin", "SUPERADMIN"])
           .get();
 
-        const stripeSyncDocs = existingSnap.docs.filter((doc) => {
-          const data = doc.data() as { title?: string };
-          return data.title === title;
-        });
+        if (superAdminsSnap.empty) {
+          logger.info("No superadmins found to notify.");
+          return;
+        }
 
-        if (stripeSyncDocs.length === 0) {
-          return NotificationService.createNotification({
-            tenantId,
-            userId: adminDoc.id,
-            type: "system",
-            title,
-            message,
+        const title = "Sincronização de Assinaturas";
+        const message = `Sincronização diária concluída. Sincronizados: ${totalSynced}${totalFailed > 0 ? `, falhas: ${totalFailed}` : ""}.`;
+
+        const notificationPromises = superAdminsSnap.docs.map(async (adminDoc) => {
+          const tenantId = "system";
+
+          const existingSnap = await db
+            .collection("notifications")
+            .where("tenantId", "==", tenantId)
+            .where("userId", "==", adminDoc.id)
+            .where("type", "==", "system")
+            .get();
+
+          const stripeSyncDocs = existingSnap.docs.filter((doc) => {
+            const data = doc.data() as { title?: string };
+            return data.title === title;
           });
-        }
 
-        stripeSyncDocs.sort((a, b) => {
-          const aTs = new Date(String((a.data() as { createdAt?: string }).createdAt || 0)).getTime();
-          const bTs = new Date(String((b.data() as { createdAt?: string }).createdAt || 0)).getTime();
-          return bTs - aTs;
+          if (stripeSyncDocs.length === 0) {
+            return NotificationService.createNotification({
+              tenantId,
+              userId: adminDoc.id,
+              type: "system",
+              title,
+              message,
+            });
+          }
+
+          stripeSyncDocs.sort((a, b) => {
+            const aTs = new Date(String((a.data() as { createdAt?: string }).createdAt || 0)).getTime();
+            const bTs = new Date(String((b.data() as { createdAt?: string }).createdAt || 0)).getTime();
+            return bTs - aTs;
+          });
+
+          const [latestDoc, ...oldDocs] = stripeSyncDocs;
+
+          await latestDoc.ref.update({
+            message,
+            createdAt: new Date().toISOString(),
+            isRead: false,
+            readAt: FieldValue.delete(),
+          });
+
+          if (oldDocs.length > 0) {
+            await Promise.all(oldDocs.map((doc) => doc.ref.delete()));
+          }
+
+          return null;
         });
 
-        const [latestDoc, ...oldDocs] = stripeSyncDocs;
-
-        await latestDoc.ref.update({
-          message,
-          createdAt: new Date().toISOString(),
-          isRead: false,
-          readAt: FieldValue.delete(),
-        });
-
-        if (oldDocs.length > 0) {
-          await Promise.all(oldDocs.map((doc) => doc.ref.delete()));
-        }
-
-        return null;
-      });
-
-      await Promise.all(notificationPromises);
-      logger.info(`Notified ${superAdminsSnap.size} superadmins.`);
+        await Promise.all(notificationPromises);
+        logger.info(`Notified ${superAdminsSnap.size} superadmins.`);
+      } catch (error) {
+        logger.error("Error notifying superadmins:", { error });
+        void captureError(error, { source: "functions", route: "cron/checkStripeSubscriptions", handled: true });
+      }
     } catch (error) {
-      logger.error("Error notifying superadmins:", { error });
+      logger.error("checkStripeSubscriptions failed", { error });
+      void captureError(error, { source: "functions", route: "cron/checkStripeSubscriptions", handled: false });
     }
   }
 );

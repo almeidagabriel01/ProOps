@@ -99,14 +99,17 @@ const PLAN_COLORS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   active: "#10b981",
   trialing: "#06b6d4",
+  canceling: "#f59e0b",
   past_due: "#ef4444",
   canceled: "#6b7280",
+  inactive: "#94a3b8",
   free: "#8b5cf6",
 };
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Ativo",
   trialing: "Trial",
+  canceling: "Encerrando",
   past_due: "Atrasado",
   canceled: "Cancelado",
   free: "Gratuito",
@@ -174,7 +177,7 @@ function avg(nums: number[]): number {
 
 function computeHealthScore(t: TenantBillingInfo): number {
   const billingScore: Record<string, number> = {
-    active: 40, trialing: 30, free: 15, past_due: 8, canceled: 0, inactive: 0,
+    active: 40, trialing: 30, canceling: 35, free: 15, past_due: 8, canceled: 0, inactive: 0,
   };
   const billing = billingScore[t.subscriptionStatus ?? ""] ?? 10;
 
@@ -350,7 +353,8 @@ function scoreChurnRisk(
   const reasons: string[] = [];
 
   const totalUsage = t.usage.proposals + t.usage.clients + t.usage.products;
-  const isPaidPlan = ["active", "trialing", "past_due"].includes(
+  // "canceling" = still paying through the period end, so it is a paid plan.
+  const isPaidPlan = ["active", "trialing", "past_due", "canceling"].includes(
     t.subscriptionStatus ?? "",
   );
   const accountAgeDays = t.tenant.createdAt
@@ -517,8 +521,12 @@ export function useAnalyticsData(): UseAnalyticsDataReturn {
     const total = tenants.length;
     if (total === 0) return EMPTY_KPIS;
 
-    const paidStatuses = new Set(["active", "trialing", "past_due"]);
-    const activeTenants = tenants.filter((t) => t.subscriptionStatus === "active").length;
+    // "canceling" subscriptions are still paying through period end, so they
+    // count as paid revenue and toward the active headline (matches useTenantsData).
+    const paidStatuses = new Set(["active", "trialing", "past_due", "canceling"]);
+    const activeTenants = tenants.filter(
+      (t) => t.subscriptionStatus === "active" || t.subscriptionStatus === "canceling",
+    ).length;
     const paidTenants = tenants.filter((t) => paidStatuses.has(t.subscriptionStatus ?? "")).length;
 
     const now = new Date();

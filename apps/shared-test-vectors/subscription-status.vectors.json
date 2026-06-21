@@ -1,6 +1,6 @@
 {
-  "_comment": "Canonical test vectors for deriveSubscriptionDisplayStatus. Consumed by BOTH apps/web (Vitest) and apps/functions (Jest) to keep the two mirrored implementations from drifting. Keep in sync with both modules. now is fixed at 2026-06-21T00:00:00.000Z for deterministic lapse checks.",
-  "nowMs": 1781308800000,
+  "_comment": "Canonical test vectors for deriveSubscriptionDisplayStatus. Consumed by BOTH apps/web (Vitest) and apps/functions (Jest) to keep the two mirrored implementations from drifting. Keep in sync with both modules. nowMs (1782000000000) is fixed at 2026-06-21T00:00:00.000Z; lapsed cases use 2026-06-11 / 2026-06-19, non-lapsed use 2026-07-09 / 2026-12-01.",
+  "nowMs": 1782000000000,
   "cases": [
     { "name": "free plan wins regardless of status", "input": { "planId": "free", "storedStatus": "active" }, "expected": "free" },
     { "name": "active no flags", "input": { "planId": "pro", "storedStatus": "active", "currentPeriodEnd": "2026-07-09T00:00:00.000Z" }, "expected": "active" },

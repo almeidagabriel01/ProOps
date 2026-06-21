@@ -9,7 +9,7 @@ function truncate(value: string, max: number): string {
 
 export function buildClientErrorPayload(
   err: unknown,
-  ctx?: { route?: string },
+  ctx?: { route?: string; status?: number },
 ): { errorType: string; message: string; stack: string | null; route: string | null; status: number | null } {
   const isError = err instanceof Error;
   return {
@@ -17,10 +17,15 @@ export function buildClientErrorPayload(
     message: truncate(isError ? err.message : String(err), MESSAGE_MAX),
     stack: isError && err.stack ? truncate(err.stack, STACK_MAX) : null,
     route: ctx?.route ?? null,
-    status: null,
+    status: ctx?.status ?? null,
   };
 }
 
-export function dedupeKey(payload: { errorType: string; message: string; route: string | null }): string {
-  return `${payload.errorType}|${payload.message}|${payload.route ?? ""}`;
+export function dedupeKey(payload: {
+  errorType: string;
+  message: string;
+  route: string | null;
+  status: number | null;
+}): string {
+  return `${payload.errorType}|${payload.message}|${payload.route ?? ""}|${payload.status ?? ""}`;
 }

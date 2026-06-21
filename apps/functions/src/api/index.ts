@@ -58,6 +58,7 @@ import {
 } from "../lib/security-observability";
 import { runSecretRotationGuard } from "../lib/secret-rotation-guard";
 import { captureError } from "../lib/observability/error-logger";
+import { captureResponseErrors } from "./middleware/error-response-capture";
 
 const app = express();
 
@@ -361,6 +362,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Capture every >=400 response that did NOT throw (non-throw error responses).
+// Registered immediately after requestId so it covers public AND protected routes.
+// req.user is read lazily inside the finish handler — safe to register before auth.
+app.use(captureResponseErrors);
+
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -572,6 +578,9 @@ app.use(
       tenantId: String((req.user as { tenantId?: string })?.tenantId || ""),
       uid: String((req.user as { uid?: string })?.uid || ""),
     });
+
+    // Mark as captured so the finish-middleware does not double-capture this error.
+    res.locals.__obsCaptured = true;
 
     // Feed the error observability pipeline (best-effort, never blocks response).
     void captureError(err, {
