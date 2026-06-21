@@ -14,6 +14,9 @@ export default defineConfig({
     maxWorkers: process.env.CI ? "50%" : 2,
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "server-only": path.resolve(__dirname, "./src/__mocks__/server-only.ts"),
+    },
   },
 });

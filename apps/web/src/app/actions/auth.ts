@@ -2,6 +2,7 @@
 
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { shouldAcceptLegacyAuthCookie } from "@/lib/legacy-auth-cookie";
+import { reportServerError } from "@/lib/observability/report-server-error";
 import { cookies, headers } from "next/headers";
 
 type ActionResult =
@@ -61,6 +62,7 @@ export async function deleteAuthUser(uid: string): Promise<ActionResult> {
     console.log(`Successfully deleted auth user: ${normalizedUid}`);
     return { success: true };
   } catch (error: unknown) {
+    void reportServerError(error, { route: "action/deleteAuthUser" });
     console.error(`Error deleting auth user ${uid}:`, error);
     const err = error as { message?: string; code?: string };
     return {
@@ -72,20 +74,25 @@ export async function deleteAuthUser(uid: string): Promise<ActionResult> {
 }
 
 export async function checkAdminConfig() {
-  await requireSuperAdminSession();
+  try {
+    await requireSuperAdminSession();
 
-  const { projectId, clientEmail, privateKey } = {
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY,
-  };
+    const { projectId, clientEmail, privateKey } = {
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY,
+    };
 
-  const status = {
-    hasProjectId: !!projectId,
-    hasClientEmail: !!clientEmail,
-    hasPrivateKey: !!privateKey,
-    privateKeyLength: privateKey?.length || 0,
-  };
-  console.log("Firebase Admin Config Status:", status);
-  return status;
+    const status = {
+      hasProjectId: !!projectId,
+      hasClientEmail: !!clientEmail,
+      hasPrivateKey: !!privateKey,
+      privateKeyLength: privateKey?.length || 0,
+    };
+    console.log("Firebase Admin Config Status:", status);
+    return status;
+  } catch (error: unknown) {
+    void reportServerError(error, { route: "action/checkAdminConfig" });
+    throw error;
+  }
 }
