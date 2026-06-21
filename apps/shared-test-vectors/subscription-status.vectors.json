@@ -1,0 +1,26 @@
+{
+  "_comment": "Canonical test vectors for deriveSubscriptionDisplayStatus. Consumed by BOTH apps/web (Vitest) and apps/functions (Jest) to keep the two mirrored implementations from drifting. Keep in sync with both modules. now is fixed at 2026-06-21T00:00:00.000Z for deterministic lapse checks.",
+  "nowMs": 1781308800000,
+  "cases": [
+    { "name": "free plan wins regardless of status", "input": { "planId": "free", "storedStatus": "active" }, "expected": "free" },
+    { "name": "active no flags", "input": { "planId": "pro", "storedStatus": "active", "currentPeriodEnd": "2026-07-09T00:00:00.000Z" }, "expected": "active" },
+    { "name": "trialing maps to active", "input": { "planId": "pro", "storedStatus": "trialing", "currentPeriodEnd": "2026-07-09T00:00:00.000Z" }, "expected": "active" },
+    { "name": "past_due", "input": { "planId": "pro", "storedStatus": "past_due" }, "expected": "past_due" },
+    { "name": "unpaid -> inactive", "input": { "planId": "pro", "storedStatus": "unpaid" }, "expected": "inactive" },
+    { "name": "inactive stays inactive", "input": { "planId": "pro", "storedStatus": "inactive" }, "expected": "inactive" },
+    { "name": "payment_failed -> inactive", "input": { "planId": "pro", "storedStatus": "payment_failed" }, "expected": "inactive" },
+    { "name": "canceled status", "input": { "planId": "pro", "storedStatus": "canceled" }, "expected": "canceled" },
+    { "name": "cancelled (british) normalizes to canceled", "input": { "planId": "pro", "storedStatus": "cancelled" }, "expected": "canceled" },
+    { "name": "canceled wins over cancelAtPeriodEnd", "input": { "planId": "pro", "storedStatus": "canceled", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "canceled" },
+    { "name": "active + cancelAtPeriodEnd + future period = canceling", "input": { "planId": "pro", "storedStatus": "active", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "canceling" },
+    { "name": "active + cancelAtPeriodEnd + lapsed period = canceled", "input": { "planId": "pro", "storedStatus": "active", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-06-11T00:00:00.000Z" }, "expected": "canceled" },
+    { "name": "trialing + cancelAtPeriodEnd + future = canceling", "input": { "planId": "pro", "storedStatus": "trialing", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "canceling" },
+    { "name": "empty status + lapsed period = inactive", "input": { "planId": "pro", "storedStatus": "", "currentPeriodEnd": "2026-06-11T00:00:00.000Z" }, "expected": "inactive" },
+    { "name": "empty status + future period = active", "input": { "planId": "pro", "storedStatus": "", "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "active" },
+    { "name": "active + lapsed period + NOT canceling stays active (avoid flagging healthy renewals)", "input": { "planId": "pro", "storedStatus": "active", "cancelAtPeriodEnd": false, "currentPeriodEnd": "2026-06-19T00:00:00.000Z" }, "expected": "active" },
+    { "name": "empty status + no period = active", "input": { "planId": "pro", "storedStatus": "" }, "expected": "active" },
+    { "name": "free planId uppercase normalizes", "input": { "planId": "FREE", "storedStatus": "canceled" }, "expected": "free" },
+    { "name": "status uppercase + whitespace normalizes", "input": { "planId": "pro", "storedStatus": "  CANCELED  " }, "expected": "canceled" },
+    { "name": "invalid currentPeriodEnd ignored, active", "input": { "planId": "pro", "storedStatus": "active", "currentPeriodEnd": "not-a-date" }, "expected": "active" }
+  ]
+}

@@ -44,7 +44,6 @@ export function TenantCard({
   const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
   const currentPeriodEnd = admin.currentPeriodEnd;
-  const cancelAtPeriodEnd = admin.subscription?.cancelAtPeriodEnd ?? false;
   const isStaleWithNoDate = isBillingStale && !currentPeriodEnd;
 
   let formattedBillingDate: string;
@@ -57,11 +56,18 @@ export function TenantCard({
     formattedBillingDate = "Não disponível";
   }
 
-  const isPastDue = subscriptionStatus === "past_due";
-  const isCanceled = subscriptionStatus === "canceled";
-  const isInactive = subscriptionStatus === "inactive" || subscriptionStatus === "unpaid";
+  // `subscriptionStatus` here is the already-derived display status enum
+  // (SubscriptionDisplayStatus), computed once by the backend on load and by the
+  // onSnapshot listener on refresh via the shared deriveSubscriptionDisplayStatus.
+  // Consumers must NOT re-derive it (re-deriving "canceling" would fall back to
+  // "active"). The card just maps the enum to UI.
+  const displayStatus = subscriptionStatus;
+  const isActive = displayStatus === "active";
+  const isPastDue = displayStatus === "past_due";
+  const isCanceled = displayStatus === "canceled";
+  const isInactive = displayStatus === "inactive";
   // Ativo mas com cancelamento agendado para o fim do período
-  const isCancelingAtPeriodEnd = subscriptionStatus === "active" && cancelAtPeriodEnd;
+  const isCancelingAtPeriodEnd = displayStatus === "canceling";
 
   function cardBorderClass() {
     if (isPastDue) return "border-red-500 ring-1 ring-red-500/20";
@@ -233,9 +239,7 @@ export function TenantCard({
           </h3>
           <div className="flex items-center gap-2 mt-2">
             <Badge
-              variant={
-                subscriptionStatus === "active" ? "default" : "secondary"
-              }
+              variant={isActive ? "default" : "secondary"}
               className="text-[10px] h-5 px-1.5 capitalize"
             >
               {planName}
@@ -271,7 +275,7 @@ export function TenantCard({
                     ? "text-amber-600 dark:text-amber-400"
                     : isPastDue
                       ? "text-red-600"
-                      : subscriptionStatus === "active"
+                      : isActive
                         ? "text-emerald-600"
                         : "text-muted-foreground"
             }`}
@@ -284,11 +288,11 @@ export function TenantCard({
                   ? "Encerrando"
                   : isPastDue
                     ? "Atrasado"
-                    : subscriptionStatus === "active"
+                    : isActive
                       ? "Ativo"
-                      : subscriptionStatus === "free"
+                      : displayStatus === "free"
                         ? "Gratuito"
-                        : subscriptionStatus ?? "—"}
+                        : "—"}
           </span>
         </div>
 

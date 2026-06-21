@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { toast } from '@/lib/toast';
 import { TenantService } from "@/services/tenant-service";
 import { AdminService, TenantBillingInfo } from "@/services/admin-service";
+import { deriveSubscriptionDisplayStatus } from "@/lib/subscription-status";
 import { Tenant } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { TenantFormData } from "@/components/admin/tenant-dialog";
@@ -88,57 +89,120 @@ export function useTenantManagement(): UseTenantManagementReturn {
     loadTenants(currentCursor);
   }, [loadTenants, currentCursor]);
 
-  // Firestore onSnapshot listeners for tenants with stale billing data
+  // Firestore onSnapshot listeners for tenants with stale billing data.
+  //
+  // When the list endpoint flags a tenant as billing-stale it also enqueues a
+  // background Stripe sync. We listen on the tenant doc and apply the fresh
+  // billing ONLY once that sync has actually landed (its `billingSyncedAt`
+  // advanced past the value we had on attach). This prevents the historical bug
+  // where the FIRST snapshot — firing with the still-stale doc — overwrote the
+  // correct initial status with a raw, un-normalized value (e.g. a lapsed
+  // cancel-at-period-end leaking as "active"). The display status is always run
+  // through the shared deriveSubscriptionDisplayStatus, never taken raw.
   React.useEffect(() => {
     const stale = tenantsData.filter((t) => t.isBillingStale);
     if (stale.length === 0) return;
 
-    const unsubs: (() => void)[] = [];
+    const unsubs: Array<() => void> = [];
+    const timeouts: Array<ReturnType<typeof setTimeout>> = [];
+    // Safety net: if no advancing snapshot arrives (sync no-op/failure, or a
+    // non-MFA superadmin hitting permission-denied on the listener), stop
+    // showing the stale skeleton after a bounded wait and keep the last value.
+    const SYNC_WAIT_MS = 15000;
+
+    const clearStaleFlag = (tenantId: string) => {
+      setTenantsData((prev) =>
+        prev.map((t) =>
+          t.tenant.id === tenantId && t.isBillingStale
+            ? { ...t, isBillingStale: false }
+            : t,
+        ),
+      );
+    };
 
     for (const tenant of stale) {
       const tenantId = tenant.tenant.id;
       if (!tenantId) continue;
+
+      // Baseline: the sync timestamp we already have. A later snapshot whose
+      // billingSyncedAt is strictly greater means the triggering sync completed.
+      // ISO strings from new Date().toISOString() are lexicographically ordered.
+      const baselineSyncedAt = tenant.billingSyncedAt ?? "";
+
+      const timer = setTimeout(() => clearStaleFlag(tenantId), SYNC_WAIT_MS);
+      timeouts.push(timer);
 
       const unsub = onSnapshot(
         doc(db, "tenants", tenantId),
         (snap) => {
           if (!snap.exists()) return;
           const data = snap.data();
+
+          const syncedAt =
+            typeof data["billingSyncedAt"] === "string"
+              ? (data["billingSyncedAt"] as string)
+              : undefined;
+          const plan =
+            typeof data["plan"] === "string" ? (data["plan"] as string) : undefined;
+
+          // Gate: only apply once the sync that we are waiting for has landed.
+          // `free` resolves immediately (no Stripe round-trip needed).
+          const synced = Boolean(syncedAt && syncedAt > baselineSyncedAt);
+          if (!synced && plan !== "free") return;
+
+          const rawStatus =
+            typeof data["subscriptionStatus"] === "string"
+              ? (data["subscriptionStatus"] as string)
+              : undefined;
+          const currentPeriodEnd =
+            typeof data["currentPeriodEnd"] === "string"
+              ? (data["currentPeriodEnd"] as string)
+              : undefined;
+          const cancelAtPeriodEnd = Boolean(data["cancelAtPeriodEnd"]);
+
+          const displayStatus = deriveSubscriptionDisplayStatus({
+            planId: plan,
+            storedStatus: rawStatus,
+            cancelAtPeriodEnd,
+            currentPeriodEnd: currentPeriodEnd ?? null,
+          });
+
           setTenantsData((prev) =>
             prev.map((t) => {
               if (t.tenant.id !== tenantId) return t;
               return {
                 ...t,
                 isBillingStale: false,
-                billingSyncedAt: typeof data["billingSyncedAt"] === "string"
-                  ? data["billingSyncedAt"]
-                  : t.billingSyncedAt,
-                subscriptionStatus: typeof data["subscriptionStatus"] === "string"
-                  ? data["subscriptionStatus"]
-                  : t.subscriptionStatus,
+                billingSyncedAt: syncedAt ?? t.billingSyncedAt,
+                subscriptionStatus: displayStatus,
                 admin: {
                   ...t.admin,
-                  currentPeriodEnd: typeof data["currentPeriodEnd"] === "string"
-                    ? data["currentPeriodEnd"]
-                    : t.admin.currentPeriodEnd,
-                  subscription: typeof data["subscriptionStatus"] === "string"
-                    ? {
-                        status: data["subscriptionStatus"] as string,
-                        currentPeriodEnd: (data["currentPeriodEnd"] as string) ?? t.admin.subscription?.currentPeriodEnd ?? "",
-                        cancelAtPeriodEnd: Boolean(data["cancelAtPeriodEnd"]),
-                      }
-                    : t.admin.subscription,
+                  currentPeriodEnd: currentPeriodEnd ?? t.admin.currentPeriodEnd,
+                  subscription: {
+                    status: rawStatus ?? t.admin.subscription?.status ?? "",
+                    currentPeriodEnd:
+                      currentPeriodEnd ?? t.admin.subscription?.currentPeriodEnd ?? "",
+                    cancelAtPeriodEnd,
+                  },
                 },
               };
             }),
           );
+        },
+        () => {
+          // Listener error (e.g. permission-denied for a non-MFA superadmin):
+          // drop the skeleton and keep the initial server-derived value.
+          clearStaleFlag(tenantId);
         },
       );
 
       unsubs.push(unsub);
     }
 
-    return () => unsubs.forEach((u) => u());
+    return () => {
+      unsubs.forEach((u) => u());
+      timeouts.forEach((t) => clearTimeout(t));
+    };
     // Recompute only when the set of tenant IDs with stale billing changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantsData.filter((t) => t.isBillingStale).map((t) => t.tenant.id).join(",")]);

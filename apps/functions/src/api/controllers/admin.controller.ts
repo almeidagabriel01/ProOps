@@ -22,6 +22,7 @@ import {
 } from "../../lib/security-observability";
 import { assertTenantExists } from "../../lib/tenant-resolution";
 import { enqueueTenantSync, isStale } from "../../billing";
+import { deriveSubscriptionDisplayStatus } from "../../shared/subscription-status";
 import {
   clearTenantPlanCache,
   enforceTenantPlanLimit,
@@ -808,6 +809,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       whatsappEnabled?: boolean;
       subscriptionStatus?: string;
       currentPeriodEnd?: string;
+      cancelAtPeriodEnd?: boolean;
       billingSyncedAt?: string;
       unitAmount?: number | null;
       currency?: string | null;
@@ -976,49 +978,25 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       return null;
     };
 
-    const deriveTenantStatus = (userData: BillingUserData): string => {
-      const normalizedPlanId = String(userData.planId || "free").toLowerCase();
-      if (normalizedPlanId === "free") return "free";
-
-      const rawStatus =
-        normalizeStatus(userData.subscriptionStatus) ||
-        normalizeStatus(userData.subscription?.status);
-
-      if (rawStatus === "past_due") {
-        return "past_due";
-      }
-
-      const blockedStatuses = new Set([
-        "inactive",
-        "canceled",
-        "cancelled",
-        "unpaid",
-        "payment_failed",
-      ]);
-
-      if (blockedStatuses.has(rawStatus)) {
-        return "inactive";
-      }
-
+    // Display status derived from the USER doc, used only as a fallback when the
+    // tenant doc carries no billing fields (legacy tenants). Delegates to the
+    // single shared deriveSubscriptionDisplayStatus so every read path agrees.
+    const deriveUserDocStatus = (userData: BillingUserData): string => {
       const periodEnd =
         parsePeriodEnd(userData.currentPeriodEnd) ||
         parsePeriodEnd(userData.subscription?.currentPeriodEnd);
-
-      const cancelAtPeriodEnd = Boolean(
-        userData.cancelAtPeriodEnd ||
-        userData.subscription?.cancelAtPeriodEnd ||
-        userData.subscription?.cancel_at_period_end,
-      );
-
-      if (cancelAtPeriodEnd && periodEnd && periodEnd.getTime() <= Date.now()) {
-        return "inactive";
-      }
-
-      if (!rawStatus && periodEnd && periodEnd.getTime() <= Date.now()) {
-        return "inactive";
-      }
-
-      return "active";
+      return deriveSubscriptionDisplayStatus({
+        planId: userData.planId,
+        storedStatus:
+          normalizeStatus(userData.subscriptionStatus) ||
+          normalizeStatus(userData.subscription?.status),
+        cancelAtPeriodEnd: Boolean(
+          userData.cancelAtPeriodEnd ||
+            userData.subscription?.cancelAtPeriodEnd ||
+            userData.subscription?.cancel_at_period_end,
+        ),
+        currentPeriodEnd: periodEnd ? periodEnd.toISOString() : null,
+      });
     };
 
     const TIER_DEFAULT_FEATURES: Record<string, Record<string, unknown>> = {
@@ -1046,10 +1024,25 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           planName = planNameMap.get(planId) || planId;
         }
 
-        const effectiveStatus = deriveTenantStatus(userData);
+        // Authoritative billing comes from the tenant doc (single writer: the
+        // Stripe webhook / billing sync). Derive the DISPLAY status from it via
+        // the shared, time-aware function. Fall back to the user doc only for
+        // legacy tenants whose tenant doc has no billing fields yet.
+        const tenantHasBilling = Boolean(
+          tenantData.subscriptionStatus || tenantData.billingSyncedAt,
+        );
+        const displayStatus = tenantHasBilling
+          ? deriveSubscriptionDisplayStatus({
+              planId,
+              storedStatus: tenantData.subscriptionStatus,
+              cancelAtPeriodEnd: tenantData.cancelAtPeriodEnd,
+              currentPeriodEnd: tenantData.currentPeriodEnd ?? null,
+            })
+          : deriveUserDocStatus(userData);
 
-        // Prefer billing fields from tenant doc (authoritative after sync)
-        const tenantSubscriptionStatus = tenantData.subscriptionStatus || effectiveStatus;
+        // Raw status kept on the admin sub-object for reference/debugging.
+        const tenantSubscriptionStatus =
+          tenantData.subscriptionStatus || userData.subscriptionStatus || "";
         const tenantCurrentPeriodEnd = tenantData.currentPeriodEnd || userData.currentPeriodEnd;
 
         // Detect staleness and fire background sync if needed
@@ -1083,7 +1076,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           },
           planName: planName || planId,
           planId,
-          subscriptionStatus: effectiveStatus,
+          subscriptionStatus: displayStatus,
           billingInterval: String(userData.billingInterval || "monthly"),
           planFeatures: planFeaturesMap.get(rawPlanId) || TIER_DEFAULT_FEATURES[planId] || undefined,
           unitAmount: tenantData?.unitAmount ?? tenantData?.subscription?.unitAmount ?? null,
