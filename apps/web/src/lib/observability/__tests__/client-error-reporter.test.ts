@@ -2,6 +2,10 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
+
+vi.mock("@/lib/firebase", () => ({ auth: {} }));
+vi.mock("firebase/auth", () => ({ onIdTokenChanged: vi.fn(() => () => {}) }));
+
 import { shouldReportConsoleArg, installClientErrorReporter } from "../client-error-reporter";
 
 afterEach(() => {
