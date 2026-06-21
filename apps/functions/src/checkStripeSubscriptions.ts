@@ -5,6 +5,7 @@ import { NotificationService } from "./api/services/notification.service";
 import { enqueueTenantSync } from "./billing";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "./lib/logger";
+import { captureError } from "./lib/observability/error-logger";
 
 /**
  * Cloud Function agendada diariamente para verificar o status das assinaturas
@@ -114,6 +115,7 @@ export const checkStripeSubscriptions = onSchedule(
       logger.info(`Notified ${superAdminsSnap.size} superadmins.`);
     } catch (error) {
       logger.error("Error notifying superadmins:", { error });
+      void captureError(error, { source: "functions", route: "cron/checkStripeSubscriptions", handled: false });
     }
   }
 );

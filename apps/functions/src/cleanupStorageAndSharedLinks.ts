@@ -3,6 +3,7 @@ import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { processStorageGcQueue } from "./lib/storage-gc";
 import { cleanupExpiredWalletCascadeJobs } from "./api/services/wallet-cascade-job.service";
+import { captureError } from "./lib/observability/error-logger";
 
 const SHARED_PROPOSALS_COLLECTION = "shared_proposals";
 const SHARED_TRANSACTIONS_COLLECTION = "shared_transactions";
@@ -61,6 +62,7 @@ export const cleanupStorageAndSharedLinks = onSchedule(
         "[cleanupStorageAndSharedLinks] failed during expired link cleanup",
         error,
       );
+      void captureError(error, { source: "functions", route: "cron/cleanupStorageAndSharedLinks", handled: false });
     }
 
     let gcStats = {

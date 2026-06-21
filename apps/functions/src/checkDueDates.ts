@@ -2,6 +2,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { captureError } from "./lib/observability/error-logger";
 
 /**
  * Cloud Function scheduled que roda diariamente para verificar
@@ -181,6 +182,7 @@ export const checkDueDates = onSchedule(
       }
     } catch (error) {
       console.error("Error checking due dates:", error);
+      void captureError(error, { source: "functions", route: "cron/checkDueDates", handled: false });
     }
   },
 );
