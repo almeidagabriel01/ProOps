@@ -8,6 +8,7 @@ const MAX_BUFFER = 20;
 type Payload = ReturnType<typeof buildClientErrorPayload>;
 
 let installed = false;
+let reentrant = false;
 const buffer = new Map<string, Payload>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -41,12 +42,12 @@ function flush(): void {
   items.forEach(send);
 }
 
-export function reportClientError(err: unknown, ctx?: { route?: string }): void {
+export function reportClientError(err: unknown, ctx?: { route?: string; status?: number }): void {
   if (typeof window === "undefined") return;
   try {
     const route =
       ctx?.route ?? (typeof window !== "undefined" ? window.location.pathname : null) ?? undefined;
-    const payload = buildClientErrorPayload(err, { route });
+    const payload = buildClientErrorPayload(err, { route, status: ctx?.status });
     const key = dedupeKey(payload);
     if (!buffer.has(key)) buffer.set(key, payload);
     if (buffer.size >= MAX_BUFFER) {
@@ -57,6 +58,16 @@ export function reportClientError(err: unknown, ctx?: { route?: string }): void 
   } catch {
     // never throw from the reporter
   }
+}
+
+/** Report a console.error arg only when it is a real Error (or carries a stack). */
+export function shouldReportConsoleArg(arg: unknown): boolean {
+  if (arg instanceof Error) return true;
+  return (
+    typeof arg === "object" &&
+    arg !== null &&
+    typeof (arg as { stack?: unknown }).stack === "string"
+  );
 }
 
 export function installClientErrorReporter(): () => void {
@@ -71,6 +82,20 @@ export function installClientErrorReporter(): () => void {
     if (document.visibilityState === "hidden") flush();
   };
 
+  const originalConsoleError = console.error;
+  const patchedConsoleError = (...args: unknown[]): void => {
+    originalConsoleError(...(args as []));
+    if (reentrant) return;
+    if (!shouldReportConsoleArg(args[0])) return;
+    reentrant = true;
+    try {
+      reportClientError(args[0]);
+    } finally {
+      reentrant = false;
+    }
+  };
+  console.error = patchedConsoleError as typeof console.error;
+
   window.addEventListener("error", onError);
   window.addEventListener("unhandledrejection", onRejection);
   window.addEventListener("pagehide", onHide);
@@ -80,6 +105,9 @@ export function installClientErrorReporter(): () => void {
     if (flushTimer) {
       clearTimeout(flushTimer);
       flushTimer = null;
+    }
+    if (console.error === patchedConsoleError) {
+      console.error = originalConsoleError;
     }
     window.removeEventListener("error", onError);
     window.removeEventListener("unhandledrejection", onRejection);
