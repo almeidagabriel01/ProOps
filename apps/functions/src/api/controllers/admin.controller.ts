@@ -1028,15 +1028,22 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         // Stripe webhook / billing sync). Derive the DISPLAY status from it via
         // the shared, time-aware function. Fall back to the user doc only for
         // legacy tenants whose tenant doc has no billing fields yet.
-        const tenantHasBilling = Boolean(
-          tenantData.subscriptionStatus || tenantData.billingSyncedAt,
-        );
+        // Authoritative only when the tenant doc actually carries a status — a
+        // billingSyncedAt-only write (free/no-customer sync) must NOT shadow the
+        // richer user-doc data via an empty status.
+        const tenantHasBilling =
+          typeof tenantData.subscriptionStatus === "string" &&
+          tenantData.subscriptionStatus.trim() !== "";
+        // Defensive: tenant docs store ISO strings, but parse through the same
+        // helper as the user-doc path so a stray Firestore Timestamp can't make
+        // the period-lapse check silently no-op.
+        const tenantPeriodEnd = parsePeriodEnd(tenantData.currentPeriodEnd);
         const displayStatus = tenantHasBilling
           ? deriveSubscriptionDisplayStatus({
               planId,
               storedStatus: tenantData.subscriptionStatus,
               cancelAtPeriodEnd: tenantData.cancelAtPeriodEnd,
-              currentPeriodEnd: tenantData.currentPeriodEnd ?? null,
+              currentPeriodEnd: tenantPeriodEnd ? tenantPeriodEnd.toISOString() : null,
             })
           : deriveUserDocStatus(userData);
 
