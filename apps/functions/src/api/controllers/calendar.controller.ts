@@ -1,6 +1,5 @@
 import crypto from "crypto";
 import { Request, Response } from "express";
-import { google } from "googleapis";
 import { z } from "zod";
 import { db } from "../../init";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
@@ -15,6 +14,21 @@ import {
   assertTenantExists,
   auditSuperAdminCrossTenantWrite,
 } from "../../lib/tenant-resolution";
+
+// `googleapis` is a heavy module (~0.9s to require — it cold-loads its full API
+// surface). Importing it at the top of the file placed it in the Cloud Functions
+// discovery graph, pushing local emulator cold starts past the 10s discovery
+// timeout. Load it lazily so the cost is only paid when a Google Calendar
+// request actually runs — this also trims the same cost off production cold
+// starts (every cold instance used to pay it, even on non-calendar requests).
+type GoogleApi = typeof import("googleapis").google;
+let googleApiPromise: Promise<GoogleApi> | undefined;
+function loadGoogle(): Promise<GoogleApi> {
+  if (!googleApiPromise) {
+    googleApiPromise = import("googleapis").then((mod) => mod.google);
+  }
+  return googleApiPromise;
+}
 
 const CALENDAR_EVENTS_COLLECTION = "calendar_events";
 const CALENDAR_INTEGRATIONS_COLLECTION = "calendar_integrations";
@@ -268,7 +282,7 @@ export function resolveGoogleCalendarRedirectUri(): string {
   return `${resolveFrontendAppOrigin()}/api/backend/v1/calendar/google/callback`;
 }
 
-function createGoogleOAuthClient() {
+async function createGoogleOAuthClient() {
   const clientId = String(process.env.GOOGLE_CALENDAR_CLIENT_ID || "").trim();
   const clientSecret = String(
     process.env.GOOGLE_CALENDAR_CLIENT_SECRET || "",
@@ -278,6 +292,7 @@ function createGoogleOAuthClient() {
     throw new Error("GOOGLE_CALENDAR_NOT_CONFIGURED");
   }
 
+  const google = await loadGoogle();
   return new google.auth.OAuth2(
     clientId,
     clientSecret,
@@ -688,11 +703,12 @@ async function syncGoogleEventsToLocalCalendar(params: {
     return;
   }
 
-  const oauthClient = createGoogleOAuthClient();
+  const oauthClient = await createGoogleOAuthClient();
   oauthClient.setCredentials({
     refresh_token: integration.refreshToken,
   });
 
+  const google = await loadGoogle();
   const calendar = google.calendar({
     version: "v3",
     auth: oauthClient,
@@ -803,11 +819,12 @@ async function syncEventToGoogle(
   }
   const integration = integrationRecord.data;
 
-  const oauthClient = createGoogleOAuthClient();
+  const oauthClient = await createGoogleOAuthClient();
   oauthClient.setCredentials({
     refresh_token: integration.refreshToken,
   });
 
+  const google = await loadGoogle();
   const calendar = google.calendar({
     version: "v3",
     auth: oauthClient,
@@ -938,11 +955,12 @@ async function deleteEventFromGoogleIfNeeded(eventData: CalendarEventDocument) {
   }
   const integration = integrationRecord.data;
 
-  const oauthClient = createGoogleOAuthClient();
+  const oauthClient = await createGoogleOAuthClient();
   oauthClient.setCredentials({
     refresh_token: integration.refreshToken,
   });
 
+  const google = await loadGoogle();
   const calendar = google.calendar({
     version: "v3",
     auth: oauthClient,
@@ -1093,11 +1111,12 @@ async function cleanupLocalEventsAfterGoogleDisconnect(params: {
     return;
   }
 
-  const oauthClient = createGoogleOAuthClient();
+  const oauthClient = await createGoogleOAuthClient();
   oauthClient.setCredentials({
     refresh_token: params.integration.refreshToken,
   });
 
+  const google = await loadGoogle();
   const calendar = google.calendar({
     version: "v3",
     auth: oauthClient,
@@ -1400,7 +1419,7 @@ export async function getGoogleCalendarAuthUrl(req: Request, res: Response) {
       });
     }
 
-    const oauthClient = createGoogleOAuthClient();
+    const oauthClient = await createGoogleOAuthClient();
     const state = crypto.randomUUID();
 
     await db.collection(CALENDAR_OAUTH_STATES_COLLECTION).doc(state).set({
@@ -1481,7 +1500,7 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
       return res.redirect(buildFrontendCalendarUrl(req, "error", "expired_state"));
     }
 
-    const oauthClient = createGoogleOAuthClient();
+    const oauthClient = await createGoogleOAuthClient();
     const tokenResponse = await oauthClient.getToken(code);
     const tokens = tokenResponse.tokens;
     oauthClient.setCredentials(tokens);
@@ -1498,6 +1517,7 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
       throw new Error("MISSING_REFRESH_TOKEN");
     }
 
+    const google = await loadGoogle();
     const oauth2 = google.oauth2({
       version: "v2",
       auth: oauthClient,
@@ -1616,7 +1636,7 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
 
     if (integration.data.refreshToken) {
       try {
-        const oauthClient = createGoogleOAuthClient();
+        const oauthClient = await createGoogleOAuthClient();
         await oauthClient.revokeToken(integration.data.refreshToken);
       } catch (error) {
         console.warn(
