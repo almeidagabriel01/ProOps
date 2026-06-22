@@ -23,7 +23,7 @@ export const applyScheduledPlanChanges = onSchedule(
     ...SCHEDULE_OPTIONS,
     schedule: "0 3 * * *", // 03:00 BRT daily
     timeoutSeconds: 300,
-    memory: "256MiB",
+    memory: "512MiB",
   },
   async () => {
     console.log("[applyScheduledPlanChanges] Starting scheduled plan transitions...");

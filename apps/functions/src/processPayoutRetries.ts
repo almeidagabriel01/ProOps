@@ -9,7 +9,7 @@ export const processPayoutRetries = onSchedule(
     ...SCHEDULE_OPTIONS,
     schedule: "every 1 hours",
     timeoutSeconds: 300,
-    memory: "256MiB",
+    memory: "512MiB",
   },
   async () => {
     const now = new Date().toISOString();

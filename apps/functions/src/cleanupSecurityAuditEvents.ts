@@ -56,7 +56,7 @@ export const cleanupSecurityAuditEvents = onSchedule(
     ...SCHEDULE_OPTIONS,
     schedule: "30 3 * * *",
     timeoutSeconds: 540,
-    memory: "256MiB",
+    memory: "512MiB",
   },
   async () => {
     try {

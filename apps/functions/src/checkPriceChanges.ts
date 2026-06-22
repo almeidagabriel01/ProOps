@@ -61,7 +61,7 @@ export const checkPriceChanges = onSchedule(
     ...SCHEDULE_OPTIONS,
     schedule: "0 4 * * *",
     timeoutSeconds: 300,
-    memory: "256MiB",
+    memory: "512MiB",
   },
   async () => {
     logger.info("[checkPriceChanges] starting");

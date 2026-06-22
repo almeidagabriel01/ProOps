@@ -15,7 +15,7 @@ export const checkManualSubscriptions = onSchedule(
     ...SCHEDULE_OPTIONS,
     schedule: "every 24 hours",
     timeoutSeconds: 300,
-    memory: "256MiB",
+    memory: "512MiB",
   },
   async () => {
     console.log("Starting manual subscription check...");
