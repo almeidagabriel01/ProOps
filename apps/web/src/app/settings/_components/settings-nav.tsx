@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { m as motion, useReducedMotion } from "motion/react";
 import { CreditCard, ShieldCheck, Users, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
@@ -43,6 +44,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 export function SettingsNav() {
   const pathname = usePathname();
+  const reduceMotion = useReducedMotion();
   const { user, isLoading: authLoading } = useAuth();
   const { companyName, logoUrl, avatarSeed } = useHeaderPresentation();
 
@@ -74,14 +76,26 @@ export function SettingsNav() {
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors",
+                      "relative flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors",
                       isActive
-                        ? "bg-primary/10 font-medium text-primary ring-1 ring-primary/25"
+                        ? "font-medium text-primary"
                         : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                     )}
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {item.label}
+                    {isActive && (
+                      <motion.span
+                        layoutId="settings-nav-active"
+                        aria-hidden
+                        className="absolute inset-0 -z-0 rounded-lg bg-primary/10 ring-1 ring-primary/25"
+                        transition={
+                          reduceMotion
+                            ? { duration: 0 }
+                            : { type: "spring", stiffness: 420, damping: 34 }
+                        }
+                      />
+                    )}
+                    <Icon className="relative z-10 h-4 w-4 shrink-0" />
+                    <span className="relative z-10">{item.label}</span>
                   </Link>
                 );
               })}
