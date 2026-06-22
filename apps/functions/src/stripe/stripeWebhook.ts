@@ -48,6 +48,13 @@ const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
 const WEBHOOK_RATE_LIMIT_MAX_REQUESTS = 240;
 const MAX_WEBHOOK_BODY_BYTES = 256 * 1024;
 const DEFAULT_STRIPE_EVENT_RETENTION_DAYS = 30;
+// Erros de resolução de tenant que são determinísticos: retry do Stripe nunca
+// resolve, então ACK 200 em vez de 500 (ver inner catch do dispatcher).
+const DETERMINISTIC_WEBHOOK_SKIP = new Set([
+  "TENANT_RESOLUTION_FAILED",
+  "TENANT_RESOLUTION_AMBIGUOUS",
+  "TENANT_METADATA_MISMATCH",
+]);
 const WEBHOOK_RATE_LIMIT_STATE = new Map<
   string,
   { count: number; windowStart: number }
@@ -1437,6 +1444,25 @@ export const stripeWebhook = onRequest(
       } catch (handlerError) {
         const message =
           handlerError instanceof Error ? handlerError.message : "unknown";
+
+        // Falhas determinísticas de resolução de tenant: o evento é de uma
+        // assinatura órfã/de teste (tenant deletado ou dado de teste). Não há
+        // tenant pra agir e retry NUNCA resolve — races reais (tenant ainda não
+        // escrito) são auto-corrigidas pelo cron diário checkStripeSubscriptions.
+        // ACK 200 pra parar o retry-storm do Stripe e marca "processed" pra que o
+        // retry do mesmo event id seja pulado como duplicado. Não re-lança →
+        // evita a captura dupla (inner + outer catch).
+        if (DETERMINISTIC_WEBHOOK_SKIP.has(message)) {
+          await finalizeStripeEventProcessing(event, "processed");
+          logSecurityEvent(
+            "stripe_webhook_skipped",
+            { ...eventContext, status: 200, reason: message },
+            "WARN",
+          );
+          res.json({ received: true, skipped: message });
+          return;
+        }
+
         await finalizeStripeEventProcessing(
           event,
           "failed",
@@ -1466,7 +1492,11 @@ export const stripeWebhook = onRequest(
           status: 500,
           handled: false,
         });
-        throw handlerError;
+        // Resposta enviada aqui (sem rethrow) → evita o double-capture do outer
+        // catch. O outer catch segue cobrindo falhas ANTES do inner try
+        // (verificação de assinatura, beginStripeEventProcessing).
+        res.status(500).json({ error: "Webhook handler failed" });
+        return;
       }
     } catch (error) {
       const genericErrorContext = {
