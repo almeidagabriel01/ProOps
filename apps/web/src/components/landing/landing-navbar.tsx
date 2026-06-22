@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   Plus,
+  ShieldCheck,
   Sparkles,
   User as UserIcon,
   X,
@@ -68,6 +69,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const isNavbarLoading =
     isAuthLoading || (!!currentUser && (isTenantLoading || isCompanyLoading));
   const appHref = currentUser ? getAuthenticatedHome(currentUser) : "/login";
+  const isSuperAdmin = currentUser?.role === "superadmin";
   const isFreeAccount = currentUser?.role === "free";
   const isBlockedAccount = ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
     currentUser?.subscriptionStatus ?? "",
@@ -276,7 +278,15 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       </span>
                     </div>
                     <DropdownMenuSeparator className="mx-1 bg-black/8 dark:bg-white/10" />
-                    {isBlockedAccount ? (
+                    {isSuperAdmin ? (
+                      <DropdownMenuItem
+                        onClick={() => router.push(appHref)}
+                        className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        Painel Admin
+                      </DropdownMenuItem>
+                    ) : isBlockedAccount ? (
                       <DropdownMenuItem
                         onClick={() => scrollToAnchor("#pricing")}
                         className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
@@ -427,7 +437,17 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     <span className="text-sm text-black/50 dark:text-white/50 truncate max-w-[200px]">
                       {companyName}
                     </span>
-                    {isBlockedAccount ? (
+                    {isSuperAdmin ? (
+                      <LandingButton
+                        href={appHref}
+                        variant="link"
+                        tone="muted"
+                        onClick={() => setMobileOpen(false)}
+                        className="text-lg"
+                      >
+                        Painel Admin
+                      </LandingButton>
+                    ) : isBlockedAccount ? (
                       <LandingButton
                         variant="link"
                         tone="muted"
