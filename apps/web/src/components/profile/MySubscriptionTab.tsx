@@ -19,7 +19,12 @@ import { DEFAULT_PLANS } from "@/services/plan-service";
 import Link from "next/link";
 import { formatPrice } from "@/utils/format";
 import { formatDateBR, type DateValue } from "@/utils/date-format";
-import { CreditCard, Calendar, Crown, Puzzle, Check, X, ExternalLink, AlertCircle, Zap, RefreshCw } from "lucide-react";
+import { CreditCard, Calendar, Crown, Puzzle, Check, X, ExternalLink, AlertCircle, Zap, RefreshCw, MessageCircle, Copy } from "lucide-react";
+import {
+  BOT_WHATSAPP_NUMBER,
+  BOT_WHATSAPP_DIGITS,
+  buildWhatsAppHref,
+} from "@/lib/whatsapp-contacts";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import {
@@ -170,6 +175,17 @@ export function MySubscriptionTab({
   const showManualTag = Boolean(isManualSubscription) && !hasBillingEvidence;
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [botCopied, setBotCopied] = useState(false);
+
+  const handleCopyBotNumber = async () => {
+    try {
+      await navigator.clipboard.writeText(BOT_WHATSAPP_NUMBER);
+      setBotCopied(true);
+      setTimeout(() => setBotCopied(false), 2000);
+    } catch {
+      toast.error("Não foi possível copiar o número");
+    }
+  };
 
   // Sync billing data when stale — only for superadmin since the endpoint is admin-only.
   // For regular tenants the backend syncs automatically via webhook; skip to avoid 403.
@@ -862,6 +878,64 @@ export function MySubscriptionTab({
           })()}
         </CardContent>
       </Card>
+
+      {/* WhatsApp Bot Card — só para tenants com WhatsApp habilitado */}
+      {tenant?.whatsappEnabled && (
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+                <MessageCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">WhatsApp do Bot</CardTitle>
+                <CardDescription>
+                  Mande mensagem para o bot e consulte informações da sua conta
+                  direto no WhatsApp
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/40">
+              <div>
+                <p className="text-xs text-muted-foreground">Número do bot</p>
+                <p className="font-semibold text-lg tracking-wide">
+                  {BOT_WHATSAPP_NUMBER}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyBotNumber}
+              >
+                {botCopied ? (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Copiado
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copiar
+                  </>
+                )}
+              </Button>
+            </div>
+            <a
+              href={buildWhatsAppHref(BOT_WHATSAPP_DIGITS)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Conversar com o bot
+              </Button>
+            </a>
+          </CardContent>
+        </Card>
+      )}
 
       <AlertDialog
         open={!!addonToCancel}

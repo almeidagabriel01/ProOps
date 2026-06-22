@@ -14,24 +14,28 @@ rodando no Cloud Run em `southamerica-east1`. Mudanças aqui afetam TODOS os ten
 ## Estrutura
 ```
 apps/functions/src/
-├── index.ts              # Entry point — registra a Cloud Function principal
-├── init.ts               # Inicialização do Firebase Admin
+├── index.ts              # Entry point — registra a Cloud Function + todos os crons
 ├── api/
-│   ├── controllers/      # ~20 controllers CRUD
-│   ├── routes/           # 13 grupos de rotas
+│   ├── controllers/      # 36 controllers (CRUD + webhooks)
+│   ├── routes/           # 24 grupos de rotas
 │   ├── middleware/        # Auth verification, rate limiting
 │   ├── helpers/           # Helpers de rotas
-│   └── security/          # Security observability
-├── lib/                  # Helpers de negócio (auth, billing, storage, etc.)
-├── services/             # PDF (Playwright), WhatsApp, proposals, notifications
+│   ├── services/          # Lógica de negócio server-side (PDF, transações, etc.)
+│   └── security/          # CORS policy, URL/SSRF security
+├── ai/                   # Módulo IA Lia (Gemini, Groq, rate limiters, tools)
+├── billing/              # Fila de billing + reconciliação de price drift
+├── stripe/               # Config do Stripe + stripeWebhook
+├── services/             # Email (Resend), Zoom (create-meeting), WhatsApp billing
+├── lib/                  # Helpers de negócio (auth, finance, storage, observability, MFA)
 ├── shared/               # Tipos compartilhados com controllers
 ├── scripts/              # Scripts de manutenção one-time
-├── checkDueDates.ts      # Cron: verifica vencimentos
-├── checkManualSubscriptions.ts  # Cron: assinaturas manuais
-├── checkStripeSubscriptions.ts  # Cron: status Stripe
-├── cleanupStorageAndSharedLinks.ts  # Cron: limpeza de storage
-├── reportWhatsappOverage.ts     # Cron: billing WhatsApp (dia 1, 03:00 AM)
-└── deploymentConfig.ts   # Configuração de deploy (região, memória, timeout)
+├── utils/                # Utilitários gerais
+├── checkDueDates.ts, checkManualSubscriptions.ts, markOverdueTransactions.ts,
+│   checkStripeSubscriptions.ts, reportWhatsappOverage.ts, applyScheduledPlanChanges.ts,
+│   checkPriceChanges.ts, cleanupStorageAndSharedLinks.ts, reconcileAddons.ts,
+│   processPayoutRetries.ts, cleanupSecurityAuditEvents.ts, checkInactiveSignups.ts,
+│   onWalletCascadeJob.ts            # Crons + triggers (exportados em index.ts)
+└── deploymentConfig.ts   # Configuração de deploy (região, memória, timeout, SCHEDULE_OPTIONS)
 ```
 
 ## Projetos Firebase
@@ -109,7 +113,7 @@ cd apps/functions && npm run lint
 
 | Arquivo | Responsabilidade |
 |---------|-----------------|
-| `src/api/services/transaction.service.ts` | TODA lógica de negócio de lançamentos (~1350 linhas) |
+| `src/api/services/transaction.service.ts` | TODA lógica de negócio de lançamentos (~1800 linhas) |
 | `src/api/controllers/wallets.controller.ts` | CRUD de carteiras |
 | `src/lib/finance-helpers.ts` | `resolveWalletRef()`, `addMonths()`, permissões |
 

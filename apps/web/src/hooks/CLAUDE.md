@@ -3,20 +3,27 @@
 ## Responsabilidade
 React hooks customizados que encapsulam lógica reutilizável de dados e UI.
 
-## Hooks existentes (principais)
+## Hooks existentes (32 + subpasta proposal/)
 ```
 hooks/
-├── proposal/              # Hooks específicos de propostas
+├── proposal/              # Hooks específicos de propostas (subpasta)
+├── use-count-up.ts        # Animação de contagem numérica
+├── use-prefers-reduced-motion.ts
 ├── use-sort.ts            # Ordenação de listas
 ├── use-window-focus.ts    # Detecção de foco da janela
+├── useAiChat.ts           # Chat com a IA Lia
 ├── useClientActions.ts    # Ações CRUD de clientes
 ├── useCreateMember.ts     # Criação de membros da equipe
 ├── useCreateProposal.ts   # Criação de propostas
 ├── useCurrentNicheConfig.ts # Config do nicho atual do tenant
 ├── useDashboardData.ts    # Dados do dashboard
+├── useDisplayTenant.ts    # Tenant exibido (superadmin impersonation)
 ├── useFormValidation.ts   # Validação de formulários
 ├── useHeaderPresentation.ts
 ├── useInfiniteScroll.ts   # Paginação infinita
+├── useLiaHistory.ts       # Histórico de conversas Lia
+├── useLiaSession.ts       # Sessão da Lia
+├── useLiaUsage.ts         # Uso/limites da Lia
 ├── useMemberActions.ts    # Ações de membros
 ├── useNotificationScope.ts
 ├── useNotifications.ts    # Sistema de notificações
@@ -25,10 +32,15 @@ hooks/
 ├── usePlanChange.ts       # Mudança de plano
 ├── usePlanLimits.ts       # Verificação de limites do plano
 ├── usePlanUsage.ts        # Uso atual do plano
+├── usePriceChange.ts      # Detecção de mudança de preço de plano
 ├── useProductActions.ts   # Ações CRUD de produtos
+├── useResendCountdown.ts  # Countdown para reenvio (verificação)
 ├── useServiceActions.ts   # Ações CRUD de serviços
 ├── useStripePrices.ts     # Preços do Stripe
-└── useUpdatePermissions.ts
+├── useThemePrimaryColor.ts # Cor primária do tema do tenant
+├── useTotpEnrollment.ts   # Enrollment TOTP (MFA)
+├── useUpdatePermissions.ts
+└── useWhatsappMfaStatus.ts # Status do MFA via WhatsApp
 ```
 
 ## Regras

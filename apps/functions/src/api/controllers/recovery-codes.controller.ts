@@ -269,26 +269,14 @@ export async function verifyPasswordViaRest(
   email: string,
   password: string,
 ): Promise<boolean> {
-  // When the Auth emulator is running, the Admin SDK resolves users from the
-  // emulator — so the password must be checked against the emulator's Identity
-  // Toolkit shim (the real endpoint wouldn't know the emulator-only account).
-  // The emulator ignores the API key, so a placeholder is fine there; the real
-  // endpoint requires the configured key.
-  const emulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
-  const apiKey =
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY ||
-    (emulatorHost ? "fake-api-key" : undefined);
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   if (!apiKey) {
     logger.error("recoverTotpWithCode: NEXT_PUBLIC_FIREBASE_API_KEY not configured");
     return false;
   }
 
-  const baseUrl = emulatorHost
-    ? `http://${emulatorHost}/identitytoolkit.googleapis.com`
-    : "https://identitytoolkit.googleapis.com";
-
   const response = await fetch(
-    `${baseUrl}/v1/accounts:signInWithPassword?key=${apiKey}`,
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

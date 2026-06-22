@@ -10,9 +10,17 @@
 | `stripeWebhook` | HTTP (Express) | Webhook Stripe com verificacao de assinatura |
 | `checkManualSubscriptions` | Scheduled | Verificacao diaria de assinaturas manuais |
 | `checkDueDates` | Scheduled | Verificacao diaria de vencimentos |
+| `markOverdueTransactions` | Scheduled | Marca transacoes vencidas |
 | `checkStripeSubscriptions` | Scheduled | Sync diario de status Stripe |
 | `reportWhatsappOverage` | Scheduled | Billing de overage WhatsApp (dia 1 do mes) |
+| `applyScheduledPlanChanges` | Scheduled | Aplica trocas de plano agendadas |
+| `checkPriceChanges` | Scheduled | Detecta price drift do Stripe |
 | `cleanupStorageAndSharedLinks` | Scheduled | Limpeza de arquivos e links expirados |
+| `reconcileAddons` | Scheduled | Reconciliacao de add-ons |
+| `processPayoutRetries` | Scheduled | Retries de payout (Asaas) |
+| `cleanupSecurityAuditEvents` | Scheduled | Expurga eventos de auditoria antigos |
+| `remindNoSubscriptionSignups` | Scheduled | Lembra signups sem assinatura |
+| `onWalletCascadeJob` | Firestore trigger | Cascata de exclusao de carteira |
 
 **Global options** aplicadas a todas as funcoes:
 ```typescript
@@ -34,9 +42,11 @@ Centraliza configuracoes de deploy para evitar divergencias entre funcoes.
 {
   cors: true,
   region: "southamerica-east1",
+  timeoutSeconds: 90,
   cpu: 1,
-  maxInstances: 10,  // 10 instancias * 80 concurrent = 800 req/s max
-  concurrency: 80,   // Max concorrencia V2
+  maxInstances: IS_DEV ? 1 : 10,   // prod: 10 * 80 concurrent = 800 req/s max
+  concurrency: IS_DEV ? 3 : 80,    // dev usa 3 (mínimo p/ Playwright PDF)
+  memory: "1GiB",
 }
 ```
 
@@ -46,12 +56,13 @@ Centraliza configuracoes de deploy para evitar divergencias entre funcoes.
 {
   timeZone: "America/Sao_Paulo",
   region: "southamerica-east1",
-  cpu: 1,
-  maxInstances: 10,
+  cpu: IS_DEV ? 0.083 : 0.25,
+  maxInstances: 1,
+  memory: "256MiB",
 }
 ```
 
-Cada cron pode sobrescrever `memory`, `timeoutSeconds` e `schedule` individualmente.
+(`IS_DEV` = `process.env.GCLOUD_PROJECT === "erp-softcode"`.) Cada cron pode sobrescrever `memory`, `timeoutSeconds` e `schedule` individualmente.
 
 ---
 
@@ -114,7 +125,7 @@ Isso garante que a mesma transacao nao gera multiplas notificacoes a cada execuc
 **Arquivo:** `apps/functions/src/checkStripeSubscriptions.ts`
 **Schedule:** `every 24 hours`
 **Timeout:** 540 segundos (9 minutos)
-**Memory:** 512MiB
+**Memory:** 256MiB
 
 #### O que faz
 
@@ -259,15 +270,11 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 
 | Funcao | CPU | Memory | Max Instances | Concurrency | Timeout |
 |--------|-----|--------|---------------|-------------|---------|
-| `api` | 1 | 1GiB | 10 | 80 | default (60s) |
-| `stripeWebhook` | 1 | 1GiB | 10 | - | default |
-| `checkDueDates` | 1 | 1GiB | 10 | - | 300s |
-| `checkStripeSubscriptions` | 1 | 512MiB | 10 | - | 540s |
-| `checkManualSubscriptions` | 1 | 1GiB | 10 | - | 300s |
-| `reportWhatsappOverage` | 1 | 256MiB | 10 (via SCHEDULE_OPTIONS) | - | 300s |
-| `cleanupStorageAndSharedLinks` | 1 | 1GiB | 10 | - | - |
+| `api` (CORS_OPTIONS) | 1 | 1GiB | prod 10 / dev 1 | prod 80 / dev 3 | 90s |
+| `stripeWebhook` | 1 | 1GiB | (global) | - | default |
+| Crons (SCHEDULE_OPTIONS) | prod 0.25 / dev 0.083 | 256MiB | 1 | - | varia (300–540s) |
 
-> `memory: "1GiB"` aplicado via `setGlobalOptions` — funcoes podem sobrescrever individualmente.
+> `memory: "1GiB"` aplicado via `setGlobalOptions`; os crons sobrescrevem para `256MiB` via SCHEDULE_OPTIONS. Valores de `cpu`/`maxInstances`/`concurrency` variam entre dev e prod (`IS_DEV`).
 
 ---
 

@@ -23,27 +23,33 @@ src/app/admin/
 │   └── useTenantManagement.ts       # Hook principal da página /admin
 ├── _utils/
 │   └── billing-date.ts             # Utilitário: calcular próxima data de cobrança
-└── overview/
-    ├── page.tsx                     # Visão geral com métricas — rota /admin/overview
-    ├── _hooks/
-    │   └── useTenantsData.ts        # Hook de dados para a visão geral
-    └── _components/
-        ├── index.ts
-        ├── admin-overview-skeleton.tsx
-        ├── metrics-cards.tsx        # Cards de métricas agregadas
-        ├── tenants-table.tsx        # Tabela detalhada de tenants
-        ├── tenant-actions-menu.tsx  # Dropdown de ações por linha da tabela
-        ├── company-avatar.tsx       # Avatar da empresa na tabela
-        ├── plan-badge.tsx           # Badge do plano (ex: "Pro · Mensal")
-        ├── status-badge.tsx         # Badge de status de assinatura
-        ├── usage-indicator.tsx      # Barra de progresso de uso de recursos
-        ├── subscription-sync-card.tsx # Ferramenta de sincronização Stripe
-        └── billing-date.ts         # Utilitário: formatação de data de cobrança
+├── overview/                       # rota /admin/overview — métricas agregadas
+│   ├── page.tsx
+│   ├── _hooks/
+│   │   └── useTenantsData.ts        # Hook de dados para a visão geral
+│   └── _components/
+│       ├── index.ts
+│       ├── admin-overview-skeleton.tsx
+│       ├── metrics-cards.tsx        # Cards de métricas agregadas
+│       ├── tenants-table.tsx        # Tabela detalhada de tenants
+│       ├── tenant-actions-menu.tsx  # Dropdown de ações por linha da tabela
+│       ├── company-avatar.tsx       # Avatar da empresa na tabela
+│       ├── plan-badge.tsx           # Badge do plano (ex: "Pro · Mensal")
+│       ├── status-badge.tsx         # Badge de status de assinatura
+│       ├── usage-indicator.tsx      # Barra de progresso de uso de recursos
+│       └── subscription-sync-card.tsx # Ferramenta de sincronização Stripe
+├── analytics/                      # rota /admin/analytics — KPIs e gráficos de crescimento
+├── billing/                        # rota /admin/billing — gestão de faturamento
+├── observability/                  # rota /admin/observability — dashboard de erros/observabilidade
+└── setup-mfa/                      # rota /admin/setup-mfa — configuração de MFA do superadmin
 
 src/components/admin/                # Componentes admin reutilizáveis
+├── admin-guard.tsx                  # Guard client-side de acesso
 ├── tenant-dialog.tsx                # Dialog de criação/edição de tenant
 └── edit-limits-dialog.tsx           # Dialog para editar limites de features
 ```
+
+> Nota: `billing-date.ts` fica em `_utils/` (não em `overview/_components/`).
 
 ---
 

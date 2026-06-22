@@ -550,11 +550,13 @@ export function useLoginForm(): UseLoginFormReturn {
     }
   }, [whatsappMfaPending, requiresWhatsappOtp, startWhatsappResendCountdown]);
 
-  // LOCAL DEV ONLY. Attempts the superadmin MFA bypass on localhost. The backend
-  // unenrolls the native TOTP factor and sets the dev_mfa_bypass claim; we then
-  // retry the email/password sign-in (now unchallenged) and return true when it
-  // signs the user in. Returns false (not localhost/dev, not a superadmin, wrong
-  // password, or the backend refused) so the caller falls back to the TOTP flow.
+  // LOCAL DEV ONLY. Attempts the superadmin MFA bypass on localhost. Calls the
+  // Next.js dev route (server-side, NODE_ENV-gated — inert on Vercel) which mints
+  // a SESSION-SCOPED custom token without touching the account, then signs in
+  // with it (which skips the native TOTP challenge). The TOTP factor stays
+  // enrolled, so preview/prod still require MFA. Returns false (not localhost/dev,
+  // not a superadmin, wrong password, or the route refused) so the caller falls
+  // back to the native TOTP screen.
   const tryDevMfaBypass = async (
     accountEmail: string,
     accountPassword: string,
@@ -568,17 +570,21 @@ export function useLoginForm(): UseLoginFormReturn {
       return false;
     }
     try {
-      const { success } = await AuthService.devMfaBypass(
-        accountEmail,
-        accountPassword,
-      );
-      if (!success) return false;
-      // TOTP is now unenrolled — a plain password sign-in goes straight through.
-      const result = await login(accountEmail, accountPassword);
+      const response = await fetch("/api/dev/mfa-bypass", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: accountEmail, password: accountPassword }),
+      });
+      if (!response.ok) return false;
+      const { customToken } = (await response.json()) as {
+        customToken?: string;
+      };
+      if (!customToken) return false;
+      const result = await signInWithRecoveryToken(customToken);
       return result.success === true;
     } catch {
-      // Backend refused (not a superadmin, wrong password, gate off) — fall back
-      // to the normal TOTP screen.
+      // Route refused (not a superadmin, wrong password, gate off) — fall back to
+      // the normal TOTP screen.
       return false;
     }
   };

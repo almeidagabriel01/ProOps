@@ -6,18 +6,21 @@ components/
 ├── ui/           # Shadcn/ui (Radix primitives) — GERADO, não editar manualmente
 ├── admin/        # Painéis e ferramentas de administração
 ├── auth/         # Login, registro, recuperação de senha
+├── billing/      # Componentes de faturamento, planos e add-ons
 ├── branding/     # Logo, identidade visual do tenant
 ├── charts/       # Gráficos (Recharts)
-├── features/     # Features específicas do produto
+├── features/     # Features específicas do produto (inclui team/team-management)
 ├── landing/      # Página de landing/marketing
 ├── layout/       # Shell, navigation, sidebar, topbar
 ├── legal/        # Termos de uso, política de privacidade
+├── lia/          # Componentes da IA Lia (chat, widgets)
 ├── notifications/# Sistema de notificações
+├── observability/# Painéis de observabilidade (superadmin)
 ├── onboarding/   # Fluxo de onboarding de novos tenants
 ├── pdf/          # Renderização de PDFs (usado server-side via Playwright)
 ├── profile/      # Perfil do usuário
-├── shared/       # Componentes verdadeiramente genéricos
-└── team/         # Gestão de equipe e permissões
+├── seo/          # JSON-LD e schemas de SEO
+└── shared/       # Componentes verdadeiramente genéricos
 ```
 
 ## Regras
