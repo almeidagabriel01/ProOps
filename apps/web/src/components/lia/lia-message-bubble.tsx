@@ -60,7 +60,9 @@ export function LiaMessageBubble({ message }: LiaMessageBubbleProps) {
 
         {/* Inline error badge */}
         {message.error && (
-          message.errorType === "limit_reached" || message.errorType === "plan_blocked" ? (
+          message.errorType === "limit_reached" ||
+          message.errorType === "plan_blocked" ||
+          message.errorType === "config_error" ? (
             <LimitErrorCard message={message.error} />
           ) : (
             <ErrorBadge message={message.error} />

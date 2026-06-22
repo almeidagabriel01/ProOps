@@ -32,6 +32,8 @@ export interface AiChatChunk {
     };
   };
   error?: string;
+  /** Machine-readable error category (set only on type:"error"). Mirrors backend provider-error categories. */
+  code?: string;
   usage?: {
     messagesUsed: number;
     messagesLimit: number;
@@ -56,7 +58,7 @@ export interface LiaMessage {
   isStreaming?: boolean;
   isThinking?: boolean;
   error?: string;
-  errorType?: "limit_reached" | "plan_blocked" | "generic";
+  errorType?: "limit_reached" | "plan_blocked" | "config_error" | "generic";
   toolCalls?: Array<{
     name: string;
     args: Record<string, unknown>;

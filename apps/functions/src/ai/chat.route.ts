@@ -14,6 +14,8 @@ import { buildAvailableTools } from "./tools/index";
 import { executeToolCall, type ToolCallContext } from "./tools/executor";
 import { createAiProvider, createGroqFallbackProvider, type ToolFeedback } from "./providers/index";
 import { validateConfirmationToken } from "./security/confirmation-token";
+import { classifyProviderError } from "./provider-error";
+import { alertProviderConfigError } from "./provider-error-alert";
 import type { AiChatRequest, AiChatChunk, AiConversationMessage } from "./ai.types";
 
 const router = Router();
@@ -123,6 +125,9 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
   // 5. Select model (used for Gemini only; Groq uses llama-3.3-70b-versatile)
   const modelSelection = selectModel(planTier);
   let actualModelName = modelSelection.modelName;
+  // Tracks which provider is actually serving the request, so an operator alert
+  // names the correct provider even when the emulator Groq fallback is the one that failed.
+  let activeProvider: "gemini" | "groq" = process.env.GEMINI_API_KEY ? "gemini" : "groq";
 
   // 6. Load conversation history
   const history = await loadConversation(user.tenantId, sessionId, planTier, user.uid);
@@ -335,17 +340,22 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     try {
       await runProviderLoop(geminiApiKey, groqApiKey);
     } catch (primaryError) {
-      const errorMsg = primaryError instanceof Error ? primaryError.message : "";
-      // Gemini 429 → transparent Groq fallback (emulator/localhost only, no content written yet)
+      // Gemini rate-limit/quota → transparent Groq fallback (emulator/localhost only, no content
+      // written yet). An invalid key (config error) must NOT silently fall back — it surfaces as a
+      // classified error + operator alert. Quota is included here only to preserve the prior local
+      // dev experience (free-tier Gemini keys hit quota); in production no fallback runs at all.
+      const primaryClass = classifyProviderError(primaryError);
       if (
-        errorMsg.includes("429") &&
+        (primaryClass.category === "rate_limited" || primaryClass.category === "quota_exhausted") &&
         groqApiKey &&
         !contentWritten &&
         process.env.FUNCTIONS_EMULATOR === "true"
       ) {
-        logger.warn("Gemini rate-limited, falling back to Groq for this request", {
+        logger.warn("Gemini unavailable, falling back to Groq for this request", {
           tenantId: user.tenantId,
+          category: primaryClass.category,
         });
+        activeProvider = "groq";
         actualModelName = "llama-3.3-70b-versatile";
         const fallbackProvider = createGroqFallbackProvider(groqApiKey);
         const session = fallbackProvider.createSession({
@@ -482,22 +492,41 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       error: errorMessage,
     });
 
-    // Detect AI provider rate limit — Groq errors start with "429", Gemini wraps it as "[GoogleGenerativeAI Error]: ... [429 Too Many Requests]"
-    const isProviderRateLimit = typeof errorMessage === "string" && errorMessage.includes("429");
-    // Gemini 3 is stricter about function call/response turn ordering — usually caused by a failed tool execution
-    const isFunctionTurnError = typeof errorMessage === "string" && errorMessage.includes("function response turn");
-    const clientMessage = isProviderRateLimit
-      ? "Serviço de IA temporariamente sobrecarregado. Tente novamente em alguns instantes."
-      : isFunctionTurnError
-      ? "Erro na execução de uma ferramenta. Tente novamente ou inicie uma nova conversa."
-      : "Erro ao processar resposta da IA.";
+    // Gemini 3 is stricter about function call/response turn ordering — a tool-ordering
+    // bug, not a provider config error, so it keeps its dedicated branch before classification.
+    const isFunctionTurnError =
+      typeof errorMessage === "string" && errorMessage.includes("function response turn");
+
+    let clientMessage: string;
+    let errorCode: string;
+    if (isFunctionTurnError) {
+      clientMessage = "Erro na execução de uma ferramenta. Tente novamente ou inicie uma nova conversa.";
+      errorCode = "tool_turn_error";
+    } else {
+      const classification = classifyProviderError(error);
+      clientMessage = classification.clientMessage;
+      errorCode = classification.category;
+      // Operator-actionable failures (invalid key / exhausted quota) must be visible
+      // on the observability dashboard, not silently degraded to a user message.
+      if (classification.operatorActionable) {
+        void alertProviderConfigError(classification, {
+          route: "/v1/ai/chat",
+          tenantId: user.tenantId,
+          uid: user.uid,
+          provider: activeProvider,
+          modelName: actualModelName,
+        });
+      }
+    }
 
     if (!res.headersSent) {
-      res.status(500).json({ message: clientMessage, reply: "" });
+      // Pre-stream failure: pick a status that doesn't invite a retry storm for config errors.
+      const status = errorCode === "rate_limited" ? 503 : 500;
+      res.status(status).json({ message: clientMessage, code: errorCode, reply: "" });
       return;
     }
 
-    const errorChunk: AiChatChunk = { type: "error", error: clientMessage };
+    const errorChunk: AiChatChunk = { type: "error", error: clientMessage, code: errorCode };
     res.write(`data: ${JSON.stringify(errorChunk)}\n\n`);
     res.write("data: [DONE]\n\n");
     res.end();

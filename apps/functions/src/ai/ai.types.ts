@@ -88,6 +88,8 @@ export interface AiChatChunk {
     };
   };
   error?: string;
+  /** Machine-readable error category (set only on type:"error"). See provider-error.ts. */
+  code?: string;
   usage?: {
     messagesUsed: number;
     messagesLimit: number;
