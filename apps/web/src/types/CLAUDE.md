@@ -6,15 +6,17 @@ Tipos TypeScript globais e interfaces de domínio do projeto.
 ## Arquivos existentes
 ```
 types/
-├── index.ts              # Re-exports principais
-├── proposal.ts           # Tipos de propostas e items
-├── pdf.types.ts          # Tipos para geração/exibição de PDF
-├── pdf-display-settings.ts
-├── plan.ts               # Tipos de planos e features
+├── index.ts              # Re-exports principais + tipos de tenant/user
+├── ai.ts                 # Tipos da IA Lia (chat, mensagens, usage)
 ├── automation.ts         # Tipos de automação residencial
 ├── calendar.ts           # Tipos de eventos de calendário
 ├── notification.ts       # Tipos de notificações
+├── observability.ts      # Tipos de observabilidade/erros
+├── plan.ts               # Tipos de planos e features
+├── proposal.ts           # Tipos de propostas e items
 ├── shared-proposal.ts    # Tipos de propostas compartilhadas (públicas)
+├── pdf.types.ts          # Tipos para geração/exibição de PDF
+├── pdf-display-settings.ts
 └── declarations.d.ts     # Declarações de módulos externos
 ```
 

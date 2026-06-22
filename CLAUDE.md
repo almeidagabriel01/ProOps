@@ -11,6 +11,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Never merge to `main`** — only the user does that.
 - **PRs are only created targeting `develop`**, never `main`. The user is the sole author of PRs to `main`.
 
+## Documentation Maintenance (`.claude/` and `CLAUDE.md` files)
+
+- When a change you make to the project renders any `CLAUDE.md` or `.claude/` doc stale (stack versions, folder structure, routes, integrations, commands, agents, rules, env vars), **update that doc in the same task**, as part of the same logical change.
+- Only do this as a side effect of a change the user asked for. **Never** edit docs proactively or rewrite content the user did not ask you to touch — fix only what your change made inaccurate.
+- This rule does not apply to vendored/installed tooling: `.claude/gsd-*`, `.claude/get-shit-done/`, `.claude/skills/` (installed plugins), and stale copies under `.worktrees/`. Leave those alone.
+
 ## Bug Fix Policy
 
 Every confirmed bug fix **must** include automated test coverage for the exact failing scenario and the closest reasonable variants, committed in the same PR as the fix. The test must fail without the fix and pass with it.
@@ -77,10 +83,11 @@ npm run security:scan                  # OWASP ZAP baseline
 ### Key Integrations
 - **Stripe** — subscriptions, plan enforcement, overage billing. Webhook: `/stripe/stripeWebhook`
 - **WhatsApp** — webhooks, monthly overage cron (1st of month, 03:00 AM BRT). Webhook: `/webhooks/whatsapp`
-- **MercadoPago** — payment processing. Webhook: `/webhooks/mercadopago`
+- **Asaas** — payment processing (PIX/boleto/card) for shared-transaction payments. Webhook: `/webhooks/asaas/:tenantId`; public payment API mounted at `/v1`. (Replaced the former MercadoPago webhook.)
 - **AI/Lia** — Google Gemini + Groq. Module: `apps/functions/src/ai/`. Rate-limited per user.
 - **PDF** — Playwright/Chromium headless, rate-limited (5 req/60s per user)
 - **Google Calendar** — via `googleapis`
+- **Zoom** — video meeting creation for demo bookings. Module: `apps/functions/src/services/zoom/`
 
 ### Multi-Niche Support
 Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/`. Uses `tenantNiche` on tenant documents.
@@ -93,9 +100,9 @@ Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/
 | React | 19.2.1 |
 | TypeScript | 5.x |
 | Firebase (client) | 12.6.0 |
-| Firebase Admin | 12.7.0 |
+| Firebase Admin | 13.6.1 (functions) · 12.7.0 (web server routes) |
 | Tailwind CSS | v4 (via CSS, no tailwind.config.ts) |
-| Stripe SDK | 20.0.0 |
+| Stripe SDK | 20.0.0 (web) · 17.0.0 (functions) |
 | Node.js | 22 |
 
 ## Repository Structure
@@ -107,15 +114,18 @@ Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/
 │   │   └── src/
 │   │       ├── app/          # App Router (30+ segments) + api/backend/ proxy
 │   │       ├── components/   # ui/(Shadcn), admin, auth, lia, features, shared...
-│   │       ├── hooks/        # Data-fetching + UI hooks (25+)
+│   │       ├── hooks/        # Data-fetching + UI hooks (32, + proposal/ subfolder)
 │   │       ├── providers/    # Auth, Tenant, Permissions, Theme, Plan
-│   │       ├── services/     # Client-side API calls → /api/backend/* (28+)
+│   │       ├── services/     # Client-side API calls → /api/backend/* (32)
 │   │       ├── lib/          # Firebase init, niches/, plan limits
 │   │       └── types/        # TypeScript interfaces
 │   └── functions/    # Firebase Cloud Functions V2 (Express monolith)
 │       └── src/
-│           ├── api/          # controllers/(21), routes/(15), middleware/, services/
+│           ├── api/          # controllers/(36), routes/(24), middleware/, services/, security/
 │           ├── ai/           # Lia AI module (Gemini, Groq, rate limiter, tools)
+│           ├── billing/      # Billing queue, price-drift reconciliation
+│           ├── services/     # Email (Resend), Zoom, WhatsApp billing
+│           ├── stripe/       # Stripe config + webhook handling
 │           ├── lib/          # Admin helpers, logger, security-observability
 │           └── shared/       # Shared types
 ├── tests/

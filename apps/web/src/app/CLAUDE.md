@@ -2,7 +2,7 @@
 
 ## Contexto
 Rotas e layouts do App Router. Cada pasta é um segmento de URL.
-Há 25+ segmentos de rota: proposals, contacts, products, transactions, calendar, crm, dashboard, team, settings, profile, admin, auth, subscription, etc.
+Há ~38 segmentos de rota: proposals, contacts, products, transactions, calendar, crm, dashboard, team, settings, profile, admin, auth, subscription, além de rotas públicas/marketing (agendar, contato, automacao-residencial, decoracao, solutions, services) e legais (privacy, terms, cookies, data-deletion), etc.
 
 ## Regras desta pasta
 
@@ -21,11 +21,12 @@ Há 25+ segmentos de rota: proposals, contacts, products, transactions, calendar
 
 ## Rotas existentes
 ```
-403, actions, addon-success, admin, ambientes, api, auth, automation,
-calendar, checkout-success, contacts, crm, dashboard, forgot-password,
-login, products, profile, proposals, register, services, settings,
-share, solutions, spreadsheets, subscribe, subscription-blocked, team,
-transactions, wallets
+403, actions, addon-success, admin, agendar, ambientes, api, auth,
+automacao-residencial, automation, calendar, checkout-success, contacts,
+contato, cookies, crm, dashboard, data-deletion, decoracao, forgot-password,
+login, privacy, products, profile, proposals, register, reset, services,
+settings, share, solutions, spreadsheets, subscribe, subscription-blocked,
+team, terms, transactions, verify, wallets
 ```
 
 ## Rotas de API (`src/app/api/`)

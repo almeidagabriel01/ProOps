@@ -36,17 +36,22 @@ Você trabalha APENAS nas seguintes pastas:
 - **Cloud Functions** é o Express monolith real com toda a lógica sensível
 - **Secrets** ficam APENAS em `apps/functions/.env.*` — nunca no frontend
 
-## Controllers existentes (apps/functions/src/api/controllers/)
-`admin`, `auxiliary`, `calendar`, `clients`, `internal`, `kanban`,
-`mercadopago`, `notifications`, `payment-public`, `products`, `proposal-pdf`,
-`proposals`, `proxy`, `services`, `shared-proposal-pdf`, `shared-proposals`,
-`shared-transaction-pdf`, `shared-transactions`, `spreadsheets`, `stripe`,
-`tenants`, `transaction-pdf`, `transactions`, `users`, `validation`, `wallets`, `whatsapp`
+## Controllers existentes (apps/functions/src/api/controllers/) — 36
+`admin`, `asaas`, `asaas-webhook`, `auth`, `auxiliary`, `calendar`, `clients`,
+`contact`, `demo-booking`, `internal`, `kanban`, `notifications`, `observability`,
+`observability-admin`, `payment-public`, `products`, `proposal-pdf`, `proposals`,
+`proxy`, `recovery-codes`, `services`, `shared-proposal-pdf`, `shared-proposals`,
+`shared-transaction-pdf`, `shared-transactions`, `spreadsheets`, `stripe`, `tenants`,
+`transaction-pdf`, `transactions`, `users`, `validation`, `wallets`, `whatsapp`,
+`whatsapp-login-fallback`, `whatsapp-mfa`
+(Pagamento agora via Asaas — `asaas`/`asaas-webhook`; o antigo `mercadopago` foi removido.)
 
-## Rotas existentes (apps/functions/src/api/routes/)
-`admin`, `auxiliary`, `calendar`, `core`, `finance`, `internal`,
-`kanban`, `mercadopago`, `notifications`, `payment-public`,
-`shared-proposals`, `shared-transactions`, `stripe`, `validation`, `whatsapp`
+## Rotas existentes (apps/functions/src/api/routes/) — 24
+`admin`, `asaas`, `asaas-webhook`, `auth`, `auxiliary`, `calendar`, `contact`,
+`core`, `demo-booking`, `finance`, `internal`, `internal-debug`, `kanban`,
+`notifications`, `observability`, `observability-admin`, `payment-public`,
+`recovery-codes`, `shared-proposals`, `shared-transactions`, `stripe`,
+`validation`, `whatsapp`, `whatsapp-mfa`
 
 ## Módulo AI (`apps/functions/src/ai/`)
 - Provedores: Google Gemini (`@google/genai`) e Groq
@@ -57,12 +62,20 @@ Você trabalha APENAS nas seguintes pastas:
 - `tools/` — tool functions para transações com IA
 - Nunca remover rate limiting — custo é por token
 
-## Scheduled functions
-- `checkDueDates.ts` — verifica vencimentos
-- `checkManualSubscriptions.ts` — assinaturas manuais
-- `checkStripeSubscriptions.ts` — status Stripe
-- `cleanupStorageAndSharedLinks.ts` — limpeza de storage
-- `reportWhatsappOverage.ts` — billing WhatsApp (dia 1, 03:00 AM BRT)
+## Scheduled functions (exports em `apps/functions/src/index.ts`)
+- `checkDueDates` — verifica vencimentos
+- `checkManualSubscriptions` — assinaturas manuais
+- `markOverdueTransactions` — marca transações vencidas
+- `checkStripeSubscriptions` — status Stripe
+- `reportWhatsappOverage` — billing WhatsApp (dia 1, 03:00 AM BRT)
+- `applyScheduledPlanChanges` — aplica trocas de plano agendadas
+- `checkPriceChanges` — detecta price drift do Stripe
+- `cleanupStorageAndSharedLinks` — limpeza de storage e links compartilhados
+- `reconcileAddons` — reconciliação de add-ons
+- `processPayoutRetries` — retries de payout (Asaas)
+- `cleanupSecurityAuditEvents` — expurga eventos de auditoria antigos
+- `remindNoSubscriptionSignups` — lembra signups sem assinatura
+- `onWalletCascadeJob` — trigger Firestore (cascata de carteira)
 
 ## Regras que você SEMPRE segue
 

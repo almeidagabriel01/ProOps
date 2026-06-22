@@ -45,7 +45,7 @@
 
 ## Payment Webhooks
 - **Stripe**: `/stripe/stripeWebhook` — signature verified, manages subscriptions and plan enforcement
-- **MercadoPago**: `/webhooks/mercadopago` — `mercadopago.controller.ts`, `mercadopago.service.ts`
+- **Asaas**: `/webhooks/asaas/:tenantId` — `asaas-webhook.controller.ts`; public payment API in `asaas.controller.ts` mounted at `/v1`. (Replaced the former MercadoPago webhook, which was removed.)
 - **WhatsApp**: `/webhooks/whatsapp` — verify token from `WHATSAPP_VERIFY_TOKEN`
 - All webhooks: validate signature/token before processing, reject with 400 on failure
 
