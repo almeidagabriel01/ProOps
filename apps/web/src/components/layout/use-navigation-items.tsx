@@ -13,13 +13,13 @@ import {
   getSolutionsPageConfig,
   isPageEnabledForNiche,
 } from "@/lib/niches/config";
+import {
+  BOT_WHATSAPP_DIGITS,
+  buildWhatsAppHref,
+} from "@/lib/whatsapp-contacts";
 
-const WHATSAPP_PHONE_DIGITS = (
-  process.env.NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER ?? ""
-).replace(/\D/g, "");
-const WHATSAPP_HREF = WHATSAPP_PHONE_DIGITS
-  ? `https://wa.me/${WHATSAPP_PHONE_DIGITS}`
-  : "";
+// Item da dock aponta para o BOT (assistente), não para o suporte.
+const WHATSAPP_HREF = buildWhatsAppHref(BOT_WHATSAPP_DIGITS);
 
 export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
   const { hasFinancial, hasKanban, hasWhatsApp } = usePlanLimits();

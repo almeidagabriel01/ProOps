@@ -106,7 +106,7 @@ export const menuItems: MenuItem[] = [
   {
     icon: MessageCircle,
     label: "WhatsApp",
-    // Resolved at runtime by useNavigationItems from NEXT_PUBLIC_WHATSAPP_PHONE_NUMBER.
+    // Resolved at runtime by useNavigationItems from the bot WhatsApp number.
     href: "",
     pageId: "whatsapp",
     requiresWhatsApp: true,
