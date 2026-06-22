@@ -9,13 +9,10 @@ import {
   sendWhatsappLoginFallback,
   verifyWhatsappLoginFallback,
 } from "../controllers/whatsapp-login-fallback.controller";
-import { devMfaBypass } from "../controllers/dev-mfa-bypass.controller";
 
 const publicRouter = Router();
 publicRouter.post("/forgot-password", requestPasswordReset);
 publicRouter.post("/mfa-recovery/recover-totp", recoverTotpWithCode);
-// LOCAL DEV ONLY — hard-gated (dev project + flag + localhost) inside the handler.
-publicRouter.post("/dev-mfa-bypass", devMfaBypass);
 publicRouter.post(
   "/mfa-recovery/whatsapp/availability",
   checkWhatsappLoginFallback,

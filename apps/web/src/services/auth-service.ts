@@ -19,15 +19,6 @@ export interface RecoverTotpWithCodeResponse {
   customToken?: string;
 }
 
-export interface DevMfaBypassResponse {
-  /**
-   * True once the dev account has been prepared: native TOTP unenrolled and the
-   * `dev_mfa_bypass` claim set. The client then retries the password sign-in
-   * (no custom token — LOCAL DEV ONLY, hard-gated to the dev project + localhost).
-   */
-  success: boolean;
-}
-
 export interface WhatsappLoginFallbackAvailability {
   available: boolean;
   /** Masked enrolled phone (e.g. `••••1234`), present only when available. */
@@ -98,24 +89,6 @@ export const AuthService = {
       "v1/auth/mfa-recovery/recover-totp",
       "POST",
       password !== undefined ? { email, code, password } : { email, code },
-    );
-  },
-
-  /**
-   * LOCAL DEV ONLY. Prepares the softcode superadmin for password-only login on
-   * localhost: the backend unenrolls the native TOTP factor and sets the
-   * `dev_mfa_bypass` claim. The caller then retries the email/password sign-in.
-   * Hard-gated to the dev project (`erp-softcode`) + localhost; rejected with
-   * 404/403 everywhere else, so it is inert in production.
-   */
-  async devMfaBypass(
-    email: string,
-    password: string,
-  ): Promise<DevMfaBypassResponse> {
-    return callPublicApi<DevMfaBypassResponse>(
-      "v1/auth/dev-mfa-bypass",
-      "POST",
-      { email, password },
     );
   },
 
