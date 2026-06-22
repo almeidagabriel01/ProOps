@@ -5,8 +5,8 @@ import { reportClientError } from "@/lib/observability/client-error-reporter";
 const OBSERVABILITY_PREFIX = "/v1/observability";
 
 /**
- * Only server errors (5xx) and unexpected non-ApiError failures (network, JS,
- * "User not authenticated") are real issues worth reporting. Expected 4xx
+ * Only server errors (5xx) and unexpected non-ApiError failures (network, JS)
+ * are real issues worth reporting. Expected 4xx
  * client errors — validation (400), auth (401/403), not-found (404),
  * plan-limit (402), rate-limit (429) — are normal API outcomes already shown
  * to the user, so reporting them is noise.

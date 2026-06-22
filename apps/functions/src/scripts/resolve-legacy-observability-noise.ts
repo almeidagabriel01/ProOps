@@ -88,7 +88,12 @@ async function main(): Promise<void> {
   console.log(`\nResolved ${updated} legacy-noise issue(s).`);
 }
 
-main().catch((err: Error) => {
-  console.error("\n❌ Erro fatal:", err.message);
-  process.exit(1);
-});
+// Only run when invoked directly (`ts-node resolve-legacy-observability-noise.ts`),
+// never on import — so the exported pure predicate can be unit-tested without
+// initializing the Admin SDK or hitting Firestore.
+if (require.main === module) {
+  main().catch((err: Error) => {
+    console.error("\n❌ Erro fatal:", err.message);
+    process.exit(1);
+  });
+}
