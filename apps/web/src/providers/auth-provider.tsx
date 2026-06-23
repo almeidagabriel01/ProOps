@@ -24,6 +24,7 @@ import { AuthService } from "@/services/auth-service";
 import { interpretSessionResponse } from "@/lib/auth/interpret-session-response";
 import { shouldShortCircuitSync } from "@/lib/auth/should-short-circuit-sync";
 import { shouldForceTerminalAuthState } from "@/lib/auth/should-force-terminal-auth-state";
+import { isStaleAuthEpoch } from "@/lib/auth/is-stale-auth-epoch";
 
 import { User, SubscriptionStatus } from "@/types";
 
@@ -277,6 +278,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // finishes), so a token-refresh mid-OTP can't fire a second challenge either.
   const explicitSignInInProgressRef = React.useRef(false);
 
+  // Monotonic auth-operation epoch. Incremented at the START of every explicit
+  // sign-in (login/TOTP/recovery-token/Google completion, and the WhatsApp OTP
+  // resolvers). A sync captures the epoch when it starts; before any shared-state
+  // write it checks the captured epoch is still live (`isStaleAuthEpoch`). A
+  // sync that resolves for a SUPERSEDED sign-in (e.g. user A's lingering
+  // background sync after the user signed in as B) has its writes dropped, so it
+  // can never flip `isSessionSynced`/the gate for the wrong identity. The
+  // already-in-flight POST is not cancelled (no partial server cookie state);
+  // only its resolved state writes are discarded.
+  const authEpochRef = React.useRef(0);
+
   /**
    * POSTs the ID token (optionally with an `otpCode`) to `/api/auth/session`.
    * Returns the parsed JSON body so callers can detect the WhatsApp-MFA gate
@@ -368,6 +380,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    */
   const syncServerSession = React.useCallback(
     async (firebaseUser: FirebaseUser): Promise<boolean> => {
+      // Capture the auth epoch at the start. If a newer explicit sign-in
+      // supersedes this sync before it resolves, `isFresh()` turns false and
+      // every shared-state write below is dropped — so a lingering sync for a
+      // previous identity can never clobber the current sign-in's state.
+      const epoch = authEpochRef.current;
+      const isFresh = () =>
+        !isStaleAuthEpoch({
+          capturedEpoch: epoch,
+          currentEpoch: authEpochRef.current,
+        });
+
       // Share the single in-flight sync. A concurrent caller (startup listener,
       // /auth/refresh recovery) awaits the SAME promise and receives the REAL
       // outcome instead of a spurious `false`. The single-POST guarantee — which
@@ -382,6 +405,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS;
       if (cooldownActive) {
         if (
+          isFresh() &&
           shouldShortCircuitSync({
             cooldownActive,
             whatsappGatePending: whatsappMfaPendingRef.current !== null,
@@ -403,6 +427,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const attempt = async (): Promise<boolean> => {
         try {
           const session = await createServerSession(firebaseUser);
+          // Drop every state write if a newer sign-in superseded this sync while
+          // the POST was in flight — the result describes a stale identity.
+          if (!isFresh()) return true;
           // Defense for when the listener runs OUTSIDE an explicit login (e.g. a
           // token-refresh while the user is still entering the WhatsApp OTP): the
           // route returns 200 WITHOUT a cookie. Treating that as success would
@@ -450,7 +477,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           );
         } catch {
           // If token refresh fails/times out, the user's auth state is broken.
-          setIsSessionSynced(false);
+          if (isFresh()) setIsSessionSynced(false);
           return false;
         }
         const success = await attempt();
@@ -459,7 +486,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             "[AuthProvider] Failed to sync session cookie after retry. " +
               "The next server-side navigation may redirect to /login.",
           );
-          setIsSessionSynced(false);
+          if (isFresh()) setIsSessionSynced(false);
         }
         return success;
       })();
@@ -827,6 +854,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     retryAfterSeconds?: number;
     otpSent?: boolean;
   }> => {
+    // Capture the epoch so a finalize superseded by a newer sign-in cannot write
+    // shared state (uniform with syncServerSession). In practice finalizeLogin is
+    // awaited inline right after the epoch was bumped, so this is normally fresh.
+    const epoch = authEpochRef.current;
+    const isFresh = () =>
+      !isStaleAuthEpoch({
+        capturedEpoch: epoch,
+        currentEpoch: authEpochRef.current,
+      });
+
     const currentUser = auth.currentUser;
     if (currentUser) {
       await currentUser.reload();
@@ -858,19 +895,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (skipSessionCreate) {
         return { success: true };
       }
-      try {
+      // One foreground POST → interpret → commit. Clears the loader HERE (not
+      // only via the onAuthStateChanged listener): the listener's sync branch is
+      // suppressed during this explicit sign-in and may have already fired for a
+      // previous identity, so relying on it can trap the full-screen loader with
+      // isSessionSynced already true. All writes are epoch-guarded so a finalize
+      // superseded by a newer sign-in cannot clobber the current state.
+      const attemptForegroundSession = async () => {
         const session = await createServerSession(currentUser);
         if (interpretSessionResponse(session) === "whatsapp-otp-pending") {
           // Cookie withheld. Keep the user signed in (Firebase) so we can read
           // the ID token for the verify step, but do not finalize yet.
-          setIsSessionSynced(false);
-          // Keep the elevated gate consistent with the background path so the
-          // OTP screen survives a reload at this stage too.
-          setWhatsappMfaPending({
-            maskedPhone: session.maskedPhone,
-            retryAfterSeconds: session.retryAfterSeconds,
-          });
-          setIsLoading(false);
+          if (isFresh()) {
+            setIsSessionSynced(false);
+            // Keep the elevated gate consistent with the background path so the
+            // OTP screen survives a reload at this stage too.
+            setWhatsappMfaPending({
+              maskedPhone: session.maskedPhone,
+              retryAfterSeconds: session.retryAfterSeconds,
+            });
+            setIsLoading(false);
+          }
           return {
             success: false,
             code: "whatsapp-mfa-required",
@@ -881,13 +926,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         // Cookie emitted (or super-admin gate handled elsewhere) — mark synced
         // and prime the cooldown so the listener doesn't re-POST immediately.
-        setIsSessionSynced(true);
-        setWhatsappMfaPending(null);
-        lastSyncSuccessRef.current = Date.now();
+        if (isFresh()) {
+          setIsSessionSynced(true);
+          setWhatsappMfaPending(null);
+          lastSyncSuccessRef.current = Date.now();
+          setIsLoading(false);
+        }
+        return { success: true };
+      };
+
+      try {
+        return await attemptForegroundSession();
       } catch (sessionError) {
-        // Non-fatal: the background onAuthStateChanged/onIdTokenChanged listener
-        // retries the sync. Don't block the login on a transient failure.
+        // The single foreground POST failed. The background listeners are
+        // suppressed by the explicit-sign-in lock (and already fired), so nobody
+        // would retry — leaving isSessionSynced false forever (eternal spinner).
+        // Bounded direct retry with a fresh token. Deliberately NOT routed through
+        // syncServerSession: its single-in-flight dedup could hand back a
+        // DIFFERENT identity's lingering promise (the cached user's startup sync).
         console.error("Session creation during login failed:", sessionError);
+        try {
+          await withTimeout(
+            currentUser.getIdToken(true),
+            TOKEN_REFRESH_TIMEOUT_MS,
+          );
+          return await attemptForegroundSession();
+        } catch (retryError) {
+          console.error("Session retry during login failed:", retryError);
+          if (isFresh()) setIsLoading(false);
+          return { success: false, code: "session-sync-failed" };
+        }
       }
     }
 
@@ -920,6 +988,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Take ownership of the single session POST before signInWithEmailAndPassword
     // fires the background auth listeners.
     explicitSignInInProgressRef.current = true;
+    // New explicit sign-in: bump the epoch so any sync still in flight for a
+    // previous identity (e.g. a cached user's startup sync) is treated as stale
+    // and its state writes are dropped.
+    authEpochRef.current += 1;
     try {
       await signInWithEmailAndPassword(auth, email, pass);
       const result = await finalizeLogin();
@@ -949,6 +1021,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // resolveSignIn() signs the user in and fires the background listeners — take
     // ownership of the session POST first.
     explicitSignInInProgressRef.current = true;
+    authEpochRef.current += 1;
     try {
       const totpHint = resolver.hints.find(
         (hint) => hint.factorId === TotpMultiFactorGenerator.FACTOR_ID,
@@ -983,6 +1056,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, code: "invalid-credentials" };
     }
     setIsLoading(true);
+    // Bump the epoch so a stale background sync from the pre-OTP phase can't
+    // overwrite the post-OTP synced state once the code is verified.
+    authEpochRef.current += 1;
     try {
       // Re-POST { idToken, otpCode } to the same session route. When the OTP
       // matches, the backend emits the __session cookie and we finalize the
@@ -1026,6 +1102,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, code: "invalid-credentials" };
     }
     setIsLoading(true);
+    // Bump the epoch so a stale background sync from the pre-OTP phase can't
+    // overwrite the post-OTP synced state once the recovery code is verified.
+    authEpochRef.current += 1;
     try {
       // Re-POST { idToken, recoveryCode } to the same session route. When the
       // code is valid, the backend emits the __session cookie and we finalize the
@@ -1071,6 +1150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // listeners — take ownership of the single session POST first, exactly like
     // the password/Google paths do.
     explicitSignInInProgressRef.current = true;
+    authEpochRef.current += 1;
     try {
       await signInWithCustomToken(auth, customToken);
       // Drives session creation and surfaces the WhatsApp-MFA gate when the
@@ -1120,6 +1200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // refresh / visibility re-sync can't fire a concurrent (non-idempotent)
     // challenge, and so a WhatsApp gate stays suppressed until the OTP is entered.
     explicitSignInInProgressRef.current = true;
+    authEpochRef.current += 1;
     const result = await finalizeLogin();
     releaseExplicitSignInUnlessWhatsappPending(result.code);
     return result;

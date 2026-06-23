@@ -4,6 +4,9 @@ import { getTenantPlanProfile, evaluateSubscriptionStatusAccess } from "../lib/t
 import { checkAiLimit, reserveAiMessage, finalizeTokenUsage, refundAiMessage } from "./usage-tracker";
 import { sanitizeText } from "../utils/sanitize";
 import { logger } from "../lib/logger";
+import { captureError } from "../lib/observability/error-logger";
+import { classifyProviderError } from "./provider-error";
+import { alertProviderConfigError } from "./provider-error-alert";
 import { fieldGenRateLimiter } from "./field-gen-rate-limiter";
 import {
   buildPrompt,
@@ -173,8 +176,49 @@ router.post("/generate-field", fieldGenRateLimiter, async (req: Request, res: Re
     });
   } catch (err) {
     await refundAiMessage(user.tenantId).catch(() => {});
-    logger.error("AI field-gen error", { tenantId: user.tenantId, uid: user.uid, field, error: String(err) });
-    throw err; // let the global error handler capture and log it
+
+    const classification = classifyProviderError(err);
+    logger.error("AI field-gen error", {
+      tenantId: user.tenantId,
+      uid: user.uid,
+      field,
+      category: classification.category,
+      error: String(err),
+    });
+
+    // config_invalid_key → 500 (server misconfig, no retry storm);
+    // quota/transient → 503; rate_limited → 429; else 502.
+    const status =
+      classification.category === "config_invalid_key"
+        ? 500
+        : classification.category === "quota_exhausted" || classification.category === "transient"
+        ? 503
+        : classification.category === "rate_limited"
+        ? 429
+        : 502;
+
+    if (classification.operatorActionable) {
+      void alertProviderConfigError(classification, {
+        route: "/v1/ai/generate-field",
+        tenantId: user.tenantId,
+        uid: user.uid,
+        provider: "gemini",
+        modelName: "gemini-2.5-flash-lite",
+      });
+    } else {
+      // Unknown/transient: preserve the observability capture the global handler used to do.
+      void captureError(err, {
+        source: "functions",
+        route: "/v1/ai/generate-field",
+        status,
+        uid: user.uid,
+        tenantId: user.tenantId,
+        handled: true,
+      });
+    }
+
+    // Terminal catch — respond and return; never rethrow after responding.
+    res.status(status).json({ message: classification.clientMessage, code: classification.category });
   }
 });
 

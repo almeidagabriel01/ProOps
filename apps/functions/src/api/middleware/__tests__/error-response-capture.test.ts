@@ -5,7 +5,7 @@ jest.mock("../../../lib/observability/error-logger", () => ({ captureError: (...
 
 import { EventEmitter } from "events";
 import { Request, Response } from "express";
-import { captureResponseErrors } from "../error-response-capture";
+import { captureResponseErrors, shouldCaptureResponseStatus } from "../error-response-capture";
 
 function run(path: string, method: string, statusCode: number, locals: Record<string, unknown> = {}) {
   const res = new EventEmitter() as unknown as Response & { statusCode: number; locals: Record<string, unknown> };
@@ -20,16 +20,31 @@ function run(path: string, method: string, statusCode: number, locals: Record<st
 
 beforeEach(() => captureError.mockReset());
 
-it("captures a 404 non-throw response", () => {
+it("does NOT capture a 404 non-throw response (4xx is expected client noise)", () => {
   run("/v1/proposals/x", "GET", 404);
-  expect(captureError).toHaveBeenCalledTimes(1);
-  const [, ctx] = captureError.mock.calls[0];
-  expect(ctx).toMatchObject({ source: "functions", status: 404, method: "GET", route: "/v1/proposals/x", handled: true });
+  expect(captureError).not.toHaveBeenCalled();
+});
+
+it.each([400, 401, 403, 404, 429, 499])("does NOT capture %s (4xx client error)", (status) => {
+  run("/v1/x", "GET", status);
+  expect(captureError).not.toHaveBeenCalled();
 });
 
 it("captures a 500 non-throw response", () => {
   run("/v1/x", "POST", 500);
   expect(captureError).toHaveBeenCalledTimes(1);
+  const [, ctx] = captureError.mock.calls[0];
+  expect(ctx).toMatchObject({ source: "functions", status: 500, method: "POST", route: "/v1/x", handled: true });
+});
+
+it.each([500, 502, 503])("captures %s server errors once", (status) => {
+  run("/v1/x", "POST", status);
+  expect(captureError).toHaveBeenCalledTimes(1);
+});
+
+it("shouldCaptureResponseStatus: only 5xx", () => {
+  for (const s of [200, 301, 399, 400, 404, 429, 499]) expect(shouldCaptureResponseStatus(s)).toBe(false);
+  for (const s of [500, 502, 503, 599]) expect(shouldCaptureResponseStatus(s)).toBe(true);
 });
 
 it("skips when already captured by the global error handler", () => {

@@ -19,7 +19,7 @@ export const reportWhatsappOverage = onSchedule(
     schedule: "0 3 1 * *", // 1st of every month at 03:00 AM
     timeZone: "America/Sao_Paulo",
     region: "southamerica-east1", // Or your preferred region
-    memory: "256MiB",
+    memory: "512MiB",
     timeoutSeconds: 300,
   },
   async (event) => {

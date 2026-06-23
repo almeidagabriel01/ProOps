@@ -37,4 +37,37 @@ describe("toIngestInput", () => {
     expect(input.message).toBe("string failure");
     expect(input.stack).toBeNull();
   });
+
+  it("extracts name/message/stack from a plain object (synthetic HttpError)", () => {
+    const synthetic = { name: "HttpError", message: "HTTP 500 POST /v1/x" };
+    const input = toIngestInput(synthetic, { source: "functions", handled: true, status: 500 });
+    expect(input.errorType).toBe("HttpError");
+    expect(input.message).toBe("HTTP 500 POST /v1/x");
+    expect(input.stack).toBeNull();
+  });
+
+  it("never produces '[object Object]' for an object without name/message", () => {
+    const input = toIngestInput({ code: 7 }, { source: "functions", handled: false, status: null });
+    expect(input.errorType).toBe("Error");
+    expect(input.message).not.toBe("[object Object]");
+    expect(input.message).toBe('{"code":7}');
+  });
+
+  it("populates stack when a plain object carries a stack string", () => {
+    const input = toIngestInput(
+      { name: "X", message: "m", stack: "X: m\n    at f (a.js:1:1)" },
+      { source: "functions", handled: false, status: null },
+    );
+    expect(input.stack).toContain("at f (a.js:1:1)");
+  });
+
+  it("does not throw on a circular object and yields a string message", () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    let input!: ReturnType<typeof toIngestInput>;
+    expect(() => {
+      input = toIngestInput(circular, { source: "functions", handled: false, status: null });
+    }).not.toThrow();
+    expect(typeof input.message).toBe("string");
+  });
 });

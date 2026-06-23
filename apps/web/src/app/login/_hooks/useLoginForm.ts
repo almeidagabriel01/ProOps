@@ -638,6 +638,11 @@ export function useLoginForm(): UseLoginFormReturn {
           setWhatsappMaskedPhone(result.maskedPhone || "");
           setRequiresWhatsappOtp(true);
           startWhatsappResendCountdown(result.retryAfterSeconds ?? 0);
+        } else if (result.code === "session-sync-failed") {
+          // Credentials were valid but the __session cookie could not be minted
+          // even after the bounded retry. Surface a real, retryable error instead
+          // of hanging on the loader.
+          setError("Não foi possível concluir o login. Tente novamente.");
         } else {
           setError("Falha no login. Verifique suas credenciais.");
         }

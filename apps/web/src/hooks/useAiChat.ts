@@ -224,7 +224,15 @@ export function useAiChat(): UseAiChatReturn {
                   }
                   break;
 
-                case "error":
+                case "error": {
+                  // Map the backend provider-error category to a UI errorType so config/quota
+                  // failures render distinctly from a generic interruption.
+                  const errorType: LiaMessage["errorType"] =
+                    chunk.code === "config_invalid_key" || chunk.code === "quota_exhausted"
+                      ? "config_error"
+                      : chunk.code === "rate_limited"
+                        ? "limit_reached"
+                        : "generic";
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === liaMessageId
@@ -232,11 +240,13 @@ export function useAiChat(): UseAiChatReturn {
                             ...m,
                             isStreaming: false,
                             error: chunk.error ?? "Erro desconhecido.",
+                            errorType,
                           }
                         : m,
                     ),
                   );
                   break;
+                }
               }
             },
 

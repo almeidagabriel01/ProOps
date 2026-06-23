@@ -210,7 +210,7 @@ export const remindNoSubscriptionSignups = onSchedule(
     ...SCHEDULE_OPTIONS,
     schedule: "0 14 * * *",
     timeoutSeconds: 300,
-    memory: "256MiB",
+    memory: "512MiB",
   },
   async () => {
     // Sliding window keeps the daily result set small; the single-send marker

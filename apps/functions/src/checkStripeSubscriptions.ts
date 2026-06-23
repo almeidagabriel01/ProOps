@@ -17,7 +17,7 @@ export const checkStripeSubscriptions = onSchedule(
     ...SCHEDULE_OPTIONS,
     schedule: "0 3 * * *", // Diariamente às 03:00 BRT
     timeoutSeconds: 540,
-    memory: "256MiB",
+    memory: "512MiB",
   },
   async () => {
     logger.info("Starting daily Stripe subscription check...");

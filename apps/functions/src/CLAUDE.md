@@ -58,7 +58,7 @@ Centraliza configuracoes de deploy para evitar divergencias entre funcoes.
   region: "southamerica-east1",
   cpu: IS_DEV ? 0.083 : 0.25,
   maxInstances: 1,
-  memory: "256MiB",
+  memory: "512MiB",
 }
 ```
 
@@ -125,7 +125,7 @@ Isso garante que a mesma transacao nao gera multiplas notificacoes a cada execuc
 **Arquivo:** `apps/functions/src/checkStripeSubscriptions.ts`
 **Schedule:** `every 24 hours`
 **Timeout:** 540 segundos (9 minutos)
-**Memory:** 256MiB
+**Memory:** 512MiB
 
 #### O que faz
 
@@ -178,7 +178,7 @@ past_due ─── mais de 7 dias expirado ──►  canceled (planId: "free")
 **Arquivo:** `apps/functions/src/reportWhatsappOverage.ts`
 **Schedule:** `0 3 1 * *` — Dia 1 de cada mes as 03:00 BRT
 **Timeout:** 300 segundos
-**Memory:** 256MiB
+**Memory:** 512MiB
 **Regiao:** `southamerica-east1`
 
 #### O que faz
@@ -272,9 +272,9 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 |--------|-----|--------|---------------|-------------|---------|
 | `api` (CORS_OPTIONS) | 1 | 1GiB | prod 10 / dev 1 | prod 80 / dev 3 | 90s |
 | `stripeWebhook` | 1 | 1GiB | (global) | - | default |
-| Crons (SCHEDULE_OPTIONS) | prod 0.25 / dev 0.083 | 256MiB | 1 | - | varia (300–540s) |
+| Crons (SCHEDULE_OPTIONS) | prod 0.25 / dev 0.083 | 512MiB | 1 | - | varia (300–540s) |
 
-> `memory: "1GiB"` aplicado via `setGlobalOptions`; os crons sobrescrevem para `256MiB` via SCHEDULE_OPTIONS. Valores de `cpu`/`maxInstances`/`concurrency` variam entre dev e prod (`IS_DEV`).
+> `memory: "1GiB"` aplicado via `setGlobalOptions`; os crons sobrescrevem para `512MiB` via SCHEDULE_OPTIONS (256MiB causava OOM no cold start do monolito). Valores de `cpu`/`maxInstances`/`concurrency` variam entre dev e prod (`IS_DEV`).
 
 ---
 

@@ -20,12 +20,51 @@ function readField(err: unknown, key: string): string | null {
   return null;
 }
 
+/**
+ * Stringify a non-Error, non-primitive value without ever throwing and without
+ * collapsing to the useless "[object Object]". Falls back to String(v) only when
+ * JSON.stringify yields nothing meaningful (circular refs, empty object, etc.).
+ */
+function safeStringify(v: unknown): string {
+  try {
+    const json = JSON.stringify(v);
+    if (json && json !== "{}" && json !== "[]") return json;
+  } catch {
+    // circular or non-serializable — fall through
+  }
+  return String(v);
+}
+
+/**
+ * Normalize any thrown value into a stable { errorType, message, stack } shape.
+ * Handles three shapes: native Error, plain object carrying name/message/stack
+ * fields (e.g. the synthetic HttpError from error-response-capture), and
+ * primitives. Never throws.
+ */
+function normalizeThrowable(err: unknown): {
+  errorType: string;
+  message: string;
+  stack: string | null;
+} {
+  if (err instanceof Error) {
+    return { errorType: err.name || "Error", message: err.message, stack: err.stack ?? null };
+  }
+  if (err && typeof err === "object") {
+    return {
+      errorType: readField(err, "name") ?? "Error",
+      message: readField(err, "message") ?? safeStringify(err),
+      stack: readField(err, "stack"),
+    };
+  }
+  return { errorType: "Error", message: String(err), stack: null };
+}
+
 export function toIngestInput(err: unknown, ctx: CaptureCtx): IngestErrorInput {
-  const isError = err instanceof Error;
+  const normalized = normalizeThrowable(err);
   return {
-    errorType: isError ? err.name || "Error" : "Error",
-    message: isError ? err.message : String(err),
-    stack: isError ? err.stack ?? null : null,
+    errorType: normalized.errorType,
+    message: normalized.message,
+    stack: normalized.stack,
     source: ctx.source,
     route: ctx.route ?? null,
     method: ctx.method ?? null,
