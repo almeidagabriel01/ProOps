@@ -18,6 +18,17 @@ import {
 import { VerificationCodeInput } from "@/components/shared/verification-code-input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/lib/toast";
 
 const STEPS = [
   {
@@ -48,11 +59,24 @@ export default function SetupMfaPage() {
     setCode,
     error,
     busy,
+    isEnrolled,
     generate,
     enroll,
+    disable,
   } = useTotpEnrollment();
 
   const [qrDataUrl, setQrDataUrl] = React.useState("");
+  const [confirmDisableOpen, setConfirmDisableOpen] = React.useState(false);
+
+  const showEnableFlow = !isEnrolled && stage !== "done";
+
+  const handleDisable = async () => {
+    const ok = await disable();
+    setConfirmDisableOpen(false);
+    if (ok) {
+      toast.success("Verificação em dois fatores desativada.");
+    }
+  };
 
   // Render the otpauth URL as a scannable QR code (same flow as the user-facing
   // MFA section) so super admins can scan instead of typing the key by hand.
@@ -128,8 +152,33 @@ export default function SetupMfaPage() {
               </Alert>
             ) : null}
 
+            {/* Já enrolado: status + opção de desativar */}
+            {isEnrolled && stage !== "done" ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                  <p className="text-sm">
+                    Status:{" "}
+                    <span className="font-medium text-emerald-600">Ativada</span>
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Sua conta já possui um aplicativo autenticador cadastrado. Para
+                  trocar de dispositivo, desative e cadastre novamente.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmDisableOpen(true)}
+                  disabled={busy}
+                  className="w-fit cursor-pointer"
+                >
+                  Desativar
+                </Button>
+              </div>
+            ) : null}
+
             {/* Estado inicial: passos + ação */}
-            {stage === "intro" ? (
+            {showEnableFlow && stage === "intro" ? (
               <div className="flex flex-col gap-6">
                 <ol className="flex flex-col gap-4">
                   {STEPS.map((step, index) => {
@@ -168,7 +217,7 @@ export default function SetupMfaPage() {
             ) : null}
 
             {/* Exibição do segredo (QR + chave lado a lado) */}
-            {stage === "secret" && secret ? (
+            {showEnableFlow && stage === "secret" && secret ? (
               <div className="flex flex-col gap-6">
                 <div className="grid items-start gap-6 sm:grid-cols-[auto_1fr]">
                   <div className="flex flex-col items-center gap-2">
@@ -243,6 +292,34 @@ export default function SetupMfaPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      <AlertDialog open={confirmDisableOpen} onOpenChange={setConfirmDisableOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Desativar verificação em dois fatores?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Sua conta de super admin deixará de pedir o código do autenticador
+              no login. Recomendamos manter a verificação ativada para mais
+              segurança.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDisable();
+              }}
+              disabled={busy}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {busy ? "Desativando..." : "Sim, desativar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
