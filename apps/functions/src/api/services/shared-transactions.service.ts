@@ -8,6 +8,8 @@ import { logger } from "../../lib/logger";
 const SHARED_TRANSACTIONS_COLLECTION = "shared_transactions";
 
 const VALID_EXPIRE_DAYS = [15, 30, 60, 90, 180, 365, null] as const;
+// Últimas N visualizações no doc; total vive em viewCount (increment).
+const MAX_VIEWER_INFO_ENTRIES = 50;
 type ValidExpireDays = (typeof VALID_EXPIRE_DAYS)[number];
 
 export interface SharedTransaction {
@@ -221,9 +223,21 @@ export class SharedTransactionService {
       const description = transactionDescription || "Lançamento";
 
       await Promise.all([
-        docRef.update({
-          viewedAt: new Date().toISOString(),
-          viewerInfo: FieldValue.arrayUnion(viewerInfo),
+        // Array capado + contador: arrayUnion sem bound inflaria o doc até o
+        // limite de 1 MB do Firestore (writes passariam a falhar) em links
+        // muito acessados. viewCount preserva o total.
+        db.runTransaction(async (txn) => {
+          const snap = await txn.get(docRef);
+          if (!snap.exists) return;
+          const current =
+            (snap.data()?.viewerInfo as ViewerInfo[] | undefined) ?? [];
+          txn.update(docRef, {
+            viewedAt: new Date().toISOString(),
+            viewerInfo: [...current, viewerInfo].slice(
+              -MAX_VIEWER_INFO_ENTRIES,
+            ),
+            viewCount: FieldValue.increment(1),
+          });
         }),
         NotificationService.createNotification({
           tenantId,
