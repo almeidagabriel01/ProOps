@@ -26,7 +26,6 @@
     "@google/genai": "^1.50.1",
     "@googleapis/calendar": "^15.0.0",
     "@googleapis/oauth2": "^5.0.1",
-    "@mercadopago/sdk-react": "^1.0.7",
     "@sparticuz/chromium": "^143.0.4",
     "axios": "^1.13.5",
     "cors": "^2.8.5",
