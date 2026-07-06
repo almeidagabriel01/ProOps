@@ -6,6 +6,7 @@ import { useAiChat } from "@/hooks/useAiChat";
 import { useLiaSession } from "@/hooks/useLiaSession";
 import { useLiaUsage } from "@/hooks/useLiaUsage";
 import { useLiaHistory } from "@/hooks/useLiaHistory";
+import { useLiaSoundPreference } from "@/hooks/useLiaSoundPreference";
 import { LiaTriggerButton } from "./lia-trigger-button";
 import { LiaPanel } from "./lia-panel";
 import { LiaChatWindow } from "./lia-chat-window";
@@ -91,6 +92,7 @@ export function LiaContainer() {
   const chat = useAiChat();
   const session = useLiaSession();
   const usage = useLiaUsage();
+  const soundPreference = useLiaSoundPreference();
 
   const [nearLimitDismissed, setNearLimitDismissed] = useState(false);
   const showNearLimitBanner = usage.isNearLimit && !usage.isAtLimit && !nearLimitDismissed;
@@ -185,6 +187,10 @@ export function LiaContainer() {
         onStartNewSession={handleStartNewSession}
         onToggleHistory={handleToggleHistory}
         view={view}
+        soundsEnabled={soundPreference.soundsEnabled}
+        onToggleSounds={() => {
+          void soundPreference.toggleSounds();
+        }}
         usageBadge={
           <LiaUsageBadge
             messagesUsed={usage.messagesUsed}

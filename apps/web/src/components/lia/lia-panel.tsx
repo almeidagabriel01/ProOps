@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, History, Plus, X } from "lucide-react";
+import { ArrowLeft, History, Plus, Volume2, VolumeX, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTenant } from "@/providers/tenant-provider";
@@ -12,6 +12,9 @@ interface LiaPanelProps {
   onStartNewSession: () => void;
   onToggleHistory: () => void;
   view: "chat" | "history";
+  /** Preferência de sons da Lia */
+  soundsEnabled: boolean;
+  onToggleSounds: () => void;
   /** Slot: usage badge rendered by parent */
   usageBadge?: React.ReactNode;
   /** Slot: chat window + message bubbles */
@@ -28,6 +31,8 @@ export function LiaPanel({
   onStartNewSession,
   onToggleHistory,
   view,
+  soundsEnabled,
+  onToggleSounds,
   usageBadge,
   chatWindow,
   historyView,
@@ -85,6 +90,20 @@ export function LiaPanel({
               <p className="text-xs text-muted-foreground leading-tight">Assistente ProOps</p>
             </div>
             {usageBadge}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-8 h-8 shrink-0"
+              aria-label={soundsEnabled ? "Desativar sons da Lia" : "Ativar sons da Lia"}
+              aria-pressed={soundsEnabled}
+              onClick={onToggleSounds}
+            >
+              {soundsEnabled ? (
+                <Volume2 className="w-4 h-4" />
+              ) : (
+                <VolumeX className="w-4 h-4 text-muted-foreground" />
+              )}
+            </Button>
             <Button
               variant="ghost"
               size="icon"
