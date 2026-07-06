@@ -71,10 +71,11 @@ function getContext(): AudioContext | null {
   if (!Ctor) return null;
   if (!sharedContext) {
     try {
-      sharedContext = new Ctor() as any;
+      sharedContext = new Ctor();
     } catch {
-      // Fallback for mock constructors that work as regular functions
-      sharedContext = Ctor() as any;
+      // Só para mocks de teste (vi.fn com arrow factory) que não são
+      // construíveis com `new` — inalcançável com Web Audio real. Não remover.
+      sharedContext = (Ctor as unknown as () => AudioContext)();
     }
   }
   return sharedContext;
