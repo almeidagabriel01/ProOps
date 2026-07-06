@@ -1,6 +1,11 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { LRUCache } from "lru-cache";
 import { db } from "../init";
+import {
+  clearTenantDocCache,
+  getTenantDocCached,
+  invalidateTenantDoc,
+} from "./tenant-doc-cache";
 import { logger } from "./logger";
 import { getPriceConfig } from "../stripe/stripeConfig";
 import {
@@ -413,10 +418,10 @@ export function buildCompatDefaultTenantPlanProfile(input: {
 async function resolveTenantPlanProfileUncached(
   tenantId: string,
 ): Promise<TenantPlanProfile> {
-  const tenantSnap = await db.collection("tenants").doc(tenantId).get();
-  const tenantData = tenantSnap.exists
-    ? (tenantSnap.data() as Record<string, unknown> | undefined)
-    : undefined;
+  // Leitura via cache compartilhado (5s) — mesma fonte usada pelo middleware
+  // require-active-subscription; evita 2ª leitura do doc na mesma request.
+  const tenantState = await getTenantDocCached(tenantId);
+  const tenantData = tenantState.exists ? tenantState.data : undefined;
 
   const subscriptionStatus = normalizeSubscriptionStatus(
     tenantData?.subscriptionStatus,
@@ -855,9 +860,13 @@ export function setTenantPlanTelemetryForTest(
 export function clearTenantPlanCache(tenantId?: string): void {
   if (tenantId) {
     PLAN_CACHE.delete(tenantId);
+    // O perfil deriva do doc tenant — limpar um sem o outro deixaria a
+    // re-derivação lendo um snapshot velho do cache de doc compartilhado.
+    invalidateTenantDoc(tenantId);
     return;
   }
   PLAN_CACHE.clear();
+  clearTenantDocCache();
 }
 
 export function setTenantPlanCacheForTest(

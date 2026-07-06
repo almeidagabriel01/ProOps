@@ -225,7 +225,10 @@ type PlanLimitFeature =
 
 ### Cache em memoria
 
-O perfil de plano e cacheado em `PLAN_CACHE: Map<tenantId, CachedPlan>` por `TENANT_PLAN_CACHE_TTL_MS` (default: 30s, min: 5s, max: 300s). Cache invalida automaticamente por TTL. Nao persiste entre instances do Cloud Run.
+Duas camadas, ambas por instancia do Cloud Run:
+
+1. **Doc tenant compartilhado** (`lib/tenant-doc-cache.ts`, TTL 5s, LRU 500): fonte unica de leitura de `tenants/{tenantId}` usada por `require-active-subscription` (middleware de billing) e por `resolveTenantPlanProfileUncached`. `invalidateBillingCache(tenantId)` (chamado pelos webhooks/controllers Stripe) delega para `invalidateTenantDoc`.
+2. **Perfil derivado** (`PLAN_CACHE`, TTL 30s): cacheia o `TenantPlanProfile` ja derivado (tier + limites, incl. lookups de `plans/{planId}`). `clearTenantPlanCache(tenantId)` limpa as DUAS camadas (perfil + doc) — limpar so o perfil re-derivaria de um snapshot velho.
 
 ### Resolucao de tier a partir do doc `tenants/{id}`
 
