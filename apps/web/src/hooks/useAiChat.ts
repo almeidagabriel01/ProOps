@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { sendChatMessage, AiApiError } from "@/services/ai-service";
+import { playLiaSound } from "@/lib/lia-sounds";
 import type { LiaMessage, AiChatChunk, AiUsageData } from "@/types/ai";
 
 export interface PendingConfirmation {
@@ -145,6 +146,12 @@ export function useAiChat(): UseAiChatReturn {
       setMessages((prev) => [...prev, liaMessage]);
       setIsStreaming(true);
 
+      // Sound gating per send: typingStart toca 1x; responseDone é suprimido
+      // se o mesmo envio terminou em erro ou pediu confirmação.
+      let typingSoundPlayed = false;
+      let sendHadError = false;
+      let confirmationRequested = false;
+
       const toolCallsAccumulator: LiaMessage["toolCalls"] = [];
       const toolResultsAccumulator: LiaMessage["toolResults"] = [];
 
@@ -160,6 +167,10 @@ export function useAiChat(): UseAiChatReturn {
             onChunk: (chunk: AiChatChunk) => {
               switch (chunk.type) {
                 case "thinking":
+                  if (!typingSoundPlayed) {
+                    typingSoundPlayed = true;
+                    playLiaSound("typingStart");
+                  }
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === liaMessageId ? { ...m, isThinking: true } : m,
@@ -169,6 +180,10 @@ export function useAiChat(): UseAiChatReturn {
 
                 case "text":
                   if (chunk.content) {
+                    if (!typingSoundPlayed) {
+                      typingSoundPlayed = true;
+                      playLiaSound("typingStart");
+                    }
                     setMessages((prev) =>
                       prev.map((m) =>
                         m.id === liaMessageId
@@ -205,6 +220,8 @@ export function useAiChat(): UseAiChatReturn {
 
                     // Confirmation gate: tool requires user approval
                     if (chunk.toolResult.requiresConfirmation && chunk.toolResult.confirmationData) {
+                      confirmationRequested = true;
+                      playLiaSound("confirmNeeded");
                       setPendingConfirmation({
                         originalMessage: text,
                         sessionId: currentSessionId,
@@ -233,6 +250,8 @@ export function useAiChat(): UseAiChatReturn {
                       : chunk.code === "rate_limited"
                         ? "limit_reached"
                         : "generic";
+                  sendHadError = true;
+                  playLiaSound("error");
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === liaMessageId
@@ -265,6 +284,9 @@ export function useAiChat(): UseAiChatReturn {
               if (!isOpen) {
                 setHasUnread(true);
               }
+              if (!sendHadError && !confirmationRequested) {
+                playLiaSound(isOpen ? "responseDone" : "notification");
+              }
             },
 
             onError: (error: Error) => {
@@ -285,6 +307,7 @@ export function useAiChat(): UseAiChatReturn {
                   }
                 }
               }
+              playLiaSound("error");
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === liaMessageId
@@ -303,6 +326,7 @@ export function useAiChat(): UseAiChatReturn {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Erro ao conectar com a Lia.";
+        playLiaSound("error");
         setMessages((prev) =>
           prev.map((m) =>
             m.id === liaMessageId
@@ -330,6 +354,7 @@ export function useAiChat(): UseAiChatReturn {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, userMessage]);
+      playLiaSound("messageSent");
 
       await doSend(trimmed, sessionId);
     },
