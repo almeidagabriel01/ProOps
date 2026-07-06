@@ -8,6 +8,7 @@ import { toast } from '@/lib/toast';
 import { TenantService } from "@/services/tenant-service";
 import { AdminService, TenantBillingInfo } from "@/services/admin-service";
 import { deriveSubscriptionDisplayStatus } from "@/lib/subscription-status";
+import { canAccessTenantPanel } from "@/lib/tenant-panel-access";
 import { Tenant } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { TenantFormData } from "@/components/admin/tenant-dialog";
@@ -26,7 +27,7 @@ interface UseTenantManagementReturn {
   openEdit: (data: TenantBillingInfo) => void;
   handleSave: (data: TenantFormData) => Promise<void>;
   handleDelete: (id: string) => Promise<void>;
-  handleLoginAs: (tenant: Tenant) => void;
+  handleLoginAs: (item: TenantBillingInfo) => void;
   handleRecompute: (tenantId: string) => Promise<void>;
   isLoading: boolean;
   isSaving: boolean;
@@ -353,9 +354,17 @@ export function useTenantManagement(): UseTenantManagementReturn {
     }
   };
 
-  const handleLoginAs = (tenant: Tenant) => {
-    setViewingTenant(tenant);
-    toast.info(`Acessando painel de "${tenant.name}"...`);
+  const handleLoginAs = (item: TenantBillingInfo) => {
+    // Guard duplicado com o disable do botão no TenantCard: mesmo que o estado
+    // da UI seja contornado, uma conta free nunca entra no ERP.
+    if (!canAccessTenantPanel(item)) {
+      toast.error(
+        `"${item.tenant.name}" está no plano gratuito e não possui acesso ao painel ERP.`,
+      );
+      return;
+    }
+    setViewingTenant(item.tenant as Tenant);
+    toast.info(`Acessando painel de "${item.tenant.name}"...`);
     React.startTransition(() => {
       router.push("/dashboard");
     });

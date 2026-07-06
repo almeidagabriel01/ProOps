@@ -18,8 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tenant } from "@/types";
 import { TenantBillingInfo, AdminService } from "@/services/admin-service";
+import { canAccessTenantPanel } from "@/lib/tenant-panel-access";
 import { toast } from "@/lib/toast";
 import { LogIn, Trash2, Pencil, ShieldOff, Calendar, CheckCircle2, Clock, XCircle, MinusCircle } from "lucide-react";
 import { formatDateBR } from "@/utils/date-format";
@@ -30,7 +30,7 @@ interface TenantCardProps {
   item: TenantBillingInfo;
   onEdit: (data: TenantBillingInfo) => void;
   onDelete: (id: string) => Promise<void>;
-  onLoginAs: (tenant: Tenant) => void;
+  onLoginAs: (item: TenantBillingInfo) => void;
   onCopy?: (data: TenantBillingInfo) => void;
 }
 
@@ -43,6 +43,7 @@ export function TenantCard({
 }: TenantCardProps) {
   const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
+  const canAccessPanel = canAccessTenantPanel(item);
   const currentPeriodEnd = admin.currentPeriodEnd;
   const isStaleWithNoDate = isBillingStale && !currentPeriodEnd;
 
@@ -341,14 +342,25 @@ export function TenantCard({
       </CardContent>
 
       <CardFooter className="bg-muted/10 p-4 border-t mt-auto">
-        <Button
-          className="w-full cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
-          variant="ghost"
-          onClick={() => onLoginAs(tenant as Tenant)}
-          disabled={isDeleting}
+        {/* span wrapper: disabled button tem pointer-events-none, então o title
+            (tooltip nativo) precisa ficar no elemento pai para ser exibido */}
+        <span
+          className="w-full"
+          title={
+            canAccessPanel
+              ? undefined
+              : "Conta no plano gratuito não possui acesso ao painel ERP"
+          }
         >
-          <LogIn className="w-4 h-4 mr-2 text-primary" /> Acessar Painel
-        </Button>
+          <Button
+            className="w-full cursor-pointer bg-white dark:bg-slate-950 border hover:bg-muted/50 text-foreground transition-colors shadow-sm"
+            variant="ghost"
+            onClick={() => onLoginAs(item)}
+            disabled={isDeleting || !canAccessPanel}
+          >
+            <LogIn className="w-4 h-4 mr-2 text-primary" /> Acessar Painel
+          </Button>
+        </span>
       </CardFooter>
 
       {/* Delete Confirmation Dialog - Controlled */}
