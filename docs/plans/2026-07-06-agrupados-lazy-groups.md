@@ -167,8 +167,8 @@ getGroupMembers: async (
 ) => Promise<Transaction[]>; // proposal → where proposalGroupId==; group → união installment/recurring (métodos existentes)
 ```
 
-- [ ] Steps TDD (red → green): paginação com cursor; `getGroupMembers` roteia pela chave; tudo tenant-scoped.
-- [ ] **Commit** — `feat(web): transaction group summaries service with paginated standalones and on-demand members`
+- [x] Steps TDD (red → green): paginação com cursor; `getGroupMembers` roteia pela chave (proposal inclui irmãos legados via installmentGroupId); tudo tenant-scoped. Decisão: avulsos ordenam por `date` desc (campo sempre presente; `dueDate` opcional sumiria do orderBy) — índice da Task 4 ajustado para `(tenantId, grouped, date DESC)`.
+- [x] **Commit** — `feat(web): transaction group summaries service with paginated standalones and on-demand members`
 
 ### Task 6: UI da aba Agrupados consome resumos + expand lazy + cache
 

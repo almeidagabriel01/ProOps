@@ -1888,7 +1888,7 @@
       "fields": [
         { "fieldPath": "tenantId", "order": "ASCENDING" },
         { "fieldPath": "grouped", "order": "ASCENDING" },
-        { "fieldPath": "dueDate", "order": "DESCENDING" }
+        { "fieldPath": "date", "order": "DESCENDING" }
       ]
     }
   ],
