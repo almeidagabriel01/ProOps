@@ -35,13 +35,15 @@ export const checkDueDates = onSchedule(
       // ================================================================
       // Compound query: status == "pending" AND dueDate <= limitDateStr
       // Requires composite index (status ASC, dueDate ASC) in firestore.indexes.json
-      const pendingTransactions = await db
-        .collection("transactions")
-        .where("status", "==", "pending")
-        .where("dueDate", "<=", limitDateStr)
-        .get();
-
-      for (const doc of pendingTransactions.docs) {
+      // Paginado (mesmo padrão de markOverdueTransactions) — resultado global
+      // cresce com a base; nunca carregar tudo em memória de uma vez.
+      for await (const doc of paginate(
+        db
+          .collection("transactions")
+          .where("status", "==", "pending")
+          .where("dueDate", "<=", limitDateStr)
+          .orderBy("dueDate"),
+      )) {
         const data = doc.data();
         const dueDate = data.dueDate as string | undefined;
         const tenantId = data.tenantId as string;
@@ -107,21 +109,22 @@ export const checkDueDates = onSchedule(
       // ================================================================
       // 2. PROPOSTAS COM VALIDADE PRÓXIMA OU EXPIRADA
       // ================================================================
-      // Single query using `in` operator instead of 3 sequential queries
-      const proposalSnapshot = await db
-        .collection("proposals")
-        .where("status", "in", ["draft", "in_progress", "sent"])
-        .get();
-
-      for (const doc of proposalSnapshot.docs) {
+      // Filtro de validUntil na QUERY (não em memória) — sem ele o cron
+      // varria todo o inventário global de propostas abertas. Docs sem
+      // validUntil já eram ignorados, então o range é equivalente.
+      // Requires composite index (status ASC, validUntil ASC).
+      for await (const doc of paginate(
+        db
+          .collection("proposals")
+          .where("status", "in", ["draft", "in_progress", "sent"])
+          .where("validUntil", "<=", limitDateStr)
+          .orderBy("validUntil"),
+      )) {
         const data = doc.data();
         const validUntil = data.validUntil as string | undefined;
         const tenantId = data.tenantId as string;
 
         if (!validUntil || !tenantId) continue;
-
-        // Verificar se validUntil está dentro do intervalo
-        if (validUntil > limitDateStr) continue;
 
         const isExpired = validUntil < today;
         const title = data.title || "Sem título";
@@ -186,6 +189,26 @@ export const checkDueDates = onSchedule(
     }
   },
 );
+
+const CRON_PAGE_SIZE = 400;
+
+/**
+ * Itera um query paginando por cursor — memória constante independente do
+ * tamanho do resultado (padrão de markOverdueTransactions).
+ */
+async function* paginate(
+  query: FirebaseFirestore.Query,
+): AsyncGenerator<FirebaseFirestore.QueryDocumentSnapshot> {
+  let last: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+  for (;;) {
+    let page = query.limit(CRON_PAGE_SIZE);
+    if (last) page = page.startAfter(last);
+    const snap = await page.get();
+    for (const doc of snap.docs) yield doc;
+    if (snap.size < CRON_PAGE_SIZE) return;
+    last = snap.docs[snap.docs.length - 1];
+  }
+}
 
 /**
  * Formata data YYYY-MM-DD para DD/MM/YYYY
