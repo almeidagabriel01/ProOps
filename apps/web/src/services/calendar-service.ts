@@ -54,8 +54,22 @@ export const CalendarService = {
       }
     };
 
+    // Aba oculta não polla (economia de reads/API); ao voltar, refetch imediato.
+    const isTabHidden = () =>
+      typeof document !== "undefined" &&
+      document.visibilityState === "hidden";
+    const onVisibilityChange = () => {
+      if (!disposed && !isTabHidden()) {
+        void loadEvents();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+    }
+
     void loadEvents();
     intervalId = setInterval(() => {
+      if (isTabHidden()) return;
       void loadEvents();
     }, CALENDAR_POLL_INTERVAL_MS);
 
@@ -63,6 +77,9 @@ export const CalendarService = {
       disposed = true;
       if (intervalId) {
         clearInterval(intervalId);
+      }
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
       }
     };
   },
