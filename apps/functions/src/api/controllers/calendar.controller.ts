@@ -309,9 +309,30 @@ async function createGoogleOAuthClient() {
   );
 }
 
+// Cache negativo por instância: a MAIORIA dos tenants não tem Google
+// conectado, mas toda listagem de eventos pagava 1-2 leituras só para
+// descobrir isso. Só o "não tem" é cacheado — o registro real é sempre
+// relido (refreshToken precisa estar fresco). Invalidado ao conectar.
+const NO_INTEGRATION_CACHE_TTL_MS = 5 * 60 * 1000;
+const noIntegrationCache = new Map<string, number>(); // tenantId → expiresAtMs
+
+export function invalidateGoogleIntegrationCache(tenantId: string): void {
+  noIntegrationCache.delete(tenantId);
+}
+
 export async function getGoogleIntegration(
   tenantId: string,
 ): Promise<GoogleCalendarIntegrationRecord | null> {
+  const cachedUntil = noIntegrationCache.get(tenantId);
+  if (cachedUntil !== undefined) {
+    if (cachedUntil > Date.now()) return null;
+    noIntegrationCache.delete(tenantId);
+  }
+  const markNoIntegration = (): null => {
+    noIntegrationCache.set(tenantId, Date.now() + NO_INTEGRATION_CACHE_TTL_MS);
+    return null;
+  };
+
   const collection = db.collection(CALENDAR_INTEGRATIONS_COLLECTION);
 
   const normalizeIntegrationRecord = (
@@ -389,7 +410,7 @@ export async function getGoogleIntegration(
     .get();
 
   if (legacySnapshot.empty) {
-    return null;
+    return markNoIntegration();
   }
 
   const legacyDoc = [...legacySnapshot.docs].sort((left, right) => {
@@ -412,7 +433,7 @@ export async function getGoogleIntegration(
     legacyDoc.data() as GoogleCalendarIntegrationDocument | undefined,
   );
   if (!legacyRecord) {
-    return null;
+    return markNoIntegration();
   }
 
   // The read-triggered relocation is itself a write — it must obey the
@@ -1228,9 +1249,12 @@ async function listCalendarEventsWithTenantFallback(params: {
   startMs: number;
   endMs: number;
 }): Promise<Array<CalendarEventDocument & { id: string }>> {
+  // Caminho degradado (query indexada falhou) — bound explícito para nunca
+  // baixar o histórico inteiro de eventos do tenant.
   const snapshot = await db
     .collection(CALENDAR_EVENTS_COLLECTION)
     .where("tenantId", "==", params.tenantId)
+    .limit(1500)
     .get();
 
   return snapshot.docs
@@ -1558,6 +1582,7 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
         lastSyncError: null,
       } satisfies GoogleCalendarIntegrationDocument);
 
+    invalidateGoogleIntegrationCache(stateData.tenantId);
     await stateRef.delete().catch(() => undefined);
     return res.redirect(buildFrontendCalendarUrl(req, "connected"));
   } catch (error) {
