@@ -21,6 +21,9 @@ Implementado: campos desnormalizados `paidTotal`/`pendingTotal` mantidos pelo tr
 ### P2 — Busca client-side exige coleção inteira
 `proposals/page.tsx:433` (modo busca) e `client-select.tsx:55` baixam tudo porque Firestore não tem busca textual. `limit()` quebraria a busca. Correção certa: campo normalizado (`searchTokens` array) + query por prefixo, ou busca server-side. Gatilho: tenants com >1k propostas/clientes.
 
+### ✅ RESOLVIDO (2026-07-06) — Lista de transações escopada por período
+`useFinancialData` agora usa `getTransactionsScoped`: itens em aberto (sempre completos) + docs do período visível (default mês atual, pré-preenchido nos inputs de data) + grupos completados via chunked `in`. Filtros/busca/agrupamento continuam client-side sobre o escopo, que é sempre visível na UI. Índices novos: `(tenantId, dueDate)` e `(tenantId, installmentGroupId)`. Ainda com full-fetch: fluxos de edição (`useEditTransaction`) e kanban de transações — abaixo.
+
 ### P2 — Kanban puxa listas completas
 `transaction-kanban-tab.tsx:80`, `proposal-kanban-tab.tsx:86`. Board mostra todos os cards por design — limitar muda produto. Correção: paginação por coluna ou cap com "carregar mais". Decisão de UX antes de código.
 

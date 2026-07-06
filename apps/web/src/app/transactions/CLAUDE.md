@@ -7,6 +7,26 @@
 | Arquivo | Responsabilidade |
 |---------|-----------------|
 | `_hooks/useFinancialData.ts` | Estado central: transactions, wallets, filtros, optimistic updates |
+
+## Escopo de leitura por período (2026-07-06)
+
+A página NÃO baixa mais a coleção inteira. `useFinancialData` busca via
+`TransactionService.getTransactionsScoped(tenantId, {start, end})`:
+
+- **Itens em aberto** (pending/overdue) — sempre completos, independente do período;
+- **Docs do período visível** (range em `dueDate` E em `date`, união dedupada);
+- **Grupos completados** (`completeTransactionGroups`) — parcela no período traz as irmãs.
+
+Período = filtros de data da UI; sem filtro, mês atual. Quando o usuário quer
+histórico (visão agrupada, status "todos" ou incluindo pagos) sem datas
+definidas, o hook **pré-preenche o mês atual nos inputs** — o escopo carregado
+fica sempre explícito na UI. Trocar as datas refaz a query.
+
+Os cards de resumo continuam sendo o memo FILTRADO client-side (sobre o
+escopo); o summary GLOBAL (dashboard) vem de `GET /v1/transactions/summary`
+(aggregation server-side). Não reintroduzir `getTransactions(tenantId)` sem
+escopo nesta página — guard de regressão em
+`services/__tests__/transactions-scoped.test.ts`.
 | `_hooks/useEditTransaction.ts` | Carrega e submete edição de lançamento/grupo |
 | `_hooks/useTransactionForm.ts` | Criação de lançamentos |
 | `_components/transaction-card.tsx` | Exibe lançamentos em cards agrupados |

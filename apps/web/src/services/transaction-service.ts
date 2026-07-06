@@ -154,6 +154,128 @@ export const TransactionService = {
     }
   },
 
+  /**
+   * Busca escopada — substitui o full-fetch da página financeira.
+   *
+   * Escopo = união de 3 queries baratas (dedupe por id):
+   *  1. itens em aberto (pending/overdue) — dívida ativa, naturalmente pequena
+   *     e SEMPRE completa, independente do período;
+   *  2. docs com dueDate dentro do período visível;
+   *  3. docs com date dentro do período (cobre docs antigos sem dueDate).
+   *
+   * Grupos parciais (parcela no período, irmãs fora) são completados via
+   * completeTransactionGroups — a visualização agrupada nunca mostra grupo
+   * pela metade.
+   */
+  getTransactionsScoped: async (
+    tenantId: string,
+    period: { start: string; end: string },
+  ): Promise<Transaction[]> => {
+    try {
+      const col = collection(db, COLLECTION_NAME);
+      const [openSnap, dueSnap, dateSnap] = await Promise.all([
+        getDocs(
+          query(
+            col,
+            where("tenantId", "==", tenantId),
+            where("status", "in", ["pending", "overdue"]),
+          ),
+        ),
+        getDocs(
+          query(
+            col,
+            where("tenantId", "==", tenantId),
+            where("dueDate", ">=", period.start),
+            where("dueDate", "<=", period.end),
+          ),
+        ),
+        getDocs(
+          query(
+            col,
+            where("tenantId", "==", tenantId),
+            where("date", ">=", period.start),
+            where("date", "<=", period.end),
+          ),
+        ),
+      ]);
+
+      const byId = new Map<string, Transaction>();
+      for (const snap of [openSnap, dueSnap, dateSnap]) {
+        snap.docs.forEach((docSnap) => {
+          byId.set(
+            docSnap.id,
+            withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction),
+          );
+        });
+      }
+
+      const scoped = Array.from(byId.values());
+      const completed = await TransactionService.completeTransactionGroups(
+        tenantId,
+        scoped,
+      );
+
+      return completed.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      );
+    } catch (error) {
+      console.error("Error fetching scoped transactions:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Garante grupos íntegros: para cada installmentGroupId/recurringGroupId
+   * presente na lista, busca os membros faltantes em chunks de `in` (30 ids).
+   */
+  completeTransactionGroups: async (
+    tenantId: string,
+    transactions: Transaction[],
+  ): Promise<Transaction[]> => {
+    const byId = new Map(transactions.map((t) => [t.id, t]));
+
+    const collectGroupIds = (field: "installmentGroupId" | "recurringGroupId") =>
+      Array.from(
+        new Set(
+          transactions
+            .map((t) => t[field])
+            .filter((g): g is string => typeof g === "string" && g.length > 0),
+        ),
+      );
+
+    const fetchGroups = async (
+      field: "installmentGroupId" | "recurringGroupId",
+      groupIds: string[],
+    ) => {
+      const CHUNK = 30; // limite de disjunções do operador "in"
+      for (let i = 0; i < groupIds.length; i += CHUNK) {
+        const chunk = groupIds.slice(i, i + CHUNK);
+        const snap = await getDocs(
+          query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            where(field, "in", chunk),
+          ),
+        );
+        snap.docs.forEach((docSnap) => {
+          if (!byId.has(docSnap.id)) {
+            byId.set(
+              docSnap.id,
+              withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction),
+            );
+          }
+        });
+      }
+    };
+
+    await Promise.all([
+      fetchGroups("installmentGroupId", collectGroupIds("installmentGroupId")),
+      fetchGroups("recurringGroupId", collectGroupIds("recurringGroupId")),
+    ]);
+
+    return Array.from(byId.values());
+  },
+
   getTransactionById: async (id: string): Promise<Transaction | null> => {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
