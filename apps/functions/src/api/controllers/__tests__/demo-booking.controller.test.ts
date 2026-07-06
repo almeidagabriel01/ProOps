@@ -105,6 +105,37 @@ describe("submitDemoBooking", () => {
     expect(bookings).toHaveLength(1);
   });
 
+  it("dispara os dois emails em paralelo (ambos iniciam antes de qualquer um resolver)", async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    mockSendEmail.mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await Promise.resolve();
+      inFlight -= 1;
+      return { ok: true };
+    });
+
+    const res = mockRes();
+    await submitDemoBooking({ body: { ...validBody } } as never, res as never);
+
+    expect(res.statusCode).toBe(200);
+    expect(maxInFlight).toBe(2);
+  });
+
+  it("falha no primeiro email não impede o segundo nem o 200", async () => {
+    mockSendEmail
+      .mockRejectedValueOnce(new Error("resend down"))
+      .mockResolvedValueOnce({ ok: true });
+
+    const res = mockRes();
+    await submitDemoBooking({ body: { ...validBody } } as never, res as never);
+
+    expect(res.statusCode).toBe(200);
+    expect(mockSendEmail).toHaveBeenCalledTimes(2);
+    expect(bookings).toHaveLength(1);
+  });
+
   it("rejeita slot ocupado com 409 e não envia email", async () => {
     bookings.push({ date: "2026-06-19", startMinutes: 600, endMinutes: 660 });
     const res = mockRes();

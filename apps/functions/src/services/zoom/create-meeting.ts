@@ -12,6 +12,7 @@ import { logger } from "../../lib/logger";
  */
 
 const SAO_PAULO_TZ = "America/Sao_Paulo";
+const ZOOM_FETCH_TIMEOUT_MS = 5_000;
 
 export interface CreateZoomMeetingInput {
   topic: string;
@@ -29,7 +30,12 @@ async function getZoomAccessToken(): Promise<string | null> {
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
   const res = await fetch(
     `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${encodeURIComponent(accountId)}`,
-    { method: "POST", headers: { Authorization: `Basic ${basic}` } },
+    {
+      method: "POST",
+      headers: { Authorization: `Basic ${basic}` },
+      // API pendurada não pode segurar o agendamento — aborta e cai pro Jitsi
+      signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
+    },
   );
   if (!res.ok) {
     logger.error("zoom token request failed", { status: res.status });
@@ -57,6 +63,7 @@ export async function createZoomMeeting(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      signal: AbortSignal.timeout(ZOOM_FETCH_TIMEOUT_MS),
       body: JSON.stringify({
         topic: input.topic.slice(0, 200),
         type: 2, // reunião agendada

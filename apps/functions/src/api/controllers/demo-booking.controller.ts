@@ -228,28 +228,37 @@ export async function submitDemoBooking(
     durationLabel: durationLabel(data.durationMinutes),
     meetingUrl,
   };
-  try {
-    const internal = renderDemoBookingInternalEmail(emailData);
-    await sendEmail({
+  // Em paralelo (metade da latência), mas SEMPRE antes de responder — no
+  // Cloud Run a CPU é estrangulada após a resposta; fire-and-forget perderia
+  // os e-mails. Falha de e-mail não falha a request — booking já foi criado.
+  const internal = renderDemoBookingInternalEmail(emailData);
+  const confirm = renderDemoBookingConfirmationEmail(emailData);
+  const emailResults = await Promise.allSettled([
+    sendEmail({
       to: "gestao@proops.com.br",
       subject: internal.subject,
       html: internal.html,
       replyTo: data.email,
       type: "demo_booking_internal",
-    });
-    const confirm = renderDemoBookingConfirmationEmail(emailData);
-    await sendEmail({
+    }),
+    sendEmail({
       to: data.email,
       subject: confirm.subject,
       html: confirm.html,
       type: "demo_booking_confirmation",
-    });
-  } catch (err) {
-    logger.error("demo-booking sendEmail failed", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    // Não falha a request — booking já foi criado.
-  }
+    }),
+  ]);
+  emailResults.forEach((result, i) => {
+    if (result.status === "rejected") {
+      logger.error("demo-booking sendEmail failed", {
+        which: i === 0 ? "internal" : "confirmation",
+        error:
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason),
+      });
+    }
+  });
 
   logger.info("demo booking created", { date: data.date, startMinutes: data.startMinutes });
   res.status(200).json({ success: true });
