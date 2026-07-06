@@ -95,13 +95,36 @@ function normalizeOnboardingPayload(
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.uid;
-    const { name, phoneNumber, onboarding } = req.body;
+    const { name, phoneNumber, onboarding, preferences } = req.body;
 
     const userRef = db.collection("users").doc(userId);
     const userSnap = await userRef.get();
 
     if (!userSnap.exists) {
       return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    const ALLOWED_PREFERENCE_KEYS = ["liaSoundsEnabled"];
+    if (preferences !== undefined) {
+      if (
+        typeof preferences !== "object" ||
+        preferences === null ||
+        Array.isArray(preferences)
+      ) {
+        return res.status(400).json({ message: "Preferências inválidas." });
+      }
+      const prefKeys = Object.keys(preferences);
+      if (prefKeys.some((key) => !ALLOWED_PREFERENCE_KEYS.includes(key))) {
+        return res.status(400).json({ message: "Preferência desconhecida." });
+      }
+      if (
+        "liaSoundsEnabled" in preferences &&
+        typeof preferences.liaSoundsEnabled !== "boolean"
+      ) {
+        return res
+          .status(400)
+          .json({ message: "liaSoundsEnabled deve ser booleano." });
+      }
     }
 
     const userData = userSnap.data();
@@ -111,6 +134,13 @@ export const updateProfile = async (req: Request, res: Response) => {
     const updateData: Record<string, any> = { updatedAt: now };
 
     if (name !== undefined) updateData.name = name;
+
+    if (
+      preferences !== undefined &&
+      typeof preferences.liaSoundsEnabled === "boolean"
+    ) {
+      updateData["preferences.liaSoundsEnabled"] = preferences.liaSoundsEnabled;
+    }
 
     // Auth display name update
     const authUpdates: { displayName?: string } = {};
