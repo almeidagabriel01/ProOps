@@ -5,14 +5,17 @@
  * Uses Firebase Functions environment variables (v2 compatible).
  */
 
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import { resolveFrontendAppUrl } from "../lib/frontend-app-url";
 
 // Lazy initialization to avoid issues during deployment
 let stripeInstance: Stripe | null = null;
 
 /**
- * Get the Stripe instance (lazy initialization)
+ * Get the Stripe instance (lazy initialization).
+ * O SDK é carregado via require() aqui dentro — import top-level pagaria o
+ * custo de cold start em TODA instância do monólito, mesmo em requests que
+ * nunca tocam billing (mesmo racional do lazy-load de googleapis).
  */
 export function getStripe(): Stripe {
   if (!stripeInstance) {
@@ -25,7 +28,8 @@ export function getStripe(): Stripe {
       );
     }
 
-    stripeInstance = new Stripe(secretKey, {
+    const StripeCtor = require("stripe") as typeof Stripe;
+    stripeInstance = new StripeCtor(secretKey, {
       // Use the latest stable API version
       apiVersion: "2024-11-20.acacia" as any,
       typescript: true,

@@ -22,7 +22,7 @@ import {
 import { db } from "../init";
 import { captureError } from "../lib/observability/error-logger";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import {
   attachRequestId,
   buildSecurityLogContext,
