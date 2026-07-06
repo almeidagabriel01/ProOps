@@ -186,8 +186,9 @@ Comportamento:
 6. Filtros na aba Agrupados: status/type/wallet aplicam sobre os campos do summary; **busca textual** cobre `description`/`clientName` dos summaries e avulsos carregados — membros não expandidos não são buscados (documentar; é o trade-off do lazy).
 7. Aba Lista: intocada (escopo por período).
 
-- [ ] Steps: mapear componentes → TDD do hook → integrar → `tsc + lint + vitest run` completos
-- [ ] **Commit** — `feat(web): grouped view reads group summaries with lazy member loading and in-memory cache`
+- [x] Steps: mapear componentes → TDD do hook → integrar → `tsc + lint + vitest run` completos (520 testes verdes)
+  - Decisões de implementação: representative sintético do resumo alimenta o `TransactionCard` existente (id = `anchorTransactionId`; novos campos `anchorAmount`/`anchorInstallmentGroupId` no doc-resumo); `forceExpandable` no card; consistência eventual via `refresh()` agendado 1,5s pós-mutação; refresh revalida membros cacheados no lugar (stale-while-revalidate); heurística de entrada órfã não se aplica na fonte nova (documentado).
+- [x] **Commit** — `feat(web): grouped view reads group summaries with lazy member loading and in-memory cache`
 
 ### Task 7: Deploy dev + validação E2E manual
 

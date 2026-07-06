@@ -42,6 +42,8 @@ export interface UseTransactionCardArgs {
   defaultExpanded?: boolean;
   controlledIsExpanded?: boolean;
   onToggleExpand?: (expanded: boolean) => void;
+  /** Grupo com membros lazy (aba Agrupados): expansível antes de os membros carregarem. */
+  forceExpandable?: boolean;
 }
 
 type DisplayExtraCost = NonNullable<Transaction["extraCosts"]>[number] & {
@@ -125,6 +127,7 @@ export function useTransactionCard({
   defaultExpanded = false,
   controlledIsExpanded,
   onToggleExpand,
+  forceExpandable = false,
 }: UseTransactionCardArgs): TransactionCardState {
   const { editableStatuses: statusOptions } = useTransactionStatuses();
   const router = useRouter();
@@ -280,6 +283,7 @@ export function useTransactionCard({
   }, [isProposalGroup, installments, relatedInstallments, transaction, wallets]);
 
   const hasExpandableContent =
+    forceExpandable ||
     isProposalGroup ||
     visibleExtraCosts.length > 0 ||
     relatedInstallments.some((t) => t.isDownPayment || t.isInstallment || t.isRecurring);

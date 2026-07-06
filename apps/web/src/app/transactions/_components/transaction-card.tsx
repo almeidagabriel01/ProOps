@@ -75,6 +75,8 @@ interface TransactionCardProps {
   isExpanded?: boolean;
   onToggleExpand?: (collapsed: boolean) => void;
   wallets?: Wallet[];
+  /** Grupo com membros lazy (aba Agrupados): expansível antes de os membros carregarem. */
+  forceExpandable?: boolean;
 }
 
 export function TransactionCard({
@@ -98,6 +100,7 @@ export function TransactionCard({
   isExpanded: controlledIsExpanded,
   onToggleExpand,
   wallets = [],
+  forceExpandable = false,
 }: TransactionCardProps) {
   const {
     isUpdating,
@@ -167,6 +170,7 @@ export function TransactionCard({
     defaultExpanded,
     controlledIsExpanded,
     onToggleExpand,
+    forceExpandable,
   });
 
   return (

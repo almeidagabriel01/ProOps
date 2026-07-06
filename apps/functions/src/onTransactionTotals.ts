@@ -113,7 +113,11 @@ async function queryMembers(
     .where(field, "==", value)
     .limit(MEMBER_QUERY_LIMIT)
     .get();
-  return snap.docs.map((d) => d.data() as Record<string, unknown>);
+  // id incluído: computeGroupSummary grava anchorTransactionId no resumo.
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Record<string, unknown>),
+  }));
 }
 
 async function fetchProposalMembers(

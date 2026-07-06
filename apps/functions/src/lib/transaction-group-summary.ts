@@ -30,6 +30,12 @@ export type TransactionGroupSummary = {
   lastDueDate: string | null;
   status: "paid" | "pending" | "overdue";
   updatedAt: string; // ISO
+  /** id do doc âncora — permite links/ações no card colapsado sem carregar membros */
+  anchorTransactionId?: string;
+  /** amount do âncora — exibição de recorrentes (valor por ocorrência, não Σ) */
+  anchorAmount?: number;
+  /** installmentGroupId do âncora — delete/status de grupo em resumos kind proposal */
+  anchorInstallmentGroupId?: string;
 };
 
 type GroupIdFields = {
@@ -190,6 +196,14 @@ export function computeGroupSummary(
   if (clientName) summary.clientName = clientName;
   const proposalId = asNonEmptyString(anchor.proposalId);
   if (proposalId) summary.proposalId = proposalId;
+  const anchorId = asNonEmptyString(anchor.id);
+  if (anchorId) summary.anchorTransactionId = anchorId;
+  const anchorAmount = Number(anchor.amount);
+  if (Number.isFinite(anchorAmount)) summary.anchorAmount = anchorAmount;
+  const anchorInstallmentGroupId = asNonEmptyString(anchor.installmentGroupId);
+  if (anchorInstallmentGroupId) {
+    summary.anchorInstallmentGroupId = anchorInstallmentGroupId;
+  }
 
   return summary;
 }

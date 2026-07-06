@@ -141,6 +141,12 @@ export type TransactionGroupSummary = {
   lastDueDate: string | null;
   status: TransactionStatus;
   updatedAt: string;
+  /** id do doc âncora — permite links/ações no card colapsado sem carregar membros */
+  anchorTransactionId?: string;
+  /** amount do âncora — exibição de recorrentes (valor por ocorrência, não Σ) */
+  anchorAmount?: number;
+  /** installmentGroupId do âncora — delete/status de grupo em resumos kind proposal */
+  anchorInstallmentGroupId?: string;
 };
 
 const DEFAULT_GROUPS_PAGE_SIZE = 50;

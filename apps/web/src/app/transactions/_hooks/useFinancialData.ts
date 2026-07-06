@@ -233,16 +233,16 @@ export function useFinancialData(): UseFinancialDataReturn {
     };
   }, [filterStartDate, filterEndDate]);
 
-  // Quando o usuário quer ver histórico (visão agrupada, status "todos" ou
-  // incluindo pagos) sem período definido, pré-preenche o mês atual NOS
-  // INPUTS — o escopo carregado fica explícito na UI e o usuário amplia as
-  // datas para ver mais histórico.
+  // Quando o usuário quer ver histórico na LISTA (status "todos" ou incluindo
+  // pagos) sem período definido, pré-preenche o mês atual NOS INPUTS — o
+  // escopo carregado fica explícito na UI. A aba Agrupados NÃO usa escopo por
+  // período (2026-07-06): lê os doc-resumos de transaction_groups direto
+  // (useGroupedTransactions) — não pré-preencher datas lá.
   React.useEffect(() => {
+    if (viewMode !== "byDueDate") return;
     if (filterStartDate || filterEndDate) return;
     const wantsHistory =
-      viewMode === "grouped" ||
-      filterStatus.length === 0 ||
-      filterStatus.includes("paid");
+      filterStatus.length === 0 || filterStatus.includes("paid");
     if (!wantsHistory) return;
     setFilterStartDate(scopePeriod.start);
     setFilterEndDate(scopePeriod.end);

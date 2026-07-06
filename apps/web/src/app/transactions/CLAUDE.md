@@ -8,7 +8,7 @@
 |---------|-----------------|
 | `_hooks/useFinancialData.ts` | Estado central: transactions, wallets, filtros, optimistic updates |
 
-## Escopo de leitura por período (2026-07-06)
+## Escopo de leitura por período (2026-07-06) — só aba Lista
 
 A página NÃO baixa mais a coleção inteira. `useFinancialData` busca via
 `TransactionService.getTransactionsScoped(tenantId, {start, end})`:
@@ -18,9 +18,41 @@ A página NÃO baixa mais a coleção inteira. `useFinancialData` busca via
 - **Grupos completados** (`completeTransactionGroups`) — parcela no período traz as irmãs.
 
 Período = filtros de data da UI; sem filtro, mês atual. Quando o usuário quer
-histórico (visão agrupada, status "todos" ou incluindo pagos) sem datas
-definidas, o hook **pré-preenche o mês atual nos inputs** — o escopo carregado
-fica sempre explícito na UI. Trocar as datas refaz a query.
+histórico NA LISTA (status "todos" ou incluindo pagos) sem datas definidas, o
+hook **pré-preenche o mês atual nos inputs** — o escopo carregado fica sempre
+explícito na UI. Trocar as datas refaz a query. A aba Agrupados NÃO usa esse
+escopo (ver abaixo) e não pré-preenche datas.
+
+## Aba Agrupados: resumos de grupo + membros lazy (2026-07-06)
+
+A aba Agrupados mostra TODOS os grupos do histórico lendo **1 doc-resumo por
+grupo** da coleção `transaction_groups` (mantida pelo trigger backend
+`onTransactionTotals`) + **avulsos paginados** (`grouped == false`, por `date`
+desc) — independente do filtro de data.
+
+- `_hooks/useGroupedTransactions.ts` — resumos+avulsos paginados ("carregar
+  mais" quando a página local esgota), membros on-demand com **cache em Map em
+  memória** (NUNCA cookie/localStorage), `refresh()` com
+  stale-while-revalidate (revalida membros cacheados no lugar, sem piscar).
+- `_components/grouped-transactions-view.tsx` — renderiza `TransactionCard`
+  com representative **sintético** derivado do resumo (id = `anchorTransactionId`
+  real → links/ações funcionam colapsado; `forceExpandable` habilita o chevron
+  antes de os membros carregarem). Expandir chama `ensureMembers(groupKey)`.
+- **Consistência eventual**: resumos são recomputados pelo trigger
+  (~segundos). Mutações na aba agendam `grouped.refresh()` com delay de 1,5s
+  (`scheduleGroupedRefresh` em page.tsx) — decisão registrada aqui; não trocar
+  por polling nem por refresh imediato (o trigger ainda não recomputou).
+- **Filtros** aplicam client-side sobre os campos do resumo
+  (status/type/wallet/busca em description+clientName; datas por interseção
+  `[firstDueDate, lastDueDate]`). Busca NÃO cobre membros não expandidos —
+  trade-off documentado do lazy load.
+- **Cards de resumo** na aba derivam de `paidTotal`/`pendingTotal` dos
+  resumos+avulsos carregados (`groupedSummary` em page.tsx) — refletem o que
+  está carregado.
+- Heurística de "entrada órfã" (avulso casado a grupo por descrição/data) NÃO
+  se aplica nesta fonte — entrada órfã aparece como avulso.
+- Testes: `_hooks/__tests__/useGroupedTransactions.test.ts`,
+  `services/__tests__/transaction-groups.test.ts`.
 
 Os cards de resumo continuam sendo o memo FILTRADO client-side (sobre o
 escopo); o summary GLOBAL (dashboard) vem de `GET /v1/transactions/summary`

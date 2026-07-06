@@ -256,6 +256,33 @@ describe("computeGroupSummary", () => {
     expect(summary?.description).toBe("Mensalidade jan");
   });
 
+  it("anchorTransactionId/anchorAmount vêm do membro âncora quando id presente", () => {
+    const members = [
+      {
+        id: "tx-anchor",
+        installmentGroupId: "g1",
+        installmentNumber: 1,
+        type: "expense",
+        amount: 50,
+        status: "pending",
+        dueDate: "2026-08-01",
+      },
+      {
+        id: "tx-2",
+        installmentGroupId: "g1",
+        installmentNumber: 2,
+        type: "expense",
+        amount: 50,
+        status: "pending",
+        dueDate: "2026-09-01",
+      },
+    ];
+    const summary = computeGroupSummary("t1", "group:g1", members, TODAY);
+    expect(summary?.anchorTransactionId).toBe("tx-anchor");
+    expect(summary?.anchorAmount).toBe(50);
+    expect(summary?.anchorInstallmentGroupId).toBe("g1");
+  });
+
   it("extraCosts entram nos totais via computeTransactionTotals", () => {
     const members = [
       {

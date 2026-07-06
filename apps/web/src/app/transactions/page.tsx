@@ -11,211 +11,26 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Transaction } from "@/services/transaction-service";
 import { Crown, Kanban, Plus, Search, Wallet, WalletCards, X } from "lucide-react";
-import type { Wallet as WalletType } from "@/types";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
+import { useGroupedTransactions } from "./_hooks/useGroupedTransactions";
+import {
+  GroupedTransactionsView,
+  filterGroupSummaries,
+  filterStandaloneTransactions,
+} from "./_components/grouped-transactions-view";
 import { FinancialSkeleton } from "./_components/financial-skeleton";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import {
   FinancialSummaryCards,
-  TransactionCard,
   DeleteTransactionDialog,
   TransactionFilters,
   TransactionListByDueDate,
 } from "./_components";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSort } from "@/hooks/use-sort";
-import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-;
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
-import { Loader } from "@/components/ui/loader";
-
-const isDownPaymentLike = (t: Transaction): boolean =>
-  !!t.isDownPayment || (t.installmentNumber || 0) === 0;
-
-const dateOnly = (value?: string): string => {
-  if (!value) return "";
-  return value.includes("T") ? value.split("T")[0] : value;
-};
-
-const sameClient = (a: Transaction, b: Transaction): boolean => {
-  const aClientId = a.clientId || "";
-  const bClientId = b.clientId || "";
-  if (aClientId && bClientId) return aClientId === bClientId;
-  return (a.clientName || "").trim() === (b.clientName || "").trim();
-};
-
-const baseDesc = (s: string): string =>
-  s.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim();
-
-/** Infinite scroll wrapper for grouped transaction cards */
-function TransactionListInfinite({
-  filteredTransactions,
-  transactions,
-  canEdit,
-  canDelete,
-  openDeleteDialog,
-  updateGroupStatus,
-  updateExtraCostStatus,
-  updateTransaction,
-  updateBatchTransactions,
-  registerPartialPayment,
-  selectedIds,
-  toggleSelection,
-  toggleGroupSelection,
-  expandedIds,
-  getExpansionKey,
-  toggleExpand,
-  refreshData,
-  wallets,
-}: {
-  filteredTransactions: Transaction[];
-  transactions: Transaction[];
-  canEdit: boolean;
-  canDelete: boolean;
-  openDeleteDialog: (t: Transaction) => void;
-  updateGroupStatus: Parameters<typeof TransactionCard>[0]["onStatusChange"];
-  updateExtraCostStatus: Parameters<
-    typeof TransactionCard
-  >[0]["onUpdateExtraCostStatus"];
-  updateTransaction: Parameters<typeof TransactionCard>[0]["onUpdate"];
-  updateBatchTransactions: Parameters<
-    typeof TransactionCard
-  >[0]["onUpdateBatch"];
-  registerPartialPayment: Parameters<
-    typeof TransactionCard
-  >[0]["onRegisterPartialPayment"];
-  selectedIds: Set<string>;
-  toggleSelection: (id: string) => void;
-  toggleGroupSelection: (t: Transaction) => void;
-  expandedIds: Set<string>;
-  getExpansionKey: (t: Transaction) => string;
-  toggleExpand: (key: string, isOpen: boolean) => void;
-  refreshData: (bg?: boolean) => Promise<void>;
-  wallets: WalletType[];
-}) {
-  const { displayedItems, hasMore, sentinelRef } = useInfiniteScroll(
-    filteredTransactions,
-    6,
-  );
-
-  return (
-    <div className="flex flex-col gap-3 flex-1">
-      {displayedItems.map((transaction) => {
-        const groupId =
-          transaction.proposalGroupId ||
-          transaction.installmentGroupId ||
-          transaction.recurringGroupId;
-
-        if (groupId) {
-          const groupMembers = transactions.filter(
-            (t) =>
-              t.proposalGroupId === groupId ||
-              t.installmentGroupId === groupId ||
-              t.recurringGroupId === groupId,
-          );
-
-          const orphanDownPayments = transactions.filter(
-            (t) =>
-              !t.installmentGroupId &&
-              !t.recurringGroupId &&
-              !t.proposalGroupId &&
-              isDownPaymentLike(t) &&
-              !transaction.proposalGroupId &&
-              t.type === transaction.type &&
-              baseDesc(t.description || "") ===
-                baseDesc(transaction.description || "") &&
-              sameClient(t, transaction) &&
-              dateOnly(t.date) === dateOnly(transaction.date),
-          );
-          if (orphanDownPayments.length === 1) {
-            groupMembers.push(orphanDownPayments[0]);
-          }
-
-          const uniqueGroupMembers = Array.from(
-            new Map(groupMembers.map((member) => [member.id, member])).values(),
-          );
-
-          uniqueGroupMembers.sort((a, b) => {
-            if (isDownPaymentLike(a) && !isDownPaymentLike(b)) return -1;
-            if (!isDownPaymentLike(a) && isDownPaymentLike(b)) return 1;
-            if ((a.installmentNumber || 0) !== (b.installmentNumber || 0)) {
-              return (a.installmentNumber || 0) - (b.installmentNumber || 0);
-            }
-            return new Date(a.date).getTime() - new Date(b.date).getTime();
-          });
-
-          return (
-            <TransactionCard
-              key={`${getExpansionKey(transaction)}-${transaction.id}`}
-              transaction={transaction}
-              relatedInstallments={
-                !transaction.proposalGroupId ? uniqueGroupMembers : []
-              }
-              proposalGroupTransactions={
-                transaction.proposalGroupId ? uniqueGroupMembers : []
-              }
-              canEdit={canEdit}
-              canDelete={canDelete}
-              onDelete={openDeleteDialog}
-              onStatusChange={updateGroupStatus}
-              onUpdateExtraCostStatus={updateExtraCostStatus}
-              onUpdate={updateTransaction}
-              onUpdateBatch={updateBatchTransactions}
-              onRegisterPartialPayment={registerPartialPayment}
-              isSelected={selectedIds.has(transaction.id)}
-              onToggleSelection={toggleSelection}
-              onToggleGroupSelection={toggleGroupSelection}
-              selectedIds={selectedIds}
-              isExpanded={expandedIds.has(getExpansionKey(transaction))}
-              onToggleExpand={(isOpen) =>
-                toggleExpand(getExpansionKey(transaction), isOpen)
-              }
-              onReload={() => refreshData(true)}
-              wallets={wallets}
-            />
-          );
-        }
-
-        return (
-          <TransactionCard
-            key={`${getExpansionKey(transaction)}-${transaction.id}`}
-            transaction={transaction}
-            relatedInstallments={[]}
-            proposalGroupTransactions={[]}
-            canEdit={canEdit}
-            canDelete={canDelete}
-            onDelete={openDeleteDialog}
-            onStatusChange={updateGroupStatus}
-            onUpdateExtraCostStatus={updateExtraCostStatus}
-            onUpdate={updateTransaction}
-            onUpdateBatch={updateBatchTransactions}
-            onRegisterPartialPayment={registerPartialPayment}
-            isSelected={selectedIds.has(transaction.id)}
-            onToggleSelection={toggleSelection}
-            onToggleGroupSelection={toggleGroupSelection}
-            selectedIds={selectedIds}
-            isExpanded={expandedIds.has(getExpansionKey(transaction))}
-            onToggleExpand={(isOpen) =>
-              toggleExpand(getExpansionKey(transaction), isOpen)
-            }
-            onReload={() => refreshData(true)}
-            wallets={wallets}
-          />
-        );
-      })}
-      {hasMore && (
-        <div
-          ref={sentinelRef}
-          className="flex items-center justify-center py-4"
-        >
-          <Loader size="md" />
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function FinancialPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -260,6 +75,67 @@ export default function FinancialPage() {
     refreshData,
     wallets,
   } = useFinancialData();
+
+  // Fonte da aba Agrupados: resumos de transaction_groups + avulsos paginados,
+  // membros lazy — independente do filtro de data (2026-07-06).
+  const grouped = useGroupedTransactions({
+    tenantId: tenant?.id,
+    enabled: viewMode === "grouped" && hasFinancial,
+  });
+  const groupedRefreshTimerRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+
+  // Resumos são mantidos por trigger (~segundos). Após mutação na aba
+  // Agrupados, refetch com delay — decisão registrada no CLAUDE.md do módulo.
+  const scheduleGroupedRefresh = React.useCallback(() => {
+    if (groupedRefreshTimerRef.current) {
+      clearTimeout(groupedRefreshTimerRef.current);
+    }
+    groupedRefreshTimerRef.current = setTimeout(() => {
+      groupedRefreshTimerRef.current = null;
+      void grouped.refresh();
+    }, 1500);
+  }, [grouped]);
+  React.useEffect(
+    () => () => {
+      if (groupedRefreshTimerRef.current) {
+        clearTimeout(groupedRefreshTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const withGroupedRefresh = React.useCallback(
+    <A extends unknown[], R>(fn: (...args: A) => Promise<R>) =>
+      async (...args: A): Promise<R> => {
+        const result = await fn(...args);
+        if (viewMode === "grouped") scheduleGroupedRefresh();
+        return result;
+      },
+    [viewMode, scheduleGroupedRefresh],
+  );
+
+  const groupedUpdateGroupStatus = React.useMemo(
+    () => withGroupedRefresh(updateGroupStatus),
+    [withGroupedRefresh, updateGroupStatus],
+  );
+  const groupedUpdateExtraCostStatus = React.useMemo(
+    () => withGroupedRefresh(updateExtraCostStatus),
+    [withGroupedRefresh, updateExtraCostStatus],
+  );
+  const groupedUpdateTransaction = React.useMemo(
+    () => withGroupedRefresh(updateTransaction),
+    [withGroupedRefresh, updateTransaction],
+  );
+  const groupedUpdateBatchTransactions = React.useMemo(
+    () => withGroupedRefresh(updateBatchTransactions),
+    [withGroupedRefresh, updateBatchTransactions],
+  );
+  const groupedRegisterPartialPayment = React.useMemo(
+    () => withGroupedRefresh(registerPartialPayment),
+    [withGroupedRefresh, registerPartialPayment],
+  );
 
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -313,14 +189,6 @@ export default function FinancialPage() {
     setFilterStatus,
   ]);
 
-  // Helper to get stable ID for expansion
-  const getExpansionKey = React.useCallback((t: Transaction) => {
-    if (t.proposalGroupId) return `proposal-${t.proposalGroupId}`;
-    if (t.installmentGroupId || t.recurringGroupId)
-      return `installment-${t.installmentGroupId || t.recurringGroupId}`;
-    return `transaction-${t.id}`;
-  }, []);
-
   // Toggle expand for a transaction using stable key
   const toggleExpand = React.useCallback((key: string, isOpen: boolean) => {
     setExpandedIds((prev) => {
@@ -347,54 +215,24 @@ export default function FinancialPage() {
     });
   }, []);
 
-  // Toggle selection for a transaction group (main card and all related installments)
-  const toggleGroupSelection = React.useCallback(
-    (transaction: Transaction) => {
-      // Find all related transactions to this one
-      const relatedIds: string[] = [transaction.id];
-      if (transaction.extraCosts) {
-        transaction.extraCosts.forEach((ec) => relatedIds.push(ec.id));
-      }
-
-      // Add proposal group members
-      if (transaction.proposalGroupId) {
-        transactions.forEach((t) => {
-          if (
-            t.proposalGroupId === transaction.proposalGroupId &&
-            t.id !== transaction.id
-          ) {
-            relatedIds.push(t.id);
-            if (t.extraCosts) {
-              t.extraCosts.forEach((ec) => relatedIds.push(ec.id));
-            }
-          }
-        });
-      }
-      // Add installment group members (for non-proposal groups)
-      else if (
-        (transaction.installmentGroupId || transaction.recurringGroupId) &&
-        !transaction.proposalGroupId
-      ) {
-        transactions.forEach((t) => {
-          if (
-            (t.installmentGroupId || t.recurringGroupId) ===
-              (transaction.installmentGroupId ||
-                transaction.recurringGroupId) &&
-            t.id !== transaction.id
-          ) {
-            relatedIds.push(t.id);
-            if (t.extraCosts) {
-              t.extraCosts.forEach((ec) => relatedIds.push(ec.id));
-            }
-          }
-        });
+  // Seleção de grupo na aba Agrupados: recebe a lista REAL de membros
+  // (carregada on-demand pelo useGroupedTransactions) — não depende do
+  // escopo por período de `transactions`.
+  const toggleGroupSelectionWithMembers = React.useCallback(
+    (representative: Transaction, members: Transaction[]) => {
+      const pool = members.length > 0 ? members : [representative];
+      const relatedIds: string[] = [];
+      pool.forEach((t) => {
+        relatedIds.push(t.id);
+        t.extraCosts?.forEach((ec) => relatedIds.push(ec.id));
+      });
+      if (!relatedIds.includes(representative.id)) {
+        relatedIds.push(representative.id);
       }
 
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        // If all are already selected, deselect all
         const allSelected = relatedIds.every((id) => next.has(id));
-
         if (allSelected) {
           relatedIds.forEach((id) => next.delete(id));
         } else {
@@ -403,7 +241,7 @@ export default function FinancialPage() {
         return next;
       });
     },
-    [transactions],
+    [],
   );
 
   // Toggle select all for filtered transactions
@@ -471,6 +309,29 @@ export default function FinancialPage() {
     filteredTransactions,
   ]);
 
+  // Pool de somatório da seleção: na aba Agrupados inclui avulsos e membros
+  // já carregados (fora do escopo por período de `transactions`).
+  const selectionPool = React.useMemo(() => {
+    if (viewMode !== "grouped") return transactions;
+    const byId = new Map<string, Transaction>();
+    for (const t of [
+      ...grouped.standalone,
+      ...grouped.getAllCachedMembers(),
+      ...transactions,
+    ]) {
+      if (!byId.has(t.id)) byId.set(t.id, t);
+    }
+    return Array.from(byId.values());
+    // membersVersion: cache de membros mudou → recomputa o pool
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    viewMode,
+    transactions,
+    grouped.standalone,
+    grouped.getAllCachedMembers,
+    grouped.membersVersion,
+  ]);
+
   // Calculate selection summary - use ALL transactions, not just filtered
   const selectionSummary = React.useMemo(() => {
     if (selectedIds.size === 0) return undefined;
@@ -483,7 +344,7 @@ export default function FinancialPage() {
       pendingExpense: 0,
     };
 
-    transactions.forEach((t) => {
+    selectionPool.forEach((t) => {
       // Main
       if (selectedIds.has(t.id)) {
         result.count++;
@@ -514,7 +375,70 @@ export default function FinancialPage() {
     });
 
     return result;
-  }, [selectedIds, transactions]);
+  }, [selectedIds, selectionPool]);
+
+  // Cards de resumo da aba Agrupados: derivados de paidTotal/pendingTotal dos
+  // resumos carregados + avulsos carregados (com filtros aplicados) — refletem
+  // o que está carregado, mesma semântica do "com filtros ativos".
+  const groupedSummary = React.useMemo(() => {
+    if (viewMode !== "grouped") return null;
+    const filters = {
+      searchTerm,
+      filterType,
+      filterStatus,
+      filterWallet,
+      filterStartDate,
+      filterEndDate,
+      filterDateType,
+    };
+    const result = {
+      totalIncome: 0,
+      totalExpense: 0,
+      pendingIncome: 0,
+      pendingExpense: 0,
+    };
+    filterGroupSummaries(grouped.groupSummaries, filters, wallets).forEach(
+      (s) => {
+        if (s.type === "income") {
+          result.totalIncome += s.paidTotal;
+          result.pendingIncome += s.pendingTotal;
+        } else {
+          result.totalExpense += s.paidTotal;
+          result.pendingExpense += s.pendingTotal;
+        }
+      },
+    );
+    filterStandaloneTransactions(grouped.standalone, filters, wallets).forEach(
+      (t) => {
+        const add = (amount: number, paid: boolean) => {
+          if (t.type === "income") {
+            if (paid) result.totalIncome += amount;
+            else result.pendingIncome += amount;
+          } else {
+            if (paid) result.totalExpense += amount;
+            else result.pendingExpense += amount;
+          }
+        };
+        add(t.amount, t.status === "paid");
+        t.extraCosts?.forEach((ec) =>
+          add(ec.amount, (ec.status || "pending") === "paid"),
+        );
+      },
+    );
+    return result;
+  }, [
+    viewMode,
+    grouped.groupSummaries,
+    grouped.standalone,
+    searchTerm,
+    filterType,
+    filterStatus,
+    filterWallet,
+    filterStartDate,
+    filterEndDate,
+    filterDateType,
+    wallets,
+  ]);
 
   // Use total wallet balance, ignoring selection to keep general balance stable
   const balance = totalWalletBalance;
@@ -549,6 +473,7 @@ export default function FinancialPage() {
 
     setIsDeleting(true);
     await deleteTransactionGroup(transactionToDelete);
+    if (viewMode === "grouped") scheduleGroupedRefresh();
     setIsDeleting(false);
     setDeleteDialogOpen(false);
     setTransactionToDelete(null);
@@ -675,7 +600,7 @@ export default function FinancialPage() {
           </div>
         ) : null}
         <FinancialSummaryCards
-          summary={summary}
+          summary={viewMode === "grouped" && groupedSummary ? groupedSummary : summary}
           selectionSummary={selectionSummary}
           balance={balance}
         />
@@ -704,7 +629,46 @@ export default function FinancialPage() {
       />
 
       {/* Transactions List */}
-      {dataLoading ? (
+      {viewMode === "grouped" ? (
+        <GroupedTransactionsView
+          groupSummaries={grouped.groupSummaries}
+          standalone={grouped.standalone}
+          isLoading={grouped.isLoading}
+          isLoadingMore={grouped.isLoadingMore}
+          hasMore={grouped.hasMore}
+          loadMore={grouped.loadMore}
+          ensureMembers={grouped.ensureMembers}
+          getCachedMembers={grouped.getCachedMembers}
+          membersVersion={grouped.membersVersion}
+          filters={{
+            searchTerm,
+            filterType,
+            filterStatus,
+            filterWallet,
+            filterStartDate,
+            filterEndDate,
+            filterDateType,
+          }}
+          wallets={wallets}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onDelete={openDeleteDialog}
+          onStatusChange={groupedUpdateGroupStatus}
+          onUpdateExtraCostStatus={groupedUpdateExtraCostStatus}
+          onUpdate={groupedUpdateTransaction}
+          onUpdateBatch={groupedUpdateBatchTransactions}
+          onRegisterPartialPayment={groupedRegisterPartialPayment}
+          onReload={async () => {
+            await refreshData(true);
+            await grouped.refresh();
+          }}
+          selectedIds={selectedIds}
+          onToggleSelection={toggleSelection}
+          onToggleGroupSelectionWithMembers={toggleGroupSelectionWithMembers}
+          expandedIds={expandedIds}
+          toggleExpand={toggleExpand}
+        />
+      ) : dataLoading ? (
         <div className="grid gap-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <Card key={i}>
@@ -758,8 +722,8 @@ export default function FinancialPage() {
             </p>
           </CardContent>
         </Card>
-      ) : viewMode === "byDueDate" ? (
-        // In byDueDate mode, use compact list view
+      ) : (
+        // Lista (byDueDate): visão compacta, escopo por período — intocada.
         <TransactionListByDueDate
           transactions={sortedTransactions}
           allTransactions={transactions}
@@ -776,27 +740,6 @@ export default function FinancialPage() {
           sortConfig={sortConfig}
           onRegisterPartialPayment={registerPartialPayment}
           onReload={() => refreshData(true)}
-          wallets={wallets}
-        />
-      ) : (
-        <TransactionListInfinite
-          filteredTransactions={filteredTransactions}
-          transactions={transactions}
-          canEdit={canEdit}
-          canDelete={canDelete}
-          openDeleteDialog={openDeleteDialog}
-          updateGroupStatus={updateGroupStatus}
-          updateExtraCostStatus={updateExtraCostStatus}
-          updateTransaction={updateTransaction}
-          updateBatchTransactions={updateBatchTransactions}
-          registerPartialPayment={registerPartialPayment}
-          selectedIds={selectedIds}
-          toggleSelection={toggleSelection}
-          toggleGroupSelection={toggleGroupSelection}
-          expandedIds={expandedIds}
-          getExpansionKey={getExpansionKey}
-          toggleExpand={toggleExpand}
-          refreshData={refreshData}
           wallets={wallets}
         />
       )}
