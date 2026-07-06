@@ -39,14 +39,12 @@ interface AuthContext {
 
 Funcao principal. Fluxo:
 1. Extrai token da requisicao
-2. Verifica via Firebase Admin (`auth.verifyIdToken` ou `auth.verifySessionCookie`)
-3. Busca `userRecord.customClaims` diretamente (sempre fresco, ignora claims do token para `role`/`tenantId`)
-4. Busca doc `users/{uid}` no Firestore para obter `userDocTenantId`
+2. Verifica via Firebase Admin (`auth.verifyIdToken` ou `auth.verifySessionCookie`, ambos com `checkRevoked=true`)
+3. Decide freshness via `shouldFetchFreshClaims` (pura, testavel): busca `userRecord.customClaims` via `getUser()` **apenas quando** o token tem claims incompletas (role/tenant ausentes), role `FREE` (upgrade pago deve refletir imediato) ou `SUPERADMIN` (seguranca). Roles pagas estaveis confiam nas claims do proprio token (pior caso: downgrade demora <=1h ate o refresh — coberto pelo grace period de billing). Env `AUTH_CLAIMS_FRESHNESS=always` restaura o comportamento legado (getUser em toda request)
+4. Busca doc `users/{uid}` no Firestore para obter `userDocTenantId` (e publica o snapshot em `userDoc`)
 5. Faz fallback: se `role` ausente nas claims, usa `userData.role`; se `tenantId` ausente, usa `userDocTenantId`
 6. Detecta `tenantMismatch` (claim vs. doc divergem) → lanca `FORBIDDEN_TENANT_MISMATCH`
 7. Se `requireStrictClaims: true` e claims incompletas → lanca erro de claims
-
-> **Importante:** As claims sao lidas de `userRecord.customClaims` (getUser), nao do token JWT. Isso garante que mudancas de claims sao refletidas imediatamente sem esperar o token expirar.
 
 ### `evaluateAuthContextInvariants(input)` (pura, testavel)
 
@@ -70,6 +68,7 @@ Retorna `true` para: `"SUPERADMIN"`, `"MASTER"`, `"ADMIN"`, `"WK"`.
 |----------|---------|----------|
 | `AUTH_ACCEPT_LEGACY_COOKIE_HINT` | `"true"` em dev, `"false"` em prod | Aceita cookie `firebase-auth-token` legado |
 | `AUTH_STRICT_CLAIMS_ONLY` | nao definida | Se `"true"`, rejeita tokens sem claims completas (sem fallback para Firestore) |
+| `AUTH_CLAIMS_FRESHNESS` | `"auto"` | `auto`: getUser() so para claims incompletas/FREE/SUPERADMIN. `always`: getUser() em toda request (legado) |
 
 ---
 

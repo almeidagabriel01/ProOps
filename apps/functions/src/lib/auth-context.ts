@@ -254,6 +254,38 @@ export function evaluateAuthContextInvariants(
   };
 }
 
+/**
+ * Decide se o middleware precisa buscar custom claims frescas via
+ * auth.getUser() ou pode confiar nas claims embutidas no ID token verificado.
+ *
+ * Busca fresca quando: claims incompletas (role/tenant ausentes), role FREE
+ * (upgrade pago via webhook Stripe deve refletir imediatamente, sem esperar o
+ * refresh do token ~1h) ou SUPERADMIN (sensível a segurança). Para roles
+ * pagas estáveis, o pior caso de token velho é um downgrade demorar <=1h —
+ * coberto pelo grace period de billing. Rollback operacional sem deploy:
+ * AUTH_CLAIMS_FRESHNESS=always.
+ */
+export function shouldFetchFreshClaims(input: {
+  tokenRole: string;
+  tokenTenantId: string;
+  mode: string;
+}): boolean {
+  if (input.mode === "always") return true;
+  const role = normalizeRole(input.tokenRole);
+  const tenantId = normalizeTenantId(input.tokenTenantId);
+  if (!role) return true;
+  if (role === "SUPERADMIN") return true;
+  if (role === "FREE") return true;
+  if (!tenantId) return true;
+  return false;
+}
+
+function resolveClaimsFreshnessMode(): string {
+  return String(process.env.AUTH_CLAIMS_FRESHNESS || "auto")
+    .trim()
+    .toLowerCase();
+}
+
 async function decodeToken(
   token: string,
   tokenSource: TokenSource,
@@ -269,13 +301,28 @@ async function resolveAuthContextFromDecodedToken(
   tokenSource: TokenSource,
   options: ResolveAuthContextOptions,
 ): Promise<AuthContext> {
-  const userRecord = await auth.getUser(decodedIdToken.uid);
-  const customClaims = (userRecord.customClaims || {}) as {
+  const tokenRole = normalizeRole(decodedIdToken.role);
+  const tokenTenantId = normalizeTenantId(decodedIdToken.tenantId);
+
+  let customClaims: {
     role?: unknown;
     tenantId?: unknown;
     masterId?: unknown;
     stripeId?: unknown;
-  };
+  } = {};
+  let userRecordEmail: string | undefined;
+
+  if (
+    shouldFetchFreshClaims({
+      tokenRole,
+      tokenTenantId,
+      mode: resolveClaimsFreshnessMode(),
+    })
+  ) {
+    const userRecord = await auth.getUser(decodedIdToken.uid);
+    customClaims = (userRecord.customClaims || {}) as typeof customClaims;
+    userRecordEmail = userRecord.email ?? undefined;
+  }
 
   const role = normalizeRole(customClaims.role ?? decodedIdToken.role);
   const tenantId = normalizeTenantId(
@@ -302,7 +349,7 @@ async function resolveAuthContextFromDecodedToken(
 
   const resolvedEmail =
     normalizeOptionalString(decodedIdToken.email) ||
-    normalizeOptionalString(userRecord.email);
+    normalizeOptionalString(userRecordEmail);
 
   const tokenMfa = (decodedIdToken.firebase || {}) as {
     sign_in_second_factor?: unknown;
