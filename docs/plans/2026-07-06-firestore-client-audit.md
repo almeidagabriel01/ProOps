@@ -24,6 +24,9 @@ Implementado: campos desnormalizados `paidTotal`/`pendingTotal` mantidos pelo tr
 ### ✅ RESOLVIDO (2026-07-06) — Lista de transações escopada por período
 `useFinancialData` agora usa `getTransactionsScoped`: itens em aberto (sempre completos) + docs do período visível (default mês atual, pré-preenchido nos inputs de data) + grupos completados via chunked `in`. Filtros/busca/agrupamento continuam client-side sobre o escopo, que é sempre visível na UI. Índices novos: `(tenantId, dueDate)` e `(tenantId, installmentGroupId)`. Ainda com full-fetch: fluxos de edição (`useEditTransaction`) e kanban de transações — abaixo.
 
+### ✅ RESOLVIDO (2026-07-06) — Aba Agrupados via doc-resumos (`transaction_groups`)
+Plano `2026-07-06-agrupados-lazy-groups.md` executado: coleção desnormalizada `transaction_groups` (1 doc por grupo, mantida pelo trigger `onTransactionTotals` + campo `grouped` nos docs), aba Agrupados lê resumos paginados + avulsos paginados (`grouped == false`) e busca membros só ao expandir (cache em memória, stale-while-revalidate). Histórico completo sem depender de filtro de data e sem baixar membros. Rollout dev feito (índices READY → rules → functions → backfill 93 docs/11 grupos → paridade MATCH). **Pendente em prod**: mesma sequência.
+
 ### P2 — Kanban puxa listas completas
 `transaction-kanban-tab.tsx:80`, `proposal-kanban-tab.tsx:86`. Board mostra todos os cards por design — limitar muda produto. Correção: paginação por coluna ou cap com "carregar mais". Decisão de UX antes de código.
 

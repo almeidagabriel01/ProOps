@@ -192,13 +192,14 @@ Comportamento:
 
 ### Task 7: Deploy dev + validação E2E manual
 
-- [ ] Índices: `firebase deploy --project dev --only firestore:indexes` → **esperar READY** (`gcloud firestore indexes composite list --project=erp-softcode --filter='state:CREATING'` vazio)
-- [ ] Rules: `firebase deploy --project dev --only firestore:rules` (sai junto no deploy:dev também)
-- [ ] Functions: `npm run deploy:dev`
-- [ ] Backfill: `GCLOUD_PROJECT=erp-softcode GOOGLE_CLOUD_PROJECT=erp-softcode npx -y tsx src/scripts/backfill-transaction-groups.ts`
-- [ ] Verificação de paridade (padrão de 2026-07-06): script temporário comparando cada `transaction_groups` doc contra `computeGroupSummary` dos membros crus — MATCH obrigatório
-- [ ] Manual: Agrupados mostra TODOS os grupos sem filtro de data; expandir carrega membros; editar parcela atualiza container (aguardar ~2s do trigger); criar/deletar parcelamento cria/remove container; conta `lyft@gmail.com` do print de 2026-07-06 é o caso de teste conhecido
-- [ ] Atualizar `docs/plans/2026-07-06-firestore-client-audit.md` (kanban/dashboard seguem pendentes; grouped resolvido)
+- [x] Índices: `firebase deploy --project dev --only firestore:indexes` → **READY confirmado** (poll gcloud até CREATING vazio)
+- [x] Rules: `firebase deploy --project dev --only firestore:rules`
+- [x] Functions: `firebase deploy --project dev --only functions`
+- [x] Backfill: executado em dev — processed=93, updatedGrouped=93, groupsWritten=11
+- [x] Verificação de paridade: script temporário rodado em dev — **PARITY: MATCH** (11 grupos + flag `grouped` em 93 docs)
+- [ ] Manual (usuário): Agrupados mostra TODOS os grupos sem filtro de data; expandir carrega membros; editar parcela atualiza container (~2s do trigger); criar/deletar parcelamento cria/remove container; conta `lyft@gmail.com` é o caso de teste conhecido
+- [x] Atualizar `docs/plans/2026-07-06-firestore-client-audit.md` (kanban/dashboard seguem pendentes; grouped resolvido)
+- [ ] Rollout prod (após validação manual): índices → READY → rules → functions → backfill
 
 ## Decisões já tomadas (não re-litigar)
 
