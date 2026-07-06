@@ -34,17 +34,19 @@ const mockGetToken = jest.fn();
 const mockSetCredentials = jest.fn();
 const mockUserinfoGet = jest.fn(async () => ({ data: { email: "user@example.com" } }));
 
-jest.mock("googleapis", () => ({
-  google: {
-    auth: {
-      OAuth2: jest.fn().mockImplementation(() => ({
-        getToken: mockGetToken,
-        setCredentials: mockSetCredentials,
-        generateAuthUrl: jest.fn(() => "https://accounts.google.com/auth"),
-      })),
-    },
-    oauth2: jest.fn(() => ({ userinfo: { get: mockUserinfoGet } })),
+jest.mock("@googleapis/calendar", () => ({
+  auth: {
+    OAuth2: jest.fn().mockImplementation(() => ({
+      getToken: mockGetToken,
+      setCredentials: mockSetCredentials,
+      generateAuthUrl: jest.fn(() => "https://accounts.google.com/auth"),
+    })),
   },
+  calendar: jest.fn(),
+}));
+
+jest.mock("@googleapis/oauth2", () => ({
+  oauth2: jest.fn(() => ({ userinfo: { get: mockUserinfoGet } })),
 }));
 
 jest.mock("../../init", () => ({ db: { collection: jest.fn() } }));

@@ -24,6 +24,8 @@
   "dependencies": {
     "@google-cloud/kms": "^5.5.1",
     "@google/genai": "^1.50.1",
+    "@googleapis/calendar": "^15.0.0",
+    "@googleapis/oauth2": "^5.0.1",
     "@mercadopago/sdk-react": "^1.0.7",
     "@sparticuz/chromium": "^143.0.4",
     "axios": "^1.13.5",
@@ -33,7 +35,6 @@
     "express": "^5.2.1",
     "firebase-admin": "^13.6.1",
     "firebase-functions": "^7.2.5",
-    "googleapis": "^171.4.0",
     "groq-sdk": "^1.1.2",
     "lru-cache": "^11.3.6",
     "playwright-core": "^1.58.2",

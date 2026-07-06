@@ -50,7 +50,7 @@ export const SCHEDULE_OPTIONS = {
   cpu: IS_DEV ? 0.083 : 0.25,
   maxInstances: 1,
   // 512MiB (not 256): the Express monolith's shared deps (firebase-admin,
-  // stripe, googleapis, etc.) load on every cold start and peaked at 257-271MiB
+  // stripe, etc.) load on every cold start and peaked at 257-271MiB
   // under a 256 cap, so crons OOM'd — some failed the startup probe and never
   // ran. maxInstances:1 + infrequent schedules make the headroom ~free.
   memory: "512MiB" as MemoryOption,
