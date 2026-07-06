@@ -149,6 +149,12 @@ export interface AuthContext {
   mfaRequired: boolean;
   superAdminRoleClaimed: boolean;
   superAdminAllowlisted: boolean;
+  /**
+   * Snapshot do doc users/{uid} lido pelo middleware de auth nesta mesma request.
+   * null = doc não existe. undefined = não carregado (claims montadas manualmente).
+   * Consumido por resolveUserAndTenant para evitar segunda leitura Firestore.
+   */
+  userDoc?: Record<string, unknown> | null;
   [key: string]: unknown;
 }
 
@@ -344,6 +350,9 @@ async function resolveAuthContextFromDecodedToken(
     isSuperAdmin: invariantResult.isSuperAdmin,
     hasRequiredClaims: invariantResult.hasRequiredClaims,
     userDocTenantId: userDocTenantId || undefined,
+    userDoc: userSnap.exists
+      ? ((userSnap.data() as Record<string, unknown>) ?? null)
+      : null,
     tokenSource,
     mfaVerified: invariantResult.mfaVerified,
     mfaRequired: invariantResult.mfaRequired,

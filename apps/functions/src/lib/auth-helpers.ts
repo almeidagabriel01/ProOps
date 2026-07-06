@@ -54,6 +54,7 @@ export const resolveUserAndTenant = async (
     role?: string;
     tenantId?: string;
     masterId?: string;
+    userDoc?: Record<string, unknown> | null;
     [key: string]: unknown;
   },
 ): Promise<PermissionCheckResult> => {
@@ -76,9 +77,17 @@ export const resolveUserAndTenant = async (
   }
 
   const userRef = db.collection("users").doc(userId);
-  const userSnap = await userRef.get();
-  if (!userSnap.exists) throw new Error("User not found");
-  const userData = userSnap.data() as UserDoc;
+  let userData: UserDoc;
+  if (claims.userDoc !== undefined) {
+    // Snapshot preloaded pelo middleware de auth nesta mesma request — evita
+    // a segunda leitura de users/{uid} no hot path. null = doc não existe.
+    if (claims.userDoc === null) throw new Error("User not found");
+    userData = claims.userDoc as unknown as UserDoc;
+  } else {
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) throw new Error("User not found");
+    userData = userSnap.data() as UserDoc;
+  }
 
   const docTenantId = normalizeTenantId(userData.tenantId || userData.companyId);
   if (claimTenantId && docTenantId && claimTenantId !== docTenantId) {

@@ -28,9 +28,12 @@ interface AuthContext {
   isSuperAdmin: boolean;     // role === "SUPERADMIN"
   hasRequiredClaims: boolean;
   userDocTenantId?: string;  // tenantId do doc Firestore (para deteccao de stale claims)
+  userDoc?: Record<string, unknown> | null; // snapshot do doc users/{uid} lido pelo middleware nesta request (null = doc nao existe)
   tokenSource: "bearer" | "session_cookie" | "legacy_cookie";
 }
 ```
+
+> **Hot path:** o middleware ja le `users/{uid}` uma vez por request e publica o snapshot em `req.user.userDoc`. `resolveUserAndTenant` reutiliza esse snapshot em vez de reler o doc — nao adicionar novas leituras de `users/{uid}` em controllers; consumir `req.user.userDoc`.
 
 ### `resolveAuthContextFromRequest(req, options?)`
 
@@ -124,9 +127,10 @@ interface PermissionCheckResult {
 **Logica de resolucao:**
 1. Valida que `claims.uid === userId` (previne spoofing)
 2. Normaliza `role` para UPPERCASE, valida presenca
-3. Para membros (nao-master, nao-superadmin): busca `masterId` das claims → doc do master → valida que o master pertence ao mesmo tenant
-4. Para masters/superadmin: `masterRef = userRef`, `masterData = userData`
-5. Detecta `FORBIDDEN_TENANT_MISMATCH` entre claims e doc Firestore
+3. Se `claims.userDoc` presente (snapshot do middleware): usa direto, **sem nova leitura** de `users/{uid}`; `userDoc === null` → "User not found". Se ausente (`undefined`): fallback le o doc no Firestore como antes
+4. Para membros (nao-master, nao-superadmin): busca `masterId` das claims → doc do master → valida que o master pertence ao mesmo tenant
+5. Para masters/superadmin: `masterRef = userRef`, `masterData = userData`
+6. Detecta `FORBIDDEN_TENANT_MISMATCH` entre claims e doc Firestore
 
 **Roles considerados `isMaster`:** `MASTER`, `ADMIN`, `WK`
 
