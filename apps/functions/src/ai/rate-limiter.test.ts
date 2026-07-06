@@ -1,12 +1,21 @@
 /**
  * Unit tests for aiRateLimiter middleware.
  *
- * The rate limiter uses module-level Maps. Each test uses unique uid/tenantId
- * suffixes so state doesn't bleed between tests.
+ * RPM layer now runs on the pluggable rate-limit store (async), so the
+ * middleware is awaited. Each test uses unique uid/tenantId suffixes so
+ * state doesn't bleed between tests (fixed window per key in the store,
+ * module-level Map for the SSE layer).
  */
 
 jest.mock("../lib/logger", () => ({
   logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn(), debug: jest.fn() },
+}));
+
+jest.mock("../lib/security-observability", () => ({
+  buildSecurityLogContext: jest.fn((_req, extra) => ({ requestId: "r1", ...extra })),
+  incrementSecurityCounter: jest.fn(),
+  logSecurityEvent: jest.fn(),
+  writeSecurityAuditEvent: jest.fn(),
 }));
 
 import type { Request, Response, NextFunction } from "express";
@@ -16,7 +25,12 @@ import type { AuthContext } from "../lib/auth-context";
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function makeReq(uid: string, tenantId: string): Request {
-  return { user: { uid, tenantId, role: "admin" } as AuthContext } as unknown as Request;
+  return {
+    user: { uid, tenantId, role: "admin" } as AuthContext,
+    path: "/v1/ai/chat",
+    headers: {},
+    ip: "1.2.3.4",
+  } as unknown as Request;
 }
 
 function makeRes() {
@@ -30,6 +44,8 @@ function makeRes() {
   const res = {
     status: jest.fn((code: number) => { state.statusCode = code; return res; }),
     json: jest.fn((body: unknown) => { state.jsonBody = body; return res; }),
+    set: jest.fn(),
+    setHeader: jest.fn(),
     on: jest.fn((event: string, cb: () => void) => { cbs[event] = cb; }),
     once: jest.fn((event: string, cb: () => void) => { cbs[event] = cb; }),
   } as unknown as Response;
@@ -45,7 +61,7 @@ function makeNext() {
 // ── RPM cap ────────────────────────────────────────────────────────────────────
 
 describe("aiRateLimiter — RPM cap (20 req/min per user)", () => {
-  test("allows up to 20 requests then blocks the 21st with 429", () => {
+  test("allows up to 20 requests then blocks the 21st with 429", async () => {
     const uid = `rpm-uid-${Date.now()}`;
     const tenantId = `rpm-tenant-${Date.now()}`;
 
@@ -53,7 +69,7 @@ describe("aiRateLimiter — RPM cap (20 req/min per user)", () => {
       const req = makeReq(uid, tenantId);
       const { res, state: rs } = makeRes();
       const { next, state: ns } = makeNext();
-      aiRateLimiter(req, res, next);
+      await aiRateLimiter(req, res, next);
       expect(ns.called).toBe(true);
       rs.onClose(); // decrement SSE count
     }
@@ -62,14 +78,14 @@ describe("aiRateLimiter — RPM cap (20 req/min per user)", () => {
     const req21 = makeReq(uid, tenantId);
     const { res: res21, state: rs21 } = makeRes();
     const { next: next21, state: ns21 } = makeNext();
-    aiRateLimiter(req21, res21, next21);
+    await aiRateLimiter(req21, res21, next21);
 
     expect(ns21.called).toBe(false);
     expect(rs21.statusCode).toBe(429);
     expect((rs21.jsonBody as Record<string, string>)?.code).toBe("AI_RATE_LIMIT_EXCEEDED");
   });
 
-  test("different users are rate-limited independently", () => {
+  test("different users are rate-limited independently", async () => {
     const tenantId = `shared-tenant-${Date.now()}`;
     const uid1 = `user-a-${Date.now()}`;
     const uid2 = `user-b-${Date.now()}`;
@@ -78,14 +94,14 @@ describe("aiRateLimiter — RPM cap (20 req/min per user)", () => {
       const req = makeReq(uid1, tenantId);
       const { res, state: rs } = makeRes();
       const { next } = makeNext();
-      aiRateLimiter(req, res, next);
+      await aiRateLimiter(req, res, next);
       rs.onClose();
     }
 
     // uid2 is untouched — should pass
     const { res: res2, state: rs2 } = makeRes();
     const { next: next2, state: ns2 } = makeNext();
-    aiRateLimiter(makeReq(uid2, tenantId), res2, next2);
+    await aiRateLimiter(makeReq(uid2, tenantId), res2, next2);
     expect(ns2.called).toBe(true);
     rs2.onClose();
   });
@@ -97,7 +113,7 @@ describe("aiRateLimiter — RPM cap (20 req/min per user)", () => {
 const MAX_SSE = 20;
 
 describe(`aiRateLimiter — SSE concurrency cap (${MAX_SSE} per tenant)`, () => {
-  test(`allows ${MAX_SSE} concurrent SSE connections and blocks the next`, () => {
+  test(`allows ${MAX_SSE} concurrent SSE connections and blocks the next`, async () => {
     const tenantId = `sse-tenant-${Date.now()}`;
     const closeFns: Array<() => void> = [];
 
@@ -105,7 +121,7 @@ describe(`aiRateLimiter — SSE concurrency cap (${MAX_SSE} per tenant)`, () => 
       const uid = `sse-uid-${i}-${Date.now()}`;
       const { res, state: rs } = makeRes();
       const { next, state: ns } = makeNext();
-      aiRateLimiter(makeReq(uid, tenantId), res, next);
+      await aiRateLimiter(makeReq(uid, tenantId), res, next);
       expect(ns.called).toBe(true);
       closeFns.push(() => rs.onClose());
     }
@@ -113,7 +129,7 @@ describe(`aiRateLimiter — SSE concurrency cap (${MAX_SSE} per tenant)`, () => 
     const uidOver = `sse-uid-over-${Date.now()}`;
     const { res: resOver, state: rsOver } = makeRes();
     const { next: nextOver, state: nsOver } = makeNext();
-    aiRateLimiter(makeReq(uidOver, tenantId), resOver, nextOver);
+    await aiRateLimiter(makeReq(uidOver, tenantId), resOver, nextOver);
 
     expect(nsOver.called).toBe(false);
     expect(rsOver.statusCode).toBe(429);
@@ -122,7 +138,7 @@ describe(`aiRateLimiter — SSE concurrency cap (${MAX_SSE} per tenant)`, () => 
     closeFns.forEach((fn) => fn());
   });
 
-  test("after a connection closes, a new one is accepted", () => {
+  test("after a connection closes, a new one is accepted", async () => {
     const tenantId = `sse-close-${Date.now()}`;
     const closeFns: Array<() => void> = [];
 
@@ -130,7 +146,7 @@ describe(`aiRateLimiter — SSE concurrency cap (${MAX_SSE} per tenant)`, () => 
       const uid = `sc-uid-${i}-${Date.now()}`;
       const { res, state: rs } = makeRes();
       const { next } = makeNext();
-      aiRateLimiter(makeReq(uid, tenantId), res, next);
+      await aiRateLimiter(makeReq(uid, tenantId), res, next);
       closeFns.push(() => rs.onClose());
     }
 
@@ -139,7 +155,7 @@ describe(`aiRateLimiter — SSE concurrency cap (${MAX_SSE} per tenant)`, () => 
     const uidNew = `sc-uid-new-${Date.now()}`;
     const { res: resNew } = makeRes();
     const { next: nextNew, state: nsNew } = makeNext();
-    aiRateLimiter(makeReq(uidNew, tenantId), resNew, nextNew);
+    await aiRateLimiter(makeReq(uidNew, tenantId), resNew, nextNew);
     expect(nsNew.called).toBe(true);
 
     closeFns.slice(1).forEach((fn) => fn());
@@ -149,11 +165,11 @@ describe(`aiRateLimiter — SSE concurrency cap (${MAX_SSE} per tenant)`, () => 
 // ── Unauthenticated ────────────────────────────────────────────────────────────
 
 describe("aiRateLimiter — unauthenticated request", () => {
-  test("passes through when req.user is missing (route handler returns 401)", () => {
+  test("passes through when req.user is missing (route handler returns 401)", async () => {
     const req = { user: undefined } as unknown as Request;
     const { res } = makeRes();
     const { next, state: ns } = makeNext();
-    aiRateLimiter(req, res, next);
+    await aiRateLimiter(req, res, next);
     expect(ns.called).toBe(true);
   });
 });

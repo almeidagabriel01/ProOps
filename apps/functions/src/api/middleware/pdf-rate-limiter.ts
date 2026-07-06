@@ -1,23 +1,21 @@
 import { Request, Response, NextFunction } from "express";
+import { createRateLimiter } from "../../lib/rate-limit/express-limiter";
+import type { RateLimitDecision } from "../../lib/rate-limit/types";
 
 /**
- * In-memory rate limiter for PDF generation endpoints.
+ * Rate limiter para endpoints de geração de PDF (5/min por usuário ou IP).
  *
- * Limitação por usuário autenticado (uid) + IP para prevenir abuso.
- * Cada requisição abre um browser Chromium headless — sem limitação,
- * um atacante autenticado poderia exaurir os recursos do Cloud Function.
+ * Cada requisição pode abrir um Chromium headless — o limite protege
+ * CPU/memória da instância. Usa o store plugável de lib/rate-limit
+ * (memory por default; distribuído entre instâncias quando
+ * RATE_LIMIT_STORE=redis estiver configurado).
  *
- * NOTA DE DISTRIBUIÇÃO: Em ambientes com múltiplas instâncias (Cloud Functions
- * com scale > 1), o controle é por instância. Para enforcement global use
- * Firebase App Check ou Cloud Armor. Para a maioria dos casos (PDF sob demanda)
- * essa limitação por instância já é suficientemente protetora.
+ * emulatorBypass: false — o limite vale também no emulador; o E2E depende
+ * do contrato 429 + PDF_RATE_LIMIT_EXCEEDED.
  */
 
-const WINDOW_MS = 60_000; // 1 minuto
-const MAX_REQUESTS_PER_WINDOW = 5; // 5 PDFs por minuto por usuário/IP
-
-// Mapa chave → lista de timestamps dentro da janela deslizante
-const requestLog = new Map<string, number[]>();
+const WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_WINDOW = 5;
 
 /**
  * Deriva a chave de rate limit da request:
@@ -28,7 +26,6 @@ function deriveKey(req: Request): string {
   const uid = req.user?.uid;
   if (uid) return `uid:${uid}`;
 
-  // Para endpoints públicos o token já é o "auth" — usamos IP como proxy
   const forwarded = req.headers["x-forwarded-for"];
   const rawIp =
     (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() ||
@@ -39,52 +36,34 @@ function deriveKey(req: Request): string {
   return `ip:${rawIp}`;
 }
 
-// Limpeza periódica para evitar crescimento ilimitado em instâncias longas.
-// `.unref()` garante que o setInterval não impede o processo de sair.
-const cleanupTimer = setInterval(() => {
-  const cutoff = Date.now() - WINDOW_MS;
-  for (const [key, timestamps] of requestLog.entries()) {
-    const remaining = timestamps.filter((t) => t > cutoff);
-    if (remaining.length === 0) {
-      requestLog.delete(key);
-    } else {
-      requestLog.set(key, remaining);
-    }
-  }
-}, WINDOW_MS);
-
-if (typeof cleanupTimer.unref === "function") {
-  cleanupTimer.unref();
+function onPdfLimit(
+  _req: Request,
+  res: Response,
+  decision: RateLimitDecision,
+): void {
+  const retryAfterSeconds = Math.max(1, decision.retryAfterSeconds);
+  res.setHeader("Retry-After", String(retryAfterSeconds));
+  res.status(429).json({
+    code: "PDF_RATE_LIMIT_EXCEEDED",
+    message:
+      "Muitas requisições de PDF. Aguarde alguns instantes e tente novamente.",
+    retryAfter: retryAfterSeconds,
+  });
 }
+
+const limiter = createRateLimiter({
+  maxRequests: MAX_REQUESTS_PER_WINDOW,
+  windowMs: WINDOW_MS,
+  keyPrefix: "pdf",
+  keyResolver: deriveKey,
+  onLimit: onPdfLimit,
+  emulatorBypass: false,
+});
 
 export function pdfRateLimiter(
   req: Request,
   res: Response,
   next: NextFunction,
 ): void {
-  const now = Date.now();
-  const cutoff = now - WINDOW_MS;
-  const key = deriveKey(req);
-
-  // Filtra timestamps antigos (janela deslizante)
-  const recent = (requestLog.get(key) || []).filter((t) => t > cutoff);
-
-  if (recent.length >= MAX_REQUESTS_PER_WINDOW) {
-    // Calcula quando a janela vai liberar baseado no timestamp mais antigo
-    const oldestTs = recent[0];
-    const retryAfterMs = WINDOW_MS - (now - oldestTs);
-    const retryAfterSeconds = Math.ceil(retryAfterMs / 1000);
-
-    res.setHeader("Retry-After", String(retryAfterSeconds));
-    res.status(429).json({
-      code: "PDF_RATE_LIMIT_EXCEEDED",
-      message: "Muitas requisições de PDF. Aguarde alguns instantes e tente novamente.",
-      retryAfter: retryAfterSeconds,
-    });
-    return;
-  }
-
-  recent.push(now);
-  requestLog.set(key, recent);
-  next();
+  void limiter(req, res, next);
 }
