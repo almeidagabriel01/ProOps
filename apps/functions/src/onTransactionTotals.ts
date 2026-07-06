@@ -175,7 +175,8 @@ async function writeSummary(
   await docRef.set(summary);
 }
 
-async function recomputeGroup(
+/** Exportado para reuso no backfill (scripts/backfill-transaction-groups.ts). */
+export async function recomputeGroup(
   firestore: FirebaseFirestore.Firestore,
   tenantId: string,
   groupKey: string,

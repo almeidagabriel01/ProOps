@@ -123,8 +123,8 @@ Comportamento do trigger (além do que já faz com paidTotal/pendingTotal):
 
 Lógica: paginar `transactions` por `__name__`; (a) marcar `grouped` onde divergente (batch); (b) acumular `groupKey → tenantId` num Map; ao final, para cada grupo, buscar membros e `computeGroupSummary` → set. Idempotente. Log `processed/updatedGrouped/groupsWritten`.
 
-- [ ] **Step 1: implementar** (script one-shot; sem teste automatizado — validação é a execução em dev + Task 7)
-- [ ] **Step 2: build + lint + commit** — `feat(finance): backfill script for transaction_groups and grouped flag`
+- [x] **Step 1: implementar** (script one-shot; sem teste automatizado — validação é a execução em dev + Task 7; reusa `recomputeGroup` exportado do trigger — promoção de grupos mistos single-source)
+- [x] **Step 2: build + lint + commit** — `feat(finance): backfill script for transaction_groups and grouped flag`
 
 ### Task 4: Regras + índices da coleção nova
 
