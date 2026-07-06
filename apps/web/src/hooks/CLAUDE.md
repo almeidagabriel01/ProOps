@@ -3,7 +3,7 @@
 ## Responsabilidade
 React hooks customizados que encapsulam lógica reutilizável de dados e UI.
 
-## Hooks existentes (32 + subpasta proposal/)
+## Hooks existentes (33 + subpasta proposal/)
 ```
 hooks/
 ├── proposal/              # Hooks específicos de propostas (subpasta)
@@ -23,6 +23,7 @@ hooks/
 ├── useInfiniteScroll.ts   # Paginação infinita
 ├── useLiaHistory.ts       # Histórico de conversas Lia
 ├── useLiaSession.ts       # Sessão da Lia
+├── useLiaSoundPreference.ts # Preferência de sons da Lia (on/off, persistida no perfil)
 ├── useLiaUsage.ts         # Uso/limites da Lia
 ├── useMemberActions.ts    # Ações de membros
 ├── useNotificationScope.ts
