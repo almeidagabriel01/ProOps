@@ -87,11 +87,11 @@ export function computeGroupSummary(
 - `computeGroupSummary` usa `computeTransactionTotals` (import de `./transaction-totals`) para `paidTotal`/`pendingTotal` por membro — NUNCA recalcular a semântica de extraCosts aqui.
 - Âncora para description/type/wallet/clientName: membro com menor `installmentNumber` >= 1; fallback menor `dueDate`; fallback primeiro.
 
-- [ ] **Step 1: teste que falha** — casos mínimos: (a) grupo de proposta com entrada (`proposalGroupId` em todos, entrada `installmentNumber: 0`) → `kind: "proposal"`, memberCount inclui a entrada; (b) parcelamento simples 3x com 1 paga → `paidCount: 1`, `nextDueDate` = dueDate da próxima não-paga, `status: "pending"`; (c) membro pending com dueDate < today → `status: "overdue"`; (d) todas pagas → `status: "paid"`, `nextDueDate: null`; (e) `resolveGroupKey` prioriza proposalGroupId; retorna null p/ avulso; (f) members vazio → null.
-- [ ] **Step 2: rodar e ver falhar** — `npx jest src/lib/transaction-group-summary.test.ts`
-- [ ] **Step 3: implementar** (funções puras, sem Firestore)
-- [ ] **Step 4: verde + build + lint**
-- [ ] **Step 5: commit** — `feat(finance): pure group summary computation for transaction_groups`
+- [x] **Step 1: teste que falha** — casos mínimos: (a) grupo de proposta com entrada (`proposalGroupId` em todos, entrada `installmentNumber: 0`) → `kind: "proposal"`, memberCount inclui a entrada; (b) parcelamento simples 3x com 1 paga → `paidCount: 1`, `nextDueDate` = dueDate da próxima não-paga, `status: "pending"`; (c) membro pending com dueDate < today → `status: "overdue"`; (d) todas pagas → `status: "paid"`, `nextDueDate: null`; (e) `resolveGroupKey` prioriza proposalGroupId; retorna null p/ avulso; (f) members vazio → null.
+- [x] **Step 2: rodar e ver falhar** — `npx jest src/lib/transaction-group-summary.test.ts`
+- [x] **Step 3: implementar** (funções puras, sem Firestore)
+- [x] **Step 4: verde + build + lint**
+- [x] **Step 5: commit** — `feat(finance): pure group summary computation for transaction_groups`
 
 ### Task 2: Trigger mantém `transaction_groups` + campo `grouped` no doc
 
