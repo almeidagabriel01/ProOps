@@ -78,29 +78,31 @@ export function TeamManagement() {
         );
 
         const snapshot = await getDocs(membersQuery);
-        const membersList: TeamMember[] = [];
 
-        for (const memberDoc of snapshot.docs) {
-          const data = memberDoc.data();
+        // Permissões em paralelo — sequencial era 1 roundtrip por membro
+        const membersList: TeamMember[] = await Promise.all(
+          snapshot.docs.map(async (memberDoc) => {
+            const data = memberDoc.data();
 
-          const permissionsSnapshot = await getDocs(
-            collection(db, "users", memberDoc.id, "permissions"),
-          );
+            const permissionsSnapshot = await getDocs(
+              collection(db, "users", memberDoc.id, "permissions"),
+            );
 
-          const permissions: Record<string, Permission> = {};
-          permissionsSnapshot.forEach((permDoc) => {
-            permissions[permDoc.id] = permDoc.data() as Permission;
-          });
+            const permissions: Record<string, Permission> = {};
+            permissionsSnapshot.forEach((permDoc) => {
+              permissions[permDoc.id] = permDoc.data() as Permission;
+            });
 
-          membersList.push({
-            id: memberDoc.id,
-            name: data.name || "Sem nome",
-            email: data.email || "",
-            role: data.role || "MEMBER",
-            createdAt: data.createdAt || new Date().toISOString(),
-            permissions,
-          });
-        }
+            return {
+              id: memberDoc.id,
+              name: data.name || "Sem nome",
+              email: data.email || "",
+              role: data.role || "MEMBER",
+              createdAt: data.createdAt || new Date().toISOString(),
+              permissions,
+            };
+          }),
+        );
 
         setMembers(membersList);
       } catch (error: unknown) {
