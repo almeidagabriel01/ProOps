@@ -133,6 +133,30 @@ que baixava a coleção inteira. Docs pré-trigger: rodar
 `(tenantId, type, paidTotal)` e `(tenantId, type, pendingTotal)` em
 `firestore.indexes.json`.
 
+### Resumos de grupo (`transaction_groups`)
+
+O mesmo trigger `onTransactionTotals` mantém: (a) o campo booleano `grouped`
+em cada doc de `transactions` (true se pertence a grupo — habilita a query de
+avulsos `where("grouped","==",false)`, já que Firestore não consulta campo
+ausente); (b) 1 doc-resumo por grupo em `transaction_groups/{groupDocId}`
+(`groupDocId` = groupKey com `:` → `_`, ex: `proposal_p1`, `group_g1`).
+
+- Chave espelha `getGroupedTransactionKey` do frontend: `proposalGroupId` >
+  `installmentGroupId`/`recurringGroupId` > avulso (sem doc).
+- Cálculo puro em `src/lib/transaction-group-summary.ts`
+  (`computeGroupSummary` — usa `computeTransactionTotals` por membro; nunca
+  duplicar a semântica de extraCosts).
+- Recompute total do grupo a cada write relevante de membro (não increments);
+  writes que só tocam campos irrelevantes ao resumo (ou o echo do próprio
+  trigger) não geram queries.
+- Grupos legados mistos (parte com `proposalGroupId`, parte só
+  `installmentGroupId`): promovidos à chave proposal; o doc `group_` é
+  deletado.
+- Write em `transaction_groups` só via Admin SDK (rules negam client write);
+  client lê direto (aba Agrupados).
+- Backfill histórico: `npx tsx src/scripts/backfill-transaction-groups.ts`
+  (idempotente).
+
 ### Arquitetura de Carteiras (CRÍTICO)
 
 **Saldos são DESNORMALIZADOS** no documento Firestore da carteira (campo `balance`). Não são calculados on-the-fly. Toda operação que afeta saldo usa `FieldValue.increment()` dentro de uma Firestore Transaction atômica.

@@ -112,9 +112,9 @@ Comportamento do trigger (além do que já faz com paidTotal/pendingTotal):
 3. Anti-loop: trigger escreve em OUTRA coleção (`transaction_groups`) — não re-dispara. O update de `grouped`/totais no próprio doc já tem o guard `storedTotalsDiffer` — estender o guard para incluir `grouped`.
 4. **Atenção ao early-return atual**: hoje o trigger retorna cedo quando `!afterSnap?.exists` (delete) e quando totais não divergem. O recompute de grupo precisa rodar TAMBÉM nesses caminhos (delete de membro; edição que não muda totais mas muda dueDate/status... status muda totais; dueDate não → recompute mesmo assim). Reestruturar: sempre calcular before/after keys e recomputar grupos; o update de totais continua condicional.
 
-- [ ] **Step 1: teste que falha** — mock `./lib/transaction-group-summary` e `./init`; casos: create de membro → set no grupo; delete → recompute do beforeKey; mudança de installmentGroupId → recompute dos DOIS grupos; avulso (sem grupo) → nenhum acesso a transaction_groups; `grouped` gravado corretamente.
-- [ ] **Step 2: red** — [ ] **Step 3: implementar** — [ ] **Step 4: verde + suite `src/lib` + build + lint**
-- [ ] **Step 5: commit** — `feat(finance): onTransactionTotals maintains transaction_groups summaries and grouped flag`
+- [x] **Step 1: teste que falha** — fake Firestore em memória (em vez de mock do lib — cobre a integração real); casos: create de membro → set no grupo; delete → recompute do beforeKey; mudança de installmentGroupId → recompute dos DOIS grupos; avulso (sem grupo) → nenhum acesso a transaction_groups; `grouped` gravado corretamente; echo do trigger → sem recompute; grupo legado misto → promovido à chave proposal.
+- [x] **Step 2: red** — [x] **Step 3: implementar** — [x] **Step 4: verde + suite `src/lib` + build + lint** (falha pré-existente em error-ingest.service.test.ts não relacionada)
+- [x] **Step 5: commit** — `feat(finance): onTransactionTotals maintains transaction_groups summaries and grouped flag`
 
 ### Task 3: Backfill de `transaction_groups` + `grouped`
 
