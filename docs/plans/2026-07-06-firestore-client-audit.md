@@ -12,11 +12,11 @@ Contexto: as listas (transações, propostas, clientes, produtos) leem Firestore
 
 ## Backlog priorizado (NÃO corrigido de propósito — precisa de decisão de produto/arquitetura)
 
-### P1 — `getTransactions` sem limite alimentando summary financeiro
-`transaction-service.ts:137` busca o tenant inteiro; `getSummary` soma **todas** as transações client-side; `useFinancialData` e `useDashboardData` dependem disso. **`limit()` cego corromperia os totais silenciosamente.** Correção certa: agregados server-side (endpoint de summary no backend usando `count()`/`sum()` aggregations do Firestore, ou snapshot desnormalizado por mês em `tenant_usage`). Esforço: ~1-2 dias. Gatilho: tenant com >2-3k transações ou leituras Firestore >20k/dia.
+### ✅ P1 RESOLVIDO (2026-07-06) — summary financeiro server-side
+Implementado: campos desnormalizados `paidTotal`/`pendingTotal` mantidos pelo trigger `onTransactionTotals` (cobre todos os writers, auto-corretivo) + `GET /v1/transactions/summary` com aggregation queries (2 queries, 1 leitura/1000 docs) + frontend `getSummary` consumindo o endpoint. Corta o full-fetch DUPLICADO das páginas de transações e dashboard. **Pré-requisito de rollout em cada ambiente**: deploy do trigger → `npx tsx src/scripts/backfill-transaction-totals.ts` → só então o summary fica exato para docs antigos (aggregation ignora docs sem os campos).
 
-### P1 — Dashboard dispara 5 getters ilimitados num `Promise.all`
-`hooks/useDashboardData.ts:131-136` (transactions + proposals + clients + wallets + statuses, todos full-tenant). Depende do item acima; resolver junto (mesmo endpoint de agregados).
+### P1 restante — Dashboard ainda baixa transações cruas para os GRÁFICOS
+`useDashboardData` usa o summary novo (barato), mas o gráfico mensal de 6 meses precisa de datas efetivas por item (pago → paidDate; pendente → dueDate; extraCosts com datas próprias) — isso não se expressa em aggregation. Correção certa: **rollup mensal desnormalizado** (`tenant_usage/{tenantId}/months/{YYYY-MM}` com receitas/despesas incrementadas pelo mesmo trigger `onTransactionTotals`), padrão que o repo já usa para `proposalsCreated`. Precisa de decisão de produto sobre semântica do gráfico (projeção por dueDate vs realizado). Esforço: ~1 dia. Gatilho: o mesmo (>20k leituras/dia) — o summary já cortou metade do custo do dashboard.
 
 ### P2 — Busca client-side exige coleção inteira
 `proposals/page.tsx:433` (modo busca) e `client-select.tsx:55` baixam tudo porque Firestore não tem busca textual. `limit()` quebraria a busca. Correção certa: campo normalizado (`searchTokens` array) + query por prefixo, ou busca server-side. Gatilho: tenants com >1k propostas/clientes.
