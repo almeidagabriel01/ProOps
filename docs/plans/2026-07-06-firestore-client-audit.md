@@ -27,6 +27,24 @@ Implementado: campos desnormalizados `paidTotal`/`pendingTotal` mantidos pelo tr
 ### ✅ RESOLVIDO (2026-07-06) — Aba Agrupados via doc-resumos (`transaction_groups`)
 Plano `2026-07-06-agrupados-lazy-groups.md` executado: coleção desnormalizada `transaction_groups` (1 doc por grupo, mantida pelo trigger `onTransactionTotals` + campo `grouped` nos docs), aba Agrupados lê resumos paginados + avulsos paginados (`grouped == false`) e busca membros só ao expandir (cache em memória, stale-while-revalidate). Histórico completo sem depender de filtro de data e sem baixar membros. Rollout dev feito (índices READY → rules → functions → backfill 93 docs/11 grupos → paridade MATCH). **Pendente em prod**: mesma sequência.
 
+### P1 — Dashboard baixa TODAS as propostas e TODOS os clientes
+`proposal-service.ts` (`getProposals`) e `client-service.ts` (`getClients`) fazem `getDocs` só com `where(tenantId)`, sem limit; `useDashboardData` chama ambos em todo mount do dashboard só para contagens (`proposalStats`, `newClientsThisMonth`) + 5 recentes. Tenant com 500 propostas + 800 clientes = 1.300 leituras por abertura. Correção: `getCountFromServer` (aggregation) para as contagens + query `limit(5)` para recentes — mesmo padrão do summary de transações. (Varredura 2026-07-06.)
+
+### ✅ RESOLVIDO (2026-07-06) — Cron `checkDueDates` varria propostas globais sem filtro/limit
+Query de propostas ganhou `where("validUntil","<=",...)` (docs sem validUntil já eram ignorados em memória — equivalente) + índice `(status, validUntil)`; ambas as queries do cron agora paginam por cursor em lotes de 400 (padrão markOverdueTransactions). Memória constante independente do tamanho da base.
+
+### ✅ RESOLVIDO (2026-07-06) — `viewerInfo` de share links crescia sem bound
+`recordView` (shared-proposal/shared-transactions) trocou `arrayUnion` por transação que mantém as últimas 50 entradas + `viewCount` (increment). Antes, link público muito acessado inflaria o doc até o limite de 1 MB e os writes de view passariam a falhar.
+
+### ✅ RESOLVIDO (2026-07-06) — Stripe SDK no cold start do monólito
+`stripeConfig.getStripe()` agora faz `require("stripe")` lazy; importadores usam `import type`. SDKs de IA (`@google/genai`, `groq-sdk`) verificados: já eram lazy (dynamic import nos handlers).
+
+### P3 — Calendário: 1 leitura de integração Google por GET + fallback sem limit
+`calendar.controller.ts`: `syncGoogleEventsToLocalCalendar` lê `getGoogleIntegration(tenantId)` em toda listagem (mesmo sem Google conectado — cachear o "não tem" por tenant); `listCalendarEventsWithTenantFallback` baixa todos os eventos do tenant se a query indexada falhar (aplicar range+limit no fallback). (Varredura 2026-07-06.)
+
+### P3 — `whatsappLogs` append-only sem TTL
+`whatsapp.session.ts` adiciona logs indefinidamente. Correção: campo `expiresAt` + TTL policy do Firestore, ou incluir no cron de cleanup existente. (Varredura 2026-07-06.)
+
 ### P2 — Kanban puxa listas completas
 `transaction-kanban-tab.tsx:80`, `proposal-kanban-tab.tsx:86`. Board mostra todos os cards por design — limitar muda produto. Correção: paginação por coluna ou cap com "carregar mais". Decisão de UX antes de código.
 
