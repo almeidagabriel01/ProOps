@@ -137,7 +137,7 @@ async function fetchProposalMembers(
     const instId = asString(m.installmentGroupId);
     if (instId) instIds.add(instId);
   }
-  const seen = new Set(base.map((m) => JSON.stringify(m)));
+  const seen = new Set(base.map((m) => String(m.id)));
   const members = [...base];
   for (const instId of instIds) {
     const siblings = await queryMembers(
@@ -147,9 +147,9 @@ async function fetchProposalMembers(
       instId,
     );
     for (const sibling of siblings) {
-      const fingerprint = JSON.stringify(sibling);
-      if (!seen.has(fingerprint)) {
-        seen.add(fingerprint);
+      const siblingId = String(sibling.id);
+      if (!seen.has(siblingId)) {
+        seen.add(siblingId);
         members.push(sibling);
       }
     }
@@ -202,16 +202,24 @@ export async function recomputeGroup(
     queryMembers(firestore, tenantId, "recurringGroupId", groupId),
   ]);
   const members = [...byInstallment];
-  const seen = new Set(members.map((m) => JSON.stringify(m)));
+  const seen = new Set(members.map((m) => String(m.id)));
   for (const m of byRecurring) {
-    const fingerprint = JSON.stringify(m);
-    if (!seen.has(fingerprint)) members.push(m);
+    if (!seen.has(String(m.id))) members.push(m);
   }
 
   // Grupo legado misto → promove à chave proposal e remove o doc group_.
-  const promotedTo = members
-    .map((m) => asString(m.proposalGroupId))
-    .find((id) => id !== null);
+  const proposalIds = new Set(
+    members
+      .map((m) => asString(m.proposalGroupId))
+      .filter((id): id is string => id !== null),
+  );
+  const promotedTo = proposalIds.values().next().value as string | undefined;
+  if (proposalIds.size > 1) {
+    logger.warn("recomputeGroup: mixed group with multiple proposalGroupIds", {
+      groupKey,
+      proposalGroupIds: Array.from(proposalIds),
+    });
+  }
   if (promotedTo) {
     await firestore
       .collection("transaction_groups")

@@ -31,6 +31,10 @@ export function summaryToRepresentative(
 ): Transaction {
   const groupId = summary.groupKey.split(":")[1] || summary.groupKey;
   return {
+    // Invariante: o trigger sempre grava anchorTransactionId (membros têm id).
+    // O fallback summary.id só é alcançável em doc-resumo anômalo — ações
+    // por-doc (editar/ver) falhariam com 404, mas ações de GRUPO (status,
+    // delete) usam os groupIds abaixo e continuam corretas.
     id: summary.anchorTransactionId ?? summary.id,
     tenantId: summary.tenantId,
     type: summary.type,

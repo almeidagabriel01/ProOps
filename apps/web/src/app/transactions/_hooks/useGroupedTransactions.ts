@@ -74,6 +74,14 @@ export function useGroupedTransactions({
   // tenant ou refresh concorrente).
   const fetchEpochRef = React.useRef(0);
 
+  // Contagens carregadas via ref — fetchFirstPages fica estável (não é
+  // recriado a cada mudança de length, evitando invalidação de memos).
+  const loadedCountsRef = React.useRef({ groups: 0, standalone: 0 });
+  loadedCountsRef.current = {
+    groups: groupSummaries.length,
+    standalone: standalone.length,
+  };
+
   const fetchFirstPages = React.useCallback(
     async (opts?: { keepLoadedCount?: boolean }) => {
       if (!tenantId) return;
@@ -82,7 +90,10 @@ export function useGroupedTransactions({
       const loadedCount = Math.max(
         pageSize,
         opts?.keepLoadedCount
-          ? Math.max(groupSummaries.length, standalone.length)
+          ? Math.max(
+              loadedCountsRef.current.groups,
+              loadedCountsRef.current.standalone,
+            )
           : 0,
       );
 
@@ -104,7 +115,7 @@ export function useGroupedTransactions({
       setHasMoreGroups(groupsPage.nextCursor !== null);
       setHasMoreStandalone(standalonePage.nextCursor !== null);
     },
-    [tenantId, pageSize, groupSummaries.length, standalone.length],
+    [tenantId, pageSize],
   );
   const fetchFirstPagesRef = React.useRef(fetchFirstPages);
   fetchFirstPagesRef.current = fetchFirstPages;
@@ -212,7 +223,8 @@ export function useGroupedTransactions({
   }, []);
 
   const refresh = React.useCallback(async () => {
-    membersInFlightRef.current.clear();
+    // Não limpa membersInFlightRef: ensureMembers concorrente reutiliza a
+    // promise em voo; a revalidação abaixo sobrescreve o cache no fim.
     const cachedKeys = Array.from(membersCacheRef.current.keys());
     try {
       await Promise.all([
