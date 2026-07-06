@@ -114,8 +114,24 @@ cd apps/functions && npm run lint
 | Arquivo | Responsabilidade |
 |---------|-----------------|
 | `src/api/services/transaction.service.ts` | TODA lógica de negócio de lançamentos (~1800 linhas) |
+| `src/api/services/transaction-summary.service.ts` | Summary financeiro via aggregation queries (`GET /v1/transactions/summary`) |
+| `src/lib/transaction-totals.ts` | `computeTransactionTotals()` — semântica dos campos desnormalizados `paidTotal`/`pendingTotal` |
+| `src/onTransactionTotals.ts` | Trigger que mantém `paidTotal`/`pendingTotal` em todo write de transactions |
 | `src/api/controllers/wallets.controller.ts` | CRUD de carteiras |
 | `src/lib/finance-helpers.ts` | `resolveWalletRef()`, `addMonths()`, permissões |
+
+### Summary financeiro agregado (paidTotal/pendingTotal)
+
+Cada doc de `transactions` carrega `paidTotal` e `pendingTotal` desnormalizados
+(pai entra pelo status do pai; cada extraCost pelo PRÓPRIO status, default
+"pending"; overdue conta como pendente). Mantidos pelo trigger
+`onTransactionTotals` em qualquer write — **nenhum writer precisa preencher os
+campos manualmente**. O endpoint `GET /v1/transactions/summary` soma via
+aggregation (2 queries, 1 leitura/1000 docs) — substitui o cálculo no browser
+que baixava a coleção inteira. Docs pré-trigger: rodar
+`npx tsx src/scripts/backfill-transaction-totals.ts` (idempotente). Índices:
+`(tenantId, type, paidTotal)` e `(tenantId, type, pendingTotal)` em
+`firestore.indexes.json`.
 
 ### Arquitetura de Carteiras (CRÍTICO)
 

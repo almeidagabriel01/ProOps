@@ -22,6 +22,7 @@
 | `cleanupSecurityAuditEvents` | Scheduled | Expurga eventos de auditoria antigos |
 | `remindNoSubscriptionSignups` | Scheduled | Lembra signups sem assinatura |
 | `onWalletCascadeJob` | Firestore trigger | Cascata de exclusao de carteira |
+| `onTransactionTotals` | Firestore trigger | Mantem `paidTotal`/`pendingTotal` desnormalizados em transactions/{id} (base do summary agregado) |
 
 **Global options** aplicadas a todas as funcoes:
 ```typescript

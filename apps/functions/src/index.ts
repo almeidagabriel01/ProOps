@@ -39,6 +39,7 @@ export { remindNoSubscriptionSignups } from "./checkInactiveSignups";
 
 // 2b. Firestore triggers
 export { onWalletCascadeJob } from "./onWalletCascadeJob";
+export { onTransactionTotals } from "./onTransactionTotals";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";
