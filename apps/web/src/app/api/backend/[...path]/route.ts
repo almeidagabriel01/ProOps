@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveFunctionsApiUpstream } from "@/lib/server-api-upstream";
+import {
+  derivePdfUpstream,
+  resolveFunctionsApiUpstream,
+} from "@/lib/server-api-upstream";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const PDF_TIMEOUT_MS = 80_000;
@@ -34,10 +37,16 @@ function getRequestId(req: NextRequest): string {
   return req.headers.get("x-request-id") || crypto.randomUUID();
 }
 
+function isPdfPath(path: string[]): boolean {
+  return path[path.length - 1] === "pdf";
+}
+
 function buildUpstreamUrl(req: NextRequest, path: string[]): string {
   const { baseUrl } = resolveFunctionsApiUpstream(req);
+  // Paths de PDF vão para a função Cloud dedicada `pdf` (Chromium isolado).
+  const effectiveBase = isPdfPath(path) ? derivePdfUpstream(baseUrl) : baseUrl;
   const upstreamUrl = new URL(
-    `${baseUrl}/${path.map((segment) => encodeURIComponent(segment)).join("/")}`,
+    `${effectiveBase}/${path.map((segment) => encodeURIComponent(segment)).join("/")}`,
   );
   upstreamUrl.search = req.nextUrl.search;
   return upstreamUrl.toString();
@@ -95,7 +104,7 @@ async function proxyRequest(
   const upstreamUrl = buildUpstreamUrl(req, path);
   const acceptHeader = req.headers.get("accept") ?? "";
   const isSSE = acceptHeader.includes("text/event-stream");
-  const isPdfRequest = path[path.length - 1] === "pdf";
+  const isPdfRequest = isPdfPath(path);
   const timeoutMs = isSSE ? SSE_TIMEOUT_MS : isPdfRequest ? PDF_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);

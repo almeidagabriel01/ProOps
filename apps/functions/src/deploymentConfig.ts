@@ -28,6 +28,22 @@ export const CORS_OPTIONS: HttpsOptions = {
   memory: IS_DEV ? "1GiB" : "1GiB",
 };
 
+/**
+ * PDF rendering function (pdfApp). Isolated from the API monolith so headless
+ * Chromium memory spikes cannot OOM request-serving instances.
+ * concurrency: 2 caps simultaneous Chromium processes per 1GiB instance —
+ * OOM eliminated by construction. Scale-to-zero: idle cost is zero.
+ */
+export const PDF_OPTIONS: HttpsOptions = {
+  cors: true,
+  region: "southamerica-east1",
+  timeoutSeconds: 90,
+  cpu: 1,
+  maxInstances: IS_DEV ? 1 : 5,
+  concurrency: 2,
+  memory: "1GiB",
+};
+
 export const SCHEDULE_OPTIONS = {
   timeZone: "America/Sao_Paulo",
   region: "southamerica-east1",

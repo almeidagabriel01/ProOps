@@ -7,6 +7,7 @@
 | Exportacao | Tipo | Descricao |
 |------------|------|-----------|
 | `api` | HTTP (Express) | Monolito Express — todas as rotas REST |
+| `pdf` | HTTP (Express) | Renderizacao de PDF isolada (Chromium fora do monolito) — 4 rotas de PDF; proxy Next.js roteia paths `*/pdf` para ca |
 | `stripeWebhook` | HTTP (Express) | Webhook Stripe com verificacao de assinatura |
 | `checkManualSubscriptions` | Scheduled | Verificacao diaria de assinaturas manuais |
 | `checkDueDates` | Scheduled | Verificacao diaria de vencimentos |
@@ -271,8 +272,11 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | Funcao | CPU | Memory | Max Instances | Concurrency | Timeout |
 |--------|-----|--------|---------------|-------------|---------|
 | `api` (CORS_OPTIONS) | 1 | 1GiB | prod 10 / dev 1 | prod 80 / dev 3 | 90s |
+| `pdf` (PDF_OPTIONS) | 1 | 1GiB | prod 5 / dev 1 | 2 | 90s |
 | `stripeWebhook` | 1 | 1GiB | (global) | - | default |
 | Crons (SCHEDULE_OPTIONS) | prod 0.25 / dev 0.083 | 512MiB | 1 | - | varia (300–540s) |
+
+> `pdf` (src/pdfApp.ts): funcao dedicada de renderizacao — `concurrency: 2` limita Chromiums simultaneos por instancia de 1GiB (OOM eliminado por construcao). Lock (Firestore) e cache (Storage) compartilhados com o monolito; as rotas seguem montadas no `api` como fallback e para o fluxo interno WhatsApp→PDF. O proxy Next.js (`apps/web/src/app/api/backend/[...path]/route.ts`) roteia todo path terminado em `/pdf` para esta funcao via `derivePdfUpstream`.
 
 > `memory: "1GiB"` aplicado via `setGlobalOptions`; os crons sobrescrevem para `512MiB` via SCHEDULE_OPTIONS (256MiB causava OOM no cold start do monolito). Valores de `cpu`/`maxInstances`/`concurrency` variam entre dev e prod (`IS_DEV`).
 

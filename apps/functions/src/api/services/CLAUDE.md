@@ -29,6 +29,10 @@ PDFs sao gerados renderizando a pagina Next.js com Playwright/Chromium headless 
 | `playwright-core` | API do Playwright |
 | `@sparticuz/chromium` | Binario Chromium otimizado para Lambda/Cloud Run |
 
+### Onde roda
+
+Os 4 endpoints de PDF sao atendidos pela **funcao Cloud dedicada `pdf`** (`src/pdfApp.ts`, config `PDF_OPTIONS`: 1GiB, `concurrency: 2` = max 2 Chromiums por instancia). O proxy Next.js roteia paths `*/pdf` para ela. As mesmas rotas seguem montadas no monolito `api` como fallback e para o fluxo interno WhatsApp→PDF (que chama `getOrGenerateProposalPdfBuffer` in-process). Lock (Firestore) e cache (Storage) sao compartilhados entre as duas funcoes.
+
 ### Fluxo geral
 
 ```
