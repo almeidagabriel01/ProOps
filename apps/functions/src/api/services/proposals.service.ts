@@ -1,6 +1,7 @@
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+import { buildSearchTokens } from "../../lib/search-tokens";
 
 // ===== Interfaces =====
 
@@ -190,6 +191,10 @@ export async function createProposal(
     products,
     totalValue: Math.round(totalValue * 100) / 100,
     discount: discount,
+    // Sem sistemas neste fluxo — "" mantém o doc nos índices de ordenação
+    primarySystem: "",
+    primaryEnvironment: "",
+    searchTokens: buildSearchTokens(title, clientName),
     createdById: uid,
     createdAt: now,
     updatedAt: now,
@@ -228,7 +233,13 @@ export async function updateProposal(
     updatedAt: Timestamp.now(),
   };
 
-  if (updates.title !== undefined) safeUpdate.title = sanitizeText(updates.title);
+  if (updates.title !== undefined) {
+    safeUpdate.title = sanitizeText(updates.title);
+    safeUpdate.searchTokens = buildSearchTokens(
+      safeUpdate.title as string,
+      data.clientName,
+    );
+  }
   if (updates.notes !== undefined) safeUpdate.notes = sanitizeRichText(updates.notes);
   if (updates.validUntil !== undefined) safeUpdate.validUntil = updates.validUntil;
   if (updates.discount !== undefined) safeUpdate.discount = updates.discount;

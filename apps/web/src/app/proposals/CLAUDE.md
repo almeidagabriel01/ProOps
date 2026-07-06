@@ -111,9 +111,13 @@ interface Proposal {
   attachments?: ProposalAttachment[];
   pdf?: ProposalPdfMetadata; // Metadados do último PDF gerado
 
-  // Campos desnormalizados para ordenação no Firestore
-  primarySystem?: string; // Nome do primeiro sistema (concatenado)
-  primaryEnvironment?: string; // Nome do primeiro ambiente
+  // Campos desnormalizados para ordenação no Firestore — derivados de
+  // `sistemas` por computeProposalSortFields() (nomes únicos, ordenados
+  // pt-BR, join ", "; "" quando sem sistemas)
+  primarySystem?: string;
+  primaryEnvironment?: string;
+  // searchTokens: string[] — tokens de busca indexados (prefixos de
+  // title + clientName), gravados SÓ pelo backend (lib/search-tokens.ts)
 
   createdAt: string; // ISO
   updatedAt: string;
@@ -449,8 +453,8 @@ Usa snapshots JSON serializados para comparar estado atual vs. estado inicial:
 
 - Usa `DataTable` com prop `fetchPage` — callback que chama `ProposalService.getProposalsPaginated()`
 - Paginação cursor-based com Firestore (`startAfter`)
-- Ordenação server-side exceto para `primarySystem`/`primaryEnvironment` (client-side via `compareProposalsByField`)
-- Busca é client-side — carrega todas as propostas via `ProposalService.getProposals()` quando `isFiltering === true`
+- Ordenação sempre server-side via `orderBy` — inclusive `primarySystem`/`primaryEnvironment`, que são desnormalizados no doc por `computeProposalSortFields()` (proposal-service) em todo create/update que contém `sistemas`; histórico coberto por `apps/functions/src/scripts/backfill-proposal-sort-fields.ts`. Índices `(tenantId, primarySystem|primaryEnvironment ASC/DESC)` em `firestore.indexes.json`
+- Busca (`isFiltering === true`) é indexada — `ProposalService.searchProposals(tenantId, term, 100)` usa `where("searchTokens", "array-contains", primeiraPalavraNormalizada)` + refino client-side com todas as palavras (title/clientName). Termo sem palavra de >= 2 chars não dispara query. Tokens gravados pelo backend (`apps/functions/src/lib/search-tokens.ts`); histórico via `backfill-search-tokens.ts`
 - `ProposalService.subscribe()` para receber notificações de alterações (ex: retorno do editor)
 
 ### Event bus de propostas
@@ -519,7 +523,7 @@ Use `sanitizeProducts(products)` de `submit-helpers.ts` antes de enviar para API
 
 3. **Não renderizar `proposal.pdfSettings` como `PdfDisplaySettings` somente.** O campo também contém `ProposalPdfCustomSettings` (tema, seções, capa). Faça cast seguro ou acesse campos individualmente.
 
-4. **Não usar `getProposals()` (busca completa) na listagem normal.** Use `getProposalsPaginated()`. A busca completa existe apenas para filtros de texto client-side.
+4. **Não usar `getProposals()` (busca completa) na listagem nem na busca.** Use `getProposalsPaginated()` para listagem e `searchProposals()` (indexada via `searchTokens`) para busca textual.
 
 5. **Não auto-salvar propostas existentes.** O auto-save no unmount só funciona para novas propostas. Checar `if (state.proposalId) return` está lá por motivo crítico.
 

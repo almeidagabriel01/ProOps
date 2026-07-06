@@ -1,6 +1,7 @@
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+import { buildSearchTokens } from "../../lib/search-tokens";
 import { cpf, cnpj } from "cpf-cnpj-validator";
 
 // CRITICAL: collection name is "clients", not "contacts"
@@ -153,6 +154,13 @@ export async function createContact(
     contactData.document = params.document.replace(/\D/g, "");
   }
 
+  // Indexed search tokens (array-contains as-you-type search)
+  contactData.searchTokens = buildSearchTokens(
+    name,
+    params.email,
+    params.phone,
+  );
+
   await contactRef.set(contactData);
 
   return { id: contactRef.id, name };
@@ -189,6 +197,19 @@ export async function updateContact(
   if (updates.address !== undefined) safeUpdate.address = sanitizeRichText(updates.address);
   if (updates.notes !== undefined) safeUpdate.notes = sanitizeRichText(updates.notes);
   if (updates.types !== undefined) safeUpdate.types = updates.types;
+
+  // Keep indexed search tokens in sync when name/email/phone change
+  if (
+    updates.name !== undefined ||
+    updates.email !== undefined ||
+    updates.phone !== undefined
+  ) {
+    safeUpdate.searchTokens = buildSearchTokens(
+      updates.name !== undefined ? (safeUpdate.name as string) : data.name,
+      updates.email !== undefined ? updates.email : data.email,
+      updates.phone !== undefined ? updates.phone : data.phone,
+    );
+  }
 
   await db.collection(CLIENTS_COLLECTION).doc(contactId).update(safeUpdate);
 

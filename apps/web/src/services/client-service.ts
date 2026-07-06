@@ -18,6 +18,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { compareDisplayText } from "@/lib/sort-text";
+import { firstSearchToken, normalizeSearchWords } from "@/lib/search-term";
 
 export type ClientSource = "manual" | "proposal" | "financial";
 
@@ -78,6 +79,46 @@ export const ClientService = {
       console.error("Error fetching clients:", error);
       throw error;
     }
+  },
+
+  /**
+   * Busca textual indexada — não baixa a coleção: usa a primeira palavra
+   * normalizada do termo com `array-contains` sobre `searchTokens` (tokens
+   * de prefixo gravados pelo backend, ver functions/src/lib/search-tokens.ts
+   * + backfill-search-tokens) e refina client-side exigindo TODAS as
+   * palavras em name/email/phone. Termo sem palavra com >= 2 chars → []
+   * sem query.
+   */
+  searchClients: async (
+    tenantId: string,
+    term: string,
+    max = 50,
+  ): Promise<Client[]> => {
+    const token = firstSearchToken(term);
+    if (!token) return [];
+
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("searchTokens", "array-contains", token),
+        limit(max),
+      ),
+    );
+
+    const words = normalizeSearchWords(term);
+    const matches = snap.docs.map(mapClientDoc).filter((client) => {
+      const haystacks = [
+        client.name || "",
+        client.email || "",
+        client.phone || "",
+      ].map((value) => normalizeSearchWords(value).join(" "));
+      return words.every((word) =>
+        haystacks.some((haystack) => haystack.includes(word)),
+      );
+    });
+
+    return sortClientsByName(matches);
   },
 
   /** Contagem server-side (aggregation) — 1 leitura por 1000 docs. */

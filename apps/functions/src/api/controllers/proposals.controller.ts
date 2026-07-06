@@ -24,6 +24,7 @@ import {
 } from "../../lib/storage-gc";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+import { buildSearchTokens } from "../../lib/search-tokens";
 import {
   normalizeProposalTransactionTitle,
   resolveDefaultWalletNameForTenant,
@@ -52,6 +53,10 @@ const CreateProposalSchema = z.object({
   sistemas: z.unknown().optional(),
   sections: z.unknown().optional(),
   pdfSettings: z.unknown().optional(),
+  // Denormalized sort fields — computed by the frontend from `sistemas`
+  // (computeProposalSortFields em proposal-service.ts)
+  primarySystem: z.string().max(2000).optional(),
+  primaryEnvironment: z.string().max(2000).optional(),
   // Payment options — passed through
   downPaymentEnabled: z.boolean().optional(),
   downPaymentType: z.string().max(50).optional(),
@@ -1074,6 +1079,16 @@ export const createProposal = async (req: Request, res: Response) => {
           products: sanitizedProducts,
           sistemas: input.sistemas || [],
           sections: input.sections || [],
+          // Denormalized sort fields (computed client-side from sistemas);
+          // "" keeps the doc present in the sort indexes.
+          primarySystem:
+            typeof input.primarySystem === "string" ? input.primarySystem : "",
+          primaryEnvironment:
+            typeof input.primaryEnvironment === "string"
+              ? input.primaryEnvironment
+              : "",
+          // Indexed search tokens (array-contains as-you-type search)
+          searchTokens: buildSearchTokens(input.title, input.clientName),
           // Payment options
           downPaymentEnabled: input.downPaymentEnabled || false,
           downPaymentType: input.downPaymentType || "value",
@@ -1315,6 +1330,9 @@ export const updateProposal = async (req: Request, res: Response) => {
       "sections",
       "pdfSettings",
       "totalValue",
+      // Denormalized sort fields (sent by the frontend when sistemas change)
+      "primarySystem",
+      "primaryEnvironment",
       // Payment options
       "downPaymentEnabled",
       "downPaymentType",
@@ -1346,6 +1364,22 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
       safeUpdate[f] = updateData[f];
     });
+
+    // Keep indexed search tokens in sync when title/clientName change
+    if (
+      typeof updateData.title !== "undefined" ||
+      typeof updateData.clientName !== "undefined"
+    ) {
+      const nextTitle =
+        typeof updateData.title !== "undefined"
+          ? updateData.title
+          : proposalData?.title;
+      const nextClientName =
+        typeof updateData.clientName !== "undefined"
+          ? updateData.clientName
+          : proposalData?.clientName;
+      safeUpdate.searchTokens = buildSearchTokens(nextTitle, nextClientName);
+    }
 
     if (updateData.products) {
       const subtotal = (sanitizedProducts || []).reduce<number>(
