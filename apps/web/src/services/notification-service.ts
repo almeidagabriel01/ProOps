@@ -13,6 +13,7 @@ import { Notification } from "@/types/notification";
 import { db } from "@/lib/firebase";
 import {
   collection,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -177,6 +178,10 @@ export const NotificationService = {
 
     try {
       const notificationsRef = collection(db, "notifications");
+      // limit(50): mesma janela do fallback de polling. Sem o cap, o listener
+      // realtime (ativo em TODA página autenticada) re-cobra leitura de todos
+      // os docs do tenant a cada mudança — custo cresce sem teto com o volume
+      // de notificações.
       const notificationsQuery = query(
         notificationsRef,
         where(
@@ -185,6 +190,7 @@ export const NotificationService = {
           scope.kind === "system" ? "system" : scope.tenantId,
         ),
         orderBy("createdAt", "desc"),
+        limit(50),
       );
 
       let pollingInterval: ReturnType<typeof setInterval> | null = null;

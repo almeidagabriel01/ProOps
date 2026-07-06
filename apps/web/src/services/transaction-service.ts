@@ -331,6 +331,31 @@ export const TransactionService = {
     }
   },
 
+  getRecurringByGroupId: async (
+    groupId: string,
+    tenantId?: string,
+  ): Promise<Transaction[]> => {
+    try {
+      const constraints = [where("recurringGroupId", "==", groupId)];
+      if (tenantId) {
+        constraints.push(where("tenantId", "==", tenantId));
+      }
+      const q = query(collection(db, COLLECTION_NAME), ...constraints);
+      const querySnapshot = await getDocs(q);
+      const transactions = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Transaction[];
+
+      return transactions.sort(
+        (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0),
+      );
+    } catch (error) {
+      console.error("Error fetching recurring transactions by group:", error);
+      throw error;
+    }
+  },
+
   // Get summary for dashboard
   getSummary: async (
     tenantId: string,
