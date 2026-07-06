@@ -278,10 +278,10 @@ interface Notification {
 | `createNotification(data)` | Cria nova notificacao |
 | `getNotifications(scope, { limit, offset, unreadOnly })` | Lista com paginacao |
 | `markAsRead(notificationId, scope)` | Marca como lida |
-| `markAllAsRead(scope)` | Batch: marca todas como lidas |
+| `markAllAsRead(scope)` | Marca todas como lidas em lotes paginados de 400 (`limit` + loop) |
 | `deleteNotification(notificationId, scope)` | Remove uma notificacao |
 | `clearAllNotifications(scope)` | Remove todas em batches de 400 |
-| `getUnreadCount(scope)` | Conta nao lidas |
+| `getUnreadCount(scope)` | Conta nao lidas via aggregation `count()` (1 leitura cobrada por 1000 docs; endpoint polado — nunca voltar a buscar documentos) |
 | `findActiveReminders(tenantId, type, resourceId, resourceField)` | Busca lembretes ativos |
 | `claimDailyDueToast(tenantId, type, userId)` | Claim idempotente para toast diario |
 
