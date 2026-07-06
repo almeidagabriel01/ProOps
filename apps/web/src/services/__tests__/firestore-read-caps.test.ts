@@ -43,8 +43,11 @@ vi.mock("firebase/firestore", () => ({
 }));
 
 vi.mock("@/lib/firebase", () => ({ db: {} }));
+
+const callApiMock = vi.fn();
 vi.mock("@/lib/api-client", () => ({
-  callApi: vi.fn(),
+  callApi: (...args: unknown[]) =>
+    (callApiMock as (...a: unknown[]) => unknown)(...args),
   apiClient: { get: vi.fn(), post: vi.fn() },
 }));
 
@@ -99,5 +102,35 @@ describe("TransactionService group queries", () => {
       "==",
       "group-3",
     ]);
+  });
+});
+
+describe("TransactionService.getSummary", () => {
+  it("chama o endpoint agregado e NUNCA baixa a coleção via Firestore", async () => {
+    callApiMock.mockResolvedValue({
+      success: true,
+      summary: {
+        totalIncome: 10,
+        totalExpense: 5,
+        pendingIncome: 2,
+        pendingExpense: 1,
+      },
+    });
+    const { TransactionService } = await import("../transaction-service");
+    const { getDocs } = await import("firebase/firestore");
+
+    const summary = await TransactionService.getSummary("t1");
+
+    expect(summary).toEqual({
+      totalIncome: 10,
+      totalExpense: 5,
+      pendingIncome: 2,
+      pendingExpense: 1,
+    });
+    expect(callApiMock).toHaveBeenCalledWith(
+      "v1/transactions/summary?tenantId=t1",
+      "GET",
+    );
+    expect(getDocs).not.toHaveBeenCalled();
   });
 });

@@ -366,51 +366,24 @@ export const TransactionService = {
     pendingExpense: number;
   }> => {
     try {
-      const transactions = await TransactionService.getTransactions(tenantId);
-
-      const summary = {
-        totalIncome: 0,
-        totalExpense: 0,
-        pendingIncome: 0,
-        pendingExpense: 0,
-      };
-
-      transactions.forEach((t) => {
-        if (t.type === "income") {
-          if (t.status === "paid") {
-            summary.totalIncome += t.amount;
-          } else {
-            summary.pendingIncome += t.amount;
-          }
-        } else {
-          if (t.status === "paid") {
-            summary.totalExpense += t.amount;
-          } else {
-            summary.pendingExpense += t.amount;
-          }
-        }
-
-        if (t.extraCosts && Array.isArray(t.extraCosts)) {
-          t.extraCosts.forEach((ec) => {
-            const status = ec.status || "pending";
-            if (t.type === "income") {
-              if (status === "paid") {
-                summary.totalIncome += ec.amount;
-              } else {
-                summary.pendingIncome += ec.amount;
-              }
-            } else {
-              if (status === "paid") {
-                summary.totalExpense += ec.amount;
-              } else {
-                summary.pendingExpense += ec.amount;
-              }
-            }
-          });
-        }
-      });
-
-      return summary;
+      // Summary agregado no backend (aggregation queries sobre os campos
+      // desnormalizados paidTotal/pendingTotal) — o cálculo antigo baixava a
+      // coleção INTEIRA do tenant no browser a cada page load. O tenantId vai
+      // como query param: ignorado para não-superadmin (backend usa o do auth
+      // context), usado pelo superadmin em impersonation.
+      const response = await callApi<{
+        success: boolean;
+        summary: {
+          totalIncome: number;
+          totalExpense: number;
+          pendingIncome: number;
+          pendingExpense: number;
+        };
+      }>(
+        `v1/transactions/summary?tenantId=${encodeURIComponent(tenantId)}`,
+        "GET",
+      );
+      return response.summary;
     } catch (error) {
       console.error("Error getting summary:", error);
       throw error;
