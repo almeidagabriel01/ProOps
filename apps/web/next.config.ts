@@ -26,6 +26,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // version-skew detection: on client/server deployment mismatch Next falls
+  // back to a hard navigation instead of importing stale chunks (no-op locally)
+  deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
   reactStrictMode: false,
   reactCompiler: true,
   output: "standalone",
