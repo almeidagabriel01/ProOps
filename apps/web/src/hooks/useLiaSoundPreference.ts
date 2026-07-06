@@ -22,12 +22,20 @@ export interface UseLiaSoundPreferenceReturn {
  */
 export function useLiaSoundPreference(): UseLiaSoundPreferenceReturn {
   const { user } = useAuth();
-  const serverValue = user?.preferences?.liaSoundsEnabled ?? true;
+  const rawServerValue = user?.preferences?.liaSoundsEnabled;
+  const serverValue = rawServerValue ?? true;
 
   const [override, setOverride] = useState<boolean | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const soundsEnabled = override ?? serverValue;
+
+  // Server refresh wins: drop the local override when the doc value changes.
+  // Depends on the raw value (undefined | boolean) so that `undefined -> true`
+  // (preference materializing in the doc) also clears the override.
+  useEffect(() => {
+    setOverride(null);
+  }, [rawServerValue]);
 
   useEffect(() => {
     setLiaSoundsEnabled(soundsEnabled);

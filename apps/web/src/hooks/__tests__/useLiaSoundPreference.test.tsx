@@ -63,6 +63,24 @@ describe("useLiaSoundPreference", () => {
     });
   });
 
+  it("follows a later serverValue change after a successful toggle", async () => {
+    mockUseAuth.mockReturnValue({ user: { id: "u1" } });
+    const { result, rerender } = renderHook(() => useLiaSoundPreference());
+
+    await act(async () => {
+      await result.current.toggleSounds();
+    });
+    expect(result.current.soundsEnabled).toBe(false);
+
+    // Server refresh: user doc now says enabled again
+    mockUseAuth.mockReturnValue({
+      user: { id: "u1", preferences: { liaSoundsEnabled: true } },
+    });
+    rerender();
+
+    expect(result.current.soundsEnabled).toBe(true);
+  });
+
   it("reverts the optimistic value when the service fails", async () => {
     mockUseAuth.mockReturnValue({ user: { id: "u1" } });
     mockUpdateProfile.mockRejectedValue(new Error("network"));
