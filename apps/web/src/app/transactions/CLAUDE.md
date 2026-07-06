@@ -27,6 +27,13 @@ escopo); o summary GLOBAL (dashboard) vem de `GET /v1/transactions/summary`
 (aggregation server-side). Não reintroduzir `getTransactions(tenantId)` sem
 escopo nesta página — guard de regressão em
 `services/__tests__/transactions-scoped.test.ts`.
+
+**Filtro de status é ligado à aba, sem persistência** (spec 2026-07-06):
+Lista (byDueDate) SEMPRE entra com `[pending, overdue]` — mesmo que o usuário
+tenha desativado antes de trocar de aba; Agrupados SEMPRE entra limpo (todos).
+Mudanças do usuário valem só enquanto permanece na aba. Não reintroduzir
+persistência em localStorage (as chaves `transactions:filterStatus*` legadas
+são removidas no mount). Testes: `_hooks/__tests__/useFinancialFilters.test.ts`.
 | `_hooks/useEditTransaction.ts` | Carrega e submete edição de lançamento/grupo |
 | `_hooks/useTransactionForm.ts` | Criação de lançamentos |
 | `_components/transaction-card.tsx` | Exibe lançamentos em cards agrupados |
