@@ -611,6 +611,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           cancelAt: (userData.subscription as { cancelAt?: string | null } | undefined)?.cancelAt ?? null,
           isManualSubscription,
           onboarding: normalizeOnboardingState(userData.onboarding),
+          preferences: userData.preferences || undefined,
         } as User;
       } else {
         console.warn(
