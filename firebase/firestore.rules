@@ -312,6 +312,13 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions (calculations)
     }
 
+    // TRANSACTION GROUPS (resumos desnormalizados da aba Agrupados —
+    // 1 doc por grupo, mantidos pelo trigger onTransactionTotals)
+    match /transaction_groups/{groupDocId} {
+      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false; // Admin SDK only (trigger)
+    }
+
     // WALLETS
     match /wallets/{walletId} {
       allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));

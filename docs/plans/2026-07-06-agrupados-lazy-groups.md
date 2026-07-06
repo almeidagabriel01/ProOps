@@ -133,9 +133,10 @@ Lógica: paginar `transactions` por `__name__`; (a) marcar `grouped` onde diverg
 - Modify: `firebase/firestore.indexes.json` — compostos ASC: `(tenantId, nextDueDate)`, `(tenantId, status, nextDueDate)`; para avulsos em `transactions`: `(tenantId, grouped, dueDate)` **ASC** (range/orderBy em dueDate).
 - Test: `tests/firestore-rules/transaction-groups.test.ts` — tenant A lê os próprios resumos; tenant A NÃO lê os de B; client não escreve.
 
-- [ ] **Step 1: teste de rules que falha (coleção sem regra = negado até para o dono)**
-- [ ] **Step 2: regra + índices** — [ ] **Step 3: `npm run test:rules` verde**
-- [ ] **Step 4: commit** — `feat(finance): rules and indexes for transaction_groups`
+- [x] **Step 1: teste de rules que falha (coleção sem regra = negado até para o dono)**
+- [x] **Step 2: regra + índices** — decisão: ordenação de resumos por `lastDueDate DESC` (inclui grupos 100% pagos — `nextDueDate` null sumiria do orderBy); avulsos por `dueDate DESC`. Índices: `transaction_groups (tenantId ASC, lastDueDate DESC)` e `transactions (tenantId ASC, grouped ASC, dueDate DESC)`. Filtros de status/type/wallet aplicam client-side sobre resumos carregados — sem índice extra por status.
+- [x] **Step 3: `npm run test:rules` verde** (121/121)
+- [x] **Step 4: commit** — `feat(finance): rules and indexes for transaction_groups`
 
 ### Task 5: Service frontend — resumos paginados, avulsos paginados, membros on-demand
 
