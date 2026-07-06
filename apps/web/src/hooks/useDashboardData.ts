@@ -151,8 +151,18 @@ export function useDashboardData(): DashboardData {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+        // Janela dos gráficos: mês atual até +12 meses (projeção do balanço
+        // futuro). O escopo traz também TODOS os itens em aberto — projeção e
+        // alertas não dependem da janela.
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const isoDay = (d: Date) =>
+          `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const horizonEnd = new Date(now.getFullYear(), now.getMonth() + 12, 0);
+
         const [
-          transactions,
+          scopedTransactions,
+          paidThisMonth,
+          recentTransactions,
           financialSummary,
           wallets,
           kanbanColumnsRaw,
@@ -160,7 +170,18 @@ export function useDashboardData(): DashboardData {
           totalClients,
           newClientsThisMonth,
         ] = await Promise.all([
-          TransactionService.getTransactions(tenant.id),
+          TransactionService.getTransactionsScoped(tenant.id, {
+            start: isoDay(monthStart),
+            end: isoDay(horizonEnd),
+          }),
+          // Pago NESTE mês de lançamento antigo (date/dueDate fora da janela)
+          // — entra no bucket do mês atual via paidAt.
+          TransactionService.getTransactionsPaidBetween(
+            tenant.id,
+            monthStart.toISOString(),
+            monthEnd.toISOString(),
+          ),
+          TransactionService.getRecentTransactions(tenant.id, 5),
           TransactionService.getSummary(tenant.id),
           WalletService.getWallets(tenant.id),
           KanbanService.getStatuses(tenant.id),
@@ -168,6 +189,14 @@ export function useDashboardData(): DashboardData {
           ClientService.countClients(tenant.id),
           ClientService.countClientsCreatedBetween(tenant.id, monthStart, monthEnd),
         ]);
+
+        const byId = new Map<string, Transaction>();
+        for (const t of [...scopedTransactions, ...paidThisMonth, ...recentTransactions]) {
+          if (!byId.has(t.id)) byId.set(t.id, t);
+        }
+        const transactions = Array.from(byId.values()).sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        );
 
         const kanbanColumns =
           kanbanColumnsRaw.length > 0

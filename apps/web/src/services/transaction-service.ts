@@ -519,6 +519,58 @@ export const TransactionService = {
   },
 
   /**
+   * Docs pagos no intervalo [start, end) por `paidAt` — cobre o caso de
+   * pagamento neste mês de lançamento antigo (date/dueDate fora da janela do
+   * escopo). Docs legados sem paidAt têm date/dueDate antigos e caem fora dos
+   * gráficos (que começam no mês atual) — sem perda visível.
+   */
+  getTransactionsPaidBetween: async (
+    tenantId: string,
+    startIso: string,
+    endIso: string,
+  ): Promise<Transaction[]> => {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("paidAt", ">=", startIso),
+          where("paidAt", "<", endIso),
+        ),
+      );
+      return snap.docs.map(
+        (docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Transaction,
+      );
+    } catch (error) {
+      console.error("Error fetching paid transactions:", error);
+      throw error;
+    }
+  },
+
+  /** Últimos N lançamentos por date desc — atividade recente do dashboard. */
+  getRecentTransactions: async (
+    tenantId: string,
+    count = 5,
+  ): Promise<Transaction[]> => {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          orderBy("date", "desc"),
+          limit(count),
+        ),
+      );
+      return snap.docs.map((docSnap) =>
+        withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction),
+      );
+    } catch (error) {
+      console.error("Error fetching recent transactions:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Resumos de grupo paginados — fonte da aba Agrupados. Ordena por
    * lastDueDate desc (inclui grupos 100% pagos; nextDueDate null sumiria do
    * orderBy). nextCursor null = última página.

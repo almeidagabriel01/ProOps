@@ -14,7 +14,7 @@ O hook `useDashboardData` (`src/hooks/useDashboardData.ts`) é a única fonte de
 
 | Service | Método | O que traz |
 |---------|--------|------------|
-| `TransactionService` | `getTransactions(tenantId)` | Todos os lançamentos do tenant (gráficos precisam de datas por item — rollup mensal segue no backlog) |
+| `TransactionService` | `getTransactionsScoped` + `getTransactionsPaidBetween` + `getRecentTransactions(5)` | União dedupada: escopo mês atual→+12 meses (inclui TODOS os itens em aberto), pagos neste mês por `paidAt`, e 5 recentes. Substitui o full-fetch — não reintroduzir `getTransactions` aqui |
 | `TransactionService` | `getSummary(tenantId)` | Resumo financeiro agregado (totalIncome, totalExpense, pendentes) |
 | `ProposalService` | `getRecentProposals(tenantId, 5)` | Só as 5 propostas mais recentes (`createdAt desc` + `limit`) |
 | `ProposalService` | `countProposals` / `countProposalsByStatuses` | Contagens de proposta via aggregation — sets de status derivados das colunas do kanban (`buildProposalStatusSets`) |
@@ -124,11 +124,11 @@ O `useEffect` de fetch usa um flag `cancelled` para descartar resultados de requ
 
 ### Atenção com volumes grandes
 
-Propostas e clientes já são contagens server-side (2026-07-06). O único
-full-fetch restante é `getTransactions` — os gráficos precisam de datas
-efetivas por item, que não se expressam em aggregation. Correção futura
-(backlog do audit): rollup mensal desnormalizado mantido pelo trigger de
-transações.
+Nenhum full-fetch restante (2026-07-06): propostas e clientes viraram
+contagens server-side; transações viraram escopo (mês atual→+12m + abertos +
+pagos-no-mês por `paidAt` + 5 recentes). Se o escopo ainda pesar em tenants
+gigantes, a evolução é rollup mensal desnormalizado mantido pelo trigger de
+transações (backlog do audit).
 
 ---
 
