@@ -5,6 +5,7 @@ import { callApi } from "@/lib/api-client";
 import {
   collection,
   doc,
+  getCountFromServer,
   getDocs,
   query,
   where,
@@ -14,6 +15,7 @@ import {
   startAfter,
   QueryDocumentSnapshot,
   DocumentData,
+  Timestamp,
 } from "firebase/firestore";
 import { compareDisplayText } from "@/lib/sort-text";
 
@@ -76,6 +78,47 @@ export const ClientService = {
       console.error("Error fetching clients:", error);
       throw error;
     }
+  },
+
+  /** Contagem server-side (aggregation) — 1 leitura por 1000 docs. */
+  countClients: async (tenantId: string): Promise<number> => {
+    const snap = await getCountFromServer(
+      query(collection(db, COLLECTION_NAME), where("tenantId", "==", tenantId)),
+    );
+    return snap.data().count;
+  },
+
+  /**
+   * Conta clientes criados no intervalo [start, end). `createdAt` é MISTO no
+   * banco (docs novos: Timestamp; antigos: string ISO — ver mapClientDoc), e
+   * range query só alcança valores do mesmo tipo — por isso duas contagens
+   * somadas, uma por representação.
+   */
+  countClientsCreatedBetween: async (
+    tenantId: string,
+    start: Date,
+    end: Date,
+  ): Promise<number> => {
+    const col = collection(db, COLLECTION_NAME);
+    const [timestampSnap, stringSnap] = await Promise.all([
+      getCountFromServer(
+        query(
+          col,
+          where("tenantId", "==", tenantId),
+          where("createdAt", ">=", Timestamp.fromDate(start)),
+          where("createdAt", "<", Timestamp.fromDate(end)),
+        ),
+      ),
+      getCountFromServer(
+        query(
+          col,
+          where("tenantId", "==", tenantId),
+          where("createdAt", ">=", start.toISOString()),
+          where("createdAt", "<", end.toISOString()),
+        ),
+      ),
+    ]);
+    return timestampSnap.data().count + stringSnap.data().count;
   },
 
   getClientsPaginated: async (

@@ -27,8 +27,8 @@ Implementado: campos desnormalizados `paidTotal`/`pendingTotal` mantidos pelo tr
 ### ✅ RESOLVIDO (2026-07-06) — Aba Agrupados via doc-resumos (`transaction_groups`)
 Plano `2026-07-06-agrupados-lazy-groups.md` executado: coleção desnormalizada `transaction_groups` (1 doc por grupo, mantida pelo trigger `onTransactionTotals` + campo `grouped` nos docs), aba Agrupados lê resumos paginados + avulsos paginados (`grouped == false`) e busca membros só ao expandir (cache em memória, stale-while-revalidate). Histórico completo sem depender de filtro de data e sem baixar membros. Rollout dev feito (índices READY → rules → functions → backfill 93 docs/11 grupos → paridade MATCH). **Pendente em prod**: mesma sequência.
 
-### P1 — Dashboard baixa TODAS as propostas e TODOS os clientes
-`proposal-service.ts` (`getProposals`) e `client-service.ts` (`getClients`) fazem `getDocs` só com `where(tenantId)`, sem limit; `useDashboardData` chama ambos em todo mount do dashboard só para contagens (`proposalStats`, `newClientsThisMonth`) + 5 recentes. Tenant com 500 propostas + 800 clientes = 1.300 leituras por abertura. Correção: `getCountFromServer` (aggregation) para as contagens + query `limit(5)` para recentes — mesmo padrão do summary de transações. (Varredura 2026-07-06.)
+### ✅ RESOLVIDO (2026-07-06) — Dashboard baixava TODAS as propostas e TODOS os clientes
+`useDashboardData` agora usa aggregation `count()` para stats de proposta (sets de status derivados das colunas do kanban, `in` chunked de 30), total de clientes e novos-no-mês (createdAt misto Timestamp/string → 2 counts somados), + `getRecentProposals(5)` com orderBy/limit. De (N propostas + M clientes) leituras por abertura para ~8 counts + 5 docs. Guard: `services/__tests__/dashboard-counts.test.ts`.
 
 ### ✅ RESOLVIDO (2026-07-06) — Cron `checkDueDates` varria propostas globais sem filtro/limit
 Query de propostas ganhou `where("validUntil","<=",...)` (docs sem validUntil já eram ignorados em memória — equivalente) + índice `(status, validUntil)`; ambas as queries do cron agora paginam por cursor em lotes de 400 (padrão markOverdueTransactions). Memória constante independente do tamanho da base.

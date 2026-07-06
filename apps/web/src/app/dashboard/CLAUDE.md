@@ -10,16 +10,21 @@ Toda a rota é um Client Component (`'use client'`) porque depende de hooks de e
 
 ## Fontes de Dados
 
-O hook `useDashboardData` (`src/hooks/useDashboardData.ts`) é a única fonte de dados do dashboard. Ele executa **6 chamadas em paralelo** via `Promise.all` ao montar o componente:
+O hook `useDashboardData` (`src/hooks/useDashboardData.ts`) é a única fonte de dados do dashboard. Desde 2026-07-06, propostas e clientes **não são mais baixados inteiros** — contagens via aggregation `count()` (1 leitura/1000 docs) + só as 5 propostas recentes:
 
 | Service | Método | O que traz |
 |---------|--------|------------|
-| `TransactionService` | `getTransactions(tenantId)` | Todos os lançamentos do tenant |
+| `TransactionService` | `getTransactions(tenantId)` | Todos os lançamentos do tenant (gráficos precisam de datas por item — rollup mensal segue no backlog) |
 | `TransactionService` | `getSummary(tenantId)` | Resumo financeiro agregado (totalIncome, totalExpense, pendentes) |
-| `ProposalService` | `getProposals(tenantId)` | Todas as propostas |
-| `ClientService` | `getClients(tenantId)` | Todos os clientes |
+| `ProposalService` | `getRecentProposals(tenantId, 5)` | Só as 5 propostas mais recentes (`createdAt desc` + `limit`) |
+| `ProposalService` | `countProposals` / `countProposalsByStatuses` | Contagens de proposta via aggregation — sets de status derivados das colunas do kanban (`buildProposalStatusSets`) |
+| `ClientService` | `countClients` / `countClientsCreatedBetween` | Contagens de cliente via aggregation. `createdAt` é MISTO no banco (Timestamp e string ISO) — a contagem por período soma 2 counts, um por representação |
 | `WalletService` | `getWallets(tenantId)` | Carteiras ativas |
-| `KanbanService` | `getStatuses(tenantId)` | Colunas do kanban para calcular stats de proposta |
+| `KanbanService` | `getStatuses(tenantId)` | Colunas do kanban para montar os sets de status das contagens |
+
+As contagens de proposta rodam numa 2ª etapa (dependem das colunas do kanban).
+Guard de regressão: `services/__tests__/dashboard-counts.test.ts`. Não
+reintroduzir `getProposals`/`getClients` (full fetch) neste hook.
 
 Todos os services estão em `src/services/`. Chamam o proxy `/api/backend/*` que encaminha para Cloud Functions.
 
@@ -28,23 +33,21 @@ Todos os services estão em `src/services/`. Chamam o proxy `/api/backend/*` que
 O hook separa claramente dados brutos de computações derivadas:
 
 ```
-rawData (useState)
+rawData (useState — já vem pronto do servidor)
   ├── transactions[]
-  ├── proposals[]
-  ├── clients[]
   ├── wallets[]
-  └── kanbanColumns[]
+  ├── proposalStats      — aprovadas/pendentes/total/conversão (aggregation counts)
+  ├── recentProposals    — últimas 5 (query com limit)
+  ├── totalClients       — aggregation count
+  └── newClientsThisMonth — aggregation count por período
 
-computed (useMemo sobre rawData)
+computed (useMemo sobre rawData — só derivados de transações/carteiras)
   ├── chartData          — receitas/despesas dos próximos 6 meses
   ├── futureBalances     — projeção mensal para 12 meses
   ├── currentMonthStats  — breakdown por categoria e carteira (mês atual)
-  ├── proposalStats      — aprovadas/pendentes/total/taxa de conversão
   ├── overdueTransactions — lançamentos com status "overdue"
   ├── upcomingDue        — lançamentos pendentes vencendo em até 7 dias
-  ├── newClientsThisMonth
   ├── recentTransactions — últimas 5
-  ├── recentProposals    — últimas 5
   └── balance            — soma dos saldos das carteiras ativas
 ```
 
@@ -121,9 +124,11 @@ O `useEffect` de fetch usa um flag `cancelled` para descartar resultados de requ
 
 ### Atenção com volumes grandes
 
-O dashboard busca **todos** os lançamentos e **todas** as propostas do tenant de uma vez. Para tenants com grande volume, isso pode ser lento. Se a performance se tornar problema, considerar:
-1. Adicionar filtro de período nas chamadas a `getTransactions` e `getProposals`
-2. Mover as computações pesadas para o backend (endpoint de summary)
+Propostas e clientes já são contagens server-side (2026-07-06). O único
+full-fetch restante é `getTransactions` — os gráficos precisam de datas
+efetivas por item, que não se expressam em aggregation. Correção futura
+(backlog do audit): rollup mensal desnormalizado mantido pelo trigger de
+transações.
 
 ---
 

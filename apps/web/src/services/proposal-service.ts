@@ -5,6 +5,7 @@ import { callApi } from "@/lib/api-client";
 import {
   collection,
   doc,
+  getCountFromServer,
   getDocs,
   getDoc,
   query,
@@ -253,6 +254,55 @@ export const ProposalService = {
       console.error("Error fetching proposals:", error);
       throw error;
     }
+  },
+
+  /** Contagem server-side (aggregation) — 1 leitura por 1000 docs. */
+  countProposals: async (tenantId: string): Promise<number> => {
+    const snap = await getCountFromServer(
+      query(collection(db, COLLECTION_NAME), where("tenantId", "==", tenantId)),
+    );
+    return snap.data().count;
+  },
+
+  /**
+   * Conta propostas cujo status está no conjunto — usado pelas estatísticas
+   * do dashboard (statuses dinâmicos do kanban). Chunks de 30 (limite do "in").
+   */
+  countProposalsByStatuses: async (
+    tenantId: string,
+    statuses: string[],
+  ): Promise<number> => {
+    const unique = Array.from(new Set(statuses.filter(Boolean)));
+    if (unique.length === 0) return 0;
+    const CHUNK = 30;
+    let total = 0;
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const snap = await getCountFromServer(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("status", "in", unique.slice(i, i + CHUNK)),
+        ),
+      );
+      total += snap.data().count;
+    }
+    return total;
+  },
+
+  /** Últimas N propostas por createdAt desc — dashboard não baixa mais a coleção. */
+  getRecentProposals: async (
+    tenantId: string,
+    count = 5,
+  ): Promise<Proposal[]> => {
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        orderBy("createdAt", "desc"),
+        limit(count),
+      ),
+    );
+    return snap.docs.map(mapProposalDoc);
   },
 
   getProposalsPaginated: async (

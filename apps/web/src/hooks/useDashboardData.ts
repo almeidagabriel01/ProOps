@@ -6,7 +6,7 @@ import {
   Transaction,
 } from "@/services/transaction-service";
 import { ProposalService, Proposal } from "@/services/proposal-service";
-import { ClientService, Client } from "@/services/client-service";
+import { ClientService } from "@/services/client-service";
 import { WalletService } from "@/services/wallet-service"; // Import WalletService
 import { Wallet } from "@/types"; // Import Wallet type
 import { KanbanService, KanbanStatusColumn, getDefaultProposalColumns } from "@/services/kanban-service";
@@ -32,10 +32,9 @@ interface ProposalStats {
 interface DashboardData {
   // Raw data
   transactions: Transaction[];
-  proposals: Proposal[];
-  clients: Client[];
   financialSummary: FinancialSummary;
   wallets: Wallet[];
+  totalClients: number;
 
   // Computed
   chartData: BarChartDataItem[];
@@ -67,9 +66,8 @@ interface DashboardData {
 
 const initialState: DashboardData = {
   transactions: [],
-  proposals: [],
-  clients: [],
   wallets: [],
+  totalClients: 0,
   financialSummary: {
     totalIncome: 0,
     totalExpense: 0,
@@ -95,19 +93,42 @@ const initialState: DashboardData = {
   isLoading: true,
 };
 
+/**
+ * Conjuntos de status para as contagens server-side de propostas — espelha a
+ * classificação por coluna do kanban usada na listagem (id OU mappedStatus da
+ * coluna + statuses legados).
+ */
+function buildProposalStatusSets(columns: KanbanStatusColumn[]): {
+  won: string[];
+  open: string[];
+} {
+  const won = new Set<string>(["approved"]);
+  const open = new Set<string>(["sent", "in_progress", "draft"]);
+  columns.forEach((column) => {
+    const target =
+      column.category === "won" ? won : column.category === "open" ? open : null;
+    if (!target) return;
+    if (column.id) target.add(column.id);
+    if (column.mappedStatus) target.add(column.mappedStatus);
+  });
+  return { won: Array.from(won), open: Array.from(open) };
+}
+
 export function useDashboardData(): DashboardData {
   const { tenant, isLoading: isTenantLoading } = useTenant();
   const [rawData, setRawData] = React.useState({
     transactions: [] as Transaction[],
-    proposals: [] as Proposal[],
-    clients: [] as Client[],
     wallets: [] as Wallet[],
-    kanbanColumns: [] as KanbanStatusColumn[],
     financialSummary: initialState.financialSummary,
+    proposalStats: initialState.proposalStats,
+    recentProposals: [] as Proposal[],
+    totalClients: 0,
+    newClientsThisMonth: 0,
   });
   const [isDataLoading, setIsDataLoading] = React.useState(true);
 
-  // Fetch all data once
+  // Fetch all data once. Propostas e clientes NÃO são mais baixados inteiros:
+  // contagens via aggregation (count) + só as 5 propostas recentes.
   React.useEffect(() => {
     // If tenant is still loading, wait
     if (isTenantLoading) {
@@ -126,24 +147,55 @@ export function useDashboardData(): DashboardData {
     const fetchData = async () => {
       setIsDataLoading(true);
       try {
-        const [transactions, proposals, clients, financialSummary, wallets, kanbanColumns] =
-          await Promise.all([
-            TransactionService.getTransactions(tenant.id),
-            ProposalService.getProposals(tenant.id),
-            ClientService.getClients(tenant.id),
-            TransactionService.getSummary(tenant.id),
-            WalletService.getWallets(tenant.id),
-            KanbanService.getStatuses(tenant.id),
-          ]);
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+        const [
+          transactions,
+          financialSummary,
+          wallets,
+          kanbanColumnsRaw,
+          recentProposals,
+          totalClients,
+          newClientsThisMonth,
+        ] = await Promise.all([
+          TransactionService.getTransactions(tenant.id),
+          TransactionService.getSummary(tenant.id),
+          WalletService.getWallets(tenant.id),
+          KanbanService.getStatuses(tenant.id),
+          ProposalService.getRecentProposals(tenant.id, 5),
+          ClientService.countClients(tenant.id),
+          ClientService.countClientsCreatedBetween(tenant.id, monthStart, monthEnd),
+        ]);
+
+        const kanbanColumns =
+          kanbanColumnsRaw.length > 0
+            ? kanbanColumnsRaw
+            : getDefaultProposalColumns().map(
+                (c, i) => ({ ...c, id: `default_${i}` }) as KanbanStatusColumn,
+              );
+
+        // Contagens de proposta dependem das colunas do kanban (statuses dinâmicos)
+        const statusSets = buildProposalStatusSets(kanbanColumns);
+        const [approved, pending, allProposals, drafts] = await Promise.all([
+          ProposalService.countProposalsByStatuses(tenant.id, statusSets.won),
+          ProposalService.countProposalsByStatuses(tenant.id, statusSets.open),
+          ProposalService.countProposals(tenant.id),
+          ProposalService.countProposalsByStatuses(tenant.id, ["draft"]),
+        ]);
+        const total = Math.max(0, allProposals - drafts); // conversão exclui rascunhos
+        const conversionRate = total > 0 ? Math.round((approved / total) * 100) : 0;
 
         if (!cancelled) {
           setRawData({
             transactions,
-            proposals,
-            clients,
             financialSummary,
             wallets,
-            kanbanColumns: kanbanColumns.length > 0 ? kanbanColumns : getDefaultProposalColumns().map((c, i) => ({ ...c, id: `default_${i}` } as KanbanStatusColumn)),
+            proposalStats: { approved, pending, total, conversionRate },
+            recentProposals,
+            totalClients,
+            newClientsThisMonth,
           });
         }
       } catch (error) {
@@ -169,8 +221,7 @@ export function useDashboardData(): DashboardData {
 
   // Compute all derived values
   const computed = React.useMemo(() => {
-    const { transactions, proposals, clients, wallets, kanbanColumns } =
-      rawData;
+    const { transactions, wallets } = rawData;
     const now = new Date();
     const getEffectivePaidDate = (transaction: Transaction): string =>
       transaction.paidAt || transaction.updatedAt || transaction.date;
@@ -327,20 +378,6 @@ export function useDashboardData(): DashboardData {
       }
     });
 
-    // Proposal stats based on dynamic categories
-    const approved = proposals.filter((p) => {
-      if (p.status === "approved") return true; // Legacy
-      const col = kanbanColumns.find(c => c.id === p.status || c.mappedStatus === p.status);
-      return col?.category === "won";
-    }).length;
-    const pending = proposals.filter((p) => {
-      if (p.status === "sent" || p.status === "in_progress") return true; // Legacy
-      const col = kanbanColumns.find(c => c.id === p.status || c.mappedStatus === p.status);
-      return col?.category === "open" || p.status === "draft";
-    }).length;
-    const total = proposals.filter(p => p.status !== "draft").length; // Exclude drafts from conversion rate
-    const conversionRate = total > 0 ? Math.round((approved / total) * 100) : 0;
-
     // Alerts
     const overdueTransactions = transactions.filter(
       (t) => t.status === "overdue"
@@ -357,16 +394,6 @@ export function useDashboardData(): DashboardData {
     });
     const upcomingDueAmount = upcomingDue.reduce((sum, t) => sum + t.amount, 0);
 
-    // New clients this month
-    const newClientsThisMonth = clients.filter((c) => {
-      const created = parseDateValue(c.createdAt);
-      if (!created) return false;
-      return (
-        created.getMonth() === now.getMonth() &&
-        created.getFullYear() === now.getFullYear()
-      );
-    }).length;
-
     return {
       wallets,
       chartData,
@@ -376,14 +403,11 @@ export function useDashboardData(): DashboardData {
         incomeByWallet: currentMonthIncomeByWallet,
         expensesByWallet: currentMonthExpensesByWallet,
       },
-      proposalStats: { approved, pending, total, conversionRate },
       overdueTransactions,
       overdueAmount,
       upcomingDue,
       upcomingDueAmount,
-      newClientsThisMonth,
       recentTransactions: transactions.slice(0, 5),
-      recentProposals: proposals.slice(0, 5),
       balance: totalBalance,
     };
   }, [rawData]);
