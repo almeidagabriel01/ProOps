@@ -93,12 +93,20 @@ export async function logAction(
       }
     }
 
+    // expiresAt: alvo da TTL policy do Firestore (180 dias) — sem ela a
+    // coleção cresceria indefinidamente. Configurar no console: Firestore →
+    // TTL → coleção whatsappLogs, campo expiresAt (não expressável em
+    // firestore.indexes.json).
+    const WHATSAPP_LOG_RETENTION_DAYS = 180;
     await db.collection("whatsappLogs").add({
       phoneNumber,
       userId,
       action,
       details: safeDetails,
       timestamp: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(
+        Date.now() + WHATSAPP_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+      ),
     });
   } catch (error) {
     console.error("Error logging action:", error);
