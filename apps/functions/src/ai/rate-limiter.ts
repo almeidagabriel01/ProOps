@@ -28,6 +28,10 @@ const rpmLimiter = createRateLimiter({
   windowMs: 60_000,
   keyPrefix: "ai-chat",
   keyResolver: (req) => String(req.user?.uid || "anon"),
+  // O limite vale também no emulador (como o limiter de PDF): custos de IA são
+  // por token e o E2E AI-13 depende do 429 real. Sem isto, o teto sobe para
+  // EMULATOR_RATE_LIMIT_MAX e o limite nunca dispara em dev/E2E.
+  emulatorBypass: false,
   onLimit: (req, res, decision) => {
     logger.warn("AI rate limit exceeded", {
       uid: req.user?.uid,
