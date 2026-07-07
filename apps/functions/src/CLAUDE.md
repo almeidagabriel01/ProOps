@@ -23,6 +23,7 @@
 | `remindNoSubscriptionSignups` | Scheduled | Lembra signups sem assinatura |
 | `onWalletCascadeJob` | Firestore trigger | Cascata de exclusao de carteira |
 | `onTransactionTotals` | Firestore trigger | Mantem `paidTotal`/`pendingTotal` + `grouped` em transactions/{id} E os doc-resumos em `transaction_groups/{groupDocId}` (fonte da aba Agrupados) |
+| `onUserSignupNotify` | Firestore trigger | Email interno para a ProOps em todo create de users/{uid} (cadastro novo ou membro de equipe); idempotente via `internal_notify_claims` |
 
 **Global options** aplicadas a todas as funcoes:
 ```typescript
@@ -254,6 +255,8 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `tenants/{tenantId}` | Multi-tenant | Dados do tenant, config WhatsApp, billing |
 | `notifications` | Notifications | Notificacoes de todos os tipos |
 | `notification_due_toast_claims/{id}` | Notifications | Claim diario de toast (idempotente) |
+| `internal_notify_claims/{id}` | Email | Claim idempotente do email interno de signup (`signup_{uid}`; Admin SDK only) |
+| `email_audit/{id}` | Email | Audit de todo envio via `sendEmail` (status sent/failed, type, messageId) |
 | `addons/{tenantId}_{addonId}` | Billing | Status de add-ons |
 | `phoneNumberIndex/{phone}` | WhatsApp | Mapeamento telefone → usuario |
 | `whatsappSessions/{phone}` | WhatsApp | Sessoes de conversa (TTL 10 min) |

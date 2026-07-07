@@ -34,7 +34,7 @@ apps/functions/src/
 │   checkStripeSubscriptions.ts, reportWhatsappOverage.ts, applyScheduledPlanChanges.ts,
 │   checkPriceChanges.ts, cleanupStorageAndSharedLinks.ts, reconcileAddons.ts,
 │   processPayoutRetries.ts, cleanupSecurityAuditEvents.ts, checkInactiveSignups.ts,
-│   onWalletCascadeJob.ts            # Crons + triggers (exportados em index.ts)
+│   onWalletCascadeJob.ts, onUserSignupNotify.ts   # Crons + triggers (exportados em index.ts)
 └── deploymentConfig.ts   # Configuração de deploy (região, memória, timeout, SCHEDULE_OPTIONS)
 ```
 
@@ -193,12 +193,15 @@ Quando a transação muda de carteira, o campo correspondente na proposta é atu
 
 ### Infraestrutura / GCP
 
-- **Cloud Monitoring alerts** — configurar com o script:
-  ```bash
-  bash scripts/setup-gcp-monitoring.sh erp-softcode-prod ops@empresa.com
-  bash scripts/setup-gcp-monitoring.sh erp-softcode dev@empresa.com
-  ```
-  Cria: uptime check no `/api/health`, alerta de indisponibilidade (CRITICAL), erros 5xx (ERROR), latência p95 > 8s (WARNING), pico de instâncias (WARNING).
+- **Cloud Monitoring alerts** — as policies vivem SÓ no GCP (o script
+  `scripts/setup-gcp-monitoring.sh` citado antes não existe mais no repo; editar via
+  console ou `gcloud monitoring policies update`). Existem em ambos os projetos:
+  uptime check no `/api/health`, indisponibilidade (CRITICAL), erros 5xx (ERROR),
+  latência p95 (WARNING), pico de instâncias (WARNING).
+  - **Latência p95**: filtra APENAS o serviço `api` (`resource.labels.service_name = "api"`),
+    threshold 8s, duration 300s. Não remover o filtro de serviço: os crons são serviços
+    Cloud Run próprios cuja "latência" = duração do job (checkduedates ~20s diários),
+    o que disparava alerta falso-positivo todo dia (corrigido 2026-07-06).
 - **GCP Cloud Logging** — filtrar por `severity=ERROR` ou pelo campo `tenantId` nos logs estruturados.
 
 ---
