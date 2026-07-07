@@ -212,10 +212,14 @@ test.describe.serial("BILL-03: subscription.cancelled state blocks API call", ()
       { plan: "free", subscriptionStatus: "canceled" },
       { merge: true },
     );
-    // Keep usage at 5 (already seeded) so the free plan limit check fires.
     await bustPlanCache();
 
-    // Step 5: POST proposal again — expect 402 (free plan, 5 of 5 used = blocked).
+    // Step 5: POST proposal again — expect 402 BILLING_INACTIVE. The
+    // require-active-subscription middleware blocks `canceled` BEFORE any
+    // route-level plan-limit check runs. (This test used to expect
+    // PLAN_LIMIT_PROPOSALS_MONTHLY, but that only ever passed due to cache
+    // skew between the middleware's billing cache and the plan-policy read —
+    // the unified 5s tenant-doc cache made both see `canceled` consistently.)
     const blockedResponse = await fetch(`${FUNCTIONS_BASE}/v1/proposals`, {
       method: "POST",
       headers: {
@@ -226,6 +230,6 @@ test.describe.serial("BILL-03: subscription.cancelled state blocks API call", ()
     });
     expect(blockedResponse.status).toBe(402);
     const blockedBody = await blockedResponse.json() as Record<string, unknown>;
-    expect(blockedBody.code).toBe("PLAN_LIMIT_PROPOSALS_MONTHLY");
+    expect(blockedBody.code).toBe("BILLING_INACTIVE");
   });
 });
