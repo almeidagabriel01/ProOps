@@ -21,34 +21,12 @@ import {
 } from "../_lib/financial-utils";
 
 const DEFAULT_FILTER_STATUS: TransactionStatus[] = ["pending", "overdue"];
-const VALID_STATUSES: ReadonlySet<TransactionStatus> = new Set([
-  "paid",
-  "pending",
-  "overdue",
-]);
 
-function readPersistedFilterStatus(
-  tenantId: string | undefined,
+function defaultStatusForViewMode(
+  mode: "grouped" | "byDueDate",
 ): TransactionStatus[] {
-  if (typeof window === "undefined" || !tenantId) return DEFAULT_FILTER_STATUS;
-  try {
-    // One-time cleanup of the v1 key that stored only ["pending"] (old
-    // default). Without removing it, the v2 read would never trigger the
-    // new default for users who used the page before the bump.
-    window.localStorage.removeItem(`transactions:filterStatus:${tenantId}`);
-    const raw = window.localStorage.getItem(
-      `transactions:filterStatus:v2:${tenantId}`,
-    );
-    if (!raw) return DEFAULT_FILTER_STATUS;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return DEFAULT_FILTER_STATUS;
-    const sanitized = parsed.filter((s): s is TransactionStatus =>
-      typeof s === "string" && VALID_STATUSES.has(s as TransactionStatus),
-    );
-    return sanitized;
-  } catch {
-    return DEFAULT_FILTER_STATUS;
-  }
+  // Lista (byDueDate): pendentes+atrasados. Agrupados: limpo (todos).
+  return mode === "byDueDate" ? [...DEFAULT_FILTER_STATUS] : [];
 }
 
 export function useFinancialFilters(
@@ -67,51 +45,35 @@ export function useFinancialFilters(
     initialViewMode,
   );
   const [filterStatus, setFilterStatus] = React.useState<TransactionStatus[]>(
-    () => {
-      if (initialViewMode === "byDueDate") {
-        return ["pending", "overdue"];
-      }
-      return readPersistedFilterStatus(tenantId);
-    },
+    () => defaultStatusForViewMode(initialViewMode),
   );
 
-  // Re-read persisted value when tenant becomes available/changes or viewMode changes
-  const hydratedTenantRef = React.useRef<string | undefined>(undefined);
+  // O filtro de status é LIGADO À ABA, sem persistência (spec 2026-07-06):
+  // Lista SEMPRE entra com [pending, overdue] (mesmo que o usuário tenha
+  // desativado antes de sair); Agrupados SEMPRE entra limpo (todos). Mudanças
+  // do usuário valem só enquanto ele permanece na aba.
   const prevViewModeRef = React.useRef<"grouped" | "byDueDate">(initialViewMode);
+  const hydratedTenantRef = React.useRef<string | undefined>(tenantId);
   React.useEffect(() => {
-    if (!tenantId) return;
-
     const tenantChanged = hydratedTenantRef.current !== tenantId;
     const viewModeChanged = prevViewModeRef.current !== viewMode;
+    if (!tenantChanged && !viewModeChanged) return;
 
-    if (tenantChanged || viewModeChanged) {
-      hydratedTenantRef.current = tenantId;
-      prevViewModeRef.current = viewMode;
-
-      if (viewMode === "byDueDate") {
-        setFilterStatus(["pending", "overdue"]);
-      } else {
-        setFilterStatus(readPersistedFilterStatus(tenantId));
-      }
-    }
+    hydratedTenantRef.current = tenantId;
+    prevViewModeRef.current = viewMode;
+    setFilterStatus(defaultStatusForViewMode(viewMode));
   }, [tenantId, viewMode]);
 
-  // Persist filter selection per tenant
+  // Higiene: remove as chaves de persistência das versões anteriores.
   React.useEffect(() => {
     if (typeof window === "undefined" || !tenantId) return;
-    // We only persist filter status in grouped mode.
-    // In byDueDate mode, we always default to ["pending", "overdue"] on load/access.
-    if (viewMode !== "grouped") return;
-
     try {
-      window.localStorage.setItem(
-        `transactions:filterStatus:v2:${tenantId}`,
-        JSON.stringify(filterStatus),
-      );
+      window.localStorage.removeItem(`transactions:filterStatus:${tenantId}`);
+      window.localStorage.removeItem(`transactions:filterStatus:v2:${tenantId}`);
     } catch {
-      // ignore quota errors — non-critical
+      // ignore — non-critical
     }
-  }, [filterStatus, tenantId, viewMode]);
+  }, [tenantId]);
 
   const [filterWallet, setFilterWallet] = React.useState<string>("");
   const [filterStartDate, setFilterStartDate] = React.useState<string>("");

@@ -32,7 +32,7 @@ import { getTenantPlanProfile } from "../../lib/tenant-plan-policy";
 import { isAddonAvailableForTier } from "../../shared/addon-definitions";
 import { logger } from "../../lib/logger";
 import { reserveCheckout, clearCheckoutReservation } from "../../billing";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 
 // function mapStripeSubscriptionStatus removed (moved to helpers)
 

@@ -141,49 +141,6 @@ function mapProductDoc(d: QueryDocumentSnapshot<DocumentData>): Product {
   } as Product;
 }
 
-function compareProductsByField(
-  a: QueryDocumentSnapshot<DocumentData>,
-  b: QueryDocumentSnapshot<DocumentData>,
-  sortField: string,
-  sortDirection: "asc" | "desc",
-): number {
-  const dataA = a.data();
-  const dataB = b.data();
-
-  const rawA = dataA[sortField];
-  const rawB = dataB[sortField];
-
-  let valueA: unknown = rawA;
-  let valueB: unknown = rawB;
-
-  if (sortField === "stock" || sortField === "inventoryValue") {
-    valueA = resolveInventoryValue(dataA);
-    valueB = resolveInventoryValue(dataB);
-  }
-
-  if (valueA === valueB) {
-    return 0;
-  }
-
-  if (valueA === null || valueA === undefined) {
-    return 1;
-  }
-  if (valueB === null || valueB === undefined) {
-    return -1;
-  }
-
-  if (typeof valueA === "string" && typeof valueB === "string") {
-    return sortDirection === "asc"
-      ? valueA.localeCompare(valueB, undefined, { numeric: true })
-      : valueB.localeCompare(valueA, undefined, { numeric: true });
-  }
-
-  if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
-  if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
-
-  return 0;
-}
-
 export const ProductService = {
   // Get all products for a specific tenant
   getProducts: async (tenantId: string): Promise<Product[]> => {
@@ -307,36 +264,16 @@ export const ProductService = {
     sortConfig?: { key: string; direction: "asc" | "desc" } | null,
   ): Promise<PaginatedResult<Product>> => {
     try {
-      const sortField = sortConfig?.key || "createdAt";
+      // "stock"/"inventoryValue" ordenam pelo campo `stock` do doc — o
+      // controller grava stock = inventoryValue normalizado em todo write, e
+      // o backfill (backfill-product-stock.ts) normalizou o legado. Índice
+      // (tenantId, stock) já existe. Sem full-fetch para sort derivado.
+      const rawSortField = sortConfig?.key || "createdAt";
+      const sortField =
+        rawSortField === "inventoryValue" || rawSortField === "stock"
+          ? "stock"
+          : rawSortField;
       const sortDirection = sortConfig?.direction || "desc";
-
-      const needsClientSort =
-        sortField === "stock" || sortField === "inventoryValue";
-
-      if (needsClientSort) {
-        const baseQuery = query(
-          collection(db, COLLECTION_NAME),
-          where("tenantId", "==", tenantId),
-        );
-
-        const allSnapshot = await getDocs(baseQuery);
-        const sortedDocs = [...allSnapshot.docs].sort((a, b) =>
-          compareProductsByField(a, b, sortField, sortDirection),
-        );
-
-        const startIndex = cursor
-          ? sortedDocs.findIndex((doc) => doc.id === cursor.id) + 1
-          : 0;
-
-        const pageDocs = sortedDocs.slice(startIndex, startIndex + pageSize);
-        const hasMore = startIndex + pageSize < sortedDocs.length;
-
-        return {
-          data: pageDocs.map(mapProductDoc),
-          lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
-          hasMore,
-        };
-      }
 
       const q = cursor
         ? query(

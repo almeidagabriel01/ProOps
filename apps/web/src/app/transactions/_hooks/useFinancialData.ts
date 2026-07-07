@@ -183,13 +183,6 @@ export function useFinancialData(): UseFinancialDataReturn {
   const [isLoading, setIsLoading] = React.useState(true);
   const [wallets, setWallets] = React.useState<Wallet[]>([]);
   const updatingIdsRef = React.useRef(new Set<string>());
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [serverSummary, setServerSummary] = React.useState<FinancialSummary>({
-    totalIncome: 0,
-    totalExpense: 0,
-    pendingIncome: 0,
-    pendingExpense: 0,
-  });
 
   const {
     searchTerm,
@@ -219,6 +212,51 @@ export function useFinancialData(): UseFinancialDataReturn {
     applyOptimisticWalletUpdateBatch,
   } = useOptimisticWallets(setWallets);
 
+  // Escopo de leitura: itens em aberto (sempre completos) + docs do período
+  // visível. Período = filtros de data da UI; sem filtro, mês atual. Trocar
+  // as datas na UI refaz a query — o que está carregado é sempre o que os
+  // inputs de data mostram (nada de resultado incompleto silencioso).
+  const scopePeriod = React.useMemo(() => {
+    if (filterStartDate || filterEndDate) {
+      return {
+        start: filterStartDate || "0000-01-01",
+        end: filterEndDate || "9999-12-31",
+      };
+    }
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return {
+      start: `${y}-${pad(m + 1)}-01`,
+      end: `${y}-${pad(m + 1)}-${pad(new Date(y, m + 1, 0).getDate())}`,
+    };
+  }, [filterStartDate, filterEndDate]);
+
+  // Quando o usuário quer ver histórico na LISTA (status "todos" ou incluindo
+  // pagos) sem período definido, pré-preenche o mês atual NOS INPUTS — o
+  // escopo carregado fica explícito na UI. A aba Agrupados NÃO usa escopo por
+  // período (2026-07-06): lê os doc-resumos de transaction_groups direto
+  // (useGroupedTransactions) — não pré-preencher datas lá.
+  React.useEffect(() => {
+    if (viewMode !== "byDueDate") return;
+    if (filterStartDate || filterEndDate) return;
+    const wantsHistory =
+      filterStatus.length === 0 || filterStatus.includes("paid");
+    if (!wantsHistory) return;
+    setFilterStartDate(scopePeriod.start);
+    setFilterEndDate(scopePeriod.end);
+  }, [
+    viewMode,
+    filterStatus,
+    filterStartDate,
+    filterEndDate,
+    scopePeriod.start,
+    scopePeriod.end,
+    setFilterStartDate,
+    setFilterEndDate,
+  ]);
+
   const fetchData = React.useCallback(
     async (background = false) => {
       if (!tenant) {
@@ -235,13 +273,11 @@ export function useFinancialData(): UseFinancialDataReturn {
 
       if (!background) setIsLoading(true);
       try {
-        const [data, summaryData, walletsData] = await Promise.all([
-          TransactionService.getTransactions(tenant.id),
-          TransactionService.getSummary(tenant.id),
+        const [data, walletsData] = await Promise.all([
+          TransactionService.getTransactionsScoped(tenant.id, scopePeriod),
           WalletService.getWallets(tenant.id),
         ]);
         setTransactions(data);
-        setServerSummary(summaryData);
         setWallets(walletsData);
       } catch (error) {
         console.error("Failed to fetch transactions", error);
@@ -255,7 +291,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         if (!background) setIsLoading(false);
       }
     },
-    [tenant, hasFinancial, isPlanLoading],
+    [tenant, hasFinancial, isPlanLoading, scopePeriod],
   );
 
   React.useEffect(() => {

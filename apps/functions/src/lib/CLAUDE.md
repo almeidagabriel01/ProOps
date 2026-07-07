@@ -28,22 +28,23 @@ interface AuthContext {
   isSuperAdmin: boolean;     // role === "SUPERADMIN"
   hasRequiredClaims: boolean;
   userDocTenantId?: string;  // tenantId do doc Firestore (para deteccao de stale claims)
+  userDoc?: Record<string, unknown> | null; // snapshot do doc users/{uid} lido pelo middleware nesta request (null = doc nao existe)
   tokenSource: "bearer" | "session_cookie" | "legacy_cookie";
 }
 ```
+
+> **Hot path:** o middleware ja le `users/{uid}` uma vez por request e publica o snapshot em `req.user.userDoc`. `resolveUserAndTenant` reutiliza esse snapshot em vez de reler o doc — nao adicionar novas leituras de `users/{uid}` em controllers; consumir `req.user.userDoc`.
 
 ### `resolveAuthContextFromRequest(req, options?)`
 
 Funcao principal. Fluxo:
 1. Extrai token da requisicao
-2. Verifica via Firebase Admin (`auth.verifyIdToken` ou `auth.verifySessionCookie`)
-3. Busca `userRecord.customClaims` diretamente (sempre fresco, ignora claims do token para `role`/`tenantId`)
-4. Busca doc `users/{uid}` no Firestore para obter `userDocTenantId`
+2. Verifica via Firebase Admin (`auth.verifyIdToken` ou `auth.verifySessionCookie`, ambos com `checkRevoked=true`)
+3. Decide freshness via `shouldFetchFreshClaims` (pura, testavel): busca `userRecord.customClaims` via `getUser()` **apenas quando** o token tem claims incompletas (role/tenant ausentes), role `FREE` (upgrade pago deve refletir imediato) ou `SUPERADMIN` (seguranca). Roles pagas estaveis confiam nas claims do proprio token (pior caso: downgrade demora <=1h ate o refresh — coberto pelo grace period de billing). Env `AUTH_CLAIMS_FRESHNESS=always` restaura o comportamento legado (getUser em toda request)
+4. Busca doc `users/{uid}` no Firestore para obter `userDocTenantId` (e publica o snapshot em `userDoc`)
 5. Faz fallback: se `role` ausente nas claims, usa `userData.role`; se `tenantId` ausente, usa `userDocTenantId`
 6. Detecta `tenantMismatch` (claim vs. doc divergem) → lanca `FORBIDDEN_TENANT_MISMATCH`
 7. Se `requireStrictClaims: true` e claims incompletas → lanca erro de claims
-
-> **Importante:** As claims sao lidas de `userRecord.customClaims` (getUser), nao do token JWT. Isso garante que mudancas de claims sao refletidas imediatamente sem esperar o token expirar.
 
 ### `evaluateAuthContextInvariants(input)` (pura, testavel)
 
@@ -67,6 +68,7 @@ Retorna `true` para: `"SUPERADMIN"`, `"MASTER"`, `"ADMIN"`, `"WK"`.
 |----------|---------|----------|
 | `AUTH_ACCEPT_LEGACY_COOKIE_HINT` | `"true"` em dev, `"false"` em prod | Aceita cookie `firebase-auth-token` legado |
 | `AUTH_STRICT_CLAIMS_ONLY` | nao definida | Se `"true"`, rejeita tokens sem claims completas (sem fallback para Firestore) |
+| `AUTH_CLAIMS_FRESHNESS` | `"auto"` | `auto`: getUser() so para claims incompletas/FREE/SUPERADMIN. `always`: getUser() em toda request (legado) |
 
 ---
 
@@ -124,9 +126,10 @@ interface PermissionCheckResult {
 **Logica de resolucao:**
 1. Valida que `claims.uid === userId` (previne spoofing)
 2. Normaliza `role` para UPPERCASE, valida presenca
-3. Para membros (nao-master, nao-superadmin): busca `masterId` das claims → doc do master → valida que o master pertence ao mesmo tenant
-4. Para masters/superadmin: `masterRef = userRef`, `masterData = userData`
-5. Detecta `FORBIDDEN_TENANT_MISMATCH` entre claims e doc Firestore
+3. Se `claims.userDoc` presente (snapshot do middleware): usa direto, **sem nova leitura** de `users/{uid}`; `userDoc === null` → "User not found". Se ausente (`undefined`): fallback le o doc no Firestore como antes
+4. Para membros (nao-master, nao-superadmin): busca `masterId` das claims → doc do master → valida que o master pertence ao mesmo tenant
+5. Para masters/superadmin: `masterRef = userRef`, `masterData = userData`
+6. Detecta `FORBIDDEN_TENANT_MISMATCH` entre claims e doc Firestore
 
 **Roles considerados `isMaster`:** `MASTER`, `ADMIN`, `WK`
 
@@ -222,7 +225,10 @@ type PlanLimitFeature =
 
 ### Cache em memoria
 
-O perfil de plano e cacheado em `PLAN_CACHE: Map<tenantId, CachedPlan>` por `TENANT_PLAN_CACHE_TTL_MS` (default: 30s, min: 5s, max: 300s). Cache invalida automaticamente por TTL. Nao persiste entre instances do Cloud Run.
+Duas camadas, ambas por instancia do Cloud Run:
+
+1. **Doc tenant compartilhado** (`lib/tenant-doc-cache.ts`, TTL 5s, LRU 500): fonte unica de leitura de `tenants/{tenantId}` usada por `require-active-subscription` (middleware de billing) e por `resolveTenantPlanProfileUncached`. `invalidateBillingCache(tenantId)` (chamado pelos webhooks/controllers Stripe) delega para `invalidateTenantDoc`.
+2. **Perfil derivado** (`PLAN_CACHE`, TTL 30s): cacheia o `TenantPlanProfile` ja derivado (tier + limites, incl. lookups de `plans/{planId}`). `clearTenantPlanCache(tenantId)` limpa as DUAS camadas (perfil + doc) — limpar so o perfil re-derivaria de um snapshot velho.
 
 ### Resolucao de tier a partir do doc `tenants/{id}`
 

@@ -12,7 +12,7 @@ import { loadConversation, saveConversation } from "./conversation-store";
 import { buildSystemPrompt } from "./context-builder";
 import { buildAvailableTools } from "./tools/index";
 import { executeToolCall, type ToolCallContext } from "./tools/executor";
-import { createAiProvider, createGroqFallbackProvider, type ToolFeedback } from "./providers/index";
+import type { ToolFeedback } from "./providers/index";
 import { validateConfirmationToken } from "./security/confirmation-token";
 import { classifyProviderError } from "./provider-error";
 import { alertProviderConfigError } from "./provider-error-alert";
@@ -248,6 +248,10 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       providerGeminiKey?: string,
       providerGroqKey?: string,
     ): Promise<void> => {
+      // Import dinâmico: mantém @google/genai e groq-sdk fora do cold start
+      // do monolito — só carregam na primeira request de AI da instância
+      // (cacheado pelo Node depois disso).
+      const { createAiProvider } = await import("./providers/index");
       const provider = createAiProvider({
         geminiApiKey: providerGeminiKey,
         groqApiKey: providerGroqKey,
@@ -357,6 +361,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
         });
         activeProvider = "groq";
         actualModelName = "llama-3.3-70b-versatile";
+        const { createGroqFallbackProvider } = await import("./providers/index");
         const fallbackProvider = createGroqFallbackProvider(groqApiKey);
         const session = fallbackProvider.createSession({
           systemPrompt,

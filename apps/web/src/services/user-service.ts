@@ -93,6 +93,7 @@ export const UserService = {
     name?: string;
     phoneNumber?: string | null;
     onboarding?: UserOnboardingState;
+    preferences?: { liaSoundsEnabled: boolean };
   }): Promise<void> => {
     try {
       const { callApi } = await import("@/lib/api-client");

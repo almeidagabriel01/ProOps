@@ -14,6 +14,10 @@ import {
   getDefaultProposalColumns,
 } from "@/services/kanban-service";
 import { ProposalService } from "@/services/proposal-service";
+import {
+  KanbanBoardService,
+  type KanbanColumnCursor,
+} from "@/services/kanban-board-service";
 import { Proposal } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
 import { KanbanBoardSkeleton } from "@/app/crm/_components/kanban-skeleton";
@@ -42,6 +46,36 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader } from "@/components/ui/loader";
+
+interface ColumnPageState {
+  cursor: KanbanColumnCursor | null;
+  hasMore: boolean;
+  total: number;
+  isLoadingMore: boolean;
+}
+
+/**
+ * Statuses de proposta que a coluna representa: o id da coluna persistida
+ * (drags novos gravam status = doc id) + o mappedStatus legado. Colunas
+ * virtuais (default_*) só têm o mappedStatus.
+ */
+function getColumnStatusValues(col: KanbanStatusColumn): string[] {
+  const values: string[] = [];
+  if (!col.id.startsWith("default_")) values.push(col.id);
+  if (col.mappedStatus) values.push(col.mappedStatus);
+  return Array.from(new Set(values));
+}
+
+function columnStatusKey(col: KanbanStatusColumn): string {
+  return getColumnStatusValues(col).slice().sort().join("|");
+}
+
+function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
+  if (incoming.length === 0) return prev;
+  const known = new Set(prev.map((item) => item.id));
+  const fresh = incoming.filter((item) => !known.has(item.id));
+  return fresh.length > 0 ? [...prev, ...fresh] : prev;
+}
 
 export function ProposalKanbanTab() {
   const { tenant } = useTenant();
@@ -73,24 +107,29 @@ export function ProposalKanbanTab() {
   const [selectedProposal, setSelectedProposal] =
     React.useState<Proposal | null>(null);
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
+  // Per-column pagination state, keyed by columnStatusKey()
+  const [columnMeta, setColumnMeta] = React.useState<
+    Record<string, ColumnPageState>
+  >({});
+  const [isBoardLoading, setIsBoardLoading] = React.useState(true);
+  const columnMetaRef = React.useRef(columnMeta);
+  columnMetaRef.current = columnMeta;
 
-  // Load proposals and kanban statuses
+  // Load kanban statuses (columns)
   React.useEffect(() => {
     if (!tenant?.id) return;
     let cancelled = false;
 
     const load = async () => {
       setIsLoading(true);
+      setColumns([]);
+      setProposals([]);
+      setColumnMeta({});
+      setIsBoardLoading(true);
       try {
-        const [proposalData, statusData] = await Promise.all([
-          ProposalService.getProposals(tenant.id),
-          KanbanService.getStatuses(tenant.id),
-        ]);
+        const statusData = await KanbanService.getStatuses(tenant.id);
 
         if (cancelled) return;
-
-        // Filter out drafts for kanban view
-        setProposals(proposalData.filter((p) => p.status !== "draft"));
 
         // If no custom columns exist, use defaults
         if (statusData.length === 0) {
@@ -109,6 +148,7 @@ export function ProposalKanbanTab() {
       } catch (error) {
         console.error("Failed to load kanban data:", error);
         toast.error("Erro ao carregar dados do CRM.");
+        if (!cancelled) setIsBoardLoading(false);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -119,6 +159,125 @@ export function ProposalKanbanTab() {
       cancelled = true;
     };
   }, [tenant?.id]);
+
+  // Signature of the status keys the columns require — each key is the
+  // "|"-joined sorted status values of one column (recoverable via split).
+  const columnsSignature = React.useMemo(
+    () =>
+      Array.from(new Set(columns.map(columnStatusKey).filter(Boolean)))
+        .sort()
+        .join(","),
+    [columns],
+  );
+
+  // Load the first page (capped) + server-side count for each column
+  React.useEffect(() => {
+    const tenantId = tenant?.id;
+    if (!tenantId || !columnsSignature) return;
+
+    const keys = columnsSignature.split(",").filter(Boolean);
+    const missing = keys.filter((key) => !columnMetaRef.current[key]);
+    if (missing.length === 0) {
+      setIsBoardLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const results = await Promise.all(
+          missing.map(async (key) => {
+            const values = key.split("|");
+            const [page, total] = await Promise.all([
+              KanbanBoardService.getProposalColumnPage(tenantId, values),
+              KanbanBoardService.countProposalColumn(tenantId, values),
+            ]);
+            return { key, page, total };
+          }),
+        );
+        if (cancelled) return;
+
+        // Filter out drafts for kanban view
+        setProposals((prev) =>
+          mergeById(
+            prev,
+            results
+              .flatMap((r) => r.page.items)
+              .filter((p) => p.status !== "draft"),
+          ),
+        );
+        setColumnMeta((prev) => {
+          const next = { ...prev };
+          for (const r of results) {
+            next[r.key] = {
+              cursor: r.page.cursor,
+              hasMore: r.page.hasMore,
+              total: r.total,
+              isLoadingMore: false,
+            };
+          }
+          return next;
+        });
+      } catch (error) {
+        console.error("Failed to load kanban column pages:", error);
+        if (!cancelled) toast.error("Erro ao carregar propostas do CRM.");
+      } finally {
+        if (!cancelled) setIsBoardLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [tenant?.id, columnsSignature]);
+
+  // Load next page of a column (cursor-based)
+  const handleLoadMore = React.useCallback(
+    async (columnId: string) => {
+      if (!tenant?.id) return;
+      const col = columns.find((c) => c.id === columnId);
+      if (!col) return;
+      const key = columnStatusKey(col);
+      const meta = columnMetaRef.current[key];
+      if (!meta || !meta.hasMore || meta.isLoadingMore) return;
+
+      setColumnMeta((prev) => ({
+        ...prev,
+        [key]: { ...prev[key], isLoadingMore: true },
+      }));
+      try {
+        const page = await KanbanBoardService.getProposalColumnPage(
+          tenant.id,
+          getColumnStatusValues(col),
+          { cursor: meta.cursor },
+        );
+        setProposals((prev) =>
+          mergeById(
+            prev,
+            page.items.filter((p) => p.status !== "draft"),
+          ),
+        );
+        setColumnMeta((prev) => ({
+          ...prev,
+          [key]: {
+            ...prev[key],
+            cursor: page.cursor ?? prev[key].cursor,
+            hasMore: page.hasMore,
+            isLoadingMore: false,
+          },
+        }));
+      } catch (error) {
+        console.error("Failed to load more proposals:", error);
+        toast.error("Erro ao carregar mais propostas.");
+        setColumnMeta((prev) => ({
+          ...prev,
+          [key]: { ...prev[key], isLoadingMore: false },
+        }));
+      }
+    },
+    [tenant?.id, columns],
+  );
 
   // Filter and Build board columns
   const boardColumns = React.useMemo((): KanbanColumn<Proposal>[] => {
@@ -183,6 +342,11 @@ export function ProposalKanbanTab() {
         );
       }
 
+      // Keep column order aligned with the paginated query (createdAt desc)
+      items.sort((a, b) =>
+        String(b.createdAt || "").localeCompare(String(a.createdAt || "")),
+      );
+
       return {
         id: col.id,
         label: col.label,
@@ -203,9 +367,30 @@ export function ProposalKanbanTab() {
       .map((c) => ({ value: c, label: c }));
   }, [proposals]);
 
+  // Shift server-count totals when a card moves between columns
+  const adjustColumnTotals = React.useCallback(
+    (fromKey: string | null, toKey: string | null) => {
+      if (!fromKey || !toKey || fromKey === toKey) return;
+      setColumnMeta((prev) => {
+        const next = { ...prev };
+        if (next[fromKey]) {
+          next[fromKey] = {
+            ...next[fromKey],
+            total: Math.max(0, next[fromKey].total - 1),
+          };
+        }
+        if (next[toKey]) {
+          next[toKey] = { ...next[toKey], total: next[toKey].total + 1 };
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
   // Handle drag end — update proposal status
   const handleDragEnd = React.useCallback(
-    async (itemId: string, _fromColumnId: string, toColumnId: string) => {
+    async (itemId: string, fromColumnId: string, toColumnId: string) => {
       const targetColumn = columns.find((c) => c.id === toColumnId);
       if (!targetColumn) return;
 
@@ -216,10 +401,15 @@ export function ProposalKanbanTab() {
       const proposal = proposals.find((p) => p.id === itemId);
       if (!proposal || proposal.status === newStatus) return;
 
+      const fromColumn = columns.find((c) => c.id === fromColumnId);
+      const fromKey = fromColumn ? columnStatusKey(fromColumn) : null;
+      const toKey = columnStatusKey(targetColumn);
+
       // Optimistic update
       setProposals((prev) =>
         prev.map((p) => (p.id === itemId ? { ...p, status: newStatus } : p)),
       );
+      adjustColumnTotals(fromKey, toKey);
 
       try {
         await ProposalService.updateProposal(itemId, { status: newStatus });
@@ -233,11 +423,12 @@ export function ProposalKanbanTab() {
             p.id === itemId ? { ...p, status: proposal.status } : p,
           ),
         );
+        adjustColumnTotals(toKey, fromKey);
         console.error("Error updating proposal status:", error);
         toast.error("Erro ao atualizar o status da proposta.");
       }
     },
-    [columns, proposals],
+    [columns, proposals, adjustColumnTotals],
   );
 
   // Handle card click — open detail modal
@@ -537,6 +728,11 @@ export function ProposalKanbanTab() {
         filter.dateStart ||
         filter.dateEnd;
 
+      // Server-side total (aggregation) — the column only loads pages of 30;
+      // with local filters active, show the filtered (loaded) count instead.
+      const meta = col ? columnMeta[columnStatusKey(col)] : undefined;
+      const displayCount = hasFilterActive || !meta ? count : meta.total;
+
       const updateFilter = (
         key:
           | "term"
@@ -588,7 +784,7 @@ export function ProposalKanbanTab() {
                 {column.label}
               </span>
               <span className="text-xs font-medium text-muted-foreground bg-muted/80 px-2.5 py-1 rounded-full tabular-nums">
-                {count}
+                {displayCount}
               </span>
             </div>
             <div className="flex items-center gap-0.5 ml-2">
@@ -840,10 +1036,32 @@ export function ProposalKanbanTab() {
         </div>
       );
     },
-    [columns, columnFilters, clientOptions],
+    [columns, columnFilters, clientOptions, columnMeta],
   );
 
-  if (isLoading) {
+  // Column footer — "Carregar mais" when the server still has docs
+  const renderColumnFooter = React.useCallback(
+    (column: KanbanColumn<Proposal>) => {
+      const col = columns.find((c) => c.id === column.id);
+      const meta = col ? columnMeta[columnStatusKey(col)] : undefined;
+      if (!meta?.hasMore) return null;
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-xs h-8 gap-2 cursor-pointer text-muted-foreground hover:text-foreground"
+          disabled={meta.isLoadingMore}
+          onClick={() => handleLoadMore(column.id)}
+        >
+          {meta.isLoadingMore && <Loader size="sm" />}
+          {meta.isLoadingMore ? "Carregando..." : "Carregar mais"}
+        </Button>
+      );
+    },
+    [columns, columnMeta, handleLoadMore],
+  );
+
+  if (isLoading || isBoardLoading) {
     return (
       <div className="flex-1 w-full mt-4">
         <KanbanBoardSkeleton />
@@ -912,6 +1130,7 @@ export function ProposalKanbanTab() {
           />
         )}
         renderColumnHeader={renderColumnHeader}
+        renderColumnFooter={renderColumnFooter}
         emptyMessage="Nenhuma proposta"
       />
 

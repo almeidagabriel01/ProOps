@@ -7,7 +7,7 @@ URLs de Cloud Functions diretamente nem acessam Firestore diretamente.
 
 ## Services existentes
 ```
-services/                       # 32 services
+services/                       # 33 services
 ├── addon-service.ts          # Add-ons de planos
 ├── admin-service.ts          # Operações de admin
 ├── ai-service.ts             # Chat/IA Lia
@@ -18,6 +18,7 @@ services/                       # 32 services
 ├── contact-form-service.ts   # Formulário de contato (landing)
 ├── custom-field-service.ts   # Campos customizados
 ├── demo-booking-service.ts   # Agendamento de demos (/agendar)
+├── kanban-board-service.ts   # Queries paginadas por coluna do board CRM (Firestore direto + aggregation)
 ├── kanban-service.ts         # Kanban/pipeline CRM
 ├── notification-service.ts   # Notificações
 ├── observability-service.ts  # Observabilidade/erros (superadmin)

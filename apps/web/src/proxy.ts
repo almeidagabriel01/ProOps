@@ -85,9 +85,11 @@ export async function proxy(request: NextRequest) {
   // If no session, route through the silent re-mint interstitial instead of
   // bouncing straight to /login. If the Firebase refresh token is still valid,
   // /auth/refresh re-creates the __session cookie and forwards to `next` — the
-  // returning user never sees the login form. /auth/refresh is itself terminal
-  // (it redirects to /login when it can't recover) and is PUBLIC, so this can't
-  // loop.
+  // returning user never sees the login form. This CAN send the user back to
+  // /auth/refresh repeatedly (a re-minted cookie may be rejected again); the
+  // interstitial itself bounds the loop: forced re-mint per visit, bounded
+  // attempts, a watchdog that fires even after a bounced redirect, and a
+  // sessionStorage redirect counter — all terminal to /login.
   if (!sessionCookie && !(acceptLegacyCookieHint && legacyAuthHint)) {
     const refreshUrl = new URL("/auth/refresh", request.url);
     refreshUrl.searchParams.set("next", pathname);

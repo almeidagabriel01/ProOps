@@ -20,6 +20,9 @@ setGlobalOptions({
 // 1. Core API (Express App)
 export { api } from "./api";
 
+// 1b. PDF rendering (Express App isolado — Chromium fora do monolito)
+export { pdf } from "./pdf";
+
 // 2. Scheduled Tasks
 export { checkManualSubscriptions } from "./checkManualSubscriptions";
 export { checkDueDates } from "./checkDueDates";
@@ -36,6 +39,8 @@ export { remindNoSubscriptionSignups } from "./checkInactiveSignups";
 
 // 2b. Firestore triggers
 export { onWalletCascadeJob } from "./onWalletCascadeJob";
+export { onTransactionTotals } from "./onTransactionTotals";
+export { onUserSignupNotify } from "./onUserSignupNotify";
 
 // 3. Webhooks
 export { stripeWebhook } from "./stripe/stripeWebhook";

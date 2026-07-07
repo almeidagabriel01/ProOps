@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { GoogleGenAI } from "@google/genai";
+// @google/genai é carregado dinamicamente dentro do handler (cold-start)
 import { getTenantPlanProfile, evaluateSubscriptionStatusAccess } from "../lib/tenant-plan-policy";
 import { checkAiLimit, reserveAiMessage, finalizeTokenUsage, refundAiMessage } from "./usage-tracker";
 import { sanitizeText } from "../utils/sanitize";
@@ -139,6 +139,7 @@ router.post("/generate-field", fieldGenRateLimiter, async (req: Request, res: Re
       return;
     }
 
+    const { GoogleGenAI } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-lite",

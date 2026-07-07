@@ -5,6 +5,8 @@ import { callApi } from "@/lib/api-client";
 import {
   collection,
   getDocs,
+  limit,
+  orderBy,
   query,
   where,
   doc,
@@ -205,32 +207,31 @@ export const WalletService = {
   },
 
   /**
-   * Get wallet transaction history
+   * Get wallet transaction history — últimos N lançamentos do extrato.
+   * Ledger cresce sem bound; orderBy server-side (createdAt é sempre
+   * Timestamp — todos os writers usam Timestamp.now()) + limit.
    */
   getWalletTransactions: async (
     walletId: string,
     tenantId: string,
+    maxEntries = 200,
   ): Promise<WalletTransaction[]> => {
     try {
       const q = query(
         collection(db, TRANSACTIONS_COLLECTION),
         where("tenantId", "==", tenantId),
         where("walletId", "==", walletId),
+        orderBy("createdAt", "desc"),
+        limit(maxEntries),
       );
       const querySnapshot = await getDocs(q);
-      const transactions = querySnapshot.docs.map((doc) => ({
+      return querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
         createdAt:
           doc.data().createdAt?.toDate?.()?.toISOString() ||
           doc.data().createdAt,
       })) as WalletTransaction[];
-
-      // Sort by date descending
-      return transactions.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
     } catch (error) {
       console.error("Error fetching wallet transactions:", error);
       throw error;

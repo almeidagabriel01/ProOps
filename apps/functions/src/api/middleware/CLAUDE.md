@@ -127,7 +127,7 @@ Os eventos com contador também geram audit events no Firestore (`security_audit
 
 ### Contexto
 
-Cada requisição de PDF abre um browser Chromium headless. Sem rate limiting, um usuário autenticado poderia exaurir CPU/memória da instância Cloud Run. O limiter é específico para endpoints de PDF e opera em memória por instância.
+Cada requisição de PDF abre um browser Chromium headless. Sem rate limiting, um usuário autenticado poderia exaurir CPU/memória da instância Cloud Run. O limiter é específico para endpoints de PDF e roda sobre o **store plugável** de `lib/rate-limit` (`createRateLimiter` de `express-limiter.ts`): memória por instância por default, distribuído entre instâncias quando `RATE_LIMIT_STORE=redis` + credenciais Upstash estiverem configuradas (mesma env que os demais limiters). `emulatorBypass: false` — o limite vale também no emulador (E2E depende do 429).
 
 ### Parâmetros
 
@@ -156,13 +156,9 @@ Retorna HTTP 429 com:
 
 O tempo de retry é calculado com base no timestamp mais antigo dentro da janela deslizante, não no início fixo da janela.
 
-### Limpeza de Memória
-
-Um `setInterval` limpa o mapa interno a cada 60 segundos, removendo entradas cujas janelas expiraram. `.unref()` é chamado no timer para não bloquear o processo durante shutdown da instância.
-
 ### Limitação Multi-Instância
 
-**Importante:** Este limiter é **por instância** do Cloud Run. Com `concurrency: 80` e `maxInstances: 10`, múltiplas instâncias podem estar ativas simultaneamente. Para enforcement global, usar Cloud Armor ou Firebase App Check. Para uso típico (PDF sob demanda por usuário), a limitação por instância é suficientemente protetora.
+Com o store default (memory), o limite é **por instância** do Cloud Run — suficiente para PDF sob demanda no volume atual. Para enforcement global entre instâncias, configurar `RATE_LIMIT_STORE=redis` + `UPSTASH_REDIS_REST_URL/TOKEN` (ver `docs/scalability-runbook.md`) — nenhuma mudança de código necessária.
 
 ### Onde é Usado
 

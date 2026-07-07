@@ -86,7 +86,7 @@ npm run security:scan                  # OWASP ZAP baseline
 - **Asaas** — payment processing (PIX/boleto/card) for shared-transaction payments. Webhook: `/webhooks/asaas/:tenantId`; public payment API mounted at `/v1`. (Replaced the former MercadoPago webhook.)
 - **AI/Lia** — Google Gemini + Groq. Module: `apps/functions/src/ai/`. Rate-limited per user.
 - **PDF** — Playwright/Chromium headless, rate-limited (5 req/60s per user)
-- **Google Calendar** — via `googleapis`
+- **Google Calendar** — via `@googleapis/calendar` + `@googleapis/oauth2` (lazy-loaded)
 - **Zoom** — video meeting creation for demo bookings. Module: `apps/functions/src/services/zoom/`
 
 ### Multi-Niche Support
@@ -114,9 +114,9 @@ Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/
 │   │   └── src/
 │   │       ├── app/          # App Router (30+ segments) + api/backend/ proxy
 │   │       ├── components/   # ui/(Shadcn), admin, auth, lia, features, shared...
-│   │       ├── hooks/        # Data-fetching + UI hooks (32, + proposal/ subfolder)
+│   │       ├── hooks/        # Data-fetching + UI hooks (33, + proposal/ subfolder)
 │   │       ├── providers/    # Auth, Tenant, Permissions, Theme, Plan
-│   │       ├── services/     # Client-side API calls → /api/backend/* (32)
+│   │       ├── services/     # Client-side API calls → /api/backend/* (33)
 │   │       ├── lib/          # Firebase init, niches/, plan limits
 │   │       └── types/        # TypeScript interfaces
 │   └── functions/    # Firebase Cloud Functions V2 (Express monolith)

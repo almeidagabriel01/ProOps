@@ -34,7 +34,7 @@ apps/functions/src/
 │   checkStripeSubscriptions.ts, reportWhatsappOverage.ts, applyScheduledPlanChanges.ts,
 │   checkPriceChanges.ts, cleanupStorageAndSharedLinks.ts, reconcileAddons.ts,
 │   processPayoutRetries.ts, cleanupSecurityAuditEvents.ts, checkInactiveSignups.ts,
-│   onWalletCascadeJob.ts            # Crons + triggers (exportados em index.ts)
+│   onWalletCascadeJob.ts, onUserSignupNotify.ts   # Crons + triggers (exportados em index.ts)
 └── deploymentConfig.ts   # Configuração de deploy (região, memória, timeout, SCHEDULE_OPTIONS)
 ```
 
@@ -114,8 +114,48 @@ cd apps/functions && npm run lint
 | Arquivo | Responsabilidade |
 |---------|-----------------|
 | `src/api/services/transaction.service.ts` | TODA lógica de negócio de lançamentos (~1800 linhas) |
+| `src/api/services/transaction-summary.service.ts` | Summary financeiro via aggregation queries (`GET /v1/transactions/summary`) |
+| `src/lib/transaction-totals.ts` | `computeTransactionTotals()` — semântica dos campos desnormalizados `paidTotal`/`pendingTotal` |
+| `src/onTransactionTotals.ts` | Trigger que mantém `paidTotal`/`pendingTotal` em todo write de transactions |
 | `src/api/controllers/wallets.controller.ts` | CRUD de carteiras |
 | `src/lib/finance-helpers.ts` | `resolveWalletRef()`, `addMonths()`, permissões |
+
+### Summary financeiro agregado (paidTotal/pendingTotal)
+
+Cada doc de `transactions` carrega `paidTotal` e `pendingTotal` desnormalizados
+(pai entra pelo status do pai; cada extraCost pelo PRÓPRIO status, default
+"pending"; overdue conta como pendente). Mantidos pelo trigger
+`onTransactionTotals` em qualquer write — **nenhum writer precisa preencher os
+campos manualmente**. O endpoint `GET /v1/transactions/summary` soma via
+aggregation (2 queries, 1 leitura/1000 docs) — substitui o cálculo no browser
+que baixava a coleção inteira. Docs pré-trigger: rodar
+`npx tsx src/scripts/backfill-transaction-totals.ts` (idempotente). Índices:
+`(tenantId, type, paidTotal)` e `(tenantId, type, pendingTotal)` em
+`firestore.indexes.json`.
+
+### Resumos de grupo (`transaction_groups`)
+
+O mesmo trigger `onTransactionTotals` mantém: (a) o campo booleano `grouped`
+em cada doc de `transactions` (true se pertence a grupo — habilita a query de
+avulsos `where("grouped","==",false)`, já que Firestore não consulta campo
+ausente); (b) 1 doc-resumo por grupo em `transaction_groups/{groupDocId}`
+(`groupDocId` = groupKey com `:` → `_`, ex: `proposal_p1`, `group_g1`).
+
+- Chave espelha `getGroupedTransactionKey` do frontend: `proposalGroupId` >
+  `installmentGroupId`/`recurringGroupId` > avulso (sem doc).
+- Cálculo puro em `src/lib/transaction-group-summary.ts`
+  (`computeGroupSummary` — usa `computeTransactionTotals` por membro; nunca
+  duplicar a semântica de extraCosts).
+- Recompute total do grupo a cada write relevante de membro (não increments);
+  writes que só tocam campos irrelevantes ao resumo (ou o echo do próprio
+  trigger) não geram queries.
+- Grupos legados mistos (parte com `proposalGroupId`, parte só
+  `installmentGroupId`): promovidos à chave proposal; o doc `group_` é
+  deletado.
+- Write em `transaction_groups` só via Admin SDK (rules negam client write);
+  client lê direto (aba Agrupados).
+- Backfill histórico: `npx tsx src/scripts/backfill-transaction-groups.ts`
+  (idempotente).
 
 ### Arquitetura de Carteiras (CRÍTICO)
 
@@ -153,12 +193,15 @@ Quando a transação muda de carteira, o campo correspondente na proposta é atu
 
 ### Infraestrutura / GCP
 
-- **Cloud Monitoring alerts** — configurar com o script:
-  ```bash
-  bash scripts/setup-gcp-monitoring.sh erp-softcode-prod ops@empresa.com
-  bash scripts/setup-gcp-monitoring.sh erp-softcode dev@empresa.com
-  ```
-  Cria: uptime check no `/api/health`, alerta de indisponibilidade (CRITICAL), erros 5xx (ERROR), latência p95 > 8s (WARNING), pico de instâncias (WARNING).
+- **Cloud Monitoring alerts** — as policies vivem SÓ no GCP (o script
+  `scripts/setup-gcp-monitoring.sh` citado antes não existe mais no repo; editar via
+  console ou `gcloud monitoring policies update`). Existem em ambos os projetos:
+  uptime check no `/api/health`, indisponibilidade (CRITICAL), erros 5xx (ERROR),
+  latência p95 (WARNING), pico de instâncias (WARNING).
+  - **Latência p95**: filtra APENAS o serviço `api` (`resource.labels.service_name = "api"`),
+    threshold 8s, duration 300s. Não remover o filtro de serviço: os crons são serviços
+    Cloud Run próprios cuja "latência" = duração do job (checkduedates ~20s diários),
+    o que disparava alerta falso-positivo todo dia (corrigido 2026-07-06).
 - **GCP Cloud Logging** — filtrar por `severity=ERROR` ou pelo campo `tenantId` nos logs estruturados.
 
 ---

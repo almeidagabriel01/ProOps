@@ -22,7 +22,7 @@ import {
 import { db } from "../init";
 import { captureError } from "../lib/observability/error-logger";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import {
   attachRequestId,
   buildSecurityLogContext,
@@ -43,6 +43,7 @@ import { logger } from "../lib/logger";
 import { applyBillingClaimsToTenantUsers } from "../lib/billing-claims";
 import { invalidateBillingCache } from "../api/middleware/require-active-subscription";
 import type { SyncTenantPlanBillingSnapshotParams } from "../shared/billing-types";
+import { notifyInternalLifecycle } from "../services/email/internal-notify";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
 const WEBHOOK_RATE_LIMIT_MAX_REQUESTS = 240;
@@ -708,6 +709,15 @@ async function handleCheckoutCompleted(
       currentPeriodEnd,
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
+    await notifyInternalLifecycle({
+      event: "new_subscription",
+      tenantId,
+      userId,
+      plan: {
+        to: resolvedCheckoutTier,
+        interval: billingInterval === "yearly" ? "anual" : "mensal",
+      },
+    });
     await clearCheckoutReservation(tenantId).catch(() => {});
     return;
   }
@@ -906,6 +916,15 @@ async function handleSubscriptionUpdated(
       `[StripeWebhook] Downgrade deferred for tenant ${tenantId}: ` +
       `${storedTier} → ${newTier} at ${scheduledPlanAt.toDate().toISOString()}`,
     );
+    // Notifica só na transição (retries/updates com o mesmo agendamento não repetem).
+    if (normalizePlanTier(tenantData?.scheduledPlan) !== newTier) {
+      await notifyInternalLifecycle({
+        event: "plan_downgrade",
+        tenantId,
+        userId: userId || undefined,
+        plan: { from: storedTier, to: newTier, effectiveAt: scheduledPlanAt.toDate() },
+      });
+    }
   } else {
     // Upgrade, same-tier, or deferral disabled: apply plan snapshot immediately.
     // clearScheduled=true because an upgrade supersedes any pending deferral.
@@ -918,6 +937,17 @@ async function handleSubscriptionUpdated(
       source: "webhook.subscription.updated",
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
+    // storedTier !== "free" deduplica contra o email de checkout (primeira
+    // assinatura) e newTier !== storedTier ignora renovações/updates sem troca.
+    if (newTier && newTier !== storedTier && storedTier !== "free") {
+      await notifyInternalLifecycle({
+        event:
+          compareTiers(newTier, storedTier) > 0 ? "plan_upgrade" : "plan_downgrade",
+        tenantId,
+        userId: userId || undefined,
+        plan: { from: storedTier, to: newTier },
+      });
+    }
   }
 
   // Handle cancel_at_period_end: always schedule a "free" transition for period end.
@@ -946,6 +976,15 @@ async function handleSubscriptionUpdated(
         `[StripeWebhook] Cancel-at-period-end scheduled for tenant ${tenantId} ` +
         `at ${cancelAt.toDate().toISOString()}`,
       );
+      // Notifica só na transição — updates seguintes com o cancel já pendente não repetem.
+      if (String(tenantData?.scheduledPlanReason || "").trim() !== "cancel_at_period_end") {
+        await notifyInternalLifecycle({
+          event: "cancel_scheduled",
+          tenantId,
+          userId: userId || undefined,
+          plan: { from: storedTier, to: "free", effectiveAt: cancelAt.toDate() },
+        });
+      }
     }
   } else if (!subscription.cancel_at_period_end) {
     // Cancellation was rescinded — clear the scheduled free-tier transition
@@ -967,6 +1006,12 @@ async function handleSubscriptionUpdated(
       console.log(
         `[StripeWebhook] cancel_at_period_end rescinded for tenant ${tenantId}, cleared scheduled plan`,
       );
+      await notifyInternalLifecycle({
+        event: "cancel_rescinded",
+        tenantId,
+        userId: userId || undefined,
+        plan: { from: storedTier },
+      });
     }
   }
 
@@ -1253,6 +1298,16 @@ async function handleSubscriptionDeleted(
       error: err instanceof Error ? err.message : String(err),
     }),
   );
+
+  await notifyInternalLifecycle({
+    event: "subscription_canceled",
+    tenantId,
+    userId: userId || undefined,
+    plan: {
+      from: normalizePlanTier(tenantDocData?.plan) ?? undefined,
+      to: "free",
+    },
+  });
 
   // Legacy cleanup: mark any residual whatsapp_addon doc as cancelled so the
   // Firestore state stays consistent after the base subscription is deleted.

@@ -1,43 +1,56 @@
 /**
- * In-memory rate limiter for the AI chat endpoint.
+ * Rate limiter do endpoint de chat AI.
  *
- * Limits:
- * - 20 requests/minute per user (rolling window)
- * - 5 concurrent SSE connections per tenant
- *
- * Intentionally in-memory (not Redis/Firestore) — Cloud Run scales horizontally
- * but each instance handles its own connections; the SSE cap prevents a single
- * tenant from saturating one instance while the RPM limit prevents burst abuse.
+ * Duas camadas:
+ * - RPM (20 req/min por usuário): store plugável de lib/rate-limit —
+ *   memory por default, distribuído entre instâncias quando
+ *   RATE_LIMIT_STORE=redis estiver configurado.
+ * - SSE (20 conexões simultâneas por tenant): INTENCIONALMENTE in-memory
+ *   por instância. Concorrência de conexões abertas é um recurso da
+ *   instância (protege o event loop local); contagem distribuída vazaria
+ *   slots em crash de instância. Não migrar para o store.
  */
 
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
-
-// Rolling window timestamps per user (uid → ms timestamps)
-const userWindows = new Map<string, number[]>();
-// Active SSE connection count per tenant
-const tenantSseCount = new Map<string, number>();
+import { createRateLimiter } from "../lib/rate-limit/express-limiter";
 
 const RATE_LIMIT_RPM = 20; // requests per minute per user
 // 20 concurrent SSE connections per tenant — enough for parallel E2E tests (multiple
 // spec files each holding 1-2 SSE slots) while still protecting Cloud Run instances.
 const MAX_SSE_PER_TENANT = 20;
-const WINDOW_MS = 60_000;
 
-// Purge stale window entries every minute to prevent unbounded memory growth.
-// .unref() prevents this timer from keeping the process alive during Firebase CLI
-// local analysis (deploy backend spec detection) and graceful shutdown.
-const _purgeTimer = setInterval(() => {
-  const cutoff = Date.now() - WINDOW_MS;
-  for (const [uid, timestamps] of userWindows.entries()) {
-    const fresh = timestamps.filter((t) => t > cutoff);
-    if (fresh.length === 0) userWindows.delete(uid);
-    else userWindows.set(uid, fresh);
-  }
-}, WINDOW_MS);
-if (typeof _purgeTimer.unref === "function") _purgeTimer.unref();
+// Active SSE connection count per tenant (per instance — see header comment)
+const tenantSseCount = new Map<string, number>();
 
-export function aiRateLimiter(req: Request, res: Response, next: NextFunction): void {
+const rpmLimiter = createRateLimiter({
+  maxRequests: RATE_LIMIT_RPM,
+  windowMs: 60_000,
+  keyPrefix: "ai-chat",
+  keyResolver: (req) => String(req.user?.uid || "anon"),
+  // O limite vale também no emulador (como o limiter de PDF): custos de IA são
+  // por token e o E2E AI-13 depende do 429 real. Sem isto, o teto sobe para
+  // EMULATOR_RATE_LIMIT_MAX e o limite nunca dispara em dev/E2E.
+  emulatorBypass: false,
+  onLimit: (req, res, decision) => {
+    logger.warn("AI rate limit exceeded", {
+      uid: req.user?.uid,
+      tenantId: req.user?.tenantId,
+      requestsInWindow: decision.current,
+    });
+    res.status(429).json({
+      message:
+        "Limite de requisições atingido. Aguarde 1 minuto antes de tentar novamente.",
+      code: "AI_RATE_LIMIT_EXCEEDED",
+    });
+  },
+});
+
+export async function aiRateLimiter(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const user = req.user;
   if (!user?.uid || !user?.tenantId) {
     // Auth missing — let the route handler return 401
@@ -45,22 +58,19 @@ export function aiRateLimiter(req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  const now = Date.now();
-  const { uid, tenantId } = user;
+  const { tenantId } = user;
 
-  // ── 1. Per-user RPM check ────────────────────────────────────────────────
-  const timestamps = userWindows.get(uid) ?? [];
-  const recent = timestamps.filter((t) => t > now - WINDOW_MS);
-  if (recent.length >= RATE_LIMIT_RPM) {
-    logger.warn("AI rate limit exceeded", { uid, tenantId, requestsInWindow: recent.length });
-    res.status(429).json({
-      message: "Limite de requisições atingido. Aguarde 1 minuto antes de tentar novamente.",
-      code: "AI_RATE_LIMIT_EXCEEDED",
-    });
+  // ── 1. Per-user RPM check (pluggable store) ──────────────────────────────
+  let rpmAllowed = false;
+  await Promise.resolve(
+    rpmLimiter(req, res, () => {
+      rpmAllowed = true;
+    }),
+  );
+  if (!rpmAllowed) {
+    // 429 já respondido pelo onLimit (ou fail-open chamou o next interno).
     return;
   }
-  recent.push(now);
-  userWindows.set(uid, recent);
 
   // ── 2. Per-tenant SSE concurrency check ─────────────────────────────────
   const currentSse = tenantSseCount.get(tenantId) ?? 0;

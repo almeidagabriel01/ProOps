@@ -28,13 +28,29 @@ export const CORS_OPTIONS: HttpsOptions = {
   memory: IS_DEV ? "1GiB" : "1GiB",
 };
 
+/**
+ * PDF rendering function (pdfApp). Isolated from the API monolith so headless
+ * Chromium memory spikes cannot OOM request-serving instances.
+ * concurrency: 2 caps simultaneous Chromium processes per 1GiB instance —
+ * OOM eliminated by construction. Scale-to-zero: idle cost is zero.
+ */
+export const PDF_OPTIONS: HttpsOptions = {
+  cors: true,
+  region: "southamerica-east1",
+  timeoutSeconds: 90,
+  cpu: 1,
+  maxInstances: IS_DEV ? 1 : 5,
+  concurrency: 2,
+  memory: "1GiB",
+};
+
 export const SCHEDULE_OPTIONS = {
   timeZone: "America/Sao_Paulo",
   region: "southamerica-east1",
   cpu: IS_DEV ? 0.083 : 0.25,
   maxInstances: 1,
   // 512MiB (not 256): the Express monolith's shared deps (firebase-admin,
-  // stripe, googleapis, etc.) load on every cold start and peaked at 257-271MiB
+  // stripe, etc.) load on every cold start and peaked at 257-271MiB
   // under a 256 cap, so crons OOM'd — some failed the startup probe and never
   // ran. maxInstances:1 + infrequent schedules make the headroom ~free.
   memory: "512MiB" as MemoryOption,

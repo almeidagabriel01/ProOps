@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Client, ClientService } from "@/services/client-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { compareDisplayText, normalizeSortText } from "@/lib/sort-text";
+import { firstSearchToken } from "@/lib/search-term";
 import { normalize } from "@/utils/text";
 import { Loader } from "@/components/ui/loader";
 
@@ -36,7 +37,11 @@ export function ClientSelect({
   const { tenant } = useTenant();
   const [open, setOpen] = React.useState(false);
   const [clients, setClients] = React.useState<Client[]>([]);
+  const [searchResults, setSearchResults] = React.useState<Client[] | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isSearching, setIsSearching] = React.useState(false);
   const [inputValue, setInputValue] = React.useState(value);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -46,14 +51,20 @@ export function ClientSelect({
     setInputValue(value);
   }, [value]);
 
-  // Load clients on mount
+  // Load initial capped list on mount (50 por nome) — a coleção inteira não
+  // é mais baixada; termos com >= 2 chars usam a busca indexada abaixo.
   React.useEffect(() => {
     const loadClients = async () => {
       if (!tenant) return;
       setIsLoading(true);
       try {
-        const data = await ClientService.getClients(tenant.id);
-        setClients(data);
+        const result = await ClientService.getClientsPaginated(
+          tenant.id,
+          50,
+          null,
+          { key: "name", direction: "asc" },
+        );
+        setClients(result.data);
       } catch (error) {
         console.error("Error loading clients:", error);
       } finally {
@@ -65,6 +76,41 @@ export function ClientSelect({
       loadClients();
     }
   }, [tenant]);
+
+  // Busca indexada (searchTokens) debounced enquanto digita. Termo sem
+  // palavra de >= 2 chars mantém o comportamento atual (filtro client-side
+  // sobre a lista inicial) sem query.
+  React.useEffect(() => {
+    if (!tenant || !open) return;
+
+    if (!firstSearchToken(inputValue)) {
+      setSearchResults(null);
+      setIsSearching(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsSearching(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        const results = await ClientService.searchClients(
+          tenant.id,
+          inputValue,
+          50,
+        );
+        if (!cancelled) setSearchResults(results);
+      } catch (error) {
+        console.error("Error searching clients:", error);
+      } finally {
+        if (!cancelled) setIsSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [tenant, open, inputValue]);
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
@@ -126,6 +172,9 @@ export function ClientSelect({
   };
 
   const filteredClients = React.useMemo(() => {
+    // Modo busca indexada: resultados já refinados e ordenados pelo service
+    if (searchResults) return searchResults;
+
     const sortedClients = [...clients].sort((a, b) =>
       compareDisplayText(a.name, b.name),
     );
@@ -136,9 +185,9 @@ export function ClientSelect({
         normalize(client.name).includes(term) ||
         (client.email && normalize(client.email).includes(term)),
     );
-  }, [clients, inputValue]);
+  }, [clients, searchResults, inputValue]);
 
-  const exactMatch = clients.find(
+  const exactMatch = (searchResults ?? clients).find(
     (c) => normalizeSortText(c.name) === normalizeSortText(inputValue),
   );
 
@@ -194,7 +243,7 @@ export function ClientSelect({
       {/* Dropdown */}
       {open && (
         <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-[300px] overflow-auto">
-          {isLoading ? (
+          {isLoading || isSearching ? (
             <div className="flex items-center justify-center py-6">
               <Loader size="md" />
             </div>

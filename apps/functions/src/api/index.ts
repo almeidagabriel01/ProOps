@@ -43,11 +43,13 @@ import {
   isProductionRuntime,
   resolveAllowedCorsOrigins,
 } from "./security/cors-policy";
-import { createRateLimitStore } from "../lib/rate-limit/factory";
+import { emulatorRuntimeSignals } from "../lib/rate-limit/emulator";
 import {
-  resolveEffectiveRateLimitMax,
-  emulatorRuntimeSignals,
-} from "../lib/rate-limit/emulator";
+  buildRateLimitIdentity,
+  createRateLimiter,
+  getClientIp,
+  sanitizeLoggedPath,
+} from "../lib/rate-limit/express-limiter";
 import { WHATSAPP_MFA_OTP_LIMITED_PREFIXES } from "../lib/rate-limit/whatsapp-mfa-limiter-paths";
 import {
   attachRequestId,
@@ -64,37 +66,8 @@ const app = express();
 
 runSecretRotationGuard({ source: "api" });
 
-const DEFAULT_PUBLIC_WINDOW_MS = 60_000;
 const DEFAULT_PROTECTED_TIMEOUT_MS = 20_000;
 const DEFAULT_PROTECTED_PDF_TIMEOUT_MS = 120_000;
-const rateLimitStore = createRateLimitStore();
-
-function getClientIp(req: express.Request): string {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return forwardedFor.split(",")[0].trim();
-  }
-  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
-    return String(forwardedFor[0] || "").trim();
-  }
-  return req.ip || "unknown";
-}
-
-function sanitizeLoggedPath(path: string): string {
-  if (path.startsWith("/v1/share/transaction/")) {
-    return "/v1/share/transaction/:token";
-  }
-  if (path.startsWith("/v1/share/")) {
-    return "/v1/share/:token";
-  }
-  return path;
-}
-
-function buildRateLimitIdentity(req: express.Request): string {
-  const uid = String(req.user?.uid || "anonymous");
-  const tenantId = String(req.user?.tenantId || "no-tenant");
-  return `${getClientIp(req)}:${uid}:${tenantId}`;
-}
 
 function resolveProtectedRouteTimeoutMs(req: express.Request): number {
   const originalPath = String(req.originalUrl || req.url || req.path || "")
@@ -116,77 +89,10 @@ function resolveProtectedRouteTimeoutMs(req: express.Request): number {
   );
 }
 
-function createRateLimiter(options: {
-  maxRequests: number;
-  windowMs?: number;
-  keyPrefix: string;
-  keyResolver?: (req: express.Request) => string;
-}): express.RequestHandler {
-  const windowMs = options.windowMs || DEFAULT_PUBLIC_WINDOW_MS;
-  // Inside any Firebase emulator, raise every limiter to a harmless ceiling so
-  // local dev and the full E2E suite can accumulate requests without hitting
-  // fixed-window counters. Covers both the Firestore emulator and the
-  // functions-emulator-only setup (`npm run dev:backend` against real Firestore).
-  // Neither signal is ever set in Cloud Run, so deployed limits are untouched.
-  const effectiveMax = resolveEffectiveRateLimitMax(options.maxRequests);
-
-  return async (req, res, next) => {
-    const route = sanitizeLoggedPath(req.path);
-    const keyId = options.keyResolver
-      ? options.keyResolver(req)
-      : buildRateLimitIdentity(req);
-    const rateKey = `${options.keyPrefix}:${keyId}`;
-
-    try {
-      const decision = await rateLimitStore.consume(
-        rateKey,
-        effectiveMax,
-        windowMs,
-      );
-
-      if (decision.allowed) {
-        return next();
-      }
-
-      res.set("Retry-After", String(Math.max(decision.retryAfterSeconds, 1)));
-      const context = buildSecurityLogContext(req, {
-        route,
-        status: 429,
-        reason: "rate_limit_exceeded",
-        source: options.keyPrefix,
-        ip: getClientIp(req),
-      });
-      logSecurityEvent("ratelimit_triggered", context, "WARN");
-      void incrementSecurityCounter("ratelimit_triggered", context);
-      void writeSecurityAuditEvent({
-        eventType: "ratelimit_triggered",
-        requestId: context.requestId,
-        route: context.route,
-        status: context.status,
-        tenantId: context.tenantId,
-        uid: context.uid,
-        reason: context.reason,
-        source: context.source,
-      });
-      return res.status(429).json({ message: "Too many requests" });
-    } catch (error) {
-      const context = buildSecurityLogContext(req, {
-        route,
-        status: 200,
-        reason:
-          error instanceof Error ? error.message : "ratelimit_store_failure",
-        source: options.keyPrefix,
-        ip: getClientIp(req),
-      });
-      logSecurityEvent(
-        "ratelimit_store_error_allowing_request",
-        context,
-        "WARN",
-      );
-      return next();
-    }
-  };
-}
+// createRateLimiter extraído para ../lib/rate-limit/express-limiter.ts —
+// mesmo comportamento (fail-open, eventos ratelimit_triggered, teto de
+// emulador), agora reutilizável pelos limiters de PDF/AI e por outros apps
+// Express (ex.: pdfApp).
 
 const allowedCorsOrigins = resolveAllowedCorsOrigins();
 const corsFallbackEnabled = allowCorsFallbackInCurrentEnvironment();

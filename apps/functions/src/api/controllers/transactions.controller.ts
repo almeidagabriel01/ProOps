@@ -4,6 +4,7 @@ import {
   validateTransactionData,
 } from "../helpers/transaction-validation";
 import { TransactionService } from "../services/transaction.service";
+import { getTransactionsSummary as getTransactionsSummaryService } from "../services/transaction-summary.service";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 
@@ -376,6 +377,26 @@ export const registerPartialPayment = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     console.error("registerPartialPayment Error:", error);
     const message = error instanceof Error ? error.message : "Erro ao registrar pagamento parcial.";
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
+  }
+};
+
+export const getTransactionsSummary = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const requestedTenantId =
+      typeof req.query.tenantId === "string" ? req.query.tenantId : undefined;
+
+    const summary = await getTransactionsSummaryService(
+      userId,
+      req.user,
+      requestedTenantId,
+    );
+
+    return res.json({ success: true, summary });
+  } catch (error: unknown) {
+    console.error("getTransactionsSummary Error:", error);
+    const message = error instanceof Error ? error.message : "Erro ao calcular o resumo financeiro.";
     return res.status(mapTransactionErrorStatus(message)).json({ message });
   }
 };

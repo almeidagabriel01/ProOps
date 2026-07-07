@@ -6,10 +6,14 @@ import {
   collection,
   doc,
   getDocs,
+  limit,
+  orderBy,
   query,
+  startAfter,
   where,
   getDoc,
 } from "firebase/firestore";
+import type { QueryDocumentSnapshot } from "firebase/firestore";
 
 export type TransactionType = "income" | "expense";
 export type TransactionStatus = "paid" | "pending" | "overdue";
@@ -110,6 +114,42 @@ export type UpdateFinancialEntryWithInstallmentsPayload = {
 };
 
 const COLLECTION_NAME = "transactions";
+const GROUPS_COLLECTION_NAME = "transaction_groups";
+
+/**
+ * Doc-resumo de transaction_groups (espelho do tipo backend em
+ * apps/functions/src/lib/transaction-group-summary.ts) + id do doc.
+ * Mantido pelo trigger onTransactionTotals — client só lê (rules negam write).
+ */
+export type TransactionGroupSummary = {
+  id: string;
+  tenantId: string;
+  groupKey: string; // "proposal:{id}" | "group:{id}"
+  kind: "proposal" | "installment" | "recurring";
+  type: TransactionType;
+  description: string;
+  wallet?: string;
+  clientName?: string;
+  proposalId?: string;
+  memberCount: number;
+  paidCount: number;
+  total: number;
+  paidTotal: number;
+  pendingTotal: number;
+  nextDueDate: string | null;
+  firstDueDate: string | null;
+  lastDueDate: string | null;
+  status: TransactionStatus;
+  updatedAt: string;
+  /** id do doc âncora — permite links/ações no card colapsado sem carregar membros */
+  anchorTransactionId?: string;
+  /** amount do âncora — exibição de recorrentes (valor por ocorrência, não Σ) */
+  anchorAmount?: number;
+  /** installmentGroupId do âncora — delete/status de grupo em resumos kind proposal */
+  anchorInstallmentGroupId?: string;
+};
+
+const DEFAULT_GROUPS_PAGE_SIZE = 50;
 
 /**
  * Derives `overdue` for pending transactions whose dueDate already passed.
@@ -152,6 +192,128 @@ export const TransactionService = {
       console.error("Error fetching transactions:", error);
       throw error;
     }
+  },
+
+  /**
+   * Busca escopada — substitui o full-fetch da página financeira.
+   *
+   * Escopo = união de 3 queries baratas (dedupe por id):
+   *  1. itens em aberto (pending/overdue) — dívida ativa, naturalmente pequena
+   *     e SEMPRE completa, independente do período;
+   *  2. docs com dueDate dentro do período visível;
+   *  3. docs com date dentro do período (cobre docs antigos sem dueDate).
+   *
+   * Grupos parciais (parcela no período, irmãs fora) são completados via
+   * completeTransactionGroups — a visualização agrupada nunca mostra grupo
+   * pela metade.
+   */
+  getTransactionsScoped: async (
+    tenantId: string,
+    period: { start: string; end: string },
+  ): Promise<Transaction[]> => {
+    try {
+      const col = collection(db, COLLECTION_NAME);
+      const [openSnap, dueSnap, dateSnap] = await Promise.all([
+        getDocs(
+          query(
+            col,
+            where("tenantId", "==", tenantId),
+            where("status", "in", ["pending", "overdue"]),
+          ),
+        ),
+        getDocs(
+          query(
+            col,
+            where("tenantId", "==", tenantId),
+            where("dueDate", ">=", period.start),
+            where("dueDate", "<=", period.end),
+          ),
+        ),
+        getDocs(
+          query(
+            col,
+            where("tenantId", "==", tenantId),
+            where("date", ">=", period.start),
+            where("date", "<=", period.end),
+          ),
+        ),
+      ]);
+
+      const byId = new Map<string, Transaction>();
+      for (const snap of [openSnap, dueSnap, dateSnap]) {
+        snap.docs.forEach((docSnap) => {
+          byId.set(
+            docSnap.id,
+            withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction),
+          );
+        });
+      }
+
+      const scoped = Array.from(byId.values());
+      const completed = await TransactionService.completeTransactionGroups(
+        tenantId,
+        scoped,
+      );
+
+      return completed.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      );
+    } catch (error) {
+      console.error("Error fetching scoped transactions:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Garante grupos íntegros: para cada installmentGroupId/recurringGroupId
+   * presente na lista, busca os membros faltantes em chunks de `in` (30 ids).
+   */
+  completeTransactionGroups: async (
+    tenantId: string,
+    transactions: Transaction[],
+  ): Promise<Transaction[]> => {
+    const byId = new Map(transactions.map((t) => [t.id, t]));
+
+    const collectGroupIds = (field: "installmentGroupId" | "recurringGroupId") =>
+      Array.from(
+        new Set(
+          transactions
+            .map((t) => t[field])
+            .filter((g): g is string => typeof g === "string" && g.length > 0),
+        ),
+      );
+
+    const fetchGroups = async (
+      field: "installmentGroupId" | "recurringGroupId",
+      groupIds: string[],
+    ) => {
+      const CHUNK = 30; // limite de disjunções do operador "in"
+      for (let i = 0; i < groupIds.length; i += CHUNK) {
+        const chunk = groupIds.slice(i, i + CHUNK);
+        const snap = await getDocs(
+          query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            where(field, "in", chunk),
+          ),
+        );
+        snap.docs.forEach((docSnap) => {
+          if (!byId.has(docSnap.id)) {
+            byId.set(
+              docSnap.id,
+              withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction),
+            );
+          }
+        });
+      }
+    };
+
+    await Promise.all([
+      fetchGroups("installmentGroupId", collectGroupIds("installmentGroupId")),
+      fetchGroups("recurringGroupId", collectGroupIds("recurringGroupId")),
+    ]);
+
+    return Array.from(byId.values());
   },
 
   getTransactionById: async (id: string): Promise<Transaction | null> => {
@@ -331,6 +493,231 @@ export const TransactionService = {
     }
   },
 
+  getRecurringByGroupId: async (
+    groupId: string,
+    tenantId?: string,
+  ): Promise<Transaction[]> => {
+    try {
+      const constraints = [where("recurringGroupId", "==", groupId)];
+      if (tenantId) {
+        constraints.push(where("tenantId", "==", tenantId));
+      }
+      const q = query(collection(db, COLLECTION_NAME), ...constraints);
+      const querySnapshot = await getDocs(q);
+      const transactions = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Transaction[];
+
+      return transactions.sort(
+        (a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0),
+      );
+    } catch (error) {
+      console.error("Error fetching recurring transactions by group:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Docs pagos no intervalo [start, end) por `paidAt` — cobre o caso de
+   * pagamento neste mês de lançamento antigo (date/dueDate fora da janela do
+   * escopo). Docs legados sem paidAt têm date/dueDate antigos e caem fora dos
+   * gráficos (que começam no mês atual) — sem perda visível.
+   */
+  getTransactionsPaidBetween: async (
+    tenantId: string,
+    startIso: string,
+    endIso: string,
+  ): Promise<Transaction[]> => {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("paidAt", ">=", startIso),
+          where("paidAt", "<", endIso),
+        ),
+      );
+      return snap.docs.map(
+        (docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as Transaction,
+      );
+    } catch (error) {
+      console.error("Error fetching paid transactions:", error);
+      throw error;
+    }
+  },
+
+  /** Últimos N lançamentos por date desc — atividade recente do dashboard. */
+  getRecentTransactions: async (
+    tenantId: string,
+    count = 5,
+  ): Promise<Transaction[]> => {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          orderBy("date", "desc"),
+          limit(count),
+        ),
+      );
+      return snap.docs.map((docSnap) =>
+        withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction),
+      );
+    } catch (error) {
+      console.error("Error fetching recent transactions:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Resumos de grupo paginados — fonte da aba Agrupados. Ordena por
+   * lastDueDate desc (inclui grupos 100% pagos; nextDueDate null sumiria do
+   * orderBy). nextCursor null = última página.
+   */
+  getGroupSummariesPaginated: async (
+    tenantId: string,
+    opts: {
+      pageSize?: number;
+      cursor?: QueryDocumentSnapshot | null;
+    } = {},
+  ): Promise<{
+    groups: TransactionGroupSummary[];
+    nextCursor: QueryDocumentSnapshot | null;
+  }> => {
+    try {
+      const pageSize = opts.pageSize ?? DEFAULT_GROUPS_PAGE_SIZE;
+      const constraints = [
+        where("tenantId", "==", tenantId),
+        orderBy("lastDueDate", "desc"),
+        ...(opts.cursor ? [startAfter(opts.cursor)] : []),
+        limit(pageSize),
+      ];
+      const snap = await getDocs(
+        query(collection(db, GROUPS_COLLECTION_NAME), ...constraints),
+      );
+      const groups = snap.docs.map(
+        (docSnap) =>
+          ({ id: docSnap.id, ...docSnap.data() }) as TransactionGroupSummary,
+      );
+      const nextCursor =
+        snap.docs.length === pageSize
+          ? (snap.docs[snap.docs.length - 1] as QueryDocumentSnapshot)
+          : null;
+      return { groups, nextCursor };
+    } catch (error) {
+      console.error("Error fetching group summaries:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Avulsos paginados (grouped == false), por date desc — `date` é sempre
+   * presente; orderBy em dueDate excluiria docs antigos sem o campo.
+   */
+  getStandaloneTransactionsPaginated: async (
+    tenantId: string,
+    opts: {
+      pageSize?: number;
+      cursor?: QueryDocumentSnapshot | null;
+    } = {},
+  ): Promise<{
+    transactions: Transaction[];
+    nextCursor: QueryDocumentSnapshot | null;
+  }> => {
+    try {
+      const pageSize = opts.pageSize ?? DEFAULT_GROUPS_PAGE_SIZE;
+      const constraints = [
+        where("tenantId", "==", tenantId),
+        where("grouped", "==", false),
+        orderBy("date", "desc"),
+        ...(opts.cursor ? [startAfter(opts.cursor)] : []),
+        limit(pageSize),
+      ];
+      const snap = await getDocs(
+        query(collection(db, COLLECTION_NAME), ...constraints),
+      );
+      const transactions = snap.docs.map((docSnap) =>
+        withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction),
+      );
+      const nextCursor =
+        snap.docs.length === pageSize
+          ? (snap.docs[snap.docs.length - 1] as QueryDocumentSnapshot)
+          : null;
+      return { transactions, nextCursor };
+    } catch (error) {
+      console.error("Error fetching standalone transactions:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Membros de um grupo, on-demand (expandir container). Chave proposal
+   * inclui irmãos legados do mesmo installmentGroupId sem proposalGroupId —
+   * espelha o doc-resumo mantido pelo trigger.
+   */
+  getGroupMembers: async (
+    tenantId: string,
+    groupKey: string,
+  ): Promise<Transaction[]> => {
+    try {
+      const byId = new Map<string, Transaction>();
+      const collect = (docs: Transaction[]) => {
+        for (const tx of docs) {
+          if (!byId.has(tx.id)) byId.set(tx.id, withDerivedOverdue(tx));
+        }
+      };
+
+      if (groupKey.startsWith("proposal:")) {
+        const proposalGroupId = groupKey.slice("proposal:".length);
+        const baseSnap = await getDocs(
+          query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            where("proposalGroupId", "==", proposalGroupId),
+          ),
+        );
+        collect(
+          baseSnap.docs.map(
+            (d) => ({ id: d.id, ...d.data() }) as Transaction,
+          ),
+        );
+        const instIds = Array.from(
+          new Set(
+            Array.from(byId.values())
+              .map((t) => t.installmentGroupId)
+              .filter((g): g is string => typeof g === "string" && g.length > 0),
+          ),
+        );
+        for (const instId of instIds) {
+          collect(
+            await TransactionService.getInstallmentsByGroupId(instId, tenantId),
+          );
+        }
+      } else {
+        const groupId = groupKey.startsWith("group:")
+          ? groupKey.slice("group:".length)
+          : groupKey;
+        const [installments, recurring] = await Promise.all([
+          TransactionService.getInstallmentsByGroupId(groupId, tenantId),
+          TransactionService.getRecurringByGroupId(groupId, tenantId),
+        ]);
+        collect(installments);
+        collect(recurring);
+      }
+
+      return Array.from(byId.values()).sort((a, b) => {
+        const byNumber =
+          (a.installmentNumber || 0) - (b.installmentNumber || 0);
+        if (byNumber !== 0) return byNumber;
+        return (a.dueDate || a.date || "").localeCompare(b.dueDate || b.date || "");
+      });
+    } catch (error) {
+      console.error("Error fetching group members:", error);
+      throw error;
+    }
+  },
+
   // Get summary for dashboard
   getSummary: async (
     tenantId: string,
@@ -341,51 +728,24 @@ export const TransactionService = {
     pendingExpense: number;
   }> => {
     try {
-      const transactions = await TransactionService.getTransactions(tenantId);
-
-      const summary = {
-        totalIncome: 0,
-        totalExpense: 0,
-        pendingIncome: 0,
-        pendingExpense: 0,
-      };
-
-      transactions.forEach((t) => {
-        if (t.type === "income") {
-          if (t.status === "paid") {
-            summary.totalIncome += t.amount;
-          } else {
-            summary.pendingIncome += t.amount;
-          }
-        } else {
-          if (t.status === "paid") {
-            summary.totalExpense += t.amount;
-          } else {
-            summary.pendingExpense += t.amount;
-          }
-        }
-
-        if (t.extraCosts && Array.isArray(t.extraCosts)) {
-          t.extraCosts.forEach((ec) => {
-            const status = ec.status || "pending";
-            if (t.type === "income") {
-              if (status === "paid") {
-                summary.totalIncome += ec.amount;
-              } else {
-                summary.pendingIncome += ec.amount;
-              }
-            } else {
-              if (status === "paid") {
-                summary.totalExpense += ec.amount;
-              } else {
-                summary.pendingExpense += ec.amount;
-              }
-            }
-          });
-        }
-      });
-
-      return summary;
+      // Summary agregado no backend (aggregation queries sobre os campos
+      // desnormalizados paidTotal/pendingTotal) — o cálculo antigo baixava a
+      // coleção INTEIRA do tenant no browser a cada page load. O tenantId vai
+      // como query param: ignorado para não-superadmin (backend usa o do auth
+      // context), usado pelo superadmin em impersonation.
+      const response = await callApi<{
+        success: boolean;
+        summary: {
+          totalIncome: number;
+          totalExpense: number;
+          pendingIncome: number;
+          pendingExpense: number;
+        };
+      }>(
+        `v1/transactions/summary?tenantId=${encodeURIComponent(tenantId)}`,
+        "GET",
+      );
+      return response.summary;
     } catch (error) {
       console.error("Error getting summary:", error);
       throw error;

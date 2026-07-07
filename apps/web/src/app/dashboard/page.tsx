@@ -32,7 +32,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { tenantOwner, tenant } = useTenant();
   const {
-    clients,
+    totalClients,
     chartData,
     futureBalances,
     proposalStats,
@@ -151,7 +151,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex-1">
           <ClientsStatsCard
-            totalClients={clients.length}
+            totalClients={totalClients}
             newClientsThisMonth={newClientsThisMonth}
           />
         </div>

@@ -17,99 +17,98 @@ beforeEach(() => {
   window.localStorage.clear();
 });
 
-describe("useFinancialFilters — filterStatus default and persistence", () => {
-  it("defaults filterStatus to [pending, overdue] when nothing is persisted", () => {
+/**
+ * Spec (2026-07-06): o filtro de status é LIGADO À ABA, sem persistência.
+ * - Lista (byDueDate): SEMPRE entra com [pending, overdue] — mesmo que o
+ *   usuário tenha desativado antes de sair da aba.
+ * - Agrupados (grouped): SEMPRE entra limpo ([] = todos os status).
+ */
+describe("useFinancialFilters — filterStatus por aba", () => {
+  it("Lista: default [pending, overdue]", () => {
     const { result } = renderHook(() => useFinancialFilters(noTx, noWallets));
     expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
   });
 
-  it("persists filterStatus changes to localStorage scoped by tenantId in grouped mode", () => {
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "grouped"));
+  it("Agrupados: entra limpo (todos os status)", () => {
+    const { result } = renderHook(() =>
+      useFinancialFilters(noTx, noWallets, "grouped"),
+    );
+    expect(result.current.filterStatus).toEqual([]);
+  });
+
+  it("mudar para Agrupados limpa o filtro de status", () => {
+    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets));
+    expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
+
+    act(() => {
+      result.current.setViewMode("grouped");
+    });
+    expect(result.current.filterStatus).toEqual([]);
+  });
+
+  it("voltar para Lista reativa [pending, overdue] mesmo após o usuário desativar", () => {
+    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets));
+
+    // usuário desativa o filtro dentro da Lista
+    act(() => {
+      result.current.setFilterStatus([]);
+    });
+    expect(result.current.filterStatus).toEqual([]);
+
+    // sai para Agrupados e volta — Lista SEMPRE vem com o filtro ativo
+    act(() => {
+      result.current.setViewMode("grouped");
+    });
+    act(() => {
+      result.current.setViewMode("byDueDate");
+    });
+    expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
+  });
+
+  it("seleção feita em Agrupados não vaza ao alternar de aba", () => {
+    const { result } = renderHook(() =>
+      useFinancialFilters(noTx, noWallets, "grouped"),
+    );
 
     act(() => {
       result.current.setFilterStatus(["paid"]);
     });
-
-    const stored = window.localStorage.getItem(
-      "transactions:filterStatus:v2:tenant-test",
-    );
-    expect(stored).toBe(JSON.stringify(["paid"]));
-  });
-
-  it("does not persist filterStatus changes to localStorage in byDueDate mode", () => {
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "byDueDate"));
+    expect(result.current.filterStatus).toEqual(["paid"]);
 
     act(() => {
-      result.current.setFilterStatus(["paid"]);
+      result.current.setViewMode("byDueDate");
     });
-
-    const stored = window.localStorage.getItem(
-      "transactions:filterStatus:v2:tenant-test",
-    );
-    expect(stored).toBeNull();
-  });
-
-  it("restores filterStatus from localStorage on mount in grouped mode", () => {
-    window.localStorage.setItem(
-      "transactions:filterStatus:v2:tenant-test",
-      JSON.stringify(["pending"]),
-    );
-
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "grouped"));
-    expect(result.current.filterStatus).toEqual(["pending"]);
-  });
-
-  it("does not restore filterStatus from localStorage on mount in byDueDate mode", () => {
-    window.localStorage.setItem(
-      "transactions:filterStatus:v2:tenant-test",
-      JSON.stringify(["pending"]),
-    );
-
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "byDueDate"));
     expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
+
+    act(() => {
+      result.current.setViewMode("grouped");
+    });
+    expect(result.current.filterStatus).toEqual([]);
   });
 
-  it("ignores malformed localStorage values and falls back to default in grouped mode", () => {
-    window.localStorage.setItem(
-      "transactions:filterStatus:v2:tenant-test",
-      "not-json",
-    );
-
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "grouped"));
-    expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
-  });
-
-  it("sanitizes unknown status values from localStorage in grouped mode", () => {
-    window.localStorage.setItem(
-      "transactions:filterStatus:v2:tenant-test",
-      JSON.stringify(["paid", "bogus", "overdue"]),
-    );
-
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets, "grouped"));
-    expect(result.current.filterStatus).toEqual(["paid", "overdue"]);
-  });
-
-  it("handles filterStatus resetting and restoring when toggling viewMode", () => {
-    // 1. Persist a value for grouped mode
+  it("valores persistidos legados no localStorage são ignorados (e não quebram)", () => {
     window.localStorage.setItem(
       "transactions:filterStatus:v2:tenant-test",
       JSON.stringify(["paid"]),
     );
 
-    // 2. Load hook (defaults to byDueDate, which ignores localStorage and uses pending+overdue)
-    const { result } = renderHook(() => useFinancialFilters(noTx, noWallets));
-    expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
+    const { result } = renderHook(() =>
+      useFinancialFilters(noTx, noWallets, "grouped"),
+    );
+    expect(result.current.filterStatus).toEqual([]);
+  });
 
-    // 3. Toggle to grouped mode (should restore ["paid"] from localStorage)
-    act(() => {
-      result.current.setViewMode("grouped");
-    });
-    expect(result.current.filterStatus).toEqual(["paid"]);
+  it("mudanças de status dentro da aba não são persistidas no localStorage", () => {
+    const { result } = renderHook(() =>
+      useFinancialFilters(noTx, noWallets, "grouped"),
+    );
 
-    // 4. Toggle back to byDueDate mode (should reset to default ["pending", "overdue"])
     act(() => {
-      result.current.setViewMode("byDueDate");
+      result.current.setFilterStatus(["paid"]);
     });
-    expect(result.current.filterStatus).toEqual(["pending", "overdue"]);
+
+    expect(
+      window.localStorage.getItem("transactions:filterStatus:v2:tenant-test"),
+    ).toBeNull();
   });
 });

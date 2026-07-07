@@ -1,23 +1,14 @@
 import { Request, Response, NextFunction } from "express";
-import { LRUCache } from "lru-cache";
-import { db } from "../../init";
+import {
+  getTenantDocCached,
+  invalidateTenantDoc,
+} from "../../lib/tenant-doc-cache";
 import { evaluateSubscriptionStatusAccess } from "../../lib/tenant-plan-policy";
 import { logger } from "../../lib/logger";
 import {
   buildSecurityLogContext,
   writeSecurityAuditEvent,
 } from "../../lib/security-observability";
-
-interface CachedBillingState {
-  subscriptionStatus: string;
-  pastDueSince: string | null;
-}
-
-const BILLING_CACHE_MAX_SIZE = 500;
-const billingStateCache = new LRUCache<string, CachedBillingState>({
-  max: BILLING_CACHE_MAX_SIZE,
-  ttl: 5_000, // hard-coded per CONTEXT.md decision (LRU cache replacement; no env override)
-});
 
 const WHITELISTED_PREFIXES = [
   "/v1/stripe/",
@@ -66,7 +57,7 @@ function normalizePastDueSince(value: unknown): string | null {
 }
 
 export function invalidateBillingCache(tenantId: string): void {
-  billingStateCache.delete(tenantId);
+  invalidateTenantDoc(tenantId);
 }
 
 export async function requireActiveSubscription(
@@ -107,37 +98,28 @@ export async function requireActiveSubscription(
     return;
   }
 
-  let billingState: CachedBillingState | undefined = billingStateCache.get(tenantId);
-
-  if (!billingState) {
-    try {
-      const tenantSnap = await db.collection("tenants").doc(tenantId).get();
-      if (!tenantSnap.exists) {
-        next();
-        return;
-      }
-
-      const data = tenantSnap.data() as Record<string, unknown> | undefined;
-      const subscriptionStatus = String(data?.subscriptionStatus || "").trim().toLowerCase();
-      const pastDueSince = normalizePastDueSince(data?.pastDueSince);
-
-      billingState = {
-        subscriptionStatus,
-        pastDueSince,
-      };
-      billingStateCache.set(tenantId, billingState);
-    } catch (err) {
-      logger.warn("require_active_subscription: firestore_read_error", {
-        tenantId,
-        uid: user.uid,
-        error: err instanceof Error ? err.message : String(err),
-      });
+  let subscriptionStatus = "";
+  let pastDueSince: string | null = null;
+  try {
+    // Cache compartilhado (5s) do doc tenant — mesma fonte do tenant-plan-policy.
+    const tenantState = await getTenantDocCached(tenantId);
+    if (!tenantState.exists) {
       next();
       return;
     }
+    subscriptionStatus = String(tenantState.data?.subscriptionStatus || "")
+      .trim()
+      .toLowerCase();
+    pastDueSince = normalizePastDueSince(tenantState.data?.pastDueSince);
+  } catch (err) {
+    logger.warn("require_active_subscription: firestore_read_error", {
+      tenantId,
+      uid: user.uid,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    next();
+    return;
   }
-
-  const { subscriptionStatus, pastDueSince } = billingState;
 
   // Free tier guard. Uses the USER role from the JWT claim (authoritative)
   // rather than the tenant's `plan` field, which can be desynchronized

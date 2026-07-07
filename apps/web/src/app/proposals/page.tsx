@@ -430,35 +430,14 @@ export default function ProposalsPage() {
           ProposalService.waitForSave(),
           new Promise<void>((resolve) => setTimeout(resolve, 5000)),
         ]);
-        const data = await ProposalService.getProposals(tenant.id);
-
-        // Sync client names from clients collection
-        const clientIds = [
-          ...new Set(data.filter((p) => p.clientId).map((p) => p.clientId)),
-        ];
-
-        if (clientIds.length > 0) {
-          try {
-            const { ClientService } = await import("@/services/client-service");
-            const allClients = await ClientService.getClients(tenant.id);
-
-            // Create a map for quick lookup
-            const clientMap = new Map(allClients.map((c) => [c.id, c]));
-
-            // Update proposals with fresh client data
-            data.forEach((proposal) => {
-              if (proposal.clientId && clientMap.has(proposal.clientId)) {
-                const freshClient = clientMap.get(proposal.clientId)!;
-                proposal.clientName = freshClient.name;
-                proposal.clientEmail = freshClient.email;
-                proposal.clientPhone = freshClient.phone;
-                proposal.clientAddress = freshClient.address;
-              }
-            });
-          } catch (clientError) {
-            console.warn("Could not sync client names:", clientError);
-          }
-        }
+        // Busca indexada via searchTokens (title + clientName) — não baixa
+        // mais a coleção inteira. Termo sem palavra de >= 2 chars retorna
+        // [] sem query (ver ProposalService.searchProposals).
+        const data = await ProposalService.searchProposals(
+          tenant.id,
+          searchTerm,
+          100,
+        );
 
         // Sort by createdAt descending (most recent first)
         data.sort(
@@ -481,13 +460,15 @@ export default function ProposalsPage() {
     } else {
       setIsLoading(false);
     }
-  }, [tenant]);
+  }, [tenant, searchTerm]);
 
-  // Initial fetch — only when searching/filtering
+  // Search fetch — debounced; re-queries when o termo (token) muda
   React.useEffect(() => {
-    if (isFiltering && tenant) {
+    if (!isFiltering || !tenant) return;
+    const timeoutId = setTimeout(() => {
       fetchProposals();
-    }
+    }, 300);
+    return () => clearTimeout(timeoutId);
   }, [isFiltering, tenant, fetchProposals]);
 
   // Subscribe to updates (e.g. from auto-save)

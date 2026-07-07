@@ -9,6 +9,7 @@ import {
   deleteTransaction,
   deleteTransactionGroup,
   registerPartialPayment,
+  getTransactionsSummary,
 } from "../controllers/transactions.controller";
 import {
   createWallet,
@@ -27,6 +28,9 @@ import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 const router = Router();
 
 // Transactions
+// Summary agregado (aggregation queries) — substitui o cálculo no browser.
+// Registrado antes das rotas /:id para o path literal "summary" não colidir.
+router.get("/transactions/summary", getTransactionsSummary);
 router.post("/transactions", createTransaction);
 router.post("/transactions/:id/share-link", createTransactionShareLink);
 router.get("/transactions/:id/share-link", getShareLinkInfo);

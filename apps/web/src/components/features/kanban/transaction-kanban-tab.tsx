@@ -12,9 +12,14 @@ import {
   Transaction,
   TransactionStatus,
 } from "@/services/transaction-service";
+import {
+  KanbanBoardService,
+  type KanbanColumnCursor,
+} from "@/services/kanban-board-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { KanbanBoardSkeleton } from "@/app/crm/_components/kanban-skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Loader } from "@/components/ui/loader";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
@@ -37,6 +42,22 @@ import { useTransactionStatuses } from "@/app/transactions/_hooks/useTransaction
 // ============================================
 
 const AUTO_OVERDUE_KEY = "kanban_auto_overdue";
+
+const COLUMN_STATUSES: TransactionStatus[] = ["pending", "overdue", "paid"];
+
+interface ColumnPageState {
+  cursor: KanbanColumnCursor | null;
+  hasMore: boolean;
+  total: number;
+  isLoadingMore: boolean;
+}
+
+function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
+  if (incoming.length === 0) return prev;
+  const known = new Set(prev.map((item) => item.id));
+  const fresh = incoming.filter((item) => !known.has(item.id));
+  return fresh.length > 0 ? [...prev, ...fresh] : prev;
+}
 
 export function TransactionKanbanTab() {
   const { statuses, isLoaded, reorderStatuses } = useTransactionStatuses();
@@ -69,7 +90,14 @@ export function TransactionKanbanTab() {
     }
   });
 
-  // Load transactions
+  // Per-column pagination state, keyed by transaction status
+  const [columnMeta, setColumnMeta] = React.useState<
+    Record<string, ColumnPageState>
+  >({});
+  const columnMetaRef = React.useRef(columnMeta);
+  columnMetaRef.current = columnMeta;
+
+  // Load first page (capped) + server-side count for each fixed column
   React.useEffect(() => {
     if (!tenant?.id) return;
     let cancelled = false;
@@ -77,8 +105,30 @@ export function TransactionKanbanTab() {
     const load = async () => {
       setIsLoading(true);
       try {
-        const data = await TransactionService.getTransactions(tenant.id);
-        if (!cancelled) setTransactions(data);
+        const results = await Promise.all(
+          COLUMN_STATUSES.map(async (status) => {
+            const [page, total] = await Promise.all([
+              KanbanBoardService.getTransactionColumnPage(tenant.id, status),
+              KanbanBoardService.countTransactionColumn(tenant.id, status),
+            ]);
+            return { status, page, total };
+          }),
+        );
+        if (cancelled) return;
+        setTransactions(mergeById([], results.flatMap((r) => r.page.items)));
+        setColumnMeta(
+          Object.fromEntries(
+            results.map((r) => [
+              r.status,
+              {
+                cursor: r.page.cursor,
+                hasMore: r.page.hasMore,
+                total: r.total,
+                isLoadingMore: false,
+              },
+            ]),
+          ),
+        );
       } catch (error) {
         console.error("Failed to load transactions:", error);
         toast.error("Erro ao carregar lançamentos.");
@@ -92,6 +142,69 @@ export function TransactionKanbanTab() {
       cancelled = true;
     };
   }, [tenant?.id]);
+
+  // Load next page of a column (cursor-based)
+  const handleLoadMore = React.useCallback(
+    async (status: string) => {
+      if (!tenant?.id) return;
+      const meta = columnMetaRef.current[status];
+      if (!meta || !meta.hasMore || meta.isLoadingMore) return;
+
+      setColumnMeta((prev) => ({
+        ...prev,
+        [status]: { ...prev[status], isLoadingMore: true },
+      }));
+      try {
+        const page = await KanbanBoardService.getTransactionColumnPage(
+          tenant.id,
+          status as TransactionStatus,
+          { cursor: meta.cursor },
+        );
+        setTransactions((prev) => mergeById(prev, page.items));
+        setColumnMeta((prev) => ({
+          ...prev,
+          [status]: {
+            ...prev[status],
+            cursor: page.cursor ?? prev[status].cursor,
+            hasMore: page.hasMore,
+            isLoadingMore: false,
+          },
+        }));
+      } catch (error) {
+        console.error("Failed to load more transactions:", error);
+        toast.error("Erro ao carregar mais lançamentos.");
+        setColumnMeta((prev) => ({
+          ...prev,
+          [status]: { ...prev[status], isLoadingMore: false },
+        }));
+      }
+    },
+    [tenant?.id],
+  );
+
+  // Shift server-count totals when a card moves between columns
+  const adjustColumnTotals = React.useCallback(
+    (fromStatus: string, toStatus: string) => {
+      if (fromStatus === toStatus) return;
+      setColumnMeta((prev) => {
+        const next = { ...prev };
+        if (next[fromStatus]) {
+          next[fromStatus] = {
+            ...next[fromStatus],
+            total: Math.max(0, next[fromStatus].total - 1),
+          };
+        }
+        if (next[toStatus]) {
+          next[toStatus] = {
+            ...next[toStatus],
+            total: next[toStatus].total + 1,
+          };
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   // Base transactions apply just the autoOverdue visual logic
   const processedTransactions = React.useMemo(() => {
@@ -159,6 +272,7 @@ export function TransactionKanbanTab() {
           };
         }),
       );
+      adjustColumnTotals(oldStatus, newStatus);
 
       try {
         await TransactionService.updateTransactionsStatusBatch(
@@ -173,11 +287,12 @@ export function TransactionKanbanTab() {
         setTransactions((prev) =>
           prev.map((t) => (t.id === itemId ? { ...t, status: oldStatus } : t)),
         );
+        adjustColumnTotals(newStatus, oldStatus);
         console.error("Error updating transaction status:", error);
         toast.error("Erro ao atualizar o status do lançamento.");
       }
     },
-    [statuses, transactions],
+    [statuses, transactions, adjustColumnTotals],
   );
 
   // Derived unique clients for the filter dropdown
@@ -244,6 +359,11 @@ export function TransactionKanbanTab() {
         );
       }
 
+      // Keep column order aligned with the paginated query (date desc)
+      items.sort((a, b) =>
+        String(b.date || "").localeCompare(String(a.date || "")),
+      );
+
       return {
         id: col.id,
         label: col.label,
@@ -278,6 +398,11 @@ export function TransactionKanbanTab() {
         filter.maxAmount ||
         filter.dateStart ||
         filter.dateEnd;
+
+      // Server-side total (aggregation) — the column only loads pages of 30;
+      // with local filters active, show the filtered (loaded) count instead.
+      const meta = columnMeta[column.id];
+      const displayCount = hasFilterActive || !meta ? count : meta.total;
 
       const updateFilter = (
         key:
@@ -329,7 +454,7 @@ export function TransactionKanbanTab() {
                 {column.label}
               </span>
               <span className="text-xs font-medium text-muted-foreground bg-muted/80 px-2.5 py-1 rounded-full tabular-nums shrink-0">
-                {count}
+                {displayCount}
               </span>
             </div>
 
@@ -549,7 +674,28 @@ export function TransactionKanbanTab() {
         </div>
       );
     },
-    [columnFilters, clientOptions, statuses],
+    [columnFilters, clientOptions, statuses, columnMeta],
+  );
+
+  // Column footer — "Carregar mais" when the server still has docs
+  const renderColumnFooter = React.useCallback(
+    (column: KanbanColumn<Transaction>) => {
+      const meta = columnMeta[column.id];
+      if (!meta?.hasMore) return null;
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-xs h-8 gap-2 cursor-pointer text-muted-foreground hover:text-foreground"
+          disabled={meta.isLoadingMore}
+          onClick={() => handleLoadMore(column.id)}
+        >
+          {meta.isLoadingMore && <Loader size="sm" />}
+          {meta.isLoadingMore ? "Carregando..." : "Carregar mais"}
+        </Button>
+      );
+    },
+    [columnMeta, handleLoadMore],
   );
 
   if (isLoading || !isLoaded) {
@@ -614,6 +760,7 @@ export function TransactionKanbanTab() {
           />
         )}
         renderColumnHeader={renderColumnHeader}
+        renderColumnFooter={renderColumnFooter}
         emptyMessage="Nenhum lançamento"
       />
 

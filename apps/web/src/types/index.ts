@@ -58,6 +58,11 @@ export type UserOnboardingState = {
   skippedAt?: string;
 };
 
+export interface UserPreferences {
+  /** Efeitos sonoros da Lia. undefined ⇒ ligado. */
+  liaSoundsEnabled?: boolean;
+}
+
 export type User = {
   id: string;
   tenantId?: string; // Optional for free users
@@ -97,6 +102,7 @@ export type User = {
   };
   subscriptionUpdatedAt?: string;
   onboarding?: UserOnboardingState;
+  preferences?: UserPreferences;
 };
 
 export type SubscriptionStatus =

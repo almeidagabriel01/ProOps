@@ -1,4 +1,9 @@
 import type { Firestore } from "firebase-admin/firestore";
+// Real production helper (dependency-free) — the seed must write the same
+// searchTokens the backend writes on create, otherwise the indexed
+// array-contains search (ClientService.searchClients) finds nothing and the
+// ClientSelect dropdown in the proposal/transaction wizards stays empty.
+import { buildSearchTokens } from "../../../../apps/functions/src/lib/search-tokens";
 
 export interface SeedContact {
   id: string;
@@ -70,7 +75,11 @@ export async function seedContacts(db: Firestore): Promise<void> {
   const batch = db.batch();
 
   for (const contact of ALL_CONTACTS) {
-    batch.set(db.collection("clients").doc(contact.id), contact);
+    batch.set(db.collection("clients").doc(contact.id), {
+      ...contact,
+      // Mirrors contacts.service.ts createContact: tokens(name, email, phone)
+      searchTokens: buildSearchTokens(contact.name, contact.email, contact.phone),
+    });
   }
 
   await batch.commit();

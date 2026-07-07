@@ -13,6 +13,7 @@ import { Notification } from "@/types/notification";
 import { db } from "@/lib/firebase";
 import {
   collection,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -145,6 +146,11 @@ export const NotificationService = {
     scope: NotificationScope,
     callback: (notifications: Notification[]) => void,
   ): Unsubscribe {
+    // Aba oculta não polla (economia de reads); ao voltar, refetch imediato.
+    const isTabHidden = () =>
+      typeof document !== "undefined" &&
+      document.visibilityState === "hidden";
+
     const startPollingSubscription = (): Unsubscribe => {
       let pollingInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -162,8 +168,18 @@ export const NotificationService = {
         }
       };
 
+      const onVisibilityChange = () => {
+        if (!isTabHidden()) {
+          void fetchByApi();
+        }
+      };
+      if (typeof document !== "undefined") {
+        document.addEventListener("visibilitychange", onVisibilityChange);
+      }
+
       void fetchByApi();
       pollingInterval = setInterval(() => {
+        if (isTabHidden()) return;
         void fetchByApi();
       }, 10000);
 
@@ -172,11 +188,18 @@ export const NotificationService = {
           clearInterval(pollingInterval);
           pollingInterval = null;
         }
+        if (typeof document !== "undefined") {
+          document.removeEventListener("visibilitychange", onVisibilityChange);
+        }
       };
     };
 
     try {
       const notificationsRef = collection(db, "notifications");
+      // limit(50): mesma janela do fallback de polling. Sem o cap, o listener
+      // realtime (ativo em TODA página autenticada) re-cobra leitura de todos
+      // os docs do tenant a cada mudança — custo cresce sem teto com o volume
+      // de notificações.
       const notificationsQuery = query(
         notificationsRef,
         where(
@@ -185,6 +208,7 @@ export const NotificationService = {
           scope.kind === "system" ? "system" : scope.tenantId,
         ),
         orderBy("createdAt", "desc"),
+        limit(50),
       );
 
       let pollingInterval: ReturnType<typeof setInterval> | null = null;
@@ -193,6 +217,12 @@ export const NotificationService = {
         if (pollingInterval) {
           clearInterval(pollingInterval);
           pollingInterval = null;
+          if (typeof document !== "undefined") {
+            document.removeEventListener(
+              "visibilitychange",
+              onFallbackVisibilityChange,
+            );
+          }
         }
       };
 
@@ -212,11 +242,24 @@ export const NotificationService = {
         }
       };
 
+      const onFallbackVisibilityChange = () => {
+        if (pollingInterval && !isTabHidden()) {
+          void fetchByApi();
+        }
+      };
+
       const startPollingFallback = () => {
         if (pollingInterval) return;
 
+        if (typeof document !== "undefined") {
+          document.addEventListener(
+            "visibilitychange",
+            onFallbackVisibilityChange,
+          );
+        }
         void fetchByApi();
         pollingInterval = setInterval(() => {
+          if (isTabHidden()) return;
           void fetchByApi();
         }, 10000);
       };

@@ -87,7 +87,7 @@ O backend (`functions/src/api/middleware/`) valida o `role === "superadmin"` no 
 - **Criar empresa:** abre `TenantDialog` em modo criação
 - **Editar empresa:** clique no ícone de lápis no card
 - **Excluir empresa:** clique no ícone de lixeira → `AlertDialog` de confirmação → exclusão em cascata
-- **Acessar painel:** botão "Acessar Painel" → impersonação do tenant via `setViewingTenant()` + redirect para `/dashboard`
+- **Acessar painel:** botão "Acessar Painel" → impersonação do tenant via `setViewingTenant()` + redirect para `/dashboard`. Desabilitado para tenants no plano free (sem acesso ao ERP) — ver seção "Impersonação de tenant"
 - **Clonar dados:** ícone de cópia → `CopyDataDialog` para copiar produtos, serviços, sistemas e ambientes entre tenants
 
 ### `TenantCard`
@@ -280,15 +280,21 @@ Internamente (`TenantService.deleteTenant`), a exclusão é feita em cascata pel
 
 ## Impersonação de tenant (`handleLoginAs`)
 
-O superadmin pode acessar o painel de qualquer tenant sem fazer login com as credenciais desse tenant:
+O superadmin pode acessar o painel de qualquer tenant **pago** sem fazer login com as credenciais desse tenant:
 
 ```typescript
-const handleLoginAs = (tenant: Tenant) => {
-  setViewingTenant(tenant);          // Armazena o tenant no TenantProvider
-  toast.info(`Acessando painel de "${tenant.name}"...`);
+const handleLoginAs = (item: TenantBillingInfo) => {
+  if (!canAccessTenantPanel(item)) { // Plano free NÃO tem acesso ao ERP
+    toast.error(`"${item.tenant.name}" está no plano gratuito...`);
+    return;
+  }
+  setViewingTenant(item.tenant);     // Armazena o tenant no TenantProvider
+  toast.info(`Acessando painel de "${item.tenant.name}"...`);
   router.push("/dashboard");         // Navega para o dashboard do tenant
 };
 ```
+
+**Regra free-tier:** contas no plano gratuito não têm acesso ao ERP, então a impersonação é bloqueada em duas camadas: o botão "Acessar Painel" renderiza desabilitado no `TenantCard` (com tooltip explicativo) e o `handleLoginAs` recusa a ação mesmo se o estado da UI for contornado. A regra vive em `src/lib/tenant-panel-access.ts` (`canAccessTenantPanel`): `planId === "free"` é autoritativo; sem `planId`, caem os fallbacks `subscriptionStatus === "free"` e o label do plano ("Gratuito"/"grátis"). Um tenant cancelado e rebaixado para `plan=free` também é bloqueado.
 
 O `TenantProvider` mantém o estado de `viewingTenant` separado do tenant "real" do superadmin. Enquanto impersonando, o superadmin vê os dados daquele tenant em todos os módulos.
 

@@ -23,6 +23,7 @@ import { clearViewingTenantId } from "@/lib/viewing-tenant-session";
 import { AuthService } from "@/services/auth-service";
 import { interpretSessionResponse } from "@/lib/auth/interpret-session-response";
 import { shouldShortCircuitSync } from "@/lib/auth/should-short-circuit-sync";
+import { shouldSkipSyncPost } from "@/lib/auth/should-skip-sync-post";
 import { shouldForceTerminalAuthState } from "@/lib/auth/should-force-terminal-auth-state";
 import { isStaleAuthEpoch } from "@/lib/auth/is-stale-auth-epoch";
 
@@ -145,8 +146,12 @@ interface AuthContextType {
   }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  /** Force-refresh the ID token and re-sync the session cookie. */
-  forceSyncSession: () => Promise<boolean>;
+  /**
+   * Force-refresh the ID token and re-sync the session cookie.
+   * `{ force: true }` bypasses the 30s cooldown skip and guarantees a real
+   * re-mint POST (used by /auth/refresh; a pending WhatsApp gate still skips).
+   */
+  forceSyncSession: (opts?: { force?: boolean }) => Promise<boolean>;
 }
 
 const AuthContext = React.createContext<AuthContextType>({
@@ -379,7 +384,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * - Updates `isSessionSynced` state so other components can react.
    */
   const syncServerSession = React.useCallback(
-    async (firebaseUser: FirebaseUser): Promise<boolean> => {
+    async (
+      firebaseUser: FirebaseUser,
+      opts?: { force?: boolean },
+    ): Promise<boolean> => {
       // Capture the auth epoch at the start. If a newer explicit sign-in
       // supersedes this sync before it resolves, `isFresh()` turns false and
       // every shared-state write below is dropped — so a lingering sync for a
@@ -401,9 +409,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // onAuthStateChanged and onIdTokenChanged fire on startup). The cooldown
       // skip is what prevents the second startup listener from firing a SECOND
       // WhatsApp challenge (duplicate code).
+      // `force` (used by /auth/refresh) bypasses the cooldown skip and re-mints
+      // for real — the interstitial is only reached when the server rejected or
+      // lost the cookie, so "recently synced" client state is meaningless there.
+      // A pending WhatsApp gate still skips even under force (duplicate-challenge
+      // guard) — see shouldSkipSyncPost.
       const cooldownActive =
         Date.now() - lastSyncSuccessRef.current < SYNC_COOLDOWN_MS;
-      if (cooldownActive) {
+      if (
+        shouldSkipSyncPost({
+          cooldownActive,
+          forceRequested: opts?.force === true,
+          whatsappGatePending: whatsappMfaPendingRef.current !== null,
+        })
+      ) {
         if (
           isFresh() &&
           shouldShortCircuitSync({
@@ -611,6 +630,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           cancelAt: (userData.subscription as { cancelAt?: string | null } | undefined)?.cancelAt ?? null,
           isManualSubscription,
           onboarding: normalizeOnboardingState(userData.onboarding),
+          preferences: userData.preferences || undefined,
         } as User;
       } else {
         console.warn(
@@ -818,16 +838,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Exposed to child components (e.g. ProtectedRoute) so they can
    * attempt a session recovery instead of redirecting to /login.
    */
-  const forceSyncSession = React.useCallback(async (): Promise<boolean> => {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) return false;
-    try {
-      await firebaseUser.getIdToken(true);
-    } catch {
-      return false;
-    }
-    return syncServerSession(firebaseUser);
-  }, [syncServerSession]);
+  const forceSyncSession = React.useCallback(
+    async (opts?: { force?: boolean }): Promise<boolean> => {
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) return false;
+      try {
+        await firebaseUser.getIdToken(true);
+      } catch {
+        return false;
+      }
+      return syncServerSession(firebaseUser, opts);
+    },
+    [syncServerSession],
+  );
 
   const mfaResolverRef = React.useRef<MultiFactorResolver | null>(null);
 

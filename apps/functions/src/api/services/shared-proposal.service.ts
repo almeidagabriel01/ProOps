@@ -6,6 +6,8 @@ import { resolveFrontendAppUrl } from "../../lib/frontend-app-url";
 
 const SHARED_PROPOSALS_COLLECTION = "shared_proposals";
 const SHARED_LINK_EXPIRATION_DAYS = 30;
+// Últimas N visualizações no doc; total vive em viewCount (increment).
+const MAX_VIEWER_INFO_ENTRIES = 50;
 const DEFAULT_PROPOSAL_TITLE = "Proposta sem titulo";
 
 export type SharedProposalPurpose = "external_share" | "system_pdf_render";
@@ -267,9 +269,21 @@ export class SharedProposalService {
       }
 
       await Promise.all([
-        docRef.update({
-          viewedAt: new Date().toISOString(),
-          viewerInfo: FieldValue.arrayUnion(viewerInfo),
+        // Array capado + contador: arrayUnion sem bound inflaria o doc até o
+        // limite de 1 MB do Firestore (writes passariam a falhar) em links
+        // muito acessados. viewCount preserva o total.
+        db.runTransaction(async (txn) => {
+          const snap = await txn.get(docRef);
+          if (!snap.exists) return;
+          const current =
+            (snap.data()?.viewerInfo as ViewerInfo[] | undefined) ?? [];
+          txn.update(docRef, {
+            viewedAt: new Date().toISOString(),
+            viewerInfo: [...current, viewerInfo].slice(
+              -MAX_VIEWER_INFO_ENTRIES,
+            ),
+            viewCount: FieldValue.increment(1),
+          });
         }),
         NotificationService.createNotification({
           tenantId: resolved.tenantId,

@@ -15,19 +15,28 @@ import {
   auditSuperAdminCrossTenantWrite,
 } from "../../lib/tenant-resolution";
 
-// `googleapis` is a heavy module (~0.9s to require — it cold-loads its full API
-// surface). Importing it at the top of the file placed it in the Cloud Functions
-// discovery graph, pushing local emulator cold starts past the 10s discovery
-// timeout. Load it lazily so the cost is only paid when a Google Calendar
-// request actually runs — this also trims the same cost off production cold
-// starts (every cold instance used to pay it, even on non-calendar requests).
-type GoogleApi = typeof import("googleapis").google;
-let googleApiPromise: Promise<GoogleApi> | undefined;
-function loadGoogle(): Promise<GoogleApi> {
-  if (!googleApiPromise) {
-    googleApiPromise = import("googleapis").then((mod) => mod.google);
+// Pacotes scoped (@googleapis/calendar + @googleapis/oauth2) substituem o
+// metapackage `googleapis` (~60MB instalado, ~0.9s de require — carregava a
+// superfície de TODAS as APIs Google). Só as duas APIs realmente usadas.
+// Continuam lazy: importar no topo colocaria o módulo no grafo de discovery
+// das Cloud Functions e de volta no cold start (regressão coberta por
+// calendar.controller.lazy-load.test.ts).
+type CalendarApi = typeof import("@googleapis/calendar");
+let calendarApiPromise: Promise<CalendarApi> | undefined;
+function loadCalendarApi(): Promise<CalendarApi> {
+  if (!calendarApiPromise) {
+    calendarApiPromise = import("@googleapis/calendar");
   }
-  return googleApiPromise;
+  return calendarApiPromise;
+}
+
+type OAuth2Api = typeof import("@googleapis/oauth2");
+let oauth2ApiPromise: Promise<OAuth2Api> | undefined;
+function loadOAuth2Api(): Promise<OAuth2Api> {
+  if (!oauth2ApiPromise) {
+    oauth2ApiPromise = import("@googleapis/oauth2");
+  }
+  return oauth2ApiPromise;
 }
 
 const CALENDAR_EVENTS_COLLECTION = "calendar_events";
@@ -292,17 +301,38 @@ async function createGoogleOAuthClient() {
     throw new Error("GOOGLE_CALENDAR_NOT_CONFIGURED");
   }
 
-  const google = await loadGoogle();
-  return new google.auth.OAuth2(
+  const { auth } = await loadCalendarApi();
+  return new auth.OAuth2(
     clientId,
     clientSecret,
     resolveGoogleCalendarRedirectUri(),
   );
 }
 
+// Cache negativo por instância: a MAIORIA dos tenants não tem Google
+// conectado, mas toda listagem de eventos pagava 1-2 leituras só para
+// descobrir isso. Só o "não tem" é cacheado — o registro real é sempre
+// relido (refreshToken precisa estar fresco). Invalidado ao conectar.
+const NO_INTEGRATION_CACHE_TTL_MS = 5 * 60 * 1000;
+const noIntegrationCache = new Map<string, number>(); // tenantId → expiresAtMs
+
+export function invalidateGoogleIntegrationCache(tenantId: string): void {
+  noIntegrationCache.delete(tenantId);
+}
+
 export async function getGoogleIntegration(
   tenantId: string,
 ): Promise<GoogleCalendarIntegrationRecord | null> {
+  const cachedUntil = noIntegrationCache.get(tenantId);
+  if (cachedUntil !== undefined) {
+    if (cachedUntil > Date.now()) return null;
+    noIntegrationCache.delete(tenantId);
+  }
+  const markNoIntegration = (): null => {
+    noIntegrationCache.set(tenantId, Date.now() + NO_INTEGRATION_CACHE_TTL_MS);
+    return null;
+  };
+
   const collection = db.collection(CALENDAR_INTEGRATIONS_COLLECTION);
 
   const normalizeIntegrationRecord = (
@@ -380,7 +410,7 @@ export async function getGoogleIntegration(
     .get();
 
   if (legacySnapshot.empty) {
-    return null;
+    return markNoIntegration();
   }
 
   const legacyDoc = [...legacySnapshot.docs].sort((left, right) => {
@@ -403,7 +433,7 @@ export async function getGoogleIntegration(
     legacyDoc.data() as GoogleCalendarIntegrationDocument | undefined,
   );
   if (!legacyRecord) {
-    return null;
+    return markNoIntegration();
   }
 
   // The read-triggered relocation is itself a write — it must obey the
@@ -708,8 +738,8 @@ async function syncGoogleEventsToLocalCalendar(params: {
     refresh_token: integration.refreshToken,
   });
 
-  const google = await loadGoogle();
-  const calendar = google.calendar({
+  const calendarApi = await loadCalendarApi();
+  const calendar = calendarApi.calendar({
     version: "v3",
     auth: oauthClient,
   });
@@ -824,8 +854,8 @@ async function syncEventToGoogle(
     refresh_token: integration.refreshToken,
   });
 
-  const google = await loadGoogle();
-  const calendar = google.calendar({
+  const calendarApi = await loadCalendarApi();
+  const calendar = calendarApi.calendar({
     version: "v3",
     auth: oauthClient,
   });
@@ -960,8 +990,8 @@ async function deleteEventFromGoogleIfNeeded(eventData: CalendarEventDocument) {
     refresh_token: integration.refreshToken,
   });
 
-  const google = await loadGoogle();
-  const calendar = google.calendar({
+  const calendarApi = await loadCalendarApi();
+  const calendar = calendarApi.calendar({
     version: "v3",
     auth: oauthClient,
   });
@@ -1116,8 +1146,8 @@ async function cleanupLocalEventsAfterGoogleDisconnect(params: {
     refresh_token: params.integration.refreshToken,
   });
 
-  const google = await loadGoogle();
-  const calendar = google.calendar({
+  const calendarApi = await loadCalendarApi();
+  const calendar = calendarApi.calendar({
     version: "v3",
     auth: oauthClient,
   });
@@ -1219,9 +1249,12 @@ async function listCalendarEventsWithTenantFallback(params: {
   startMs: number;
   endMs: number;
 }): Promise<Array<CalendarEventDocument & { id: string }>> {
+  // Caminho degradado (query indexada falhou) — bound explícito para nunca
+  // baixar o histórico inteiro de eventos do tenant.
   const snapshot = await db
     .collection(CALENDAR_EVENTS_COLLECTION)
     .where("tenantId", "==", params.tenantId)
+    .limit(1500)
     .get();
 
   return snapshot.docs
@@ -1517,8 +1550,8 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
       throw new Error("MISSING_REFRESH_TOKEN");
     }
 
-    const google = await loadGoogle();
-    const oauth2 = google.oauth2({
+    const oauth2Api = await loadOAuth2Api();
+    const oauth2 = oauth2Api.oauth2({
       version: "v2",
       auth: oauthClient,
     });
@@ -1549,6 +1582,7 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
         lastSyncError: null,
       } satisfies GoogleCalendarIntegrationDocument);
 
+    invalidateGoogleIntegrationCache(stateData.tenantId);
     await stateRef.delete().catch(() => undefined);
     return res.redirect(buildFrontendCalendarUrl(req, "connected"));
   } catch (error) {

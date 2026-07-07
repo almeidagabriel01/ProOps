@@ -64,3 +64,13 @@ export function resolveUpstreamForHost(host: string | null): UpstreamTarget {
 export function resolveFunctionsApiUpstream(req: NextRequest): UpstreamTarget {
   return resolveUpstreamForHost(getHostFromRequest(req));
 }
+
+/**
+ * A renderização de PDF roda na função Cloud dedicada `pdf` (Chromium isolado
+ * do monolito `api`). O upstream é derivado do base da API trocando o sufixo
+ * do nome da função — vale para Cloud Functions e para o emulador local
+ * (http://127.0.0.1:5001/<proj>/<region>/api → .../pdf).
+ */
+export function derivePdfUpstream(apiBaseUrl: string): string {
+  return apiBaseUrl.replace(/\/api$/, "/pdf");
+}

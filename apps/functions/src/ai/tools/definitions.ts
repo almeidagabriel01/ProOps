@@ -1,4 +1,5 @@
-import { SchemaType, type FunctionDeclaration } from "@google/generative-ai";
+import type { FunctionDeclaration } from "@google/generative-ai";
+import { SchemaType } from "./schema-types";
 
 /**
  * All 29 FunctionDeclaration objects for the Lia AI assistant.

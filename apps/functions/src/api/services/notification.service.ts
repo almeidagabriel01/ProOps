@@ -165,11 +165,14 @@ export class NotificationService {
 
   static async getUnreadCount(scope: NotificationScope): Promise<number> {
     try {
+      // Aggregation count(): cobra 1 leitura por 1000 docs contados, em vez de
+      // buscar todos os documentos. Este endpoint é polado pelo frontend.
       const snapshot = await this.buildScopeQuery(scope)
         .where("isRead", "==", false)
+        .count()
         .get();
 
-      return snapshot.size;
+      return snapshot.data().count;
     } catch (error) {
       console.error("Error getting unread count:", error);
       throw new Error("Failed to get unread count");
@@ -178,21 +181,23 @@ export class NotificationService {
 
   static async markAllAsRead(scope: NotificationScope): Promise<void> {
     try {
-      const snapshot = await this.buildScopeQuery(scope)
-        .where("isRead", "==", false)
-        .get();
+      const batchSize = 400;
+      for (;;) {
+        const snapshot = await this.buildScopeQuery(scope)
+          .where("isRead", "==", false)
+          .limit(batchSize)
+          .get();
+        if (snapshot.empty) break;
 
-      const batch = db.batch();
-      const readAt = new Date().toISOString();
-
-      snapshot.docs.forEach((doc) => {
-        batch.update(doc.ref, {
-          isRead: true,
-          readAt,
+        const batch = db.batch();
+        const readAt = new Date().toISOString();
+        snapshot.docs.forEach((doc) => {
+          batch.update(doc.ref, { isRead: true, readAt });
         });
-      });
+        await batch.commit();
 
-      await batch.commit();
+        if (snapshot.size < batchSize) break;
+      }
     } catch (error) {
       console.error("Error marking all as read:", error);
       throw new Error("Failed to mark all as read");

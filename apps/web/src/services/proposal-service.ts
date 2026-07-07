@@ -5,6 +5,7 @@ import { callApi } from "@/lib/api-client";
 import {
   collection,
   doc,
+  getCountFromServer,
   getDocs,
   getDoc,
   query,
@@ -18,6 +19,7 @@ import {
 import { Proposal, ProposalProduct } from "@/types/proposal";
 import { PaginatedResult } from "./client-service";
 import { isEnvironmentProposalSystemInstance } from "@/lib/proposal-environment-utils";
+import { firstSearchToken, normalizeSearchWords } from "@/lib/search-term";
 
 const COLLECTION_NAME = "proposals";
 
@@ -136,63 +138,21 @@ function getPrimaryEnvironmentFromData(data: DocumentData): string {
   return extractEnvironmentNames(data).join(", ");
 }
 
-function compareProposalsByField(
-  a: QueryDocumentSnapshot<DocumentData>,
-  b: QueryDocumentSnapshot<DocumentData>,
-  sortField: string,
-  sortDirection: "asc" | "desc",
-): number {
-  const dataA = a.data();
-  const dataB = b.data();
-
-  let valueA: unknown = dataA[sortField];
-  let valueB: unknown = dataB[sortField];
-
-  if (sortField === "primarySystem") {
-    valueA = getPrimarySystemFromData(dataA);
-    valueB = getPrimarySystemFromData(dataB);
-  }
-
-  if (sortField === "primaryEnvironment") {
-    valueA = getPrimaryEnvironmentFromData(dataA);
-    valueB = getPrimaryEnvironmentFromData(dataB);
-  }
-
-  if (valueA === null || valueA === undefined || valueA === "") {
-    return 1;
-  }
-  if (valueB === null || valueB === undefined || valueB === "") {
-    return -1;
-  }
-
-  if (typeof valueA === "string" && typeof valueB === "string") {
-    const alphabetical = valueA.localeCompare(valueB, "pt-BR", {
-      sensitivity: "base",
-      numeric: true,
-    });
-
-    if (alphabetical !== 0) {
-      return sortDirection === "asc" ? alphabetical : -alphabetical;
-    }
-
-    const titleA = typeof dataA.title === "string" ? dataA.title : "";
-    const titleB = typeof dataB.title === "string" ? dataB.title : "";
-    const byTitle = titleA.localeCompare(titleB, "pt-BR", {
-      sensitivity: "base",
-      numeric: true,
-    });
-
-    if (byTitle !== 0) {
-      return byTitle;
-    }
-
-    return a.id.localeCompare(b.id, "pt-BR", { sensitivity: "base" });
-  }
-
-  if (valueA < valueB) return sortDirection === "asc" ? -1 : 1;
-  if (valueA > valueB) return sortDirection === "asc" ? 1 : -1;
-
-  return 0;
+/**
+ * Deriva os campos desnormalizados de ordenação a partir de `sistemas`
+ * (fallback: campos primários já existentes no doc). FONTE DA VERDADE da
+ * derivação — persistida no doc pelo backend em todo create/update que
+ * contém `sistemas`, habilitando `orderBy` server-side na listagem.
+ * Propostas sem sistemas recebem "" (mantém o doc no índice de ordenação).
+ */
+export function computeProposalSortFields(data: DocumentData): {
+  primarySystem: string;
+  primaryEnvironment: string;
+} {
+  return {
+    primarySystem: getPrimarySystemFromData(data),
+    primaryEnvironment: getPrimaryEnvironmentFromData(data),
+  };
 }
 
 function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
@@ -255,6 +215,55 @@ export const ProposalService = {
     }
   },
 
+  /** Contagem server-side (aggregation) — 1 leitura por 1000 docs. */
+  countProposals: async (tenantId: string): Promise<number> => {
+    const snap = await getCountFromServer(
+      query(collection(db, COLLECTION_NAME), where("tenantId", "==", tenantId)),
+    );
+    return snap.data().count;
+  },
+
+  /**
+   * Conta propostas cujo status está no conjunto — usado pelas estatísticas
+   * do dashboard (statuses dinâmicos do kanban). Chunks de 30 (limite do "in").
+   */
+  countProposalsByStatuses: async (
+    tenantId: string,
+    statuses: string[],
+  ): Promise<number> => {
+    const unique = Array.from(new Set(statuses.filter(Boolean)));
+    if (unique.length === 0) return 0;
+    const CHUNK = 30;
+    let total = 0;
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const snap = await getCountFromServer(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("status", "in", unique.slice(i, i + CHUNK)),
+        ),
+      );
+      total += snap.data().count;
+    }
+    return total;
+  },
+
+  /** Últimas N propostas por createdAt desc — dashboard não baixa mais a coleção. */
+  getRecentProposals: async (
+    tenantId: string,
+    count = 5,
+  ): Promise<Proposal[]> => {
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        orderBy("createdAt", "desc"),
+        limit(count),
+      ),
+    );
+    return snap.docs.map(mapProposalDoc);
+  },
+
   getProposalsPaginated: async (
     tenantId: string,
     pageSize: number = 12,
@@ -265,34 +274,10 @@ export const ProposalService = {
       const sortField = sortConfig?.key || "createdAt";
       const sortDirection = sortConfig?.direction || "desc";
 
-      const needsClientSort =
-        sortField === "primaryEnvironment" || sortField === "primarySystem";
-
-      if (needsClientSort) {
-        const baseQuery = query(
-          collection(db, COLLECTION_NAME),
-          where("tenantId", "==", tenantId),
-        );
-
-        const allSnapshot = await getDocs(baseQuery);
-        const sortedDocs = [...allSnapshot.docs].sort((a, b) =>
-          compareProposalsByField(a, b, sortField, sortDirection),
-        );
-
-        const startIndex = cursor
-          ? sortedDocs.findIndex((doc) => doc.id === cursor.id) + 1
-          : 0;
-
-        const pageDocs = sortedDocs.slice(startIndex, startIndex + pageSize);
-        const hasMore = startIndex + pageSize < sortedDocs.length;
-
-        return {
-          data: pageDocs.map(mapProposalDoc),
-          lastDoc: pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null,
-          hasMore,
-        };
-      }
-
+      // primarySystem/primaryEnvironment são desnormalizados no doc
+      // (computeProposalSortFields + backfill-proposal-sort-fields) — o sort
+      // é sempre server-side via orderBy; índices (tenantId, campo ASC/DESC)
+      // já existem em firestore.indexes.json.
       const q = cursor
         ? query(
             collection(db, COLLECTION_NAME),
@@ -324,6 +309,42 @@ export const ProposalService = {
     }
   },
 
+  /**
+   * Busca textual indexada — não baixa a coleção: usa a primeira palavra
+   * normalizada do termo com `array-contains` sobre `searchTokens` (tokens
+   * de prefixo gravados pelo backend, ver functions/src/lib/search-tokens.ts
+   * + backfill-search-tokens) e refina client-side exigindo TODAS as
+   * palavras em title/clientName. Termo sem palavra com >= 2 chars → []
+   * sem query.
+   */
+  searchProposals: async (
+    tenantId: string,
+    term: string,
+    max = 100,
+  ): Promise<Proposal[]> => {
+    const token = firstSearchToken(term);
+    if (!token) return [];
+
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("searchTokens", "array-contains", token),
+        limit(max),
+      ),
+    );
+
+    const words = normalizeSearchWords(term);
+    return snap.docs.map(mapProposalDoc).filter((proposal) => {
+      const haystacks = [proposal.title || "", proposal.clientName || ""].map(
+        (value) => normalizeSearchWords(value).join(" "),
+      );
+      return words.every((word) =>
+        haystacks.some((haystack) => haystack.includes(word)),
+      );
+    });
+  },
+
   getProposalById: async (id: string): Promise<Proposal | null> => {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
@@ -348,29 +369,12 @@ export const ProposalService = {
 
   createProposal: async (data: Partial<Proposal>): Promise<Proposal> => {
     try {
+      // Create salva a proposta inteira — sempre computa os campos
+      // desnormalizados de ordenação a partir de sistemas.
       const payload = {
         ...data,
+        ...computeProposalSortFields(data),
       };
-
-      // Populate flattened fields for sorting if systems exist
-      if (data.sistemas && data.sistemas.length > 0) {
-        payload.primarySystem = isEnvironmentProposalSystemInstance(
-          data.sistemas[0],
-        )
-          ? ""
-          : data.sistemas[0].sistemaName;
-        // Check if environment exists in the first system
-        if (
-          data.sistemas[0].ambientes &&
-          data.sistemas[0].ambientes.length > 0
-        ) {
-          payload.primaryEnvironment =
-            data.sistemas[0].ambientes[0].ambienteName;
-        } else {
-          // Legacy support
-          payload.primaryEnvironment = data.sistemas[0].ambienteName || "";
-        }
-      }
 
       const result = await callApi<{ success: boolean; proposalId: string }>(
         "/v1/proposals",
@@ -397,26 +401,10 @@ export const ProposalService = {
     try {
       const payload = { ...data };
 
-      // Update flattened fields if sistemas is being updated
-      if (data.sistemas && data.sistemas.length > 0) {
-        payload.primarySystem = isEnvironmentProposalSystemInstance(
-          data.sistemas[0],
-        )
-          ? ""
-          : data.sistemas[0].sistemaName;
-        if (
-          data.sistemas[0].ambientes &&
-          data.sistemas[0].ambientes.length > 0
-        ) {
-          payload.primaryEnvironment =
-            data.sistemas[0].ambientes[0].ambienteName;
-        } else {
-          payload.primaryEnvironment = data.sistemas[0].ambienteName || "";
-        }
-      } else if (data.sistemas && data.sistemas.length === 0) {
-        // If clearing systems, clear sorting fields
-        payload.primarySystem = "";
-        payload.primaryEnvironment = "";
+      // Recomputa os campos desnormalizados de ordenação sempre que o
+      // payload contém sistemas (inclusive [] — limpa para "").
+      if (typeof data.sistemas !== "undefined") {
+        Object.assign(payload, computeProposalSortFields(data));
       }
 
       await callApi(`/v1/proposals/${id}`, "PUT", payload);

@@ -58,20 +58,20 @@ export default function ViewTransactionPage() {
         if (data) {
           setTransaction(data);
 
-          // If this is an installment or recurring, fetch all related
+          // If this is an installment or recurring, fetch all related.
+          // Query direcionada pelo grupo — antes baixava a coleção inteira do
+          // tenant só para filtrar em memória.
           const groupId = data.installmentGroupId || data.recurringGroupId;
           if ((data.isInstallment || data.isRecurring) && groupId) {
-            const allTransactions = await TransactionService.getTransactions(
-              data.tenantId,
-            );
-            const related = allTransactions
-              .filter(
-                (t) => (t.installmentGroupId || t.recurringGroupId) === groupId,
-              )
-              .sort(
-                (a, b) =>
-                  (a.installmentNumber || 0) - (b.installmentNumber || 0),
-              );
+            const related = data.installmentGroupId
+              ? await TransactionService.getInstallmentsByGroupId(
+                  groupId,
+                  data.tenantId,
+                )
+              : await TransactionService.getRecurringByGroupId(
+                  groupId,
+                  data.tenantId,
+                );
             setRelatedInstallments(related);
           }
         }

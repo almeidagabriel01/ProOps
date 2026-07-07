@@ -37,6 +37,7 @@ O parâmetro `scope` bloqueia a troca de abas — usado quando a página CRM é 
 | `src/components/features/kanban/kanban-detail-modal.tsx` | Modais de detalhe: `ProposalDetailModal` e `TransactionDetailModal` |
 | `src/components/features/kanban/kanban-status-dialog.tsx` | Dialog para criar/editar colunas do quadro de propostas |
 | `src/services/kanban-service.ts` | CRUD de `kanban_statuses` + defaults |
+| `src/services/kanban-board-service.ts` | Queries paginadas por coluna (propostas/lançamentos) + contagem via aggregation |
 | `src/app/transactions/_hooks/useTransactionStatuses.ts` | Lê e reordena colunas fixas de lançamentos (salva no tenant) |
 
 ---
@@ -58,6 +59,37 @@ export interface KanbanStatusColumn {
   updatedAt: string;
 }
 ```
+
+---
+
+## Carga por coluna (paginada) — `KanbanBoardService`
+
+O board **nunca baixa a coleção inteira**. Cada coluna carrega no máximo **30 cards**
+por página (`KANBAN_COLUMN_PAGE_SIZE`), via query Firestore direta por coluna:
+
+- **Propostas**: `where("tenantId","==",...)` + `where("status","in", [colId, mappedStatus])`
+  + `orderBy("createdAt","desc")` + `limit(30)`. Índice: `(tenantId, status, createdAt DESC)`.
+  Colunas virtuais (`default_*`) consultam só o `mappedStatus`.
+- **Lançamentos**: `where("tenantId","==",...)` + `where("status","==", pending|overdue|paid)`
+  + `orderBy("date","desc")` + `limit(30)`. Índice: `(tenantId, status, date DESC)`.
+
+Comportamento:
+
+- **"Carregar mais"** no rodapé da coluna (via `renderColumnFooter`) busca +30 com
+  cursor `startAfter` enquanto `hasMore` (página cheia = provavelmente há mais).
+- **Contagem do header** vem de `getCountFromServer` (aggregation, 1 leitura/1000 docs)
+  — o badge mostra o total real da coluna mesmo com só 30 cards carregados. Com filtro
+  local ativo na coluna, o badge volta a mostrar a contagem dos cards filtrados/carregados.
+- O **total monetário** do header soma apenas os cards carregados (não é aggregation).
+- Os **filtros por coluna** (busca, cliente, valor, data) aplicam-se apenas aos cards
+  já carregados — são client-side.
+- Drag-and-drop ajusta os totais das colunas de origem/destino de forma otimista
+  (decrementa/incrementa), com rollback em caso de erro da API.
+- Estado por coluna (`cursor`, `hasMore`, `total`, `isLoadingMore`) é mantido nos tabs,
+  chaveado por `columnStatusKey` (propostas — statuses ordenados unidos por `|`) ou pelo
+  status fixo (lançamentos). O pool local de docs é deduplicado por `id` (`mergeById`).
+- Lançamentos aplicam `withDerivedOverdue` na leitura (igual `getTransactions`) — um doc
+  `pending` vencido pode aparecer na coluna Atrasado; o badge reflete o status persistido.
 
 ---
 
@@ -217,6 +249,8 @@ Superadmin ignora a verificação de plano. Durante `isPlanLoading`, exibe o `Ka
 | Operação | Endpoint | Service |
 |----------|----------|---------|
 | Listar colunas kanban | Direto no Firestore (`kanban_statuses`) | `KanbanService.getStatuses()` |
+| Página de cards da coluna | Direto no Firestore (`proposals`/`transactions`, paginado) | `KanbanBoardService.getProposalColumnPage()` / `getTransactionColumnPage()` |
+| Total da coluna | Aggregation `getCountFromServer` | `KanbanBoardService.countProposalColumn()` / `countTransactionColumn()` |
 | Criar coluna | `POST v1/kanban-statuses` | `KanbanService.createStatus()` |
 | Atualizar coluna | `PUT v1/kanban-statuses/:id` | `KanbanService.updateStatus()` |
 | Excluir coluna | `DELETE v1/kanban-statuses/:id` | `KanbanService.deleteStatus()` |

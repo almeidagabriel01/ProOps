@@ -7,7 +7,7 @@ import {
 const base: RefreshDecisionInput = {
   authReady: true,
   hasUser: true,
-  isSessionSynced: false,
+  syncedThisVisit: false,
   whatsappPending: false,
   attemptsUsed: 0,
   maxAttempts: 2,
@@ -31,10 +31,28 @@ describe("decideRefreshOutcome", () => {
     );
   });
 
-  it("redirects to the intended path once the session is synced", () => {
-    expect(decideRefreshOutcome({ ...base, isSessionSynced: true })).toBe(
+  it("redirects to the intended path once a fresh re-mint happened this visit", () => {
+    expect(decideRefreshOutcome({ ...base, syncedThisVisit: true })).toBe(
       "redirect-next",
     );
+  });
+
+  it("retries (forces a real re-mint) when nothing was synced during this visit", () => {
+    // Regression: the provider's stale isSessionSynced=true used to short-cut
+    // straight to redirect-next without ever re-minting the cleared cookie.
+    expect(decideRefreshOutcome({ ...base, syncedThisVisit: false })).toBe(
+      "retry",
+    );
+  });
+
+  it("whatsapp gate wins over a fresh sync (no 2FA bypass)", () => {
+    expect(
+      decideRefreshOutcome({
+        ...base,
+        whatsappPending: true,
+        syncedThisVisit: true,
+      }),
+    ).toBe("redirect-login");
   });
 
   it("redirects to login once bounded attempts are exhausted", () => {
