@@ -114,7 +114,7 @@ Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/
 │   │   └── src/
 │   │       ├── app/          # App Router (30+ segments) + api/backend/ proxy
 │   │       ├── components/   # ui/(Shadcn), admin, auth, lia, features, shared...
-│   │       ├── hooks/        # Data-fetching + UI hooks (32, + proposal/ subfolder)
+│   │       ├── hooks/        # Data-fetching + UI hooks (33, + proposal/ subfolder)
 │   │       ├── providers/    # Auth, Tenant, Permissions, Theme, Plan
 │   │       ├── services/     # Client-side API calls → /api/backend/* (33)
 │   │       ├── lib/          # Firebase init, niches/, plan limits
