@@ -23,8 +23,14 @@ export interface RefreshDecisionInput {
   authReady: boolean;
   /** A Firebase user is present (refresh token still valid). */
   hasUser: boolean;
-  /** The __session cookie has been (re)minted and is in sync. */
-  isSessionSynced: boolean;
+  /**
+   * The __session cookie was re-minted by a successful forced sync DURING
+   * this interstitial visit. Deliberately NOT the provider's `isSessionSynced`:
+   * that flag is client state that stays true after login even when the proxy
+   * has just cleared/rejected the cookie — trusting it redirected users into
+   * an infinite bounce without ever re-minting.
+   */
+  syncedThisVisit: boolean;
   /** A WhatsApp OTP gate is pending — the cookie is withheld by design. */
   whatsappPending: boolean;
   /** Bounded re-mint attempts already consumed. */
@@ -42,10 +48,12 @@ export function decideRefreshOutcome(input: RefreshDecisionInput): RefreshOutcom
   if (!input.authReady) return "retry";
   // No user → the refresh token is gone; only a fresh login can recover.
   if (!input.hasUser) return "redirect-login";
-  // 2FA owed → terminal; the login page re-shows the OTP screen.
+  // 2FA owed → terminal; the login page re-shows the OTP screen. MUST stay
+  // above the synced check: a forced sync resolves true on otp-pending too,
+  // and this ordering is what prevents a 2FA bypass into the app.
   if (input.whatsappPending) return "redirect-login";
-  // Cookie minted → enter the app.
-  if (input.isSessionSynced) return "redirect-next";
+  // Cookie freshly re-minted this visit → enter the app.
+  if (input.syncedThisVisit) return "redirect-next";
   // Bounded attempts exhausted without a cookie → terminal failure.
   if (input.attemptsUsed >= input.maxAttempts) return "redirect-login";
   // Still have budget — keep trying.

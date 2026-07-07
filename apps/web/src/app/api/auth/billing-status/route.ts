@@ -148,6 +148,11 @@ export async function GET(req: NextRequest) {
       code === "auth/session-cookie-expired" ||
       code === "auth/argument-error"
     ) {
+      // Diagnostic for /auth/refresh redirect loops: surfaces WHY a cookie the
+      // session route just minted gets rejected here. Code only — no token/PII.
+      console.warn("[billing-status] session cookie verification failed", {
+        code,
+      });
       return NextResponse.json({
         allowed: false,
         status: "expired",
