@@ -96,6 +96,41 @@ function extractPrimaryPriceId(
   return priceId || undefined;
 }
 
+// Trial end as an ISO string while the subscription is trialing; null otherwise
+// (so the tenant.trialEndsAt field — and its countdown banner — clears on
+// conversion to active or on cancellation).
+function resolveTrialEndsAt(subscription: Stripe.Subscription): string | null {
+  if (subscription.status !== "trialing" || !subscription.trial_end) return null;
+  return new Date(subscription.trial_end * 1000).toISOString();
+}
+
+// Authoritative "trial consumed" marker for the one-trial-per-account rule.
+// Written once, when a subscription actually starts in `trialing` — NOT at
+// checkout time (an abandoned checkout must not burn the user's single trial;
+// the transient `trialReservedAt` lock covers abandonment). Idempotent.
+async function markTrialConsumed(
+  tenantId: string,
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  if (subscription.status !== "trialing") return;
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  const snap = await tenantRef.get();
+  const data = snap.exists
+    ? (snap.data() as Record<string, unknown> | undefined)
+    : undefined;
+  if (data?.trialUsedAt) return; // already consumed — idempotent
+  const priceId = extractPrimaryPriceId(subscription);
+  const trialPlanTier = priceId ? resolvePriceToTier(priceId) : null;
+  await tenantRef.set(
+    {
+      trialUsedAt: new Date().toISOString(),
+      ...(trialPlanTier && { trialPlanTier }),
+      trialReservedAt: null, // clear the transient checkout reservation
+    },
+    { merge: true },
+  );
+}
+
 function isSupportedAddonType(value: unknown): value is AddonType {
   const normalized = String(value || "").trim();
   return [
@@ -220,6 +255,9 @@ export async function syncTenantPlanBillingSnapshot(
       ...(params.stripePriceId != null && {
         stripePriceId: params.stripePriceId,
       }),
+      // Trial end date: written while trialing (drives the countdown banner),
+      // explicitly cleared (null) once the subscription leaves trialing.
+      ...("trialEndsAt" in params && { trialEndsAt: params.trialEndsAt }),
       ...("billingInterval" in params && {
         billingInterval: params.billingInterval,
       }),
@@ -707,6 +745,7 @@ async function handleCheckoutCompleted(
       stripePriceId: extractPrimaryPriceId(subscription),
       clearScheduled: true, // fresh checkout supersedes any pending transition
       currentPeriodEnd,
+      trialEndsAt: resolveTrialEndsAt(subscription),
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
     await notifyInternalLifecycle({
@@ -934,6 +973,7 @@ async function handleSubscriptionUpdated(
       stripePriceId: primaryPriceId,
       clearScheduled: true,
       currentPeriodEnd,
+      trialEndsAt: resolveTrialEndsAt(subscription),
       source: "webhook.subscription.updated",
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
@@ -1155,7 +1195,9 @@ async function handleSubscriptionCreated(
     stripePriceId: extractPrimaryPriceId(subscription),
     clearScheduled: true, // new subscription supersedes any pending transition
     currentPeriodEnd: createdPeriodEnd,
+    trialEndsAt: resolveTrialEndsAt(subscription),
   });
+  await markTrialConsumed(tenantId, subscription);
   invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
   console.log(
     `[StripeWebhook] Subscription created for tenant ${tenantId}, status=${subscription.status}`,
