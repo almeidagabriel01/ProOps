@@ -30,7 +30,7 @@ export function useHeaderPresentation(): HeaderPresentation {
   >("idle");
 
   // The header needs the account's own company name/logo for display. For free
-  // users `tenant` now points at the shared __demo__ dataset (read-only demo
+  // users `tenant` now points at the shared demo dataset (read-only demo
   // mode), and for non-impersonating superadmins it is null — in both cases we
   // fetch the user's REAL tenant doc for display-only purposes. Derived
   // synchronously so the loading state is correct on the very first render.
@@ -88,7 +88,7 @@ export function useHeaderPresentation(): HeaderPresentation {
       return fetchedTenant?.name || user?.name || "Minha Empresa";
     }
 
-    // Free/demo: `tenant` is the shared __demo__ dataset — show the user's OWN
+    // Free/demo: `tenant` is the shared demo dataset — show the user's OWN
     // company (fetched above), never the demo tenant's name.
     if (user?.role === "free") {
       return fetchedTenant?.name || "Minha Empresa";

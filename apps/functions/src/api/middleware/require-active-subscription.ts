@@ -51,7 +51,7 @@ function isFreeTierAllowedPath(path: string): boolean {
 // 402 so the account can browse but never mutate. These handlers still scope
 // every query to the caller's own tenantId, so this never leaks other tenants'
 // data — the shared demo dataset is served via direct-Firestore reads gated by
-// the `__demo__` Firestore rule, not through these endpoints.
+// the `demo` Firestore rule, not through these endpoints.
 const DEMO_READABLE_PREFIXES = [
   "/v1/proposals",
   "/v1/products",

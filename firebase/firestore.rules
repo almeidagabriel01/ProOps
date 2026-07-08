@@ -229,13 +229,13 @@ service cloud.firestore {
     /**
      * Read access to the shared read-only demo dataset. Any authenticated user
      * (incl. free-tier / demo accounts, which tenantSubscriptionAllowsRead
-     * blocks) may READ documents tagged with the fixed '__demo__' tenant.
+     * blocks) may READ documents tagged with the fixed 'demo' tenant.
      * Writes stay denied everywhere (Admin SDK seed only). Placed FIRST in the
      * read `||` chain so this cheap field comparison short-circuits before the
      * expensive tenantSubscriptionAllowsRead get()/exists() lookups.
      */
     function isDemoRead(resourceTenantId) {
-      return isAuthenticated() && resourceTenantId == '__demo__';
+      return isAuthenticated() && resourceTenantId == 'demo';
     }
 
     /**

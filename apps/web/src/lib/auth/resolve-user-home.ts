@@ -55,7 +55,7 @@ export function resolveUserHome(user: User | null): ResolvedHome {
 
   // 4. Free → dashboard (modo demo read-only, Feature B). Contas gratuitas
   //    entram no ERP e navegam pelos módulos do Starter vendo os dados
-  //    fictícios do tenant __demo__; módulos premium aparecem com coroa.
+  //    fictícios do tenant demo; módulos premium aparecem com coroa.
   if (user.role === "free") {
     return { kind: "dashboard", path: "/dashboard" };
   }
@@ -86,14 +86,16 @@ export function resolveUserHome(user: User | null): ResolvedHome {
 }
 
 /**
- * Free tier may visit ONLY these paths:
+ * Free tier (read-only demo mode) may visit:
  *   - "/"                       public landing
  *   - "/subscribe[/*]"          choose paid plan
  *   - "/checkout-success[/*]"   stripe callback
- *   - "/profile[/*]"            manage own account (billing tab lives here)
+ *   - "/profile[/*]" "/settings[/*]"  manage own account (billing tab here)
  *   - "/subscription-blocked"   defensive
+ *   - the Starter-tier ERP modules in DEMO_ACCESSIBLE_PREFIXES (read-only)
  *
- * Anything else — including /dashboard and the entire ERP — is blocked.
+ * Premium modules (Financeiro, CRM, editor de PDF) stay blocked — the dock
+ * renders them crowned and opens the upgrade modal instead of navigating.
  * Exported separately from isPathAllowedForUser because the next.js
  * middleware and the billing-status route need to evaluate it from a
  * `plan` string without a full User object in hand.

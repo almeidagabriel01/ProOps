@@ -108,7 +108,7 @@ test.describe("PROFILE-FREE-04: Paying admin user sees PlanUsageCard on /profile
 // ─── PROFILE-FREE-05: Free user sees their company name in header + profile ───
 //
 // Bug repro:
-//   In read-only demo mode `tenant` points at the shared __demo__ dataset, so
+//   In read-only demo mode `tenant` points at the shared demo dataset, so
 //   useHeaderPresentation lazily reads the user's OWN tenant doc for display —
 //   the real company name ("Free User's Tenant", seeded) must appear, never the
 //   demo tenant's name.

@@ -661,7 +661,7 @@ export const cleanupTrialFieldsManual = async (
 };
 
 /**
- * Seeds (or re-seeds) the shared read-only `__demo__` tenant used by the
+ * Seeds (or re-seeds) the shared read-only `demo` tenant used by the
  * free-tier demo mode. Idempotent.
  *
  * Header: x-cron-secret must match CRON_SECRET.

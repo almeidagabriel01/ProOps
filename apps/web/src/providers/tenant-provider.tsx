@@ -30,7 +30,7 @@ import {
 } from "@/utils/color-utils";
 
 // Fixed id of the shared read-only demo dataset a free account browses.
-export const DEMO_TENANT_ID = "__demo__";
+export const DEMO_TENANT_ID = "demo";
 
 // Synthetic tenant used as the DATA tenant for free/demo accounts. No Firestore
 // read is needed (the demo tenant doc itself is not exposed to free reads — only
@@ -48,7 +48,7 @@ interface TenantContextType {
   tenantOwner: User | null;
   tenantOwnerPlanName: string | null;
   isLoading: boolean;
-  /** True for free/demo accounts: `tenant` points at the shared __demo__ data. */
+  /** True for free/demo accounts: `tenant` points at the shared demo data. */
   isDemo: boolean;
   /** True when the account may only read (free/demo). Drives read-only UX. */
   isReadOnly: boolean;
@@ -247,7 +247,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
 
     // Free tier / demo mode (Feature B): browse the ERP read-only against the
-    // shared __demo__ dataset. `tenant` becomes the synthetic demo tenant so
+    // shared demo dataset. `tenant` becomes the synthetic demo tenant so
     // the data-fetching services query the demo collections, while billing and
     // identity stay on the real tenant (exposed via accountTenantId below).
     if (user?.role?.toLowerCase() === "free") {

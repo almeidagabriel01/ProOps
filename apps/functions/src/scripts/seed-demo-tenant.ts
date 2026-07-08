@@ -5,17 +5,17 @@ import { logger } from "../lib/logger";
  * Shared, read-only demo dataset for the free-tier demo mode (Feature B).
  *
  * Free accounts (and expired trials) browse the ERP against this fixed
- * `__demo__` tenant instead of their own empty tenant: some products, services,
+ * `demo` tenant instead of their own empty tenant: some products, services,
  * proposals (with automation "sistemas"/"ambientes" = Soluções) and clients.
  * Firestore rules allow any authenticated user to READ docs tagged
- * `tenantId: "__demo__"`, and NEVER write them (Admin SDK seed only).
+ * `tenantId: "demo"`, and NEVER write them (Admin SDK seed only).
  *
  * Idempotent: deterministic doc IDs + `set()` overwrite, safe to re-run.
  * Run with: `npx tsx src/scripts/seed-demo-tenant.ts` (or via the internal
  * cron-secret endpoint).
  */
 
-export const DEMO_TENANT_ID = "__demo__";
+export const DEMO_TENANT_ID = "demo";
 
 // Fixed base date so re-runs and orderBy(createdAt) are deterministic.
 const BASE_MS = Date.UTC(2026, 0, 1, 12, 0, 0);
@@ -285,7 +285,7 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
       sections: [],
       totalValue: prop.totalValue,
       // Far-future validity so the checkDueDates cron never flags the demo
-      // proposals as "expiring" and never creates junk notifications for __demo__.
+      // proposals as "expiring" and never creates junk notifications for demo.
       validUntil: new Date(Date.UTC(2035, 0, 1)).toISOString(),
       searchTokens: buildSearchTokens(prop.title, prop.client.name),
       createdAt: ts(prop.day),

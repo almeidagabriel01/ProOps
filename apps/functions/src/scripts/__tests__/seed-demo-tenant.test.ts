@@ -1,6 +1,6 @@
 /**
  * Unit test for the demo-tenant seed: verifies every seeded document is tagged
- * with the shared `__demo__` tenantId and that the batch is committed once
+ * with the shared `demo` tenantId and that the batch is committed once
  * (idempotent, deterministic doc IDs).
  */
 
@@ -44,7 +44,7 @@ describe("seedDemoTenant", () => {
     });
   });
 
-  test("every non-tenant doc is tagged with tenantId __demo__", async () => {
+  test("every non-tenant doc is tagged with tenantId demo", async () => {
     await seedDemoTenant();
     // The first set() is the tenant doc itself (keyed by id, no tenantId field).
     const [, ...contentWrites] = set.mock.calls;

@@ -3,7 +3,7 @@
  *
  * Any authenticated user — including free-tier / demo accounts that
  * tenantSubscriptionAllowsRead() otherwise blocks — may READ documents tagged
- * with the fixed '__demo__' tenantId. Nobody may write them, and the demo
+ * with the fixed 'demo' tenantId. Nobody may write them, and the demo
  * branch must NOT leak any other tenant's data.
  */
 
@@ -19,7 +19,7 @@ import * as path from 'path';
 
 let testEnv: RulesTestEnvironment;
 
-const DEMO = '__demo__';
+const DEMO = 'demo';
 const DEMO_COLLECTIONS = [
   'products',
   'services',
@@ -92,19 +92,19 @@ function unauthedDb() {
 }
 
 describe('demo dataset read access', () => {
-  test('free-tier user CAN read every __demo__ collection', async () => {
+  test('free-tier user CAN read every demo collection', async () => {
     for (const coll of DEMO_COLLECTIONS) {
       await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-${coll}`)));
     }
   });
 
-  test('paid user can still read __demo__ docs too (any authed user)', async () => {
+  test('paid user can still read demo docs too (any authed user)', async () => {
     for (const coll of DEMO_COLLECTIONS) {
       await assertSucceeds(getDoc(doc(paidDb(), coll, `demo-${coll}`)));
     }
   });
 
-  test('unauthenticated user CANNOT read __demo__ docs', async () => {
+  test('unauthenticated user CANNOT read demo docs', async () => {
     await assertFails(getDoc(doc(unauthedDb(), 'products', 'demo-products')));
   });
 });
@@ -118,13 +118,13 @@ describe('demo dataset does not leak real tenant data', () => {
 });
 
 describe('demo dataset is read-only', () => {
-  test('free-tier user CANNOT write a __demo__ doc', async () => {
+  test('free-tier user CANNOT write a demo doc', async () => {
     await assertFails(
       setDoc(doc(freeDb(), 'products', 'demo-products'), { tenantId: DEMO, name: 'hacked' }),
     );
   });
 
-  test('paid user CANNOT write a __demo__ doc', async () => {
+  test('paid user CANNOT write a demo doc', async () => {
     await assertFails(
       setDoc(doc(paidDb(), 'products', 'demo-products'), { tenantId: DEMO, name: 'hacked' }),
     );
