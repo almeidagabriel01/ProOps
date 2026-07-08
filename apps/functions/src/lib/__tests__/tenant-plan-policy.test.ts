@@ -24,6 +24,7 @@ import {
   normalizePlanTier,
   getTenantPlanProfile,
   clearTenantPlanCache,
+  evaluateSubscriptionStatusAccess,
   TenantPlanTier,
 } from "../tenant-plan-policy";
 
@@ -214,5 +215,66 @@ describe("getTenantPlanProfile — scheduled plan deferral", () => {
     const profile = await getTenantPlanProfile(TENANT_ID);
 
     expect(profile.tier).toBe("pro");
+  });
+});
+
+// ── evaluateSubscriptionStatusAccess ────────────────────────────────────────────
+
+describe("evaluateSubscriptionStatusAccess", () => {
+  test("empty status → allowWrite (compat for legacy tenants)", () => {
+    const decision = evaluateSubscriptionStatusAccess({ subscriptionStatus: "" });
+    expect(decision.allowWrite).toBe(true);
+    expect(decision.reasonCode).toBe("SUBSCRIPTION_OK");
+  });
+
+  test("active → allowWrite", () => {
+    const decision = evaluateSubscriptionStatusAccess({ subscriptionStatus: "active" });
+    expect(decision.allowWrite).toBe(true);
+    expect(decision.reasonCode).toBe("SUBSCRIPTION_OK");
+  });
+
+  test("trialing → allowWrite (7-day paid trial has full ERP access)", () => {
+    const decision = evaluateSubscriptionStatusAccess({ subscriptionStatus: "trialing" });
+    expect(decision.allowWrite).toBe(true);
+    expect(decision.reasonCode).toBe("TRIALING_OK");
+  });
+
+  test("TRIALING uppercase is normalized → allowWrite", () => {
+    const decision = evaluateSubscriptionStatusAccess({ subscriptionStatus: "TRIALING" });
+    expect(decision.allowWrite).toBe(true);
+    expect(decision.reasonCode).toBe("TRIALING_OK");
+  });
+
+  test("past_due within grace → allowWrite", () => {
+    const decision = evaluateSubscriptionStatusAccess({
+      subscriptionStatus: "past_due",
+      pastDueSince: new Date().toISOString(),
+      graceDays: 7,
+    });
+    expect(decision.allowWrite).toBe(true);
+    expect(decision.reasonCode).toBe("PAST_DUE_WITHIN_GRACE");
+  });
+
+  test("past_due after grace expired → blocked", () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const decision = evaluateSubscriptionStatusAccess({
+      subscriptionStatus: "past_due",
+      pastDueSince: eightDaysAgo,
+      graceDays: 7,
+    });
+    expect(decision.allowWrite).toBe(false);
+    expect(decision.reasonCode).toBe("PAST_DUE_GRACE_EXPIRED");
+  });
+
+  test("canceled → blocked", () => {
+    const decision = evaluateSubscriptionStatusAccess({ subscriptionStatus: "canceled" });
+    expect(decision.allowWrite).toBe(false);
+    expect(decision.reasonCode).toBe("SUBSCRIPTION_STATUS_BLOCKED");
+  });
+
+  test("unpaid → blocked", () => {
+    const decision = evaluateSubscriptionStatusAccess({ subscriptionStatus: "unpaid" });
+    expect(decision.allowWrite).toBe(false);
+    expect(decision.reasonCode).toBe("SUBSCRIPTION_STATUS_BLOCKED");
   });
 });

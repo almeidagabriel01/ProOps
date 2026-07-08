@@ -163,7 +163,12 @@ export async function requireActiveSubscription(
   // seeded without a Stripe subscription). The plan-limit check inside each route
   // handler (e.g. PLAN_LIMIT_PROPOSALS_MONTHLY) is responsible for enforcing limits
   // on free tenants — blocking them here would shadow that error with BILLING_INACTIVE.
-  if (subscriptionStatus === "" || subscriptionStatus === "active" || subscriptionStatus === "free") {
+  if (
+    subscriptionStatus === "" ||
+    subscriptionStatus === "active" ||
+    subscriptionStatus === "trialing" ||
+    subscriptionStatus === "free"
+  ) {
     next();
     return;
   }
