@@ -227,6 +227,18 @@ service cloud.firestore {
     }
 
     /**
+     * Read access to the shared read-only demo dataset. Any authenticated user
+     * (incl. free-tier / demo accounts, which tenantSubscriptionAllowsRead
+     * blocks) may READ documents tagged with the fixed '__demo__' tenant.
+     * Writes stay denied everywhere (Admin SDK seed only). Placed FIRST in the
+     * read `||` chain so this cheap field comparison short-circuits before the
+     * expensive tenantSubscriptionAllowsRead get()/exists() lookups.
+     */
+    function isDemoRead(resourceTenantId) {
+      return isAuthenticated() && resourceTenantId == '__demo__';
+    }
+
+    /**
      * Whitelist for allowing specific field updates.
      */
     function onlyUpdatesFields(allowedFields) {
@@ -280,28 +292,28 @@ service cloud.firestore {
 
     // PROPOSALS
     match /proposals/{proposalId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits, validation)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // CLIENTS
     match /clients/{clientId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // PRODUCTS
     match /products/{productId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // SERVICES
     match /services/{serviceId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
@@ -341,13 +353,13 @@ service cloud.firestore {
 
     // SISTEMAS (Automation)
     match /sistemas/{sistemaId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false;
     }
 
     // AMBIENTES (Automation)
     match /ambientes/{ambienteId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false;
     }
 
