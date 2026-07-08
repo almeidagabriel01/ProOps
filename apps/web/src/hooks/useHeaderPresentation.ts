@@ -29,16 +29,15 @@ export function useHeaderPresentation(): HeaderPresentation {
     "idle" | "loading" | "settled"
   >("idle");
 
-  // The tenant-provider deliberately leaves `tenant` null for roles that must
-  // not hydrate the ERP context (free users, and superadmins who are not
-  // impersonating). The header still needs the company name/logo, so it fetches
-  // the tenant doc for display-only purposes in those cases. This is derived
-  // synchronously so the loading state is correct on the very first render,
-  // before the effect below runs.
+  // The header needs the account's own company name/logo for display. For free
+  // users `tenant` now points at the shared __demo__ dataset (read-only demo
+  // mode), and for non-impersonating superadmins it is null — in both cases we
+  // fetch the user's REAL tenant doc for display-only purposes. Derived
+  // synchronously so the loading state is correct on the very first render.
   const tenantId = user?.tenantId;
   const needsDisplayTenant =
-    (user?.role === "free" || user?.role === "superadmin") &&
-    !tenant &&
+    (user?.role === "free" ||
+      (user?.role === "superadmin" && !tenant)) &&
     !!tenantId;
 
   useEffect(() => {
@@ -87,6 +86,12 @@ export function useHeaderPresentation(): HeaderPresentation {
       if (displayTenantStatus !== "settled") return "Carregando...";
       // Fallback: Use fetched tenant if it exists, otherwise use user's name (which for superadmins acts as the company/franchise name)
       return fetchedTenant?.name || user?.name || "Minha Empresa";
+    }
+
+    // Free/demo: `tenant` is the shared __demo__ dataset — show the user's OWN
+    // company (fetched above), never the demo tenant's name.
+    if (user?.role === "free") {
+      return fetchedTenant?.name || "Minha Empresa";
     }
 
     return tenant?.name || fetchedTenant?.name || "Minha Empresa";

@@ -131,14 +131,14 @@ test.describe("AUTH-SL-02: second-login race across redirect branches", () => {
     expect(await loginPage.isLoginFormVisible()).toBe(false);
   });
 
-  test("admin A → free B leaves /login for the landing (no infinite loader)", async ({
+  test("admin A → free B leaves /login for the demo dashboard (no infinite loader)", async ({
     page,
   }) => {
     await freshLogin(page, USER_ADMIN_ALPHA, "/dashboard");
     await loginAsSecondAccountWhileFirstResyncing(page, USER_FREE);
-    // Free home is the public landing "/". The point is it does NOT hang on the
-    // loader nor sit on /login.
-    await page.waitForURL("/", { timeout: 15000 });
+    // Free home is now the ERP dashboard (read-only demo mode). The point is it
+    // does NOT hang on the loader nor sit on /login.
+    await page.waitForURL(/dashboard/, { timeout: 15000 });
     const loginPage = new LoginPage(page);
     expect(await loginPage.isLoginFormVisible()).toBe(false);
   });
