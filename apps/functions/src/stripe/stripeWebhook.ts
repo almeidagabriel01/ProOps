@@ -2,6 +2,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { getStripe, getWebhookSecret } from "./stripeConfig";
 import {
   updateUserPlan,
+  demoteTrialOwnerToFree,
   saveAddon,
   cancelAddon,
   getPlanIdByTier,
@@ -1219,6 +1220,17 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     subscriptionId,
   });
 
+  // Mark that this tenant has had at least one REAL (non-zero) payment. This
+  // distinguishes a genuinely-paying customer from a trial that never
+  // converted — the $0 invoice Stripe issues at trial start must not set it.
+  if ((invoice.amount_paid ?? 0) > 0) {
+    await db
+      .collection("tenants")
+      .doc(tenantId)
+      .set({ hasPaidInvoice: true }, { merge: true })
+      .catch(() => {});
+  }
+
   // A successful payment clears any past_due state. Re-sync the billing
   // snapshot so subscriptionStatus and pastDueSince are corrected.
   try {
@@ -1297,6 +1309,13 @@ async function handleSubscriptionDeleted(
 
   const userId = String(metadata.userId || "").trim();
 
+  // Pure trial churn = a trial was started (trialUsedAt) that never converted to
+  // a real payment (no hasPaidInvoice). Such accounts fall back to the read-only
+  // demo mode (role "free"); genuinely-paying churn keeps its role and lands on
+  // the /subscription-blocked page instead.
+  const isPureTrialChurn =
+    Boolean(tenantDocData?.trialUsedAt) && tenantDocData?.hasPaidInvoice !== true;
+
   if (userId) {
     await assertUserTenantConsistency(userId, tenantId);
     await updateSubscriptionStatus(userId, "CANCELED", undefined, undefined, false);
@@ -1311,6 +1330,13 @@ async function handleSubscriptionDeleted(
       });
       console.log(
         `User ${userId} subscription canceled, downgraded to starter`
+      );
+    }
+
+    if (isPureTrialChurn) {
+      await demoteTrialOwnerToFree(userId);
+      console.log(
+        `User ${userId} trial expired without conversion, demoted to free (demo mode)`
       );
     }
   }

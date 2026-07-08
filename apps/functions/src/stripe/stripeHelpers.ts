@@ -162,6 +162,46 @@ export type StripeSyncStatus =
   | "CANCELED"
   | "INACTIVE";
 
+/**
+ * Reverses the free-owner → admin promotion when a 7-day trial is cancelled
+ * WITHOUT ever converting to a paid subscription (pure trial churn). The owner
+ * returns to role "free" so they land in the read-only demo mode (Feature B)
+ * instead of the /subscription-blocked page, which is reserved for churn of
+ * genuinely paying customers.
+ *
+ * Only the promoted owner (role "admin", no masterId) is affected — the mirror
+ * of updateUserPlan's `shouldPromoteFreeOwner`. Real admins/masters/members are
+ * left untouched. Idempotent (a no-op if the role is not "admin").
+ */
+export async function demoteTrialOwnerToFree(userId: string): Promise<void> {
+  const userRef = db.collection("users").doc(userId);
+  const snap = await userRef.get();
+  if (!snap.exists) return;
+  const data = snap.data() as Record<string, unknown> | undefined;
+  const role = String(data?.role || "").trim().toLowerCase();
+  const hasMasterId = Boolean(String(data?.masterId || "").trim());
+  if (role !== "admin" || hasMasterId) return;
+
+  await userRef.update({
+    role: "free",
+    planUpdatedAt: FieldValue.serverTimestamp(),
+  });
+
+  try {
+    const userRecord = await auth.getUser(userId);
+    const previousClaims = (userRecord.customClaims || {}) as Record<string, unknown>;
+    // Spread existing first — setCustomUserClaims REPLACES the whole object.
+    await auth.setCustomUserClaims(userId, { ...previousClaims, role: "free" });
+    // Force a token refresh so the downgraded role takes effect immediately.
+    await auth.revokeRefreshTokens(userId);
+  } catch (claimsError) {
+    console.error(
+      `[demoteTrialOwnerToFree] Failed to set custom claims for user ${userId}`,
+      claimsError,
+    );
+  }
+}
+
 export function mapStripeSubscriptionStatus(status: string): StripeSyncStatus {
   switch (status) {
     case "active":
