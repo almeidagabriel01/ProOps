@@ -32,6 +32,12 @@ import { getTenantPlanProfile } from "../../lib/tenant-plan-policy";
 import { isAddonAvailableForTier } from "../../shared/addon-definitions";
 import { logger } from "../../lib/logger";
 import { reserveCheckout, clearCheckoutReservation } from "../../billing";
+import {
+  PRO_TRIAL_DAYS,
+  reserveTrialSlot,
+  hasEmailUsedTrial,
+  releaseTrialReservation,
+} from "../../billing/trial-eligibility";
 import type Stripe from "stripe";
 
 // function mapStripeSubscriptionStatus removed (moved to helpers)
@@ -1252,8 +1258,31 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     const appOrigin = resolveRequestOrigin(req);
 
+    // --- Trial eligibility: atomic reservation + same-email dedup ---
+    // Only new subscriptions reach this point (the existingStripeSubscriptionId
+    // branch above returns first with a proration plan-change, never a trial).
+    let trialEligible = false;
+    // 1. Atomically reserve the trial slot (prevents TOCTOU races).
+    const slotReserved = await reserveTrialSlot(tenantId);
+    if (slotReserved) {
+      // 2. Check same-email abuse (same email across multiple accounts).
+      const accountEmail = String(
+        userSnap?.data()?.email || req.user?.email || "",
+      ).trim();
+      const emailAbused = accountEmail
+        ? await hasEmailUsedTrial(accountEmail)
+        : false;
+      if (emailAbused) {
+        // Release the reservation — this email already used a trial.
+        await releaseTrialReservation(tenantId);
+      } else {
+        trialEligible = true;
+      }
+    }
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
+      // Always collect a payment method — even during trial (no card, no trial).
       payment_method_collection: "always",
       payment_method_types: ["card"],
       customer: customerId,
@@ -1265,11 +1294,33 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         tenantId,
         planTier,
         billingInterval: validInterval,
+        ...(trialEligible && { trial: "true" }),
       },
       allow_promotion_codes: true,
     };
 
-    const idempotencyKey = `checkout:${tenantId}:${planTier}:${validInterval}`;
+    if (trialEligible) {
+      sessionParams.subscription_data = {
+        trial_period_days: PRO_TRIAL_DAYS,
+        trial_settings: {
+          // If no valid card at trial end, cancel — no involuntary extension.
+          end_behavior: { missing_payment_method: "cancel" },
+        },
+        metadata: {
+          userId,
+          tenantId,
+          planTier,
+          billingInterval: validInterval,
+          trial: "true",
+        },
+      };
+    }
+
+    // Trial state must vary the idempotency key: otherwise a prior non-trial
+    // checkout attempt would replay and silently drop the trial (and vice-versa).
+    const idempotencyKey = `checkout:${tenantId}:${planTier}:${validInterval}:${
+      trialEligible ? "trial" : "paid"
+    }`;
     let session: Stripe.Checkout.Session;
     try {
       session = await stripe.checkout.sessions.create(sessionParams, {
@@ -1280,7 +1331,10 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       throw err;
     }
 
-    return res.json({ url: session.url });
+    return res.json({
+      url: session.url,
+      trialDays: trialEligible ? PRO_TRIAL_DAYS : 0,
+    });
   } catch (error: unknown) {
     console.error("Stripe Checkout Error:", error);
     return res.status(getErrorStatus(error)).json({ message: getErrorMessage(error) });
@@ -1878,6 +1932,7 @@ export const getPlans = async (_req: Request, res: Response) => {
           order: metadata.order,
           highlighted: metadata.highlighted || false,
           features: metadata.features,
+          trialDays: PRO_TRIAL_DAYS,
         };
       },
     );
