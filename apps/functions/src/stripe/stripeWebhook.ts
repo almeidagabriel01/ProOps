@@ -748,6 +748,10 @@ async function handleCheckoutCompleted(
       currentPeriodEnd,
       trialEndsAt: resolveTrialEndsAt(subscription),
     });
+    // Mark the trial as consumed here too (not only in handleSubscriptionCreated):
+    // checkout.session.completed is always subscribed, whereas
+    // customer.subscription.created may not be on every webhook config. Idempotent.
+    await markTrialConsumed(tenantId, subscription);
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
     await notifyInternalLifecycle({
       event: "new_subscription",
