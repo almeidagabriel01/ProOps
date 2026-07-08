@@ -28,11 +28,31 @@ import {
   computePrimaryForeground,
 } from "@/utils/color-utils";
 
+// Fixed id of the shared read-only demo dataset a free account browses.
+export const DEMO_TENANT_ID = "__demo__";
+
+// Synthetic tenant used as the DATA tenant for free/demo accounts. No Firestore
+// read is needed (the demo tenant doc itself is not exposed to free reads — only
+// its data collections are). niche = automacao_residencial so "Soluções" renders.
+const DEMO_TENANT: Tenant = {
+  id: DEMO_TENANT_ID,
+  name: "ProOps Demo",
+  slug: "proops-demo",
+  niche: "automacao_residencial",
+  primaryColor: "#4f46e5",
+} as Tenant;
+
 interface TenantContextType {
   tenant: Tenant | null;
   tenantOwner: User | null;
   tenantOwnerPlanName: string | null;
   isLoading: boolean;
+  /** True for free/demo accounts: `tenant` points at the shared __demo__ data. */
+  isDemo: boolean;
+  /** True when the account may only read (free/demo). Drives read-only UX. */
+  isReadOnly: boolean;
+  /** The real account/billing tenant (tenant_${uid}); differs from `tenant` in demo mode. */
+  accountTenantId: string | null;
   refreshTenant: () => void;
   clearViewingTenant: () => void;
   setViewingTenant: (tenant: Tenant) => void;
@@ -47,6 +67,9 @@ const TenantContext = React.createContext<TenantContextType>({
   tenantOwner: null,
   tenantOwnerPlanName: null,
   isLoading: true,
+  isDemo: false,
+  isReadOnly: false,
+  accountTenantId: null,
   refreshTenant: () => {},
   clearViewingTenant: () => {},
   setViewingTenant: () => {},
@@ -222,15 +245,15 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
 
-    // Free tier never needs tenant data — they only see the landing,
-    // /profile and the subscribe flow. Loading tenant docs for them would
-    // hydrate ERP-shaped context that downstream components could leak
-    // through prefetch or stale renders before ProtectedRoute kicks in.
+    // Free tier / demo mode (Feature B): browse the ERP read-only against the
+    // shared __demo__ dataset. `tenant` becomes the synthetic demo tenant so
+    // the data-fetching services query the demo collections, while billing and
+    // identity stay on the real tenant (exposed via accountTenantId below).
     if (user?.role?.toLowerCase() === "free") {
-      setTenant(null);
+      setTenant(DEMO_TENANT);
       setTenantOwner(null);
       setTenantOwnerPlanName(null);
-      currentTenantIdRef.current = null;
+      currentTenantIdRef.current = DEMO_TENANT_ID;
       lastResolvedContextKeyRef.current = contextKey;
       setIsLoading(false);
       return;
@@ -604,6 +627,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     refreshTenant();
   };
 
+  const isDemo = String(user?.role || "").toLowerCase() === "free";
+
   return (
     <TenantContext.Provider
       value={{
@@ -611,6 +636,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         tenantOwner,
         tenantOwnerPlanName,
         isLoading,
+        isDemo,
+        isReadOnly: isDemo,
+        accountTenantId: user?.tenantId ?? null,
         refreshTenant,
         clearViewingTenant,
         setViewingTenant,

@@ -1,5 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { resolveUserHome, PAGE_ROUTE_MAP } from "../resolve-user-home";
+import { describe, it, test, expect } from "vitest";
+import {
+  resolveUserHome,
+  isFreeTierAllowedPath,
+  PAGE_ROUTE_MAP,
+} from "../resolve-user-home";
 import type { User } from "@/types";
 
 function makeUser(overrides: Partial<User> = {}): User {
@@ -66,10 +70,10 @@ describe("resolveUserHome", () => {
     expect(result.path).not.toBe("/subscription-blocked");
   });
 
-  it("returns landing for free role (free tier never sees ERP, not even dashboard)", () => {
+  it("returns /dashboard for free role (demo mode — free tier now browses the ERP read-only)", () => {
     expect(resolveUserHome(makeUser({ role: "free" }))).toEqual({
-      kind: "landing",
-      path: "/",
+      kind: "dashboard",
+      path: "/dashboard",
     });
   });
 
@@ -117,5 +121,41 @@ describe("resolveUserHome", () => {
     const result = resolveUserHome(user);
     expect(result.path).not.toBe("/admin");
     expect(result.path).not.toBe("/subscription-blocked");
+  });
+});
+
+describe("isFreeTierAllowedPath — demo mode ERP access", () => {
+  test.each([
+    "/dashboard",
+    "/proposals",
+    "/proposals/abc",
+    "/products",
+    "/services",
+    "/contacts",
+    "/solutions",
+    "/automation",
+    "/ambientes",
+    "/calendar",
+    "/spreadsheets",
+  ])("free user may browse %s", (path) => {
+    expect(isFreeTierAllowedPath(path)).toBe(true);
+  });
+
+  test.each(["/", "/profile", "/subscribe", "/settings", "/checkout-success"])(
+    "existing free-tier route %s still allowed",
+    (path) => {
+      expect(isFreeTierAllowedPath(path)).toBe(true);
+    },
+  );
+
+  test.each(["/transactions", "/crm", "/wallets", "/team", "/admin"])(
+    "premium / restricted route %s stays blocked for free",
+    (path) => {
+      expect(isFreeTierAllowedPath(path)).toBe(false);
+    },
+  );
+
+  test("querystring is ignored", () => {
+    expect(isFreeTierAllowedPath("/products?page=2")).toBe(true);
   });
 });

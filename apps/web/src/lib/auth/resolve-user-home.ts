@@ -53,11 +53,11 @@ export function resolveUserHome(user: User | null): ResolvedHome {
     return { kind: "subscription-blocked", path: "/subscription-blocked" };
   }
 
-  // 4. Free → landing pública. Free tier NUNCA acessa nenhuma página do ERP
-  //    (nem o dashboard). O resto do fluxo permitido (assinar plano, gerenciar
-  //    perfil) parte da landing ou é alcançado por redirect explícito.
+  // 4. Free → dashboard (modo demo read-only, Feature B). Contas gratuitas
+  //    entram no ERP e navegam pelos módulos do Starter vendo os dados
+  //    fictícios do tenant __demo__; módulos premium aparecem com coroa.
   if (user.role === "free") {
-    return { kind: "landing", path: "/" };
+    return { kind: "dashboard", path: "/dashboard" };
   }
 
   // 5. Admin/MASTER → dashboard
@@ -98,6 +98,23 @@ export function resolveUserHome(user: User | null): ResolvedHome {
  * middleware and the billing-status route need to evaluate it from a
  * `plan` string without a full User object in hand.
  */
+// ERP routes a free-tier / demo account may browse read-only (Feature B).
+// These are the Starter-tier modules; premium modules (Financeiro, CRM, editor
+// de PDF) stay off this list — the dock renders them crowned and intercepts the
+// click with the upgrade modal instead of navigating.
+const DEMO_ACCESSIBLE_PREFIXES = [
+  "/dashboard",
+  "/proposals",
+  "/products",
+  "/services",
+  "/contacts",
+  "/solutions",
+  "/automation",
+  "/ambientes",
+  "/calendar",
+  "/spreadsheets",
+];
+
 export function isFreeTierAllowedPath(path: string): boolean {
   const allowed = new Set([
     "/",
@@ -113,7 +130,10 @@ export function isFreeTierAllowedPath(path: string): boolean {
     base.startsWith("/subscribe/") ||
     base.startsWith("/profile/") ||
     base.startsWith("/settings/") ||
-    base.startsWith("/checkout-success/")
+    base.startsWith("/checkout-success/") ||
+    DEMO_ACCESSIBLE_PREFIXES.some(
+      (prefix) => base === prefix || base.startsWith(`${prefix}/`),
+    )
   );
 }
 
