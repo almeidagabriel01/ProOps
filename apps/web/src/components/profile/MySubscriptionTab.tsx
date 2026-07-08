@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
+import { computeTrialInfo } from "@/lib/trial-info";
 
 import {
   Card,
@@ -155,6 +156,13 @@ export function MySubscriptionTab({
 
   const currentPeriodEnd = user?.currentPeriodEnd;
   const billingInterval = user?.billingInterval || "monthly";
+
+  // 7-day trial countdown, sourced from the tenant billing snapshot.
+  const {
+    isTrialing,
+    daysRemaining: trialDaysRemaining,
+    endsAt: trialEndsAt,
+  } = computeTrialInfo(subscriptionStatus, tenant?.trialEndsAt);
   const cancelAtPeriodEnd = user?.cancelAtPeriodEnd;
   const isManualSubscription = user?.isManualSubscription;
   const hasStripeCustomer = !!user?.stripeCustomerId;
@@ -470,6 +478,18 @@ export function MySubscriptionTab({
                       ? "Cobrança anual"
                       : "Cobrança mensal"}
                 </p>
+                {isTrialing && trialEndsAt && (
+                  <p
+                    className="text-sm mt-1 font-medium text-blue-600 dark:text-blue-400"
+                    data-testid="subscription-trial-info"
+                  >
+                    Período gratuito —{" "}
+                    {trialDaysRemaining === 1
+                      ? "falta 1 dia"
+                      : `faltam ${trialDaysRemaining} dias`}{" "}
+                    (termina em {formatDate(trialEndsAt)})
+                  </p>
+                )}
               </div>
             </div>
 

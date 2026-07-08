@@ -20,7 +20,7 @@ import {
 } from "@/providers/scroll-container-provider";
 
 function ProtectedShell({ children }: { children: React.ReactNode }) {
-  const { planTier, pastDueAddons } = usePlanLimits();
+  const { planTier, pastDueAddons, trialInfo } = usePlanLimits();
   const { user } = useAuth();
   const router = useRouter();
   const [isOpeningPortal, setIsOpeningPortal] = React.useState(false);
@@ -90,12 +90,33 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
         ? formatDateBR(user.currentPeriodEnd, "—")
         : "—";
 
+  // Trial banner copy escalates as the 7-day period nears its end.
+  const trialDays = trialInfo.daysRemaining;
+  const trialIsUrgent = trialInfo.isTrialing && trialDays <= 3;
+  const trialMessage =
+    trialDays <= 0
+      ? "Seu período gratuito termina hoje. Assine para não perder o acesso."
+      : trialDays === 1
+        ? "Falta 1 dia no seu período gratuito. Assine para manter o acesso."
+        : trialIsUrgent
+          ? `Faltam ${trialDays} dias no seu período gratuito. Assine para manter o acesso.`
+          : `Você está no período gratuito — faltam ${trialDays} dias.`;
+
   return (
     <SubscriptionGuard>
       <div className="flex h-screen overflow-hidden bg-card">
         <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
           <Header sidebarWidth={0} />
           <PriceChangeBanner />
+          {user !== null && trialInfo.isTrialing && (
+            <BillingStateBanner
+              variant={trialIsUrgent ? "warning" : "info"}
+              message={trialMessage}
+              ctaLabel="Assinar agora"
+              onCta={() => router.push("/profile?tab=billing")}
+              dataTestid="billing-state-banner-trial"
+            />
+          )}
           {user !== null && isPastDue && (
             <BillingStateBanner
               variant="destructive"

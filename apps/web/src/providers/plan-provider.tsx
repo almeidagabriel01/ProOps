@@ -19,6 +19,7 @@ import {
 } from "@/types";
 import { PlanService, DEFAULT_PLANS } from "@/services/plan-service";
 import { AddonService } from "@/services/addon-service";
+import { computeTrialInfo, type TrialInfo } from "@/lib/trial-info";
 import {
   collection,
   query,
@@ -71,6 +72,7 @@ export interface AddonGracePeriodInfo {
   isExpired: boolean;
 }
 
+
 /** Named feature flags derived from tenant/plan state. */
 export type FeatureFlag = "whatsapp";
 
@@ -80,6 +82,7 @@ export interface PlanContextValue {
   purchasedAddons: AddonType[];
   purchasedAddonsData: PurchasedAddon[];
   pastDueAddons: AddonGracePeriodInfo[];
+  trialInfo: TrialInfo;
   hasFinancial: boolean;
   hasKanban: boolean;
   hasWhatsApp: boolean;
@@ -523,6 +526,16 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   }, [pastDueAddonsData]);
 
   // -------------------------------------------------------------------------
+  // Trial info (7-day paid trial countdown)
+  // -------------------------------------------------------------------------
+
+  const trialInfo = useMemo(
+    (): TrialInfo =>
+      computeTrialInfo(tenant?.subscriptionStatus, tenant?.trialEndsAt),
+    [tenant?.subscriptionStatus, tenant?.trialEndsAt],
+  );
+
+  // -------------------------------------------------------------------------
   // Feature flags (derived from tenant state)
   // -------------------------------------------------------------------------
 
@@ -544,6 +557,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       purchasedAddons,
       purchasedAddonsData,
       pastDueAddons,
+      trialInfo,
       hasFinancial: mergedFeatures?.hasFinancial ?? false,
       hasKanban: mergedFeatures?.hasKanban ?? false,
       hasWhatsApp: featureFlags.whatsapp,
@@ -572,6 +586,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       purchasedAddons,
       purchasedAddonsData,
       pastDueAddons,
+      trialInfo,
       canCreateProposal,
       canCreateClient,
       canCreateProduct,

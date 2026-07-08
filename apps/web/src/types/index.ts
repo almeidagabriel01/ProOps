@@ -32,6 +32,7 @@ export type Tenant = {
   currentPeriodEnd?: string | null; // ISO
   cancelAtPeriodEnd?: boolean;
   pastDueSince?: string | null;
+  trialEndsAt?: string | null; // ISO — fim do trial de 7 dias (durante trialing)
   billingSyncedAt?: string; // ISO — quando o Firestore foi sincronizado do Stripe
   isBillingStale?: boolean; // flag calculada pelo backend
   checkoutInFlightAt?: string | null;
