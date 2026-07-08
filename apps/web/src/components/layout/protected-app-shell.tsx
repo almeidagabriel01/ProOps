@@ -10,6 +10,7 @@ import { BillingStateBanner } from "@/components/layout/billing-state-banner";
 import { PriceChangeBanner } from "@/components/billing/price-change-banner";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useAuth } from "@/providers/auth-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import { StripeService } from "@/services/stripe-service";
 import { AddonService } from "@/services/addon-service";
 import { formatDateBR } from "@/utils/date-format";
@@ -22,6 +23,7 @@ import {
 function ProtectedShell({ children }: { children: React.ReactNode }) {
   const { planTier, pastDueAddons, trialInfo } = usePlanLimits();
   const { user } = useAuth();
+  const { isDemo } = useTenant();
   const router = useRouter();
   const [isOpeningPortal, setIsOpeningPortal] = React.useState(false);
   const [isReactivating, setIsReactivating] = React.useState(false);
@@ -108,6 +110,15 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
         <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
           <Header sidebarWidth={0} />
           <PriceChangeBanner />
+          {isDemo && (
+            <BillingStateBanner
+              variant="info"
+              message="Você está no modo demonstração — os dados são fictícios e não podem ser alterados. Assine para usar o ERP com seus próprios dados."
+              ctaLabel="Assinar agora"
+              onCta={() => router.push("/subscribe")}
+              dataTestid="billing-state-banner-demo"
+            />
+          )}
           {user !== null && trialInfo.isTrialing && (
             <BillingStateBanner
               variant={trialIsUrgent ? "warning" : "info"}

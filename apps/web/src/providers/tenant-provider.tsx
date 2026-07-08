@@ -22,6 +22,7 @@ import {
   writeViewingTenantId,
 } from "@/lib/viewing-tenant-session";
 import { AdminService, type TenantBillingInfo } from "@/services/admin-service";
+import { setDemoMode } from "@/lib/demo-mode";
 import {
   ensureDarkModeContrast,
   ensureLightModeContrast,
@@ -628,6 +629,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isDemo = String(user?.role || "").toLowerCase() === "free";
+
+  // Keep the plain-module demo flag (consumed by api-client) in sync.
+  React.useEffect(() => {
+    setDemoMode(isDemo);
+  }, [isDemo]);
 
   return (
     <TenantContext.Provider
