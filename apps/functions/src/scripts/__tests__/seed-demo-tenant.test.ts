@@ -42,6 +42,7 @@ describe("seedDemoTenant", () => {
       clients: 3,
       ambientes: 3,
       sistemas: 3,
+      options: 11,
       proposals: 3,
     });
   });
@@ -50,7 +51,7 @@ describe("seedDemoTenant", () => {
     await seedDemoTenant();
     // The first set() is the tenant doc itself (keyed by id, no tenantId field).
     const [, ...contentWrites] = set.mock.calls;
-    expect(contentWrites.length).toBe(19); // 4 + 3 + 3 + 3 + 3 + 3
+    expect(contentWrites.length).toBe(30); // 4+3+3+3+3+11+3
     for (const [, data] of contentWrites) {
       expect(data.tenantId).toBe(DEMO_TENANT_ID);
     }
@@ -93,8 +94,10 @@ describe("seedDemoTenant", () => {
       for (const li of data.products) {
         expect(li.productId.startsWith("demo_prod_")).toBe(true);
         expect(typeof li.unitPrice).toBe("number");
-        expect(li.total).toBe(li.unitPrice * li.quantity);
-        expect(li.ambienteInstanceId).toContain("-");
+        // The form filters products per environment by systemInstanceId — it
+        // MUST be present and equal to ambienteInstanceId (`${sys}-${amb}`).
+        expect(li.systemInstanceId).toBe(li.ambienteInstanceId);
+        expect(li.systemInstanceId).toContain("-");
         computed += li.total;
       }
       expect(data.totalValue).toBe(computed);

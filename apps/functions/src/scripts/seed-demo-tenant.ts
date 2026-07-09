@@ -266,6 +266,7 @@ export interface SeedDemoTenantResult {
   clients: number;
   ambientes: number;
   sistemas: number;
+  options: number;
   proposals: number;
 }
 
@@ -369,6 +370,27 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     });
   });
 
+  // Options — category/manufacturer suggestions for the product form dropdowns.
+  const categoryLabels = Array.from(
+    new Set([
+      ...DEMO_PRODUCTS.map((p) => p.category),
+      ...DEMO_SERVICES.map((s) => s.category),
+    ]),
+  );
+  const manufacturerLabels = Array.from(
+    new Set(DEMO_PRODUCTS.map((p) => p.manufacturer)),
+  );
+  const optionDocs: Array<{ type: string; label: string }> = [
+    ...categoryLabels.map((label) => ({ type: "product_categories", label })),
+    ...manufacturerLabels.map((label) => ({ type: "product_manufacturers", label })),
+  ];
+  optionDocs.forEach((opt, i) => {
+    batch.set(
+      db.collection("options").doc(`demo_opt_${opt.type}_${i}`),
+      { ...tenantTag, type: opt.type, label: opt.label, createdAt: ts(i) },
+    );
+  });
+
   // --- Proposals: built from the solutions, with PRICED line items -----------
   interface DemoProposal {
     id: string;
@@ -406,39 +428,58 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     },
   ];
 
+  const MARKUP = 30; // % de lucro — deixa "Valor Final (c/ Lucro)" > "Custo (Bruto)"
+
   proposals.forEach((prop) => {
     const lineItems: Array<Record<string, unknown>> = [];
     const sistemas = prop.sistemaIds.map((sistemaId) => {
       const sys = DEMO_SISTEMAS.find((x) => x.id === sistemaId)!;
       const ambientes = sys.ambientes.map((amb) => {
+        // instanceId liga o line item ao ambiente da solução. O form filtra os
+        // produtos por `systemInstanceId` (NÃO por ambienteInstanceId), então
+        // ambos precisam existir e ser iguais a `${sistemaId}-${ambienteId}`.
+        const instanceId = `${sistemaId}-${amb.ambienteId}`;
         const productIds: string[] = [];
         amb.products.forEach((pr) => {
           const unitPrice = PRICE_BY_ID[pr.productId];
-          const total = unitPrice * pr.quantity;
+          const total = Math.round(unitPrice * pr.quantity * (1 + MARKUP / 100));
           productIds.push(pr.productId);
           lineItems.push({
-            lineItemId: `${sistemaId}_${amb.ambienteId}_${pr.productId}`,
+            lineItemId: `${instanceId}_${pr.productId}`,
             productId: pr.productId,
             itemType: "product",
             productName: NAME_BY_ID[pr.productId],
             quantity: pr.quantity,
-            unitPrice,
-            markup: 0,
-            total,
-            ambienteInstanceId: `${sistemaId}-${amb.ambienteId}`,
+            unitPrice, // custo base por unidade
+            markup: MARKUP,
+            priceManuallyEdited: false,
+            pricingDetails: { mode: "standard" },
+            total, // quantity * unitPrice * (1 + markup/100)
+            productImage: "",
+            productImages: [],
+            ambienteInstanceId: instanceId,
+            systemInstanceId: instanceId,
+            isExtra: false,
+            status: "active",
           });
         });
         return {
           ambienteId: amb.ambienteId,
           ambienteName: AMBIENTE_NAME[amb.ambienteId],
+          description: "",
           productIds,
         };
       });
+      const primary = ambientes[0];
       return {
         sistemaId,
         sistemaName: sys.name,
         description: sys.description,
         ambientes,
+        // Campos legados de compat (o loader os tolera; o save real os grava).
+        ambienteId: primary?.ambienteId,
+        ambienteName: primary?.ambienteName,
+        productIds: ambientes.flatMap((a) => a.productIds),
       };
     });
 
@@ -476,6 +517,7 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     clients: DEMO_CLIENTS.length,
     ambientes: DEMO_AMBIENTES.length,
     sistemas: DEMO_SISTEMAS.length,
+    options: optionDocs.length,
     proposals: proposals.length,
   };
   logger.info("seedDemoTenant complete", { ...result });

@@ -54,6 +54,8 @@ interface TenantContextType {
   isReadOnly: boolean;
   /** The real account/billing tenant (tenant_${uid}); differs from `tenant` in demo mode. */
   accountTenantId: string | null;
+  /** The real account tenant doc (identity/billing). Equals `tenant` unless in demo mode. */
+  accountTenant: Tenant | null;
   refreshTenant: () => void;
   clearViewingTenant: () => void;
   setViewingTenant: (tenant: Tenant) => void;
@@ -71,6 +73,7 @@ const TenantContext = React.createContext<TenantContextType>({
   isDemo: false,
   isReadOnly: false,
   accountTenantId: null,
+  accountTenant: null,
   refreshTenant: () => {},
   clearViewingTenant: () => {},
   setViewingTenant: () => {},
@@ -120,6 +123,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     Record<string, true>
   >({});
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
+  // Real account tenant doc, fetched separately in demo mode (where `tenant`
+  // points at the shared demo dataset). Drives identity/billing UI (profile).
+  const [demoAccountTenant, setDemoAccountTenant] = React.useState<Tenant | null>(null);
   const [tenantOwner, setTenantOwner] = React.useState<User | null>(null);
   const [tenantOwnerPlanName, setTenantOwnerPlanName] = React.useState<
     string | null
@@ -634,11 +640,34 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isDemo = String(user?.role || "").toLowerCase() === "free";
+  const accountTenantId = user?.tenantId ?? null;
 
   // Keep the plain-module demo flag (consumed by api-client) in sync.
   React.useEffect(() => {
     setDemoMode(isDemo);
   }, [isDemo]);
+
+  // In demo mode, `tenant` is the shared demo dataset, so fetch the user's REAL
+  // tenant doc (readable by them) for identity/billing UI (profile company name).
+  React.useEffect(() => {
+    if (!isDemo || !accountTenantId) {
+      setDemoAccountTenant(null);
+      return;
+    }
+    let active = true;
+    TenantService.getTenantById(accountTenantId)
+      .then((t) => {
+        if (active) setDemoAccountTenant(t || null);
+      })
+      .catch(() => {
+        if (active) setDemoAccountTenant(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isDemo, accountTenantId]);
+
+  const accountTenant = isDemo ? demoAccountTenant : tenant;
 
   return (
     <TenantContext.Provider
@@ -649,7 +678,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isDemo,
         isReadOnly: isDemo,
-        accountTenantId: user?.tenantId ?? null,
+        accountTenantId,
+        accountTenant,
         refreshTenant,
         clearViewingTenant,
         setViewingTenant,
