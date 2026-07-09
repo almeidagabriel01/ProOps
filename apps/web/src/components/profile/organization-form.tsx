@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Building2, Shield, Save, Palette, Camera, X } from "lucide-react";
 import { TenantService } from "@/services/tenant-service";
 import { ALLOWED_TYPES } from "@/services/storage-service";
+import { usePermissions } from "@/providers/permissions-provider";
 import { toast } from '@/lib/toast';
 import { Loader } from "@/components/ui/loader";
 
@@ -27,6 +28,10 @@ interface OrganizationFormProps {
 }
 
 export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
+  const { isDemo } = usePermissions();
+  // Demo/free accounts own their tenant, so they see the administrator view of
+  // the organization (rendered read-only via `inert`), not the member view.
+  const showAsMaster = isMaster || isDemo;
   const [name, setName] = useState(tenant?.name || "");
   const [primaryColor, setPrimaryColor] = useState(
     tenant?.primaryColor || "#000000",
@@ -93,7 +98,7 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
     }
   };
 
-  if (!isMaster) {
+  if (!showAsMaster) {
     return (
       <Card className="flex flex-col bg-muted/20 border-dashed">
         <CardHeader>
@@ -140,7 +145,7 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
   }
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col" inert={isDemo || undefined}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
         <div className="space-y-1.5">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">

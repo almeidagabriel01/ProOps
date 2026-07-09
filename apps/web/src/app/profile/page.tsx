@@ -25,11 +25,13 @@ import { cn } from "@/lib/utils";
 
 function ProfileContent() {
   const { user, isLoading: authLoading } = useAuth();
-  const { tenant, isLoading: tenantLoading } = useTenant();
+  const { tenant, accountTenant, isLoading: tenantLoading } = useTenant();
   // Free users don't get a hydrated tenant from the provider; fetch the company
   // doc display-only so the header/overview show the real name and logo.
   const { tenant: displayTenant } = useDisplayTenant();
-  const effectiveTenant = tenant ?? displayTenant;
+  // Demo/free accounts get the shared demo tenant as their DATA tenant, but the
+  // profile must show the real company — prefer accountTenant (the real tenant).
+  const effectiveTenant = accountTenant ?? tenant ?? displayTenant;
   const { isMaster } = usePermissions();
   const planUsageData = usePlanUsage();
   const { purchasedAddons, purchasedAddonsData, refreshAddons } = usePlanLimits();
