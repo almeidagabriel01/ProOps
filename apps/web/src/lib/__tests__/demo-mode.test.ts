@@ -31,12 +31,14 @@ describe("isDemoBlockedMutation", () => {
     });
 
     test.each(["POST", "PUT", "DELETE", "PATCH"])(
-      "blocks %s on ERP data routes",
+      "blocks %s on ERP demo-data routes",
       (method) => {
         expect(isDemoBlockedMutation(method, "/v1/products")).toBe(true);
         expect(isDemoBlockedMutation(method, "/v1/proposals/x")).toBe(true);
         expect(isDemoBlockedMutation(method, "/v1/services")).toBe(true);
         expect(isDemoBlockedMutation(method, "/v1/clients/x")).toBe(true);
+        expect(isDemoBlockedMutation(method, "/v1/aux/sistemas")).toBe(true);
+        expect(isDemoBlockedMutation(method, "/v1/transactions")).toBe(true);
       },
     );
 
@@ -47,8 +49,14 @@ describe("isDemoBlockedMutation", () => {
       "/v1/auth/refresh",
       "/v1/users/me",
       "/v1/tenants/abc",
-    ])("allows account/billing mutation %s (so demo users can subscribe)", (path) => {
-      expect(isDemoBlockedMutation("POST", path)).toBe(false);
-    });
+      "/v1/observability/errors",
+      "/v1/notifications/mark-read",
+      "/v1/onboarding/step",
+    ])(
+      "allows account/system mutation %s (no toast spam from background writes)",
+      (path) => {
+        expect(isDemoBlockedMutation("POST", path)).toBe(false);
+      },
+    );
   });
 });

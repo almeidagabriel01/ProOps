@@ -17,25 +17,33 @@ export function isDemoMode(): boolean {
   return demoMode;
 }
 
-// Mutations a demo account IS still allowed to make: everything needed to
-// subscribe / manage its own account. Mirrors the backend
-// FREE_TIER_ALLOWED_PREFIXES so the two gates never disagree.
-const DEMO_ALLOWED_MUTATION_PREFIXES = [
-  "/v1/stripe",
-  "/v1/billing",
-  "/v1/profile",
-  "/v1/auth",
-  "/v1/users/me",
-  "/v1/tenants",
-  "/v1/validation",
+// Demo-DATA mutation endpoints: creating/editing/deleting the ERP records the
+// demo account is browsing. Only these are blocked (with a friendly toast) — a
+// blocklist, not an allowlist, so background/account writes (onboarding,
+// observability, notifications-read, profile, billing, …) pass through silently
+// and never spam the user with "read-only" toasts. Writes are also refused by
+// the backend and Firestore rules, so nothing is ever persisted regardless.
+const DEMO_BLOCKED_MUTATION_PREFIXES = [
+  "/v1/proposals",
+  "/v1/products",
+  "/v1/services",
+  "/v1/clients",
+  "/v1/aux", // sistemas/ambientes
+  "/v1/sistemas",
+  "/v1/ambientes",
+  "/v1/spreadsheets",
+  "/v1/transactions",
+  "/v1/wallets",
+  "/v1/kanban",
 ];
 
 /**
- * True when a demo account is attempting a data mutation that must be blocked.
- * GETs and account/billing mutations are always allowed.
+ * True when a demo account is attempting to mutate the ERP demo data. GETs and
+ * account/system mutations are allowed through (they fail harmlessly server-side
+ * without a toast).
  */
 export function isDemoBlockedMutation(method: string, path: string): boolean {
   if (!demoMode) return false;
   if (method.toUpperCase() === "GET") return false;
-  return !DEMO_ALLOWED_MUTATION_PREFIXES.some((prefix) => path.startsWith(prefix));
+  return DEMO_BLOCKED_MUTATION_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
