@@ -470,24 +470,23 @@ export function AmbienteEditor({
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={onBack}>
-            {isReadOnly ? "Voltar" : "Cancelar"}
+            Cancelar
           </Button>
-          {!isReadOnly && (
-            <Button
-              onClick={handleSave}
-              disabled={
-                isSaving || !name.trim() || (!!ambiente?.id && !hasChanges)
-              }
-              className="min-w-[120px]"
-            >
-              {isSaving ? (
-                <Spinner className="mr-2" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              Salvar
-            </Button>
-          )}
+          <Button
+            onClick={handleSave}
+            disabled={
+              isSaving || !name.trim() || (!!ambiente?.id && !hasChanges)
+            }
+            className="min-w-[120px]"
+            inert={isReadOnly || undefined}
+          >
+            {isSaving ? (
+              <Spinner className="mr-2" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Salvar
+          </Button>
         </div>
       </div>
 

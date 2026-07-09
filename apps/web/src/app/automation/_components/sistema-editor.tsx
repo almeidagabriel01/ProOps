@@ -515,24 +515,23 @@ export function SistemaEditor({
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={onBack}>
-            {isReadOnly ? "Voltar" : "Cancelar"}
+            Cancelar
           </Button>
-          {!isReadOnly && (
-            <Button
-              onClick={handleSave}
-              disabled={
-                isSaving || !name.trim() || (!!sistema?.id && !hasChanges)
-              }
-              className="min-w-[120px]"
-            >
-              {isSaving ? (
-                <Spinner className="mr-2" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              Salvar
-            </Button>
-          )}
+          <Button
+            onClick={handleSave}
+            disabled={
+              isSaving || !name.trim() || (!!sistema?.id && !hasChanges)
+            }
+            className="min-w-[120px]"
+            inert={isReadOnly || undefined}
+          >
+            {isSaving ? (
+              <Spinner className="mr-2" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Salvar
+          </Button>
         </div>
       </div>
 
@@ -585,7 +584,7 @@ export function SistemaEditor({
                 <Home className="w-4 h-4 text-primary" /> Ambientes
               </CardTitle>
 
-              {!isReadOnly && (
+              <div className="contents" inert={isReadOnly || undefined}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button size="sm" variant="outline" className="h-8 gap-1">
@@ -632,7 +631,7 @@ export function SistemaEditor({
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
-              )}
+              </div>
             </CardHeader>
             <CardContent className="p-2 flex-1 overflow-y-auto">
               <div className="space-y-1">
@@ -682,19 +681,18 @@ export function SistemaEditor({
                           </div>
                         </div>
 
-                        {!isReadOnly && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeAmbiente(conf.ambienteId);
-                            }}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeAmbiente(conf.ambienteId);
+                          }}
+                          inert={isReadOnly || undefined}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
 
                         {isActive && (
                           <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-l-full" />
