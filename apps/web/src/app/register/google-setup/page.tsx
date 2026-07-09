@@ -234,11 +234,12 @@ function GoogleSetupContent() {
       );
 
       const target = resolveRedirectTarget();
-      if (redirectReason === "session_expired") {
-        window.location.replace(target);
-      } else {
-        router.replace(target);
-      }
+      // Full document navigation (not router.replace) so the Auth/Tenant
+      // providers re-hydrate from the just-written user doc. With an SPA
+      // navigation the freshly-created account keeps a stale `user` (no
+      // tenantId), so the ERP renders the demo tenant's identity/theme/onboarding
+      // instead of the real company until a manual refresh.
+      window.location.replace(target);
     } catch (submitError) {
       console.error("Failed to complete Google setup:", submitError);
       setError("Não foi possível finalizar a configuração da empresa.");
@@ -252,7 +253,6 @@ function GoogleSetupContent() {
     companyName,
     companyNiche,
     getLoginTarget,
-    redirectReason,
     resolveRedirectTarget,
     router,
   ]);
