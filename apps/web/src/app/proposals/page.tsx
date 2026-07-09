@@ -99,7 +99,7 @@ function PdfDownloader({
 
 export default function ProposalsPage() {
   const router = useRouter();
-  const { tenant } = useTenant();
+  const { tenant, isDemo } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
   const { hasKanban } = usePlanLimits();
@@ -196,10 +196,15 @@ export default function ProposalsPage() {
 
   const handleEdit = React.useCallback(
     (id: string) => {
+      // Demo/read-only accounts open the read-only view, never the edit form.
+      if (isDemo) {
+        router.push(`/proposals/${id}/view`);
+        return;
+      }
       setEditingId(id);
       router.push(`/proposals/${id}`);
     },
-    [router],
+    [router, isDemo],
   );
 
   const handleDownload = (proposal: Proposal) => {
@@ -646,7 +651,11 @@ export default function ProposalsPage() {
           return (
             <div>
               <Link
-                href={`/proposals/${proposal.id}?initialStep=automation`}
+                href={
+                  isDemo
+                    ? `/proposals/${proposal.id}/view`
+                    : `/proposals/${proposal.id}?initialStep=automation`
+                }
                 className="font-medium hover:underline"
               >
                 {proposal.title}
@@ -996,6 +1005,7 @@ export default function ProposalsPage() {
       getStatusColor,
       getStatusLabel,
       kanbanColumns,
+      isDemo,
     ],
   );
 

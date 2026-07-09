@@ -365,7 +365,7 @@ service cloud.firestore {
 
     // PROPOSAL TEMPLATES
     match /proposal_templates/{templateId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false;
     }
 
