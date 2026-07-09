@@ -239,6 +239,13 @@ export function PermissionsProvider({
     ): boolean => {
       if (!permissions) return false;
 
+      // DEMO/FREE: read-only browse of the whole ERP. Grant "view" on every
+      // page (the account has no permissions doc), but never create/edit/delete
+      // — mutations are blocked at the api-client and backend anyway.
+      if (String(user?.role || "").toLowerCase() === "free") {
+        return action === "view";
+      }
+
       // MASTER BYPASS: MASTER users have ALL permissions unconditionally
       // This ensures MASTER never gets 403 for any page
       if (permissions.role === "MASTER") {
@@ -265,7 +272,7 @@ export function PermissionsProvider({
           return false;
       }
     },
-    [permissions],
+    [permissions, user?.role],
   );
 
   const isMaster = permissions?.role === "MASTER";

@@ -493,7 +493,7 @@ service cloud.firestore {
 
     // SPREADSHEETS
     match /spreadsheets/{spreadsheetId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.get('tenantId', '')) || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow create: if isSuperAdmin()
                     || (isAuthenticated()
                         && hasTenantAdminRole()

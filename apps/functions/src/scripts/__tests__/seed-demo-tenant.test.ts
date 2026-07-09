@@ -40,6 +40,8 @@ describe("seedDemoTenant", () => {
       products: 4,
       services: 3,
       clients: 3,
+      ambientes: 3,
+      sistemas: 3,
       proposals: 3,
     });
   });
@@ -48,28 +50,55 @@ describe("seedDemoTenant", () => {
     await seedDemoTenant();
     // The first set() is the tenant doc itself (keyed by id, no tenantId field).
     const [, ...contentWrites] = set.mock.calls;
-    expect(contentWrites.length).toBe(13); // 4 + 3 + 3 + 3
+    expect(contentWrites.length).toBe(19); // 4 + 3 + 3 + 3 + 3 + 3
     for (const [, data] of contentWrites) {
       expect(data.tenantId).toBe(DEMO_TENANT_ID);
     }
   });
 
-  test("demo proposals reference demo products via sistemas/ambientes", async () => {
+  test("seeds sistemas and ambientes so Soluções renders", async () => {
+    await seedDemoTenant();
+    const sistemaWrites = set.mock.calls.filter(
+      ([ref]) => typeof ref.id === "string" && ref.id.startsWith("sistemas/"),
+    );
+    const ambienteWrites = set.mock.calls.filter(
+      ([ref]) => typeof ref.id === "string" && ref.id.startsWith("ambientes/"),
+    );
+    expect(sistemaWrites.length).toBe(3);
+    expect(ambienteWrites.length).toBe(3);
+    // Each sistema groups ambientes carrying product lines.
+    for (const [, data] of sistemaWrites) {
+      expect(Array.isArray(data.ambientes)).toBe(true);
+      expect(data.ambientes.length).toBeGreaterThan(0);
+      for (const amb of data.ambientes) {
+        expect(amb.products.length).toBeGreaterThan(0);
+        expect(amb.products[0].productId.startsWith("demo_prod_")).toBe(true);
+      }
+    }
+  });
+
+  test("demo proposals have priced line items and are not draft", async () => {
     await seedDemoTenant();
     const proposalWrites = set.mock.calls.filter(
       ([ref]) => typeof ref.id === "string" && ref.id.startsWith("proposals/"),
     );
     expect(proposalWrites.length).toBe(3);
     for (const [, data] of proposalWrites) {
-      expect(Array.isArray(data.sistemas)).toBe(true);
-      expect(data.sistemas.length).toBeGreaterThan(0);
-      const productIds = data.sistemas.flatMap((s: { ambientes: { productIds: string[] }[] }) =>
-        s.ambientes.flatMap((a) => a.productIds),
-      );
-      expect(productIds.length).toBeGreaterThan(0);
-      for (const pid of productIds) {
-        expect(pid.startsWith("demo_prod_")).toBe(true);
+      // View route blocks draft — demo proposals must be sent/approved.
+      expect(["sent", "approved"]).toContain(data.status);
+      // Money lives in products[] (line items), not just sistemas[].
+      expect(Array.isArray(data.products)).toBe(true);
+      expect(data.products.length).toBeGreaterThan(0);
+      let computed = 0;
+      for (const li of data.products) {
+        expect(li.productId.startsWith("demo_prod_")).toBe(true);
+        expect(typeof li.unitPrice).toBe("number");
+        expect(li.total).toBe(li.unitPrice * li.quantity);
+        expect(li.ambienteInstanceId).toContain("-");
+        computed += li.total;
       }
+      expect(data.totalValue).toBe(computed);
+      expect(data.totalValue).toBeGreaterThan(0);
     }
   });
 });
