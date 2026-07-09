@@ -46,6 +46,8 @@ interface PermissionsContextType {
   ) => boolean;
   isMaster: boolean;
   isMember: boolean;
+  /** Free/demo account: gets full UI permissions (writes blocked downstream). */
+  isDemo: boolean;
   refreshPermissions: () => Promise<void>;
 }
 
@@ -55,6 +57,7 @@ const PermissionsContext = React.createContext<PermissionsContextType>({
   hasPermission: () => false,
   isMaster: false,
   isMember: false,
+  isDemo: false,
   refreshPermissions: async () => {},
 });
 
@@ -280,6 +283,7 @@ export function PermissionsProvider({
 
   const isMaster = permissions?.role === "MASTER";
   const isMember = permissions?.role === "MEMBER";
+  const isDemo = String(user?.role || "").toLowerCase() === "free";
 
   return (
     <PermissionsContext.Provider
@@ -289,6 +293,7 @@ export function PermissionsProvider({
         hasPermission,
         isMaster,
         isMember,
+        isDemo,
         refreshPermissions: fetchPermissions,
       }}
     >

@@ -1,7 +1,7 @@
 import { usePermissions } from "@/providers/permissions-provider";
 
 export function usePagePermission(pageId: string) {
-  const { permissions, isMaster, isLoading } = usePermissions();
+  const { permissions, isMaster, isDemo, isLoading } = usePermissions();
 
   // Treat as loading if permissions haven't been fetched yet
   // This prevents race conditions where null permissions cause incorrect denials
@@ -15,7 +15,10 @@ export function usePagePermission(pageId: string) {
     };
   }
 
-  if (isMaster) {
+  // Master and demo/free accounts get full UI permissions. For demo the actual
+  // writes are blocked at the api-client and backend (nothing is persisted); the
+  // point is to mirror a paying tenant's full flow.
+  if (isMaster || isDemo) {
     return {
       isLoading: false,
       canView: true,
