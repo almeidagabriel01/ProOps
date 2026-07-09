@@ -163,6 +163,19 @@ export type StripeSyncStatus =
   | "INACTIVE";
 
 /**
+ * Pure trial churn = a trial was started (`trialUsedAt` set) that never
+ * converted to a real payment (no `hasPaidInvoice`). Such an account, when its
+ * subscription reaches a terminal canceled/unpaid state, falls back to the
+ * read-only demo mode (role "free") instead of /subscription-blocked. Evaluated
+ * from the tenant billing snapshot.
+ */
+export function isPureTrialChurn(
+  tenantData: Record<string, unknown> | undefined | null,
+): boolean {
+  return Boolean(tenantData?.trialUsedAt) && tenantData?.hasPaidInvoice !== true;
+}
+
+/**
  * Reverses the free-owner → admin promotion when a 7-day trial is cancelled
  * WITHOUT ever converting to a paid subscription (pure trial churn). The owner
  * returns to role "free" so they land in the read-only demo mode (Feature B)

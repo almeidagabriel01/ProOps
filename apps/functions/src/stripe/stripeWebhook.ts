@@ -3,6 +3,7 @@ import { getStripe, getWebhookSecret } from "./stripeConfig";
 import {
   updateUserPlan,
   demoteTrialOwnerToFree,
+  isPureTrialChurn,
   saveAddon,
   cancelAddon,
   getPlanIdByTier,
@@ -130,6 +131,28 @@ async function markTrialConsumed(
     },
     { merge: true },
   );
+}
+
+// A trial that reaches a terminal canceled/unpaid state without ever converting
+// to a real payment (trialUsedAt set, no hasPaidInvoice) is "pure trial churn":
+// the account falls back to the read-only demo mode (role "free"), not the
+// /subscription-blocked dunning page. Called from BOTH the subscription.deleted
+// AND subscription.updated→canceled paths, because Stripe may signal the final
+// cancellation as either event depending on how the subscription ends. Idempotent
+// (demoteTrialOwnerToFree is a no-op once the role is already "free").
+async function demoteIfPureTrialChurn(
+  tenantId: string,
+  userId: string,
+): Promise<boolean> {
+  if (!userId) return false;
+  const snap = await db.collection("tenants").doc(tenantId).get();
+  const data = snap.data() as Record<string, unknown> | undefined;
+  if (!isPureTrialChurn(data)) return false;
+  await demoteTrialOwnerToFree(userId);
+  console.log(
+    `User ${userId} trial churned without conversion, demoted to free (demo mode)`,
+  );
+  return true;
 }
 
 function isSupportedAddonType(value: unknown): value is AddonType {
@@ -913,6 +936,18 @@ async function handleSubscriptionUpdated(
     );
     console.log(`User ${userId} subscription status synced to ${status}`);
 
+    // Stripe may deliver a terminal cancellation as `subscription.updated`
+    // (status → canceled/unpaid) rather than `subscription.deleted`. When that
+    // happens for a never-converted trial, fall the account back to the
+    // read-only demo mode (role "free") — mirroring handleSubscriptionDeleted —
+    // instead of leaving it stuck on the /subscription-blocked page.
+    if (
+      subscription.status === "canceled" ||
+      subscription.status === "unpaid"
+    ) {
+      await demoteIfPureTrialChurn(tenantId, userId);
+    }
+
     const whatsappItem = subscription.items.data.find(
       (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
     );
@@ -1313,13 +1348,6 @@ async function handleSubscriptionDeleted(
 
   const userId = String(metadata.userId || "").trim();
 
-  // Pure trial churn = a trial was started (trialUsedAt) that never converted to
-  // a real payment (no hasPaidInvoice). Such accounts fall back to the read-only
-  // demo mode (role "free"); genuinely-paying churn keeps its role and lands on
-  // the /subscription-blocked page instead.
-  const isPureTrialChurn =
-    Boolean(tenantDocData?.trialUsedAt) && tenantDocData?.hasPaidInvoice !== true;
-
   if (userId) {
     await assertUserTenantConsistency(userId, tenantId);
     await updateSubscriptionStatus(userId, "CANCELED", undefined, undefined, false);
@@ -1337,12 +1365,10 @@ async function handleSubscriptionDeleted(
       );
     }
 
-    if (isPureTrialChurn) {
-      await demoteTrialOwnerToFree(userId);
-      console.log(
-        `User ${userId} trial expired without conversion, demoted to free (demo mode)`
-      );
-    }
+    // Pure trial churn (a trial that never converted) → read-only demo mode
+    // (role "free"); genuinely-paying churn keeps its role and lands on the
+    // /subscription-blocked page instead.
+    await demoteIfPureTrialChurn(tenantId, userId);
   }
   // Reset tenant to free plan via the single writer.
   // syncTenantPlanBillingSnapshot handles clearTenantPlanCache and whatsappEnabled
