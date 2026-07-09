@@ -115,7 +115,7 @@ function buildProposalStatusSets(columns: KanbanStatusColumn[]): {
 }
 
 export function useDashboardData(): DashboardData {
-  const { tenant, isLoading: isTenantLoading } = useTenant();
+  const { tenant, isLoading: isTenantLoading, isDemo } = useTenant();
   const [rawData, setRawData] = React.useState({
     transactions: [] as Transaction[],
     wallets: [] as Wallet[],
@@ -138,6 +138,16 @@ export function useDashboardData(): DashboardData {
     // If tenant finished loading but is null (e.g., superadmin without tenant)
     // set loading to false and return empty data
     if (!tenant) {
+      setIsDataLoading(false);
+      return;
+    }
+
+    // Read-only demo mode: the dashboard aggregates financial data (transactions,
+    // wallets, summary) that the demo account has no access to — its backend
+    // handlers reject the free role and the demo tenant has no financial docs.
+    // Skip the whole fetch; the populated demo content lives in Produtos,
+    // Serviços, Propostas and Soluções.
+    if (isDemo) {
       setIsDataLoading(false);
       return;
     }
@@ -246,7 +256,7 @@ export function useDashboardData(): DashboardData {
     return () => {
       cancelled = true;
     };
-  }, [tenant, isTenantLoading]);
+  }, [tenant, isTenantLoading, isDemo]);
 
   // Compute all derived values
   const computed = React.useMemo(() => {

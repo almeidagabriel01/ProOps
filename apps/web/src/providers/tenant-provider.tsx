@@ -562,7 +562,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const listeningTenantIdRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    const idToListen = tenant?.id ?? null;
+    // Free/demo accounts use the synthetic "demo" data tenant, whose doc is not
+    // readable by them (only its data collections are). Never open a real-time
+    // listener on it — a permission-denied listen can crash the Firestore SDK
+    // (INTERNAL ASSERTION). The synthetic tenant never changes anyway.
+    const isDemoUser = String(user?.role || "").toLowerCase() === "free";
+    const idToListen = isDemoUser ? null : (tenant?.id ?? null);
 
     if (!idToListen) {
       if (tenantSnapshotUnsubRef.current) {
@@ -604,7 +609,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       tenantSnapshotUnsubRef.current = null;
       listeningTenantIdRef.current = null;
     };
-  }, [tenant?.id]);
+  }, [tenant?.id, user?.role]);
 
   const refreshTenant = () => {
     setRefreshTrigger((prev) => prev + 1);
