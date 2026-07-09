@@ -523,8 +523,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   // adjusted per-theme while hue+saturation (brand identity) are preserved.
   React.useLayoutEffect(() => {
     const styleId = "tenant-styles";
-    if (tenant) {
-      const seed = resolveSafeTenantColor(tenant.primaryColor);
+    // In demo mode `tenant` is the shared demo dataset — the brand color/logo
+    // belong to the user's OWN company, so theme from the real account tenant.
+    const isDemoUser = String(user?.role || "").toLowerCase() === "free";
+    const themeTenant = isDemoUser ? demoAccountTenant : tenant;
+    if (themeTenant) {
+      const seed = resolveSafeTenantColor(themeTenant.primaryColor);
       const lightPrimary = ensureLightModeContrast(seed);
       const darkPrimary = ensureDarkModeContrast(seed);
       const lightFg = computePrimaryForeground(lightPrimary);
@@ -560,7 +564,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       const styleTag = document.getElementById(styleId);
       if (styleTag) styleTag.remove();
     }
-  }, [tenant]);
+  }, [tenant, demoAccountTenant, user?.role]);
 
   // Real-time listener: keeps tenant doc fresh after initial load.
   // Fires on any Firestore write to tenants/{id}, including subscription status changes.
@@ -647,24 +651,26 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setDemoMode(isDemo);
   }, [isDemo]);
 
-  // In demo mode, `tenant` is the shared demo dataset, so fetch the user's REAL
-  // tenant doc (readable by them) for identity/billing UI (profile company name).
+  // In demo mode, `tenant` is the shared demo dataset, so subscribe to the
+  // user's REAL tenant doc (readable by them — it's their own tenant) for the
+  // identity/theme UI: company name, brand color and logo. A real-time listener
+  // (instead of a one-shot fetch) makes these appear as soon as the doc is
+  // readable — e.g. right after sign-up — without needing a page refresh.
   React.useEffect(() => {
     if (!isDemo || !accountTenantId) {
       setDemoAccountTenant(null);
       return;
     }
-    let active = true;
-    TenantService.getTenantById(accountTenantId)
-      .then((t) => {
-        if (active) setDemoAccountTenant(t || null);
-      })
-      .catch(() => {
-        if (active) setDemoAccountTenant(null);
-      });
-    return () => {
-      active = false;
-    };
+    const unsubscribe = onSnapshot(
+      doc(db, "tenants", accountTenantId),
+      (snap) => {
+        setDemoAccountTenant(
+          snap.exists() ? ({ id: snap.id, ...snap.data() } as Tenant) : null,
+        );
+      },
+      () => setDemoAccountTenant(null),
+    );
+    return () => unsubscribe();
   }, [isDemo, accountTenantId]);
 
   const accountTenant = isDemo ? demoAccountTenant : tenant;

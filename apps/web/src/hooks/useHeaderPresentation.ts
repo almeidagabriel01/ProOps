@@ -19,7 +19,14 @@ interface HeaderPresentation {
 
 export function useHeaderPresentation(): HeaderPresentation {
   const { user } = useAuth();
-  const { tenant, tenantOwner, tenantOwnerPlanName, isLoading: isTenantLoading } = useTenant();
+  const {
+    tenant,
+    accountTenant,
+    tenantOwner,
+    tenantOwnerPlanName,
+    isLoading: isTenantLoading,
+  } = useTenant();
+  const isFreeUser = user?.role === "free";
 
   const isViewingAsTenant = user?.role === "superadmin" && !!tenant;
   const isMember = user?.role === "member" || !!user?.masterId;
@@ -75,7 +82,10 @@ export function useHeaderPresentation(): HeaderPresentation {
   // flashing the "Minha Empresa" fallback. Resolves to false once the fetch
   // settles — even on error — so the skeleton never hangs forever.
   const isCompanyLoading =
-    needsDisplayTenant && !fetchedTenant && displayTenantStatus !== "settled";
+    needsDisplayTenant &&
+    !accountTenant &&
+    !fetchedTenant &&
+    displayTenantStatus !== "settled";
 
   const companyName = useMemo(() => {
     if (isViewingAsTenant) {
@@ -83,19 +93,29 @@ export function useHeaderPresentation(): HeaderPresentation {
     }
 
     if (user?.role === "superadmin" && !tenant) {
-      if (displayTenantStatus !== "settled") return "Carregando...";
+      if (!fetchedTenant && displayTenantStatus !== "settled")
+        return "Carregando...";
       // Fallback: Use fetched tenant if it exists, otherwise use user's name (which for superadmins acts as the company/franchise name)
       return fetchedTenant?.name || user?.name || "Minha Empresa";
     }
 
     // Free/demo: `tenant` is the shared demo dataset — show the user's OWN
-    // company (fetched above), never the demo tenant's name.
-    if (user?.role === "free") {
-      return fetchedTenant?.name || "Minha Empresa";
+    // company (real-time accountTenant from the provider), never the demo name.
+    if (isFreeUser) {
+      return accountTenant?.name || fetchedTenant?.name || "Minha Empresa";
     }
 
     return tenant?.name || fetchedTenant?.name || "Minha Empresa";
-  }, [isViewingAsTenant, user?.role, tenant, fetchedTenant?.name, displayTenantStatus, user?.name]);
+  }, [
+    isViewingAsTenant,
+    user?.role,
+    isFreeUser,
+    tenant,
+    accountTenant?.name,
+    fetchedTenant,
+    displayTenantStatus,
+    user?.name,
+  ]);
 
   const planSubject = useMemo(() => {
     if (isViewingAsTenant && tenantOwner) {
@@ -208,8 +228,14 @@ export function useHeaderPresentation(): HeaderPresentation {
   return {
     companyName,
     planLabel: visiblePlanLabel,
-    logoUrl: tenant?.logoUrl || fetchedTenant?.logoUrl,
-    avatarSeed: tenant?.name || fetchedTenant?.name || user?.name || "U",
+    logoUrl:
+      (isFreeUser ? accountTenant?.logoUrl : tenant?.logoUrl) ||
+      fetchedTenant?.logoUrl,
+    avatarSeed:
+      (isFreeUser ? accountTenant?.name : tenant?.name) ||
+      fetchedTenant?.name ||
+      user?.name ||
+      "U",
     isViewingAsTenant,
     isPlanLabelLoading,
     isTenantLoading,
