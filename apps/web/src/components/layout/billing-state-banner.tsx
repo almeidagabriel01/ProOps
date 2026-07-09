@@ -11,8 +11,9 @@ type BillingStateBannerVariant = "destructive" | "warning" | "info";
 export interface BillingStateBannerProps {
   variant: BillingStateBannerVariant;
   message: string;
-  ctaLabel: string;
-  onCta: () => void;
+  /** Omit both `ctaLabel` and `onCta` for an informational banner (no button). */
+  ctaLabel?: string;
+  onCta?: () => void;
   ctaDisabled?: boolean;
   ctaDisabledTooltip?: string;
   dataTestid: string;
@@ -56,8 +57,7 @@ export function BillingStateBanner({
   const styles = VARIANT_STYLES[variant];
   const buttonVariant = variant === "destructive" ? "destructive" : "outline";
 
-  const buttonNode =
-    ctaDisabled && ctaDisabledTooltip ? (
+  const buttonNode = !ctaLabel ? null : ctaDisabled && ctaDisabledTooltip ? (
       <Tooltip content={ctaDisabledTooltip} side="top">
         <Button
           variant={buttonVariant}

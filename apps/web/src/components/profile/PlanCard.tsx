@@ -21,7 +21,7 @@ interface PlanCardProps {
   canUpgrade: boolean;
   isProcessing: boolean;
   processingTier: string | null;
-  onUpgrade: (plan: UserPlan) => void;
+  onUpgrade: (plan: UserPlan, skipTrial?: boolean) => void;
   onDowngrade: (plan: UserPlan) => void;
   isMaster?: boolean;
   isFree?: boolean;
@@ -50,6 +50,9 @@ export function PlanCard({
     plan.tier === "enterprise" ||
     ((plan.pricing?.monthly || plan.price) <= 0 &&
       (plan.pricing?.yearly || 0) <= 0);
+
+  // The 7-day free trial is offered only on the Pro plan.
+  const hasTrial = plan.tier === "pro" && !isEnterprise;
 
   const monthlyEquivalent =
     billingInterval === "yearly" && plan.pricing
@@ -286,29 +289,61 @@ export function PlanCard({
               </Button>
             ) : (isMaster || isFree) ? (
               canUpgrade ? (
-                <Button
-                  className={cn(
-                    "w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]",
-                    isPopular
-                      ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0"
-                      : "bg-primary hover:bg-primary/90 text-primary-foreground",
-                  )}
-                  onClick={() =>
-                    isEnterprise ? handleEnterpriseContact() : onUpgrade(plan)
-                  }
-                  disabled={isProcessing}
-                >
-                  {processingTier === plan.tier ? (
-                    <>
-                      <Loader size="sm" className="mr-2" />
-                      Processando...
-                    </>
-                  ) : isEnterprise ? (
-                    "Entrar em contato"
-                  ) : (
-                    "Fazer Upgrade Agora"
-                  )}
-                </Button>
+                hasTrial ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Button
+                      className={cn(
+                        "w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]",
+                        isPopular
+                          ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0"
+                          : "bg-primary hover:bg-primary/90 text-primary-foreground",
+                      )}
+                      onClick={() => onUpgrade(plan, false)}
+                      disabled={isProcessing}
+                    >
+                      {processingTier === plan.tier ? (
+                        <>
+                          <Loader size="sm" className="mr-2" />
+                          Processando...
+                        </>
+                      ) : (
+                        "Testar grátis por 7 dias"
+                      )}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => onUpgrade(plan, true)}
+                      disabled={isProcessing}
+                      className="cursor-pointer text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Prefiro assinar direto, sem período de teste
+                    </button>
+                  </div>
+                ) : (
+                  <Button
+                    className={cn(
+                      "w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]",
+                      isPopular
+                        ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border-0"
+                        : "bg-primary hover:bg-primary/90 text-primary-foreground",
+                    )}
+                    onClick={() =>
+                      isEnterprise ? handleEnterpriseContact() : onUpgrade(plan)
+                    }
+                    disabled={isProcessing}
+                  >
+                    {processingTier === plan.tier ? (
+                      <>
+                        <Loader size="sm" className="mr-2" />
+                        Processando...
+                      </>
+                    ) : isEnterprise ? (
+                      "Entrar em contato"
+                    ) : (
+                      "Fazer Upgrade Agora"
+                    )}
+                  </Button>
+                )
               ) : (
                 <Button
                   className="w-full h-12 rounded-xl border-primary/20 hover:bg-primary/5 hover:text-primary transition-all"

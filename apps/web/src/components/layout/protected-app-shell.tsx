@@ -95,14 +95,14 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   // Trial banner copy escalates as the 7-day period nears its end.
   const trialDays = trialInfo.daysRemaining;
   const trialIsUrgent = trialInfo.isTrialing && trialDays <= 3;
+  // Informational only — the card was collected at checkout, so the trial
+  // converts automatically at the end (no "assinar" action for the user to take).
   const trialMessage =
     trialDays <= 0
-      ? "Seu período gratuito termina hoje. Assine para não perder o acesso."
+      ? "Seu período gratuito termina hoje — sua assinatura será cobrada automaticamente."
       : trialDays === 1
-        ? "Falta 1 dia no seu período gratuito. Assine para manter o acesso."
-        : trialIsUrgent
-          ? `Faltam ${trialDays} dias no seu período gratuito. Assine para manter o acesso.`
-          : `Você está no período gratuito — faltam ${trialDays} dias.`;
+        ? "Falta 1 dia no seu período gratuito."
+        : `Você está no período gratuito — faltam ${trialDays} dias.`;
 
   return (
     <SubscriptionGuard>
@@ -123,8 +123,6 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
             <BillingStateBanner
               variant={trialIsUrgent ? "warning" : "info"}
               message={trialMessage}
-              ctaLabel="Assinar agora"
-              onCta={() => router.push("/profile?tab=billing")}
               dataTestid="billing-state-banner-trial"
             />
           )}
