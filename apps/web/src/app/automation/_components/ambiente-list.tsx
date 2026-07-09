@@ -28,6 +28,7 @@ interface AmbienteListProps {
   onUpdate: () => void;
   enableProductTemplates?: boolean;
   helperText?: string;
+  isReadOnly?: boolean;
 }
 
 export function AmbienteList({
@@ -35,6 +36,7 @@ export function AmbienteList({
   onUpdate,
   enableProductTemplates = false,
   helperText = "Adicione ambientes globais para serem utilizados em suas soluções.",
+  isReadOnly = false,
 }: AmbienteListProps) {
   const { tenant } = useTenant();
 
@@ -131,35 +133,39 @@ export function AmbienteList({
 
   return (
     <div className="space-y-8">
-      <div className="max-w-xl">
-        <div className="flex items-center gap-2">
-          <Input
-            id="new-ambiente-input"
-            className="h-12 w-96 text-base shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
-            placeholder="Nome do novo ambiente (ex: Sala de Estar)"
-            value={newAmbienteName}
-            onChange={(e) => setNewAmbienteName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCreate();
-            }}
-          />
-          <Button
-            onClick={handleCreate}
-            disabled={!newAmbienteName.trim() || isCreating}
-            className="h-12 px-4 shrink-0"
-            size="sm"
-          >
-            {isCreating ? (
-              <Spinner className="h-4 w-4" />
-            ) : (
-              <>
-                <Plus className="h-4 w-4 mr-2" /> Adicionar
-              </>
-            )}
-          </Button>
+      {!isReadOnly && (
+        <div className="max-w-xl">
+          <div className="flex items-center gap-2">
+            <Input
+              id="new-ambiente-input"
+              className="h-12 w-96 text-base shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
+              placeholder="Nome do novo ambiente (ex: Sala de Estar)"
+              value={newAmbienteName}
+              onChange={(e) => setNewAmbienteName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreate();
+              }}
+            />
+            <Button
+              onClick={handleCreate}
+              disabled={!newAmbienteName.trim() || isCreating}
+              className="h-12 px-4 shrink-0"
+              size="sm"
+            >
+              {isCreating ? (
+                <Spinner className="h-4 w-4" />
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" /> Adicionar
+                </>
+              )}
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2 px-1">
+            {helperText}
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground mt-2 px-1">{helperText}</p>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         <AnimatePresence mode="popLayout">
@@ -227,38 +233,40 @@ export function AmbienteList({
                     <div className="p-2 bg-secondary rounded-lg text-secondary-foreground">
                       <Home className="h-5 w-5" />
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {enableProductTemplates && (
+                    {!isReadOnly && (
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {enableProductTemplates && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            onClick={() => openProductsDialog(amb)}
+                            title="Configurar produtos padrões"
+                          >
+                            <Package className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         <Button
                           size="icon"
                           variant="ghost"
                           className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => openProductsDialog(amb)}
-                          title="Configurar produtos padrões"
+                          onClick={() => startEdit(amb)}
                         >
-                          <Package className="h-3.5 w-3.5" />
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                      )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        onClick={() => startEdit(amb)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => {
-                          setDeletingId(amb.id);
-                          setDeleteConfirmOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            setDeletingId(amb.id);
+                            setDeleteConfirmOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   <div className="mt-4">
                     <h4 className="font-semibold text-lg">{amb.name}</h4>

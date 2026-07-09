@@ -720,6 +720,7 @@ export default function AutomationAdminPage() {
                   key={`ambientes-${ambienteSort}`}
                   ambientes={displayedAmbientes}
                   onUpdate={() => loadData(true)}
+                  isReadOnly={isReadOnly}
                 />
                 {hasMoreAmbientes && (
                   <div
