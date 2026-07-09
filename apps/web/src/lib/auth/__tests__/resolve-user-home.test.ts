@@ -70,6 +70,25 @@ describe("resolveUserHome", () => {
     expect(result.path).not.toBe("/subscription-blocked");
   });
 
+  // Regression: a trial that churned without converting is demoted to role
+  // "free" but keeps a leftover subscriptionStatus like "canceled". A free
+  // account is a demo account (Feature B) — it must land in the ERP demo, NOT
+  // on /subscription-blocked. `role === "free"` takes precedence over the
+  // hard-blocked status check.
+  it.each(["canceled", "cancelled", "unpaid", "inactive"])(
+    "returns /dashboard for a free account with leftover '%s' status (demo, not blocked)",
+    (status) => {
+      expect(
+        resolveUserHome(
+          makeUser({
+            role: "free",
+            subscriptionStatus: status as User["subscriptionStatus"],
+          }),
+        ),
+      ).toEqual({ kind: "dashboard", path: "/dashboard" });
+    },
+  );
+
   it("returns /dashboard for free role (demo mode — free tier now browses the ERP read-only)", () => {
     expect(resolveUserHome(makeUser({ role: "free" }))).toEqual({
       kind: "dashboard",

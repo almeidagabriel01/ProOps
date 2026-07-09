@@ -47,17 +47,20 @@ export function resolveUserHome(user: User | null): ResolvedHome {
     return { kind: "admin", path: "/admin" };
   }
 
-  // 3. Assinatura bloqueada (statuses duros; past_due não verificamos aqui — é server-side)
+  // 3. Free → dashboard (modo demo read-only, Feature B). Contas gratuitas
+  //    entram no ERP e navegam pelos módulos do Starter vendo os dados
+  //    fictícios do tenant demo; módulos premium aparecem com coroa.
+  //    Checado ANTES do bloqueio de assinatura: uma conta free É uma conta demo,
+  //    nunca bloqueada — mesmo com um subscriptionStatus "canceled" remanescente
+  //    de um trial que expirou sem converter.
+  if (user.role === "free") {
+    return { kind: "dashboard", path: "/dashboard" };
+  }
+
+  // 4. Assinatura bloqueada (statuses duros; past_due não verificamos aqui — é server-side)
   const status = user.subscriptionStatus ?? "";
   if (HARD_BLOCKED_STATUSES.has(status)) {
     return { kind: "subscription-blocked", path: "/subscription-blocked" };
-  }
-
-  // 4. Free → dashboard (modo demo read-only, Feature B). Contas gratuitas
-  //    entram no ERP e navegam pelos módulos do Starter vendo os dados
-  //    fictícios do tenant demo; módulos premium aparecem com coroa.
-  if (user.role === "free") {
-    return { kind: "dashboard", path: "/dashboard" };
   }
 
   // 5. Admin/MASTER → dashboard

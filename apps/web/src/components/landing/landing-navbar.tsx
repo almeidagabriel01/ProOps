@@ -71,7 +71,9 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const appHref = currentUser ? getAuthenticatedHome(currentUser) : "/login";
   const isSuperAdmin = currentUser?.role === "superadmin";
   const isFreeAccount = currentUser?.role === "free";
-  const isBlockedAccount = ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
+  // A free account is a demo account (Feature B), never "blocked" — even with a
+  // leftover canceled status from a churned trial.
+  const isBlockedAccount = !isFreeAccount && ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
     currentUser?.subscriptionStatus ?? "",
   );
   const showSubscribeCta = !currentUser || isFreeAccount || isBlockedAccount;
