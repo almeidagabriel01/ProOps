@@ -115,7 +115,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
               variant="info"
               message="Você está no modo demonstração — os dados são fictícios e não podem ser alterados. Assine para usar o ERP com seus próprios dados."
               ctaLabel="Assinar agora"
-              onCta={() => router.push("/subscribe")}
+              onCta={() => router.push("/profile?tab=billing")}
               dataTestid="billing-state-banner-demo"
             />
           )}
