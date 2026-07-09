@@ -600,7 +600,7 @@ export function LandingPricing({
                           onClick={() => void handleSubscribe(plan.tier, true)}
                           disabled={processingTier === plan.tier}
                           className={cn(
-                            "text-xs underline underline-offset-4 transition-colors disabled:opacity-50",
+                            "cursor-pointer text-xs underline underline-offset-4 transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                             plan.popular
                               ? "text-white/70 hover:text-white"
                               : "text-black/60 hover:text-black dark:text-white/70 dark:hover:text-white",
