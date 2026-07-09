@@ -15,16 +15,29 @@ export function usePagePermission(pageId: string) {
     };
   }
 
-  // Master and demo/free accounts get full UI permissions. For demo the actual
-  // writes are blocked at the api-client and backend (nothing is persisted); the
-  // point is to mirror a paying tenant's full flow.
-  if (isMaster || isDemo) {
+  // Master accounts get full UI permissions.
+  if (isMaster) {
     return {
       isLoading: false,
       canView: true,
       canCreate: true,
       canEdit: true,
       canDelete: true,
+    };
+  }
+
+  // Demo/free accounts can view everything and open forms (canEdit lets the
+  // read-only edit views render), but must not create or delete anything —
+  // those affordances are hidden entirely so no misleading cursor/action is
+  // shown. Writes are also blocked at the api-client and backend as defense in
+  // depth.
+  if (isDemo) {
+    return {
+      isLoading: false,
+      canView: true,
+      canCreate: false,
+      canEdit: true,
+      canDelete: false,
     };
   }
 

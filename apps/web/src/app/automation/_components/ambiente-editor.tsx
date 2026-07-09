@@ -60,6 +60,7 @@ interface AmbienteEditorProps {
   ambiente: Ambiente | null;
   onBack: () => void;
   onSave: (id?: string) => void;
+  isReadOnly?: boolean;
 }
 
 function buildAmbienteSnapshot(
@@ -114,6 +115,7 @@ export function AmbienteEditor({
   ambiente,
   onBack,
   onSave,
+  isReadOnly = false,
 }: AmbienteEditorProps) {
   const { tenant } = useTenant();
   const nicheConfig = useCurrentNicheConfig();
@@ -468,23 +470,28 @@ export function AmbienteEditor({
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={onBack}>
-            Cancelar
+            {isReadOnly ? "Voltar" : "Cancelar"}
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={isSaving || !name.trim() || (!!ambiente?.id && !hasChanges)}
-            className="min-w-[120px]"
-          >
-            {isSaving ? (
-              <Spinner className="mr-2" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Salvar
-          </Button>
+          {!isReadOnly && (
+            <Button
+              onClick={handleSave}
+              disabled={
+                isSaving || !name.trim() || (!!ambiente?.id && !hasChanges)
+              }
+              className="min-w-[120px]"
+            >
+              {isSaving ? (
+                <Spinner className="mr-2" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Salvar
+            </Button>
+          )}
         </div>
       </div>
 
+      <fieldset disabled={isReadOnly} className="contents">
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
         <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
           <Card>
@@ -1299,6 +1306,7 @@ export function AmbienteEditor({
           </Card>
         </div>
       </div>
+      </fieldset>
     </div>
   );
 }

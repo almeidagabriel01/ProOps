@@ -445,6 +445,7 @@ export default function AutomationAdminPage() {
       >
         <AmbienteEditor
           ambiente={ambienteToEdit || null}
+          isReadOnly={isReadOnly}
           onBack={() => setEditingAmbienteId(null)}
           onSave={(savedId?: string) => {
             if (editingAmbienteId === "new" && savedId) {
@@ -562,6 +563,7 @@ export default function AutomationAdminPage() {
           sistema={systemToEdit || null}
           allAmbientes={ambientes}
           initialAmbienteId={initialAmbienteId}
+          isReadOnly={isReadOnly}
           onBack={() => setEditingSistemaId(null)}
           onSave={(savedId?: string) => {
             if (editingSistemaId === "new" && savedId) {

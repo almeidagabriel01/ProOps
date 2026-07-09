@@ -67,6 +67,7 @@ interface SistemaEditorProps {
   onBack: () => void;
   onSave: (id?: string) => void;
   onAmbienteCreated?: () => void; // Added prop
+  isReadOnly?: boolean;
 }
 
 const buildSistemaSnapshot = (
@@ -101,6 +102,7 @@ export function SistemaEditor({
   onBack,
   onSave,
   onAmbienteCreated,
+  isReadOnly = false,
 }: SistemaEditorProps) {
   const { tenant } = useTenant();
   const nicheConfig = useCurrentNicheConfig();
@@ -513,26 +515,29 @@ export function SistemaEditor({
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={onBack}>
-            Cancelar
+            {isReadOnly ? "Voltar" : "Cancelar"}
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={
-              isSaving || !name.trim() || (!!sistema?.id && !hasChanges)
-            }
-            className="min-w-[120px]"
-          >
-            {isSaving ? (
-              <Spinner className="mr-2" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Salvar
-          </Button>
+          {!isReadOnly && (
+            <Button
+              onClick={handleSave}
+              disabled={
+                isSaving || !name.trim() || (!!sistema?.id && !hasChanges)
+              }
+              className="min-w-[120px]"
+            >
+              {isSaving ? (
+                <Spinner className="mr-2" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Salvar
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Main Layout - Grid */}
+      <fieldset disabled={isReadOnly} className="contents">
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
         {/* System info & environments */}
         <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
@@ -972,6 +977,7 @@ export function SistemaEditor({
           )}
         </div>
       </div>
+      </fieldset>
 
       {/* New Environment Dialog */}
       <Dialog open={isCreatingAmbiente} onOpenChange={setIsCreatingAmbiente}>

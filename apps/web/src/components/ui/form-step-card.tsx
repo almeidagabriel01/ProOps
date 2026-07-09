@@ -27,7 +27,10 @@ export function FormStepCard({
     const content = items.slice(0, -1);
     body = (
       <>
-        <fieldset disabled={contentDisabled} className="contents">
+        <fieldset
+          disabled={contentDisabled}
+          className="contents readonly-fieldset"
+        >
           {content}
         </fieldset>
         {nav}
