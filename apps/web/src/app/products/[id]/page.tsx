@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Product, ProductService } from "@/services/product-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useTenant } from "@/providers/tenant-provider";
 import { Package, AlertCircle } from "lucide-react";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { ProductFormNew } from "../_components/product-form-new";
@@ -20,6 +21,10 @@ export default function EditProductPage() {
     canView,
     isLoading: permLoading,
   } = usePagePermission("products");
+  // Demo/free accounts have canEdit=true (full UI parity) but must not edit —
+  // force the read-only view.
+  const { isReadOnly } = useTenant();
+  const isEditable = canEdit && !isReadOnly;
 
   useEffect(() => {
     if (!permLoading && !canView) {
@@ -87,12 +92,12 @@ export default function EditProductPage() {
     <FormContainer>
       <FormHeader
         title={
-          canEdit
+          isEditable
             ? nicheConfig.productCatalog.editTitle
             : nicheConfig.productCatalog.viewTitle
         }
         subtitle={
-          canEdit
+          isEditable
             ? `Atualize as informações de "${product.name}"`
             : `Detalhes do produto "${product.name}"`
         }
@@ -102,7 +107,7 @@ export default function EditProductPage() {
       <ProductFormNew
         initialData={product}
         productId={id}
-        isReadOnly={!canEdit}
+        isReadOnly={!isEditable}
       />
     </FormContainer>
   );

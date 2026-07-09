@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Service, ServiceService } from "@/services/service-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useTenant } from "@/providers/tenant-provider";
 import { Wrench, AlertCircle } from "lucide-react";
 import { FormContainer, FormHeader } from "@/components/ui/form-components";
 import { ServiceForm } from "../_components/service-form";
@@ -18,6 +19,9 @@ export default function EditServicePage() {
     canView,
     isLoading: permLoading,
   } = usePagePermission("services");
+  // Demo/free accounts have canEdit=true for UI parity but must not edit.
+  const { isReadOnly } = useTenant();
+  const isEditable = canEdit && !isReadOnly;
 
   useEffect(() => {
     if (!permLoading && !canView) {
@@ -83,16 +87,16 @@ export default function EditServicePage() {
   return (
     <FormContainer>
       <FormHeader
-        title={canEdit ? "Editar Serviço" : "Visualizar Serviço"}
+        title={isEditable ? "Editar Serviço" : "Visualizar Serviço"}
         subtitle={
-          canEdit
+          isEditable
             ? `Atualize as informações de "${service.name}"`
             : `Detalhes do serviço "${service.name}"`
         }
         icon={Wrench}
         onBack={() => router.push("/services")}
       />
-      <ServiceForm initialData={service} serviceId={id} isReadOnly={!canEdit} />
+      <ServiceForm initialData={service} serviceId={id} isReadOnly={!isEditable} />
     </FormContainer>
   );
 }

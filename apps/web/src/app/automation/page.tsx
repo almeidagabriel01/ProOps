@@ -263,7 +263,7 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
 }
 
 export default function AutomationAdminPage() {
-  const { tenant } = useTenant();
+  const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -475,18 +475,20 @@ export default function AutomationAdminPage() {
         </motion.div>
 
         <div className="flex justify-end border-b pb-4">
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <Button
-              size="lg"
-              onClick={() => setEditingAmbienteId("new")}
-              className="gap-2"
+          {!isReadOnly && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
             >
-              <Plus className="w-5 h-5" /> Novo Ambiente
-            </Button>
-          </motion.div>
+              <Button
+                size="lg"
+                onClick={() => setEditingAmbienteId("new")}
+                className="gap-2"
+              >
+                <Plus className="w-5 h-5" /> Novo Ambiente
+              </Button>
+            </motion.div>
+          )}
         </div>
 
         <motion.div
@@ -514,6 +516,7 @@ export default function AutomationAdminPage() {
               <AmbienteTemplateList
                 key={`ambientes-${ambienteSort}-templates`}
                 ambientes={displayedAmbientes}
+                isReadOnly={isReadOnly}
                 onEdit={(id: string) => setEditingAmbienteId(id)}
                 onDelete={(id: string) =>
                   setDeleteTarget({ type: "ambiente", id })
@@ -611,7 +614,7 @@ export default function AutomationAdminPage() {
             </TabsTrigger>
           </TabsList>
 
-          {activeTab === "sistemas" && !isLoading && (
+          {activeTab === "sistemas" && !isLoading && !isReadOnly && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -658,6 +661,7 @@ export default function AutomationAdminPage() {
                 <SistemaList
                   key={`sistemas-${sistemaSort}`}
                   sistemas={displayedSistemas}
+                  isReadOnly={isReadOnly}
                   onEdit={(id: string) => setEditingSistemaId(id)}
                   onDelete={(id: string) =>
                     setDeleteTarget({ type: "sistema", id })
