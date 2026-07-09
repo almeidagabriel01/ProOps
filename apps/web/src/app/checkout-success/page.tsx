@@ -12,7 +12,8 @@ import { Loader } from "@/components/ui/loader";
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, isLoading: authLoading, refreshUser } = useAuth();
+  const { user, isLoading: authLoading, refreshUser, forceSyncSession } =
+    useAuth();
 
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading",
@@ -64,6 +65,14 @@ function CheckoutSuccessContent() {
 
         setPlanName(data.planTier?.toUpperCase() || "");
 
+        // confirmCheckout promoted the account (role → admin) and updated the
+        // subscription status via custom claims. Force-refresh the ID token AND
+        // re-mint the session cookie so the client SDK and Firestore Rules pick
+        // up the new claims — refreshUser alone only re-reads the Firestore doc,
+        // leaving the stale "free"/"canceled" claim on the token, which denies
+        // reads of the account's real tenant data (kanban/clients aggregate).
+        await forceSyncSession({ force: true });
+
         // Refresh user data to get updated role and planId
         await refreshUser();
 
@@ -106,7 +115,7 @@ function CheckoutSuccessContent() {
     };
 
     confirmAndRedirect();
-  }, [searchParams, refreshUser, router, authLoading, user]);
+  }, [searchParams, refreshUser, forceSyncSession, router, authLoading, user]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
