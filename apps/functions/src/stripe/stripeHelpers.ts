@@ -197,6 +197,11 @@ export async function demoteTrialOwnerToFree(userId: string): Promise<void> {
 
   await userRef.update({
     role: "free",
+    // Clear the "starter" downgrade the cancel handler applied — a free/demo
+    // account has no paid plan, so it must read as "Gratuito" (matching a
+    // never-subscribed free account, which has no planId) in the header and
+    // profile, not "Starter".
+    planId: FieldValue.delete(),
     planUpdatedAt: FieldValue.serverTimestamp(),
   });
 

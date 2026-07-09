@@ -228,6 +228,9 @@ export function usePlanChange(
   }, [effectiveUser, resolvePlanFromCollection]);
 
   const isCurrentPlan = (plan: UserPlan) => {
+    // A free/demo account has no current PAID plan — never highlight one as
+    // active (e.g. a leftover "starter" from a churned trial).
+    if (String(effectiveUser?.role || "").toLowerCase() === "free") return false;
     // Check if plan tier matches AND billing interval matches
     // If user has no billingInterval set (legacy), default to monthly
     const userInterval = effectiveUser?.billingInterval || "monthly";

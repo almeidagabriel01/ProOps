@@ -135,18 +135,23 @@ export function MySubscriptionTab({
 }: MySubscriptionTabProps) {
   const router = useRouter();
 
+  // A free/demo account has no paid plan — always "Plano Gratuito", regardless
+  // of a leftover planId (e.g. a "starter" downgrade from a churned trial).
+  const isFreeUser = String(user?.role || "").toLowerCase() === "free";
+
   // Get effective plan - fallback to DEFAULT_PLANS if userPlan is null but user has planId
-  const effectivePlan =
-    userPlan ||
-    (() => {
-      if (user?.planId) {
-        const defaultPlan = DEFAULT_PLANS.find((p) => p.tier === user.planId);
-        if (defaultPlan) {
-          return { ...defaultPlan, id: defaultPlan.tier } as UserPlan;
+  const effectivePlan = isFreeUser
+    ? null
+    : userPlan ||
+      (() => {
+        if (user?.planId) {
+          const defaultPlan = DEFAULT_PLANS.find((p) => p.tier === user.planId);
+          if (defaultPlan) {
+            return { ...defaultPlan, id: defaultPlan.tier } as UserPlan;
+          }
         }
-      }
-      return null;
-    })();
+        return null;
+      })();
 
   // Infer subscription status - if user has a plan assigned, assume active
   const rawSubscriptionStatus = user?.subscriptionStatus;
