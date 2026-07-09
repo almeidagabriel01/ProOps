@@ -239,11 +239,14 @@ export function PermissionsProvider({
     ): boolean => {
       if (!permissions) return false;
 
-      // DEMO/FREE: read-only browse of the whole ERP. Grant "view" on every
-      // page (the account has no permissions doc), but never create/edit/delete
-      // — mutations are blocked at the api-client and backend anyway.
+      // DEMO/FREE: the demo must mirror a paying tenant EXACTLY — every button,
+      // action and form is available so the user experiences the real flow.
+      // Grant all actions on every page (the account has no permissions doc);
+      // the actual writes are blocked at the api-client and backend (402), so
+      // nothing is ever persisted. Premium modules still show crowns because
+      // that gating is driven by plan features, not permissions.
       if (String(user?.role || "").toLowerCase() === "free") {
-        return action === "view";
+        return true;
       }
 
       // MASTER BYPASS: MASTER users have ALL permissions unconditionally
