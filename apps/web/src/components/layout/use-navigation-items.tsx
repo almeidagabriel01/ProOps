@@ -24,7 +24,7 @@ const WHATSAPP_HREF = buildWhatsAppHref(BOT_WHATSAPP_DIGITS);
 export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
   const { hasFinancial, hasKanban, hasWhatsApp } = usePlanLimits();
   const { hasPermission, isMaster } = usePermissions();
-  const { tenant } = useTenant();
+  const { tenant, isDemo } = useTenant();
 
   const visibleMenuItems = React.useMemo(() => {
     const solutionsConfig = getSolutionsPageConfig(tenant?.niche);
@@ -58,7 +58,10 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
         if (item.requiresFinancial && !hasFinancial && !isMaster) return true;
         if (item.requiresEnterprise && !hasKanban && !isMaster) return true;
 
-        if (isMaster) return true;
+        // Demo/free accounts have no permissions doc, but must see the whole
+        // menu to browse: Starter modules navigable + premium ones crowned
+        // (the premium early-returns above already flagged those).
+        if (isMaster || isDemo) return true;
 
         if (item.pageId) {
           if (item.children) {
@@ -79,7 +82,7 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
 
         return true;
       });
-  }, [hasFinancial, hasKanban, hasWhatsApp, isMaster, hasPermission, tenant?.niche]);
+  }, [hasFinancial, hasKanban, hasWhatsApp, isMaster, isDemo, hasPermission, tenant?.niche]);
 
   return { visibleMenuItems };
 }
