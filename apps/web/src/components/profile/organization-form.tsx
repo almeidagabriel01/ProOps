@@ -29,8 +29,9 @@ interface OrganizationFormProps {
 
 export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
   const { isDemo } = usePermissions();
-  // Demo/free accounts own their tenant, so they see the administrator view of
-  // the organization (rendered read-only via `inert`), not the member view.
+  // Demo/free accounts own their tenant (their real company), so they get the
+  // administrator view AND may edit it — unlike the shared demo DATA, the org
+  // settings belong to their own account.
   const showAsMaster = isMaster || isDemo;
   const [name, setName] = useState(tenant?.name || "");
   const [primaryColor, setPrimaryColor] = useState(
@@ -145,7 +146,7 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
   }
 
   return (
-    <Card className="flex flex-col" inert={isDemo || undefined}>
+    <Card className="flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
         <div className="space-y-1.5">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
