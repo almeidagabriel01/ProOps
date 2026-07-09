@@ -26,6 +26,8 @@ interface PlanCardProps {
   isMaster?: boolean;
   isFree?: boolean;
   isActivePlan?: boolean;
+  /** False when the account already consumed its one-per-account trial. */
+  trialEligible?: boolean;
 }
 
 export function PlanCard({
@@ -40,6 +42,7 @@ export function PlanCard({
   isMaster = false,
   isFree = false,
   isActivePlan = false,
+  trialEligible = true,
 }: PlanCardProps) {
   const displayPrice =
     billingInterval === "yearly" && plan.pricing
@@ -51,8 +54,9 @@ export function PlanCard({
     ((plan.pricing?.monthly || plan.price) <= 0 &&
       (plan.pricing?.yearly || 0) <= 0);
 
-  // The 7-day free trial is offered only on the Pro plan.
-  const hasTrial = plan.tier === "pro" && !isEnterprise;
+  // The 7-day free trial is offered only on the Pro plan, and only to accounts
+  // that haven't consumed their one-per-account trial yet (else: direct "Assinar").
+  const hasTrial = plan.tier === "pro" && !isEnterprise && trialEligible;
 
   const monthlyEquivalent =
     billingInterval === "yearly" && plan.pricing
