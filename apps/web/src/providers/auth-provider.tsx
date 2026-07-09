@@ -580,10 +580,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               permissions = loadedPerms;
             }
           } catch (err) {
-            console.error(
-              "Error fetching member permissions in auth-provider:",
-              err,
-            );
+            // A blocked/inactive subscription (past_due grace expired, canceled)
+            // has Firestore Rules deny reads of tenant-scoped data — including
+            // this permissions subcollection. That's expected here (permissions
+            // fall back to {} and the account is blocked downstream), so don't
+            // surface it as an error; only log genuinely unexpected failures.
+            const code = (err as { code?: string })?.code;
+            if (code !== "permission-denied") {
+              console.error(
+                "Error fetching member permissions in auth-provider:",
+                err,
+              );
+            }
           }
         }
 
