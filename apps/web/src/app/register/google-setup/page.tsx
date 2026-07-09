@@ -42,7 +42,9 @@ function GoogleSetupContent() {
       return `/subscribe?plan=${encodeURIComponent(selectedPlan)}&interval=${encodeURIComponent(selectedInterval)}`;
     }
 
-    return "/";
+    // New accounts are role "free": land them inside the ERP (read-only demo
+    // mode, Feature B) instead of bouncing back to the public landing.
+    return "/dashboard";
   }, [redirectParam, selectedPlan, selectedInterval]);
 
   const getLoginTarget = useCallback(() => {
