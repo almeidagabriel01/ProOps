@@ -34,6 +34,13 @@ interface ServiceFormProps {
   initialData?: Service;
   serviceId?: string;
   isReadOnly?: boolean;
+  /**
+   * Demo/free accounts: render the normal multi-step form (identical to the
+   * editing flow) but fully non-interactive — navigate the steps without
+   * editing or saving. Distinct from `isReadOnly` (compact summary view for
+   * permission-limited viewers).
+   */
+  demoReadOnly?: boolean;
 }
 
 const serviceSteps = [
@@ -67,6 +74,7 @@ export function ServiceForm({
   initialData,
   serviceId,
   isReadOnly = false,
+  demoReadOnly = false,
 }: ServiceFormProps) {
   const router = useRouter();
   const nicheConfig = useCurrentNicheConfig();
@@ -172,8 +180,11 @@ export function ServiceForm({
 
   return (
     <>
-      <StepWizard steps={serviceSteps} allowClickAhead={!!serviceId}>
-        <FormStepCard>
+      <StepWizard
+        steps={serviceSteps}
+        allowClickAhead={!!serviceId || demoReadOnly}
+      >
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary/15 to-primary/5 flex items-center justify-center">
@@ -262,10 +273,10 @@ export function ServiceForm({
             </div>
           </div>
 
-          <StepNavigation onBeforeNext={validateInfoStep} />
+          <StepNavigation onBeforeNext={demoReadOnly ? undefined : validateInfoStep} />
         </FormStepCard>
 
-        <FormStepCard>
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-green-500/15 to-green-500/5 flex items-center justify-center">
@@ -309,10 +320,10 @@ export function ServiceForm({
             </div>
           </div>
 
-          <StepNavigation onBeforeNext={validatePriceStep} />
+          <StepNavigation onBeforeNext={demoReadOnly ? undefined : validatePriceStep} />
         </FormStepCard>
 
-        <FormStepCard>
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
@@ -364,7 +375,7 @@ export function ServiceForm({
           <StepNavigation />
         </FormStepCard>
 
-        <FormStepCard>
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-slate-500/15 to-slate-500/5 flex items-center justify-center">
@@ -414,7 +425,7 @@ export function ServiceForm({
           <StepNavigation
             onSubmit={handleFormSubmit}
             isSubmitting={isSubmitting}
-            submitDisabled={!!serviceId && !hasChanges}
+            submitDisabled={demoReadOnly || (!!serviceId && !hasChanges)}
             submitLabel={serviceId ? "Salvar Alterações" : "Criar Serviço"}
           />
         </FormStepCard>

@@ -1085,13 +1085,12 @@ html[data-cookie-consent="pending"] .cookie-banner {
   }
 }
 
-/* Read-only/demo form steps: a disabled <fieldset> (display:contents) natively
-   blocks native form controls, but custom div/label toggles (e.g. payment mode
-   switches, PDF option cards) are not form elements and stay clickable. Block
-   all pointer interaction on descendants and normalize the cursor so the demo
-   user can read a step without editing it. The step navigation is rendered
-   OUTSIDE the fieldset, so it remains fully interactive. */
-.readonly-fieldset:disabled * {
-  pointer-events: none !important;
+/* Read-only/demo mode: content marked `inert` is non-interactive at the
+   flat-tree level, but CSS cursor styles (e.g. Tailwind `cursor-pointer` on
+   custom label/card toggles) still render a pointer cursor, which misleads the
+   user into thinking a control is actionable. Force the default cursor on
+   everything inside an inert subtree. */
+[inert],
+[inert] * {
   cursor: default !important;
 }

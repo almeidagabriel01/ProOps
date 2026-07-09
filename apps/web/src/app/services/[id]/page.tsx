@@ -96,7 +96,12 @@ export default function EditServicePage() {
         icon={Wrench}
         onBack={() => router.push("/services")}
       />
-      <ServiceForm initialData={service} serviceId={id} isReadOnly={!isEditable} />
+      <ServiceForm
+        initialData={service}
+        serviceId={id}
+        isReadOnly={!canEdit && !isReadOnly}
+        demoReadOnly={isReadOnly}
+      />
     </FormContainer>
   );
 }

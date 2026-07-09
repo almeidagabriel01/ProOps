@@ -1190,7 +1190,7 @@ export function SimpleProposalForm({
         </FormStepCard>
 
         {/* Step 3: Payment */}
-        <FormStepCard contentDisabled={isDemo}>
+        <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
@@ -1219,6 +1219,7 @@ export function SimpleProposalForm({
               }}
               noContainer
               errors={errors}
+              isReadOnly={isDemo}
             />
           </div>
           <StepNavigation onBeforeNext={isDemo ? undefined : validateStep3} />

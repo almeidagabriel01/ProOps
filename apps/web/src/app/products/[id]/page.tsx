@@ -107,7 +107,8 @@ export default function EditProductPage() {
       <ProductFormNew
         initialData={product}
         productId={id}
-        isReadOnly={!isEditable}
+        isReadOnly={!canEdit && !isReadOnly}
+        demoReadOnly={isReadOnly}
       />
     </FormContainer>
   );

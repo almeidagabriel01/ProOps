@@ -491,8 +491,10 @@ export function AmbienteEditor({
         </div>
       </div>
 
-      <fieldset disabled={isReadOnly} className="contents">
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
+      <div
+        className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden"
+        inert={isReadOnly || undefined}
+      >
         <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
           <Card>
             <CardHeader className="py-4">
@@ -1306,7 +1308,6 @@ export function AmbienteEditor({
           </Card>
         </div>
       </div>
-      </fieldset>
     </div>
   );
 }

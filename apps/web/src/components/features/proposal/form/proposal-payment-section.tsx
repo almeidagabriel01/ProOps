@@ -39,6 +39,7 @@ interface ProposalPaymentSectionProps {
   onExtraExpenseChange: (value: number) => void;
   noContainer?: boolean;
   errors?: Record<string, string>;
+  isReadOnly?: boolean;
 }
 
 export function ProposalPaymentSection({
@@ -50,6 +51,7 @@ export function ProposalPaymentSection({
   onExtraExpenseChange,
   noContainer = false,
   errors = {},
+  isReadOnly = false,
 }: ProposalPaymentSectionProps) {
   const CUSTOM_PAYMENT_METHOD_VALUE = "__custom__";
   // Calculate components
@@ -239,7 +241,10 @@ export function ProposalPaymentSection({
   const content = (
     <div className="space-y-6">
       {/* Ajustes de Valor */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+        inert={isReadOnly || undefined}
+      >
         {/* Discount Section */}
         <div className="p-5 rounded-xl bg-purple-500/10 border-2 border-purple-500/20 flex flex-col justify-between">
           <div>
@@ -502,7 +507,10 @@ export function ProposalPaymentSection({
         </label>
 
         {formData.downPaymentEnabled && (
-          <div className="ml-4 pl-4 border-l-2 border-blue-500/20 space-y-5">
+          <div
+            className="ml-4 pl-4 border-l-2 border-blue-500/20 space-y-5"
+            inert={isReadOnly || undefined}
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
               <div className="field-gap">
                 <div className="min-h-5">
@@ -695,7 +703,10 @@ export function ProposalPaymentSection({
         </label>
 
         {formData.installmentsEnabled && (
-          <div className="ml-4 pl-4 border-l-2 border-primary/20 space-y-5">
+          <div
+            className="ml-4 pl-4 border-l-2 border-primary/20 space-y-5"
+            inert={isReadOnly || undefined}
+          >
             {/* Installment Configuration */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="field-gap">

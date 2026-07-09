@@ -537,12 +537,11 @@ export function SistemaEditor({
       </div>
 
       {/* Main Layout - Grid */}
-      <fieldset disabled={isReadOnly} className="contents">
       <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
         {/* System info & environments */}
         <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
           {/* Info Card */}
-          <Card>
+          <Card inert={isReadOnly || undefined}>
             <CardHeader className="py-4">
               <CardTitle className="text-base flex items-center gap-2">
                 <Settings className="w-4 h-4 text-primary" /> Informações
@@ -586,6 +585,7 @@ export function SistemaEditor({
                 <Home className="w-4 h-4 text-primary" /> Ambientes
               </CardTitle>
 
+              {!isReadOnly && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button size="sm" variant="outline" className="h-8 gap-1">
@@ -632,6 +632,7 @@ export function SistemaEditor({
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              )}
             </CardHeader>
             <CardContent className="p-2 flex-1 overflow-y-auto">
               <div className="space-y-1">
@@ -681,17 +682,19 @@ export function SistemaEditor({
                           </div>
                         </div>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeAmbiente(conf.ambienteId);
-                          }}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {!isReadOnly && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeAmbiente(conf.ambienteId);
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
 
                         {isActive && (
                           <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-l-full" />
@@ -706,7 +709,10 @@ export function SistemaEditor({
         </div>
 
         {/* Main Content: Product Editor */}
-        <div className="md:col-span-8 flex flex-col h-full overflow-hidden">
+        <div
+          className="md:col-span-8 flex flex-col h-full overflow-hidden"
+          inert={isReadOnly || undefined}
+        >
           {activeAmbienteId && activeConfig ? (
             <Card className="h-full flex flex-col border-none shadow-md bg-card overflow-hidden">
               {/* Premium Header with Integrated Search */}
@@ -977,7 +983,6 @@ export function SistemaEditor({
           )}
         </div>
       </div>
-      </fieldset>
 
       {/* New Environment Dialog */}
       <Dialog open={isCreatingAmbiente} onOpenChange={setIsCreatingAmbiente}>
