@@ -254,7 +254,13 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (user?.role === "superadmin") {
+      // Superadmins and free/demo accounts have no addons. For free/demo,
+      // `tenant.id` is the shared "demo" tenant, which the account's claims
+      // don't own — querying its addons would 403 (permission denied).
+      if (
+        user?.role === "superadmin" ||
+        String(user?.role || "").toLowerCase() === "free"
+      ) {
         setPurchasedAddons([]);
         setPurchasedAddonsData([]);
         setPastDueAddonsData([]);
@@ -328,7 +334,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   // -------------------------------------------------------------------------
 
   const refreshAddons = useCallback(async () => {
-    if (user?.role === "superadmin") {
+    if (
+      user?.role === "superadmin" ||
+      String(user?.role || "").toLowerCase() === "free"
+    ) {
       setPurchasedAddons([]);
       setPurchasedAddonsData([]);
       setPastDueAddonsData([]);
