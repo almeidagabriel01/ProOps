@@ -216,14 +216,16 @@ export function LandingPricing({
   );
   const isAnnual = billingInterval === "yearly";
 
-  const handleSubscribe = async (planTier: string) => {
+  const handleSubscribe = async (planTier: string, skipTrial = false) => {
     if (planTier === "enterprise") {
       window.location.href = `mailto:${ENTERPRISE_CONTACT_EMAIL}`;
       return;
     }
 
     if (!currentUser) {
-      const subscribeUrl = `/subscribe?plan=${planTier}&interval=${billingInterval}`;
+      const subscribeUrl = `/subscribe?plan=${planTier}&interval=${billingInterval}${
+        skipTrial ? "&skipTrial=1" : ""
+      }`;
       router.push(`/login?redirect=${encodeURIComponent(subscribeUrl)}&mode=register`);
       return;
     }
@@ -241,6 +243,7 @@ export function LandingPricing({
         planTier,
         billingInterval,
         origin: window.location.origin,
+        skipTrial,
       });
 
       if (response.url) {
@@ -492,6 +495,8 @@ export function LandingPricing({
               const displayPrice = isAnnual ? annualMonthlyPrice : monthlyPrice;
               const isEnterprise =
                 plan.tier.toLowerCase() === "enterprise" || displayPrice <= 0;
+              // The 7-day free trial is offered only on the Pro plan.
+              const hasTrial = plan.tier.toLowerCase() === "pro" && !isEnterprise;
               const ctaLabel = isEnterprise ? "Entrar em contato" : plan.cta;
               // Planos são ações primárias (compra): popular em destaque (inverted),
               // demais em solid. Sem variante secundária aqui.
@@ -571,19 +576,53 @@ export function LandingPricing({
                         Em 12x no cartão • 15% de desconto no anual
                       </p>
                     )}
+                    {hasTrial && (
+                      <p className={cn("mt-2 text-xs font-semibold", fg)}>
+                        ✨ Comece com 7 dias grátis — só é cobrado ao fim do teste
+                      </p>
+                    )}
 
-                    <LandingButton
-                      variant={ctaVariant}
-                      size="md"
-                      fullWidth
-                      className="mt-7"
-                      onClick={() => void handleSubscribe(plan.tier)}
-                      disabled={processingTier === plan.tier}
-                    >
-                      {processingTier === plan.tier
-                        ? "Redirecionando..."
-                        : ctaLabel}
-                    </LandingButton>
+                    {hasTrial ? (
+                      <div className="mt-7 flex flex-col items-center gap-2.5">
+                        <LandingButton
+                          variant={ctaVariant}
+                          size="md"
+                          fullWidth
+                          onClick={() => void handleSubscribe(plan.tier, false)}
+                          disabled={processingTier === plan.tier}
+                        >
+                          {processingTier === plan.tier
+                            ? "Redirecionando..."
+                            : "Testar grátis por 7 dias"}
+                        </LandingButton>
+                        <button
+                          type="button"
+                          onClick={() => void handleSubscribe(plan.tier, true)}
+                          disabled={processingTier === plan.tier}
+                          className={cn(
+                            "text-xs underline underline-offset-4 transition-colors disabled:opacity-50",
+                            plan.popular
+                              ? "text-white/70 hover:text-white"
+                              : "text-black/60 hover:text-black dark:text-white/70 dark:hover:text-white",
+                          )}
+                        >
+                          Prefiro assinar direto, sem período de teste
+                        </button>
+                      </div>
+                    ) : (
+                      <LandingButton
+                        variant={ctaVariant}
+                        size="md"
+                        fullWidth
+                        className="mt-7"
+                        onClick={() => void handleSubscribe(plan.tier)}
+                        disabled={processingTier === plan.tier}
+                      >
+                        {processingTier === plan.tier
+                          ? "Redirecionando..."
+                          : ctaLabel}
+                      </LandingButton>
+                    )}
 
                     <div className="mt-8 flex flex-1 flex-col">
                       <div className="mb-4 flex items-center gap-3">

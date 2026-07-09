@@ -1261,22 +1261,30 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     // --- Trial eligibility: atomic reservation + same-email dedup ---
     // Only new subscriptions reach this point (the existingStripeSubscriptionId
     // branch above returns first with a proration plan-change, never a trial).
+    // The 7-day trial is offered ONLY on the Pro plan, and only when the user
+    // did not explicitly opt out (the "subscribe directly" link on the pricing
+    // card sends skipTrial=true).
+    const skipTrial =
+      req.body?.skipTrial === true ||
+      String(req.body?.skipTrial || "").toLowerCase() === "true";
     let trialEligible = false;
-    // 1. Atomically reserve the trial slot (prevents TOCTOU races).
-    const slotReserved = await reserveTrialSlot(tenantId);
-    if (slotReserved) {
-      // 2. Check same-email abuse (same email across multiple accounts).
-      const accountEmail = String(
-        userSnap?.data()?.email || req.user?.email || "",
-      ).trim();
-      const emailAbused = accountEmail
-        ? await hasEmailUsedTrial(accountEmail)
-        : false;
-      if (emailAbused) {
-        // Release the reservation — this email already used a trial.
-        await releaseTrialReservation(tenantId);
-      } else {
-        trialEligible = true;
+    if (planTier === "pro" && !skipTrial) {
+      // 1. Atomically reserve the trial slot (prevents TOCTOU races).
+      const slotReserved = await reserveTrialSlot(tenantId);
+      if (slotReserved) {
+        // 2. Check same-email abuse (same email across multiple accounts).
+        const accountEmail = String(
+          userSnap?.data()?.email || req.user?.email || "",
+        ).trim();
+        const emailAbused = accountEmail
+          ? await hasEmailUsedTrial(accountEmail)
+          : false;
+        if (emailAbused) {
+          // Release the reservation — this email already used a trial.
+          await releaseTrialReservation(tenantId);
+        } else {
+          trialEligible = true;
+        }
       }
     }
 
