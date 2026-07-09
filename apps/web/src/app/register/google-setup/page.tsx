@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
+import { resolvePostSignupRedirect } from "@/lib/auth/resolve-signup-redirect";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { deleteUser, onAuthStateChanged, signOut } from "firebase/auth";
 import { Input } from "@/components/ui/input";
@@ -29,23 +30,15 @@ function GoogleSetupContent() {
   const selectedPlan = searchParams.get("plan");
   const selectedInterval = searchParams.get("interval") || "monthly";
 
-  const resolveRedirectTarget = useCallback(() => {
-    if (redirectParam) {
-      try {
-        return decodeURIComponent(redirectParam);
-      } catch {
-        return redirectParam;
-      }
-    }
-
-    if (selectedPlan) {
-      return `/subscribe?plan=${encodeURIComponent(selectedPlan)}&interval=${encodeURIComponent(selectedInterval)}`;
-    }
-
-    // New accounts are role "free": land them inside the ERP (read-only demo
-    // mode, Feature B) instead of bouncing back to the public landing.
-    return "/dashboard";
-  }, [redirectParam, selectedPlan, selectedInterval]);
+  const resolveRedirectTarget = useCallback(
+    () =>
+      resolvePostSignupRedirect({
+        redirect: redirectParam,
+        plan: selectedPlan,
+        interval: selectedInterval,
+      }),
+    [redirectParam, selectedPlan, selectedInterval],
+  );
 
   const getLoginTarget = useCallback(() => {
     const params = new URLSearchParams();
