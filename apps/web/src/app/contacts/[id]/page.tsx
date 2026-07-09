@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ClientService, Client } from "@/services/client-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "@/lib/toast";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { customerSchema } from "@/lib/validations";
@@ -105,6 +106,9 @@ export default function EditCustomerPage() {
     canView,
     isLoading: permLoading,
   } = usePagePermission("clients");
+  // Demo/free accounts have canEdit=true for UI parity but must not edit.
+  const { isReadOnly } = useTenant();
+  const isEditable = canEdit && !isReadOnly;
   const {
     errors,
     validateField,
@@ -301,8 +305,8 @@ export default function EditCustomerPage() {
 
   const sourceInfo = sourceLabels[client.source] || sourceLabels.manual;
 
-  // Read-only view for users without edit permission
-  if (!canEdit) {
+  // Read-only view for users without edit permission (and demo/free accounts)
+  if (!isEditable) {
     return (
       <FormContainer>
         <FormHeader
