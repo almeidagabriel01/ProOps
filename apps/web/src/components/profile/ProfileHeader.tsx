@@ -6,6 +6,7 @@ import { User, Tenant, UserPlan } from "@/types";
 import { getRoleLabel, getRoleBadgeVariant } from "@/utils/format";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDateBR } from "@/utils/date-format";
+import { usePermissions } from "@/providers/permissions-provider";
 
 interface ProfileHeaderProps {
   user: User | null;
@@ -18,7 +19,12 @@ export function ProfileHeader({
   user,
   tenant,
   userPlan,
+  isMaster,
 }: ProfileHeaderProps) {
+  const { isDemo } = usePermissions();
+  // Demo/free accounts own their tenant, so they are shown as the account
+  // administrator (with everything read-only elsewhere).
+  const showAsMaster = isMaster || isDemo;
   return (
     <div className="flex flex-col md:flex-row gap-6 items-center p-6 bg-gradient-to-r from-background to-muted/20 border rounded-xl shadow-sm">
       <div className="relative">
@@ -60,11 +66,13 @@ export function ProfileHeader({
 
         <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-2">
           <Badge
-            variant={getRoleBadgeVariant(user?.role || "user")}
+            variant={
+              showAsMaster ? "default" : getRoleBadgeVariant(user?.role || "user")
+            }
             className="gap-1.5"
           >
             <Shield className="w-3 h-3" />
-            {getRoleLabel(user?.role || "user")}
+            {showAsMaster ? "Administrador" : getRoleLabel(user?.role || "user")}
           </Badge>
 
           {tenant && (
