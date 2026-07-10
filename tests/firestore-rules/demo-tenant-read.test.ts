@@ -27,6 +27,12 @@ const DEMO_COLLECTIONS = [
   'clients',
   'sistemas',
   'ambientes',
+  // Premium modules navigable read-only in demo (Financeiro + CRM).
+  'transactions',
+  'transaction_groups',
+  'wallets',
+  'wallet_transactions',
+  'kanban_statuses',
 ] as const;
 
 beforeAll(async () => {
