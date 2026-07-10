@@ -70,7 +70,7 @@ export function TransactionInstallmentsList({
   );
 
   const handleEditClick = (installment: Transaction, e: React.MouseEvent) => {
-    if (!canEdit || !onUpdate) return;
+    if (!canEdit || !onUpdate || isReadOnly) return;
     e.stopPropagation();
     setEditingId(installment.id);
     setEditValue(installment.amount);
@@ -594,13 +594,13 @@ export function TransactionInstallmentsList({
                                 )}
                                 <span
                                   onClick={(e) =>
-                                    canEdit && onUpdate && handleEditClick(group.main, e)
+                                    canEdit && onUpdate && !isReadOnly && handleEditClick(group.main, e)
                                   }
                                   className={cn(
                                     "transition-colors decoration-dashed",
-                                    canEdit && onUpdate && "cursor-pointer group-hover/amount:text-primary group-hover/amount:underline"
+                                    canEdit && onUpdate && !isReadOnly && "cursor-pointer group-hover/amount:text-primary group-hover/amount:underline"
                                   )}
-                                  title={canEdit && onUpdate ? "Clique para editar o valor diretamente" : undefined}
+                                  title={canEdit && onUpdate && !isReadOnly ? "Clique para editar o valor diretamente" : undefined}
                                 >
                                   {formatCurrency(group.main.amount)}
                                 </span>
