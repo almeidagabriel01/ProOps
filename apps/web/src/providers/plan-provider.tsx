@@ -167,6 +167,25 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Free/demo accounts browse the whole ERP read-only ("dar o gostinho"):
+      // unlock every module feature so premium modules (Financeiro, CRM, editor
+      // de PDF) render and navigate instead of showing the upgrade crown. Writes
+      // stay blocked downstream (api-client 402 + backend + Firestore rules).
+      // planTier stays neutral so the plan label remains "Gratuito".
+      if (String(user?.role || "").toLowerCase() === "free") {
+        setBaseFeatures({
+          ...FREE_PLAN_FEATURES,
+          hasFinancial: true,
+          hasKanban: true,
+          canEditPdfSections: true,
+          canCustomizeTheme: true,
+          maxPdfTemplates: -1,
+        });
+        setPlanTier("starter");
+        setIsPlanLoading(false);
+        return;
+      }
+
       let effectivePlanId = user?.planId;
       const currentUser = user as { masterId?: string; planId?: string };
 

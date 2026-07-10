@@ -95,18 +95,19 @@ export function resolveUserHome(user: User | null): ResolvedHome {
  *   - "/checkout-success[/*]"   stripe callback
  *   - "/profile[/*]" "/settings[/*]"  manage own account (billing tab here)
  *   - "/subscription-blocked"   defensive
- *   - the Starter-tier ERP modules in DEMO_ACCESSIBLE_PREFIXES (read-only)
+ *   - every ERP module in DEMO_ACCESSIBLE_PREFIXES (read-only)
  *
- * Premium modules (Financeiro, CRM, editor de PDF) stay blocked — the dock
- * renders them crowned and opens the upgrade modal instead of navigating.
+ * Premium modules (Financeiro, CRM, editor de PDF) are navigable read-only in
+ * demo too — the dock links straight to them (no upgrade crown).
  * Exported separately from isPathAllowedForUser because the next.js
  * middleware and the billing-status route need to evaluate it from a
  * `plan` string without a full User object in hand.
  */
 // ERP routes a free-tier / demo account may browse read-only (Feature B).
-// These are the Starter-tier modules; premium modules (Financeiro, CRM, editor
-// de PDF) stay off this list — the dock renders them crowned and intercepts the
-// click with the upgrade modal instead of navigating.
+// The whole platform is navigable so the demo can "dar o gostinho" — including
+// the premium modules (Financeiro `/transactions` + `/wallets`, CRM `/crm`, and
+// the PDF editor under `/proposals/[id]/edit-pdf`). All writes stay blocked
+// downstream (api-client 402 + backend + Firestore rules).
 const DEMO_ACCESSIBLE_PREFIXES = [
   "/dashboard",
   "/proposals",
@@ -118,6 +119,9 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/ambientes",
   "/calendar",
   "/spreadsheets",
+  "/transactions",
+  "/wallets",
+  "/crm",
 ];
 
 export function isFreeTierAllowedPath(path: string): boolean {

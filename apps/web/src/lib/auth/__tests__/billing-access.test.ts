@@ -33,13 +33,15 @@ describe("resolveBillingAccess", () => {
     }
   });
 
-  it("blocks a free account on a non-allowlist (premium) path", () => {
+  it("blocks a free account on a non-allowlist (team-only) path", () => {
+    // /transactions, /crm and /wallets are now demo-navigable; /team stays off
+    // the free allowlist (member management is not part of the read-only demo).
     expect(
       resolveBillingAccess({
         role: "free",
         subscriptionStatus: "canceled",
         pastDueSince: null,
-        requestedPath: "/transactions",
+        requestedPath: "/team",
         nowMs: NOW,
       }),
     ).toEqual({ allowed: false, status: "free", reason: "free_tier_forbidden" });

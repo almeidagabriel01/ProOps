@@ -99,7 +99,7 @@ function PdfDownloader({
 
 export default function ProposalsPage() {
   const router = useRouter();
-  const { tenant } = useTenant();
+  const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
   const { hasKanban } = usePlanLimits();
@@ -674,7 +674,7 @@ export default function ProposalsPage() {
         header: "Status",
         render: (proposal) => (
           <div>
-            {canEdit ? (
+            {canEdit && !isReadOnly ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -983,6 +983,7 @@ export default function ProposalsPage() {
       canEdit,
       canDelete,
       canCreate,
+      isReadOnly,
       updatingStatusId,
       downloadingId,
       editingId,

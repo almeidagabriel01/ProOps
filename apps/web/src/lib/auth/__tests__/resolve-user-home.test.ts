@@ -156,6 +156,10 @@ describe("isFreeTierAllowedPath — demo mode ERP access", () => {
     "/ambientes",
     "/calendar",
     "/spreadsheets",
+    // Premium modules now navigable read-only in demo ("dar o gostinho").
+    "/transactions",
+    "/wallets",
+    "/crm",
   ])("free user may browse %s", (path) => {
     expect(isFreeTierAllowedPath(path)).toBe(true);
   });
@@ -167,8 +171,8 @@ describe("isFreeTierAllowedPath — demo mode ERP access", () => {
     },
   );
 
-  test.each(["/transactions", "/crm", "/wallets", "/team", "/admin"])(
-    "premium / restricted route %s stays blocked for free",
+  test.each(["/team", "/admin"])(
+    "restricted route %s stays blocked for free (not part of the read-only demo)",
     (path) => {
       expect(isFreeTierAllowedPath(path)).toBe(false);
     },

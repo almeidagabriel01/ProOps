@@ -106,7 +106,10 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SubscriptionGuard>
-      <div className="flex h-screen overflow-hidden bg-card">
+      <div
+        className="flex h-screen overflow-hidden bg-card"
+        data-demo-readonly={isDemo || undefined}
+      >
         <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
           <Header sidebarWidth={0} />
           <PriceChangeBanner />
