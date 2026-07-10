@@ -33,7 +33,7 @@ import { useSort } from "@/hooks/use-sort";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 
 export default function FinancialPage() {
-  const { tenant, isLoading: tenantLoading } = useTenant();
+  const { tenant, isLoading: tenantLoading, isReadOnly } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("financial");
   const { hasKanban } = usePlanLimits();
@@ -650,8 +650,8 @@ export default function FinancialPage() {
             filterDateType,
           }}
           wallets={wallets}
-          canEdit={canEdit}
-          canDelete={canDelete}
+          canEdit={canEdit && !isReadOnly}
+          canDelete={canDelete && !isReadOnly}
           onDelete={openDeleteDialog}
           onStatusChange={groupedUpdateGroupStatus}
           onUpdateExtraCostStatus={groupedUpdateExtraCostStatus}
@@ -727,8 +727,8 @@ export default function FinancialPage() {
         <TransactionListByDueDate
           transactions={sortedTransactions}
           allTransactions={transactions}
-          canEdit={canEdit}
-          canDelete={canDelete}
+          canEdit={canEdit && !isReadOnly}
+          canDelete={canDelete && !isReadOnly}
           onDelete={openDeleteDialog}
           onStatusChange={updateGroupStatus}
           onUpdateExtraCostStatus={updateExtraCostStatus}
