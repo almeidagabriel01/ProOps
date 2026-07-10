@@ -708,29 +708,30 @@ export function TransactionKanbanTab() {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar — hidden in read-only/demo (drag + auto-overdue are writes) */}
-      {!isReadOnly && (
-        <div className="flex items-center justify-start gap-3 flex-wrap">
-          {/* Drag hint */}
+      {/* Toolbar */}
+      <div className="flex items-center justify-start gap-3 flex-wrap">
+        {/* Drag hint */}
+        {!isReadOnly && (
           <p className="text-xs text-muted-foreground hidden sm:block">
             Arraste para alterar o status
           </p>
-          {/* Auto-overdue toggle */}
-          <div className="flex items-center gap-3 bg-card/60 dark:bg-card/40 border border-border/40 rounded-lg px-3 py-2 backdrop-blur-sm">
-            <label
-              htmlFor="auto-overdue-toggle"
-              className="text-xs text-muted-foreground select-none cursor-pointer"
-            >
-              Marcar vencidos como atrasados
-            </label>
-            <Switch
-              id="auto-overdue-toggle"
-              checked={autoOverdue}
-              onCheckedChange={handleToggleAutoOverdue}
-            />
-          </div>
+        )}
+        {/* Auto-overdue toggle */}
+        <div className="flex items-center gap-3 bg-card/60 dark:bg-card/40 border border-border/40 rounded-lg px-3 py-2 backdrop-blur-sm">
+          <label
+            htmlFor="auto-overdue-toggle"
+            className="text-xs text-muted-foreground select-none cursor-pointer"
+          >
+            Marcar vencidos como atrasados
+          </label>
+          <Switch
+            id="auto-overdue-toggle"
+            checked={autoOverdue}
+            onCheckedChange={handleToggleAutoOverdue}
+            disabled={isReadOnly}
+          />
         </div>
-      )}
+      </div>
 
       {/* Board — drag disabled in read-only/demo */}
       <KanbanBoard<Transaction>

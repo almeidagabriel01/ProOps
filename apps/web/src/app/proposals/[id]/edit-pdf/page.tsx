@@ -141,49 +141,47 @@ export default function EditPdfPage() {
             </p>
           </div>
         </div>
-        {!isReadOnly && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={handleGeneratePdf}
-              disabled={isGenerating || isSaving || isSavingDefault}
-              className="gap-2"
-            >
-              {isGenerating ? (
-                <Loader size="sm" />
-              ) : (
-                <FileDown className="w-4 h-4" />
-              )}
-              Baixar PDF
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowSaveDefaultModal(true)}
-              disabled={isSavingDefault || isSaving}
-              className="gap-2"
-            >
-              {isSavingDefault ? (
-                <Loader size="sm" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              Salvar Configurações
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => setShowSaveModal(true)}
-              disabled={isSaving || isSavingDefault}
-              className="gap-2"
-            >
-              {isSaving ? (
-                <Loader size="sm" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              Salvar
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleGeneratePdf}
+            disabled={isGenerating || isSaving || isSavingDefault || isReadOnly}
+            className="gap-2"
+          >
+            {isGenerating ? (
+              <Loader size="sm" />
+            ) : (
+              <FileDown className="w-4 h-4" />
+            )}
+            Baixar PDF
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowSaveDefaultModal(true)}
+            disabled={isSavingDefault || isSaving || isReadOnly}
+            className="gap-2"
+          >
+            {isSavingDefault ? (
+              <Loader size="sm" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Salvar Configurações
+          </Button>
+          <Button
+            variant="default"
+            onClick={() => setShowSaveModal(true)}
+            disabled={isSaving || isSavingDefault || isReadOnly}
+            className="gap-2"
+          >
+            {isSaving ? (
+              <Loader size="sm" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Salvar
+          </Button>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">

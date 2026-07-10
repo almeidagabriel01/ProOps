@@ -1002,31 +1002,29 @@ export function ProposalKanbanTab() {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {!isReadOnly && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (col) {
-                        setEditingColumn(col);
-                        setIsStatusDialogOpen(true);
-                      }
-                    }}
-                    className="p-1.5 ml-1 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    title="Editar coluna"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeletingColumnId(column.id)}
-                    className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-                    title="Excluir coluna"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </>
-              )}
+              <button
+                type="button"
+                disabled={isReadOnly}
+                onClick={() => {
+                  if (col) {
+                    setEditingColumn(col);
+                    setIsStatusDialogOpen(true);
+                  }
+                }}
+                className="p-1.5 ml-1 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                title="Editar coluna"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                disabled={isReadOnly}
+                onClick={() => setDeletingColumnId(column.id)}
+                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                title="Excluir coluna"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
           {total > 0 && (
@@ -1076,39 +1074,40 @@ export function ProposalKanbanTab() {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      {!isReadOnly && (
-        <div className="flex items-center justify-start gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+      <div className="flex items-center justify-start gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => {
+              setEditingColumn(null);
+              setIsStatusDialogOpen(true);
+            }}
+            size="sm"
+            variant="outline"
+            disabled={isReadOnly}
+            className="gap-1.5 h-9 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Coluna
+          </Button>
+          {isMissingDefaults && (
             <Button
-              onClick={() => {
-                setEditingColumn(null);
-                setIsStatusDialogOpen(true);
-              }}
+              variant="ghost"
               size="sm"
-              variant="outline"
-              className="gap-1.5 h-9 cursor-pointer"
+              className="gap-1.5 h-9 cursor-pointer text-muted-foreground hover:text-foreground"
+              onClick={handleRestoreDefaults}
+              disabled={isSaving || isReadOnly}
             >
-              <Plus className="w-4 h-4" />
-              Nova Coluna
+              Restaurar Padrões
             </Button>
-            {isMissingDefaults && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 h-9 cursor-pointer text-muted-foreground hover:text-foreground"
-                onClick={handleRestoreDefaults}
-                disabled={isSaving}
-              >
-                Restaurar Padrões
-              </Button>
-            )}
+          )}
 
+          {!isReadOnly && (
             <p className="text-xs text-muted-foreground hidden sm:block">
               Arraste para alterar o status
             </p>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Board */}
       <KanbanBoard<Proposal>
