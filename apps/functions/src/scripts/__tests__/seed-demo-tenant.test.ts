@@ -126,7 +126,8 @@ describe("seedDemoTenant", () => {
       expect(["paid", "pending", "overdue"]).toContain(data.status);
       // Standalone (not proposal-linked) so the avulsos query returns them.
       expect(data.grouped).toBe(false);
-      expect(String(data.wallet).startsWith("demo_wallet_")).toBe(true);
+      // wallet é gravado por NOME (não id) para exibir legível em qualquer view.
+      expect(["Conta Principal", "Caixa"]).toContain(data.wallet);
     }
 
     // wallet.balance is denormalized and must equal the sum of paid impacts
@@ -139,11 +140,11 @@ describe("seedDemoTenant", () => {
           (t.type === "income" ? t.amount : -t.amount);
       }
     }
-    for (const [ref, w] of walletWrites) {
-      const id = (ref.id as string).replace("wallets/", "");
+    for (const [, w] of walletWrites) {
       expect(w.status).toBe("active");
       expect(typeof w.balance).toBe("number");
-      expect(w.balance).toBe(expected[id] ?? 0);
+      // `wallet` nos lançamentos é o NOME, então o saldo esperado é keyed por nome.
+      expect(w.balance).toBe(expected[w.name] ?? 0);
     }
 
     // Parcelas: membros agrupados por installmentGroupId, com números 1..N.

@@ -591,6 +591,8 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
 
   // Saldo desnormalizado de cada carteira, espelhando getWalletImpacts: só
   // lançamentos "paid" com carteira afetam o saldo (income +, expense -).
+  const walletNameById: Record<string, string> = {};
+  for (const w of DEMO_WALLETS) walletNameById[w.id] = w.name;
   const walletBalances: Record<string, number> = {};
   for (const w of DEMO_WALLETS) walletBalances[w.id] = 0;
   for (const t of DEMO_TRANSACTIONS) {
@@ -623,7 +625,10 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
       date: ymd(t.dateOffset),
       dueDate: ymd(t.dueOffset),
       status: t.status,
-      wallet: t.walletId,
+      // Grava o NOME da carteira (como o fluxo real de propostas faz) para
+      // exibir "Conta Principal"/"Caixa" em qualquer view, mesmo as que mostram
+      // transaction.wallet cru sem resolver o id.
+      wallet: walletNameById[t.walletId] ?? t.walletId,
       ...(t.clientName ? { clientName: t.clientName } : {}),
       ...(t.category ? { category: t.category } : {}),
       ...(t.paid ? { paidAt: isoAt(t.dateOffset) } : {}),
