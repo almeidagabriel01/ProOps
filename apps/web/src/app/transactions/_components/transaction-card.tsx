@@ -35,6 +35,7 @@ import { Wallet } from "@/types";
 import { Loader } from "@/components/ui/loader";
 import { TransactionProposalGroupExpanded } from "./transaction-proposal-group-expanded";
 import { TransactionStandaloneExpanded } from "./transaction-standalone-expanded";
+import { useTenant } from "@/providers/tenant-provider";
 
 interface TransactionCardProps {
   transaction: Transaction;
@@ -102,6 +103,7 @@ export function TransactionCard({
   wallets = [],
   forceExpandable = false,
 }: TransactionCardProps) {
+  const { isReadOnly } = useTenant();
   const {
     isUpdating,
     updatingIds,
@@ -448,7 +450,8 @@ export function TransactionCard({
                         onUpdate && (
                           <button
                             onClick={handleAmountClick}
-                            className="p-1 hover:bg-muted rounded-full transition-colors group/edit flex items-center justify-center ml-1 cursor-pointer"
+                            disabled={isReadOnly}
+                            className="p-1 hover:bg-muted rounded-full transition-colors group/edit flex items-center justify-center ml-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Clique para editar o valor"
                           >
                             <Edit2 className="w-3 h-3 opacity-50 group-hover/edit:opacity-100" />
@@ -466,7 +469,7 @@ export function TransactionCard({
                         <Button
                           variant="ghost"
                           size="sm"
-                          disabled={isUpdating}
+                          disabled={isUpdating || isReadOnly}
                           className="h-8 gap-2 rounded-lg font-medium transition-colors border hover:bg-opacity-80"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -559,6 +562,7 @@ export function TransactionCard({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-primary"
+                disabled={isReadOnly}
                 onClick={handleShare}
                 title="Compartilhar Link"
               >
@@ -569,6 +573,7 @@ export function TransactionCard({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                  disabled={isReadOnly}
                   onClick={() => setShowExtraCostDialog(true)}
                   title={`Adicionar ${extraCostLabel}`}
                 >
@@ -592,6 +597,7 @@ export function TransactionCard({
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-primary"
                     title="Editar (Gerenciado pela Proposta)"
+                    disabled={isReadOnly}
                     onClick={() => setShowEditBlockDialog(true)}
                   >
                     <Edit className="w-4 h-4" />
@@ -613,6 +619,7 @@ export function TransactionCard({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  disabled={isReadOnly}
                   onClick={() => onDelete(transaction)}
                   title="Excluir"
                 >

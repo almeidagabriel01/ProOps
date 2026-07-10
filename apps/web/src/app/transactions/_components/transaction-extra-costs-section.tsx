@@ -16,6 +16,7 @@ import { statusConfig } from "../_constants/config";
 import { formatCurrency } from "@/utils/format";
 import { Wallet } from "@/types";
 import { Loader } from "@/components/ui/loader";
+import { useTenant } from "@/providers/tenant-provider";
 
 type DisplayExtraCost = NonNullable<Transaction["extraCosts"]>[number] & {
   parentTransactionId: string;
@@ -80,6 +81,7 @@ export function TransactionExtraCostsSection({
   setShowExtraCostDialog,
   setExtraCostToDelete,
 }: TransactionExtraCostsSectionProps) {
+  const { isReadOnly } = useTenant();
   if (visibleExtraCosts.length === 0) return null;
 
   return (
@@ -142,7 +144,7 @@ export function TransactionExtraCostsSection({
                       size="sm"
                       className="h-7 gap-1.5 rounded-md text-xs font-medium border border-amber-500/30 text-amber-600 dark:text-amber-500 hover:bg-amber-500/10"
                       onClick={(e) => e.stopPropagation()}
-                      disabled={isUpdating || updatingIds.has(ec.id)}
+                      disabled={isUpdating || updatingIds.has(ec.id) || isReadOnly}
                     >
                       {updatingIds.has(ec.id) ? (
                         <>
@@ -213,7 +215,7 @@ export function TransactionExtraCostsSection({
                       });
                       setShowExtraCostDialog(true);
                     }}
-                    disabled={isUpdating || updatingIds.has(ec.id)}
+                    disabled={isUpdating || updatingIds.has(ec.id) || isReadOnly}
                   >
                     <Edit className="w-3.5 h-3.5" />
                   </Button>
@@ -227,7 +229,7 @@ export function TransactionExtraCostsSection({
                           `${ec.parentTransactionId}::${ec.id}`,
                         )
                       }
-                      disabled={isUpdating || updatingIds.has(ec.id)}
+                      disabled={isUpdating || updatingIds.has(ec.id) || isReadOnly}
                     >
                       {updatingIds.has(ec.id) ? (
                         <Loader size="sm" />

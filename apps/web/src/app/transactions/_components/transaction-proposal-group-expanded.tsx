@@ -18,6 +18,7 @@ import { formatCurrency } from "@/utils/format";
 import { Wallet } from "@/types";
 import { Loader } from "@/components/ui/loader";
 import { TransactionExtraCostsSection } from "./transaction-extra-costs-section";
+import { useTenant } from "@/providers/tenant-provider";
 
 type DisplayExtraCost = NonNullable<Transaction["extraCosts"]>[number] & {
   parentTransactionId: string;
@@ -96,6 +97,7 @@ export function TransactionProposalGroupExpanded({
   setShowExtraCostDialog,
   setExtraCostToDelete,
 }: TransactionProposalGroupExpandedProps) {
+  const { isReadOnly } = useTenant();
   return (
     <div className="border-t px-4 py-3 bg-muted/30 space-y-3">
       {/* Down Payment Section */}
@@ -138,7 +140,7 @@ export function TransactionProposalGroupExpanded({
                     size="sm"
                     className="h-7 gap-1.5 rounded-md text-xs font-medium border"
                     onClick={(e) => e.stopPropagation()}
-                    disabled={updatingIds.has(downPayment.id)}
+                    disabled={updatingIds.has(downPayment.id) || isReadOnly}
                   >
                     {updatingIds.has(downPayment.id) ? (
                       <>
@@ -193,6 +195,7 @@ export function TransactionProposalGroupExpanded({
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-primary ml-1"
                   title="Editar (Gerenciado pela Proposta)"
+                  disabled={isReadOnly}
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowEditBlockDialog(true);
@@ -271,7 +274,7 @@ export function TransactionProposalGroupExpanded({
                           size="sm"
                           className="h-7 gap-1.5 rounded-md text-xs font-medium border"
                           onClick={(e) => e.stopPropagation()}
-                          disabled={updatingIds.has(inst.id)}
+                          disabled={updatingIds.has(inst.id) || isReadOnly}
                         >
                           {updatingIds.has(inst.id) ? (
                             <>
@@ -326,6 +329,7 @@ export function TransactionProposalGroupExpanded({
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-primary ml-1"
                         title="Editar (Gerenciado pela Proposta)"
+                        disabled={isReadOnly}
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowEditBlockDialog(true);
@@ -393,7 +397,7 @@ export function TransactionProposalGroupExpanded({
                     size="sm"
                     className="h-7 gap-1.5 rounded-md text-xs font-medium border"
                     onClick={(e) => e.stopPropagation()}
-                    disabled={updatingIds.has(saldoTx.id)}
+                    disabled={updatingIds.has(saldoTx.id) || isReadOnly}
                   >
                     {updatingIds.has(saldoTx.id) ? (
                       <>
@@ -448,6 +452,7 @@ export function TransactionProposalGroupExpanded({
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-primary ml-1"
                   title="Editar (Gerenciado pela Proposta)"
+                  disabled={isReadOnly}
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowEditBlockDialog(true);
