@@ -142,16 +142,11 @@ export function useDashboardData(): DashboardData {
       return;
     }
 
-    // Read-only demo mode: the dashboard aggregates financial data (transactions,
-    // wallets, summary) that the demo account has no access to — its backend
-    // handlers reject the free role and the demo tenant has no financial docs.
-    // Skip the whole fetch; the populated demo content lives in Produtos,
-    // Serviços, Propostas and Soluções.
-    if (isDemo) {
-      setIsDataLoading(false);
-      return;
-    }
-
+    // Read-only demo mode: the demo tenant ("demo") now has seeded financial
+    // docs (transactions/wallets), readable via the Firestore rules' isDemoRead
+    // fast-path, so the dashboard loads them like any tenant. The only call that
+    // doesn't work for the free role is the backend getSummary aggregation —
+    // handled inline below (resolved to zeros, since no widget renders it).
     let cancelled = false;
 
     const fetchData = async () => {
@@ -192,7 +187,12 @@ export function useDashboardData(): DashboardData {
             monthEnd.toISOString(),
           ),
           TransactionService.getRecentTransactions(tenant.id, 5),
-          TransactionService.getSummary(tenant.id),
+          // getSummary hits the backend, which rejects the free/demo role. No
+          // dashboard widget renders financialSummary today, so resolve zeros
+          // for demo and keep the paying path unchanged.
+          isDemo
+            ? Promise.resolve(initialState.financialSummary)
+            : TransactionService.getSummary(tenant.id),
           WalletService.getWallets(tenant.id),
           KanbanService.getStatuses(tenant.id),
           ProposalService.getRecentProposals(tenant.id, 5),

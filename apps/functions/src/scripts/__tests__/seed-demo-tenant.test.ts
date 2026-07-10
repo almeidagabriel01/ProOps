@@ -44,6 +44,8 @@ describe("seedDemoTenant", () => {
       sistemas: 3,
       options: 11,
       proposals: 3,
+      wallets: 2,
+      transactions: 10,
     });
   });
 
@@ -51,7 +53,7 @@ describe("seedDemoTenant", () => {
     await seedDemoTenant();
     // The first set() is the tenant doc itself (keyed by id, no tenantId field).
     const [, ...contentWrites] = set.mock.calls;
-    expect(contentWrites.length).toBe(30); // 4+3+3+3+3+11+3
+    expect(contentWrites.length).toBe(42); // 4+3+3+3+3+11+3 + 2 wallets + 10 transactions
     for (const [, data] of contentWrites) {
       expect(data.tenantId).toBe(DEMO_TENANT_ID);
     }
@@ -102,6 +104,46 @@ describe("seedDemoTenant", () => {
       }
       expect(data.totalValue).toBe(computed);
       expect(data.totalValue).toBeGreaterThan(0);
+    }
+  });
+
+  test("seeds wallets and standalone transactions for Financeiro/Dashboard", async () => {
+    await seedDemoTenant();
+
+    const walletWrites = set.mock.calls.filter(
+      ([ref]) => typeof ref.id === "string" && ref.id.startsWith("wallets/"),
+    );
+    const txnWrites = set.mock.calls.filter(
+      ([ref]) => typeof ref.id === "string" && ref.id.startsWith("transactions/"),
+    );
+    expect(walletWrites.length).toBe(2);
+    expect(txnWrites.length).toBe(10);
+
+    for (const [, data] of txnWrites) {
+      expect(data.tenantId).toBe(DEMO_TENANT_ID);
+      expect(typeof data.amount).toBe("number");
+      expect(["income", "expense"]).toContain(data.type);
+      expect(["paid", "pending", "overdue"]).toContain(data.status);
+      // Standalone (not proposal-linked) so the avulsos query returns them.
+      expect(data.grouped).toBe(false);
+      expect(String(data.wallet).startsWith("demo_wallet_")).toBe(true);
+    }
+
+    // wallet.balance is denormalized and must equal the sum of paid impacts
+    // (income +, expense -) on that wallet — mirroring getWalletImpacts.
+    const expected: Record<string, number> = {};
+    for (const [, t] of txnWrites) {
+      if (t.status === "paid") {
+        expected[t.wallet] =
+          (expected[t.wallet] ?? 0) +
+          (t.type === "income" ? t.amount : -t.amount);
+      }
+    }
+    for (const [ref, w] of walletWrites) {
+      const id = (ref.id as string).replace("wallets/", "");
+      expect(w.status).toBe("active");
+      expect(typeof w.balance).toBe("number");
+      expect(w.balance).toBe(expected[id] ?? 0);
     }
   });
 });

@@ -268,6 +268,8 @@ export interface SeedDemoTenantResult {
   sistemas: number;
   options: number;
   proposals: number;
+  wallets: number;
+  transactions: number;
 }
 
 export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
@@ -508,6 +510,119 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     });
   });
 
+  // --- Financeiro: carteiras + lançamentos --------------------------------
+  // Dá conteúdo ao módulo Financeiro e ao Dashboard no modo demo. As datas são
+  // ancoradas no momento do seed (`now`) para o demo sempre parecer atual; os
+  // doc IDs são determinísticos (`demo_wallet_*` / `demo_txn_*`), então re-runs
+  // sobrescrevem em vez de duplicar. Só afeta o tenant fixo "demo".
+  const now = new Date();
+  const ymd = (offsetDays: number): string => {
+    const d = new Date(now);
+    d.setUTCDate(d.getUTCDate() + offsetDays);
+    return d.toISOString().split("T")[0]; // YYYY-MM-DD (igual ao formato date/dueDate)
+  };
+  const isoAt = (offsetDays: number): string => {
+    const d = new Date(now);
+    d.setUTCDate(d.getUTCDate() + offsetDays);
+    return d.toISOString(); // ISO completo para paidAt
+  };
+
+  const DEMO_WALLETS = [
+    {
+      id: "demo_wallet_main",
+      name: "Conta Principal",
+      type: "bank",
+      color: "#4f46e5",
+      icon: "Landmark",
+      isDefault: true,
+    },
+    {
+      id: "demo_wallet_cash",
+      name: "Caixa",
+      type: "cash",
+      color: "#22c55e",
+      icon: "Wallet",
+      isDefault: false,
+    },
+  ] as const;
+
+  type DemoTxn = {
+    id: string;
+    type: "income" | "expense";
+    description: string;
+    amount: number;
+    status: "paid" | "pending" | "overdue";
+    walletId: string;
+    dateOffset: number; // data de lançamento (dias a partir de hoje)
+    dueOffset: number; // vencimento (dias a partir de hoje)
+    paid?: boolean; // paidAt = dateOffset quando pago
+    clientName?: string;
+    category?: string;
+  };
+
+  const DEMO_TRANSACTIONS: DemoTxn[] = [
+    // Receitas
+    { id: "demo_txn_01", type: "income", description: "Automação residencial — entrada do projeto", amount: 8500, status: "paid", walletId: "demo_wallet_main", dateOffset: -10, dueOffset: -10, paid: true, clientName: "Ana Paula Ribeiro" },
+    { id: "demo_txn_02", type: "income", description: "Manutenção preventiva — contrato mensal", amount: 5000, status: "paid", walletId: "demo_wallet_cash", dateOffset: -4, dueOffset: -4, paid: true, clientName: "Carla Menezes" },
+    { id: "demo_txn_03", type: "income", description: "Cortinas motorizadas — instalação", amount: 12000, status: "paid", walletId: "demo_wallet_main", dateOffset: -25, dueOffset: -25, paid: true, clientName: "Bruno Carvalho" },
+    { id: "demo_txn_04", type: "income", description: "Saldo do projeto de automação", amount: 9500, status: "pending", walletId: "demo_wallet_main", dateOffset: -2, dueOffset: 5, clientName: "Carla Menezes" },
+    { id: "demo_txn_05", type: "income", description: "Parcela em atraso", amount: 4200, status: "overdue", walletId: "demo_wallet_main", dateOffset: -20, dueOffset: -8, clientName: "Bruno Carvalho" },
+    // Despesas
+    { id: "demo_txn_06", type: "expense", description: "Compra de equipamentos KNX", amount: 3200, status: "paid", walletId: "demo_wallet_main", dateOffset: -8, dueOffset: -8, paid: true, category: "Fornecedores" },
+    { id: "demo_txn_07", type: "expense", description: "Mão de obra — instalação", amount: 1500, status: "paid", walletId: "demo_wallet_cash", dateOffset: -3, dueOffset: -3, paid: true, category: "Operacional" },
+    { id: "demo_txn_08", type: "expense", description: "Anúncios online", amount: 900, status: "paid", walletId: "demo_wallet_cash", dateOffset: -12, dueOffset: -12, paid: true, category: "Marketing" },
+    { id: "demo_txn_09", type: "expense", description: "Lote de sensores de presença", amount: 2800, status: "pending", walletId: "demo_wallet_main", dateOffset: -1, dueOffset: 6, category: "Fornecedores" },
+    { id: "demo_txn_10", type: "expense", description: "Assinatura de software de projeto", amount: 1800, status: "pending", walletId: "demo_wallet_main", dateOffset: -1, dueOffset: 18, category: "Serviços" },
+  ];
+
+  // Saldo desnormalizado de cada carteira, espelhando getWalletImpacts: só
+  // lançamentos "paid" com carteira afetam o saldo (income +, expense -).
+  const walletBalances: Record<string, number> = {};
+  for (const w of DEMO_WALLETS) walletBalances[w.id] = 0;
+  for (const t of DEMO_TRANSACTIONS) {
+    if (t.status === "paid") {
+      walletBalances[t.walletId] += t.type === "income" ? t.amount : -t.amount;
+    }
+  }
+
+  DEMO_WALLETS.forEach((w) => {
+    batch.set(db.collection("wallets").doc(w.id), {
+      ...tenantTag,
+      name: w.name,
+      type: w.type,
+      balance: walletBalances[w.id],
+      color: w.color,
+      icon: w.icon,
+      isDefault: w.isDefault,
+      status: "active",
+      createdAt: ts(0),
+      updatedAt: ts(0),
+    });
+  });
+
+  DEMO_TRANSACTIONS.forEach((t) => {
+    batch.set(db.collection("transactions").doc(t.id), {
+      ...tenantTag,
+      type: t.type,
+      description: t.description,
+      amount: t.amount,
+      date: ymd(t.dateOffset),
+      dueDate: ymd(t.dueOffset),
+      status: t.status,
+      wallet: t.walletId,
+      ...(t.clientName ? { clientName: t.clientName } : {}),
+      ...(t.category ? { category: t.category } : {}),
+      ...(t.paid ? { paidAt: isoAt(t.dateOffset) } : {}),
+      // Lançamentos avulsos (sem grupo de proposta): grouped=false explícito
+      // garante que a query de avulsos (where grouped == false) os retorne
+      // mesmo em ambiente onde o trigger onTransactionTotals não rode.
+      grouped: false,
+      createdAt: ts(0),
+      updatedAt: ts(0),
+    });
+  });
+  // ------------------------------------------------------------------------
+
   await batch.commit();
 
   const result: SeedDemoTenantResult = {
@@ -519,6 +634,8 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     sistemas: DEMO_SISTEMAS.length,
     options: optionDocs.length,
     proposals: proposals.length,
+    wallets: DEMO_WALLETS.length,
+    transactions: DEMO_TRANSACTIONS.length,
   };
   logger.info("seedDemoTenant complete", { ...result });
   return result;
