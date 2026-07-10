@@ -45,7 +45,7 @@ describe("seedDemoTenant", () => {
       options: 11,
       proposals: 3,
       wallets: 2,
-      transactions: 10,
+      transactions: 16,
     });
   });
 
@@ -53,7 +53,7 @@ describe("seedDemoTenant", () => {
     await seedDemoTenant();
     // The first set() is the tenant doc itself (keyed by id, no tenantId field).
     const [, ...contentWrites] = set.mock.calls;
-    expect(contentWrites.length).toBe(42); // 4+3+3+3+3+11+3 + 2 wallets + 10 transactions
+    expect(contentWrites.length).toBe(48); // 4+3+3+3+3+11+3 + 2 wallets + 16 transactions
     for (const [, data] of contentWrites) {
       expect(data.tenantId).toBe(DEMO_TENANT_ID);
     }
@@ -117,7 +117,7 @@ describe("seedDemoTenant", () => {
       ([ref]) => typeof ref.id === "string" && ref.id.startsWith("transactions/"),
     );
     expect(walletWrites.length).toBe(2);
-    expect(txnWrites.length).toBe(10);
+    expect(txnWrites.length).toBe(16);
 
     for (const [, data] of txnWrites) {
       expect(data.tenantId).toBe(DEMO_TENANT_ID);
@@ -144,6 +144,21 @@ describe("seedDemoTenant", () => {
       expect(w.status).toBe("active");
       expect(typeof w.balance).toBe("number");
       expect(w.balance).toBe(expected[id] ?? 0);
+    }
+
+    // Parcelas: membros agrupados por installmentGroupId, com números 1..N.
+    const byGroup: Record<string, number[]> = {};
+    for (const [, t] of txnWrites) {
+      if (t.isInstallment) {
+        expect(typeof t.installmentGroupId).toBe("string");
+        expect(t.installmentCount).toBeGreaterThan(1);
+        (byGroup[t.installmentGroupId] ??= []).push(t.installmentNumber);
+      }
+    }
+    const groups = Object.values(byGroup);
+    expect(groups.length).toBe(2); // 1 receita 3x + 1 despesa 3x
+    for (const numbers of groups) {
+      expect(numbers.sort((a, b) => a - b)).toEqual([1, 2, 3]);
     }
   });
 });

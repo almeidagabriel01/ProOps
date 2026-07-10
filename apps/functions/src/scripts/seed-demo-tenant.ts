@@ -558,6 +558,12 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     paid?: boolean; // paidAt = dateOffset quando pago
     clientName?: string;
     category?: string;
+    // Parcelamento: membros de um mesmo installmentGroupId. O trigger
+    // onTransactionTotals agrupa (transaction_groups) e ajusta `grouped`.
+    isInstallment?: boolean;
+    installmentCount?: number;
+    installmentNumber?: number;
+    installmentGroupId?: string;
   };
 
   const DEMO_TRANSACTIONS: DemoTxn[] = [
@@ -573,6 +579,14 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     { id: "demo_txn_08", type: "expense", description: "Anúncios online", amount: 900, status: "paid", walletId: "demo_wallet_cash", dateOffset: -12, dueOffset: -12, paid: true, category: "Marketing" },
     { id: "demo_txn_09", type: "expense", description: "Lote de sensores de presença", amount: 2800, status: "pending", walletId: "demo_wallet_main", dateOffset: -1, dueOffset: 6, category: "Fornecedores" },
     { id: "demo_txn_10", type: "expense", description: "Assinatura de software de projeto", amount: 1800, status: "pending", walletId: "demo_wallet_main", dateOffset: -1, dueOffset: 18, category: "Serviços" },
+    // Receita parcelada 3x — projeto de automação da Ana (1ª paga, 2 pendentes)
+    { id: "demo_txn_11", type: "income", description: "Automação Residência Ana — projeto (parcelado)", amount: 4000, status: "paid", walletId: "demo_wallet_main", dateOffset: -30, dueOffset: -30, paid: true, clientName: "Ana Paula Ribeiro", isInstallment: true, installmentCount: 3, installmentNumber: 1, installmentGroupId: "demo_inst_income_1" },
+    { id: "demo_txn_12", type: "income", description: "Automação Residência Ana — projeto (parcelado)", amount: 4000, status: "pending", walletId: "demo_wallet_main", dateOffset: -30, dueOffset: 2, clientName: "Ana Paula Ribeiro", isInstallment: true, installmentCount: 3, installmentNumber: 2, installmentGroupId: "demo_inst_income_1" },
+    { id: "demo_txn_13", type: "income", description: "Automação Residência Ana — projeto (parcelado)", amount: 4000, status: "pending", walletId: "demo_wallet_main", dateOffset: -30, dueOffset: 32, clientName: "Ana Paula Ribeiro", isInstallment: true, installmentCount: 3, installmentNumber: 3, installmentGroupId: "demo_inst_income_1" },
+    // Despesa parcelada 3x — compra de equipamentos (1ª paga, 2 pendentes)
+    { id: "demo_txn_14", type: "expense", description: "Compra de equipamentos — parcelado", amount: 1500, status: "paid", walletId: "demo_wallet_main", dateOffset: -25, dueOffset: -25, paid: true, category: "Fornecedores", isInstallment: true, installmentCount: 3, installmentNumber: 1, installmentGroupId: "demo_inst_expense_1" },
+    { id: "demo_txn_15", type: "expense", description: "Compra de equipamentos — parcelado", amount: 1500, status: "pending", walletId: "demo_wallet_main", dateOffset: -25, dueOffset: 8, category: "Fornecedores", isInstallment: true, installmentCount: 3, installmentNumber: 2, installmentGroupId: "demo_inst_expense_1" },
+    { id: "demo_txn_16", type: "expense", description: "Compra de equipamentos — parcelado", amount: 1500, status: "pending", walletId: "demo_wallet_main", dateOffset: -25, dueOffset: 38, category: "Fornecedores", isInstallment: true, installmentCount: 3, installmentNumber: 3, installmentGroupId: "demo_inst_expense_1" },
   ];
 
   // Saldo desnormalizado de cada carteira, espelhando getWalletImpacts: só
@@ -613,6 +627,14 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
       ...(t.clientName ? { clientName: t.clientName } : {}),
       ...(t.category ? { category: t.category } : {}),
       ...(t.paid ? { paidAt: isoAt(t.dateOffset) } : {}),
+      ...(t.isInstallment
+        ? {
+            isInstallment: true,
+            installmentCount: t.installmentCount,
+            installmentNumber: t.installmentNumber,
+            installmentGroupId: t.installmentGroupId,
+          }
+        : {}),
       // Lançamentos avulsos (sem grupo de proposta): grouped=false explícito
       // garante que a query de avulsos (where grouped == false) os retorne
       // mesmo em ambiente onde o trigger onTransactionTotals não rode.
