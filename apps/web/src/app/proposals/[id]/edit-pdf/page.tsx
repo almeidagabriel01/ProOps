@@ -15,6 +15,7 @@ import { SaveConfirmationModal } from "@/components/features/proposal/edit-pdf/s
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { Loader } from "@/components/ui/loader";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
+import { useTenant } from "@/providers/tenant-provider";
 
 export default function EditPdfPage() {
   // Modal states
@@ -84,6 +85,7 @@ export default function EditPdfPage() {
     // Unsaved Changes
     isDirty,
   } = useEditPdfPage();
+  const { isReadOnly } = useTenant();
 
   const router = useRouter();
 
@@ -139,53 +141,56 @@ export default function EditPdfPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleGeneratePdf}
-            disabled={isGenerating || isSaving || isSavingDefault}
-            className="gap-2"
-          >
-            {isGenerating ? (
-              <Loader size="sm" />
-            ) : (
-              <FileDown className="w-4 h-4" />
-            )}
-            Baixar PDF
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowSaveDefaultModal(true)}
-            disabled={isSavingDefault || isSaving}
-            className="gap-2"
-          >
-            {isSavingDefault ? (
-              <Loader size="sm" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            Salvar Configurações
-          </Button>
-          <Button
-            variant="default"
-            onClick={() => setShowSaveModal(true)}
-            disabled={isSaving || isSavingDefault}
-            className="gap-2"
-          >
-            {isSaving ? (
-              <Loader size="sm" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            Salvar
-          </Button>
-        </div>
+        {!isReadOnly && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleGeneratePdf}
+              disabled={isGenerating || isSaving || isSavingDefault}
+              className="gap-2"
+            >
+              {isGenerating ? (
+                <Loader size="sm" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
+              Baixar PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowSaveDefaultModal(true)}
+              disabled={isSavingDefault || isSaving}
+              className="gap-2"
+            >
+              {isSavingDefault ? (
+                <Loader size="sm" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Salvar Configurações
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => setShowSaveModal(true)}
+              disabled={isSaving || isSavingDefault}
+              className="gap-2"
+            >
+              {isSaving ? (
+                <Loader size="sm" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Salvar
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Editor Panel */}
         <div className="space-y-4 min-w-0">
           <PdfEditorTabs
+            isReadOnly={isReadOnly}
             coverTitle={coverTitle}
             setCoverTitle={setCoverTitle}
             coverImage={coverImage}
