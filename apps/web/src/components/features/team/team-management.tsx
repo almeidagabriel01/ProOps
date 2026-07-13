@@ -38,7 +38,10 @@ import { Loader } from "@/components/ui/loader";
 export function TeamManagement() {
   const { user, isLoading: authLoading } = useAuth();
   const { tenant, tenantOwner } = useTenant();
-  const { isMaster, isLoading: permLoading } = usePermissions();
+  const { isMaster, isDemo, isLoading: permLoading } = usePermissions();
+  // Demo/free accounts own their tenant, so they may view this section; the
+  // whole panel is rendered read-only via `inert` below.
+  const canSeeSection = isMaster || isDemo;
 
   const [members, setMembers] = React.useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -197,7 +200,7 @@ export function TeamManagement() {
   }
 
   // Access denied
-  if (!isMaster) {
+  if (!canSeeSection) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
         <Shield className="w-16 h-16 text-muted-foreground mb-4" />
@@ -210,7 +213,7 @@ export function TeamManagement() {
   }
 
   return (
-    <FormContainer>
+    <FormContainer inert={isDemo || undefined}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 [&>div]:mb-0">
           <FormHeader

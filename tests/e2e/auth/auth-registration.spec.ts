@@ -3,7 +3,7 @@
  *
  * REG-01: New user completes the 3-step registration form and submits successfully
  * REG-02: Newly registered tenant has correct Firestore documents (users/{uid}, tenants/{tenantId})
- * REG-03: New tenant lands on '/' after completing registration (free-plan redirect)
+ * REG-03: New tenant lands on '/dashboard' after completing registration (free-tier demo home)
  */
 
 import { test, expect } from "../fixtures/auth.fixture";
@@ -34,8 +34,8 @@ test.describe("Auth Registration", () => {
     // Wait for the home redirect — proves registration completed and session was established
     await registerPage.waitForHomeRedirect();
 
-    // Final URL must be '/'
-    expect(page.url()).toMatch(/\/$/);
+    // Final URL must be the free-tier home '/dashboard' (read-only demo mode)
+    expect(page.url()).toMatch(/\/dashboard$/);
   });
 
   // REG-02: Firestore provisioning
@@ -100,7 +100,7 @@ test.describe("Auth Registration", () => {
   });
 
   // REG-03: Dashboard access
-  test("REG-03: new tenant lands on '/' after registration (free-plan redirect)", async ({
+  test("REG-03: new tenant lands on '/dashboard' after registration (free-tier demo home)", async ({
     page,
   }) => {
     const registerPage = new RegisterPage(page);
@@ -117,11 +117,12 @@ test.describe("Auth Registration", () => {
     await registerPage.fillStep2({ companyName: testCompanyName });
     await registerPage.submitStep3();
 
-    // Wait for the home redirect — proves auth flow completed and free-plan redirect happened
+    // Wait for the home redirect — proves auth flow completed and free-tier redirect happened
     await registerPage.waitForHomeRedirect();
 
-    // Free-plan users are redirected to '/' (handleRedirectAfterAuth role check in useLoginForm)
-    expect(page.url()).toMatch(/\/$/);
+    // Free-tier users are redirected to '/dashboard' — read-only demo mode
+    // (resolveUserHome role check via handleRedirectAfterAuth in useLoginForm)
+    expect(page.url()).toMatch(/\/dashboard$/);
 
     // The page should not be the login or register page — user is authenticated
     expect(page.url()).not.toContain("/login");

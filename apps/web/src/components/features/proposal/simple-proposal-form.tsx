@@ -20,6 +20,7 @@ import { ProposalProduct } from "@/types/proposal";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { useProposalForm } from "@/hooks/proposal/useProposalForm";
+import { useTenant } from "@/providers/tenant-provider";
 import { FormContainer } from "@/components/ui/form-components";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
@@ -203,6 +204,11 @@ export function SimpleProposalForm({
     // isAutomacaoNiche - removed duplicate
     removeAmbienteFromSistema,
   } = useProposalForm({ proposalId });
+
+  // Demo/free accounts: navigate the steps freely but edit nothing (fields and
+  // add/remove controls disabled via FormStepCard's fieldset). Distinct from the
+  // `isReadOnly` PROP, which renders a fully static view without the stepper.
+  const { isReadOnly: isDemo } = useTenant();
 
   // State for unsaved changes modal
   const [showUnsavedModal, setShowUnsavedModal] = React.useState(false);
@@ -1018,12 +1024,12 @@ export function SimpleProposalForm({
 
       <StepWizard
         steps={steps}
-        allowClickAhead={!!proposalId}
-        stepValidators={stepValidators}
+        allowClickAhead={isDemo || !!proposalId}
+        stepValidators={isDemo ? undefined : stepValidators}
         initialStep={initialStep}
       >
         {/* Step 1: Client Info */}
-        <FormStepCard>
+        <FormStepCard contentDisabled={isDemo}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-blue-500/15 to-blue-500/5 flex items-center justify-center">
@@ -1049,11 +1055,11 @@ export function SimpleProposalForm({
               onClientTypesChange={setClientTypes}
             />
           </div>
-          <StepNavigation onBeforeNext={validateStep1} />
+          <StepNavigation onBeforeNext={isDemo ? undefined : validateStep1} />
         </FormStepCard>
 
         {/* Step 2: Systems or Products */}
-        <FormStepCard>
+        <FormStepCard contentDisabled={isDemo}>
           <div className="space-y-6">
             {isAutomacaoNiche ? (
               <>
@@ -1174,7 +1180,11 @@ export function SimpleProposalForm({
           )}
           <StepNavigation
             onBeforeNext={
-              isEnvironmentProposal ? validateEnvironmentStep2 : validateStep2
+              isDemo
+                ? undefined
+                : isEnvironmentProposal
+                  ? validateEnvironmentStep2
+                  : validateStep2
             }
           />
         </FormStepCard>
@@ -1209,13 +1219,14 @@ export function SimpleProposalForm({
               }}
               noContainer
               errors={errors}
+              isReadOnly={isDemo}
             />
           </div>
-          <StepNavigation onBeforeNext={validateStep3} />
+          <StepNavigation onBeforeNext={isDemo ? undefined : validateStep3} />
         </FormStepCard>
 
         {/* Step 4: PDF Settings */}
-        <FormStepCard>
+        <FormStepCard contentDisabled={isDemo}>
           <PdfDisplayOptionsSection
             formData={formData}
             setFormData={setFormData}
@@ -1224,7 +1235,7 @@ export function SimpleProposalForm({
         </FormStepCard>
 
         {/* Step 5: Summary */}
-        <FormStepCard>
+        <FormStepCard contentDisabled={isDemo}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
@@ -1256,7 +1267,7 @@ export function SimpleProposalForm({
           <StepNavigation
             onSubmit={() => handleFormSubmit({ finalize: true })}
             isSubmitting={isSaving}
-            submitDisabled={!!proposalId && !isDirty}
+            submitDisabled={isDemo || (!!proposalId && !isDirty)}
             submitLabel={proposalId ? "Salvar Proposta" : "Criar Proposta"}
           />
         </FormStepCard>

@@ -115,7 +115,7 @@ function buildProposalStatusSets(columns: KanbanStatusColumn[]): {
 }
 
 export function useDashboardData(): DashboardData {
-  const { tenant, isLoading: isTenantLoading } = useTenant();
+  const { tenant, isLoading: isTenantLoading, isDemo } = useTenant();
   const [rawData, setRawData] = React.useState({
     transactions: [] as Transaction[],
     wallets: [] as Wallet[],
@@ -142,6 +142,11 @@ export function useDashboardData(): DashboardData {
       return;
     }
 
+    // Read-only demo mode: the demo tenant ("demo") now has seeded financial
+    // docs (transactions/wallets), readable via the Firestore rules' isDemoRead
+    // fast-path, so the dashboard loads them like any tenant. The only call that
+    // doesn't work for the free role is the backend getSummary aggregation —
+    // handled inline below (resolved to zeros, since no widget renders it).
     let cancelled = false;
 
     const fetchData = async () => {
@@ -182,7 +187,12 @@ export function useDashboardData(): DashboardData {
             monthEnd.toISOString(),
           ),
           TransactionService.getRecentTransactions(tenant.id, 5),
-          TransactionService.getSummary(tenant.id),
+          // getSummary hits the backend, which rejects the free/demo role. No
+          // dashboard widget renders financialSummary today, so resolve zeros
+          // for demo and keep the paying path unchanged.
+          isDemo
+            ? Promise.resolve(initialState.financialSummary)
+            : TransactionService.getSummary(tenant.id),
           WalletService.getWallets(tenant.id),
           KanbanService.getStatuses(tenant.id),
           ProposalService.getRecentProposals(tenant.id, 5),
@@ -246,7 +256,7 @@ export function useDashboardData(): DashboardData {
     return () => {
       cancelled = true;
     };
-  }, [tenant, isTenantLoading]);
+  }, [tenant, isTenantLoading, isDemo]);
 
   // Compute all derived values
   const computed = React.useMemo(() => {

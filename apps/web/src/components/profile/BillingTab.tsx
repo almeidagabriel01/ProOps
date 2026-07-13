@@ -30,6 +30,8 @@ interface BillingTabProps {
   isFree: boolean;
   openingPortal: boolean;
   subscriptionStatus?: string;
+  /** False when the account already consumed its one-per-account trial. */
+  trialEligible?: boolean;
 }
 
 export function BillingTab({
@@ -48,6 +50,7 @@ export function BillingTab({
   isFree,
   openingPortal,
   subscriptionStatus,
+  trialEligible = true,
 }: BillingTabProps) {
   if (!isMaster && !isFree) {
     return (
@@ -143,6 +146,7 @@ export function BillingTab({
               isMaster={isMaster}
               isFree={isFree}
               isActivePlan={isActivePlan}
+              trialEligible={trialEligible}
             />
           );
         })}

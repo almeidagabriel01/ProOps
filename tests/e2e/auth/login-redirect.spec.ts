@@ -7,7 +7,7 @@
  * is preserved — it triggers a warning toast on the /login page only.
  *
  * Scenarios covered:
- *   LR-01:      No redirect param → role-based home (admin → /dashboard, free → /)
+ *   LR-01:      No redirect param → role-based home (admin & free → /dashboard)
  *   LR-06:      BUG REGRESSION — logout clears sticky redirect (free user never sent to /profile)
  *   LOGIN-01-A: ?redirect= is IGNORED (admin lands on /dashboard, superadmin on /admin)
  *   LOGIN-01-B: ?redirect_reason=session_expired → warning toast visible on /login
@@ -57,11 +57,11 @@ test.describe("AUTH-LR-01: Login without redirect param → role-based home", ()
     await expect(page).toHaveURL("/dashboard", { timeout: 15000 });
   });
 
-  test("free user login without redirect lands on /", async ({ page }) => {
+  test("free user login without redirect lands on /dashboard (demo mode)", async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_FREE.email, USER_FREE.password);
-    await expect(page).toHaveURL("/", { timeout: 15000 });
+    await expect(page).toHaveURL(/dashboard/, { timeout: 15000 });
   });
 });
 
@@ -121,7 +121,9 @@ test.describe("AUTH-LR-06: Logout clears sticky redirect — free user never sen
 
     await loginPage.login(USER_FREE.email, USER_FREE.password);
 
-    await expect(page).toHaveURL("/", { timeout: 15000 });
+    // Demo mode: free user lands on the ERP dashboard, and the sticky
+    // /profile redirect from the previous session must NOT be honoured.
+    await expect(page).toHaveURL(/dashboard/, { timeout: 15000 });
     await expect(page).not.toHaveURL(/\/profile/);
   });
 });

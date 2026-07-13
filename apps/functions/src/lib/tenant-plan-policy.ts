@@ -96,6 +96,7 @@ export type SubscriptionStatusAccessDecision = {
   allowWrite: boolean;
   reasonCode:
     | "SUBSCRIPTION_OK"
+    | "TRIALING_OK"
     | "PAST_DUE_WITHIN_GRACE"
     | "PAST_DUE_MISSING_TIMESTAMP"
     | "PAST_DUE_GRACE_EXPIRED"
@@ -664,6 +665,10 @@ export function evaluateSubscriptionStatusAccess(input: {
   const status = normalizeSubscriptionStatus(input.subscriptionStatus);
   if (!status || status === "active") {
     return { allowWrite: true, reasonCode: "SUBSCRIPTION_OK" };
+  }
+
+  if (status === "trialing") {
+    return { allowWrite: true, reasonCode: "TRIALING_OK" };
   }
 
   if (status === "past_due") {

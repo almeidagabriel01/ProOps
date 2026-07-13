@@ -19,6 +19,7 @@ import { toast } from "@/lib/toast";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { cn } from "@/lib/utils";
 import { useTransactionStatuses } from "@/app/transactions/_hooks/useTransactionStatuses";
+import { useTenant } from "@/providers/tenant-provider";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
 import Link from "next/link";
@@ -58,6 +59,7 @@ export function TransactionInstallmentsList({
     return wallets.find((w) => w.id === v || w.name === v)?.name ?? v;
   };
   const { editableStatuses: statusOptions } = useTransactionStatuses();
+  const { isReadOnly } = useTenant();
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState<number>(0);
@@ -68,7 +70,7 @@ export function TransactionInstallmentsList({
   );
 
   const handleEditClick = (installment: Transaction, e: React.MouseEvent) => {
-    if (!canEdit || !onUpdate) return;
+    if (!canEdit || !onUpdate || isReadOnly) return;
     e.stopPropagation();
     setEditingId(installment.id);
     setEditValue(installment.amount);
@@ -268,7 +270,7 @@ export function TransactionInstallmentsList({
               size="sm"
               className="h-7 gap-1.5 rounded-md text-xs font-medium border"
               onClick={(e) => e.stopPropagation()}
-              disabled={isUpdating}
+              disabled={isUpdating || isReadOnly}
             >
               {isUpdating ? (
                 <>
@@ -546,7 +548,7 @@ export function TransactionInstallmentsList({
                                 e.stopPropagation();
                                 handleUndoClick(partialPaymentTx);
                               }}
-                              disabled={!!undoingId}
+                              disabled={!!undoingId || isReadOnly}
                             >
                               {undoingId === partialPaymentTx.id ? (
                                 <Loader size="sm" />
@@ -583,7 +585,8 @@ export function TransactionInstallmentsList({
                                     onClick={(e) =>
                                       handleEditClick(group.main, e)
                                     }
-                                    className="p-1 hover:bg-muted rounded-full transition-colors flex items-center justify-center cursor-pointer text-muted-foreground hover:text-primary"
+                                    disabled={isReadOnly}
+                                    className="p-1 hover:bg-muted rounded-full transition-colors flex items-center justify-center cursor-pointer text-muted-foreground hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed"
                                     title="Clique para editar o valor diretamente"
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
@@ -591,13 +594,13 @@ export function TransactionInstallmentsList({
                                 )}
                                 <span
                                   onClick={(e) =>
-                                    canEdit && onUpdate && handleEditClick(group.main, e)
+                                    canEdit && onUpdate && !isReadOnly && handleEditClick(group.main, e)
                                   }
                                   className={cn(
                                     "transition-colors decoration-dashed",
-                                    canEdit && onUpdate && "cursor-pointer group-hover/amount:text-primary group-hover/amount:underline"
+                                    canEdit && onUpdate && !isReadOnly && "cursor-pointer group-hover/amount:text-primary group-hover/amount:underline"
                                   )}
-                                  title={canEdit && onUpdate ? "Clique para editar o valor diretamente" : undefined}
+                                  title={canEdit && onUpdate && !isReadOnly ? "Clique para editar o valor diretamente" : undefined}
                                 >
                                   {formatCurrency(group.main.amount)}
                                 </span>

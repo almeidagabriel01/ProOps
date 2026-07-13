@@ -41,6 +41,14 @@ interface ProductFormNewProps {
   initialData?: Product | Service;
   productId?: string;
   isReadOnly?: boolean;
+  /**
+   * Demo/free accounts: render the normal multi-step form (identical to the
+   * editing flow) but fully non-interactive — the user can navigate the steps
+   * to understand the flow without editing or saving anything. Distinct from
+   * `isReadOnly`, which renders a compact summary view for permission-limited
+   * viewers.
+   */
+  demoReadOnly?: boolean;
   entityType?: "product" | "service";
 }
 
@@ -90,6 +98,7 @@ export function ProductFormNew({
   initialData,
   productId,
   isReadOnly = false,
+  demoReadOnly = false,
   entityType = "product",
 }: ProductFormNewProps) {
   const router = useRouter();
@@ -281,8 +290,11 @@ export function ProductFormNew({
 
   return (
     <>
-      <StepWizard steps={productSteps} allowClickAhead={!!productId}>
-        <FormStepCard>
+      <StepWizard
+        steps={productSteps}
+        allowClickAhead={!!productId || demoReadOnly}
+      >
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary/15 to-primary/5 flex items-center justify-center">
@@ -434,10 +446,10 @@ export function ProductFormNew({
             </div>
           </div>
 
-          <StepNavigation onBeforeNext={validateStep1} />
+          <StepNavigation onBeforeNext={demoReadOnly ? undefined : validateStep1} />
         </FormStepCard>
 
-        <FormStepCard>
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-green-500/15 to-green-500/5 flex items-center justify-center">
@@ -466,10 +478,10 @@ export function ProductFormNew({
             />
           </div>
 
-          <StepNavigation onBeforeNext={validateStep2} />
+          <StepNavigation onBeforeNext={demoReadOnly ? undefined : validateStep2} />
         </FormStepCard>
 
-        <FormStepCard>
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
@@ -539,7 +551,7 @@ export function ProductFormNew({
           <StepNavigation />
         </FormStepCard>
 
-        <FormStepCard>
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-amber-500/15 to-amber-500/5 flex items-center justify-center">
@@ -634,7 +646,7 @@ export function ProductFormNew({
           <StepNavigation
             onSubmit={handleFormSubmit}
             isSubmitting={isSubmitting}
-            submitDisabled={!!productId && !hasChanges}
+            submitDisabled={demoReadOnly || (!!productId && !hasChanges)}
             submitLabel={
               productId
                 ? "Salvar alterações"

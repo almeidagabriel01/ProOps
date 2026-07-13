@@ -8,9 +8,11 @@ import {
 } from "@/components/ui/form-components";
 import { TwoFactorSection } from "@/components/profile/two-factor-section";
 import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
+import { usePermissions } from "@/providers/permissions-provider";
 import { ShieldCheck } from "lucide-react";
 
 export default function SettingsSecurityPage() {
+  const { isDemo } = usePermissions();
   const [loading, setLoading] = React.useState(true);
   useReportSettingsLoading(loading);
 
@@ -25,7 +27,10 @@ export default function SettingsSecurityPage() {
           icon={ShieldCheck}
         />
       )}
-      <TwoFactorSection onLoadingChange={setLoading} />
+      {/* Demo/free accounts view the flow but cannot change anything. */}
+      <div className="contents" inert={isDemo || undefined}>
+        <TwoFactorSection onLoadingChange={setLoading} />
+      </div>
     </FormContainer>
   );
 }

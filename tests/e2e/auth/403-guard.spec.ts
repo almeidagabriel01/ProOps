@@ -53,9 +53,10 @@ test.describe("AUTH-403-02: Free user navigates directly to /403 → redirect to
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_FREE.email, USER_FREE.password);
-    await page.waitForURL("/", { timeout: 15000 });
+    await page.waitForURL(/dashboard/, { timeout: 15000 });
 
-    // Direct URL navigation — no Referer header from a prior in-app page
+    // Direct URL navigation — no Referer header from a prior in-app page.
+    // /403 is not a demo-accessible route, so the free account is bounced home.
     await page.goto("/403");
     await expect(page).toHaveURL("/", { timeout: 10000 });
   });

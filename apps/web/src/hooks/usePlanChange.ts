@@ -34,7 +34,7 @@ interface UsePlanChangeReturn {
   openingPortal: boolean;
 
   // Actions
-  handleUpgrade: (plan: UserPlan) => void;
+  handleUpgrade: (plan: UserPlan, skipTrial?: boolean) => void;
   handleDowngrade: (plan: UserPlan) => void;
   confirmPlanChange: () => Promise<void>;
   handleManagePayment: () => Promise<void>;
@@ -71,6 +71,8 @@ export function usePlanChange(
   // Modal state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<UserPlan | null>(null);
+  // Pro plan only: when true, subscribe directly without the 7-day trial.
+  const [skipTrial, setSkipTrial] = useState(false);
   const [planPreview, setPlanPreview] = useState<PlanPreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [isFirstSubscription, setIsFirstSubscription] = useState(false);
@@ -228,6 +230,9 @@ export function usePlanChange(
   }, [effectiveUser, resolvePlanFromCollection]);
 
   const isCurrentPlan = (plan: UserPlan) => {
+    // A free/demo account has no current PAID plan — never highlight one as
+    // active (e.g. a leftover "starter" from a churned trial).
+    if (String(effectiveUser?.role || "").toLowerCase() === "free") return false;
     // Check if plan tier matches AND billing interval matches
     // If user has no billingInterval set (legacy), default to monthly
     const userInterval = effectiveUser?.billingInterval || "monthly";
@@ -298,7 +303,8 @@ export function usePlanChange(
     }
   };
 
-  const handleUpgrade = (plan: UserPlan) => {
+  const handleUpgrade = (plan: UserPlan, skip = false) => {
+    setSkipTrial(skip);
     showPlanChangeConfirmation(plan);
   };
 
@@ -326,6 +332,7 @@ export function usePlanChange(
         userEmail: effectiveUser.email,
         billingInterval: billingInterval,
         origin: window.location.origin,
+        skipTrial,
       });
 
       if (data.url) {

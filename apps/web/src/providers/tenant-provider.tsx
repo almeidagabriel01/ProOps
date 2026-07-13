@@ -22,17 +22,40 @@ import {
   writeViewingTenantId,
 } from "@/lib/viewing-tenant-session";
 import { AdminService, type TenantBillingInfo } from "@/services/admin-service";
+import { setDemoMode } from "@/lib/demo-mode";
 import {
   ensureDarkModeContrast,
   ensureLightModeContrast,
   computePrimaryForeground,
 } from "@/utils/color-utils";
 
+// Fixed id of the shared read-only demo dataset a free account browses.
+export const DEMO_TENANT_ID = "demo";
+
+// Synthetic tenant used as the DATA tenant for free/demo accounts. No Firestore
+// read is needed (the demo tenant doc itself is not exposed to free reads — only
+// its data collections are). niche = automacao_residencial so "Soluções" renders.
+const DEMO_TENANT: Tenant = {
+  id: DEMO_TENANT_ID,
+  name: "ProOps Demo",
+  slug: "proops-demo",
+  niche: "automacao_residencial",
+  primaryColor: "#4f46e5",
+} as Tenant;
+
 interface TenantContextType {
   tenant: Tenant | null;
   tenantOwner: User | null;
   tenantOwnerPlanName: string | null;
   isLoading: boolean;
+  /** True for free/demo accounts: `tenant` points at the shared demo data. */
+  isDemo: boolean;
+  /** True when the account may only read (free/demo). Drives read-only UX. */
+  isReadOnly: boolean;
+  /** The real account/billing tenant (tenant_${uid}); differs from `tenant` in demo mode. */
+  accountTenantId: string | null;
+  /** The real account tenant doc (identity/billing). Equals `tenant` unless in demo mode. */
+  accountTenant: Tenant | null;
   refreshTenant: () => void;
   clearViewingTenant: () => void;
   setViewingTenant: (tenant: Tenant) => void;
@@ -47,6 +70,10 @@ const TenantContext = React.createContext<TenantContextType>({
   tenantOwner: null,
   tenantOwnerPlanName: null,
   isLoading: true,
+  isDemo: false,
+  isReadOnly: false,
+  accountTenantId: null,
+  accountTenant: null,
   refreshTenant: () => {},
   clearViewingTenant: () => {},
   setViewingTenant: () => {},
@@ -96,6 +123,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     Record<string, true>
   >({});
   const [tenant, setTenant] = React.useState<Tenant | null>(null);
+  // Real account tenant doc, fetched separately in demo mode (where `tenant`
+  // points at the shared demo dataset). Drives identity/billing UI (profile).
+  const [demoAccountTenant, setDemoAccountTenant] = React.useState<Tenant | null>(null);
   const [tenantOwner, setTenantOwner] = React.useState<User | null>(null);
   const [tenantOwnerPlanName, setTenantOwnerPlanName] = React.useState<
     string | null
@@ -222,15 +252,15 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
 
-    // Free tier never needs tenant data — they only see the landing,
-    // /profile and the subscribe flow. Loading tenant docs for them would
-    // hydrate ERP-shaped context that downstream components could leak
-    // through prefetch or stale renders before ProtectedRoute kicks in.
+    // Free tier / demo mode (Feature B): browse the ERP read-only against the
+    // shared demo dataset. `tenant` becomes the synthetic demo tenant so
+    // the data-fetching services query the demo collections, while billing and
+    // identity stay on the real tenant (exposed via accountTenantId below).
     if (user?.role?.toLowerCase() === "free") {
-      setTenant(null);
+      setTenant(DEMO_TENANT);
       setTenantOwner(null);
       setTenantOwnerPlanName(null);
-      currentTenantIdRef.current = null;
+      currentTenantIdRef.current = DEMO_TENANT_ID;
       lastResolvedContextKeyRef.current = contextKey;
       setIsLoading(false);
       return;
@@ -493,8 +523,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   // adjusted per-theme while hue+saturation (brand identity) are preserved.
   React.useLayoutEffect(() => {
     const styleId = "tenant-styles";
-    if (tenant) {
-      const seed = resolveSafeTenantColor(tenant.primaryColor);
+    // In demo mode `tenant` is the shared demo dataset — the brand color/logo
+    // belong to the user's OWN company, so theme from the real account tenant.
+    const isDemoUser = String(user?.role || "").toLowerCase() === "free";
+    const themeTenant = isDemoUser ? demoAccountTenant : tenant;
+    if (themeTenant) {
+      const seed = resolveSafeTenantColor(themeTenant.primaryColor);
       const lightPrimary = ensureLightModeContrast(seed);
       const darkPrimary = ensureDarkModeContrast(seed);
       const lightFg = computePrimaryForeground(lightPrimary);
@@ -530,7 +564,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       const styleTag = document.getElementById(styleId);
       if (styleTag) styleTag.remove();
     }
-  }, [tenant]);
+  }, [tenant, demoAccountTenant, user?.role]);
 
   // Real-time listener: keeps tenant doc fresh after initial load.
   // Fires on any Firestore write to tenants/{id}, including subscription status changes.
@@ -538,7 +572,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const listeningTenantIdRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
-    const idToListen = tenant?.id ?? null;
+    // Free/demo accounts use the synthetic "demo" data tenant, whose doc is not
+    // readable by them (only its data collections are). Never open a real-time
+    // listener on it — a permission-denied listen can crash the Firestore SDK
+    // (INTERNAL ASSERTION). The synthetic tenant never changes anyway.
+    const isDemoUser = String(user?.role || "").toLowerCase() === "free";
+    const idToListen = isDemoUser ? null : (tenant?.id ?? null);
 
     if (!idToListen) {
       if (tenantSnapshotUnsubRef.current) {
@@ -580,7 +619,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       tenantSnapshotUnsubRef.current = null;
       listeningTenantIdRef.current = null;
     };
-  }, [tenant?.id]);
+  }, [tenant?.id, user?.role]);
 
   const refreshTenant = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -604,6 +643,38 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     refreshTenant();
   };
 
+  const isDemo = String(user?.role || "").toLowerCase() === "free";
+  const accountTenantId = user?.tenantId ?? null;
+
+  // Keep the plain-module demo flag (consumed by api-client) in sync.
+  React.useEffect(() => {
+    setDemoMode(isDemo);
+  }, [isDemo]);
+
+  // In demo mode, `tenant` is the shared demo dataset, so subscribe to the
+  // user's REAL tenant doc (readable by them — it's their own tenant) for the
+  // identity/theme UI: company name, brand color and logo. A real-time listener
+  // (instead of a one-shot fetch) makes these appear as soon as the doc is
+  // readable — e.g. right after sign-up — without needing a page refresh.
+  React.useEffect(() => {
+    if (!isDemo || !accountTenantId) {
+      setDemoAccountTenant(null);
+      return;
+    }
+    const unsubscribe = onSnapshot(
+      doc(db, "tenants", accountTenantId),
+      (snap) => {
+        setDemoAccountTenant(
+          snap.exists() ? ({ id: snap.id, ...snap.data() } as Tenant) : null,
+        );
+      },
+      () => setDemoAccountTenant(null),
+    );
+    return () => unsubscribe();
+  }, [isDemo, accountTenantId]);
+
+  const accountTenant = isDemo ? demoAccountTenant : tenant;
+
   return (
     <TenantContext.Provider
       value={{
@@ -611,6 +682,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         tenantOwner,
         tenantOwnerPlanName,
         isLoading,
+        isDemo,
+        isReadOnly: isDemo,
+        accountTenantId,
+        accountTenant,
         refreshTenant,
         clearViewingTenant,
         setViewingTenant,

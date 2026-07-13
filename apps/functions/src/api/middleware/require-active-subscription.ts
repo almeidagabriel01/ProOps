@@ -46,6 +46,34 @@ function isFreeTierAllowedPath(path: string): boolean {
   return FREE_TIER_ALLOWED_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
+// ERP resource read endpoints a free-tier / demo account may GET (read-only
+// demo mode, Feature B). Only GET is allowed; POST/PUT/DELETE stay blocked with
+// 402 so the account can browse but never mutate. These handlers still scope
+// every query to the caller's own tenantId, so this never leaks other tenants'
+// data — the shared demo dataset is served via direct-Firestore reads gated by
+// the `demo` Firestore rule, not through these endpoints.
+const DEMO_READABLE_PREFIXES = [
+  "/v1/proposals",
+  "/v1/products",
+  "/v1/services",
+  "/v1/clients",
+  "/v1/transactions",
+  "/v1/wallets",
+  "/v1/spreadsheets",
+  "/v1/kanban",
+  "/v1/calendar",
+  "/v1/ambientes",
+  "/v1/sistemas",
+  "/v1/notifications",
+  "/v1/custom-fields",
+  "/v1/options",
+  "/v1/proposal-templates",
+];
+
+function isDemoReadablePath(path: string): boolean {
+  return DEMO_READABLE_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
 function isWhitelistedPath(path: string): boolean {
   return WHITELISTED_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
@@ -133,6 +161,12 @@ export async function requireActiveSubscription(
       next();
       return;
     }
+    // Read-only demo mode: allow GET on ERP resource endpoints so a free
+    // account can browse the product, but block every mutation with 402.
+    if (req.method === "GET" && isDemoReadablePath(req.path)) {
+      next();
+      return;
+    }
     logger.warn(
       "billing_free_tier_blocked",
       buildSecurityLogContext(req, {
@@ -163,7 +197,12 @@ export async function requireActiveSubscription(
   // seeded without a Stripe subscription). The plan-limit check inside each route
   // handler (e.g. PLAN_LIMIT_PROPOSALS_MONTHLY) is responsible for enforcing limits
   // on free tenants — blocking them here would shadow that error with BILLING_INACTIVE.
-  if (subscriptionStatus === "" || subscriptionStatus === "active" || subscriptionStatus === "free") {
+  if (
+    subscriptionStatus === "" ||
+    subscriptionStatus === "active" ||
+    subscriptionStatus === "trialing" ||
+    subscriptionStatus === "free"
+  ) {
     next();
     return;
   }

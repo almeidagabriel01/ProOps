@@ -10,6 +10,7 @@ import { BillingStateBanner } from "@/components/layout/billing-state-banner";
 import { PriceChangeBanner } from "@/components/billing/price-change-banner";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useAuth } from "@/providers/auth-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import { StripeService } from "@/services/stripe-service";
 import { AddonService } from "@/services/addon-service";
 import { formatDateBR } from "@/utils/date-format";
@@ -20,8 +21,9 @@ import {
 } from "@/providers/scroll-container-provider";
 
 function ProtectedShell({ children }: { children: React.ReactNode }) {
-  const { planTier, pastDueAddons } = usePlanLimits();
+  const { planTier, pastDueAddons, trialInfo } = usePlanLimits();
   const { user } = useAuth();
+  const { isDemo } = useTenant();
   const router = useRouter();
   const [isOpeningPortal, setIsOpeningPortal] = React.useState(false);
   const [isReactivating, setIsReactivating] = React.useState(false);
@@ -90,12 +92,43 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
         ? formatDateBR(user.currentPeriodEnd, "—")
         : "—";
 
+  // Trial banner copy escalates as the 7-day period nears its end.
+  const trialDays = trialInfo.daysRemaining;
+  const trialIsUrgent = trialInfo.isTrialing && trialDays <= 3;
+  // Informational only — the card was collected at checkout, so the trial
+  // converts automatically at the end (no "assinar" action for the user to take).
+  const trialMessage =
+    trialDays <= 0
+      ? "Seu período gratuito termina hoje — sua assinatura será cobrada automaticamente."
+      : trialDays === 1
+        ? "Falta 1 dia no seu período gratuito."
+        : `Você está no período gratuito — faltam ${trialDays} dias.`;
+
   return (
     <SubscriptionGuard>
-      <div className="flex h-screen overflow-hidden bg-card">
+      <div
+        className="flex h-screen overflow-hidden bg-card"
+        data-demo-readonly={isDemo || undefined}
+      >
         <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
           <Header sidebarWidth={0} />
           <PriceChangeBanner />
+          {isDemo && (
+            <BillingStateBanner
+              variant="info"
+              message="Você está no modo demonstração — os dados são fictícios e não podem ser alterados. Assine para usar o ERP com seus próprios dados."
+              ctaLabel="Assinar agora"
+              onCta={() => router.push("/profile?tab=billing")}
+              dataTestid="billing-state-banner-demo"
+            />
+          )}
+          {user !== null && trialInfo.isTrialing && (
+            <BillingStateBanner
+              variant={trialIsUrgent ? "warning" : "info"}
+              message={trialMessage}
+              dataTestid="billing-state-banner-trial"
+            />
+          )}
           {user !== null && isPastDue && (
             <BillingStateBanner
               variant="destructive"

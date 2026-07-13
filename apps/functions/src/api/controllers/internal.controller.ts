@@ -660,6 +660,35 @@ export const cleanupTrialFieldsManual = async (
   }
 };
 
+/**
+ * Seeds (or re-seeds) the shared read-only `demo` tenant used by the
+ * free-tier demo mode. Idempotent.
+ *
+ * Header: x-cron-secret must match CRON_SECRET.
+ */
+export const seedDemoTenantManual = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const { seedDemoTenant } = await import("../../scripts/seed-demo-tenant");
+    const result = await seedDemoTenant();
+    logger.info("[seedDemoTenant manual] completed", { ...result });
+    return res.json(result);
+  } catch (error) {
+    logger.error("[seedDemoTenant manual] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const invalidateTenantPlanCacheManual = async (
   req: Request,
   res: Response,

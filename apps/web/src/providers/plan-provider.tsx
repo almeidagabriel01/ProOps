@@ -19,6 +19,7 @@ import {
 } from "@/types";
 import { PlanService, DEFAULT_PLANS } from "@/services/plan-service";
 import { AddonService } from "@/services/addon-service";
+import { computeTrialInfo, type TrialInfo } from "@/lib/trial-info";
 import {
   collection,
   query,
@@ -71,6 +72,7 @@ export interface AddonGracePeriodInfo {
   isExpired: boolean;
 }
 
+
 /** Named feature flags derived from tenant/plan state. */
 export type FeatureFlag = "whatsapp";
 
@@ -80,6 +82,7 @@ export interface PlanContextValue {
   purchasedAddons: AddonType[];
   purchasedAddonsData: PurchasedAddon[];
   pastDueAddons: AddonGracePeriodInfo[];
+  trialInfo: TrialInfo;
   hasFinancial: boolean;
   hasKanban: boolean;
   hasWhatsApp: boolean;
@@ -160,6 +163,25 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           maxStorageMB: -1,
         });
         setPlanTier("enterprise");
+        setIsPlanLoading(false);
+        return;
+      }
+
+      // Free/demo accounts browse the whole ERP read-only ("dar o gostinho"):
+      // unlock every module feature so premium modules (Financeiro, CRM, editor
+      // de PDF) render and navigate instead of showing the upgrade crown. Writes
+      // stay blocked downstream (api-client 402 + backend + Firestore rules).
+      // planTier stays neutral so the plan label remains "Gratuito".
+      if (String(user?.role || "").toLowerCase() === "free") {
+        setBaseFeatures({
+          ...FREE_PLAN_FEATURES,
+          hasFinancial: true,
+          hasKanban: true,
+          canEditPdfSections: true,
+          canCustomizeTheme: true,
+          maxPdfTemplates: -1,
+        });
+        setPlanTier("starter");
         setIsPlanLoading(false);
         return;
       }
@@ -251,7 +273,13 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (user?.role === "superadmin") {
+      // Superadmins and free/demo accounts have no addons. For free/demo,
+      // `tenant.id` is the shared "demo" tenant, which the account's claims
+      // don't own — querying its addons would 403 (permission denied).
+      if (
+        user?.role === "superadmin" ||
+        String(user?.role || "").toLowerCase() === "free"
+      ) {
         setPurchasedAddons([]);
         setPurchasedAddonsData([]);
         setPastDueAddonsData([]);
@@ -325,7 +353,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   // -------------------------------------------------------------------------
 
   const refreshAddons = useCallback(async () => {
-    if (user?.role === "superadmin") {
+    if (
+      user?.role === "superadmin" ||
+      String(user?.role || "").toLowerCase() === "free"
+    ) {
       setPurchasedAddons([]);
       setPurchasedAddonsData([]);
       setPastDueAddonsData([]);
@@ -523,6 +554,16 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   }, [pastDueAddonsData]);
 
   // -------------------------------------------------------------------------
+  // Trial info (7-day paid trial countdown)
+  // -------------------------------------------------------------------------
+
+  const trialInfo = useMemo(
+    (): TrialInfo =>
+      computeTrialInfo(tenant?.subscriptionStatus, tenant?.trialEndsAt),
+    [tenant?.subscriptionStatus, tenant?.trialEndsAt],
+  );
+
+  // -------------------------------------------------------------------------
   // Feature flags (derived from tenant state)
   // -------------------------------------------------------------------------
 
@@ -544,6 +585,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       purchasedAddons,
       purchasedAddonsData,
       pastDueAddons,
+      trialInfo,
       hasFinancial: mergedFeatures?.hasFinancial ?? false,
       hasKanban: mergedFeatures?.hasKanban ?? false,
       hasWhatsApp: featureFlags.whatsapp,
@@ -572,6 +614,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       purchasedAddons,
       purchasedAddonsData,
       pastDueAddons,
+      trialInfo,
       canCreateProposal,
       canCreateClient,
       canCreateProduct,

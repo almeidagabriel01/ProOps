@@ -80,12 +80,13 @@ export class RegisterPage {
   }
 
   async waitForHomeRedirect(): Promise<void> {
-    // After registration: EmailVerificationPending → auto-proceed → reload → redirect to '/'
+    // After registration: EmailVerificationPending → auto-proceed → reload →
+    // redirect to the free-tier home '/dashboard' (read-only demo mode —
+    // resolveUserHome sends role "free" into the ERP, not the landing).
     // The reload cycle can take up to 15s — use a 30s timeout.
     // Use a URL predicate so this works regardless of host (localhost vs. CI URL).
-    await this.page.waitForURL(
-      (url) => url.pathname === "/" && !url.pathname.startsWith("/login") && !url.pathname.startsWith("/register"),
-      { timeout: 30000 },
-    );
+    await this.page.waitForURL((url) => url.pathname === "/dashboard", {
+      timeout: 30000,
+    });
   }
 }

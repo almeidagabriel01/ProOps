@@ -52,6 +52,12 @@ interface PdfEditorTabsProps {
   setCoverElements?: (elements: CoverElement[]) => void;
 
   // Shared / Other
+  /**
+   * Read-only/demo mode: the tab list (Capa/Conteúdo/Estilo) stays navigable,
+   * but every control inside each tab becomes `inert` so the user can browse
+   * the editor without changing anything.
+   */
+  isReadOnly?: boolean;
   premiumColor: string;
   maxPdfTemplates: number;
   setShowUpgradeModal: (val: boolean) => void;
@@ -93,6 +99,7 @@ export function PdfEditorTabs({
   canEditPdfSections,
   coverElements,
   setCoverElements,
+  isReadOnly,
   premiumColor,
   maxPdfTemplates,
   setShowUpgradeModal,
@@ -139,6 +146,7 @@ export function PdfEditorTabs({
 
       {/* Cover Tab */}
       <TabsContent value="cover" className="space-y-4 mt-4 w-full">
+        <div className="contents" inert={isReadOnly || undefined}>
         <PdfCoverTab
           coverTitle={coverTitle}
           setCoverTitle={setCoverTitle}
@@ -170,10 +178,12 @@ export function PdfEditorTabs({
           clientName={clientName}
           validUntil={validUntil}
         />
+        </div>
       </TabsContent>
 
       {/* Content Tab */}
       <TabsContent value="content" className="space-y-4 mt-4">
+        <div className="contents" inert={isReadOnly || undefined}>
         <Card className="relative">
           <CardHeader className="flex flex-row items-center gap-2">
             <CardTitle>Seções do Documento</CardTitle>
@@ -229,10 +239,12 @@ export function PdfEditorTabs({
             </CardContent>
           )}
         </Card>
+        </div>
       </TabsContent>
 
       {/* Style Tab */}
       <TabsContent value="style" className="space-y-4 mt-4">
+        <div className="contents" inert={isReadOnly || undefined}>
         <PdfStyleTab
           primaryColor={primaryColor}
           setPrimaryColor={setPrimaryColor}
@@ -244,6 +256,7 @@ export function PdfEditorTabs({
           tenantColor={tenantColor}
           theme={theme}
         />
+        </div>
       </TabsContent>
     </Tabs>
   );

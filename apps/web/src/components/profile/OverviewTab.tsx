@@ -7,6 +7,7 @@ import { UsePlanUsageReturn } from "@/hooks/usePlanUsage";
 import { PersonalForm } from "./personal-form";
 import { OrganizationForm } from "./organization-form";
 import { PasswordForm } from "./password-form";
+import { useTenant } from "@/providers/tenant-provider";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -24,6 +25,9 @@ export function OverviewTab({
   planUsageData,
 }: OverviewTabProps) {
   const isFree = user?.role?.toLowerCase() === "free";
+  // In demo mode `tenant` is the shared demo dataset — the organization form is
+  // identity, so show the account's REAL company (accountTenant).
+  const { accountTenant } = useTenant();
   const [hasPasswordProvider, setHasPasswordProvider] = useState(true);
 
   useEffect(() => {
@@ -51,7 +55,7 @@ export function OverviewTab({
       </div>
       {/* Right Column: Organization + Plan Usage */}
       <div className="flex flex-col gap-6">
-        <OrganizationForm tenant={tenant} isMaster={isMaster} />
+        <OrganizationForm tenant={accountTenant ?? tenant} isMaster={isMaster} />
         {!isFree && hasPasswordProvider && (
           <PlanUsageCard variant="profile" data={planUsageData} />
         )}

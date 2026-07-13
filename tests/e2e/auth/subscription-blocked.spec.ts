@@ -69,7 +69,7 @@ test.describe("AUTH-SB-02: Free user redirected from /subscription-blocked", () 
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_FREE.email, USER_FREE.password);
-    await page.waitForURL("/", { timeout: 15000 });
+    await page.waitForURL(/dashboard/, { timeout: 15000 });
 
     await page.goto("/subscription-blocked");
     await expect(page).toHaveURL("/", { timeout: 10000 });

@@ -13,11 +13,14 @@ import { usePermissions } from "@/providers/permissions-provider";
 import { CreditCard, Shield } from "lucide-react";
 
 export default function SettingsPaymentsPage() {
-  const { isMaster, isLoading: permLoading } = usePermissions();
+  const { isMaster, isDemo, isLoading: permLoading } = usePermissions();
+  // Demo/free accounts own their tenant, so they may view this section (the
+  // content is rendered read-only via `inert` below).
+  const canSeeSection = isMaster || isDemo;
   // The Asaas card reports its own status load; combine with the permission
   // load so the header + chrome skeleton stays up until the section is ready.
   const [asaasLoading, setAsaasLoading] = React.useState(true);
-  const loading = permLoading || (isMaster && asaasLoading);
+  const loading = permLoading || (canSeeSection && asaasLoading);
   useReportSettingsLoading(loading);
 
   return (
@@ -33,8 +36,10 @@ export default function SettingsPaymentsPage() {
       )}
       {permLoading ? (
         <PaymentsCardSkeleton />
-      ) : isMaster ? (
-        <AsaasConnectCard onLoadingChange={setAsaasLoading} />
+      ) : canSeeSection ? (
+        <div className="contents" inert={isDemo || undefined}>
+          <AsaasConnectCard onLoadingChange={setAsaasLoading} />
+        </div>
       ) : (
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
           <Shield className="w-16 h-16 text-muted-foreground mb-4" />

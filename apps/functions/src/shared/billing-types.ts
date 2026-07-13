@@ -67,6 +67,7 @@ export interface SyncTenantPlanBillingSnapshotParams {
   cancelAt?: Date | null;
   cancelScheduledAt?: string | null;
   pastDueSince?: string | null; // explicit override; otherwise derived from status
+  trialEndsAt?: string | null; // ISO; set while trialing, null clears it on conversion
   plan?: TenantPlanTier; // when explicitly provided (e.g. updateUserPlan)
   scheduledPlan?: TenantPlanTier | null;
   scheduledPlanAt?: Date | Timestamp | null;

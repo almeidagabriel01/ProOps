@@ -81,6 +81,30 @@ describe("useHeaderPresentation — isCompanyLoading for free users", () => {
     consoleError.mockRestore();
   });
 
+  it("surfaces the real company name from the provider's real-time accountTenant, not the demo data tenant (no F5 needed)", () => {
+    // Regression: right after sign-up the free account enters demo mode. `tenant`
+    // is the shared demo dataset; the account's real company/name/logo/color come
+    // from the real-time `accountTenant`. The header must show the real company
+    // immediately once accountTenant is available — without a page refresh.
+    mockGetTenantById.mockResolvedValue(null);
+    mockUseTenant.mockReturnValue({
+      ...emptyTenantContext,
+      tenant: { id: "demo", name: "ProOps Demo" },
+      accountTenant: {
+        id: "t1",
+        name: "Acme",
+        logoUrl: "https://example.com/acme.png",
+      },
+    });
+
+    const { result } = renderHook(() => useHeaderPresentation());
+
+    expect(result.current.companyName).toBe("Acme");
+    expect(result.current.logoUrl).toBe("https://example.com/acme.png");
+    expect(result.current.avatarSeed).toBe("Acme");
+    expect(result.current.isCompanyLoading).toBe(false);
+  });
+
   it("does not load or fetch for a regular user whose tenant is already hydrated", () => {
     mockUseAuth.mockReturnValue({
       user: { id: "u2", role: "admin", tenantId: "t2", name: "Admin" },

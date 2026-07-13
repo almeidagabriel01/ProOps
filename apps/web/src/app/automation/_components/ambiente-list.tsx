@@ -28,6 +28,7 @@ interface AmbienteListProps {
   onUpdate: () => void;
   enableProductTemplates?: boolean;
   helperText?: string;
+  isReadOnly?: boolean;
 }
 
 export function AmbienteList({
@@ -35,6 +36,7 @@ export function AmbienteList({
   onUpdate,
   enableProductTemplates = false,
   helperText = "Adicione ambientes globais para serem utilizados em suas soluções.",
+  isReadOnly = false,
 }: AmbienteListProps) {
   const { tenant } = useTenant();
 
@@ -131,7 +133,7 @@ export function AmbienteList({
 
   return (
     <div className="space-y-8">
-      <div className="max-w-xl">
+      <div className="max-w-xl" inert={isReadOnly || undefined}>
         <div className="flex items-center gap-2">
           <Input
             id="new-ambiente-input"
@@ -227,7 +229,10 @@ export function AmbienteList({
                     <div className="p-2 bg-secondary rounded-lg text-secondary-foreground">
                       <Home className="h-5 w-5" />
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div
+                      className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      inert={isReadOnly || undefined}
+                    >
                       {enableProductTemplates && (
                         <Button
                           size="icon"

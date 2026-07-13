@@ -61,7 +61,7 @@ function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
 
 export function TransactionKanbanTab() {
   const { statuses, isLoaded, reorderStatuses } = useTransactionStatuses();
-  const { tenant } = useTenant();
+  const { tenant, isReadOnly } = useTenant();
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [columnFilters, setColumnFilters] = React.useState<
@@ -711,9 +711,11 @@ export function TransactionKanbanTab() {
       {/* Toolbar */}
       <div className="flex items-center justify-start gap-3 flex-wrap">
         {/* Drag hint */}
-        <p className="text-xs text-muted-foreground hidden sm:block">
-          Arraste para alterar o status
-        </p>
+        {!isReadOnly && (
+          <p className="text-xs text-muted-foreground hidden sm:block">
+            Arraste para alterar o status
+          </p>
+        )}
         {/* Auto-overdue toggle */}
         <div className="flex items-center gap-3 bg-card/60 dark:bg-card/40 border border-border/40 rounded-lg px-3 py-2 backdrop-blur-sm">
           <label
@@ -726,18 +728,19 @@ export function TransactionKanbanTab() {
             id="auto-overdue-toggle"
             checked={autoOverdue}
             onCheckedChange={handleToggleAutoOverdue}
+            disabled={isReadOnly}
           />
         </div>
       </div>
 
-      {/* Board — Drag ENABLED for transactions */}
+      {/* Board — drag disabled in read-only/demo */}
       <KanbanBoard<Transaction>
         columns={boardColumns}
         onDragEnd={handleDragEnd}
         onColumnDragEnd={reorderStatuses}
         onCardClick={handleCardClick}
         getItemId={(t) => t.id}
-        isDragEnabled={true}
+        isDragEnabled={!isReadOnly}
         showColumnTotals
         getItemValue={(t) => t.amount}
         renderCard={(transaction, _col, isDragging) => (

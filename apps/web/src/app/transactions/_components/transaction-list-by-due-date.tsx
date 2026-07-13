@@ -30,6 +30,7 @@ import { TransactionService } from "@/services/transaction-service";
 import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { useTransactionStatuses } from "@/app/transactions/_hooks/useTransactionStatuses";
+import { useTenant } from "@/providers/tenant-provider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,6 +103,7 @@ export function TransactionListByDueDate({
   allTransactions = [],
 }: TransactionListByDueDateProps) {
   const { editableStatuses: statusOptions } = useTransactionStatuses();
+  const { isReadOnly } = useTenant();
   const [updatingState, setUpdatingState] = React.useState<{
     id: string;
     field: "status" | "wallet";
@@ -688,7 +690,7 @@ export function TransactionListByDueDate({
                               variant="ghost"
                               size="sm"
                               className="h-6 max-w-[100px] px-2 text-xs border"
-                              disabled={isRowUpdating}
+                              disabled={isRowUpdating || isReadOnly}
                             >
                               {isUpdatingWallet ? (
                                 <Loader size="sm" />
@@ -752,7 +754,7 @@ export function TransactionListByDueDate({
                               variant="ghost"
                               size="sm"
                               className="h-6 gap-1 px-2 text-xs border"
-                              disabled={isRowUpdating}
+                              disabled={isRowUpdating || isReadOnly}
                             >
                               {isUpdatingStatus ? (
                                 <Loader size="sm" />
@@ -824,6 +826,7 @@ export function TransactionListByDueDate({
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-blue-600 hover:text-blue-700"
+                          disabled={isReadOnly}
                           onClick={() => handleUndoPartial(tx)}
                           title="Desfazer Parcial"
                         >
@@ -873,6 +876,7 @@ export function TransactionListByDueDate({
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-destructive hover:text-destructive"
+                          disabled={isReadOnly}
                           onClick={() => onDelete(tx)}
                           title="Excluir"
                         >
@@ -884,7 +888,7 @@ export function TransactionListByDueDate({
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6 text-destructive hover:text-destructive"
-                          disabled={isDeletingExtraCost}
+                          disabled={isDeletingExtraCost || isReadOnly}
                           onClick={(e) => {
                             e.stopPropagation();
                             setExtraCostToDelete({

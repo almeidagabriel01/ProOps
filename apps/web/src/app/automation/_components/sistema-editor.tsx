@@ -67,6 +67,7 @@ interface SistemaEditorProps {
   onBack: () => void;
   onSave: (id?: string) => void;
   onAmbienteCreated?: () => void; // Added prop
+  isReadOnly?: boolean;
 }
 
 const buildSistemaSnapshot = (
@@ -101,6 +102,7 @@ export function SistemaEditor({
   onBack,
   onSave,
   onAmbienteCreated,
+  isReadOnly = false,
 }: SistemaEditorProps) {
   const { tenant } = useTenant();
   const nicheConfig = useCurrentNicheConfig();
@@ -521,6 +523,7 @@ export function SistemaEditor({
               isSaving || !name.trim() || (!!sistema?.id && !hasChanges)
             }
             className="min-w-[120px]"
+            inert={isReadOnly || undefined}
           >
             {isSaving ? (
               <Spinner className="mr-2" />
@@ -537,7 +540,7 @@ export function SistemaEditor({
         {/* System info & environments */}
         <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
           {/* Info Card */}
-          <Card>
+          <Card inert={isReadOnly || undefined}>
             <CardHeader className="py-4">
               <CardTitle className="text-base flex items-center gap-2">
                 <Settings className="w-4 h-4 text-primary" /> Informações
@@ -581,6 +584,7 @@ export function SistemaEditor({
                 <Home className="w-4 h-4 text-primary" /> Ambientes
               </CardTitle>
 
+              <div className="contents" inert={isReadOnly || undefined}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button size="sm" variant="outline" className="h-8 gap-1">
@@ -627,6 +631,7 @@ export function SistemaEditor({
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+              </div>
             </CardHeader>
             <CardContent className="p-2 flex-1 overflow-y-auto">
               <div className="space-y-1">
@@ -684,6 +689,7 @@ export function SistemaEditor({
                             e.stopPropagation();
                             removeAmbiente(conf.ambienteId);
                           }}
+                          inert={isReadOnly || undefined}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
@@ -701,7 +707,10 @@ export function SistemaEditor({
         </div>
 
         {/* Main Content: Product Editor */}
-        <div className="md:col-span-8 flex flex-col h-full overflow-hidden">
+        <div
+          className="md:col-span-8 flex flex-col h-full overflow-hidden"
+          inert={isReadOnly || undefined}
+        >
           {activeAmbienteId && activeConfig ? (
             <Card className="h-full flex flex-col border-none shadow-md bg-card overflow-hidden">
               {/* Premium Header with Integrated Search */}

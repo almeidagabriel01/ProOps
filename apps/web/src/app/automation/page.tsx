@@ -263,7 +263,7 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
 }
 
 export default function AutomationAdminPage() {
-  const { tenant } = useTenant();
+  const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -445,6 +445,7 @@ export default function AutomationAdminPage() {
       >
         <AmbienteEditor
           ambiente={ambienteToEdit || null}
+          isReadOnly={isReadOnly}
           onBack={() => setEditingAmbienteId(null)}
           onSave={(savedId?: string) => {
             if (editingAmbienteId === "new" && savedId) {
@@ -475,18 +476,20 @@ export default function AutomationAdminPage() {
         </motion.div>
 
         <div className="flex justify-end border-b pb-4">
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <Button
-              size="lg"
-              onClick={() => setEditingAmbienteId("new")}
-              className="gap-2"
+          {!isReadOnly && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
             >
-              <Plus className="w-5 h-5" /> Novo Ambiente
-            </Button>
-          </motion.div>
+              <Button
+                size="lg"
+                onClick={() => setEditingAmbienteId("new")}
+                className="gap-2"
+              >
+                <Plus className="w-5 h-5" /> Novo Ambiente
+              </Button>
+            </motion.div>
+          )}
         </div>
 
         <motion.div
@@ -496,7 +499,7 @@ export default function AutomationAdminPage() {
           className="flex-1"
         >
           <Card className="border-none shadow-sm bg-transparent">
-            <CardContent className="px-0">
+            <CardContent className="pt-6">
               <div className="flex justify-end mb-4">
                 <div className="w-full sm:w-[300px]">
                   <Select
@@ -514,6 +517,7 @@ export default function AutomationAdminPage() {
               <AmbienteTemplateList
                 key={`ambientes-${ambienteSort}-templates`}
                 ambientes={displayedAmbientes}
+                isReadOnly={isReadOnly}
                 onEdit={(id: string) => setEditingAmbienteId(id)}
                 onDelete={(id: string) =>
                   setDeleteTarget({ type: "ambiente", id })
@@ -559,6 +563,7 @@ export default function AutomationAdminPage() {
           sistema={systemToEdit || null}
           allAmbientes={ambientes}
           initialAmbienteId={initialAmbienteId}
+          isReadOnly={isReadOnly}
           onBack={() => setEditingSistemaId(null)}
           onSave={(savedId?: string) => {
             if (editingSistemaId === "new" && savedId) {
@@ -611,7 +616,7 @@ export default function AutomationAdminPage() {
             </TabsTrigger>
           </TabsList>
 
-          {activeTab === "sistemas" && !isLoading && (
+          {activeTab === "sistemas" && !isLoading && !isReadOnly && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -636,7 +641,7 @@ export default function AutomationAdminPage() {
         >
           <TabsContent value="sistemas" className="space-y-4 m-0">
             <Card className="border-none shadow-sm bg-transparent">
-              <CardContent className="px-0">
+              <CardContent className="pt-6">
                 <div className="flex justify-end mb-4">
                   <div className="w-full sm:w-[300px]">
                     <Select
@@ -658,6 +663,7 @@ export default function AutomationAdminPage() {
                 <SistemaList
                   key={`sistemas-${sistemaSort}`}
                   sistemas={displayedSistemas}
+                  isReadOnly={isReadOnly}
                   onEdit={(id: string) => setEditingSistemaId(id)}
                   onDelete={(id: string) =>
                     setDeleteTarget({ type: "sistema", id })
@@ -679,7 +685,7 @@ export default function AutomationAdminPage() {
 
           <TabsContent value="ambientes" className="space-y-4 m-0">
             <Card className="items-start border-none shadow-sm bg-transparent">
-              <CardHeader className="px-0 pt-0">
+              <CardHeader>
                 <div className="space-y-1">
                   <CardTitle className="text-xl flex items-center gap-2">
                     <Layers className="w-5 h-5 text-primary" />
@@ -691,7 +697,7 @@ export default function AutomationAdminPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="px-0">
+              <CardContent>
                 <div className="flex justify-end mb-4">
                   <div className="w-full sm:w-[300px]">
                     <Select
@@ -714,6 +720,7 @@ export default function AutomationAdminPage() {
                   key={`ambientes-${ambienteSort}`}
                   ambientes={displayedAmbientes}
                   onUpdate={() => loadData(true)}
+                  isReadOnly={isReadOnly}
                 />
                 {hasMoreAmbientes && (
                   <div

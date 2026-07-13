@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/toast";
+import { computeTrialInfo } from "@/lib/trial-info";
 
 import {
   Card,
@@ -134,18 +135,23 @@ export function MySubscriptionTab({
 }: MySubscriptionTabProps) {
   const router = useRouter();
 
+  // A free/demo account has no paid plan — always "Plano Gratuito", regardless
+  // of a leftover planId (e.g. a "starter" downgrade from a churned trial).
+  const isFreeUser = String(user?.role || "").toLowerCase() === "free";
+
   // Get effective plan - fallback to DEFAULT_PLANS if userPlan is null but user has planId
-  const effectivePlan =
-    userPlan ||
-    (() => {
-      if (user?.planId) {
-        const defaultPlan = DEFAULT_PLANS.find((p) => p.tier === user.planId);
-        if (defaultPlan) {
-          return { ...defaultPlan, id: defaultPlan.tier } as UserPlan;
+  const effectivePlan = isFreeUser
+    ? null
+    : userPlan ||
+      (() => {
+        if (user?.planId) {
+          const defaultPlan = DEFAULT_PLANS.find((p) => p.tier === user.planId);
+          if (defaultPlan) {
+            return { ...defaultPlan, id: defaultPlan.tier } as UserPlan;
+          }
         }
-      }
-      return null;
-    })();
+        return null;
+      })();
 
   // Infer subscription status - if user has a plan assigned, assume active
   const rawSubscriptionStatus = user?.subscriptionStatus;
@@ -155,6 +161,13 @@ export function MySubscriptionTab({
 
   const currentPeriodEnd = user?.currentPeriodEnd;
   const billingInterval = user?.billingInterval || "monthly";
+
+  // 7-day trial countdown, sourced from the tenant billing snapshot.
+  const {
+    isTrialing,
+    daysRemaining: trialDaysRemaining,
+    endsAt: trialEndsAt,
+  } = computeTrialInfo(subscriptionStatus, tenant?.trialEndsAt);
   const cancelAtPeriodEnd = user?.cancelAtPeriodEnd;
   const isManualSubscription = user?.isManualSubscription;
   const hasStripeCustomer = !!user?.stripeCustomerId;
@@ -470,6 +483,18 @@ export function MySubscriptionTab({
                       ? "Cobrança anual"
                       : "Cobrança mensal"}
                 </p>
+                {isTrialing && trialEndsAt && (
+                  <p
+                    className="text-sm mt-1 font-medium text-blue-600 dark:text-blue-400"
+                    data-testid="subscription-trial-info"
+                  >
+                    Período gratuito —{" "}
+                    {trialDaysRemaining === 1
+                      ? "falta 1 dia"
+                      : `faltam ${trialDaysRemaining} dias`}{" "}
+                    (termina em {formatDate(trialEndsAt)})
+                  </p>
+                )}
               </div>
             </div>
 

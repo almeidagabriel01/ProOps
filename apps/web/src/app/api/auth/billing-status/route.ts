@@ -1,56 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 import { unstable_cache } from "next/cache";
-import { isFreeTierAllowedPath } from "@/lib/auth/resolve-user-home";
+import { resolveBillingAccess } from "@/lib/auth/billing-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// Grace period matches TENANT_PLAN_PAST_DUE_GRACE_DAYS on the backend (default: 7 days).
-// Keep in sync with apps/functions/src/api/middleware/require-active-subscription.ts
-const PAST_DUE_GRACE_DAYS = 7;
-
-const BLOCKED_STATUSES = new Set([
-  "canceled",
-  "cancelled",
-  "unpaid",
-  "inactive",
-  "payment_failed",
-]);
 
 // 60-second TTL backed by Next.js Data Cache (shared across Vercel instances).
 // Invalidated immediately after billing state changes via revalidateTag in the
 // /api/auth/billing-status/invalidate endpoint (called by the backend webhook handler).
 const BILLING_CACHE_TTL_SECONDS = 60;
-
-function isGracePeriodActive(pastDueSince: string | null): boolean {
-  if (!pastDueSince) return false;
-  const referenceMs = Date.parse(pastDueSince);
-  if (!Number.isFinite(referenceMs)) return false;
-  const graceMs = PAST_DUE_GRACE_DAYS * 24 * 60 * 60 * 1000;
-  return Date.now() - referenceMs <= graceMs;
-}
-
-function isBillingAllowed(
-  subscriptionStatus: string,
-  pastDueSince: string | null,
-): boolean {
-  if (
-    !subscriptionStatus ||
-    subscriptionStatus === "active" ||
-    subscriptionStatus === "trialing"
-  ) {
-    return true;
-  }
-  if (subscriptionStatus === "past_due") {
-    return isGracePeriodActive(pastDueSince);
-  }
-  if (BLOCKED_STATUSES.has(subscriptionStatus)) {
-    return false;
-  }
-  // Unknown status — fail-open. Firestore rules and backend middleware are the final gate.
-  return true;
-}
 
 function createBillingStateFetcher(tenantId: string) {
   return unstable_cache(
@@ -115,24 +74,20 @@ export async function GET(req: NextRequest) {
     const { subscriptionStatus, pastDueSince } =
       await resolveBillingState(tenantId);
 
-    // Free tier guard. Uses the USER role from the session-cookie claim
-    // (authoritative for who's paying) rather than tenants/{id}.plan,
-    // which can be desynchronized in legacy data (some paying tenants
-    // still carry `plan: "free"` despite an active subscription). If
-    // the user role is 'free', allow only the free-tier allowlist; any
-    // other path (including /dashboard) is blocked before the page renders.
+    // Access decision. Uses the USER role from the session-cookie claim
+    // (authoritative for who's paying) rather than tenants/{id}.plan, which can
+    // be desynchronized in legacy data. A free role is a DEMO account: gated
+    // only by the free-tier allowlist, NEVER by subscription status (so a
+    // leftover "canceled" from a churned trial doesn't block the demo ERP).
+    // Paying roles are gated by their subscription/grace status.
     const requestedPath = req.nextUrl.searchParams.get("path") || "";
-    const isFreeUser = String(decoded.role || "").toLowerCase() === "free";
-    if (isFreeUser && requestedPath && !isFreeTierAllowedPath(requestedPath)) {
-      return NextResponse.json({
-        allowed: false,
-        status: "free",
-        reason: "free_tier_forbidden",
-      });
-    }
-
-    const allowed = isBillingAllowed(subscriptionStatus, pastDueSince);
-    return NextResponse.json({ allowed, status: subscriptionStatus });
+    const decision = resolveBillingAccess({
+      role: decoded.role as string | undefined,
+      subscriptionStatus,
+      pastDueSince,
+      requestedPath,
+    });
+    return NextResponse.json(decision);
   } catch (error: unknown) {
     const code = (error as { code?: string })?.code;
 

@@ -46,6 +46,8 @@ interface PermissionsContextType {
   ) => boolean;
   isMaster: boolean;
   isMember: boolean;
+  /** Free/demo account: gets full UI permissions (writes blocked downstream). */
+  isDemo: boolean;
   refreshPermissions: () => Promise<void>;
 }
 
@@ -55,6 +57,7 @@ const PermissionsContext = React.createContext<PermissionsContextType>({
   hasPermission: () => false,
   isMaster: false,
   isMember: false,
+  isDemo: false,
   refreshPermissions: async () => {},
 });
 
@@ -239,6 +242,16 @@ export function PermissionsProvider({
     ): boolean => {
       if (!permissions) return false;
 
+      // DEMO/FREE: the demo must mirror a paying tenant EXACTLY — every button,
+      // action and form is available so the user experiences the real flow.
+      // Grant all actions on every page (the account has no permissions doc);
+      // the actual writes are blocked at the api-client and backend (402), so
+      // nothing is ever persisted. Premium modules still show crowns because
+      // that gating is driven by plan features, not permissions.
+      if (String(user?.role || "").toLowerCase() === "free") {
+        return true;
+      }
+
       // MASTER BYPASS: MASTER users have ALL permissions unconditionally
       // This ensures MASTER never gets 403 for any page
       if (permissions.role === "MASTER") {
@@ -265,11 +278,12 @@ export function PermissionsProvider({
           return false;
       }
     },
-    [permissions],
+    [permissions, user?.role],
   );
 
   const isMaster = permissions?.role === "MASTER";
   const isMember = permissions?.role === "MEMBER";
+  const isDemo = String(user?.role || "").toLowerCase() === "free";
 
   return (
     <PermissionsContext.Provider
@@ -279,6 +293,7 @@ export function PermissionsProvider({
         hasPermission,
         isMaster,
         isMember,
+        isDemo,
         refreshPermissions: fetchPermissions,
       }}
     >
