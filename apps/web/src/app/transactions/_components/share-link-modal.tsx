@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
+import { isDemoReadOnlyError } from "@/lib/api-client";
 import { SharedTransactionService } from "@/services/shared-transaction-service";
 import { Loader } from "@/components/ui/loader";
 
@@ -130,8 +131,10 @@ export function ShareLinkModal({
 
       setIsCopying(false);
       onOpenChange(false);
-    } catch {
-      toast.error("Erro ao gerar link. Tente novamente.");
+    } catch (error) {
+      if (!isDemoReadOnlyError(error)) {
+        toast.error("Erro ao gerar link. Tente novamente.");
+      }
       setIsCopying(false);
     }
   };

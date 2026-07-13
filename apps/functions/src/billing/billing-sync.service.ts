@@ -13,6 +13,7 @@ import {
   resolvePlanFromPrice,
   extractBillingInterval,
   extractPrimaryPriceId,
+  extractTrialEndsAt,
   isMainPlanSubscription,
 } from "./billing-mappers";
 import { findAndCancelDuplicateSubscriptions } from "./duplicate-handler";
@@ -23,6 +24,7 @@ type StripeSubLike = {
   status: string;
   created: number;
   cancel_at_period_end: boolean;
+  trial_end?: number | null;
   metadata?: Record<string, string> | null;
   items: { data: Array<{ price: { id: string; recurring?: { interval?: string } | null } }> };
   current_period_end?: number;
@@ -60,6 +62,7 @@ export async function syncTenantBillingFromStripe(
       currentPeriodEnd: null,
       cancelAtPeriodEnd: false,
       pastDueSince: null,
+      trialEndsAt: null,
       billingSyncedAt: new Date().toISOString(),
       billingSyncing: false,
       source: opts.source,
@@ -123,6 +126,7 @@ export async function syncTenantBillingFromStripe(
         currentPeriodEnd: null,
         cancelAtPeriodEnd: false,
         pastDueSince: null,
+        trialEndsAt: null,
         billingSyncedAt: new Date().toISOString(),
         billingSyncing: false,
         source: opts.source,
@@ -147,6 +151,7 @@ export async function syncTenantBillingFromStripe(
     const currentPeriodEndDate = rawPeriodEnd ? new Date(rawPeriodEnd * 1000) : undefined;
 
     const cancelAtPeriodEnd = canonical.cancel_at_period_end ?? false;
+    const trialEndsAt = extractTrialEndsAt(canonical);
 
     const pastDueSince =
       billingStatus === "past_due"
@@ -171,6 +176,7 @@ export async function syncTenantBillingFromStripe(
       currentPeriodEnd: currentPeriodEndDate,
       cancelAtPeriodEnd,
       pastDueSince: pastDueSince ?? null,
+      trialEndsAt: trialEndsAt ?? null,
       plan: plan as import("../lib/tenant-plan-policy").TenantPlanTier,
       billingInterval,
       source: "cron.checkStripeSubscriptions",
@@ -212,6 +218,7 @@ export async function syncTenantBillingFromStripe(
       currentPeriodEnd,
       cancelAtPeriodEnd,
       pastDueSince,
+      trialEndsAt,
       billingSyncedAt: now,
       billingSyncing: false,
       source: opts.source,

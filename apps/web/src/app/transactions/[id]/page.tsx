@@ -22,6 +22,7 @@ import { TrendingUp, FileText, CreditCard, CheckCircle } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
+import { useTenant } from "@/providers/tenant-provider";
 
 const transactionSteps = [
   {
@@ -52,6 +53,7 @@ const transactionSteps = [
 
 export default function EditTransactionPage() {
   const router = useRouter();
+  const { isReadOnly } = useTenant();
   const { hasFinancial, isLoading: planLoading } = usePlanLimits();
   const {
     formData,
@@ -387,7 +389,7 @@ export default function EditTransactionPage() {
         stepValidators={stepValidators}
       >
         {/* Step 1: Type Selection */}
-        <FormStepCard>
+        <FormStepCard contentDisabled={isReadOnly}>
           <TypeSelectorStep
             type={adaptedFormData.type}
             onTypeChange={(type) => setFormData((prev) => ({ ...prev, type }))}
@@ -396,7 +398,7 @@ export default function EditTransactionPage() {
         </FormStepCard>
 
         {/* Step 2: Details */}
-        <FormStepCard>
+        <FormStepCard contentDisabled={isReadOnly}>
           <DetailsStep
             formData={adaptedFormData}
             onChange={handleChange}
@@ -415,7 +417,7 @@ export default function EditTransactionPage() {
         </FormStepCard>
 
         {/* Step 3: Payment */}
-        <FormStepCard>
+        <FormStepCard contentDisabled={isReadOnly}>
           <PaymentStep
             formData={adaptedFormData}
             onFormDataChange={(updater) => {
@@ -446,7 +448,7 @@ export default function EditTransactionPage() {
         </FormStepCard>
 
         {/* Step 4: Review */}
-        <FormStepCard>
+        <FormStepCard contentDisabled={isReadOnly}>
           <ReviewStep
             formData={adaptedFormData}
             onChange={handleChange}
@@ -458,7 +460,7 @@ export default function EditTransactionPage() {
           <StepNavigation
             onSubmit={handleFormSubmit}
             isSubmitting={isSaving}
-            submitDisabled={!hasChanges}
+            submitDisabled={!hasChanges || isReadOnly}
             submitLabel="Salvar Alterações"
           />
         </FormStepCard>

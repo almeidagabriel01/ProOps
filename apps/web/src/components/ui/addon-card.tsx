@@ -22,6 +22,8 @@ interface AddonCardProps {
   isScheduledCancel?: boolean;
   cancelDate?: string;
   isIncluded?: boolean; // New prop
+  // Read-only (demo/free) accounts can browse add-ons but not buy/cancel them.
+  isReadOnly?: boolean;
 }
 
 // Map icon names to Lucide components
@@ -44,6 +46,7 @@ export function AddonCard({
   isScheduledCancel = false,
   cancelDate,
   isIncluded = false,
+  isReadOnly = false,
 }: AddonCardProps) {
   const IconComponent = iconMap[addon.icon] || DollarSign;
 
@@ -137,6 +140,7 @@ export function AddonCard({
             variant="outline"
             size="sm"
             onClick={onCancel}
+            disabled={isReadOnly}
             className="w-full"
           >
             Cancelar Add-on
@@ -159,7 +163,7 @@ export function AddonCard({
           <Button
             size="sm"
             onClick={onPurchase}
-            disabled={isLoading || monthlyPrice === null}
+            disabled={isLoading || monthlyPrice === null || isReadOnly}
             className="w-full gap-2"
             style={{ backgroundColor: primaryColor }}
           >
@@ -168,7 +172,7 @@ export function AddonCard({
             ) : (
               <>
                 <Crown className="w-4 h-4" />
-                Adicionar
+                {isReadOnly ? "Assine para contratar" : "Adicionar"}
               </>
             )}
           </Button>

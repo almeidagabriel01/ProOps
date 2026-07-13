@@ -10,6 +10,7 @@ import { AddonCard } from "@/components/ui/addon-card";
 import { AddonConfirmDialog } from "@/components/ui/addon-confirm-dialog";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { useAuth } from "@/providers/auth-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStripePrices } from "@/hooks/useStripePrices";
 import { ADDON_DEFINITIONS } from "@/services/addon-service";
@@ -36,6 +37,7 @@ export default function AddonsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const { isReadOnly } = useTenant();
   const primaryColor = useThemePrimaryColor();
   const {
     purchasedAddons,
@@ -171,6 +173,7 @@ export default function AddonsPage() {
 
   // Open confirmation dialog instead of going directly to checkout
   const handlePurchaseClick = (addonType: AddonType) => {
+    if (isReadOnly) return; // demo/free: browse-only, cannot contract add-ons
     const addon = ADDON_DEFINITIONS.find((a) => a.id === addonType);
     if (addon) {
       setSelectedAddon(addon);
@@ -340,6 +343,7 @@ export default function AddonsPage() {
                 addon={addon}
                 isPurchased={purchasedAddons.includes(addon.id)}
                 isIncluded={isIncluded && !purchasedAddons.includes(addon.id)}
+                isReadOnly={isReadOnly}
                 onPurchase={() => handlePurchaseClick(addon.id)}
                 onCancel={() => handleCancelClick(addon.id)}
                 isLoading={isProcessing === addon.id}

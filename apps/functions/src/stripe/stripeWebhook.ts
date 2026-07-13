@@ -2,6 +2,8 @@ import { onRequest } from "firebase-functions/v2/https";
 import { getStripe, getWebhookSecret } from "./stripeConfig";
 import {
   updateUserPlan,
+  demoteTrialOwnerToFree,
+  isPureTrialChurn,
   saveAddon,
   cancelAddon,
   getPlanIdByTier,
@@ -94,6 +96,63 @@ function extractPrimaryPriceId(
     items[0];
   const priceId = String(fallback?.price?.id || "").trim();
   return priceId || undefined;
+}
+
+// Trial end as an ISO string while the subscription is trialing; null otherwise
+// (so the tenant.trialEndsAt field — and its countdown banner — clears on
+// conversion to active or on cancellation).
+function resolveTrialEndsAt(subscription: Stripe.Subscription): string | null {
+  if (subscription.status !== "trialing" || !subscription.trial_end) return null;
+  return new Date(subscription.trial_end * 1000).toISOString();
+}
+
+// Authoritative "trial consumed" marker for the one-trial-per-account rule.
+// Written once, when a subscription actually starts in `trialing` — NOT at
+// checkout time (an abandoned checkout must not burn the user's single trial;
+// the transient `trialReservedAt` lock covers abandonment). Idempotent.
+async function markTrialConsumed(
+  tenantId: string,
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  if (subscription.status !== "trialing") return;
+  const tenantRef = db.collection("tenants").doc(tenantId);
+  const snap = await tenantRef.get();
+  const data = snap.exists
+    ? (snap.data() as Record<string, unknown> | undefined)
+    : undefined;
+  if (data?.trialUsedAt) return; // already consumed — idempotent
+  const priceId = extractPrimaryPriceId(subscription);
+  const trialPlanTier = priceId ? resolvePriceToTier(priceId) : null;
+  await tenantRef.set(
+    {
+      trialUsedAt: new Date().toISOString(),
+      ...(trialPlanTier && { trialPlanTier }),
+      trialReservedAt: null, // clear the transient checkout reservation
+    },
+    { merge: true },
+  );
+}
+
+// A trial that reaches a terminal canceled/unpaid state without ever converting
+// to a real payment (trialUsedAt set, no hasPaidInvoice) is "pure trial churn":
+// the account falls back to the read-only demo mode (role "free"), not the
+// /subscription-blocked dunning page. Called from BOTH the subscription.deleted
+// AND subscription.updated→canceled paths, because Stripe may signal the final
+// cancellation as either event depending on how the subscription ends. Idempotent
+// (demoteTrialOwnerToFree is a no-op once the role is already "free").
+async function demoteIfPureTrialChurn(
+  tenantId: string,
+  userId: string,
+): Promise<boolean> {
+  if (!userId) return false;
+  const snap = await db.collection("tenants").doc(tenantId).get();
+  const data = snap.data() as Record<string, unknown> | undefined;
+  if (!isPureTrialChurn(data)) return false;
+  await demoteTrialOwnerToFree(userId);
+  console.log(
+    `User ${userId} trial churned without conversion, demoted to free (demo mode)`,
+  );
+  return true;
 }
 
 function isSupportedAddonType(value: unknown): value is AddonType {
@@ -220,6 +279,9 @@ export async function syncTenantPlanBillingSnapshot(
       ...(params.stripePriceId != null && {
         stripePriceId: params.stripePriceId,
       }),
+      // Trial end date: written while trialing (drives the countdown banner),
+      // explicitly cleared (null) once the subscription leaves trialing.
+      ...("trialEndsAt" in params && { trialEndsAt: params.trialEndsAt }),
       ...("billingInterval" in params && {
         billingInterval: params.billingInterval,
       }),
@@ -707,7 +769,12 @@ async function handleCheckoutCompleted(
       stripePriceId: extractPrimaryPriceId(subscription),
       clearScheduled: true, // fresh checkout supersedes any pending transition
       currentPeriodEnd,
+      trialEndsAt: resolveTrialEndsAt(subscription),
     });
+    // Mark the trial as consumed here too (not only in handleSubscriptionCreated):
+    // checkout.session.completed is always subscribed, whereas
+    // customer.subscription.created may not be on every webhook config. Idempotent.
+    await markTrialConsumed(tenantId, subscription);
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
     await notifyInternalLifecycle({
       event: "new_subscription",
@@ -869,6 +936,18 @@ async function handleSubscriptionUpdated(
     );
     console.log(`User ${userId} subscription status synced to ${status}`);
 
+    // Stripe may deliver a terminal cancellation as `subscription.updated`
+    // (status → canceled/unpaid) rather than `subscription.deleted`. When that
+    // happens for a never-converted trial, fall the account back to the
+    // read-only demo mode (role "free") — mirroring handleSubscriptionDeleted —
+    // instead of leaving it stuck on the /subscription-blocked page.
+    if (
+      subscription.status === "canceled" ||
+      subscription.status === "unpaid"
+    ) {
+      await demoteIfPureTrialChurn(tenantId, userId);
+    }
+
     const whatsappItem = subscription.items.data.find(
       (item) => item.price.id === WHATSAPP_OVERAGE_PRICE_ID,
     );
@@ -934,6 +1013,7 @@ async function handleSubscriptionUpdated(
       stripePriceId: primaryPriceId,
       clearScheduled: true,
       currentPeriodEnd,
+      trialEndsAt: resolveTrialEndsAt(subscription),
       source: "webhook.subscription.updated",
     });
     invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
@@ -1155,7 +1235,9 @@ async function handleSubscriptionCreated(
     stripePriceId: extractPrimaryPriceId(subscription),
     clearScheduled: true, // new subscription supersedes any pending transition
     currentPeriodEnd: createdPeriodEnd,
+    trialEndsAt: resolveTrialEndsAt(subscription),
   });
+  await markTrialConsumed(tenantId, subscription);
   invalidateTenantPlanCacheAfterWebhookUpdate(tenantId);
   console.log(
     `[StripeWebhook] Subscription created for tenant ${tenantId}, status=${subscription.status}`,
@@ -1176,6 +1258,17 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     customerId,
     subscriptionId,
   });
+
+  // Mark that this tenant has had at least one REAL (non-zero) payment. This
+  // distinguishes a genuinely-paying customer from a trial that never
+  // converted — the $0 invoice Stripe issues at trial start must not set it.
+  if ((invoice.amount_paid ?? 0) > 0) {
+    await db
+      .collection("tenants")
+      .doc(tenantId)
+      .set({ hasPaidInvoice: true }, { merge: true })
+      .catch(() => {});
+  }
 
   // A successful payment clears any past_due state. Re-sync the billing
   // snapshot so subscriptionStatus and pastDueSince are corrected.
@@ -1271,6 +1364,11 @@ async function handleSubscriptionDeleted(
         `User ${userId} subscription canceled, downgraded to starter`
       );
     }
+
+    // Pure trial churn (a trial that never converted) → read-only demo mode
+    // (role "free"); genuinely-paying churn keeps its role and lands on the
+    // /subscription-blocked page instead.
+    await demoteIfPureTrialChurn(tenantId, userId);
   }
   // Reset tenant to free plan via the single writer.
   // syncTenantPlanBillingSnapshot handles clearTenantPlanCache and whatsappEnabled

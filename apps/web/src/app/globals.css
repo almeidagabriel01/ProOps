@@ -1084,3 +1084,27 @@ html[data-cookie-consent="pending"] .cookie-banner {
     transition: none;
   }
 }
+
+/* Read-only/demo mode: content marked `inert` is non-interactive at the
+   flat-tree level, but CSS cursor styles (e.g. Tailwind `cursor-pointer` on
+   custom label/card toggles) still render a pointer cursor, which misleads the
+   user into thinking a control is actionable. Force the default cursor on
+   everything inside an inert subtree. */
+[inert],
+[inert] * {
+  cursor: default !important;
+}
+
+/* Free/demo sessions: make inert (read-only) content read as *disabled* rather
+   than merely unresponsive — a `not-allowed` cursor plus a subtle fade on the
+   leaf form controls, so demo users can tell fields are non-editable. Scoped to
+   `[data-demo-readonly]` (set on the app shell only for role `free`) so paying
+   users' read-only surfaces keep the neutral default cursor above. */
+[data-demo-readonly] [inert],
+[data-demo-readonly] [inert] * {
+  cursor: not-allowed !important;
+}
+[data-demo-readonly] [inert] :is(input, textarea, select, button,
+  [role="combobox"], [role="switch"], [role="checkbox"], [role="radio"]) {
+  opacity: 0.65;
+}

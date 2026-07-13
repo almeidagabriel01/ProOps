@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Building2, Shield, Save, Palette, Camera, X } from "lucide-react";
 import { TenantService } from "@/services/tenant-service";
 import { ALLOWED_TYPES } from "@/services/storage-service";
+import { usePermissions } from "@/providers/permissions-provider";
 import { toast } from '@/lib/toast';
 import { Loader } from "@/components/ui/loader";
 
@@ -27,6 +28,11 @@ interface OrganizationFormProps {
 }
 
 export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
+  const { isDemo } = usePermissions();
+  // Demo/free accounts own their tenant (their real company), so they get the
+  // administrator view AND may edit it — unlike the shared demo DATA, the org
+  // settings belong to their own account.
+  const showAsMaster = isMaster || isDemo;
   const [name, setName] = useState(tenant?.name || "");
   const [primaryColor, setPrimaryColor] = useState(
     tenant?.primaryColor || "#000000",
@@ -93,7 +99,7 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
     }
   };
 
-  if (!isMaster) {
+  if (!showAsMaster) {
     return (
       <Card className="flex flex-col bg-muted/20 border-dashed">
         <CardHeader>

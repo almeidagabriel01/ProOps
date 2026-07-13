@@ -71,7 +71,9 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
   const appHref = currentUser ? getAuthenticatedHome(currentUser) : "/login";
   const isSuperAdmin = currentUser?.role === "superadmin";
   const isFreeAccount = currentUser?.role === "free";
-  const isBlockedAccount = ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
+  // A free account is a demo account (Feature B), never "blocked" — even with a
+  // leftover canceled status from a churned trial.
+  const isBlockedAccount = !isFreeAccount && ["canceled", "cancelled", "unpaid", "inactive", "payment_failed"].includes(
     currentUser?.subscriptionStatus ?? "",
   );
   const showSubscribeCta = !currentUser || isFreeAccount || isBlockedAccount;
@@ -297,8 +299,15 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                     ) : isFreeAccount ? (
                       <>
                         <DropdownMenuItem
-                          onClick={() => scrollToAnchor("#pricing")}
+                          onClick={() => router.push(appHref)}
                           className="mt-1 cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                          Entrar na demonstração
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => scrollToAnchor("#pricing")}
+                          className="cursor-pointer gap-2 rounded-xl text-[13px] text-black/70 focus:bg-black/[0.04] focus:text-black dark:text-white/70 dark:focus:bg-white/[0.06] dark:focus:text-white"
                         >
                           <Sparkles className="h-4 w-4" />
                           Ver planos
@@ -458,6 +467,15 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                       </LandingButton>
                     ) : isFreeAccount ? (
                       <>
+                        <LandingButton
+                          href={appHref}
+                          variant="link"
+                          tone="muted"
+                          onClick={() => setMobileOpen(false)}
+                          className="text-lg"
+                        >
+                          Entrar na demonstração
+                        </LandingButton>
                         <button
                           type="button"
                           onClick={() => scrollToAnchor("#pricing", true)}

@@ -20,6 +20,8 @@ interface CheckoutRequest {
   userEmail?: string;
   billingInterval?: BillingInterval;
   origin?: string;
+  /** When true, subscribe directly without the Pro 7-day trial. */
+  skipTrial?: boolean;
 }
 
 interface CheckoutResponse {

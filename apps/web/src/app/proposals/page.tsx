@@ -21,6 +21,7 @@ import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/lib/toast";
+import { isDemoReadOnlyError } from "@/lib/api-client";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import {
   AlertDialog,
@@ -99,7 +100,7 @@ function PdfDownloader({
 
 export default function ProposalsPage() {
   const router = useRouter();
-  const { tenant } = useTenant();
+  const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
   const { hasKanban } = usePlanLimits();
@@ -267,8 +268,10 @@ export default function ProposalsPage() {
         }
       }
     } catch (error) {
-      console.error("Error generating share link:", error);
-      toast.error("Erro ao gerar link de compartilhamento");
+      if (!isDemoReadOnlyError(error)) {
+        console.error("Error generating share link:", error);
+        toast.error("Erro ao gerar link de compartilhamento");
+      }
     } finally {
       setIsGeneratingShareLink(false);
       setSharingId(null);
@@ -674,7 +677,7 @@ export default function ProposalsPage() {
         header: "Status",
         render: (proposal) => (
           <div>
-            {canEdit ? (
+            {canEdit && !isReadOnly ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -983,6 +986,7 @@ export default function ProposalsPage() {
       canEdit,
       canDelete,
       canCreate,
+      isReadOnly,
       updatingStatusId,
       downloadingId,
       editingId,

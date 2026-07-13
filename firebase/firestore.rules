@@ -227,6 +227,18 @@ service cloud.firestore {
     }
 
     /**
+     * Read access to the shared read-only demo dataset. Any authenticated user
+     * (incl. free-tier / demo accounts, which tenantSubscriptionAllowsRead
+     * blocks) may READ documents tagged with the fixed 'demo' tenant.
+     * Writes stay denied everywhere (Admin SDK seed only). Placed FIRST in the
+     * read `||` chain so this cheap field comparison short-circuits before the
+     * expensive tenantSubscriptionAllowsRead get()/exists() lookups.
+     */
+    function isDemoRead(resourceTenantId) {
+      return isAuthenticated() && resourceTenantId == 'demo';
+    }
+
+    /**
      * Whitelist for allowing specific field updates.
      */
     function onlyUpdatesFields(allowedFields) {
@@ -280,54 +292,54 @@ service cloud.firestore {
 
     // PROPOSALS
     match /proposals/{proposalId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits, validation)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // CLIENTS
     match /clients/{clientId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // PRODUCTS
     match /products/{productId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // SERVICES
     match /services/{serviceId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (limits)
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
 
     // TRANSACTIONS (Financial)
     match /transactions/{transactionId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions (calculations)
     }
 
     // TRANSACTION GROUPS (resumos desnormalizados da aba Agrupados —
     // 1 doc por grupo, mantidos pelo trigger onTransactionTotals)
     match /transaction_groups/{groupDocId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Admin SDK only (trigger)
     }
 
     // WALLETS
     match /wallets/{walletId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions
     }
 
     // WALLET TRANSACTIONS (audit log)
     match /wallet_transactions/{transactionId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -341,19 +353,19 @@ service cloud.firestore {
 
     // SISTEMAS (Automation)
     match /sistemas/{sistemaId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false;
     }
 
     // AMBIENTES (Automation)
     match /ambientes/{ambienteId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false;
     }
 
     // PROPOSAL TEMPLATES
     match /proposal_templates/{templateId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false;
     }
 
@@ -373,7 +385,7 @@ service cloud.firestore {
 
     // OPTIONS (Dynamic Selects)
     match /options/{optionId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false;
       allow delete: if isSuperAdmin(); // Super admin can delete for tenant cleanup
     }
@@ -386,7 +398,7 @@ service cloud.firestore {
 
     // KANBAN STATUSES (Custom kanban columns per tenant)
     match /kanban_statuses/{statusId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions
     }
 
@@ -481,7 +493,7 @@ service cloud.firestore {
 
     // SPREADSHEETS
     match /spreadsheets/{spreadsheetId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.get('tenantId', '')) || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
       allow create: if isSuperAdmin()
                     || (isAuthenticated()
                         && hasTenantAdminRole()

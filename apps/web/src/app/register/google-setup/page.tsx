@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
+import { resolvePostSignupRedirect } from "@/lib/auth/resolve-signup-redirect";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { deleteUser, onAuthStateChanged, signOut } from "firebase/auth";
 import { Input } from "@/components/ui/input";
@@ -29,21 +30,15 @@ function GoogleSetupContent() {
   const selectedPlan = searchParams.get("plan");
   const selectedInterval = searchParams.get("interval") || "monthly";
 
-  const resolveRedirectTarget = useCallback(() => {
-    if (redirectParam) {
-      try {
-        return decodeURIComponent(redirectParam);
-      } catch {
-        return redirectParam;
-      }
-    }
-
-    if (selectedPlan) {
-      return `/subscribe?plan=${encodeURIComponent(selectedPlan)}&interval=${encodeURIComponent(selectedInterval)}`;
-    }
-
-    return "/";
-  }, [redirectParam, selectedPlan, selectedInterval]);
+  const resolveRedirectTarget = useCallback(
+    () =>
+      resolvePostSignupRedirect({
+        redirect: redirectParam,
+        plan: selectedPlan,
+        interval: selectedInterval,
+      }),
+    [redirectParam, selectedPlan, selectedInterval],
+  );
 
   const getLoginTarget = useCallback(() => {
     const params = new URLSearchParams();
@@ -232,11 +227,12 @@ function GoogleSetupContent() {
       );
 
       const target = resolveRedirectTarget();
-      if (redirectReason === "session_expired") {
-        window.location.replace(target);
-      } else {
-        router.replace(target);
-      }
+      // Full document navigation (not router.replace) so the Auth/Tenant
+      // providers re-hydrate from the just-written user doc. With an SPA
+      // navigation the freshly-created account keeps a stale `user` (no
+      // tenantId), so the ERP renders the demo tenant's identity/theme/onboarding
+      // instead of the real company until a manual refresh.
+      window.location.replace(target);
     } catch (submitError) {
       console.error("Failed to complete Google setup:", submitError);
       setError("Não foi possível finalizar a configuração da empresa.");
@@ -250,7 +246,6 @@ function GoogleSetupContent() {
     companyName,
     companyNiche,
     getLoginTarget,
-    redirectReason,
     resolveRedirectTarget,
     router,
   ]);

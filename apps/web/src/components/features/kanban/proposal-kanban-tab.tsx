@@ -78,7 +78,7 @@ function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
 }
 
 export function ProposalKanbanTab() {
-  const { tenant } = useTenant();
+  const { tenant, isReadOnly } = useTenant();
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [columns, setColumns] = React.useState<KanbanStatusColumn[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -1004,21 +1004,23 @@ export function ProposalKanbanTab() {
               </DropdownMenu>
               <button
                 type="button"
+                disabled={isReadOnly}
                 onClick={() => {
                   if (col) {
                     setEditingColumn(col);
                     setIsStatusDialogOpen(true);
                   }
                 }}
-                className="p-1.5 ml-1 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className="p-1.5 ml-1 rounded-md hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
                 title="Editar coluna"
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
+                disabled={isReadOnly}
                 onClick={() => setDeletingColumnId(column.id)}
-                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
                 title="Excluir coluna"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -1036,7 +1038,7 @@ export function ProposalKanbanTab() {
         </div>
       );
     },
-    [columns, columnFilters, clientOptions, columnMeta],
+    [columns, columnFilters, clientOptions, columnMeta, isReadOnly],
   );
 
   // Column footer — "Carregar mais" when the server still has docs
@@ -1081,6 +1083,7 @@ export function ProposalKanbanTab() {
             }}
             size="sm"
             variant="outline"
+            disabled={isReadOnly}
             className="gap-1.5 h-9 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -1092,15 +1095,17 @@ export function ProposalKanbanTab() {
               size="sm"
               className="gap-1.5 h-9 cursor-pointer text-muted-foreground hover:text-foreground"
               onClick={handleRestoreDefaults}
-              disabled={isSaving}
+              disabled={isSaving || isReadOnly}
             >
               Restaurar Padrões
             </Button>
           )}
 
-          <p className="text-xs text-muted-foreground hidden sm:block">
-            Arraste para alterar o status
-          </p>
+          {!isReadOnly && (
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              Arraste para alterar o status
+            </p>
+          )}
         </div>
       </div>
 
@@ -1110,6 +1115,7 @@ export function ProposalKanbanTab() {
         onDragEnd={handleDragEnd}
         onColumnDragEnd={onColumnDragEnd}
         onCardClick={handleCardClick}
+        isDragEnabled={!isReadOnly}
         getItemId={(p) => p.id}
         showColumnTotals
         getItemValue={(p) =>

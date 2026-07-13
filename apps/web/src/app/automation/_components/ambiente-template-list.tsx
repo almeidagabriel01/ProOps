@@ -10,12 +10,14 @@ interface AmbienteTemplateListProps {
   ambientes: Ambiente[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  isReadOnly?: boolean;
 }
 
 export function AmbienteTemplateList({
   ambientes,
   onEdit,
   onDelete,
+  isReadOnly = false,
 }: AmbienteTemplateListProps) {
   if (ambientes.length === 0) {
     return (
@@ -76,7 +78,10 @@ export function AmbienteTemplateList({
                   {itemsCount} {itemsCount === 1 ? "item" : "itens"}
                 </Badge>
 
-                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <div
+                  className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                  inert={isReadOnly || undefined}
+                >
                   <Button
                     variant="ghost"
                     size="icon"

@@ -15,6 +15,7 @@ import { SaveConfirmationModal } from "@/components/features/proposal/edit-pdf/s
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { Loader } from "@/components/ui/loader";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
+import { useTenant } from "@/providers/tenant-provider";
 
 export default function EditPdfPage() {
   // Modal states
@@ -84,6 +85,7 @@ export default function EditPdfPage() {
     // Unsaved Changes
     isDirty,
   } = useEditPdfPage();
+  const { isReadOnly } = useTenant();
 
   const router = useRouter();
 
@@ -143,7 +145,7 @@ export default function EditPdfPage() {
           <Button
             variant="outline"
             onClick={handleGeneratePdf}
-            disabled={isGenerating || isSaving || isSavingDefault}
+            disabled={isGenerating || isSaving || isSavingDefault || isReadOnly}
             className="gap-2"
           >
             {isGenerating ? (
@@ -156,7 +158,7 @@ export default function EditPdfPage() {
           <Button
             variant="outline"
             onClick={() => setShowSaveDefaultModal(true)}
-            disabled={isSavingDefault || isSaving}
+            disabled={isSavingDefault || isSaving || isReadOnly}
             className="gap-2"
           >
             {isSavingDefault ? (
@@ -169,7 +171,7 @@ export default function EditPdfPage() {
           <Button
             variant="default"
             onClick={() => setShowSaveModal(true)}
-            disabled={isSaving || isSavingDefault}
+            disabled={isSaving || isSavingDefault || isReadOnly}
             className="gap-2"
           >
             {isSaving ? (
@@ -186,6 +188,7 @@ export default function EditPdfPage() {
         {/* Editor Panel */}
         <div className="space-y-4 min-w-0">
           <PdfEditorTabs
+            isReadOnly={isReadOnly}
             coverTitle={coverTitle}
             setCoverTitle={setCoverTitle}
             coverImage={coverImage}

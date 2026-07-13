@@ -11,6 +11,7 @@ import { Router } from "express";
 import {
   invalidateTenantPlanCacheManual,
   cleanupTrialFieldsManual,
+  seedDemoTenantManual,
   cleanupBillingRedundantFieldsManual,
   markOverdueTransactionsManual,
   cleanupSecurityAuditEventsManual,
@@ -21,6 +22,7 @@ const router = Router();
 
 router.post("/debug/invalidate-tenant-plan-cache", invalidateTenantPlanCacheManual);
 router.post("/admin/cleanup-trial-fields", cleanupTrialFieldsManual);
+router.post("/admin/seed-demo-tenant", seedDemoTenantManual);
 router.post("/admin/cleanup-billing-redundant-fields", cleanupBillingRedundantFieldsManual);
 router.post("/cron/mark-overdue", markOverdueTransactionsManual);
 router.post("/cron/cleanup-security-audit-events", cleanupSecurityAuditEventsManual);

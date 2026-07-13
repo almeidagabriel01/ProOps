@@ -30,6 +30,11 @@ export function getImmediatePlanLabel(input: {
   if (role === "superadmin") {
     return "Super Admin";
   }
+  // A free account is a free-tier/demo account — always "Gratuito", regardless
+  // of a leftover planId (e.g. a "starter" downgrade from a churned trial).
+  if (role === "free") {
+    return "Gratuito";
+  }
 
   const originalPlanId = String(input.planId || "").trim();
   const normalizedPlanId = normalizePlanKey(input.planId);

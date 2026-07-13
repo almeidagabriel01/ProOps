@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { Wallet, WalletType } from "@/types";
 import { formatCurrency } from "@/utils/format";
+import { useTenant } from "@/providers/tenant-provider";
 
 interface WalletCardProps {
   wallet: Wallet;
@@ -71,6 +72,7 @@ export function WalletCard({
   onSetDefault,
   onViewHistory,
 }: WalletCardProps) {
+  const { isReadOnly } = useTenant();
   const Icon = typeIcons[wallet.type] || WalletIcon;
 
   return (
@@ -133,11 +135,17 @@ export function WalletCard({
               <DropdownMenuContent side="bottom" align="end" className="w-48">
                 {canEdit && (
                   <>
-                    <DropdownMenuItem onClick={() => onTransfer(wallet)}>
+                    <DropdownMenuItem
+                      disabled={isReadOnly}
+                      onClick={() => onTransfer(wallet)}
+                    >
                       <ArrowRightLeft className="w-4 h-4 mr-2" />
                       Transferir
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onAdjust(wallet)}>
+                    <DropdownMenuItem
+                      disabled={isReadOnly}
+                      onClick={() => onAdjust(wallet)}
+                    >
                       <Plus className="w-4 h-4 mr-2" />
                       Ajustar Saldo
                     </DropdownMenuItem>
@@ -146,11 +154,17 @@ export function WalletCard({
                       Ver Histórico
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => onEdit(wallet)}>
+                    <DropdownMenuItem
+                      disabled={isReadOnly}
+                      onClick={() => onEdit(wallet)}
+                    >
                       <Edit className="w-4 h-4 mr-2" />
                       Editar
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onArchive(wallet)}>
+                    <DropdownMenuItem
+                      disabled={isReadOnly}
+                      onClick={() => onArchive(wallet)}
+                    >
                       {wallet.status === "archived" ? (
                         <>
                           <ArchiveRestore className="w-4 h-4 mr-2" />
@@ -164,7 +178,10 @@ export function WalletCard({
                       )}
                     </DropdownMenuItem>
                     {!wallet.isDefault && wallet.status === "active" && (
-                      <DropdownMenuItem onClick={() => onSetDefault(wallet)}>
+                      <DropdownMenuItem
+                        disabled={isReadOnly}
+                        onClick={() => onSetDefault(wallet)}
+                      >
                         <Star className="w-4 h-4 mr-2" />
                         Definir como Padrão
                       </DropdownMenuItem>
@@ -173,6 +190,7 @@ export function WalletCard({
                 )}
                 {canDelete && (
                   <DropdownMenuItem
+                    disabled={isReadOnly}
                     onClick={() => onDelete(wallet)}
                     className="text-destructive focus:text-destructive"
                   >

@@ -31,7 +31,7 @@ test.describe("PROFILE-FREE-01: Free user visits /profile with no Firestore perm
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_FREE.email, USER_FREE.password);
-    await expect(page).toHaveURL("/", { timeout: 15000 });
+    await expect(page).toHaveURL(/dashboard/, { timeout: 15000 });
 
     // Navigate to /profile
     await page.goto("/profile");
@@ -55,7 +55,7 @@ test.describe("PROFILE-FREE-02: PlanUsageCard not rendered for free user", () =>
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_FREE.email, USER_FREE.password);
-    await expect(page).toHaveURL("/", { timeout: 15000 });
+    await expect(page).toHaveURL(/dashboard/, { timeout: 15000 });
 
     await page.goto("/profile");
     await expect(page).toHaveURL(/\/profile/, { timeout: 10000 });
@@ -76,7 +76,7 @@ test.describe("PROFILE-FREE-03: Free user sees PersonalForm and OrganizationForm
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_FREE.email, USER_FREE.password);
-    await expect(page).toHaveURL("/", { timeout: 15000 });
+    await expect(page).toHaveURL(/dashboard/, { timeout: 15000 });
 
     await page.goto("/profile");
     await expect(page).toHaveURL(/\/profile/, { timeout: 10000 });
@@ -108,10 +108,10 @@ test.describe("PROFILE-FREE-04: Paying admin user sees PlanUsageCard on /profile
 // ─── PROFILE-FREE-05: Free user sees their company name in header + profile ───
 //
 // Bug repro:
-//   - Before fix: tenant-provider leaves `tenant` null for free users, so the
-//     header showed "Minha Empresa" and the profile showed no company data.
-//   - After fix: useDisplayTenant lazily reads the tenant doc for display, so
-//     the real company name ("Free User's Tenant", seeded) appears.
+//   In read-only demo mode `tenant` points at the shared demo dataset, so
+//   useHeaderPresentation lazily reads the user's OWN tenant doc for display —
+//   the real company name ("Free User's Tenant", seeded) must appear, never the
+//   demo tenant's name.
 
 test.describe("PROFILE-FREE-05: Free user sees their company name", () => {
   const EXPECTED_COMPANY = `${USER_FREE.name}'s Tenant`;
@@ -122,7 +122,7 @@ test.describe("PROFILE-FREE-05: Free user sees their company name", () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_FREE.email, USER_FREE.password);
-    await expect(page).toHaveURL("/", { timeout: 15000 });
+    await expect(page).toHaveURL(/dashboard/, { timeout: 15000 });
 
     // Header must display the company name resolved from the tenant doc.
     await expect(page.getByText(EXPECTED_COMPANY).first()).toBeVisible({
@@ -134,7 +134,7 @@ test.describe("PROFILE-FREE-05: Free user sees their company name", () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.login(USER_FREE.email, USER_FREE.password);
-    await expect(page).toHaveURL("/", { timeout: 15000 });
+    await expect(page).toHaveURL(/dashboard/, { timeout: 15000 });
 
     await page.goto("/profile");
     await expect(page).toHaveURL(/\/profile/, { timeout: 10000 });

@@ -60,6 +60,7 @@ interface AmbienteEditorProps {
   ambiente: Ambiente | null;
   onBack: () => void;
   onSave: (id?: string) => void;
+  isReadOnly?: boolean;
 }
 
 function buildAmbienteSnapshot(
@@ -114,6 +115,7 @@ export function AmbienteEditor({
   ambiente,
   onBack,
   onSave,
+  isReadOnly = false,
 }: AmbienteEditorProps) {
   const { tenant } = useTenant();
   const nicheConfig = useCurrentNicheConfig();
@@ -472,8 +474,11 @@ export function AmbienteEditor({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={isSaving || !name.trim() || (!!ambiente?.id && !hasChanges)}
+            disabled={
+              isSaving || !name.trim() || (!!ambiente?.id && !hasChanges)
+            }
             className="min-w-[120px]"
+            inert={isReadOnly || undefined}
           >
             {isSaving ? (
               <Spinner className="mr-2" />
@@ -485,7 +490,10 @@ export function AmbienteEditor({
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
+      <div
+        className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden"
+        inert={isReadOnly || undefined}
+      >
         <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
           <Card>
             <CardHeader className="py-4">

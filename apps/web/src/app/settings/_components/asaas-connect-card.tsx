@@ -40,6 +40,7 @@ import {
   type AsaasPayoutConfig,
 } from "@/services/payment-service";
 import { Loader } from "@/components/ui/loader";
+import { usePermissions } from "@/providers/permissions-provider";
 import { AsaasWebhookStatusAlert } from "./asaas-webhook-status-alert";
 import { AsaasPayoutConfigSection } from "./asaas-payout-config-section";
 import { PaymentsCardSkeleton } from "./settings-skeleton";
@@ -146,7 +147,15 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
     Partial<Record<keyof FormState, string>>
   >({});
   const [isFetchingCep, setIsFetchingCep] = React.useState(false);
+  const { isDemo } = usePermissions();
   const loadStatus = React.useCallback(async () => {
+    // Demo/free accounts have no Asaas account and the status endpoint 402s for
+    // the free tier — show the disconnected (connect) flow without calling it.
+    if (isDemo) {
+      setStatus({ connected: false });
+      setIsLoadingStatus(false);
+      return;
+    }
     try {
       setIsLoadingStatus(true);
       const data = await AsaasService.getStatus();
@@ -156,7 +165,7 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
     } finally {
       setIsLoadingStatus(false);
     }
-  }, []);
+  }, [isDemo]);
 
   const handleRetryWebhook = async () => {
     try {

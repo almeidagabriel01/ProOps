@@ -57,18 +57,28 @@ describe("isPathAllowedForUser", () => {
       expect(isPathAllowedForUser("/settings/security", user)).toBe(true));
     it("allows /settings/team (startsWith)", () =>
       expect(isPathAllowedForUser("/settings/team", user)).toBe(true));
-    it("rejects /dashboard (free never accesses ERP)", () =>
-      expect(isPathAllowedForUser("/dashboard", user)).toBe(false));
-    it("rejects /transactions", () =>
-      expect(isPathAllowedForUser("/transactions", user)).toBe(false));
-    it("rejects /proposals", () =>
-      expect(isPathAllowedForUser("/proposals", user)).toBe(false));
-    it("rejects /contacts", () =>
-      expect(isPathAllowedForUser("/contacts", user)).toBe(false));
-    it("rejects /crm", () => expect(isPathAllowedForUser("/crm", user)).toBe(false));
-    it("rejects /wallets", () =>
-      expect(isPathAllowedForUser("/wallets", user)).toBe(false));
-    it("rejects /admin", () => expect(isPathAllowedForUser("/admin", user)).toBe(false));
+    // Free/demo browses the WHOLE ERP read-only ("dar o gostinho"): every module
+    // in DEMO_ACCESSIBLE_PREFIXES is reachable, including the premium ones
+    // (Financeiro /transactions + /wallets, CRM /crm). The allowlist only governs
+    // navigation — writes stay blocked downstream (api-client 402 + rules).
+    it("allows /dashboard", () =>
+      expect(isPathAllowedForUser("/dashboard", user)).toBe(true));
+    it("allows /proposals", () =>
+      expect(isPathAllowedForUser("/proposals", user)).toBe(true));
+    it("allows /contacts", () =>
+      expect(isPathAllowedForUser("/contacts", user)).toBe(true));
+    it("allows /transactions (Financeiro, read-only demo)", () =>
+      expect(isPathAllowedForUser("/transactions", user)).toBe(true));
+    it("allows /wallets (Financeiro, read-only demo)", () =>
+      expect(isPathAllowedForUser("/wallets", user)).toBe(true));
+    it("allows /crm (Kanban, read-only demo)", () =>
+      expect(isPathAllowedForUser("/crm", user)).toBe(true));
+    it("allows /transactions/new sub-path (startsWith)", () =>
+      expect(isPathAllowedForUser("/transactions/new", user)).toBe(true));
+    it("still rejects /admin (superadmin-only, never in the demo allowlist)", () =>
+      expect(isPathAllowedForUser("/admin", user)).toBe(false));
+    it("still rejects an unknown non-ERP route", () =>
+      expect(isPathAllowedForUser("/nonexistent-module", user)).toBe(false));
   });
 
   describe("paying admin/master", () => {

@@ -1,7 +1,7 @@
 import { usePermissions } from "@/providers/permissions-provider";
 
 export function usePagePermission(pageId: string) {
-  const { permissions, isMaster, isLoading } = usePermissions();
+  const { permissions, isMaster, isDemo, isLoading } = usePermissions();
 
   // Treat as loading if permissions haven't been fetched yet
   // This prevents race conditions where null permissions cause incorrect denials
@@ -15,6 +15,7 @@ export function usePagePermission(pageId: string) {
     };
   }
 
+  // Master accounts get full UI permissions.
   if (isMaster) {
     return {
       isLoading: false,
@@ -22,6 +23,21 @@ export function usePagePermission(pageId: string) {
       canCreate: true,
       canEdit: true,
       canDelete: true,
+    };
+  }
+
+  // Demo/free accounts can view everything and open forms (canEdit lets the
+  // read-only edit views render), but must not create or delete anything —
+  // those affordances are hidden entirely so no misleading cursor/action is
+  // shown. Writes are also blocked at the api-client and backend as defense in
+  // depth.
+  if (isDemo) {
+    return {
+      isLoading: false,
+      canView: true,
+      canCreate: false,
+      canEdit: true,
+      canDelete: false,
     };
   }
 

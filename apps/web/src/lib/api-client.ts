@@ -1,6 +1,8 @@
 import { auth } from "./firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { reportClientError } from "@/lib/observability/client-error-reporter";
+import { isDemoBlockedMutation } from "@/lib/demo-mode";
+import { toast } from "@/lib/toast";
 
 const OBSERVABILITY_PREFIX = "/v1/observability";
 
@@ -42,6 +44,18 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * True when the failure is the read-only demo-mode block (callApi already
+ * showed the friendly "Modo demonstração" toast) — callers should skip their
+ * generic error toast for it.
+ */
+export function isDemoReadOnlyError(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.data as { code?: string } | null)?.code === "DEMO_READ_ONLY"
+  );
+}
+
 export const callApi = async <T = unknown>(
   endpoint: string,
   method: "GET" | "POST" | "PUT" | "DELETE" = "GET",
@@ -75,6 +89,17 @@ export const callApi = async <T = unknown>(
   // Ensure endpoint starts with /
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const url = `${baseUrl}${path}`;
+
+  // Read-only demo mode: block data mutations before hitting the network and
+  // surface a friendly message (the backend would otherwise return 402).
+  if (isDemoBlockedMutation(method, path)) {
+    toast.info(
+      "Modo demonstração: assine um plano para criar, editar ou excluir seus próprios dados.",
+    );
+    throw new ApiError(402, "Ação indisponível no modo demonstração.", {
+      code: "DEMO_READ_ONLY",
+    });
+  }
 
   // When a super admin is viewing a specific tenant's panel, pass the tenant ID
   // so the backend can scope queries correctly (super admin has no tenantId in claims).

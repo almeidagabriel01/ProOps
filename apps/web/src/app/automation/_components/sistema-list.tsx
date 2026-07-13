@@ -10,9 +10,15 @@ interface SistemaListProps {
   sistemas: Sistema[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  isReadOnly?: boolean;
 }
 
-export function SistemaList({ sistemas, onEdit, onDelete }: SistemaListProps) {
+export function SistemaList({
+  sistemas,
+  onEdit,
+  onDelete,
+  isReadOnly = false,
+}: SistemaListProps) {
   if (sistemas.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl bg-muted/50">
@@ -65,7 +71,10 @@ export function SistemaList({ sistemas, onEdit, onDelete }: SistemaListProps) {
                 {sistema.ambientes.length === 1 ? "ambiente" : "ambientes"}
               </Badge>
 
-              <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+              <div
+                className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                inert={isReadOnly || undefined}
+              >
                 <Button
                   variant="ghost"
                   size="icon"

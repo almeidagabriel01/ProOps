@@ -408,7 +408,9 @@ export function useLoginForm(): UseLoginFormReturn {
   const getGoogleSetupTarget = React.useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("mode");
-    params.delete("redirect");
+    // Keep ?redirect= so a new Google user who came from a plan card is sent to
+    // the Stripe checkout (/subscribe) after finishing company setup — not the
+    // free demo ERP. google-setup validates it (payment-flow paths only).
     const query = params.toString();
     return query ? `/register/google-setup?${query}` : "/register/google-setup";
   }, [searchParams]);

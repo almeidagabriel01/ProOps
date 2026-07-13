@@ -63,8 +63,9 @@ uiTest.describe("AI-01: Free tier trigger button hidden", () => {
       const loginPage = new LoginPage(page);
       await loginPage.goto();
       await loginPage.login(USER_AI_FREE_ROLE.email, USER_AI_FREE_ROLE.password);
-      // role=free users are redirected to "/" (landing page), not to dashboard routes
-      await page.waitForURL("/", { timeout: 30000 });
+      // role=free users now land on the ERP dashboard in read-only demo mode
+      // (Feature B); the Lia trigger stays hidden for them regardless.
+      await page.waitForURL(/dashboard/, { timeout: 30000 });
 
       // Wait for page to be fully loaded (auth context + plan limits resolved)
       await page.waitForTimeout(2000);

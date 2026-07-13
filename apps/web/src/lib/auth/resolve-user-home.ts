@@ -47,17 +47,20 @@ export function resolveUserHome(user: User | null): ResolvedHome {
     return { kind: "admin", path: "/admin" };
   }
 
-  // 3. Assinatura bloqueada (statuses duros; past_due não verificamos aqui — é server-side)
+  // 3. Free → dashboard (modo demo read-only, Feature B). Contas gratuitas
+  //    entram no ERP e navegam pelos módulos do Starter vendo os dados
+  //    fictícios do tenant demo; módulos premium aparecem com coroa.
+  //    Checado ANTES do bloqueio de assinatura: uma conta free É uma conta demo,
+  //    nunca bloqueada — mesmo com um subscriptionStatus "canceled" remanescente
+  //    de um trial que expirou sem converter.
+  if (user.role === "free") {
+    return { kind: "dashboard", path: "/dashboard" };
+  }
+
+  // 4. Assinatura bloqueada (statuses duros; past_due não verificamos aqui — é server-side)
   const status = user.subscriptionStatus ?? "";
   if (HARD_BLOCKED_STATUSES.has(status)) {
     return { kind: "subscription-blocked", path: "/subscription-blocked" };
-  }
-
-  // 4. Free → landing pública. Free tier NUNCA acessa nenhuma página do ERP
-  //    (nem o dashboard). O resto do fluxo permitido (assinar plano, gerenciar
-  //    perfil) parte da landing ou é alcançado por redirect explícito.
-  if (user.role === "free") {
-    return { kind: "landing", path: "/" };
   }
 
   // 5. Admin/MASTER → dashboard
@@ -86,18 +89,41 @@ export function resolveUserHome(user: User | null): ResolvedHome {
 }
 
 /**
- * Free tier may visit ONLY these paths:
+ * Free tier (read-only demo mode) may visit:
  *   - "/"                       public landing
  *   - "/subscribe[/*]"          choose paid plan
  *   - "/checkout-success[/*]"   stripe callback
- *   - "/profile[/*]"            manage own account (billing tab lives here)
+ *   - "/profile[/*]" "/settings[/*]"  manage own account (billing tab here)
  *   - "/subscription-blocked"   defensive
+ *   - every ERP module in DEMO_ACCESSIBLE_PREFIXES (read-only)
  *
- * Anything else — including /dashboard and the entire ERP — is blocked.
+ * Premium modules (Financeiro, CRM, editor de PDF) are navigable read-only in
+ * demo too — the dock links straight to them (no upgrade crown).
  * Exported separately from isPathAllowedForUser because the next.js
  * middleware and the billing-status route need to evaluate it from a
  * `plan` string without a full User object in hand.
  */
+// ERP routes a free-tier / demo account may browse read-only (Feature B).
+// The whole platform is navigable so the demo can "dar o gostinho" — including
+// the premium modules (Financeiro `/transactions` + `/wallets`, CRM `/crm`, and
+// the PDF editor under `/proposals/[id]/edit-pdf`). All writes stay blocked
+// downstream (api-client 402 + backend + Firestore rules).
+const DEMO_ACCESSIBLE_PREFIXES = [
+  "/dashboard",
+  "/proposals",
+  "/products",
+  "/services",
+  "/contacts",
+  "/solutions",
+  "/automation",
+  "/ambientes",
+  "/calendar",
+  "/spreadsheets",
+  "/transactions",
+  "/wallets",
+  "/crm",
+];
+
 export function isFreeTierAllowedPath(path: string): boolean {
   const allowed = new Set([
     "/",
@@ -113,7 +139,10 @@ export function isFreeTierAllowedPath(path: string): boolean {
     base.startsWith("/subscribe/") ||
     base.startsWith("/profile/") ||
     base.startsWith("/settings/") ||
-    base.startsWith("/checkout-success/")
+    base.startsWith("/checkout-success/") ||
+    DEMO_ACCESSIBLE_PREFIXES.some(
+      (prefix) => base === prefix || base.startsWith(`${prefix}/`),
+    )
   );
 }
 

@@ -118,7 +118,9 @@ function SortableCard<T>({
       className={cn(
         "touch-manipulation",
         isDragEnabled && "cursor-grab active:cursor-grabbing",
-        !isDragEnabled && onCardClick && "cursor-pointer",
+        // Read-only/demo: not draggable — use a neutral cursor instead of the
+        // grab/pointer that wrongly implies the card can be moved.
+        !isDragEnabled && "cursor-default",
       )}
     >
       {renderCard(item, columnId, isDragging)}
