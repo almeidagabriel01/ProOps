@@ -499,7 +499,7 @@ export default function AutomationAdminPage() {
           className="flex-1"
         >
           <Card className="border-none shadow-sm bg-transparent">
-            <CardContent className="px-0">
+            <CardContent className="pt-6">
               <div className="flex justify-end mb-4">
                 <div className="w-full sm:w-[300px]">
                   <Select
@@ -641,7 +641,7 @@ export default function AutomationAdminPage() {
         >
           <TabsContent value="sistemas" className="space-y-4 m-0">
             <Card className="border-none shadow-sm bg-transparent">
-              <CardContent className="px-0">
+              <CardContent className="pt-6">
                 <div className="flex justify-end mb-4">
                   <div className="w-full sm:w-[300px]">
                     <Select
@@ -685,7 +685,7 @@ export default function AutomationAdminPage() {
 
           <TabsContent value="ambientes" className="space-y-4 m-0">
             <Card className="items-start border-none shadow-sm bg-transparent">
-              <CardHeader className="px-0 pt-0">
+              <CardHeader>
                 <div className="space-y-1">
                   <CardTitle className="text-xl flex items-center gap-2">
                     <Layers className="w-5 h-5 text-primary" />
@@ -697,7 +697,7 @@ export default function AutomationAdminPage() {
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="px-0">
+              <CardContent>
                 <div className="flex justify-end mb-4">
                   <div className="w-full sm:w-[300px]">
                     <Select
