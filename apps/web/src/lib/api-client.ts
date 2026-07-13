@@ -44,6 +44,18 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * True when the failure is the read-only demo-mode block (callApi already
+ * showed the friendly "Modo demonstração" toast) — callers should skip their
+ * generic error toast for it.
+ */
+export function isDemoReadOnlyError(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.data as { code?: string } | null)?.code === "DEMO_READ_ONLY"
+  );
+}
+
 export const callApi = async <T = unknown>(
   endpoint: string,
   method: "GET" | "POST" | "PUT" | "DELETE" = "GET",

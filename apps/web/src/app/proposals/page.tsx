@@ -21,6 +21,7 @@ import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/lib/toast";
+import { isDemoReadOnlyError } from "@/lib/api-client";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import {
   AlertDialog,
@@ -267,8 +268,10 @@ export default function ProposalsPage() {
         }
       }
     } catch (error) {
-      console.error("Error generating share link:", error);
-      toast.error("Erro ao gerar link de compartilhamento");
+      if (!isDemoReadOnlyError(error)) {
+        console.error("Error generating share link:", error);
+        toast.error("Erro ao gerar link de compartilhamento");
+      }
     } finally {
       setIsGeneratingShareLink(false);
       setSharingId(null);
