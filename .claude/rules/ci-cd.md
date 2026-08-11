@@ -17,7 +17,7 @@ E2E, performance, and ZAP run **only in test-suite** — never on every push.
 |---|---|---|
 | **Push Checks** | `push-checks.yml` | Every push except `main` (skips `*.md`, `docs/**`) |
 | **Test Suite** | `test-suite.yml` | PRs to `main`/`develop` + `merge_group` (skips `*.md`, `docs/**`) |
-| **Deploy Staging** | `deploy-functions.yml` | Push to `develop` with changes in `apps/functions/`, `firestore.rules`, `firebase.json` |
+| **Deploy Staging** | `deploy-functions.yml` | Push to `develop` with changes in `apps/functions/`, `firestore.rules`, `firebase.json` — plus `workflow_dispatch` for a manual redeploy |
 | **Deploy Production** | `deploy-production.yml` | Every push to `main` |
 | **Dependency Review** | `dependency-review.yml` | PR with changes to `package.json` |
 | **Stale** | `stale.yml` | Mondays 9h UTC |
