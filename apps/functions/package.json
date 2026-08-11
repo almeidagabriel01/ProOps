@@ -61,7 +61,8 @@
   "overrides": {
     "@google-cloud/storage": "7.19.0",
     "fast-xml-parser": "5.7.2",
-    "qs": "6.15.0"
+    "qs": "6.15.0",
+    "websocket-driver": "0.7.5"
   },
   "private": true
 }
