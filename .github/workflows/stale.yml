@@ -38,3 +38,5 @@ jobs:
           exempt-pr-labels: 'keep-open,work-in-progress'
           exempt-issue-labels: 'keep-open'
           operations-per-run: 100
+
+# no-op: forca o test-suite a rodar nesta baseline (branch descartavel)
