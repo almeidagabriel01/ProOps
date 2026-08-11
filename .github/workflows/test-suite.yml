@@ -255,8 +255,13 @@ jobs:
   lighthouse:
     name: Lighthouse Perf Budget
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [e2e, e2e-financial]
+    # Observado entre 13m26 e 14m46 (15 corridas do Lighthouse sob throttling real
+    # de slow-3G). Com timeout de 15min sobravam 14s no pior caso, o que fazia o
+    # job falhar por timeout de forma intermitente sem nenhuma mudanca de codigo.
+    timeout-minutes: 25
+    # Sem `needs`: este job sobe o proprio `next start` a partir de um build de
+    # producao e nao depende de nada do E2E. Encadear atras dele so somava ~8min
+    # de relogio ao pipeline — e o repo e publico, entao minuto de runner e de graca.
     steps:
       - uses: actions/checkout@v4
 
