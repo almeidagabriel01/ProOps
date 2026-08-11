@@ -47,9 +47,14 @@ jobs:
       # Sem este arquivo, funcoes NOVAS nascem sem env vars (o update de uma
       # funcao existente preserva as vars, o create nao).
       - name: Write functions env file
+        env:
+          FUNCTIONS_ENV: ${{ secrets.FUNCTIONS_ENV_STAGING }}
         run: |
-          printf '%s' '${{ secrets.FUNCTIONS_ENV_STAGING }}' > apps/functions/.env.erp-softcode
-          test -s apps/functions/.env.erp-softcode || { echo "FUNCTIONS_ENV_STAGING secret vazio"; exit 1; }
+          printf '%s' "$FUNCTIONS_ENV" > apps/functions/.env.erp-softcode
+          grep -q '^RESEND_API_KEY=' apps/functions/.env.erp-softcode || {
+            echo "::error::secret FUNCTIONS_ENV_STAGING ausente ou incompleto — veja .claude/rules/ci-cd.md"
+            exit 1
+          }
 
       - name: Deploy to staging (dev project)
         run: firebase deploy --project dev --only functions,firestore:rules,firestore:indexes

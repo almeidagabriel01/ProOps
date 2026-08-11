@@ -153,7 +153,18 @@ signup until 2026-08-11. Both deploy workflows now materialize the env file from
 secret before `firebase deploy` and delete it afterwards.
 
 **Ao adicionar/rotacionar uma variável em `apps/functions/.env.erp-softcode*`, atualize
-o secret correspondente no GitHub** — senão o próximo cron/trigger novo nasce sem ela.
+o secret correspondente no GitHub** — senão o próximo cron/trigger novo nasce sem ela:
+
+```bash
+gh secret set FUNCTIONS_ENV_PRODUCTION --env production --repo almeidagabriel01/ProOps \
+  < apps/functions/.env.erp-softcode-prod
+gh secret set FUNCTIONS_ENV_STAGING --env staging --repo almeidagabriel01/ProOps \
+  < apps/functions/.env.erp-softcode
+```
+
+O step falha o deploy se o secret estiver ausente ou incompleto (checa `RESEND_API_KEY=`).
+Falhar é intencional: melhor abortar do que criar uma função sem env vars, que fica
+quebrada em silêncio para sempre.
 
 ## Troubleshooting Job Failures
 

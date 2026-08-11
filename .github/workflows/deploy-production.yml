@@ -93,9 +93,14 @@ jobs:
       # funcao existente preserva as vars, o create nao) — foi assim que
       # onUserSignupNotify/pdf/onTransactionTotals ficaram sem RESEND_API_KEY.
       - name: Write functions env file
+        env:
+          FUNCTIONS_ENV: ${{ secrets.FUNCTIONS_ENV_PRODUCTION }}
         run: |
-          printf '%s' '${{ secrets.FUNCTIONS_ENV_PRODUCTION }}' > apps/functions/.env.erp-softcode-prod
-          test -s apps/functions/.env.erp-softcode-prod || { echo "FUNCTIONS_ENV_PRODUCTION secret vazio"; exit 1; }
+          printf '%s' "$FUNCTIONS_ENV" > apps/functions/.env.erp-softcode-prod
+          grep -q '^RESEND_API_KEY=' apps/functions/.env.erp-softcode-prod || {
+            echo "::error::secret FUNCTIONS_ENV_PRODUCTION ausente ou incompleto — veja .claude/rules/ci-cd.md"
+            exit 1
+          }
 
       - name: Deploy to production
         run: firebase deploy --project prod --only functions,firestore:rules,firestore:indexes
