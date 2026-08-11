@@ -1,13 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import {
-  Geist,
-  Geist_Mono,
-  Inter,
-  Lato,
-  Montserrat,
-  Playfair_Display,
-  Roboto,
-} from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -18,23 +10,36 @@ import { MotionProvider } from "@/providers/motion-provider";
 import { CookieConsentBanner } from "@/components/legal/cookie-consent-banner";
 import { ErrorReporterInstaller } from "@/components/observability/error-reporter-installer";
 
-const geistSans = Geist({
+// Fonts are self-hosted (latin subset, downloaded from Google Fonts) instead of
+// fetched by next/font/google at build time. Google rotates the hashed file URLs
+// within a same-numbered version, which 404s any build that restores a cache
+// holding the previous URLs — that is what broke the production deploy of
+// 2026-08-11. Self-hosting removes the build-time network dependency entirely
+// and drops the runtime round-trip to fonts.gstatic.com.
+//
+// To refresh a file: fetch https://fonts.googleapis.com/css2?family=<Name>:wght@<range>
+// with a modern browser User-Agent and download the woff2 whose unicode-range
+// covers U+0000-00FF (latin).
+
+const geistSans = localFont({
+  src: "./fonts/geist-variable.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
   display: "swap",
+  weight: "100 900",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/geist-mono-variable.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
   display: "swap",
+  weight: "100 900",
 });
 
-const interPdf = Inter({
+const interPdf = localFont({
+  src: "./fonts/inter-variable.woff2",
   variable: "--font-pdf-inter",
-  subsets: ["latin"],
   display: "block",
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
 });
 
 // PDF-only fonts (Roboto/Lato): used exclusively by the PDF editor/generation,
@@ -42,34 +47,37 @@ const interPdf = Inter({
 // injecting a render-competing <link rel="preload"> on every page; the @font-face
 // still loads on demand wherever the var is actually applied (PDF capture waits
 // for document.fonts.ready, so generated PDFs are unaffected).
-const robotoPdf = Roboto({
+const robotoPdf = localFont({
+  src: "./fonts/roboto-variable.woff2",
   variable: "--font-pdf-roboto",
-  subsets: ["latin"],
   display: "block",
   preload: false,
-  weight: ["400", "500", "700"],
+  weight: "400 700",
 });
 
-const latoPdf = Lato({
+// Lato has no variable version on Google Fonts — the two static cuts in use.
+const latoPdf = localFont({
+  src: [
+    { path: "./fonts/lato-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/lato-700.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-pdf-lato",
-  subsets: ["latin"],
   display: "block",
   preload: false,
-  weight: ["400", "700"],
 });
 
-const montserratPdf = Montserrat({
+const montserratPdf = localFont({
+  src: "./fonts/montserrat-variable.woff2",
   variable: "--font-pdf-montserrat",
-  subsets: ["latin"],
   display: "block",
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
 });
 
-const playfairPdf = Playfair_Display({
+const playfairPdf = localFont({
+  src: "./fonts/playfair-display-variable.woff2",
   variable: "--font-pdf-playfair",
-  subsets: ["latin"],
   display: "block",
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
 });
 
 export const metadata: Metadata = {
