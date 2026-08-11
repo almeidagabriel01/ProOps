@@ -4,6 +4,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
+  workflow_dispatch:
   push:
     branches: [develop]
     paths:
@@ -44,9 +45,21 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}' > /tmp/sa.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
+      # Sem este arquivo, funcoes NOVAS nascem sem env vars (o update de uma
+      # funcao existente preserva as vars, o create nao).
+      - name: Write functions env file
+        env:
+          FUNCTIONS_ENV: ${{ secrets.FUNCTIONS_ENV_STAGING }}
+        run: |
+          printf '%s' "$FUNCTIONS_ENV" > apps/functions/.env.erp-softcode
+          grep -q '^RESEND_API_KEY=' apps/functions/.env.erp-softcode || {
+            echo "::error::secret FUNCTIONS_ENV_STAGING ausente ou incompleto — veja .claude/rules/ci-cd.md"
+            exit 1
+          }
+
       - name: Deploy to staging (dev project)
         run: firebase deploy --project dev --only functions,firestore:rules,firestore:indexes
 
       - name: Revoke credentials
         if: always()
-        run: rm -f /tmp/sa.json
+        run: rm -f /tmp/sa.json apps/functions/.env.erp-softcode

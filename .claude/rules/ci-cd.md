@@ -17,7 +17,7 @@ E2E, performance, and ZAP run **only in test-suite** — never on every push.
 |---|---|---|
 | **Push Checks** | `push-checks.yml` | Every push except `main` (skips `*.md`, `docs/**`) |
 | **Test Suite** | `test-suite.yml` | PRs to `main`/`develop` + `merge_group` (skips `*.md`, `docs/**`) |
-| **Deploy Staging** | `deploy-functions.yml` | Push to `develop` with changes in `apps/functions/`, `firestore.rules`, `firebase.json` |
+| **Deploy Staging** | `deploy-functions.yml` | Push to `develop` with changes in `apps/functions/`, `firestore.rules`, `firebase.json` — plus `workflow_dispatch` for a manual redeploy |
 | **Deploy Production** | `deploy-production.yml` | Every push to `main` |
 | **Dependency Review** | `dependency-review.yml` | PR with changes to `package.json` |
 | **Stale** | `stale.yml` | Mondays 9h UTC |
@@ -129,14 +129,42 @@ Frontend (Next.js) is deployed automatically by Vercel — no workflow needed.
 | Secret | Description |
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT_STAGING` | Full JSON of Service Account for `erp-softcode` |
+| `FUNCTIONS_ENV_STAGING` | Full contents of `apps/functions/.env.erp-softcode` |
 
 **Environment: production** (Settings → Environments → production):
 
 | Secret | Description |
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT_PRODUCTION` | Full JSON of Service Account for `erp-softcode-prod` |
+| `FUNCTIONS_ENV_PRODUCTION` | Full contents of `apps/functions/.env.erp-softcode-prod` |
 
-To generate: Firebase Console → Project Settings → Service Accounts → Generate new private key.
+To generate the service account: Firebase Console → Project Settings → Service Accounts → Generate new private key.
+
+### Why the `FUNCTIONS_ENV_*` secrets exist
+
+`.env.erp-softcode*` is gitignored, so a CI checkout has no env file. Deploying an
+**existing** function without it is harmless — Cloud Functions preserves the env vars
+already on the service. Deploying a **new** function without it creates the service
+with zero env vars, permanently (every later deploy preserves the emptiness).
+
+That is how `onUserSignupNotify`, `pdf` and `onTransactionTotals` ended up in prod
+without `RESEND_API_KEY` — the internal signup email failed silently for every prod
+signup until 2026-08-11. Both deploy workflows now materialize the env file from the
+secret before `firebase deploy` and delete it afterwards.
+
+**Ao adicionar/rotacionar uma variável em `apps/functions/.env.erp-softcode*`, atualize
+o secret correspondente no GitHub** — senão o próximo cron/trigger novo nasce sem ela:
+
+```bash
+gh secret set FUNCTIONS_ENV_PRODUCTION --env production --repo almeidagabriel01/ProOps \
+  < apps/functions/.env.erp-softcode-prod
+gh secret set FUNCTIONS_ENV_STAGING --env staging --repo almeidagabriel01/ProOps \
+  < apps/functions/.env.erp-softcode
+```
+
+O step falha o deploy se o secret estiver ausente ou incompleto (checa `RESEND_API_KEY=`).
+Falhar é intencional: melhor abortar do que criar uma função sem env vars, que fica
+quebrada em silêncio para sempre.
 
 ## Troubleshooting Job Failures
 

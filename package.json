@@ -42,6 +42,7 @@
     "tsx": "^4.21.0"
   },
   "overrides": {
-    "minimatch": "10.2.1"
+    "minimatch": "10.2.1",
+    "websocket-driver": "0.7.5"
   }
 }
