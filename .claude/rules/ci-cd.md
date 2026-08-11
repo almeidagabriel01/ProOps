@@ -51,7 +51,7 @@ Runs on PRs and Merge Queue events:
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
 - `performance` — Core Web Vitals + API baseline (runs after all E2E shards pass)
-- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build (`npm run test:lighthouse`, runs after all E2E shards pass)
+- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build (`npm run test:lighthouse`). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. It is the longest job (~14 min), so gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed`.
 - `security` — OWASP ZAP baseline (runs after all E2E shards pass)
 - `all-checks-passed` — consolidated gate required by branch protection
 
@@ -86,6 +86,14 @@ URL across the **5 animated public routes** (`/`, `/automacao-residencial`, `/de
   deferred (`requestIdleCallback`, commit `550a9bbd`).
 - Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
 - Report artifact: `lighthouse-report-<run>` (from `lhci-report/`).
+- **Timing / `timeout-minutes`:** the lhci step alone is ~10 min (15 Lighthouse runs =
+  5 URLs × `numberOfRuns: 3`, each under real slow-3G + 4× CPU throttling); with
+  `npm ci` and the production build the job lands at 13–15 min. Measured across five
+  consecutive runs: 13m26, 13m43, 13m53, 14m00, 14m46. The timeout was 15 min — 14 s of
+  headroom in the worst case — so the job was starting to fail intermittently on nothing
+  but runner variance. Raised to 25 min (2026-08-11). **Do not "speed it up" by lowering
+  `numberOfRuns`**: the assertions aggregate by median, and a median of 2 is just a mean
+  of 2, which makes an `error`-level gate (CLS, TBT) swing on a single outlier.
 
 ## E2E Sharding
 
