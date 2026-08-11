@@ -44,9 +44,16 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_STAGING }}' > /tmp/sa.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
+      # Sem este arquivo, funcoes NOVAS nascem sem env vars (o update de uma
+      # funcao existente preserva as vars, o create nao).
+      - name: Write functions env file
+        run: |
+          printf '%s' '${{ secrets.FUNCTIONS_ENV_STAGING }}' > apps/functions/.env.erp-softcode
+          test -s apps/functions/.env.erp-softcode || { echo "FUNCTIONS_ENV_STAGING secret vazio"; exit 1; }
+
       - name: Deploy to staging (dev project)
         run: firebase deploy --project dev --only functions,firestore:rules,firestore:indexes
 
       - name: Revoke credentials
         if: always()
-        run: rm -f /tmp/sa.json
+        run: rm -f /tmp/sa.json apps/functions/.env.erp-softcode

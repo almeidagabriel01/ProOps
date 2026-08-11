@@ -89,9 +89,17 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PRODUCTION }}' > /tmp/sa.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json" >> $GITHUB_ENV
 
+      # Sem este arquivo, funcoes NOVAS nascem sem env vars (o update de uma
+      # funcao existente preserva as vars, o create nao) — foi assim que
+      # onUserSignupNotify/pdf/onTransactionTotals ficaram sem RESEND_API_KEY.
+      - name: Write functions env file
+        run: |
+          printf '%s' '${{ secrets.FUNCTIONS_ENV_PRODUCTION }}' > apps/functions/.env.erp-softcode-prod
+          test -s apps/functions/.env.erp-softcode-prod || { echo "FUNCTIONS_ENV_PRODUCTION secret vazio"; exit 1; }
+
       - name: Deploy to production
         run: firebase deploy --project prod --only functions,firestore:rules,firestore:indexes
 
       - name: Revoke credentials
         if: always()
-        run: rm -f /tmp/sa.json
+        run: rm -f /tmp/sa.json apps/functions/.env.erp-softcode-prod

@@ -129,14 +129,31 @@ Frontend (Next.js) is deployed automatically by Vercel — no workflow needed.
 | Secret | Description |
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT_STAGING` | Full JSON of Service Account for `erp-softcode` |
+| `FUNCTIONS_ENV_STAGING` | Full contents of `apps/functions/.env.erp-softcode` |
 
 **Environment: production** (Settings → Environments → production):
 
 | Secret | Description |
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT_PRODUCTION` | Full JSON of Service Account for `erp-softcode-prod` |
+| `FUNCTIONS_ENV_PRODUCTION` | Full contents of `apps/functions/.env.erp-softcode-prod` |
 
-To generate: Firebase Console → Project Settings → Service Accounts → Generate new private key.
+To generate the service account: Firebase Console → Project Settings → Service Accounts → Generate new private key.
+
+### Why the `FUNCTIONS_ENV_*` secrets exist
+
+`.env.erp-softcode*` is gitignored, so a CI checkout has no env file. Deploying an
+**existing** function without it is harmless — Cloud Functions preserves the env vars
+already on the service. Deploying a **new** function without it creates the service
+with zero env vars, permanently (every later deploy preserves the emptiness).
+
+That is how `onUserSignupNotify`, `pdf` and `onTransactionTotals` ended up in prod
+without `RESEND_API_KEY` — the internal signup email failed silently for every prod
+signup until 2026-08-11. Both deploy workflows now materialize the env file from the
+secret before `firebase deploy` and delete it afterwards.
+
+**Ao adicionar/rotacionar uma variável em `apps/functions/.env.erp-softcode*`, atualize
+o secret correspondente no GitHub** — senão o próximo cron/trigger novo nasce sem ela.
 
 ## Troubleshooting Job Failures
 
