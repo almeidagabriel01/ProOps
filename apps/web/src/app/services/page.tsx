@@ -192,6 +192,7 @@ export default function ServicesPage() {
       header: "Imagem",
       className: "col-span-1",
       sortable: false,
+      priority: "hidden",
       render: (service) => (
         <div>
           {service.images?.[0] || service.image ? (
@@ -215,6 +216,7 @@ export default function ServicesPage() {
       key: "name",
       header: "Nome",
       className: "col-span-4",
+      priority: "primary",
       render: (service) => (
         <Link
           href={`/services/${service.id}`}
@@ -228,6 +230,7 @@ export default function ServicesPage() {
       key: "category",
       header: "Categoria",
       className: "col-span-3",
+      priority: "secondary",
       render: (service) => (
         <div className="text-sm text-muted-foreground">{service.category}</div>
       ),
@@ -236,6 +239,7 @@ export default function ServicesPage() {
       key: "price",
       header: "Preço",
       className: "col-span-3",
+      priority: "secondary",
       render: (service) => (
         <span className="text-sm font-medium">
           R$ {parseFloat(service.price || "0").toFixed(2)}
@@ -248,6 +252,7 @@ export default function ServicesPage() {
       className: "col-span-1 text-right",
       headerClassName: "col-span-1 flex justify-end",
       sortable: false,
+      priority: "actions",
       render: (service) => (
         <div className="flex items-center justify-end gap-1">
           {canEdit && (

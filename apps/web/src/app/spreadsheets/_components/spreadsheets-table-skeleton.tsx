@@ -1,9 +1,16 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DataTableCardsSkeleton } from "@/components/ui/table-skeleton";
 
 export function SpreadsheetsTableSkeleton() {
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* Mobile: DataTable renderiza cards abaixo de md */}
+      <div className="md:hidden">
+        <DataTableCardsSkeleton rowCount={8} fieldCount={1} />
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
       <div className="flex flex-1 flex-col gap-4" style={{ minWidth: "600px" }}>
         <div className="grid grid-cols-12 gap-4 border border-transparent px-4 py-2 text-sm font-medium text-muted-foreground">
           <div className="col-span-6 flex items-center">
@@ -37,6 +44,7 @@ export function SpreadsheetsTableSkeleton() {
           </Card>
         ))}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

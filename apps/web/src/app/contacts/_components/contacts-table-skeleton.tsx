@@ -1,9 +1,16 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
+import { DataTableCardsSkeleton } from "@/components/ui/table-skeleton";
 
 export function ContactsTableSkeleton() {
   return (
-    <div className="space-y-4">
+    <>
+      {/* Mobile: DataTable renderiza cards abaixo de md */}
+      <div className="md:hidden">
+        <DataTableCardsSkeleton rowCount={8} fieldCount={3} />
+      </div>
+
+      <div className="hidden space-y-4 md:block">
       {/* Header Row */}
       <div className="grid grid-cols-12 gap-4 px-4 py-2">
         <Skeleton className="col-span-3 h-4 w-full" /> {/* Name */}
@@ -38,6 +45,7 @@ export function ContactsTableSkeleton() {
           </CardContent>
         </Card>
       ))}
-    </div>
+      </div>
+    </>
   );
 }

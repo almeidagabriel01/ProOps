@@ -309,6 +309,7 @@ export default function ProductsPage() {
       header: "Imagem",
       className: "col-span-1",
       sortable: false,
+      priority: "hidden",
       render: (product) => (
         <div>
           {product.images?.[0] || product.image ? (
@@ -330,6 +331,7 @@ export default function ProductsPage() {
       key: "name",
       header: "Nome",
       className: hideInventoryColumn ? "col-span-5" : "col-span-4",
+      priority: "primary",
       render: (product) => (
         <Link
           href={`/products/${product.id}`}
@@ -343,14 +345,16 @@ export default function ProductsPage() {
       key: "category",
       header: "Categoria",
       className: hideInventoryColumn ? "col-span-3" : "col-span-2",
+      priority: "secondary",
       render: (product) => (
         <div className="text-sm text-muted-foreground">{product.category}</div>
       ),
     },
-    ...(hideInventoryColumn ? [] : [{
+    ...(hideInventoryColumn ? [] : ([{
       key: "inventoryValue",
       header: inventoryConfig.tableHeader,
       className: "col-span-2",
+      priority: "secondary",
       render: (product: Product) => (
         <StockEditableCell
           initialValue={getProductInventoryValue(product)}
@@ -358,11 +362,12 @@ export default function ProductsPage() {
           onUpdate={(val) => handleInventoryUpdate(product, val)}
         />
       ),
-    }]),
+    }] as DataTableColumn<Product>[])),
     {
       key: "price",
       header: "Preço",
       className: "col-span-2",
+      priority: "secondary",
       render: (product) => (
         <div className="flex flex-col items-start gap-0.5">
           <span className="text-sm font-medium">
@@ -382,6 +387,7 @@ export default function ProductsPage() {
       className: "col-span-1 text-right",
       headerClassName: "col-span-1 flex justify-end",
       sortable: false,
+      priority: "actions",
       render: (product) => (
         <div className="flex items-center justify-end gap-1">
           {canEdit && (

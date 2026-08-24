@@ -639,6 +639,7 @@ export default function ProposalsPage() {
       {
         key: "title",
         header: "Título",
+        priority: "primary",
         render: (proposal) => {
           const productCount = proposal.products?.length || 0;
           const total =
@@ -666,6 +667,7 @@ export default function ProposalsPage() {
       {
         key: "clientName",
         header: "Contato",
+        priority: "secondary",
         render: (proposal) => (
           <div className="text-sm text-muted-foreground truncate">
             {proposal.clientName}
@@ -675,6 +677,7 @@ export default function ProposalsPage() {
       {
         key: "status",
         header: "Status",
+        priority: "secondary",
         render: (proposal) => (
           <div>
             {canEdit && !isReadOnly ? (
@@ -742,6 +745,7 @@ export default function ProposalsPage() {
         key: "primaryEnvironment",
         header: "Ambiente",
         sortable: true,
+        priority: "hidden",
         render: (proposal) => {
           const ambienteNamesFromSystems =
             proposal.sistemas?.flatMap((s) => {
@@ -787,6 +791,7 @@ export default function ProposalsPage() {
         key: "primarySystem",
         header: "Solução",
         sortable: true,
+        priority: "hidden",
         render: (proposal) => {
           const systemsFromArray =
             proposal.sistemas?.flatMap((s) =>
@@ -821,6 +826,7 @@ export default function ProposalsPage() {
       {
         key: "validUntil",
         header: "Validade",
+        priority: "secondary",
         render: (proposal) => (
           <div className="text-sm text-muted-foreground">
             {formatDate(proposal.validUntil)}
@@ -833,6 +839,7 @@ export default function ProposalsPage() {
         sortable: false,
         className: "text-right",
         headerClassName: "flex justify-end",
+        priority: "actions",
         render: (proposal) => (
           <div className="flex items-center justify-end gap-1">
             {/* Individual action buttons — hidden on small screens (≤1700px) */}
