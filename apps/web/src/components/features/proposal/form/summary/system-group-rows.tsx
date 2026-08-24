@@ -62,11 +62,11 @@ export function SystemGroupRows({
                           {ambiente.ambienteName}
                         </div>
                       ) : (
-                        <div className="flex flex-row items-center gap-3">
-                          <span className="font-bold text-base text-gray-700 dark:text-gray-300">
+                        <div className="flex flex-row flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="font-bold text-sm sm:text-base text-gray-700 dark:text-gray-300">
                             {sistema.sistemaName}
                           </span>
-                          <span className="font-medium text-xs px-2 py-0.5 rounded-full bg-white dark:bg-gray-800 border shadow-xs flex items-center gap-1 text-foreground">
+                          <span className="font-medium text-xs px-2 py-0.5 rounded-full bg-white dark:bg-gray-800 border shadow-xs flex w-fit items-center gap-1 text-foreground">
                             📍 {ambiente.ambienteName}
                           </span>
                         </div>
@@ -83,7 +83,7 @@ export function SystemGroupRows({
                   <tr className="bg-muted/30">
                     <td
                       colSpan={2}
-                      className="p-2 text-right text-sm pl-6 whitespace-nowrap"
+                      className="p-2 text-right text-sm pl-3 sm:pl-6 whitespace-nowrap"
                     >
                       Subtotal ({ambiente.ambienteName}):
                     </td>

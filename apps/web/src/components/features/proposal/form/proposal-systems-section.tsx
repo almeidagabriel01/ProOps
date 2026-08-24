@@ -501,7 +501,7 @@ function SystemCard({
     >
       {/* Header do Sistema */}
       <div
-        className="p-4 flex flex-col gap-4 rounded-t-lg"
+        className="p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 rounded-t-lg"
         style={{ backgroundColor: `${primaryColor}15` }}
       >
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -640,7 +640,7 @@ function SystemCard({
               className="rounded-lg border bg-card/50"
             >
               {/* Sub-Header Ambiente */}
-              <div className="px-3 py-2 bg-muted/30 border-b flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-t-lg md:flex-nowrap">
+              <div className="px-2 py-2 sm:px-3 bg-muted/30 border-b flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-t-lg md:flex-nowrap">
                 <div className="flex basis-full items-center gap-2 flex-1 min-w-0 md:basis-auto">
                   <span
                     className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
@@ -710,7 +710,7 @@ function SystemCard({
               </div>
 
               {/* Lista de Produtos do Ambiente */}
-              <div className="p-3 space-y-2">
+              <div className="p-2 sm:p-3 space-y-2">
                 {visibleScopeProducts.length > 0 ? (
                   [...visibleScopeProducts]
                     .sort(compareConfiguredDisplayItem)
@@ -901,7 +901,7 @@ function ProductRow({
       // Somando toggle, imagem, markup, quantidade e preço sobram ~0px para o
       // nome num viewport de 390px. Abaixo de md a linha quebra: identificação
       // em cima, controles embaixo.
-      className={`flex flex-wrap items-center gap-x-3 gap-y-2 md:flex-nowrap p-3 rounded-lg border transition-all ${
+      className={`flex flex-wrap items-center gap-x-3 gap-y-2 md:flex-nowrap p-2 sm:p-3 rounded-lg border transition-all ${
         !isActive
           ? "bg-muted/5 border-dashed border-muted-foreground/20"
           : product.isExtra
