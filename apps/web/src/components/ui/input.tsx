@@ -41,7 +41,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <input
           type={type}
           className={cn(
-            "flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm",
+            // text-base (16px) abaixo de md: menos que isso faz o iOS dar zoom
+            // automático ao focar o campo. De md para cima segue text-sm.
+            "flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-base md:text-sm",
             "shadow-sm transition-[border-color,box-shadow] duration-200 ease-out",
             "placeholder:text-muted-foreground/60",
             "hover:border-primary/40 hover:shadow-md",

@@ -22,7 +22,8 @@ export function LiaTriggerButton({
       onClick={isOpen ? onClose : onOpen}
       aria-label={isOpen ? "Fechar Lia" : "Abrir Lia"}
       className={cn(
-        "fixed bottom-6 right-6 z-50",
+        // bottom-20 abaixo de md para não cobrir a tab bar de navegação.
+        "fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50",
         "flex items-center justify-center",
         "w-[52px] h-[52px] rounded-full",
         "bg-primary text-primary-foreground shadow-lg",

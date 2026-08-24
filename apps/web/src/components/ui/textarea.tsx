@@ -8,7 +8,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <textarea
         className={cn(
-          "flex min-h-[140px] w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3.5 text-sm",
+          // text-base (16px) abaixo de md evita o zoom automático do iOS ao focar.
+          "flex min-h-[140px] w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3.5 text-base md:text-sm",
           "shadow-sm transition-[border-color,box-shadow] duration-200 ease-out resize-y",
           "placeholder:text-muted-foreground/60",
           "hover:border-primary/40 hover:shadow-md",

@@ -182,8 +182,41 @@ function StepIndicator({
 }: StepIndicatorProps) {
   return (
     <div className={cn("relative mx-auto", containerClassName)}>
+      {/* Compact indicator (< sm): a trilha horizontal não cabe em 5 passos
+          num viewport de 360px, então abaixo de sm mostramos só o passo atual. */}
+      <div className="sm:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-primary/60">
+              Passo {currentStep + 1} de {steps.length}
+            </p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {steps[currentStep]?.title}
+            </p>
+          </div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-primary bg-linear-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
+            {(() => {
+              const Icon = steps[currentStep]?.icon;
+              return Icon ? (
+                <Icon className="h-4 w-4" />
+              ) : (
+                <span className="text-xs font-bold">{currentStep + 1}</span>
+              );
+            })()}
+          </div>
+        </div>
+        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-primary/20">
+          <div
+            className="h-full rounded-full bg-linear-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
+            style={{
+              width: `${((currentStep + 1) / Math.max(steps.length, 1)) * 100}%`,
+            }}
+          />
+        </div>
+      </div>
+
       {/* Steps */}
-      <div className="relative flex justify-between">
+      <div className="relative hidden sm:flex justify-between">
         {/* Progress bar background - positioned between step centers */}
         <div
           className="absolute top-6 h-0.5 bg-primary/20"
