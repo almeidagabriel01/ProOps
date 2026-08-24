@@ -1896,7 +1896,17 @@ export const getPlans = async (_req: Request, res: Response) => {
     // Fetch all prices from Stripe in parallel
     const pricePromises = priceIds
       .filter((id) => id)
-      .map((id) => stripe.prices.retrieve(id).catch(() => null));
+      .map((id) =>
+        stripe.prices.retrieve(id).catch((error: unknown) => {
+          // Sem este log a falha era invisível: o endpoint devolvia 200 com
+          // todos os preços zerados e a landing mostrava "Sob consulta".
+          console.error(
+            `Failed to retrieve Stripe price ${id}:`,
+            error instanceof Error ? error.message : error,
+          );
+          return null;
+        }),
+      );
     const stripePrices = await Promise.all(pricePromises);
 
     // Build price map: priceId -> { amount, interval }
