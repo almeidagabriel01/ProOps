@@ -2,16 +2,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function AppSkeleton({ children }: { children?: React.ReactNode }) {
   return (
-    <div className="flex h-screen overflow-hidden bg-card">
+    <div className="flex h-[100dvh] md:h-screen overflow-hidden bg-card">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col bg-background overflow-hidden">
         {/* Header Skeleton (Matches Header.tsx exactly) */}
         <header
-          className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300"
-          style={{ height: "64px", minHeight: "64px" }}
+          className="relative z-50 h-14 min-h-14 md:h-16 md:min-h-16 bg-background/80 backdrop-blur-md border-b border-border px-4 md:px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300"
         >
           <div className="flex items-center gap-4">
-            <Skeleton className="h-9 w-56 rounded-xl" />
+            <Skeleton className="h-9 w-40 sm:w-56 rounded-xl" />
           </div>
           <div className="flex items-center gap-4">
             <Skeleton className="h-8 w-8 rounded-full" />
@@ -29,7 +28,7 @@ export function AppSkeleton({ children }: { children?: React.ReactNode }) {
         {/* Page Content */}
         <main
           id="main-content"
-          className="flex-1 mt-0 p-8 pb-28 overflow-y-auto"
+          className="flex-1 mt-0 p-4 pb-24 md:p-8 md:pb-28 overflow-y-auto"
         >
           {children || (
             <div className="space-y-4">

@@ -165,6 +165,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Opts the page into the display cutout area so env(safe-area-inset-*)
+  // reports real values — without it the mobile tab bar sits under the
+  // iPhone home indicator.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
