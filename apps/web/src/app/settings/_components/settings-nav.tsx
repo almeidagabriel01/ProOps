@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface NavItem {
   label: string;
+  /** Rótulo curto usado abaixo de lg, onde os três itens dividem a largura. */
+  shortLabel?: string;
   href: string;
   icon: LucideIcon;
 }
@@ -35,6 +37,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: "Equipe", href: "/settings/team", icon: Users },
       {
         label: "Pagamento Online",
+        shortLabel: "Pagamento",
         href: "/settings/payments",
         icon: CreditCard,
       },
@@ -76,7 +79,7 @@ export function SettingsNav() {
                     href={item.href}
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "relative flex shrink-0 items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors",
+                      "relative flex shrink-0 items-center gap-2 lg:gap-3 whitespace-nowrap rounded-lg px-2 lg:px-3 py-2 text-xs lg:text-sm transition-colors",
                       isActive
                         ? "font-medium text-primary"
                         : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
@@ -95,7 +98,16 @@ export function SettingsNav() {
                       />
                     )}
                     <Icon className="relative z-10 h-4 w-4 shrink-0" />
-                    <span className="relative z-10">{item.label}</span>
+                    <span className="relative z-10">
+                      {item.shortLabel ? (
+                        <>
+                          <span className="lg:hidden">{item.shortLabel}</span>
+                          <span className="hidden lg:inline">{item.label}</span>
+                        </>
+                      ) : (
+                        item.label
+                      )}
+                    </span>
                   </Link>
                 );
               })}

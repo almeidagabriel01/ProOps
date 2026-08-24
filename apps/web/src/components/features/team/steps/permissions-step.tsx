@@ -58,12 +58,12 @@ export function PermissionsStep({
               return (
                 <div
                   key={page}
-                  className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-muted/30 transition-colors"
+                  className="flex flex-wrap items-center justify-between gap-y-2 py-3 px-3 rounded-lg hover:bg-muted/30 transition-colors"
                 >
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="min-w-0 truncate text-sm font-medium text-foreground">
                     {pageName}
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap justify-end gap-2 max-sm:w-full">
                     <PermissionToggle
                       enabled={perms.canView}
                       onChange={(v) => {

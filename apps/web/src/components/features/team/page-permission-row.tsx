@@ -34,13 +34,13 @@ export function PagePermissionRow({
 
     return (
         <div className={`
-      flex items-center justify-between p-4 rounded-xl border transition-all duration-200
+      flex flex-wrap items-center justify-between gap-y-3 p-3 sm:p-4 rounded-xl border transition-all duration-200
       ${canView
                 ? "bg-card border-border"
                 : "bg-muted/30 border-transparent"
             }
     `}>
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className={`
           w-10 h-10 rounded-lg flex items-center justify-center
           ${canView ? "bg-primary/10" : "bg-muted"}
@@ -52,8 +52,8 @@ export function PagePermissionRow({
                     )}
                 </div>
 
-                <div>
-                    <p className={`font-medium ${!canView && "text-muted-foreground"}`}>
+                <div className="min-w-0">
+                    <p className={`truncate font-medium ${!canView && "text-muted-foreground"}`}>
                         {page.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -65,7 +65,7 @@ export function PagePermissionRow({
                 </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-sm:w-full">
                 <PermissionToggle
                     enabled={canView}
                     onChange={(v) => onUpdate("canView", v)}
