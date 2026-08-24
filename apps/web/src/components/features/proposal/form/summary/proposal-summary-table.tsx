@@ -69,7 +69,9 @@ export function ProposalSummaryTable({
         <thead className="bg-muted">
           <tr>
             <th className="text-left p-2 sm:p-3">Item</th>
-            <th className="text-right p-2 sm:p-3 w-20 sm:w-36">Unit.</th>
+            <th className="hidden text-right p-2 sm:p-3 w-20 sm:w-36 sm:table-cell">
+              Unit.
+            </th>
             <th className="text-right p-2 sm:p-3 w-20 sm:w-36">Total</th>
           </tr>
         </thead>

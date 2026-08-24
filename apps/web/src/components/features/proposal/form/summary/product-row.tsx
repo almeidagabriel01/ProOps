@@ -55,9 +55,14 @@ export function ProductRow({ product, isInactive }: ProductRowProps) {
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{quantityLabel}</span>
           {isDimensionProduct && measurementLabel ? <span>{measurementLabel}</span> : null}
+          {/* Abaixo de sm a coluna "Unit." não cabe junto com Item e Total, então
+              o valor unitário vem para cá em vez de sumir. */}
+          <span className="sm:hidden">
+            R$ {unitValue.toFixed(2)} / {unitLabel}
+          </span>
         </div>
       </td>
-      <td className="p-2 sm:p-3 text-right whitespace-nowrap">
+      <td className="hidden p-2 sm:p-3 text-right whitespace-nowrap sm:table-cell">
         R$ {unitValue.toFixed(2)} / {unitLabel}
       </td>
       <td className="p-2 sm:p-3 text-right font-medium whitespace-nowrap">

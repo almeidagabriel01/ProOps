@@ -69,7 +69,7 @@ export function SummaryFooter({
         >
           Subtotal (Preço de Venda):
         </td>
-        <td className="p-2 sm:p-3 text-right font-bold whitespace-nowrap text-lg">
+        <td className="p-2 sm:p-3 text-right font-bold whitespace-nowrap text-base sm:text-lg">
           R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
@@ -141,11 +141,11 @@ export function SummaryFooter({
       <tr className="border-t-2 border-primary">
         <td
           colSpan={2}
-          className="p-2 sm:p-3 text-right text-lg font-bold whitespace-nowrap"
+          className="p-2 sm:p-3 text-right text-base sm:text-lg font-bold whitespace-nowrap"
         >
           Total:
         </td>
-        <td className="p-2 sm:p-3 text-right text-lg font-bold text-primary dark:text-white whitespace-nowrap">
+        <td className="p-2 sm:p-3 text-right text-base sm:text-lg font-bold text-primary dark:text-white whitespace-nowrap">
           R$ {(Number(closedValue) > 0 ? Number(closedValue) : totalValue).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
