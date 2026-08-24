@@ -139,7 +139,7 @@ function ProfileContent() {
                 <TabsTrigger
                   key={tab}
                   value={tab}
-                  className="relative z-10 rounded-full data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-none h-full hover:bg-muted/10 cursor-pointer"
+                  className="relative z-10 min-w-0 overflow-hidden px-2 sm:px-3 rounded-full data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-none h-full hover:bg-muted/10 cursor-pointer"
                 >
                   {activeTab === tab && (
                     <motion.div
@@ -152,17 +152,26 @@ function ProfileContent() {
                   )}
                   <span
                     className={cn(
-                      "relative z-10 font-medium transition-colors duration-200 text-sm",
+                      "relative z-10 truncate font-medium transition-colors duration-200 text-xs sm:text-sm",
                       activeTab === tab
                         ? "text-primary-foreground"
                         : "text-muted-foreground",
                     )}
                   >
-                    {tab === "overview"
-                      ? "Visão Geral"
-                      : tab === "subscription"
-                        ? "Minha Assinatura"
-                        : "Planos"}
+                    {/* "Minha Assinatura" não cabe na célula da grade de 3
+                        colunas num celular e transbordava a pílula. */}
+                    {tab === "overview" ? (
+                      "Visão Geral"
+                    ) : tab === "subscription" ? (
+                      <>
+                        <span className="sm:hidden">Assinatura</span>
+                        <span className="hidden sm:inline">
+                          Minha Assinatura
+                        </span>
+                      </>
+                    ) : (
+                      "Planos"
+                    )}
                   </span>
                 </TabsTrigger>
               ))}

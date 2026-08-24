@@ -87,7 +87,7 @@ export function SystemGroupRows({
                     >
                       Subtotal ({ambiente.ambienteName}):
                     </td>
-                    <td className="p-2 text-right font-medium text-sm whitespace-nowrap text-foreground">
+                    <td className="p-2 text-right font-medium text-xs sm:text-sm whitespace-nowrap text-foreground">
                       R$ {(instanceTotal || 0).toFixed(2)}
                     </td>
                   </tr>

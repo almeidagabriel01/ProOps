@@ -42,7 +42,7 @@ export function SummaryFooter({
         >
           Custo dos Produtos (Bruto):
         </td>
-        <td className="p-2 sm:p-3 text-right font-medium text-muted-foreground whitespace-nowrap text-sm">
+        <td className="p-2 sm:p-3 text-right font-medium text-muted-foreground whitespace-nowrap text-xs sm:text-sm">
           R$ {totalCost.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
@@ -56,7 +56,7 @@ export function SummaryFooter({
           >
             Lucro (Markup):
           </td>
-          <td className="p-2 sm:p-3 text-right font-medium text-green-600 dark:text-green-400 whitespace-nowrap text-sm">
+          <td className="p-2 sm:p-3 text-right font-medium text-green-600 dark:text-green-400 whitespace-nowrap text-xs sm:text-sm">
             R$ {totalProfit.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </td>
         </tr>
@@ -69,7 +69,7 @@ export function SummaryFooter({
         >
           Subtotal (Preço de Venda):
         </td>
-        <td className="p-2 sm:p-3 text-right font-bold whitespace-nowrap text-base sm:text-lg">
+        <td className="p-2 sm:p-3 text-right font-bold whitespace-nowrap text-sm sm:text-lg">
           R$ {subtotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
@@ -82,7 +82,7 @@ export function SummaryFooter({
           >
             Desconto ({discountPercentage}%):
           </td>
-          <td className="p-2 sm:p-3 text-right font-medium text-destructive whitespace-nowrap">
+          <td className="p-2 sm:p-3 text-right font-medium text-destructive whitespace-nowrap text-xs sm:text-sm">
             - R$ {discount.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </td>
         </tr>
@@ -97,7 +97,7 @@ export function SummaryFooter({
           >
             Custos Extras:
           </td>
-          <td className="p-2 sm:p-3 text-right font-medium text-orange-600 dark:text-orange-400 whitespace-nowrap text-sm">
+          <td className="p-2 sm:p-3 text-right font-medium text-orange-600 dark:text-orange-400 whitespace-nowrap text-xs sm:text-sm">
             + R$ {extraExpense.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </td>
         </tr>
@@ -117,7 +117,7 @@ export function SummaryFooter({
               >
                 Valor Combinado com o Cliente:
               </td>
-              <td className="p-2 sm:p-3 text-right font-bold text-purple-700 dark:text-purple-400 whitespace-nowrap">
+              <td className="p-2 sm:p-3 text-right font-bold text-purple-700 dark:text-purple-400 whitespace-nowrap text-xs sm:text-sm">
                 R$ {cv.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </td>
             </tr>
@@ -129,7 +129,7 @@ export function SummaryFooter({
                 >
                   Desconto Comercial (Valor Combinado):
                 </td>
-                <td className="p-2 sm:p-3 text-right font-medium text-destructive whitespace-nowrap text-sm">
+                <td className="p-2 sm:p-3 text-right font-medium text-destructive whitespace-nowrap text-xs sm:text-sm">
                   - R$ {(rawTotal - cv).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
               </tr>
@@ -141,11 +141,11 @@ export function SummaryFooter({
       <tr className="border-t-2 border-primary">
         <td
           colSpan={2}
-          className="p-2 sm:p-3 text-right text-base sm:text-lg font-bold whitespace-nowrap max-sm:whitespace-normal"
+          className="p-2 sm:p-3 text-right text-sm sm:text-lg font-bold whitespace-nowrap max-sm:whitespace-normal"
         >
           Total:
         </td>
-        <td className="p-2 sm:p-3 text-right text-base sm:text-lg font-bold text-primary dark:text-white whitespace-nowrap">
+        <td className="p-2 sm:p-3 text-right text-sm sm:text-lg font-bold text-primary dark:text-white whitespace-nowrap">
           R$ {(Number(closedValue) > 0 ? Number(closedValue) : totalValue).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
       </tr>
