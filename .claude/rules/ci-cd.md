@@ -50,6 +50,7 @@ Runs on PRs and Merge Queue events:
 - `unit-tests` — Vitest frontend unit tests `npm run test:web` (reusable)
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
+- `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.
 - `performance` — Core Web Vitals + API baseline (runs after all E2E shards pass)
 - `lighthouse` — throttled-mobile Lighthouse perf budget on a production build (`npm run test:lighthouse`). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. It is the longest job (~14 min), so gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed`.
 - `security` — OWASP ZAP baseline (runs after all E2E shards pass)
@@ -102,6 +103,22 @@ The E2E job uses a matrix strategy with 4 shards:
 - `fail-fast: false` so other shards continue if one fails
 - Artifacts are named `playwright-report-shardN-<run>` per shard
 - Playwright distributes test files automatically across shards
+
+## Projetos Playwright (`tests/playwright.config.ts`)
+
+| Projeto | Device | O que roda |
+|---|---|---|
+| `chromium` | Desktop Chrome (1280x720) | tudo em `tests/e2e/**`, **exceto** `mobile/**` (`testIgnore`) |
+| `mobile-chrome` | Pixel 5 (393x851, `hasTouch`, `isMobile`) | `smoke.spec.ts` + `tests/e2e/mobile/**` |
+
+Antes disso nenhuma tela autenticada era exercitada abaixo de 1280px — uma quebra
+de layout mobile passava pelo CI em silêncio. `mobile/no-overflow.spec.ts` afirma
+que o `<main>` de cada rota autenticada cabe na largura do viewport; a asserção é
+sobre o `<main>` e não sobre o documento porque o shell tem `overflow-hidden` no
+container externo, então conteúdo largo demais é **cortado** em vez de gerar
+scroll — foi assim que o grid de lançamentos (~662px) ficou quebrado sem alarme.
+
+Não há screenshot baseline nem checagem de acessibilidade (axe) em nenhum projeto.
 
 ## Merge Queue (`merge_group` trigger)
 

@@ -30,6 +30,15 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      // A suíte desktop segue exatamente como era; só ignora a pasta nova.
+      testIgnore: "mobile/**",
+    },
+    {
+      // Viewport de 393x851 (Pixel 5) com hasTouch/isMobile. Nenhuma tela
+      // autenticada era testada abaixo de 1280px antes disto.
+      name: "mobile-chrome",
+      use: { ...devices["Pixel 5"] },
+      testMatch: ["smoke.spec.ts", "mobile/**/*.spec.ts"],
     },
   ],
   webServer: {
