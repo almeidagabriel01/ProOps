@@ -266,10 +266,12 @@ export function ProposalSystemsSection({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Cpu className="w-5 h-5" />
-            <CardTitle>Soluções de Automação</CardTitle>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
+            <Cpu className="w-5 h-5 shrink-0" />
+            <CardTitle className="text-lg sm:text-2xl">
+              Soluções de Automação
+            </CardTitle>
           </div>
           {visibleProducts.length > 0 && (
             <ProposalFinancialSummarySmall
@@ -278,7 +280,7 @@ export function ProposalSystemsSection({
             />
           )}
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardDescription>
             Adicione uma ou mais soluções de automação à proposta
           </CardDescription>
@@ -502,7 +504,7 @@ function SystemCard({
         className="p-4 flex flex-col gap-4 rounded-t-lg"
         style={{ backgroundColor: `${primaryColor}15` }}
       >
-        <div className="flex items-start justify-between w-full">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
@@ -513,7 +515,7 @@ function SystemCard({
             <div className="min-w-0 flex-1">
               {/* Sistema Name - Primary Title */}
               <h4
-                className="font-bold text-xl text-foreground truncate"
+                className="font-bold text-lg sm:text-xl text-foreground truncate"
                 style={{ color: primaryColor }}
               >
                 {sistema.sistemaName}
@@ -544,16 +546,16 @@ function SystemCard({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-10 shrink-0 ml-4">
-            <div className="flex flex-col items-end gap-1">
+          <div className="flex shrink-0 items-center justify-between gap-3 sm:gap-10 sm:ml-4">
+            <div className="flex min-w-0 flex-col items-start gap-1 sm:items-end">
               <span
-                className="text-sm font-medium text-muted-foreground mr-2"
+                className="text-xs sm:text-sm font-medium text-muted-foreground sm:mr-2"
                 title="Soma do valor de custo dos produtos (sem markup)"
               >
                 Custo (Bruto): R$ {sistemaTotal.toFixed(2)}
               </span>
               <span
-                className="text-sm font-bold"
+                className="text-xs sm:text-sm font-bold"
                 style={{ color: primaryColor }}
                 title="Soma do valor final dos produtos (com markup)"
               >
@@ -638,8 +640,8 @@ function SystemCard({
               className="rounded-lg border bg-card/50"
             >
               {/* Sub-Header Ambiente */}
-              <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between gap-4 rounded-t-lg">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="px-3 py-2 bg-muted/30 border-b flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-t-lg md:flex-nowrap">
+                <div className="flex basis-full items-center gap-2 flex-1 min-w-0 md:basis-auto">
                   <span
                     className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
                     style={{
@@ -650,12 +652,12 @@ function SystemCard({
                     📍 {amb.ambienteName}
                   </span>
                   {amb.description && (
-                    <span className="text-xs text-muted-foreground italic leading-tight">
+                    <span className="min-w-0 truncate text-xs text-muted-foreground italic leading-tight">
                       - {amb.description}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 max-md:ml-auto">
                   <span className="text-[11px] text-muted-foreground whitespace-nowrap">
                     Ocultar qtd. 0
                   </span>
@@ -896,7 +898,10 @@ function ProductRow({
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+      // Somando toggle, imagem, markup, quantidade e preço sobram ~0px para o
+      // nome num viewport de 390px. Abaixo de md a linha quebra: identificação
+      // em cima, controles embaixo.
+      className={`flex flex-wrap items-center gap-x-3 gap-y-2 md:flex-nowrap p-3 rounded-lg border transition-all ${
         !isActive
           ? "bg-muted/5 border-dashed border-muted-foreground/20"
           : product.isExtra
@@ -947,7 +952,7 @@ function ProductRow({
       )}
 
       {/* Product info */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 basis-[55%] min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <h5
             className={`font-medium text-sm text-balance wrap-break-word pr-2 ${!isActive ? "text-muted-foreground" : ""}`}
@@ -988,7 +993,7 @@ function ProductRow({
 
       {/* Markup Control */}
       {isActive && !isService && (
-        <div className="flex flex-col items-center mr-2">
+        <div className="flex shrink-0 flex-col items-center mr-2">
           <span className="text-[10px] text-muted-foreground mb-0.5">
             Markup
           </span>
@@ -1061,7 +1066,7 @@ function ProductRow({
       </div>
 
       {/* Price */}
-      <div className="flex flex-col items-end min-w-[80px]">
+      <div className="flex shrink-0 flex-col items-end min-w-[80px] max-md:ml-auto">
         {/* If it is a service, allow editing price even if inactive */}
         {isService ? (
           <div className="relative flex items-center group">
