@@ -454,8 +454,11 @@ export function AmbienteEditor({
   ).length;
   const inactiveItemsCount = selectedProducts.length - activeItemsCount;
 
+  // Altura travada só de md para cima: no mobile os dois painéis empilham e
+  // quem rola é o <main> do shell — senão cada um fica com metade de uma tela
+  // de celular e o overflow-hidden corta o conteúdo.
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col space-y-4">
+    <div className="md:h-[calc(100vh-100px)] flex flex-col space-y-4">
       <div className="flex items-center justify-between bg-card p-4 rounded-xl border shadow-sm">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={onBack}>
@@ -491,10 +494,10 @@ export function AmbienteEditor({
       </div>
 
       <div
-        className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden"
+        className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 md:overflow-hidden"
         inert={isReadOnly || undefined}
       >
-        <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
+        <div className="md:col-span-4 flex flex-col gap-4 md:overflow-y-auto pr-1">
           <Card>
             <CardHeader className="py-4">
               <CardTitle className="text-base flex items-center gap-2">
@@ -555,7 +558,7 @@ export function AmbienteEditor({
           </Card>
         </div>
 
-        <div className="md:col-span-8 flex flex-col h-full overflow-hidden">
+        <div className="md:col-span-8 flex flex-col md:h-full md:overflow-hidden">
           <Card className="h-full flex flex-col border-none shadow-md bg-card overflow-hidden">
             <div className="flex flex-col gap-4 p-6 border-b bg-background/50">
               <div className="flex items-start justify-between">

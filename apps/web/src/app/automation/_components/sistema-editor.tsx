@@ -498,8 +498,11 @@ export function SistemaEditor({
     );
   };
 
+  // Altura travada só de md para cima: no mobile os dois painéis empilham e
+  // quem rola é o <main> do shell — senão cada um fica com metade de uma tela
+  // de celular e o overflow-hidden corta o conteúdo.
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col space-y-4">
+    <div className="md:h-[calc(100vh-100px)] flex flex-col space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between bg-card p-4 rounded-xl border shadow-sm">
         <div className="flex items-center gap-4">
@@ -536,9 +539,9 @@ export function SistemaEditor({
       </div>
 
       {/* Main Layout - Grid */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 md:overflow-hidden">
         {/* System info & environments */}
-        <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
+        <div className="md:col-span-4 flex flex-col gap-4 md:overflow-y-auto pr-1">
           {/* Info Card */}
           <Card inert={isReadOnly || undefined}>
             <CardHeader className="py-4">
@@ -708,7 +711,7 @@ export function SistemaEditor({
 
         {/* Main Content: Product Editor */}
         <div
-          className="md:col-span-8 flex flex-col h-full overflow-hidden"
+          className="md:col-span-8 flex flex-col md:h-full md:overflow-hidden"
           inert={isReadOnly || undefined}
         >
           {activeAmbienteId && activeConfig ? (

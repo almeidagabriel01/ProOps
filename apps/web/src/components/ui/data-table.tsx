@@ -16,12 +16,14 @@ import { Loader } from "@/components/ui/loader";
 
 /**
  * Where a column lands when the table collapses into cards below `md`:
+ * - `leading`   — thumbnail/avatar to the left of the headline (one per table)
  * - `primary`   — the headline of the card (one per table)
  * - `secondary` — label/value pairs under the headline
  * - `actions`   — pinned to the top-right of the card, unlabelled
  * - `hidden`    — dropped on mobile; still shown on desktop
  */
 export type DataTableColumnPriority =
+  | "leading"
   | "primary"
   | "secondary"
   | "actions"
@@ -111,6 +113,7 @@ export interface DataTableProps<T> {
 // ── Mobile card layout ───────────────────────────────────────────────
 
 interface ColumnLayout<T> {
+  leading: DataTableColumn<T> | null;
   primary: DataTableColumn<T> | null;
   secondary: DataTableColumn<T>[];
   actions: DataTableColumn<T> | null;
@@ -129,6 +132,7 @@ export function resolveColumnLayout<T>(
   columns: DataTableColumn<T>[],
 ): ColumnLayout<T> {
   const layout: ColumnLayout<T> = {
+    leading: null,
     primary: null,
     secondary: [],
     actions: null,
@@ -152,7 +156,11 @@ export function resolveColumnLayout<T>(
       if (column.key !== "actions") implicitIndex += 1;
     }
 
-    if (priority === "primary" && !layout.primary) {
+    if (priority === "leading" && !layout.leading) {
+      layout.leading = column;
+    } else if (priority === "leading") {
+      continue;
+    } else if (priority === "primary" && !layout.primary) {
       layout.primary = column;
     } else if (priority === "actions" && !layout.actions) {
       layout.actions = column;
@@ -179,12 +187,13 @@ function MobileCardRow<T>({
     return <>{renderMobileCard(item)}</>;
   }
 
-  const { primary, secondary, actions } = layout;
+  const { leading, primary, secondary, actions } = layout;
 
   return (
     <Card className="transition-colors">
       <CardContent className="flex flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
+          {leading && <div className="shrink-0">{leading.render(item)}</div>}
           <div className="min-w-0 flex-1">{primary?.render(item)}</div>
           {actions && <div className="shrink-0">{actions.render(item)}</div>}
         </div>

@@ -192,7 +192,7 @@ export default function ServicesPage() {
       header: "Imagem",
       className: "col-span-1",
       sortable: false,
-      priority: "hidden",
+      priority: "leading",
       render: (service) => (
         <div>
           {service.images?.[0] || service.image ? (

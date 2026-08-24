@@ -309,7 +309,7 @@ export default function ProductsPage() {
       header: "Imagem",
       className: "col-span-1",
       sortable: false,
-      priority: "hidden",
+      priority: "leading",
       render: (product) => (
         <div>
           {product.images?.[0] || product.image ? (

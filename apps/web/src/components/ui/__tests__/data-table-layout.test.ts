@@ -76,5 +76,30 @@ describe("resolveColumnLayout", () => {
     expect(layout.primary?.key).toBe("name");
     expect(layout.secondary).toEqual([]);
     expect(layout.actions).toBeNull();
+    expect(layout.leading).toBeNull();
+  });
+
+  it("coloca a miniatura em leading sem consumir o slot principal", () => {
+    const layout = resolveColumnLayout([
+      col("image", "leading"),
+      col("name", "primary"),
+      col("price", "secondary"),
+      col("actions", "actions"),
+    ]);
+
+    expect(layout.leading?.key).toBe("image");
+    expect(layout.primary?.key).toBe("name");
+    expect(layout.secondary.map((c) => c.key)).toEqual(["price"]);
+  });
+
+  it("ignora um segundo leading em vez de rebaixá-lo a secondary", () => {
+    const layout = resolveColumnLayout([
+      col("image", "leading"),
+      col("avatar", "leading"),
+      col("name", "primary"),
+    ]);
+
+    expect(layout.leading?.key).toBe("image");
+    expect(layout.secondary).toEqual([]);
   });
 });

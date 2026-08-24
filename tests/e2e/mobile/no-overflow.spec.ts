@@ -26,12 +26,18 @@ const ROUTES = [
   "/wallets",
   "/calendar",
   "/spreadsheets",
+  "/automation",
   "/crm",
   "/settings/team",
   "/solutions",
   "/ambientes",
   "/profile",
   "/settings",
+  // Formulários — os fluxos mais longos do ERP e os mais usados no celular.
+  "/proposals/new",
+  "/transactions/new",
+  "/contacts/new",
+  "/products/new",
 ];
 
 /** Folga de 1px para arredondamento de subpixel do layout. */
