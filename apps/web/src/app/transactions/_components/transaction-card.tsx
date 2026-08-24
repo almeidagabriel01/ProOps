@@ -187,8 +187,11 @@ export function TransactionCard({
         }`}
       >
         <CardContent className="p-0">
+          {/* Abaixo de md a linha quebra: identificação em cima, valor e ações
+             embaixo. Numa linha só, o bloco do valor e o da descrição disputavam
+             o encolhimento e o texto acabava sobrepondo o vizinho. */}
           <div
-            className="flex items-center gap-4 py-4 px-4 cursor-pointer"
+            className="flex flex-wrap items-center gap-3 md:flex-nowrap md:gap-4 py-4 px-4 cursor-pointer"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (
@@ -204,7 +207,7 @@ export function TransactionCard({
           >
             {/* Selection Checkbox - use group selection for the main card */}
             {(onToggleGroupSelection || onToggleSelection) && (
-              <div onClick={(e) => e.stopPropagation()}>
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                 <Checkbox
                   checked={isSelected}
                   onCheckedChange={() => {
@@ -219,11 +222,11 @@ export function TransactionCard({
               </div>
             )}
 
-            <div className={`p-2 rounded-full bg-muted ${typeInfo.color}`}>
+            <div className={`shrink-0 p-2 rounded-full bg-muted ${typeInfo.color}`}>
               <TypeIcon className="w-5 h-5" />
             </div>
 
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 basis-32 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-medium truncate">
                   {displayDescription}
@@ -415,7 +418,7 @@ export function TransactionCard({
               </div>
             </div>
 
-            <div className="text-right flex items-center gap-4">
+            <div className="shrink-0 text-right flex items-center gap-4 max-md:w-full max-md:justify-end">
               <div>
                 <div className={`font-bold ${typeInfo.color}`}>
                   {isEditingAmount ? (
@@ -555,7 +558,7 @@ export function TransactionCard({
             </div>
 
             <div
-              className="flex items-center gap-1 pl-2 border-l ml-2"
+              className="flex shrink-0 items-center gap-1 pl-2 border-l ml-2 max-md:ml-0 max-md:border-l-0 max-md:pl-0"
               onClick={(e) => e.stopPropagation()}
             >
               <Button

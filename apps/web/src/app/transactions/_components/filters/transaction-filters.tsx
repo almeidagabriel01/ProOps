@@ -114,7 +114,7 @@ export function TransactionFilters(props: TransactionFiltersProps) {
           }
         />
 
-        <div className="flex items-center gap-2 shrink-0 ml-auto">
+        <div className="flex w-full items-center gap-2 shrink-0 sm:ml-auto sm:w-auto">
           <FilterClearButton
             active={hasActiveFilters}
             count={activeFilterCount}
@@ -165,13 +165,16 @@ export function TransactionFilters(props: TransactionFiltersProps) {
         <FilterStatusPills value={props.filterStatus} onChange={props.onStatusChange} />
       </div>
 
-      {/* Linha 3 — Refinamento: carteira + período + ordenação */}
-      <div className="flex items-center gap-3 flex-wrap">
+      {/* Linha 3 — Refinamento: carteira + período + ordenação.
+          Abaixo de sm cada controle ocupa a linha inteira: com larguras fixas
+          (w-44, w-40, w-36) eles quebravam em pontos arbitrários e o painel
+          ficava desalinhado. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
         <Select
           value={props.filterWallet}
           onChange={(e) => props.onWalletChange(e.target.value)}
           inputSize="sm"
-          className="w-44 shrink-0"
+          className="w-full sm:w-44 sm:shrink-0"
         >
           <option value="">Todas as carteiras</option>
           {wallets.map((w) => (
@@ -197,7 +200,7 @@ export function TransactionFilters(props: TransactionFiltersProps) {
               props.onSortChange?.(e.target.value as "date" | "created")
             }
             inputSize="sm"
-            className="w-44 shrink-0 ml-auto"
+            className="w-full sm:w-44 sm:shrink-0 sm:ml-auto"
             disableSort
           >
             <option value="created">Mais recentes</option>

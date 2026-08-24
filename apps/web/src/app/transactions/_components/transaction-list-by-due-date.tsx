@@ -576,7 +576,7 @@ export function TransactionListByDueDate({
                     }}
                   >
                     {/* Checkbox / Chevron */}
-                    <div className="flex items-center gap-2 pl-2">
+                    <div className="flex shrink-0 items-center gap-2 pl-2">
                       {/* Always show checkbox if not sub-item or if sub-item logic requires it (usually sub-items also selectable? user didn't specify, but "keep checkbox" usually implies for the main item) */}
                       {/* User said: "vquero que mantenha o checkbox mesmo assim, e a setinha informando se esta aberto ou fechado ao lado" */}
                       <div onClick={(e) => e.stopPropagation()}>
@@ -600,7 +600,7 @@ export function TransactionListByDueDate({
                     </div>
 
                     {/* Description */}
-                    <div className="flex flex-1 md:flex-none items-center gap-2 min-w-0">
+                    <div className="flex flex-1 basis-32 md:flex-none md:basis-auto items-center gap-2 min-w-0">
                       {tx.type === "income" ? (
                         <ArrowUpCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
                       ) : (
@@ -671,13 +671,16 @@ export function TransactionListByDueDate({
                     </div>
 
                     {/* Due Date */}
-                    <div className="text-center text-xs text-muted-foreground">
+                    {/* shrink-0 é essencial no flex-wrap do mobile: sem ele a
+                        célula encolhe abaixo do próprio conteúdo e o texto vaza
+                        por cima da vizinha. Só a descrição é flexível. */}
+                    <div className="shrink-0 whitespace-nowrap text-center text-xs text-muted-foreground">
                       {formatDate(tx.dueDate || tx.date)}
                     </div>
 
                     {/* Amount */}
                     <div
-                      className={`text-center font-medium ${getTypeColor(tx)}`}
+                      className={`shrink-0 whitespace-nowrap text-center font-medium ${getTypeColor(tx)}`}
                     >
                       {tx.type === "expense" ? "-" : ""}
                       {formatCurrency(tx.amount)}
@@ -685,7 +688,7 @@ export function TransactionListByDueDate({
 
                     {/* Wallet */}
                     <div
-                      className="flex justify-center"
+                      className="flex shrink-0 justify-center"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {canEdit && onUpdate ? (
@@ -741,7 +744,7 @@ export function TransactionListByDueDate({
 
                     {/* Status */}
                     <div
-                      className="flex justify-center"
+                      className="flex shrink-0 justify-center"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {tx.isPartialPayment ? (
@@ -825,7 +828,7 @@ export function TransactionListByDueDate({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center justify-center gap-0.5">
+                    <div className="flex shrink-0 items-center justify-center gap-0.5">
                       {tx.isPartialPayment && (
                         <Button
                           variant="ghost"

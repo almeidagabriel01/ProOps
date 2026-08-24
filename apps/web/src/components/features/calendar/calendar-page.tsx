@@ -44,7 +44,7 @@ import { toast } from "@/lib/toast";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePagePermission } from "@/hooks/usePagePermission";
-import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useIsMobile, useMediaQuery } from "@/hooks/use-is-mobile";
 import { usePermissions } from "@/providers/permissions-provider";
 import { CalendarService } from "@/services/calendar-service";
 import type {
@@ -420,6 +420,10 @@ export function CalendarPage() {
   const [currentView, setCurrentView] =
     React.useState<CalendarViewType>("dayGridMonth");
   const isMobile = useIsMobile();
+  // O container do calendário só tem altura definida a partir de xl. Abaixo
+  // disso, height="100%" resolve contra uma altura auto e a grade colapsa —
+  // era por isso que o calendário simplesmente não aparecia no celular.
+  const hasFixedCalendarHeight = useMediaQuery("(min-width: 1280px)");
   const [currentTitle, setCurrentTitle] = React.useState("");
   const [isLoadingEvents, setIsLoadingEvents] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -816,13 +820,32 @@ export function CalendarPage() {
   const didAutoSelectMobileView = React.useRef(false);
   React.useEffect(() => {
     if (!isMobile || didAutoSelectMobileView.current) return;
-    const api = getCalendarApi();
-    if (!api) return;
-    didAutoSelectMobileView.current = true;
-    if (api.view.type === "dayGridMonth") {
-      setCurrentView("listWeek");
-      api.changeView("listWeek");
-    }
+
+    // O ref do FullCalendar pode ainda não estar montado quando isMobile vira
+    // true. Desistir na primeira tentativa deixava o mobile preso na grade de
+    // mês, porque a dependência [isMobile] não muda de novo.
+    let frame = 0;
+    let attempts = 0;
+    const apply = () => {
+      const api = getCalendarApi();
+      if (!api) {
+        if (attempts < 60) {
+          attempts += 1;
+          frame = requestAnimationFrame(apply);
+        }
+        return;
+      }
+      didAutoSelectMobileView.current = true;
+      if (api.view.type === "dayGridMonth") {
+        setCurrentView("listWeek");
+        api.changeView("listWeek");
+      }
+    };
+    apply();
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [isMobile]);
 
   function handleCalendarNavigation(action: "prev" | "next" | "today") {
@@ -895,7 +918,7 @@ export function CalendarPage() {
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-col items-start gap-2">
-                      <h1 className="text-[2rem] font-semibold tracking-[-0.045em] text-foreground">
+                      <h1 className="text-2xl sm:text-[2rem] font-semibold tracking-[-0.045em] text-foreground">
                         Calendario{" "}
                         <span className="text-muted-foreground">
                           operacional
@@ -1108,8 +1131,8 @@ export function CalendarPage() {
                 ]}
                 locale={ptBrLocale}
                 initialView="dayGridMonth"
-                height="100%"
-                contentHeight="100%"
+                height={hasFixedCalendarHeight ? "100%" : "auto"}
+                contentHeight={hasFixedCalendarHeight ? "100%" : "auto"}
                 editable={canEdit}
                 selectable={canCreate}
                 selectMirror
