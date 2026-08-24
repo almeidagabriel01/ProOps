@@ -32,15 +32,19 @@ export function PagePermissionRow({
 
     const isUpdating = (key: string) => updatingKey === `${memberId}-${page.id}-${key}`;
 
+    // Abaixo de sm a identificação fica em cima e os toggles embaixo, numa grade
+    // de 2 colunas. Lado a lado, o texto era espremido a uma palavra por linha e
+    // os botões passavam por cima.
     return (
         <div className={`
-      flex flex-wrap items-center justify-between gap-y-3 p-3 sm:p-4 rounded-xl border transition-all duration-200
+      flex flex-col gap-3 p-3 sm:p-4 rounded-xl border transition-all duration-200
+      sm:flex-row sm:items-center sm:justify-between
       ${canView
                 ? "bg-card border-border"
                 : "bg-muted/30 border-transparent"
             }
     `}>
-            <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3 sm:flex-1">
                 <div className={`
           w-10 h-10 rounded-lg flex items-center justify-center
           ${canView ? "bg-primary/10" : "bg-muted"}
@@ -65,7 +69,7 @@ export function PagePermissionRow({
                 </div>
             </div>
 
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-sm:w-full">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap sm:items-center sm:justify-end">
                 <PermissionToggle
                     enabled={canView}
                     onChange={(v) => onUpdate("canView", v)}

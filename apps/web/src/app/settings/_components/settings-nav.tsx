@@ -60,7 +60,7 @@ export function SettingsNav() {
         aria-label="Navegação de configurações"
         className="rounded-xl border border-border/60 bg-card p-2"
       >
-        <div className="flex flex-row gap-1 overflow-x-auto lg:flex-col lg:gap-3 lg:overflow-visible">
+        <div className="flex flex-row justify-center gap-1 overflow-x-auto lg:flex-col lg:justify-start lg:gap-3 lg:overflow-visible">
           {NAV_GROUPS.map((group) => (
             <div
               key={group.label}
