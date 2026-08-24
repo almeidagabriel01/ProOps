@@ -39,8 +39,13 @@ type PricingCard = {
   };
 };
 
+/** Sempre os primeiros checks do Enterprise, nesta ordem. */
+const ENTERPRISE_LEAD_FEATURES = [
+  "Consultoria dedicada no primeiro mês",
+  "Ajustes específicos de acordo com a sua realidade no primeiro mês",
+];
+
 const ENTERPRISE_EXTRA_FEATURES = [
-  "Consultoria dedicada",
   "WhatsApp integrado para consultas e envio de documentos",
 ];
 
@@ -84,7 +89,6 @@ const FALLBACK_PLANS: PricingCard[] = [
     prices: { monthly: 0, yearly: 0 },
     features: [
       "Tudo do Profissional",
-      "Consultoria dedicada",
       "WhatsApp integrado para consultas e envio de documentos",
       "Acordo de SLA",
       "Acompanhamento de implantação",
@@ -275,20 +279,20 @@ export function LandingPricing({
       return card;
     }
 
-    const existing = new Set(
-      card.features.map((feature) => feature.toLowerCase()),
+    const lead = new Set(
+      ENTERPRISE_LEAD_FEATURES.map((feature) => feature.toLowerCase()),
     );
+    const rest = card.features.filter(
+      (feature) => !lead.has(feature.toLowerCase()),
+    );
+    const existing = new Set(rest.map((feature) => feature.toLowerCase()));
     const missing = ENTERPRISE_EXTRA_FEATURES.filter(
       (feature) => !existing.has(feature.toLowerCase()),
     );
 
-    if (missing.length === 0) {
-      return card;
-    }
-
     return {
       ...card,
-      features: [...card.features, ...missing],
+      features: [...ENTERPRISE_LEAD_FEATURES, ...rest, ...missing],
     };
   };
 
@@ -525,6 +529,12 @@ export function LandingPricing({
                     plan.popular
                       ? "lg:z-20 lg:-mx-5 lg:w-[38%]"
                       : "lg:z-10 lg:w-[31%]",
+                    // O card popular é escalado (lg:scale-105) e avança ~11px além
+                    // da própria caixa de layout, então o -mx-5 vira ~31px de
+                    // sobreposição visual — no card da direita isso sobrava só 2px
+                    // até o texto. A margem afasta o Enterprise mantendo a borda
+                    // ainda por baixo do popular.
+                    plan.tier.toLowerCase() === "enterprise" && "lg:ml-5",
                   )}
                 >
                   <PricingCard popular={plan.popular}>

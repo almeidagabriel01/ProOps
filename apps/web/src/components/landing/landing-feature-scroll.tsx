@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
+import { scrollToOffset } from "@/lib/landing/smooth-scroll";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -79,7 +80,7 @@ export function LandingFeatureScroll() {
     if (!section) return;
     const distance = section.offsetHeight - window.innerHeight;
     const top = section.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo({ top: top + (index / 2) * distance, behavior: "smooth" });
+    scrollToOffset(top + (index / 2) * distance);
   }, []);
 
   useGSAP(

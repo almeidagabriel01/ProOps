@@ -10,6 +10,7 @@ import {
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import Lenis from "lenis";
+import { setLandingLenis } from "@/lib/landing/smooth-scroll";
 
 // Seções abaixo da dobra: code-split com next/dynamic (ssr: true por padrão),
 // mantendo HTML server-rendered e animações scroll-triggered intactas.
@@ -104,6 +105,7 @@ export function LandingPageClient() {
       // só quando o usuário não pediu redução de movimento
       if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         lenis = new Lenis();
+        setLandingLenis(lenis);
         lenis.on("scroll", ScrollTrigger.update);
         raf = (time: number) => lenis?.raf(time * 1000);
         gsap.ticker.add(raf);
@@ -127,6 +129,7 @@ export function LandingPageClient() {
       if (refreshTimeoutId !== undefined) window.clearTimeout(refreshTimeoutId);
       if (mq && onBreakpointCross) mq.removeEventListener("change", onBreakpointCross);
       if (raf) gsap.ticker.remove(raf);
+      setLandingLenis(null);
       lenis?.destroy();
     };
   }, []);

@@ -38,6 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { LandingButton } from "./_shared/landing-button";
+import { scrollToOffset } from "@/lib/landing/smooth-scroll";
 
 interface LandingNavbarProps {
   currentUser: User | null;
@@ -99,10 +100,7 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
     const top =
       target.getBoundingClientRect().top + window.scrollY - (navHeight + 20);
 
-    window.scrollTo({
-      top: Math.max(top, 0),
-      behavior: "smooth",
-    });
+    scrollToOffset(top);
 
     window.history.replaceState(null, "", href);
 
