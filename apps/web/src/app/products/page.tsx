@@ -462,7 +462,7 @@ export default function ProductsPage() {
             <ProductsSkeleton />
           )}
           <div
-            className="space-y-6 flex-col min-h-[calc(100vh-180px)]"
+            className="space-y-6 flex-col md:min-h-[calc(100vh-180px)]"
             style={{
               display:
                 tenantLoading ||
@@ -471,9 +471,9 @@ export default function ProductsPage() {
                   : "flex",
             }}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
                   {nicheConfig.productCatalog.pluralLabel}
                 </h1>
                 <p className="text-muted-foreground mt-1">
@@ -481,9 +481,9 @@ export default function ProductsPage() {
                 </p>
               </div>
               {canCreate && (
-                <div className="flex gap-2">
-                  <Link href="/products/new">
-                    <Button size="lg" className="gap-2">
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Link href="/products/new" className="block w-full sm:w-auto">
+                    <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Plus className="w-5 h-5" />
                       {nicheConfig.productCatalog.newTitle}
                     </Button>
@@ -521,7 +521,7 @@ export default function ProductsPage() {
                           </button>
                         </Tooltip>
                       </div>
-                      <p className="text-3xl font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
                             <Spinner className="w-4 h-4" />
@@ -568,7 +568,7 @@ export default function ProductsPage() {
                           </button>
                         </Tooltip>
                       </div>
-                      <p className="text-3xl font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
                             <Spinner className="w-4 h-4" />
@@ -596,7 +596,7 @@ export default function ProductsPage() {
                       <p className="text-sm font-medium text-muted-foreground">
                         {inventoryConfig.costBalanceLabel}
                       </p>
-                      <p className="text-3xl font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
                             <Spinner className="w-4 h-4" />
@@ -619,7 +619,7 @@ export default function ProductsPage() {
                       <p className="text-sm font-medium text-muted-foreground">
                         {inventoryConfig.revenueBalanceLabel}
                       </p>
-                      <p className="text-3xl font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
                             <Spinner className="w-4 h-4" />

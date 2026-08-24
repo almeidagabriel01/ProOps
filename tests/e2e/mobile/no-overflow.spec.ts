@@ -226,6 +226,68 @@ test.describe("MOBILE-01 sem overflow horizontal", () => {
     ).toBeLessThanOrEqual(expanded.mainClientWidth + TOLERANCE_PX);
   });
 
+  test("o título da página não é coberto por nenhum botão", async ({
+    authenticatedPage: page,
+  }) => {
+    test.setTimeout(180000);
+
+    // Sobreposição não gera overflow: o botão cabe na largura e ainda assim
+    // fica por cima do título quando ele quebra em duas linhas. Por isso este
+    // caso é separado do MOBILE-01.
+    const violations: string[] = [];
+
+    for (const route of ROUTES) {
+      await page.goto(route);
+      await page
+        .locator("main#main-content")
+        .waitFor({ state: "attached", timeout: 20000 });
+      await page.waitForTimeout(1200);
+
+      const found = await page.evaluate(() => {
+        const heading = document.querySelector<HTMLElement>("main#main-content h1");
+        if (!heading) return null;
+        const h = heading.getBoundingClientRect();
+        if (h.width === 0 || h.height === 0) return null;
+
+        const overlaps: string[] = [];
+        const controls = document.querySelectorAll<HTMLElement>(
+          "main#main-content button, main#main-content a",
+        );
+        for (const el of Array.from(controls)) {
+          // Ignora quem contém o título ou está dentro dele.
+          if (el.contains(heading) || heading.contains(el)) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width === 0 || r.height === 0) continue;
+          const style = window.getComputedStyle(el);
+          if (style.visibility === "hidden" || style.display === "none") continue;
+
+          const intersects =
+            r.left < h.right - 1 &&
+            r.right > h.left + 1 &&
+            r.top < h.bottom - 1 &&
+            r.bottom > h.top + 1;
+          if (intersects) {
+            overlaps.push(
+              `${el.tagName.toLowerCase()} "${(el.textContent || "").trim().slice(0, 30)}"`,
+            );
+          }
+        }
+        return { title: (heading.textContent || "").trim().slice(0, 40), overlaps };
+      });
+
+      if (found && found.overlaps.length > 0) {
+        violations.push(
+          `${route}: o título "${found.title}" é coberto por ${found.overlaps.join(", ")}`,
+        );
+      }
+    }
+
+    expect(
+      violations,
+      `Sobreposição sobre o título em ${violations.length} rota(s): ${violations.join(" | ")}`,
+    ).toEqual([]);
+  });
+
   test("o painel da Lia não é mais largo que a tela", async ({
     authenticatedPage: page,
   }) => {

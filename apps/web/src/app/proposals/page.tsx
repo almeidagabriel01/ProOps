@@ -1061,13 +1061,13 @@ export default function ProposalsPage() {
           {showFullPageSkeleton && <ProposalsSkeleton />}
           <div
             className={cn(
-              "space-y-6 flex flex-col min-h-[calc(100vh-180px)]",
+              "space-y-6 flex flex-col md:min-h-[calc(100vh-180px)]",
               showFullPageSkeleton && "hidden",
             )}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Propostas</h1>
                 <p className="text-muted-foreground mt-1">
                   Gerencie suas propostas comerciais
                 </p>

@@ -327,7 +327,7 @@ export default function ServicesPage() {
             <ServicesSkeleton />
           )}
           <div
-            className="space-y-6 flex-col min-h-[calc(100vh-180px)]"
+            className="space-y-6 flex-col md:min-h-[calc(100vh-180px)]"
             style={{
               display:
                 tenantLoading ||
@@ -336,9 +336,9 @@ export default function ServicesPage() {
                   : "flex",
             }}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
                   {"Serviços"}
                 </h1>
                 <p className="text-muted-foreground mt-1">
@@ -346,9 +346,9 @@ export default function ServicesPage() {
                 </p>
               </div>
               {canCreate && (
-                <div className="flex gap-2">
-                  <Link href="/services/new">
-                    <Button size="lg" className="gap-2">
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Link href="/services/new" className="block w-full sm:w-auto">
+                    <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Plus className="w-5 h-5" />
                       {"Novo Serviço"}
                     </Button>
