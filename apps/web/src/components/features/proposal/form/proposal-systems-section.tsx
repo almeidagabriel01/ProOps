@@ -10,13 +10,23 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
-import { Package, Plus, Minus, Cpu, Trash2, Search, X } from "lucide-react";
+import {
+  Package,
+  Plus,
+  Minus,
+  Cpu,
+  Trash2,
+  Search,
+  X,
+  ChevronDown,
+} from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
@@ -498,6 +508,20 @@ function SystemCard({
     React.useState(false);
   const isDescriptionLong = (sistema.description?.length ?? 0) > 180;
 
+  // Com tudo expandido a etapa vira uma rolagem enorme no celular. Abaixo de
+  // md a solução nasce recolhida; no desktop segue sempre aberta.
+  //
+  // O padrão é derivado de isMobile em vez de virar estado inicial: useIsMobile
+  // retorna false no primeiro render (snapshot do servidor), então congelar o
+  // valor deixaria o card aberto no celular. `null` significa "o usuário ainda
+  // não decidiu".
+  const isMobile = useIsMobile();
+  const [manualExpanded, setManualExpanded] = React.useState<boolean | null>(
+    null,
+  );
+  const isCardExpanded = manualExpanded ?? !isMobile;
+  const itemCount = sistemaProducts.length;
+
   return (
     <div
       className="rounded-lg shadow-sm"
@@ -511,6 +535,7 @@ function SystemCard({
         className="p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 rounded-t-lg"
         style={{ backgroundColor: `${primaryColor}15` }}
       >
+
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div
@@ -609,7 +634,7 @@ function SystemCard({
           </div>
         </div>
 
-        {sistema.description && (
+        {sistema.description && isCardExpanded && (
           <div className="w-full px-1">
             <p
               className={cn(
@@ -633,10 +658,36 @@ function SystemCard({
             )}
           </div>
         )}
+
+        {/* Recolher/expandir — só abaixo de md; no desktop o card fica aberto. */}
+        <button
+          type="button"
+          onClick={() => setManualExpanded(!isCardExpanded)}
+          aria-expanded={isCardExpanded}
+          className="flex w-full items-center justify-between gap-2 border-t border-border/40 pt-2 text-left md:hidden"
+        >
+          <span className="text-xs font-medium text-muted-foreground">
+            {itemCount} {itemCount === 1 ? "item" : "itens"}
+          </span>
+          <span className="flex items-center gap-1 text-xs font-medium text-primary">
+            {isCardExpanded ? "Recolher" : "Ver itens"}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform",
+                isCardExpanded && "rotate-180",
+              )}
+            />
+          </span>
+        </button>
       </div>
 
       {/* Body: Ambientes Sub-containers */}
-      <div className="p-4 space-y-6 bg-background rounded-b-lg">
+      <div
+        className={cn(
+          "p-3 sm:p-4 space-y-6 bg-background rounded-b-lg",
+          !isCardExpanded && "hidden",
+        )}
+      >
         {(sistema.ambientes && sistema.ambientes.length > 0
           ? sistema.ambientes
           : [
