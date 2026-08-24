@@ -47,20 +47,25 @@ const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(
         return (
             <div
                 ref={ref}
-                className={cn("flex items-start gap-4 mb-6", className)}
+                className={cn(
+                    "flex flex-col gap-3 mb-6",
+                    "sm:flex-row sm:items-start sm:gap-4",
+                    className
+                )}
                 {...props}
             >
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleBack}
-                    className="shrink-0 mt-0.5"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                </Button>
-                <div className="flex-1 min-w-0">
+                <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleBack}
+                        className="shrink-0 mt-0.5"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 flex-wrap">
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                             {title}
                         </h1>
                         {badge && (
@@ -72,9 +77,10 @@ const PageHeader = React.forwardRef<HTMLDivElement, PageHeaderProps>(
                             {description}
                         </p>
                     )}
+                    </div>
                 </div>
                 {actions && (
-                    <div className="shrink-0 flex items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                         {actions}
                     </div>
                 )}

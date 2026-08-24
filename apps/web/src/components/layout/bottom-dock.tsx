@@ -329,6 +329,7 @@ export function BottomDock() {
           />
         )}
         <div
+          data-testid="bottom-dock"
           className={cn(
             "fixed left-1/2 bottom-4 -translate-x-1/2 z-40",
             "transition-transform duration-300 ease-out",
@@ -398,6 +399,7 @@ export function BottomDock() {
       )}
 
       <div
+        data-testid="bottom-dock"
         className={cn(
           "fixed left-1/2 bottom-4 -translate-x-1/2 z-40",
           "transition-transform duration-300 ease-out",

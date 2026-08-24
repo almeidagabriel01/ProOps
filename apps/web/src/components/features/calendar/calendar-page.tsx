@@ -44,6 +44,7 @@ import { toast } from "@/lib/toast";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePermissions } from "@/providers/permissions-provider";
 import { CalendarService } from "@/services/calendar-service";
 import type {
@@ -418,6 +419,7 @@ export function CalendarPage() {
   const [showWeekends, setShowWeekends] = React.useState(true);
   const [currentView, setCurrentView] =
     React.useState<CalendarViewType>("dayGridMonth");
+  const isMobile = useIsMobile();
   const [currentTitle, setCurrentTitle] = React.useState("");
   const [isLoadingEvents, setIsLoadingEvents] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -807,6 +809,21 @@ export function CalendarPage() {
     setCurrentView(nextView);
     getCalendarApi()?.changeView(nextView);
   }
+
+  // Uma grade de mês tem 7 colunas; num celular cada dia fica com ~45px e os
+  // eventos viram tarjas ilegíveis. A lista da semana é a visão inicial no
+  // mobile — o usuário continua livre para trocar pelo seletor de visão.
+  const didAutoSelectMobileView = React.useRef(false);
+  React.useEffect(() => {
+    if (!isMobile || didAutoSelectMobileView.current) return;
+    const api = getCalendarApi();
+    if (!api) return;
+    didAutoSelectMobileView.current = true;
+    if (api.view.type === "dayGridMonth") {
+      setCurrentView("listWeek");
+      api.changeView("listWeek");
+    }
+  }, [isMobile]);
 
   function handleCalendarNavigation(action: "prev" | "next" | "today") {
     const api = getCalendarApi();

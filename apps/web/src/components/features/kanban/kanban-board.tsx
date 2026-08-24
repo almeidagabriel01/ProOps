@@ -212,7 +212,9 @@ function SortableColumn<T>({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "shrink-0 w-[330px] flex flex-col rounded-xl",
+        // 330px é mais largo que a área útil de um celular; abaixo de md a
+        // coluna ocupa 85vw e o snap deixa a próxima aparecendo na borda.
+        "shrink-0 w-[85vw] max-w-[330px] md:w-[330px] md:max-w-none snap-start flex flex-col rounded-xl",
         "bg-card/40 dark:bg-card/20 border border-border/40",
         "backdrop-blur-md shadow-sm",
         isDragging && "pointer-events-none",
@@ -461,6 +463,7 @@ export function KanbanBoard<T>({
         onMouseMove={onMouseMove}
         className={cn(
           "flex gap-4 overflow-x-auto pb-4 min-h-[500px] kanban-scrollbar select-none",
+          "snap-x snap-mandatory md:snap-none",
           isDragScrolling ? "cursor-grabbing" : "cursor-auto",
         )}
       >
@@ -595,7 +598,7 @@ export function KanbanBoard<T>({
             return (
               <div
                 className={cn(
-                  "shrink-0 w-[330px] flex flex-col rounded-xl overflow-hidden",
+                  "shrink-0 w-[85vw] max-w-[330px] md:w-[330px] md:max-w-none flex flex-col rounded-xl overflow-hidden",
                   "bg-card/90 dark:bg-card/90 border border-primary/30",
                   "backdrop-blur-md shadow-2xl shadow-black/20 pointer-events-none rotate-2 scale-[1.02]",
                 )}

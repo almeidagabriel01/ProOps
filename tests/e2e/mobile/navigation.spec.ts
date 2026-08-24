@@ -7,7 +7,7 @@ import { test, expect } from "../fixtures/auth.fixture";
  * nenhum dos dois existe no toque. Abaixo de md ele dá lugar à tab bar.
  */
 test.describe("MOBILE-02 navegação", () => {
-  test("tab bar substitui o dock e navega pelos destinos principais", async ({
+  test("a tab bar substitui o dock e navega pelos destinos principais", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/dashboard");
@@ -16,25 +16,25 @@ test.describe("MOBILE-02 navegação", () => {
     await expect(tabBar).toBeVisible();
 
     // O dock desktop não pode renderizar junto.
-    await expect(page.locator('[aria-label="Sair"]').first()).toHaveCount(1);
+    await expect(page.getByTestId("bottom-dock")).toHaveCount(0);
 
-    const links = tabBar.locator("a[href]");
-    const count = await links.count();
-    expect(count).toBeGreaterThan(0);
+    const links = tabBar.locator('a[href^="/"]');
+    await expect(links.first()).toBeVisible();
 
-    // Navega pelo primeiro destino que não seja a rota atual.
-    for (let i = 0; i < count; i += 1) {
-      const href = await links.nth(i).getAttribute("href");
-      if (!href || href.startsWith("http") || href === "/dashboard") continue;
-      await links.nth(i).click();
-      await page.waitForURL(new RegExp(href.replace(/\//g, "\\/")), {
-        timeout: 20000,
-      });
-      await expect(page).toHaveURL(new RegExp(href.replace(/\//g, "\\/")));
-      break;
-    }
+    const hrefs = await links.evaluateAll((nodes) =>
+      nodes.map((n) => n.getAttribute("href") ?? ""),
+    );
+    const target = hrefs.find((href) => href && href !== "/dashboard");
+    expect(target, "a tab bar deve oferecer ao menos um destino").toBeTruthy();
 
+    await tabBar.locator(`a[href="${target}"]`).click();
+    await page.waitForURL(`**${target}`, { timeout: 20000 });
+
+    // A tab bar sobrevive à navegação e marca o destino como atual.
     await expect(page.getByTestId("mobile-tab-bar")).toBeVisible();
+    await expect(
+      page.getByTestId("mobile-tab-bar").locator('a[aria-current="page"]'),
+    ).toHaveCount(1);
   });
 
   test('"Mais" abre o sheet com os demais destinos e o botão Sair', async ({
@@ -51,20 +51,16 @@ test.describe("MOBILE-02 navegação", () => {
     await expect(sheet.getByRole("button", { name: "Sair" })).toBeVisible();
 
     // Um destino do sheet navega e fecha o sheet.
-    const firstLink = sheet.locator("a[href^='/']").first();
-    if (await firstLink.count()) {
-      const href = await firstLink.getAttribute("href");
-      await firstLink.click();
-      if (href) {
-        await page.waitForURL(new RegExp(href.replace(/\//g, "\\/")), {
-          timeout: 20000,
-        });
-      }
-      await expect(page.getByRole("dialog")).toHaveCount(0);
-    }
+    const firstLink = sheet.locator('a[href^="/"]').first();
+    const href = await firstLink.getAttribute("href");
+    expect(href, "o sheet deve listar destinos internos").toBeTruthy();
+
+    await firstLink.click();
+    await page.waitForURL(`**${href}`, { timeout: 20000 });
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
-  test("a tab bar não fica sob o conteúdo nem corta a área rolável", async ({
+  test("a tab bar fica no rodapé e respeita o alvo mínimo de toque", async ({
     authenticatedPage: page,
   }) => {
     await page.goto("/dashboard");
@@ -77,9 +73,9 @@ test.describe("MOBILE-02 navegação", () => {
     expect(box).not.toBeNull();
     expect(viewport).not.toBeNull();
 
-    // Está encostada no rodapé do viewport e não o ultrapassa.
+    // Encostada no rodapé do viewport, sem ultrapassá-lo.
     expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height + 1);
-    // Alvos de toque com pelo menos 44px de altura (Apple HIG / WCAG 2.5.5).
+    // Alvos de toque de pelo menos 44px (Apple HIG / WCAG 2.5.5).
     expect(box!.height).toBeGreaterThanOrEqual(44);
   });
 });
