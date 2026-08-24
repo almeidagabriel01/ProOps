@@ -174,6 +174,29 @@ O step falha o deploy se o secret estiver ausente ou incompleto (checa `RESEND_A
 Falhar é intencional: melhor abortar do que criar uma função sem env vars, que fica
 quebrada em silêncio para sempre.
 
+**Rotacionar um secret no provedor NÃO chega sozinho nas functions já publicadas.**
+"Cloud Functions preserva as env vars já existentes no service" corta para os dois
+lados: preserva também o valor *velho/vazado*. Trocar o valor em
+`apps/functions/.env.erp-softcode*` só tem efeito depois de um `npm run deploy:prod`
+(ou de um deploy do CI com o secret já atualizado) — sem isso as 18 services continuam
+rodando a chave antiga.
+
+Foi assim que a chave Stripe de produção rotacionada em 2026-08-11 ficou fora do ar até
+2026-08-24: as functions seguiram com a `sk_live` comprometida, que a Stripe expirou.
+Todo `prices.retrieve` passou a falhar, `/v1/stripe/plans` devolvia 200 com todos os
+preços zerados e a landing exibia "Sob consulta" nos três planos (o CTA de trial some
+junto, porque `displayPrice <= 0` cai no caminho de Enterprise). Checkout, portal,
+webhooks e os crons de assinatura estavam quebrados pelo mesmo motivo.
+
+Sintoma para diagnosticar rápido — o próprio runtime já avisa nos logs de cada service:
+`[SECURITY][<source>] Compromised secrets detected: ...` (ver `secret-rotation-guard.ts`).
+Conferir o que está publicado de verdade:
+
+```bash
+gcloud run services describe api --project=erp-softcode-prod \
+  --region=southamerica-east1 --format="value(spec.template.spec.containers[0].env)"
+```
+
 ## Troubleshooting Job Failures
 
 | Job | Failed? | What to do |
