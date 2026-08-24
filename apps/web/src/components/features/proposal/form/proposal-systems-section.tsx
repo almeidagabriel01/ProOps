@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
@@ -491,6 +492,12 @@ function SystemCard({
   hideZeroQtyByEnvironment = {},
   onToggleHideZeroQtyByEnvironment,
 }: SystemCardProps) {
+  // Descrições longas viravam uma parede de texto no celular. Abaixo de sm o
+  // texto é limitado a 3 linhas com um "Ver mais"; de sm para cima nada muda.
+  const [isDescriptionExpanded, setIsDescriptionExpanded] =
+    React.useState(false);
+  const isDescriptionLong = (sistema.description?.length ?? 0) > 180;
+
   return (
     <div
       className="rounded-lg shadow-sm"
@@ -603,9 +610,28 @@ function SystemCard({
         </div>
 
         {sistema.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed wrap-break-word w-full max-w-none px-1">
-            {sistema.description}
-          </p>
+          <div className="w-full px-1">
+            <p
+              className={cn(
+                "text-sm text-muted-foreground leading-relaxed wrap-break-word max-w-none",
+                isDescriptionLong &&
+                  !isDescriptionExpanded &&
+                  "max-sm:line-clamp-3",
+              )}
+            >
+              {sistema.description}
+            </p>
+            {isDescriptionLong && (
+              <button
+                type="button"
+                onClick={() => setIsDescriptionExpanded((v) => !v)}
+                className="mt-1 text-xs font-medium text-primary hover:underline sm:hidden"
+                aria-expanded={isDescriptionExpanded}
+              >
+                {isDescriptionExpanded ? "Ver menos" : "Ver mais"}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
