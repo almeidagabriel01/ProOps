@@ -135,6 +135,13 @@ async function measureWhenSettled(
   return previous;
 }
 
+function describeOffenders(report: Measurement): string {
+  if (report.offenders.length === 0) return "";
+  return ` Mais largos que o main: ${report.offenders
+    .map((o) => `${o.selector} (${o.width}px)`)
+    .join(", ")}`;
+}
+
 test.describe("MOBILE-01 sem overflow horizontal", () => {
   test("todas as rotas autenticadas cabem na largura do viewport", async ({
     authenticatedPage: page,
@@ -158,12 +165,7 @@ test.describe("MOBILE-01 sem overflow horizontal", () => {
       }
 
       if (report.mainScrollWidth > report.mainClientWidth + TOLERANCE_PX) {
-        const detail =
-          report.offenders.length > 0
-            ? ` Mais largos que o main: ${report.offenders
-                .map((o) => `${o.selector} (${o.width}px)`)
-                .join(", ")}`
-            : "";
+        const detail = describeOffenders(report);
         violations.push(
           `${route}: conteúdo do <main> mede ${report.mainScrollWidth}px numa área de ${report.mainClientWidth}px.${detail}`,
         );
@@ -186,6 +188,42 @@ test.describe("MOBILE-01 sem overflow horizontal", () => {
       violations,
       `Overflow horizontal em ${violations.length} rota(s):\n  - ${violations.join("\n  - ")}`,
     ).toEqual([]);
+  });
+
+  test("a visão Agrupados não vaza, nem com um lançamento expandido", async ({
+    authenticatedPage: page,
+  }) => {
+    test.setTimeout(120000);
+
+    await page.goto("/transactions");
+    await page
+      .locator("main#main-content")
+      .waitFor({ state: "attached", timeout: 20000 });
+
+    // Agrupados e o corpo expandido são estado de UI, não rota — por isso
+    // escapavam do teste por rota e a sobreposição só apareceu no uso real.
+    const agrupados = page.getByRole("button", { name: /Agrupados/i }).first();
+    await agrupados.waitFor({ state: "visible", timeout: 20000 });
+    await agrupados.click();
+
+    const collapsed = await measureWhenSettled(page, "/transactions");
+    expect(
+      collapsed.mainScrollWidth,
+      `Agrupados fechado: ${collapsed.mainScrollWidth}px numa área de ${collapsed.mainClientWidth}px.${describeOffenders(collapsed)}`,
+    ).toBeLessThanOrEqual(collapsed.mainClientWidth + TOLERANCE_PX);
+
+    const card = page.getByTestId("transaction-card").first();
+    const cardCount = await page.getByTestId("transaction-card").count();
+    test.skip(cardCount === 0, "nenhum lançamento agrupado no seed");
+
+    await card.click();
+    await page.waitForTimeout(1200);
+
+    const expanded = await measureWhenSettled(page, "/transactions");
+    expect(
+      expanded.mainScrollWidth,
+      `Agrupados expandido: ${expanded.mainScrollWidth}px numa área de ${expanded.mainClientWidth}px.${describeOffenders(expanded)}`,
+    ).toBeLessThanOrEqual(expanded.mainClientWidth + TOLERANCE_PX);
   });
 
   test("o painel da Lia não é mais largo que a tela", async ({

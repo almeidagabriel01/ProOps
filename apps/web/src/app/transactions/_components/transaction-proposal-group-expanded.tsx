@@ -104,9 +104,9 @@ export function TransactionProposalGroupExpanded({
       {downPayment && (
         <div
           data-testid="down-payment-row"
-          className={`flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20 ${selectedIds?.has(downPayment.id) ? "ring-2 ring-primary" : ""}`}
+          className={`flex items-center justify-between gap-3 py-2 px-3 max-md:flex-wrap max-md:gap-y-2 bg-blue-500/10 rounded-lg border border-blue-500/20 ${selectedIds?.has(downPayment.id) ? "ring-2 ring-primary" : ""}`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             {onToggleSelection && (
               <div onClick={(e) => e.stopPropagation()}>
                 <Checkbox
@@ -119,16 +119,16 @@ export function TransactionProposalGroupExpanded({
             <div className="p-1.5 rounded-full bg-blue-500/20">
               <Banknote className="w-4 h-4 text-blue-500" />
             </div>
-            <div>
-              <div className="font-medium text-sm">Entrada</div>
-              <div className="text-xs text-muted-foreground">
+            <div className="min-w-0">
+              <div className="truncate font-medium text-sm">Entrada</div>
+              <div className="truncate text-xs text-muted-foreground">
                 Venc: {formatDate(downPayment.dueDate || downPayment.date)}
                 {downPayment.wallet &&
                   ` • ${wallets.find((w) => w.id === downPayment.wallet || w.name === downPayment.wallet)?.name ?? downPayment.wallet}`}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
             <div className="font-bold text-blue-500">
               {formatCurrency(downPayment.amount)}
             </div>
@@ -234,9 +234,9 @@ export function TransactionProposalGroupExpanded({
             {installments.map((inst) => (
               <div
                 key={inst.id}
-                className={`flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border ${selectedIds?.has(inst.id) ? "ring-2 ring-primary" : ""}`}
+                className={`flex items-center justify-between gap-3 py-2 px-3 max-md:flex-wrap max-md:gap-y-2 bg-muted/50 rounded-lg border ${selectedIds?.has(inst.id) ? "ring-2 ring-primary" : ""}`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   {onToggleSelection && (
                     <div onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -251,18 +251,18 @@ export function TransactionProposalGroupExpanded({
                       {inst.installmentNumber}
                     </span>
                   </div>
-                  <div>
-                    <div className="font-medium text-sm">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-sm">
                       Parcela {inst.installmentNumber}/{inst.installmentCount}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="truncate text-xs text-muted-foreground">
                       Venc: {formatDate(inst.dueDate || inst.date)}
                       {inst.wallet &&
                         ` • ${wallets.find((w) => w.id === inst.wallet || w.name === inst.wallet)?.name ?? inst.wallet}`}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
                   <div className="font-bold text-primary">
                     {formatCurrency(inst.amount)}
                   </div>
@@ -361,9 +361,9 @@ export function TransactionProposalGroupExpanded({
       {saldoTx && !installments.length && (
         <div
           data-testid="saldo-row"
-          className={`flex items-center justify-between py-2 px-3 bg-muted/50 rounded-lg border ${selectedIds?.has(saldoTx.id) ? "ring-2 ring-primary" : ""}`}
+          className={`flex items-center justify-between gap-3 py-2 px-3 max-md:flex-wrap max-md:gap-y-2 bg-muted/50 rounded-lg border ${selectedIds?.has(saldoTx.id) ? "ring-2 ring-primary" : ""}`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             {onToggleSelection && (
               <div onClick={(e) => e.stopPropagation()}>
                 <Checkbox
@@ -376,16 +376,16 @@ export function TransactionProposalGroupExpanded({
             <div className="p-1.5 rounded-full bg-primary/10">
               <CreditCard className="w-4 h-4 text-primary" />
             </div>
-            <div>
-              <div className="font-medium text-sm">Saldo restante</div>
-              <div className="text-xs text-muted-foreground">
+            <div className="min-w-0">
+              <div className="truncate font-medium text-sm">Saldo restante</div>
+              <div className="truncate text-xs text-muted-foreground">
                 Venc: {formatDate(saldoTx.dueDate || saldoTx.date)}
                 {saldoTx.wallet &&
                   ` • ${wallets.find((w) => w.id === saldoTx.wallet || w.name === saldoTx.wallet)?.name ?? saldoTx.wallet}`}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
             <div className="font-bold text-primary">
               {formatCurrency(saldoTx.amount)}
             </div>

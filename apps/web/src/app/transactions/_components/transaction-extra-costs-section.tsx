@@ -97,9 +97,9 @@ export function TransactionExtraCostsSection({
         {visibleExtraCosts.map((ec) => (
           <div
             key={`${ec.parentTransactionId}-${ec.id}`}
-            className="flex items-center justify-between py-2 px-3 bg-amber-500/5 rounded-lg border border-amber-500/20"
+            className="flex items-center justify-between gap-3 py-2 px-3 max-md:flex-wrap max-md:gap-y-2 bg-amber-500/5 rounded-lg border border-amber-500/20"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               {onToggleSelection && (
                 <div onClick={(e) => e.stopPropagation()} className="mr-1">
                   <Checkbox
@@ -112,7 +112,7 @@ export function TransactionExtraCostsSection({
               <div className="p-1.5 rounded-full bg-amber-500/20">
                 <DollarSign className="w-4 h-4 text-amber-500" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="font-medium text-sm text-amber-600 dark:text-amber-500">
                   {ec.description}
                 </div>
@@ -131,7 +131,7 @@ export function TransactionExtraCostsSection({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
               <div className="font-bold text-amber-600 dark:text-amber-500">
                 {formatCurrency(ec.amount)}
               </div>
