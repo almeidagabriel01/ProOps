@@ -22,8 +22,11 @@ export function LiaTriggerButton({
       onClick={isOpen ? onClose : onOpen}
       aria-label={isOpen ? "Fechar Lia" : "Abrir Lia"}
       className={cn(
-        // bottom-20 abaixo de md para não cobrir a tab bar de navegação.
-        "fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50",
+        // A tab bar mede ~49px mais env(safe-area-inset-bottom), que no iPhone
+        // vale 34px. Um bottom-20 fixo (80px) invadia a barra nesse caso — e a
+        // emulação de dispositivo do Chrome não mostra isso, porque lá o env()
+        // é sempre zero.
+        "fixed right-4 bottom-[calc(5.5rem_+_env(safe-area-inset-bottom))] md:bottom-6 md:right-6 z-50",
         "flex items-center justify-center",
         "w-[52px] h-[52px] rounded-full",
         "bg-primary text-primary-foreground shadow-lg",
