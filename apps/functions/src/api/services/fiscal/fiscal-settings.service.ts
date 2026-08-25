@@ -13,6 +13,7 @@
  * re-register on a provider change) is kept, KMS-encrypted.
  */
 
+import crypto from "crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
@@ -70,6 +71,15 @@ export interface FiscalSettingsDocument {
   certificadoValidade?: string;
 
   providerIssuerId?: string;
+  /**
+   * Authenticates the provider's notification callback.
+   *
+   * Focus NFe sends no authentication header — unlike Asaas, which signs with
+   * `asaas-access-token`. So the webhook URL itself is the credential and this
+   * secret is a path segment in it. Generated once and never returned to any
+   * client.
+   */
+  webhookSecret?: string;
   /** `manual` until the tenant opts into an automatic trigger. */
   autoIssueRule: FiscalAutoIssueRule;
   defaultNaturezaOperacao?: string;
@@ -268,6 +278,12 @@ export async function saveFiscalSettings(
 
   if (input.certificadoSenha) {
     payload.certificadoSenhaEnc = await encryptToken(input.certificadoSenha, KMS_PURPOSE);
+  }
+
+  // Gerado uma única vez. Rotacioná-lo a cada save invalidaria os gatilhos já
+  // registrados no provedor e derrubaria a notificação em silêncio.
+  if (!existing?.webhookSecret) {
+    payload.webhookSecret = crypto.randomBytes(24).toString("hex");
   }
 
   await docRef(tenantId).set(payload, { merge: true });
