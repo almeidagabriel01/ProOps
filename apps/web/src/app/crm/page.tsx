@@ -89,9 +89,9 @@ export default function KanbanPage() {
       : "Visualize suas propostas em um quadro visual";
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-180px)]">
+    <div className="space-y-6 flex flex-col md:h-[calc(100vh-180px)]">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
           CRM
         </h1>
         <p className="text-sm text-muted-foreground mt-1">{description}</p>

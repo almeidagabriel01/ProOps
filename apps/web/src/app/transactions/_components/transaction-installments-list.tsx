@@ -364,9 +364,9 @@ export function TransactionInstallmentsList({
                 return (
                   <div
                     key={downPayment.id}
-                    className={`flex items-center justify-between py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20 ${selectedIds?.has(downPayment.id) ? "ring-2 ring-primary" : ""}`}
+                    className={`flex items-center justify-between gap-3 py-2 px-3 bg-blue-500/10 rounded-lg border border-blue-500/20 max-md:flex-wrap max-md:gap-y-2 ${selectedIds?.has(downPayment.id) ? "ring-2 ring-primary" : ""}`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       {onToggleSelection && (
                         <Checkbox
                           checked={selectedIds?.has(downPayment.id) || false}
@@ -379,16 +379,16 @@ export function TransactionInstallmentsList({
                       <div className="p-1.5 rounded-full bg-blue-500/20">
                         <Banknote className="w-4 h-4 text-blue-500" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-medium text-sm">Entrada</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="truncate text-xs text-muted-foreground">
                           Venc:{" "}
                           {formatDate(downPayment.dueDate || downPayment.date)}
                           {downPayment.wallet && ` • ${resolveWalletName(downPayment.wallet)}`}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
                       <div className="font-bold text-blue-500">
                         {formatCurrency(downPayment.amount)}
                       </div>
@@ -463,7 +463,8 @@ export function TransactionInstallmentsList({
                           toggleGroup(group.main.installmentNumber || 0)
                         }
                         className={cn(
-                          "group/row flex items-center justify-between py-2 px-3 rounded-lg border transition-all",
+                          "group/row flex items-center justify-between gap-3 py-2 px-3 rounded-lg border transition-all",
+                          "max-md:flex-wrap max-md:gap-y-2",
                           group.main.status === "paid"
                             ? "bg-emerald-500/10 border-emerald-500/20"
                             : group.main.status === "overdue"
@@ -475,7 +476,7 @@ export function TransactionInstallmentsList({
                           hasSubs && "cursor-pointer hover:opacity-80",
                         )}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
                           {onToggleSelection && (
                             <div onClick={(e) => e.stopPropagation()}>
                               <Checkbox
@@ -511,8 +512,8 @@ export function TransactionInstallmentsList({
                             </div>
                           )}
 
-                          <div>
-                            <div className="font-medium text-sm">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium text-sm">
                               {(() => {
                                 const tx = group.main;
                                 if (tx.isRecurring) {
@@ -528,7 +529,7 @@ export function TransactionInstallmentsList({
                                 return tx.description || "Restante";
                               })()}
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="truncate text-xs text-muted-foreground">
                               Venc:{" "}
                               {formatDate(
                                 group.main.dueDate || group.main.date,
@@ -538,7 +539,7 @@ export function TransactionInstallmentsList({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
                           {partialPaymentTx && onUndoPartial && canEdit && (
                             <Button
                               variant="ghost"
@@ -642,7 +643,8 @@ export function TransactionInstallmentsList({
                               <div
                                 key={subItem.id}
                                 className={cn(
-                                  "relative flex items-center justify-between py-2 px-3 rounded-lg border ml-2",
+                                  "relative flex items-center justify-between gap-3 py-2 px-3 rounded-lg border ml-2",
+                                  "max-md:flex-wrap max-md:gap-y-2",
                                   subItem.status === "paid"
                                     ? "bg-emerald-500/10 border-emerald-500/20"
                                     : subItem.status === "overdue"
@@ -653,14 +655,14 @@ export function TransactionInstallmentsList({
                                 {/* Horizontal connection line */}
                                 <div className="absolute -left-3 top-1/2 w-3 h-px bg-border border-t border-dashed" />
 
-                                <div className="flex items-center gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-3">
                                   {/* No check box for subs usually, or maybe they are implicitly selected? Keeping simple for now */}
 
                                   <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                                     <Split className="w-3 h-3" />
                                   </div>
 
-                                  <div>
+                                  <div className="min-w-0">
                                     <div className="font-medium text-sm flex items-center gap-2">
                                       <span>
                                         {subItem.isRecurring
@@ -676,14 +678,14 @@ export function TransactionInstallmentsList({
                                         Parcial
                                       </Badge>
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
+                                    <div className="truncate text-xs text-muted-foreground">
                                       Pago em: {formatDate(subItem.date)}
                                       {subItem.wallet && ` • ${resolveWalletName(subItem.wallet)}`}
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-3">
+                                <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
                                   <div className="font-bold text-muted-foreground text-right">
                                     {formatCurrency(subItem.amount)}
                                   </div>

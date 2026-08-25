@@ -35,7 +35,7 @@ export function PermissionsStep({
           </div>
         </div>
 
-        <div className="rounded-xl border border-border/50 overflow-hidden">
+        <div className="rounded-xl border border-border/50 overflow-x-auto">
           <div className="bg-muted/30 px-4 py-3 border-b border-border/30">
             <p className="text-sm font-medium text-foreground">
               Permissões Detalhadas
@@ -58,12 +58,12 @@ export function PermissionsStep({
               return (
                 <div
                   key={page}
-                  className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-muted/30 transition-colors"
+                  className="flex flex-col gap-2 py-3 px-3 rounded-lg hover:bg-muted/30 transition-colors sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <span className="text-sm font-medium text-foreground">
+                  <span className="min-w-0 text-sm font-medium text-foreground">
                     {pageName}
                   </span>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:justify-end">
                     <PermissionToggle
                       enabled={perms.canView}
                       onChange={(v) => {

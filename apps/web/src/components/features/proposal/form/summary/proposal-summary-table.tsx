@@ -62,13 +62,17 @@ export function ProposalSummaryTable({
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <table className="w-full text-sm">
+    // overflow-x-auto em vez de overflow-hidden: se ainda assim não couber,
+    // o resumo rola em vez de cortar valores silenciosamente.
+    <div className="border rounded-lg overflow-x-auto">
+      <table className="w-full text-xs sm:text-sm">
         <thead className="bg-muted">
           <tr>
-            <th className="text-left p-3">Item</th>
-            <th className="text-right p-3 w-36">Unit.</th>
-            <th className="text-right p-3 w-36">Total</th>
+            <th className="text-left p-2 sm:p-3">Item</th>
+            <th className="hidden text-right p-2 sm:p-3 w-20 sm:w-36 sm:table-cell">
+              Unit.
+            </th>
+            <th className="text-right p-2 sm:p-3 w-20 sm:w-36">Total</th>
           </tr>
         </thead>
         <tbody>

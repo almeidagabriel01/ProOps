@@ -23,7 +23,15 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("flex flex-col space-y-1.5 px-6 pt-6 pb-3", className)}
+        // p-6 custa 48px de largura por nível de card, e isso empilha em cards
+        // aninhados. A redução vai em max-sm: de propósito — com sm: o padrão
+        // vira uma media query que VENCE o className sem prefixo do call site
+        // (o DataTable passa "py-4 px-4") e o desktop quebra. Em max-sm: as
+        // regras não existem de sm para cima, então o desktop fica intacto.
+        className={cn(
+            "flex flex-col space-y-1.5 px-6 pt-6 pb-3 max-sm:px-4 max-sm:pt-4",
+            className
+        )}
         {...props}
     />
 ))
@@ -60,7 +68,15 @@ const CardContent = React.forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+    <div
+        ref={ref}
+        // O pt-0 fica SEM prefixo de propósito: assim um call site que passa
+        // "p-4"/"py-4" o sobrepõe normalmente (mesmo grupo, vence o último).
+        // Um max-sm:pt-0 sobreviveria como media query e zeraria o topo do card
+        // no celular, que foi exatamente o bug espelhado do desktop.
+        className={cn("p-6 pt-0 max-sm:px-4 max-sm:pb-4", className)}
+        {...props}
+    />
 ))
 CardContent.displayName = "CardContent"
 
@@ -70,7 +86,10 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("flex items-center p-6 pt-0", className)}
+        className={cn(
+            "flex items-center p-6 pt-0 max-sm:px-4 max-sm:pb-4",
+            className
+        )}
         {...props}
     />
 ))

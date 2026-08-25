@@ -454,22 +454,32 @@ export function AmbienteEditor({
   ).length;
   const inactiveItemsCount = selectedProducts.length - activeItemsCount;
 
+  // Altura travada só de md para cima: no mobile os dois painéis empilham e
+  // quem rola é o <main> do shell — senão cada um fica com metade de uma tela
+  // de celular e o overflow-hidden corta o conteúdo.
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col space-y-4">
-      <div className="flex items-center justify-between bg-card p-4 rounded-xl border shadow-sm">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack}>
+    <div className="md:h-[calc(100vh-100px)] flex flex-col space-y-4">
+      {/* Abaixo de sm o título e os botões não cabem na mesma linha: o Salvar
+          tem min-w-[120px] e acabava saindo do card. A linha passa a quebrar e
+          os botões ocupam a linha inteira. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-card p-3 sm:p-4 rounded-xl border shadow-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={onBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-xs font-medium text-muted-foreground uppercase tracking-widest">
               Editor do Ambiente
             </span>
-            <h2 className="text-xl font-bold">{name || "Novo Ambiente"}</h2>
+            <h2 className="truncate text-lg sm:text-xl font-bold">{name || "Novo Ambiente"}</h2>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={onBack}>
+        <div className="flex shrink-0 items-center gap-2 max-sm:w-full">
+          <Button
+            variant="outline"
+            className="flex-1 sm:flex-none"
+            onClick={onBack}
+          >
             Cancelar
           </Button>
           <Button
@@ -477,7 +487,7 @@ export function AmbienteEditor({
             disabled={
               isSaving || !name.trim() || (!!ambiente?.id && !hasChanges)
             }
-            className="min-w-[120px]"
+            className="flex-1 sm:flex-none sm:min-w-[120px]"
             inert={isReadOnly || undefined}
           >
             {isSaving ? (
@@ -491,10 +501,10 @@ export function AmbienteEditor({
       </div>
 
       <div
-        className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 overflow-hidden"
+        className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 md:overflow-hidden"
         inert={isReadOnly || undefined}
       >
-        <div className="md:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
+        <div className="md:col-span-4 flex flex-col gap-4 md:overflow-y-auto pr-1">
           <Card>
             <CardHeader className="py-4">
               <CardTitle className="text-base flex items-center gap-2">
@@ -555,7 +565,7 @@ export function AmbienteEditor({
           </Card>
         </div>
 
-        <div className="md:col-span-8 flex flex-col h-full overflow-hidden">
+        <div className="md:col-span-8 flex flex-col md:h-full md:overflow-hidden">
           <Card className="h-full flex flex-col border-none shadow-md bg-card overflow-hidden">
             <div className="flex flex-col gap-4 p-6 border-b bg-background/50">
               <div className="flex items-start justify-between">

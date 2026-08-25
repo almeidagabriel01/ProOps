@@ -25,6 +25,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // O servidor de teste do Playwright compila num diretório próprio para não
+  // brigar com um `npm run dev` aberto na mesma máquina: os dois usariam
+  // apps/web/.next e o config do Playwright apaga esse diretório ao subir.
+  // Sem a variável definida nada muda — build, dev e deploy seguem em .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   // version-skew detection: on client/server deployment mismatch Next falls
   // back to a hard navigation instead of importing stale chunks (no-op locally)

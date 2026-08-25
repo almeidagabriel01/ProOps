@@ -440,7 +440,7 @@ export default function EditCustomerPage() {
               htmlFor="types"
               required
             >
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <button
                   type="button"
                   onClick={() => {
@@ -476,7 +476,7 @@ export default function EditCustomerPage() {
                       className={`w-5 h-5 ${formData.types.includes("cliente") ? "text-primary" : "text-muted-foreground"}`}
                     />
                   </div>
-                  <div className="text-left">
+                  <div className="min-w-0 text-left">
                     <p
                       className={`font-medium ${formData.types.includes("cliente") ? "text-primary" : ""}`}
                     >
@@ -522,7 +522,7 @@ export default function EditCustomerPage() {
                       className={`w-5 h-5 ${formData.types.includes("fornecedor") ? "text-primary" : "text-muted-foreground"}`}
                     />
                   </div>
-                  <div className="text-left">
+                  <div className="min-w-0 text-left">
                     <p
                       className={`font-medium ${formData.types.includes("fornecedor") ? "text-primary" : ""}`}
                     >

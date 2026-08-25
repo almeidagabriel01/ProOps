@@ -36,7 +36,8 @@ export function SettingsChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <SettingsLoadingContext.Provider value={{ setLoading }}>
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* px-0 abaixo de sm: o <main> do shell já dá os 16px de gutter. */}
+      <div className="w-full max-w-6xl mx-auto px-0 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Configurações

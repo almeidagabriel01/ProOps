@@ -182,8 +182,41 @@ function StepIndicator({
 }: StepIndicatorProps) {
   return (
     <div className={cn("relative mx-auto", containerClassName)}>
+      {/* Compact indicator (< sm): a trilha horizontal não cabe em 5 passos
+          num viewport de 360px, então abaixo de sm mostramos só o passo atual. */}
+      <div className="sm:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-primary/60">
+              Passo {currentStep + 1} de {steps.length}
+            </p>
+            <p className="truncate text-sm font-semibold text-foreground">
+              {steps[currentStep]?.title}
+            </p>
+          </div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-primary bg-linear-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
+            {(() => {
+              const Icon = steps[currentStep]?.icon;
+              return Icon ? (
+                <Icon className="h-4 w-4" />
+              ) : (
+                <span className="text-xs font-bold">{currentStep + 1}</span>
+              );
+            })()}
+          </div>
+        </div>
+        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-primary/20">
+          <div
+            className="h-full rounded-full bg-linear-to-r from-primary to-primary/80 transition-all duration-500 ease-out"
+            style={{
+              width: `${((currentStep + 1) / Math.max(steps.length, 1)) * 100}%`,
+            }}
+          />
+        </div>
+      </div>
+
       {/* Steps */}
-      <div className="relative flex justify-between">
+      <div className="relative hidden sm:flex justify-between">
         {/* Progress bar background - positioned between step centers */}
         <div
           className="absolute top-6 h-0.5 bg-primary/20"
@@ -391,13 +424,13 @@ export function StepNavigation({
   };
 
   return (
-    <div className="flex items-center justify-between pt-4 mt-2 border-border/30">
+    <div className="flex items-center justify-between gap-3 pt-4 mt-2 border-border/30">
       {/* Previous Button */}
       {showPrev && !isFirstStep ? (
         <button
           type="button"
           onClick={prevStep}
-          className="h-12 px-6 rounded-xl bg-card border border-border/50 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-muted transition-all duration-200 flex items-center gap-2 cursor-pointer"
+          className="min-h-12 flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-0 rounded-xl bg-card border border-border/50 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-muted transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
         >
           <ChevronLeft className="w-4 h-4" />
           {prevLabel}
@@ -413,12 +446,14 @@ export function StepNavigation({
           onClick={handleSubmit}
           disabled={isSubmitting || isValidating || submitDisabled}
           className={cn(
-            "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
+            // Rótulos longos ("Adicionar à Equipe") não cabiam com px-8 fixo e
+            // o botão saía do container. Abaixo de sm os dois dividem a linha.
+            "min-h-12 flex-1 sm:flex-none px-4 sm:px-8 py-2 sm:py-0 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
             "bg-linear-to-r from-primary to-primary/90 text-primary-foreground",
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
             "hover:scale-[1.02] active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
-            "flex items-center gap-2",
+            "flex items-center justify-center gap-2 text-center",
           )}
         >
           {isSubmitting || isValidating ? (
@@ -439,12 +474,12 @@ export function StepNavigation({
           onClick={handleNext}
           disabled={isValidating || nextDisabled}
           className={cn(
-            "h-12 px-8 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
+            "min-h-12 flex-1 sm:flex-none px-4 sm:px-8 py-2 sm:py-0 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer",
             "bg-linear-to-r from-primary to-primary/90 text-primary-foreground",
             "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
             "hover:scale-[1.02] active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
-            "flex items-center gap-2",
+            "flex items-center justify-center gap-2 text-center",
           )}
         >
           {isValidating ? (

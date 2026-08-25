@@ -62,12 +62,12 @@ export default function CustomersPage() {
     <>
       {showSkeleton && <ContactsSkeleton />}
       <div
-        className="space-y-6 flex-col min-h-[calc(100vh-180px)]"
+        className="space-y-6 flex-col md:min-h-[calc(100vh-180px)]"
         style={{ display: showSkeleton ? "none" : "flex" }}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Clientes e Fornecedores
             </h1>
             <p className="text-muted-foreground mt-1">
@@ -75,8 +75,8 @@ export default function CustomersPage() {
             </p>
           </div>
           {canCreate && (
-            <Link href="/contacts/new">
-              <Button size="lg" className="gap-2">
+            <Link href="/contacts/new" className="block w-full sm:w-auto">
+              <Button size="lg" className="gap-2 w-full sm:w-auto">
                 <Plus className="w-5 h-5" />
                 Novo Cadastro
               </Button>

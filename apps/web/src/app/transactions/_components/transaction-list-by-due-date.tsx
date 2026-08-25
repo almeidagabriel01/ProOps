@@ -462,7 +462,8 @@ export function TransactionListByDueDate({
       <Card>
         <CardContent className="p-0">
           {/* Table Header */}
-          <div className="grid grid-cols-[54px_1fr_100px_100px_100px_100px_80px] gap-4 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground">
+          {/* Cabeçalho só existe na grade; no mobile a linha vira flex-wrap. */}
+          <div className="hidden md:grid grid-cols-[54px_1fr_100px_100px_100px_100px_80px] gap-4 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground">
             <div className="flex items-center pl-2">
               <Checkbox
                 checked={isAllSelected}
@@ -556,13 +557,17 @@ export function TransactionListByDueDate({
                     data-testid="transaction-row"
                     data-transaction-id={tx.id}
                     className={cn(
-                      "grid grid-cols-[54px_1fr_100px_100px_100px_100px_80px] gap-4 px-4 py-2.5 items-center hover:bg-muted/50 transition-colors text-sm cursor-pointer", // Added cursor-pointer
+                      // As 7 trilhas fixas somam ~662px de piso; num viewport
+                      // de 393px isso era cortado em silêncio pelo shell. Abaixo
+                      // de md a linha vira flex-wrap e as células quebram em
+                      // linhas; de md para cima é a mesma grade de sempre.
+                      "flex flex-wrap gap-x-3 gap-y-1.5 md:grid md:grid-cols-[54px_1fr_100px_100px_100px_100px_80px] md:gap-4 px-4 py-2.5 items-center hover:bg-muted/50 transition-colors text-sm cursor-pointer", // Added cursor-pointer
                       isSelected
                         ? tx.type === "income"
                           ? "bg-green-500/15"
                           : "bg-red-500/20"
                         : "",
-                      isSubItem && "bg-muted/30 pl-12", // Increased indent for sub-items
+                      isSubItem && "bg-muted/30 pl-6 md:pl-12", // Increased indent for sub-items
                     )}
                     onClick={() => {
                       if (!isSubItem && hasSubs) {
@@ -571,7 +576,7 @@ export function TransactionListByDueDate({
                     }}
                   >
                     {/* Checkbox / Chevron */}
-                    <div className="flex items-center gap-2 pl-2">
+                    <div className="flex shrink-0 items-center gap-2 pl-2">
                       {/* Always show checkbox if not sub-item or if sub-item logic requires it (usually sub-items also selectable? user didn't specify, but "keep checkbox" usually implies for the main item) */}
                       {/* User said: "vquero que mantenha o checkbox mesmo assim, e a setinha informando se esta aberto ou fechado ao lado" */}
                       <div onClick={(e) => e.stopPropagation()}>
@@ -595,7 +600,7 @@ export function TransactionListByDueDate({
                     </div>
 
                     {/* Description */}
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex flex-1 basis-32 md:flex-none md:basis-auto items-center gap-2 min-w-0">
                       {tx.type === "income" ? (
                         <ArrowUpCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
                       ) : (
@@ -657,7 +662,7 @@ export function TransactionListByDueDate({
                         <Badge
                           variant="secondary"
                           title={parentDescription}
-                          className="max-w-[190px] h-5 px-1.5 shrink min-w-0 gap-1 bg-slate-100 text-slate-700 hover:bg-slate-100 dark:bg-slate-800/60 dark:text-slate-200"
+                          className="max-w-[140px] md:max-w-[190px] h-5 px-1.5 shrink min-w-0 gap-1 bg-slate-100 text-slate-700 hover:bg-slate-100 dark:bg-slate-800/60 dark:text-slate-200"
                         >
                           <FileText className="h-3 w-3 shrink-0" />
                           <span className="truncate">{parentDescription}</span>
@@ -666,13 +671,16 @@ export function TransactionListByDueDate({
                     </div>
 
                     {/* Due Date */}
-                    <div className="text-center text-xs text-muted-foreground">
+                    {/* shrink-0 é essencial no flex-wrap do mobile: sem ele a
+                        célula encolhe abaixo do próprio conteúdo e o texto vaza
+                        por cima da vizinha. Só a descrição é flexível. */}
+                    <div className="shrink-0 whitespace-nowrap text-center text-xs text-muted-foreground">
                       {formatDate(tx.dueDate || tx.date)}
                     </div>
 
                     {/* Amount */}
                     <div
-                      className={`text-center font-medium ${getTypeColor(tx)}`}
+                      className={`shrink-0 whitespace-nowrap text-center font-medium ${getTypeColor(tx)}`}
                     >
                       {tx.type === "expense" ? "-" : ""}
                       {formatCurrency(tx.amount)}
@@ -680,7 +688,7 @@ export function TransactionListByDueDate({
 
                     {/* Wallet */}
                     <div
-                      className="flex justify-center"
+                      className="flex shrink-0 justify-center"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {canEdit && onUpdate ? (
@@ -736,7 +744,7 @@ export function TransactionListByDueDate({
 
                     {/* Status */}
                     <div
-                      className="flex justify-center"
+                      className="flex shrink-0 justify-center"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {tx.isPartialPayment ? (
@@ -820,7 +828,7 @@ export function TransactionListByDueDate({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center justify-center gap-0.5">
+                    <div className="flex shrink-0 items-center justify-center gap-0.5">
                       {tx.isPartialPayment && (
                         <Button
                           variant="ghost"

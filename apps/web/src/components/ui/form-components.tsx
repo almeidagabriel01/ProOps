@@ -22,7 +22,11 @@ export function FormContainer({
   return (
     <div
       className={cn(
-        "w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8",
+        // O <main> do shell já aplica p-4 no celular. Repetir px-4 aqui somava
+        // 64px de gutter (16% de uma tela de 393px) sem que o max-w-5xl chegasse
+        // nem perto de valer. Abaixo de sm o gutter fica só com o do shell —
+        // 16px por lado, que é o que Material 3 (compact) e a HIG prescrevem.
+        "w-full max-w-5xl mx-auto px-0 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-8",
         className
       )}
       {...props}

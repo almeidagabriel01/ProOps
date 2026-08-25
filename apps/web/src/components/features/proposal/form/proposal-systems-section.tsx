@@ -9,13 +9,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 import { ProposalSistema, Sistema, Ambiente } from "@/types/automation";
-import { Package, Plus, Minus, Cpu, Trash2, Search, X } from "lucide-react";
+import {
+  Package,
+  Plus,
+  Minus,
+  Cpu,
+  Trash2,
+  Search,
+  X,
+  ChevronDown,
+} from "lucide-react";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
@@ -266,10 +277,12 @@ export function ProposalSystemsSection({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Cpu className="w-5 h-5" />
-            <CardTitle>Soluções de Automação</CardTitle>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
+            <Cpu className="w-5 h-5 shrink-0" />
+            <CardTitle className="text-lg sm:text-2xl">
+              Soluções de Automação
+            </CardTitle>
           </div>
           {visibleProducts.length > 0 && (
             <ProposalFinancialSummarySmall
@@ -278,7 +291,7 @@ export function ProposalSystemsSection({
             />
           )}
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardDescription>
             Adicione uma ou mais soluções de automação à proposta
           </CardDescription>
@@ -489,6 +502,26 @@ function SystemCard({
   hideZeroQtyByEnvironment = {},
   onToggleHideZeroQtyByEnvironment,
 }: SystemCardProps) {
+  // Descrições longas viravam uma parede de texto no celular. Abaixo de sm o
+  // texto é limitado a 3 linhas com um "Ver mais"; de sm para cima nada muda.
+  const [isDescriptionExpanded, setIsDescriptionExpanded] =
+    React.useState(false);
+  const isDescriptionLong = (sistema.description?.length ?? 0) > 180;
+
+  // Com tudo expandido a etapa vira uma rolagem enorme no celular. Abaixo de
+  // md a solução nasce recolhida; no desktop segue sempre aberta.
+  //
+  // O padrão é derivado de isMobile em vez de virar estado inicial: useIsMobile
+  // retorna false no primeiro render (snapshot do servidor), então congelar o
+  // valor deixaria o card aberto no celular. `null` significa "o usuário ainda
+  // não decidiu".
+  const isMobile = useIsMobile();
+  const [manualExpanded, setManualExpanded] = React.useState<boolean | null>(
+    null,
+  );
+  const isCardExpanded = manualExpanded ?? !isMobile;
+  const itemCount = sistemaProducts.length;
+
   return (
     <div
       className="rounded-lg shadow-sm"
@@ -499,10 +532,11 @@ function SystemCard({
     >
       {/* Header do Sistema */}
       <div
-        className="p-4 flex flex-col gap-4 rounded-t-lg"
+        className="p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 rounded-t-lg"
         style={{ backgroundColor: `${primaryColor}15` }}
       >
-        <div className="flex items-start justify-between w-full">
+
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
@@ -513,7 +547,7 @@ function SystemCard({
             <div className="min-w-0 flex-1">
               {/* Sistema Name - Primary Title */}
               <h4
-                className="font-bold text-xl text-foreground truncate"
+                className="font-bold text-lg sm:text-xl text-foreground truncate"
                 style={{ color: primaryColor }}
               >
                 {sistema.sistemaName}
@@ -544,16 +578,16 @@ function SystemCard({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-10 shrink-0 ml-4">
-            <div className="flex flex-col items-end gap-1">
+          <div className="flex shrink-0 items-center justify-between gap-3 sm:gap-10 sm:ml-4">
+            <div className="flex min-w-0 flex-col items-start gap-1 sm:items-end">
               <span
-                className="text-sm font-medium text-muted-foreground mr-2"
+                className="text-xs sm:text-sm font-medium text-muted-foreground sm:mr-2"
                 title="Soma do valor de custo dos produtos (sem markup)"
               >
                 Custo (Bruto): R$ {sistemaTotal.toFixed(2)}
               </span>
               <span
-                className="text-sm font-bold"
+                className="text-xs sm:text-sm font-bold"
                 style={{ color: primaryColor }}
                 title="Soma do valor final dos produtos (com markup)"
               >
@@ -600,15 +634,60 @@ function SystemCard({
           </div>
         </div>
 
-        {sistema.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed wrap-break-word w-full max-w-none px-1">
-            {sistema.description}
-          </p>
+        {sistema.description && isCardExpanded && (
+          <div className="w-full px-1">
+            <p
+              className={cn(
+                "text-sm text-muted-foreground leading-relaxed wrap-break-word max-w-none",
+                isDescriptionLong &&
+                  !isDescriptionExpanded &&
+                  "max-sm:line-clamp-3",
+              )}
+            >
+              {sistema.description}
+            </p>
+            {isDescriptionLong && (
+              <button
+                type="button"
+                onClick={() => setIsDescriptionExpanded((v) => !v)}
+                className="mt-1 text-xs font-medium text-primary hover:underline sm:hidden"
+                aria-expanded={isDescriptionExpanded}
+              >
+                {isDescriptionExpanded ? "Ver menos" : "Ver mais"}
+              </button>
+            )}
+          </div>
         )}
+
+        {/* Recolher/expandir — só abaixo de md; no desktop o card fica aberto. */}
+        <button
+          type="button"
+          onClick={() => setManualExpanded(!isCardExpanded)}
+          aria-expanded={isCardExpanded}
+          className="flex w-full items-center justify-between gap-2 border-t border-border/40 pt-2 text-left md:hidden"
+        >
+          <span className="text-xs font-medium text-muted-foreground">
+            {itemCount} {itemCount === 1 ? "item" : "itens"}
+          </span>
+          <span className="flex items-center gap-1 text-xs font-medium text-primary">
+            {isCardExpanded ? "Recolher" : "Ver itens"}
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform",
+                isCardExpanded && "rotate-180",
+              )}
+            />
+          </span>
+        </button>
       </div>
 
       {/* Body: Ambientes Sub-containers */}
-      <div className="p-4 space-y-6 bg-background rounded-b-lg">
+      <div
+        className={cn(
+          "p-3 sm:p-4 space-y-6 bg-background rounded-b-lg",
+          !isCardExpanded && "hidden",
+        )}
+      >
         {(sistema.ambientes && sistema.ambientes.length > 0
           ? sistema.ambientes
           : [
@@ -638,8 +717,8 @@ function SystemCard({
               className="rounded-lg border bg-card/50"
             >
               {/* Sub-Header Ambiente */}
-              <div className="px-3 py-2 bg-muted/30 border-b flex items-center justify-between gap-4 rounded-t-lg">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="px-2 py-2 sm:px-3 bg-muted/30 border-b flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-t-lg md:flex-nowrap">
+                <div className="flex basis-full items-center gap-2 flex-1 min-w-0 md:basis-auto">
                   <span
                     className="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
                     style={{
@@ -650,12 +729,12 @@ function SystemCard({
                     📍 {amb.ambienteName}
                   </span>
                   {amb.description && (
-                    <span className="text-xs text-muted-foreground italic leading-tight">
+                    <span className="min-w-0 truncate text-xs text-muted-foreground italic leading-tight">
                       - {amb.description}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 max-md:ml-auto">
                   <span className="text-[11px] text-muted-foreground whitespace-nowrap">
                     Ocultar qtd. 0
                   </span>
@@ -708,7 +787,7 @@ function SystemCard({
               </div>
 
               {/* Lista de Produtos do Ambiente */}
-              <div className="p-3 space-y-2">
+              <div className="p-2 sm:p-3 space-y-2">
                 {visibleScopeProducts.length > 0 ? (
                   [...visibleScopeProducts]
                     .sort(compareConfiguredDisplayItem)
@@ -896,7 +975,10 @@ function ProductRow({
 
   return (
     <div
-      className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+      // Somando toggle, imagem, markup, quantidade e preço sobram ~0px para o
+      // nome num viewport de 390px. Abaixo de md a linha quebra: identificação
+      // em cima, controles embaixo.
+      className={`flex flex-wrap items-center gap-x-3 gap-y-2 md:flex-nowrap p-2 sm:p-3 rounded-lg border transition-all ${
         !isActive
           ? "bg-muted/5 border-dashed border-muted-foreground/20"
           : product.isExtra
@@ -947,7 +1029,7 @@ function ProductRow({
       )}
 
       {/* Product info */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 basis-[55%] min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <h5
             className={`font-medium text-sm text-balance wrap-break-word pr-2 ${!isActive ? "text-muted-foreground" : ""}`}
@@ -988,7 +1070,7 @@ function ProductRow({
 
       {/* Markup Control */}
       {isActive && !isService && (
-        <div className="flex flex-col items-center mr-2">
+        <div className="flex shrink-0 flex-col items-center mr-2">
           <span className="text-[10px] text-muted-foreground mb-0.5">
             Markup
           </span>
@@ -1061,7 +1143,7 @@ function ProductRow({
       </div>
 
       {/* Price */}
-      <div className="flex flex-col items-end min-w-[80px]">
+      <div className="flex shrink-0 flex-col items-end min-w-[80px] max-md:ml-auto">
         {/* If it is a service, allow editing price even if inactive */}
         {isService ? (
           <div className="relative flex items-center group">

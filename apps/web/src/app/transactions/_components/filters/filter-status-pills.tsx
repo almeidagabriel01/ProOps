@@ -60,7 +60,7 @@ export function FilterStatusPills({ value, onChange }: FilterStatusPillsProps) {
   };
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="grid w-full grid-cols-3 gap-1.5 sm:flex sm:w-auto sm:items-center sm:flex-wrap">
       {ALL_STATUSES.map((s) => {
         const { label, Icon, activeClass, inactiveClass, dotColor } =
           STATUS_CONFIG[s];
@@ -74,8 +74,9 @@ export function FilterStatusPills({ value, onChange }: FilterStatusPillsProps) {
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.1 }}
             className={cn(
-              "inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border text-sm font-medium",
+              "inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-full border text-sm font-medium",
               "transition-all duration-200 cursor-pointer select-none shrink-0",
+              "w-full sm:w-auto",
               isActive ? activeClass : inactiveClass,
             )}
           >
@@ -95,7 +96,10 @@ export function FilterStatusPills({ value, onChange }: FilterStatusPillsProps) {
           onClick={() => onChange([])}
           title="Limpar filtros de status"
           aria-label="Limpar filtros de status"
-          className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shrink-0 cursor-pointer"
+          // Abaixo de sm este X ficava órfão numa linha só dele. O botão
+          // "Limpar" da primeira linha já zera os filtros, e tocar na pílula
+          // ativa também a desliga — nada se perde escondendo-o aqui.
+          className="hidden h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shrink-0 cursor-pointer sm:flex"
         >
           <X className="w-3.5 h-3.5" />
         </button>

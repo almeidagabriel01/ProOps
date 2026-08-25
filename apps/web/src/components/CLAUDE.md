@@ -32,9 +32,18 @@ components/
 - Componentes "smart" (com lógica de dados): ficam em pastas de domínio, consomem hooks
 
 ## Shadcn/ui (`components/ui/`)
-- **NUNCA** editar arquivos em `ui/` manualmente
-- Para customizar: use `className` via `cn()` no ponto de uso
-- Para adicionar novo componente: `npx shadcn@latest add [componente]`
+- Arquivos **gerados pelo shadcn** (button, card, dialog, sheet, input, textarea,
+  table, dropdown-menu...): não editar para customizar um uso pontual — use
+  `className` via `cn()` no ponto de uso.
+  Exceção: correção **transversal** que teria de ser repetida em dezenas de call
+  sites (ex.: o bottom sheet mobile do `DialogContent`, o `text-base md:text-sm`
+  de `input`/`textarea` que evita o zoom do iOS). Nesses casos a edição deve ser
+  **aditiva e com guarda de breakpoint**, preservando o comportamento desktop.
+- `ui/` também abriga componentes **próprios do projeto**, que não vêm do
+  registry e são editados normalmente: `data-table.tsx`, `step-wizard.tsx`,
+  `dock.tsx`, `command-palette.tsx`, `form-components.tsx`, `date-picker.tsx`,
+  `upgrade-modal.tsx`, entre outros.
+- Para adicionar novo componente do registry: `npx shadcn@latest add [componente]`
 - Componentes disponíveis incluem: button, card, dialog, alert-dialog, badge, checkbox, avatar, command-palette, e muitos outros
 
 ## Nomenclatura
