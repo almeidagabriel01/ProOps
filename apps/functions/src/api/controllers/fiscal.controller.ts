@@ -16,6 +16,23 @@ import {
   type FiscalAutoIssueRule,
 } from "../services/fiscal/fiscal-settings.service";
 import type { FiscalTaxRegime } from "../services/fiscal/fiscal-types";
+import {
+  buildNcmPrompt,
+  parseNcmSuggestions,
+  NCM_MAX_OUTPUT_TOKENS,
+  NCM_SYSTEM_PROMPT,
+} from "../services/fiscal/ncm-suggestion";
+import { getTenantPlanProfile } from "../../lib/tenant-plan-policy";
+import {
+  checkAiLimit,
+  reserveAiMessage,
+  finalizeTokenUsage,
+  refundAiMessage,
+} from "../../ai/usage-tracker";
+import { sanitizeText } from "../../utils/sanitize";
+
+/** Sugestao por IA segue o mesmo gate dos demais recursos de IA. */
+const NCM_AI_PLANS = new Set<string>(["pro", "enterprise"]);
 
 function mapFiscalErrorStatus(error: Error): number {
   if (error.message === "FISCAL_SETTINGS_NOT_FOUND") return 404;
@@ -334,5 +351,97 @@ export const registerIssuerHandler = async (
       message: detail.message,
       ...(detail.fieldErrors ? { erros: detail.fieldErrors } : {}),
     });
+  }
+};
+
+// POST /v1/fiscal/ncm-suggestions
+//
+// Reaproveita a cota mensal, o rate limiter e o gate de plano da Lia — nao ha
+// razao para o modulo fiscal ter contabilidade de IA propria. A sugestao nunca
+// e aplicada sozinha: a classificacao fiscal e responsabilidade do cliente, o
+// modelo propoe e um humano confirma.
+export const suggestNcmHandler = async (req: Request, res: Response): Promise<void> => {
+  const user = req.user;
+  if (!user?.uid || !user?.tenantId) {
+    res.status(401).json({ message: "Não autenticado" });
+    return;
+  }
+
+  const body = req.body as Record<string, unknown>;
+  const nome = typeof body.nome === "string" ? sanitizeText(body.nome) : "";
+  if (!nome.trim()) {
+    res.status(400).json({ message: "Informe o nome do produto" });
+    return;
+  }
+
+  const planProfile = await getTenantPlanProfile(user.tenantId);
+  if (!NCM_AI_PLANS.has(planProfile.tier)) {
+    // Degrada para digitacao manual, que segue disponivel em qualquer plano.
+    res.status(403).json({
+      message: "Sugestão de NCM por IA está disponível nos planos Pro e Enterprise.",
+      code: "AI_PLAN_NOT_ALLOWED",
+      tier: planProfile.tier,
+    });
+    return;
+  }
+
+  const limitCheck = await checkAiLimit(
+    user.tenantId,
+    planProfile.tier as "pro" | "enterprise",
+  );
+  if (!limitCheck.allowed) {
+    res.status(429).json({
+      message: "Limite mensal de mensagens de IA atingido.",
+      code: "AI_LIMIT_EXCEEDED",
+      resetAt: limitCheck.resetAt,
+    });
+    return;
+  }
+
+  await reserveAiMessage(user.tenantId);
+
+  try {
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+      await refundAiMessage(user.tenantId);
+      res.status(503).json({ message: "Provedor de IA não configurado." });
+      return;
+    }
+
+    const prompt = buildNcmPrompt({
+      nome,
+      descricao: typeof body.descricao === "string" ? sanitizeText(body.descricao) : undefined,
+      categoria: typeof body.categoria === "string" ? sanitizeText(body.categoria) : undefined,
+      fabricante: typeof body.fabricante === "string" ? sanitizeText(body.fabricante) : undefined,
+    });
+
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        systemInstruction: NCM_SYSTEM_PROMPT,
+        maxOutputTokens: NCM_MAX_OUTPUT_TOKENS,
+        // Classificacao fiscal nao quer criatividade.
+        temperature: 0.1,
+      },
+    });
+
+    const suggestions = parseNcmSuggestions(response.text ?? "");
+    await finalizeTokenUsage(user.tenantId, response.usageMetadata?.totalTokenCount ?? 0);
+
+    logger.info("Sugestão de NCM gerada", {
+      tenantId: user.tenantId,
+      uid: user.uid,
+      total: suggestions.length,
+    });
+
+    res.status(200).json({ suggestions });
+  } catch (error) {
+    await refundAiMessage(user.tenantId).catch(() => undefined);
+    const err = error as Error;
+    logger.error("Falha ao sugerir NCM", { tenantId: user.tenantId, error: err.message });
+    res.status(502).json({ message: "Não foi possível sugerir o NCM agora.", code: "AI_ERROR" });
   }
 };

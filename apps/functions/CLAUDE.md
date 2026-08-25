@@ -109,6 +109,17 @@ cd apps/functions && npm run lint
   de teste autorizada — o status `ready` prova o credenciamento na SEFAZ/prefeitura.
 - Emissao e **assincrona**: pre-validacao sincrona no provedor, depois fila. `ref` (nossa)
   e query param obrigatorio, o que da idempotencia de graca.
+- **Campos fiscais sao opcionais no cadastro e exigidos na emissao.** Ninguem precisa parar
+  para classificar o catalogo inteiro antes de usar o ERP; o gate e `fiscal-readiness.ts`,
+  que roda na emissao e lista TODAS as lacunas de uma vez (emitente, cliente, itens).
+- **CFOP, CST/CSOSN e unidade comercial NAO ficam no produto** — sao derivados na emissao
+  (`natureza-operacao.ts`). CFOP e propriedade da *operacao*: a mesma cortina e 5102 dentro
+  do estado e 6102 fora. Guardar no produto forcaria correcao manual em toda venda
+  interestadual. CST/CSOSN sai do regime do emitente; a unidade sai do `inventoryUnit`.
+- **O unico campo que o usuario realmente digita e o NCM** (por produto) e o codigo LC 116 +
+  aliquota ISS (por servico). `POST /v1/fiscal/ncm-suggestions` sugere o NCM via Lia
+  (Gemini), reaproveitando cota, rate limiter e gate de plano do modulo de IA. A sugestao
+  nunca e aplicada sozinha — a classificacao fiscal e responsabilidade do cliente.
 
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`

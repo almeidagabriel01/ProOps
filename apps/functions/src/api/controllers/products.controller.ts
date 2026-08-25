@@ -9,6 +9,7 @@ import {
 import { deleteProductImages } from "../../lib/storage-helpers";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
+import { sanitizeProductFiscalFields } from "../services/fiscal/fiscal-catalog-fields";
 
 const CreateProductSchema = z.object({
   name: z.string().min(2, "Nome inválido.").max(200).trim(),
@@ -24,6 +25,10 @@ const CreateProductSchema = z.object({
   images: z.array(z.string().url().max(2048)).max(20).optional(),
   pricingModel: z.unknown().optional(),
   targetTenantId: z.string().max(100).optional(),
+  ncm: z.union([z.string().max(20), z.literal("")]).optional(),
+  cest: z.union([z.string().max(20), z.literal("")]).optional(),
+  origem: z.coerce.number().int().min(0).max(8).optional(),
+  situacaoTributaria: z.union([z.string().max(5), z.literal("")]).optional(),
 }).passthrough();
 
 const UpdateProductSchema = z.object({
@@ -40,6 +45,10 @@ const UpdateProductSchema = z.object({
   images: z.array(z.string().url().max(2048)).max(20).optional(),
   image: z.string().max(2048).optional(),
   pricingModel: z.unknown().optional(),
+  ncm: z.union([z.string().max(20), z.literal("")]).optional(),
+  cest: z.union([z.string().max(20), z.literal("")]).optional(),
+  origem: z.coerce.number().int().min(0).max(8).optional(),
+  situacaoTributaria: z.union([z.string().max(5), z.literal("")]).optional(),
 }).passthrough();
 
 const parseInventoryValue = (value: unknown): number => {
@@ -212,6 +221,13 @@ export const createProduct = async (req: Request, res: Response) => {
       }
     }
 
+    // null (limpar campo) nao faz sentido na criacao — vira ausencia.
+    const fiscalFields = Object.fromEntries(
+      Object.entries(sanitizeProductFiscalFields(input)).filter(
+        ([, value]) => value !== null,
+      ),
+    );
+
     // Transaction
     const productId = await db.runTransaction(async (transaction) => {
       const companyRef = db.collection("companies").doc(targetTenantId);
@@ -233,6 +249,9 @@ export const createProduct = async (req: Request, res: Response) => {
         stock: inventoryValue,
         status: input.status || "active",
         images: input.images || [],
+        // Campos fiscais entram vazios quando nao informados; a cobranca fica
+        // na emissao (fiscal-readiness.ts), nao no cadastro.
+        ...fiscalFields,
         createdAt: now,
         updatedAt: now,
       });
@@ -345,6 +364,15 @@ export const updateProduct = async (req: Request, res: Response) => {
     for (const field of allowedFields) {
       if (updateData[field] !== undefined)
         safeUpdate[field] = updateData[field];
+    }
+
+    // Campos fiscais sao opcionais no cadastro e exigidos na emissao
+    // (fiscal-readiness.ts). null vira delete para o usuario poder limpar um
+    // NCM errado.
+    for (const [field, value] of Object.entries(
+      sanitizeProductFiscalFields(updateData),
+    )) {
+      safeUpdate[field] = value === null ? FieldValue.delete() : value;
     }
 
     if (updateData.inventoryUnit !== undefined) {
