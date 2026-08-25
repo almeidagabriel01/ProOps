@@ -198,26 +198,50 @@ function MobileCardRow<T>({
           {actions && <div className="shrink-0">{actions.render(item)}</div>}
         </div>
 
-        {/* justify-between distribui os campos na largura do card: com dois
-           (Categoria/Preço) o valor vai para a borda direita, com três
-           (Categoria/Estoque/Preço) o espaçamento fica regular. O último ganha
-           text-right para o número encostar na borda, mas só quando há mais de
-           um campo — sozinho ele deve continuar à esquerda. */}
+        {/* Grade de 2 colunas em vez de flex-wrap: com flex, um campo largo
+           (o preço traz "Base: ... markup" numa segunda linha) quebrava para
+           outra linha e o justify-between espalhava tudo de forma imprevisível.
+           Na grade a posição é fixa — coluna esquerda alinha à esquerda,
+           direita à direita, e um campo ímpar sobrando ocupa a linha toda. */}
         {secondary.length > 0 && (
-          <dl
-            className={cn(
-              "flex flex-wrap items-start justify-between gap-x-4 gap-y-2",
-              secondary.length > 1 && "[&>div:last-child]:text-right",
-            )}
-          >
-            {secondary.map((column) => (
-              <div key={column.key} className="min-w-0">
-                <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  {column.mobileLabel ?? column.header}
-                </dt>
-                <dd className="mt-0.5 text-sm">{column.render(item)}</dd>
-              </div>
-            ))}
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {secondary.map((column, index) => {
+              const isLast = index === secondary.length - 1;
+              const spansRow =
+                secondary.length === 1 ||
+                (isLast && secondary.length % 2 === 1);
+              const alignsRight = spansRow
+                ? secondary.length > 1
+                : index % 2 === 1;
+
+              return (
+                <div
+                  key={column.key}
+                  className={cn(
+                    "min-w-0",
+                    spansRow && "col-span-2",
+                    alignsRight && "text-right",
+                  )}
+                >
+                  <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {column.mobileLabel ?? column.header}
+                  </dt>
+                  {/* justify-end no dd, não só text-right: vários renders trazem
+                     alinhamento próprio (o preço usa items-start, o estoque é
+                     w-fit) e ignoram text-align. Como flex container, o dd
+                     empurra o bloco inteiro para a borda seja qual for o
+                     alinhamento interno dele. */}
+                  <dd
+                    className={cn(
+                      "mt-0.5 text-sm",
+                      alignsRight && "flex justify-end",
+                    )}
+                  >
+                    {column.render(item)}
+                  </dd>
+                </div>
+              );
+            })}
           </dl>
         )}
       </CardContent>
