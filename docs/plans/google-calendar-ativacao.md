@@ -234,6 +234,67 @@ sentido para validar com um ou dois clientes antes de investir na verificação.
 
 ---
 
+## Escopos: por que foram alterados em 25/08/2026
+
+Conectando em **produção**, a agenda ficou "Conectado" mas com o erro
+*"Request had insufficient authentication scopes"*.
+
+Causa exata, confirmada no log de produção:
+
+```
+GET /calendar/v3/calendars/primary/events → insufficient authentication scopes
+em syncGoogleEventsToLocalCalendar
+```
+
+O escopo aprovado era só `calendar.events.owned` — *"See, create, change, and
+delete events on calendars you own"*. Ele permite **agir sobre eventos**, mas
+não **listar** os de uma agenda, porque a lista inclui compromissos em que o
+usuário foi apenas convidado. A documentação do Google exige no mínimo
+`calendar.events.readonly` para `events.list`.
+
+O erro é capturado e a requisição devolve 200, então a tela carrega: **o envio
+ProOps → Google seguia funcionando, só a importação Google → ProOps falhava.**
+
+**Correção:** `calendar.events.readonly` adicionado ao lado de
+`calendar.events.owned`, em vez de trocar os dois por `calendar.events`. Assim o
+app **lê** a agenda inteira mas só **escreve** no que é do próprio usuário —
+menor privilégio na escrita, que é onde o estrago seria maior.
+
+### O que isso exige
+
+1. **Declarar o escopo no console** — Google Auth Platform → Acesso a dados →
+   Adicionar escopos, nos dois projetos. Em dev, aproveite para declarar também
+   os que faltam (hoje a lista está vazia).
+2. **Re-verificação em produção.** O app está verificado com o escopo antigo;
+   adicionar um escopo sensível reabre o processo — vídeo demonstrativo, política
+   de privacidade, revisão do Google. Dias a semanas.
+3. **Todo mundo precisa reconectar.** O refresh token guardado foi emitido para
+   os escopos antigos e o Google recusa a chamada nova até haver novo
+   consentimento. Não há como migrar isso pelo servidor.
+
+### A mensagem agora diz o que fazer
+
+`isInsufficientScopeError` detecta esse caso e grava em `lastSyncError`:
+
+> *"A permissão concedida ao Google Agenda está desatualizada. Clique em
+> Reconectar para autorizar a leitura dos seus eventos."*
+
+Em vez de *"Request had insufficient authentication scopes"*, que não significa
+nada para quem instala cortina. O botão **Reconectar** já existe no card.
+
+### Enquanto a verificação não sai
+
+Em produção, quem conectar continua com o envio funcionando e verá a mensagem de
+reconexão na importação. Se isso incomodar, dá para desligar a flag até a
+verificação concluir — a sincronização de saída para de funcionar junto, mas
+ninguém vê erro.
+
+Em **dev não é preciso esperar**: o projeto está em modo de teste, onde escopos
+não verificados podem ser concedidos (com o aviso de "app não verificado"). Basta
+declarar o escopo no console de dev e reconectar.
+
+---
+
 ## Reverter
 
 Se algo der errado, desligar é seguro e imediato: `GOOGLE_CALENDAR_SYNC_ENABLED=false`

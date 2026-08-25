@@ -46,10 +46,47 @@ const CALENDAR_OAUTH_STATES_COLLECTION = "calendar_oauth_states";
 const DEFAULT_EVENT_COLOR = "#2563eb";
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 const GOOGLE_INBOUND_SYNC_MIN_INTERVAL_MS = 15 * 1000;
+/**
+ * Escopos pedidos no consentimento.
+ *
+ * São dois de calendário de propósito, em vez de um `calendar.events` amplo:
+ *
+ *  - `calendar.events.owned` — **escrever** apenas em eventos que o usuário
+ *    possui. É o que a criação e a edição de compromissos usam.
+ *  - `calendar.events.readonly` — **ler** os eventos da agenda. Necessário para
+ *    `events.list`, que traz também compromissos em que o usuário foi apenas
+ *    convidado — e que `calendar.events.owned` sozinho não alcança.
+ *
+ * Manter os dois separados preserva o menor privilégio na escrita: o app lê a
+ * agenda inteira, mas só altera o que é do próprio usuário. Trocar por
+ * `calendar.events` daria escrita ampla sem necessidade.
+ *
+ * ⚠️ Alterar esta lista **invalida os consentimentos existentes**: o refresh
+ * token guardado foi emitido para os escopos antigos, e o Google recusa a
+ * chamada nova com "insufficient authentication scopes" até o usuário
+ * reconectar. Ver `docs/plans/google-calendar-ativacao.md`.
+ */
 const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events.owned",
+  "https://www.googleapis.com/auth/calendar.events.readonly",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
+
+/**
+ * Marca de um consentimento antigo, concedido antes de um escopo ser
+ * adicionado.
+ *
+ * Sem isso a UI mostra "Request had insufficient authentication scopes", que
+ * não diz nada a quem instala cortina. O que resolve é reconectar, e é isso que
+ * a mensagem precisa dizer.
+ */
+export function isInsufficientScopeError(message: string): boolean {
+  return /insufficient authentication scopes|insufficient_scope/i.test(message);
+}
+
+/** Mensagem acionável para o erro que só a reconexão resolve. */
+export const RECONNECT_REQUIRED_MESSAGE =
+  "A permissão concedida ao Google Agenda está desatualizada. Clique em Reconectar para autorizar a leitura dos seus eventos.";
 
 // RFC 4122 UUID — `state` is generated via crypto.randomUUID() (v4).
 const UUID_RE =
@@ -817,9 +854,9 @@ async function syncGoogleEventsToLocalCalendar(params: {
       lastSyncError: null,
     });
   } catch (error) {
-    const message = sanitizeGoogleError(error);
+    const raw = sanitizeGoogleError(error);
     await persistGoogleIntegrationStatus(integrationRecord.id, {
-      lastSyncError: message,
+      lastSyncError: isInsufficientScopeError(raw) ? RECONNECT_REQUIRED_MESSAGE : raw,
     });
     throw error;
   }
