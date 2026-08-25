@@ -62,7 +62,10 @@ export function AuthLayout({ children, reverse = false }: AuthLayoutProps) {
         }
       `}</style>
 
-      <div className="h-screen w-full overflow-hidden relative bg-background">
+      {/* 100dvh acompanha a barra do navegador móvel; 100vh não, e o rodapé do
+          formulário ficava sob a barra do Safari. h-screen fica como fallback
+          para quem não suporta a unidade dinâmica. */}
+      <div className="h-screen supports-[height:100dvh]:h-[100dvh] w-full overflow-hidden relative bg-background">
         {/* Theme Toggle */}
         <div className="absolute top-5 right-5 z-[60]">
           <AnimatedThemeToggler className="p-3 rounded-full bg-card/60 backdrop-blur-xl hover:bg-muted border border-border/40 shadow-xl transition-all duration-300 text-foreground" />

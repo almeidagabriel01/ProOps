@@ -460,7 +460,11 @@ export function TransactionListByDueDate({
   return (
     <div className="flex flex-col gap-4 flex-1">
       <Card>
-        <CardContent className="p-0">
+        {/* O max-sm:p-0 é obrigatório: CardContent aplica max-sm:px-4/pb-4, que
+            por ser media query vence o p-0 sem prefixo e criava faixas brancas
+            nas laterais das linhas no celular — além de comer 32px de largura
+            justamente onde o título já não cabia. */}
+        <CardContent className="p-0 max-sm:p-0">
           {/* Table Header */}
           {/* Cabeçalho só existe na grade; no mobile a linha vira flex-wrap. */}
           <div className="hidden md:grid grid-cols-[54px_1fr_100px_100px_100px_100px_80px] gap-4 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground">
@@ -561,7 +565,7 @@ export function TransactionListByDueDate({
                       // de 393px isso era cortado em silêncio pelo shell. Abaixo
                       // de md a linha vira flex-wrap e as células quebram em
                       // linhas; de md para cima é a mesma grade de sempre.
-                      "flex flex-wrap gap-x-3 gap-y-1.5 md:grid md:grid-cols-[54px_1fr_100px_100px_100px_100px_80px] md:gap-4 px-4 py-2.5 items-center hover:bg-muted/50 transition-colors text-sm cursor-pointer", // Added cursor-pointer
+                      "flex flex-wrap gap-x-2.5 gap-y-1.5 md:grid md:grid-cols-[54px_1fr_100px_100px_100px_100px_80px] md:gap-4 px-3 py-3 md:px-4 md:py-2.5 items-center hover:bg-muted/50 transition-colors text-sm cursor-pointer", // Added cursor-pointer
                       isSelected
                         ? tx.type === "income"
                           ? "bg-green-500/15"
@@ -576,7 +580,7 @@ export function TransactionListByDueDate({
                     }}
                   >
                     {/* Checkbox / Chevron */}
-                    <div className="flex shrink-0 items-center gap-2 pl-2">
+                    <div className="flex shrink-0 items-center gap-2 pl-0 md:pl-2">
                       {/* Always show checkbox if not sub-item or if sub-item logic requires it (usually sub-items also selectable? user didn't specify, but "keep checkbox" usually implies for the main item) */}
                       {/* User said: "vquero que mantenha o checkbox mesmo assim, e a setinha informando se esta aberto ou fechado ao lado" */}
                       <div onClick={(e) => e.stopPropagation()}>
@@ -600,7 +604,14 @@ export function TransactionListByDueDate({
                     </div>
 
                     {/* Description */}
-                    <div className="flex flex-1 basis-32 md:flex-none md:basis-auto items-center gap-2 min-w-0">
+                    <div
+                      // No celular a descrição toma a primeira linha inteira
+                      // (menos a coluna do checkbox): vencimento, valor,
+                      // carteira e status descem, e o título deixa de ser
+                      // truncado em ~5 caracteres. De md para cima é a célula
+                      // da grade, como sempre.
+                      className="flex flex-1 basis-32 max-md:basis-[calc(100%-4rem)] md:flex-none md:basis-auto items-center gap-2 min-w-0"
+                    >
                       {tx.type === "income" ? (
                         <ArrowUpCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
                       ) : (

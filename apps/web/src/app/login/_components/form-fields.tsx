@@ -256,7 +256,7 @@ export function CredentialFields({
             disabled={isEmailValidating}
             onChange={(e) => onEmailChange(e.target.value)}
             onBlur={onEmailBlur ?? validateEmail}
-            className={`flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm pl-9 pr-10
+            className={`flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-base md:text-sm pl-9 pr-10
               shadow-sm transition-[border-color,box-shadow] duration-200 ease-out
               placeholder:text-muted-foreground/60
               hover:border-primary/40 hover:shadow-md
@@ -296,7 +296,7 @@ export function CredentialFields({
             value={password}
             onChange={(e) => onPasswordChange(e.target.value)}
             onBlur={validatePassword}
-            className={`flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-sm pl-9 pr-10
+            className={`flex h-12 w-full rounded-xl border-2 border-border/60 bg-card px-4 py-3 text-base md:text-sm pl-9 pr-10
               shadow-sm transition-[border-color,box-shadow] duration-200 ease-out
               placeholder:text-muted-foreground/60
               hover:border-primary/40 hover:shadow-md
