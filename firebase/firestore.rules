@@ -601,6 +601,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Configuracao fiscal do emitente (CNPJ, IE/IM, regime, serie/numeracao e a
+    // senha do certificado A1 cifrada em KMS). Colecao propria, e nao um map em
+    // tenants/{id}, porque aquele doc e legivel por qualquer membro do tenant e
+    // o Firestore nao tem regra por campo. Todo acesso passa pelo Admin SDK.
+    match /fiscal_settings/{tenantId} {
+      allow read, write: if false;
+    }
+
     // SECURITY OBSERVABILITY — written exclusively by Cloud Functions (Admin SDK).
     // The audit trail is read through the backend (GET /admin/audit-events), never
     // via the client SDK. Denied here explicitly for clarity (also covered by the

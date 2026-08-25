@@ -268,6 +268,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `wallets/{walletId}` | Financeiro | Carteiras com saldo desnormalizado |
 | `sharedProposals/{token}` | Share Links | Links publicos de propostas |
 | `sharedTransactions/{token}` | Share Links | Links publicos de lancamentos |
+| `fiscal_settings/{tenantId}` | Fiscal | Config do emitente (CNPJ, IE/IM, regime, serie/numeracao, senha do certificado cifrada em KMS). Admin SDK only |
 
 ---
 

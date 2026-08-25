@@ -90,6 +90,26 @@ cd apps/functions && npm run lint
 
 **Deploy note:** enable a Firestore **TTL policy** on the `occurrences` collection group, field `expiresAt` (Firebase console → Firestore → TTL). Not expressible in `firestore.indexes.json`.
 
+### Modulo Fiscal (Nota Fiscal)
+
+- **Provedor unico: Focus NFe** (`FOCUS_NFE_TOKEN_HOMOLOGACAO` / `FOCUS_NFE_TOKEN_PRODUCAO`).
+  Cobre NF-e, NFC-e, NFS-e municipal e NFS-e Nacional no mesmo cadastro de empresa.
+  Auth = HTTP Basic com o token no usuario e senha em branco.
+- **Nenhum codigo de dominio importa o SDK do provedor.** Tudo passa pela interface
+  `FiscalProvider` (`api/services/fiscal/`); os nomes de campo do Focus vivem so em
+  `focus-payload.ts` (saida) e `focus-response.ts` (entrada). Motivo: a Nuvem Fiscal foi
+  desativada em 31/07/2026 com 90 dias de aviso.
+- **`fiscal_settings/{tenantId}`** — colecao propria com `allow read, write: if false`,
+  NAO um map em `tenants/{id}`: aquele doc e legivel por qualquer membro do tenant e o
+  Firestore nao tem regra por campo. Guarda CNPJ, IE/IM, regime, serie/numeracao e a senha
+  do certificado A1 cifrada em KMS (`FISCAL_SECRET_KMS_*`, chave separada da do Calendar).
+- **O certificado A1 (.pfx) nunca e persistido** — sobe uma vez para o provedor, que o
+  custodia e valida (senha, titularidade do CNPJ, validade), e sai da memoria.
+- **Ambiente default e `homologacao`.** Producao e opt-in por tenant e so depois de uma nota
+  de teste autorizada — o status `ready` prova o credenciamento na SEFAZ/prefeitura.
+- Emissao e **assincrona**: pre-validacao sincrona no provedor, depois fila. `ref` (nossa)
+  e query param obrigatorio, o que da idempotencia de graca.
+
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`
 - Nunca commitar — arquivos ignorados pelo `.gitignore`
