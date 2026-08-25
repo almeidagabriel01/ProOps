@@ -158,6 +158,35 @@ cd apps/functions && npm run lint
   (Gemini), reaproveitando cota, rate limiter e gate de plano do modulo de IA. A sugestao
   nunca e aplicada sozinha — a classificacao fiscal e responsabilidade do cliente.
 
+### Modulo Fiscal — Notas de ENTRADA (recepcao)
+
+Complementa a emissao e e **independente** dela. Aqui NAO somos o emitente: nao
+controlamos numeracao, nao assinamos e nao cancelamos. Recebemos, arquivamos e
+permitimos a manifestacao.
+
+- **Opt-in por tenant** via `habilitaManifestacao` (flag `habilita_manifestacao` no cadastro
+  da empresa no Focus). Nasce **desligada** porque **cada nota recebida consome uma unidade
+  do pacote mensal** — a regra do Focus e "cada nota emitida OU RECEBIDA conta como uma
+  unidade". O campo e enviado sempre, inclusive `false`, para o cadastro nao precisar ser
+  refeito quando a recepcao for ligada.
+- **Sincronizacao incremental por `versao`.** Cada nota recebida tem um campo `versao`, unico
+  por CNPJ e incrementado a cada alteracao (cancelamento, carta de correcao). O cursor fica em
+  `received_invoice_cursors/{tenantId}` e **so avanca depois da gravacao** — se o processo
+  morrer no meio, o proximo ciclo refaz o lote em vez de pular notas.
+- `shouldApplyReceivedVersion` recusa versao igual ou menor: aceitar uma menor sobrescreveria
+  um cancelamento com o estado anterior e a nota voltaria a parecer valida.
+- **Antes da manifestacao a Receita entrega so um RESUMO.** O XML completo — com itens, NCM e
+  impostos — so vem depois da **confirmacao**. Nao e limitacao do provedor: e como o fisco
+  desenhou, para o destinatario assumir formalmente a operacao antes de ter o documento.
+- **Manifestacao nunca e automatica.** Confirmar e declaracao formal perante a Receita;
+  desconhecer uma operacao legitima tem consequencia fiscal. So `nao_realizada` exige
+  justificativa (15 a 255 caracteres).
+- **A sinergia que justifica o modulo:** o NCM — unico campo da emissao sem default e sem
+  derivacao — vem nos itens da nota de entrada. A recepcao alimenta o catalogo fiscal que a
+  emissao precisa.
+- Cron `syncReceivedInvoices` roda **de hora em hora**, nao a cada 15 min como o de emissao:
+  nota de entrada nao tem urgencia de segundos, o destinatario tem dias para se manifestar.
+
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`
 - Nunca commitar — arquivos ignorados pelo `.gitignore`

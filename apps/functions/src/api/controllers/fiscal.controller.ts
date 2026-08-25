@@ -275,6 +275,9 @@ export const saveFiscalSettingsHandler = async (
       },
       habilitaNfe,
       habilitaNfse,
+      // Recepcao de notas de entrada: desligada por padrao porque cada nota
+      // recebida consome uma unidade do pacote mensal do provedor.
+      habilitaManifestacao: body.habilitaManifestacao === true,
       serieNfe: body.serieNfe === undefined ? undefined : Number(body.serieNfe),
       proximoNumeroNfe:
         body.proximoNumeroNfe === undefined ? undefined : Number(body.proximoNumeroNfe),

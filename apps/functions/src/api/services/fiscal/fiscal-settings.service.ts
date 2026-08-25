@@ -60,6 +60,8 @@ export interface FiscalSettingsDocument {
 
   habilitaNfe: boolean;
   habilitaNfse: boolean;
+  /** Recepcao de notas de entrada. Desligada por padrao — consome pacote. */
+  habilitaManifestacao?: boolean;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -131,6 +133,7 @@ export interface FiscalSettingsPublic {
   endereco?: FiscalAddress;
   habilitaNfe?: boolean;
   habilitaNfse?: boolean;
+  habilitaManifestacao?: boolean;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -191,6 +194,7 @@ export function toPublicSettings(
     endereco: doc.endereco,
     habilitaNfe: doc.habilitaNfe,
     habilitaNfse: doc.habilitaNfse,
+    habilitaManifestacao: doc.habilitaManifestacao === true,
     autoIssueRule: doc.autoIssueRule,
     certificadoArmazenado: Boolean(doc.certificadoSenhaEnc),
   };
@@ -275,6 +279,7 @@ export async function saveFiscalSettings(
     endereco: input.endereco,
     habilitaNfe: input.habilitaNfe,
     habilitaNfse: input.habilitaNfse,
+    habilitaManifestacao: input.habilitaManifestacao === true,
     autoIssueRule: input.autoIssueRule,
     status: existing?.status === "ready" ? "registered" : (existing?.status ?? "pending"),
     updatedAt: now,
@@ -413,6 +418,7 @@ export function buildIssuerConfig(
     certificadoSenha,
     habilitaNfe: settings.habilitaNfe,
     habilitaNfse: settings.habilitaNfse,
+    habilitaManifestacao: settings.habilitaManifestacao === true,
     serieNfe: settings.serieNfe,
     proximoNumeroNfe: settings.proximoNumeroNfe,
     serieNfse: settings.serieNfse,

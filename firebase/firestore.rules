@@ -613,6 +613,23 @@ service cloud.firestore {
     // a UI acompanha a autorizacao por onSnapshot e nao ha segredo aqui — so
     // dados do proprio documento fiscal. Escrita e exclusiva das Cloud Functions
     // porque numeracao e status sao estado fiscal.
+    // Notas de ENTRADA — emitidas contra o CNPJ do tenant. Mesmo molde de
+    // invoices: o tenant le (a UI lista), so a Cloud Function escreve. A
+    // manifestacao e ato formal perante a Receita e nao pode partir do client.
+    match /received_invoices/{docId} {
+      allow read: if isSuperAdmin()
+                  || isDemoRead(resource.data.tenantId)
+                  || (isAuthenticated()
+                      && belongsToTenant(resource.data.tenantId)
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false;
+    }
+
+    // Cursor de sincronizacao — estado interno, sem valor para o client.
+    match /received_invoice_cursors/{tenantId} {
+      allow read, write: if false;
+    }
+
     match /invoices/{invoiceId} {
       allow read: if isSuperAdmin()
                   || isDemoRead(resource.data.tenantId)

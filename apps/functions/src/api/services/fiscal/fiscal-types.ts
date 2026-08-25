@@ -71,6 +71,14 @@ export interface FiscalIssuerConfig {
   certificadoSenha: string;
   habilitaNfe: boolean;
   habilitaNfse: boolean;
+  /**
+   * Recepção de notas emitidas CONTRA este CNPJ (notas de entrada).
+   *
+   * Nasce desligada de propósito: ligá-la faz o provedor começar a puxar as
+   * notas recebidas, e **cada uma consome uma unidade do pacote mensal**. Não
+   * faz sentido gastar unidades antes de existir tela para mostrá-las.
+   */
+  habilitaManifestacao?: boolean;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;

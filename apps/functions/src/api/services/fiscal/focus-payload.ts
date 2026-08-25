@@ -54,6 +54,7 @@ export interface FocusEmpresaPayload extends Record<string, unknown> {
   cep: string;
   habilita_nfe: boolean;
   habilita_nfse: boolean;
+  habilita_manifestacao: boolean;
   arquivo_certificado_base64: string;
   senha_certificado: string;
 }
@@ -78,6 +79,9 @@ export function buildEmpresaPayload(issuer: FiscalIssuerConfig): FocusEmpresaPay
     cep: digits(issuer.endereco.cep),
     habilita_nfe: issuer.habilitaNfe,
     habilita_nfse: issuer.habilitaNfse,
+    // Enviado sempre, inclusive false: assim o cadastro nao precisa ser
+    // refeito quando a recepcao de notas for ligada mais tarde.
+    habilita_manifestacao: issuer.habilitaManifestacao === true,
     arquivo_certificado_base64: issuer.certificadoBase64,
     senha_certificado: issuer.certificadoSenha,
   };

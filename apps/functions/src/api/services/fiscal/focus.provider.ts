@@ -267,6 +267,59 @@ export class FocusFiscalProvider implements FiscalProvider {
   }
 
   /**
+   * Lista notas emitidas CONTRA o CNPJ — as notas de entrada.
+   *
+   * `versao` é o cursor: a API devolve as 100 primeiras acima do valor
+   * informado. Guardando a maior versão vista, buscamos só o que ainda não
+   * conhecemos, em vez de varrer tudo a cada consulta.
+   */
+  async listReceivedInvoices(
+    env: FiscalEnvironment,
+    token: string,
+    sinceVersion = 0,
+  ): Promise<Record<string, unknown>[]> {
+    const url = `${resolveFocusBaseUrl(env)}/v2/nfes_recebidas?versao=${sinceVersion}`;
+    const response = await axios.get<Record<string, unknown>[]>(
+      url,
+      buildRequestConfig(token),
+    );
+    return Array.isArray(response.data) ? response.data : [];
+  }
+
+  /** Dados já estruturados de uma nota recebida — dispensa parser de XML. */
+  async getReceivedInvoice(
+    chaveAcesso: string,
+    env: FiscalEnvironment,
+    token: string,
+  ): Promise<Record<string, unknown>> {
+    const url = `${resolveFocusBaseUrl(env)}/v2/nfes_recebidas/${encodeURIComponent(chaveAcesso)}/json`;
+    const response = await axios.get<Record<string, unknown>>(url, buildRequestConfig(token));
+    return response.data ?? {};
+  }
+
+  /**
+   * Manifestação do destinatário.
+   *
+   * Ato formal perante a Receita — a justificativa só se aplica a
+   * "operação não realizada", e a validação de tamanho fica no chamador para o
+   * usuário ver o problema antes de a requisição sair.
+   */
+  async manifestReceivedInvoice(
+    chaveAcesso: string,
+    tipo: string,
+    env: FiscalEnvironment,
+    token: string,
+    justificativa?: string,
+  ): Promise<void> {
+    const url = `${resolveFocusBaseUrl(env)}/v2/nfes_recebidas/${encodeURIComponent(chaveAcesso)}/manifesto`;
+    await axios.post(
+      url,
+      { tipo, ...(justificativa ? { justificativa } : {}) },
+      buildRequestConfig(token),
+    );
+  }
+
+  /**
    * Registers a notification hook for one CNPJ and document kind.
    *
    * Focus keys hooks by (cnpj, event, url) and rejects a duplicate, so the

@@ -16,6 +16,12 @@ import {
   listNaturezasHandler,
   disconnectFiscalHandler,
 } from "../controllers/fiscal.controller";
+import {
+  listReceivedInvoicesHandler,
+  getReceivedInvoiceHandler,
+  syncReceivedInvoicesHandler,
+  manifestReceivedInvoiceHandler,
+} from "../controllers/received-invoice.controller";
 import { fieldGenRateLimiter } from "../../ai/field-gen-rate-limiter";
 
 const router = Router();
@@ -58,5 +64,24 @@ router.post(
 );
 router.get("/fiscal/naturezas", validateFirebaseIdToken, listNaturezasHandler);
 router.delete("/fiscal/settings", validateFirebaseIdToken, disconnectFiscalHandler);
+
+// Notas de ENTRADA — emitidas contra o CNPJ do tenant. Modulo complementar ao
+// de emissao e independente dele.
+router.get("/fiscal/received-invoices", validateFirebaseIdToken, listReceivedInvoicesHandler);
+router.post(
+  "/fiscal/received-invoices/sync",
+  validateFirebaseIdToken,
+  syncReceivedInvoicesHandler,
+);
+router.get(
+  "/fiscal/received-invoices/:chave",
+  validateFirebaseIdToken,
+  getReceivedInvoiceHandler,
+);
+router.post(
+  "/fiscal/received-invoices/:chave/manifestacao",
+  validateFirebaseIdToken,
+  manifestReceivedInvoiceHandler,
+);
 
 export { router as fiscalRoutes };
