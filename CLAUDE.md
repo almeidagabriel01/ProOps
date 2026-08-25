@@ -85,6 +85,11 @@ npm run security:scan                  # OWASP ZAP baseline
 - **Stripe** — subscriptions, plan enforcement, overage billing. Webhook: `/stripe/stripeWebhook`
 - **WhatsApp** — webhooks, monthly overage cron (1st of month, 03:00 AM BRT). Webhook: `/webhooks/whatsapp`
 - **Asaas** — payment processing (PIX/boleto/card) for shared-transaction payments. Webhook: `/webhooks/asaas/:tenantId`; public payment API mounted at `/v1`. (Replaced the former MercadoPago webhook.)
+- **Nota Fiscal** — Focus NFe, provedor único de NF-e e NFS-e. Atrás da interface
+  `FiscalProvider` (`apps/functions/src/api/services/fiscal/`); os nomes de campo do provedor
+  ficam só em `focus-payload.ts` e `focus-response.ts`. Webhook: `/webhooks/focus/:tenantId/:secret/:type`
+  (o Focus não manda cabeçalho de auth — a URL é a credencial). Config em `/settings/fiscal`,
+  notas em `/invoices`.
 - **AI/Lia** — Google Gemini + Groq. Module: `apps/functions/src/ai/`. Rate-limited per user.
 - **PDF** — Playwright/Chromium headless, rate-limited (5 req/60s per user)
 - **Google Calendar** — via `@googleapis/calendar` + `@googleapis/oauth2` (lazy-loaded)
