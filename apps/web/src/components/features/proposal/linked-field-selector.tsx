@@ -334,7 +334,7 @@ export function LinkedFieldsConfig({
                 entries: [],
               })
             }
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm"
           >
             <option value="">Selecione...</option>
             {parentTypes.map((type) => (
@@ -356,7 +356,7 @@ export function LinkedFieldsConfig({
               })
             }
             disabled={!value.parentTypeId}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm disabled:opacity-50"
           >
             <option value="">Selecione...</option>
             {childTypes.map((type) => (

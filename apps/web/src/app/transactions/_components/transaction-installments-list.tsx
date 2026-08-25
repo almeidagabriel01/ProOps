@@ -574,7 +574,7 @@ export function TransactionInstallmentsList({
                                     }
                                     autoFocus
                                     disabled={isSaving}
-                                    className="h-7 py-0.5 pr-2 pl-2 w-28 text-right font-medium text-sm bg-background border-primary"
+                                    className="h-7 py-0.5 pr-2 pl-2 w-28 text-right font-medium text-base md:text-sm bg-background border-primary"
                                     onBlur={() => handleEditSave(group.main)}
                                   />
                                 </div>

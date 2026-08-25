@@ -223,7 +223,8 @@ export const SearchableSelect = React.forwardRef<
             placeholder={selectedOption ? undefined : searchPlaceholder}
             disabled={disabled}
             className={cn(
-              "w-full h-12 pl-9 pr-16 rounded-xl border-2 border-border/60 bg-card text-sm shadow-sm transition-[border-color,box-shadow] duration-200 ease-out",
+              // text-base (16px) abaixo de md evita o zoom automático do iOS.
+              "w-full h-12 pl-9 pr-16 rounded-xl border-2 border-border/60 bg-card text-base md:text-sm shadow-sm transition-[border-color,box-shadow] duration-200 ease-out",
               "placeholder:text-muted-foreground/60 hover:border-primary/40 hover:shadow-md",
               "focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10",
               "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border/60 disabled:hover:shadow-sm",

@@ -192,7 +192,9 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
           type="text"
           inputMode="numeric"
           className={cn(
-            "flex h-12 w-full rounded-xl border-2 border-border/60 bg-card pr-4 py-3 text-sm",
+            // text-base (16px) abaixo de md: menos que isso faz o iOS dar
+            // zoom automático ao focar o campo.
+            "flex h-12 w-full rounded-xl border-2 border-border/60 bg-card pr-4 py-3 text-base md:text-sm",
             prefixSymbol ? "pl-11" : "pl-4",
             "shadow-sm transition-[border-color,box-shadow] duration-200 ease-out",
             "placeholder:text-muted-foreground/60",

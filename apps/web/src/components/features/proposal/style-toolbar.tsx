@@ -56,7 +56,7 @@ export function StyleToolbar({
               onChange={(e) =>
                 updateTextStyle({ fontSize: Number(e.target.value) })
               }
-              className="h-8 px-2 text-xs bg-background border rounded"
+              className="h-8 max-md:h-9 px-2 text-base md:text-xs bg-background border rounded"
             >
               {[12, 14, 16, 18, 20, 24, 28, 32, 36, 48].map((size) => (
                 <option key={size} value={size}>
@@ -99,7 +99,7 @@ export function StyleToolbar({
                       onChange={(e) =>
                         updateTextStyle({ color: e.target.value })
                       }
-                      className="h-7 text-xs w-20"
+                      className="h-7 text-base md:text-xs w-20"
                       placeholder="#000000"
                     />
                     <Button
@@ -274,7 +274,7 @@ export function StyleToolbar({
               onChange={(e) =>
                 updateImageStyle({ borderRadius: Number(e.target.value) })
               }
-              className="h-8 px-2 text-xs bg-background border rounded"
+              className="h-8 max-md:h-9 px-2 text-base md:text-xs bg-background border rounded"
             >
               <option value={16}>Borda grande</option>
               <option value={8}>Borda média</option>

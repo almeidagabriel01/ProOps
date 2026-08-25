@@ -135,7 +135,7 @@ export function TableEditor({ content, onUpdate }: TableEditorProps) {
                         updateItem(item.id, { name: e.target.value })
                       }
                       placeholder="Nome do item"
-                      className="h-8 text-sm"
+                      className="h-8 text-base md:text-sm"
                     />
                   </td>
                   <td className="px-3 py-2">
@@ -147,7 +147,7 @@ export function TableEditor({ content, onUpdate }: TableEditorProps) {
                           quantity: Number(e.target.value),
                         })
                       }
-                      className="h-8 text-sm text-center"
+                      className="h-8 text-base md:text-sm text-center"
                       min={1}
                     />
                   </td>
@@ -160,7 +160,7 @@ export function TableEditor({ content, onUpdate }: TableEditorProps) {
                           unitPrice: Number(e.target.value),
                         })
                       }
-                      className="h-8 text-sm text-right"
+                      className="h-8 text-base md:text-sm text-right"
                       step="0.01"
                       min={0}
                     />

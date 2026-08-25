@@ -1497,7 +1497,7 @@ function EditableQuantityInput({
         }
       }}
       className={cn(
-        "h-8 rounded-md border bg-background px-2 text-center font-mono text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12",
+        "h-8 rounded-md border bg-background px-2 text-center font-mono text-base md:text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12",
         className,
       )}
       aria-label="Quantidade do item"

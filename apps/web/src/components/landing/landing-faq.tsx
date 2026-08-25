@@ -83,7 +83,7 @@ export function LandingFAQ() {
               }}
               onKeyDown={handleKeyDown}
               placeholder="Pergunte algo sobre a ProOps…"
-              className="w-full bg-transparent text-sm text-black outline-none placeholder:text-black/40 dark:text-white dark:placeholder:text-white/40 md:text-base"
+              className="w-full bg-transparent text-base text-black outline-none placeholder:text-black/40 dark:text-white dark:placeholder:text-white/40"
             />
             <kbd className="hidden shrink-0 rounded-md border border-black/15 px-1.5 py-0.5 text-[0.65rem] font-medium text-black/45 dark:border-white/15 dark:text-white/45 sm:block">
               {query ? "esc" : "/"}

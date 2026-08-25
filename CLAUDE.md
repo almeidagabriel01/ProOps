@@ -110,11 +110,17 @@ a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
   sem isso um padrão é derivado da ordem. `minWidth` só vale de `md` para cima.
 - **Prefira CSS (`md:`) a JavaScript.** `useIsMobile()` (`hooks/use-is-mobile.ts`)
   só onde renderizar as duas árvores seria custoso ou semanticamente errado.
-- **Campos de formulário:** abaixo de `md` todo `<input>`/`<textarea>` precisa
-  de `text-base` (16px) — com menos que isso o iOS dá zoom ao focar o campo, e
-  travar `maximum-scale` no viewport não é opção (quebra acessibilidade). Os
-  primitivos (`ui/input.tsx`, `ui/textarea.tsx`, `ui/phone-input.tsx`) já usam
-  `text-base md:text-sm`; um `className` com `text-sm` no call site desfaz isso.
+- **Campos de formulário:** abaixo de `md` todo `<input>`/`<textarea>`/`<select>`
+  precisa de `text-base` (16px) — com menos que isso o iOS dá zoom ao focar o
+  campo, e travar `maximum-scale` no viewport não é opção (quebra
+  acessibilidade). O padrão é `text-base md:text-sm`: 16px no celular, tamanho
+  original no desktop. Vale para os primitivos (`ui/input.tsx`, `textarea`,
+  `phone-input`, `currency-input`, `decimal-input`, `searchable-select`) **e**
+  para os call sites — um `className` com `text-sm`/`text-xs` sem guarda `md:`
+  desfaz o primitivo, e um `[&>div>input]:text-xs` também. O guard
+  `src/__tests__/mobile-input-font-size.test.ts` varre o código e falha nesses
+  casos; ele cobre o que um teste de rota não alcança (campo dentro de dropdown,
+  passo de wizard, card expandido).
 - **`CardContent` sangrado:** `CardContent` aplica `max-sm:px-4 max-sm:pb-4`.
   Por serem media queries elas vencem um `p-0` sem prefixo (e o twMerge não as
   remove — modificadores diferentes não conflitam). Conteúdo que precisa ir até

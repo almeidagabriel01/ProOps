@@ -87,7 +87,8 @@ const DecimalInput = React.forwardRef<HTMLInputElement, DecimalInputProps>(
         type="text"
         inputMode="numeric"
         className={cn(
-          "h-8 rounded-md border bg-background px-2 text-center text-sm font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20",
+          // text-base (16px) abaixo de md evita o zoom automático do iOS.
+          "h-8 rounded-md border bg-background px-2 text-center text-base md:text-sm font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20",
           className
         )}
         ref={ref}

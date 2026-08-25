@@ -1310,7 +1310,7 @@ function EnvironmentProductRow({
                   }}
                   onBlur={handleMarkupBlur}
                   onKeyDown={handleMarkupKeyDown}
-                  className="h-9 w-16 rounded-md border bg-background px-2 pr-5 text-right text-sm transition-all hover:border-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 w-16 rounded-md border bg-background px-2 pr-5 text-right text-base md:text-sm transition-all hover:border-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <span className="pointer-events-none absolute right-2 text-xs text-muted-foreground group-focus-within:text-foreground">
                   %
@@ -1337,7 +1337,7 @@ function EnvironmentProductRow({
                       event.currentTarget.blur();
                     }
                   }}
-                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                   aria-label="Largura"
                   placeholder="0,00"
                 />
@@ -1358,7 +1358,7 @@ function EnvironmentProductRow({
                       event.currentTarget.blur();
                     }
                   }}
-                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                   aria-label="Altura"
                   placeholder="0,00"
                 />
@@ -1417,7 +1417,7 @@ function EnvironmentProductRow({
                       event.currentTarget.blur();
                     }
                   }}
-                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                   aria-label="Largura"
                   placeholder="0,00"
                 />
@@ -1462,7 +1462,7 @@ function EnvironmentProductRow({
                       event.currentTarget.blur();
                     }
                   }}
-                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="h-9 w-full rounded-md border bg-background px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-2 focus:ring-primary/20"
                   aria-label="Largura"
                   placeholder="0,00"
                 />
@@ -1534,7 +1534,7 @@ function EnvironmentProductRow({
                         event.currentTarget.blur();
                       }
                     }}
-                    className="h-7 rounded-md border bg-background px-2 text-center text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12"
+                    className="h-7 rounded-md border bg-background px-2 text-center text-base md:text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20 w-12"
                     aria-label="Quantidade do item"
                   />
                 )}
@@ -1570,7 +1570,7 @@ function EnvironmentProductRow({
                   onChange={(event) => setPriceInput(event.target.value)}
                   onKeyDown={handlePriceKeyDown}
                   autoFocus
-                  className="h-8 w-28 border-primary bg-background py-1 pl-2 pr-2 text-right text-sm font-medium"
+                  className="h-8 w-28 border-primary bg-background py-1 pl-2 pr-2 text-right text-base md:text-sm font-medium"
                   onBlur={handlePriceBlur}
                 />
               </div>
@@ -1697,7 +1697,7 @@ function DimensionPanelsField({
               event.currentTarget.blur();
             }
           }}
-          className="h-8 w-11 rounded-md border border-border/60 bg-background px-1 text-center text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className="h-8 w-11 rounded-md border border-border/60 bg-background px-1 text-center text-base md:text-sm font-medium tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
           aria-label="Quantidade do produto"
         />
         <Button
@@ -1858,7 +1858,7 @@ function ExtraProductsGrid({
               ref={productsInputRef}
               type="text"
               placeholder="Buscar produto para adicionar..."
-              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-sm outline-none"
+              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-base md:text-sm outline-none"
               value={productSearchTerm}
               onChange={(event) => {
                 setProductSearchTerm(event.target.value);
@@ -1940,7 +1940,7 @@ function ExtraProductsGrid({
               ref={servicesInputRef}
               type="text"
               placeholder="Buscar serviço para adicionar..."
-              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-sm outline-none"
+              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-base md:text-sm outline-none"
               value={serviceSearchTerm}
               onChange={(event) => {
                 setServiceSearchTerm(event.target.value);

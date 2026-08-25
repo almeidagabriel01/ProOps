@@ -441,7 +441,7 @@ export function TransactionCard({
                         onKeyDown={handleAmountKeyDown}
                         autoFocus
                         disabled={isSavingAmount}
-                        className="h-8 py-1 pr-2 pl-8 w-32 text-right font-bold text-sm bg-background border-primary"
+                        className="h-8 py-1 pr-2 pl-8 w-32 text-right font-bold text-base md:text-sm bg-background border-primary"
                         onBlur={handleAmountSave}
                       />
                       {isSavingAmount && (
