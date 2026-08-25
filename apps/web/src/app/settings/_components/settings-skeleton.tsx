@@ -62,7 +62,7 @@ export function SettingsShellSkeleton({
   children: React.ReactNode;
 }) {
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="w-full max-w-6xl mx-auto px-0 sm:px-6 lg:px-8 py-4 sm:py-8">
       <div className="mb-6 space-y-2">
         <Skeleton className="h-8 w-48 sm:h-9 sm:w-56" />
         <Skeleton className="h-4 w-72" />
