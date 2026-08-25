@@ -649,9 +649,11 @@ export default function ProposalsPage() {
             ) || 0;
           return (
             <div>
+              {/* Clamp no título, não no wrapper: o subtítulo abaixo precisa
+                  continuar visível. */}
               <Link
                 href={`/proposals/${proposal.id}?initialStep=automation`}
-                className="font-medium hover:underline"
+                className="font-medium hover:underline max-md:line-clamp-2 wrap-break-word"
               >
                 {proposal.title}
               </Link>

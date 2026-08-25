@@ -333,9 +333,12 @@ export default function ProductsPage() {
       className: hideInventoryColumn ? "col-span-5" : "col-span-4",
       priority: "primary",
       render: (product) => (
+        // No card do mobile o nome é o campo principal; sem limite, um nome
+        // longo empurra categoria e preço para fora da primeira dobra. Duas
+        // linhas com reticências; o nome inteiro fica na página do produto.
         <Link
           href={`/products/${product.id}`}
-          className="font-medium hover:underline"
+          className="font-medium hover:underline max-md:line-clamp-2 wrap-break-word"
         >
           {product.name}
         </Link>

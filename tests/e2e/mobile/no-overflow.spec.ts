@@ -296,6 +296,89 @@ test.describe("MOBILE-01 sem overflow horizontal", () => {
     ).toEqual([]);
   });
 
+  test("nome muito longo não quebra o card nem estoura a largura", async ({
+    authenticatedPage: page,
+  }) => {
+    test.setTimeout(120000);
+
+    // O seed tem nomes curtos, então o layout nunca é exercitado no pior caso.
+    // Aqui o texto é injetado no DOM: uma frase longa (quebra em espaços) e uma
+    // sequência sem espaço nenhum, que é o caso que line-clamp sozinho não
+    // resolve — só overflow-wrap resolve.
+    const CASES = [
+      "Projeto, Instalação e Configuração do Sistema de Som Multizona com Assistente Virtual Integrado para Áreas Comuns e Privativas",
+      "SKU" + "X".repeat(90),
+    ];
+
+    // O seletor precisa ser o link de detalhe do ITEM. Pegar o primeiro
+    // a[href] do <main> acertava o botão do cabeçalho e media outra coisa.
+    const TARGETS: { route: string; selector: string }[] = [
+      // :not([href$="/new"]) é essencial — /products/new também casa com o
+      // prefixo e o alvo virava o botão "Novo Produto" do cabeçalho.
+      { route: "/products", selector: 'a[href^="/products/"]:not([href$="/new"])' },
+      { route: "/services", selector: 'a[href^="/services/"]:not([href$="/new"])' },
+      { route: "/proposals", selector: 'a[href^="/proposals/"]:not([href$="/new"])' },
+    ];
+
+    const measured: string[] = [];
+    const noItems: string[] = [];
+
+    for (const { route, selector } of TARGETS) {
+      await page.goto(route);
+      await page
+        .locator("main#main-content")
+        .waitFor({ state: "attached", timeout: 20000 });
+      await page.waitForTimeout(1500);
+
+      for (const text of CASES) {
+        const result = await page.evaluate(({ longText, sel }) => {
+          const main = document.querySelector<HTMLElement>("main#main-content");
+          if (!main) return null;
+          const link = main.querySelector<HTMLElement>(sel);
+          if (!link) return null;
+          const original = link.textContent;
+          link.textContent = longText;
+          const measured = {
+            mainScrollWidth: main.scrollWidth,
+            mainClientWidth: main.clientWidth,
+            linkWidth: Math.round(link.getBoundingClientRect().width),
+          };
+          link.textContent = original;
+          return measured;
+        }, { longText: text, sel: selector });
+
+        // Rota sem itens no seed não pode ser medida. Registrar em vez de
+        // passar em silêncio — a asserção final garante que ao menos uma rota
+        // foi realmente exercitada.
+        if (!result) {
+          if (!noItems.includes(route)) noItems.push(route);
+          continue;
+        }
+        if (!measured.includes(route)) measured.push(route);
+
+        expect(
+          result.mainScrollWidth,
+          `${route} com nome de ${text.length} caracteres: <main> mede ${result.mainScrollWidth}px numa área de ${result.mainClientWidth}px`,
+        ).toBeLessThanOrEqual(result.mainClientWidth + TOLERANCE_PX);
+
+        expect(
+          result.linkWidth,
+          `${route}: o texto longo mede ${result.linkWidth}px, mais que a área de ${result.mainClientWidth}px`,
+        ).toBeLessThanOrEqual(result.mainClientWidth);
+      }
+    }
+
+    if (noItems.length > 0) {
+      console.log(
+        `[MOBILE-01] rotas sem itens no seed, não medidas: ${noItems.join(", ")}`,
+      );
+    }
+    expect(
+      measured.length,
+      `nenhuma rota pôde ser medida (sem itens no seed): ${noItems.join(", ")}`,
+    ).toBeGreaterThan(0);
+  });
+
   test("o painel da Lia não é mais largo que a tela", async ({
     authenticatedPage: page,
   }) => {

@@ -220,7 +220,7 @@ export default function ServicesPage() {
       render: (service) => (
         <Link
           href={`/services/${service.id}`}
-          className="font-medium hover:underline"
+          className="font-medium hover:underline max-md:line-clamp-2 wrap-break-word"
         >
           {service.name}
         </Link>
