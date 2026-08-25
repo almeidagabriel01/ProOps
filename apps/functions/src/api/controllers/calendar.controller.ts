@@ -49,17 +49,19 @@ const GOOGLE_INBOUND_SYNC_MIN_INTERVAL_MS = 15 * 1000;
 /**
  * Escopos pedidos no consentimento.
  *
- * São dois de calendário de propósito, em vez de um `calendar.events` amplo:
+ * `calendar.events` cobre ler e escrever eventos em **todas** as agendas do
+ * usuário, incluindo a `primary`, que é a que este módulo sincroniza.
  *
- *  - `calendar.events.owned` — **escrever** apenas em eventos que o usuário
- *    possui. É o que a criação e a edição de compromissos usam.
- *  - `calendar.events.readonly` — **ler** os eventos da agenda. Necessário para
- *    `events.list`, que traz também compromissos em que o usuário foi apenas
- *    convidado — e que `calendar.events.owned` sozinho não alcança.
+ * O escopo anterior era `calendar.events.owned` — "events on calendars you
+ * own". Ele foi desenhado para agendas secundárias criadas pelo usuário e
+ * **não alcança a `primary`**: em 25/08/2026, em produção, tanto `events.list`
+ * quanto `events.insert` sobre `calendars/primary` falharam com "insufficient
+ * authentication scopes". O recurso nunca funcionou — ficou escondido atrás da
+ * flag desligada.
  *
- * Manter os dois separados preserva o menor privilégio na escrita: o app lê a
- * agenda inteira, mas só altera o que é do próprio usuário. Trocar por
- * `calendar.events` daria escrita ampla sem necessidade.
+ * Um escopo só, e não `owned` + `readonly`: como a escrita em `primary` já
+ * exige o escopo amplo, separar a leitura não reduziria privilégio nenhum e
+ * dobraria o trabalho de verificação.
  *
  * ⚠️ Alterar esta lista **invalida os consentimentos existentes**: o refresh
  * token guardado foi emitido para os escopos antigos, e o Google recusa a
@@ -67,8 +69,7 @@ const GOOGLE_INBOUND_SYNC_MIN_INTERVAL_MS = 15 * 1000;
  * reconectar. Ver `docs/plans/google-calendar-ativacao.md`.
  */
 const GOOGLE_CALENDAR_SCOPES = [
-  "https://www.googleapis.com/auth/calendar.events.owned",
-  "https://www.googleapis.com/auth/calendar.events.readonly",
+  "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
 

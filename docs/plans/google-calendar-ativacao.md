@@ -239,42 +239,46 @@ sentido para validar com um ou dois clientes antes de investir na verificação.
 Conectando em **produção**, a agenda ficou "Conectado" mas com o erro
 *"Request had insufficient authentication scopes"*.
 
-Causa exata, confirmada no log de produção:
+O escopo aprovado era `calendar.events.owned` — *"See, create, change, and
+delete events on calendars you own"*. Na prática ele foi desenhado para agendas
+**secundárias** criadas pelo usuário e **não alcança a `primary`**, que é a que
+este módulo sincroniza.
 
-```
-GET /calendar/v3/calendars/primary/events → insufficient authentication scopes
-em syncGoogleEventsToLocalCalendar
-```
+Verificado em produção, as duas direções falharam:
 
-O escopo aprovado era só `calendar.events.owned` — *"See, create, change, and
-delete events on calendars you own"*. Ele permite **agir sobre eventos**, mas
-não **listar** os de uma agenda, porque a lista inclui compromissos em que o
-usuário foi apenas convidado. A documentação do Google exige no mínimo
-`calendar.events.readonly` para `events.list`.
+| Direção | Chamada | Resultado |
+|---|---|---|
+| Google → ProOps | `GET /calendars/primary/events` | ❌ insufficient scopes |
+| ProOps → Google | `POST /calendars/primary/events` | ❌ insufficient scopes |
 
-O erro é capturado e a requisição devolve 200, então a tela carrega: **o envio
-ProOps → Google seguia funcionando, só a importação Google → ProOps falhava.**
+O da importação aparecia no log do Cloud Run; o do envio ficava gravado em
+`calendar_events/{id}.googleSync.lastError`, invisível no console — foi preciso
+consultar o Firestore para encontrá-lo.
 
-**Correção:** `calendar.events.readonly` adicionado ao lado de
-`calendar.events.owned`, em vez de trocar os dois por `calendar.events`. Assim o
-app **lê** a agenda inteira mas só **escreve** no que é do próprio usuário —
-menor privilégio na escrita, que é onde o estrago seria maior.
+> **O recurso nunca funcionou, nem parcialmente.** Não foi regressão do deploy:
+> era assim desde sempre, escondido atrás da flag desligada.
+
+**Correção:** escopo trocado para **`calendar.events`** — *"View and edit events
+on all your calendars"* —, que cobre leitura e escrita na `primary`.
+
+Um escopo só, e não `owned` + `readonly`: como a escrita em `primary` já exige o
+escopo amplo, separar a leitura não reduziria privilégio nenhum e dobraria o
+trabalho de verificação.
 
 ### O que isso exige
 
-1. **Declarar o escopo no console** — Google Auth Platform → Acesso a dados →
-   Adicionar escopos, nos dois projetos. Em dev, aproveite para declarar também
-   os que faltam (hoje a lista está vazia).
+1. **Declarar `calendar.events` no console** — Google Auth Platform → Acesso a
+   dados → Adicionar escopos, nos dois projetos. Em dev, a lista está vazia;
+   declare também `userinfo.email`.
 2. **Re-verificação em produção.** O app está verificado com o escopo antigo;
-   adicionar um escopo sensível reabre o processo — vídeo demonstrativo, política
-   de privacidade, revisão do Google. Dias a semanas.
+   trocar por um escopo sensível diferente reabre o processo — vídeo
+   demonstrativo, política de privacidade, revisão do Google. Dias a semanas.
 3. **Todo mundo precisa reconectar.** O refresh token guardado foi emitido para
-   os escopos antigos e o Google recusa a chamada nova até haver novo
-   consentimento. Não há como migrar isso pelo servidor.
+   o escopo antigo. Não há como migrar isso pelo servidor.
 
 ### A mensagem agora diz o que fazer
 
-`isInsufficientScopeError` detecta esse caso e grava em `lastSyncError`:
+`isInsufficientScopeError` detecta o caso e grava em `lastSyncError`:
 
 > *"A permissão concedida ao Google Agenda está desatualizada. Clique em
 > Reconectar para autorizar a leitura dos seus eventos."*
@@ -284,14 +288,13 @@ nada para quem instala cortina. O botão **Reconectar** já existe no card.
 
 ### Enquanto a verificação não sai
 
-Em produção, quem conectar continua com o envio funcionando e verá a mensagem de
-reconexão na importação. Se isso incomodar, dá para desligar a flag até a
-verificação concluir — a sincronização de saída para de funcionar junto, mas
-ninguém vê erro.
+Como **nenhuma** direção funciona com o escopo antigo, manter a flag ligada em
+produção só expõe um recurso quebrado. Recomendado **desligar
+`GOOGLE_CALENDAR_SYNC_ENABLED` em produção** até a re-verificação concluir.
 
 Em **dev não é preciso esperar**: o projeto está em modo de teste, onde escopos
-não verificados podem ser concedidos (com o aviso de "app não verificado"). Basta
-declarar o escopo no console de dev e reconectar.
+não verificados podem ser concedidos (com o aviso de "app não verificado").
+Declare `calendar.events` no console de dev, rode local, desconecte e reconecte.
 
 ---
 
