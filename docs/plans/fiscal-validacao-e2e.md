@@ -20,16 +20,60 @@
 | `FISCAL_SECRET_KMS_*` | `.env.erp-softcode` | ⚠️ **verificar** |
 | Empresa já emite nota hoje | — | ✅ (credenciamento SEFAZ/prefeitura feito) |
 
-**O KMS é o pré-requisito silencioso, e hoje ele está faltando.** Sem
-`FISCAL_SECRET_KMS_KEY` (ou o trio `KEYRING`/`KEY_ID`/`LOCATION`), salvar a senha
-do certificado devolve **500 e não persiste nada**. É o comportamento correto —
-falhar alto em vez de gravar a senha em texto puro — mas trava o wizard no passo
-A2 sem mensagem óbvia.
+**KMS — resolvido em 25/08/2026.** Chaves dedicadas criadas e validadas:
 
-Estado verificado em 25/08/2026:
-
-| Arquivo | `CALENDAR_TOKEN_KMS_KEY` | `FISCAL_SECRET_KMS_*` |
+| Ambiente | Chave | Round-trip testado |
 |---|---|---|
+| dev | `projects/erp-softcode/.../cryptoKeys/fiscal-secrets` | ✅ |
+| prod | `projects/erp-softcode-prod/.../cryptoKeys/fiscal-secrets` | ✅ |
+
+A service account do Cloud Run de cada projeto tem
+`roles/cloudkms.cryptoKeyEncrypterDecrypter` na respectiva chave. Revalidar a
+qualquer momento:
+
+```bash
+cd apps/functions
+GCLOUD_PROJECT=erp-softcode FISCAL_SECRET_KMS_KEY="projects/erp-softcode/locations/southamerica-east1/keyRings/proops-oauth/cryptoKeys/fiscal-secrets" npx tsx src/scripts/kms-fiscal-smoke.ts
+```
+
+Sem a variável, salvar a senha do certificado devolve **500 e não persiste
+nada** — comportamento correto (falhar alto em vez de gravar em texto puro), mas
+trava o wizard no passo A2 sem mensagem óbvia.
+
+### ⚠️ Achado colateral: o Calendar nunca teve KMS em ambiente publicado
+
+Ao configurar o fiscal, descobri que **nenhuma variável KMS existia em dev nem
+em produção** — nem a do fiscal, nem a do Calendar. A chave
+`calendar-refresh-token` estava criada nos dois projetos, com IAM correto, e o
+código de criptografia existe desde a fase H1. Só a env var nunca chegou aos
+serviços.
+
+Ninguém percebeu porque `GOOGLE_CALENDAR_SYNC_ENABLED=false` nos dois ambientes.
+Se fosse ligado hoje, conectar uma agenda falharia: `encryptToken` lançaria
+`CALENDAR_TOKEN_KMS_KEY_NOT_CONFIGURED`, o `catch` do callback redirecionaria com
+`?error=oauth_failed` e nada seria gravado.
+
+O lado bom é que **falha fechado**: não existe caminho que grave o refresh token
+em texto puro. Mas **antes de ligar o Calendar** é preciso adicionar
+`CALENDAR_TOKEN_KMS_KEY` aos três `.env` e aos secrets do GitHub — senão a
+funcionalidade sobe quebrada.
+
+### A armadilha do deploy
+
+Os crons `processInvoiceRetries`, `checkFiscalCertificateExpiry` e
+`syncReceivedInvoices` são **funções novas**. Função nova nasce com exatamente o
+que o arquivo `.env` tiver no momento do deploy — e se faltar, nasce com env
+vazio **permanentemente**, porque todo deploy seguinte preserva o vazio. Foi
+assim que `onUserSignupNotify` e `pdf` foram para produção sem `RESEND_API_KEY`.
+
+Antes de deployar, atualizar os secrets do GitHub:
+
+```bash
+gh secret set FUNCTIONS_ENV_PRODUCTION --env production --repo almeidagabriel01/ProOps   < apps/functions/.env.erp-softcode-prod
+gh secret set FUNCTIONS_ENV_STAGING --env staging --repo almeidagabriel01/ProOps   < apps/functions/.env.erp-softcode
+```
+
+---|---|---|
 | `.env.local` | ✅ preenchida | ❌ ausente |
 | `.env.erp-softcode` | ❌ ausente | ❌ ausente |
 | `.env.erp-softcode-prod` | ❌ ausente | ❌ ausente |
