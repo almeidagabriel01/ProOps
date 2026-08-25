@@ -386,7 +386,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
         <CardHeader>
           <CardTitle className="text-base">Dados da empresa</CardTitle>
           <CardDescription>
-            Informe o CNPJ e busque — o resto é preenchido automaticamente.
+            Informe o CNPJ e busque, o resto é preenchido automaticamente.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
