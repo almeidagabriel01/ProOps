@@ -78,3 +78,23 @@ export function resolveAsaasWebhookUrl(tenantId: string): string {
   }
   return `https://southamerica-east1-${projectId}.cloudfunctions.net/api/webhooks/asaas/${tenantId}`;
 }
+
+/**
+ * Notification URL for a tenant's fiscal documents.
+ *
+ * The secret is a path segment because Focus NFe sends no authentication
+ * header — unlike Asaas, which signs with `asaas-access-token`. The URL is the
+ * credential, so it is generated per tenant and never logged.
+ */
+export function resolveFiscalWebhookUrl(
+  tenantId: string,
+  secret: string,
+  type: "nfe" | "nfse",
+): string {
+  const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID || "erp-softcode";
+  const path = `api/webhooks/focus/${tenantId}/${secret}/${type}`;
+  if (isFunctionsEmulatorRuntime()) {
+    return `http://localhost:5001/${projectId}/southamerica-east1/${path}`;
+  }
+  return `https://southamerica-east1-${projectId}.cloudfunctions.net/${path}`;
+}

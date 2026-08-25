@@ -116,6 +116,15 @@ cd apps/functions && npm run lint
   (`natureza-operacao.ts`). CFOP e propriedade da *operacao*: a mesma cortina e 5102 dentro
   do estado e 6102 fora. Guardar no produto forcaria correcao manual em toda venda
   interestadual. CST/CSOSN sai do regime do emitente; a unidade sai do `inventoryUnit`.
+- **Webhook do Focus NAO tem cabecalho de autenticacao** (diferente do Asaas, que assina com
+  `asaas-access-token`). A propria URL e a credencial: `/webhooks/focus/:tenantId/:secret/:type`,
+  com o segredo comparado em tempo constante. Segredo invalido responde **200**, nao 401 — e
+  falha permanente, e 401 faria o Focus retentar 5 vezes em 24h a toa.
+- **O cron `processInvoiceRetries` (15 min) nao e redundancia, e o unico backstop.** O Focus
+  retenta a notificacao em 1min, 30min, 1h, 3h e 24h e depois **nunca mais dispara**. Uma queda
+  de entrega nessa janela deixaria a nota presa em `processing` para sempre.
+- **Status nunca regride** (`canApplyStatus`): webhook nao e ordenado e o cron pode correr junto.
+  A unica transicao permitida a partir de terminal e autorizada → cancelada.
 - **O unico campo que o usuario realmente digita e o NCM** (por produto) e o codigo LC 116 +
   aliquota ISS (por servico). `POST /v1/fiscal/ncm-suggestions` sugere o NCM via Lia
   (Gemini), reaproveitando cota, rate limiter e gate de plano do modulo de IA. A sugestao

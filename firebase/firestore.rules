@@ -609,6 +609,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Notas fiscais emitidas. Diferente de fiscal_settings, o tenant PODE ler:
+    // a UI acompanha a autorizacao por onSnapshot e nao ha segredo aqui — so
+    // dados do proprio documento fiscal. Escrita e exclusiva das Cloud Functions
+    // porque numeracao e status sao estado fiscal.
+    match /invoices/{invoiceId} {
+      allow read: if isSuperAdmin()
+                  || isDemoRead(resource.data.tenantId)
+                  || (isAuthenticated()
+                      && belongsToTenant(resource.data.tenantId)
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false;
+    }
+
     // SECURITY OBSERVABILITY — written exclusively by Cloud Functions (Admin SDK).
     // The audit trail is read through the backend (GET /admin/audit-events), never
     // via the client SDK. Denied here explicitly for clarity (also covered by the

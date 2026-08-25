@@ -29,6 +29,7 @@ import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
 import { paymentPublicRoutes } from "./routes/payment-public.routes";
 import { asaasRoutes } from "./routes/asaas.routes";
 import { fiscalRoutes } from "./routes/fiscal.routes";
+import { fiscalWebhookRoutes } from "./routes/fiscal-webhook.routes";
 import { asaasWebhookRoutes } from "./routes/asaas-webhook.routes";
 import { contactRoutes } from "./routes/contact.routes";
 import { demoBookingRoutes } from "./routes/demo-booking.routes";
@@ -358,6 +359,7 @@ app.get(
 
 app.use("/webhooks/whatsapp", publicWebhookLimiter, whatsappRoutes);
 app.use("/webhooks/asaas", publicWebhookLimiter, asaasWebhookRoutes);
+app.use("/webhooks/focus", publicWebhookLimiter, fiscalWebhookRoutes);
 
 // Public Stripe Routes (Plans)
 app.use("/v1/stripe", publicGeneralLimiter, publicStripeRoutes);

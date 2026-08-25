@@ -6,6 +6,9 @@ import {
   lookupCnpjHandler,
   registerIssuerHandler,
   suggestNcmHandler,
+  issueInvoiceHandler,
+  cancelInvoiceHandler,
+  listInvoicesHandler,
 } from "../controllers/fiscal.controller";
 import { fieldGenRateLimiter } from "../../ai/field-gen-rate-limiter";
 
@@ -24,5 +27,9 @@ router.post(
   fieldGenRateLimiter,
   suggestNcmHandler,
 );
+
+router.get("/fiscal/invoices", validateFirebaseIdToken, listInvoicesHandler);
+router.post("/fiscal/invoices", validateFirebaseIdToken, issueInvoiceHandler);
+router.post("/fiscal/invoices/:id/cancel", validateFirebaseIdToken, cancelInvoiceHandler);
 
 export { router as fiscalRoutes };

@@ -19,6 +19,7 @@
 | `cleanupStorageAndSharedLinks` | Scheduled | Limpeza de arquivos e links expirados |
 | `reconcileAddons` | Scheduled | Reconciliacao de add-ons |
 | `processPayoutRetries` | Scheduled | Retries de payout (Asaas) |
+| `processInvoiceRetries` | Scheduled | Consulta notas fiscais pendentes (a cada 15 min) — backstop do webhook do Focus |
 | `cleanupSecurityAuditEvents` | Scheduled | Expurga eventos de auditoria antigos |
 | `remindNoSubscriptionSignups` | Scheduled | Lembra signups sem assinatura |
 | `onWalletCascadeJob` | Firestore trigger | Cascata de exclusao de carteira |
@@ -269,6 +270,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `sharedProposals/{token}` | Share Links | Links publicos de propostas |
 | `sharedTransactions/{token}` | Share Links | Links publicos de lancamentos |
 | `fiscal_settings/{tenantId}` | Fiscal | Config do emitente (CNPJ, IE/IM, regime, serie/numeracao, senha do certificado cifrada em KMS). Admin SDK only |
+| `invoices/{invoiceId}` | Fiscal | Notas emitidas. Tenant LE (UI acompanha por onSnapshot); escrita so via Cloud Functions |
 
 ---
 

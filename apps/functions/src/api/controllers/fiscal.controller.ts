@@ -30,9 +30,40 @@ import {
   refundAiMessage,
 } from "../../ai/usage-tracker";
 import { sanitizeText } from "../../utils/sanitize";
+import { checkIssueReadiness } from "../services/fiscal/fiscal-readiness";
+import {
+  DEFAULT_NATUREZA,
+  deriveCfop,
+  deriveSituacaoTributaria,
+  deriveUnidadeComercial,
+  describeNatureza,
+  normalizeOrigem,
+  type NaturezaOperacao,
+} from "../services/fiscal/natureza-operacao";
+import {
+  cancelInvoice,
+  createInvoice,
+  getInvoice,
+  issueInvoice,
+  listInvoices,
+} from "../services/fiscal/invoice.service";
+import {
+  CANCELLATION_JUSTIFICATION_MAX_LENGTH,
+  CANCELLATION_JUSTIFICATION_MIN_LENGTH,
+} from "../services/fiscal/fiscal-provider";
+import type { FiscalDocumentType } from "../services/fiscal/fiscal-types";
 
 /** Sugestao por IA segue o mesmo gate dos demais recursos de IA. */
 const NCM_AI_PLANS = new Set<string>(["pro", "enterprise"]);
+
+/** CST e CSOSN sao mutuamente exclusivos — o regime decide qual campo vai. */
+function buildSituacaoTributaria(
+  regime: FiscalTaxRegime,
+  override: string,
+): Record<string, string> {
+  const { kind, codigo } = deriveSituacaoTributaria(regime, override);
+  return kind === "csosn" ? { csosn: codigo } : { cstIcms: codigo };
+}
 
 function mapFiscalErrorStatus(error: Error): number {
   if (error.message === "FISCAL_SETTINGS_NOT_FOUND") return 404;
@@ -443,5 +474,185 @@ export const suggestNcmHandler = async (req: Request, res: Response): Promise<vo
     const err = error as Error;
     logger.error("Falha ao sugerir NCM", { tenantId: user.tenantId, error: err.message });
     res.status(502).json({ message: "Não foi possível sugerir o NCM agora.", code: "AI_ERROR" });
+  }
+};
+
+// POST /v1/fiscal/invoices
+//
+// Responde 202: a emissão é assíncrona — o provedor valida o payload de forma
+// síncrona e depois enfileira para a SEFAZ ou a prefeitura. O desfecho chega
+// pelo webhook ou, se ele se perder, pelo cron processInvoiceRetries.
+export const issueInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const body = req.body as Record<string, unknown>;
+    const type = text(body.type) as FiscalDocumentType;
+    if (type !== "nfe" && type !== "nfse") {
+      res.status(400).json({ message: "Tipo de nota deve ser nfe ou nfse" });
+      return;
+    }
+
+    const settings = await getFiscalSettings(ctx.tenantId);
+    if (!settings) {
+      res.status(422).json({
+        message: "Configure os dados fiscais antes de emitir.",
+        code: "FISCAL_NAO_CONFIGURADO",
+      });
+      return;
+    }
+
+    if ((type === "nfe" && !settings.habilitaNfe) || (type === "nfse" && !settings.habilitaNfse)) {
+      res.status(422).json({
+        message: `Emissão de ${type === "nfe" ? "NF-e" : "NFS-e"} não está habilitada na sua configuração fiscal.`,
+        code: "TIPO_NAO_HABILITADO",
+      });
+      return;
+    }
+
+    const recipient = (body.recipient ?? {}) as Record<string, unknown>;
+    const products = Array.isArray(body.products)
+      ? (body.products as Array<Record<string, unknown>>)
+      : [];
+    const service = body.service as Record<string, unknown> | undefined;
+
+    // Barrar aqui é muito mais barato que na SEFAZ: nota rejeitada pode
+    // consumir número da série e uma unidade do pacote mensal do provedor.
+    const readiness = checkIssueReadiness({
+      type,
+      issuer: settings,
+      recipient: recipient as never,
+      products: products as never,
+      service: service as never,
+    });
+
+    if (!readiness.ready) {
+      res.status(422).json({
+        message: "Faltam dados fiscais para emitir esta nota.",
+        code: "FISCAL_INCOMPLETO",
+        gaps: readiness.gaps,
+      });
+      return;
+    }
+
+    const invoice = await createInvoice({
+      tenantId: ctx.tenantId,
+      type,
+      environment: settings.environment,
+      valorTotal: Number(body.valorTotal) || 0,
+      clientId: text(recipient.id) || undefined,
+      clientName: text(recipient.nome) || undefined,
+      transactionId: text(body.transactionId) || undefined,
+      proposalId: text(body.proposalId) || undefined,
+      createdBy: req.user?.uid,
+      provider: settings.provider,
+    });
+
+    const ufDestinatario = text(
+      (recipient.endereco as Record<string, unknown> | undefined)?.uf,
+    );
+    const natureza = (text(body.naturezaOperacao) || DEFAULT_NATUREZA) as NaturezaOperacao;
+
+    const issued = await issueInvoice(invoice.id, {
+      type,
+      ref: invoice.ref,
+      // O certificado não é persistido: já está sob custódia do provedor desde
+      // o registro do emitente, então não precisa acompanhar a emissão.
+      issuer: buildIssuerConfig(settings, "", ""),
+      recipient: recipient as never,
+      products: products.map((item) => ({
+        codigo: text(item.codigo) || text(item.id),
+        descricao: text(item.descricao) || text(item.name),
+        ncm: text(item.ncm),
+        cest: text(item.cest) || undefined,
+        quantidade: Number(item.quantidade) || 0,
+        valorUnitario: Number(item.valorUnitario) || 0,
+        valorTotal: Number(item.valorTotal) || 0,
+        // CFOP é da operação, não do produto: a mesma cortina é 5102 dentro do
+        // estado e 6102 fora. Por isso é derivado aqui, na emissão.
+        cfop:
+          type === "nfe" ? deriveCfop(natureza, settings.endereco.uf, ufDestinatario) : "",
+        origem: normalizeOrigem(item.origem),
+        unidadeComercial: deriveUnidadeComercial(text(item.inventoryUnit)),
+        ...buildSituacaoTributaria(settings.regimeTributario, text(item.situacaoTributaria)),
+      })),
+      service: service as never,
+      naturezaOperacao: describeNatureza(natureza),
+      observacoes: text(body.observacoes) || undefined,
+      dataEmissao: new Date().toISOString(),
+      valorTotal: Number(body.valorTotal) || 0,
+    });
+
+    res.status(202).json(issued);
+  } catch (error) {
+    const err = error as Error;
+    logger.error("Falha ao emitir nota fiscal", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+  }
+};
+
+// POST /v1/fiscal/invoices/:id/cancel
+export const cancelInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const invoice = await getInvoice(String(req.params.id || ""));
+    if (!invoice || (invoice.tenantId !== ctx.tenantId && !ctx.isSuperAdmin)) {
+      res.status(404).json({ message: "Nota fiscal não encontrada" });
+      return;
+    }
+
+    const justificativa = text((req.body as Record<string, unknown>).justificativa);
+    // A SEFAZ exige 15 caracteres. Validar aqui evita gastar uma chamada ao
+    // provedor para receber a mesma recusa.
+    if (justificativa.length < CANCELLATION_JUSTIFICATION_MIN_LENGTH) {
+      res.status(400).json({
+        message: `A justificativa deve ter ao menos ${CANCELLATION_JUSTIFICATION_MIN_LENGTH} caracteres.`,
+      });
+      return;
+    }
+    if (justificativa.length > CANCELLATION_JUSTIFICATION_MAX_LENGTH) {
+      res.status(400).json({
+        message: `A justificativa deve ter no máximo ${CANCELLATION_JUSTIFICATION_MAX_LENGTH} caracteres.`,
+      });
+      return;
+    }
+
+    res.status(200).json(await cancelInvoice(invoice.id, justificativa));
+  } catch (error) {
+    const err = error as Error;
+    if (err.message === "INVOICE_NAO_AUTORIZADA") {
+      res.status(422).json({
+        message: "Só é possível cancelar uma nota autorizada.",
+        code: err.message,
+      });
+      return;
+    }
+    const detail = describeFocusError(error);
+    logger.error("Falha ao cancelar nota fiscal", { error: detail.message });
+    res.status(detail.httpStatus && detail.httpStatus < 500 ? 422 : 502).json({
+      message: detail.message,
+    });
+  }
+};
+
+// GET /v1/fiscal/invoices
+export const listInvoicesHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const invoices = await listInvoices(ctx.tenantId, {
+      limit: Math.min(Number(req.query.limit) || 50, 200),
+      status: text(req.query.status as string) || undefined,
+    });
+
+    res.status(200).json({ invoices });
+  } catch (error) {
+    const err = error as Error;
+    logger.error("Falha ao listar notas fiscais", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
   }
 };

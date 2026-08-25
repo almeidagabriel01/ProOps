@@ -249,6 +249,43 @@ export class FocusFiscalProvider implements FiscalProvider {
   }
 
   /**
+   * Registers a notification hook for one CNPJ and document kind.
+   *
+   * Focus keys hooks by (cnpj, event, url) and rejects a duplicate, so the
+   * caller reconciles first — see `registerFiscalWebhooks`.
+   */
+  async registerWebhook(
+    cnpj: string,
+    event: FiscalDocumentType,
+    url: string,
+    env: FiscalEnvironment,
+  ): Promise<string | undefined> {
+    const response = await axios.post<{ id?: string }>(
+      `${resolveFocusBaseUrl(env)}/v2/hooks`,
+      { cnpj: String(cnpj).replace(/\D/g, ""), event, url },
+      buildRequestConfig(env),
+    );
+    return response.data?.id;
+  }
+
+  async listWebhooks(
+    env: FiscalEnvironment,
+  ): Promise<Array<{ id?: string; cnpj?: string; event?: string; url?: string }>> {
+    const response = await axios.get<Array<{ id?: string; cnpj?: string; event?: string; url?: string }>>(
+      `${resolveFocusBaseUrl(env)}/v2/hooks`,
+      buildRequestConfig(env),
+    );
+    return Array.isArray(response.data) ? response.data : [];
+  }
+
+  async deleteWebhook(hookId: string, env: FiscalEnvironment): Promise<void> {
+    await axios.delete(
+      `${resolveFocusBaseUrl(env)}/v2/hooks/${encodeURIComponent(hookId)}`,
+      buildRequestConfig(env),
+    );
+  }
+
+  /**
    * Asks Focus to replay its notification to every registered webhook.
    * Recovers a dropped event without touching the document itself.
    */
