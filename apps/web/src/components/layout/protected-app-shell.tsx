@@ -3,12 +3,14 @@
 import * as React from "react";
 import { Header } from "@/components/layout/header";
 import { BottomDock } from "@/components/layout/bottom-dock";
+import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { SubscriptionGuard } from "@/components/shared/subscription-guard";
 import { AppOnboarding } from "@/components/onboarding/app-onboarding";
 import { LiaContainer } from "@/components/lia/lia-container";
 import { BillingStateBanner } from "@/components/layout/billing-state-banner";
 import { PriceChangeBanner } from "@/components/billing/price-change-banner";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { StripeService } from "@/services/stripe-service";
@@ -25,6 +27,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { isDemo } = useTenant();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [isOpeningPortal, setIsOpeningPortal] = React.useState(false);
   const [isReactivating, setIsReactivating] = React.useState(false);
   const registerMain = useRegisterScrollContainer();
@@ -107,7 +110,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   return (
     <SubscriptionGuard>
       <div
-        className="flex h-screen overflow-hidden bg-card"
+        className="flex h-[100dvh] md:h-screen overflow-hidden bg-card"
         data-demo-readonly={isDemo || undefined}
       >
         <div className="flex-1 flex flex-col bg-background overflow-hidden min-h-0">
@@ -171,13 +174,14 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
           <main
             id="main-content"
             ref={registerMain}
-            className="flex-1 min-h-0 p-8 overflow-y-auto"
+            className="flex-1 min-h-0 p-4 md:p-8 overflow-y-auto"
           >
             {children}
           </main>
+          {isMobile && <MobileTabBar />}
           <AppOnboarding />
         </div>
-        <BottomDock />
+        {!isMobile && <BottomDock />}
         {planTier !== undefined && user !== null && user.role !== "free" && (
           <LiaContainer />
         )}

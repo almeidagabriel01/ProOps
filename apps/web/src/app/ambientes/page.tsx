@@ -201,10 +201,10 @@ export default function AmbientesPage() {
 
   // List mode
   return (
-    <div className="space-y-6 flex flex-col min-h-[calc(100vh-180px)]">
+    <div className="space-y-6 flex flex-col md:min-h-[calc(100vh-180px)]">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ambientes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Ambientes</h1>
           <p className="text-muted-foreground mt-1">
             Gerencie os ambientes e configure os produtos padrões de cada
             espaço.

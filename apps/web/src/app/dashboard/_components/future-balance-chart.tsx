@@ -19,6 +19,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { TrendingUp } from "lucide-react";
 
 export interface FutureBalanceData {
@@ -35,6 +36,7 @@ interface FutureBalanceChartProps {
 
 export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
   const [monthsToShow, setMonthsToShow] = React.useState<number>(6);
+  const isMobile = useIsMobile();
 
   const filteredData = React.useMemo(() => {
     return data.slice(0, monthsToShow);
@@ -83,7 +85,7 @@ export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
 
   return (
     <Card className="flex flex-col shadow-md bg-gradient-to-br from-background to-blue-50/20 dark:to-blue-950/10 border border-border/50 h-full">
-      <CardHeader className="pb-2 flex flex-row items-start justify-between">
+      <CardHeader className="pb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-blue-500" />
@@ -101,7 +103,7 @@ export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
           ]}
           placeholder="Período"
           inputSize="sm"
-          className="w-[130px]"
+          className="w-full sm:w-[130px]"
         />
       </CardHeader>
       <CardContent className="flex-1 pt-4 pb-4 px-2 min-h-[300px]">
@@ -136,7 +138,7 @@ export function FutureBalanceChart({ data }: FutureBalanceChartProps) {
                   `R$ ${Math.abs(value) >= 1000 ? (value / 1000).toFixed(1) + "k" : value}`
                 }
                 tick={{ fill: "currentColor", opacity: 0.6 }}
-                width={65}
+                width={isMobile ? 44 : 65}
               />
               <ReferenceLine
                 y={0}

@@ -54,28 +54,30 @@ export function MemberCard({
     <>
       <Card className="overflow-hidden">
         {/* Header */}
-        <div className="flex items-center p-2 pr-4 hover:bg-muted/10 transition-colors">
+        {/* Identidade e ações não cabem na mesma linha num celular: o e-mail
+            transbordava e as ações saíam do card. Abaixo de md a linha quebra. */}
+        <div className="flex flex-wrap items-center gap-y-2 p-2 pr-2 md:pr-4 hover:bg-muted/10 transition-colors">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex-1 p-2 flex items-center justify-between cursor-pointer"
+            className="flex-1 basis-full md:basis-auto min-w-0 p-2 flex items-center justify-between cursor-pointer"
           >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                <span className="font-bold text-primary text-lg">
+            <div className="flex min-w-0 items-center gap-3 md:gap-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-full bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                <span className="font-bold text-primary text-base md:text-lg">
                   {member.name.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <div className="text-left">
-                <p className="font-semibold">{member.name}</p>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Mail className="w-3 h-3" />
-                  {member.email}
+              <div className="min-w-0 text-left">
+                <p className="truncate font-semibold">{member.name}</p>
+                <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Mail className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{member.email}</span>
                 </p>
               </div>
             </div>
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex w-full shrink-0 items-center justify-end gap-3 md:w-auto">
             <Badge variant="secondary" className="gap-1">
               <Users className="w-3 h-3" />
               Membro

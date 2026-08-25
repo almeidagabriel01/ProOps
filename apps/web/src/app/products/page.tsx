@@ -309,6 +309,7 @@ export default function ProductsPage() {
       header: "Imagem",
       className: "col-span-1",
       sortable: false,
+      priority: "leading",
       render: (product) => (
         <div>
           {product.images?.[0] || product.image ? (
@@ -330,10 +331,14 @@ export default function ProductsPage() {
       key: "name",
       header: "Nome",
       className: hideInventoryColumn ? "col-span-5" : "col-span-4",
+      priority: "primary",
       render: (product) => (
+        // No card do mobile o nome é o campo principal; sem limite, um nome
+        // longo empurra categoria e preço para fora da primeira dobra. Duas
+        // linhas com reticências; o nome inteiro fica na página do produto.
         <Link
           href={`/products/${product.id}`}
-          className="font-medium hover:underline"
+          className="font-medium hover:underline max-md:line-clamp-2 wrap-break-word"
         >
           {product.name}
         </Link>
@@ -343,26 +348,32 @@ export default function ProductsPage() {
       key: "category",
       header: "Categoria",
       className: hideInventoryColumn ? "col-span-3" : "col-span-2",
+      priority: "secondary",
       render: (product) => (
         <div className="text-sm text-muted-foreground">{product.category}</div>
       ),
     },
-    ...(hideInventoryColumn ? [] : [{
+    ...(hideInventoryColumn ? [] : ([{
       key: "inventoryValue",
       header: inventoryConfig.tableHeader,
       className: "col-span-2",
+      priority: "secondary",
       render: (product: Product) => (
+        // -ml-2 compensa o px-2 do botão editável: sem isso o texto do estoque
+        // fica 8px adentro e desalinha do rótulo, mesmo com as caixas casadas.
         <StockEditableCell
+          className="max-md:pr-0"
           initialValue={getProductInventoryValue(product)}
           inventory={inventoryConfig}
           onUpdate={(val) => handleInventoryUpdate(product, val)}
         />
       ),
-    }]),
+    }] as DataTableColumn<Product>[])),
     {
       key: "price",
       header: "Preço",
       className: "col-span-2",
+      priority: "secondary",
       render: (product) => (
         <div className="flex flex-col items-start gap-0.5">
           <span className="text-sm font-medium">
@@ -382,6 +393,7 @@ export default function ProductsPage() {
       className: "col-span-1 text-right",
       headerClassName: "col-span-1 flex justify-end",
       sortable: false,
+      priority: "actions",
       render: (product) => (
         <div className="flex items-center justify-end gap-1">
           {canEdit && (
@@ -456,7 +468,7 @@ export default function ProductsPage() {
             <ProductsSkeleton />
           )}
           <div
-            className="space-y-6 flex-col min-h-[calc(100vh-180px)]"
+            className="space-y-6 flex-col md:min-h-[calc(100vh-180px)]"
             style={{
               display:
                 tenantLoading ||
@@ -465,9 +477,9 @@ export default function ProductsPage() {
                   : "flex",
             }}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
                   {nicheConfig.productCatalog.pluralLabel}
                 </h1>
                 <p className="text-muted-foreground mt-1">
@@ -475,9 +487,9 @@ export default function ProductsPage() {
                 </p>
               </div>
               {canCreate && (
-                <div className="flex gap-2">
-                  <Link href="/products/new">
-                    <Button size="lg" className="gap-2">
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Link href="/products/new" className="block w-full sm:w-auto">
+                    <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Plus className="w-5 h-5" />
                       {nicheConfig.productCatalog.newTitle}
                     </Button>
@@ -515,7 +527,7 @@ export default function ProductsPage() {
                           </button>
                         </Tooltip>
                       </div>
-                      <p className="text-3xl font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
                             <Spinner className="w-4 h-4" />
@@ -562,7 +574,7 @@ export default function ProductsPage() {
                           </button>
                         </Tooltip>
                       </div>
-                      <p className="text-3xl font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
                             <Spinner className="w-4 h-4" />
@@ -590,7 +602,7 @@ export default function ProductsPage() {
                       <p className="text-sm font-medium text-muted-foreground">
                         {inventoryConfig.costBalanceLabel}
                       </p>
-                      <p className="text-3xl font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
                             <Spinner className="w-4 h-4" />
@@ -613,7 +625,7 @@ export default function ProductsPage() {
                       <p className="text-sm font-medium text-muted-foreground">
                         {inventoryConfig.revenueBalanceLabel}
                       </p>
-                      <p className="text-3xl font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                         {allProducts === null && hasAnyProducts !== false ? (
                           <span className="inline-flex items-center gap-2 text-lg text-muted-foreground">
                             <Spinner className="w-4 h-4" />

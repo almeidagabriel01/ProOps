@@ -11,13 +11,12 @@ import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
-  getVisibleChildren,
-  MenuItem,
-} from "@/components/layout/navigation-config";
-import { useNavigationItems } from "@/components/layout/use-navigation-items";
+  useActiveEntryHref,
+  useDockEntries,
+  type DockEntry,
+} from "@/components/layout/use-dock-entries";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { usePermissions } from "@/providers/permissions-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { useScrollContainer } from "@/providers/scroll-container-provider";
@@ -70,25 +69,12 @@ function DockItemContent({
   );
 }
 
-type DockEntry = {
-  icon: MenuItem["icon"];
-  label: string;
-  href: string;
-  external?: boolean;
-  requiresFinancial?: boolean;
-  requiresEnterprise?: boolean;
-  pageId?: string;
-};
-
 export function BottomDock() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
   const { tenant } = useTenant();
   const { hasFinancial, hasKanban } = usePlanLimits();
-  const { isMaster } = usePermissions();
   const upgradeModal = useUpgradeModal();
-
-  const { visibleMenuItems } = useNavigationItems();
 
   const hasHover = useHasHoverSupport();
   const scrollContainer = useScrollContainer();
@@ -217,53 +203,8 @@ export function BottomDock() {
 
   const premiumColor = useThemePrimaryColor();
 
-  const dockEntries: DockEntry[] = React.useMemo(() => {
-    const entries: DockEntry[] = [];
-
-    for (const item of visibleMenuItems) {
-      const children = item.children ? getVisibleChildren(item, isMaster) : [];
-
-      // Achatar o Financeiro: remover item pai e inserir os filhos como itens diretos.
-      if (
-        (item.href === "/transactions" || item.label === "Financeiro") &&
-        children.length > 0
-      ) {
-        for (const child of children) {
-          entries.push({
-            icon: child.icon,
-            label: child.label,
-            href: child.href,
-            requiresFinancial: item.requiresFinancial,
-            pageId: item.pageId,
-          });
-        }
-        continue;
-      }
-
-      entries.push({
-        icon: item.icon,
-        label: item.label,
-        href: item.href,
-        external: item.external,
-        requiresFinancial: item.requiresFinancial,
-        requiresEnterprise: item.requiresEnterprise,
-        pageId: item.pageId,
-      });
-    }
-
-    return entries;
-  }, [visibleMenuItems, isMaster]);
-
-  const activeHref = React.useMemo(() => {
-    let best: string | null = null;
-    for (const entry of dockEntries) {
-      const matches =
-        pathname === entry.href || pathname.startsWith(entry.href + "/");
-      if (!matches) continue;
-      if (!best || entry.href.length > best.length) best = entry.href;
-    }
-    return best;
-  }, [dockEntries, pathname]);
+  const dockEntries = useDockEntries();
+  const activeHref = useActiveEntryHref(dockEntries, pathname);
 
   // não mostrar dock no admin (exceto quando superadmin sem tenant)
   if (isAdminPage && !isSuperAdminMode) {
@@ -388,6 +329,7 @@ export function BottomDock() {
           />
         )}
         <div
+          data-testid="bottom-dock"
           className={cn(
             "fixed left-1/2 bottom-4 -translate-x-1/2 z-40",
             "transition-transform duration-300 ease-out",
@@ -457,6 +399,7 @@ export function BottomDock() {
       )}
 
       <div
+        data-testid="bottom-dock"
         className={cn(
           "fixed left-1/2 bottom-4 -translate-x-1/2 z-40",
           "transition-transform duration-300 ease-out",

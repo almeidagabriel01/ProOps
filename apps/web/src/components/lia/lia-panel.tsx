@@ -49,10 +49,12 @@ export function LiaPanel({
       aria-hidden={!isOpen}
       data-state={isOpen ? "open" : "closed"}
       className={cn(
-        "fixed bottom-6 right-6 z-40",
-        "w-[380px] h-[600px] flex flex-col",
-        "bg-card border border-border rounded-2xl shadow-2xl overflow-hidden",
-        "transition-all duration-300 ease-in-out origin-bottom-right",
+        // Abaixo de md o painel ocupa a tela inteira: 380px é mais largo que um
+        // iPhone SE/13 mini. De md para cima volta ao card flutuante de sempre.
+        "fixed inset-0 z-40 w-full h-[100dvh] flex flex-col",
+        "md:inset-auto md:bottom-6 md:right-6 md:w-[380px] md:h-[600px]",
+        "bg-card border border-border rounded-none md:rounded-2xl shadow-2xl overflow-hidden",
+        "transition-all duration-300 ease-in-out origin-bottom md:origin-bottom-right",
         isOpen
           ? "opacity-100 scale-100 pointer-events-auto"
           : "opacity-0 scale-0 pointer-events-none",

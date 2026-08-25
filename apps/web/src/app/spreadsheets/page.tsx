@@ -330,21 +330,21 @@ export default function SpreadsheetsPage() {
         onChange={handleImportFileChange}
       />
       <div
-        className="space-y-6 flex-col min-h-[calc(100vh-180px)]"
+        className="space-y-6 flex-col md:min-h-[calc(100vh-180px)]"
         style={{ display: showSkeleton ? "none" : "flex" }}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Planilhas</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Planilhas</h1>
             <p className="text-muted-foreground mt-1">
               Crie e gerencie suas planilhas personalizadas.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               size="lg"
               variant="outline"
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
               onClick={handleImportClick}
               disabled={creating || importing}
             >
@@ -357,7 +357,7 @@ export default function SpreadsheetsPage() {
             </Button>
             <Button
               size="lg"
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
               onClick={handleCreate}
               disabled={creating || importing}
             >

@@ -164,7 +164,7 @@ export function ProposalStatsCard({ stats }: ProposalStatsCardProps) {
             Nenhuma proposta registrada
           </div>
         ) : (
-          <div className="w-full flex items-center gap-6">
+          <div className="w-full flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
             {/* Donut Chart com texto centralizado */}
             <div
               className="relative shrink-0"

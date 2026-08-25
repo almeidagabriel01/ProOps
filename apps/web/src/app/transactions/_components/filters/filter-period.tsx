@@ -25,33 +25,39 @@ export function FilterPeriod({
   onEndDateChange,
 }: FilterPeriodProps) {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:flex-wrap">
       <Select
         inputSize="sm"
         value={dateType}
         onChange={(e) => onDateTypeChange(e.target.value as "date" | "dueDate")}
-        className="w-40 shrink-0"
+        className="w-full sm:w-40 sm:shrink-0"
         disableSort
       >
         <option value="dueDate">Por vencimento</option>
         <option value="date">Por lançamento</option>
       </Select>
 
-      <DatePicker
-        value={startDate}
-        onChange={(e) => onStartDateChange(e.target.value)}
-        placeholder="Data inicial"
-        className={cn(compactDate, "w-36 shrink-0")}
-      />
+      {/* sm:contents devolve os três filhos ao flex do pai a partir de sm, então
+          o desktop continua sendo a mesma linha de antes. */}
+      <div className="grid grid-cols-2 gap-2 sm:contents">
+        <DatePicker
+          value={startDate}
+          onChange={(e) => onStartDateChange(e.target.value)}
+          placeholder="Data inicial"
+          className={cn(compactDate, "w-full sm:w-36 sm:shrink-0")}
+        />
 
-      <span className="text-xs text-muted-foreground/60 shrink-0 select-none">—</span>
+        <span className="hidden text-xs text-muted-foreground/60 shrink-0 select-none sm:inline">
+          —
+        </span>
 
-      <DatePicker
-        value={endDate}
-        onChange={(e) => onEndDateChange(e.target.value)}
-        placeholder="Data final"
-        className={cn(compactDate, "w-36 shrink-0")}
-      />
+        <DatePicker
+          value={endDate}
+          onChange={(e) => onEndDateChange(e.target.value)}
+          placeholder="Data final"
+          className={cn(compactDate, "w-full sm:w-36 sm:shrink-0")}
+        />
+      </div>
     </div>
   );
 }

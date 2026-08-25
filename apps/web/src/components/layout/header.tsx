@@ -30,11 +30,10 @@ interface HeaderProps {
 function HeaderSkeleton() {
   return (
     <header
-      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300"
-      style={{ height: "64px", minHeight: "64px" }}
+      className="relative z-50 h-14 min-h-14 md:h-16 md:min-h-16 bg-background/80 backdrop-blur-md border-b border-border px-4 md:px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300"
     >
       <div className="flex items-center gap-4">
-        <Skeleton className="h-9 w-56 rounded-xl" />
+        <Skeleton className="h-9 w-40 sm:w-56 rounded-xl" />
       </div>
       <div className="flex items-center gap-4">
         <Skeleton className="h-8 w-8 rounded-full" />
@@ -87,10 +86,9 @@ export function Header({}: HeaderProps) {
 
   return (
     <header
-      className="relative z-50 bg-background/80 backdrop-blur-md border-b border-border px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300 animate-in fade-in"
-      style={{ height: "64px", minHeight: "64px" }}
+      className="relative z-50 h-14 min-h-14 md:h-16 md:min-h-16 bg-background/80 backdrop-blur-md border-b border-border px-4 md:px-6 flex items-center justify-between rounded-t-[2rem] transition-all duration-300 animate-in fade-in"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 items-center gap-4">
         <CommandPalette />
         {isViewingAsTenant && user?.role === "superadmin" && (
           <div className="flex items-center gap-3 px-4 py-1.5 bg-background/50 backdrop-blur-sm border border-border/60 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
@@ -119,16 +117,16 @@ export function Header({}: HeaderProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center gap-2 md:gap-4">
         <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
         <NotificationBell />
-        <div className="h-8 w-px bg-border" />
+        <div className="hidden h-8 w-px bg-border sm:block" />
         <div className="flex items-center gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-fit py-2 pr-2 pl-6 rounded-full flex items-center justify-end gap-3 hover:bg-muted/50 transition-colors"
+                className="relative h-fit py-2 pr-2 pl-2 md:pl-6 rounded-full flex items-center justify-end gap-3 hover:bg-muted/50 transition-colors"
               >
                 <div className="hidden md:flex flex-col items-end">
                   <span className="text-sm font-medium">{companyName}</span>

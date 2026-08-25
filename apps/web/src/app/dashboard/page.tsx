@@ -61,7 +61,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
               {getGreeting()}, {resolveGreetingName(user?.name, tenantOwner?.name)}!
             </span>{" "}

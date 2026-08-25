@@ -21,9 +21,11 @@ export function ContactsToolbar({
   isFiltering,
   isLoadingAll,
 }: ContactsToolbarProps) {
+  // items-center numa coluna centraliza os filhos e impede o campo de busca de
+  // esticar — era por isso que ele saía mais estreito que o resto da página.
   return (
-    <div className="flex flex-col sm:flex-row gap-4 items-center">
-      <div className="max-w-md flex-1">
+    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+      <div className="w-full sm:max-w-md sm:flex-1">
         <Input
           placeholder="Buscar por nome, email ou telefone..."
           value={searchTerm}
@@ -37,7 +39,7 @@ export function ContactsToolbar({
           }
         />
       </div>
-      <div className="flex gap-2">
+      <div className="flex justify-center gap-2 sm:justify-start">
         <Button
           variant={typeFilter === "todos" ? "default" : "outline"}
           size="sm"

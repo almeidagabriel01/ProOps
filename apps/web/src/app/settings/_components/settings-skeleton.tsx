@@ -18,24 +18,27 @@ export function SettingsNavSkeleton() {
       {/* Navigation card */}
       <div className="rounded-xl border border-border/60 bg-card p-2">
         <div className="flex flex-row gap-1 overflow-x-auto lg:flex-col lg:gap-3 lg:overflow-visible">
+          {/* As larguras acompanham o nav real: abaixo de lg os rótulos são
+              menores e o de pagamentos é encurtado, senão o esqueleto some do
+              formato do conteúdo que chega. */}
           {/* Group "Conta" — 1 item */}
           <div className="flex flex-row gap-1 lg:flex-col lg:gap-0.5">
             <Skeleton className="mx-3 mb-1 hidden h-3 w-14 lg:block" />
-            <div className="flex items-center gap-3 px-3 py-2">
+            <div className="flex items-center gap-2 px-2 py-2 lg:gap-3 lg:px-3">
               <Skeleton className="h-4 w-4 shrink-0 rounded-sm" />
-              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-16 lg:w-24" />
             </div>
           </div>
           {/* Group "Organização" — 2 items */}
           <div className="flex flex-row gap-1 lg:flex-col lg:gap-0.5">
             <Skeleton className="mx-3 mb-1 hidden h-3 w-20 lg:block" />
-            <div className="flex items-center gap-3 px-3 py-2">
+            <div className="flex items-center gap-2 px-2 py-2 lg:gap-3 lg:px-3">
               <Skeleton className="h-4 w-4 shrink-0 rounded-sm" />
-              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-12 lg:w-16" />
             </div>
-            <div className="flex items-center gap-3 px-3 py-2">
+            <div className="flex items-center gap-2 px-2 py-2 lg:gap-3 lg:px-3">
               <Skeleton className="h-4 w-4 shrink-0 rounded-sm" />
-              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-20 lg:w-32" />
             </div>
           </div>
         </div>
@@ -59,7 +62,7 @@ export function SettingsShellSkeleton({
   children: React.ReactNode;
 }) {
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="w-full max-w-6xl mx-auto px-0 sm:px-6 lg:px-8 py-4 sm:py-8">
       <div className="mb-6 space-y-2">
         <Skeleton className="h-8 w-48 sm:h-9 sm:w-56" />
         <Skeleton className="h-4 w-72" />

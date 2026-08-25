@@ -30,17 +30,29 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      // A suíte desktop segue exatamente como era; só ignora a pasta nova.
+      testIgnore: "mobile/**",
+    },
+    {
+      // Viewport de 393x851 (Pixel 5) com hasTouch/isMobile. Nenhuma tela
+      // autenticada era testada abaixo de 1280px antes disto.
+      name: "mobile-chrome",
+      use: { ...devices["Pixel 5"] },
+      testMatch: ["smoke.spec.ts", "mobile/**/*.spec.ts"],
     },
   ],
   webServer: {
     // Use port 3001 so the test server never conflicts with `npm run dev` (port 3000).
     // Playwright's webServer.env vars are already in process.env before Next.js starts,
     // so Next.js does NOT override them when loading .env.local — the demo values win.
-    command: "node -e \"require('fs').rmSync('apps/web/.next',{recursive:true,force:true})\" && npm run dev:test",
+    command: "node -e \"require('fs').rmSync('apps/web/.next-test',{recursive:true,force:true})\" && npm run dev:test",
     port: 3001,
     reuseExistingServer: false,
     timeout: 120000,
     env: {
+      // Diretório de build próprio: sem isto o servidor de teste apaga o
+      // apps/web/.next de um `npm run dev` aberto e derruba os dois.
+      NEXT_DIST_DIR: ".next-test",
       NEXT_PUBLIC_USE_FIREBASE_EMULATORS: "true",
       NEXT_PUBLIC_FIREBASE_API_KEY: "demo-key",
       NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "demo-proops-test.firebaseapp.com",

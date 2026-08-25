@@ -26,7 +26,7 @@ export function PermissionToggle({
             onClick={() => !disabled && !loading && onChange(!enabled)}
             disabled={disabled || loading}
             className={`
-        flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium
+        flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap sm:gap-2 sm:px-3
         transition-all duration-200
         ${(disabled || loading) ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
         ${enabled

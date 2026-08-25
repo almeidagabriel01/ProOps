@@ -65,7 +65,8 @@ npm run deploy:prod   # → erp-softcode-prod (prod)
 ### Testing
 ```bash
 firebase emulators:start               # Ports: 5001/8080/9099/9199, UI:4000
-npm run test:e2e                       # Playwright E2E (requires emulators)
+npm run test:e2e                       # Playwright E2E desktop (requires emulators)
+npx playwright test --config=tests/playwright.config.ts --project=mobile-chrome   # E2E mobile (Pixel 5)
 npm run test:rules                     # Firestore security rules (Jest)
 npm run security:scan                  # OWASP ZAP baseline
 ```
@@ -92,6 +93,26 @@ npm run security:scan                  # OWASP ZAP baseline
 ### Multi-Niche Support
 Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/`. Uses `tenantNiche` on tenant documents.
 
+## Responsividade
+
+O ERP é adaptado a telas pequenas com piso de design de 360px. `md` (768px) é
+a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
+
+- **O desktop não muda.** Toda diferença de layout é aditiva e prefixada
+  (`p-4 md:p-8`), ou vive num ramo mobile próprio. Nunca remova uma classe
+  existente nem troque um valor sem a guarda `md:`.
+- **Navegação:** `BottomDock` (dock com magnificação por hover) de `md` para
+  cima, `MobileTabBar` + `MobileNavSheet` abaixo. As duas superfícies leem o
+  mesmo `useDockEntries()`, então o gating de plano/permissão/nicho não pode
+  divergir — não duplique esse modelo.
+- **Listas:** `DataTable` colapsa em cards abaixo de `md`. Declare `priority`
+  (`leading` | `primary` | `secondary` | `actions` | `hidden`) nas colunas;
+  sem isso um padrão é derivado da ordem. `minWidth` só vale de `md` para cima.
+- **Prefira CSS (`md:`) a JavaScript.** `useIsMobile()` (`hooks/use-is-mobile.ts`)
+  só onde renderizar as duas árvores seria custoso ou semanticamente errado.
+- **Guardrail:** `tests/e2e/mobile/no-overflow.spec.ts` falha se qualquer rota
+  autenticada vazar na horizontal a 393px. Rode-o ao mexer em layout.
+
 ## Stack Versions
 
 | Package | Version |
@@ -114,7 +135,7 @@ Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/
 │   │   └── src/
 │   │       ├── app/          # App Router (30+ segments) + api/backend/ proxy
 │   │       ├── components/   # ui/(Shadcn), admin, auth, lia, features, shared...
-│   │       ├── hooks/        # Data-fetching + UI hooks (33, + proposal/ subfolder)
+│   │       ├── hooks/        # Data-fetching + UI hooks (34, + proposal/ subfolder)
 │   │       ├── providers/    # Auth, Tenant, Permissions, Theme, Plan
 │   │       ├── services/     # Client-side API calls → /api/backend/* (33)
 │   │       ├── lib/          # Firebase init, niches/, plan limits

@@ -464,7 +464,7 @@ function EnvironmentCard({
         className="p-4 flex flex-col gap-4 rounded-t-lg"
         style={{ backgroundColor: `${primaryColor}15` }}
       >
-        <div className="flex items-start justify-between w-full">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div
               className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
@@ -474,7 +474,7 @@ function EnvironmentCard({
             </div>
             <div className="min-w-0 flex-1">
               <h4
-                className="font-bold text-xl text-foreground truncate"
+                className="font-bold text-lg sm:text-xl text-foreground truncate"
                 style={{ color: primaryColor }}
               >
                 {ambienteName}
@@ -486,16 +486,16 @@ function EnvironmentCard({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-10 shrink-0 ml-4">
-            <div className="flex flex-col items-end gap-1">
+          <div className="flex shrink-0 items-center justify-between gap-3 sm:gap-10 sm:ml-4">
+            <div className="flex min-w-0 flex-col items-start gap-1 sm:items-end">
               <span
-                className="text-sm font-medium text-muted-foreground mr-2"
+                className="text-xs sm:text-sm font-medium text-muted-foreground sm:mr-2"
                 title="Soma do valor de custo dos produtos sem markup"
               >
                 Custo (Bruto): R$ {ambienteTotal.toFixed(2)}
               </span>
               <span
-                className="text-sm font-bold"
+                className="text-xs sm:text-sm font-bold"
                 style={{ color: primaryColor }}
                 title="Soma do valor final dos produtos com markup"
               >

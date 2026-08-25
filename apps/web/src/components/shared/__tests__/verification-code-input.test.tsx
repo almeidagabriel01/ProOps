@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import * as React from "react";
-import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 
 import { VerificationCodeInput } from "../verification-code-input";
 import { RecoveryCodeInput } from "../recovery-code-input";
@@ -15,6 +15,20 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver =
   ResizeObserverStub as unknown as typeof ResizeObserver;
+
+// input-otp re-syncs its selection with setTimeout(0/10/50) on every change and
+// never clears those timers. Under real timers they fire after vitest tears the
+// jsdom environment down, and the setState inside crashes with
+// "window is not defined" (an unhandled error that fails the whole run).
+// Fake timers keep them confined to the test's own lifetime.
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe("VerificationCodeInput", () => {
   it("renders 6 numeric slots", () => {

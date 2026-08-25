@@ -639,6 +639,7 @@ export default function ProposalsPage() {
       {
         key: "title",
         header: "Título",
+        priority: "primary",
         render: (proposal) => {
           const productCount = proposal.products?.length || 0;
           const total =
@@ -648,9 +649,11 @@ export default function ProposalsPage() {
             ) || 0;
           return (
             <div>
+              {/* Clamp no título, não no wrapper: o subtítulo abaixo precisa
+                  continuar visível. */}
               <Link
                 href={`/proposals/${proposal.id}?initialStep=automation`}
-                className="font-medium hover:underline"
+                className="font-medium hover:underline max-md:line-clamp-2 wrap-break-word"
               >
                 {proposal.title}
               </Link>
@@ -666,6 +669,7 @@ export default function ProposalsPage() {
       {
         key: "clientName",
         header: "Contato",
+        priority: "secondary",
         render: (proposal) => (
           <div className="text-sm text-muted-foreground truncate">
             {proposal.clientName}
@@ -675,6 +679,7 @@ export default function ProposalsPage() {
       {
         key: "status",
         header: "Status",
+        priority: "secondary",
         render: (proposal) => (
           <div>
             {canEdit && !isReadOnly ? (
@@ -742,6 +747,7 @@ export default function ProposalsPage() {
         key: "primaryEnvironment",
         header: "Ambiente",
         sortable: true,
+        priority: "hidden",
         render: (proposal) => {
           const ambienteNamesFromSystems =
             proposal.sistemas?.flatMap((s) => {
@@ -787,6 +793,7 @@ export default function ProposalsPage() {
         key: "primarySystem",
         header: "Solução",
         sortable: true,
+        priority: "hidden",
         render: (proposal) => {
           const systemsFromArray =
             proposal.sistemas?.flatMap((s) =>
@@ -821,6 +828,7 @@ export default function ProposalsPage() {
       {
         key: "validUntil",
         header: "Validade",
+        priority: "secondary",
         render: (proposal) => (
           <div className="text-sm text-muted-foreground">
             {formatDate(proposal.validUntil)}
@@ -833,6 +841,7 @@ export default function ProposalsPage() {
         sortable: false,
         className: "text-right",
         headerClassName: "flex justify-end",
+        priority: "actions",
         render: (proposal) => (
           <div className="flex items-center justify-end gap-1">
             {/* Individual action buttons — hidden on small screens (≤1700px) */}
@@ -1054,20 +1063,25 @@ export default function ProposalsPage() {
           {showFullPageSkeleton && <ProposalsSkeleton />}
           <div
             className={cn(
-              "space-y-6 flex flex-col min-h-[calc(100vh-180px)]",
+              "space-y-6 flex flex-col md:min-h-[calc(100vh-180px)]",
               showFullPageSkeleton && "hidden",
             )}
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">Propostas</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Propostas</h1>
                 <p className="text-muted-foreground mt-1">
                   Gerencie suas propostas comerciais
                 </p>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                 {canAccessCrm ? (
-                  <Button asChild variant="outline" size="lg" className="gap-2">
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="gap-2 w-full sm:w-auto"
+                  >
                     <Link href="/crm?scope=proposals">
                       <Kanban className="w-5 h-5" />
                       CRM de Propostas
@@ -1077,7 +1091,7 @@ export default function ProposalsPage() {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="relative gap-2 pr-10"
+                    className="relative gap-2 pr-10 w-full sm:w-auto"
                     onClick={() =>
                       upgradeModal.showUpgradeModal(
                         "CRM",
@@ -1098,7 +1112,7 @@ export default function ProposalsPage() {
                 )}
 
                 {canCreate && (
-                  <Button asChild size="lg" className="gap-2">
+                  <Button asChild size="lg" className="gap-2 w-full sm:w-auto">
                     <Link href="/proposals/new">
                       <Plus className="w-5 h-5" />
                       Nova Proposta

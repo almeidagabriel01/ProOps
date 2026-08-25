@@ -42,6 +42,7 @@ export const createColumns = ({
   {
     key: "name",
     header: "Nome",
+    priority: "primary",
     render: (client) => (
       <div className="min-w-0">
         <Link
@@ -56,6 +57,7 @@ export const createColumns = ({
   {
     key: "types",
     header: "Tipo",
+    priority: "secondary",
     render: (client) => {
       const clientTypes = client.types || ["cliente"];
       return (
@@ -77,6 +79,7 @@ export const createColumns = ({
     header: "Endereço",
     className: "",
     headerClassName: "whitespace-nowrap",
+    priority: "hidden",
     render: (client) => (
       <div className="text-sm text-muted-foreground truncate">
         {client.address || "-"}
@@ -86,6 +89,7 @@ export const createColumns = ({
   {
     key: "email",
     header: "Contato",
+    priority: "secondary",
     render: (client) => (
       <div className="space-y-1 min-w-0">
         {client.email && (
@@ -111,6 +115,7 @@ export const createColumns = ({
     header: "Origem",
     className: "",
     headerClassName: "",
+    priority: "hidden",
     render: (client) => {
       const source = sourceConfig[client.source] || sourceConfig.manual;
       return <Badge variant={source.variant}>{source.label}</Badge>;
@@ -122,6 +127,7 @@ export const createColumns = ({
     className: "text-right",
     headerClassName: "flex justify-end",
     sortable: false,
+    priority: "actions",
     render: (client) => (
       <div className="flex items-center justify-end gap-1">
         {canEdit && (
