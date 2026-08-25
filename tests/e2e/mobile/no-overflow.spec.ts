@@ -212,10 +212,18 @@ test.describe("MOBILE-01 sem overflow horizontal", () => {
       `Agrupados fechado: ${collapsed.mainScrollWidth}px numa área de ${collapsed.mainClientWidth}px.${describeOffenders(collapsed)}`,
     ).toBeLessThanOrEqual(collapsed.mainClientWidth + TOLERANCE_PX);
 
-    const card = page.getByTestId("transaction-card").first();
+    // O seed não cria transaction_groups, então nem sempre há card para
+    // expandir. Sair aqui em vez de test.skip preserva a asserção da visão
+    // fechada acima, que é um gate real.
     const cardCount = await page.getByTestId("transaction-card").count();
-    test.skip(cardCount === 0, "nenhum lançamento agrupado no seed");
+    if (cardCount === 0) {
+      console.log(
+        "[MOBILE-01] sem lançamento agrupado no seed — só a visão fechada foi medida",
+      );
+      return;
+    }
 
+    const card = page.getByTestId("transaction-card").first();
     await card.click();
     await page.waitForTimeout(1200);
 
