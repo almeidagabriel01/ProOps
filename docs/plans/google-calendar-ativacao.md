@@ -1,0 +1,210 @@
+# Ativação do Google Calendar — passo a passo
+
+> A sincronização com o Google Calendar está **desligada** em dev e em produção
+> (`GOOGLE_CALENDAR_SYNC_ENABLED=false`). O código existe desde a fase H1, mas a
+> funcionalidade nunca rodou num ambiente publicado.
+>
+> Este documento é o caminho para ligar com segurança, e principalmente o que
+> verificar **antes** de ligar.
+
+---
+
+## A pergunta que decide tudo
+
+Antes de qualquer flag, responda esta: **em que modo está a tela de permissão
+OAuth?**
+
+O código pede o escopo `calendar.events.owned`, que o Google classifica como
+**sensível**. Isso muda tudo conforme o modo:
+
+| Modo | Quem pode conectar | Duração do refresh token |
+|---|---|---|
+| **Testing** | Só usuários adicionados na mão (máx. 100) | **7 dias** |
+| **In production** (verificado) | Qualquer um | Indefinida |
+
+Os 7 dias são o ponto crítico. Num SaaS multi-tenant significa que **cada
+cliente teria que reconectar a agenda toda semana**. Não é contornável no
+código — é política do Google.
+
+Se a tela estiver em Testing, ligar a funcionalidade em produção cria um
+problema de suporte recorrente. É provavelmente por isso que ela está desligada.
+
+---
+
+## O que já está pronto
+
+Verificado em 25/08/2026:
+
+| Item | dev | prod |
+|---|---|---|
+| Calendar API habilitada no projeto | ✅ | ✅ |
+| `GOOGLE_CALENDAR_CLIENT_ID` e `_SECRET` | ✅ | ✅ |
+| Chave KMS `calendar-refresh-token` + IAM | ✅ | ✅ |
+| `CALENDAR_TOKEN_KMS_KEY` no serviço | ✅ (deploy 25/08) | ❌ falta deploy |
+| `GOOGLE_CALENDAR_SYNC_ENABLED` | `false` | `false` |
+| `NEXT_PUBLIC_GOOGLE_CALENDAR_SYNC_ENABLED` (Vercel) | ❓ | ❓ |
+
+O KMS era o bloqueador silencioso e já foi resolvido em dev. Sem ele,
+`encryptToken` lançava e conectar a agenda falhava com `?error=oauth_failed` —
+sem gravar nada, o que é o comportamento correto, mas sem explicar o motivo.
+
+---
+
+## Passo 1 — Verificar a tela de permissão OAuth
+
+**Console → APIs e Serviços → Tela de permissão OAuth**
+(projeto `erp-softcode` para dev, `erp-softcode-prod` para produção)
+
+O que olhar:
+
+**Tipo de usuário** deve ser **Externo**. Se estiver "Interno", só contas do
+mesmo Workspace conseguem conectar — inútil para clientes.
+
+**Status de publicação:**
+
+- `Em teste` → é o cenário dos 7 dias. Há uma lista de "Usuários de teste" logo
+  abaixo; só quem estiver nela consegue conectar.
+- `Em produção` → aberto a qualquer usuário. Verifique se há aviso de verificação
+  pendente.
+
+**Escopos** — devem constar:
+```
+.../auth/calendar.events.owned      ← sensível
+.../auth/userinfo.email
+```
+
+> `calendar.events.owned` dá acesso só aos eventos criados pelo próprio app, e
+> não à agenda inteira. É a escolha certa e facilita a verificação — bem mais
+> simples que `calendar` completo, que é escopo restrito e exige avaliação de
+> segurança por terceiro.
+
+---
+
+## Passo 2 — Verificar os URIs de redirecionamento
+
+**Console → APIs e Serviços → Credenciais → o cliente OAuth 2.0 (tipo Aplicativo da Web)**
+
+Em **URIs de redirecionamento autorizados**, precisam estar exatamente:
+
+```
+https://proops.com.br/api/backend/v1/calendar/google/callback
+https://template-erp-git-develop-gestao-2562s-projects.vercel.app/api/backend/v1/calendar/google/callback
+```
+
+Sem barra no final, exatamente com esse caminho.
+
+O backend deriva a URL de `APP_URL` — que hoje é `https://proops.com.br/` em
+produção e a URL da Vercel em dev — normalizando a barra final. Existe também
+`GOOGLE_CALENDAR_REDIRECT_URI` como override explícito, hoje não configurado em
+nenhum ambiente.
+
+> A origem **nunca** vem do header da requisição, só de `APP_URL`. Foi um
+> hardening deliberado (M1): usar o host da requisição deixaria um atacante
+> influenciar o `redirect_uri` via `x-forwarded-host`.
+
+---
+
+## Passo 3 — Ligar em dev
+
+Só depois dos passos 1 e 2.
+
+**Backend** — `apps/functions/.env.erp-softcode`:
+```
+GOOGLE_CALENDAR_SYNC_ENABLED=true
+```
+E deployar: `npm run deploy:dev`
+
+**Frontend** — na Vercel, no ambiente correspondente ao deploy de dev:
+```
+NEXT_PUBLIC_GOOGLE_CALENDAR_SYNC_ENABLED=true
+```
+Precisa de **redeploy** — variável `NEXT_PUBLIC_*` é embutida no build, não lida
+em tempo de execução.
+
+> As duas flags são independentes e ambas com default `false`. Ligar só o
+> backend não mostra nada na tela; ligar só o frontend mostra um botão que
+> falha.
+
+---
+
+## Passo 4 — Conectar uma agenda de verdade
+
+1. Entrar em `/calendar` com um usuário **master** do tenant
+2. Conectar o Google Calendar
+3. Autorizar
+
+**Esperado:** volta para `/calendar?googleCalendar=connected`.
+
+**Se voltar com `?googleCalendar=error`**, o `reason` diz o quê:
+
+| `reason` | Causa provável |
+|---|---|
+| `oauth_failed` | Genérico — ver logs. **Se o KMS não estiver no serviço, é aqui que aparece** |
+| `invalid_state` | State expirado ou reutilizado; refazer o fluxo |
+| `expired_state` | Demorou demais entre iniciar e autorizar |
+| `invalid_request` | Faltou parâmetro no callback |
+
+Erro do próprio Google, antes de voltar ao app:
+
+| Mensagem | Causa |
+|---|---|
+| `redirect_uri_mismatch` | Passo 2 — URI não cadastrado ou com diferença |
+| `access_blocked` / "app não verificado" | Passo 1 — usuário fora da lista de teste |
+
+5. Confirmar no Firestore que o token foi gravado **cifrado**:
+
+```
+calendar_integrations/{tenantId} →
+  refreshTokenEnc: "kms:v1:..."   ← deve começar com kms:v1:
+  refreshToken:    ""             ← deve estar VAZIO
+```
+
+> Se `refreshToken` tiver conteúdo em texto puro, **pare**. O código escreve os
+> dois campos de propósito — o cifrado preenchido e o legado zerado. Texto puro
+> ali significa que algo caiu no caminho de migração antigo.
+
+---
+
+## Passo 5 — Produção
+
+Só depois do passo 4 funcionar em dev, e **só se a tela de permissão estiver
+verificada**.
+
+1. Deployar para levar `CALENDAR_TOKEN_KMS_KEY` ao serviço de produção —
+   hoje ela está no arquivo mas não no serviço
+2. `GOOGLE_CALENDAR_SYNC_ENABLED=true` em `.env.erp-softcode-prod`
+3. `NEXT_PUBLIC_GOOGLE_CALENDAR_SYNC_ENABLED=true` na Vercel de produção
+4. **Atualizar o secret `FUNCTIONS_ENV_PRODUCTION` no GitHub**, senão o próximo
+   deploy pelo CI reverte tudo:
+
+```bash
+gh secret set FUNCTIONS_ENV_PRODUCTION --env production \
+  --repo almeidagabriel01/ProOps < apps/functions/.env.erp-softcode-prod
+```
+
+---
+
+## Se a tela estiver em "Em teste"
+
+Duas saídas, e a escolha é de produto:
+
+**Solicitar verificação.** No próprio console, em Tela de permissão OAuth →
+Publicar app. Para escopo sensível o Google pede vídeo demonstrando o uso,
+política de privacidade e domínio verificado. Leva de dias a semanas. É o
+caminho certo para abrir a agenda a todos os clientes.
+
+**Manter em teste e usar como piloto.** Adicionar os e-mails dos clientes na
+lista de usuários de teste e conviver com a reconexão a cada 7 dias. Só faz
+sentido para validar com um ou dois clientes antes de investir na verificação.
+
+> O que **não** funciona é ligar em produção com a tela em teste e não avisar:
+> o cliente conecta, funciona por uma semana e para sozinho, sem mensagem de
+> erro clara.
+
+---
+
+## Reverter
+
+Se algo der errado, desligar é seguro e imediato: `GOOGLE_CALENDAR_SYNC_ENABLED=false`
+e redeploy. As integrações já gravadas ficam intactas — o código só para de
+sincronizar (`isGoogleCalendarDisabled()` retorna cedo em todos os caminhos).
