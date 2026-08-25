@@ -274,7 +274,6 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
         proximoNumeroNfse: form.proximoNumeroNfse
           ? Number(form.proximoNumeroNfse)
           : undefined,
-        certificadoValidade: form.certificadoValidade,
         certificadoSenha: form.certificadoSenha || undefined,
       });
       setSettings(saved);
@@ -656,7 +655,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
         <CardHeader>
           <CardTitle className="text-base">Certificado digital</CardTitle>
           <CardDescription>
-            É preciso um e-CNPJ modelo A1 (arquivo .pfx). O arquivo não fica guardado no ProOps —
+            É preciso um e-CNPJ modelo A1 (arquivo .pfx). O arquivo não fica guardado na ProOps, 
             é enviado ao provedor fiscal, que o custodia.
           </CardDescription>
         </CardHeader>
@@ -680,13 +679,18 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="fiscal-cert-validade">Validade do certificado</Label>
-              <Input
-                id="fiscal-cert-validade"
-                type="date"
-                value={form.certificadoValidade}
-                onChange={(e) => setField("certificadoValidade", e.target.value)}
-              />
+              <Label>Validade do certificado</Label>
+              {/* Lida do próprio arquivo ao enviar — pedir para digitar
+                  arriscaria uma data errada, e o alerta avisaria no dia errado. */}
+              <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
+                {settings?.certificadoValidade ? (
+                  new Date(settings.certificadoValidade).toLocaleDateString("pt-BR")
+                ) : (
+                  <span className="text-muted-foreground">
+                    Detectada ao enviar o certificado
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
                 Avisamos com 30, 15, 7 e 1 dia de antecedência.
               </p>

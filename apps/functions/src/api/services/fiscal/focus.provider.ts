@@ -123,6 +123,8 @@ export class FocusFiscalProvider implements FiscalProvider {
         cnpj?: string;
         token_homologacao?: string;
         token_producao?: string;
+        certificado_valido_ate?: string;
+        certificado_cnpj?: string;
       }>(url, buildEmpresaPayload(issuer), buildRequestConfig(resolveMasterToken()));
 
       const data = response.data ?? {};
@@ -135,6 +137,11 @@ export class FocusFiscalProvider implements FiscalProvider {
         // Ausentes num dry run — ele valida sem criar a empresa.
         ...(data.token_homologacao ? { tokenHomologacao: data.token_homologacao } : {}),
         ...(data.token_producao ? { tokenProducao: data.token_producao } : {}),
+        // Lidos do proprio .pfx pelo provedor — o usuario nao precisa digitar.
+        ...(data.certificado_valido_ate
+          ? { certificadoValidoAte: data.certificado_valido_ate }
+          : {}),
+        ...(data.certificado_cnpj ? { certificadoCnpj: data.certificado_cnpj } : {}),
       };
     } catch (err) {
       const detail = describeFocusError(err);

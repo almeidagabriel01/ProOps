@@ -188,6 +188,16 @@ export interface FiscalIssuerResult {
    */
   tokenHomologacao?: string;
   tokenProducao?: string;
+  /**
+   * Validade do certificado, lida do próprio arquivo pelo provedor.
+   *
+   * Melhor que pedir ao usuário: a data está dentro do `.pfx`, e digitá-la
+   * errado faria o alerta de vencimento avisar na data errada — que é
+   * exatamente quando ele não pode falhar.
+   */
+  certificadoValidoAte?: string;
+  /** CNPJ que o provedor leu do certificado — confere com o cadastrado. */
+  certificadoCnpj?: string;
 }
 
 /**

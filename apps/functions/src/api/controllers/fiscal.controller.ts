@@ -382,6 +382,10 @@ export const registerIssuerHandler = async (
       certificadoSenha,
       tokenHomologacao: result.tokenHomologacao,
       tokenProducao: result.tokenProducao,
+      // A validade vem lida do próprio .pfx pelo provedor. Sobrescreve o que o
+      // usuário tenha digitado: uma data errada faria o alerta de vencimento
+      // avisar no dia errado, que é justamente quando ele não pode falhar.
+      certificadoValidade: result.certificadoValidoAte ?? settings.certificadoValidade,
     });
     await setFiscalStatus(ctx.tenantId, "registered");
 
