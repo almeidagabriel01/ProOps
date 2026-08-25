@@ -362,7 +362,7 @@ export default function ProductsPage() {
         // -ml-2 compensa o px-2 do botão editável: sem isso o texto do estoque
         // fica 8px adentro e desalinha do rótulo, mesmo com as caixas casadas.
         <StockEditableCell
-          className="max-md:-ml-2"
+          className="max-md:pr-0"
           initialValue={getProductInventoryValue(product)}
           inventory={inventoryConfig}
           onUpdate={(val) => handleInventoryUpdate(product, val)}

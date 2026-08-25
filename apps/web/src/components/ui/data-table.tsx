@@ -210,12 +210,11 @@ function MobileCardRow<T>({
               const spansRow =
                 secondary.length === 1 ||
                 (isLast && secondary.length % 2 === 1);
-              // Só o campo que ocupa a linha inteira (o preço) vai para a direita. A
-              // coluna da direita fica alinhada à ESQUERDA da própria coluna,
-              // para que rótulo e valor partam da mesma borda — alinhá-la à
-              // direita desencaixava os dois, porque a célula de estoque tem
-              // px-2 do botão e recua 8px.
-              const alignsRight = spansRow && secondary.length > 1;
+              // Coluna da esquerda alinha à esquerda; coluna da direita e o campo que
+              // ocupa a linha inteira alinham à direita, encostando na borda do card.
+              const alignsRight = spansRow
+                ? secondary.length > 1
+                : index % 2 === 1;
 
               return (
                 <div
