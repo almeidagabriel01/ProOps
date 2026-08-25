@@ -1,11 +1,13 @@
 # Ativação do Google Calendar — passo a passo
 
-> A sincronização com o Google Calendar está **desligada** em dev e em produção
-> (`GOOGLE_CALENDAR_SYNC_ENABLED=false`). O código existe desde a fase H1, mas a
-> funcionalidade nunca rodou num ambiente publicado.
+> **Validado em 25/08/2026, rodando local contra o Firestore real de dev.** O
+> fluxo OAuth completou, e o refresh token foi gravado **cifrado**:
+> `refreshTokenEnc: "kms:v1:..."` (255 chars) com `refreshToken: ""` vazio.
+> Foi a primeira vez que a criptografia KMS do Calendar rodou de verdade — até
+> então existia só no código.
 >
-> Este documento é o caminho para ligar com segurança, e principalmente o que
-> verificar **antes** de ligar.
+> Falta ligar em **produção**, que já está pronta do lado do Google
+> (verificada, escopo aprovado, URI correto). Ver Passo 5.
 
 ---
 
@@ -43,8 +45,30 @@ Verificado em 25/08/2026:
 | `CALENDAR_TOKEN_KMS_KEY` no serviço | ✅ (deploy 25/08) | ❌ falta deploy |
 | App OAuth verificado pelo Google | — (não precisa) | ✅ |
 | Verificação de domínio | — | ✅ |
-| `GOOGLE_CALENDAR_SYNC_ENABLED` | `false` | `false` |
-| `NEXT_PUBLIC_GOOGLE_CALENDAR_SYNC_ENABLED` (Vercel) | ❓ | ❓ |
+| Status de publicação | `Testando` | `Em produção` |
+| Escopo `calendar.events.owned` | ❌ não declarado | ✅ **aprovado** |
+| URI de redirecionamento | só `localhost:3000` | ✅ `proops.com.br` |
+| `GOOGLE_CALENDAR_SYNC_ENABLED` | `true` (local) | `false` |
+| `NEXT_PUBLIC_GOOGLE_CALENDAR_SYNC_ENABLED` | `true` (local) | ❓ |
+
+> **O limite de 100 usuários não se aplica a produção.** A própria tela explica:
+> apps verificados continuam exibindo o limite, mas ele não é aplicado quando os
+> escopos confidenciais estão aprovados — que é o caso.
+
+### O caminho de validação foi local, não o dev deployado
+
+O cliente OAuth de dev tem **apenas `http://localhost:3000/...`** cadastrado — foi
+feito para desenvolvimento local, não para o ambiente dev da Vercel. E isso é
+conveniente: no emulador o código usa `LOCAL_APP_URL` (padrão
+`http://localhost:3000`), que bate exatamente com o registrado.
+
+Testar contra o **dev deployado** daria `redirect_uri_mismatch` até alguém
+cadastrar a URL da Vercel no console. Não é necessário — local prova a mesma
+coisa, com a chave KMS real e o Google real.
+
+O projeto de dev também não tem **nenhum escopo declarado** em Acesso a dados, e
+tem o branding incompleto (é o que deixa "Publicar app" desabilitado). Nada disso
+impede o modo de teste.
 
 O KMS era o bloqueador silencioso e já foi resolvido em dev. Sem ele,
 `encryptToken` lançava e conectar a agenda falhava com `?error=oauth_failed` —
