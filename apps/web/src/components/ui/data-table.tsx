@@ -198,8 +198,18 @@ function MobileCardRow<T>({
           {actions && <div className="shrink-0">{actions.render(item)}</div>}
         </div>
 
+        {/* justify-between distribui os campos na largura do card: com dois
+           (Categoria/Preço) o valor vai para a borda direita, com três
+           (Categoria/Estoque/Preço) o espaçamento fica regular. O último ganha
+           text-right para o número encostar na borda, mas só quando há mais de
+           um campo — sozinho ele deve continuar à esquerda. */}
         {secondary.length > 0 && (
-          <dl className="flex flex-wrap gap-x-5 gap-y-2">
+          <dl
+            className={cn(
+              "flex flex-wrap items-start justify-between gap-x-4 gap-y-2",
+              secondary.length > 1 && "[&>div:last-child]:text-right",
+            )}
+          >
             {secondary.map((column) => (
               <div key={column.key} className="min-w-0">
                 <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

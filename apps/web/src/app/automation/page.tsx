@@ -598,7 +598,7 @@ export default function AutomationAdminPage() {
         onValueChange={handleTabChange}
         className="w-full space-y-6 flex-1 flex flex-col"
       >
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 border-b pb-4">
           <TabsList className="bg-muted/50 p-1 rounded-xl h-auto">
             <TabsTrigger
               value="sistemas"
@@ -624,7 +624,7 @@ export default function AutomationAdminPage() {
               <Button
                 size="lg"
                 onClick={() => setEditingSistemaId("new")}
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
               >
                 <Plus className="w-5 h-5" /> Nova Solução
               </Button>
