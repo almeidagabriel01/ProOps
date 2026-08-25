@@ -89,6 +89,13 @@ export interface FiscalSettingsDocument {
    * client.
    */
   webhookSecret?: string;
+  /** Resultado do ultimo registro de gatilho — publico, nao contem a URL. */
+  webhookStatus?: {
+    state: "registered" | "failed" | "partial";
+    attemptedAt: string;
+    registered: string[];
+    lastError?: string;
+  };
   /** `manual` until the tenant opts into an automatic trigger. */
   autoIssueRule: FiscalAutoIssueRule;
   defaultNaturezaOperacao?: string;
@@ -135,6 +142,13 @@ export interface FiscalSettingsPublic {
   certificadoDiasParaVencer?: number;
   autoIssueRule?: FiscalAutoIssueRule;
   defaultNaturezaOperacao?: string;
+  /** Estado do gatilho de notificacao. Nao expoe a URL, que carrega o segredo. */
+  webhookStatus?: {
+    state: "registered" | "failed" | "partial";
+    attemptedAt: string;
+    registered: string[];
+    lastError?: string;
+  };
   lastError?: string;
   updatedAt?: string;
 }
@@ -199,6 +213,7 @@ export function toPublicSettings(
   if (doc.defaultNaturezaOperacao) {
     publicView.defaultNaturezaOperacao = doc.defaultNaturezaOperacao;
   }
+  if (doc.webhookStatus) publicView.webhookStatus = doc.webhookStatus;
   if (doc.lastError) publicView.lastError = doc.lastError;
   if (doc.updatedAt) publicView.updatedAt = doc.updatedAt;
 

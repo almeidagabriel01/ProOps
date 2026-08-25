@@ -51,6 +51,7 @@ import {
   issueFromProposal,
   issueFromTransaction,
 } from "../services/fiscal/invoice-issue.service";
+import { registerFiscalWebhooks } from "../services/fiscal/fiscal-webhook-registration.service";
 import {
   CANCELLATION_JUSTIFICATION_MAX_LENGTH,
   CANCELLATION_JUSTIFICATION_MIN_LENGTH,
@@ -375,7 +376,21 @@ export const registerIssuerHandler = async (
     });
     await setFiscalStatus(ctx.tenantId, "registered");
 
-    res.status(200).json(result);
+    // Sem gatilho registrado a notificacao nunca chega e toda nota fica
+    // dependendo do cron de 15 min. Nunca lanca: falha vira estado + alerta.
+    const refreshed = await getFiscalSettings(ctx.tenantId);
+    const webhookStatus = refreshed?.webhookSecret
+      ? await registerFiscalWebhooks({
+          tenantId: ctx.tenantId,
+          cnpj: refreshed.cnpj,
+          webhookSecret: refreshed.webhookSecret,
+          environment: resolveFiscalEnvironment(refreshed.environment),
+          habilitaNfe: refreshed.habilitaNfe,
+          habilitaNfse: refreshed.habilitaNfse,
+        })
+      : undefined;
+
+    res.status(200).json({ ...result, webhookStatus });
   } catch (error) {
     const detail = describeFocusError(error);
     const ctxTenant = req.user?.tenantId;
