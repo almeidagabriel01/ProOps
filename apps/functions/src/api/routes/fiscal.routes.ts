@@ -9,6 +9,8 @@ import {
   issueInvoiceHandler,
   cancelInvoiceHandler,
   listInvoicesHandler,
+  issueFromProposalHandler,
+  issueFromTransactionHandler,
 } from "../controllers/fiscal.controller";
 import { fieldGenRateLimiter } from "../../ai/field-gen-rate-limiter";
 
@@ -31,5 +33,17 @@ router.post(
 router.get("/fiscal/invoices", validateFirebaseIdToken, listInvoicesHandler);
 router.post("/fiscal/invoices", validateFirebaseIdToken, issueInvoiceHandler);
 router.post("/fiscal/invoices/:id/cancel", validateFirebaseIdToken, cancelInvoiceHandler);
+
+// Emissao a partir do documento de negocio — o caminho que os botoes usam.
+router.post(
+  "/fiscal/invoices/from-proposal/:id",
+  validateFirebaseIdToken,
+  issueFromProposalHandler,
+);
+router.post(
+  "/fiscal/invoices/from-transaction/:id",
+  validateFirebaseIdToken,
+  issueFromTransactionHandler,
+);
 
 export { router as fiscalRoutes };

@@ -48,6 +48,10 @@ import {
   listInvoices,
 } from "../services/fiscal/invoice.service";
 import {
+  issueFromProposal,
+  issueFromTransaction,
+} from "../services/fiscal/invoice-issue.service";
+import {
   CANCELLATION_JUSTIFICATION_MAX_LENGTH,
   CANCELLATION_JUSTIFICATION_MIN_LENGTH,
 } from "../services/fiscal/fiscal-provider";
@@ -642,6 +646,72 @@ export const cancelInvoiceHandler = async (req: Request, res: Response): Promise
     });
   }
 };
+
+/**
+ * Emissão a partir de um documento de negócio.
+ *
+ * Uma proposta mista devolve **duas notas** — NF-e da mercadoria e NFS-e da
+ * mão de obra. Faltando qualquer dado fiscal, nenhuma é enviada e a resposta
+ * traz a checklist completa.
+ */
+async function issueFromSource(
+  req: Request,
+  res: Response,
+  source: "proposal" | "transaction",
+): Promise<void> {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const id = String(req.params.id || "");
+    if (!id) {
+      res.status(400).json({ message: "Informe o documento de origem" });
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const options = {
+      createdBy: req.user?.uid,
+      naturezaOperacao: (text(body.naturezaOperacao) || undefined) as
+        | NaturezaOperacao
+        | undefined,
+    };
+
+    const result =
+      source === "proposal"
+        ? await issueFromProposal(ctx.tenantId, id, {
+            ...options,
+            observacoes: text(body.observacoes) || undefined,
+          })
+        : await issueFromTransaction(ctx.tenantId, id, options);
+
+    if (result.gaps.length > 0) {
+      res.status(422).json({
+        message: "Faltam dados fiscais para emitir esta nota.",
+        code: "FISCAL_INCOMPLETO",
+        gaps: result.gaps,
+      });
+      return;
+    }
+
+    res.status(202).json({ invoices: result.invoices });
+  } catch (error) {
+    const err = error as Error;
+    logger.error("Falha ao emitir a partir do documento de origem", {
+      source,
+      error: err.message,
+    });
+    res.status(mapFiscalErrorStatus(err)).json({ message: err.message, code: err.message });
+  }
+}
+
+// POST /v1/fiscal/invoices/from-proposal/:id
+export const issueFromProposalHandler = (req: Request, res: Response) =>
+  issueFromSource(req, res, "proposal");
+
+// POST /v1/fiscal/invoices/from-transaction/:id
+export const issueFromTransactionHandler = (req: Request, res: Response) =>
+  issueFromSource(req, res, "transaction");
 
 // GET /v1/fiscal/invoices
 export const listInvoicesHandler = async (req: Request, res: Response): Promise<void> => {

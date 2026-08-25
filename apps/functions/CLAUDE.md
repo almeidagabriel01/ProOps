@@ -131,6 +131,19 @@ cd apps/functions && npm run lint
 - **O cron `processInvoiceRetries` (15 min) nao e redundancia, e o unico backstop.** O Focus
   retenta a notificacao em 1min, 30min, 1h, 3h e 24h e depois **nunca mais dispara**. Uma queda
   de entrega nessa janela deixaria a nota presa em `processing` para sempre.
+- **A nota nasce de um documento de negocio**, nunca de formulario em branco:
+  `POST /v1/fiscal/invoices/from-proposal/:id` e `from-transaction/:id`. Uma proposta
+  **mista gera DUAS notas** — NF-e da mercadoria e NFS-e da mao de obra —, separadas por
+  `ProposalProduct.itemType`. Faltando qualquer dado fiscal, **nenhuma** e enviada: meia
+  venda mista faturada e pior que nenhuma.
+- **Botoes e gatilhos automaticos chamam as MESMAS funcoes** (`invoice-issue.service.ts`),
+  entao nao existe caminho automatico que pule uma validacao do manual.
+- **Gatilhos sao opt-in e best-effort.** `tryAutoIssue` so dispara se
+  `autoIssueRule` bater E `status === "ready"`, e **nunca lanca**: o pagamento ja foi
+  confirmado e a proposta ja foi aprovada — falhar a nota nao pode desfazer a venda.
+  Ganchos: `handlePaymentSuccess` (asaas-webhook) e `syncApprovedProposalTransactions`.
+- **Lancamento avulso nao emite** — sem proposta vinculada nao ha itens, e o sistema
+  falha com `LANCAMENTO_SEM_PROPOSTA` em vez de inventar uma linha.
 - **Status nunca regride** (`canApplyStatus`): webhook nao e ordenado e o cron pode correr junto.
   A unica transicao permitida a partir de terminal e autorizada → cancelada.
 - **O unico campo que o usuario realmente digita e o NCM** (por produto) e o codigo LC 116 +

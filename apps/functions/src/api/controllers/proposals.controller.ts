@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
+import { tryAutoIssue } from "../services/fiscal/invoice-issue.service";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
@@ -806,6 +807,16 @@ async function syncApprovedProposalTransactions(params: {
     downPaymentValue: effectiveDownPaymentValue,
     updatedAt: now,
   });
+
+  // Emissao automatica opt-in, so quando o tenant escolheu "ao aprovar a
+  // proposta". Best-effort: a proposta ja foi aprovada e as transacoes ja foram
+  // criadas — falhar a nota nao pode desfazer a venda. tryAutoIssue nunca lanca.
+  if (!metadataOnly) {
+    await tryAutoIssue(proposalTenantId, "on_proposal_approved", {
+      proposalId,
+      createdBy: userId,
+    });
+  }
 }
 
 export const createProposal = async (req: Request, res: Response) => {

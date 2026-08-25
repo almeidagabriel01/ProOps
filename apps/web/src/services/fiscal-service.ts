@@ -195,6 +195,26 @@ export const FiscalService = {
   issueInvoice: (payload: IssueInvoicePayload) =>
     callApi<FiscalInvoice>("/v1/fiscal/invoices", "POST", payload),
 
+  /**
+   * Emite a partir do documento de negócio — o caminho dos botões.
+   *
+   * Uma proposta mista devolve **duas notas**: NF-e da mercadoria e NFS-e da
+   * mão de obra. Faltando dado fiscal, nenhuma é enviada e o erro traz `gaps`.
+   */
+  issueFromProposal: (proposalId: string, payload?: { naturezaOperacao?: string }) =>
+    callApi<{ invoices: FiscalInvoice[] }>(
+      `/v1/fiscal/invoices/from-proposal/${proposalId}`,
+      "POST",
+      payload ?? {},
+    ),
+
+  issueFromTransaction: (transactionId: string) =>
+    callApi<{ invoices: FiscalInvoice[] }>(
+      `/v1/fiscal/invoices/from-transaction/${transactionId}`,
+      "POST",
+      {},
+    ),
+
   cancelInvoice: (invoiceId: string, justificativa: string) =>
     callApi<FiscalInvoice>(`/v1/fiscal/invoices/${invoiceId}/cancel`, "POST", {
       justificativa,
