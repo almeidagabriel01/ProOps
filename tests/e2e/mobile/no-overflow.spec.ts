@@ -379,6 +379,86 @@ test.describe("MOBILE-01 sem overflow horizontal", () => {
     ).toBeGreaterThan(0);
   });
 
+  test("botões de ação do cabeçalho ocupam a largura toda", async ({
+    authenticatedPage: page,
+  }) => {
+    test.setTimeout(180000);
+
+    // Padronização pedida: no celular, todo botão de ação do topo ocupa a
+    // linha inteira. Sem isto cada página nova volta a divergir.
+    const ROUTES_WITH_ACTIONS = [
+      "/proposals",
+      "/transactions",
+      "/contacts",
+      "/products",
+      "/services",
+      "/wallets",
+      "/spreadsheets",
+    ];
+
+    const violations: string[] = [];
+
+    for (const route of ROUTES_WITH_ACTIONS) {
+      await page.goto(route);
+      await page
+        .locator("main#main-content")
+        .waitFor({ state: "attached", timeout: 20000 });
+      await page.waitForTimeout(1500);
+
+      const found = await page.evaluate(() => {
+        const main = document.querySelector<HTMLElement>("main#main-content");
+        const heading = main?.querySelector<HTMLElement>("h1");
+        if (!main || !heading) return null;
+
+        // Área do cabeçalho: tudo acima do primeiro campo de busca.
+        const search = main.querySelector<HTMLElement>("input");
+        const limit = search
+          ? search.getBoundingClientRect().top
+          : heading.getBoundingClientRect().bottom + 200;
+
+        // clientWidth inclui o padding do <main>; o alvo é a largura de
+        // CONTEÚDO, que é o que um botão w-full de fato ocupa.
+        const mainStyle = window.getComputedStyle(main);
+        const available =
+          main.clientWidth -
+          parseFloat(mainStyle.paddingLeft || "0") -
+          parseFloat(mainStyle.paddingRight || "0");
+        const narrow: { label: string; width: number }[] = [];
+
+        const controls = Array.from(
+          main.querySelectorAll<HTMLElement>("a, button"),
+        );
+        for (const el of controls) {
+          const r = el.getBoundingClientRect();
+          if (r.height === 0 || r.width === 0) continue;
+          if (r.top >= limit) continue;
+          if (r.top < heading.getBoundingClientRect().top) continue;
+          // Só botões de ação de verdade: altura de botão lg.
+          if (r.height < 40) continue;
+          const label = (el.textContent || "").trim().slice(0, 24);
+          if (!label) continue;
+          if (r.width < available - 8) {
+            narrow.push({ label, width: Math.round(r.width) });
+          }
+        }
+        return { available, narrow };
+      });
+
+      if (found && found.narrow.length > 0) {
+        violations.push(
+          `${route}: ${found.narrow
+            .map((b) => `"${b.label}" ${b.width}px de ${found.available}px`)
+            .join("; ")}`,
+        );
+      }
+    }
+
+    expect(
+      violations,
+      `Botões do cabeçalho sem largura total em ${violations.length} rota(s): ${violations.join(" | ")}`,
+    ).toEqual([]);
+  });
+
   test("o painel da Lia não é mais largo que a tela", async ({
     authenticatedPage: page,
   }) => {

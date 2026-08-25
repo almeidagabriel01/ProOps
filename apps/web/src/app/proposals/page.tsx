@@ -1074,9 +1074,14 @@ export default function ProposalsPage() {
                   Gerencie suas propostas comerciais
                 </p>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                 {canAccessCrm ? (
-                  <Button asChild variant="outline" size="lg" className="gap-2">
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="gap-2 w-full sm:w-auto"
+                  >
                     <Link href="/crm?scope=proposals">
                       <Kanban className="w-5 h-5" />
                       CRM de Propostas
@@ -1086,7 +1091,7 @@ export default function ProposalsPage() {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="relative gap-2 pr-10"
+                    className="relative gap-2 pr-10 w-full sm:w-auto"
                     onClick={() =>
                       upgradeModal.showUpgradeModal(
                         "CRM",
@@ -1107,7 +1112,7 @@ export default function ProposalsPage() {
                 )}
 
                 {canCreate && (
-                  <Button asChild size="lg" className="gap-2">
+                  <Button asChild size="lg" className="gap-2 w-full sm:w-auto">
                     <Link href="/proposals/new">
                       <Plus className="w-5 h-5" />
                       Nova Proposta

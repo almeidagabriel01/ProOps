@@ -70,7 +70,11 @@ const CardContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("p-6 pt-0 max-sm:p-4 max-sm:pt-0", className)}
+        // O pt-0 fica SEM prefixo de propósito: assim um call site que passa
+        // "p-4"/"py-4" o sobrepõe normalmente (mesmo grupo, vence o último).
+        // Um max-sm:pt-0 sobreviveria como media query e zeraria o topo do card
+        // no celular, que foi exatamente o bug espelhado do desktop.
+        className={cn("p-6 pt-0 max-sm:px-4 max-sm:pb-4", className)}
         {...props}
     />
 ))
@@ -82,7 +86,10 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("flex items-center p-6 pt-0 max-sm:p-4 max-sm:pt-0", className)}
+        className={cn(
+            "flex items-center p-6 pt-0 max-sm:px-4 max-sm:pb-4",
+            className
+        )}
         {...props}
     />
 ))

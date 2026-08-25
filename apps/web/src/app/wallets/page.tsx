@@ -99,7 +99,9 @@ export default function WalletsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4 md:gap-8">
+          {/* Abaixo de sm o saldo fica em cima e o botão ocupa a linha inteira,
+              como nas demais páginas. Lado a lado ele ficava com 199px. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 md:gap-8">
             <div className="text-center md:text-right">
               <div className="flex items-center gap-2 text-muted-foreground mb-1 justify-center md:justify-center">
                 <WalletIcon className="w-4 h-4" />
@@ -119,7 +121,7 @@ export default function WalletsPage() {
             {canCreate && (
               <Button
                 size="lg"
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
                 onClick={actions.handleCreateWallet}
               >
                 <Plus className="w-5 h-5" />

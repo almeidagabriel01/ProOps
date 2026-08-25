@@ -340,11 +340,11 @@ export default function SpreadsheetsPage() {
               Crie e gerencie suas planilhas personalizadas.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               size="lg"
               variant="outline"
-              className="gap-2 flex-1 sm:flex-none"
+              className="gap-2 w-full sm:w-auto"
               onClick={handleImportClick}
               disabled={creating || importing}
             >
@@ -357,7 +357,7 @@ export default function SpreadsheetsPage() {
             </Button>
             <Button
               size="lg"
-              className="gap-2 flex-1 sm:flex-none"
+              className="gap-2 w-full sm:w-auto"
               onClick={handleCreate}
               disabled={creating || importing}
             >

@@ -498,9 +498,14 @@ export default function FinancialPage() {
         </div>
 
         <div className="flex flex-col items-stretch gap-3 sm:items-end">
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
             {canAccessCrm ? (
-              <Button asChild variant="outline" size="lg" className="gap-2">
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="gap-2 w-full sm:w-auto"
+              >
                 <Link href="/crm?scope=transactions">
                   <Kanban className="w-5 h-5" />
                   CRM de Lançamentos
@@ -510,7 +515,7 @@ export default function FinancialPage() {
               <Button
                 variant="outline"
                 size="lg"
-                className="relative gap-2 pr-10"
+                className="relative gap-2 pr-10 w-full sm:w-auto"
                 onClick={() =>
                   upgradeModal.showUpgradeModal(
                     "CRM",
@@ -527,7 +532,12 @@ export default function FinancialPage() {
               </Button>
             )}
 
-            <Button asChild variant="outline" size="lg" className="gap-2">
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="gap-2 w-full sm:w-auto"
+            >
               <Link href="/wallets">
                 <WalletCards className="w-5 h-5" />
                 Carteiras
@@ -535,7 +545,7 @@ export default function FinancialPage() {
             </Button>
 
             {canCreate && (
-              <Button asChild size="lg" className="gap-2">
+              <Button asChild size="lg" className="gap-2 w-full sm:w-auto">
                 <Link href="/transactions/new">
                   <Plus className="w-5 h-5" />
                   Novo Lançamento
