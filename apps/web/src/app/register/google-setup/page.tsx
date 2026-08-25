@@ -434,7 +434,7 @@ function GoogleSetupContent() {
                         type="file"
                         accept="image/*"
                         onChange={handleLogoUpload}
-                        className="cursor-pointer text-sm"
+                        className="cursor-pointer text-base md:text-sm"
                       />
                       <p className="text-xs text-muted-foreground mt-2">
                         Max 2MB. JPG, PNG, WEBP.

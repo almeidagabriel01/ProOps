@@ -108,7 +108,7 @@ export function SectionBuilder({ sections, onChange }: SectionBuilderProps) {
                   onChange={(e) =>
                     updateSection(section.id, { title: e.target.value })
                   }
-                  className="h-8 text-sm font-medium bg-transparent border-none px-0 focus-visible:ring-0"
+                  className="h-8 text-base md:text-sm font-medium bg-transparent border-none px-0 focus-visible:ring-0"
                   placeholder="Título da seção"
                 />
               </div>

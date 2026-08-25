@@ -511,7 +511,7 @@ export function TransactionKanbanTab() {
                         placeholder="Buscar..."
                         value={filter.term || ""}
                         onChange={(e) => updateFilter("term", e.target.value)}
-                        className="pl-8 h-8 text-xs bg-muted/30"
+                        className="pl-8 h-8 text-base md:text-xs bg-muted/30"
                       />
                     </div>
                   </div>
@@ -533,7 +533,7 @@ export function TransactionKanbanTab() {
                         }
                         placeholder="Todos os clientes..."
                         searchPlaceholder="Buscar cliente..."
-                        className="h-8 text-xs [&>div>input]:h-8 [&>div>input]:text-xs [&>select]:h-8 rounded-md"
+                        className="h-8 text-base md:text-xs [&>div>input]:h-8 [&>div>input]:text-base md:[&>div>input]:text-xs [&>select]:h-8 rounded-md"
                       />
                     </div>
                   </div>
@@ -551,7 +551,7 @@ export function TransactionKanbanTab() {
                         onChange={(e) =>
                           updateFilter("minAmount", e.target.value)
                         }
-                        className="h-8 text-xs bg-muted/30 rounded-md"
+                        className="h-8 text-base md:text-xs bg-muted/30 rounded-md"
                       />
                       <span className="text-muted-foreground text-xs">-</span>
                       <Input
@@ -561,7 +561,7 @@ export function TransactionKanbanTab() {
                         onChange={(e) =>
                           updateFilter("maxAmount", e.target.value)
                         }
-                        className="h-8 text-xs bg-muted/30 rounded-md"
+                        className="h-8 text-base md:text-xs bg-muted/30 rounded-md"
                       />
                     </div>
                   </div>

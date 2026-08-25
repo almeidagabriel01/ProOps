@@ -128,7 +128,7 @@ export function TransactionProposalGroupExpanded({
               </div>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
+          <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-start">
             <div className="font-bold text-blue-500">
               {formatCurrency(downPayment.amount)}
             </div>
@@ -262,7 +262,7 @@ export function TransactionProposalGroupExpanded({
                     </div>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
+                <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-start">
                   <div className="font-bold text-primary">
                     {formatCurrency(inst.amount)}
                   </div>
@@ -385,7 +385,7 @@ export function TransactionProposalGroupExpanded({
               </div>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-end">
+          <div className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-start">
             <div className="font-bold text-primary">
               {formatCurrency(saldoTx.amount)}
             </div>

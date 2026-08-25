@@ -186,12 +186,15 @@ export function TransactionCard({
           isExpanded ? "ring-2 ring-primary/20 shadow-md" : "hover:bg-muted/50"
         }`}
       >
-        <CardContent className="p-0">
+        {/* max-sm:p-0 é obrigatório: CardContent aplica max-sm:px-4/pb-4, e por
+            ser media query isso vence o p-0 sem prefixo — o conteúdo ganhava
+            16px de recuo de cada lado sobre o px-4 da própria linha. */}
+        <CardContent className="p-0 max-sm:p-0">
           {/* Abaixo de md a linha quebra: identificação em cima, valor e ações
              embaixo. Numa linha só, o bloco do valor e o da descrição disputavam
              o encolhimento e o texto acabava sobrepondo o vizinho. */}
           <div
-            className="flex flex-wrap items-center gap-3 md:flex-nowrap md:gap-4 py-4 px-4 cursor-pointer"
+            className="flex flex-wrap items-center gap-3 md:flex-nowrap md:gap-4 py-4 px-3 md:px-4 cursor-pointer"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               if (
@@ -418,8 +421,12 @@ export function TransactionCard({
               </div>
             </div>
 
-            <div className="shrink-0 text-right flex items-center gap-4 max-md:w-full max-md:justify-end">
-              <div>
+            {/* Abaixo de md este bloco ocupa a linha inteira. Com text-right +
+               justify-end o valor e o status paravam no meio da linha, fora do
+               eixo do título e da barra de ações; aqui eles vão para a borda
+               esquerda (mesma coluna do checkbox) e o chevron para a direita. */}
+            <div className="shrink-0 text-right flex items-center gap-4 max-md:w-full max-md:justify-between max-md:text-left">
+              <div className="max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1">
                 <div className={`font-bold ${typeInfo.color}`}>
                   {isEditingAmount ? (
                     <div
@@ -434,7 +441,7 @@ export function TransactionCard({
                         onKeyDown={handleAmountKeyDown}
                         autoFocus
                         disabled={isSavingAmount}
-                        className="h-8 py-1 pr-2 pl-8 w-32 text-right font-bold text-sm bg-background border-primary"
+                        className="h-8 py-1 pr-2 pl-8 w-32 text-right font-bold text-base md:text-sm bg-background border-primary"
                         onBlur={handleAmountSave}
                       />
                       {isSavingAmount && (
@@ -444,7 +451,7 @@ export function TransactionCard({
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1 transition-colors rounded px-2 py-1 -mr-2">
+                    <div className="flex items-center gap-1 transition-colors rounded px-2 py-1 -mr-2 max-md:-ml-2 max-md:mr-0">
                       <span>{transaction.type === "expense" ? "-" : "+"}</span>
                       <span>{formatCurrency(displayAmount)}</span>
                       {canEdit &&
@@ -466,7 +473,7 @@ export function TransactionCard({
 
                 {/* Status Badge with Dropdown */}
                 {onStatusChange && canEdit ? (
-                  <div className="flex items-center gap-2 mt-1 w-full sm:w-auto justify-end">
+                  <div className="flex items-center gap-2 mt-1 max-md:mt-0 w-full sm:w-auto max-md:w-auto justify-end max-md:justify-start">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -541,7 +548,7 @@ export function TransactionCard({
                     </DropdownMenu>
                   </div>
                 ) : (
-                  <Badge variant={statusInfo.variant} className="text-xs mt-1">
+                  <Badge variant={statusInfo.variant} className="text-xs mt-1 max-md:mt-0">
                     {statusInfo.label}
                   </Badge>
                 )}

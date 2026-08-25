@@ -840,7 +840,7 @@ export function ProposalKanbanTab() {
                           placeholder="Buscar..."
                           value={filter.term || ""}
                           onChange={(e) => updateFilter("term", e.target.value)}
-                          className="pl-8 h-8 text-xs bg-muted/30 rounded-md"
+                          className="pl-8 h-8 text-base md:text-xs bg-muted/30 rounded-md"
                         />
                       </div>
                     </div>
@@ -862,7 +862,7 @@ export function ProposalKanbanTab() {
                           }
                           placeholder="Todos os clientes..."
                           searchPlaceholder="Buscar cliente..."
-                          className="h-8 text-xs [&>div>input]:h-8 [&>div>input]:text-xs [&>select]:h-8 rounded-md"
+                          className="h-8 text-base md:text-xs [&>div>input]:h-8 [&>div>input]:text-base md:[&>div>input]:text-xs [&>select]:h-8 rounded-md"
                         />
                       </div>
                     </div>
@@ -881,7 +881,7 @@ export function ProposalKanbanTab() {
                             onChange={(e) =>
                               updateFilter("minAmount", e.target.value)
                             }
-                            className="h-8 text-xs bg-muted/30 w-full rounded-md"
+                            className="h-8 text-base md:text-xs bg-muted/30 w-full rounded-md"
                           />
                         </div>
                         <span className="text-muted-foreground text-xs shrink-0 w-4 text-center">
@@ -895,7 +895,7 @@ export function ProposalKanbanTab() {
                             onChange={(e) =>
                               updateFilter("maxAmount", e.target.value)
                             }
-                            className="h-8 text-xs bg-muted/30 w-full rounded-md"
+                            className="h-8 text-base md:text-xs bg-muted/30 w-full rounded-md"
                           />
                         </div>
                       </div>

@@ -99,7 +99,8 @@ export function LiaInputBar({
           placeholder={isAtLimit ? "Limite de mensagens atingido." : "Mensagem..."}
           rows={1}
           className={cn(
-            "flex-1 resize-none overflow-y-hidden bg-transparent py-2 text-sm leading-6",
+            // text-base (16px) abaixo de md evita o zoom automático do iOS.
+            "flex-1 resize-none overflow-y-hidden bg-transparent py-2 text-base md:text-sm leading-6",
             // Scrollbar fina e arredondada, afastada da borda do container
             "-my-1 [scrollbar-width:thin] [scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_55%,transparent)_transparent]",
             "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent",

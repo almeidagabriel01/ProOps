@@ -1093,7 +1093,7 @@ function ProductRow({
                 }}
                 onBlur={handleMarkupBlur}
                 onKeyDown={handleMarkupKeyDown}
-                className="w-14 h-8 text-sm text-right border rounded-md px-2 pr-5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background hover:border-gray-400"
+                className="w-14 h-8 text-base md:text-sm text-right border rounded-md px-2 pr-5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background hover:border-gray-400"
               />
               <span className="absolute right-1.5 text-xs text-muted-foreground pointer-events-none group-focus-within:text-foreground">
                 %
@@ -1164,7 +1164,7 @@ function ProductRow({
               onChange={(e) => setPriceInput(e.target.value)}
               onBlur={handlePriceBlur}
               onKeyDown={handlePriceKeyDown}
-              className="w-20 h-7 text-sm text-right border rounded-md pl-6 pr-1 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background hover:border-gray-400"
+              className="w-20 h-7 text-base md:text-sm text-right border rounded-md pl-6 pr-1 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-background hover:border-gray-400"
             />
           </div>
         ) : (
@@ -1368,7 +1368,7 @@ function ExtraProductsGrid({
               ref={productsInputRef}
               type="text"
               placeholder="Buscar produto para adicionar..."
-              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-sm outline-none"
+              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-base md:text-sm outline-none"
               value={productSearchTerm}
               onChange={(e) => {
                 setProductSearchTerm(e.target.value);
@@ -1446,7 +1446,7 @@ function ExtraProductsGrid({
               ref={servicesInputRef}
               type="text"
               placeholder="Buscar serviço para adicionar..."
-              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-sm outline-none"
+              className="w-full h-10 pl-9 pr-8 rounded-md border border-input bg-background/50 hover:bg-background focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all text-base md:text-sm outline-none"
               value={serviceSearchTerm}
               onChange={(e) => {
                 setServiceSearchTerm(e.target.value);
