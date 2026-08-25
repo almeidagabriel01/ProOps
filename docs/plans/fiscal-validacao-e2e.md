@@ -54,9 +54,12 @@ Se fosse ligado hoje, conectar uma agenda falharia: `encryptToken` lançaria
 `?error=oauth_failed` e nada seria gravado.
 
 O lado bom é que **falha fechado**: não existe caminho que grave o refresh token
-em texto puro. Mas **antes de ligar o Calendar** é preciso adicionar
-`CALENDAR_TOKEN_KMS_KEY` aos três `.env` e aos secrets do GitHub — senão a
-funcionalidade sobe quebrada.
+em texto puro.
+
+**Corrigido em 25/08/2026:** `CALENDAR_TOKEN_KMS_KEY` adicionada aos três `.env`,
+com round-trip validado nos dois projetos. Falta o **deploy** para a variável
+chegar aos serviços. Ligar a agenda ainda exige mais que isso — ver
+`docs/plans/google-calendar-ativacao.md`.
 
 ### A armadilha do deploy
 
