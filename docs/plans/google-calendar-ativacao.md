@@ -9,25 +9,25 @@
 
 ---
 
-## A pergunta que decide tudo
-
-Antes de qualquer flag, responda esta: **em que modo está a tela de permissão
-OAuth?**
+## A pergunta que decidia tudo — já respondida
 
 O código pede o escopo `calendar.events.owned`, que o Google classifica como
-**sensível**. Isso muda tudo conforme o modo:
+**sensível**. Para app não verificado isso significa: máximo 100 usuários
+adicionados na mão, e **refresh token expirando em 7 dias** — cada cliente
+reconectando a agenda toda semana.
 
-| Modo | Quem pode conectar | Duração do refresh token |
-|---|---|---|
-| **Testing** | Só usuários adicionados na mão (máx. 100) | **7 dias** |
-| **In production** (verificado) | Qualquer um | Indefinida |
+**Verificado em 25/08/2026: o app de produção JÁ ESTÁ VERIFICADO pelo Google.**
 
-Os 7 dias são o ponto crítico. Num SaaS multi-tenant significa que **cada
-cliente teria que reconectar a agenda toda semana**. Não é contornável no
-código — é política do Google.
+No console de `erp-softcode-prod`, em Google Auth Platform → Visão geral,
+aparece o card *"Verificação de apps OAuth — O aplicativo foi verificado pelo
+Google"*, junto com *"Verificação de domínio — usando domínios autorizados"*.
 
-Se a tela estiver em Testing, ligar a funcionalidade em produção cria um
-problema de suporte recorrente. É provavelmente por isso que ela está desligada.
+Ou seja: **em produção não há limite de usuários nem expiração de 7 dias.** O
+bloqueador que justificaria manter a funcionalidade desligada não existe.
+
+O projeto de dev **não** tem esses cards, o que é normal — projeto de
+desenvolvimento não passa por verificação. Lá a tela fica em modo de teste e é
+preciso adicionar os e-mails na lista de usuários de teste para conectar.
 
 ---
 
@@ -41,6 +41,8 @@ Verificado em 25/08/2026:
 | `GOOGLE_CALENDAR_CLIENT_ID` e `_SECRET` | ✅ | ✅ |
 | Chave KMS `calendar-refresh-token` + IAM | ✅ | ✅ |
 | `CALENDAR_TOKEN_KMS_KEY` no serviço | ✅ (deploy 25/08) | ❌ falta deploy |
+| App OAuth verificado pelo Google | — (não precisa) | ✅ |
+| Verificação de domínio | — | ✅ |
 | `GOOGLE_CALENDAR_SYNC_ENABLED` | `false` | `false` |
 | `NEXT_PUBLIC_GOOGLE_CALENDAR_SYNC_ENABLED` (Vercel) | ❓ | ❓ |
 
@@ -52,22 +54,24 @@ sem gravar nada, o que é o comportamento correto, mas sem explicar o motivo.
 
 ## Passo 1 — Verificar a tela de permissão OAuth
 
-**Console → APIs e Serviços → Tela de permissão OAuth**
+> O console foi reorganizado: hoje é **Google Auth Platform**, não mais
+> "APIs e Serviços → Tela de permissão OAuth". Os menus abaixo são os atuais.
+
+**Console → Google Auth Platform → Público-alvo**
 (projeto `erp-softcode` para dev, `erp-softcode-prod` para produção)
 
-O que olhar:
-
-**Tipo de usuário** deve ser **Externo**. Se estiver "Interno", só contas do
-mesmo Workspace conseguem conectar — inútil para clientes.
+**Tipo de usuário** deve ser **Externo**. "Interno" limita a contas do mesmo
+Workspace — inútil para clientes.
 
 **Status de publicação:**
 
-- `Em teste` → é o cenário dos 7 dias. Há uma lista de "Usuários de teste" logo
-  abaixo; só quem estiver nela consegue conectar.
-- `Em produção` → aberto a qualquer usuário. Verifique se há aviso de verificação
-  pendente.
+- `Em produção` → aberto a qualquer usuário. É o esperado em prod, que já está
+  verificado.
+- `Em teste` → esperado em dev. Há uma lista de **Usuários de teste** logo
+  abaixo; adicione ali o e-mail que for usar na validação, senão o Google recusa
+  com "app não verificado".
 
-**Escopos** — devem constar:
+**Console → Google Auth Platform → Acesso a dados** — os escopos devem ser:
 ```
 .../auth/calendar.events.owned      ← sensível
 .../auth/userinfo.email
@@ -82,7 +86,7 @@ mesmo Workspace conseguem conectar — inútil para clientes.
 
 ## Passo 2 — Verificar os URIs de redirecionamento
 
-**Console → APIs e Serviços → Credenciais → o cliente OAuth 2.0 (tipo Aplicativo da Web)**
+**Console → Google Auth Platform → Clientes → o cliente OAuth 2.0 (tipo Aplicativo da Web)**
 
 Em **URIs de redirecionamento autorizados**, precisam estar exatamente:
 
@@ -188,10 +192,13 @@ gh secret set FUNCTIONS_ENV_PRODUCTION --env production \
 
 Duas saídas, e a escolha é de produto:
 
-**Solicitar verificação.** No próprio console, em Tela de permissão OAuth →
-Publicar app. Para escopo sensível o Google pede vídeo demonstrando o uso,
-política de privacidade e domínio verificado. Leva de dias a semanas. É o
-caminho certo para abrir a agenda a todos os clientes.
+**Solicitar verificação.** Em Google Auth Platform → Central de verificação.
+Para escopo sensível o Google pede vídeo demonstrando o uso, política de
+privacidade e domínio verificado. Leva de dias a semanas.
+
+> Em **produção isso já foi feito** — o app está verificado. Esta seção vale
+> apenas para o projeto de dev, onde normalmente não compensa: adicionar
+> usuários de teste resolve.
 
 **Manter em teste e usar como piloto.** Adicionar os e-mails dos clientes na
 lista de usuários de teste e conviver com a reconexão a cada 7 dias. Só faz
