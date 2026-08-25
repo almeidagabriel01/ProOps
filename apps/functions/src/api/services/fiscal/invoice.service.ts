@@ -18,6 +18,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { getIssuingToken } from "./fiscal-settings.service";
+import { archiveInvoiceDocuments } from "./invoice-archive.service";
 import { describeFocusError } from "./focus-error";
 import {
   getFiscalProvider,
@@ -241,6 +242,17 @@ export async function applyInvoiceResult(
 
     t.update(docRef(invoiceId), update);
     return { applied: true, status: result.status };
+  }).then(async (outcome) => {
+    // Guarda legal de 5 anos + ano corrente: o acervo tem que ser nosso, nao
+    // um link do provedor. Best-effort — a nota ja vale perante o fisco, e
+    // falhar o arquivamento nao pode virar erro para o usuario.
+    if (outcome.applied && outcome.status === "authorized") {
+      const refreshed = await getInvoice(invoiceId);
+      if (refreshed) {
+        await archiveInvoiceDocuments(refreshed);
+      }
+    }
+    return outcome;
   });
 }
 
@@ -415,6 +427,74 @@ export async function cancelInvoice(
 
   await applyInvoiceResult(invoiceId, result);
   return (await getInvoice(invoiceId)) ?? stored;
+}
+
+/**
+ * Carta de Correção Eletrônica — NF-e apenas.
+ *
+ * Não pode alterar valores, CNPJ do destinatário, NCM, CFOP nem dados de
+ * fatura; para esses o caminho é cancelar e reemitir. NFS-e não tem CC-e: o
+ * mecanismo municipal é cancelamento e substituição.
+ *
+ * @throws quando a nota não é NF-e autorizada — corrigir um documento que a
+ * SEFAZ não autorizou não faz sentido e a chamada seria recusada.
+ */
+export async function correctInvoice(
+  invoiceId: string,
+  texto: string,
+): Promise<InvoiceDocument> {
+  const stored = await getInvoice(invoiceId);
+  if (!stored) {
+    throw new Error("INVOICE_NOT_FOUND");
+  }
+  if (stored.type !== "nfe") {
+    throw new Error("CCE_APENAS_NFE");
+  }
+  if (stored.status !== "authorized") {
+    throw new Error("INVOICE_NAO_AUTORIZADA");
+  }
+
+  const provider = getFiscalProvider(stored.provider);
+  if (!provider.correct) {
+    throw new Error("CCE_NAO_SUPORTADA");
+  }
+
+  const env = resolveFiscalEnvironment(stored.environment);
+  await provider.correct(
+    stored.ref,
+    texto,
+    env,
+    await getIssuingToken(stored.tenantId, env),
+  );
+
+  return (await getInvoice(invoiceId)) ?? stored;
+}
+
+/**
+ * Pede ao provedor que reenvie a notificação desta nota.
+ *
+ * Recupera um evento perdido sem reemitir nada — o Focus desiste depois de
+ * cinco tentativas em 24h, e esta é a saída manual quando isso acontece e o
+ * usuário não quer esperar o próximo ciclo do cron.
+ */
+export async function replayInvoiceNotification(invoiceId: string): Promise<void> {
+  const stored = await getInvoice(invoiceId);
+  if (!stored) {
+    throw new Error("INVOICE_NOT_FOUND");
+  }
+
+  const provider = getFiscalProvider(stored.provider);
+  if (!provider.replayNotification) {
+    throw new Error("REENVIO_NAO_SUPORTADO");
+  }
+
+  const env = resolveFiscalEnvironment(stored.environment);
+  await provider.replayNotification(
+    stored.ref,
+    stored.type,
+    env,
+    await getIssuingToken(stored.tenantId, env),
+  );
 }
 
 export { MAX_RETRY_COUNT, RETRY_DELAY_MS };

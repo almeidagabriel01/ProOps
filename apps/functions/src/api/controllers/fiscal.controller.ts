@@ -10,6 +10,7 @@ import {
   buildIssuerConfig,
   getCertificatePassword,
   getFiscalSettings,
+  deleteFiscalSettings,
   saveFiscalSettings,
   setFiscalStatus,
   toPublicSettings,
@@ -37,6 +38,7 @@ import {
   deriveSituacaoTributaria,
   deriveUnidadeComercial,
   describeNatureza,
+  listNaturezas,
   normalizeOrigem,
   type NaturezaOperacao,
 } from "../services/fiscal/natureza-operacao";
@@ -46,6 +48,8 @@ import {
   getInvoice,
   issueInvoice,
   listInvoices,
+  correctInvoice,
+  replayInvoiceNotification,
 } from "../services/fiscal/invoice.service";
 import {
   issueFromProposal,
@@ -55,6 +59,8 @@ import { registerFiscalWebhooks } from "../services/fiscal/fiscal-webhook-regist
 import {
   CANCELLATION_JUSTIFICATION_MAX_LENGTH,
   CANCELLATION_JUSTIFICATION_MIN_LENGTH,
+  CORRECTION_TEXT_MAX_LENGTH,
+  CORRECTION_TEXT_MIN_LENGTH,
 } from "../services/fiscal/fiscal-provider";
 import type { FiscalDocumentType } from "../services/fiscal/fiscal-types";
 
@@ -743,6 +749,117 @@ export const listInvoicesHandler = async (req: Request, res: Response): Promise<
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao listar notas fiscais", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+  }
+};
+
+// POST /v1/fiscal/invoices/:id/correction
+//
+// Carta de Correção Eletrônica — só NF-e. Não corrige valores, destinatário,
+// NCM nem CFOP; para esses o caminho é cancelar e reemitir.
+export const correctInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const invoice = await getInvoice(String(req.params.id || ""));
+    if (!invoice || (invoice.tenantId !== ctx.tenantId && !ctx.isSuperAdmin)) {
+      res.status(404).json({ message: "Nota fiscal não encontrada" });
+      return;
+    }
+
+    const texto = text((req.body as Record<string, unknown>).correcao);
+    // Limites do Ajuste SINIEF 07/2005. Validar aqui evita gastar uma chamada
+    // ao provedor para receber a mesma recusa.
+    if (texto.length < CORRECTION_TEXT_MIN_LENGTH) {
+      res.status(400).json({
+        message: `A correção deve ter ao menos ${CORRECTION_TEXT_MIN_LENGTH} caracteres.`,
+      });
+      return;
+    }
+    if (texto.length > CORRECTION_TEXT_MAX_LENGTH) {
+      res.status(400).json({
+        message: `A correção deve ter no máximo ${CORRECTION_TEXT_MAX_LENGTH} caracteres.`,
+      });
+      return;
+    }
+
+    res.status(200).json(await correctInvoice(invoice.id, texto));
+  } catch (error) {
+    const err = error as Error;
+    if (err.message === "CCE_APENAS_NFE") {
+      res.status(422).json({
+        message: "Carta de correção existe apenas para nota de produto. Para serviço, cancele e reemita.",
+        code: err.message,
+      });
+      return;
+    }
+    if (err.message === "INVOICE_NAO_AUTORIZADA") {
+      res.status(422).json({ message: "Só é possível corrigir uma nota autorizada.", code: err.message });
+      return;
+    }
+    const detail = describeFocusError(error);
+    logger.error("Falha na carta de correção", { error: detail.message });
+    res.status(detail.httpStatus && detail.httpStatus < 500 ? 422 : 502).json({
+      message: detail.message,
+    });
+  }
+};
+
+// POST /v1/fiscal/invoices/:id/replay-notification
+//
+// Saída manual quando o webhook se perdeu e o usuário não quer esperar o
+// próximo ciclo do cron.
+export const replayNotificationHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const invoice = await getInvoice(String(req.params.id || ""));
+    if (!invoice || (invoice.tenantId !== ctx.tenantId && !ctx.isSuperAdmin)) {
+      res.status(404).json({ message: "Nota fiscal não encontrada" });
+      return;
+    }
+
+    await replayInvoiceNotification(invoice.id);
+    res.status(202).json({ message: "Reenvio solicitado ao provedor." });
+  } catch (error) {
+    const detail = describeFocusError(error);
+    logger.error("Falha ao solicitar reenvio de notificação", { error: detail.message });
+    res.status(502).json({ message: detail.message });
+  }
+};
+
+// GET /v1/fiscal/naturezas
+//
+// Alimenta o seletor de natureza de operação. O CFOP sai daqui na emissão —
+// nunca do cadastro do produto.
+export const listNaturezasHandler = async (req: Request, res: Response): Promise<void> => {
+  const ctx = await requireFiscalAdmin(req, res);
+  if (!ctx) return;
+  res.status(200).json({ naturezas: listNaturezas() });
+};
+
+// DELETE /v1/fiscal/settings
+//
+// Remove a configuração fiscal do tenant. As notas já emitidas permanecem —
+// documento fiscal tem guarda legal de 5 anos e não some com a desconexão.
+export const disconnectFiscalHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    await deleteFiscalSettings(ctx.tenantId);
+    res.status(200).json({ message: "Configuração fiscal removida." });
+  } catch (error) {
+    const err = error as Error;
+    logger.error("Falha ao remover configuração fiscal", { error: err.message });
     res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
   }
 };

@@ -45,24 +45,6 @@ export interface ServiceFiscalFields {
   indicadorOperacao?: string;
 }
 
-export const PRODUCT_FISCAL_FIELDS: Array<keyof ProductFiscalFields> = [
-  "ncm",
-  "cest",
-  "origem",
-  "situacaoTributaria",
-];
-
-export const SERVICE_FISCAL_FIELDS: Array<keyof ServiceFiscalFields> = [
-  "codigoLc116",
-  "codigoTributacaoMunicipio",
-  "aliquotaIss",
-  "issRetido",
-  "nbs",
-  "codigoTributacaoNacional",
-  "classificacaoIbsCbs",
-  "indicadorOperacao",
-];
-
 function digitsOnly(value: unknown, maxLength: number): string | undefined {
   if (typeof value !== "string" && typeof value !== "number") return undefined;
   const digits = String(value).replace(/\D/g, "").slice(0, maxLength);

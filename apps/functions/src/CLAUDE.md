@@ -20,6 +20,7 @@
 | `reconcileAddons` | Scheduled | Reconciliacao de add-ons |
 | `processPayoutRetries` | Scheduled | Retries de payout (Asaas) |
 | `processInvoiceRetries` | Scheduled | Consulta notas fiscais pendentes (a cada 15 min) — backstop do webhook do Focus |
+| `checkFiscalCertificateExpiry` | Scheduled | Avisa vencimento do certificado A1 em D-30/15/7/1 e diariamente apos vencer |
 | `cleanupSecurityAuditEvents` | Scheduled | Expurga eventos de auditoria antigos |
 | `remindNoSubscriptionSignups` | Scheduled | Lembra signups sem assinatura |
 | `onWalletCascadeJob` | Firestore trigger | Cascata de exclusao de carteira |

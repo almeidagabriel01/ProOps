@@ -11,6 +11,10 @@ import {
   listInvoicesHandler,
   issueFromProposalHandler,
   issueFromTransactionHandler,
+  correctInvoiceHandler,
+  replayNotificationHandler,
+  listNaturezasHandler,
+  disconnectFiscalHandler,
 } from "../controllers/fiscal.controller";
 import { fieldGenRateLimiter } from "../../ai/field-gen-rate-limiter";
 
@@ -45,5 +49,14 @@ router.post(
   validateFirebaseIdToken,
   issueFromTransactionHandler,
 );
+
+router.post("/fiscal/invoices/:id/correction", validateFirebaseIdToken, correctInvoiceHandler);
+router.post(
+  "/fiscal/invoices/:id/replay-notification",
+  validateFirebaseIdToken,
+  replayNotificationHandler,
+);
+router.get("/fiscal/naturezas", validateFirebaseIdToken, listNaturezasHandler);
+router.delete("/fiscal/settings", validateFirebaseIdToken, disconnectFiscalHandler);
 
 export { router as fiscalRoutes };

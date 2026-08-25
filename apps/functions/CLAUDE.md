@@ -142,6 +142,13 @@ cd apps/functions && npm run lint
   `autoIssueRule` bater E `status === "ready"`, e **nunca lanca**: o pagamento ja foi
   confirmado e a proposta ja foi aprovada — falhar a nota nao pode desfazer a venda.
   Ganchos: `handlePaymentSuccess` (asaas-webhook) e `syncApprovedProposalTransactions`.
+- **DANFE e XML sao espelhados no nosso Storage** (`tenants/{id}/fiscal/{invoiceId}/`) assim
+  que a nota e autorizada. Nao e conveniencia: guarda legal de **5 anos + ano corrente**
+  (Ajuste SINIEF 07/2005), e depender do link do provedor deixaria o acervo do cliente fora
+  do nosso controle. Best-effort e idempotente — falhar nao pode desfazer uma nota valida;
+  o cron reencontra e tenta de novo.
+- **Download passa pelo backend**, nunca por link direto: `storage.rules` nega a pasta
+  `fiscal/` ao client e `application/xml` nem esta na allowlist de content-type.
 - **Lancamento avulso nao emite** — sem proposta vinculada nao ha itens, e o sistema
   falha com `LANCAMENTO_SEM_PROPOSTA` em vez de inventar uma linha.
 - **Status nunca regride** (`canApplyStatus`): webhook nao e ordenado e o cron pode correr junto.

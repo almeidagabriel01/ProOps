@@ -9,7 +9,7 @@
 
 import { focusFiscalProvider } from "./focus.provider";
 import type { FiscalProvider, FiscalProviderId } from "./fiscal-provider";
-import type { FiscalDocumentType, FiscalEnvironment } from "./fiscal-types";
+import type { FiscalEnvironment } from "./fiscal-types";
 
 const PROVIDERS: Partial<Record<FiscalProviderId, FiscalProvider>> = {
   focus: focusFiscalProvider,
@@ -30,14 +30,6 @@ export function getFiscalProvider(
     throw new Error(`FISCAL_PROVIDER_NAO_SUPORTADO: ${providerId}`);
   }
   return provider;
-}
-
-/** Whether a tenant's provider can issue the requested document kind. */
-export function providerSupports(
-  providerId: FiscalProviderId,
-  type: FiscalDocumentType,
-): boolean {
-  return getFiscalProvider(providerId).supports(type);
 }
 
 /**
