@@ -23,10 +23,13 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        // p-6 custa 48px de largura por nível de card. Em telas com cards
-        // aninhados isso empilha e sobra pouco para o conteúdo num celular.
+        // p-6 custa 48px de largura por nível de card, e isso empilha em cards
+        // aninhados. A redução vai em max-sm: de propósito — com sm: o padrão
+        // vira uma media query que VENCE o className sem prefixo do call site
+        // (o DataTable passa "py-4 px-4") e o desktop quebra. Em max-sm: as
+        // regras não existem de sm para cima, então o desktop fica intacto.
         className={cn(
-            "flex flex-col space-y-1.5 px-4 pt-4 pb-3 sm:px-6 sm:pt-6",
+            "flex flex-col space-y-1.5 px-6 pt-6 pb-3 max-sm:px-4 max-sm:pt-4",
             className
         )}
         {...props}
@@ -67,7 +70,7 @@ const CardContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("p-4 pt-0 sm:p-6 sm:pt-0", className)}
+        className={cn("p-6 pt-0 max-sm:p-4 max-sm:pt-0", className)}
         {...props}
     />
 ))
@@ -79,7 +82,7 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("flex items-center p-4 pt-0 sm:p-6 sm:pt-0", className)}
+        className={cn("flex items-center p-6 pt-0 max-sm:p-4 max-sm:pt-0", className)}
         {...props}
     />
 ))
