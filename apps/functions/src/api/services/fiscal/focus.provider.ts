@@ -1,10 +1,20 @@
 /**
  * Focus NFe implementation of `FiscalProvider`.
  *
- * Auth is HTTP Basic with the API token as the username and a blank password.
- * Tokens are per environment and come from env:
- *   FOCUS_NFE_TOKEN_HOMOLOGACAO
- *   FOCUS_NFE_TOKEN_PRODUCAO
+ * Auth is HTTP Basic with a token as the username and a blank password. There
+ * are **two levels of token**, and mixing them up is the easiest way to break
+ * this integration:
+ *
+ *  - **Account token** (`FOCUS_NFE_MASTER_TOKEN`) — manages the company
+ *    registry: create/list companies, look up CNPJs, register webhooks.
+ *  - **Per-company token** — returned by `POST /v2/empresas` as
+ *    `token_homologacao` / `token_producao`, and required to issue that
+ *    company's documents.
+ *
+ * The per-company split is a gift for a multi-tenant ERP: each tenant's
+ * documents are signed with that tenant's own credential, so no bug can issue
+ * under the wrong CNPJ. The tokens are stored KMS-encrypted in
+ * `fiscal_settings` and passed in per call — never read from env here.
  *
  * Issuing is asynchronous: Focus pre-validates synchronously (400 on a
  * malformed body) then queues the document. A `processing` result is the
@@ -47,12 +57,13 @@ export function resolveFocusBaseUrl(env: FiscalEnvironment): string {
   return BASE_URLS[env];
 }
 
-function resolveToken(env: FiscalEnvironment): string {
-  const token =
-    env === "producao"
-      ? String(process.env.FOCUS_NFE_TOKEN_PRODUCAO || "").trim()
-      : String(process.env.FOCUS_NFE_TOKEN_HOMOLOGACAO || "").trim();
-
+/**
+ * Account-level token, from env. Manages the company registry only.
+ * It must never reach an issuing call — that is what the per-company token is
+ * for, and using the master there would let a bug issue under another CNPJ.
+ */
+function resolveMasterToken(): string {
+  const token = String(process.env.FOCUS_NFE_MASTER_TOKEN || "").trim();
   if (!token) {
     throw new Error("FOCUS_NFE_TOKEN_NAO_CONFIGURADO");
   }
@@ -60,15 +71,14 @@ function resolveToken(env: FiscalEnvironment): string {
 }
 
 /** HTTP Basic: token as user, empty password. */
-function buildAuthHeader(env: FiscalEnvironment): string {
-  const token = resolveToken(env);
+function buildAuthHeader(token: string): string {
   return `Basic ${Buffer.from(`${token}:`).toString("base64")}`;
 }
 
-function buildRequestConfig(env: FiscalEnvironment) {
+function buildRequestConfig(token: string) {
   return {
     headers: {
-      Authorization: buildAuthHeader(env),
+      Authorization: buildAuthHeader(token),
       "Content-Type": "application/json",
     },
     timeout: REQUEST_TIMEOUT_MS,
@@ -108,19 +118,23 @@ export class FocusFiscalProvider implements FiscalProvider {
     const url = `${resolveFocusBaseUrl(env)}/v2/empresas${dryRun ? "?dry_run=1" : ""}`;
 
     try {
-      const response = await axios.post<{ id?: number | string; cnpj?: string }>(
-        url,
-        buildEmpresaPayload(issuer),
-        buildRequestConfig(env),
-      );
+      const response = await axios.post<{
+        id?: number | string;
+        cnpj?: string;
+        token_homologacao?: string;
+        token_producao?: string;
+      }>(url, buildEmpresaPayload(issuer), buildRequestConfig(resolveMasterToken()));
+
+      const data = response.data ?? {};
 
       return {
-        ...(response.data?.id !== undefined
-          ? { providerIssuerId: String(response.data.id) }
-          : {}),
-        cnpj: String(response.data?.cnpj || issuer.cnpj).replace(/\D/g, ""),
+        ...(data.id !== undefined ? { providerIssuerId: String(data.id) } : {}),
+        cnpj: String(data.cnpj || issuer.cnpj).replace(/\D/g, ""),
         habilitaNfe: issuer.habilitaNfe,
         habilitaNfse: issuer.habilitaNfse,
+        // Ausentes num dry run — ele valida sem criar a empresa.
+        ...(data.token_homologacao ? { tokenHomologacao: data.token_homologacao } : {}),
+        ...(data.token_producao ? { tokenProducao: data.token_producao } : {}),
       };
     } catch (err) {
       const detail = describeFocusError(err);
@@ -144,7 +158,7 @@ export class FocusFiscalProvider implements FiscalProvider {
 
     const response = await axios.get<Record<string, string | undefined>>(
       url,
-      buildRequestConfig(env),
+      buildRequestConfig(resolveMasterToken()),
     );
     const data = response.data || {};
 
@@ -181,6 +195,7 @@ export class FocusFiscalProvider implements FiscalProvider {
   async issue(
     input: FiscalInvoiceInput,
     env: FiscalEnvironment,
+    token: string,
   ): Promise<FiscalInvoiceResult> {
     const baseUrl = resolveFocusBaseUrl(env);
     const resource = RESOURCE_PATH[input.type];
@@ -189,7 +204,7 @@ export class FocusFiscalProvider implements FiscalProvider {
     const response = await axios.post<FocusInvoiceResponse>(
       url,
       buildInvoicePayload(input),
-      buildRequestConfig(env),
+      buildRequestConfig(token),
     );
 
     return mapFocusResponse(response.data || {}, input.type, input.ref, baseUrl);
@@ -199,11 +214,12 @@ export class FocusFiscalProvider implements FiscalProvider {
     ref: string,
     type: FiscalDocumentType,
     env: FiscalEnvironment,
+    token: string,
   ): Promise<FiscalInvoiceResult> {
     const baseUrl = resolveFocusBaseUrl(env);
     const url = `${baseUrl}/v2/${RESOURCE_PATH[type]}/${encodeURIComponent(ref)}`;
 
-    const response = await axios.get<FocusInvoiceResponse>(url, buildRequestConfig(env));
+    const response = await axios.get<FocusInvoiceResponse>(url, buildRequestConfig(token));
     return mapFocusResponse(response.data || {}, type, ref, baseUrl);
   }
 
@@ -218,12 +234,13 @@ export class FocusFiscalProvider implements FiscalProvider {
     type: FiscalDocumentType,
     justificativa: string,
     env: FiscalEnvironment,
+    token: string,
   ): Promise<FiscalInvoiceResult> {
     const baseUrl = resolveFocusBaseUrl(env);
     const url = `${baseUrl}/v2/${RESOURCE_PATH[type]}/${encodeURIComponent(ref)}`;
 
     const response = await axios.delete<FocusInvoiceResponse>(url, {
-      ...buildRequestConfig(env),
+      ...buildRequestConfig(token),
       data: { justificativa },
     });
 
@@ -235,6 +252,7 @@ export class FocusFiscalProvider implements FiscalProvider {
     ref: string,
     texto: string,
     env: FiscalEnvironment,
+    token: string,
   ): Promise<FiscalInvoiceResult> {
     const baseUrl = resolveFocusBaseUrl(env);
     const url = `${baseUrl}/v2/nfe/${encodeURIComponent(ref)}/carta_correcao`;
@@ -242,7 +260,7 @@ export class FocusFiscalProvider implements FiscalProvider {
     const response = await axios.post<FocusInvoiceResponse>(
       url,
       { correcao: texto },
-      buildRequestConfig(env),
+      buildRequestConfig(token),
     );
 
     return mapFocusResponse(response.data || {}, "nfe", ref, baseUrl);
@@ -263,7 +281,7 @@ export class FocusFiscalProvider implements FiscalProvider {
     const response = await axios.post<{ id?: string }>(
       `${resolveFocusBaseUrl(env)}/v2/hooks`,
       { cnpj: String(cnpj).replace(/\D/g, ""), event, url },
-      buildRequestConfig(env),
+      buildRequestConfig(resolveMasterToken()),
     );
     return response.data?.id;
   }
@@ -273,7 +291,7 @@ export class FocusFiscalProvider implements FiscalProvider {
   ): Promise<Array<{ id?: string; cnpj?: string; event?: string; url?: string }>> {
     const response = await axios.get<Array<{ id?: string; cnpj?: string; event?: string; url?: string }>>(
       `${resolveFocusBaseUrl(env)}/v2/hooks`,
-      buildRequestConfig(env),
+      buildRequestConfig(resolveMasterToken()),
     );
     return Array.isArray(response.data) ? response.data : [];
   }
@@ -281,7 +299,7 @@ export class FocusFiscalProvider implements FiscalProvider {
   async deleteWebhook(hookId: string, env: FiscalEnvironment): Promise<void> {
     await axios.delete(
       `${resolveFocusBaseUrl(env)}/v2/hooks/${encodeURIComponent(hookId)}`,
-      buildRequestConfig(env),
+      buildRequestConfig(resolveMasterToken()),
     );
   }
 
@@ -293,11 +311,12 @@ export class FocusFiscalProvider implements FiscalProvider {
     ref: string,
     type: FiscalDocumentType,
     env: FiscalEnvironment,
+    token: string,
   ): Promise<void> {
     const baseUrl = resolveFocusBaseUrl(env);
     const url = `${baseUrl}/v2/hooks/${RESOURCE_PATH[type]}/${encodeURIComponent(ref)}`;
 
-    await axios.post(url, {}, buildRequestConfig(env));
+    await axios.post(url, {}, buildRequestConfig(token));
   }
 }
 

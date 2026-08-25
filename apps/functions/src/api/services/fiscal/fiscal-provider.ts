@@ -68,12 +68,17 @@ export interface FiscalProvider {
    * SEFAZ or the municipality. A `processing` result is the normal path — the
    * webhook or the retry cron settles it.
    */
-  issue(input: FiscalInvoiceInput, env: FiscalEnvironment): Promise<FiscalInvoiceResult>;
+  issue(
+    input: FiscalInvoiceInput,
+    env: FiscalEnvironment,
+    token: string,
+  ): Promise<FiscalInvoiceResult>;
 
   consult(
     ref: string,
     type: FiscalDocumentType,
     env: FiscalEnvironment,
+    token: string,
   ): Promise<FiscalInvoiceResult>;
 
   /**
@@ -88,6 +93,7 @@ export interface FiscalProvider {
     type: FiscalDocumentType,
     justificativa: string,
     env: FiscalEnvironment,
+    token: string,
   ): Promise<FiscalInvoiceResult>;
 
   /**
@@ -97,7 +103,12 @@ export interface FiscalProvider {
    * for those the document must be cancelled and reissued. NFS-e has no CC-e at
    * all — the municipal mechanism is cancel-and-replace.
    */
-  correct?(ref: string, texto: string, env: FiscalEnvironment): Promise<FiscalInvoiceResult>;
+  correct?(
+    ref: string,
+    texto: string,
+    env: FiscalEnvironment,
+    token: string,
+  ): Promise<FiscalInvoiceResult>;
 
   /**
    * Asks the provider to replay its notification to the registered webhooks.
@@ -107,6 +118,7 @@ export interface FiscalProvider {
     ref: string,
     type: FiscalDocumentType,
     env: FiscalEnvironment,
+    token: string,
   ): Promise<void>;
 }
 

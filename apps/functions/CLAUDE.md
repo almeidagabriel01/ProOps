@@ -92,9 +92,17 @@ cd apps/functions && npm run lint
 
 ### Modulo Fiscal (Nota Fiscal)
 
-- **Provedor unico: Focus NFe** (`FOCUS_NFE_TOKEN_HOMOLOGACAO` / `FOCUS_NFE_TOKEN_PRODUCAO`).
-  Cobre NF-e, NFC-e, NFS-e municipal e NFS-e Nacional no mesmo cadastro de empresa.
-  Auth = HTTP Basic com o token no usuario e senha em branco.
+- **Provedor unico: Focus NFe.** Cobre NF-e, NFC-e, NFS-e municipal e NFS-e Nacional no
+  mesmo cadastro de empresa. Auth = HTTP Basic com o token no usuario e senha em branco.
+- **DOIS niveis de token — confundir os dois quebra a integracao:**
+  - **Token da conta** (`FOCUS_NFE_MASTER_TOKEN`, em env): gerencia o cadastro de empresas,
+    consulta CNPJ e registra webhooks. **Nunca emite.**
+  - **Token da empresa**: devolvido por `POST /v2/empresas` como `token_homologacao` /
+    `token_producao`. E ele que assina as notas daquele CNPJ. Fica cifrado em KMS em
+    `fiscal_settings` (`focusTokenHomologacaoEnc` / `focusTokenProducaoEnc`) e e lido por
+    `getIssuingToken(tenantId, env)`. Isso e uma vantagem no multi-tenant: nenhum bug
+    consegue emitir sob o CNPJ de outro tenant.
+  - Nao existe token de homologacao no nivel da conta — ele nasce junto com a empresa.
 - **Nenhum codigo de dominio importa o SDK do provedor.** Tudo passa pela interface
   `FiscalProvider` (`api/services/fiscal/`); os nomes de campo do Focus vivem so em
   `focus-payload.ts` (saida) e `focus-response.ts` (entrada). Motivo: a Nuvem Fiscal foi

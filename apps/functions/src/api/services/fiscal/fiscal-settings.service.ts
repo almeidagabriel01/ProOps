@@ -72,6 +72,15 @@ export interface FiscalSettingsDocument {
 
   providerIssuerId?: string;
   /**
+   * Per-company issuing credentials, KMS-encrypted, one per environment.
+   *
+   * Minted by the provider when the company is registered. Issuing uses these
+   * and never the account-level token, so no bug can emit under another
+   * tenant's CNPJ.
+   */
+  focusTokenHomologacaoEnc?: string;
+  focusTokenProducaoEnc?: string;
+  /**
    * Authenticates the provider's notification callback.
    *
    * Focus NFe sends no authentication header — unlike Asaas, which signs with
@@ -221,6 +230,9 @@ export interface SaveFiscalSettingsInput
   provider?: FiscalProviderId;
   /** Plaintext, encrypted before it touches Firestore. Omit to keep the stored one. */
   certificadoSenha?: string;
+  /** Devolvidos pelo provedor no registro da empresa. Cifrados antes de gravar. */
+  tokenHomologacao?: string;
+  tokenProducao?: string;
 }
 
 /**
@@ -280,6 +292,13 @@ export async function saveFiscalSettings(
     payload.certificadoSenhaEnc = await encryptToken(input.certificadoSenha, KMS_PURPOSE);
   }
 
+  if (input.tokenHomologacao) {
+    payload.focusTokenHomologacaoEnc = await encryptToken(input.tokenHomologacao, KMS_PURPOSE);
+  }
+  if (input.tokenProducao) {
+    payload.focusTokenProducaoEnc = await encryptToken(input.tokenProducao, KMS_PURPOSE);
+  }
+
   // Gerado uma única vez. Rotacioná-lo a cada save invalidaria os gatilhos já
   // registrados no provedor e derrubaria a notificação em silêncio.
   if (!existing?.webhookSecret) {
@@ -319,6 +338,29 @@ export async function setFiscalStatus(
     },
     { merge: true },
   );
+}
+
+/**
+ * Decrypts the issuing token for the tenant's current environment.
+ *
+ * @throws when the company was never registered with the provider — issuing
+ * without a company token would either fail obscurely or, worse, fall back to
+ * an account-level credential.
+ */
+export async function getIssuingToken(
+  tenantId: string,
+  environment: FiscalEnvironment,
+): Promise<string> {
+  const settings = await getFiscalSettings(tenantId);
+  const stored =
+    environment === "producao"
+      ? settings?.focusTokenProducaoEnc
+      : settings?.focusTokenHomologacaoEnc;
+
+  if (!stored) {
+    throw new Error("FISCAL_EMITENTE_NAO_REGISTRADO");
+  }
+  return decryptToken(stored, KMS_PURPOSE);
 }
 
 export async function getCertificatePassword(tenantId: string): Promise<string | null> {

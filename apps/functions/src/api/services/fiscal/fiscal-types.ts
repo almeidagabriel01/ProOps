@@ -171,6 +171,15 @@ export interface FiscalIssuerResult {
   cnpj: string;
   habilitaNfe: boolean;
   habilitaNfse: boolean;
+  /**
+   * Credentials the provider mints for this company, one per environment.
+   *
+   * Issuing uses these, never the account-level token — so a bug cannot emit
+   * under another tenant's CNPJ. Stored KMS-encrypted; absent on a dry run,
+   * which does not create the company.
+   */
+  tokenHomologacao?: string;
+  tokenProducao?: string;
 }
 
 /**

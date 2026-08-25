@@ -359,10 +359,15 @@ export const registerIssuerHandler = async (
 
     // `registered` — not `ready`. Only an authorized test document proves the
     // company is actually credentialed with the SEFAZ or the municipality.
+    //
+    // Os tokens vêm daqui e só daqui: o provedor os emite por empresa, e é com
+    // eles que as notas deste tenant são assinadas — nunca com o token da conta.
     await saveFiscalSettings(ctx.tenantId, {
       ...settings,
       providerIssuerId: result.providerIssuerId,
       certificadoSenha,
+      tokenHomologacao: result.tokenHomologacao,
+      tokenProducao: result.tokenProducao,
     });
     await setFiscalStatus(ctx.tenantId, "registered");
 

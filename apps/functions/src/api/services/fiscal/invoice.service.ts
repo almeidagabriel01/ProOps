@@ -17,6 +17,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
+import { getIssuingToken } from "./fiscal-settings.service";
 import { describeFocusError } from "./focus-error";
 import {
   getFiscalProvider,
@@ -308,7 +309,8 @@ export async function issueInvoice(
   const env = resolveFiscalEnvironment(stored.environment);
 
   try {
-    const result = await provider.issue({ ...input, ref: stored.ref }, env);
+    const token = await getIssuingToken(stored.tenantId, env);
+    const result = await provider.issue({ ...input, ref: stored.ref }, env, token);
 
     if (result.status === "processing") {
       await markProcessing(invoiceId);
@@ -342,10 +344,12 @@ export async function pollPendingInvoices(limit = 100): Promise<number> {
     const invoice = doc.data() as InvoiceDocument;
     try {
       const provider = getFiscalProvider(invoice.provider);
+      const env = resolveFiscalEnvironment(invoice.environment);
       const result = await provider.consult(
         invoice.ref,
         invoice.type,
-        resolveFiscalEnvironment(invoice.environment),
+        env,
+        await getIssuingToken(invoice.tenantId, env),
       );
 
       const { applied } = await applyInvoiceResult(invoice.id, result);
@@ -400,11 +404,13 @@ export async function cancelInvoice(
   }
 
   const provider = getFiscalProvider(stored.provider);
+  const env = resolveFiscalEnvironment(stored.environment);
   const result = await provider.cancel(
     stored.ref,
     stored.type,
     justificativa,
-    resolveFiscalEnvironment(stored.environment),
+    env,
+    await getIssuingToken(stored.tenantId, env),
   );
 
   await applyInvoiceResult(invoiceId, result);
