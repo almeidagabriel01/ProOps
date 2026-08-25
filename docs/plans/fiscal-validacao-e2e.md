@@ -17,7 +17,7 @@
 |---|---|---|
 | `FOCUS_NFE_MASTER_TOKEN` | `apps/functions/.env.erp-softcode` | ✅ preenchido |
 | Certificado A1 (`.pfx`) + senha | do CNPJ do sócio | ⏳ com o contador |
-| `FISCAL_SECRET_KMS_*` | `.env.erp-softcode` | ⚠️ **verificar** |
+| `FISCAL_SECRET_KMS_KEY` | os três `.env` | ✅ chave dedicada, round-trip validado |
 | Empresa já emite nota hoje | — | ✅ (credenciamento SEFAZ/prefeitura feito) |
 
 **KMS — resolvido em 25/08/2026.** Chaves dedicadas criadas e validadas:
@@ -33,7 +33,7 @@ qualquer momento:
 
 ```bash
 cd apps/functions
-GCLOUD_PROJECT=erp-softcode FISCAL_SECRET_KMS_KEY="projects/erp-softcode/locations/southamerica-east1/keyRings/proops-oauth/cryptoKeys/fiscal-secrets" npx tsx src/scripts/kms-fiscal-smoke.ts
+GCLOUD_PROJECT=erp-softcode \nFISCAL_SECRET_KMS_KEY="projects/erp-softcode/locations/southamerica-east1/keyRings/proops-oauth/cryptoKeys/fiscal-secrets" \nnpx tsx src/scripts/kms-fiscal-smoke.ts
 ```
 
 Sem a variável, salvar a senha do certificado devolve **500 e não persiste
@@ -69,44 +69,8 @@ assim que `onUserSignupNotify` e `pdf` foram para produção sem `RESEND_API_KEY
 Antes de deployar, atualizar os secrets do GitHub:
 
 ```bash
-gh secret set FUNCTIONS_ENV_PRODUCTION --env production --repo almeidagabriel01/ProOps   < apps/functions/.env.erp-softcode-prod
-gh secret set FUNCTIONS_ENV_STAGING --env staging --repo almeidagabriel01/ProOps   < apps/functions/.env.erp-softcode
-```
-
----|---|---|
-| `.env.local` | ✅ preenchida | ❌ ausente |
-| `.env.erp-softcode` | ❌ ausente | ❌ ausente |
-| `.env.erp-softcode-prod` | ❌ ausente | ❌ ausente |
-
-O Calendar funciona em produção porque a variável foi definida num deploy local
-antigo e o **Cloud Run preserva as env vars já existentes no serviço** — mesmo
-que o arquivo local não as tenha mais. Está documentado em
-`.claude/rules/ci-cd.md`.
-
-**Isso vira uma armadilha para o módulo fiscal**, e é diferente do caso do
-Calendar: os crons `processInvoiceRetries`, `checkFiscalCertificateExpiry` e
-`syncReceivedInvoices` são **funções novas**. Função nova criada sem env var
-nasce com env vazio, **permanentemente** — todo deploy seguinte preserva o vazio.
-Foi exatamente assim que `onUserSignupNotify` e `pdf` foram para produção sem
-`RESEND_API_KEY`.
-
-Antes de qualquer deploy, garantir em **`.env.local`, `.env.erp-softcode` e
-`.env.erp-softcode-prod`**:
-
-```
-FISCAL_SECRET_KMS_KEY=<nome completo do recurso da chave>
-```
-
-Pode apontar para a mesma chave do Calendar (basta copiar o valor de
-`CALENDAR_TOKEN_KMS_KEY`) — funciona e desbloqueia. O ideal é uma chave própria,
-para que rotacionar a fiscal não invalide os refresh tokens de agenda; foi por
-isso que os prefixos são separados.
-
-E atualizar os secrets do GitHub, senão o CI recria o problema:
-
-```bash
-gh secret set FUNCTIONS_ENV_PRODUCTION --env production --repo almeidagabriel01/ProOps \
-  < apps/functions/.env.erp-softcode-prod
+gh secret set FUNCTIONS_ENV_PRODUCTION --env production \n  --repo almeidagabriel01/ProOps < apps/functions/.env.erp-softcode-prod
+gh secret set FUNCTIONS_ENV_STAGING --env staging \n  --repo almeidagabriel01/ProOps < apps/functions/.env.erp-softcode
 ```
 
 ---
