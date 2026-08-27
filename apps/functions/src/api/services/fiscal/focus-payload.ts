@@ -14,8 +14,16 @@ import type {
   FiscalIeIndicator,
   FiscalInvoiceInput,
   FiscalIssuerConfig,
+  FiscalNfsePadrao,
   FiscalProductItem,
 } from "./fiscal-types";
+
+/** Default quando o emitente não diz — ver `FiscalNfsePadrao`. */
+export function resolveNfsePadrao(
+  padrao: FiscalNfsePadrao | undefined,
+): FiscalNfsePadrao {
+  return padrao === "municipal" ? "municipal" : "nacional";
+}
 
 /** `indicador_inscricao_estadual` on the wire: 1 contribuinte, 2 isento, 9 não contribuinte. */
 const IE_INDICATOR_CODE: Record<FiscalIeIndicator, number> = {
@@ -54,9 +62,23 @@ export interface FocusEmpresaPayload extends Record<string, unknown> {
   cep: string;
   habilita_nfe: boolean;
   habilita_nfse: boolean;
+  habilita_nfsen_producao: boolean;
+  habilita_nfsen_homologacao: boolean;
   habilita_manifestacao: boolean;
   arquivo_certificado_base64: string;
   senha_certificado: string;
+}
+
+/**
+ * `opSimpNac` da DPS nacional: 1 não optante, 2 MEI, 3 ME/EPP.
+ *
+ * Derivado do CRT que já está no cadastro, em vez de virar mais um campo para o
+ * usuário errar — os dois descrevem a mesma coisa por taxonomias diferentes.
+ */
+function codigoOpcaoSimplesNacional(regimeTributario: number): number {
+  if (regimeTributario === 4) return 2; // MEI
+  if (regimeTributario === 1 || regimeTributario === 2) return 3; // Simples ME/EPP
+  return 1; // Regime Normal
 }
 
 /**
@@ -66,6 +88,7 @@ export interface FocusEmpresaPayload extends Record<string, unknown> {
  * validates it against the CNPJ and its expiry, and custodies it afterwards.
  */
 export function buildEmpresaPayload(issuer: FiscalIssuerConfig): FocusEmpresaPayload {
+  const nfsePadrao = resolveNfsePadrao(issuer.padraoNfse);
   const payload: FocusEmpresaPayload = {
     nome: trimmed(issuer.razaoSocial),
     cnpj: digits(issuer.cnpj),
@@ -78,7 +101,11 @@ export function buildEmpresaPayload(issuer: FiscalIssuerConfig): FocusEmpresaPay
     uf: trimmed(issuer.endereco.uf).toUpperCase(),
     cep: digits(issuer.endereco.cep),
     habilita_nfe: issuer.habilitaNfe,
-    habilita_nfse: issuer.habilitaNfse,
+    // As duas NFS-e têm flags próprias no cadastro. Enviar as três sempre,
+    // inclusive `false`, é o que permite trocar de padrão sem refazer o cadastro.
+    habilita_nfse: issuer.habilitaNfse && nfsePadrao === "municipal",
+    habilita_nfsen_producao: issuer.habilitaNfse && nfsePadrao === "nacional",
+    habilita_nfsen_homologacao: issuer.habilitaNfse && nfsePadrao === "nacional",
     // Enviado sempre, inclusive false: assim o cadastro nao precisa ser
     // refeito quando a recepcao de notas for ligada mais tarde.
     habilita_manifestacao: issuer.habilitaManifestacao === true,
@@ -93,7 +120,12 @@ export function buildEmpresaPayload(issuer: FiscalIssuerConfig): FocusEmpresaPay
     cnae: digits(issuer.cnae),
     complemento: trimmed(issuer.endereco.complemento),
     telefone: digits(issuer.telefone),
-    serie_nfse_producao: trimmed(issuer.serieNfse),
+    ...(nfsePadrao === "nacional"
+      ? {
+          serie_nfsen_producao: trimmed(issuer.serieNfse),
+          serie_nfsen_homologacao: trimmed(issuer.serieNfse),
+        }
+      : { serie_nfse_producao: trimmed(issuer.serieNfse) }),
   };
   for (const [key, value] of Object.entries(optional)) {
     if (value) payload[key] = value;
@@ -104,7 +136,12 @@ export function buildEmpresaPayload(issuer: FiscalIssuerConfig): FocusEmpresaPay
     payload.proximo_numero_nfe = issuer.proximoNumeroNfe;
   }
   if (typeof issuer.proximoNumeroNfse === "number") {
-    payload.proximo_numero_nfse_producao = issuer.proximoNumeroNfse;
+    if (nfsePadrao === "nacional") {
+      payload.proximo_numero_nfsen_producao = issuer.proximoNumeroNfse;
+      payload.proximo_numero_nfsen_homologacao = issuer.proximoNumeroNfse;
+    } else {
+      payload.proximo_numero_nfse_producao = issuer.proximoNumeroNfse;
+    }
   }
 
   return payload;
@@ -263,6 +300,86 @@ export function buildNfePayload(input: FiscalInvoiceInput): Record<string, unkno
  *
  * @throws when no service line is present.
  */
+/**
+ * DPS da NFS-e **Nacional** (`POST /v2/nfsen`).
+ *
+ * Layout completamente diferente do municipal: plano, sem `prestador` /
+ * `tomador` / `servico` aninhados, e com o sufixo `_tomador` nos campos do
+ * destinatário. Não é capricho do Focus — é o leiaute nacional da DPS.
+ *
+ * Numeração não vai aqui de propósito. Série e próximo número vivem no cadastro
+ * da empresa (`serie_nfsen_*`, `proximo_numero_nfsen_*`), e mandar o número em
+ * cada emissão criaria duas fontes da verdade para a sequência — a que mais
+ * causa duplicidade.
+ */
+export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unknown> {
+  const service = input.service;
+  if (!service) {
+    throw new Error("NFSE_SEM_SERVICO");
+  }
+
+  const codigoTributacaoNacional = trimmed(service.codigoTributacaoNacional);
+  if (!codigoTributacaoNacional) {
+    // Sem equivalente derivável a partir do item da LC 116: o código nacional
+    // tem um desdobro que a lista antiga não carrega. Falhar aqui é melhor que
+    // deixar o Ambiente Nacional rejeitar depois de consumir numeração.
+    throw new Error("NFSEN_SEM_CODIGO_TRIBUTACAO_NACIONAL");
+  }
+
+  const { issuer, recipient } = input;
+  const recipientDoc = digits(recipient.documento);
+  const municipioEmissor = digits(issuer.endereco.codigoIbge);
+
+  const payload: Record<string, unknown> = {
+    data_emissao: input.dataEmissao,
+    // Competência é o mês do fato gerador, não do envio. Sem um campo próprio
+    // no domínio, a data de emissão é a melhor aproximação e é o que a nota de
+    // referência do primeiro emitente também traz.
+    data_competencia: String(input.dataEmissao).slice(0, 10),
+    codigo_municipio_emissora: Number(municipioEmissor),
+    cnpj_prestador: digits(issuer.cnpj),
+    codigo_opcao_simples_nacional: codigoOpcaoSimplesNacional(issuer.regimeTributario),
+    codigo_municipio_prestacao: municipioEmissor,
+    codigo_tributacao_nacional_iss: codigoTributacaoNacional,
+    descricao_servico: trimmed(service.descricao),
+    valor_servico: round(service.valorServicos, 2),
+    // 1 = operação tributável. Imunidade, exportação e não incidência são
+    // exceções que dependem do serviço e ainda não temos onde declarar.
+    tributacao_iss: 1,
+    tipo_retencao_iss: service.issRetido ? 2 : 1,
+    percentual_aliquota_relativa_municipio: round(service.aliquotaIss, 4),
+    razao_social_tomador: trimmed(recipient.nome),
+  };
+
+  if (recipientDoc.length === 11) {
+    payload.cpf_tomador = recipientDoc;
+  } else if (recipientDoc.length === 14) {
+    payload.cnpj_tomador = recipientDoc;
+  }
+
+  const nbs = trimmed(service.nbs);
+  if (nbs) payload.codigo_nbs = nbs;
+
+  const endereco = recipient.endereco;
+  if (endereco) {
+    const optional: Record<string, string> = {
+      logradouro_tomador: trimmed(endereco.logradouro),
+      numero_tomador: trimmed(endereco.numero),
+      bairro_tomador: trimmed(endereco.bairro),
+      cep_tomador: digits(endereco.cep),
+      codigo_municipio_tomador: digits(endereco.codigoIbge),
+    };
+    for (const [key, value] of Object.entries(optional)) {
+      if (value) payload[key] = value;
+    }
+  }
+
+  const observacoes = trimmed(input.observacoes);
+  if (observacoes) payload.informacoes_complementares = observacoes;
+
+  return payload;
+}
+
 export function buildNfsePayload(input: FiscalInvoiceInput): Record<string, unknown> {
   const service = input.service;
   if (!service) {
@@ -331,5 +448,12 @@ export function buildNfsePayload(input: FiscalInvoiceInput): Record<string, unkn
 
 /** Dispatches to the right builder for the document kind. */
 export function buildInvoicePayload(input: FiscalInvoiceInput): Record<string, unknown> {
-  return input.type === "nfe" ? buildNfePayload(input) : buildNfsePayload(input);
+  if (input.type === "nfe") {
+    return buildNfePayload(input);
+  }
+
+  // A variante mora no emitente, não no tipo do documento — ver `FiscalNfsePadrao`.
+  return resolveNfsePadrao(input.issuer.padraoNfse) === "nacional"
+    ? buildNfsenPayload(input)
+    : buildNfsePayload(input);
 }

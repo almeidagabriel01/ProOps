@@ -31,6 +31,7 @@ import {
   type FiscalInvoiceInput,
   type FiscalInvoiceResult,
   type FiscalInvoiceStatus,
+  type FiscalNfsePadrao,
 } from "./fiscal-types";
 
 const COLLECTION = "invoices";
@@ -48,6 +49,15 @@ export interface InvoiceDocument {
   type: FiscalDocumentType;
   status: FiscalInvoiceStatus;
   environment: string;
+  /**
+   * Padrão da NFS-e com que ESTA nota foi emitida.
+   *
+   * Fica na nota, e não só nas configurações do tenant, porque consultar e
+   * cancelar têm que usar o mesmo recurso com que ela nasceu. Se o tenant
+   * migrar de municipal para nacional, as notas antigas continuam sendo
+   * canceláveis; ler o padrão atual as tornaria inalcançáveis.
+   */
+  padraoNfse?: FiscalNfsePadrao;
 
   numero?: string;
   serie?: string;
@@ -322,6 +332,10 @@ export async function issueInvoice(
 
   try {
     const token = await getIssuingToken(stored.tenantId, env);
+    const padraoNfse = input.issuer.padraoNfse;
+    if (stored.type === "nfse" && padraoNfse && stored.padraoNfse !== padraoNfse) {
+      await db.collection(COLLECTION).doc(invoiceId).update({ padraoNfse });
+    }
     const result = await provider.issue({ ...input, ref: stored.ref }, env, token);
 
     if (result.status === "processing") {
@@ -362,6 +376,7 @@ export async function pollPendingInvoices(limit = 100): Promise<number> {
         invoice.type,
         env,
         await getIssuingToken(invoice.tenantId, env),
+        invoice.padraoNfse,
       );
 
       const { applied } = await applyInvoiceResult(invoice.id, result);
@@ -423,6 +438,7 @@ export async function cancelInvoice(
     justificativa,
     env,
     await getIssuingToken(stored.tenantId, env),
+    stored.padraoNfse,
   );
 
   await applyInvoiceResult(invoiceId, result);
@@ -494,6 +510,7 @@ export async function replayInvoiceNotification(invoiceId: string): Promise<void
     stored.type,
     env,
     await getIssuingToken(stored.tenantId, env),
+    stored.padraoNfse,
   );
 }
 

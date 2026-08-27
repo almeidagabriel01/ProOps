@@ -94,6 +94,36 @@ cd apps/functions && npm run lint
 
 - **Provedor unico: Focus NFe.** Cobre NF-e, NFC-e, NFS-e municipal e NFS-e Nacional no
   mesmo cadastro de empresa. Auth = HTTP Basic com o token no usuario e senha em branco.
+- **Cadastro de empresa e consulta de CNPJ so existem em `api.focusnfe.com.br`.** Verificado
+  batendo nos dois hosts: em homologacao `/v2/empresas` e `/v2/cnpjs` respondem **404**; em
+  producao, 401. Nao e limitacao do provedor — o cadastro de empresas e unico, e o ambiente
+  e expresso por qual token a empresa devolve e por quais flags `habilita_*` ela recebe,
+  nunca pela URL. `/hooks` existe nos dois. A divisao coincide com a dos tokens:
+  token da conta => `resolveRegistryBaseUrl()`; token da empresa => `resolveFocusBaseUrl(env)`.
+  O sintoma quando isso quebra e enganoso: o Focus responde "Endpoint nao encontrado",
+  que parece erro de rota nossa.
+- **A NFS-e tem DOIS padroes, e recursos diferentes.** `FiscalNfsePadrao` (`nacional` |
+  `municipal`, default nacional) fica no emitente e resolve o recurso em
+  `resolveResourcePath`: nacional => `/v2/nfsen`, municipal => `/v2/nfse`. Os payloads
+  **nao se parecem** — o nacional e plano (`cnpj_prestador`, `descricao_servico`,
+  `razao_social_tomador`, `logradouro_tomador`...) e o municipal e aninhado
+  (`prestador`/`tomador`/`servico`). O cadastro tambem muda: `habilita_nfsen_producao` /
+  `habilita_nfsen_homologacao` + `serie_nfsen_*` + `proximo_numero_nfsen_*` no nacional,
+  `habilita_nfse` + `serie_nfse_producao` no municipal.
+- **`padraoNfse` NAO e um terceiro `FiscalDocumentType`.** Quase toda ramificacao por tipo
+  no modulo pergunta "e nota de servico?", e as duas respondem sim — um terceiro valor no
+  enum viraria bug silencioso em cada lugar que esquecesse de inclui-lo.
+- **O padrao e gravado na propria nota** (`InvoiceDocument.padraoNfse`), nao so nas
+  configuracoes do tenant: consultar e cancelar tem que usar o mesmo recurso com que ela
+  nasceu. Se o tenant migrar de municipal para nacional, ler o padrao atual tornaria as
+  notas antigas inalcancaveis.
+- **`codigoTributacaoNacional` e obrigatorio no padrao nacional** e nao e derivavel do item
+  da LC 116 — o codigo nacional tem um desdobro que a lista antiga nao carrega (31.01
+  sozinho nao diz se e .01 ou .02). O gate cobra; `buildNfsenPayload` lanca
+  `NFSEN_SEM_CODIGO_TRIBUTACAO_NACIONAL` como ultima linha de defesa.
+- **A numeracao nao vai no payload de emissao**, nem no nacional nem no municipal: serie e
+  proximo numero vivem no cadastro da empresa. Mandar o numero em cada emissao criaria duas
+  fontes da verdade para a sequencia, que e o caminho mais curto para duplicidade.
 - **DOIS niveis de token — confundir os dois quebra a integracao:**
   - **Token da conta** (`FOCUS_NFE_MASTER_TOKEN`, em env): gerencia o cadastro de empresas,
     consulta CNPJ e registra webhooks. **Nunca emite.**

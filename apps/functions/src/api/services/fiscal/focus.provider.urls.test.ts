@@ -103,3 +103,61 @@ describe("FocusFiscalProvider — base de URL por tipo de operação", () => {
     expect(String(mockedAxios.post.mock.calls[0][0])).toContain(HOMOLOG_HOST);
   });
 });
+
+describe("FocusFiscalProvider — recurso da NFS-e por padrão", () => {
+  const provider = new FocusFiscalProvider();
+
+  const serviceInput = (padraoNfse?: "nacional" | "municipal") =>
+    ({
+      ref: "ref-1",
+      type: "nfse",
+      dataEmissao: "2026-07-27T10:28:44-03:00",
+      valorTotal: 1500,
+      issuer: { ...(ISSUER as Record<string, unknown>), padraoNfse },
+      recipient: { nome: "Cliente", documento: "12345678909" },
+      service: {
+        descricao: "Instalacao",
+        codigoLc116: "31.01",
+        codigoTributacaoNacional: "310102",
+        valorServicos: 1500,
+        aliquotaIss: 0,
+        issRetido: false,
+      },
+    }) as never;
+
+  beforeEach(() => {
+    process.env.FOCUS_NFE_MASTER_TOKEN = "token-de-conta";
+    mockedAxios.post.mockReset();
+    mockedAxios.get.mockReset();
+    mockedAxios.post.mockResolvedValue({ data: { status: "processando_autorizacao" } });
+    mockedAxios.get.mockResolvedValue({ data: { status: "autorizado" } });
+  });
+
+  it("emite NFS-e nacional em /nfsen", async () => {
+    await provider.issue(serviceInput(), "homologacao", "token-empresa");
+
+    expect(String(mockedAxios.post.mock.calls[0][0])).toContain("/v2/nfsen?ref=");
+  });
+
+  it("cai para /nfse quando o emitente é municipal", async () => {
+    await provider.issue(serviceInput("municipal"), "homologacao", "token-empresa");
+
+    const url = String(mockedAxios.post.mock.calls[0][0]);
+    expect(url).toContain("/v2/nfse?ref=");
+    expect(url).not.toContain("/v2/nfsen");
+  });
+
+  it("consulta usa o padrão gravado na nota, não o do tenant hoje", async () => {
+    // Se o tenant migrar de municipal para nacional, as notas antigas ainda
+    // precisam ser alcançáveis para consulta e cancelamento.
+    await provider.consult("ref-1", "nfse", "homologacao", "token-empresa", "municipal");
+
+    expect(String(mockedAxios.get.mock.calls[0][0])).toContain("/v2/nfse/ref-1");
+  });
+
+  it("sem padrão informado, assume nacional", async () => {
+    await provider.consult("ref-1", "nfse", "homologacao", "token-empresa");
+
+    expect(String(mockedAxios.get.mock.calls[0][0])).toContain("/v2/nfsen/ref-1");
+  });
+});

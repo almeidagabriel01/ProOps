@@ -95,7 +95,20 @@ describe("buildEmpresaPayload", () => {
     expect(payload.arquivo_certificado_base64).toBe("MIIj4gIBAzCCI54=");
     expect(payload.senha_certificado).toBe("senha-secreta");
     expect(payload.habilita_nfe).toBe(true);
+    // NFS-e tem uma flag por padrão. No nacional (default) a municipal fica
+    // desligada — e as três são enviadas sempre, inclusive falsas, para que
+    // trocar de padrão não exija refazer o cadastro da empresa.
+    expect(payload.habilita_nfse).toBe(false);
+    expect(payload.habilita_nfsen_producao).toBe(true);
+    expect(payload.habilita_nfsen_homologacao).toBe(true);
+  });
+
+  it("liga a NFS-e municipal quando o emitente é desse padrão", () => {
+    const payload = buildEmpresaPayload({ ...issuer, padraoNfse: "municipal" });
+
     expect(payload.habilita_nfse).toBe(true);
+    expect(payload.habilita_nfsen_producao).toBe(false);
+    expect(payload.habilita_nfsen_homologacao).toBe(false);
   });
 
   it("omits optional fields left empty rather than sending blanks", () => {
@@ -303,6 +316,28 @@ describe("buildInvoicePayload", () => {
         products: undefined,
         service: {
           descricao: "Instalacao",
+          codigoLc116: "31.01",
+          codigoTributacaoNacional: "310102",
+          valorServicos: 800,
+          aliquotaIss: 3,
+          issRetido: false,
+        },
+      }),
+    );
+    // Padrão nacional é o default: layout plano da DPS, sem `servico` aninhado.
+    expect(nfse).toHaveProperty("descricao_servico");
+    expect(nfse).not.toHaveProperty("servico");
+    expect(nfse).not.toHaveProperty("items");
+  });
+
+  it("usa o layout municipal quando o emitente é desse padrão", () => {
+    const municipal = buildInvoicePayload(
+      buildInput({
+        type: "nfse",
+        products: undefined,
+        issuer: { ...buildInput().issuer, padraoNfse: "municipal" },
+        service: {
+          descricao: "Instalacao",
           codigoLc116: "14.06",
           valorServicos: 800,
           aliquotaIss: 3,
@@ -310,7 +345,8 @@ describe("buildInvoicePayload", () => {
         },
       }),
     );
-    expect(nfse).toHaveProperty("servico");
-    expect(nfse).not.toHaveProperty("items");
+
+    expect(municipal).toHaveProperty("servico");
+    expect(municipal).not.toHaveProperty("descricao_servico");
   });
 });

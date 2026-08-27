@@ -1,6 +1,12 @@
 import { callApi } from "@/lib/api-client";
 
 export type FiscalDocumentType = "nfe" | "nfse";
+
+/**
+ * Qual padrão de NFS-e o emitente usa. Não é um terceiro tipo de documento —
+ * decide o recurso e o layout no provedor, e nada mais no ERP.
+ */
+export type FiscalNfsePadrao = "nacional" | "municipal";
 export type FiscalEnvironment = "homologacao" | "producao";
 export type FiscalSetupStatus = "pending" | "registered" | "ready" | "error";
 export type FiscalAutoIssueRule = "manual" | "on_payment" | "on_proposal_approved";
@@ -45,6 +51,7 @@ export interface FiscalSettings {
   endereco?: FiscalAddress;
   habilitaNfe?: boolean;
   habilitaNfse?: boolean;
+  padraoNfse?: FiscalNfsePadrao;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -73,6 +80,7 @@ export interface SaveFiscalSettingsPayload {
   endereco: FiscalAddress;
   habilitaNfe: boolean;
   habilitaNfse: boolean;
+  padraoNfse?: FiscalNfsePadrao;
   environment?: FiscalEnvironment;
   serieNfe?: number;
   proximoNumeroNfe?: number;

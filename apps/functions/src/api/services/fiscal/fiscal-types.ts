@@ -9,6 +9,20 @@
 /** Fiscal document kinds the ERP issues. NF-e is state (ICMS), NFS-e is municipal (ISS). */
 export type FiscalDocumentType = "nfe" | "nfse";
 
+/**
+ * Qual padrão de NFS-e o emitente usa.
+ *
+ * **Não** é um terceiro `FiscalDocumentType`. Quase toda ramificação por tipo no
+ * módulo pergunta "é nota de serviço?", e as duas respondem sim — um terceiro
+ * valor no enum viraria bug silencioso em cada lugar que esquecesse de incluí-lo.
+ * A variante fica aqui e só o adaptador do provedor a enxerga.
+ *
+ * `nacional` é o padrão: a NFS-e Nacional passa a ser obrigatória para ME/EPP do
+ * Simples em 01/11/2026 (Res. CGSN 191/2026), e municípios que ainda mantêm
+ * sistema próprio são a exceção decrescente.
+ */
+export type FiscalNfsePadrao = "nacional" | "municipal";
+
 export type FiscalEnvironment = "homologacao" | "producao";
 
 /**
@@ -79,6 +93,8 @@ export interface FiscalIssuerConfig {
    * faz sentido gastar unidades antes de existir tela para mostrá-las.
    */
   habilitaManifestacao?: boolean;
+  /** Default `nacional`. Decide o recurso e o layout do payload de NFS-e. */
+  padraoNfse?: FiscalNfsePadrao;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;

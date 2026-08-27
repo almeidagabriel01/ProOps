@@ -345,7 +345,9 @@ export async function assembleInvoices(params: {
         name: service.descricao,
         codigoLc116: service.codigoLc116,
         aliquotaIss: service.aliquotaIss,
+        codigoTributacaoNacional: service.codigoTributacaoNacional,
       },
+      padraoNfse: settings.padraoNfse,
     });
     gaps.push(...readiness.gaps);
 

@@ -29,6 +29,7 @@ import {
   type FiscalAddress,
   type FiscalSettings,
   type FiscalTaxRegime,
+  type FiscalNfsePadrao,
 } from "@/services/fiscal-service";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
 
@@ -66,6 +67,7 @@ interface FormState {
   endereco: FiscalAddress;
   habilitaNfe: boolean;
   habilitaNfse: boolean;
+  padraoNfse: FiscalNfsePadrao;
   serieNfe: string;
   proximoNumeroNfe: string;
   serieNfse: string;
@@ -87,6 +89,7 @@ const INITIAL_FORM: FormState = {
   endereco: { ...EMPTY_ADDRESS },
   habilitaNfe: false,
   habilitaNfse: true,
+  padraoNfse: "nacional",
   serieNfe: "",
   proximoNumeroNfe: "",
   serieNfse: "",
@@ -123,6 +126,7 @@ function hydrate(settings: FiscalSettings): FormState {
     endereco: settings.endereco ?? { ...EMPTY_ADDRESS },
     habilitaNfe: settings.habilitaNfe ?? false,
     habilitaNfse: settings.habilitaNfse ?? true,
+    padraoNfse: settings.padraoNfse ?? "nacional",
     serieNfe: settings.serieNfe != null ? String(settings.serieNfe) : "",
     proximoNumeroNfe:
       settings.proximoNumeroNfe != null ? String(settings.proximoNumeroNfe) : "",
@@ -268,6 +272,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
         },
         habilitaNfe: form.habilitaNfe,
         habilitaNfse: form.habilitaNfse,
+        padraoNfse: form.padraoNfse,
         serieNfe: form.serieNfe ? Number(form.serieNfe) : undefined,
         proximoNumeroNfe: form.proximoNumeroNfe ? Number(form.proximoNumeroNfe) : undefined,
         serieNfse: form.serieNfse.trim(),
@@ -637,6 +642,23 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
 
           {form.habilitaNfse && (
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <Label htmlFor="fiscal-padrao-nfse">Padrão da NFS-e</Label>
+                <Select
+                  id="fiscal-padrao-nfse"
+                  value={form.padraoNfse}
+                  onChange={(e) =>
+                    setField("padraoNfse", e.target.value as FiscalNfsePadrao)
+                  }
+                >
+                  <option value="nacional">Nacional — portal nfse.gov.br</option>
+                  <option value="municipal">Municipal — sistema próprio da prefeitura</option>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Na dúvida, olhe uma nota que a empresa já emitiu: se o rodapé diz
+                  &quot;DANFSe&quot; e aponta para o portal nacional, é Nacional.
+                </p>
+              </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="fiscal-serie-nfse">Série da NFS-e</Label>
                 <Input

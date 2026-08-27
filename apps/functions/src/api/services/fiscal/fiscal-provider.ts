@@ -15,6 +15,7 @@ import type {
   FiscalInvoiceResult,
   FiscalIssuerConfig,
   FiscalIssuerResult,
+  FiscalNfsePadrao,
 } from "./fiscal-types";
 
 export type FiscalProviderId = "focus" | "asaas" | "govbr";
@@ -89,6 +90,7 @@ export interface FiscalProvider {
     type: FiscalDocumentType,
     env: FiscalEnvironment,
     token: string,
+    padraoNfse?: FiscalNfsePadrao,
   ): Promise<FiscalInvoiceResult>;
 
   /**
@@ -104,6 +106,7 @@ export interface FiscalProvider {
     justificativa: string,
     env: FiscalEnvironment,
     token: string,
+    padraoNfse?: FiscalNfsePadrao,
   ): Promise<FiscalInvoiceResult>;
 
   /**
@@ -129,6 +132,7 @@ export interface FiscalProvider {
     type: FiscalDocumentType,
     env: FiscalEnvironment,
     token: string,
+    padraoNfse?: FiscalNfsePadrao,
   ): Promise<void>;
 }
 

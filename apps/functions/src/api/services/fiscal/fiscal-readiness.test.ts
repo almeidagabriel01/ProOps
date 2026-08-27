@@ -174,22 +174,56 @@ describe("checkProductReadiness", () => {
 });
 
 describe("checkServiceReadiness", () => {
-  it("aprova serviço com código e alíquota", () => {
+  it("aprova serviço com código, alíquota e tributação nacional", () => {
     expect(
-      checkServiceReadiness({ id: "s1", name: "Instalacao", codigoLc116: "14.06", aliquotaIss: 3 }),
+      checkServiceReadiness({
+        id: "s1",
+        name: "Instalacao",
+        codigoLc116: "31.01",
+        aliquotaIss: 3,
+        codigoTributacaoNacional: "310102",
+      }),
     ).toHaveLength(0);
   });
 
   it("aceita alíquota zero", () => {
-    // Zero é válido em alguns municípios e regimes; tratá-lo como ausente
-    // bloquearia emissão legítima.
+    // Zero é válido em alguns municípios e regimes — no Simples Nacional o ISS
+    // sai no DAS e a nota vem sem alíquota. Tratá-lo como ausente bloquearia
+    // emissão legítima, e é o caso do primeiro emitente real do módulo.
     expect(
-      checkServiceReadiness({ id: "s1", name: "Instalacao", codigoLc116: "14.06", aliquotaIss: 0 }),
+      checkServiceReadiness({
+        id: "s1",
+        name: "Instalacao",
+        codigoLc116: "31.01",
+        aliquotaIss: 0,
+        codigoTributacaoNacional: "310102",
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("cobra o código de tributação nacional no padrão nacional", () => {
+    // Não dá para derivar do item da LC 116: o código nacional tem um desdobro
+    // que a lista antiga não carrega (31.01 sozinho não diz se é .01 ou .02).
+    const gaps = checkServiceReadiness({
+      id: "s1",
+      name: "Instalacao",
+      codigoLc116: "31.01",
+      aliquotaIss: 3,
+    });
+    expect(fieldsOf(gaps)).toEqual(["codigoTributacaoNacional"]);
+  });
+
+  it("não cobra o código nacional no padrão municipal", () => {
+    expect(
+      checkServiceReadiness(
+        { id: "s1", name: "Instalacao", codigoLc116: "14.06", aliquotaIss: 3 },
+        "municipal",
+      ),
     ).toHaveLength(0);
   });
 
   it("cobra código LC 116 e alíquota quando faltam", () => {
-    const gaps = checkServiceReadiness({ id: "s1", name: "Instalacao" });
+    const gaps = checkServiceReadiness({ id: "s1", name: "Instalacao" }, "municipal");
     expect(fieldsOf(gaps)).toEqual(["codigoLc116", "aliquotaIss"]);
   });
 
@@ -256,7 +290,13 @@ describe("checkIssueReadiness", () => {
       type: "nfse",
       issuer,
       recipient: { ...recipient, endereco: undefined },
-      service: { id: "s1", name: "Instalacao", codigoLc116: "14.06", aliquotaIss: 3 },
+      service: {
+        id: "s1",
+        name: "Instalacao",
+        codigoLc116: "31.01",
+        aliquotaIss: 3,
+        codigoTributacaoNacional: "310102",
+      },
     });
     expect(report.ready).toBe(true);
   });

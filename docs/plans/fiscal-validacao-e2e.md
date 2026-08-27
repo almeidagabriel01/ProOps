@@ -47,13 +47,18 @@ Serviço de referência: código LC 116 **31.01**, tributação nacional **31010
 > só exige IE quando `type === "nfe"`; para NFS-e o que ela exige é a inscrição
 > **municipal**, que dois documentos independentes confirmam. Comece pela NFS-e.
 
-> **Risco conhecido, e é aqui que a primeira rodada provavelmente quebra:** a nota
-> de referência é **NFS-e Nacional** (DANFSe v2.0, portal nacional), e o provider
-> posta em `/v2/nfse`. No Focus, a NFS-e Nacional tem flags próprias
-> (`habilita_nfsen_*`) e possivelmente recurso próprio. O payload já manda os
-> campos do layout nacional (`codigo_tributacao_nacional`, `codigo_nbs`), então se
-> falhar deve ser rota/flag, não corpo — correção localizada em `focus.provider.ts`
-> e `focus-payload.ts`.
+> **Risco confirmado e resolvido em 27/08/2026.** A suspeita estava certa e era pior
+> que o previsto: a NFS-e Nacional tem recurso próprio (`/v2/nfsen`) e um payload que
+> não se parece com o municipal — plano, com sufixo `_tomador`, e com
+> `codigo_tributacao_nacional_iss` em vez de `codigo_tributacao_nacional`. O cadastro
+> da empresa também usa flags e numeração próprias (`habilita_nfsen_*`,
+> `serie_nfsen_*`). Implementado atrás de `FiscalNfsePadrao` no emitente, default
+> `nacional`. Ver `focus-payload.nfsen.test.ts`, cujos valores esperados vêm da
+> NFS-e nº 14 real.
+
+> **Ainda não testado contra a API real.** O que foi verificado empiricamente até
+> aqui são as URLs (quais endpoints existem em cada host). Os campos do payload vêm
+> da documentação e da nota de referência, não de uma emissão aceita.
 
 **KMS — resolvido em 25/08/2026.** Chaves dedicadas criadas e validadas:
 

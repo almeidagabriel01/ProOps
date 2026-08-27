@@ -24,7 +24,11 @@
 import axios from "axios";
 import { logger } from "../../../lib/logger";
 import { describeFocusError } from "./focus-error";
-import { buildEmpresaPayload, buildInvoicePayload } from "./focus-payload";
+import {
+  buildEmpresaPayload,
+  buildInvoicePayload,
+  resolveNfsePadrao,
+} from "./focus-payload";
 import { mapFocusResponse, type FocusInvoiceResponse } from "./focus-response";
 import type {
   FiscalCnpjLookup,
@@ -38,6 +42,7 @@ import type {
   FiscalInvoiceResult,
   FiscalIssuerConfig,
   FiscalIssuerResult,
+  FiscalNfsePadrao,
 } from "./fiscal-types";
 
 const BASE_URLS: Record<FiscalEnvironment, string> = {
@@ -45,11 +50,21 @@ const BASE_URLS: Record<FiscalEnvironment, string> = {
   producao: "https://api.focusnfe.com.br",
 };
 
-/** Focus keeps NF-e and NFS-e on separate resource paths. */
-const RESOURCE_PATH: Record<FiscalDocumentType, string> = {
-  nfe: "nfe",
-  nfse: "nfse",
-};
+/**
+ * Cada documento tem seu próprio recurso — e a NFS-e tem **dois**, um por padrão.
+ *
+ * `nfsen` é a NFS-e Nacional (Ambiente Nacional, DANFSe); `nfse` é a municipal,
+ * para as prefeituras que ainda mantêm sistema próprio. Resolver isso aqui, e não
+ * no domínio, é o que mantém `FiscalDocumentType` com dois valores — ver
+ * `FiscalNfsePadrao`.
+ */
+function resolveResourcePath(
+  type: FiscalDocumentType,
+  padraoNfse?: FiscalNfsePadrao,
+): string {
+  if (type === "nfe") return "nfe";
+  return resolveNfsePadrao(padraoNfse) === "nacional" ? "nfsen" : "nfse";
+}
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -226,7 +241,7 @@ export class FocusFiscalProvider implements FiscalProvider {
     token: string,
   ): Promise<FiscalInvoiceResult> {
     const baseUrl = resolveFocusBaseUrl(env);
-    const resource = RESOURCE_PATH[input.type];
+    const resource = resolveResourcePath(input.type, input.issuer.padraoNfse);
     const url = `${baseUrl}/v2/${resource}?ref=${encodeURIComponent(input.ref)}`;
 
     const response = await axios.post<FocusInvoiceResponse>(
@@ -243,9 +258,11 @@ export class FocusFiscalProvider implements FiscalProvider {
     type: FiscalDocumentType,
     env: FiscalEnvironment,
     token: string,
+    padraoNfse?: FiscalNfsePadrao,
   ): Promise<FiscalInvoiceResult> {
     const baseUrl = resolveFocusBaseUrl(env);
-    const url = `${baseUrl}/v2/${RESOURCE_PATH[type]}/${encodeURIComponent(ref)}`;
+    const resource = resolveResourcePath(type, padraoNfse);
+    const url = `${baseUrl}/v2/${resource}/${encodeURIComponent(ref)}`;
 
     const response = await axios.get<FocusInvoiceResponse>(url, buildRequestConfig(token));
     return mapFocusResponse(response.data || {}, type, ref, baseUrl);
@@ -263,9 +280,11 @@ export class FocusFiscalProvider implements FiscalProvider {
     justificativa: string,
     env: FiscalEnvironment,
     token: string,
+    padraoNfse?: FiscalNfsePadrao,
   ): Promise<FiscalInvoiceResult> {
     const baseUrl = resolveFocusBaseUrl(env);
-    const url = `${baseUrl}/v2/${RESOURCE_PATH[type]}/${encodeURIComponent(ref)}`;
+    const resource = resolveResourcePath(type, padraoNfse);
+    const url = `${baseUrl}/v2/${resource}/${encodeURIComponent(ref)}`;
 
     const response = await axios.delete<FocusInvoiceResponse>(url, {
       ...buildRequestConfig(token),
@@ -393,9 +412,11 @@ export class FocusFiscalProvider implements FiscalProvider {
     type: FiscalDocumentType,
     env: FiscalEnvironment,
     token: string,
+    padraoNfse?: FiscalNfsePadrao,
   ): Promise<void> {
     const baseUrl = resolveFocusBaseUrl(env);
-    const url = `${baseUrl}/v2/hooks/${RESOURCE_PATH[type]}/${encodeURIComponent(ref)}`;
+    const resource = resolveResourcePath(type, padraoNfse);
+    const url = `${baseUrl}/v2/hooks/${resource}/${encodeURIComponent(ref)}`;
 
     await axios.post(url, {}, buildRequestConfig(token));
   }

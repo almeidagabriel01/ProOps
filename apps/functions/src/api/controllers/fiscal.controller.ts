@@ -278,6 +278,9 @@ export const saveFiscalSettingsHandler = async (
       // Recepcao de notas de entrada: desligada por padrao porque cada nota
       // recebida consome uma unidade do pacote mensal do provedor.
       habilitaManifestacao: body.habilitaManifestacao === true,
+      // Default nacional: e o padrao obrigatorio para ME/EPP do Simples a
+      // partir de 01/11/2026, e municipio com sistema proprio e a excecao.
+      padraoNfse: body.padraoNfse === "municipal" ? "municipal" : "nacional",
       serieNfe: body.serieNfe === undefined ? undefined : Number(body.serieNfe),
       proximoNumeroNfe:
         body.proximoNumeroNfe === undefined ? undefined : Number(body.proximoNumeroNfe),

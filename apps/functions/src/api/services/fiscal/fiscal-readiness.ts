@@ -12,7 +12,7 @@
  * unit of the provider's monthly package.
  */
 
-import type { FiscalIeIndicator, FiscalTaxRegime } from "./fiscal-types";
+import type { FiscalIeIndicator, FiscalNfsePadrao, FiscalTaxRegime } from "./fiscal-types";
 
 /** Where the user has to go to fix the problem. */
 export type FiscalGapScope = "emitente" | "cliente" | "produto" | "servico";
@@ -73,6 +73,7 @@ export interface ServiceReadinessInput {
   name?: string;
   codigoLc116?: string;
   aliquotaIss?: number;
+  codigoTributacaoNacional?: string;
 }
 
 function isBlank(value: unknown): boolean {
@@ -247,7 +248,10 @@ export function checkProductReadiness(products: ProductReadinessInput[]): Fiscal
   return gaps;
 }
 
-export function checkServiceReadiness(service: ServiceReadinessInput): FiscalGap[] {
+export function checkServiceReadiness(
+  service: ServiceReadinessInput,
+  padraoNfse: FiscalNfsePadrao = "nacional",
+): FiscalGap[] {
   const gaps: FiscalGap[] = [];
   const add = (field: string, message: string) =>
     gaps.push({
@@ -262,6 +266,17 @@ export function checkServiceReadiness(service: ServiceReadinessInput): FiscalGap
     add(
       "codigoLc116",
       `Defina o código de serviço (LC 116) de "${service.name || "serviço sem nome"}".`,
+    );
+  }
+
+  if (padraoNfse === "nacional" && isBlank(service.codigoTributacaoNacional)) {
+    // Sem derivação a partir do item da LC 116: o código nacional tem um
+    // desdobro que a lista antiga não carrega ("Serviços técnicos em eletrônica"
+    // é 31.01.02, e o 31.01 sozinho não diz qual desdobro). Barrar aqui é muito
+    // melhor que tomar rejeição do Ambiente Nacional depois de consumir número.
+    add(
+      "codigoTributacaoNacional",
+      `Defina o código de tributação nacional de "${service.name || "serviço sem nome"}" (ex.: 310102). Ele aparece na NFS-e que a empresa já emite.`,
     );
   }
 
@@ -293,6 +308,8 @@ export function checkIssueReadiness(input: {
   recipient: RecipientReadinessInput;
   products?: ProductReadinessInput[];
   service?: ServiceReadinessInput;
+  /** Default `nacional` — ver `FiscalNfsePadrao`. */
+  padraoNfse?: FiscalNfsePadrao;
 }): ReadinessReport {
   const gaps: FiscalGap[] = [
     ...checkIssuerReadinessForType(input.issuer, input.type),
@@ -310,7 +327,7 @@ export function checkIssueReadiness(input: {
     }
     gaps.push(...checkProductReadiness(products));
   } else if (input.service) {
-    gaps.push(...checkServiceReadiness(input.service));
+    gaps.push(...checkServiceReadiness(input.service, input.padraoNfse ?? "nacional"));
   } else {
     gaps.push({
       scope: "servico",

@@ -24,6 +24,7 @@ import type {
   FiscalEnvironment,
   FiscalIssuerConfig,
   FiscalTaxRegime,
+  FiscalNfsePadrao,
 } from "./fiscal-types";
 
 const COLLECTION = "fiscal_settings";
@@ -62,6 +63,7 @@ export interface FiscalSettingsDocument {
   habilitaNfse: boolean;
   /** Recepcao de notas de entrada. Desligada por padrao — consome pacote. */
   habilitaManifestacao?: boolean;
+  padraoNfse?: FiscalNfsePadrao;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -134,6 +136,7 @@ export interface FiscalSettingsPublic {
   habilitaNfe?: boolean;
   habilitaNfse?: boolean;
   habilitaManifestacao?: boolean;
+  padraoNfse?: FiscalNfsePadrao;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -195,6 +198,7 @@ export function toPublicSettings(
     habilitaNfe: doc.habilitaNfe,
     habilitaNfse: doc.habilitaNfse,
     habilitaManifestacao: doc.habilitaManifestacao === true,
+    padraoNfse: doc.padraoNfse === "municipal" ? "municipal" : "nacional",
     autoIssueRule: doc.autoIssueRule,
     certificadoArmazenado: Boolean(doc.certificadoSenhaEnc),
   };
@@ -280,6 +284,7 @@ export async function saveFiscalSettings(
     habilitaNfe: input.habilitaNfe,
     habilitaNfse: input.habilitaNfse,
     habilitaManifestacao: input.habilitaManifestacao === true,
+    padraoNfse: input.padraoNfse === "municipal" ? "municipal" : "nacional",
     autoIssueRule: input.autoIssueRule,
     status: existing?.status === "ready" ? "registered" : (existing?.status ?? "pending"),
     updatedAt: now,
@@ -419,6 +424,7 @@ export function buildIssuerConfig(
     habilitaNfe: settings.habilitaNfe,
     habilitaNfse: settings.habilitaNfse,
     habilitaManifestacao: settings.habilitaManifestacao === true,
+    padraoNfse: settings.padraoNfse === "municipal" ? "municipal" : "nacional",
     serieNfe: settings.serieNfe,
     proximoNumeroNfe: settings.proximoNumeroNfe,
     serieNfse: settings.serieNfse,
