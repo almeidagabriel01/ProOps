@@ -58,6 +58,27 @@ export function resolveFocusBaseUrl(env: FiscalEnvironment): string {
 }
 
 /**
+ * Base das operações de **cadastro** — `/empresas` e `/cnpjs`.
+ *
+ * Elas existem só em produção, e isso é desenho, não limitação: o cadastro de
+ * empresas é único, e o ambiente é expresso por *qual token* a empresa devolve
+ * (`token_homologacao` / `token_producao`) e por quais flags `habilita_*` ela
+ * recebe — nunca pela URL. Consultar CNPJ então é consultar a Receita, que não
+ * tem versão de teste.
+ *
+ * Verificado em 27/08/2026 batendo nos dois hosts sem token: em
+ * `homologacao.focusnfe.com.br` os dois caminhos respondem **404**; em
+ * `api.focusnfe.com.br`, **401**. `/hooks` responde 401 nos dois, por isso
+ * gatilho continua seguindo o ambiente.
+ *
+ * A divisão é a mesma dos tokens: token da conta ⇒ base de cadastro;
+ * token da empresa ⇒ base do ambiente.
+ */
+export function resolveRegistryBaseUrl(): string {
+  return BASE_URLS.producao;
+}
+
+/**
  * Account-level token, from env. Manages the company registry only.
  * It must never reach an issuing call — that is what the per-company token is
  * for, and using the master there would let a bug issue under another CNPJ.
@@ -115,7 +136,7 @@ export class FocusFiscalProvider implements FiscalProvider {
     env: FiscalEnvironment,
     dryRun = false,
   ): Promise<FiscalIssuerResult> {
-    const url = `${resolveFocusBaseUrl(env)}/v2/empresas${dryRun ? "?dry_run=1" : ""}`;
+    const url = `${resolveRegistryBaseUrl()}/v2/empresas${dryRun ? "?dry_run=1" : ""}`;
 
     try {
       const response = await axios.post<{
@@ -161,7 +182,7 @@ export class FocusFiscalProvider implements FiscalProvider {
 
   async lookupCnpj(cnpj: string, env: FiscalEnvironment): Promise<FiscalCnpjLookup> {
     const clean = String(cnpj).replace(/\D/g, "");
-    const url = `${resolveFocusBaseUrl(env)}/v2/cnpjs/${clean}`;
+    const url = `${resolveRegistryBaseUrl()}/v2/cnpjs/${clean}`;
 
     const response = await axios.get<Record<string, string | undefined>>(
       url,
