@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { logger } from "../../lib/logger";
 import { describeFocusError } from "../services/fiscal/focus-error";
@@ -194,7 +195,10 @@ export const saveFiscalSettingsHandler = async (
     const body = req.body as Record<string, unknown>;
 
     const cnpj = text(body.cnpj).replace(/\D/g, "");
-    if (cnpj.length !== 14) {
+    // Dígitos verificadores, não só o tamanho: um CNPJ com 14 dígitos errados
+    // seria aceito aqui e só falharia no cadastro da empresa no provedor — ou,
+    // pior, cadastraria a empresa sob um CNPJ válido que não é o do cliente.
+    if (!cnpjValidator.isValid(cnpj)) {
       res.status(400).json({ message: "CNPJ do emitente é inválido" });
       return;
     }
@@ -308,8 +312,10 @@ export const lookupCnpjHandler = async (req: Request, res: Response): Promise<vo
     if (!ctx) return;
 
     const cnpj = String(req.params.cnpj || "").replace(/\D/g, "");
-    if (cnpj.length !== 14) {
-      res.status(400).json({ message: "CNPJ inválido" });
+    if (!cnpjValidator.isValid(cnpj)) {
+      // O provedor responde 404 para CNPJ inexistente, o que se confunde com
+      // rota errada. Barrar antes dá a mensagem certa e economiza a chamada.
+      res.status(400).json({ message: "CNPJ inválido — confira os dígitos" });
       return;
     }
 

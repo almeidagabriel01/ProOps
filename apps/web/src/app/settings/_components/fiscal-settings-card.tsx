@@ -31,6 +31,7 @@ import {
   type FiscalTaxRegime,
   type FiscalNfsePadrao,
 } from "@/services/fiscal-service";
+import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
 
 /** ViaCEP devolve o código IBGE em `ibge` — é ele que a SEFAZ valida. */
@@ -195,6 +196,15 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
     const clean = digits(form.cnpj);
     if (clean.length !== 14) {
       toast.error("Informe um CNPJ completo para buscar.");
+      return;
+    }
+    // Dígito verificador errado é digitação, não CNPJ inexistente — e a
+    // diferença importa: "não encontramos" manda o usuário procurar o problema
+    // na Receita quando ele está no teclado dele.
+    if (!cnpjValidator.isValid(clean)) {
+      toast.error("Esse CNPJ não é válido.", {
+        description: "Os dígitos verificadores não batem. Confira a digitação.",
+      });
       return;
     }
     setIsLookingUp(true);
