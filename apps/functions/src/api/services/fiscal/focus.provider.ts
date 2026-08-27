@@ -43,6 +43,7 @@ import type {
   FiscalIssuerConfig,
   FiscalIssuerResult,
   FiscalNfsePadrao,
+  FiscalTaxRegime,
 } from "./fiscal-types";
 
 const BASE_URLS: Record<FiscalEnvironment, string> = {
@@ -130,6 +131,39 @@ const CAPABILITIES: FiscalProviderCapabilities = {
   nfce: true,
 };
 
+interface FocusCnpjResponse {
+  razao_social?: string;
+  cnae_principal?: string;
+  situacao_cadastral?: string;
+  optante_simples_nacional?: boolean;
+  optante_mei?: boolean;
+  /** O endereço é um objeto aninhado, com nomes próprios. */
+  endereco?: {
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    nome_municipio?: string;
+    codigo_ibge?: string | number;
+    uf?: string;
+    cep?: string;
+  };
+}
+
+/**
+ * CRT a partir do que a Receita já sabe.
+ *
+ * Só devolve algo quando a resposta traz as flags — ausência é diferente de
+ * "não é optante", e assumir Regime Normal por omissão trocaria CSOSN por CST
+ * na nota inteira de uma empresa do Simples.
+ */
+function regimeFromSimplesFlags(data: FocusCnpjResponse): FiscalTaxRegime | undefined {
+  if (data.optante_mei === true) return 4;
+  if (data.optante_simples_nacional === true) return 1;
+  if (data.optante_simples_nacional === false && data.optante_mei === false) return 3;
+  return undefined;
+}
+
 export class FocusFiscalProvider implements FiscalProvider {
   readonly id = "focus" as const;
   readonly capabilities = CAPABILITIES;
@@ -199,14 +233,17 @@ export class FocusFiscalProvider implements FiscalProvider {
     const clean = String(cnpj).replace(/\D/g, "");
     const url = `${resolveRegistryBaseUrl()}/v2/cnpjs/${clean}`;
 
-    const response = await axios.get<Record<string, string | undefined>>(
+    const response = await axios.get<FocusCnpjResponse>(
       url,
       buildRequestConfig(resolveMasterToken()),
     );
     const data = response.data || {};
+    // O endereço vem ANINHADO, não plano — ler `data.logradouro` devolve
+    // undefined e o wizard fica com metade dos campos vazios sem erro nenhum.
+    const endereco = data.endereco || {};
 
-    const pick = (value: string | undefined): string | undefined => {
-      const text = String(value || "").trim();
+    const pick = (value: string | number | undefined): string | undefined => {
+      const text = String(value ?? "").trim();
       return text || undefined;
     };
 
@@ -214,17 +251,21 @@ export class FocusFiscalProvider implements FiscalProvider {
     // overwrites wizard fields the user already typed with empty strings.
     return {
       cnpj: clean,
-      razaoSocial: pick(data.nome_empresarial || data.razao_social),
-      nomeFantasia: pick(data.nome_fantasia),
-      cnae: pick(data.cnae_fiscal),
-      logradouro: pick(data.logradouro),
-      numero: pick(data.numero),
-      complemento: pick(data.complemento),
-      bairro: pick(data.bairro),
-      municipio: pick(data.municipio),
-      codigoIbge: pick(data.codigo_municipio_ibge || data.codigo_municipio),
-      uf: pick(data.uf),
-      cep: pick(data.cep),
+      razaoSocial: pick(data.razao_social),
+      cnae: pick(data.cnae_principal),
+      logradouro: pick(endereco.logradouro),
+      numero: pick(endereco.numero),
+      complemento: pick(endereco.complemento),
+      bairro: pick(endereco.bairro),
+      // A Receita chama de `nome_municipio`; `municipio` não existe na resposta.
+      municipio: pick(endereco.nome_municipio),
+      codigoIbge: pick(endereco.codigo_ibge),
+      uf: pick(endereco.uf),
+      cep: pick(endereco.cep),
+      ...(regimeFromSimplesFlags(data) !== undefined
+        ? { regimeTributario: regimeFromSimplesFlags(data) }
+        : {}),
+      situacaoCadastral: pick(data.situacao_cadastral),
     };
   }
 

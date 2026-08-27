@@ -16,6 +16,7 @@ import type {
   FiscalIssuerConfig,
   FiscalIssuerResult,
   FiscalNfsePadrao,
+  FiscalTaxRegime,
 } from "./fiscal-types";
 
 export type FiscalProviderId = "focus" | "asaas" | "govbr";
@@ -41,6 +42,16 @@ export interface FiscalCnpjLookup {
   codigoIbge?: string;
   uf?: string;
   cep?: string;
+  /**
+   * Regime derivado das flags do Simples que a Receita já devolve.
+   *
+   * Vale mais que parecer: é um campo que o usuário tem de escolher sem
+   * necessariamente saber a resposta, e errá-lo troca CSOSN por CST na nota
+   * inteira. Vindo da Receita, é a fonte certa.
+   */
+  regimeTributario?: FiscalTaxRegime;
+  /** "Ativa", "Baixada", "Suspensa"… CNPJ não ativo não emite. */
+  situacaoCadastral?: string;
 }
 
 export interface FiscalProvider {

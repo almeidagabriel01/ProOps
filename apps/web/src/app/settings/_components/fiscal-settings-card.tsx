@@ -215,6 +215,9 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
         razaoSocial: data.razaoSocial || prev.razaoSocial,
         nomeFantasia: data.nomeFantasia || prev.nomeFantasia,
         cnae: data.cnae || prev.cnae,
+        // A Receita sabe se a empresa é optante — melhor fonte que a memória de
+        // quem preenche, e errar aqui troca CSOSN por CST na nota inteira.
+        regimeTributario: data.regimeTributario ?? prev.regimeTributario,
         endereco: {
           ...prev.endereco,
           logradouro: data.logradouro || prev.endereco.logradouro,
@@ -227,7 +230,16 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
           cep: data.cep || prev.endereco.cep,
         },
       }));
-      toast.success("Dados da empresa preenchidos.");
+      const situacao = data.situacaoCadastral?.trim();
+      if (situacao && situacao.toLowerCase() !== "ativa") {
+        // Um CNPJ baixado ou suspenso passa no cadastro e só falha na emissão,
+        // quando já há certificado enviado e nota montada.
+        toast.error(`CNPJ com situação cadastral "${situacao}".`, {
+          description: "Só CNPJ ativo emite nota. Regularize antes de continuar.",
+        });
+      } else {
+        toast.success("Dados da empresa preenchidos.");
+      }
     } catch {
       // Falha na consulta é perda de conveniência, não bloqueio.
       toast.error("Não encontramos esse CNPJ. Preencha os dados manualmente.");

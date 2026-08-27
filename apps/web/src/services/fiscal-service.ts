@@ -104,6 +104,10 @@ export interface CnpjLookup {
   codigoIbge?: string;
   uf?: string;
   cep?: string;
+  /** Derivado das flags do Simples que a Receita devolve. */
+  regimeTributario?: FiscalTaxRegime;
+  /** "Ativa", "Baixada", "Suspensa"… CNPJ não ativo não emite. */
+  situacaoCadastral?: string;
 }
 
 /** Onde o usuário tem que ir para resolver a pendência. */
