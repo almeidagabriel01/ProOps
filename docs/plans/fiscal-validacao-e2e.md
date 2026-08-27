@@ -16,9 +16,44 @@
 | Item | Onde | Estado |
 |---|---|---|
 | `FOCUS_NFE_MASTER_TOKEN` | `apps/functions/.env.erp-softcode` | ✅ preenchido |
-| Certificado A1 (`.pfx`) + senha | do CNPJ do sócio | ⏳ com o contador |
+| Certificado A1 (`.pfx`) + senha | do CNPJ do sócio | ✅ **em mãos desde 27/08/2026** |
 | `FISCAL_SECRET_KMS_KEY` | os três `.env` | ✅ chave dedicada, round-trip validado |
-| Empresa já emite nota hoje | — | ✅ (credenciamento SEFAZ/prefeitura feito) |
+| Empresa já emite nota hoje | — | ✅ NFS-e nº 14 de 27/07/2026, Machado/MG |
+| Campos fiscais no catálogo | `CatalogFiscalFields` | ✅ produto e serviço |
+| Plano do Focus ativo | painel do Focus | ⏳ **conferir antes de começar** |
+
+## Dados do primeiro emitente (Winicius — teste de homologação)
+
+Lidos do próprio certificado e da NFS-e de referência, não digitados de memória.
+
+| Campo | Valor | Fonte |
+|---|---|---|
+| CNPJ | 50.759.330/0001-33 | CN do certificado **e** DANFSe — conferem |
+| Razão social | 50.759.330 WINICIUS GONCALVES ARAUJO DIAS | DANFSe |
+| Regime | Simples Nacional (CRT 1) | DANFSe — "Optante, Microempresa" |
+| Inscrição municipal | 3411114782 | DANFSe **e** guia de ISSQN |
+| Inscrição estadual | 0046217750023 | ⏳ a confirmar — dígitos verificadores de MG batem |
+| Endereço | Rua Major Feliciano, 549 — Centro | guia de ISSQN |
+| Município / CEP / IBGE | Machado/MG · 37750-000 · 3139003 | DANFSe |
+| CNAE | 4321-5/00 | guia de ISSQN |
+| Série DPS / próximo nº | 70000 / 14 | DANFSe (DPS nº 13 foi a última) |
+| Certificado válido até | **17/10/2026** | lido do `.pfx` |
+
+Serviço de referência: código LC 116 **31.01**, tributação nacional **310102**
+("Serviços técnicos em eletrônica, eletrotécnica e congêneres"), alíquota de ISS
+**0** — no Simples Nacional o ISS sai no DAS, e a DANFSe traz a alíquota em branco.
+
+> **A inscrição estadual não bloqueia este teste.** `checkIssuerReadinessForType`
+> só exige IE quando `type === "nfe"`; para NFS-e o que ela exige é a inscrição
+> **municipal**, que dois documentos independentes confirmam. Comece pela NFS-e.
+
+> **Risco conhecido, e é aqui que a primeira rodada provavelmente quebra:** a nota
+> de referência é **NFS-e Nacional** (DANFSe v2.0, portal nacional), e o provider
+> posta em `/v2/nfse`. No Focus, a NFS-e Nacional tem flags próprias
+> (`habilita_nfsen_*`) e possivelmente recurso próprio. O payload já manda os
+> campos do layout nacional (`codigo_tributacao_nacional`, `codigo_nbs`), então se
+> falhar deve ser rota/flag, não corpo — correção localizada em `focus.provider.ts`
+> e `focus-payload.ts`.
 
 **KMS — resolvido em 25/08/2026.** Chaves dedicadas criadas e validadas:
 
