@@ -364,7 +364,11 @@ export const registerIssuerHandler = async (
     const env = resolveFiscalEnvironment(settings.environment);
     const issuerConfig = buildIssuerConfig(settings, certificadoBase64, certificadoSenha);
 
-    const result = await provider.registerIssuer(issuerConfig, env);
+    // `dryRun` precisa chegar ao provedor. Sem isso a empresa era criada de
+    // verdade no Focus e a resposta apenas descartada aqui — o pior dos dois
+    // mundos: a empresa passa a existir lá e o ProOps fica sem o token que
+    // assina as notas dela, que é o estado que produz FISCAL_EMITENTE_NAO_REGISTRADO.
+    const result = await provider.registerIssuer(issuerConfig, env, dryRun);
 
     if (dryRun) {
       res.status(200).json({ ...result, dryRun: true });

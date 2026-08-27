@@ -303,6 +303,15 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
         reader.readAsDataURL(file);
       });
 
+      // Valida tudo antes de criar de verdade: senha, titularidade do CNPJ e
+      // prazo do certificado são conferidos pelo provedor sem persistir nada.
+      // Se falhar aqui, nenhuma empresa fica meio criada do lado dele.
+      await FiscalService.registerIssuer({
+        certificadoBase64: base64,
+        certificadoSenha: form.certificadoSenha,
+        dryRun: true,
+      });
+
       await FiscalService.registerIssuer({
         certificadoBase64: base64,
         certificadoSenha: form.certificadoSenha,

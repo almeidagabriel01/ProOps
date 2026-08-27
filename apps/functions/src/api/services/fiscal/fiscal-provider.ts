@@ -53,9 +53,19 @@ export interface FiscalProvider {
    * Registers or updates the issuing company, including its A1 certificate.
    * Idempotent by CNPJ — calling it again updates rather than duplicating.
    */
+  /**
+   * Cadastra (ou atualiza — o provedor indexa por CNPJ) a empresa emitente.
+   *
+   * `dryRun` exercita toda a validação — senha do certificado, titularidade do
+   * CNPJ, prazo de validade — **sem persistir**. Faz parte da interface, e não
+   * só da implementação: sem estar declarada aqui, ninguém conseguia passá-la,
+   * e o controller lia o campo do request para depois descartá-lo — criando a
+   * empresa de verdade num pedido que só queria validar.
+   */
   registerIssuer(
     issuer: FiscalIssuerConfig,
     env: FiscalEnvironment,
+    dryRun?: boolean,
   ): Promise<FiscalIssuerResult>;
 
   lookupCnpj(cnpj: string, env: FiscalEnvironment): Promise<FiscalCnpjLookup>;
