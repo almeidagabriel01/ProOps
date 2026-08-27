@@ -29,6 +29,19 @@ export type Service = {
   createdAt?: string;
   updatedAt?: string;
   itemType?: "service";
+  /**
+   * Campos fiscais — opcionais no cadastro, exigidos na emissao da NFS-e pelo
+   * gate em `fiscal-readiness.ts`. Ficam aqui, e nao numa colecao propria,
+   * porque sao atributos do proprio servico.
+   */
+  codigoLc116?: string;
+  codigoTributacaoNacional?: string;
+  aliquotaIss?: number;
+};
+
+/** Espelha `ProductWriteInput`: `aliquotaIss` aceita `null` para apagar. */
+export type ServiceWriteInput = Omit<Partial<Service>, "aliquotaIss"> & {
+  aliquotaIss?: number | null;
 };
 
 const COLLECTION_NAME = "services";
@@ -46,6 +59,12 @@ function mapServiceDoc(d: QueryDocumentSnapshot<DocumentData>): Service {
     image: data.image || null,
     status: data.status,
     itemType: "service",
+    // O mapper de servico e explicito (o de produto usa spread), entao um campo
+    // ausente aqui some silenciosamente ao reabrir o cadastro para edicao.
+    codigoLc116: data.codigoLc116 ?? undefined,
+    codigoTributacaoNacional: data.codigoTributacaoNacional ?? undefined,
+    aliquotaIss:
+      typeof data.aliquotaIss === "number" ? data.aliquotaIss : undefined,
     createdAt: data.createdAt?.toDate
       ? data.createdAt.toDate().toISOString()
       : data.createdAt,
@@ -150,7 +169,7 @@ export const ServiceService = {
     }
   },
 
-  updateService: async (id: string, data: Partial<Service>): Promise<void> => {
+  updateService: async (id: string, data: ServiceWriteInput): Promise<void> => {
     try {
       await callApi(`v1/services/${id}`, "PUT", data);
     } catch (error) {

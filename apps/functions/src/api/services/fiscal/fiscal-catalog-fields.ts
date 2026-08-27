@@ -118,11 +118,19 @@ export function sanitizeServiceFiscalFields(
   }
 
   if ("aliquotaIss" in input) {
-    const parsed = Number(input.aliquotaIss);
-    // Zero is a legitimate rate in some municipalities, so only an
-    // unparseable or out-of-range value is discarded.
-    out.aliquotaIss =
-      Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : null;
+    const raw = input.aliquotaIss;
+    // An empty field means "not filled", never 0 — and `Number("")` is 0.
+    // Letting that through would store a 0% rate that `fiscal-readiness.ts`
+    // accepts as valid (zero *is* legitimate under the Simples Nacional, where
+    // the ISS is paid inside the DAS), so the note would be issued with a rate
+    // the user never chose.
+    if (raw === "" || raw === null || raw === undefined) {
+      out.aliquotaIss = null;
+    } else {
+      const parsed = Number(raw);
+      out.aliquotaIss =
+        Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : null;
+    }
   }
 
   if ("issRetido" in input) {

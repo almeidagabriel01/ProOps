@@ -157,6 +157,15 @@ cd apps/functions && npm run lint
   aliquota ISS (por servico). `POST /v1/fiscal/ncm-suggestions` sugere o NCM via Lia
   (Gemini), reaproveitando cota, rate limiter e gate de plano do modulo de IA. A sugestao
   nunca e aplicada sozinha — a classificacao fiscal e responsabilidade do cliente.
+  Na UI esses campos vivem em `components/features/fiscal/catalog-fiscal-fields.tsx`, uma
+  secao **recolhida por padrao** no cadastro de produto e de servico. Recolhida de
+  proposito: sao opcionais no cadastro e exigidos so na emissao, e quem cadastra um produto
+  no dia a dia nao deve tropecar neles.
+- **Campo fiscal numerico em branco vira `null`, nunca 0.** `Number("")` e 0, e 0 e uma
+  aliquota de ISS *valida* (Simples Nacional recolhe o ISS no DAS), entao deixar passar
+  faria a nota sair com uma aliquota que o usuario nunca escolheu. `origem` e a excecao
+  deliberada: ali 0 = nacional e o default documentado. Coberto por
+  `fiscal-catalog-fields.test.ts`.
 
 ### Modulo Fiscal — Notas de ENTRADA (recepcao)
 

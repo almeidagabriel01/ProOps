@@ -42,6 +42,16 @@ export interface ProductFormData {
   status: string;
   image: File | null;
   images: File[];
+  /**
+   * Campos fiscais. Ficam como string no formulario mesmo quando o destino e
+   * numerico (`origem`, `aliquotaIss`): um <input> vazio precisa ser
+   * distinguivel de zero, e zero e aliquota valida no Simples Nacional.
+   */
+  ncm: string;
+  origem: string;
+  codigoLc116: string;
+  codigoTributacaoNacional: string;
+  aliquotaIss: string;
 }
 
 export interface HeightPricingTierFormData {
@@ -64,6 +74,34 @@ function getInitialProductMarkup(
   }
 
   return initialData.markup || fallbackValue;
+}
+
+/**
+ * Le os campos fiscais do documento salvo.
+ *
+ * Existe para nao repetir o mesmo bloco nos tres lugares que montam o
+ * ProductFormData — esquecer um deles faria o campo sumir ao reabrir o
+ * cadastro, ou o formulario nao acusar alteracao.
+ */
+function getInitialFiscalFields(
+  initialData: CatalogItem | undefined,
+  entityType: CatalogEntityType,
+): Pick<
+  ProductFormData,
+  "ncm" | "origem" | "codigoLc116" | "codigoTributacaoNacional" | "aliquotaIss"
+> {
+  const product = entityType === "product" ? (initialData as Product | undefined) : undefined;
+  const service = entityType === "service" ? (initialData as Service | undefined) : undefined;
+
+  return {
+    ncm: product?.ncm ?? "",
+    origem:
+      typeof product?.origem === "number" ? String(product.origem) : "",
+    codigoLc116: service?.codigoLc116 ?? "",
+    codigoTributacaoNacional: service?.codigoTributacaoNacional ?? "",
+    aliquotaIss:
+      typeof service?.aliquotaIss === "number" ? String(service.aliquotaIss) : "",
+  };
 }
 
 function getInitialInventoryValue(
@@ -186,6 +224,7 @@ interface UseProductFormReturn {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) => void;
+  setFieldValue: (name: keyof ProductFormData, value: string) => void;
   handleBlur: (
     e: React.FocusEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -237,9 +276,19 @@ const buildProductFormSnapshot = (
         }
       : {};
 
+  const fiscalSnapshot =
+    entityType === "product"
+      ? { ncm: formData.ncm, origem: formData.origem }
+      : {
+          codigoLc116: formData.codigoLc116,
+          codigoTributacaoNacional: formData.codigoTributacaoNacional,
+          aliquotaIss: formData.aliquotaIss,
+        };
+
   return JSON.stringify({
     ...baseSnapshot,
     ...productOnlySnapshot,
+    ...fiscalSnapshot,
   });
 };
 
@@ -285,6 +334,7 @@ export function useProductForm(
     status: initialData?.status || "active",
     image: null,
     images: [],
+    ...getInitialFiscalFields(initialData, entityType),
   });
 
   // Existing image URLs (from Storage or legacy Base64)
@@ -330,6 +380,7 @@ export function useProductForm(
           status: initialData?.status || "active",
           image: null,
           images: [],
+          ...getInitialFiscalFields(initialData, entityType),
         },
         initialData?.images || (initialData?.image ? [initialData.image] : []),
         [],
@@ -357,6 +408,7 @@ export function useProductForm(
         status: initialData.status || "active",
         image: null,
         images: [],
+        ...getInitialFiscalFields(initialData, entityType),
       };
 
       setFormData((prev) => ({
@@ -388,6 +440,17 @@ export function useProductForm(
       clearFieldError(name as keyof typeof errors);
     }
   };
+
+  /**
+   * Setter nomeado, para campos que nao vem de um evento de <input> com `name`
+   * — hoje os fiscais, editados por um componente proprio.
+   */
+  const setFieldValue = React.useCallback(
+    (name: keyof ProductFormData, value: string) => {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    },
+    [],
+  );
 
   const handleBlur = (
     e: React.FocusEvent<
@@ -678,6 +741,22 @@ export function useProductForm(
         }
       }
 
+      // Enviados sempre, inclusive vazios: o sanitizador do backend so olha as
+      // chaves presentes, e string vazia e como o usuario apaga um NCM errado.
+      const fiscalData =
+        entityType === "product"
+          ? {
+              ncm: formData.ncm.trim(),
+              // null apaga; "" viraria 0 ("nacional") por conta de Number("").
+              origem: formData.origem === "" ? null : Number(formData.origem),
+            }
+          : {
+              codigoLc116: formData.codigoLc116.trim(),
+              codigoTributacaoNacional: formData.codigoTributacaoNacional.trim(),
+              aliquotaIss:
+                formData.aliquotaIss === "" ? null : Number(formData.aliquotaIss),
+            };
+
       const baseDataToSave = {
         tenantId: tenant.id,
         name: formData.name,
@@ -698,7 +777,7 @@ export function useProductForm(
               stock: normalizedInventoryValue,
             }
           : {};
-      const dataToSave = { ...baseDataToSave, ...productOnlyData };
+      const dataToSave = { ...baseDataToSave, ...productOnlyData, ...fiscalData };
 
       const entityLabel = entityType === "service" ? "serviço" : "produto";
       const entityPluralPath =
@@ -742,7 +821,7 @@ export function useProductForm(
                 stock: normalizedInventoryValue,
               }
             : {};
-        const payload = { ...basePayload, ...productOnlyPayload };
+        const payload = { ...basePayload, ...productOnlyPayload, ...fiscalData };
 
         const result =
           entityType === "service"
@@ -791,6 +870,7 @@ export function useProductForm(
     errors,
     setFieldError: setFieldError as (name: string, message: string) => void,
     handleChange,
+    setFieldValue,
     handleBlur,
     handleAddImage,
     handleRemoveImage,

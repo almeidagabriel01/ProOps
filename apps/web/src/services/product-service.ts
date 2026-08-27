@@ -43,6 +43,26 @@ export type Product = {
   createdAt?: string;
   updatedAt?: string;
   itemType?: "product";
+  /**
+   * Campos fiscais — opcionais no cadastro, exigidos na emissao da NF-e.
+   * CFOP, CST/CSOSN e unidade comercial NAO ficam aqui: sao derivados da
+   * operacao em `natureza-operacao.ts` (a mesma cortina e 5102 dentro do
+   * estado e 6102 fora).
+   */
+  ncm?: string;
+  origem?: number;
+};
+
+/**
+ * Entrada de escrita do produto.
+ *
+ * Difere de `Partial<Product>` num ponto: `origem` aceita `null`. O formulario
+ * precisa distinguir "nao preenchido" de zero, e `null` e como
+ * `sanitizeProductFiscalFields` apaga um valor ja salvo. Ler nunca devolve
+ * null, por isso o tipo de leitura continua estreito.
+ */
+export type ProductWriteInput = Omit<Partial<Product>, "origem"> & {
+  origem?: number | null;
 };
 
 const COLLECTION_NAME = "products";
@@ -341,7 +361,7 @@ export const ProductService = {
     }
   },
 
-  updateProduct: async (id: string, data: Partial<Product>): Promise<void> => {
+  updateProduct: async (id: string, data: ProductWriteInput): Promise<void> => {
     try {
       await callApi(`v1/products/${id}`, "PUT", data);
     } catch (error) {

@@ -13,6 +13,7 @@ import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
+import { CatalogFiscalFields } from "@/components/features/fiscal/catalog-fiscal-fields";
 import {
   FormGroup,
   FormItem,
@@ -117,6 +118,7 @@ export function ProductFormNew({
     errors,
     setFieldError,
     handleChange,
+    setFieldValue,
     handleBlur,
     handleAddImage,
     handleRemoveImage,
@@ -641,6 +643,23 @@ export function ProductFormNew({
                 </div>
               </div>
             </div>
+
+            <CatalogFiscalFields
+              entityType={entityType}
+              values={formData}
+              onChange={setFieldValue}
+              disabled={demoReadOnly}
+              suggestionContext={
+                entityType === "product"
+                  ? {
+                      nome: formData.name,
+                      descricao: formData.description,
+                      categoria: formData.category,
+                      fabricante: formData.manufacturer,
+                    }
+                  : undefined
+              }
+            />
           </div>
 
           <StepNavigation
