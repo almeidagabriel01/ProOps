@@ -4,6 +4,7 @@ import {
   getFiscalSettingsHandler,
   saveFiscalSettingsHandler,
   lookupCnpjHandler,
+  refreshInvoiceHandler,
   registerIssuerHandler,
   setFiscalEnvironmentHandler,
   suggestNcmHandler,
@@ -45,6 +46,13 @@ router.post(
 );
 
 router.get("/fiscal/invoices", validateFirebaseIdToken, listInvoicesHandler);
+// Consulta sob demanda: o cron so olha 15 min depois, e quem esta na tela nao
+// deveria precisar abrir o painel do provedor para saber o estado da propria nota.
+router.post(
+  "/fiscal/invoices/:id/refresh",
+  validateFirebaseIdToken,
+  refreshInvoiceHandler,
+);
 router.post("/fiscal/invoices", validateFirebaseIdToken, issueInvoiceHandler);
 router.post("/fiscal/invoices/:id/cancel", validateFirebaseIdToken, cancelInvoiceHandler);
 

@@ -379,6 +379,40 @@ export async function issueInvoice(
  * Polls the provider for documents whose outcome never arrived.
  * Returns the number of invoices whose status actually moved.
  */
+/**
+ * Consulta UMA nota no provedor, agora, e aplica o resultado.
+ *
+ * O cron `processInvoiceRetries` faz isso sozinho, mas só 15 minutos depois da
+ * emissão. Esse intervalo é certo para a máquina e péssimo para quem está
+ * olhando a tela: sem uma consulta sob demanda, a única saída era abrir o
+ * painel do provedor, e aí o ERP deixou de ser a fonte da verdade.
+ *
+ * Não força nada: só lê o estado no provedor e deixa `canApplyStatus` decidir
+ * se ele avança o documento — status continua não regredindo.
+ */
+export async function refreshInvoice(invoiceId: string): Promise<InvoiceDocument | null> {
+  const stored = await getInvoice(invoiceId);
+  if (!stored) {
+    throw new Error("INVOICE_NOT_FOUND");
+  }
+  if (isTerminalInvoiceStatus(stored.status)) {
+    return stored;
+  }
+
+  const provider = getFiscalProvider(stored.provider);
+  const env = resolveFiscalEnvironment(stored.environment);
+  const result = await provider.consult(
+    stored.ref,
+    stored.type,
+    env,
+    await getIssuingToken(stored.tenantId, env),
+    stored.padraoNfse,
+  );
+
+  await applyInvoiceResult(invoiceId, result);
+  return getInvoice(invoiceId);
+}
+
 export async function pollPendingInvoices(limit = 100): Promise<number> {
   const snap = await db
     .collection(COLLECTION)

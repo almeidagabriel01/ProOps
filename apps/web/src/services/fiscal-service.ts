@@ -180,6 +180,13 @@ export const FiscalService = {
   setEnvironment: (environment: FiscalEnvironment, force = false) =>
     callApi<FiscalSettings>("/v1/fiscal/environment", "PUT", { environment, force }),
 
+  /**
+   * Consulta a nota no provedor agora. O cron só olha 15 min depois da emissão,
+   * e quem está na tela não deveria precisar abrir o painel do provedor.
+   */
+  refreshInvoice: (id: string) =>
+    callApi<{ invoice: FiscalInvoice }>(`/v1/fiscal/invoices/${id}/refresh`, "POST"),
+
   lookupCnpj: (cnpj: string) =>
     callApi<CnpjLookup>(`/v1/fiscal/cnpj/${cnpj.replace(/\D/g, "")}`, "GET"),
 

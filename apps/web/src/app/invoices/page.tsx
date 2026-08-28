@@ -9,6 +9,7 @@ import {
   Download,
   FileText,
   Loader2,
+  RefreshCw,
   Settings,
   XCircle,
 } from "lucide-react";
@@ -84,6 +85,26 @@ export default function InvoicesPage() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [notConfigured, setNotConfigured] = React.useState(false);
   const [settings, setSettings] = React.useState<FiscalSettings | null>(null);
+  const [refreshingId, setRefreshingId] = React.useState<string | null>(null);
+
+  const refresh = React.useCallback(async (id: string) => {
+    setRefreshingId(id);
+    try {
+      const { invoice } = await FiscalService.refreshInvoice(id);
+      setInvoices((prev) => prev.map((item) => (item.id === id ? invoice : item)));
+      if (invoice.status === "processing") {
+        toast.info("A nota ainda está na fila do fisco.");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Não foi possível consultar a nota.",
+      );
+    } finally {
+      setRefreshingId(null);
+    }
+  }, []);
 
   const load = React.useCallback(async () => {
     try {
@@ -186,6 +207,27 @@ export default function InvoicesPage() {
             );
           }
 
+          if (invoice.status === "processing") {
+            // O cron resolve sozinho em ate 15 min; o botao existe para quem
+            // esta olhando a tela agora.
+            return (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                disabled={refreshingId === invoice.id}
+                onClick={() => void refresh(invoice.id)}
+              >
+                {refreshingId === invoice.id ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                )}
+                Consultar agora
+              </Button>
+            );
+          }
+
           if (invoice.status === "rejected" || invoice.status === "error") {
             const humanized = humanizeRejection(
               invoice.rejectionCode,
@@ -221,7 +263,7 @@ export default function InvoicesPage() {
         },
       },
     ],
-    [],
+    [refresh, refreshingId],
   );
 
   if (notConfigured) {

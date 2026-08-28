@@ -51,6 +51,7 @@ import {
   listInvoices,
   correctInvoice,
   replayInvoiceNotification,
+  refreshInvoice,
 } from "../services/fiscal/invoice.service";
 import {
   issueFromProposal,
@@ -813,6 +814,36 @@ export const setFiscalEnvironmentHandler = async (req: Request, res: Response) =
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error("Falha ao trocar o ambiente fiscal", { error: err.message });
     res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+  }
+};
+
+/**
+ * POST /v1/fiscal/invoices/:id/refresh — consulta a nota no provedor agora.
+ *
+ * O cron cobre o caso normal; isto cobre o humano olhando a tela. Sem ele, a
+ * resposta para "por que essa nota esta parada?" era abrir o painel do
+ * provedor — e o ERP deixava de ser a fonte da verdade sobre as proprias notas.
+ */
+export const refreshInvoiceHandler = async (req: Request, res: Response) => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const invoice = await getInvoice(String(req.params.id || ""));
+    if (!invoice || (invoice.tenantId !== ctx.tenantId && !ctx.isSuperAdmin)) {
+      res.status(404).json({ message: "Nota nao encontrada" });
+      return;
+    }
+
+    res.status(200).json({ invoice: await refreshInvoice(invoice.id) });
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    const detail = describeFocusError(err);
+    logger.error("Falha ao consultar nota no provedor", {
+      invoiceId: req.params.id,
+      error: detail.message,
+    });
+    res.status(mapFiscalErrorStatus(err)).json({ message: detail.message });
   }
 };
 
