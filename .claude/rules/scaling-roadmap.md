@@ -61,23 +61,31 @@ O código está pronto e testado (`lib/rate-limit/redis-store.ts`,
 
 1. Criar um Redis no [Upstash](https://upstash.com) (free tier; o gatilho para
    começar a pagar é o teto de comandos/dia, bem acima do volume atual).
-2. Acrescentar aos **dois** arquivos `apps/functions/.env.erp-softcode` e
-   `.env.erp-softcode-prod` (as chaves já estão documentadas, comentadas, em
-   `.env.example`):
+2. **Só em produção** — acrescentar a `apps/functions/.env.erp-softcode-prod`
+   (as chaves já estão documentadas, comentadas, em `.env.example`):
    ```
    RATE_LIMIT_STORE=redis
    UPSTASH_REDIS_REST_URL=...
    UPSTASH_REDIS_REST_TOKEN=...
    ```
-3. **Atualizar os secrets do GitHub** — sem isso, a próxima função nova nasce
+   **Não ligar em dev.** Três razões: dev roda `maxInstances: 1`
+   (`deploymentConfig.ts`), então a contagem em memória já é globalmente
+   correta lá; o E2E depende do 429 real com `emulatorBypass: false`, e apontar
+   dev para a rede tornaria esses testes dependentes de latência e queimaria
+   quota; e o free tier do Upstash dá **1 database**, então dev e prod
+   colidiriam nas mesmas chaves (mesmo uid, mesmo prefixo).
+3. **Região**: escolher a mais próxima de `southamerica-east1` (São Paulo, se
+   oferecida). O limitador global de API roda em TODA request e cada checagem
+   são ~2 round-trips REST (INCR + PTTL) — um Redis nos EUA adicionaria duas
+   idas e voltas intercontinentais por request, regressão pior que o bug que
+   se está corrigindo.
+4. **Atualizar o secret do GitHub** — sem isso, a próxima função nova nasce
    sem as variáveis (ver `.claude/rules/ci-cd.md`):
    ```bash
    gh secret set FUNCTIONS_ENV_PRODUCTION --env production --repo almeidagabriel01/ProOps \
      < apps/functions/.env.erp-softcode-prod
-   gh secret set FUNCTIONS_ENV_STAGING --env staging --repo almeidagabriel01/ProOps \
-     < apps/functions/.env.erp-softcode
    ```
-4. `npm run deploy:dev`, validar, depois `npm run deploy:prod`.
+5. `npm run deploy:prod`.
 
 Se a URL/token faltarem, o `factory.ts` cai para memória e emite
 `ratelimit_store_fallback_memory` — falha visível, não silenciosa.
