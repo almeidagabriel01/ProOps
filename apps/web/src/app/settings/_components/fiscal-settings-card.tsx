@@ -33,6 +33,7 @@ import {
 } from "@/services/fiscal-service";
 import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
+import { maskCep } from "@/lib/fiscal/cep";
 
 /** ViaCEP devolve o código IBGE em `ibge` — é ele que a SEFAZ valida. */
 interface ViaCepResponse {
@@ -622,9 +623,10 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
             <Input
               id="fiscal-cep"
               value={form.endereco.cep}
-              onChange={(e) => setAddress("cep", e.target.value)}
+              onChange={(e) => setAddress("cep", maskCep(e.target.value))}
               onBlur={handleCepBlur}
               inputMode="numeric"
+              maxLength={9}
             />
           </div>
           <div className="flex flex-col gap-1.5">

@@ -5,6 +5,7 @@ import { Receipt } from "lucide-react";
 import { FormSection, FormGroup, FormItem } from "@/components/ui/form-components";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { maskCep, onlyDigits } from "@/lib/fiscal/cep";
 
 /**
  * Endereço fiscal e indicador de IE do destinatário.
@@ -60,39 +61,57 @@ interface ClientFiscalFieldsProps {
   disabled?: boolean;
 }
 
-const onlyDigits = (value: string) => value.replace(/\D/g, "");
-
 export function ClientFiscalFields({
   values,
   onChange,
   disabled,
 }: ClientFiscalFieldsProps) {
+  const [cepState, setCepState] = React.useState<"idle" | "loading" | "notFound">("idle");
+  const lastLookup = React.useRef<string>("");
+
   const setField = (field: keyof ClientFiscalValues, value: string) =>
     onChange({ ...values, [field]: value });
 
   /**
    * O código IBGE não é digitável — vem daqui. É uma das rejeições mais comuns
    * quando falta, e não há como o usuário saber o número de cor.
+   *
+   * Dispara ao **completar 8 dígitos**, não no blur. O blur depende de o usuário
+   * sair do campo — quem digita o CEP e vai direto no botão de salvar nunca o
+   * aciona, e o endereço fica vazio sem nenhum sinal de que algo deveria ter
+   * acontecido. `lastLookup` evita repetir a busca do mesmo CEP a cada tecla.
    */
-  const handleCepBlur = async () => {
-    const cep = onlyDigits(values.cep);
-    if (cep.length !== 8) return;
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = (await res.json()) as ViaCepResponse;
-      if (data.erro) return;
-      onChange({
-        ...values,
-        logradouro: data.logradouro || values.logradouro,
-        bairro: data.bairro || values.bairro,
-        municipio: data.localidade || values.municipio,
-        uf: data.uf || values.uf,
-        codigoIbge: data.ibge || values.codigoIbge,
-      });
-    } catch {
-      // ViaCEP é auxiliar; falhar em silêncio é melhor que travar o formulário.
-    }
-  };
+  const lookupCep = React.useCallback(
+    async (raw: string, current: ClientFiscalValues) => {
+      const cep = onlyDigits(raw);
+      if (cep.length !== 8 || cep === lastLookup.current) return;
+      lastLookup.current = cep;
+      setCepState("loading");
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const data = (await res.json()) as ViaCepResponse;
+        if (data.erro) {
+          setCepState("notFound");
+          return;
+        }
+        setCepState("idle");
+        onChange({
+          ...current,
+          cep: maskCep(cep),
+          logradouro: data.logradouro || current.logradouro,
+          bairro: data.bairro || current.bairro,
+          municipio: data.localidade || current.municipio,
+          uf: data.uf || current.uf,
+          codigoIbge: data.ibge || current.codigoIbge,
+        });
+      } catch {
+        // ViaCEP é auxiliar: falhar não pode travar o cadastro, mas o usuário
+        // precisa saber que o preenchimento não veio.
+        setCepState("notFound");
+      }
+    },
+    [onChange],
+  );
 
   return (
     <FormSection
@@ -104,15 +123,30 @@ export function ClientFiscalFields({
     >
       <div className="space-y-5">
         <FormGroup cols={2}>
-          <FormItem label="CEP" htmlFor="cliente-cep" hint="Preenche o resto do endereço.">
+          <FormItem
+            label="CEP"
+            htmlFor="cliente-cep"
+            hint={
+              cepState === "loading"
+                ? "Buscando endereço…"
+                : cepState === "notFound"
+                  ? "CEP não encontrado — preencha o endereço à mão."
+                  : "Preenche o resto do endereço."
+            }
+          >
             <Input
               id="cliente-cep"
               inputMode="numeric"
               placeholder="00000-000"
+              maxLength={9}
               value={values.cep}
               disabled={disabled}
-              onChange={(e) => setField("cep", e.target.value)}
-              onBlur={handleCepBlur}
+              onChange={(e) => {
+                const masked = maskCep(e.target.value);
+                const next = { ...values, cep: masked };
+                onChange(next);
+                void lookupCep(masked, next);
+              }}
             />
           </FormItem>
           <FormItem label="Logradouro" htmlFor="cliente-logradouro">

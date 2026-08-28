@@ -23,9 +23,10 @@ import {
   type FiscalInvoiceStatus,
   type FiscalSettings,
 } from "@/services/fiscal-service";
-import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
 import { TestModeBanner } from "@/components/features/fiscal/test-mode-banner";
 import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
+import { RejectionDetailButton } from "@/components/features/fiscal/rejection-detail-button";
+import { useSort } from "@/hooks/use-sort";
 
 const STATUS_META: Record<
   FiscalInvoiceStatus,
@@ -133,12 +134,17 @@ export default function InvoicesPage() {
     void load();
   }, [load]);
 
+  const { items: sortedInvoices, requestSort, sortConfig } = useSort(invoices);
+
   const columns: DataTableColumn<FiscalInvoice>[] = React.useMemo(
     () => [
       {
         key: "numero",
         header: "Número",
         priority: "leading",
+        // Sem `col-span` toda coluna ocupa 1/12 e o conteúdo é cortado. As
+        // somas têm que fechar exatamente 12.
+        className: "col-span-2",
         render: (invoice) => (
           <div className="flex flex-col">
             <span className="font-medium">
@@ -154,13 +160,19 @@ export default function InvoicesPage() {
         key: "clientName",
         header: "Cliente",
         priority: "primary",
-        render: (invoice) => invoice.clientName || "—",
+        className: "col-span-3",
+        render: (invoice) => (
+          <span className="block truncate">{invoice.clientName || "—"}</span>
+        ),
       },
       {
         key: "valorTotal",
         header: "Valor",
         priority: "primary",
-        className: "text-right",
+        // `text-right` precisa valer para o cabeçalho TAMBÉM, senão o rótulo
+        // "Valor" fica à esquerda e o número à direita, desalinhados.
+        className: "col-span-2 text-right",
+        headerClassName: "text-right",
         render: (invoice) => (
           <span className="tabular-nums">{formatCurrency(invoice.valorTotal)}</span>
         ),
@@ -169,12 +181,24 @@ export default function InvoicesPage() {
         key: "status",
         header: "Situação",
         priority: "primary",
-        render: (invoice) => <StatusBadge status={invoice.status} />,
+        className: "col-span-2",
+        render: (invoice) => (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <StatusBadge status={invoice.status} />
+            {(invoice.status === "rejected" || invoice.status === "error") && (
+              <RejectionDetailButton
+                code={invoice.rejectionCode}
+                message={invoice.rejectionMessage}
+              />
+            )}
+          </div>
+        ),
       },
       {
         key: "createdAt",
         header: "Emitida em",
         priority: "secondary",
+        className: "col-span-2",
         render: (invoice) => (
           <span className="text-sm text-muted-foreground">{formatDate(invoice.createdAt)}</span>
         ),
@@ -184,6 +208,7 @@ export default function InvoicesPage() {
         header: "",
         priority: "actions",
         sortable: false,
+        className: "col-span-1 justify-self-end",
         render: (invoice) => {
           // pdfUrl e xmlUrl só existem depois de autorizada.
           if (invoice.status === "authorized") {
@@ -237,37 +262,8 @@ export default function InvoicesPage() {
             );
           }
 
-          if (invoice.status === "rejected" || invoice.status === "error") {
-            const humanized = humanizeRejection(
-              invoice.rejectionCode,
-              invoice.rejectionMessage,
-            );
-            return (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-destructive">
-                  {humanized.titulo}
-                </span>
-                {humanized.explicacao && (
-                  <span className="text-xs text-muted-foreground">
-                    {humanized.explicacao}
-                  </span>
-                )}
-                {/* A mensagem crua do provedor fica visível, não escondida num
-                    tooltip: é ela que o contador do cliente pede, e é ela que
-                    permite pesquisar o erro. Fica truncada para não dominar a
-                    linha, e inteira no title. */}
-                {humanized.original && (
-                  <span
-                    className="line-clamp-2 font-mono text-[11px] leading-tight text-muted-foreground/80"
-                    title={humanized.original}
-                  >
-                    {humanized.original}
-                  </span>
-                )}
-              </div>
-            );
-          }
-
+          // O motivo da rejeição vive na coluna "Situação", junto do selo —
+          // texto de tamanho imprevisível não cabe numa célula de ações.
           return null;
         },
       },
@@ -339,9 +335,11 @@ export default function InvoicesPage() {
       ) : (
         <DataTable
           columns={columns}
-          data={invoices}
+          data={sortedInvoices}
           keyExtractor={(invoice) => invoice.id}
-          gridClassName="grid-cols-6"
+          sortConfig={sortConfig}
+          onSort={requestSort}
+          gridClassName="grid-cols-12"
           minWidth="900px"
         />
       )}
