@@ -57,6 +57,32 @@ Serviço de referência: código LC 116 **31.01**, tributação nacional **31010
 > `nacional`. Ver `focus-payload.nfsen.test.ts`, cujos valores esperados vêm da
 > NFS-e nº 14 real.
 
+## ✅ 28/08/2026 — PRIMEIRA NOTA AUTORIZADA
+
+NF-e nº 1, série 1, homologação SEFAZ-MG, R$ 275,00. O ciclo inteiro funcionou
+sem intervenção: emissão → provedor → SEFAZ → autorização → gatilho → tela, com
+DANFE e XML espelhados no nosso Storage.
+
+**O emitente virou `ready`**, o que abre o portão de produção pelo caminho
+normal — sem precisar do escape.
+
+A numeração de homologação é **separada** da de produção: a chave saiu com série
+1 / número 1, e a sequência real (série 0, próximo 7) segue intacta.
+
+Rejeições de conteúdo até chegar lá — a SEFAZ nomeia um campo por vez:
+
+| Erro | Correção |
+|---|---|
+| `598` razão social do destinatário | literal da NT 2011/002 em homologação |
+| `745` NF-e sem grupo do PIS | grupos PIS/COFINS em todo item, CST por regime |
+
+### O que ainda NÃO foi validado
+
+- **NFS-e Nacional** — bloqueada por `E0037`, externo: Machado só credenciou
+  produção. O caminho da DPS foi construído e corrigido contra o schema real
+  três vezes, mas nunca chegou a ser autorizado.
+- **Produção** — nenhuma nota com valor fiscal foi emitida.
+
 ## Estado em 28/08/2026 — caminho técnico validado ponta a ponta
 
 O ciclo completo funciona: emissão → provedor → Ambiente Nacional → resposta →
