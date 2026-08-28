@@ -64,6 +64,7 @@ export interface FiscalSettingsDocument {
   /** Recepcao de notas de entrada. Desligada por padrao — consome pacote. */
   habilitaManifestacao?: boolean;
   padraoNfse?: FiscalNfsePadrao;
+  regimeApuracaoSimplesNacional?: 1 | 2 | 3;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -137,6 +138,7 @@ export interface FiscalSettingsPublic {
   habilitaNfse?: boolean;
   habilitaManifestacao?: boolean;
   padraoNfse?: FiscalNfsePadrao;
+  regimeApuracaoSimplesNacional?: 1 | 2 | 3;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -285,6 +287,7 @@ export async function saveFiscalSettings(
     habilitaNfse: input.habilitaNfse,
     habilitaManifestacao: input.habilitaManifestacao === true,
     padraoNfse: input.padraoNfse === "municipal" ? "municipal" : "nacional",
+    regimeApuracaoSimplesNacional: input.regimeApuracaoSimplesNacional ?? 1,
     autoIssueRule: input.autoIssueRule,
     status: existing?.status === "ready" ? "registered" : (existing?.status ?? "pending"),
     updatedAt: now,
@@ -425,6 +428,9 @@ export function buildIssuerConfig(
     habilitaNfse: settings.habilitaNfse,
     habilitaManifestacao: settings.habilitaManifestacao === true,
     padraoNfse: settings.padraoNfse === "municipal" ? "municipal" : "nacional",
+    // Sem isto o campo nunca chega ao payload e o XSD do Ambiente Nacional
+    // rejeita a DPS por `regTrib` sem filho.
+    regimeApuracaoSimplesNacional: settings.regimeApuracaoSimplesNacional ?? 1,
     serieNfe: settings.serieNfe,
     proximoNumeroNfe: settings.proximoNumeroNfe,
     serieNfse: settings.serieNfse,

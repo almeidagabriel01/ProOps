@@ -183,9 +183,28 @@ export default function InvoicesPage() {
               invoice.rejectionMessage,
             );
             return (
-              <span className="text-xs text-destructive" title={humanized.original}>
-                {humanized.titulo}
-              </span>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-destructive">
+                  {humanized.titulo}
+                </span>
+                {humanized.explicacao && (
+                  <span className="text-xs text-muted-foreground">
+                    {humanized.explicacao}
+                  </span>
+                )}
+                {/* A mensagem crua do provedor fica visível, não escondida num
+                    tooltip: é ela que o contador do cliente pede, e é ela que
+                    permite pesquisar o erro. Fica truncada para não dominar a
+                    linha, e inteira no title. */}
+                {humanized.original && (
+                  <span
+                    className="line-clamp-2 font-mono text-[11px] leading-tight text-muted-foreground/80"
+                    title={humanized.original}
+                  >
+                    {humanized.original}
+                  </span>
+                )}
+              </div>
             );
           }
 

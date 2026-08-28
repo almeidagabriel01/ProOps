@@ -152,6 +152,44 @@ describe("buildNfsenPayload", () => {
     expect(payload).not.toHaveProperty("serie_dps");
   });
 
+  it("preenche regTrib com regApTribSN quando o emitente é do Simples", () => {
+    // O XSD do Ambiente Nacional rejeitou a primeira nota real com
+    // "Element 'regTrib': Missing child element(s). Expected is one of
+    // ( regApTribSN, regEspTrib )". 1 = tributos federais e municipal pelo SN,
+    // que é o que a NFS-e de referência desta empresa traz.
+    const payload = buildNfsenPayload(buildInput());
+
+    expect(payload.regime_tributario_simples_nacional).toBe(1);
+    expect(payload).not.toHaveProperty("regime_especial_tributacao");
+  });
+
+  it("usa regEspTrib quando o emitente NÃO é do Simples", () => {
+    // Mandar o filho errado rejeita igual a não mandar nenhum.
+    const payload = buildNfsenPayload(
+      buildInput({ issuer: { ...ISSUER, regimeTributario: 3 } as FiscalIssuerConfig }),
+    );
+
+    expect(payload.regime_especial_tributacao).toBe(0);
+    expect(payload).not.toHaveProperty("regime_tributario_simples_nacional");
+  });
+
+  it("respeita o regime de apuração configurado no emitente", () => {
+    const payload = buildNfsenPayload(
+      buildInput({
+        issuer: { ...ISSUER, regimeApuracaoSimplesNacional: 2 } as FiscalIssuerConfig,
+      }),
+    );
+
+    expect(payload.regime_tributario_simples_nacional).toBe(2);
+  });
+
+  it("preenche trib com o indicador de total de tributos", () => {
+    // Segunda rejeição do mesmo XSD: "Element 'trib': Missing child
+    // element(s). Expected is one of ( tribFed, totTrib )". 0 = não informar
+    // os valores estimados, como a nota de referência.
+    expect(buildNfsenPayload(buildInput()).indicador_total_tributacao).toBe(0);
+  });
+
   it("recusa serviço sem código de tributação nacional", () => {
     expect(() =>
       buildNfsenPayload(

@@ -329,6 +329,7 @@ export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unk
   const { issuer, recipient } = input;
   const recipientDoc = digits(recipient.documento);
   const municipioEmissor = digits(issuer.endereco.codigoIbge);
+  const opcaoSimplesNacional = codigoOpcaoSimplesNacional(issuer.regimeTributario);
 
   const payload: Record<string, unknown> = {
     data_emissao: input.dataEmissao,
@@ -338,7 +339,7 @@ export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unk
     data_competencia: String(input.dataEmissao).slice(0, 10),
     codigo_municipio_emissora: Number(municipioEmissor),
     cnpj_prestador: digits(issuer.cnpj),
-    codigo_opcao_simples_nacional: codigoOpcaoSimplesNacional(issuer.regimeTributario),
+    codigo_opcao_simples_nacional: opcaoSimplesNacional,
     codigo_municipio_prestacao: municipioEmissor,
     codigo_tributacao_nacional_iss: codigoTributacaoNacional,
     descricao_servico: trimmed(service.descricao),
@@ -349,7 +350,22 @@ export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unk
     tipo_retencao_iss: service.issRetido ? 2 : 1,
     percentual_aliquota_relativa_municipio: round(service.aliquotaIss, 4),
     razao_social_tomador: trimmed(recipient.nome),
+    // `trib` exige um filho: sem isto o XSD do Ambiente Nacional rejeita com
+    // "Element 'trib': Missing child element(s)". 0 = não informar os valores
+    // estimados de tributos (Decreto 8.264/2014), que é o que a NFS-e de
+    // referência desta empresa também faz.
+    indicador_total_tributacao: 0,
   };
+
+  // `regTrib` também exige um filho, e qual deles depende do regime:
+  // regApTribSN para quem é do Simples, regEspTrib para o resto. Mandar o
+  // errado rejeita igual a não mandar nada.
+  if (opcaoSimplesNacional === 1) {
+    payload.regime_especial_tributacao = issuer.regimeEspecialTributacao ?? 0;
+  } else {
+    payload.regime_tributario_simples_nacional =
+      issuer.regimeApuracaoSimplesNacional ?? 1;
+  }
 
   if (recipientDoc.length === 11) {
     payload.cpf_tomador = recipientDoc;

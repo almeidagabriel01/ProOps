@@ -95,6 +95,22 @@ export interface FiscalIssuerConfig {
   habilitaManifestacao?: boolean;
   /** Default `nacional`. Decide o recurso e o layout do payload de NFS-e. */
   padraoNfse?: FiscalNfsePadrao;
+  /**
+   * `regApTribSN` da DPS nacional — obrigatório quando o emitente é do Simples.
+   *
+   * 1 = tributos federais e municipal pelo SN (o caso comum, e o que a nota de
+   * referência do primeiro emitente traz), 2 = federais pelo SN e ISSQN por
+   * fora, 3 = ambos por fora. Depende de como o município cobra o ISS, então
+   * fica sobrescrevível — mas nasce em 1 em vez de virar mais uma pergunta que
+   * quem preenche não sabe responder.
+   */
+  regimeApuracaoSimplesNacional?: 1 | 2 | 3;
+  /**
+   * `regEspTrib` — a contrapartida para quem NÃO é do Simples. 0 = nenhum,
+   * que cobre a esmagadora maioria; os outros são cooperativa, estimativa,
+   * notário, autônomo, sociedade de profissionais.
+   */
+  regimeEspecialTributacao?: number;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
