@@ -8,6 +8,7 @@
 
 const saveFiscalSettings = jest.fn();
 const getFiscalSettings = jest.fn();
+const registerFiscalWebhooks = jest.fn();
 
 jest.mock("../../init", () => ({ db: { collection: jest.fn() } }));
 jest.mock("../../lib/logger", () => ({
@@ -19,6 +20,9 @@ jest.mock("../../lib/auth-helpers", () => ({
     isMaster: true,
     isSuperAdmin: false,
   })),
+}));
+jest.mock("../services/fiscal/fiscal-webhook-registration.service", () => ({
+  registerFiscalWebhooks,
 }));
 jest.mock("../services/fiscal/fiscal-provider.registry", () => ({
   getFiscalProvider: () => ({}),
@@ -60,12 +64,18 @@ const SETTINGS = {
   environment: "homologacao",
   status: "registered",
   provider: "focus",
+  cnpj: "50759330000133",
+  webhookSecret: "segredo",
+  habilitaNfe: true,
+  habilitaNfse: true,
+  padraoNfse: "nacional",
 };
 
 describe("setFiscalEnvironmentHandler", () => {
   beforeEach(() => {
     saveFiscalSettings.mockReset().mockResolvedValue(SETTINGS);
     getFiscalSettings.mockReset().mockResolvedValue(SETTINGS);
+    registerFiscalWebhooks.mockReset().mockResolvedValue({ state: "registered" });
   });
 
   it("recusa ativar produção sem uma nota de teste autorizada", async () => {
@@ -133,6 +143,36 @@ describe("setFiscalEnvironmentHandler", () => {
       "tenant-1",
       expect.objectContaining({ environment: "homologacao" }),
     );
+  });
+
+  it("re-registra os gatilhos no ambiente novo", async () => {
+    // O gatilho nasce com o token da empresa DAQUELE ambiente. Trocar sem
+    // re-registrar deixaria a emissão num lugar e a notificação no outro — as
+    // notas voltariam a depender do cron, sem erro e sem explicação.
+    getFiscalSettings.mockResolvedValue({ ...SETTINGS, status: "ready" });
+
+    await setFiscalEnvironmentHandler(
+      req({ environment: "producao" }),
+      buildRes() as never,
+    );
+
+    expect(registerFiscalWebhooks).toHaveBeenCalledWith(
+      expect.objectContaining({ environment: "producao", padraoNfse: "nacional" }),
+    );
+  });
+
+  it("não bloqueia a troca se o registro do gatilho falhar", async () => {
+    // Best-effort: o cron continua como rede, e o card fiscal mostra o estado.
+    getFiscalSettings.mockResolvedValue({ ...SETTINGS, status: "ready" });
+    registerFiscalWebhooks.mockRejectedValue(new Error("provedor fora do ar"));
+
+    const res = buildRes();
+    await setFiscalEnvironmentHandler(req({ environment: "producao" }), res as never);
+
+    // O ambiente JÁ foi gravado quando o registro roda. Devolver erro faria o
+    // usuário tentar de novo achando que a troca falhou.
+    expect(res.statusCode).toBe(200);
+    expect(saveFiscalSettings).toHaveBeenCalled();
   });
 
   it("exige configuração fiscal antes de qualquer troca", async () => {

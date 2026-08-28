@@ -180,6 +180,11 @@ cd apps/functions && npm run lint
   Principal de Producao · Ambiente: Producao") que nunca notifica uma nota de homologacao.
   `listWebhooks` tambem — listar com o token errado faz o reconcile enxergar os hooks de
   outro ambiente e apagar os errados, ou nenhum.
+- **Trocar de ambiente RE-REGISTRA os gatilhos.** Como o token da empresa define onde o
+  gatilho vale, mudar o ambiente sem re-registrar deixaria a emissao num lugar e a
+  notificacao escutando no outro — as notas voltariam a depender do cron, sem erro e sem
+  explicacao. Best-effort e isolado num try/catch proprio: o ambiente JA foi gravado quando
+  o registro roda, e deixar a excecao escapar devolveria erro para uma troca que aconteceu.
 - **Falha de registro de gatilho e visivel na UI** (`webhookStatus` em `fiscal_settings`,
   exibido no card fiscal) com botao de reenviar (`POST /v1/fiscal/webhooks/retry`). Antes o
   status era gravado e nunca mostrado, e a unica forma de repetir o registro era reenviar o

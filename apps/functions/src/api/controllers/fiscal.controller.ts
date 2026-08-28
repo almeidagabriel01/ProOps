@@ -802,6 +802,42 @@ export const setFiscalEnvironmentHandler = async (req: Request, res: Response) =
 
     await saveFiscalSettings(ctx.tenantId, { ...settings, environment: target });
 
+    /**
+     * Re-registra os gatilhos no ambiente novo.
+     *
+     * O gatilho nasce com o token da empresa DAQUELE ambiente — é o token que
+     * define onde ele vale. Trocar o ambiente sem re-registrar deixaria a
+     * emissão acontecendo num lugar e a notificação escutando no outro: as
+     * notas voltariam a depender do cron de 15 minutos, sem erro nenhum e sem
+     * ninguém entender por quê. É a mesma falha muda que já custou um dia aqui.
+     *
+     * Best-effort, como no cadastro: trocar de ambiente não pode falhar por
+     * causa do gatilho, e o resultado fica visível no card fiscal.
+     */
+    if (settings.webhookSecret) {
+      try {
+        await registerFiscalWebhooks({
+          tenantId: ctx.tenantId,
+          cnpj: settings.cnpj,
+          webhookSecret: settings.webhookSecret,
+          environment: target,
+          habilitaNfe: settings.habilitaNfe,
+          habilitaNfse: settings.habilitaNfse,
+          padraoNfse: settings.padraoNfse,
+        });
+      } catch (error) {
+        // `registerFiscalWebhooks` não lança por contrato, mas o ambiente já
+        // foi gravado neste ponto: deixar uma exceção escapar devolveria erro
+        // para uma troca que aconteceu, e o usuário tentaria de novo achando
+        // que falhou.
+        logger.warn("Gatilhos nao re-registrados apos troca de ambiente", {
+          tenantId: ctx.tenantId,
+          para: target,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     // Voltar para teste nunca é suspeito; ativar produção é o evento que
     // alguém vai querer auditar depois.
     logger.info("Ambiente fiscal alterado", {
