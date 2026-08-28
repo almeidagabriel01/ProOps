@@ -18,6 +18,7 @@ import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { resolveFiscalWebhookUrl } from "../../../lib/frontend-app-url";
 import { describeFocusError } from "./focus-error";
+import { getIssuingToken } from "./fiscal-settings.service";
 import { focusFiscalProvider, resolveResourcePath } from "./focus.provider";
 import type { FiscalEnvironment, FiscalNfsePadrao } from "./fiscal-types";
 
@@ -38,16 +39,17 @@ async function reconcile(
   event: string,
   url: string,
   env: FiscalEnvironment,
+  token: string,
 ): Promise<void> {
   try {
-    const hooks = await focusFiscalProvider.listWebhooks(env);
+    const hooks = await focusFiscalProvider.listWebhooks(env, token);
     const stale = hooks.filter(
       (hook) => hook.url === url && String(hook.cnpj || "").replace(/\D/g, "") === cnpj,
     );
 
     for (const hook of stale) {
       if (hook.id) {
-        await focusFiscalProvider.deleteWebhook(hook.id, env);
+        await focusFiscalProvider.deleteWebhook(hook.id, env, token);
       }
     }
   } catch (error) {
@@ -93,11 +95,36 @@ export async function registerFiscalWebhooks(params: {
   const registered: string[] = [];
   let lastError: string | undefined;
 
+  /**
+   * Token da EMPRESA, não o da conta: é ele que define em qual ambiente o
+   * gatilho nasce. Sem ele o registro cria um hook de produção que nunca
+   * notifica uma nota de homologação — e o painel do provedor mostra isso como
+   * "Ambiente: Produção", que passa despercebido.
+   */
+  let token: string;
+  try {
+    token = await getIssuingToken(params.tenantId, params.environment);
+  } catch (error) {
+    const detail = describeFocusError(error);
+    return persist(params.tenantId, {
+      state: "failed",
+      attemptedAt: new Date().toISOString(),
+      registered: [],
+      lastError: detail.message,
+    });
+  }
+
   for (const event of events) {
     const url = resolveFiscalWebhookUrl(params.tenantId, params.webhookSecret, event);
     try {
-      await reconcile(cnpj, event, url, params.environment);
-      await focusFiscalProvider.registerWebhook(cnpj, event, url, params.environment);
+      await reconcile(cnpj, event, url, params.environment, token);
+      await focusFiscalProvider.registerWebhook(
+        cnpj,
+        event,
+        url,
+        params.environment,
+        token,
+      );
       registered.push(event);
     } catch (error) {
       const detail = describeFocusError(error);
@@ -126,10 +153,17 @@ export async function registerFiscalWebhooks(params: {
     ...(lastError ? { lastError } : {}),
   };
 
+  return persist(params.tenantId, status);
+}
+
+/** Grava o resultado e devolve — o estado tem que sobreviver ao request. */
+async function persist(
+  tenantId: string,
+  status: FiscalWebhookStatus,
+): Promise<FiscalWebhookStatus> {
   await db
     .collection("fiscal_settings")
-    .doc(params.tenantId)
+    .doc(tenantId)
     .set({ webhookStatus: status }, { merge: true });
-
   return status;
 }

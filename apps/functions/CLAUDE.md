@@ -96,11 +96,7 @@ cd apps/functions && npm run lint
   mesmo cadastro de empresa. Auth = HTTP Basic com o token no usuario e senha em branco.
 - **Cadastro de empresa e consulta de CNPJ so existem em `api.focusnfe.com.br`.** Verificado
   batendo nos dois hosts: em homologacao `/v2/empresas` e `/v2/cnpjs` respondem **404**; em
-  producao, 401. Vale tambem para **`/hooks`**, mesmo esse caminho existindo nos dois
-  hosts: quem autentica ali e o token da conta, e o exemplo da propria documentacao usa o
-  host de producao. Registrar gatilho contra homologacao nao devolvia erro visivel —
-  `registerFiscalWebhooks` nao lanca de proposito — e o resultado era NENHUM gatilho
-  registrado, com toda nota dependendo do cron. Nao e limitacao do provedor — o cadastro de empresas e unico, e o ambiente
+  producao, 401. Nao e limitacao do provedor — o cadastro de empresas e unico, e o ambiente
   e expresso por qual token a empresa devolve e por quais flags `habilita_*` ela recebe,
   nunca pela URL. `/hooks` existe nos dois. A divisao coincide com a dos tokens:
   token da conta => `resolveRegistryBaseUrl()`; token da empresa => `resolveFocusBaseUrl(env)`.
@@ -178,6 +174,12 @@ cd apps/functions && npm run lint
   (`natureza-operacao.ts`). CFOP e propriedade da *operacao*: a mesma cortina e 5102 dentro
   do estado e 6102 fora. Guardar no produto forcaria correcao manual em toda venda
   interestadual. CST/CSOSN sai do regime do emitente; a unidade sai do `inventoryUnit`.
+- **O gatilho usa o token da EMPRESA daquele ambiente, na base daquele ambiente** — mesma
+  regra da emissao. **O token e o que define o ambiente do gatilho no provedor**: registrar
+  com o token da conta cria um hook de PRODUCAO (o painel mostra "Utilizar Token: Token
+  Principal de Producao · Ambiente: Producao") que nunca notifica uma nota de homologacao.
+  `listWebhooks` tambem — listar com o token errado faz o reconcile enxergar os hooks de
+  outro ambiente e apagar os errados, ou nenhum.
 - **Falha de registro de gatilho e visivel na UI** (`webhookStatus` em `fiscal_settings`,
   exibido no card fiscal) com botao de reenviar (`POST /v1/fiscal/webhooks/retry`). Antes o
   status era gravado e nunca mostrado, e a unica forma de repetir o registro era reenviar o

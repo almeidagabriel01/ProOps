@@ -417,6 +417,12 @@ export class FocusFiscalProvider implements FiscalProvider {
    *
    * Focus keys hooks by (cnpj, event, url) and rejects a duplicate, so the
    * caller reconciles first — see `registerFiscalWebhooks`.
+   *
+   * **O token decide o ambiente do gatilho.** Registrar com o token da conta
+   * cria um hook de PRODUÇÃO — o painel mostra "Utilizar Token: Token Principal
+   * de Produção · Ambiente: Produção" —, e ele nunca notifica uma nota emitida
+   * em homologação. Por isso aqui vale a mesma regra da emissão: token da
+   * empresa daquele ambiente, na base daquele ambiente.
    */
   async registerWebhook(
     cnpj: string,
@@ -424,28 +430,37 @@ export class FocusFiscalProvider implements FiscalProvider {
     event: string,
     url: string,
     env: FiscalEnvironment,
+    token: string,
   ): Promise<string | undefined> {
     const response = await axios.post<{ id?: string }>(
-      `${resolveRegistryBaseUrl()}/v2/hooks`,
+      `${resolveFocusBaseUrl(env)}/v2/hooks`,
       { cnpj: String(cnpj).replace(/\D/g, ""), event, url },
-      buildRequestConfig(resolveMasterToken()),
+      buildRequestConfig(token),
     );
     return response.data?.id;
   }
 
   async listWebhooks(
     env: FiscalEnvironment,
+    token: string,
   ): Promise<Array<{ id?: string; cnpj?: string; event?: string; url?: string }>> {
+    // Lista os hooks DAQUELE token, ou seja, daquele ambiente. Listar com o
+    // token da conta devolveria os de produção e o reconcile apagaria os
+    // errados — ou nenhum.
     const response = await axios.get<Array<{ id?: string; cnpj?: string; event?: string; url?: string }>>(
-      `${resolveRegistryBaseUrl()}/v2/hooks`,
-      buildRequestConfig(resolveMasterToken()),
+      `${resolveFocusBaseUrl(env)}/v2/hooks`,
+      buildRequestConfig(token),
     );
     return Array.isArray(response.data) ? response.data : [];
   }
 
-  async deleteWebhook(hookId: string, env: FiscalEnvironment): Promise<void> {
+  async deleteWebhook(
+    hookId: string,
+    env: FiscalEnvironment,
+    token: string,
+  ): Promise<void> {
     await axios.delete(
-      `${resolveRegistryBaseUrl()}/v2/hooks/${encodeURIComponent(hookId)}`,
+      `${resolveFocusBaseUrl(env)}/v2/hooks/${encodeURIComponent(hookId)}`,
       buildRequestConfig(resolveMasterToken()),
     );
   }

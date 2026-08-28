@@ -161,3 +161,59 @@ describe("FocusFiscalProvider — recurso da NFS-e por padrão", () => {
     expect(String(mockedAxios.get.mock.calls[0][0])).toContain("/v2/nfsen/ref-1");
   });
 });
+
+describe("FocusFiscalProvider — gatilho segue o ambiente, não o cadastro", () => {
+  const provider = new FocusFiscalProvider();
+
+  beforeEach(() => {
+    process.env.FOCUS_NFE_MASTER_TOKEN = "token-de-conta";
+    mockedAxios.post.mockReset();
+    mockedAxios.get.mockReset();
+    mockedAxios.post.mockResolvedValue({ data: { id: "hook-1" } });
+    mockedAxios.get.mockResolvedValue({ data: [] });
+  });
+
+  it("registra no host do ambiente com o token da empresa", async () => {
+    // É o TOKEN que define o ambiente do gatilho no provedor. Registrar com o
+    // token da conta cria um hook de produção — o painel mostra "Ambiente:
+    // Produção" — e ele nunca notifica uma nota emitida em homologação.
+    await provider.registerWebhook(
+      "50759330000133",
+      "nfsen",
+      "https://exemplo/webhooks/focus/t/s/nfsen",
+      "homologacao",
+      "token-da-empresa-homologacao",
+    );
+
+    const [url, , config] = mockedAxios.post.mock.calls[0];
+    expect(String(url)).toBe(`${HOMOLOG_HOST}/v2/hooks`);
+    expect(String(url)).not.toContain(REGISTRY_HOST);
+
+    // HTTP Basic com o token no usuário e senha em branco — é o que o provedor
+    // usa, e é o token que decide o ambiente do gatilho.
+    const auth = (config as { headers?: Record<string, string> })?.headers
+      ?.Authorization;
+    const decoded = Buffer.from(String(auth).replace("Basic ", ""), "base64").toString();
+    expect(decoded).toContain("token-da-empresa-homologacao");
+  });
+
+  it("lista com o token do ambiente, para o reconcile ver os hooks certos", async () => {
+    // Listar com o token da conta devolveria os de produção, e o reconcile
+    // apagaria os errados — ou nenhum.
+    await provider.listWebhooks("homologacao", "token-da-empresa-homologacao");
+
+    expect(String(mockedAxios.get.mock.calls[0][0])).toBe(`${HOMOLOG_HOST}/v2/hooks`);
+  });
+
+  it("em produção usa o host de produção", async () => {
+    await provider.registerWebhook(
+      "50759330000133",
+      "nfsen",
+      "https://exemplo/webhooks/focus/t/s/nfsen",
+      "producao",
+      "token-da-empresa-producao",
+    );
+
+    expect(String(mockedAxios.post.mock.calls[0][0])).toBe(`${REGISTRY_HOST}/v2/hooks`);
+  });
+});
