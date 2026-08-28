@@ -87,8 +87,13 @@ export function resolveFocusBaseUrl(env: FiscalEnvironment): string {
  * `api.focusnfe.com.br`, **401**. `/hooks` responde 401 nos dois, por isso
  * gatilho continua seguindo o ambiente.
  *
- * A divisão é a mesma dos tokens: token da conta ⇒ base de cadastro;
- * token da empresa ⇒ base do ambiente.
+ * A divisão é a mesma dos tokens: **token da conta ⇒ base de cadastro; token da
+ * empresa ⇒ base do ambiente**. Vale também para `/hooks`, mesmo esse caminho
+ * existindo nos dois hosts: quem autentica ali é o token da conta, e o exemplo
+ * da própria documentação usa o host de produção. Registrar gatilho contra o
+ * host de homologação não devolvia erro visível — `registerFiscalWebhooks` não
+ * lança de propósito —, e o resultado era nenhum gatilho registrado e toda nota
+ * dependendo do cron.
  */
 export function resolveRegistryBaseUrl(): string {
   return BASE_URLS.producao;
@@ -421,7 +426,7 @@ export class FocusFiscalProvider implements FiscalProvider {
     env: FiscalEnvironment,
   ): Promise<string | undefined> {
     const response = await axios.post<{ id?: string }>(
-      `${resolveFocusBaseUrl(env)}/v2/hooks`,
+      `${resolveRegistryBaseUrl()}/v2/hooks`,
       { cnpj: String(cnpj).replace(/\D/g, ""), event, url },
       buildRequestConfig(resolveMasterToken()),
     );
@@ -432,7 +437,7 @@ export class FocusFiscalProvider implements FiscalProvider {
     env: FiscalEnvironment,
   ): Promise<Array<{ id?: string; cnpj?: string; event?: string; url?: string }>> {
     const response = await axios.get<Array<{ id?: string; cnpj?: string; event?: string; url?: string }>>(
-      `${resolveFocusBaseUrl(env)}/v2/hooks`,
+      `${resolveRegistryBaseUrl()}/v2/hooks`,
       buildRequestConfig(resolveMasterToken()),
     );
     return Array.isArray(response.data) ? response.data : [];
@@ -440,7 +445,7 @@ export class FocusFiscalProvider implements FiscalProvider {
 
   async deleteWebhook(hookId: string, env: FiscalEnvironment): Promise<void> {
     await axios.delete(
-      `${resolveFocusBaseUrl(env)}/v2/hooks/${encodeURIComponent(hookId)}`,
+      `${resolveRegistryBaseUrl()}/v2/hooks/${encodeURIComponent(hookId)}`,
       buildRequestConfig(resolveMasterToken()),
     );
   }

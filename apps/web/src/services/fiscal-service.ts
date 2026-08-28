@@ -39,6 +39,17 @@ export interface FiscalSettings {
   provider?: string;
   environment?: FiscalEnvironment;
   status?: FiscalSetupStatus;
+  /**
+   * Resultado do registro dos gatilhos de notificação. Falhar aqui não bloqueia
+   * o cadastro — mas sem gatilho toda nota depende do cron de 15 minutos, e
+   * isso precisa aparecer em vez de ficar só gravado.
+   */
+  webhookStatus?: {
+    state: "registered" | "failed" | "partial";
+    attemptedAt: string;
+    registered: string[];
+    lastError?: string;
+  };
   cnpj?: string;
   razaoSocial?: string;
   nomeFantasia?: string;
@@ -195,6 +206,10 @@ export const FiscalService = {
    * quem custodia é o provedor, que valida senha, titularidade do CNPJ e prazo.
    * `dryRun` valida tudo sem persistir.
    */
+  /** Reenvia o registro dos gatilhos sem precisar reenviar o certificado. */
+  retryWebhooks: () =>
+    callApi<FiscalSettings>("/v1/fiscal/webhooks/retry", "POST"),
+
   registerIssuer: (payload: {
     certificadoBase64: string;
     certificadoSenha?: string;

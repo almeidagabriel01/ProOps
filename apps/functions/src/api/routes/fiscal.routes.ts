@@ -6,6 +6,7 @@ import {
   lookupCnpjHandler,
   refreshInvoiceHandler,
   registerIssuerHandler,
+  retryFiscalWebhooksHandler,
   setFiscalEnvironmentHandler,
   suggestNcmHandler,
   issueInvoiceHandler,
@@ -35,6 +36,9 @@ router.post("/fiscal/issuer", validateFirebaseIdToken, registerIssuerHandler);
 // Troca de ambiente tem rota propria: e a mudanca mais consequente do modulo e
 // nao pode ser efeito colateral de um "salvar configuracao".
 router.put("/fiscal/environment", validateFirebaseIdToken, setFiscalEnvironmentHandler);
+// Reenviar gatilhos sem reenviar o certificado — falha de registro e comum e
+// recuperavel, e o caminho antigo (recadastrar a empresa) era pesado demais.
+router.post("/fiscal/webhooks/retry", validateFirebaseIdToken, retryFiscalWebhooksHandler);
 
 // Reaproveita o rate limiter da geracao de campos por IA — mesmo custo por
 // token, mesma necessidade de conter rajada.

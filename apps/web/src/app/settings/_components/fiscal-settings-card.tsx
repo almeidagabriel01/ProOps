@@ -157,6 +157,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
   const [isSaving, setIsSaving] = React.useState(false);
   const [isLookingUp, setIsLookingUp] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [isRetryingWebhooks, setIsRetryingWebhooks] = React.useState(false);
   const certificateInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -307,6 +308,23 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
         certificadoSenha: form.certificadoSenha || undefined,
   });
 
+  const handleRetryWebhooks = async () => {
+    setIsRetryingWebhooks(true);
+    try {
+      const updated = await FiscalService.retryWebhooks();
+      setSettings(updated);
+      toast[updated.webhookStatus?.state === "registered" ? "success" : "error"](
+        updated.webhookStatus?.state === "registered"
+          ? "Notificação automática registrada."
+          : "Ainda não foi possível registrar.",
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível registrar.");
+    } finally {
+      setIsRetryingWebhooks(false);
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -420,6 +438,35 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
                     ? `Seu certificado digital venceu há ${Math.abs(diasParaVencer)} dia(s). Nenhuma nota será emitida até a renovação.`
                     : `Seu certificado digital vence em ${diasParaVencer} dia(s). Renove antes para não interromper a emissão.`}
                 </span>
+              </div>
+            )}
+            {settings?.webhookStatus && settings.webhookStatus.state !== "registered" && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <div className="flex-1 space-y-1">
+                  <p className="font-medium">Notificação automática não registrada</p>
+                  <p className="text-muted-foreground">
+                    As notas continuam sendo emitidas, mas o resultado só chega pela
+                    consulta periódica — pode demorar até 15 minutos para aparecer.
+                  </p>
+                  {settings.webhookStatus.lastError && (
+                    <p className="font-mono text-xs text-muted-foreground/80">
+                      {settings.webhookStatus.lastError}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isRetryingWebhooks}
+                  onClick={handleRetryWebhooks}
+                >
+                  {isRetryingWebhooks && (
+                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                  )}
+                  Tentar de novo
+                </Button>
               </div>
             )}
             {settings?.lastError && (

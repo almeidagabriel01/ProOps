@@ -850,6 +850,42 @@ export const refreshInvoiceHandler = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * POST /v1/fiscal/webhooks/retry — registra os gatilhos de novo.
+ *
+ * Antes disso, a unica forma de repetir o registro era reenviar o certificado,
+ * que e um caminho absurdamente pesado para uma falha de rede: o `.pfx` sobe de
+ * novo, a empresa e recadastrada no provedor, e tudo isso para recriar um hook.
+ */
+export const retryFiscalWebhooksHandler = async (req: Request, res: Response) => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const settings = await getFiscalSettings(ctx.tenantId);
+    if (!settings?.webhookSecret) {
+      res.status(404).json({ message: "Configure os dados fiscais primeiro" });
+      return;
+    }
+
+    await registerFiscalWebhooks({
+      tenantId: ctx.tenantId,
+      cnpj: settings.cnpj,
+      webhookSecret: settings.webhookSecret,
+      environment: resolveFiscalEnvironment(settings.environment),
+      habilitaNfe: settings.habilitaNfe,
+      habilitaNfse: settings.habilitaNfse,
+      padraoNfse: settings.padraoNfse,
+    });
+
+    res.status(200).json(toPublicSettings(await getFiscalSettings(ctx.tenantId)));
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Falha ao reenviar gatilhos fiscais", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+  }
+};
+
 // POST /v1/fiscal/invoices/from-proposal/:id
 export const issueFromProposalHandler = (req: Request, res: Response) =>
   issueFromSource(req, res, "proposal");
