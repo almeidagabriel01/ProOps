@@ -112,6 +112,11 @@ export function ClientFiscalFields({
           municipio: data.localidade ?? "",
           uf: data.uf ?? "",
           codigoIbge: data.ibge ?? "",
+          // Número e complemento também são do endereço ANTIGO. O ViaCEP não os
+          // devolve, então eram os únicos que sobreviviam à troca — e um número
+          // de outra rua é pior que nenhum, porque parece preenchido.
+          numero: "",
+          complemento: "",
         });
       } catch {
         // ViaCEP é auxiliar: falhar não pode travar o cadastro, mas o usuário

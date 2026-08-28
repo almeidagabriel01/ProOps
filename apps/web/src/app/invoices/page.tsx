@@ -164,7 +164,7 @@ export default function InvoicesPage() {
         key: "clientName",
         header: "Cliente",
         priority: "primary",
-        className: "col-span-3",
+        className: "col-span-2",
         render: (invoice) => (
           <span className="block truncate">{invoice.clientName || "—"}</span>
         ),
@@ -213,9 +213,10 @@ export default function InvoicesPage() {
         header: "Ações",
         priority: "actions",
         sortable: false,
-        // Sem `min-w-0` + `overflow-hidden` o conteúdo transborda o span e
-        // desenha por cima da coluna anterior — foi o que cobriu a data.
-        className: "col-span-1 flex min-w-0 items-center overflow-hidden",
+        // Dois spans, não um: três ícones de 32px não cabem em 1/12, e o
+        // `overflow-hidden` que segurava o transbordo escondia o terceiro botão
+        // em vez de avisar. Conter o layout não pode custar uma ação inteira.
+        className: "col-span-2 flex min-w-0 items-center gap-0.5",
         render: (invoice) => {
           // pdfUrl e xmlUrl só existem depois de autorizada.
           if (invoice.status === "authorized") {
