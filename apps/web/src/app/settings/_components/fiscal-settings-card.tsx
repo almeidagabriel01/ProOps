@@ -402,6 +402,19 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
 
   const status = settings?.status ? STATUS_LABEL[settings.status] : undefined;
   const diasParaVencer = settings?.certificadoDiasParaVencer;
+  /**
+   * Emitente cadastrado cujo gatilho não está confirmado como registrado.
+   *
+   * Uma constante, e não a condição repetida no JSX, porque ela precisa
+   * aparecer em DOIS lugares: no bloco do alerta e na guarda do `CardContent`
+   * que o contém. Foi essa duplicação que escondeu o alerta — a guarda externa
+   * só considerava `lastError` e validade do certificado, então o aviso existia
+   * no código e nunca chegava à tela.
+   */
+  const gatilhoPendente =
+    Boolean(settings?.status) &&
+    settings?.status !== "pending" &&
+    settings?.webhookStatus?.state !== "registered";
 
   return (
     <div className="flex flex-col gap-4">
@@ -422,7 +435,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
           </div>
         </CardHeader>
 
-        {(settings?.lastError || typeof diasParaVencer === "number") && (
+        {(settings?.lastError || typeof diasParaVencer === "number" || gatilhoPendente) && (
           <CardContent className="flex flex-col gap-3 pt-0">
             {typeof diasParaVencer === "number" && diasParaVencer <= 30 && (
               <div
@@ -445,14 +458,12 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
                 tela nunca teve tentativa nenhuma. Mostrar o alerta só quando há
                 falha registrada esconde exatamente o caso mais comum — foi o que
                 aconteceu aqui: nenhum gatilho no provedor e nenhum aviso. */}
-            {settings?.status &&
-              settings.status !== "pending" &&
-              settings.webhookStatus?.state !== "registered" && (
+            {gatilhoPendente && (
               <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                 <div className="flex-1 space-y-1">
                   <p className="font-medium">
-                    {settings.webhookStatus
+                    {settings?.webhookStatus
                       ? "Notificação automática não registrada"
                       : "Notificação automática ainda não configurada"}
                   </p>
@@ -460,9 +471,9 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
                     As notas continuam sendo emitidas, mas o resultado só chega pela
                     consulta periódica — pode demorar até 15 minutos para aparecer.
                   </p>
-                  {settings.webhookStatus?.lastError && (
+                  {settings?.webhookStatus?.lastError && (
                     <p className="font-mono text-xs text-muted-foreground/80">
-                      {settings.webhookStatus.lastError}
+                      {settings.webhookStatus?.lastError}
                     </p>
                   )}
                 </div>
