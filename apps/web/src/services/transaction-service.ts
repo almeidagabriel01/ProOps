@@ -519,6 +519,73 @@ export const TransactionService = {
   },
 
   /**
+   * Lançamentos de UM dia — candidatos à heurística de "entrada órfã" do editor
+   * (`useEditTransaction`), que antes rodava sobre a coleção INTEIRA do tenant.
+   *
+   * A heurística casa candidato e âncora por `dateOnly(date || dueDate)`, então
+   * o escopo é a união de duas queries do mesmo dia (dedupe por id):
+   *  1. `date` dentro do dia;
+   *  2. `dueDate` dentro do dia — cobre doc cujo `date` é outro e o casamento
+   *     acontece pelo vencimento.
+   *
+   * Faixa (`>= dia`, `<= dia + `) em vez de igualdade porque o valor
+   * gravado é "YYYY-MM-DD" mas docs legados podem carregar o sufixo
+   * "THH:mm:ss" — a faixa pega os dois formatos com os índices que já existem
+   * (`tenantId,date` e `tenantId,dueDate`).
+   *
+   * Limitação consciente: doc sem `date` E sem `dueDate` não aparece em
+   * nenhuma das duas queries. `date` é obrigatório no tipo Transaction, então
+   * isso só alcançaria dado corrompido — o full-fetch que isto substitui
+   * custava a coleção inteira a cada abertura do editor.
+   */
+  getTransactionsOnDay: async (
+    tenantId: string,
+    day: string,
+  ): Promise<Transaction[]> => {
+    const normalizedDay = (day || "").includes("T")
+      ? day.split("T")[0]
+      : (day || "");
+    if (!normalizedDay) return [];
+
+    const dayEnd = `${normalizedDay}`;
+    try {
+      const col = collection(db, COLLECTION_NAME);
+      const [dateSnap, dueSnap] = await Promise.all([
+        getDocs(
+          query(
+            col,
+            where("tenantId", "==", tenantId),
+            where("date", ">=", normalizedDay),
+            where("date", "<=", dayEnd),
+          ),
+        ),
+        getDocs(
+          query(
+            col,
+            where("tenantId", "==", tenantId),
+            where("dueDate", ">=", normalizedDay),
+            where("dueDate", "<=", dayEnd),
+          ),
+        ),
+      ]);
+
+      const byId = new Map<string, Transaction>();
+      for (const snap of [dateSnap, dueSnap]) {
+        snap.docs.forEach((docSnap) => {
+          byId.set(docSnap.id, {
+            id: docSnap.id,
+            ...docSnap.data(),
+          } as Transaction);
+        });
+      }
+      return Array.from(byId.values());
+    } catch (error) {
+      console.error("Error fetching transactions on day:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Docs pagos no intervalo [start, end) por `paidAt` — cobre o caso de
    * pagamento neste mês de lançamento antigo (date/dueDate fora da janela do
    * escopo). Docs legados sem paidAt têm date/dueDate antigos e caem fora dos
