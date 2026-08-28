@@ -191,6 +191,14 @@ cd apps/functions && npm run lint
   secao **recolhida por padrao** no cadastro de produto e de servico. Recolhida de
   proposito: sao opcionais no cadastro e exigidos so na emissao, e quem cadastra um produto
   no dia a dia nao deve tropecar neles.
+- **O destinatario tem endereco fiscal PROPRIO** (`clients/{id}.enderecoFiscal`), separado do
+  campo `address` livre. Aquele e uma string unica, boa para o dia a dia e inutil para a
+  SEFAZ, que valida logradouro, numero, bairro, UF e o codigo IBGE; dividir a string daria
+  erro em toda ambiguidade de virgula. **So a NF-e exige endereco** — a NFS-e se contenta com
+  nome e documento. Campos: `enderecoFiscal`, `inscricaoEstadual`, `indicadorIe`,
+  `consumidorFinal`, todos opcionais e todos na allowlist de `clients.controller.ts`.
+  `indicadorIe` vazio e **derivado** do documento (`deriveIndicadorIe`): CPF nunca vira
+  "isento", que e a rejeicao 805.
 - **Campo fiscal numerico em branco vira `null`, nunca 0.** `Number("")` e 0, e 0 e uma
   aliquota de ISS *valida* (Simples Nacional recolhe o ISS no DAS), entao deixar passar
   faria a nota sair com uma aliquota que o usuario nunca escolheu. `origem` e a excecao
