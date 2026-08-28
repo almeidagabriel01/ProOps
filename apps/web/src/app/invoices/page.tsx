@@ -25,6 +25,7 @@ import {
 } from "@/services/fiscal-service";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
 import { TestModeBanner } from "@/components/features/fiscal/test-mode-banner";
+import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
 
 const STATUS_META: Record<
   FiscalInvoiceStatus,
@@ -203,6 +204,14 @@ export default function InvoicesPage() {
                     </a>
                   </Button>
                 )}
+                <CancelInvoiceButton
+                  invoice={invoice}
+                  onCancelled={(updated) =>
+                    setInvoices((prev) =>
+                      prev.map((item) => (item.id === updated.id ? updated : item)),
+                    )
+                  }
+                />
               </div>
             );
           }
