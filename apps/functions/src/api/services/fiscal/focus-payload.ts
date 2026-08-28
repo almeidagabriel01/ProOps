@@ -357,12 +357,19 @@ export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unk
     indicador_total_tributacao: 0,
   };
 
-  // `regTrib` também exige um filho, e qual deles depende do regime:
-  // regApTribSN para quem é do Simples, regEspTrib para o resto. Mandar o
-  // errado rejeita igual a não mandar nada.
-  if (opcaoSimplesNacional === 1) {
-    payload.regime_especial_tributacao = issuer.regimeEspecialTributacao ?? 0;
-  } else {
+  // `regTrib` é uma SEQUÊNCIA, não uma escolha: opSimpNac, depois regApTribSN
+  // (só para optante do Simples) e depois regEspTrib — este último obrigatório
+  // sempre, mesmo para quem é do Simples e não tem regime especial nenhum.
+  //
+  // A primeira rejeição real dizia "Expected is one of ( regApTribSN,
+  // regEspTrib )", o que parecia uma alternativa. Depois que regApTribSN passou
+  // a ser enviado, a mensagem virou "Expected is ( regEspTrib )" — o validador
+  // parou de oferecer a primeira porque ela já tinha sido aceita, e cobrou a
+  // segunda. É assim que se lê esse XSD: ele nomeia o próximo elemento
+  // esperado, não o conjunto do que falta.
+  payload.regime_especial_tributacao = issuer.regimeEspecialTributacao ?? 0;
+
+  if (opcaoSimplesNacional !== 1) {
     payload.regime_tributario_simples_nacional =
       issuer.regimeApuracaoSimplesNacional ?? 1;
   }

@@ -152,19 +152,21 @@ describe("buildNfsenPayload", () => {
     expect(payload).not.toHaveProperty("serie_dps");
   });
 
-  it("preenche regTrib com regApTribSN quando o emitente é do Simples", () => {
-    // O XSD do Ambiente Nacional rejeitou a primeira nota real com
-    // "Element 'regTrib': Missing child element(s). Expected is one of
-    // ( regApTribSN, regEspTrib )". 1 = tributos federais e municipal pelo SN,
-    // que é o que a NFS-e de referência desta empresa traz.
+  it("manda regApTribSN E regEspTrib quando o emitente é do Simples", () => {
+    // `regTrib` é sequência, não escolha. A segunda rejeição real provou isso:
+    // depois que regApTribSN passou a ir, a mensagem mudou de
+    // "Expected is one of ( regApTribSN, regEspTrib )" para
+    // "Expected is ( regEspTrib )" — o validador cobra o PRÓXIMO elemento da
+    // sequência, não uma alternativa que faltou.
     const payload = buildNfsenPayload(buildInput());
 
     expect(payload.regime_tributario_simples_nacional).toBe(1);
-    expect(payload).not.toHaveProperty("regime_especial_tributacao");
+    expect(payload.regime_especial_tributacao).toBe(0);
   });
 
-  it("usa regEspTrib quando o emitente NÃO é do Simples", () => {
-    // Mandar o filho errado rejeita igual a não mandar nenhum.
+  it("manda só regEspTrib quando o emitente NÃO é do Simples", () => {
+    // regApTribSN só existe para optante; enviá-lo aqui inventaria um regime
+    // de apuração do Simples para quem não está no Simples.
     const payload = buildNfsenPayload(
       buildInput({ issuer: { ...ISSUER, regimeTributario: 3 } as FiscalIssuerConfig }),
     );
