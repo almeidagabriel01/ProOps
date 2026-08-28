@@ -254,10 +254,17 @@ export const saveFiscalSettingsHandler = async (
 
     const rawAddress = body.endereco as AddressInput;
 
+    const existing = await getFiscalSettings(ctx.tenantId);
+
     const saved = await saveFiscalSettings(ctx.tenantId, {
-      // Production is opt-in and only reachable after a test document is
-      // authorized, so a save never promotes the environment on its own.
-      environment: resolveFiscalEnvironment(text(body.environment)),
+      // Salvar não promove NEM REBAIXA o ambiente. O formulário não manda esse
+      // campo, e antes disso `text(undefined)` virava "" e resolvia para
+      // homologação — ou seja, qualquer salvamento derrubaria um emitente já
+      // ativo de volta para teste, em silêncio: ele acharia que está emitindo
+      // e não estaria. A troca de ambiente tem endpoint próprio.
+      environment: resolveFiscalEnvironment(
+        text(body.environment) || existing?.environment,
+      ),
       cnpj,
       razaoSocial,
       nomeFantasia: text(body.nomeFantasia),
@@ -745,6 +752,69 @@ async function issueFromSource(
     res.status(mapFiscalErrorStatus(err)).json({ message: err.message, code: err.message });
   }
 }
+
+/**
+ * PUT /v1/fiscal/environment — sai do modo de teste (ou volta para ele).
+ *
+ * A troca tem endpoint próprio, e não um campo no formulário de configuração,
+ * por dois motivos. Primeiro, é a mudança mais consequente do sistema: depois
+ * dela toda nota vale juridicamente, consome numeração e gera imposto.
+ * Segundo, misturá-la ao salvamento faria um "salvar" acidental mudar o
+ * ambiente sem intenção.
+ *
+ * O portão é `status === "ready"`, que só existe depois de uma nota
+ * **autorizada**. Homologação prova que o nosso código monta a nota certa; só a
+ * autorização prova que o emitente está credenciado no fisco. Sem isso, a
+ * primeira falha aconteceria na primeira venda real.
+ *
+ * O escape (`force`) existe porque o portão pode estar errado: quem já emite
+ * por outro sistema não precisa provar nada para nós. Os ERPs do mercado
+ * (Bling, Omie, Tiny) sequer travam a troca — deixam livre e documentam o
+ * teste como recomendação. Travar sem saída seria mais rígido que todos eles.
+ */
+export const setFiscalEnvironmentHandler = async (req: Request, res: Response) => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const body = req.body as Record<string, unknown>;
+    const target = resolveFiscalEnvironment(text(body.environment));
+    const force = body.force === true;
+
+    const settings = await getFiscalSettings(ctx.tenantId);
+    if (!settings) {
+      res.status(404).json({ message: "Configure os dados fiscais primeiro" });
+      return;
+    }
+
+    if (target === "producao" && settings.status !== "ready" && !force) {
+      res.status(422).json({
+        code: "FISCAL_SEM_NOTA_DE_TESTE",
+        message:
+          "Emita uma nota de teste e espere ela ser autorizada antes de ativar a emissão real.",
+      });
+      return;
+    }
+
+    await saveFiscalSettings(ctx.tenantId, { ...settings, environment: target });
+
+    // Voltar para teste nunca é suspeito; ativar produção é o evento que
+    // alguém vai querer auditar depois.
+    logger.info("Ambiente fiscal alterado", {
+      tenantId: ctx.tenantId,
+      de: settings.environment,
+      para: target,
+      semNotaDeTeste: target === "producao" && settings.status !== "ready",
+      uid: req.user?.uid,
+    });
+
+    res.status(200).json(toPublicSettings(await getFiscalSettings(ctx.tenantId)));
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    logger.error("Falha ao trocar o ambiente fiscal", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+  }
+};
 
 // POST /v1/fiscal/invoices/from-proposal/:id
 export const issueFromProposalHandler = (req: Request, res: Response) =>

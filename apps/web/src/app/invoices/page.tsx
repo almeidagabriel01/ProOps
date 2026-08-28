@@ -20,8 +20,10 @@ import {
   FiscalService,
   type FiscalInvoice,
   type FiscalInvoiceStatus,
+  type FiscalSettings,
 } from "@/services/fiscal-service";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
+import { TestModeBanner } from "@/components/features/fiscal/test-mode-banner";
 
 const STATUS_META: Record<
   FiscalInvoiceStatus,
@@ -81,11 +83,18 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = React.useState<FiscalInvoice[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [notConfigured, setNotConfigured] = React.useState(false);
+  const [settings, setSettings] = React.useState<FiscalSettings | null>(null);
 
   const load = React.useCallback(async () => {
     try {
-      const { invoices: data } = await FiscalService.listInvoices({ limit: 100 });
+      const [{ invoices: data }, current] = await Promise.all([
+        FiscalService.listInvoices({ limit: 100 }),
+        // Falhar aqui não pode esconder as notas — o aviso de modo de teste é
+        // importante, mas menos que a listagem em si.
+        FiscalService.getSettings().catch(() => null),
+      ]);
       setInvoices(data);
+      setSettings(current);
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (message.includes("FISCAL_NAO_CONFIGURADO")) {
@@ -256,6 +265,8 @@ export default function InvoicesPage() {
           </Link>
         </Button>
       </header>
+
+      <TestModeBanner settings={settings} onChanged={setSettings} />
 
       {isLoading ? (
         <Card>

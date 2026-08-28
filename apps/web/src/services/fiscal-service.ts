@@ -173,6 +173,13 @@ export const FiscalService = {
   saveSettings: (payload: SaveFiscalSettingsPayload) =>
     callApi<FiscalSettings>("/v1/fiscal/settings", "PUT", payload),
 
+  /**
+   * Sai do modo de teste (ou volta). Endpoint próprio, e não um campo do
+   * formulário: depois disso toda nota vale juridicamente.
+   */
+  setEnvironment: (environment: FiscalEnvironment, force = false) =>
+    callApi<FiscalSettings>("/v1/fiscal/environment", "PUT", { environment, force }),
+
   lookupCnpj: (cnpj: string) =>
     callApi<CnpjLookup>(`/v1/fiscal/cnpj/${cnpj.replace(/\D/g, "")}`, "GET"),
 

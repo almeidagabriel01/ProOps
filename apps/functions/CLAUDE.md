@@ -143,8 +143,20 @@ cd apps/functions && npm run lint
   do certificado A1 cifrada em KMS (`FISCAL_SECRET_KMS_*`, chave separada da do Calendar).
 - **O certificado A1 (.pfx) nunca e persistido** — sobe uma vez para o provedor, que o
   custodia e valida (senha, titularidade do CNPJ, validade), e sai da memoria.
-- **Ambiente default e `homologacao`.** Producao e opt-in por tenant e so depois de uma nota
-  de teste autorizada — o status `ready` prova o credenciamento na SEFAZ/prefeitura.
+- **Ambiente default e `homologacao`**, e a troca tem endpoint proprio
+  (`PUT /v1/fiscal/environment`), nao um campo do formulario de configuracao. Salvar a
+  configuracao **preserva** o ambiente: antes disso o campo ausente virava "" e resolvia
+  para homologacao, entao qualquer salvamento derrubaria um emitente ativo de volta para
+  teste em silencio — ele acharia que esta emitindo e nao estaria.
+- **O portao e `status === "ready"`**, marcado por `markIssuerReady` na PRIMEIRA nota
+  autorizada. Homologacao prova que o nosso codigo monta a nota certa; so a autorizacao
+  prova que o emitente esta credenciado na SEFAZ/prefeitura. Existe escape (`force`), com
+  confirmacao explicita na UI, para quem ja emite por outro sistema — Bling, Omie e Tiny
+  nem travam a troca, entao travar sem saida seria mais rigido que o mercado inteiro.
+- **O aviso de modo de teste fica na tela de NOTAS**, nao em configuracoes (padrao do
+  Bling): e ali que a pessoa olha o que emitiu, e e ali que "isso nao vale nada ainda"
+  precisa estar visivel. E o texto nao diz "homologacao" — para quem instala automacao
+  isso nao significa nada, "modo de teste" significa.
 - Emissao e **assincrona**: pre-validacao sincrona no provedor, depois fila. `ref` (nossa)
   e query param obrigatorio, o que da idempotencia de graca.
 - **Campos fiscais sao opcionais no cadastro e exigidos na emissao.** Ninguem precisa parar

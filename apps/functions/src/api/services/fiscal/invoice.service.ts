@@ -17,7 +17,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
-import { getIssuingToken } from "./fiscal-settings.service";
+import { getIssuingToken, setFiscalStatus } from "./fiscal-settings.service";
 import { archiveInvoiceDocuments } from "./invoice-archive.service";
 import { describeFocusError } from "./focus-error";
 import {
@@ -260,10 +260,33 @@ export async function applyInvoiceResult(
       const refreshed = await getInvoice(invoiceId);
       if (refreshed) {
         await archiveInvoiceDocuments(refreshed);
+        // Uma nota AUTORIZADA é a única prova de que o emitente está de fato
+        // credenciado na SEFAZ ou na prefeitura. Homologação valida o nosso
+        // código; só a autorização valida o cadastro dele no fisco. É esse
+        // fato — e não o upload do certificado — que libera a emissão real.
+        await markIssuerReady(refreshed.tenantId);
       }
     }
     return outcome;
   });
+}
+
+/**
+ * Promove o emitente a `ready` na primeira nota autorizada.
+ *
+ * Best-effort e idempotente: a nota já vale perante o fisco, e falhar aqui não
+ * pode virar erro para o usuário nem desfazer nada. O pior caso é o botão de
+ * ativar emissão real demorar um ciclo a mais para aparecer.
+ */
+async function markIssuerReady(tenantId: string): Promise<void> {
+  try {
+    await setFiscalStatus(tenantId, "ready");
+  } catch (error) {
+    logger.warn("Nao foi possivel promover o emitente para ready", {
+      tenantId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 /** Marks the document as awaiting a provider answer and schedules the fallback poll. */
