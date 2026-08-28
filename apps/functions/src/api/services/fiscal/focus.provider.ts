@@ -292,7 +292,7 @@ export class FocusFiscalProvider implements FiscalProvider {
 
     const response = await axios.post<FocusInvoiceResponse>(
       url,
-      buildInvoicePayload(input),
+      buildInvoicePayload(input, env),
       buildRequestConfig(token),
     );
 

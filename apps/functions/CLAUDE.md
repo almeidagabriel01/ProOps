@@ -129,6 +129,17 @@ cd apps/functions && npm run lint
   caminho: `slice(0, 10)` de um ISO em UTC adianta o dia em toda nota emitida depois das
   21h, erro que so aparece a noite. Sem horario de verao desde o Decreto 9.772/2019, entao
   −03:00 e fixo; se voltar, `fiscal-datetime.ts` e o unico arquivo a mudar.
+- **Em HOMOLOGACAO a NF-e leva o nome do destinatario substituido pelo literal**
+  `NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL` (NT 2011/002, obrigatorio
+  desde 01/05/2011). Qualquer outro valor devolve rejeicao **598**. A regra so existe no
+  ambiente de teste, entao nunca aparece em producao — e por isso mesmo e facil de esquecer.
+  Nao vale para NFS-e: e regra da SEFAZ, nao do Ambiente Nacional.
+- **A NF-e e o unico caminho testavel em homologacao para o primeiro emitente.** A NFS-e
+  Nacional depende de o municipio ter aderido ao Padrao Nacional **em homologacao**, e a
+  adesao e separada por ambiente: Machado/MG so credenciou producao (confirmado pelo Focus,
+  rejeicao **E0037**). A NF-e vai para a SEFAZ estadual, que tem homologacao para todos os
+  estados — entao o ciclo completo (emissao, autorizacao, gatilho, arquivamento, `ready`)
+  da para validar por ali sem emitir nada com valor fiscal.
 - **A numeracao nao vai no payload de emissao**, nem no nacional nem no municipal: serie e
   proximo numero vivem no cadastro da empresa. Mandar o numero em cada emissao criaria duas
   fontes da verdade para a sequencia, que e o caminho mais curto para duplicidade.

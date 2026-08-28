@@ -15,6 +15,7 @@ import type {
   FiscalIeIndicator,
   FiscalInvoiceInput,
   FiscalIssuerConfig,
+  FiscalEnvironment,
   FiscalNfsePadrao,
   FiscalProductItem,
 } from "./fiscal-types";
@@ -32,6 +33,18 @@ const IE_INDICATOR_CODE: Record<FiscalIeIndicator, number> = {
   isento: 2,
   nao_contribuinte: 9,
 };
+
+/**
+ * Literal que a SEFAZ exige no nome do destinatário em HOMOLOGAÇÃO.
+ *
+ * NT 2011/002, obrigatório desde 01/05/2011: qualquer outro valor devolve a
+ * rejeição **598**. É uma regra que só existe no ambiente de teste — e por isso
+ * mesmo nunca apareceria em produção, o que a torna fácil de esquecer.
+ *
+ * Sem acento, com o hífen cercado de espaços, exatamente como está na norma.
+ */
+const HOMOLOGACAO_NOME_DESTINATARIO =
+  "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
 
 /** Natureza da operação used when the caller does not supply one. */
 const DEFAULT_NATUREZA_OPERACAO = "Venda de mercadoria";
@@ -215,7 +228,10 @@ function buildProductLine(item: FiscalProductItem, index: number): Record<string
  * rejected by the schema, and failing here costs nothing while failing at the
  * SEFAZ may consume a number from the series.
  */
-export function buildNfePayload(input: FiscalInvoiceInput): Record<string, unknown> {
+export function buildNfePayload(
+  input: FiscalInvoiceInput,
+  env: FiscalEnvironment = "producao",
+): Record<string, unknown> {
   const products = input.products ?? [];
   if (products.length === 0) {
     throw new Error("NFE_SEM_ITENS");
@@ -240,7 +256,12 @@ export function buildNfePayload(input: FiscalInvoiceInput): Record<string, unkno
     uf_emitente: trimmed(issuer.endereco.uf).toUpperCase(),
     cep_emitente: digits(issuer.endereco.cep),
     regime_tributario_emitente: issuer.regimeTributario,
-    nome_destinatario: trimmed(recipient.nome),
+    // Em homologação o nome REAL do destinatário é rejeitado (598). O da nota
+    // não é o do cliente — é o literal da norma.
+    nome_destinatario:
+      env === "homologacao"
+        ? HOMOLOGACAO_NOME_DESTINATARIO
+        : trimmed(recipient.nome),
     indicador_inscricao_estadual_destinatario: IE_INDICATOR_CODE[recipient.indicadorIe],
     valor_total: round(input.valorTotal, 2),
     valor_produtos: round(
@@ -473,9 +494,12 @@ export function buildNfsePayload(input: FiscalInvoiceInput): Record<string, unkn
 }
 
 /** Dispatches to the right builder for the document kind. */
-export function buildInvoicePayload(input: FiscalInvoiceInput): Record<string, unknown> {
+export function buildInvoicePayload(
+  input: FiscalInvoiceInput,
+  env: FiscalEnvironment = "producao",
+): Record<string, unknown> {
   if (input.type === "nfe") {
-    return buildNfePayload(input);
+    return buildNfePayload(input, env);
   }
 
   // A variante mora no emitente, não no tipo do documento — ver `FiscalNfsePadrao`.

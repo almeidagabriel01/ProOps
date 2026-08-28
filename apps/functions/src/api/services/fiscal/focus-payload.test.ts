@@ -306,6 +306,59 @@ describe("buildNfsePayload", () => {
   });
 });
 
+describe("buildNfePayload — literal de homologação", () => {
+  it("substitui o nome do destinatário pelo literal da NT 2011/002", () => {
+    // Qualquer outro valor devolve rejeição 598. A regra só existe em
+    // homologação, entao nunca apareceria em producao — e é justamente por isso
+    // que ela some do radar de quem só testa em produção.
+    const payload = buildNfePayload(buildInput(), "homologacao");
+
+    expect(payload.nome_destinatario).toBe(
+      "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+    );
+  });
+
+  it("preserva o nome real em produção", () => {
+    const payload = buildNfePayload(buildInput(), "producao");
+
+    expect(payload.nome_destinatario).not.toContain("HOMOLOGACAO");
+  });
+
+  it("o default é produção — o literal é opt-in do ambiente de teste", () => {
+    // Errar para o lado do nome real: uma nota de produção com o literal seria
+    // um documento fiscal valido no nome errado.
+    expect(buildNfePayload(buildInput()).nome_destinatario).not.toContain("HOMOLOGACAO");
+  });
+
+  it("o literal chega pelo dispatcher, não só pela função direta", () => {
+    const payload = buildInvoicePayload(buildInput(), "homologacao");
+
+    expect(payload.nome_destinatario).toBe(
+      "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL",
+    );
+  });
+
+  it("não afeta a NFS-e — a regra é da SEFAZ, não do Ambiente Nacional", () => {
+    const nfse = buildInvoicePayload(
+      buildInput({
+        type: "nfse",
+        products: undefined,
+        service: {
+          descricao: "Instalacao",
+          codigoLc116: "31.01",
+          codigoTributacaoNacional: "310102",
+          valorServicos: 800,
+          aliquotaIss: 0,
+          issRetido: false,
+        },
+      }),
+      "homologacao",
+    );
+
+    expect(nfse.razao_social_tomador).not.toContain("HOMOLOGACAO");
+  });
+});
+
 describe("buildInvoicePayload", () => {
   it("dispatches on the document type", () => {
     expect(buildInvoicePayload(buildInput())).toHaveProperty("items");
