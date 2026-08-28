@@ -81,7 +81,7 @@ export function CancelInvoiceButton({ invoice, onCancelled }: CancelInvoiceButto
             <DialogTitle>Cancelar nota fiscal</DialogTitle>
             <DialogDescription>
               O cancelamento é definitivo e fica registrado no fisco junto com a
-              justificativa. O prazo é definido pela prefeitura ou pela SEFAZ —
+              justificativa. O prazo é definido pela prefeitura ou pela SEFAZ, 
               fora dele, o caminho é uma nota de devolução.
             </DialogDescription>
           </DialogHeader>

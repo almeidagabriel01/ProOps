@@ -173,12 +173,11 @@ export default function InvoicesPage() {
         key: "valorTotal",
         header: "Valor",
         priority: "primary",
-        // A célula é um `div` (bloco), então alinha com `text-right`. O
-        // cabeçalho é um `flex` — ali `text-right` não faz nada e o rótulo
-        // fica à esquerda enquanto o número vai à direita. Alinhar flex é
-        // `justify-end`.
-        className: "col-span-2 text-right",
-        headerClassName: "justify-end",
+        // Alinhado à esquerda como as demais. Dinheiro à direita é a convenção
+        // — e faz sentido numa tabela de muitos valores, onde alinhar as casas
+        // ajuda a comparar. Aqui o efeito era o oposto: o número encostava na
+        // coluna seguinte e a leitura ficava pior que a comparação ganhava.
+        className: "col-span-2",
         render: (invoice) => (
           <span className="tabular-nums">{formatCurrency(invoice.valorTotal)}</span>
         ),
@@ -211,12 +210,12 @@ export default function InvoicesPage() {
       },
       {
         key: "actions",
-        header: "",
+        header: "Ações",
         priority: "actions",
         sortable: false,
         // Sem `min-w-0` + `overflow-hidden` o conteúdo transborda o span e
         // desenha por cima da coluna anterior — foi o que cobriu a data.
-        className: "col-span-1 flex min-w-0 items-center justify-end overflow-hidden",
+        className: "col-span-1 flex min-w-0 items-center overflow-hidden",
         render: (invoice) => {
           // pdfUrl e xmlUrl só existem depois de autorizada.
           if (invoice.status === "authorized") {
@@ -356,8 +355,10 @@ export default function InvoicesPage() {
           keyExtractor={(invoice) => invoice.id}
           sortConfig={sortConfig}
           onSort={requestSort}
+          // Sem `minWidth` a tabela nunca gera rolagem horizontal: o grid se
+          // ajusta ao container, e abaixo de `md` o DataTable já colapsa em
+          // cards pela `priority` de cada coluna.
           gridClassName="grid-cols-12"
-          minWidth="1100px"
         />
       )}
 

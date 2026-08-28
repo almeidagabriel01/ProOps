@@ -6,6 +6,7 @@ import { ClientService, Client } from "@/services/client-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "@/lib/toast";
+import { formatEnderecoFiscal } from "@/lib/fiscal/format-address";
 import {
   ClientFiscalFields,
   EMPTY_CLIENT_FISCAL,
@@ -704,7 +705,19 @@ export default function EditCustomerPage() {
 
             <ClientFiscalFields
               values={formData.fiscal}
-              onChange={(fiscal) => setFormData((prev) => ({ ...prev, fiscal }))}
+              onChange={(fiscal) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  fiscal,
+                  // Preenche o endereço livre a partir do fiscal enquanto ele
+                  // estiver vazio — evita digitar o mesmo endereço duas vezes.
+                  // Só enquanto vazio: quem escreveu "Rua tal, portão azul" não
+                  // pode ver isso sumir por causa de uma busca de CEP.
+                  address: prev.address.trim()
+                    ? prev.address
+                    : formatEnderecoFiscal(fiscal),
+                }))
+              }
               disabled={!isEditable}
             />
 

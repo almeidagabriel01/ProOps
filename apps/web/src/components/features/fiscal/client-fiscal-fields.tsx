@@ -125,7 +125,7 @@ export function ClientFiscalFields({
   return (
     <FormSection
       title="Dados fiscais"
-      description="Necessários apenas para emitir nota de produto (NF-e). Nota de serviço não precisa."
+      description="Necessários apenas para emitir nota de produto (NF-e). Preenchendo aqui, o endereço do cadastro acima é completado sozinho."
       icon={Receipt}
       collapsible
       defaultOpen={false}
