@@ -4,6 +4,12 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts'],
+  // Testes `*.integration.test.ts` exigem o emulador do Firestore e saem daqui
+  // de propósito. Antes eles rodavam junto e falhavam SEMPRE sem infra, o que
+  // deixava `npm run test:functions` permanentemente vermelho — e uma falha
+  // real (mock incompleto de FieldValue em demote-trial-owner) ficou escondida
+  // nesse ruído. Rodar com: npm run test:functions:integration
+  testPathIgnorePatterns: ['/node_modules/', '\\.integration\\.test\\.ts$'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       tsconfig: {

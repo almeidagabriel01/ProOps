@@ -57,7 +57,21 @@ npm run deploy:prod  # (na raiz) → erp-softcode-prod
 
 # Lint
 cd apps/functions && npm run lint
+
+# Testes
+npm run test:functions              # (na raiz) unitário — não precisa de infra
+npm run test:functions:integration  # (na raiz) integração — sobe o emulador sozinho
 ```
+
+> **Unitário vs integração.** `jest.config.js` ignora `*.integration.test.ts`
+> (`testPathIgnorePatterns`); `jest.integration.config.js` roda só eles, em
+> série, via `firebase emulators:exec`. Teste que toque o `db` real de
+> `src/init.ts` precisa do sufixo `.integration.test.ts`, senão volta a
+> quebrar a suíte unitária de quem não tem emulador ligado.
+>
+> O emulador usa a porta **8080** (`firebase.json`, e os testes de rules a
+> fixam). Se ela estiver ocupada por outro projeto, o comando falha com
+> "port taken" — libere a porta antes de rodar.
 
 ## Regras críticas
 
