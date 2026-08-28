@@ -273,10 +273,13 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
     }
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const saved = await FiscalService.saveSettings({
+  /**
+   * Payload de configuração a partir do formulário.
+   *
+   * Extraído porque o envio do certificado precisa gravar os mesmos dados antes
+   * de registrar a empresa — ver `handleCertificateUpload`.
+   */
+  const buildSettingsPayload = () => ({
         cnpj: digits(form.cnpj),
         razaoSocial: form.razaoSocial.trim(),
         nomeFantasia: form.nomeFantasia.trim(),
@@ -302,7 +305,12 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
           ? Number(form.proximoNumeroNfse)
           : undefined,
         certificadoSenha: form.certificadoSenha || undefined,
-      });
+  });
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const saved = await FiscalService.saveSettings(buildSettingsPayload());
       setSettings(saved);
       toast.success("Configuração fiscal salva.");
     } catch (error) {
@@ -329,6 +337,13 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
         reader.onerror = () => reject(new Error("Falha ao ler o arquivo."));
         reader.readAsDataURL(file);
       });
+
+      // Grava a configuração antes de registrar. O cadastro no provedor é
+      // montado a partir dos dados JÁ salvos, então exigir um "Salvar" separado
+      // antes deste botão era uma armadilha: quem pulasse recebia
+      // "Configure os dados fiscais antes de registrar o emitente" com o
+      // formulário inteiro preenchido na frente, sem dizer o que fazer.
+      setSettings(await FiscalService.saveSettings(buildSettingsPayload()));
 
       // Valida tudo antes de criar de verdade: senha, titularidade do CNPJ e
       // prazo do certificado são conferidos pelo provedor sem persistir nada.
@@ -709,7 +724,8 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
           <CardTitle className="text-base">Certificado digital</CardTitle>
           <CardDescription>
             É preciso um e-CNPJ modelo A1 (arquivo .pfx). O arquivo não fica guardado na ProOps, 
-            é enviado ao provedor fiscal, que o custodia.
+            é enviado ao provedor fiscal, que o custodia. Enviar o certificado também salva
+            a configuração acima.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
