@@ -137,6 +137,34 @@ funciona com string — é exatamente o que `cleanupSecurityAuditEvents.ts` faz.
 operação e estoura timeout. Confirme com `ttls list` (passa por `CREATING`
 antes de `ACTIVE`). Não é expressável em `firestore.indexes.json`.
 
+### Trabalho assíncrono depois da resposta (Cloud Run)
+
+**Nunca dispare-e-esqueça um write que precisa acontecer.** O Cloud Run só
+aloca CPU enquanto a request está sendo processada — os serviços aqui não têm
+`cpu-throttling=false`. Promise ainda pendente quando o handler retorna =
+instância congelada e trabalho perdido **em silêncio**: nem o `.catch()` roda,
+então não há log de erro para investigar.
+
+```typescript
+// ERRADO — perde o write, sem deixar rastro
+minhaEscrita().catch((e) => logger.warn("falhou", e));
+
+// CERTO — a resposta já foi enviada, então não há latência percebida;
+// o await só mantém a instância viva até a escrita terminar
+try { await minhaEscrita(); } catch (e) { logger.warn("falhou", e); }
+```
+
+Descoberto em 2026-08-27 com o `ai_traces`: a Lia respondia normalmente e
+nenhum trace era gravado, sem erro nenhum no log. O mesmo padrão estava no
+refund de `refundAiMessage` em `ai/chat.route.ts` (perder aquele write cobra do
+tenant uma mensagem que falhou) — os dois foram corrigidos juntos. Guard de
+regressão: `src/ai/trace.test.ts`, "finish só resolve depois que a escrita
+termina".
+
+O sintoma engana porque em produção **às vezes funciona**: com concurrency 80 e
+outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
+(`maxInstances: 1`, sem tráfego) falha de forma consistente.
+
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`
 - Nunca commitar — arquivos ignorados pelo `.gitignore`

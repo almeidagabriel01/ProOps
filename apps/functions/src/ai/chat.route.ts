@@ -573,7 +573,13 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     res.end();
   } finally {
     clearInterval(heartbeatTimer);
-    trace.finish({
+
+    // AGUARDAR, não disparar-e-esquecer. A resposta já foi enviada acima, então
+    // nada aqui adiciona latência percebida — mas o Cloud Run só aloca CPU
+    // enquanto a request está em processamento (sem `cpu-throttling=false` no
+    // serviço). Promise pendente quando o handler retorna = instância congela e
+    // a escrita se perde em silêncio, sem nem rodar o `.catch()`.
+    await trace.finish({
       status: traceStatus,
       provider: activeProvider,
       modelName: actualModelName,
@@ -581,17 +587,24 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       responseChars: fullResponseText.length,
       errorCode: traceErrorCode,
     });
+
     // Refund the pre-debited message slot when the stream did not complete successfully:
     // - stream error (catch path)
     // - confirmation pending (skipIncrement=true — counter re-reserved on the confirmed request)
     // - client disconnect (write failure)
+    //
+    // Aguardado pelo mesmo motivo acima: perder este write cobra do tenant uma
+    // mensagem que falhou. O try/catch mantém a garantia de que o finally nunca
+    // lança.
     if (messageReserved) {
-      refundAiMessage(user.tenantId).catch((err) => {
+      try {
+        await refundAiMessage(user.tenantId);
+      } catch (err) {
         logger.warn("Failed to refund pre-debited AI message", {
           tenantId: user.tenantId,
           error: err instanceof Error ? err.message : "unknown",
         });
-      });
+      }
     }
   }
 });

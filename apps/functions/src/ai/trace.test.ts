@@ -37,11 +37,11 @@ beforeEach(() => {
 });
 
 describe("startAiTrace", () => {
-  it("grava um doc por turno com desfecho, tokens e ferramentas", () => {
+  it("grava um doc por turno com desfecho, tokens e ferramentas", async () => {
     const trace = startAiTrace(baseInput);
     trace.recordTool("list_transactions", true, 120);
     trace.recordTool("create_contact", false, 40);
-    trace.finish(baseFinish);
+    await trace.finish(baseFinish);
 
     expect(collectionMock).toHaveBeenCalledWith(AI_TRACES_COLLECTION);
     expect(addMock).toHaveBeenCalledTimes(1);
@@ -66,10 +66,10 @@ describe("startAiTrace", () => {
     ]);
   });
 
-  it("NUNCA persiste argumentos de ferramenta nem conteúdo de mensagem", () => {
+  it("NUNCA persiste argumentos de ferramenta nem conteúdo de mensagem", async () => {
     const trace = startAiTrace(baseInput);
     trace.recordTool("create_transaction", true, 10);
-    trace.finish(baseFinish);
+    await trace.finish(baseFinish);
 
     // O rastro inteiro serializado não pode conter nada além de metadados.
     // Args carregam nome de cliente, valor e CPF — se algum dia forem
@@ -83,10 +83,10 @@ describe("startAiTrace", () => {
     expect(Object.keys(tools[0]).sort()).toEqual(["ms", "name", "ok"]);
   });
 
-  it("finish é idempotente — o finally pode rodar depois do caminho de erro", () => {
+  it("finish é idempotente — o finally pode rodar depois do caminho de erro", async () => {
     const trace = startAiTrace(baseInput);
-    trace.finish(baseFinish);
-    trace.finish({ ...baseFinish, status: "error", errorCode: "rate_limited" });
+    await trace.finish(baseFinish);
+    await trace.finish({ ...baseFinish, status: "error", errorCode: "rate_limited" });
 
     expect(addMock).toHaveBeenCalledTimes(1);
     expect(written().status).toBe("ok");
@@ -103,16 +103,46 @@ describe("startAiTrace", () => {
     addMock.mockRejectedValueOnce(new Error("firestore indisponível"));
 
     const trace = startAiTrace(baseInput);
-    expect(() => trace.finish(baseFinish)).not.toThrow();
-
-    // Deixa a rejeição fire-and-forget resolver sem unhandled rejection.
-    await Promise.resolve();
+    await expect(trace.finish(baseFinish)).resolves.toBeUndefined();
   });
 
-  it("limita o número de ferramentas registradas por turno", () => {
+  /**
+   * REGRESSÃO (2026-08-27): a primeira versão disparava o write sem await.
+   * No Cloud Run a CPU só é alocada durante a request — com o write pendente
+   * no retorno do handler, a instância congela e a escrita se perde EM
+   * SILÊNCIO (nem o .catch() roda). Sintoma real em dev: a Lia respondeu e
+   * nenhum trace apareceu, sem erro nenhum no log.
+   *
+   * O contrato que este teste protege: `finish` só resolve DEPOIS que o write
+   * termina, para o chamador poder aguardar dentro do ciclo da request.
+   */
+  it("finish só resolve depois que a escrita termina (não é fire-and-forget)", async () => {
+    let resolveWrite: (v: unknown) => void = () => undefined;
+    addMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveWrite = resolve;
+      }),
+    );
+
+    const trace = startAiTrace(baseInput);
+    let resolved = false;
+    const pending = trace.finish(baseFinish).then(() => {
+      resolved = true;
+    });
+
+    // Escrita ainda em voo: finish NÃO pode ter resolvido.
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    resolveWrite({ id: "trace-1" });
+    await pending;
+    expect(resolved).toBe(true);
+  });
+
+  it("limita o número de ferramentas registradas por turno", async () => {
     const trace = startAiTrace(baseInput);
     for (let i = 0; i < 200; i += 1) trace.recordTool(`tool_${i}`, true, 1);
-    trace.finish(baseFinish);
+    await trace.finish(baseFinish);
 
     expect((written().tools as unknown[]).length).toBe(50);
     expect(written().toolCount).toBe(50);
