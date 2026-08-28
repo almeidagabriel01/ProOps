@@ -6,6 +6,12 @@ import { ClientService, Client } from "@/services/client-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "@/lib/toast";
+import { formatEnderecoFiscal } from "@/lib/fiscal/format-address";
+import {
+  ClientFiscalFields,
+  EMPTY_CLIENT_FISCAL,
+  type ClientFiscalValues,
+} from "@/components/features/fiscal/client-fiscal-fields";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { customerSchema } from "@/lib/validations";
 import { Input } from "@/components/ui/input";
@@ -84,6 +90,7 @@ interface EditCustomerFormData {
   notes: string;
   document: string;
   types: CustomerType[];
+  fiscal: ClientFiscalValues;
 }
 
 const buildCustomerFormSnapshot = (formData: EditCustomerFormData): string =>
@@ -95,6 +102,9 @@ const buildCustomerFormSnapshot = (formData: EditCustomerFormData): string =>
     notes: formData.notes,
     document: formData.document,
     types: [...formData.types].sort(),
+    // Sem isto, editar só um campo fiscal não marcaria o formulário como sujo
+    // e o botão de salvar continuaria desabilitado.
+    fiscal: formData.fiscal,
   });
 
 export default function EditCustomerPage() {
@@ -137,6 +147,7 @@ export default function EditCustomerPage() {
     notes: "",
     document: "",
     types: ["cliente"],
+    fiscal: EMPTY_CLIENT_FISCAL,
   });
   const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
     null,
@@ -156,6 +167,18 @@ export default function EditCustomerPage() {
             notes: data.notes || "",
             document: data.document ? formatDocumento(data.document) : "",
             types: data.types || ["cliente"],
+            fiscal: {
+              cep: data.enderecoFiscal?.cep ?? "",
+              logradouro: data.enderecoFiscal?.logradouro ?? "",
+              numero: data.enderecoFiscal?.numero ?? "",
+              complemento: data.enderecoFiscal?.complemento ?? "",
+              bairro: data.enderecoFiscal?.bairro ?? "",
+              municipio: data.enderecoFiscal?.municipio ?? "",
+              uf: data.enderecoFiscal?.uf ?? "",
+              codigoIbge: data.enderecoFiscal?.codigoIbge ?? "",
+              inscricaoEstadual: data.inscricaoEstadual ?? "",
+              indicadorIe: data.indicadorIe ?? "",
+            },
           };
           setFormData(initialFormData);
           setInitialSnapshot(buildCustomerFormSnapshot(initialFormData));
@@ -183,9 +206,11 @@ export default function EditCustomerPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing (exclude types since it's not in schema)
+    // Clear error when user starts typing. `types` e `fiscal` ficam de fora:
+    // nenhum dos dois está no schema de validação, e ambos são editados por
+    // componentes próprios, não por este handler de <input name=...>.
     if (name !== "types" && errors[name as keyof typeof errors]) {
-      clearFieldError(name as Exclude<keyof typeof formData, "types">);
+      clearFieldError(name as Exclude<keyof typeof formData, "types" | "fiscal">);
     }
   };
 
@@ -204,7 +229,7 @@ export default function EditCustomerPage() {
     // Exclude types since it's not in schema
     if (name !== "types") {
       validateField(
-        name as Exclude<keyof typeof formData, "types">,
+        name as Exclude<keyof typeof formData, "types" | "fiscal">,
         value,
         formData,
       );
@@ -259,6 +284,20 @@ export default function EditCustomerPage() {
         notes: formData.notes || undefined,
         document: formData.document ? formData.document.replace(/\D/g, "") : undefined,
         types: formData.types,
+        enderecoFiscal: {
+          cep: formData.fiscal.cep.replace(/\D/g, ""),
+          logradouro: formData.fiscal.logradouro.trim(),
+          numero: formData.fiscal.numero.trim(),
+          complemento: formData.fiscal.complemento.trim(),
+          bairro: formData.fiscal.bairro.trim(),
+          municipio: formData.fiscal.municipio.trim(),
+          uf: formData.fiscal.uf.trim().toUpperCase(),
+          codigoIbge: formData.fiscal.codigoIbge.replace(/\D/g, ""),
+        },
+        inscricaoEstadual: formData.fiscal.inscricaoEstadual.trim(),
+        ...(formData.fiscal.indicadorIe
+          ? { indicadorIe: formData.fiscal.indicadorIe as Client["indicadorIe"] }
+          : {}),
       });
 
       toast.success("Cliente atualizado com sucesso!");
@@ -663,6 +702,24 @@ export default function EditCustomerPage() {
                 className="min-h-[120px]"
               />
             </FormItem>
+
+            <ClientFiscalFields
+              values={formData.fiscal}
+              onChange={(fiscal) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  fiscal,
+                  // Preenche o endereço livre a partir do fiscal enquanto ele
+                  // estiver vazio — evita digitar o mesmo endereço duas vezes.
+                  // Só enquanto vazio: quem escreveu "Rua tal, portão azul" não
+                  // pode ver isso sumir por causa de uma busca de CEP.
+                  address: prev.address.trim()
+                    ? prev.address
+                    : formatEnderecoFiscal(fiscal),
+                }))
+              }
+              disabled={!isEditable}
+            />
 
             {/* Summary card */}
             <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">

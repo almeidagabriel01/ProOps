@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Proposal, ProposalStatus, ProposalAttachment } from "@/types/proposal";
 import { ProposalActionsDropdown } from "@/components/features/proposal/proposal-actions-dropdown";
+import { IssueInvoiceButton } from "@/components/features/fiscal/issue-invoice-button";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -154,6 +155,28 @@ export default function ProposalsPage() {
       // Fallback to old hardcoded statuses
       const fallback = LEGACY_STATUS_CONFIG[status];
       return fallback ? fallback.label : "Desconhecido";
+    },
+    [kanbanColumns],
+  );
+
+  /**
+   * Espelha `isStatusApproved` do backend: além do status direto, uma proposta
+   * pode estar ganha por estar numa coluna do Kanban mapeada como aprovada ou
+   * marcada como "won". Divergir daqui faria o botão sumir em propostas que o
+   * backend aceita faturar.
+   */
+  const isProposalApproved = React.useCallback(
+    (proposal: Proposal) => {
+      if (proposal.status === "approved") return true;
+      const col =
+        kanbanColumns.find((c) => c.id === proposal.status) ||
+        kanbanColumns.find((c) => c.mappedStatus === proposal.status);
+      if (!col) return false;
+      return (
+        col.mappedStatus === "approved" ||
+        col.category === "won" ||
+        /aprovad/i.test(col.label ?? "")
+      );
     },
     [kanbanColumns],
   );
@@ -894,6 +917,18 @@ export default function ProposalsPage() {
                 )}
               </Button>
 
+              {/* Emitir NF — so faz sentido em proposta ganha. Uma proposta
+                  mista gera duas notas: NF-e da mercadoria e NFS-e da mao de obra. */}
+              {isProposalApproved(proposal) && (
+                <IssueInvoiceButton
+                  source="proposal"
+                  sourceId={proposal.id}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                />
+              )}
+
               {/* Editar PDF */}
               {canEdit && (
                 <Button
@@ -995,6 +1030,7 @@ export default function ProposalsPage() {
       canEdit,
       canDelete,
       canCreate,
+      isProposalApproved,
       isReadOnly,
       updatingStatusId,
       downloadingId,

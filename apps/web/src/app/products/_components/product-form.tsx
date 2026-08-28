@@ -10,6 +10,7 @@ import {
   ImagesCard,
   PublishCard,
 } from "./form-cards";
+import { CatalogFiscalFields } from "@/components/features/fiscal/catalog-fiscal-fields";
 
 interface ProductFormProps {
   initialData?: Product;
@@ -33,6 +34,7 @@ export function ProductForm({
     maxProducts,
     maxImagesPerProduct,
     handleChange,
+    setFieldValue,
     handleAddImage,
     handleRemoveImage,
     handleSubmit,
@@ -53,6 +55,18 @@ export function ProductForm({
               formData={formData}
               onChange={handleChange}
               isReadOnly={isReadOnly}
+            />
+            <CatalogFiscalFields
+              entityType="product"
+              values={formData}
+              onChange={setFieldValue}
+              disabled={isReadOnly}
+              suggestionContext={{
+                nome: formData.name,
+                descricao: formData.description,
+                categoria: formData.category,
+                fabricante: formData.manufacturer,
+              }}
             />
           </div>
 

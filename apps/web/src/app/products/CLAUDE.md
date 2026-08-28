@@ -61,8 +61,16 @@ type Product = {
   itemType?: "product";    // Discriminante; sempre "product" para produtos
   createdAt?: string;
   updatedAt?: string;
+  ncm?: string;            // Fiscal — 8 dígitos, exigido só na emissão da NF-e
+  origem?: number;         // Fiscal — 0 nacional … 8
 };
 ```
+
+Escrita usa `ProductWriteInput` (mesmo arquivo), que difere de `Partial<Product>`
+em um ponto: `origem` aceita `null`. O formulário precisa distinguir "não
+preenchido" de zero, e `null` é como o backend apaga um valor salvo. Ler nunca
+devolve `null`, por isso o tipo de leitura continua estreito. `Service` tem o
+par equivalente (`ServiceWriteInput`, para `aliquotaIss`).
 
 ### Tipo `ProductPricingModel`
 
@@ -220,6 +228,19 @@ O wizard usa `StepWizard` + `StepNavigation` de `src/components/ui/`. Passos:
 | 2 | `pricing` | preço > 0 (ou tiers válidos se `curtain_height`) |
 | 3 | `images` | nenhuma validação — opcional |
 | 4 | `settings` | submit final |
+
+O passo `settings` também carrega `CatalogFiscalFields`
+(`components/features/fiscal/catalog-fiscal-fields.tsx`) — NCM e origem para
+produto, código LC 116 / tributação nacional / alíquota ISS para serviço.
+A seção é **recolhida por padrão e nenhum campo é obrigatório**: campos fiscais
+são opcionais no cadastro e exigidos só na emissão, pelo gate
+`fiscal-readiness.ts`, que lista todas as lacunas de uma vez. Forçar a
+classificação no cadastro obrigaria a classificar o catálogo inteiro antes de
+usar o ERP.
+
+CFOP, CST/CSOSN e unidade comercial **não** ficam no item — são derivados da
+operação no backend (`natureza-operacao.ts`), porque a mesma cortina é 5102
+dentro do estado e 6102 fora.
 
 Em modo edição (`productId` definido), `allowClickAhead={true}` no `StepWizard` — o usuário pode pular entre etapas livremente.
 

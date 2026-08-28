@@ -165,6 +165,210 @@ O sintoma engana porque em produção **às vezes funciona**: com concurrency 80
 outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
 (`maxInstances: 1`, sem tráfego) falha de forma consistente.
 
+### Modulo Fiscal (Nota Fiscal)
+
+- **Provedor unico: Focus NFe.** Cobre NF-e, NFC-e, NFS-e municipal e NFS-e Nacional no
+  mesmo cadastro de empresa. Auth = HTTP Basic com o token no usuario e senha em branco.
+- **Cadastro de empresa e consulta de CNPJ so existem em `api.focusnfe.com.br`.** Verificado
+  batendo nos dois hosts: em homologacao `/v2/empresas` e `/v2/cnpjs` respondem **404**; em
+  producao, 401. Nao e limitacao do provedor — o cadastro de empresas e unico, e o ambiente
+  e expresso por qual token a empresa devolve e por quais flags `habilita_*` ela recebe,
+  nunca pela URL. `/hooks` existe nos dois. A divisao coincide com a dos tokens:
+  token da conta => `resolveRegistryBaseUrl()`; token da empresa => `resolveFocusBaseUrl(env)`.
+  O sintoma quando isso quebra e enganoso: o Focus responde "Endpoint nao encontrado",
+  que parece erro de rota nossa.
+- **A NFS-e tem DOIS padroes, e recursos diferentes.** `FiscalNfsePadrao` (`nacional` |
+  `municipal`, default nacional) fica no emitente e resolve o recurso em
+  `resolveResourcePath`: nacional => `/v2/nfsen`, municipal => `/v2/nfse`. Os payloads
+  **nao se parecem** — o nacional e plano (`cnpj_prestador`, `descricao_servico`,
+  `razao_social_tomador`, `logradouro_tomador`...) e o municipal e aninhado
+  (`prestador`/`tomador`/`servico`). O cadastro tambem muda: `habilita_nfsen_producao` /
+  `habilita_nfsen_homologacao` + `serie_nfsen_*` + `proximo_numero_nfsen_*` no nacional,
+  `habilita_nfse` + `serie_nfse_producao` no municipal.
+- **`padraoNfse` NAO e um terceiro `FiscalDocumentType`.** Quase toda ramificacao por tipo
+  no modulo pergunta "e nota de servico?", e as duas respondem sim — um terceiro valor no
+  enum viraria bug silencioso em cada lugar que esquecesse de inclui-lo.
+- **O padrao e gravado na propria nota** (`InvoiceDocument.padraoNfse`), nao so nas
+  configuracoes do tenant: consultar e cancelar tem que usar o mesmo recurso com que ela
+  nasceu. Se o tenant migrar de municipal para nacional, ler o padrao atual tornaria as
+  notas antigas inalcancaveis.
+- **`codigoTributacaoNacional` e obrigatorio no padrao nacional** e nao e derivavel do item
+  da LC 116 — o codigo nacional tem um desdobro que a lista antiga nao carrega (31.01
+  sozinho nao diz se e .01 ou .02). O gate cobra; `buildNfsenPayload` lanca
+  `NFSEN_SEM_CODIGO_TRIBUTACAO_NACIONAL` como ultima linha de defesa.
+- **Data e hora dos documentos vao no fuso de BRASILIA, nunca em UTC**
+  (`fiscal-datetime.ts`). O Ambiente Nacional compara o RELOGIO DE PAREDE: uma DPS enviada
+  com `dhEmi` em UTC foi rejeitada com **E0008** ("a data de emissao nao pode ser posterior
+  a data do seu processamento") mesmo tendo sido emitida 5 segundos ANTES — `03:08+00:00`
+  contra `00:08-03:00` do processamento. A competencia tem o mesmo problema por outro
+  caminho: `slice(0, 10)` de um ISO em UTC adianta o dia em toda nota emitida depois das
+  21h, erro que so aparece a noite. Sem horario de verao desde o Decreto 9.772/2019, entao
+  −03:00 e fixo; se voltar, `fiscal-datetime.ts` e o unico arquivo a mudar.
+- **Em HOMOLOGACAO a NF-e leva o nome do destinatario substituido pelo literal**
+  `NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL` (NT 2011/002, obrigatorio
+  desde 01/05/2011). Qualquer outro valor devolve rejeicao **598**. A regra so existe no
+  ambiente de teste, entao nunca aparece em producao — e por isso mesmo e facil de esquecer.
+  Nao vale para NFS-e: e regra da SEFAZ, nao do Ambiente Nacional.
+- **A NF-e e o unico caminho testavel em homologacao para o primeiro emitente.** A NFS-e
+  Nacional depende de o municipio ter aderido ao Padrao Nacional **em homologacao**, e a
+  adesao e separada por ambiente: Machado/MG so credenciou producao (confirmado pelo Focus,
+  rejeicao **E0037**). A NF-e vai para a SEFAZ estadual, que tem homologacao para todos os
+  estados — entao o ciclo completo (emissao, autorizacao, gatilho, arquivamento, `ready`)
+  da para validar por ali sem emitir nada com valor fiscal.
+- **Todo item da NF-e leva os grupos PIS e COFINS**, mesmo zerados — sem eles a SEFAZ
+  rejeita com **745** ("NF-e sem grupo do PIS"). O CST sai de `derivePisCofinsCst`, junto
+  das outras derivacoes por regime: **99** no Simples (recolhimento unificado no DAS,
+  destacar declararia contribuicao que a empresa nao apura ali) e **49** no Regime Normal,
+  que apura de verdade mas com aliquota dependente de ser cumulativo ou nao — dado que o
+  cadastro nao tem. 49 com zeros nao inventa valor; e o primeiro campo a revisar quando
+  existir um tenant fora do Simples.
+- **A numeracao nao vai no payload de emissao**, nem no nacional nem no municipal: serie e
+  proximo numero vivem no cadastro da empresa. Mandar o numero em cada emissao criaria duas
+  fontes da verdade para a sequencia, que e o caminho mais curto para duplicidade.
+- **DOIS niveis de token — confundir os dois quebra a integracao:**
+  - **Token da conta** (`FOCUS_NFE_MASTER_TOKEN`, em env): gerencia o cadastro de empresas,
+    consulta CNPJ e registra webhooks. **Nunca emite.**
+  - **Token da empresa**: devolvido por `POST /v2/empresas` como `token_homologacao` /
+    `token_producao`. E ele que assina as notas daquele CNPJ. Fica cifrado em KMS em
+    `fiscal_settings` (`focusTokenHomologacaoEnc` / `focusTokenProducaoEnc`) e e lido por
+    `getIssuingToken(tenantId, env)`. Isso e uma vantagem no multi-tenant: nenhum bug
+    consegue emitir sob o CNPJ de outro tenant.
+  - Nao existe token de homologacao no nivel da conta — ele nasce junto com a empresa.
+- **Nenhum codigo de dominio importa o SDK do provedor.** Tudo passa pela interface
+  `FiscalProvider` (`api/services/fiscal/`); os nomes de campo do Focus vivem so em
+  `focus-payload.ts` (saida) e `focus-response.ts` (entrada). Motivo: a Nuvem Fiscal foi
+  desativada em 31/07/2026 com 90 dias de aviso.
+- **`fiscal_settings/{tenantId}`** — colecao propria com `allow read, write: if false`,
+  NAO um map em `tenants/{id}`: aquele doc e legivel por qualquer membro do tenant e o
+  Firestore nao tem regra por campo. Guarda CNPJ, IE/IM, regime, serie/numeracao e a senha
+  do certificado A1 cifrada em KMS (`FISCAL_SECRET_KMS_*`, chave separada da do Calendar).
+- **O certificado A1 (.pfx) nunca e persistido** — sobe uma vez para o provedor, que o
+  custodia e valida (senha, titularidade do CNPJ, validade), e sai da memoria.
+- **Ambiente default e `homologacao`**, e a troca tem endpoint proprio
+  (`PUT /v1/fiscal/environment`), nao um campo do formulario de configuracao. Salvar a
+  configuracao **preserva** o ambiente: antes disso o campo ausente virava "" e resolvia
+  para homologacao, entao qualquer salvamento derrubaria um emitente ativo de volta para
+  teste em silencio — ele acharia que esta emitindo e nao estaria.
+- **O portao e `status === "ready"`**, marcado por `markIssuerReady` na PRIMEIRA nota
+  autorizada. Homologacao prova que o nosso codigo monta a nota certa; so a autorizacao
+  prova que o emitente esta credenciado na SEFAZ/prefeitura. Existe escape (`force`), com
+  confirmacao explicita na UI, para quem ja emite por outro sistema — Bling, Omie e Tiny
+  nem travam a troca, entao travar sem saida seria mais rigido que o mercado inteiro.
+- **O aviso de modo de teste fica na tela de NOTAS**, nao em configuracoes (padrao do
+  Bling): e ali que a pessoa olha o que emitiu, e e ali que "isso nao vale nada ainda"
+  precisa estar visivel. E o texto nao diz "homologacao" — para quem instala automacao
+  isso nao significa nada, "modo de teste" significa.
+- Emissao e **assincrona**: pre-validacao sincrona no provedor, depois fila. `ref` (nossa)
+  e query param obrigatorio, o que da idempotencia de graca.
+- **Campos fiscais sao opcionais no cadastro e exigidos na emissao.** Ninguem precisa parar
+  para classificar o catalogo inteiro antes de usar o ERP; o gate e `fiscal-readiness.ts`,
+  que roda na emissao e lista TODAS as lacunas de uma vez (emitente, cliente, itens).
+- **CFOP, CST/CSOSN e unidade comercial NAO ficam no produto** — sao derivados na emissao
+  (`natureza-operacao.ts`). CFOP e propriedade da *operacao*: a mesma cortina e 5102 dentro
+  do estado e 6102 fora. Guardar no produto forcaria correcao manual em toda venda
+  interestadual. CST/CSOSN sai do regime do emitente; a unidade sai do `inventoryUnit`.
+- **O gatilho usa o token da EMPRESA daquele ambiente, na base daquele ambiente** — mesma
+  regra da emissao. **O token e o que define o ambiente do gatilho no provedor**: registrar
+  com o token da conta cria um hook de PRODUCAO (o painel mostra "Utilizar Token: Token
+  Principal de Producao · Ambiente: Producao") que nunca notifica uma nota de homologacao.
+  `listWebhooks` tambem — listar com o token errado faz o reconcile enxergar os hooks de
+  outro ambiente e apagar os errados, ou nenhum.
+- **Trocar de ambiente RE-REGISTRA os gatilhos.** Como o token da empresa define onde o
+  gatilho vale, mudar o ambiente sem re-registrar deixaria a emissao num lugar e a
+  notificacao escutando no outro — as notas voltariam a depender do cron, sem erro e sem
+  explicacao. Best-effort e isolado num try/catch proprio: o ambiente JA foi gravado quando
+  o registro roda, e deixar a excecao escapar devolveria erro para uma troca que aconteceu.
+- **Falha de registro de gatilho e visivel na UI** (`webhookStatus` em `fiscal_settings`,
+  exibido no card fiscal) com botao de reenviar (`POST /v1/fiscal/webhooks/retry`). Antes o
+  status era gravado e nunca mostrado, e a unica forma de repetir o registro era reenviar o
+  certificado — recadastrando a empresa inteira no provedor para recriar um hook.
+- **O gatilho e registrado pelo nome do EVENTO do provedor, que tem TRES valores**
+  (`nfe`, `nfse`, `nfsen`) enquanto o dominio tem dois. `registerFiscalWebhooks` deriva o
+  evento de `resolveResourcePath` — o mesmo que escolhe o recurso de emissao —, e o receptor
+  traduz de volta em `EVENT_TO_TYPE`. Registrar `nfse` e emitir em `nfsen` **nao da erro em
+  lugar nenhum**: o registro e aceito, a emissao e aceita, e a notificacao nunca chega; a
+  nota fica presa em `processing` ate o cron. Foi assim com a primeira nota real, que ja
+  estava rejeitada no Ambiente Nacional enquanto a UI mostrava "Processando".
+- **Webhook do Focus NAO tem cabecalho de autenticacao** (diferente do Asaas, que assina com
+  `asaas-access-token`). A propria URL e a credencial: `/webhooks/focus/:tenantId/:secret/:type`,
+  com o segredo comparado em tempo constante. Segredo invalido responde **200**, nao 401 — e
+  falha permanente, e 401 faria o Focus retentar 5 vezes em 24h a toa.
+- **O cron `processInvoiceRetries` (15 min) nao e redundancia, e o unico backstop.** O Focus
+  retenta a notificacao em 1min, 30min, 1h, 3h e 24h e depois **nunca mais dispara**. Uma queda
+  de entrega nessa janela deixaria a nota presa em `processing` para sempre.
+- **A nota nasce de um documento de negocio**, nunca de formulario em branco:
+  `POST /v1/fiscal/invoices/from-proposal/:id` e `from-transaction/:id`. Uma proposta
+  **mista gera DUAS notas** — NF-e da mercadoria e NFS-e da mao de obra —, separadas por
+  `ProposalProduct.itemType`. Faltando qualquer dado fiscal, **nenhuma** e enviada: meia
+  venda mista faturada e pior que nenhuma.
+- **Botoes e gatilhos automaticos chamam as MESMAS funcoes** (`invoice-issue.service.ts`),
+  entao nao existe caminho automatico que pule uma validacao do manual.
+- **Gatilhos sao opt-in e best-effort.** `tryAutoIssue` so dispara se
+  `autoIssueRule` bater E `status === "ready"`, e **nunca lanca**: o pagamento ja foi
+  confirmado e a proposta ja foi aprovada — falhar a nota nao pode desfazer a venda.
+  Ganchos: `handlePaymentSuccess` (asaas-webhook) e `syncApprovedProposalTransactions`.
+- **DANFE e XML sao espelhados no nosso Storage** (`tenants/{id}/fiscal/{invoiceId}/`) assim
+  que a nota e autorizada. Nao e conveniencia: guarda legal de **5 anos + ano corrente**
+  (Ajuste SINIEF 07/2005), e depender do link do provedor deixaria o acervo do cliente fora
+  do nosso controle. Best-effort e idempotente — falhar nao pode desfazer uma nota valida;
+  o cron reencontra e tenta de novo.
+- **Download passa pelo backend**, nunca por link direto: `storage.rules` nega a pasta
+  `fiscal/` ao client e `application/xml` nem esta na allowlist de content-type.
+- **Lancamento avulso nao emite** — sem proposta vinculada nao ha itens, e o sistema
+  falha com `LANCAMENTO_SEM_PROPOSTA` em vez de inventar uma linha.
+- **Status nunca regride** (`canApplyStatus`): webhook nao e ordenado e o cron pode correr junto.
+  A unica transicao permitida a partir de terminal e autorizada → cancelada.
+- **O unico campo que o usuario realmente digita e o NCM** (por produto) e o codigo LC 116 +
+  aliquota ISS (por servico). `POST /v1/fiscal/ncm-suggestions` sugere o NCM via Lia
+  (Gemini), reaproveitando cota, rate limiter e gate de plano do modulo de IA. A sugestao
+  nunca e aplicada sozinha — a classificacao fiscal e responsabilidade do cliente.
+  Na UI esses campos vivem em `components/features/fiscal/catalog-fiscal-fields.tsx`, uma
+  secao **recolhida por padrao** no cadastro de produto e de servico. Recolhida de
+  proposito: sao opcionais no cadastro e exigidos so na emissao, e quem cadastra um produto
+  no dia a dia nao deve tropecar neles.
+- **O destinatario tem endereco fiscal PROPRIO** (`clients/{id}.enderecoFiscal`), separado do
+  campo `address` livre. Aquele e uma string unica, boa para o dia a dia e inutil para a
+  SEFAZ, que valida logradouro, numero, bairro, UF e o codigo IBGE; dividir a string daria
+  erro em toda ambiguidade de virgula. **So a NF-e exige endereco** — a NFS-e se contenta com
+  nome e documento. Campos: `enderecoFiscal`, `inscricaoEstadual`, `indicadorIe`,
+  `consumidorFinal`, todos opcionais e todos na allowlist de `clients.controller.ts`.
+  `indicadorIe` vazio e **derivado** do documento (`deriveIndicadorIe`): CPF nunca vira
+  "isento", que e a rejeicao 805.
+- **Campo fiscal numerico em branco vira `null`, nunca 0.** `Number("")` e 0, e 0 e uma
+  aliquota de ISS *valida* (Simples Nacional recolhe o ISS no DAS), entao deixar passar
+  faria a nota sair com uma aliquota que o usuario nunca escolheu. `origem` e a excecao
+  deliberada: ali 0 = nacional e o default documentado. Coberto por
+  `fiscal-catalog-fields.test.ts`.
+
+### Modulo Fiscal — Notas de ENTRADA (recepcao)
+
+Complementa a emissao e e **independente** dela. Aqui NAO somos o emitente: nao
+controlamos numeracao, nao assinamos e nao cancelamos. Recebemos, arquivamos e
+permitimos a manifestacao.
+
+- **Opt-in por tenant** via `habilitaManifestacao` (flag `habilita_manifestacao` no cadastro
+  da empresa no Focus). Nasce **desligada** porque **cada nota recebida consome uma unidade
+  do pacote mensal** — a regra do Focus e "cada nota emitida OU RECEBIDA conta como uma
+  unidade". O campo e enviado sempre, inclusive `false`, para o cadastro nao precisar ser
+  refeito quando a recepcao for ligada.
+- **Sincronizacao incremental por `versao`.** Cada nota recebida tem um campo `versao`, unico
+  por CNPJ e incrementado a cada alteracao (cancelamento, carta de correcao). O cursor fica em
+  `received_invoice_cursors/{tenantId}` e **so avanca depois da gravacao** — se o processo
+  morrer no meio, o proximo ciclo refaz o lote em vez de pular notas.
+- `shouldApplyReceivedVersion` recusa versao igual ou menor: aceitar uma menor sobrescreveria
+  um cancelamento com o estado anterior e a nota voltaria a parecer valida.
+- **Antes da manifestacao a Receita entrega so um RESUMO.** O XML completo — com itens, NCM e
+  impostos — so vem depois da **confirmacao**. Nao e limitacao do provedor: e como o fisco
+  desenhou, para o destinatario assumir formalmente a operacao antes de ter o documento.
+- **Manifestacao nunca e automatica.** Confirmar e declaracao formal perante a Receita;
+  desconhecer uma operacao legitima tem consequencia fiscal. So `nao_realizada` exige
+  justificativa (15 a 255 caracteres).
+- **A sinergia que justifica o modulo:** o NCM — unico campo da emissao sem default e sem
+  derivacao — vem nos itens da nota de entrada. A recepcao alimenta o catalogo fiscal que a
+  emissao precisa.
+- Cron `syncReceivedInvoices` roda **de hora em hora**, nao a cada 15 min como o de emissao:
+  nota de entrada nao tem urgencia de segundos, o destinatario tem dias para se manifestar.
+
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`
 - Nunca commitar — arquivos ignorados pelo `.gitignore`

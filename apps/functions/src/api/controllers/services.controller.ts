@@ -7,6 +7,7 @@ import {
   UserDoc,
 } from "../../lib/auth-helpers";
 import { deleteProductImages } from "../../lib/storage-helpers";
+import { sanitizeServiceFiscalFields } from "../services/fiscal/fiscal-catalog-fields";
 
 const sanitizeServicePayload = (input: Record<string, unknown>) => ({
   name: typeof input.name === "string" ? input.name.trim() : "",
@@ -95,6 +96,13 @@ export const createService = async (req: Request, res: Response) => {
       transaction.set(newServiceRef, {
         tenantId: targetTenantId,
         ...sanitizedInput,
+        // Campos fiscais sao opcionais no cadastro; a cobranca fica na
+        // emissao (fiscal-readiness.ts). null (limpar) nao cabe na criacao.
+        ...Object.fromEntries(
+          Object.entries(sanitizeServiceFiscalFields(input)).filter(
+            ([, value]) => value !== null,
+          ),
+        ),
         createdAt: now,
         updatedAt: now,
       });
@@ -188,6 +196,13 @@ export const updateService = async (req: Request, res: Response) => {
         typeof updateData.image === "string" ? updateData.image : null;
     }
     if (updateData.status !== undefined) safeUpdate.status = sanitizedInput.status;
+
+    // null vira delete para o usuario poder limpar um codigo de servico errado.
+    for (const [field, value] of Object.entries(
+      sanitizeServiceFiscalFields(updateData),
+    )) {
+      safeUpdate[field] = value === null ? FieldValue.delete() : value;
+    }
 
     await serviceRef.update(safeUpdate);
 

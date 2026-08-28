@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "../../lib/logger";
+import { tryAutoIssue } from "../services/fiscal/invoice-issue.service";
 import { resolveWalletRef } from "../../lib/finance-helpers";
 import { schedulePayoutTransfer } from "../services/payout-transfer.service";
 import type { TenantAsaasData } from "../services/asaas.service";
@@ -278,6 +279,11 @@ async function handlePaymentSuccess(
     transactionId,
     asaasPaymentId,
   });
+
+  // Emissao automatica opt-in. Best-effort de proposito: o pagamento ja foi
+  // confirmado e o saldo ja mudou — falhar a nota nao pode desfazer nada disso.
+  // tryAutoIssue nunca lanca; a nota pendente fica visivel na UI.
+  await tryAutoIssue(tenantId, "on_payment", { transactionId });
 }
 
 export const handleAsaasWebhook = async (req: Request, res: Response): Promise<void> => {

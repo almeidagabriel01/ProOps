@@ -27,6 +27,7 @@ import {
   FormStatic,
 } from "@/components/ui/form-components";
 import { useProductForm } from "@/app/products/_hooks/useProductForm";
+import { CatalogFiscalFields } from "@/components/features/fiscal/catalog-fiscal-fields";
 import { Service } from "@/services/service-service";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 
@@ -91,6 +92,7 @@ export function ServiceForm({
     errors,
     setFieldError,
     handleChange,
+    setFieldValue,
     handleBlur,
     handleAddImage,
     handleRemoveImage,
@@ -420,6 +422,13 @@ export function ServiceForm({
                 </div>
               </div>
             </div>
+
+            <CatalogFiscalFields
+              entityType="service"
+              values={formData}
+              onChange={setFieldValue}
+              disabled={demoReadOnly}
+            />
           </div>
 
           <StepNavigation

@@ -187,7 +187,14 @@ gh secret set FUNCTIONS_ENV_STAGING --env staging --repo almeidagabriel01/ProOps
   < apps/functions/.env.erp-softcode
 ```
 
-O step falha o deploy se o secret estiver ausente ou incompleto (checa `RESEND_API_KEY=`).
+O step falha o deploy se faltar qualquer uma destas: `RESEND_API_KEY`,
+`STRIPE_SECRET_KEY`, `FOCUS_NFE_MASTER_TOKEN`, `FISCAL_SECRET_KMS_KEY`,
+`CALENDAR_TOKEN_KMS_KEY`. Antes a checagem era só do `RESEND_API_KEY` — e uma
+variável só não prova nada: ela existe desde sempre, então o teste passava com um
+secret congelado meses atrás. Ao adicionar uma integração que dependa de env var
+nova, **acrescente a chave nessa lista nos dois workflows**; sem isso a função
+sobe sem ela e falha em silêncio (emissão fiscal morre com
+`FOCUS_NFE_TOKEN_NAO_CONFIGURADO`, senha de certificado não decifra).
 Falhar é intencional: melhor abortar do que criar uma função sem env vars, que fica
 quebrada em silêncio para sempre.
 
