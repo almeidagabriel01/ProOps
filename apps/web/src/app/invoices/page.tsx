@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  FileCode,
   FileText,
   Loader2,
   RefreshCw,
@@ -140,7 +141,10 @@ export default function InvoicesPage() {
     () => [
       {
         key: "numero",
-        header: "Número",
+        // "Número" sozinho não diz de quê. É o número oficial da nota, o que a
+        // SEFAZ ou a prefeitura atribuiu — e por isso só existe depois de
+        // autorizada; antes disso a nota não tem identidade fiscal nenhuma.
+        header: "Nota",
         priority: "leading",
         // Sem `col-span` toda coluna ocupa 1/12 e o conteúdo é cortado. As
         // somas têm que fechar exatamente 12.
@@ -169,10 +173,12 @@ export default function InvoicesPage() {
         key: "valorTotal",
         header: "Valor",
         priority: "primary",
-        // `text-right` precisa valer para o cabeçalho TAMBÉM, senão o rótulo
-        // "Valor" fica à esquerda e o número à direita, desalinhados.
+        // A célula é um `div` (bloco), então alinha com `text-right`. O
+        // cabeçalho é um `flex` — ali `text-right` não faz nada e o rótulo
+        // fica à esquerda enquanto o número vai à direita. Alinhar flex é
+        // `justify-end`.
         className: "col-span-2 text-right",
-        headerClassName: "text-right",
+        headerClassName: "justify-end",
         render: (invoice) => (
           <span className="tabular-nums">{formatCurrency(invoice.valorTotal)}</span>
         ),
@@ -208,24 +214,35 @@ export default function InvoicesPage() {
         header: "",
         priority: "actions",
         sortable: false,
-        className: "col-span-1 justify-self-end",
+        // Sem `min-w-0` + `overflow-hidden` o conteúdo transborda o span e
+        // desenha por cima da coluna anterior — foi o que cobriu a data.
+        className: "col-span-1 flex min-w-0 items-center justify-end overflow-hidden",
         render: (invoice) => {
           // pdfUrl e xmlUrl só existem depois de autorizada.
           if (invoice.status === "authorized") {
             return (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center">
                 {invoice.pdfUrl && (
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                    <a
+                      href={invoice.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Baixar DANFE em PDF"
+                    >
                       <Download className="h-4 w-4" />
-                      <span className="ml-1.5">PDF</span>
                     </a>
                   </Button>
                 )}
                 {invoice.xmlUrl && (
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={invoice.xmlUrl} target="_blank" rel="noopener noreferrer">
-                      XML
+                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                    <a
+                      href={invoice.xmlUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Baixar XML da nota"
+                    >
+                      <FileCode className="h-4 w-4" />
                     </a>
                   </Button>
                 )}
@@ -340,7 +357,7 @@ export default function InvoicesPage() {
           sortConfig={sortConfig}
           onSort={requestSort}
           gridClassName="grid-cols-12"
-          minWidth="900px"
+          minWidth="1100px"
         />
       )}
 

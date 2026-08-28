@@ -67,12 +67,12 @@ export function CancelInvoiceButton({ invoice, onCancelled }: CancelInvoiceButto
     <>
       <Button
         variant="ghost"
-        size="sm"
-        className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+        title="Cancelar nota"
         onClick={() => setOpen(true)}
       >
-        <XCircle className="mr-1 h-3 w-3" />
-        Cancelar
+        <XCircle className="h-4 w-4" />
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

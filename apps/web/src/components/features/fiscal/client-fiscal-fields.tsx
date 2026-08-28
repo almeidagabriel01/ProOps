@@ -95,14 +95,23 @@ export function ClientFiscalFields({
           return;
         }
         setCepState("idle");
+        // SOBRESCREVE, não completa. `data.x || current.x` parecia gentil — não
+        // apagar o que o usuário digitou —, mas ao trocar de CEP deixava o
+        // endereço anterior colado no novo: rua de um CEP, bairro de outro, e
+        // o código IBGE possivelmente de um terceiro município. Um endereço
+        // Frankenstein é pior que um campo vazio, e a SEFAZ valida o IBGE.
+        //
+        // Trocar o CEP é uma intenção clara de substituir o endereço inteiro.
+        // Campo que o ViaCEP não devolve fica vazio para ser preenchido à mão —
+        // é o caso dos CEPs gerais de cidade, que não têm logradouro.
         onChange({
           ...current,
           cep: maskCep(cep),
-          logradouro: data.logradouro || current.logradouro,
-          bairro: data.bairro || current.bairro,
-          municipio: data.localidade || current.municipio,
-          uf: data.uf || current.uf,
-          codigoIbge: data.ibge || current.codigoIbge,
+          logradouro: data.logradouro ?? "",
+          bairro: data.bairro ?? "",
+          municipio: data.localidade ?? "",
+          uf: data.uf ?? "",
+          codigoIbge: data.ibge ?? "",
         });
       } catch {
         // ViaCEP é auxiliar: falhar não pode travar o cadastro, mas o usuário
