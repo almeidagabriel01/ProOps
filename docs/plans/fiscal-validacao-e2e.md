@@ -32,11 +32,12 @@ Lidos do próprio certificado e da NFS-e de referência, não digitados de memó
 | Razão social | 50.759.330 WINICIUS GONCALVES ARAUJO DIAS | DANFSe |
 | Regime | Simples Nacional (CRT 1) | DANFSe — "Optante, Microempresa" |
 | Inscrição municipal | 3411114782 | DANFSe **e** guia de ISSQN |
-| Inscrição estadual | 0046217750023 | ⏳ a confirmar — dígitos verificadores de MG batem |
+| Inscrição estadual | 0046217750023 | ✅ **confirmada** pela DANFE da NF-e nº 6 |
 | Endereço | Rua Major Feliciano, 549 — Centro | guia de ISSQN |
 | Município / CEP / IBGE | Machado/MG · 37750-000 · 3139003 | DANFSe |
 | CNAE | 4321-5/00 | guia de ISSQN |
 | Série DPS / próximo nº | 70000 / 14 | DANFSe (DPS nº 13 foi a última) |
+| Série NF-e / próximo nº | 0 / 7 | chave da NF-e nº 6 (DV validado) |
 | Certificado válido até | **17/10/2026** | lido do `.pfx` |
 
 Serviço de referência: código LC 116 **31.01**, tributação nacional **310102**
@@ -59,6 +60,29 @@ Serviço de referência: código LC 116 **31.01**, tributação nacional **31010
 > **Ainda não testado contra a API real.** O que foi verificado empiricamente até
 > aqui são as URLs (quais endpoints existem em cada host). Os campos do payload vêm
 > da documentação e da nota de referência, não de uma emissão aceita.
+
+## Conferência contra a NF-e nº 6 (autorizada em 27/02/2026)
+
+Chave `31260250759330000133550000000000061664528859`, DV validado. Venda para
+pessoa física do mesmo município, R$ 1.372,00, dois equipamentos de rede.
+
+O que ela confirmou, além da numeração:
+
+| Campo | Na nota real | O que o módulo deriva |
+|---|---|---|
+| CFOP | 5102 | `deriveCfop(venda, MG, MG)` → 5102 ✅ |
+| CSOSN | 102 (col. "0102" = origem 0 + CSOSN 102) | `deriveSituacaoTributaria(CRT 1)` → csosn 102 ✅ |
+| Origem | 0 | `normalizeOrigem(undefined)` → 0 ✅ |
+| Unidade | UN | `deriveUnidadeComercial(undefined)` → UN ✅ |
+| Indicador IE do destinatário | 9 — Não Contribuinte | derivado assim para CPF ✅ |
+| Natureza | VENDA | `DEFAULT_NATUREZA` ✅ |
+
+Fixado em `natureza-operacao.nota-real.test.ts`. CFOP, CSOSN e origem são
+justamente os campos que decidimos **não** guardar no produto — se a derivação
+estivesse errada, estaria errada em toda venda e só apareceria como rejeição.
+
+NCMs reais dos produtos vendidos, úteis para o catálogo de teste:
+`85176241` (sistema Wi-Fi mesh) e `85176239` (switch).
 
 **KMS — resolvido em 25/08/2026.** Chaves dedicadas criadas e validadas:
 
