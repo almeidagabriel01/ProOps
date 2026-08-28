@@ -140,6 +140,13 @@ cd apps/functions && npm run lint
   rejeicao **E0037**). A NF-e vai para a SEFAZ estadual, que tem homologacao para todos os
   estados — entao o ciclo completo (emissao, autorizacao, gatilho, arquivamento, `ready`)
   da para validar por ali sem emitir nada com valor fiscal.
+- **Todo item da NF-e leva os grupos PIS e COFINS**, mesmo zerados — sem eles a SEFAZ
+  rejeita com **745** ("NF-e sem grupo do PIS"). O CST sai de `derivePisCofinsCst`, junto
+  das outras derivacoes por regime: **99** no Simples (recolhimento unificado no DAS,
+  destacar declararia contribuicao que a empresa nao apura ali) e **49** no Regime Normal,
+  que apura de verdade mas com aliquota dependente de ser cumulativo ou nao — dado que o
+  cadastro nao tem. 49 com zeros nao inventa valor; e o primeiro campo a revisar quando
+  existir um tenant fora do Simples.
 - **A numeracao nao vai no payload de emissao**, nem no nacional nem no municipal: serie e
   proximo numero vivem no cadastro da empresa. Mandar o numero em cada emissao criaria duas
   fontes da verdade para a sequencia, que e o caminho mais curto para duplicidade.

@@ -150,6 +150,8 @@ export interface FiscalProductItem {
   cstIcms?: string;
   csosn?: string;
   aliquotaIcms?: number;
+  /** CST de PIS/COFINS — derivado do regime, obrigatório na NF-e 4.00. */
+  cstPisCofins: string;
 }
 
 /** A service line. ISS is municipal, so the rate travels with the item. */

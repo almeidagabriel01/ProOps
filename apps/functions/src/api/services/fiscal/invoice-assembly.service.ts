@@ -20,6 +20,7 @@ import { toBrasiliaIso } from "./fiscal-datetime";
 import {
   DEFAULT_NATUREZA,
   deriveCfop,
+  derivePisCofinsCst,
   deriveSituacaoTributaria,
   deriveUnidadeComercial,
   describeNatureza,
@@ -165,6 +166,7 @@ function buildProductItem(
   return {
     codigo: item.productId,
     descricao: text(item.productName) || text(item.name) || "Item",
+    cstPisCofins: derivePisCofinsCst(regime),
     ncm: text(catalog?.ncm).replace(/\D/g, ""),
     cest: text(catalog?.cest).replace(/\D/g, "") || undefined,
     cfop,

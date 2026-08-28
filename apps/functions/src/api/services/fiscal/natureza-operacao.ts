@@ -124,6 +124,27 @@ export function deriveCfop(
   return origem === destino ? definition.dentroEstado : definition.foraEstado;
 }
 
+/**
+ * CST de PIS/COFINS do item.
+ *
+ * A NF-e 4.00 exige os grupos PIS e COFINS em **todo** item — sem eles a SEFAZ
+ * rejeita com **745** ("NF-e sem grupo do PIS"), que foi a primeira rejeição
+ * real de conteúdo do módulo.
+ *
+ * No Simples Nacional o recolhimento é unificado no DAS, então a saída vai com
+ * **CST 99** ("outras operações") e zeros — destacar base ou valor seria
+ * declarar uma contribuição que a empresa não apura ali.
+ *
+ * Regime Normal apura PIS/COFINS de verdade, com alíquotas que dependem de ser
+ * cumulativo (0,65% / 3%) ou não cumulativo (1,65% / 7,6%) — informação que o
+ * cadastro não tem. Vai com **49** e zeros para não inventar um valor, e é o
+ * primeiro campo a revisar quando existir um tenant fora do Simples.
+ */
+export function derivePisCofinsCst(regime: FiscalTaxRegime): string {
+  const isSimples = regime === 1 || regime === 2 || regime === 4;
+  return isSimples ? "99" : "49";
+}
+
 /** Which ICMS taxation field applies. They are mutually exclusive. */
 export type SituacaoTributariaKind = "csosn" | "cst";
 

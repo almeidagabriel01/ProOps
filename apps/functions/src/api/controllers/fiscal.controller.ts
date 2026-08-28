@@ -42,6 +42,7 @@ import {
   listNaturezas,
   normalizeOrigem,
   type NaturezaOperacao,
+  derivePisCofinsCst,
 } from "../services/fiscal/natureza-operacao";
 import {
   cancelInvoice,
@@ -625,6 +626,9 @@ export const issueInvoiceHandler = async (req: Request, res: Response): Promise<
       products: products.map((item) => ({
         codigo: text(item.codigo) || text(item.id),
         descricao: text(item.descricao) || text(item.name),
+        // Derivado do regime como o CSOSN: a NF-e 4.00 exige o grupo em todo
+        // item, e a rejeicao 745 nao diz qual item nem o que falta.
+        cstPisCofins: derivePisCofinsCst(settings.regimeTributario),
         ncm: text(item.ncm),
         cest: text(item.cest) || undefined,
         quantidade: Number(item.quantidade) || 0,

@@ -214,6 +214,18 @@ function buildProductLine(item: FiscalProductItem, index: number): Record<string
     line.icms_situacao_tributaria = cstIcms;
   }
 
+  // A NF-e 4.00 exige os grupos PIS e COFINS em todo item — sem eles a SEFAZ
+  // rejeita com 745. No Simples os valores vão zerados: o recolhimento é
+  // unificado no DAS e destacar aqui declararia contribuição que não existe.
+  line.pis_situacao_tributaria = item.cstPisCofins;
+  line.pis_base_calculo = 0;
+  line.pis_aliquota_porcentual = 0;
+  line.pis_valor = 0;
+  line.cofins_situacao_tributaria = item.cstPisCofins;
+  line.cofins_base_calculo = 0;
+  line.cofins_aliquota_porcentual = 0;
+  line.cofins_valor = 0;
+
   if (typeof item.aliquotaIcms === "number") {
     line.icms_aliquota = round(item.aliquotaIcms, 4);
   }

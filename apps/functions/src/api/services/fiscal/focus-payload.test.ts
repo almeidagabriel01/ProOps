@@ -4,6 +4,7 @@ import {
   buildNfePayload,
   buildNfsePayload,
 } from "./focus-payload";
+import { derivePisCofinsCst } from "./natureza-operacao";
 import type {
   FiscalInvoiceInput,
   FiscalIssuerConfig,
@@ -72,6 +73,7 @@ function buildInput(overrides: Partial<FiscalInvoiceInput> = {}): FiscalInvoiceI
         valorUnitario: 1250,
         valorTotal: 2500,
         csosn: "102",
+      cstPisCofins: "99",
       },
     ],
     ...overrides,
@@ -303,6 +305,43 @@ describe("buildNfsePayload", () => {
     expect(() => buildNfsePayload(serviceInput({ service: undefined }))).toThrow(
       "NFSE_SEM_SERVICO",
     );
+  });
+});
+
+describe("buildNfePayload — grupos PIS e COFINS", () => {
+  it("manda os dois grupos em todo item", () => {
+    // A SEFAZ rejeitou a primeira NF-e real com 745 ("NF-e sem grupo do PIS").
+    // A NF-e 4.00 exige os dois grupos em CADA item, mesmo zerados.
+    const [item] = buildNfePayload(buildInput()).items as Array<Record<string, unknown>>;
+
+    expect(item.pis_situacao_tributaria).toBe("99");
+    expect(item.cofins_situacao_tributaria).toBe("99");
+  });
+
+  it("zera base, alíquota e valor no Simples", () => {
+    // O recolhimento e unificado no DAS: destacar aqui declararia contribuicao
+    // que a empresa nao apura no documento.
+    const [item] = buildNfePayload(buildInput()).items as Array<Record<string, unknown>>;
+
+    expect(item.pis_base_calculo).toBe(0);
+    expect(item.pis_aliquota_porcentual).toBe(0);
+    expect(item.pis_valor).toBe(0);
+    expect(item.cofins_valor).toBe(0);
+  });
+});
+
+describe("derivePisCofinsCst", () => {
+  it("Simples usa 99 na saída", () => {
+    for (const regime of [1, 2, 4] as const) {
+      expect(derivePisCofinsCst(regime)).toBe("99");
+    }
+  });
+
+  it("Regime Normal usa 49 até haver dados de apuração", () => {
+    // Regime Normal apura PIS/COFINS de verdade, com aliquota que depende de
+    // ser cumulativo ou nao — informacao que o cadastro nao tem. 49 com zeros
+    // nao inventa valor; e o primeiro campo a revisar num tenant fora do Simples.
+    expect(derivePisCofinsCst(3)).toBe("49");
   });
 });
 
