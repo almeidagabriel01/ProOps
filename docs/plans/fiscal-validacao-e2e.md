@@ -57,6 +57,33 @@ Serviço de referência: código LC 116 **31.01**, tributação nacional **31010
 > `nacional`. Ver `focus-payload.nfsen.test.ts`, cujos valores esperados vêm da
 > NFS-e nº 14 real.
 
+## Estado em 28/08/2026 — caminho técnico validado ponta a ponta
+
+O ciclo completo funciona: emissão → provedor → Ambiente Nacional → resposta →
+**webhook** → tela, sem intervenção. Confirmado com uma rejeição, que percorre
+exatamente o mesmo caminho de uma autorização.
+
+Sequência de rejeições reais até aqui, cada uma corrigindo uma camada:
+
+| Erro | Camada | Correção |
+|---|---|---|
+| `erro_validacao_schema` (regTrib/trib) | leiaute | `regApTribSN` + `regEspTrib` + `indTotTrib` |
+| `E0008` data posterior ao processamento | fuso | `dhEmi` em −03:00, não UTC |
+| `E0037` município inexistente | **externo** | Machado não está na homologação nacional |
+
+Três bugs do gatilho, todos silenciosos, todos com o mesmo sintoma ("nota presa
+em processando"):
+
+1. registrado no evento `nfse`, emissão em `nfsen` — nunca notificaria
+2. host de cadastro + token da conta — criava hook de **produção**
+3. o alerta de falha existia no código e nunca chegava à tela (três vezes)
+
+**Bloqueio restante é externo**, não de código: Machado/MG está ativo no sistema
+nacional em produção (NFS-e nº 14, e o painel do Focus confirma) mas não no
+ambiente de homologação. Saídas: perguntar ao Focus, ou emitir uma nota real de
+valor baixo e cancelar — o escape do portão (`force`) e o botão de cancelar
+existem exatamente para isso.
+
 > **Ainda não testado contra a API real.** O que foi verificado empiricamente até
 > aqui são as URLs (quais endpoints existem em cada host). Os campos do payload vêm
 > da documentação e da nota de referência, não de uma emissão aceita.
