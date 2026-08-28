@@ -113,21 +113,29 @@ npm run test:functions:integration  # (na raiz) integração — sobe o emulador
 | Collection group | dev | prod |
 |---|---|---|
 | `ai_traces` | ✅ habilitada | ✅ habilitada |
-| `occurrences` | ❌ **nunca habilitada** | ❌ **nunca habilitada** |
+| `occurrences` | ❌ não habilitada (e habilitar não resolveria) | ❌ idem |
 
-A de `occurrences` é a nota de deploy antiga do pipeline de erros — nunca foi
-executada, então esses docs vêm acumulando desde que a feature subiu, com um
-`expiresAt` que ninguém honra. Habilitar **apaga permanentemente** as
-ocorrências já expiradas (é o comportamento desejado, mas é irreversível):
+**A nota de deploy antiga do pipeline de erros está incorreta: habilitar a TTL
+em `occurrences` seria um no-op.** A TTL do Firestore só age em campo do tipo
+`Timestamp`, e `writeOccurrence` grava `expiresAt` como **string ISO**
+(`new Date(...).toISOString()`). Verificado no dado de produção em 2026-08-27:
+o campo chega como `stringValue`. A policy ficaria ativa e nunca casaria com
+documento nenhum.
 
-```bash
-gcloud firestore fields ttls update expiresAt \
-  --collection-group=occurrences --enable-ttl --project=erp-softcode-prod --async
-```
+Para a TTL funcionar ali, `writeOccurrence` teria que gravar
+`Timestamp.fromMillis(...)` (é o que `ai/trace.ts` faz — por isso a TTL de
+`ai_traces` funciona), e os docs antigos precisariam de backfill ou seriam
+deixados para o cap. **Só que não vale a pena hoje:** `occurrences` tem 36
+documentos em produção, e `writeOccurrence` já faz trim por
+`OCCURRENCE_SAMPLE_CAP = 50` por fingerprint — o crescimento é limitado por
+construção, não ilimitado.
 
-`--async` importa: sem ele o gcloud fica bloqueado esperando a operação e
-estoura timeout. Confirme depois com `ttls list` (passa por `CREATING` antes de
-`ACTIVE`). Não é expressável em `firestore.indexes.json`.
+Alternativa, se um dia importar: cron varrendo `expiresAt <= nowIso`, que
+funciona com string — é exatamente o que `cleanupSecurityAuditEvents.ts` faz.
+
+`--async` no comando de TTL importa: sem ele o gcloud bloqueia esperando a
+operação e estoura timeout. Confirme com `ttls list` (passa por `CREATING`
+antes de `ACTIVE`). Não é expressável em `firestore.indexes.json`.
 
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`

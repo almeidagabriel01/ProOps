@@ -48,8 +48,9 @@ Verificado no código. Não "melhorar" nada disto sem medir antes:
 > **Status em 2026-08-27:** 3.1 concluído até o secret (falta o deploy). 3.2
 > concluído: budget de R$ 200 com gatilhos 50/80/100%, alerta de leituras do
 > Firestore, alerta log-based de fail-open do rate limit, e TTL de `ai_traces`
-> nos dois projetos. Pendente: TTL de `occurrences` (apaga dado existente —
-> ver `apps/functions/CLAUDE.md`) e o deploy.
+> nos dois projetos. Pendente: só o deploy. (TTL de `occurrences` foi
+> investigada e descartada — seria no-op, o campo é string; ver
+> `apps/functions/CLAUDE.md`.)
 
 Não dá para fazer por código: exigem login interativo e permissão de billing.
 
