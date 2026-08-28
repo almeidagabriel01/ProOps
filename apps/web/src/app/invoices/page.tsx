@@ -146,8 +146,7 @@ export default function InvoicesPage() {
         // autorizada; antes disso a nota não tem identidade fiscal nenhuma.
         header: "Nota",
         priority: "leading",
-        // Sem `col-span` toda coluna ocupa 1/12 e o conteúdo é cortado. As
-        // somas têm que fechar exatamente 12.
+        // Os spans acompanham o conteúdo real de cada coluna e somam 12.
         className: "col-span-2",
         render: (invoice) => (
           <div className="flex flex-col">
@@ -183,6 +182,15 @@ export default function InvoicesPage() {
         ),
       },
       {
+        key: "createdAt",
+        header: "Emitida em",
+        priority: "secondary",
+        className: "col-span-2",
+        render: (invoice) => (
+          <span className="text-sm text-muted-foreground">{formatDate(invoice.createdAt)}</span>
+        ),
+      },
+      {
         key: "status",
         header: "Situação",
         priority: "primary",
@@ -200,15 +208,6 @@ export default function InvoicesPage() {
         ),
       },
       {
-        key: "createdAt",
-        header: "Emitida em",
-        priority: "secondary",
-        className: "col-span-2",
-        render: (invoice) => (
-          <span className="text-sm text-muted-foreground">{formatDate(invoice.createdAt)}</span>
-        ),
-      },
-      {
         key: "actions",
         header: "Ações",
         priority: "actions",
@@ -216,7 +215,9 @@ export default function InvoicesPage() {
         // Dois spans, não um: três ícones de 32px não cabem em 1/12, e o
         // `overflow-hidden` que segurava o transbordo escondia o terceiro botão
         // em vez de avisar. Conter o layout não pode custar uma ação inteira.
-        className: "col-span-2 flex min-w-0 items-center gap-0.5",
+        // Alinhadas à direita: com os ícones no início do span sobrava um buraco
+        // visual no fim da linha, que era o "não ocupa a largura toda".
+        className: "col-span-2 flex min-w-0 items-center justify-end gap-0.5",
         render: (invoice) => {
           // pdfUrl e xmlUrl só existem depois de autorizada.
           if (invoice.status === "authorized") {
@@ -314,7 +315,7 @@ export default function InvoicesPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-8">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 md:p-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Notas Fiscais</h1>
