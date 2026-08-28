@@ -32,6 +32,18 @@ Coverage requirement: include the exact reported scenario **plus** variants that
 
 Run `npm run test:web` for unit tests, `npm run test:rules` for Firestore rules, `npm run test:e2e` for the full E2E suite.
 
+**Testes de backend são divididos por infraestrutura.** `npm run test:functions`
+(Jest, `*.test.ts`) roda sem nada ligado. Teste que precise do emulador do
+Firestore vai em `*.integration.test.ts` e sai da suíte unitária via
+`testPathIgnorePatterns` — roda com `npm run test:functions:integration`, que
+sobe o emulador sozinho. Não misturar: quando os dois rodavam juntos, a suíte
+ficava permanentemente vermelha sem infra e falhas reais se escondiam no ruído.
+
+**Node 22.** É o que está em `engines`, no `node-version` de todos os workflows
+e no runtime do Cloud Run. Rodar os testes numa versão maior diverge do CI — o
+Node ≥ 24 tem um `localStorage` global nativo que sombreia o do jsdom (há um
+shim em `apps/web/vitest.setup.ts` cobrindo esse caso específico).
+
 ---
 
 ## Project Overview
@@ -65,6 +77,9 @@ npm run deploy:prod   # → erp-softcode-prod (prod)
 ### Testing
 ```bash
 firebase emulators:start               # Ports: 5001/8080/9099/9199, UI:4000
+npm run test:web                       # Vitest (frontend) — sem infra
+npm run test:functions                 # Jest (backend, unitário) — sem infra
+npm run test:functions:integration     # Jest (backend, integração) — sobe o emulador sozinho
 npm run test:e2e                       # Playwright E2E desktop (requires emulators)
 npx playwright test --config=tests/playwright.config.ts --project=mobile-chrome   # E2E mobile (Pixel 5)
 npm run test:rules                     # Firestore security rules (Jest)

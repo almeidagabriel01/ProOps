@@ -57,7 +57,21 @@ npm run deploy:prod  # (na raiz) → erp-softcode-prod
 
 # Lint
 cd apps/functions && npm run lint
+
+# Testes
+npm run test:functions              # (na raiz) unitário — não precisa de infra
+npm run test:functions:integration  # (na raiz) integração — sobe o emulador sozinho
 ```
+
+> **Unitário vs integração.** `jest.config.js` ignora `*.integration.test.ts`
+> (`testPathIgnorePatterns`); `jest.integration.config.js` roda só eles, em
+> série, via `firebase emulators:exec`. Teste que toque o `db` real de
+> `src/init.ts` precisa do sufixo `.integration.test.ts`, senão volta a
+> quebrar a suíte unitária de quem não tem emulador ligado.
+>
+> O emulador usa a porta **8080** (`firebase.json`, e os testes de rules a
+> fixam). Se ela estiver ocupada por outro projeto, o comando falha com
+> "port taken" — libere a porta antes de rodar.
 
 ## Regras críticas
 
@@ -87,8 +101,69 @@ cd apps/functions && npm run lint
 - `error_issues/{fingerprint}/occurrences/{id}` — capped sample of recent occurrences; `expiresAt` field for Firestore TTL.
 - `error_issues/{fingerprint}/_agg/affected` — capped hashed-id sets backing `affectedUsers`/`affectedTenants`.
 - `error_metrics/{YYYYMMDDhh}` — hourly severity/source counters.
+- `ai_traces/{id}` — um doc por turno da Lia (`src/ai/trace.ts`): provider, modelo,
+  status, tokens, latência e a lista de ferramentas (`{name, ok, ms}`). O
+  `usage-tracker` só conta mensagem e token — isto é o que responde "o que a Lia
+  fez e o que falhou". **Grava nome de ferramenta, nunca args**; da mensagem e da
+  resposta só o tamanho. Args carregam nome de cliente, valor e CPF — o teste
+  `src/ai/trace.test.ts` falha se algum desses campos entrar no doc.
 
-**Deploy note:** enable a Firestore **TTL policy** on the `occurrences` collection group, field `expiresAt` (Firebase console → Firestore → TTL). Not expressible in `firestore.indexes.json`.
+**Estado das TTL policies (verificado 2026-08-27 via `gcloud firestore fields ttls list`):**
+
+| Collection group | dev | prod |
+|---|---|---|
+| `ai_traces` | ✅ habilitada | ✅ habilitada |
+| `occurrences` | ❌ não habilitada (e habilitar não resolveria) | ❌ idem |
+
+**A nota de deploy antiga do pipeline de erros está incorreta: habilitar a TTL
+em `occurrences` seria um no-op.** A TTL do Firestore só age em campo do tipo
+`Timestamp`, e `writeOccurrence` grava `expiresAt` como **string ISO**
+(`new Date(...).toISOString()`). Verificado no dado de produção em 2026-08-27:
+o campo chega como `stringValue`. A policy ficaria ativa e nunca casaria com
+documento nenhum.
+
+Para a TTL funcionar ali, `writeOccurrence` teria que gravar
+`Timestamp.fromMillis(...)` (é o que `ai/trace.ts` faz — por isso a TTL de
+`ai_traces` funciona), e os docs antigos precisariam de backfill ou seriam
+deixados para o cap. **Só que não vale a pena hoje:** `occurrences` tem 36
+documentos em produção, e `writeOccurrence` já faz trim por
+`OCCURRENCE_SAMPLE_CAP = 50` por fingerprint — o crescimento é limitado por
+construção, não ilimitado.
+
+Alternativa, se um dia importar: cron varrendo `expiresAt <= nowIso`, que
+funciona com string — é exatamente o que `cleanupSecurityAuditEvents.ts` faz.
+
+`--async` no comando de TTL importa: sem ele o gcloud bloqueia esperando a
+operação e estoura timeout. Confirme com `ttls list` (passa por `CREATING`
+antes de `ACTIVE`). Não é expressável em `firestore.indexes.json`.
+
+### Trabalho assíncrono depois da resposta (Cloud Run)
+
+**Nunca dispare-e-esqueça um write que precisa acontecer.** O Cloud Run só
+aloca CPU enquanto a request está sendo processada — os serviços aqui não têm
+`cpu-throttling=false`. Promise ainda pendente quando o handler retorna =
+instância congelada e trabalho perdido **em silêncio**: nem o `.catch()` roda,
+então não há log de erro para investigar.
+
+```typescript
+// ERRADO — perde o write, sem deixar rastro
+minhaEscrita().catch((e) => logger.warn("falhou", e));
+
+// CERTO — a resposta já foi enviada, então não há latência percebida;
+// o await só mantém a instância viva até a escrita terminar
+try { await minhaEscrita(); } catch (e) { logger.warn("falhou", e); }
+```
+
+Descoberto em 2026-08-27 com o `ai_traces`: a Lia respondia normalmente e
+nenhum trace era gravado, sem erro nenhum no log. O mesmo padrão estava no
+refund de `refundAiMessage` em `ai/chat.route.ts` (perder aquele write cobra do
+tenant uma mensagem que falhou) — os dois foram corrigidos juntos. Guard de
+regressão: `src/ai/trace.test.ts`, "finish só resolve depois que a escrita
+termina".
+
+O sintoma engana porque em produção **às vezes funciona**: com concurrency 80 e
+outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
+(`maxInstances: 1`, sem tráfego) falha de forma consistente.
 
 ### Modulo Fiscal (Nota Fiscal)
 
@@ -401,7 +476,20 @@ Quando a transação muda de carteira, o campo correspondente na proposta é atu
   `scripts/setup-gcp-monitoring.sh` citado antes não existe mais no repo; editar via
   console ou `gcloud monitoring policies update`). Existem em ambos os projetos:
   uptime check no `/api/health`, indisponibilidade (CRITICAL), erros 5xx (ERROR),
-  latência p95 (WARNING), pico de instâncias (WARNING).
+  latência p95 (WARNING), pico de instâncias (WARNING), erros por tenant.
+  - **`Firestore reads acima do free tier (prod)`** (2026-08-27) — soma de
+    `firestore.googleapis.com/document/read_count` > 50.000 numa janela de 24h.
+    50k é a cota diária gratuita: o alerta dispara no dia em que a leitura
+    deixaria de ser grátis. Baseline medido na criação (30 dias): mediana
+    1.666/dia, média 2.293/dia, pico 10.479/dia — o limite fica ~4,8× acima do
+    maior pico, então disparo significa mudança real de comportamento.
+  - **`Rate limit sem store distribuido (fail-open)`** (2026-08-27) — alerta
+    log-based em `ratelimit_store_error_allowing_request`. Filtro obrigatório:
+    `resource.type="cloud_run_revision" AND textPayload:"..."`. **É
+    `textPayload`, não `jsonPayload`**: `logSecurityEvent` emite
+    `console.warn("[SECURITY] " + JSON.stringify(...))`, e o prefixo impede o
+    Cloud Logging de fazer o parse para JSON estruturado — diferente do
+    `logger` de `lib/logger.ts`, que emite JSON puro e vira `jsonPayload`.
   - **Latência p95**: filtra APENAS o serviço `api` (`resource.labels.service_name = "api"`),
     threshold 8s, duration 300s. Não remover o filtro de serviço: os crons são serviços
     Cloud Run próprios cuja "latência" = duração do job (checkduedates ~20s diários),

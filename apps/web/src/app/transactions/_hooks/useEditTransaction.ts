@@ -33,6 +33,22 @@ const sameClient = (a: Transaction, b: Transaction): boolean => {
   return (a.clientName || "").trim() === (b.clientName || "").trim();
 };
 
+/**
+ * Dia usado para escopar a busca de candidatos a entrada órfã.
+ *
+ * A heurística abaixo compara `dateOnly(date || dueDate)` dos dois lados, então
+ * todo candidato possível vive no mesmo dia da âncora — é o que permite trocar
+ * o fetch da coleção inteira do tenant por `getTransactionsOnDay`.
+ *
+ * Âncora sem `date` e sem `dueDate` devolve "" e a busca é pulada: a heurística
+ * aceitaria qualquer data nesse caso, e varrer a coleção inteira do tenant para
+ * cobrir dado corrompido não paga o custo. Pular cai no mesmo caminho de
+ * "nenhum órfão encontrado" que já existia quando o filtro não achava
+ * exatamente 1 candidato.
+ */
+const anchorDayOf = (anchor: Transaction): string =>
+  dateOnly(anchor.date || anchor.dueDate);
+
 const isLikelyOrphanDownPaymentForGroup = (
   candidate: Transaction,
   anchor: Transaction,
@@ -334,14 +350,10 @@ export function useEditTransaction() {
           // For recurring, query by recurringGroupId since installmentGroupId is null
           let group: Transaction[];
           if (safeData.isRecurring && safeData.recurringGroupId) {
-            const allTenantTransactions =
-              await TransactionService.getTransactions(safeData.tenantId);
-            group = allTenantTransactions
-              .filter((t) => t.recurringGroupId === safeData.recurringGroupId)
-              .sort(
-                (a: Transaction, b: Transaction) =>
-                  (a.installmentNumber || 0) - (b.installmentNumber || 0),
-              );
+            group = await TransactionService.getRecurringByGroupId(
+              safeData.recurringGroupId,
+              safeData.tenantId,
+            );
           } else {
             group = await TransactionService.getInstallmentsByGroupId(
               groupId,
@@ -355,12 +367,12 @@ export function useEditTransaction() {
           );
 
           // Include likely orphan down payment (legacy inconsistent data) so backend can reattach it atomically.
-          const allTenantTransactions = safeData.isRecurring
-            ? await TransactionService.getTransactions(safeData.tenantId)
-            : await TransactionService.getTransactions(safeData.tenantId);
-          const orphanCandidates = allTenantTransactions.filter((t) =>
-            isLikelyOrphanDownPaymentForGroup(t, safeData),
-          );
+          const orphanCandidates = (
+            await TransactionService.getTransactionsOnDay(
+              safeData.tenantId,
+              anchorDayOf(safeData),
+            )
+          ).filter((t) => isLikelyOrphanDownPaymentForGroup(t, safeData));
           if (orphanCandidates.length === 1) {
             groupTransactions = [
               ...groupTransactions,
@@ -384,10 +396,12 @@ export function useEditTransaction() {
         // This handles "entrada + sem parcelamento" where installmentGroupId was lost on the main tx.
         try {
           if (!safeData.isDownPayment && !safeData.isInstallment && !safeData.isRecurring) {
-            const allTenantTransactions = await TransactionService.getTransactions(safeData.tenantId);
-            const orphanDownPayments = allTenantTransactions.filter((t) =>
-              isLikelyOrphanDownPaymentForGroup(t, safeData),
-            );
+            const orphanDownPayments = (
+              await TransactionService.getTransactionsOnDay(
+                safeData.tenantId,
+                anchorDayOf(safeData),
+              )
+            ).filter((t) => isLikelyOrphanDownPaymentForGroup(t, safeData));
             if (orphanDownPayments.length === 1) {
               setRelatedInstallments([orphanDownPayments[0], safeData]);
               setExtraTransactionIds([orphanDownPayments[0].id]);
