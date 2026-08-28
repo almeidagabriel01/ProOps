@@ -108,12 +108,26 @@ npm run test:functions:integration  # (na raiz) integração — sobe o emulador
   resposta só o tamanho. Args carregam nome de cliente, valor e CPF — o teste
   `src/ai/trace.test.ts` falha se algum desses campos entrar no doc.
 
-**Deploy note:** enable a Firestore **TTL policy** on the `occurrences` collection group, field `expiresAt` (Firebase console → Firestore → TTL). Not expressible in `firestore.indexes.json`. O mesmo vale para `ai_traces` (campo `expiresAt`, retenção de 30 dias):
+**Estado das TTL policies (verificado 2026-08-27 via `gcloud firestore fields ttls list`):**
+
+| Collection group | dev | prod |
+|---|---|---|
+| `ai_traces` | ✅ habilitada | ✅ habilitada |
+| `occurrences` | ❌ **nunca habilitada** | ❌ **nunca habilitada** |
+
+A de `occurrences` é a nota de deploy antiga do pipeline de erros — nunca foi
+executada, então esses docs vêm acumulando desde que a feature subiu, com um
+`expiresAt` que ninguém honra. Habilitar **apaga permanentemente** as
+ocorrências já expiradas (é o comportamento desejado, mas é irreversível):
 
 ```bash
 gcloud firestore fields ttls update expiresAt \
-  --collection-group=ai_traces --enable-ttl --project=erp-softcode-prod
+  --collection-group=occurrences --enable-ttl --project=erp-softcode-prod --async
 ```
+
+`--async` importa: sem ele o gcloud fica bloqueado esperando a operação e
+estoura timeout. Confirme depois com `ttls list` (passa por `CREATING` antes de
+`ACTIVE`). Não é expressável em `firestore.indexes.json`.
 
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`
@@ -222,7 +236,20 @@ Quando a transação muda de carteira, o campo correspondente na proposta é atu
   `scripts/setup-gcp-monitoring.sh` citado antes não existe mais no repo; editar via
   console ou `gcloud monitoring policies update`). Existem em ambos os projetos:
   uptime check no `/api/health`, indisponibilidade (CRITICAL), erros 5xx (ERROR),
-  latência p95 (WARNING), pico de instâncias (WARNING).
+  latência p95 (WARNING), pico de instâncias (WARNING), erros por tenant.
+  - **`Firestore reads acima do free tier (prod)`** (2026-08-27) — soma de
+    `firestore.googleapis.com/document/read_count` > 50.000 numa janela de 24h.
+    50k é a cota diária gratuita: o alerta dispara no dia em que a leitura
+    deixaria de ser grátis. Baseline medido na criação (30 dias): mediana
+    1.666/dia, média 2.293/dia, pico 10.479/dia — o limite fica ~4,8× acima do
+    maior pico, então disparo significa mudança real de comportamento.
+  - **`Rate limit sem store distribuido (fail-open)`** (2026-08-27) — alerta
+    log-based em `ratelimit_store_error_allowing_request`. Filtro obrigatório:
+    `resource.type="cloud_run_revision" AND textPayload:"..."`. **É
+    `textPayload`, não `jsonPayload`**: `logSecurityEvent` emite
+    `console.warn("[SECURITY] " + JSON.stringify(...))`, e o prefixo impede o
+    Cloud Logging de fazer o parse para JSON estruturado — diferente do
+    `logger` de `lib/logger.ts`, que emite JSON puro e vira `jsonPayload`.
   - **Latência p95**: filtra APENAS o serviço `api` (`resource.labels.service_name = "api"`),
     threshold 8s, duration 300s. Não remover o filtro de serviço: os crons são serviços
     Cloud Run próprios cuja "latência" = duração do job (checkduedates ~20s diários),
