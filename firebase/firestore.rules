@@ -632,6 +632,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // AI TRACES — um doc por turno da Lia (ferramenta, latência, desfecho).
+    // Escrito exclusivamente pelas Cloud Functions (Admin SDK). Leitura só para
+    // super admin com MFA, como o resto da observabilidade. Não contém args de
+    // ferramenta nem conteúdo de mensagem — ver apps/functions/src/ai/trace.ts.
+    match /ai_traces/{traceId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
     match /security_metrics/{windowId} {
       allow read, write: if false;
     }

@@ -15,6 +15,7 @@ import { executeToolCall, type ToolCallContext } from "./tools/executor";
 import type { ToolFeedback } from "./providers/index";
 import { validateConfirmationToken } from "./security/confirmation-token";
 import { classifyProviderError } from "./provider-error";
+import { startAiTrace, type AiTraceStatus } from "./trace";
 import { alertProviderConfigError } from "./provider-error-alert";
 import type { AiChatRequest, AiChatChunk, AiConversationMessage } from "./ai.types";
 
@@ -212,8 +213,41 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     sessionId: sessionId || undefined,
   };
 
+  // Rastro do turno — nome de ferramenta, latência e desfecho. Nunca args
+  // nem conteúdo de mensagem (ver ai/trace.ts). Gravado uma vez no finally.
+  const trace = startAiTrace({
+    tenantId: user.tenantId,
+    uid: user.uid,
+    sessionId: sessionId || undefined,
+    planTier,
+    promptChars: message.length,
+  });
+  let traceStatus: AiTraceStatus = "ok";
+  let traceErrorCode: string | undefined;
+
+  // Executa a ferramenta cronometrando para o rastro. Os dois loops de
+  // provider (principal e fallback Groq) passam por aqui — instrumentar em um
+  // único ponto evita que a duplicação do loop vire duplicação do rastro.
+  const runTool = async (
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<Awaited<ReturnType<typeof executeToolCall>>> => {
+    const startedAt = Date.now();
+    try {
+      const result = await executeToolCall(name, args, toolCtx);
+      trace.recordTool(name, result.success !== false, Date.now() - startedAt);
+      return result;
+    } catch (err) {
+      trace.recordTool(name, false, Date.now() - startedAt);
+      throw err;
+    }
+  };
+
   // Heartbeat: keep the connection alive across proxies/load-balancers
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+  // Declarados aqui (e não dentro do try) porque o finally os grava no rastro.
+  let fullResponseText = "";
+  let totalTokens = 0;
 
   try {
     // 9. Set SSE headers — disable timeout for long-lived streaming connection
@@ -230,8 +264,6 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     }, 20_000);
 
     let skipIncrement = false;
-    let fullResponseText = "";
-    let totalTokens = 0;
     // Tracks whether any SSE data has been written — used to decide if Groq fallback is safe
     let contentWritten = false;
 
@@ -306,7 +338,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
           };
           writeSSE(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
 
-          const result = await executeToolCall(tc.name, tc.args, toolCtx);
+          const result = await runTool(tc.name, tc.args);
 
           const toolResultChunk: AiChatChunk = {
             type: "tool_result",
@@ -404,7 +436,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
             };
             writeSSE(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
 
-            const result = await executeToolCall(tc.name, tc.args, toolCtx);
+            const result = await runTool(tc.name, tc.args);
 
             const toolResultChunk: AiChatChunk = {
               type: "tool_result",
@@ -477,6 +509,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     } else {
       // Confirmation pending — refund pre-debit before ending response so that
       // the next request sees the correct usage count immediately.
+      traceStatus = "confirmation_pending";
       try {
         await refundAiMessage(user.tenantId);
         messageReserved = false;
@@ -524,6 +557,9 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    traceStatus = "error";
+    traceErrorCode = errorCode;
+
     if (!res.headersSent) {
       // Pre-stream failure: pick a status that doesn't invite a retry storm for config errors.
       const status = errorCode === "rate_limited" ? 503 : 500;
@@ -537,6 +573,14 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     res.end();
   } finally {
     clearInterval(heartbeatTimer);
+    trace.finish({
+      status: traceStatus,
+      provider: activeProvider,
+      modelName: actualModelName,
+      totalTokens,
+      responseChars: fullResponseText.length,
+      errorCode: traceErrorCode,
+    });
     // Refund the pre-debited message slot when the stream did not complete successfully:
     // - stream error (catch path)
     // - confirmation pending (skipIncrement=true — counter re-reserved on the confirmed request)

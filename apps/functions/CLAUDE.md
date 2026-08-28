@@ -87,8 +87,19 @@ cd apps/functions && npm run lint
 - `error_issues/{fingerprint}/occurrences/{id}` — capped sample of recent occurrences; `expiresAt` field for Firestore TTL.
 - `error_issues/{fingerprint}/_agg/affected` — capped hashed-id sets backing `affectedUsers`/`affectedTenants`.
 - `error_metrics/{YYYYMMDDhh}` — hourly severity/source counters.
+- `ai_traces/{id}` — um doc por turno da Lia (`src/ai/trace.ts`): provider, modelo,
+  status, tokens, latência e a lista de ferramentas (`{name, ok, ms}`). O
+  `usage-tracker` só conta mensagem e token — isto é o que responde "o que a Lia
+  fez e o que falhou". **Grava nome de ferramenta, nunca args**; da mensagem e da
+  resposta só o tamanho. Args carregam nome de cliente, valor e CPF — o teste
+  `src/ai/trace.test.ts` falha se algum desses campos entrar no doc.
 
-**Deploy note:** enable a Firestore **TTL policy** on the `occurrences` collection group, field `expiresAt` (Firebase console → Firestore → TTL). Not expressible in `firestore.indexes.json`.
+**Deploy note:** enable a Firestore **TTL policy** on the `occurrences` collection group, field `expiresAt` (Firebase console → Firestore → TTL). Not expressible in `firestore.indexes.json`. O mesmo vale para `ai_traces` (campo `expiresAt`, retenção de 30 dias):
+
+```bash
+gcloud firestore fields ttls update expiresAt \
+  --collection-group=ai_traces --enable-ttl --project=erp-softcode-prod
+```
 
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`
