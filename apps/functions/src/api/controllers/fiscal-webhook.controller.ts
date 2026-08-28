@@ -101,15 +101,31 @@ async function finalizeProcessing(
     );
 }
 
-const VALID_TYPES = new Set<FiscalDocumentType>(["nfe", "nfse"]);
+/**
+ * O segmento `:type` da URL carrega o nome do EVENTO no provedor, e o provedor
+ * tem tres: `nfe`, `nfse` (municipal) e `nfsen` (Nacional). O dominio so tem
+ * dois — ver `FiscalNfsePadrao` —, entao a traducao acontece aqui, na fronteira.
+ *
+ * Registrar `nfse` e emitir em `nfsen` nao da erro em lugar nenhum: a
+ * notificacao simplesmente nunca chega, e a nota fica presa em `processing` ate
+ * o cron. Foi assim com a primeira nota real, que ja estava rejeitada no
+ * Ambiente Nacional enquanto a ProOps mostrava "Processando".
+ */
+const EVENT_TO_TYPE: Record<string, FiscalDocumentType> = {
+  nfe: "nfe",
+  nfse: "nfse",
+  nfsen: "nfse",
+};
 
 // POST /webhooks/focus/:tenantId/:secret/:type
 export const handleFocusWebhook = async (req: Request, res: Response): Promise<void> => {
   const tenantId = String(req.params.tenantId || "");
   const secret = String(req.params.secret || "");
-  const type = String(req.params.type || "") as FiscalDocumentType;
+  // Nome do evento no provedor, nao o tipo do dominio — pode ser `nfsen`.
+  const type = String(req.params.type || "");
 
-  if (!tenantId || !VALID_TYPES.has(type)) {
+  const domainType = EVENT_TO_TYPE[String(type)];
+  if (!tenantId || !domainType) {
     // Malformed URL is permanent — retries would never fix it.
     res.status(200).send("OK");
     return;

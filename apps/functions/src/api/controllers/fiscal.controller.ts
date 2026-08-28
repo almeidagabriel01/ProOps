@@ -421,6 +421,9 @@ export const registerIssuerHandler = async (
           environment: resolveFiscalEnvironment(refreshed.environment),
           habilitaNfe: refreshed.habilitaNfe,
           habilitaNfse: refreshed.habilitaNfse,
+          // Decide entre o evento `nfse` e o `nfsen`; sem isto o gatilho e
+          // registrado no evento errado e a notificacao nunca chega.
+          padraoNfse: refreshed.padraoNfse,
         })
       : undefined;
 

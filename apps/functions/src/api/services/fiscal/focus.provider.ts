@@ -59,7 +59,7 @@ const BASE_URLS: Record<FiscalEnvironment, string> = {
  * no domínio, é o que mantém `FiscalDocumentType` com dois valores — ver
  * `FiscalNfsePadrao`.
  */
-function resolveResourcePath(
+export function resolveResourcePath(
   type: FiscalDocumentType,
   padraoNfse?: FiscalNfsePadrao,
 ): string {
@@ -415,7 +415,8 @@ export class FocusFiscalProvider implements FiscalProvider {
    */
   async registerWebhook(
     cnpj: string,
-    event: FiscalDocumentType,
+    /** Nome do EVENTO no provedor: `nfe`, `nfse` ou `nfsen`. */
+    event: string,
     url: string,
     env: FiscalEnvironment,
   ): Promise<string | undefined> {

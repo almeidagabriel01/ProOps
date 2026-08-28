@@ -18,13 +18,14 @@ import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { resolveFiscalWebhookUrl } from "../../../lib/frontend-app-url";
 import { describeFocusError } from "./focus-error";
-import { focusFiscalProvider } from "./focus.provider";
-import type { FiscalDocumentType, FiscalEnvironment } from "./fiscal-types";
+import { focusFiscalProvider, resolveResourcePath } from "./focus.provider";
+import type { FiscalEnvironment, FiscalNfsePadrao } from "./fiscal-types";
 
 export interface FiscalWebhookStatus {
   state: "registered" | "failed" | "partial";
   attemptedAt: string;
-  registered: FiscalDocumentType[];
+  /** Nomes de EVENTO no provedor — `nfe`, `nfse` ou `nfsen`. */
+  registered: string[];
   lastError?: string;
 }
 
@@ -34,7 +35,7 @@ export interface FiscalWebhookStatus {
  */
 async function reconcile(
   cnpj: string,
-  event: FiscalDocumentType,
+  event: string,
   url: string,
   env: FiscalEnvironment,
 ): Promise<void> {
@@ -72,22 +73,32 @@ export async function registerFiscalWebhooks(params: {
   environment: FiscalEnvironment;
   habilitaNfe: boolean;
   habilitaNfse: boolean;
+  padraoNfse?: FiscalNfsePadrao;
 }): Promise<FiscalWebhookStatus> {
   const cnpj = String(params.cnpj).replace(/\D/g, "");
-  const types: FiscalDocumentType[] = [
-    ...(params.habilitaNfe ? (["nfe"] as const) : []),
-    ...(params.habilitaNfse ? (["nfse"] as const) : []),
+
+  /**
+   * O gatilho é registrado pelo nome do EVENTO no provedor, e o evento tem que
+   * ser o mesmo recurso em que a nota é emitida. Registrar `nfse` e emitir em
+   * `nfsen` não dá erro em lugar nenhum — simplesmente nunca chega notificação,
+   * e toda nota fica presa em `processing` até o cron de 15 min. Foi o que
+   * aconteceu com a primeira nota real: ela já estava rejeitada no Ambiente
+   * Nacional e a ProOps ainda mostrava "Processando".
+   */
+  const events: string[] = [
+    ...(params.habilitaNfe ? [resolveResourcePath("nfe")] : []),
+    ...(params.habilitaNfse ? [resolveResourcePath("nfse", params.padraoNfse)] : []),
   ];
 
-  const registered: FiscalDocumentType[] = [];
+  const registered: string[] = [];
   let lastError: string | undefined;
 
-  for (const type of types) {
-    const url = resolveFiscalWebhookUrl(params.tenantId, params.webhookSecret, type);
+  for (const event of events) {
+    const url = resolveFiscalWebhookUrl(params.tenantId, params.webhookSecret, event);
     try {
-      await reconcile(cnpj, type, url, params.environment);
-      await focusFiscalProvider.registerWebhook(cnpj, type, url, params.environment);
-      registered.push(type);
+      await reconcile(cnpj, event, url, params.environment);
+      await focusFiscalProvider.registerWebhook(cnpj, event, url, params.environment);
+      registered.push(event);
     } catch (error) {
       const detail = describeFocusError(error);
       lastError = detail.message;
@@ -95,7 +106,7 @@ export async function registerFiscalWebhooks(params: {
       logger.error("Registro de gatilho fiscal falhou", {
         tenantId: params.tenantId,
         cnpj,
-        type,
+        event,
         codigo: detail.codigo,
         httpStatus: detail.httpStatus,
         error: detail.message,
@@ -105,7 +116,7 @@ export async function registerFiscalWebhooks(params: {
 
   const status: FiscalWebhookStatus = {
     state:
-      registered.length === types.length
+      registered.length === events.length
         ? "registered"
         : registered.length > 0
           ? "partial"

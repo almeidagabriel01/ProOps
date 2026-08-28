@@ -89,7 +89,11 @@ export function resolveAsaasWebhookUrl(tenantId: string): string {
 export function resolveFiscalWebhookUrl(
   tenantId: string,
   secret: string,
-  type: "nfe" | "nfse",
+  /**
+   * Nome do EVENTO no provedor, nao o tipo do dominio — `nfsen` e um evento
+   * proprio. O receptor traduz de volta; ver `fiscal-webhook.controller.ts`.
+   */
+  type: string,
 ): string {
   const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_PROJECT_ID || "erp-softcode";
   const path = `api/webhooks/focus/${tenantId}/${secret}/${type}`;

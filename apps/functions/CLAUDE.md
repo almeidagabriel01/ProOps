@@ -174,6 +174,13 @@ cd apps/functions && npm run lint
   (`natureza-operacao.ts`). CFOP e propriedade da *operacao*: a mesma cortina e 5102 dentro
   do estado e 6102 fora. Guardar no produto forcaria correcao manual em toda venda
   interestadual. CST/CSOSN sai do regime do emitente; a unidade sai do `inventoryUnit`.
+- **O gatilho e registrado pelo nome do EVENTO do provedor, que tem TRES valores**
+  (`nfe`, `nfse`, `nfsen`) enquanto o dominio tem dois. `registerFiscalWebhooks` deriva o
+  evento de `resolveResourcePath` — o mesmo que escolhe o recurso de emissao —, e o receptor
+  traduz de volta em `EVENT_TO_TYPE`. Registrar `nfse` e emitir em `nfsen` **nao da erro em
+  lugar nenhum**: o registro e aceito, a emissao e aceita, e a notificacao nunca chega; a
+  nota fica presa em `processing` ate o cron. Foi assim com a primeira nota real, que ja
+  estava rejeitada no Ambiente Nacional enquanto a UI mostrava "Processando".
 - **Webhook do Focus NAO tem cabecalho de autenticacao** (diferente do Asaas, que assina com
   `asaas-access-token`). A propria URL e a credencial: `/webhooks/focus/:tenantId/:secret/:type`,
   com o segredo comparado em tempo constante. Segredo invalido responde **200**, nao 401 — e
