@@ -121,6 +121,14 @@ cd apps/functions && npm run lint
   da LC 116 — o codigo nacional tem um desdobro que a lista antiga nao carrega (31.01
   sozinho nao diz se e .01 ou .02). O gate cobra; `buildNfsenPayload` lanca
   `NFSEN_SEM_CODIGO_TRIBUTACAO_NACIONAL` como ultima linha de defesa.
+- **Data e hora dos documentos vao no fuso de BRASILIA, nunca em UTC**
+  (`fiscal-datetime.ts`). O Ambiente Nacional compara o RELOGIO DE PAREDE: uma DPS enviada
+  com `dhEmi` em UTC foi rejeitada com **E0008** ("a data de emissao nao pode ser posterior
+  a data do seu processamento") mesmo tendo sido emitida 5 segundos ANTES — `03:08+00:00`
+  contra `00:08-03:00` do processamento. A competencia tem o mesmo problema por outro
+  caminho: `slice(0, 10)` de um ISO em UTC adianta o dia em toda nota emitida depois das
+  21h, erro que so aparece a noite. Sem horario de verao desde o Decreto 9.772/2019, entao
+  −03:00 e fixo; se voltar, `fiscal-datetime.ts` e o unico arquivo a mudar.
 - **A numeracao nao vai no payload de emissao**, nem no nacional nem no municipal: serie e
   proximo numero vivem no cadastro da empresa. Mandar o numero em cada emissao criaria duas
   fontes da verdade para a sequencia, que e o caminho mais curto para duplicidade.

@@ -16,6 +16,7 @@
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { checkIssueReadiness, type FiscalGap } from "./fiscal-readiness";
+import { toBrasiliaIso } from "./fiscal-datetime";
 import {
   DEFAULT_NATUREZA,
   deriveCfop,
@@ -281,7 +282,9 @@ export async function assembleInvoices(params: {
 
   const recipient = buildRecipient(client);
   const natureza = params.naturezaOperacao ?? DEFAULT_NATUREZA;
-  const dataEmissao = new Date().toISOString();
+  // Fuso de Brasília, não UTC: o Ambiente Nacional compara o relógio de parede
+  // e rejeitou a primeira nota real com E0008 por causa disso.
+  const dataEmissao = toBrasiliaIso();
 
   const products = activeItems.filter((item) => item.itemType !== "service");
   const services = activeItems.filter((item) => item.itemType === "service");

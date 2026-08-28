@@ -9,6 +9,7 @@
  *  - NFS-e: https://campos.focusnfe.com.br/nfse_nacional/EmissaoDPSXml.html
  */
 
+import { brasiliaDatePart } from "./fiscal-datetime";
 import type {
   FiscalAddress,
   FiscalIeIndicator,
@@ -336,7 +337,9 @@ export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unk
     // Competência é o mês do fato gerador, não do envio. Sem um campo próprio
     // no domínio, a data de emissão é a melhor aproximação e é o que a nota de
     // referência do primeiro emitente também traz.
-    data_competencia: String(input.dataEmissao).slice(0, 10),
+    // Data no fuso de Brasília: `slice(0, 10)` de um ISO em UTC jogaria a
+    // competência para o dia seguinte em toda nota emitida depois das 21h.
+    data_competencia: brasiliaDatePart(input.dataEmissao),
     codigo_municipio_emissora: Number(municipioEmissor),
     cnpj_prestador: digits(issuer.cnpj),
     codigo_opcao_simples_nacional: opcaoSimplesNacional,
