@@ -440,16 +440,27 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
                 </span>
               </div>
             )}
-            {settings?.webhookStatus && settings.webhookStatus.state !== "registered" && (
+            {/* Ausência de status NÃO é sinal de sucesso: o registro só acontece
+                no envio do certificado, então um emitente cadastrado antes desta
+                tela nunca teve tentativa nenhuma. Mostrar o alerta só quando há
+                falha registrada esconde exatamente o caso mais comum — foi o que
+                aconteceu aqui: nenhum gatilho no provedor e nenhum aviso. */}
+            {settings?.status &&
+              settings.status !== "pending" &&
+              settings.webhookStatus?.state !== "registered" && (
               <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                 <div className="flex-1 space-y-1">
-                  <p className="font-medium">Notificação automática não registrada</p>
+                  <p className="font-medium">
+                    {settings.webhookStatus
+                      ? "Notificação automática não registrada"
+                      : "Notificação automática ainda não configurada"}
+                  </p>
                   <p className="text-muted-foreground">
                     As notas continuam sendo emitidas, mas o resultado só chega pela
                     consulta periódica — pode demorar até 15 minutos para aparecer.
                   </p>
-                  {settings.webhookStatus.lastError && (
+                  {settings.webhookStatus?.lastError && (
                     <p className="font-mono text-xs text-muted-foreground/80">
                       {settings.webhookStatus.lastError}
                     </p>
