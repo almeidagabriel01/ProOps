@@ -109,3 +109,6 @@ scripts/.recordings/
 
 # Playwright test server build dir (see next.config.ts distDir)
 apps/web/.next-test/
+
+# ownership migration snapshots and backups (contain PII)
+.migration/
