@@ -410,6 +410,15 @@ export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unk
       issuer.regimeApuracaoSimplesNacional ?? 1;
   }
 
+  // Exigida quando o município registra essa condição no CNC da NFS-e — a
+  // rejeição **E0116** ("a IM deve ser informada para o emitente prestador")
+  // é o município dizendo isso, e a regra varia de prefeitura para prefeitura.
+  // Mandar sempre que existir é mais barato que descobrir onde é obrigatória.
+  const inscricaoMunicipal = trimmed(issuer.inscricaoMunicipal);
+  if (inscricaoMunicipal) {
+    payload.inscricao_municipal_prestador = inscricaoMunicipal;
+  }
+
   if (recipientDoc.length === 11) {
     payload.cpf_tomador = recipientDoc;
   } else if (recipientDoc.length === 14) {

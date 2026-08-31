@@ -192,6 +192,28 @@ describe("buildNfsenPayload", () => {
     expect(buildNfsenPayload(buildInput()).indicador_total_tributacao).toBe(0);
   });
 
+  it("manda a inscrição municipal do prestador", () => {
+    // Rejeição real E0116 em produção: "A IM deve ser informada para o emitente
+    // prestador do serviço na DPS, conforme informações complementares
+    // registradas no CNC NFS-e do município emissor". A exigência é do
+    // município, não do leiaute — varia de prefeitura para prefeitura.
+    expect(buildNfsenPayload(buildInput()).inscricao_municipal_prestador).toBe(
+      "3411114782",
+    );
+  });
+
+  it("omite a IM quando o emitente não tem", () => {
+    // Campo vazio no XML seria pior que ausente: alguns municípios validam o
+    // formato de uma IM que existe.
+    const payload = buildNfsenPayload(
+      buildInput({
+        issuer: { ...ISSUER, inscricaoMunicipal: "" } as FiscalIssuerConfig,
+      }),
+    );
+
+    expect(payload).not.toHaveProperty("inscricao_municipal_prestador");
+  });
+
   it("recusa serviço sem código de tributação nacional", () => {
     expect(() =>
       buildNfsenPayload(

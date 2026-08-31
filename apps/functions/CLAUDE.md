@@ -222,6 +222,11 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   que apura de verdade mas com aliquota dependente de ser cumulativo ou nao — dado que o
   cadastro nao tem. 49 com zeros nao inventa valor; e o primeiro campo a revisar quando
   existir um tenant fora do Simples.
+- **A inscricao municipal do prestador vai na DPS** (`inscricao_municipal_prestador`)
+  sempre que existir. A exigencia e do MUNICIPIO, nao do leiaute: cada prefeitura registra
+  no CNC da NFS-e se ela e obrigatoria, e Machado exige — rejeicao **E0116**. Mandar sempre
+  que houver e mais barato que mapear onde e obrigatoria; omitir quando nao houver tambem
+  importa, porque alguns municipios validam o formato de uma IM presente.
 - **A numeracao nao vai no payload de emissao**, nem no nacional nem no municipal: serie e
   proximo numero vivem no cadastro da empresa. Mandar o numero em cada emissao criaria duas
   fontes da verdade para a sequencia, que e o caminho mais curto para duplicidade.
