@@ -29,12 +29,25 @@ vi.mock("../submit-helpers", () => ({
 }));
 
 import { useProposalFormProductSubmit } from "../useProposalForm.product-submit";
+import type { CreateClientData } from "@/hooks/useClientActions";
 
-const createClient = vi.fn(async () => ({
+/** Assinatura real — sem ela `mock.calls` vira tupla vazia e não se indexa. */
+type CreateClientFn = (
+  data: CreateClientData,
+  options?: { suppressSuccessToast?: boolean },
+) => Promise<{ success: boolean; clientId: string; message: string } | null>;
+
+const createClient = vi.fn<CreateClientFn>(async () => ({
   success: true,
   clientId: "cli-1",
   message: "ok",
 }));
+
+/** `{}` quando não houve chamada — a asserção falha em vez de estourar. */
+function createClientPayload(): Partial<CreateClientData> {
+  const [payload] = createClient.mock.calls[0] ?? [];
+  return payload ?? {};
+}
 
 function buildCtx(overrides: Record<string, unknown> = {}) {
   return {
@@ -85,7 +98,7 @@ describe("criação do contato junto com a proposta", () => {
     await submit(buildCtx({ newClientDocument: "529.982.247-25" }));
 
     expect(createClient).toHaveBeenCalledTimes(1);
-    expect(createClient.mock.calls[0][0]).toMatchObject({
+    expect(createClientPayload()).toMatchObject({
       name: "José Francisco",
       document: "529.982.247-25",
     });
@@ -95,13 +108,15 @@ describe("criação do contato junto com a proposta", () => {
     // O campo é opcional; string vazia faria o backend tratar como informado.
     await submit(buildCtx({ newClientDocument: "" }));
 
-    expect(createClient.mock.calls[0][0].document).toBeUndefined();
+    expect(createClient).toHaveBeenCalledTimes(1);
+    expect(createClientPayload().document).toBeUndefined();
   });
 
   it("omite documento em branco só de espaços", async () => {
     await submit(buildCtx({ newClientDocument: "   " }));
 
-    expect(createClient.mock.calls[0][0].document).toBeUndefined();
+    expect(createClient).toHaveBeenCalledTimes(1);
+    expect(createClientPayload().document).toBeUndefined();
   });
 
   it("não cria contato nenhum quando um já foi selecionado", async () => {
