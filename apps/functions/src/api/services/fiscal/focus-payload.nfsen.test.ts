@@ -241,6 +241,32 @@ describe("buildEmpresaPayload — numeração da NFS-e nacional", () => {
     expect(payload).not.toHaveProperty("serie_nfse_producao");
   });
 
+  it("completa a série com zeros até 5 dígitos", () => {
+    // O leiaute e `Integer[5]` e documenta a faixa como 00001 a 49999. Digitar
+    // "1" e o natural; normalizar aqui poupa uma rodada de rejeicao.
+    const payload = buildEmpresaPayload({ ...ISSUER, serieNfse: "1" });
+
+    expect(payload.serie_nfsen_producao).toBe("00001");
+    expect(payload.serie_nfsen_homologacao).toBe("00001");
+  });
+
+  it("não mexe numa série que já tem 5 dígitos", () => {
+    expect(buildEmpresaPayload({ ...ISSUER, serieNfse: "49999" }).serie_nfsen_producao).toBe(
+      "49999",
+    );
+  });
+
+  it("preserva série alfanumérica no padrão municipal", () => {
+    // Varias prefeituras usam serie como "A1"; completar com zeros a quebraria.
+    const payload = buildEmpresaPayload({
+      ...ISSUER,
+      padraoNfse: "municipal",
+      serieNfse: "A1",
+    });
+
+    expect(payload.serie_nfse_producao).toBe("A1");
+  });
+
   it("volta aos campos municipais no outro padrão", () => {
     const payload = buildEmpresaPayload({ ...ISSUER, padraoNfse: "municipal" });
 
