@@ -83,6 +83,11 @@ export function mapFocusStatus(status: string | undefined): FiscalInvoiceStatus 
     case "erro_autorizacao":
     case "denegado":
       return "rejected";
+    // Recusa do CANCELAMENTO, não da nota: ela continua autorizada. Mapear para
+    // `rejected` diria que a emissão falhou, que é o oposto do que aconteceu.
+    // Quem trata é `cancelInvoice`, que lança com a mensagem do fisco.
+    case "erro_cancelamento":
+      return "error";
     default:
       return "error";
   }

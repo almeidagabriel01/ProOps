@@ -321,6 +321,13 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   `fiscal/` ao client e `application/xml` nem esta na allowlist de content-type.
 - **Lancamento avulso nao emite** — sem proposta vinculada nao ha itens, e o sistema
   falha com `LANCAMENTO_SEM_PROPOSTA` em vez de inventar uma linha.
+- **Cancelamento recusado LANCA, nao passa em silencio.** O provedor responde **200 mesmo
+  quando o fisco recusa** — o corpo traz `erro_cancelamento` e a nota continua autorizada.
+  Sem checar `result.status !== "cancelled"`, o resultado caia em `error`, `canApplyStatus`
+  bloqueava a transicao (autorizada nao regride), nada mudava, e a UI mostrava "cancelada"
+  sobre uma nota que seguia valendo. O motivo mais comum e prazo: 24h para NF-e na maioria
+  dos estados, por municipio na NFS-e. A UI confere o status devolvido tambem — nao confia
+  no 200.
 - **Status nunca regride** (`canApplyStatus`): webhook nao e ordenado e o cron pode correr junto.
   A unica transicao permitida a partir de terminal e autorizada → cancelada.
 - **O unico campo que o usuario realmente digita e o NCM** (por produto) e o codigo LC 116 +

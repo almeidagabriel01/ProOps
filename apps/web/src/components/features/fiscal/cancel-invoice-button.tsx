@@ -50,6 +50,18 @@ export function CancelInvoiceButton({ invoice, onCancelled }: CancelInvoiceButto
     setIsCancelling(true);
     try {
       const updated = await FiscalService.cancelInvoice(invoice.id, trimmed);
+
+      // Confere o estado que voltou em vez de confiar no 200. O backend agora
+      // lança quando o fisco recusa, mas o toast não pode depender disso: dizer
+      // "cancelada" sobre uma nota que continua valendo é a pior falha possível
+      // aqui, porque o usuário para de procurar.
+      if (updated.status !== "cancelled") {
+        toast.error("O fisco não cancelou a nota.", {
+          description: "Ela continua valendo. Verifique o prazo de cancelamento.",
+        });
+        return;
+      }
+
       onCancelled(updated);
       setOpen(false);
       setJustificativa("");
