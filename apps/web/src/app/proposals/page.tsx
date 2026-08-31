@@ -12,6 +12,8 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Proposal, ProposalStatus, ProposalAttachment } from "@/types/proposal";
 import { ProposalActionsDropdown } from "@/components/features/proposal/proposal-actions-dropdown";
 import { IssueInvoiceButton } from "@/components/features/fiscal/issue-invoice-button";
+import { FiscalGapsDialog } from "@/components/features/fiscal/fiscal-gaps-dialog";
+import { useIssueInvoice } from "@/hooks/use-issue-invoice";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -208,6 +210,14 @@ export default function ProposalsPage() {
   const [hasAnyProposals, setHasAnyProposals] = React.useState<boolean | null>(
     null,
   );
+  // A emissão vive na página, não no item do menu: o conteúdo do dropdown
+  // desmonta ao fechar, e o checklist de lacunas iria junto.
+  const {
+    issue: issueInvoice,
+    issuingId: issuingInvoiceId,
+    gaps: fiscalGaps,
+    closeGaps: closeFiscalGaps,
+  } = useIssueInvoice();
   const [isAwaitingPendingSave, setIsAwaitingPendingSave] =
     React.useState(true);
   // Cache for attachments to prevent fetchProposals from overwriting local updates
@@ -1020,6 +1030,9 @@ export default function ProposalsPage() {
                 }
                 onEdit={() => handleEdit(proposal.id)}
                 onDelete={() => setDeleteId(proposal.id)}
+                canIssueInvoice={isProposalApproved(proposal)}
+                isIssuingInvoice={issuingInvoiceId === proposal.id}
+                onIssueInvoice={() => void issueInvoice("proposal", proposal.id)}
               />
             </div>
           </div>
@@ -1032,6 +1045,8 @@ export default function ProposalsPage() {
       canCreate,
       isProposalApproved,
       isReadOnly,
+      issueInvoice,
+      issuingInvoiceId,
       updatingStatusId,
       downloadingId,
       editingId,
@@ -1290,6 +1305,8 @@ export default function ProposalsPage() {
             />
           );
         })()}
+
+      <FiscalGapsDialog gaps={fiscalGaps} onClose={closeFiscalGaps} />
 
       <UpgradeModal
         open={upgradeModal.isOpen}

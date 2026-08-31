@@ -10,7 +10,7 @@ import {
   useDropdownMenuContext,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, Share2, Copy, Paperclip, Eye, FileDown, Palette, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Share2, Copy, Paperclip, Eye, FileDown, FileText, Palette, Pencil, Trash2 } from "lucide-react";
 import { Proposal } from "@/types/proposal";
 import { Loader } from "@/components/ui/loader";
 
@@ -33,6 +33,10 @@ export interface ProposalActionsDropdownProps {
   onEditPdf?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onIssueInvoice?: () => void;
+  /** Proposta ganha — só aí emitir nota faz sentido. */
+  canIssueInvoice?: boolean;
+  isIssuingInvoice?: boolean;
   /** When true, shows all inline actions inside the dropdown (for compact/responsive mode) */
   showAllActions?: boolean;
 }
@@ -129,6 +133,9 @@ export function ProposalActionsDropdown({
   onEditPdf,
   onEdit,
   onDelete,
+  onIssueInvoice,
+  canIssueInvoice,
+  isIssuingInvoice,
   showAllActions = false,
 }: ProposalActionsDropdownProps) {
   const attachmentsCount = proposal.attachments?.length || 0;
@@ -173,6 +180,24 @@ export function ProposalActionsDropdown({
                   <FileDown className="w-4 h-4 mr-2" />
                 )}
                 Baixar PDF
+              </DropdownMenuItem>
+            )}
+
+            {/* Emitir NF — mesma posição que ocupa na linha das telas largas.
+                Sem isto, o menu compacto era a ÚNICA superfície de ações
+                abaixo de 1701px e não oferecia emissão: quem trabalha no
+                celular simplesmente não conseguia emitir nota. */}
+            {onIssueInvoice && canIssueInvoice && (
+              <DropdownMenuItem
+                onClick={onIssueInvoice}
+                disabled={isIssuingInvoice}
+              >
+                {isIssuingInvoice ? (
+                  <Loader size="sm" className="mr-2" />
+                ) : (
+                  <FileText className="w-4 h-4 mr-2" />
+                )}
+                Emitir NF
               </DropdownMenuItem>
             )}
 
