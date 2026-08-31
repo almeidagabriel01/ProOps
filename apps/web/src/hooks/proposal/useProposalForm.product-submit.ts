@@ -37,6 +37,7 @@ interface UseProposalFormProductSubmitContext {
   setIsSaving: React.Dispatch<React.SetStateAction<boolean>>;
   selectedClientId?: string;
   isNewClient: boolean;
+  newClientDocument?: string;
   createClient: (
     data: CreateClientData,
     options?: { suppressSuccessToast?: boolean },
@@ -64,6 +65,7 @@ export function useProposalFormProductSubmit(
     selectedClientId,
     isNewClient,
     createClient,
+    newClientDocument,
     clientTypes,
     latestStateRef,
     router,
@@ -516,6 +518,9 @@ export function useProposalFormProductSubmit(
             email: formData.clientEmail,
             phone: formData.clientPhone,
             address: formData.clientAddress,
+            // Sem isto o contato nasce sem CPF/CNPJ e a emissão de nota para
+            // num campo que só dá para preencher voltando em Contatos.
+            document: newClientDocument?.trim() || undefined,
             types: clientTypes.length > 0 ? clientTypes : ["cliente"],
             source: "proposal",
             targetTenantId: tenant.id,

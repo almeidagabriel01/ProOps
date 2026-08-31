@@ -76,6 +76,8 @@ export function useProposalFormCore({
   const [clientTypes, setClientTypes] = React.useState<ClientType[]>([
     "cliente",
   ]);
+  // Fora do formData: é dado do CONTATO que será criado, não da proposta.
+  const [newClientDocument, setNewClientDocument] = React.useState("");
   const [selectedClientId, setSelectedClientId] = React.useState<
     string | undefined
   >(undefined);
@@ -400,6 +402,7 @@ export function useProposalFormCore({
     isNewClient,
     createClient,
     clientTypes,
+    newClientDocument,
     latestStateRef,
     router,
   });
@@ -441,6 +444,7 @@ export function useProposalFormCore({
     selectedClientId,
     isNewClient,
     clientTypes,
+    newClientDocument,
     formData,
     selectedProducts,
     visibleProducts,
@@ -452,6 +456,7 @@ export function useProposalFormCore({
     setSelectedClientId,
     setIsNewClient,
     setClientTypes,
+    setNewClientDocument,
     setFormData,
     setSelectedSistemas,
     setSystemProductIds,
