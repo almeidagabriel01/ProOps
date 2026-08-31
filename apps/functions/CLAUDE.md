@@ -227,6 +227,13 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   no CNC da NFS-e se ela e obrigatoria, e Machado exige — rejeicao **E0116**. Mandar sempre
   que houver e mais barato que mapear onde e obrigatoria; omitir quando nao houver tambem
   importa, porque alguns municipios validam o formato de uma IM presente.
+- **A serie da DPS identifica o SISTEMA emissor, e tem faixa reservada:**
+  `00001-49999` aplicativo proprio (nos), `50000-69999` mobile, `70000-79999` emissor web
+  (o portal nfse.gov.br), `80000-89999` transcricao manual. Serie fora da faixa e rejeicao
+  **E0010**. Consequencia boa e nao obvia: quem emite hoje pelo portal usa a faixa 70000 e
+  **precisa** trocar de serie ao migrar — e como a numeracao e por serie, a nova comeca do 1
+  sem risco de duplicidade com o que o portal ja emitiu. `lib/fiscal/serie-dps.ts` avisa no
+  formulario.
 - **A numeracao nao vai no payload de emissao**, nem no nacional nem no municipal: serie e
   proximo numero vivem no cadastro da empresa. Mandar o numero em cada emissao criaria duas
   fontes da verdade para a sequencia, que e o caminho mais curto para duplicidade.
