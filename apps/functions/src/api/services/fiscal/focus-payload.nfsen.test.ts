@@ -192,6 +192,28 @@ describe("buildNfsenPayload", () => {
     expect(buildNfsenPayload(buildInput()).indicador_total_tributacao).toBe(0);
   });
 
+  it("manda a inscrição municipal do prestador", () => {
+    // Rejeição real E0116 em produção: "A IM deve ser informada para o emitente
+    // prestador do serviço na DPS, conforme informações complementares
+    // registradas no CNC NFS-e do município emissor". A exigência é do
+    // município, não do leiaute — varia de prefeitura para prefeitura.
+    expect(buildNfsenPayload(buildInput()).inscricao_municipal_prestador).toBe(
+      "3411114782",
+    );
+  });
+
+  it("omite a IM quando o emitente não tem", () => {
+    // Campo vazio no XML seria pior que ausente: alguns municípios validam o
+    // formato de uma IM que existe.
+    const payload = buildNfsenPayload(
+      buildInput({
+        issuer: { ...ISSUER, inscricaoMunicipal: "" } as FiscalIssuerConfig,
+      }),
+    );
+
+    expect(payload).not.toHaveProperty("inscricao_municipal_prestador");
+  });
+
   it("recusa serviço sem código de tributação nacional", () => {
     expect(() =>
       buildNfsenPayload(
@@ -217,6 +239,32 @@ describe("buildEmpresaPayload — numeração da NFS-e nacional", () => {
     expect(payload.serie_nfsen_homologacao).toBe("70000");
     expect(payload.proximo_numero_nfsen_producao).toBe(14);
     expect(payload).not.toHaveProperty("serie_nfse_producao");
+  });
+
+  it("completa a série com zeros até 5 dígitos", () => {
+    // O leiaute e `Integer[5]` e documenta a faixa como 00001 a 49999. Digitar
+    // "1" e o natural; normalizar aqui poupa uma rodada de rejeicao.
+    const payload = buildEmpresaPayload({ ...ISSUER, serieNfse: "1" });
+
+    expect(payload.serie_nfsen_producao).toBe("00001");
+    expect(payload.serie_nfsen_homologacao).toBe("00001");
+  });
+
+  it("não mexe numa série que já tem 5 dígitos", () => {
+    expect(buildEmpresaPayload({ ...ISSUER, serieNfse: "49999" }).serie_nfsen_producao).toBe(
+      "49999",
+    );
+  });
+
+  it("preserva série alfanumérica no padrão municipal", () => {
+    // Varias prefeituras usam serie como "A1"; completar com zeros a quebraria.
+    const payload = buildEmpresaPayload({
+      ...ISSUER,
+      padraoNfse: "municipal",
+      serieNfse: "A1",
+    });
+
+    expect(payload.serie_nfse_producao).toBe("A1");
   });
 
   it("volta aos campos municipais no outro padrão", () => {

@@ -222,6 +222,18 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   que apura de verdade mas com aliquota dependente de ser cumulativo ou nao — dado que o
   cadastro nao tem. 49 com zeros nao inventa valor; e o primeiro campo a revisar quando
   existir um tenant fora do Simples.
+- **A inscricao municipal do prestador vai na DPS** (`inscricao_municipal_prestador`)
+  sempre que existir. A exigencia e do MUNICIPIO, nao do leiaute: cada prefeitura registra
+  no CNC da NFS-e se ela e obrigatoria, e Machado exige — rejeicao **E0116**. Mandar sempre
+  que houver e mais barato que mapear onde e obrigatoria; omitir quando nao houver tambem
+  importa, porque alguns municipios validam o formato de uma IM presente.
+- **A serie da DPS identifica o SISTEMA emissor, e tem faixa reservada:**
+  `00001-49999` aplicativo proprio (nos), `50000-69999` mobile, `70000-79999` emissor web
+  (o portal nfse.gov.br), `80000-89999` transcricao manual. Serie fora da faixa e rejeicao
+  **E0010**. Consequencia boa e nao obvia: quem emite hoje pelo portal usa a faixa 70000 e
+  **precisa** trocar de serie ao migrar — e como a numeracao e por serie, a nova comeca do 1
+  sem risco de duplicidade com o que o portal ja emitiu. `lib/fiscal/serie-dps.ts` avisa no
+  formulario.
 - **A numeracao nao vai no payload de emissao**, nem no nacional nem no municipal: serie e
   proximo numero vivem no cadastro da empresa. Mandar o numero em cada emissao criaria duas
   fontes da verdade para a sequencia, que e o caminho mais curto para duplicidade.
@@ -316,6 +328,13 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   `fiscal/` ao client e `application/xml` nem esta na allowlist de content-type.
 - **Lancamento avulso nao emite** — sem proposta vinculada nao ha itens, e o sistema
   falha com `LANCAMENTO_SEM_PROPOSTA` em vez de inventar uma linha.
+- **Cancelamento recusado LANCA, nao passa em silencio.** O provedor responde **200 mesmo
+  quando o fisco recusa** — o corpo traz `erro_cancelamento` e a nota continua autorizada.
+  Sem checar `result.status !== "cancelled"`, o resultado caia em `error`, `canApplyStatus`
+  bloqueava a transicao (autorizada nao regride), nada mudava, e a UI mostrava "cancelada"
+  sobre uma nota que seguia valendo. O motivo mais comum e prazo: 24h para NF-e na maioria
+  dos estados, por municipio na NFS-e. A UI confere o status devolvido tambem — nao confia
+  no 200.
 - **Status nunca regride** (`canApplyStatus`): webhook nao e ordenado e o cron pode correr junto.
   A unica transicao permitida a partir de terminal e autorizada → cancelada.
 - **O unico campo que o usuario realmente digita e o NCM** (por produto) e o codigo LC 116 +

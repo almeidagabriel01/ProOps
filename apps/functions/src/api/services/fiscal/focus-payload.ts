@@ -89,6 +89,23 @@ export interface FocusEmpresaPayload extends Record<string, unknown> {
  * Derivado do CRT que já está no cadastro, em vez de virar mais um campo para o
  * usuário errar — os dois descrevem a mesma coisa por taxonomias diferentes.
  */
+/**
+ * Série da DPS nacional com 5 dígitos.
+ *
+ * O leiaute define `Integer[5]` e documenta a faixa como `00001 a 49999`. Como
+ * é inteiro, `1` e `00001` são o mesmo valor — mas o próprio Ambiente Nacional
+ * monta o `idDPS` com cinco posições, e normalizar aqui poupa uma rodada de
+ * rejeição a quem digitou o número puro.
+ *
+ * Só vale para o padrão NACIONAL: a NFS-e municipal aceita série alfanumérica
+ * em várias prefeituras, e completar "A1" com zeros a quebraria.
+ */
+function serieNfsenPadronizada(serie: string | undefined): string {
+  const texto = trimmed(serie);
+  if (!texto || !/^\d+$/.test(texto)) return texto;
+  return texto.padStart(5, "0");
+}
+
 function codigoOpcaoSimplesNacional(regimeTributario: number): number {
   if (regimeTributario === 4) return 2; // MEI
   if (regimeTributario === 1 || regimeTributario === 2) return 3; // Simples ME/EPP
@@ -136,8 +153,8 @@ export function buildEmpresaPayload(issuer: FiscalIssuerConfig): FocusEmpresaPay
     telefone: digits(issuer.telefone),
     ...(nfsePadrao === "nacional"
       ? {
-          serie_nfsen_producao: trimmed(issuer.serieNfse),
-          serie_nfsen_homologacao: trimmed(issuer.serieNfse),
+          serie_nfsen_producao: serieNfsenPadronizada(issuer.serieNfse),
+          serie_nfsen_homologacao: serieNfsenPadronizada(issuer.serieNfse),
         }
       : { serie_nfse_producao: trimmed(issuer.serieNfse) }),
   };
@@ -408,6 +425,15 @@ export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unk
   if (opcaoSimplesNacional !== 1) {
     payload.regime_tributario_simples_nacional =
       issuer.regimeApuracaoSimplesNacional ?? 1;
+  }
+
+  // Exigida quando o município registra essa condição no CNC da NFS-e — a
+  // rejeição **E0116** ("a IM deve ser informada para o emitente prestador")
+  // é o município dizendo isso, e a regra varia de prefeitura para prefeitura.
+  // Mandar sempre que existir é mais barato que descobrir onde é obrigatória.
+  const inscricaoMunicipal = trimmed(issuer.inscricaoMunicipal);
+  if (inscricaoMunicipal) {
+    payload.inscricao_municipal_prestador = inscricaoMunicipal;
   }
 
   if (recipientDoc.length === 11) {

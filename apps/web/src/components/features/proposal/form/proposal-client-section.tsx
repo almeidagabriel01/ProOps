@@ -14,7 +14,8 @@ import {
   FormStatic,
 } from "@/components/ui/form-components";
 import { Checkbox } from "@/components/ui/checkbox";
-import { User, FileText, Mail, MapPin, Users, Building2 } from "lucide-react";
+import { User, FileText, Mail, MapPin, Users, Building2, CreditCard } from "lucide-react";
+import { formatDocumento, isDocumentoValido } from "@/lib/format-document";
 import { formatDateBR } from "@/utils/date-format";
 
 interface ProposalClientSectionProps {
@@ -27,6 +28,9 @@ interface ProposalClientSectionProps {
   isNewClient?: boolean;
   clientTypes?: ClientType[];
   onClientTypesChange?: (types: ClientType[]) => void;
+  /** CPF/CNPJ do contato que será criado junto com a proposta. */
+  newClientDocument?: string;
+  onNewClientDocumentChange?: (document: string) => void;
   onFormChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
@@ -49,6 +53,8 @@ export function ProposalClientSection({
   isNewClient = false,
   clientTypes = ["cliente"],
   onClientTypesChange,
+  newClientDocument = "",
+  onNewClientDocumentChange,
   onFormChange,
   onClientChange,
 }: ProposalClientSectionProps) {
@@ -153,6 +159,41 @@ export function ProposalClientSection({
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Fornecedor</span>
               </label>
+            </div>
+          )}
+
+          {/* CPF/CNPJ — só no contato NOVO, junto do seletor de tipo, porque é
+              a única janela em que esses dados são gravados. Sem ele o contato
+              nascia sem documento e a emissão de nota parava num campo que só
+              dava para preencher voltando em Contatos. */}
+          {isNewClient && formData.clientName && onNewClientDocumentChange && (
+            <div className="mt-3">
+              <FormItem
+                label="CPF ou CNPJ"
+                htmlFor="newClientDocument"
+                hint="Opcional aqui, obrigatório para emitir nota fiscal."
+                error={
+                  isDocumentoValido(newClientDocument)
+                    ? undefined
+                    : "CPF ou CNPJ inválido"
+                }
+              >
+                <Input
+                  id="newClientDocument"
+                  name="newClientDocument"
+                  value={newClientDocument}
+                  onChange={(e) =>
+                    onNewClientDocumentChange(formatDocumento(e.target.value))
+                  }
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  icon={<CreditCard className="w-4 h-4" />}
+                  className={
+                    isDocumentoValido(newClientDocument)
+                      ? ""
+                      : "border-destructive"
+                  }
+                />
+              </FormItem>
             </div>
           )}
         </FormItem>

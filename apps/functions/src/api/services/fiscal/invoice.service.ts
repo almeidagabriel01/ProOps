@@ -498,6 +498,25 @@ export async function cancelInvoice(
     stored.padraoNfse,
   );
 
+  if (result.status !== "cancelled") {
+    /**
+     * O provedor responde **200 mesmo quando o fisco recusa** o cancelamento —
+     * o corpo traz `erro_cancelamento` e a nota continua autorizada. Sem esta
+     * checagem o resultado caía em `error`, `canApplyStatus` bloqueava a
+     * transição (autorizada não regride), nada mudava, e a UI mostrava
+     * "cancelada com sucesso" sobre uma nota que segue valendo.
+     *
+     * O motivo mais comum é prazo: 24h para NF-e na maioria dos estados, e por
+     * município na NFS-e. Fora dele o caminho é uma nota de devolução.
+     */
+    logger.warn("Cancelamento recusado pelo fisco", {
+      invoiceId,
+      codigo: result.rejectionCode,
+      motivo: result.rejectionMessage,
+    });
+    throw new Error(result.rejectionMessage || "CANCELAMENTO_RECUSADO");
+  }
+
   await applyInvoiceResult(invoiceId, result);
   return (await getInvoice(invoiceId)) ?? stored;
 }

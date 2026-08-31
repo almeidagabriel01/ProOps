@@ -26,6 +26,7 @@ export interface UseProposalFormReturn {
   selectedClientId: string | undefined;
   isNewClient: boolean;
   clientTypes: ClientType[];
+  newClientDocument: string;
   formData: Partial<Proposal>;
   selectedProducts: ProposalProduct[];
   visibleProducts: ProposalProduct[];
@@ -38,6 +39,7 @@ export interface UseProposalFormReturn {
   setSelectedClientId: React.Dispatch<React.SetStateAction<string | undefined>>;
   setIsNewClient: React.Dispatch<React.SetStateAction<boolean>>;
   setClientTypes: React.Dispatch<React.SetStateAction<ClientType[]>>;
+  setNewClientDocument: React.Dispatch<React.SetStateAction<string>>;
   setFormData: React.Dispatch<React.SetStateAction<Partial<Proposal>>>;
   setSelectedSistemas: React.Dispatch<React.SetStateAction<ProposalSistema[]>>;
   setSystemProductIds: React.Dispatch<React.SetStateAction<Set<string>>>;

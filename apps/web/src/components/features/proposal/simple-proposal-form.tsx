@@ -42,6 +42,7 @@ import {
   PdfDisplayOptionsSection,
 } from "./form";
 import { ProposalLoadingState } from "@/components/features/proposal/proposal-loading-state";
+import { isDocumentoValido } from "@/lib/format-document";
 
 interface SimpleProposalFormProps {
   proposalId?: string;
@@ -174,6 +175,8 @@ export function SimpleProposalForm({
     // Client types
     clientTypes,
     setClientTypes,
+    newClientDocument,
+    setNewClientDocument,
     isNewClient,
     // Transactional
     mergedAmbientes,
@@ -259,6 +262,13 @@ export function SimpleProposalForm({
   React.useEffect(() => {
     formDataRef.current = formData;
   }, [formData]);
+
+  // Mesmo motivo do ref acima: o validador do passo é memoizado e não pode
+  // recriar a cada tecla digitada no documento.
+  const newClientDocumentRef = React.useRef(newClientDocument);
+  React.useEffect(() => {
+    newClientDocumentRef.current = newClientDocument;
+  }, [newClientDocument]);
 
   // Função para setar erro de um campo
   const setFieldError = React.useCallback((field: string, message: string) => {
@@ -397,6 +407,14 @@ export function SimpleProposalForm({
       errors.clientPhone = "Telefone deve ter pelo menos 10 dígitos";
     }
 
+    // O documento inválido é barrado aqui porque quem recusa é o backend, no
+    // meio do salvamento: o contato falha, a proposta inteira aborta e o
+    // usuário recebe um toast genérico longe do campo que causou o problema.
+    // O erro em si já está visível no campo, que valida enquanto se digita.
+    if (isNewClient && !isDocumentoValido(newClientDocumentRef.current)) {
+      errors.newClientDocument = "CPF ou CNPJ inválido";
+    }
+
     if (!currentFormData.validUntil) {
       errors.validUntil = "Validade é obrigatória";
     } else if (!proposalId) {
@@ -428,10 +446,11 @@ export function SimpleProposalForm({
     clearFieldError("clientName");
     clearFieldError("clientEmail");
     clearFieldError("clientPhone");
+    clearFieldError("newClientDocument");
     clearFieldError("validUntil");
 
     return true;
-  }, [setFieldError, clearFieldError, proposalId]);
+  }, [setFieldError, clearFieldError, proposalId, isNewClient]);
 
   // Validação do Step 2 (Sistemas ou Produtos)
   const validateStep2 = React.useCallback((): boolean => {
@@ -628,6 +647,9 @@ export function SimpleProposalForm({
 
     setSelectedClientId(data.clientId);
     setIsNewClient(data.isNew);
+    // Contato existente já tem (ou não) o seu documento no cadastro — manter o
+    // que foi digitado para um contato novo o levaria para o registro errado.
+    if (!data.isNew) setNewClientDocument("");
 
     if (isChangeToNewClient) {
       // Client actually changed - update all fields with new client data
@@ -1053,6 +1075,8 @@ export function SimpleProposalForm({
               isNewClient={isNewClient}
               clientTypes={clientTypes}
               onClientTypesChange={setClientTypes}
+              newClientDocument={newClientDocument}
+              onNewClientDocumentChange={setNewClientDocument}
             />
           </div>
           <StepNavigation onBeforeNext={isDemo ? undefined : validateStep1} />

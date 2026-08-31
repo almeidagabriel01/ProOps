@@ -34,6 +34,7 @@ import {
 import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
 import { maskCep } from "@/lib/fiscal/cep";
+import { validarSerieNfse } from "@/lib/fiscal/serie-dps";
 
 /** ViaCEP devolve o código IBGE em `ibge` — é ele que a SEFAZ valida. */
 interface ViaCepResponse {
@@ -412,6 +413,13 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
    * só considerava `lastError` e validade do certificado, então o aviso existia
    * no código e nunca chegava à tela.
    */
+  /**
+   * A série identifica o SISTEMA emissor perante o Ambiente Nacional, e cada
+   * tipo tem faixa reservada — série fora dela é rejeição E0010. Avisar aqui
+   * evita a viagem até o fisco para descobrir.
+   */
+  const serieNfseErro = validarSerieNfse(form.serieNfse);
+
   const gatilhoPendente =
     Boolean(settings?.status) &&
     settings?.status !== "pending" &&
@@ -774,6 +782,9 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
                   value={form.serieNfse}
                   onChange={(e) => setField("serieNfse", e.target.value)}
                 />
+                {serieNfseErro && (
+                  <p className="text-xs text-amber-600">{serieNfseErro}</p>
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="fiscal-num-nfse">Próximo número da NFS-e</Label>
