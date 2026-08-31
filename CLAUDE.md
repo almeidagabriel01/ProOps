@@ -32,6 +32,18 @@ Coverage requirement: include the exact reported scenario **plus** variants that
 
 Run `npm run test:web` for unit tests, `npm run test:rules` for Firestore rules, `npm run test:e2e` for the full E2E suite.
 
+**Testes de backend são divididos por infraestrutura.** `npm run test:functions`
+(Jest, `*.test.ts`) roda sem nada ligado. Teste que precise do emulador do
+Firestore vai em `*.integration.test.ts` e sai da suíte unitária via
+`testPathIgnorePatterns` — roda com `npm run test:functions:integration`, que
+sobe o emulador sozinho. Não misturar: quando os dois rodavam juntos, a suíte
+ficava permanentemente vermelha sem infra e falhas reais se escondiam no ruído.
+
+**Node 22.** É o que está em `engines`, no `node-version` de todos os workflows
+e no runtime do Cloud Run. Rodar os testes numa versão maior diverge do CI — o
+Node ≥ 24 tem um `localStorage` global nativo que sombreia o do jsdom (há um
+shim em `apps/web/vitest.setup.ts` cobrindo esse caso específico).
+
 ---
 
 ## Project Overview
@@ -65,6 +77,9 @@ npm run deploy:prod   # → erp-softcode-prod (prod)
 ### Testing
 ```bash
 firebase emulators:start               # Ports: 5001/8080/9099/9199, UI:4000
+npm run test:web                       # Vitest (frontend) — sem infra
+npm run test:functions                 # Jest (backend, unitário) — sem infra
+npm run test:functions:integration     # Jest (backend, integração) — sobe o emulador sozinho
 npm run test:e2e                       # Playwright E2E desktop (requires emulators)
 npx playwright test --config=tests/playwright.config.ts --project=mobile-chrome   # E2E mobile (Pixel 5)
 npm run test:rules                     # Firestore security rules (Jest)
@@ -85,6 +100,11 @@ npm run security:scan                  # OWASP ZAP baseline
 - **Stripe** — subscriptions, plan enforcement, overage billing. Webhook: `/stripe/stripeWebhook`
 - **WhatsApp** — webhooks, monthly overage cron (1st of month, 03:00 AM BRT). Webhook: `/webhooks/whatsapp`
 - **Asaas** — payment processing (PIX/boleto/card) for shared-transaction payments. Webhook: `/webhooks/asaas/:tenantId`; public payment API mounted at `/v1`. (Replaced the former MercadoPago webhook.)
+- **Nota Fiscal** — Focus NFe, provedor único de NF-e e NFS-e. Atrás da interface
+  `FiscalProvider` (`apps/functions/src/api/services/fiscal/`); os nomes de campo do provedor
+  ficam só em `focus-payload.ts` e `focus-response.ts`. Webhook: `/webhooks/focus/:tenantId/:secret/:type`
+  (o Focus não manda cabeçalho de auth — a URL é a credencial). Config em `/settings/fiscal`,
+  notas em `/invoices`.
 - **AI/Lia** — Google Gemini + Groq. Module: `apps/functions/src/ai/`. Rate-limited per user.
 - **PDF** — Playwright/Chromium headless, rate-limited (5 req/60s per user)
 - **Google Calendar** — via `@googleapis/calendar` + `@googleapis/oauth2` (lazy-loaded)

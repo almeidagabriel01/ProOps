@@ -4,7 +4,7 @@
 
 A rota `/settings` centraliza a configuração da conta/empresa ativa, acessível pelo item **"Configurações"** no dropdown do perfil (header). É uma página de **duas colunas** (padrão SaaS enterprise): uma **sidebar de navegação vertical à esquerda agrupada por categoria** (`SettingsNav`) e o conteúdo da seção à direita. Cada seção é uma sub-rota navegável por URL. Em telas `< lg` a sidebar vira uma faixa horizontal rolável acima do conteúdo.
 
-> **Importante:** As seções Equipe e Pagamento Online são gated por `isMaster` **dentro do próprio componente** (mostram "Acesso Restrito" para membros) — as sub-rotas NÃO são `masterOnly` no `page-config.ts`, senão o membro cairia em `/403` em vez de ver a seção. A seção Verificação em dois fatores é acessível a todos (inclusive free e membros). Dados de organização (nome, cor, logo) continuam em `/profile` (aba "Visão Geral") via `OrganizationForm`.
+> **Importante:** As seções Equipe, Pagamento Online e Notas Fiscais são gated por `isMaster` **dentro do próprio componente** (mostram "Acesso Restrito" para membros) — as sub-rotas NÃO são `masterOnly` no `page-config.ts`, senão o membro cairia em `/403` em vez de ver a seção. A seção Verificação em dois fatores é acessível a todos (inclusive free e membros). Dados de organização (nome, cor, logo) continuam em `/profile` (aba "Visão Geral") via `OrganizationForm`.
 
 ---
 
@@ -17,11 +17,13 @@ src/app/settings/
 ├── team/page.tsx             # <TeamManagement/> (components/features/team/team-management.tsx)
 ├── security/page.tsx         # <TwoFactorSection/> (Verificação em dois fatores)
 ├── payments/page.tsx         # Asaas (master) ou "Acesso Restrito" (não-master)
+├── fiscal/page.tsx           # Nota fiscal (master) ou "Acesso Restrito"
 ├── _components/
 │   ├── settings-nav.tsx      # Client — sidebar vertical agrupada (usePathname + <Link>)
 │   ├── asaas-connect-card.tsx
 │   ├── asaas-payout-config-section.tsx
-│   └── asaas-webhook-status-alert.tsx
+│   ├── asaas-webhook-status-alert.tsx
+│   └── fiscal-settings-card.tsx
 └── CLAUDE.md                 # Este arquivo
 ```
 
@@ -34,6 +36,7 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Conta | `/settings/security` | Verificação em dois fatores | Todos |
 | Organização | `/settings/team` | Equipe | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
 
 > Os itens master-only permanecem visíveis na sidebar para todos os usuários (cada página gateia o conteúdo); não esconder por permissão sem reavaliar os testes de acesso a `/settings/*`.
 
@@ -164,6 +167,24 @@ O `tenantOwner` (usuário admin do tenant) também é exposto pelo provider e us
 - As regras do Firestore (`firestore.rules`) impõem isolamento por `tenantId` — um tenant nunca acessa dados de outro.
 
 ---
+
+## Nota fiscal (`/settings/fiscal`)
+
+O emitente **não** vive em `tenants/{id}` — fica em `fiscal_settings/{tenantId}`, com
+`allow read, write: if false`. O doc do tenant é legível por qualquer membro e o Firestore
+não tem regra por campo, então guardar segredo fiscal lá o exporia a todo usuário da empresa.
+
+Dois campos são preenchidos pelo sistema e **não devem virar input**:
+
+- **Código IBGE do município** — vem do campo `ibge` do ViaCEP no blur do CEP. A SEFAZ
+  valida o município por ele, e digitá-lo errado é uma das rejeições mais comuns.
+- **Validade do certificado** — lida do próprio `.pfx` pelo provedor
+  (`certificado_valido_ate` na resposta de `POST /v2/empresas`). Já foi um campo digitável;
+  uma data errada faria o alerta de vencimento avisar no dia errado, que é exatamente
+  quando ele não pode falhar.
+
+O arquivo `.pfx` **não é persistido**: sobe uma vez para o provedor, que o custodia, e sai
+da memória. Só a senha fica, cifrada em KMS (`FISCAL_SECRET_KMS_KEY`).
 
 ## Padrões de componente para settings
 

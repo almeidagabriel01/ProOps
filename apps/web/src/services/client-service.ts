@@ -38,6 +38,25 @@ export type Client = {
   sourceId?: string; // ID of the proposal or financial transaction that created this client
   createdAt: string;
   updatedAt: string;
+  /**
+   * Endereço estruturado, exigido só pela NF-e — a SEFAZ valida o destino da
+   * mercadoria, incluindo o código IBGE. Separado do `address` livre acima, que
+   * é uma string única e não dá para dividir com segurança.
+   */
+  enderecoFiscal?: {
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    municipio?: string;
+    codigoIbge?: string;
+    uf?: string;
+    cep?: string;
+  };
+  inscricaoEstadual?: string;
+  /** Vazio = derivado do documento. Pessoa física nunca é "isento" (rejeição 805). */
+  indicadorIe?: "contribuinte" | "isento" | "nao_contribuinte";
+  consumidorFinal?: boolean;
 };
 
 export interface PaginatedResult<T> {

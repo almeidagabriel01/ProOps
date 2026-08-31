@@ -12,6 +12,42 @@ import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildSearchTokens } from "../../lib/search-tokens";
 import { cpf, cnpj } from "cpf-cnpj-validator";
 
+/**
+ * Campos fiscais do destinatário.
+ *
+ * Separados do `address` livre de propósito: aquele campo é uma string única,
+ * boa para o dia a dia e inútil para a SEFAZ, que valida logradouro, número,
+ * bairro, UF e — principalmente — o código IBGE do município. Tentar dividir a
+ * string existente daria erro em toda ambiguidade de vírgula.
+ *
+ * Só a NF-e exige endereço. A NFS-e se contenta com nome e documento.
+ */
+const EnderecoFiscalSchema = z
+  .object({
+    logradouro: z.string().max(200).trim().optional().or(z.literal("")),
+    numero: z.string().max(20).trim().optional().or(z.literal("")),
+    complemento: z.string().max(100).trim().optional().or(z.literal("")),
+    bairro: z.string().max(100).trim().optional().or(z.literal("")),
+    municipio: z.string().max(120).trim().optional().or(z.literal("")),
+    codigoIbge: z.string().max(10).trim().optional().or(z.literal("")),
+    uf: z.string().max(2).trim().optional().or(z.literal("")),
+    cep: z.string().max(12).trim().optional().or(z.literal("")),
+  })
+  .optional();
+
+export const ClientFiscalFields = {
+  enderecoFiscal: EnderecoFiscalSchema,
+  inscricaoEstadual: z.string().max(30).trim().optional().or(z.literal("")),
+  /**
+   * Rejeição 805: a SEFAZ recusa "isento" para quem simplesmente não é
+   * contribuinte do ICMS. Pessoa física nunca é isenta — o backend deriva
+   * "não contribuinte" quando o campo vem vazio, e este enum existe só para o
+   * caso em que o cliente É contribuinte e precisa dizer.
+   */
+  indicadorIe: z.enum(["contribuinte", "isento", "nao_contribuinte"]).optional(),
+  consumidorFinal: z.boolean().optional(),
+};
+
 const CreateClientSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres.").max(200).trim(),
   email: z.string().email().max(254).optional().or(z.literal("")),
@@ -23,6 +59,7 @@ const CreateClientSchema = z.object({
   source: z.string().max(50).trim().optional(),
   sourceId: z.string().max(100).trim().optional().nullable(),
   targetTenantId: z.string().max(100).optional(),
+  ...ClientFiscalFields,
 });
 
 const UpdateClientSchema = z.object({
@@ -33,7 +70,25 @@ const UpdateClientSchema = z.object({
   address: z.string().max(500).trim().optional().or(z.literal("")),
   notes: z.string().max(2000).trim().optional().or(z.literal("")),
   types: z.array(z.string().max(50)).max(10).optional(),
+  ...ClientFiscalFields,
 });
+
+/** Descarta chaves vazias para não gravar um endereço só de strings em branco. */
+export function compactEnderecoFiscal(
+  endereco: Record<string, string | undefined> | undefined,
+): Record<string, string> | undefined {
+  if (!endereco) return undefined;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(endereco)) {
+    const text = String(value ?? "").trim();
+    if (!text) continue;
+    out[key] = key === "uf" ? text.toUpperCase() : key === "cep" || key === "codigoIbge" ? text.replace(/\D/g, "") : text;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Só os campos fiscais, para poder validá-los isoladamente nos testes. */
+export const ClientFiscalFieldsSchema = z.object(ClientFiscalFields);
 
 // Create Client
 export const createClient = async (req: Request, res: Response) => {
@@ -203,6 +258,14 @@ export const createClient = async (req: Request, res: Response) => {
       if (input.address) clientData.address = input.address;
       if (input.notes) clientData.notes = input.notes;
 
+      const enderecoFiscal = compactEnderecoFiscal(input.enderecoFiscal);
+      if (enderecoFiscal) clientData.enderecoFiscal = enderecoFiscal;
+      if (input.inscricaoEstadual) clientData.inscricaoEstadual = input.inscricaoEstadual;
+      if (input.indicadorIe) clientData.indicadorIe = input.indicadorIe;
+      if (input.consumidorFinal !== undefined) {
+        clientData.consumidorFinal = input.consumidorFinal;
+      }
+
       transaction.set(newClientRef, clientData);
 
       transaction.update(targetMasterRef, {
@@ -315,6 +378,21 @@ export const updateClient = async (req: Request, res: Response) => {
       safeUpdate.address = updateData.address;
     if (updateData.notes !== undefined) safeUpdate.notes = updateData.notes;
     if (updateData.types !== undefined) safeUpdate.types = updateData.types;
+
+    if (updateData.enderecoFiscal !== undefined) {
+      // `null` apaga o endereço inteiro; um objeto só com campos vazios também.
+      safeUpdate.enderecoFiscal =
+        compactEnderecoFiscal(updateData.enderecoFiscal) ?? FieldValue.delete();
+    }
+    if (updateData.inscricaoEstadual !== undefined) {
+      safeUpdate.inscricaoEstadual = updateData.inscricaoEstadual;
+    }
+    if (updateData.indicadorIe !== undefined) {
+      safeUpdate.indicadorIe = updateData.indicadorIe;
+    }
+    if (updateData.consumidorFinal !== undefined) {
+      safeUpdate.consumidorFinal = updateData.consumidorFinal;
+    }
 
     // Keep indexed search tokens in sync when name/email/phone change
     if (

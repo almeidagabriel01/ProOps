@@ -15,6 +15,16 @@ import {
   type GenerateFieldRequest,
 } from "./prompts/field-generation";
 
+/**
+ * Modelo da geração assistida de campos — tarefa curta, alto volume e sem
+ * ferramentas, então fica no tier "lite" independentemente do plano (diferente
+ * da Lia, que escalona por plano em `AI_LIMITS`).
+ *
+ * Constante porque o nome aparece na chamada, no log e no alerta de erro do
+ * operador: como literal solto, os três divergiam na próxima troca de modelo.
+ */
+const FIELD_GEN_MODEL = "gemini-3.5-flash-lite";
+
 const router = Router();
 
 // Pro+ gate — starter and free cannot use field generation
@@ -142,7 +152,7 @@ router.post("/generate-field", fieldGenRateLimiter, async (req: Request, res: Re
     const { GoogleGenAI } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-lite",
+      model: FIELD_GEN_MODEL,
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: system,
@@ -167,7 +177,7 @@ router.post("/generate-field", fieldGenRateLimiter, async (req: Request, res: Re
       uid: user.uid,
       field,
       tokensUsed,
-      model: "gemini-2.5-flash-lite",
+      model: FIELD_GEN_MODEL,
     });
 
     res.status(200).json({
@@ -204,7 +214,7 @@ router.post("/generate-field", fieldGenRateLimiter, async (req: Request, res: Re
         tenantId: user.tenantId,
         uid: user.uid,
         provider: "gemini",
-        modelName: "gemini-2.5-flash-lite",
+        modelName: FIELD_GEN_MODEL,
       });
     } else {
       // Unknown/transient: preserve the observability capture the global handler used to do.

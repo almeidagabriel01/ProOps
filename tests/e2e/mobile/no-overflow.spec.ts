@@ -29,6 +29,8 @@ const ROUTES = [
   "/automation",
   "/crm",
   "/settings/team",
+  "/settings/fiscal",
+  "/invoices",
   "/solutions",
   "/ambientes",
   "/profile",

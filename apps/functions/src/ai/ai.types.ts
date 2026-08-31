@@ -17,10 +17,36 @@ export interface AiLimitConfig {
  * Single source of truth for AI limits per plan tier.
  * Tool gating uses this — NOT a modules[] field (which does not exist on tenant docs).
  */
+/**
+ * Modelos por tier — atualizado em 2026-08-28 (IDs conferidos contra
+ * `GET /v1beta/models`, não contra documentação).
+ *
+ * Regras que guiaram a escolha:
+ *
+ * 1. **Só modelo estável.** O enterprise rodava `gemini-3-flash-preview`;
+ *    preview é retirado sem aviso e derrubaria justamente o tier que mais paga.
+ * 2. **Não escolher por número de versão.** `gemini-3.5-flash` custa
+ *    $1,50/$9,00 por 1M de tokens — o DOBRO do 3.6 e do 3.7 ($0,75/$3,75), que
+ *    estão com preço promocional. Ele é mais caro e menos capaz que os dois;
+ *    por isso está fora da escala.
+ * 3. Preço em 2026-08-28, por 1M de tokens (input/output):
+ *    - `gemini-3.5-flash-lite` $0,30 / $2,50
+ *    - `gemini-3.6-flash`      $0,75 / $3,75  → $1,50 / $7,50 em 01/01/2027
+ *    - `gemini-3.7-flash`      $0,75 / $3,75  (introdutório, acaba no fim do ano)
+ *
+ * ATENÇÃO ao virar o ano: os dois tiers de cima dobram de preço em 01/01/2027
+ * se nada mudar. Revisar a escala antes disso.
+ *
+ * O 3.7 Flash tem "thinking level" ajustável (padrão `medium`) e os tokens de
+ * raciocínio são cobrados como output. Para o uso da Lia — CRUD via ferramenta,
+ * não raciocínio longo — `low` tende a ser suficiente e bem mais barato. Isso é
+ * config no provider (`chats.create({ config })`), não aqui; ver
+ * `providers/gemini.provider.ts`.
+ */
 export const AI_LIMITS: Record<Exclude<TenantPlanTier, "free">, AiLimitConfig> = {
-  starter:    { model: "gemini-2.5-flash-lite",    messagesPerMonth: 80,   persistHistory: false },
-  pro:        { model: "gemini-2.5-flash",          messagesPerMonth: 400,  persistHistory: true  },
-  enterprise: { model: "gemini-3-flash-preview",      messagesPerMonth: 1200, persistHistory: true  },
+  starter:    { model: "gemini-3.5-flash-lite",   messagesPerMonth: 80,   persistHistory: false },
+  pro:        { model: "gemini-3.6-flash",        messagesPerMonth: 400,  persistHistory: true  },
+  enterprise: { model: "gemini-3.7-flash",        messagesPerMonth: 1200, persistHistory: true  },
 } as const;
 
 /**

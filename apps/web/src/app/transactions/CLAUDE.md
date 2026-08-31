@@ -60,6 +60,41 @@ escopo); o summary GLOBAL (dashboard) vem de `GET /v1/transactions/summary`
 escopo nesta página — guard de regressão em
 `services/__tests__/transactions-scoped.test.ts`.
 
+## Editor: entrada órfã escopada por dia (2026-08-27)
+
+A auditoria de 06/07/2026 corrigiu as PÁGINAS, mas `useEditTransaction`
+continuou chamando `getTransactions(tenantId)` em 4 pontos. Abrir a edição de
+uma recorrência baixava a coleção inteira do tenant **duas vezes** (uma para
+achar as irmãs do grupo, outra para a heurística de entrada órfã) — num tenant
+com 5.000 lançamentos, ~10.000 leituras por abertura de modal, crescendo com o
+histórico para sempre.
+
+- **Irmãs do grupo** → `getRecurringByGroupId` (já existia; índice
+  `tenantId,recurringGroupId,installmentNumber` já existia).
+- **Entrada órfã** → `getTransactionsOnDay(tenantId, anchorDayOf(anchor))`.
+  A heurística casa por `dateOnly(date || dueDate)` dos dois lados, então todo
+  candidato possível está no mesmo dia da âncora. A busca é a união de duas
+  queries de faixa de um dia (`date` e `dueDate`), com `\uf8ff` no limite
+  superior para cobrir tanto `"YYYY-MM-DD"` quanto o sufixo `THH:mm:ss` legado.
+  Índices `tenantId,date` e `tenantId,dueDate` já existiam — **nenhum índice
+  novo**.
+- Âncora sem `date` e sem `dueDate` pula a busca (a heurística aceitaria
+  qualquer data; varrer o tenant por dado corrompido não paga). Cai no mesmo
+  caminho de "não achou exatamente 1 candidato" que já existia.
+
+Guard de varredura em `services/__tests__/firestore-read-caps.test.ts`: falha
+se QUALQUER arquivo fora da allowlist chamar
+`TransactionService.getTransactions(`. Teste de unidade não pega reincidência —
+o problema não é a função existir, é alguém chamá-la numa tela nova.
+
+**Allowlist atual: `app/wallets/_components/wallet-history-dialog.tsx`.**
+Esse não pode ser escopado ingenuamente: um extra-cost carrega carteira **e**
+status próprios, independentes do lançamento pai, então tanto
+`where("wallet","in",[...])` quanto `where("status","==","paid")` derrubam
+silenciosamente entradas do histórico financeiro. O fix correto (campo
+desnormalizado `walletsInvolved` mantido no backend + backfill) está em
+`.claude/rules/scaling-roadmap.md`.
+
 **Filtro de status é ligado à aba, sem persistência** (spec 2026-07-06):
 Lista (byDueDate) SEMPRE entra com `[pending, overdue]` — mesmo que o usuário
 tenha desativado antes de trocar de aba; Agrupados SEMPRE entra limpo (todos).

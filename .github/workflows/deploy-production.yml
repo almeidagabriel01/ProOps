@@ -96,11 +96,24 @@ jobs:
         env:
           FUNCTIONS_ENV: ${{ secrets.FUNCTIONS_ENV_PRODUCTION }}
         run: |
-          printf '%s' "$FUNCTIONS_ENV" > apps/functions/.env.erp-softcode-prod
-          grep -q '^RESEND_API_KEY=' apps/functions/.env.erp-softcode-prod || {
-            echo "::error::secret FUNCTIONS_ENV_PRODUCTION ausente ou incompleto — veja .claude/rules/ci-cd.md"
+          ENV_FILE=apps/functions/.env.erp-softcode-prod
+          SECRET_NAME=FUNCTIONS_ENV_PRODUCTION
+          printf '%s' "$FUNCTIONS_ENV" > "$ENV_FILE"
+          # Uma variavel so nao prova que o secret esta atualizado: RESEND_API_KEY
+          # existe desde sempre, entao o teste passava com um secret congelado
+          # meses atras. A lista cobre o que cada integracao precisa para nao
+          # falhar em silencio — sem token fiscal a emissao morre com
+          # FOCUS_NFE_TOKEN_NAO_CONFIGURADO, sem chave KMS a senha do
+          # certificado nao decifra, e nenhum dos dois aparece no deploy.
+          missing=""
+          for key in             RESEND_API_KEY             STRIPE_SECRET_KEY             FOCUS_NFE_MASTER_TOKEN             FISCAL_SECRET_KMS_KEY             CALENDAR_TOKEN_KMS_KEY
+          do
+            grep -qE "^${key}=." "$ENV_FILE" || missing="$missing $key"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::secret $SECRET_NAME desatualizado — faltam:$missing. Veja .claude/rules/ci-cd.md"
             exit 1
-          }
+          fi
 
       - name: Deploy to production
         run: firebase deploy --project prod --only functions,firestore:rules,firestore:indexes

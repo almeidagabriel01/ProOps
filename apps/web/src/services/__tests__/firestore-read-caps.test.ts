@@ -5,8 +5,16 @@
  * - transações relacionadas por grupo DEVEM ser buscadas por query
  *   direcionada (installmentGroupId/recurringGroupId), nunca via fetch da
  *   coleção inteira do tenant.
+ *
+ * Ampliado em 2026-08-27: a auditoria de julho corrigiu as PÁGINAS mas deixou
+ * 4 chamadas de `getTransactions(tenantId)` no editor de lançamento — abrir a
+ * edição de uma recorrência baixava a coleção inteira do tenant DUAS vezes.
+ * O guard de varredura no fim deste arquivo cobre o que um teste de unidade de
+ * service não alcança: um call site novo em qualquer página.
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = {
@@ -92,6 +100,60 @@ describe("TransactionService group queries", () => {
     expect(captured.whereArgs).toContainEqual(["tenantId", "==", "t1"]);
   });
 
+  it("getTransactionsOnDay escopa por dia em date E dueDate, sem varrer o tenant", async () => {
+    const { TransactionService } = await import("../transaction-service");
+
+    await TransactionService.getTransactionsOnDay("t1", "2026-08-27");
+
+    // Faixa do dia nos dois campos — cobre "YYYY-MM-DD" e "YYYY-MM-DDTHH:mm:ss".
+    expect(captured.whereArgs).toContainEqual(["date", ">=", "2026-08-27"]);
+    expect(captured.whereArgs).toContainEqual([
+      "date",
+      "<=",
+      "2026-08-27\uf8ff",
+    ]);
+    expect(captured.whereArgs).toContainEqual(["dueDate", ">=", "2026-08-27"]);
+    expect(captured.whereArgs).toContainEqual([
+      "dueDate",
+      "<=",
+      "2026-08-27\uf8ff",
+    ]);
+
+    // Toda query passou por tenantId — nenhuma varredura cross-tenant.
+    const tenantFilters = captured.whereArgs.filter(
+      (a) => a[0] === "tenantId",
+    );
+    expect(tenantFilters).toHaveLength(2);
+  });
+
+  it("getTransactionsOnDay normaliza data com hora e deduplica por id", async () => {
+    const { TransactionService } = await import("../transaction-service");
+    const { getDocs } = await import("firebase/firestore");
+
+    const doc = (id: string) => ({ id, data: () => ({ description: id }) });
+    vi.mocked(getDocs)
+      .mockResolvedValueOnce({ docs: [doc("a"), doc("b")] } as never)
+      .mockResolvedValueOnce({ docs: [doc("b"), doc("c")] } as never);
+
+    const result = await TransactionService.getTransactionsOnDay(
+      "t1",
+      "2026-08-27T00:00:00",
+    );
+
+    expect(captured.whereArgs).toContainEqual(["date", ">=", "2026-08-27"]);
+    expect(result.map((t) => t.id).sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("getTransactionsOnDay sem data não emite query alguma", async () => {
+    const { TransactionService } = await import("../transaction-service");
+    const { getDocs } = await import("firebase/firestore");
+
+    const result = await TransactionService.getTransactionsOnDay("t1", "");
+
+    expect(result).toEqual([]);
+    expect(getDocs).not.toHaveBeenCalled();
+  });
+
   it("getInstallmentsByGroupId queries by installmentGroupId", async () => {
     const { TransactionService } = await import("../transaction-service");
 
@@ -132,5 +194,56 @@ describe("TransactionService.getSummary", () => {
       "GET",
     );
     expect(getDocs).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `getTransactions(tenantId)` baixa a coleção INTEIRA do tenant — sem limit,
+ * sem orderBy. O custo cresce linearmente com o histórico do cliente, para
+ * sempre, e quem mais usa o produto é quem mais paga.
+ *
+ * Um teste de unidade de service não pega a reincidência: o problema não é a
+ * função existir, é alguém CHAMÁ-LA numa tela. Daí a varredura.
+ *
+ * Para remover um item da allowlist, troque a chamada por uma query
+ * direcionada (ver `getTransactionsOnDay`, `getRecurringByGroupId`,
+ * `getInstallmentsByGroupId`, `getTransactionsScoped`).
+ */
+const FULL_FETCH_ALLOWLIST = new Set([
+  // Histórico da carteira. NÃO escopar por `wallet` sem antes desnormalizar:
+  // um extra-cost tem carteira E status próprios, independentes do lançamento
+  // pai, então `where("wallet", "in", [...])` ou `where("status","==","paid")`
+  // derrubam silenciosamente entradas do histórico financeiro. O fix correto
+  // está no roadmap (campo `walletsInvolved` + backfill).
+  "app/wallets/_components/wallet-history-dialog.tsx",
+]);
+
+describe("guard: full-fetch da coleção de transações", () => {
+  const SRC = path.resolve(__dirname, "../..");
+
+  const walk = (dir: string, out: string[] = []): string[] => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "node_modules" || entry.name === "__tests__") continue;
+        walk(full, out);
+      } else if (/\.tsx?$/.test(entry.name)) {
+        out.push(full);
+      }
+    }
+    return out;
+  };
+
+  it("só a allowlist chama TransactionService.getTransactions(", () => {
+    const offenders = walk(SRC)
+      .filter((file) =>
+        fs.readFileSync(file, "utf8").includes(
+          "TransactionService.getTransactions(",
+        ),
+      )
+      .map((file) => path.relative(SRC, file).split(path.sep).join("/"))
+      .filter((rel) => !FULL_FETCH_ALLOWLIST.has(rel));
+
+    expect(offenders).toEqual([]);
   });
 });

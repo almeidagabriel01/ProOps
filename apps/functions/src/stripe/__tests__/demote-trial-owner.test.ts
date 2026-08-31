@@ -24,8 +24,12 @@ jest.mock("../../init", () => ({
 // Heavy siblings pulled in transitively by stripeHelpers — stub them out.
 jest.mock("../stripeConfig", () => ({ getStripe: jest.fn() }));
 jest.mock("../stripeWebhook", () => ({ syncTenantPlanBillingSnapshot: jest.fn() }));
+// `delete` é tão necessário quanto `serverTimestamp`: demoteTrialOwnerToFree
+// remove o campo planId (ver stripeHelpers.ts). Um mock sem ele fazia o teste
+// estourar com "FieldValue.delete is not a function" — falha de mock que
+// mascarava a ausência de cobertura da limpeza do plano.
 jest.mock("firebase-admin/firestore", () => ({
-  FieldValue: { serverTimestamp: () => "__ts__" },
+  FieldValue: { serverTimestamp: () => "__ts__", delete: () => "__delete__" },
 }));
 
 import { demoteTrialOwnerToFree } from "../stripeHelpers";
@@ -54,8 +58,15 @@ describe("demoteTrialOwnerToFree", () => {
     mockUser({ role: "admin", tenantId: "t1" });
     await demoteTrialOwnerToFree("u1");
 
+    // planId REMOVIDO (não sobrescrito): a conta demovida precisa ler como
+    // "Gratuito", igual a uma conta que nunca assinou. Deixar o "starter" que
+    // o cancelamento aplicou faria o header e o perfil mentirem o plano.
     expect(userUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ role: "free" }),
+      expect.objectContaining({
+        role: "free",
+        planId: "__delete__",
+        planUpdatedAt: "__ts__",
+      }),
     );
     expect(setCustomUserClaims).toHaveBeenCalledWith(
       "u1",

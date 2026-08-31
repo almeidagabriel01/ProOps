@@ -156,6 +156,21 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     module: "settings",
     requiresAuth: true,
   },
+  "/settings/fiscal": {
+    pageId: "settings-fiscal",
+    slug: "/settings/fiscal",
+    name: "Notas Fiscais",
+    module: "settings",
+    requiresAuth: true,
+  },
+  "/invoices": {
+    pageId: "invoices",
+    slug: "/invoices",
+    name: "Notas Fiscais",
+    module: "financial",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
   "/profile": {
     pageId: "profile",
     slug: "/profile",

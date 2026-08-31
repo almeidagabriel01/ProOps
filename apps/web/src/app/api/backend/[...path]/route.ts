@@ -182,6 +182,11 @@ async function proxyRequest(
         method: req.method,
         path: `/${path.join("/")}`,
         target: upstream.target,
+        // `target` diz só de qual HOST veio a requisição — em localhost é
+        // sempre "local", mesmo quando FUNCTIONS_LOCAL_API_URL manda tudo para
+        // as functions publicadas. Sem o host de destino, "local" foi lido duas
+        // vezes como "está no emulador" quando não estava.
+        upstreamHost: new URL(upstream.baseUrl).host,
         status: upstreamResponse.status,
         durationMs: Date.now() - startedAt,
       }),
