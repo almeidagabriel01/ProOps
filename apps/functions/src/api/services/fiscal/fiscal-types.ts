@@ -111,6 +111,19 @@ export interface FiscalIssuerConfig {
    * notário, autônomo, sociedade de profissionais.
    */
   regimeEspecialTributacao?: number;
+  /**
+   * `pTotTribSN` — percentual aproximado do total de tributos embutido na
+   * alíquota do Simples Nacional, para a transparência da Lei 12.741/2012.
+   *
+   * `totTrib` é um CHOICE do leiaute: exatamente um entre `vTotTrib`,
+   * `pTotTrib`, `indTotTrib` e `pTotTribSN`. Para **ME/EPP** o indicador é
+   * proibido (rejeição **E0712**), então este é o único caminho — não existe
+   * a opção de "não informar" que o Decreto 8.264/2014 dá aos demais.
+   *
+   * O número sai da alíquota efetiva do DAS e muda com o faturamento, então é
+   * do tenant, não nosso: fica no cadastro em vez de virar pergunta a cada nota.
+   */
+  percentualTotalTributosSimplesNacional?: number;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;

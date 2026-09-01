@@ -65,6 +65,8 @@ export interface FiscalSettingsDocument {
   habilitaManifestacao?: boolean;
   padraoNfse?: FiscalNfsePadrao;
   regimeApuracaoSimplesNacional?: 1 | 2 | 3;
+  /** `pTotTribSN` — alíquota efetiva do DAS, exigida de ME/EPP. */
+  percentualTotalTributosSimplesNacional?: number;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -139,6 +141,8 @@ export interface FiscalSettingsPublic {
   habilitaManifestacao?: boolean;
   padraoNfse?: FiscalNfsePadrao;
   regimeApuracaoSimplesNacional?: 1 | 2 | 3;
+  /** `pTotTribSN` — alíquota efetiva do DAS, exigida de ME/EPP. */
+  percentualTotalTributosSimplesNacional?: number;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -213,6 +217,13 @@ export function toPublicSettings(
   if (doc.inscricaoMunicipal) publicView.inscricaoMunicipal = doc.inscricaoMunicipal;
   if (doc.cnae) publicView.cnae = doc.cnae;
   if (doc.telefone) publicView.telefone = doc.telefone;
+  // `!== undefined`, não truthy: 0% é uma alíquota informada, e um `if (doc.x)`
+  // a apagaria da resposta — o formulário voltaria em branco e o usuário
+  // reescreveria um valor que já estava salvo.
+  if (doc.percentualTotalTributosSimplesNacional !== undefined) {
+    publicView.percentualTotalTributosSimplesNacional =
+      doc.percentualTotalTributosSimplesNacional;
+  }
   if (doc.serieNfe !== undefined) publicView.serieNfe = doc.serieNfe;
   if (doc.proximoNumeroNfe !== undefined) publicView.proximoNumeroNfe = doc.proximoNumeroNfe;
   if (doc.serieNfse) publicView.serieNfse = doc.serieNfse;
@@ -274,11 +285,27 @@ export async function saveFiscalSettings(
   const now = new Date().toISOString();
   const existing = await getFiscalSettings(tenantId);
 
+  /**
+   * `ready` significa "uma nota já foi autorizada por ESTE CNPJ" — é a única
+   * prova de credenciamento na SEFAZ/prefeitura, e ela não deixa de valer
+   * porque alguém corrigiu um e-mail, a alíquota do Simples ou a regra de
+   * emissão automática.
+   *
+   * Antes qualquer salvamento rebaixava para `registered`, em silêncio. O
+   * efeito era invisível e caro: a emissão automática e o convite pós-aprovação
+   * dependem de `ready`, então uma correção trivial os desligava sem avisar —
+   * e mexer no próprio `autoIssueRule` desligava o que se acabara de
+   * configurar. Trocar o CNPJ é outra história: aí é outra empresa, e a prova
+   * anterior não se transfere.
+   */
+  const cnpjNormalizado = String(input.cnpj || "").replace(/\D/g, "");
+  const trocouDeEmpresa = Boolean(existing) && existing?.cnpj !== cnpjNormalizado;
+
   const payload: Record<string, unknown> = {
     tenantId,
     provider: input.provider ?? existing?.provider ?? "focus",
     environment: input.environment,
-    cnpj: String(input.cnpj || "").replace(/\D/g, ""),
+    cnpj: cnpjNormalizado,
     razaoSocial: input.razaoSocial,
     regimeTributario: input.regimeTributario,
     email: input.email,
@@ -288,8 +315,13 @@ export async function saveFiscalSettings(
     habilitaManifestacao: input.habilitaManifestacao === true,
     padraoNfse: input.padraoNfse === "municipal" ? "municipal" : "nacional",
     regimeApuracaoSimplesNacional: input.regimeApuracaoSimplesNacional ?? 1,
+    percentualTotalTributosSimplesNacional:
+      input.percentualTotalTributosSimplesNacional,
     autoIssueRule: input.autoIssueRule,
-    status: existing?.status === "ready" ? "registered" : (existing?.status ?? "pending"),
+    status:
+      existing?.status === "ready" && trocouDeEmpresa
+        ? "registered"
+        : (existing?.status ?? "pending"),
     updatedAt: now,
     ...(existing ? {} : { createdAt: now }),
   };
@@ -431,6 +463,8 @@ export function buildIssuerConfig(
     // Sem isto o campo nunca chega ao payload e o XSD do Ambiente Nacional
     // rejeita a DPS por `regTrib` sem filho.
     regimeApuracaoSimplesNacional: settings.regimeApuracaoSimplesNacional ?? 1,
+    percentualTotalTributosSimplesNacional:
+      settings.percentualTotalTributosSimplesNacional,
     serieNfe: settings.serieNfe,
     proximoNumeroNfe: settings.proximoNumeroNfe,
     serieNfse: settings.serieNfse,

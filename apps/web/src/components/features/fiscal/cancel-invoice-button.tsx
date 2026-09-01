@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, XCircle } from "lucide-react";
+import { XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/toast";
 import { FiscalService, type FiscalInvoice } from "@/services/fiscal-service";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
+import { Loader } from "@/components/ui/loader";
 import {
   Dialog,
   DialogContent,
@@ -123,7 +124,7 @@ export function CancelInvoiceButton({ invoice, onCancelled }: CancelInvoiceButto
               disabled={!isValid || isCancelling}
               onClick={() => void handleCancel()}
             >
-              {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isCancelling && <Loader size="sm" variant="button" className="mr-2" />}
               Cancelar nota
             </Button>
           </DialogFooter>

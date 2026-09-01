@@ -474,6 +474,27 @@ export async function listInvoices(
   return snap.docs.map((doc) => doc.data() as InvoiceDocument);
 }
 
+/**
+ * Notas já emitidas a partir de uma proposta.
+ *
+ * Duas igualdades sem `orderBy` — o Firestore resolve com os índices de campo
+ * único, sem índice composto. Sem `limit` seria uma varredura por proposta;
+ * o teto é generoso de propósito, porque uma venda mista legitimamente rende
+ * duas notas e reemissões após rejeição somam.
+ */
+export async function listInvoicesByProposal(
+  tenantId: string,
+  proposalId: string,
+): Promise<InvoiceDocument[]> {
+  const snap = await db
+    .collection(COLLECTION)
+    .where("tenantId", "==", tenantId)
+    .where("proposalId", "==", proposalId)
+    .limit(20)
+    .get();
+  return snap.docs.map((doc) => doc.data() as InvoiceDocument);
+}
+
 /** Cancels an authorized document. Justification length is validated by the caller. */
 export async function cancelInvoice(
   invoiceId: string,

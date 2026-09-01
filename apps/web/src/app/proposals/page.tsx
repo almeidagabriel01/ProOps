@@ -14,6 +14,9 @@ import { ProposalActionsDropdown } from "@/components/features/proposal/proposal
 import { IssueInvoiceButton } from "@/components/features/fiscal/issue-invoice-button";
 import { FiscalGapsDialog } from "@/components/features/fiscal/fiscal-gaps-dialog";
 import { useIssueInvoice } from "@/hooks/use-issue-invoice";
+import { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
+import { isApprovedColumn } from "@/lib/proposal-approval";
+import { ProposalInvoicePrompt } from "@/components/features/fiscal/proposal-invoice-prompt";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -173,12 +176,7 @@ export default function ProposalsPage() {
       const col =
         kanbanColumns.find((c) => c.id === proposal.status) ||
         kanbanColumns.find((c) => c.mappedStatus === proposal.status);
-      if (!col) return false;
-      return (
-        col.mappedStatus === "approved" ||
-        col.category === "won" ||
-        /aprovad/i.test(col.label ?? "")
-      );
+      return isApprovedColumn(col);
     },
     [kanbanColumns],
   );
@@ -218,6 +216,8 @@ export default function ProposalsPage() {
     gaps: fiscalGaps,
     closeGaps: closeFiscalGaps,
   } = useIssueInvoice();
+  const invoicePrompt = useProposalInvoicePrompt();
+  const { promptAfterApproval, startPreview } = invoicePrompt;
   const [isAwaitingPendingSave, setIsAwaitingPendingSave] =
     React.useState(true);
   // Cache for attachments to prevent fetchProposals from overwriting local updates
@@ -637,6 +637,13 @@ export default function ProposalsPage() {
         ? `"${proposal.title.trim()}"`
         : `ID ${proposalId}`;
 
+      // A checagem não depende do status — ela monta os documentos a partir
+      // dos itens. Disparando aqui, ela corre EM PARALELO com a gravação em
+      // vez de começar depois dela; serializadas, o convite aparecia segundos
+      // depois do toast e a tela parecia travada nesse intervalo.
+      const vaiAprovar = isProposalApproved({ ...proposal, status: newStatus });
+      const pendingPreview = vaiAprovar ? startPreview(proposalId) : null;
+
       setUpdatingStatusId(proposalId);
       try {
         await ProposalService.updateProposal(proposalId, { status: newStatus });
@@ -649,6 +656,15 @@ export default function ProposalsPage() {
           `Status da proposta ${proposalLabel} alterado para "${getStatusLabel(newStatus).toLocaleLowerCase("pt-BR")}".`,
           { title: "Sucesso ao editar" },
         );
+        // O convite em si só depois do sucesso: sugerir faturar uma mudança de
+        // status que falhou seria pior que não sugerir.
+        if (pendingPreview) {
+          void promptAfterApproval(
+            proposalId,
+            proposal.title?.trim() || "",
+            pendingPreview,
+          );
+        }
       } catch (error) {
         console.error("Error updating status:", error);
         const errorMessage =
@@ -663,7 +679,14 @@ export default function ProposalsPage() {
         setUpdatingStatusId(null);
       }
     },
-    [proposals, getStatusLabel, kanbanColumns],
+    [
+      proposals,
+      getStatusLabel,
+      kanbanColumns,
+      isProposalApproved,
+      promptAfterApproval,
+      startPreview,
+    ],
   );
 
   const proposalToDelete = sortedProposals.find((p) => p.id === deleteId);
@@ -1307,6 +1330,8 @@ export default function ProposalsPage() {
         })()}
 
       <FiscalGapsDialog gaps={fiscalGaps} onClose={closeFiscalGaps} />
+
+      <ProposalInvoicePrompt {...invoicePrompt} />
 
       <UpgradeModal
         open={upgradeModal.isOpen}

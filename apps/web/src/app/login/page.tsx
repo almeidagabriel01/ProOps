@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, Loader2, MessageCircle, KeyRound, Smartphone } from "lucide-react";
+import { ArrowLeft, User as UserIcon, Building2, Upload, CheckCircle, Mail, Palette, MessageCircle, KeyRound, Smartphone } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useLoginForm } from "./_hooks/useLoginForm";
@@ -794,9 +794,10 @@ function LoginContent() {
                           }
                         />
                         {contactValidating.phoneNumber && (
-                          <Loader2
-                            className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground"
-                            aria-hidden
+                          <Loader
+                            size="sm"
+                            variant="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                           />
                         )}
                       </div>

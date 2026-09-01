@@ -12,6 +12,7 @@ import {
   issueInvoiceHandler,
   cancelInvoiceHandler,
   listInvoicesHandler,
+  previewFromProposalHandler,
   issueFromProposalHandler,
   issueFromTransactionHandler,
   correctInvoiceHandler,
@@ -50,6 +51,13 @@ router.post(
 );
 
 router.get("/fiscal/invoices", validateFirebaseIdToken, listInvoicesHandler);
+// Fica acima de qualquer futura `GET /fiscal/invoices/:id`: declarada depois,
+// "preview" seria capturado como identificador de nota.
+router.get(
+  "/fiscal/invoices/preview/from-proposal/:id",
+  validateFirebaseIdToken,
+  previewFromProposalHandler,
+);
 // Consulta sob demanda: o cron so olha 15 min depois, e quem esta na tela nao
 // deveria precisar abrir o painel do provedor para saber o estado da propria nota.
 router.post(

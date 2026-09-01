@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { AsaasWebhookStatus } from "@/services/payment-service";
+import { Loader } from "@/components/ui/loader";
 
 interface AsaasWebhookStatusAlertProps {
   webhookStatus: AsaasWebhookStatus;
@@ -27,7 +28,7 @@ export function AsaasWebhookStatusAlert({ webhookStatus, onRetry }: AsaasWebhook
   if (webhookStatus.state === "pending") {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+        <Loader size="sm" variant="button" className="shrink-0" />
         <span>Configurando recebimento de pagamentos...</span>
       </div>
     );
@@ -80,7 +81,7 @@ export function AsaasWebhookStatusAlert({ webhookStatus, onRetry }: AsaasWebhook
         >
           {isRetrying ? (
             <>
-              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+              <Loader size="sm" variant="button" className="mr-2" />
               Tentando...
             </>
           ) : (

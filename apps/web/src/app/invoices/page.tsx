@@ -9,7 +9,6 @@ import {
   Download,
   FileCode,
   FileText,
-  Loader2,
   RefreshCw,
   Settings,
   XCircle,
@@ -28,6 +27,7 @@ import { TestModeBanner } from "@/components/features/fiscal/test-mode-banner";
 import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
 import { RejectionDetailButton } from "@/components/features/fiscal/rejection-detail-button";
 import { useSort } from "@/hooks/use-sort";
+import { Loader } from "@/components/ui/loader";
 
 const STATUS_META: Record<
   FiscalInvoiceStatus,
@@ -271,7 +271,7 @@ export default function InvoicesPage() {
                 onClick={() => void refresh(invoice.id)}
               >
                 {refreshingId === invoice.id ? (
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                  <Loader size="sm" variant="button" className="mr-1" />
                 ) : (
                   <RefreshCw className="mr-1 h-3 w-3" />
                 )}
@@ -336,7 +336,7 @@ export default function InvoicesPage() {
       {isLoading ? (
         <Card>
           <CardContent className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Loader size="md" />
           </CardContent>
         </Card>
       ) : invoices.length === 0 ? (

@@ -24,10 +24,13 @@ function renderEmailField(isEmailValidating: boolean) {
 
 describe("CredentialFields — email validation loading state", () => {
   it("disables the email input and shows a spinner while validating", () => {
-    const { container } = renderEmailField(true);
+    renderEmailField(true);
 
     expect(screen.getByPlaceholderText("seu@email.com")).toBeDisabled();
-    expect(container.querySelector(".animate-spin")).toBeInTheDocument();
+    // Pelo papel acessível, não pela classe: `.animate-spin` amarrava o teste
+    // ao spinner do lucide e quebrou quando o campo passou a usar o `Loader`
+    // do projeto — sem que nada de fato tivesse deixado de funcionar.
+    expect(screen.getByRole("status", { name: "Carregando" })).toBeInTheDocument();
   });
 
   it("keeps the email input enabled with no spinner when not validating", () => {

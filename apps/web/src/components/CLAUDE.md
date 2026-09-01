@@ -46,6 +46,25 @@ components/
 - Para adicionar novo componente do registry: `npx shadcn@latest add [componente]`
 - Componentes disponíveis incluem: button, card, dialog, alert-dialog, badge, checkbox, avatar, command-palette, e muitos outros
 
+## Loading
+
+O spinner do projeto é o `Loader` (`ui/loader.tsx` — o LumaSpin), **nunca** o
+`Loader2` do lucide-react. Ele traz `role="status"` e `aria-label`, então a
+espera é anunciada por leitor de tela em vez de ser um ícone mudo.
+
+| Onde | Uso |
+|---|---|
+| Dentro de botão | `<Loader size="sm" variant="button" className="mr-2" />` |
+| Adorno dentro de campo | `variant="button"` + a classe de cor do call site |
+| Carregando uma seção/página | `<Loader size="md" />` |
+| Overlay de página inteira | `<Loader variant="page" />` |
+
+`variant="button"` não quer dizer só "está num botão": é o que faz o spinner
+herdar `currentColor`. É por isso que ele também serve ao adorno de campo, onde
+a cor vem de um `text-muted-foreground` do call site.
+
+Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer.
+
 ## Nomenclatura
 - Arquivo: `nome-componente.tsx` (kebab-case)
 - Componente: `NomeComponente` (PascalCase)

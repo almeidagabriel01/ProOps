@@ -46,6 +46,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader } from "@/components/ui/loader";
+import { isApprovedColumn } from "@/lib/proposal-approval";
+import { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
+import { ProposalInvoicePrompt } from "@/components/features/fiscal/proposal-invoice-prompt";
 
 interface ColumnPageState {
   cursor: KanbanColumnCursor | null;
@@ -104,6 +107,8 @@ export function ProposalKanbanTab() {
       }
     >
   >({});
+  const invoicePrompt = useProposalInvoicePrompt();
+  const { promptAfterApproval, startPreview } = invoicePrompt;
   const [selectedProposal, setSelectedProposal] =
     React.useState<Proposal | null>(null);
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
@@ -405,6 +410,12 @@ export function ProposalKanbanTab() {
       const fromKey = fromColumn ? columnStatusKey(fromColumn) : null;
       const toKey = columnStatusKey(targetColumn);
 
+      // Em paralelo com a gravação, não depois dela — a checagem não depende
+      // do status, e serializadas o convite aparecia segundos após o toast.
+      const pendingPreview = isApprovedColumn(targetColumn)
+        ? startPreview(itemId)
+        : null;
+
       // Optimistic update
       setProposals((prev) =>
         prev.map((p) => (p.id === itemId ? { ...p, status: newStatus } : p)),
@@ -416,6 +427,14 @@ export function ProposalKanbanTab() {
         toast.success(`Status alterado para "${targetColumn.label}".`, {
           title: "Status atualizado",
         });
+        // Mesmo convite da lista: arrastar para a coluna de ganho é aprovar.
+        if (pendingPreview) {
+          void promptAfterApproval(
+            itemId,
+            proposal.title?.trim() || "",
+            pendingPreview,
+          );
+        }
       } catch (error) {
         // Revert on failure
         setProposals((prev) =>
@@ -428,7 +447,7 @@ export function ProposalKanbanTab() {
         toast.error("Erro ao atualizar o status da proposta.");
       }
     },
-    [columns, proposals, adjustColumnTotals],
+    [columns, proposals, adjustColumnTotals, promptAfterApproval, startPreview],
   );
 
   // Handle card click — open detail modal
@@ -1209,6 +1228,8 @@ export function ProposalKanbanTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ProposalInvoicePrompt {...invoicePrompt} />
     </div>
   );
 }

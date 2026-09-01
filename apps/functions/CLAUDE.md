@@ -227,6 +227,20 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   no CNC da NFS-e se ela e obrigatoria, e Machado exige — rejeicao **E0116**. Mandar sempre
   que houver e mais barato que mapear onde e obrigatoria; omitir quando nao houver tambem
   importa, porque alguns municipios validam o formato de uma IM presente.
+- **`totTrib` e um CHOICE obrigatorio dentro de `trib`, e qual filho entra depende do
+  regime.** As opcoes sao `vTotTrib`, `pTotTrib`, `indTotTrib` e `pTotTribSN` — exatamente
+  uma. Para **ME/EPP** (`opSimpNac` 3) o indicador e PROIBIDO (rejeicao **E0712**) e o campo
+  certo e `percentual_total_tributos_simples_nacional`, a aliquota efetiva do DAS; para
+  **nao optante** o espelho vale (**E0713**: ali o `pTotTribSN` e que e proibido). MEI segue
+  no indicador — nao testado, e mudar no escuro trocaria um caso que funciona por um palpite.
+  O `indTotTrib` significa "opto por nao informar os tributos estimados" (Decreto
+  8.264/2014): essa porta existe para os demais e esta fechada para ME/EPP.
+  A aliquota muda com o faturamento e sai do DAS, entao e do tenant
+  (`percentualTotalTributosSimplesNacional` em `fiscal_settings`, campo em
+  `/settings/fiscal` visivel so no Simples) — nao uma pergunta por nota. Falta dela vira
+  **lacuna** em `fiscal-readiness`, com nome e lugar para resolver, em vez de uma sigla que
+  chega minutos depois; `buildNfsenPayload` ainda lanca
+  `NFSEN_SEM_PERCENTUAL_SIMPLES_NACIONAL` como ultima linha de defesa.
 - **A serie da DPS identifica o SISTEMA emissor, e tem faixa reservada:**
   `00001-49999` aplicativo proprio (nos), `50000-69999` mobile, `70000-79999` emissor web
   (o portal nfse.gov.br), `80000-89999` transcricao manual. Serie fora da faixa e rejeicao
@@ -261,6 +275,14 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   configuracao **preserva** o ambiente: antes disso o campo ausente virava "" e resolvia
   para homologacao, entao qualquer salvamento derrubaria um emitente ativo de volta para
   teste em silencio — ele acharia que esta emitindo e nao estaria.
+- **`ready` sobrevive a um salvamento de configuracao.** Ate 2026-08-31 qualquer save
+  rebaixava `ready` para `registered`, em silencio — e como emissao automatica e convite
+  pos-aprovacao dependem de `ready`, corrigir um e-mail desligava os dois sem aviso;
+  mexer no proprio `autoIssueRule` desligava o que se acabara de configurar. Agora so
+  rebaixa quando o **CNPJ muda**, que e o unico caso em que a prova nao se transfere:
+  `ready` significa "uma nota ja foi autorizada por ESTE CNPJ". Comparacao com os digitos
+  normalizados dos dois lados, senao o CNPJ mascarado do formulario parece troca de
+  empresa a cada salvamento. Guard: `fiscal-settings.ready.test.ts`.
 - **O portao e `status === "ready"`**, marcado por `markIssuerReady` na PRIMEIRA nota
   autorizada. Homologacao prova que o nosso codigo monta a nota certa; so a autorizacao
   prova que o emitente esta credenciado na SEFAZ/prefeitura. Existe escape (`force`), com
@@ -271,7 +293,16 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   precisa estar visivel. E o texto nao diz "homologacao" — para quem instala automacao
   isso nao significa nada, "modo de teste" significa.
 - Emissao e **assincrona**: pre-validacao sincrona no provedor, depois fila. `ref` (nossa)
-  e query param obrigatorio, o que da idempotencia de graca.
+  e query param obrigatorio — reenviar a MESMA ref e idempotente no provedor.
+- **A `ref` NAO impede emitir a mesma proposta duas vezes.** Ela nasce de
+  `db.collection("invoices").doc()`, ou seja, um id novo a cada chamada: dois cliques
+  em "Emitir NF" produzem duas notas distintas, ambas aceitas pelo fisco. Quem cobre
+  isso e `previewFromProposal`, que consulta `listInvoicesByProposal` e devolve
+  `jaEmitidas` (so **autorizada** e **em processamento** — rejeitada, cancelada, com
+  erro e rascunho ficam de fora, porque nao sao documento valido e reemitir depois
+  delas e o caminho normal). A UI **avisa e deixa seguir**: existe motivo legitimo
+  para uma segunda nota, entao bloquear seria errado; o que faltava era o usuario
+  saber.
 - **Campos fiscais sao opcionais no cadastro e exigidos na emissao.** Ninguem precisa parar
   para classificar o catalogo inteiro antes de usar o ERP; o gate e `fiscal-readiness.ts`,
   que roda na emissao e lista TODAS as lacunas de uma vez (emitente, cliente, itens).
@@ -315,6 +346,24 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   venda mista faturada e pior que nenhuma.
 - **Botoes e gatilhos automaticos chamam as MESMAS funcoes** (`invoice-issue.service.ts`),
   entao nao existe caminho automatico que pule uma validacao do manual.
+- **`GET /v1/fiscal/invoices/preview/from-proposal/:id` responde sem emitir.** Reaproveita
+  `assembleInvoices` — que monta os documentos e acumula as lacunas mas nao despacha — e
+  por isso da exatamente a mesma resposta que a emissao daria, em vez de uma segunda
+  implementacao da regra que poderia divergir em silencio. Devolve `canIssue`, `reason`,
+  `gaps`, `documentos` (dois numa venda mista) e `jaEmitidas`.
+- **Aprovar uma proposta CONVIDA a emitir**, e isso e comportamento padrao, nao
+  configuracao: aprovar e faturar sao o mesmo momento para quem vende. O convite e
+  **condicional** — so aparece se o preview disser `canIssue` e nao houver nota valida
+  dessa proposta. Convidar e depois mostrar uma checklist de pendencias transformaria o
+  atalho em armadilha, e convidar sobre proposta ja faturada seria convite a duplicar.
+  Recusar nao deixa pendencia: o botao "Emitir NF" continua na lista.
+  Ligado em `useProposalInvoicePrompt`, consumido pela lista de propostas e pelo arraste
+  do kanban. **Falta o formulario da proposta**, que redireciona logo apos salvar.
+- **`autoIssueRule` continua sem UI, de proposito.** O convite pos-aprovacao entrega a
+  conveniencia sem que nada seja emitido sem confirmacao; expor `on_payment` /
+  `on_proposal_approved` acrescentaria emissao sem humano no circuito. O codigo dos
+  gatilhos segue ligado em `asaas-webhook.controller.ts` e `proposals.controller.ts`,
+  alcancavel so por escrita direta no Firestore.
 - **Gatilhos sao opt-in e best-effort.** `tryAutoIssue` so dispara se
   `autoIssueRule` bater E `status === "ready"`, e **nunca lanca**: o pagamento ja foi
   confirmado e a proposta ja foi aprovada — falhar a nota nao pode desfazer a venda.
