@@ -227,6 +227,20 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   no CNC da NFS-e se ela e obrigatoria, e Machado exige — rejeicao **E0116**. Mandar sempre
   que houver e mais barato que mapear onde e obrigatoria; omitir quando nao houver tambem
   importa, porque alguns municipios validam o formato de uma IM presente.
+- **`totTrib` e um CHOICE obrigatorio dentro de `trib`, e qual filho entra depende do
+  regime.** As opcoes sao `vTotTrib`, `pTotTrib`, `indTotTrib` e `pTotTribSN` — exatamente
+  uma. Para **ME/EPP** (`opSimpNac` 3) o indicador e PROIBIDO (rejeicao **E0712**) e o campo
+  certo e `percentual_total_tributos_simples_nacional`, a aliquota efetiva do DAS; para
+  **nao optante** o espelho vale (**E0713**: ali o `pTotTribSN` e que e proibido). MEI segue
+  no indicador — nao testado, e mudar no escuro trocaria um caso que funciona por um palpite.
+  O `indTotTrib` significa "opto por nao informar os tributos estimados" (Decreto
+  8.264/2014): essa porta existe para os demais e esta fechada para ME/EPP.
+  A aliquota muda com o faturamento e sai do DAS, entao e do tenant
+  (`percentualTotalTributosSimplesNacional` em `fiscal_settings`, campo em
+  `/settings/fiscal` visivel so no Simples) — nao uma pergunta por nota. Falta dela vira
+  **lacuna** em `fiscal-readiness`, com nome e lugar para resolver, em vez de uma sigla que
+  chega minutos depois; `buildNfsenPayload` ainda lanca
+  `NFSEN_SEM_PERCENTUAL_SIMPLES_NACIONAL` como ultima linha de defesa.
 - **A serie da DPS identifica o SISTEMA emissor, e tem faixa reservada:**
   `00001-49999` aplicativo proprio (nos), `50000-69999` mobile, `70000-79999` emissor web
   (o portal nfse.gov.br), `80000-89999` transcricao manual. Serie fora da faixa e rejeicao

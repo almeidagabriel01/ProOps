@@ -33,6 +33,7 @@ export interface IssuerReadinessInput {
   inscricaoEstadual?: string;
   inscricaoMunicipal?: string;
   regimeTributario?: FiscalTaxRegime;
+  percentualTotalTributosSimplesNacional?: number;
   endereco?: {
     logradouro?: string;
     numero?: string;
@@ -145,6 +146,25 @@ export function checkIssuerReadinessForType(
       scope: "emitente",
       field: "inscricaoMunicipal",
       message: "Informe a inscrição municipal da sua empresa para emitir nota de serviço.",
+    });
+  }
+
+  // ME/EPP do Simples: `totTrib` é obrigatório na DPS e, para esse regime, o
+  // único preenchimento aceito é o percentual da alíquota — o indicador de
+  // "não informar" é recusado com E0712. Cobrar aqui transforma uma rejeição
+  // do fisco, que chega minutos depois e fala em siglas, numa pendência com
+  // nome e lugar para resolver. MEI fica de fora: usa o indicador.
+  if (
+    type === "nfse" &&
+    (issuer.regimeTributario === 1 || issuer.regimeTributario === 2) &&
+    (issuer.percentualTotalTributosSimplesNacional === undefined ||
+      issuer.percentualTotalTributosSimplesNacional === null)
+  ) {
+    gaps.push({
+      scope: "emitente",
+      field: "percentualTotalTributosSimplesNacional",
+      message:
+        "Informe a alíquota aproximada do Simples Nacional da sua empresa — ela sai do seu DAS e é obrigatória na nota de serviço.",
     });
   }
 

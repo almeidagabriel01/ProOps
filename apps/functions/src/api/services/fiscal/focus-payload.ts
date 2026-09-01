@@ -403,11 +403,6 @@ export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unk
     tipo_retencao_iss: service.issRetido ? 2 : 1,
     percentual_aliquota_relativa_municipio: round(service.aliquotaIss, 4),
     razao_social_tomador: trimmed(recipient.nome),
-    // `trib` exige um filho: sem isto o XSD do Ambiente Nacional rejeita com
-    // "Element 'trib': Missing child element(s)". 0 = não informar os valores
-    // estimados de tributos (Decreto 8.264/2014), que é o que a NFS-e de
-    // referência desta empresa também faz.
-    indicador_total_tributacao: 0,
   };
 
   // `regTrib` é uma SEQUÊNCIA, não uma escolha: opSimpNac, depois regApTribSN
@@ -431,6 +426,29 @@ export function buildNfsenPayload(input: FiscalInvoiceInput): Record<string, unk
   // rejeição **E0116** ("a IM deve ser informada para o emitente prestador")
   // é o município dizendo isso, e a regra varia de prefeitura para prefeitura.
   // Mandar sempre que existir é mais barato que descobrir onde é obrigatória.
+  // `totTrib` é um CHOICE e um filho OBRIGATÓRIO de `trib` — sem exatamente um
+  // deles o XSD rejeita com "Element 'trib': Missing child element(s)". As
+  // opções são `vTotTrib`, `pTotTrib`, `indTotTrib` e `pTotTribSN`, e qual vale
+  // depende da opção pelo Simples:
+  //
+  //   ME/EPP (3)       `pTotTribSN`. O indicador é PROIBIDO — rejeição E0712.
+  //   Não optante (1)  `indTotTrib`. Ali o `pTotTribSN` é que é proibido (E0713).
+  //   MEI (2)          mantém o indicador; não testado, e mudar no escuro seria
+  //                    trocar um caso que funciona por um palpite.
+  //
+  // O indicador significa "opto por não informar os tributos estimados"
+  // (Decreto 8.264/2014). Essa porta existe para os demais e está fechada para
+  // ME/EPP, que precisa declarar a alíquota efetiva do Simples.
+  if (opcaoSimplesNacional === 3) {
+    const percentual = issuer.percentualTotalTributosSimplesNacional;
+    if (percentual === undefined || percentual === null) {
+      throw new Error("NFSEN_SEM_PERCENTUAL_SIMPLES_NACIONAL");
+    }
+    payload.percentual_total_tributos_simples_nacional = round(percentual, 2);
+  } else {
+    payload.indicador_total_tributacao = 0;
+  }
+
   const inscricaoMunicipal = trimmed(issuer.inscricaoMunicipal);
   if (inscricaoMunicipal) {
     payload.inscricao_municipal_prestador = inscricaoMunicipal;

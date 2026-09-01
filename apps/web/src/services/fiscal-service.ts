@@ -77,6 +77,8 @@ export interface FiscalSettings {
   inscricaoMunicipal?: string;
   cnae?: string;
   regimeTributario?: FiscalTaxRegime;
+  /** `pTotTribSN` — alíquota efetiva do DAS, exigida de ME/EPP na NFS-e. */
+  percentualTotalTributosSimplesNacional?: number;
   email?: string;
   telefone?: string;
   endereco?: FiscalAddress;
@@ -106,6 +108,7 @@ export interface SaveFiscalSettingsPayload {
   inscricaoMunicipal?: string;
   cnae?: string;
   regimeTributario: FiscalTaxRegime;
+  percentualTotalTributosSimplesNacional?: number;
   email: string;
   telefone?: string;
   endereco: FiscalAddress;
@@ -137,6 +140,8 @@ export interface CnpjLookup {
   cep?: string;
   /** Derivado das flags do Simples que a Receita devolve. */
   regimeTributario?: FiscalTaxRegime;
+  /** `pTotTribSN` — alíquota efetiva do DAS, exigida de ME/EPP na NFS-e. */
+  percentualTotalTributosSimplesNacional?: number;
   /** "Ativa", "Baixada", "Suspensa"… CNPJ não ativo não emite. */
   situacaoCadastral?: string;
 }

@@ -65,6 +65,7 @@ interface FormState {
   inscricaoMunicipal: string;
   cnae: string;
   regimeTributario: FiscalTaxRegime;
+  percentualSimplesNacional: string;
   email: string;
   telefone: string;
   endereco: FiscalAddress;
@@ -87,6 +88,7 @@ const INITIAL_FORM: FormState = {
   inscricaoMunicipal: "",
   cnae: "",
   regimeTributario: 1,
+  percentualSimplesNacional: "",
   email: "",
   telefone: "",
   endereco: { ...EMPTY_ADDRESS },
@@ -124,6 +126,11 @@ function hydrate(settings: FiscalSettings): FormState {
     inscricaoMunicipal: settings.inscricaoMunicipal ?? "",
     cnae: settings.cnae ?? "",
     regimeTributario: settings.regimeTributario ?? 1,
+    percentualSimplesNacional:
+      settings.percentualTotalTributosSimplesNacional === undefined ||
+      settings.percentualTotalTributosSimplesNacional === null
+        ? ""
+        : String(settings.percentualTotalTributosSimplesNacional),
     email: settings.email ?? "",
     telefone: settings.telefone ?? "",
     endereco: settings.endereco ?? { ...EMPTY_ADDRESS },
@@ -290,6 +297,12 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
         inscricaoMunicipal: form.inscricaoMunicipal.trim(),
         cnae: form.cnae.trim(),
         regimeTributario: form.regimeTributario,
+        // Em branco vira undefined, nunca 0: 0% é uma alíquota válida e
+        // sairia na nota sem ninguém ter escolhido.
+        percentualTotalTributosSimplesNacional:
+          form.percentualSimplesNacional.trim() === ""
+            ? undefined
+            : Number(form.percentualSimplesNacional.replace(",", ".")),
         email: form.email.trim(),
         telefone: form.telefone.trim(),
         endereco: {
@@ -588,6 +601,32 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
               <option value="4">MEI</option>
             </Select>
           </div>
+
+          {/* Só para o Simples: `totTrib` é obrigatório na DPS e, para ME/EPP,
+              o indicador de "não informar" é recusado (E0712) — sobra declarar
+              a alíquota. Quem não é do Simples usa o indicador e não vê isto. */}
+          {(form.regimeTributario === 1 || form.regimeTributario === 2) && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="fiscal-percentual-sn">
+                Alíquota aproximada do Simples Nacional (%)
+              </Label>
+              <Input
+                id="fiscal-percentual-sn"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                max="100"
+                step="0.01"
+                placeholder="6"
+                value={form.percentualSimplesNacional}
+                onChange={(e) => setField("percentualSimplesNacional", e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                É a alíquota efetiva do seu DAS. Vai na nota de serviço como o
+                total aproximado de tributos (Lei 12.741/2012).
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="fiscal-cnae">CNAE principal</Label>

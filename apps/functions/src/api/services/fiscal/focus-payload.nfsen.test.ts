@@ -15,6 +15,9 @@ const ISSUER: FiscalIssuerConfig = {
   email: "gestao@exemplo.com.br",
   // CRT 1 = Simples Nacional.
   regimeTributario: 1,
+  // ME/EPP precisa declarar a alíquota efetiva do Simples: `indTotTrib` é
+  // proibido para ela (E0712) e `totTrib` não aceita ficar vazio.
+  percentualTotalTributosSimplesNacional: 6,
   inscricaoMunicipal: "3411114782",
   habilitaNfe: false,
   habilitaNfse: true,
@@ -185,11 +188,17 @@ describe("buildNfsenPayload", () => {
     expect(payload.regime_tributario_simples_nacional).toBe(2);
   });
 
-  it("preenche trib com o indicador de total de tributos", () => {
-    // Segunda rejeição do mesmo XSD: "Element 'trib': Missing child
-    // element(s). Expected is one of ( tribFed, totTrib )". 0 = não informar
-    // os valores estimados, como a nota de referência.
-    expect(buildNfsenPayload(buildInput()).indicador_total_tributacao).toBe(0);
+  it("sempre preenche totTrib — o XSD exige um filho em trib", () => {
+    // "Element 'trib': Missing child element(s). Expected is one of
+    // ( tribFed, totTrib )". QUAL dos filhos do choice entra depende do regime,
+    // e isso é o assunto do describe "totTrib" mais abaixo; aqui só se afirma
+    // que um deles sempre entra.
+    const payload = buildNfsenPayload(buildInput());
+
+    const totTrib =
+      payload.percentual_total_tributos_simples_nacional ??
+      payload.indicador_total_tributacao;
+    expect(totTrib).toBeDefined();
   });
 
   it("manda a inscrição municipal do prestador", () => {
@@ -228,6 +237,73 @@ describe("buildNfsenPayload", () => {
     expect(() => buildNfsenPayload(buildInput({ service: undefined }))).toThrow(
       "NFSE_SEM_SERVICO",
     );
+  });
+});
+
+describe("totTrib — o choice de tributos totais", () => {
+  it("ME/EPP declara o percentual do Simples e NUNCA o indicador", () => {
+    // E0712: "Para ME/EPP o indicador de informação de valor total de tributos
+    // não pode ser informado."
+    const payload = buildNfsenPayload(buildInput());
+
+    expect(payload.percentual_total_tributos_simples_nacional).toBe(6);
+    expect(payload).not.toHaveProperty("indicador_total_tributacao");
+  });
+
+  it("arredonda o percentual para as 2 casas do leiaute", () => {
+    const payload = buildNfsenPayload(
+      buildInput({
+        issuer: {
+          ...ISSUER,
+          percentualTotalTributosSimplesNacional: 6.789,
+        } as FiscalIssuerConfig,
+      }),
+    );
+
+    expect(payload.percentual_total_tributos_simples_nacional).toBe(6.79);
+  });
+
+  it("aceita percentual zero — 0% é valor, não ausência", () => {
+    const payload = buildNfsenPayload(
+      buildInput({
+        issuer: {
+          ...ISSUER,
+          percentualTotalTributosSimplesNacional: 0,
+        } as FiscalIssuerConfig,
+      }),
+    );
+
+    expect(payload.percentual_total_tributos_simples_nacional).toBe(0);
+    expect(payload).not.toHaveProperty("indicador_total_tributacao");
+  });
+
+  it("falha explicitamente se ME/EPP não tem o percentual", () => {
+    // Última linha de defesa: sem isto a DPS sairia sem filho em `totTrib` e
+    // voltaria como erro de XSD, que não diz o que preencher.
+    const semPercentual: FiscalIssuerConfig = { ...ISSUER };
+    delete semPercentual.percentualTotalTributosSimplesNacional;
+
+    expect(() => buildNfsenPayload(buildInput({ issuer: semPercentual }))).toThrow(
+      "NFSEN_SEM_PERCENTUAL_SIMPLES_NACIONAL",
+    );
+  });
+
+  it("regime normal usa o indicador e não o percentual do Simples", () => {
+    // E0713 é o espelho: lá o `pTotTribSN` é que é proibido.
+    const payload = buildNfsenPayload(
+      buildInput({ issuer: { ...ISSUER, regimeTributario: 3 } as FiscalIssuerConfig }),
+    );
+
+    expect(payload.indicador_total_tributacao).toBe(0);
+    expect(payload).not.toHaveProperty("percentual_total_tributos_simples_nacional");
+  });
+
+  it("MEI segue no indicador — comportamento preservado", () => {
+    const payload = buildNfsenPayload(
+      buildInput({ issuer: { ...ISSUER, regimeTributario: 4 } as FiscalIssuerConfig }),
+    );
+
+    expect(payload.indicador_total_tributacao).toBe(0);
   });
 });
 

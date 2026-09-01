@@ -32,6 +32,7 @@ const ISSUER = {
   razaoSocial: "EMPRESA TESTE",
   email: "fiscal@exemplo.com.br",
   regimeTributario: 1,
+  percentualTotalTributosSimplesNacional: 6,
   habilitaNfe: false,
   habilitaNfse: true,
   certificadoBase64: "YmFzZTY0",

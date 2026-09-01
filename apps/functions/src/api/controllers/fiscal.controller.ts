@@ -295,6 +295,14 @@ export const saveFiscalSettingsHandler = async (
       // Default nacional: e o padrao obrigatorio para ME/EPP do Simples a
       // partir de 01/11/2026, e municipio com sistema proprio e a excecao.
       padraoNfse: body.padraoNfse === "municipal" ? "municipal" : "nacional",
+      // Campo fiscal numérico em branco vira `null`/undefined, nunca 0: 0% de
+      // tributos é um valor VÁLIDO e sairia na nota sem ninguém ter escolhido.
+      percentualTotalTributosSimplesNacional:
+        body.percentualTotalTributosSimplesNacional === undefined ||
+        body.percentualTotalTributosSimplesNacional === null ||
+        body.percentualTotalTributosSimplesNacional === ""
+          ? undefined
+          : Number(body.percentualTotalTributosSimplesNacional),
       serieNfe: body.serieNfe === undefined ? undefined : Number(body.serieNfe),
       proximoNumeroNfe:
         body.proximoNumeroNfe === undefined ? undefined : Number(body.proximoNumeroNfe),

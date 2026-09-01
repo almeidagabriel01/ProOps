@@ -19,6 +19,9 @@ const issuer: FiscalIssuerConfig = {
   inscricaoMunicipal: "98765",
   cnae: "4321-5/00",
   regimeTributario: 1,
+  // ME/EPP: `totTrib` exige o percentual do Simples, e o indicador é
+  // proibido (E0712). Sem isto a montagem da NFS-e falha.
+  percentualTotalTributosSimplesNacional: 6,
   email: "fiscal@autocasa.example.br",
   telefone: "(41) 3033-3333",
   endereco: {

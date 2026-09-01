@@ -14,6 +14,7 @@ const issuer: IssuerReadinessInput = {
   inscricaoEstadual: "1234567",
   inscricaoMunicipal: "98765",
   regimeTributario: 1,
+  percentualTotalTributosSimplesNacional: 6,
   endereco: {
     logradouro: "Rua Joao da Silva",
     numero: "153",
@@ -86,6 +87,55 @@ describe("checkIssuerReadinessForType", () => {
     expect(fieldsOf(gaps)).toEqual(
       expect.arrayContaining(["cnpj", "razaoSocial", "regimeTributario", "endereco"]),
     );
+  });
+});
+
+describe("alíquota do Simples na NFS-e", () => {
+  it("cobra o percentual de ME/EPP emitindo nota de serviço", () => {
+    // Sem ele a DPS sai sem `totTrib` válido e volta com E0712 — uma sigla,
+    // minutos depois, longe do campo que resolve.
+    const semPercentual = { ...issuer };
+    delete semPercentual.percentualTotalTributosSimplesNacional;
+
+    const gaps = checkIssuerReadinessForType(semPercentual, "nfse");
+
+    expect(gaps.map((gap) => gap.field)).toContain(
+      "percentualTotalTributosSimplesNacional",
+    );
+  });
+
+  it("aceita zero — 0% é uma alíquota informada", () => {
+    const gaps = checkIssuerReadinessForType(
+      { ...issuer, percentualTotalTributosSimplesNacional: 0 },
+      "nfse",
+    );
+
+    expect(gaps).toHaveLength(0);
+  });
+
+  it("não cobra na NF-e — a regra é do Ambiente Nacional, não da SEFAZ", () => {
+    const semPercentual = { ...issuer, inscricaoEstadual: "123456789" };
+    delete semPercentual.percentualTotalTributosSimplesNacional;
+
+    const gaps = checkIssuerReadinessForType(semPercentual, "nfe");
+
+    expect(gaps.map((gap) => gap.field)).not.toContain(
+      "percentualTotalTributosSimplesNacional",
+    );
+  });
+
+  it("não cobra de quem não é do Simples — lá vale o indicador", () => {
+    const regimeNormal = { ...issuer, regimeTributario: 3 as const };
+    delete regimeNormal.percentualTotalTributosSimplesNacional;
+
+    expect(checkIssuerReadinessForType(regimeNormal, "nfse")).toHaveLength(0);
+  });
+
+  it("não cobra de MEI", () => {
+    const mei = { ...issuer, regimeTributario: 4 as const };
+    delete mei.percentualTotalTributosSimplesNacional;
+
+    expect(checkIssuerReadinessForType(mei, "nfse")).toHaveLength(0);
   });
 });
 
