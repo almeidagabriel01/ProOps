@@ -285,11 +285,27 @@ export async function saveFiscalSettings(
   const now = new Date().toISOString();
   const existing = await getFiscalSettings(tenantId);
 
+  /**
+   * `ready` significa "uma nota já foi autorizada por ESTE CNPJ" — é a única
+   * prova de credenciamento na SEFAZ/prefeitura, e ela não deixa de valer
+   * porque alguém corrigiu um e-mail, a alíquota do Simples ou a regra de
+   * emissão automática.
+   *
+   * Antes qualquer salvamento rebaixava para `registered`, em silêncio. O
+   * efeito era invisível e caro: a emissão automática e o convite pós-aprovação
+   * dependem de `ready`, então uma correção trivial os desligava sem avisar —
+   * e mexer no próprio `autoIssueRule` desligava o que se acabara de
+   * configurar. Trocar o CNPJ é outra história: aí é outra empresa, e a prova
+   * anterior não se transfere.
+   */
+  const cnpjNormalizado = String(input.cnpj || "").replace(/\D/g, "");
+  const trocouDeEmpresa = Boolean(existing) && existing?.cnpj !== cnpjNormalizado;
+
   const payload: Record<string, unknown> = {
     tenantId,
     provider: input.provider ?? existing?.provider ?? "focus",
     environment: input.environment,
-    cnpj: String(input.cnpj || "").replace(/\D/g, ""),
+    cnpj: cnpjNormalizado,
     razaoSocial: input.razaoSocial,
     regimeTributario: input.regimeTributario,
     email: input.email,
@@ -302,7 +318,10 @@ export async function saveFiscalSettings(
     percentualTotalTributosSimplesNacional:
       input.percentualTotalTributosSimplesNacional,
     autoIssueRule: input.autoIssueRule,
-    status: existing?.status === "ready" ? "registered" : (existing?.status ?? "pending"),
+    status:
+      existing?.status === "ready" && trocouDeEmpresa
+        ? "registered"
+        : (existing?.status ?? "pending"),
     updatedAt: now,
     ...(existing ? {} : { createdAt: now }),
   };

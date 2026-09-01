@@ -275,6 +275,14 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   configuracao **preserva** o ambiente: antes disso o campo ausente virava "" e resolvia
   para homologacao, entao qualquer salvamento derrubaria um emitente ativo de volta para
   teste em silencio — ele acharia que esta emitindo e nao estaria.
+- **`ready` sobrevive a um salvamento de configuracao.** Ate 2026-08-31 qualquer save
+  rebaixava `ready` para `registered`, em silencio — e como emissao automatica e convite
+  pos-aprovacao dependem de `ready`, corrigir um e-mail desligava os dois sem aviso;
+  mexer no proprio `autoIssueRule` desligava o que se acabara de configurar. Agora so
+  rebaixa quando o **CNPJ muda**, que e o unico caso em que a prova nao se transfere:
+  `ready` significa "uma nota ja foi autorizada por ESTE CNPJ". Comparacao com os digitos
+  normalizados dos dois lados, senao o CNPJ mascarado do formulario parece troca de
+  empresa a cada salvamento. Guard: `fiscal-settings.ready.test.ts`.
 - **O portao e `status === "ready"`**, marcado por `markIssuerReady` na PRIMEIRA nota
   autorizada. Homologacao prova que o nosso codigo monta a nota certa; so a autorizacao
   prova que o emitente esta credenciado na SEFAZ/prefeitura. Existe escape (`force`), com
