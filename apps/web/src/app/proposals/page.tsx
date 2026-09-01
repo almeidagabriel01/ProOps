@@ -217,7 +217,7 @@ export default function ProposalsPage() {
     closeGaps: closeFiscalGaps,
   } = useIssueInvoice();
   const invoicePrompt = useProposalInvoicePrompt();
-  const { promptAfterApproval } = invoicePrompt;
+  const { promptAfterApproval, startPreview } = invoicePrompt;
   const [isAwaitingPendingSave, setIsAwaitingPendingSave] =
     React.useState(true);
   // Cache for attachments to prevent fetchProposals from overwriting local updates
@@ -637,6 +637,13 @@ export default function ProposalsPage() {
         ? `"${proposal.title.trim()}"`
         : `ID ${proposalId}`;
 
+      // A checagem não depende do status — ela monta os documentos a partir
+      // dos itens. Disparando aqui, ela corre EM PARALELO com a gravação em
+      // vez de começar depois dela; serializadas, o convite aparecia segundos
+      // depois do toast e a tela parecia travada nesse intervalo.
+      const vaiAprovar = isProposalApproved({ ...proposal, status: newStatus });
+      const pendingPreview = vaiAprovar ? startPreview(proposalId) : null;
+
       setUpdatingStatusId(proposalId);
       try {
         await ProposalService.updateProposal(proposalId, { status: newStatus });
@@ -649,12 +656,13 @@ export default function ProposalsPage() {
           `Status da proposta ${proposalLabel} alterado para "${getStatusLabel(newStatus).toLocaleLowerCase("pt-BR")}".`,
           { title: "Sucesso ao editar" },
         );
-        // Depois do sucesso, nunca antes: convidar a faturar uma mudança de
-        // status que falhou seria pior que não convidar.
-        if (isProposalApproved({ ...proposal, status: newStatus })) {
+        // O convite em si só depois do sucesso: sugerir faturar uma mudança de
+        // status que falhou seria pior que não sugerir.
+        if (pendingPreview) {
           void promptAfterApproval(
             proposalId,
             proposal.title?.trim() || "",
+            pendingPreview,
           );
         }
       } catch (error) {
@@ -677,6 +685,7 @@ export default function ProposalsPage() {
       kanbanColumns,
       isProposalApproved,
       promptAfterApproval,
+      startPreview,
     ],
   );
 

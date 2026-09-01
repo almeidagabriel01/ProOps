@@ -7,7 +7,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const { previewFromProposal, issueFromProposal } = vi.hoisted(() => ({
@@ -88,6 +88,35 @@ describe("IssueInvoiceButton — duplicidade", () => {
     await userEvent.click(screen.getByRole("button", { name: "Emitir mesmo assim" }));
 
     expect(issueFromProposal).toHaveBeenCalledWith("p1");
+  });
+
+  it("segura o aviso aberto enquanto emite, com o loader no botão clicado", async () => {
+    // Fechar no clique jogava o estado de carregando para o botão da linha,
+    // longe de onde a pessoa clicou — parecia que nada tinha acontecido.
+    let liberar: (v: { invoices: { id: string }[] }) => void = () => {};
+    issueFromProposal.mockImplementation(
+      () => new Promise((resolve) => (liberar = resolve)),
+    );
+    previewFromProposal.mockResolvedValue({
+      ...SEM_NOTA,
+      jaEmitidas: [{ id: "i1", type: "nfe", status: "authorized" }],
+    });
+
+    await clicarEmitir();
+    await userEvent.click(screen.getByRole("button", { name: "Emitir mesmo assim" }));
+
+    // Ainda emitindo: o diálogo continua na tela e os dois botões travados.
+    expect(screen.getByText("Esta proposta já tem nota")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Emitir mesmo assim/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+
+    await act(async () => {
+      liberar({ invoices: [{ id: "i1" }] });
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByText("Esta proposta já tem nota")).toBeNull(),
+    );
   });
 
   it("cancelar no aviso não emite nada", async () => {

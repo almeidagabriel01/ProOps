@@ -35,12 +35,15 @@ export function ProposalInvoicePrompt({
   isIssuing,
   gaps,
   closeGaps,
-}: Omit<PromptController, "promptAfterApproval">) {
+}: Omit<PromptController, "promptAfterApproval" | "startPreview">) {
   const documentos = prompt?.documentos ?? [];
 
   return (
     <>
-      <Dialog open={prompt !== null} onOpenChange={(open) => !open && dismiss()}>
+      <Dialog
+        open={prompt !== null}
+        onOpenChange={(open) => !open && !isIssuing && dismiss()}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">

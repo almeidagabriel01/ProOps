@@ -108,7 +108,7 @@ export function ProposalKanbanTab() {
     >
   >({});
   const invoicePrompt = useProposalInvoicePrompt();
-  const { promptAfterApproval } = invoicePrompt;
+  const { promptAfterApproval, startPreview } = invoicePrompt;
   const [selectedProposal, setSelectedProposal] =
     React.useState<Proposal | null>(null);
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
@@ -410,6 +410,12 @@ export function ProposalKanbanTab() {
       const fromKey = fromColumn ? columnStatusKey(fromColumn) : null;
       const toKey = columnStatusKey(targetColumn);
 
+      // Em paralelo com a gravação, não depois dela — a checagem não depende
+      // do status, e serializadas o convite aparecia segundos após o toast.
+      const pendingPreview = isApprovedColumn(targetColumn)
+        ? startPreview(itemId)
+        : null;
+
       // Optimistic update
       setProposals((prev) =>
         prev.map((p) => (p.id === itemId ? { ...p, status: newStatus } : p)),
@@ -422,8 +428,12 @@ export function ProposalKanbanTab() {
           title: "Status atualizado",
         });
         // Mesmo convite da lista: arrastar para a coluna de ganho é aprovar.
-        if (isApprovedColumn(targetColumn)) {
-          void promptAfterApproval(itemId, proposal.title?.trim() || "");
+        if (pendingPreview) {
+          void promptAfterApproval(
+            itemId,
+            proposal.title?.trim() || "",
+            pendingPreview,
+          );
         }
       } catch (error) {
         // Revert on failure
@@ -437,7 +447,7 @@ export function ProposalKanbanTab() {
         toast.error("Erro ao atualizar o status da proposta.");
       }
     },
-    [columns, proposals, adjustColumnTotals, promptAfterApproval],
+    [columns, proposals, adjustColumnTotals, promptAfterApproval, startPreview],
   );
 
   // Handle card click — open detail modal

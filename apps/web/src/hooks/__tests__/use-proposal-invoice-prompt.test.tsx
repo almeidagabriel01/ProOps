@@ -115,6 +115,46 @@ describe("useProposalInvoicePrompt", () => {
     await waitFor(() => expect(result.current.prompt).toBeNull());
   });
 
+  it("mantém o convite aberto até a emissão responder", async () => {
+    // Fechar no clique tirava o loader de onde a pessoa clicou e o jogava no
+    // botão da lista, atrás do diálogo que acabava de sumir.
+    let liberar: (v: { invoices: { id: string }[] }) => void = () => {};
+    issueFromProposal.mockImplementation(
+      () => new Promise((resolve) => (liberar = resolve)),
+    );
+
+    const result = await dispararConvite();
+
+    let emissao: Promise<void>;
+    act(() => {
+      emissao = result.current.confirm();
+    });
+
+    await waitFor(() => expect(result.current.isIssuing).toBe(true));
+    expect(result.current.prompt).not.toBeNull();
+
+    await act(async () => {
+      liberar({ invoices: [{ id: "i1" }] });
+      await emissao;
+    });
+
+    expect(result.current.prompt).toBeNull();
+  });
+
+  it("aproveita uma consulta já em andamento em vez de refazê-la", async () => {
+    // A checagem roda em paralelo com a gravação do status; refazer aqui
+    // desperdiçaria a corrida inteira e traria de volta a espera somada.
+    const { result } = renderHook(() => useProposalInvoicePrompt());
+    const pendente = result.current.startPreview("p1");
+
+    await act(async () => {
+      await result.current.promptAfterApproval("p1", "Casa Silva", pendente);
+    });
+
+    expect(previewFromProposal).toHaveBeenCalledTimes(1);
+    expect(result.current.prompt).not.toBeNull();
+  });
+
   it("recusar não emite nada", async () => {
     const result = await dispararConvite();
 

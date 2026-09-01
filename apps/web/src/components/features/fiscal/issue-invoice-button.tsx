@@ -71,9 +71,11 @@ export function IssueInvoiceButton({
     await issue(source, sourceId);
   }
 
+  // Fecha só DEPOIS da resposta: fechar no clique mandava o estado de
+  // carregando para o botão da linha, longe de onde a pessoa clicou.
   async function confirmarDuplicata() {
-    setDuplicadas(null);
     await issue(source, sourceId);
+    setDuplicadas(null);
   }
 
   return (
@@ -95,7 +97,7 @@ export function IssueInvoiceButton({
 
       <Dialog
         open={duplicadas !== null}
-        onOpenChange={(open) => !open && setDuplicadas(null)}
+        onOpenChange={(open) => !open && !isBusy && setDuplicadas(null)}
       >
         <DialogContent>
           <DialogHeader>
@@ -128,10 +130,15 @@ export function IssueInvoiceButton({
           </ul>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDuplicadas(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setDuplicadas(null)}
+              disabled={isBusy}
+            >
               Cancelar
             </Button>
-            <Button onClick={() => void confirmarDuplicata()}>
+            <Button onClick={() => void confirmarDuplicata()} disabled={isBusy}>
+              {isBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Emitir mesmo assim
             </Button>
           </DialogFooter>
