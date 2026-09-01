@@ -22,6 +22,26 @@ export type FiscalInvoiceStatus =
   | "cancelled"
   | "error";
 
+/** Resposta de `previewFromProposal` — o que sairia, sem emitir. */
+export interface FiscalIssuePreview {
+  canIssue: boolean;
+  reason?:
+    | "FISCAL_NAO_CONFIGURADO"
+    | "FISCAL_NAO_PRONTO"
+    | "FISCAL_INCOMPLETO"
+    | "PROPOSTA_SEM_CLIENTE";
+  gaps: FiscalGap[];
+  documentos: Array<{ type: "nfe" | "nfse"; valorTotal: number }>;
+  /** Só autorizadas ou em processamento — as outras não são documento válido. */
+  jaEmitidas: Array<{
+    id: string;
+    type: "nfe" | "nfse";
+    status: FiscalInvoiceStatus;
+    numero?: string;
+    serie?: string;
+  }>;
+}
+
 export interface FiscalAddress {
   logradouro: string;
   numero: string;
@@ -231,6 +251,18 @@ export const FiscalService = {
     const suffix = query.toString() ? `?${query}` : "";
     return callApi<{ invoices: FiscalInvoice[] }>(`/v1/fiscal/invoices${suffix}`, "GET");
   },
+
+  /**
+   * Pergunta se a nota desta proposta pode sair — sem emitir.
+   *
+   * Sustenta o convite ao aprovar: sem ele o modal apareceria também para quem
+   * ainda não pode emitir, e o atalho terminaria numa checklist de pendências.
+   */
+  previewFromProposal: (proposalId: string) =>
+    callApi<FiscalIssuePreview>(
+      `/v1/fiscal/invoices/preview/from-proposal/${proposalId}`,
+      "GET",
+    ),
 
   /** Responde 202: a autorização é assíncrona e chega depois. */
   issueInvoice: (payload: IssueInvoicePayload) =>

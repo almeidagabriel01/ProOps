@@ -18,9 +18,15 @@ import {
   type AssemblyResult,
   type ProposalItem,
 } from "./invoice-assembly.service";
-import { createInvoice, issueInvoice, type InvoiceDocument } from "./invoice.service";
+import {
+  createInvoice,
+  issueInvoice,
+  listInvoicesByProposal,
+  type InvoiceDocument,
+} from "./invoice.service";
 import type { FiscalGap } from "./fiscal-readiness";
 import type { NaturezaOperacao } from "./natureza-operacao";
+import type { FiscalDocumentType, FiscalInvoiceStatus } from "./fiscal-types";
 
 export interface IssueFromSourceResult {
   /** Documentos efetivamente enviados — dois numa venda mista. */
@@ -98,6 +104,105 @@ export async function issueFromProposal(
     transactionId: options.transactionId,
     createdBy: options.createdBy,
   });
+}
+
+/** Nota que já existe e conta como "esta proposta já foi faturada". */
+export interface ExistingInvoiceSummary {
+  id: string;
+  type: FiscalDocumentType;
+  status: FiscalInvoiceStatus;
+  numero?: string;
+  serie?: string;
+}
+
+export interface IssuePreview {
+  /** Emissão configurada, credenciada e sem lacunas. */
+  canIssue: boolean;
+  /** Motivo de `canIssue` ser falso, para o chamador não ter que deduzir. */
+  reason?:
+    | "FISCAL_NAO_CONFIGURADO"
+    | "FISCAL_NAO_PRONTO"
+    | "FISCAL_INCOMPLETO"
+    | "PROPOSTA_SEM_CLIENTE";
+  gaps: FiscalGap[];
+  /** Uma entrada por documento que seria emitido — duas numa venda mista. */
+  documentos: Array<{ type: FiscalDocumentType; valorTotal: number }>;
+  /**
+   * Notas autorizadas ou em processamento já vindas desta proposta.
+   *
+   * Rejeitada, cancelada e com erro ficam de fora: nenhuma delas é documento
+   * válido, e reemitir depois de uma rejeição é o caminho normal — avisar ali
+   * seria só atrito.
+   */
+  jaEmitidas: ExistingInvoiceSummary[];
+}
+
+/**
+ * Responde "dá para emitir e o que sairia", sem emitir nada.
+ *
+ * Reaproveita `assembleInvoices`, que monta os documentos e acumula as lacunas
+ * mas não despacha — quem despacha é `dispatch`, e ele não é chamado aqui. Por
+ * isso a resposta é exatamente a mesma que a emissão daria, e não uma segunda
+ * implementação da regra que poderia divergir dela em silêncio.
+ */
+export async function previewFromProposal(
+  tenantId: string,
+  proposalId: string,
+): Promise<IssuePreview> {
+  const empty = { gaps: [], documentos: [], jaEmitidas: [] };
+
+  const settings = await getFiscalSettings(tenantId);
+  if (!settings) {
+    return { canIssue: false, reason: "FISCAL_NAO_CONFIGURADO", ...empty };
+  }
+
+  const snap = await db.collection("proposals").doc(proposalId).get();
+  if (!snap.exists) {
+    throw new Error("PROPOSTA_NAO_ENCONTRADA");
+  }
+  const proposal = snap.data() as ProposalDocument;
+  if (proposal.tenantId !== tenantId) {
+    throw new Error("FORBIDDEN_TENANT_MISMATCH");
+  }
+
+  const jaEmitidas = (await listInvoicesByProposal(tenantId, proposalId))
+    .filter((inv) => inv.status === "authorized" || inv.status === "processing")
+    .map((inv) => ({
+      id: inv.id,
+      type: inv.type,
+      status: inv.status,
+      numero: inv.numero,
+      serie: inv.serie,
+    }));
+
+  if (!proposal.clientId) {
+    return { canIssue: false, reason: "PROPOSTA_SEM_CLIENTE", ...empty, jaEmitidas };
+  }
+
+  // Só `ready` prova credenciamento na SEFAZ/prefeitura. Antes disso a emissão
+  // sairia, mas voltaria rejeitada — e o convite teria sido uma armadilha.
+  if (settings.status !== "ready") {
+    return { canIssue: false, reason: "FISCAL_NAO_PRONTO", ...empty, jaEmitidas };
+  }
+
+  const assembly = await assembleInvoices({
+    tenantId,
+    settings,
+    clientId: proposal.clientId,
+    items: proposal.products ?? [],
+    proposalId,
+  });
+
+  return {
+    canIssue: assembly.gaps.length === 0 && assembly.invoices.length > 0,
+    reason: assembly.gaps.length > 0 ? "FISCAL_INCOMPLETO" : undefined,
+    gaps: assembly.gaps,
+    documentos: assembly.invoices.map((inv) => ({
+      type: inv.type,
+      valorTotal: inv.valorTotal,
+    })),
+    jaEmitidas,
+  };
 }
 
 /**

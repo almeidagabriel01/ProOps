@@ -14,6 +14,9 @@ import { ProposalActionsDropdown } from "@/components/features/proposal/proposal
 import { IssueInvoiceButton } from "@/components/features/fiscal/issue-invoice-button";
 import { FiscalGapsDialog } from "@/components/features/fiscal/fiscal-gaps-dialog";
 import { useIssueInvoice } from "@/hooks/use-issue-invoice";
+import { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
+import { isApprovedColumn } from "@/lib/proposal-approval";
+import { ProposalInvoicePrompt } from "@/components/features/fiscal/proposal-invoice-prompt";
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -173,12 +176,7 @@ export default function ProposalsPage() {
       const col =
         kanbanColumns.find((c) => c.id === proposal.status) ||
         kanbanColumns.find((c) => c.mappedStatus === proposal.status);
-      if (!col) return false;
-      return (
-        col.mappedStatus === "approved" ||
-        col.category === "won" ||
-        /aprovad/i.test(col.label ?? "")
-      );
+      return isApprovedColumn(col);
     },
     [kanbanColumns],
   );
@@ -218,6 +216,8 @@ export default function ProposalsPage() {
     gaps: fiscalGaps,
     closeGaps: closeFiscalGaps,
   } = useIssueInvoice();
+  const invoicePrompt = useProposalInvoicePrompt();
+  const { promptAfterApproval } = invoicePrompt;
   const [isAwaitingPendingSave, setIsAwaitingPendingSave] =
     React.useState(true);
   // Cache for attachments to prevent fetchProposals from overwriting local updates
@@ -649,6 +649,14 @@ export default function ProposalsPage() {
           `Status da proposta ${proposalLabel} alterado para "${getStatusLabel(newStatus).toLocaleLowerCase("pt-BR")}".`,
           { title: "Sucesso ao editar" },
         );
+        // Depois do sucesso, nunca antes: convidar a faturar uma mudança de
+        // status que falhou seria pior que não convidar.
+        if (isProposalApproved({ ...proposal, status: newStatus })) {
+          void promptAfterApproval(
+            proposalId,
+            proposal.title?.trim() || "",
+          );
+        }
       } catch (error) {
         console.error("Error updating status:", error);
         const errorMessage =
@@ -663,7 +671,13 @@ export default function ProposalsPage() {
         setUpdatingStatusId(null);
       }
     },
-    [proposals, getStatusLabel, kanbanColumns],
+    [
+      proposals,
+      getStatusLabel,
+      kanbanColumns,
+      isProposalApproved,
+      promptAfterApproval,
+    ],
   );
 
   const proposalToDelete = sortedProposals.find((p) => p.id === deleteId);
@@ -1307,6 +1321,8 @@ export default function ProposalsPage() {
         })()}
 
       <FiscalGapsDialog gaps={fiscalGaps} onClose={closeFiscalGaps} />
+
+      <ProposalInvoicePrompt {...invoicePrompt} />
 
       <UpgradeModal
         open={upgradeModal.isOpen}

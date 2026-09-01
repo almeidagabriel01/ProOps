@@ -56,6 +56,7 @@ import {
 } from "../services/fiscal/invoice.service";
 import {
   issueFromProposal,
+  previewFromProposal,
   issueFromTransaction,
 } from "../services/fiscal/invoice-issue.service";
 import { registerFiscalWebhooks } from "../services/fiscal/fiscal-webhook-registration.service";
@@ -933,6 +934,36 @@ export const issueFromProposalHandler = (req: Request, res: Response) =>
 // POST /v1/fiscal/invoices/from-transaction/:id
 export const issueFromTransactionHandler = (req: Request, res: Response) =>
   issueFromSource(req, res, "transaction");
+
+/**
+ * GET /v1/fiscal/invoices/preview/from-proposal/:id
+ *
+ * Responde se a nota desta proposta pode sair, quantas sairiam e se já existe
+ * alguma — sem emitir. É o que sustenta o convite ao aprovar a proposta: sem
+ * essa checagem, o modal apareceria para quem ainda não pode emitir e o convite
+ * terminaria numa checklist de pendências, o que é pior que não convidar.
+ */
+export const previewFromProposalHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const ctx = await requireFiscalAdmin(req, res);
+    if (!ctx) return;
+
+    const id = String(req.params.id || "");
+    if (!id) {
+      res.status(400).json({ message: "Informe a proposta" });
+      return;
+    }
+
+    res.status(200).json(await previewFromProposal(ctx.tenantId, id));
+  } catch (error) {
+    const err = error as Error;
+    logger.error("Falha ao verificar emissão da proposta", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json({ message: err.message, code: err.message });
+  }
+};
 
 // GET /v1/fiscal/invoices
 export const listInvoicesHandler = async (req: Request, res: Response): Promise<void> => {

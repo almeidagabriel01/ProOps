@@ -46,6 +46,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader } from "@/components/ui/loader";
+import { isApprovedColumn } from "@/lib/proposal-approval";
+import { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
+import { ProposalInvoicePrompt } from "@/components/features/fiscal/proposal-invoice-prompt";
 
 interface ColumnPageState {
   cursor: KanbanColumnCursor | null;
@@ -104,6 +107,8 @@ export function ProposalKanbanTab() {
       }
     >
   >({});
+  const invoicePrompt = useProposalInvoicePrompt();
+  const { promptAfterApproval } = invoicePrompt;
   const [selectedProposal, setSelectedProposal] =
     React.useState<Proposal | null>(null);
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
@@ -416,6 +421,10 @@ export function ProposalKanbanTab() {
         toast.success(`Status alterado para "${targetColumn.label}".`, {
           title: "Status atualizado",
         });
+        // Mesmo convite da lista: arrastar para a coluna de ganho é aprovar.
+        if (isApprovedColumn(targetColumn)) {
+          void promptAfterApproval(itemId, proposal.title?.trim() || "");
+        }
       } catch (error) {
         // Revert on failure
         setProposals((prev) =>
@@ -428,7 +437,7 @@ export function ProposalKanbanTab() {
         toast.error("Erro ao atualizar o status da proposta.");
       }
     },
-    [columns, proposals, adjustColumnTotals],
+    [columns, proposals, adjustColumnTotals, promptAfterApproval],
   );
 
   // Handle card click — open detail modal
@@ -1209,6 +1218,8 @@ export function ProposalKanbanTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ProposalInvoicePrompt {...invoicePrompt} />
     </div>
   );
 }
