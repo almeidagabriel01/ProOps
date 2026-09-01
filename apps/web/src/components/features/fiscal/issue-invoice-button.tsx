@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, FileText, Loader2 } from "lucide-react";
+import { AlertTriangle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,6 +14,7 @@ import {
 import { FiscalGapsDialog } from "./fiscal-gaps-dialog";
 import { useIssueInvoice, type InvoiceSource } from "@/hooks/use-issue-invoice";
 import { FiscalService, type FiscalIssuePreview } from "@/services/fiscal-service";
+import { Loader } from "@/components/ui/loader";
 
 const TIPO_LABEL: Record<"nfe" | "nfse", string> = { nfe: "NF-e", nfse: "NFS-e" };
 
@@ -88,7 +89,7 @@ export function IssueInvoiceButton({
         disabled={isBusy}
       >
         {isBusy ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Loader size="sm" variant="button" className="mr-2" />
         ) : (
           <FileText className="mr-2 h-4 w-4" />
         )}
@@ -138,7 +139,7 @@ export function IssueInvoiceButton({
               Cancelar
             </Button>
             <Button onClick={() => void confirmarDuplicata()} disabled={isBusy}>
-              {isBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isBusy && <Loader size="sm" variant="button" className="mr-2" />}
               Emitir mesmo assim
             </Button>
           </DialogFooter>

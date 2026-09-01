@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   FileText,
-  Loader2,
   Search,
   ShieldAlert,
   Upload,
@@ -35,6 +34,7 @@ import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
 import { maskCep } from "@/lib/fiscal/cep";
 import { validarSerieNfse } from "@/lib/fiscal/serie-dps";
+import { Loader } from "@/components/ui/loader";
 
 /** ViaCEP devolve o código IBGE em `ibge` — é ele que a SEFAZ valida. */
 interface ViaCepResponse {
@@ -409,7 +409,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <Loader size="md" />
         </CardContent>
       </Card>
     );
@@ -507,7 +507,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
                   onClick={handleRetryWebhooks}
                 >
                   {isRetryingWebhooks && (
-                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                    <Loader size="sm" variant="button" className="mr-2" />
                   )}
                   Tentar de novo
                 </Button>
@@ -549,7 +549,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
                 disabled={isLookingUp}
               >
                 {isLookingUp ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader size="sm" variant="button" />
                 ) : (
                   <Search className="h-4 w-4" />
                 )}
@@ -905,7 +905,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
             className="self-start"
           >
             {isUploading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader size="sm" variant="button" className="mr-2" />
             ) : (
               <Upload className="mr-2 h-4 w-4" />
             )}
@@ -916,7 +916,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
 
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isSaving && <Loader size="sm" variant="button" className="mr-2" />}
           Salvar configuração
         </Button>
       </div>

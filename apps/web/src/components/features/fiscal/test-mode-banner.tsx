@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { FlaskConical, Loader2, ShieldCheck } from "lucide-react";
+import { FlaskConical, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import { ApiError } from "@/lib/api-client";
+import { Loader } from "@/components/ui/loader";
 import {
   FiscalService,
   type FiscalSettings,
@@ -123,7 +124,7 @@ export function TestModeBanner({ settings, onChanged }: TestModeBannerProps) {
           onClick={() => void switchTo("homologacao", false)}
         >
           {isSwitching ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader size="sm" variant="button" className="mr-2" />
           ) : (
             <FlaskConical className="mr-2 h-4 w-4" />
           )}
@@ -151,7 +152,7 @@ export function TestModeBanner({ settings, onChanged }: TestModeBannerProps) {
           disabled={isSwitching}
         >
           {isSwitching ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader size="sm" variant="button" className="mr-2" />
           ) : (
             <ShieldCheck className="mr-2 h-4 w-4" />
           )}
@@ -197,7 +198,7 @@ export function TestModeBanner({ settings, onChanged }: TestModeBannerProps) {
               Cancelar
             </Button>
             <Button onClick={() => void switchTo("producao", needsForce)} disabled={isSwitching}>
-              {isSwitching && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSwitching && <Loader size="sm" variant="button" className="mr-2" />}
               {needsForce ? "Ativar mesmo assim" : "Ativar emissão real"}
             </Button>
           </DialogFooter>

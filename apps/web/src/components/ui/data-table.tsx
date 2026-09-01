@@ -95,7 +95,7 @@ export interface DataTableProps<T> {
   minWidth?: string;
   /**
    * Optional custom skeleton to show during async initial load.
-   * When provided, replaces the default Loader2 spinner.
+   * When provided, replaces the default Loader spinner.
    */
   loadingSkeleton?: React.ReactNode;
   /**

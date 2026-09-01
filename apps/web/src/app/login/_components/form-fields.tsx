@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Upload, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Upload, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { TenantNiche, NICHE_LABELS } from "@/types";
+import { Loader } from "@/components/ui/loader";
 
 interface RegisterFormFieldsProps {
   name: string;
@@ -267,9 +268,10 @@ export function CredentialFields({
           />
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           {isEmailValidating && (
-            <Loader2
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground"
-              aria-hidden
+            <Loader
+              size="sm"
+              variant="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
           )}
         </div>

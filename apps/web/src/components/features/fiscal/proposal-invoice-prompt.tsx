@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { FiscalGapsDialog } from "./fiscal-gaps-dialog";
 import type { useProposalInvoicePrompt } from "@/hooks/use-proposal-invoice-prompt";
+import { Loader } from "@/components/ui/loader";
 
 /**
  * Os diálogos do convite pós-aprovação.
@@ -79,7 +80,7 @@ export function ProposalInvoicePrompt({
               Agora não
             </Button>
             <Button onClick={() => void confirm()} disabled={isIssuing}>
-              {isIssuing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isIssuing && <Loader size="sm" variant="button" className="mr-2" />}
               Emitir
             </Button>
           </DialogFooter>

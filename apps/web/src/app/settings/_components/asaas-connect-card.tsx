@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "@/lib/toast";
-import { CreditCard, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CreditCard, CheckCircle2, XCircle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -506,9 +506,10 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
                     }
                   />
                   {isFetchingCep && (
-                    <Loader2
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground"
-                      aria-hidden="true"
+                    <Loader
+                      size="sm"
+                      variant="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
                     />
                   )}
                 </div>
