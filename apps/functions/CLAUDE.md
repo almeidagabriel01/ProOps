@@ -271,7 +271,16 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   precisa estar visivel. E o texto nao diz "homologacao" — para quem instala automacao
   isso nao significa nada, "modo de teste" significa.
 - Emissao e **assincrona**: pre-validacao sincrona no provedor, depois fila. `ref` (nossa)
-  e query param obrigatorio, o que da idempotencia de graca.
+  e query param obrigatorio — reenviar a MESMA ref e idempotente no provedor.
+- **A `ref` NAO impede emitir a mesma proposta duas vezes.** Ela nasce de
+  `db.collection("invoices").doc()`, ou seja, um id novo a cada chamada: dois cliques
+  em "Emitir NF" produzem duas notas distintas, ambas aceitas pelo fisco. Quem cobre
+  isso e `previewFromProposal`, que consulta `listInvoicesByProposal` e devolve
+  `jaEmitidas` (so **autorizada** e **em processamento** — rejeitada, cancelada, com
+  erro e rascunho ficam de fora, porque nao sao documento valido e reemitir depois
+  delas e o caminho normal). A UI **avisa e deixa seguir**: existe motivo legitimo
+  para uma segunda nota, entao bloquear seria errado; o que faltava era o usuario
+  saber.
 - **Campos fiscais sao opcionais no cadastro e exigidos na emissao.** Ninguem precisa parar
   para classificar o catalogo inteiro antes de usar o ERP; o gate e `fiscal-readiness.ts`,
   que roda na emissao e lista TODAS as lacunas de uma vez (emitente, cliente, itens).
@@ -315,6 +324,24 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   venda mista faturada e pior que nenhuma.
 - **Botoes e gatilhos automaticos chamam as MESMAS funcoes** (`invoice-issue.service.ts`),
   entao nao existe caminho automatico que pule uma validacao do manual.
+- **`GET /v1/fiscal/invoices/preview/from-proposal/:id` responde sem emitir.** Reaproveita
+  `assembleInvoices` — que monta os documentos e acumula as lacunas mas nao despacha — e
+  por isso da exatamente a mesma resposta que a emissao daria, em vez de uma segunda
+  implementacao da regra que poderia divergir em silencio. Devolve `canIssue`, `reason`,
+  `gaps`, `documentos` (dois numa venda mista) e `jaEmitidas`.
+- **Aprovar uma proposta CONVIDA a emitir**, e isso e comportamento padrao, nao
+  configuracao: aprovar e faturar sao o mesmo momento para quem vende. O convite e
+  **condicional** — so aparece se o preview disser `canIssue` e nao houver nota valida
+  dessa proposta. Convidar e depois mostrar uma checklist de pendencias transformaria o
+  atalho em armadilha, e convidar sobre proposta ja faturada seria convite a duplicar.
+  Recusar nao deixa pendencia: o botao "Emitir NF" continua na lista.
+  Ligado em `useProposalInvoicePrompt`, consumido pela lista de propostas e pelo arraste
+  do kanban. **Falta o formulario da proposta**, que redireciona logo apos salvar.
+- **`autoIssueRule` continua sem UI, de proposito.** O convite pos-aprovacao entrega a
+  conveniencia sem que nada seja emitido sem confirmacao; expor `on_payment` /
+  `on_proposal_approved` acrescentaria emissao sem humano no circuito. O codigo dos
+  gatilhos segue ligado em `asaas-webhook.controller.ts` e `proposals.controller.ts`,
+  alcancavel so por escrita direta no Firestore.
 - **Gatilhos sao opt-in e best-effort.** `tryAutoIssue` so dispara se
   `autoIssueRule` bater E `status === "ready"`, e **nunca lanca**: o pagamento ja foi
   confirmado e a proposta ja foi aprovada — falhar a nota nao pode desfazer a venda.
