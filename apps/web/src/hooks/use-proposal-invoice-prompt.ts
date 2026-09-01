@@ -38,11 +38,27 @@ export function useProposalInvoicePrompt() {
         const preview = await FiscalService.previewFromProposal(proposalId);
         // Já faturada não convida: seria um convite a duplicar documento
         // fiscal, e duplicata tem prazo próprio para desfazer.
-        if (!preview.canIssue || preview.jaEmitidas.length > 0) return;
+        if (!preview.canIssue || preview.jaEmitidas.length > 0) {
+          // Silencioso para o usuário — ele não pediu para emitir —, mas
+          // registrado: sem isto, "ainda não pode emitir" e "a consulta
+          // falhou" produzem exatamente o mesmo nada na tela, e não há como
+          // distinguir os dois sem ler o código.
+          console.info(
+            "[fiscal] convite de emissão não exibido:",
+            preview.jaEmitidas.length > 0
+              ? "a proposta já tem nota"
+              : (preview.reason ?? "emissão indisponível"),
+            preview.gaps?.length ? preview.gaps.map((gap) => gap.field) : "",
+          );
+          return;
+        }
         setPrompt({ proposalId, proposalTitle, documentos: preview.documentos });
-      } catch {
+      } catch (error) {
         // Best-effort: a aprovação já aconteceu e não pode ser desfeita por uma
-        // consulta que falhou. Sem convite, o botão manual segue disponível.
+        // consulta que falhou. Sem convite, o botão manual segue disponível —
+        // mas a falha vai para o console, senão ela é indistinguível de um
+        // "não havia o que convidar".
+        console.warn("[fiscal] não foi possível verificar a emissão:", error);
       }
     },
     [],
