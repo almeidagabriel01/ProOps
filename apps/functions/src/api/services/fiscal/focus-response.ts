@@ -53,6 +53,15 @@ export interface FocusNfseResponse {
   serie_rps?: string;
   codigo_verificacao?: string;
   url?: string;
+  /**
+   * DANFSe em PDF — **outro nome que o da NF-e**, e já absoluto (S3).
+   *
+   * A NF-e devolve `caminho_danfe` relativo à base; a NFS-e, nos dois padrões
+   * (municipal e nacional), devolve `url_danfse` completo. Como só o campo da
+   * NF-e era lido, toda NFS-e autorizada nascia sem `pdfUrl`: o botão de baixar
+   * não aparecia na lista e o arquivamento legal guardava só o XML.
+   */
+  url_danfse?: string;
   caminho_xml_nota_fiscal?: string;
   ref?: string;
   cnpj_prestador?: string;
@@ -159,7 +168,10 @@ export function mapFocusResponse(
   const codigoVerificacao = String(raw.codigo_verificacao || "").trim();
   if (codigoVerificacao) result.codigoVerificacao = codigoVerificacao;
 
-  const pdfUrl = toAbsoluteUrl(raw.caminho_danfe, baseUrl);
+  // Um campo por tipo de documento: `caminho_danfe` na NF-e, `url_danfse` na
+  // NFS-e. Nunca vêm juntos, então a ordem só resolve o caso de um provedor
+  // mandar os dois — e aí o da NF-e é o mais específico.
+  const pdfUrl = toAbsoluteUrl(raw.caminho_danfe ?? raw.url_danfse, baseUrl);
   if (pdfUrl) result.pdfUrl = pdfUrl;
 
   const xmlUrl = toAbsoluteUrl(raw.caminho_xml_nota_fiscal, baseUrl);

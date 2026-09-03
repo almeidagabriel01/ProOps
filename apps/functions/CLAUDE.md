@@ -368,6 +368,35 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   `autoIssueRule` bater E `status === "ready"`, e **nunca lanca**: o pagamento ja foi
   confirmado e a proposta ja foi aprovada — falhar a nota nao pode desfazer a venda.
   Ganchos: `handlePaymentSuccess` (asaas-webhook) e `syncApprovedProposalTransactions`.
+- **O PDF da NFS-e vem em `url_danfse`, nao em `caminho_danfe`.** A NF-e devolve
+  `caminho_danfe` RELATIVO a base; a NFS-e — nos dois padroes — devolve `url_danfse`
+  ABSOLUTO (S3, fora do host da API). Ler so o campo da NF-e fez toda NFS-e autorizada
+  nascer sem `pdfUrl`: sem botao de baixar na lista e com o arquivamento legal guardando
+  apenas o XML. O fixture do teste de NFS-e omitia o campo, entao a suite concordava com o
+  bug.
+- **Link de documento pode chegar DEPOIS, e `canApplyStatus` nao pode barrar isso.** A
+  guarda existe contra regressao de STATUS; consultar uma nota autorizada devolve
+  `authorized` de novo, a transicao e recusada e o update inteiro era descartado — links
+  inclusive. Uma nota que nasceu sem `pdfUrl` ficava sem ele para sempre, e nenhum botao da
+  UI a recuperava. Agora, quando o status nao muda, os campos de link AUSENTES sao
+  preenchidos e o retorno e `applied: true` para o arquivamento rodar. Link de documento
+  nao regride: ou falta, ou existe e e imutavel — por isso preencher e completar o
+  registro, nao reverter estado. Guard: `invoice.backfill-links.test.ts`.
+  **Preencher no service nao bastava:** nada disparava a consulta numa nota autorizada —
+  `pollPendingInvoices` so varre `processing`/`error`, e o botao "Consultar agora" da UI so
+  aparecia em `processing`. A lista mostra agora um botao de buscar o PDF **na propria
+  celula onde o download ficaria**, quando a nota esta autorizada e sem `pdfUrl`; ele some
+  sozinho assim que o link chega.
+- **IBS/CBS na NFS-e: em 2026 o Simples nao destaca nada.** O preenchimento so passa a ser
+  obrigatorio para Simples/MEI em **01/01/2027**; em 2026 os dois seguem recolhidos por
+  dentro do DAS, e o unico campo novo esperado e o **codigo NBS** (opcional no catalogo,
+  enviado como `codigo_nbs` quando o servico tem `nbs`). No DANFSe v2.0 (NT 008/2026) o
+  bloco de valores tem TRES linhas — "Valor Liquido da NFS-e", "Total do IBS/CBS" e "Valor
+  Liquido da NFS-e + IBS/CBS" — e a NT manda preencher com traço o que nao vem no XML. A
+  terceira linha e um TOTAL A PAGAR, nao um valor de imposto: com IBS/CBS ausente ela
+  repete o valor liquido, e vir zerada e que estaria errado. Nada disso e configuravel do
+  nosso lado — nao enviamos campo de IBS/CBS, e o DANFSe e renderizado pelo Ambiente
+  Nacional.
 - **DANFE e XML sao espelhados no nosso Storage** (`tenants/{id}/fiscal/{invoiceId}/`) assim
   que a nota e autorizada. Nao e conveniencia: guarda legal de **5 anos + ano corrente**
   (Ajuste SINIEF 07/2005), e depender do link do provedor deixaria o acervo do cliente fora

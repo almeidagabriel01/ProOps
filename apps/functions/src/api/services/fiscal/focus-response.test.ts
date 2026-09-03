@@ -140,6 +140,53 @@ describe("mapFocusResponse — NFS-e", () => {
     });
   });
 
+  it("lê o PDF de `url_danfse`, que é como a NFS-e o chama", () => {
+    // A NF-e devolve `caminho_danfe`; a NFS-e, `url_danfse`. Só o primeiro era
+    // lido, então toda NFS-e autorizada ficava sem botão de baixar o PDF — e o
+    // arquivamento de guarda legal salvava apenas o XML.
+    const result = mapFocusResponse(
+      {
+        status: "autorizado",
+        numero: "19",
+        url_danfse:
+          "https://focusnfe.s3.sa-east-1.amazonaws.com/arquivos/x/DANFSEs/NFS3139.pdf",
+        caminho_xml_nota_fiscal: "/arquivos/xml/nfse.xml",
+        ref: "inv_svc",
+      },
+      "nfse",
+      "inv_svc",
+      BASE_URL,
+    );
+
+    expect(result.pdfUrl).toBe(
+      "https://focusnfe.s3.sa-east-1.amazonaws.com/arquivos/x/DANFSEs/NFS3139.pdf",
+    );
+  });
+
+  it("não prefixa a base numa URL que já vem absoluta", () => {
+    // `url_danfse` aponta para o S3, fora do host da API — concatenar a base
+    // produziria um link quebrado que só falharia na hora do download.
+    const result = mapFocusResponse(
+      { status: "autorizado", url_danfse: "https://cdn.example.com/d.pdf", ref: "r" },
+      "nfse",
+      "r",
+      BASE_URL,
+    );
+
+    expect(result.pdfUrl).toBe("https://cdn.example.com/d.pdf");
+  });
+
+  it("segue sem pdfUrl enquanto a nota não é autorizada", () => {
+    const result = mapFocusResponse(
+      { status: "processando_autorizacao", ref: "r" },
+      "nfse",
+      "r",
+      BASE_URL,
+    );
+
+    expect(result.pdfUrl).toBeUndefined();
+  });
+
   it("falls back to the itemized errors when there is no SEFAZ message", () => {
     // NFS-e rejections come from the municipality and use `erros`, not `mensagem_sefaz`.
     const result = mapFocusResponse(
