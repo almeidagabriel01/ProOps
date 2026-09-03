@@ -18,11 +18,17 @@
 import { test, expect } from "@playwright/test";
 import { getTestDb } from "../helpers/admin-firestore";
 import { signInWithEmailPassword } from "../helpers/firebase-auth-api";
-import { USER_ADMIN_BETA } from "../seed/data/users";
+import { PLAN_ENTERPRISE, PLAN_PASSWORD } from "../seed/data/plans";
 
 const FUNCTIONS_BASE = "http://127.0.0.1:5001/demo-proops-test/southamerica-east1/api";
 
-const TENANT = USER_ADMIN_BETA.tenantId;
+// Roda num tenant ENTERPRISE, nao mais no tenant-beta.
+//
+// Nota fiscal passou a ser exclusiva do Enterprise, e o tenant-beta resolve
+// para `pro` (pelo planId do dono) — as rotas de /v1/fiscal passariam a
+// responder 402 antes de qualquer regra fiscal ser exercitada. Rodar o modulo
+// num plano que nao o contrata testaria o gate, nao o modulo.
+const TENANT = PLAN_ENTERPRISE.tenantId;
 const WEBHOOK_SECRET = "segredo-de-teste-fiscal";
 
 const ENDERECO_EMITENTE = {
@@ -77,8 +83,8 @@ test.describe("FISCAL-01: configuração e emissão", () => {
 
   test.beforeAll(async () => {
     const signIn = await signInWithEmailPassword(
-      USER_ADMIN_BETA.email,
-      USER_ADMIN_BETA.password,
+      PLAN_ENTERPRISE.email,
+      PLAN_PASSWORD,
     );
     idToken = signIn.idToken;
   });

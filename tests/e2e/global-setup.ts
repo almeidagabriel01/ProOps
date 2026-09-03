@@ -109,7 +109,9 @@ async function globalSetup(): Promise<void> {
   // provar nada — exatamente a classe de teste inutil que este trabalho evita.
   // Fica aqui e nao so em .env.demo-proops-test porque aquele arquivo e local
   // (gitignored) e nao existe no CI.
-  process.env.TENANT_PLAN_CAPABILITY_MODE = "enforce";
+  if (!process.env.TENANT_PLAN_CAPABILITY_MODE) {
+    process.env.TENANT_PLAN_CAPABILITY_MODE = "enforce";
+  }
   if (!process.env.CONFIRMATION_SECRET) {
     process.env.CONFIRMATION_SECRET = "test-secret";
   }
