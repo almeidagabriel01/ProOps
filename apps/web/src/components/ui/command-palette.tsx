@@ -22,7 +22,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import {
@@ -42,6 +41,8 @@ interface SearchItem {
   masterOnly?: boolean;
   requiresFinancial?: boolean;
   requiresCreate?: string; // pageId that requires create permission
+  /** pageId cuja permissao de visualizacao e exigida para o destino aparecer. */
+  requiresView?: string;
   requiresKanban?: boolean;
 }
 
@@ -52,6 +53,7 @@ const searchItems: SearchItem[] = [
     description: "Visão geral do sistema",
     path: "/dashboard",
     icon: LayoutDashboard,
+    requiresView: "dashboard",
     keywords: ["home", "início", "resumo", "visão geral"],
   },
   {
@@ -60,6 +62,7 @@ const searchItems: SearchItem[] = [
     description: "Visualização e gestão de processos",
     path: "/crm",
     icon: Kanban,
+    requiresView: "kanban",
     keywords: ["quadro", "processos", "tarefas", "cartões", "crm", "kanban"],
     requiresKanban: true,
   },
@@ -69,6 +72,7 @@ const searchItems: SearchItem[] = [
     description: "Gerenciar planilhas",
     path: "/spreadsheets",
     icon: FileSpreadsheet,
+    requiresView: "spreadsheets",
     keywords: ["planilha", "excel", "tabela", "dados"],
   },
   {
@@ -78,6 +82,7 @@ const searchItems: SearchItem[] = [
     path: "/products",
     icon: Package,
     keywords: ["catálogo", "estoque", "itens", "mercadorias"],
+    requiresView: "products",
   },
   {
     id: "services",
@@ -86,6 +91,7 @@ const searchItems: SearchItem[] = [
     path: "/services",
     icon: Package,
     keywords: ["serviço", "servicos", "mão de obra", "atividade"],
+    requiresView: "services",
   },
   {
     id: "new-product",
@@ -111,6 +117,7 @@ const searchItems: SearchItem[] = [
     description: "Gerenciar propostas comerciais",
     path: "/proposals",
     icon: FileText,
+    requiresView: "proposals",
     keywords: ["orçamento", "proposta", "cotação", "vendas"],
   },
   {
@@ -129,6 +136,7 @@ const searchItems: SearchItem[] = [
     path: "/contacts",
     icon: UsersRound,
     keywords: ["cliente", "fornecedor", "contato", "empresa", "pessoa"],
+    requiresView: "clients",
   },
   {
     id: "new-customer",
@@ -145,6 +153,7 @@ const searchItems: SearchItem[] = [
     description: "Gerenciar lançamentos financeiros",
     path: "/transactions",
     icon: ReceiptText,
+    requiresView: "transactions",
     keywords: [
       "transactions",
       "lancamentos",
@@ -162,6 +171,7 @@ const searchItems: SearchItem[] = [
     description: "Gerenciar carteiras financeiras",
     path: "/wallets",
     icon: WalletCards,
+    requiresView: "wallet",
     keywords: ["carteira", "carteiras", "contas", "saldos"],
     requiresFinancial: true,
   },
@@ -171,6 +181,7 @@ const searchItems: SearchItem[] = [
     description: "Gerenciar soluções e templates",
     path: "/solutions",
     icon: Bot,
+    requiresView: "solutions",
     keywords: ["solucoes", "soluções", "automacao", "automação", "templates"],
   },
   {
@@ -235,17 +246,18 @@ interface CommandPaletteProps {
 
 export function CommandPalette({ className }: CommandPaletteProps) {
   const router = useRouter();
-  const { user } = useAuth();
   const { tenant } = useTenant();
   const { hasFinancial, hasKanban } = usePlanLimits();
-  const { hasPermission } = usePermissions();
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const isMaster = user?.role === "admin";
+  // Vem do provider: normaliza MASTER/ADMIN/SUPERADMIN. Antes era
+  // `user?.role === "admin"`, que e falso para o role realmente gravado
+  // ("MASTER") — os itens masterOnly sumiam para o proprio master.
+  const { hasPermission, isMaster } = usePermissions();
 
   // Filter items based on search term and user permissions
   const filteredItems = React.useMemo(() => {
@@ -274,6 +286,10 @@ export function CommandPalette({ className }: CommandPaletteProps) {
         if (item.masterOnly && !isMaster) return false;
         if (item.requiresFinancial && !hasFinancial) return false;
         if (item.requiresKanban && !hasKanban) return false;
+        // Destino de navegacao: exige a mesma permissao de visualizacao que a
+        // dock e a guarda de rota exigem. Sem isto o palette era rota de fuga.
+        if (item.requiresView && !hasPermission(item.requiresView, "view"))
+          return false;
         // Check create permission if required
         if (
           item.requiresCreate &&
