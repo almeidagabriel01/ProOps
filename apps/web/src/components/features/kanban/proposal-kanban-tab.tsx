@@ -20,6 +20,7 @@ import {
 } from "@/services/kanban-board-service";
 import { Proposal } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { KanbanBoardSkeleton } from "@/app/crm/_components/kanban-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,7 +82,15 @@ function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
 }
 
 export function ProposalKanbanTab() {
-  const { tenant, isReadOnly } = useTenant();
+  const { tenant, isReadOnly: isDemoReadOnly } = useTenant();
+  // As colunas do quadro sao um recurso proprio do CRM: quem so tem "Ver" em
+  // kanban navega o quadro, mas nao cria, renomeia nem apaga coluna.
+  const {
+    canCreate: canCreateColumn,
+    canEdit: canEditColumn,
+    canDelete: canDeleteColumn,
+  } = usePagePermission("kanban");
+  const isReadOnly = isDemoReadOnly || !canEditColumn;
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [columns, setColumns] = React.useState<KanbanStatusColumn[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -1037,7 +1046,7 @@ export function ProposalKanbanTab() {
               </button>
               <button
                 type="button"
-                disabled={isReadOnly}
+                disabled={isDemoReadOnly || !canDeleteColumn}
                 onClick={() => setDeletingColumnId(column.id)}
                 className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
                 title="Excluir coluna"
@@ -1057,7 +1066,15 @@ export function ProposalKanbanTab() {
         </div>
       );
     },
-    [columns, columnFilters, clientOptions, columnMeta, isReadOnly],
+    [
+      columns,
+      columnFilters,
+      clientOptions,
+      columnMeta,
+      isReadOnly,
+      isDemoReadOnly,
+      canDeleteColumn,
+    ],
   );
 
   // Column footer — "Carregar mais" when the server still has docs
@@ -1102,7 +1119,7 @@ export function ProposalKanbanTab() {
             }}
             size="sm"
             variant="outline"
-            disabled={isReadOnly}
+            disabled={isDemoReadOnly || !canCreateColumn}
             className="gap-1.5 h-9 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -1114,7 +1131,7 @@ export function ProposalKanbanTab() {
               size="sm"
               className="gap-1.5 h-9 cursor-pointer text-muted-foreground hover:text-foreground"
               onClick={handleRestoreDefaults}
-              disabled={isSaving || isReadOnly}
+              disabled={isSaving || isDemoReadOnly || !canCreateColumn}
             >
               Restaurar Padrões
             </Button>

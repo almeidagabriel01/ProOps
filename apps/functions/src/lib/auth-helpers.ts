@@ -1,4 +1,5 @@
 import { db } from "../init";
+import { isTenantAdminRole } from "./auth-context";
 
 export interface UserDoc {
   role: string;
@@ -154,4 +155,35 @@ export const checkPermission = async (
 
   if (!permSnap.exists) return false;
   return permSnap.data()?.[requiredField] === true;
+};
+
+export type PermissionAction =
+  | "canView"
+  | "canCreate"
+  | "canEdit"
+  | "canDelete";
+
+/**
+ * Gate de permissão por página, com o bypass de master já aplicado.
+ *
+ * Os controllers antigos (products, services, clients, proposals) repetem
+ * `if (!isMaster && !isSuperAdmin) { checkPermission(...) }` porque já têm o
+ * contexto resolvido em mãos. Os módulos que estão sendo padronizados agora
+ * (kanban, planilhas, auxiliares) não precisam do doc do usuário para nada
+ * além disto, então resolvem o role pelas claims e evitam a leitura extra de
+ * `users/{uid}`.
+ *
+ * `pageId` é o mesmo id que a tela de Equipe grava em
+ * `users/{uid}/permissions/{pageId}` — nunca inventar uma chave nova aqui: foi
+ * assim que o módulo financeiro ficou negando tudo para todo membro.
+ */
+export const hasPagePermission = async (
+  claims: { uid?: string; role?: string } | undefined,
+  pageId: string,
+  action: PermissionAction,
+): Promise<boolean> => {
+  const uid = claims?.uid;
+  if (!uid) return false;
+  if (isTenantAdminRole(normalizeRole(claims?.role))) return true;
+  return checkPermission(uid, pageId, action);
 };

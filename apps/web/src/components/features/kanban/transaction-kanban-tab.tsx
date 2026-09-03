@@ -17,6 +17,7 @@ import {
   type KanbanColumnCursor,
 } from "@/services/kanban-board-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { KanbanBoardSkeleton } from "@/app/crm/_components/kanban-skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Loader } from "@/components/ui/loader";
@@ -61,7 +62,9 @@ function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
 
 export function TransactionKanbanTab() {
   const { statuses, isLoaded, reorderStatuses } = useTransactionStatuses();
-  const { tenant, isReadOnly } = useTenant();
+  const { tenant, isReadOnly: isDemoReadOnly } = useTenant();
+  const { canEdit: canEditColumn } = usePagePermission("kanban");
+  const isReadOnly = isDemoReadOnly || !canEditColumn;
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [columnFilters, setColumnFilters] = React.useState<
