@@ -246,7 +246,7 @@ export class TransactionService {
     data: CreateTransactionDTO,
   ) {
     const { tenantId: userTenantId, isSuperAdmin } =
-      await checkFinancialPermission(userId, "canCreate", user);
+      await checkFinancialPermission(userId, "transactions", "canCreate", user);
 
     // Super admin can specify target tenant
     const tenantId =
@@ -496,7 +496,7 @@ export class TransactionService {
     payload: UpdateFinancialEntryWithInstallmentsDTO,
   ) {
     const { tenantId: userTenantId, isSuperAdmin } =
-      await checkFinancialPermission(userId, "canEdit", user);
+      await checkFinancialPermission(userId, "transactions", "canEdit", user);
 
     await db.runTransaction(async (t) => {
       const now = Timestamp.now();
@@ -1005,11 +1005,7 @@ export class TransactionService {
       (updateData || {}) as Record<string, unknown>,
     );
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canEdit",
-      user,
-    );
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
 
     await db.runTransaction(async (t) => {
       const ref = db.collection(COLLECTION_NAME).doc(id);
@@ -1189,11 +1185,7 @@ export class TransactionService {
       );
     }
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canEdit",
-      user,
-    );
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
 
     return await db.runTransaction(async (t) => {
       const now = Timestamp.now();
@@ -1361,7 +1353,7 @@ export class TransactionService {
       );
     }
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "canEdit", user);
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
 
     return await db.runTransaction(async (t) => {
       const now = Timestamp.now();
@@ -1452,7 +1444,7 @@ export class TransactionService {
     groupId: string,
     newStatus: "paid" | "pending" | "overdue",
   ) {
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "canEdit", user);
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
 
     // Discover all members of this group server-side before entering the transaction.
     const [installmentSnap, recurringSnap, proposalSnap] = await Promise.all([
@@ -1498,11 +1490,7 @@ export class TransactionService {
    * Deletes a transaction and reverts any wallet balance changes.
    */
   static async deleteTransaction(userId: string, user: any, id: string) {
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canDelete",
-      user,
-    );
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canDelete", user);
 
     await db.runTransaction(async (t) => {
       const ref = db.collection(COLLECTION_NAME).doc(id);
@@ -1601,7 +1589,7 @@ export class TransactionService {
    * Deletes all transactions in a group atomically, reverting all wallet balances.
    */
   static async deleteTransactionGroup(userId: string, user: any, groupId: string) {
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "canDelete", user);
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canDelete", user);
 
     await db.runTransaction(async (t) => {
       const installmentSnap = await t.get(
@@ -1724,7 +1712,7 @@ export class TransactionService {
     partialAmount: number,
     date: string,
   ) {
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "canEdit", user);
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "transactions", "canEdit", user);
 
     await db.runTransaction(async (t) => {
       const ref = db.collection(COLLECTION_NAME).doc(id);

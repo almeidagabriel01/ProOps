@@ -35,7 +35,7 @@ import { SelectTenantState } from "@/components/shared/select-tenant-state";
 export default function FinancialPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
-  const { canCreate, canEdit, canDelete } = usePagePermission("financial");
+  const { canCreate, canEdit, canDelete } = usePagePermission("transactions");
   const { hasKanban } = usePlanLimits();
   const upgradeModal = useUpgradeModal();
   const canAccessCrm = hasKanban || user?.role === "superadmin";

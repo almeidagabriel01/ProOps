@@ -49,7 +49,7 @@ const transactionSteps = [
 export default function NewTransactionPage() {
   const router = useRouter();
   const { hasFinancial, isLoading: planLoading } = usePlanLimits();
-  const { canCreate, isLoading: permLoading } = usePagePermission("financial");
+  const { canCreate, isLoading: permLoading } = usePagePermission("transactions");
   const {
     formData,
     setFormData,

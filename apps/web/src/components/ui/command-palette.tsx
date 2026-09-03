@@ -181,7 +181,7 @@ const searchItems: SearchItem[] = [
     icon: Wallet,
     keywords: ["adicionar", "entrada", "recebimento"],
     requiresFinancial: true,
-    requiresCreate: "financial",
+    requiresCreate: "transactions",
   },
   {
     id: "new-expense",
@@ -191,7 +191,7 @@ const searchItems: SearchItem[] = [
     icon: Wallet,
     keywords: ["adicionar", "saída", "pagamento"],
     requiresFinancial: true,
-    requiresCreate: "financial",
+    requiresCreate: "transactions",
   },
   {
     id: "profile",

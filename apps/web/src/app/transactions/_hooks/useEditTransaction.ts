@@ -184,7 +184,7 @@ export function useEditTransaction() {
     canEdit,
     canView,
     isLoading: permLoading,
-  } = usePagePermission("financial");
+  } = usePagePermission("transactions");
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
