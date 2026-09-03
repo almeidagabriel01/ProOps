@@ -83,14 +83,18 @@ function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
 
 export function ProposalKanbanTab() {
   const { tenant, isReadOnly: isDemoReadOnly } = useTenant();
-  // As colunas do quadro sao um recurso proprio do CRM: quem so tem "Ver" em
-  // kanban navega o quadro, mas nao cria, renomeia nem apaga coluna.
+  // Duas coisas diferentes no mesmo quadro:
+  //  - a COLUNA e um recurso proprio do CRM (kanban_statuses) → pageId kanban;
+  //  - arrastar um CARTAO muda o status da PROPOSTA → pageId proposals.
+  // Quem so tem "Ver" em kanban navega o quadro; mover proposta exige "Editar"
+  // em propostas, que e a permissao que o backend cobra no PUT /v1/proposals.
   const {
     canCreate: canCreateColumn,
     canEdit: canEditColumn,
     canDelete: canDeleteColumn,
   } = usePagePermission("kanban");
-  const isReadOnly = isDemoReadOnly || !canEditColumn;
+  const { canEdit: canEditProposal } = usePagePermission("proposals");
+  const canMoveCards = !isDemoReadOnly && canEditProposal;
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [columns, setColumns] = React.useState<KanbanStatusColumn[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -1032,7 +1036,7 @@ export function ProposalKanbanTab() {
               </DropdownMenu>
               <button
                 type="button"
-                disabled={isReadOnly}
+                disabled={isDemoReadOnly || !canEditColumn}
                 onClick={() => {
                   if (col) {
                     setEditingColumn(col);
@@ -1071,8 +1075,8 @@ export function ProposalKanbanTab() {
       columnFilters,
       clientOptions,
       columnMeta,
-      isReadOnly,
       isDemoReadOnly,
+      canEditColumn,
       canDeleteColumn,
     ],
   );
@@ -1137,7 +1141,7 @@ export function ProposalKanbanTab() {
             </Button>
           )}
 
-          {!isReadOnly && (
+          {canMoveCards && (
             <p className="text-xs text-muted-foreground hidden sm:block">
               Arraste para alterar o status
             </p>
@@ -1149,9 +1153,11 @@ export function ProposalKanbanTab() {
       <KanbanBoard<Proposal>
         columns={boardColumns}
         onDragEnd={handleDragEnd}
-        onColumnDragEnd={onColumnDragEnd}
+        onColumnDragEnd={
+          isDemoReadOnly || !canEditColumn ? undefined : onColumnDragEnd
+        }
         onCardClick={handleCardClick}
-        isDragEnabled={!isReadOnly}
+        isDragEnabled={canMoveCards}
         getItemId={(p) => p.id}
         showColumnTotals
         getItemValue={(p) =>

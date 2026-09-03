@@ -178,14 +178,30 @@ Agora as duas condições valem, e o gate só aperta:
 | `PUT /v1/calendar/events/:id` | `calendar.canEdit` **+** posse do evento |
 | `DELETE /v1/calendar/events/:id` | `calendar.canDelete` **+** posse do evento |
 
-`canManageCalendarEvent` foi dividido em `hasPagePermission` +
-`ownsCalendarEvent` justamente para os dois não se confundirem.
+### É UM calendário do tenant, não um por membro
 
-**Pendência conhecida:** a listagem devolve os eventos de TODO o tenant, mas a
-Firestore Rule de `calendar_events` restringe o membro a `ownerUserId == uid`.
-As duas camadas discordam sobre se a agenda é compartilhada ou privada — é
-decisão de produto, não bug de uma delas, e mexer em qualquer um dos lados
-muda comportamento para quem já usa.
+Esse é o modelo do produto, confirmado em 2026-09-03: o master conecta a conta
+Google **da empresa** e todo membro com acesso ao Calendário vê os mesmos
+dados dessa conta; o que um marca aparece para os outros, master incluído.
+
+Por isso **não existe checagem de posse do evento**. O gate é a permissão que
+o master concedeu — `calendar.canEdit` / `canDelete` — mais o `tenantId`. A
+posse não é critério de nada.
+
+Isso não era assim até 2026-09-03, e as camadas discordavam:
+
+- `canManageCalendarEvent` exigia `ownerUserId == uid`, com um escape que
+  liberava qualquer evento sincronizado com o Google a qualquer membro — o que
+  cobria a maioria dos eventos e deixava só os criados localmente presos ao
+  autor. Uma diferença que ninguém pediu e que não aparecia na UI.
+- A Firestore Rule de `calendar_events` restringia o membro a `ownerUserId ==
+  uid`, enquanto `GET /v1/calendar/events` sempre devolveu o tenant inteiro.
+
+Agora a Rule é de tenant, como nas outras coleções, e quem pode ver o
+Calendário é decidido pela permissão que a API cobra. Escrita segue exclusiva
+das Cloud Functions (`allow write: if false`). Guard:
+`tests/firestore-rules/calendar-events.test.ts` — a coleção não tinha teste
+nenhum, justamente a de regra mais sutil do arquivo.
 
 ---
 

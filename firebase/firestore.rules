@@ -402,14 +402,23 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions
     }
 
-    // CALENDAR EVENTS (tenant-scoped, member sees own events, admin sees tenant events)
+    // CALENDAR EVENTS — UM calendario do tenant, nao um por membro.
+    //
+    // A regra restringia o membro aos eventos de que ele era dono
+    // (ownerUserId == uid), enquanto GET /v1/calendar/events sempre devolveu o
+    // tenant inteiro. As duas camadas discordavam, e o modelo do produto e o
+    // compartilhado: o master conecta a conta Google da empresa e todo membro
+    // com acesso ao Calendario ve os mesmos dados, com o que um marca
+    // aparecendo para os outros.
+    //
+    // Quem pode ver o Calendario e decidido pela permissao "calendar" na tela
+    // de Equipe, que a API cobra; aqui a regra e a mesma das outras colecoes
+    // do tenant. Escrita segue exclusiva das Cloud Functions.
     match /calendar_events/{eventId} {
       allow read: if isSuperAdmin()
                   || (isAuthenticated()
                       && belongsToTenant(resource.data.tenantId)
-                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
-                      && (resource.data.get('ownerUserId', '') == request.auth.uid
-                          || hasTenantAdminRole()));
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions
     }
 

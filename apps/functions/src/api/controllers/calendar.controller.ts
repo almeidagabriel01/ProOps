@@ -1115,41 +1115,31 @@ function serializeCalendarEvent(
 }
 
 /**
- * Posse do evento + permissao da pagina. A posse ja existia; a permissao e o
- * que faltava — o backend do calendario era o unico modulo que ignorava
- * completamente o que o master marcou na tela de Equipe.
+ * O calendario e UM calendario do tenant, nao um por membro.
+ *
+ * Quando o master conecta a conta Google da empresa, todo membro com acesso ao
+ * Calendario ve os mesmos dados dessa conta, e o que um marca aparece para os
+ * outros. Por isso o gate e a permissao que o master concedeu na tela de
+ * Equipe — nao a posse do evento.
+ *
+ * A checagem de posse que existia aqui contradizia esse modelo, e ja tinha um
+ * escape para exatamente isso: qualquer evento sincronizado com o Google era
+ * gerenciavel por qualquer membro, o que na pratica cobria a maioria dos
+ * eventos e deixava so os criados localmente presos ao autor — uma diferenca
+ * que ninguem pediu e que nao aparece em lugar nenhum da UI.
+ *
+ * O que continua valendo: o evento tem que ser do MESMO tenant.
  */
 async function canManageCalendarEvent(
   req: Request,
   eventData: CalendarEventDocument,
   action: "canEdit" | "canDelete",
 ): Promise<boolean> {
-  if (!(await hasPagePermission(req.user, "calendar", action))) return false;
-  return ownsCalendarEvent(req, eventData);
-}
-
-function ownsCalendarEvent(
-  req: Request,
-  eventData: CalendarEventDocument,
-): boolean {
   const tenantId = resolveCalendarTenantId(req);
-  if (!req.user?.uid || !tenantId) {
-    return false;
-  }
+  if (!req.user?.uid || !tenantId) return false;
+  if (eventData.tenantId !== tenantId) return false;
 
-  if (eventData.tenantId !== tenantId) {
-    return false;
-  }
-
-  if (eventData.googleSync?.provider === "google" && eventData.googleSync.enabled) {
-    return true;
-  }
-
-  return (
-    eventData.ownerUserId === req.user.uid ||
-    req.user.isSuperAdmin ||
-    isTenantAdminRole(req.user.role)
-  );
+  return hasPagePermission(req.user, "calendar", action);
 }
 
 function buildBaseGoogleSyncMetadata(): GoogleSyncMetadata {
