@@ -178,6 +178,17 @@ export async function findInvoiceByRef(
  * The one transition allowed out of a terminal state is authorized → cancelled,
  * which is a real event.
  */
+/** Links de documento — imutáveis depois de emitidos, nunca regridem. */
+function documentLinks(
+  result: FiscalInvoiceResult,
+): Array<["pdfUrl" | "xmlUrl" | "publicUrl", string | undefined]> {
+  return [
+    ["pdfUrl", result.pdfUrl],
+    ["xmlUrl", result.xmlUrl],
+    ["publicUrl", result.publicUrl],
+  ];
+}
+
 export function canApplyStatus(
   current: FiscalInvoiceStatus,
   incoming: FiscalInvoiceStatus,
@@ -205,6 +216,38 @@ export async function applyInvoiceResult(
 
     const current = snap.data() as InvoiceDocument;
     if (!canApplyStatus(current.status, result.status)) {
+      /**
+       * O status não muda — mas o documento pode estar **incompleto**.
+       *
+       * A guarda existe contra REGRESSÃO de status, e estava barrando junto o
+       * preenchimento de links que faltavam: uma nota autorizada sem `pdfUrl`
+       * ficava sem ele para sempre, porque toda consulta posterior devolvia
+       * `authorized` de novo e o update inteiro era descartado. Foi assim que
+       * as NFS-e emitidas antes do mapeamento de `url_danfse` ficaram sem PDF,
+       * sem forma de recuperar pela UI.
+       *
+       * Link de documento não regride: ou falta, ou existe e é imutável. Então
+       * preencher o que falta é completar o registro, não reverter nada.
+       */
+      const backfill: Record<string, unknown> = {};
+      for (const [field, value] of documentLinks(result)) {
+        if (value !== undefined && !current[field]) backfill[field] = value;
+      }
+
+      if (Object.keys(backfill).length > 0) {
+        t.update(docRef(invoiceId), {
+          ...backfill,
+          updatedAt: new Date().toISOString(),
+        });
+        logger.info("Links de documento preenchidos numa nota ja existente", {
+          invoiceId,
+          campos: Object.keys(backfill),
+        });
+        // `applied` para que o arquivamento rode: é justamente agora que o
+        // arquivo passou a existir do nosso lado.
+        return { applied: true, status: current.status };
+      }
+
       logger.info("Evento fiscal ignorado — status nao regride", {
         invoiceId,
         atual: current.status,
