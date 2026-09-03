@@ -97,6 +97,12 @@ export default function InvoicesPage() {
       setInvoices((prev) => prev.map((item) => (item.id === id ? invoice : item)));
       if (invoice.status === "processing") {
         toast.info("A nota ainda está na fila do fisco.");
+      } else if (invoice.status === "authorized" && !invoice.pdfUrl) {
+        // Sem isto o clique não teria desfecho visível: o botão volta ao normal
+        // e nada muda na linha, o que se confunde com um clique que não pegou.
+        toast.info("O provedor ainda não disponibilizou o PDF desta nota.", {
+          description: "O XML continua disponível — ele é o documento que vale.",
+        });
       }
     } catch (error) {
       toast.error(
@@ -223,7 +229,7 @@ export default function InvoicesPage() {
           if (invoice.status === "authorized") {
             return (
               <div className="flex items-center">
-                {invoice.pdfUrl && (
+                {invoice.pdfUrl ? (
                   <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
                     <a
                       href={invoice.pdfUrl}
@@ -233,6 +239,25 @@ export default function InvoicesPage() {
                     >
                       <Download className="h-4 w-4" />
                     </a>
+                  </Button>
+                ) : (
+                  // Nota autorizada sem PDF é sempre recuperável: o link existe
+                  // no provedor, só não foi lido. Sem este botão não haveria
+                  // como buscá-lo — o cron só revisita nota pendente, e a nota
+                  // ficaria sem o documento para sempre.
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    title="Buscar o PDF desta nota"
+                    disabled={refreshingId === invoice.id}
+                    onClick={() => void refresh(invoice.id)}
+                  >
+                    {refreshingId === invoice.id ? (
+                      <Loader size="sm" variant="button" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
                   </Button>
                 )}
                 {invoice.xmlUrl && (

@@ -382,6 +382,11 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   preenchidos e o retorno e `applied: true` para o arquivamento rodar. Link de documento
   nao regride: ou falta, ou existe e e imutavel — por isso preencher e completar o
   registro, nao reverter estado. Guard: `invoice.backfill-links.test.ts`.
+  **Preencher no service nao bastava:** nada disparava a consulta numa nota autorizada —
+  `pollPendingInvoices` so varre `processing`/`error`, e o botao "Consultar agora" da UI so
+  aparecia em `processing`. A lista mostra agora um botao de buscar o PDF **na propria
+  celula onde o download ficaria**, quando a nota esta autorizada e sem `pdfUrl`; ele some
+  sozinho assim que o link chega.
 - **IBS/CBS na NFS-e: em 2026 o Simples nao destaca nada.** O preenchimento so passa a ser
   obrigatorio para Simples/MEI em **01/01/2027**; em 2026 os dois seguem recolhidos por
   dentro do DAS, e o unico campo novo esperado e o **codigo NBS** (opcional no catalogo,
