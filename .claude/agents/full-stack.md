@@ -17,6 +17,14 @@ tools: Read, Write, Edit, Bash
 - Revisão geral de código
 - Mudanças em tipos TypeScript compartilhados
 
+## Antes do fluxo: as quatro perguntas de acesso
+
+Feature nova do zero é exatamente o caso em que os gaps entram. Responda —
+ou **pergunte ao usuário** — antes de codar: **permissão de membro** (`pageId`),
+**plano** (qual capacidade, qual tier, add-on?), **conta free/modo demo** (a
+conta gratuita navega isto?) e **Firestore rules** (coleção nova precisa de
+regra). Checklist executável em `.claude/rules/access-control.md`.
+
 ## Fluxo de trabalho
 1. **Tipos primeiro** — define interfaces em `src/types/` e `apps/functions/src/shared/`
 2. **Backend** — Cloud Function ou API route com toda a lógica de negócio

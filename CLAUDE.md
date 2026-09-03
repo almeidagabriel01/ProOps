@@ -17,6 +17,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Only do this as a side effect of a change the user asked for. **Never** edit docs proactively or rewrite content the user did not ask you to touch — fix only what your change made inaccurate.
 - This rule does not apply to vendored/installed tooling: `.claude/gsd-*`, `.claude/get-shit-done/`, `.claude/skills/` (installed plugins), and stale copies under `.worktrees/`. Leave those alone.
 
+## Módulo ou Funcionalidade Nova — as quatro perguntas
+
+**Antes de escrever a primeira linha de um módulo ou funcionalidade nova,
+responda as quatro — e, se a resposta não estiver no pedido, PERGUNTE ao
+usuário em vez de escolher sozinho.** Nenhuma delas tem default seguro; as
+quatro falham em silêncio.
+
+1. **Permissão de membro** — qual `pageId`? O que um membro sem permissão vê?
+2. **Plano** — quais planos abrem isto? É vendável como add-on?
+3. **Conta free / modo demo** — uma conta gratuita navega isto em
+   somente-leitura, ou o módulo fica fora do demo?
+4. **Firestore rules** — a coleção nova tem regra? (DENY-by-default)
+
+O checklist executável de cada uma, com os arquivos exatos a tocar e os testes
+exigidos, está em **`.claude/rules/access-control.md`**. Siga-o — não confie na
+memória.
+
+O histórico do projeto tem um caso real de cada falha: uma chave de permissão
+fantasma fechou o módulo financeiro para todo membro; fiscal, calendário e
+Asaas nasceram sem gate de plano e ficaram meses abertos para qualquer
+assinante; e cinco prefixos mortos na lista de leitura do demo quebravam
+Soluções, Ambientes e o formulário de proposta para toda conta free.
+
 ## Bug Fix Policy
 
 Every confirmed bug fix **must** include automated test coverage for the exact failing scenario and the closest reasonable variants, committed in the same PR as the fix. The test must fail without the fix and pass with it.

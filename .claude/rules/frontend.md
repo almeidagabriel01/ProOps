@@ -36,6 +36,12 @@
 - Supported niches: `automacao_residencial` | `cortinas`
 - Niche logic lives in `src/lib/niches/`
 
+## Módulo novo: quatro camadas de acesso
+
+Página ou item de menu novo precisa declarar `pageId` (permissão de membro),
+`requiresCapability` (plano) e entrar em `DEMO_ACCESSIBLE_PREFIXES` se a conta
+free deve navegá-lo. Checklist completo em `.claude/rules/access-control.md`.
+
 ## Next.js App Router
 - Don't call Firebase client SDK from Server Components
 - Add `'use client'` directive to any component using `useState`, `useEffect`, or browser APIs

@@ -10,8 +10,16 @@
   - Unexpected errors → 500
 - Use dedicated `mapXxxErrorStatus()` helpers (e.g., `mapTransactionErrorStatus()`) — don't scatter HTTP logic
 
+## Módulo novo: quatro camadas de acesso
+
+Rota de módulo novo precisa declarar permissão de membro (`pageId`), plano
+(`requirePlanCapability`, **por prefixo**), presença no modo demo
+(`DEMO_READABLE_PREFIXES`, conferido contra o `app.use(...)` real) e regra de
+Firestore. Checklist completo em `.claude/rules/access-control.md` — nenhuma
+das quatro tem default seguro, e o projeto já teve um incidente de cada.
+
 ## Authentication & Middleware
-- Route order matters: public routes → `validateFirebaseIdToken` → rate limiters → protected routes
+- Route order matters: public routes → `validateFirebaseIdToken` → `requireActiveSubscription` (free vs pagante) → rate limiters → `requirePlanCapability` (gate de módulo) → protected routes
 - `req.user` is typed as `AuthContext` with: `uid`, `tenantId`, `role`, `masterId`, `isSuperAdmin`, `hasRequiredClaims`
 - Never trust `tenantId` from the request body — always use `req.user.tenantId`
 - Custom claims: `tenantId`, `role`, `masterId`, `isSuperAdmin`
