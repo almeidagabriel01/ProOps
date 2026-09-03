@@ -83,10 +83,33 @@ export const PERMS_MEMBER_OPERADOR: SeedPermissionUser = {
   },
 };
 
+/**
+ * Comeca no preset "editor" para PROPOSTAS: ver + criar + editar, sem excluir.
+ *
+ * Exclusivo do spec de acesso personalizado, que altera as permissoes DESTE
+ * membro em tempo de teste — por isso nao pode ser compartilhado com os outros
+ * specs. O caso que ele cobre e o do dia a dia: o preset entrega escrita e o
+ * master depois restringe para "so olhar".
+ */
+export const PERMS_MEMBER_CUSTOM: SeedPermissionUser = {
+  uid: "user-perms-custom",
+  email: "custom@perms.test",
+  password: PASSWORD,
+  name: "Membro Personalizado",
+  role: "MEMBER",
+  permissions: {
+    proposals: { canView: true, canCreate: true, canEdit: true },
+  },
+};
+
+/** Proposta do tenant de permissoes — alvo do PUT que mede canEdit. */
+export const PROPOSAL_PERMS = "proposal-perms-001";
+
 export const PERMS_USERS = [
   PERMS_MASTER,
   PERMS_MEMBER_RESTRITO,
   PERMS_MEMBER_OPERADOR,
+  PERMS_MEMBER_CUSTOM,
 ];
 
 const ALL_FLAGS: PermissionFlag[] = [
@@ -177,7 +200,25 @@ export async function seedPermissionTenant(
     }
   }
 
+  // Alvo do PUT /v1/proposals/:id — sem um documento existente o handler
+  // responde 404 antes de chegar ao gate de permissao, e o teste nao mediria
+  // nada.
+  await db.collection("proposals").doc(PROPOSAL_PERMS).set({
+    id: PROPOSAL_PERMS,
+    tenantId: TENANT_PERMS,
+    title: "Proposta do tenant de permissoes",
+    status: "draft",
+    clientId: "",
+    clientName: "Cliente Perms",
+    products: [],
+    sistemas: [],
+    sections: [],
+    totalValue: 1000,
+    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+    updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+  });
+
   console.log(
-    `[seed] Permission tenant created: ${TENANT_PERMS} (master + 2 membros)`,
+    `[seed] Permission tenant created: ${TENANT_PERMS} (master + 3 membros)`,
   );
 }

@@ -148,6 +148,23 @@ com um membro de verdade.
 - A dock põe `aria-label` **no wrapper do DockIcon e no `<Link>` interno**;
   `getByLabel` casa os dois. Use `getByRole("link", { name })`.
 
+### Acesso personalizado (`member-custom-access.spec.ts`)
+
+Os outros specs medem estados finais — um membro nasce com um mapa e as camadas
+o respeitam. Este mede o **ato de personalizar**, que é o caso do dia a dia: o
+preset entrega escrita e o master restringe para só leitura.
+`PUT /v1/admin/members/permissions` não tinha teste nenhum.
+
+- Roda `mode: "serial"` — cada teste altera as permissões do MESMO membro
+  (`PERMS_MEMBER_CUSTOM`, exclusivo deste arquivo). Não reutilizar esse membro
+  em outro spec: os arquivos rodam em paralelo.
+- Cobre o modo `single` (um toggle), o bulk, a cascata server-side (desligar
+  "Ver" zera os outros três), a restauração, e que um membro não altera as
+  próprias permissões.
+- Afirma também que a mudança vale **na chamada seguinte, sem re-login**:
+  `checkPermission` lê o Firestore por request, então a permissão não vive nas
+  claims e não há janela de token velho valendo.
+
 ### Ao rodar localmente no Windows
 
 Duas fontes de falha que **não** são do código sob teste, e que se manifestam
