@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import { useSort } from "@/hooks/use-sort";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { SpreadsheetsSkeleton } from "./_components/spreadsheets-skeleton";
 import { SpreadsheetsTableSkeleton } from "./_components/spreadsheets-table-skeleton";
@@ -54,6 +55,7 @@ import { formatDateBR } from "@/utils/date-format";
 
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
+  const { canCreate, canEdit, canDelete } = usePagePermission("spreadsheets");
   const { user } = useAuth();
   const router = useRouter();
   const [allSpreadsheets, setAllSpreadsheets] = useState<Spreadsheet[] | null>(
@@ -195,8 +197,7 @@ export default function SpreadsheetsPage() {
     setImporting(true);
 
     try {
-      const importedSpreadsheet =
-        await importExcelFileToSpreadsheetData(file);
+      const importedSpreadsheet = await importExcelFileToSpreadsheetData(file);
       const newId = await SpreadsheetService.createSpreadsheet({
         tenantId: tenant.id,
         name: importedSpreadsheet.name,
@@ -288,25 +289,29 @@ export default function SpreadsheetsPage() {
       sortable: false,
       render: (sheet) => (
         <div className="flex items-center justify-end gap-1">
-          <Link href={`/spreadsheets/${sheet.id}`}>
+          {canEdit && (
+            <Link href={`/spreadsheets/${sheet.id}`}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Editar"
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            </Link>
+          )}
+          {canDelete && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
-              title="Editar"
+              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setDeleteId(sheet.id)}
+              title="Excluir"
             >
-              <Edit className="w-4 h-4" />
+              <Trash2 className="w-4 h-4" />
             </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => setDeleteId(sheet.id)}
-            title="Excluir"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          )}
         </div>
       ),
     },
@@ -335,39 +340,45 @@ export default function SpreadsheetsPage() {
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Planilhas</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              Planilhas
+            </h1>
             <p className="text-muted-foreground mt-1">
               Crie e gerencie suas planilhas personalizadas.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <Button
-              size="lg"
-              variant="outline"
-              className="gap-2 w-full sm:w-auto"
-              onClick={handleImportClick}
-              disabled={creating || importing}
-            >
-              {importing ? (
-                <Spinner className="w-4 h-4" />
-              ) : (
-                <Upload className="w-5 h-5" />
-              )}
-              {importing ? "Importando..." : "Importar Planilha"}
-            </Button>
-            <Button
-              size="lg"
-              className="gap-2 w-full sm:w-auto"
-              onClick={handleCreate}
-              disabled={creating || importing}
-            >
-              {creating ? (
-                <Spinner className="w-4 h-4" />
-              ) : (
-                <Plus className="w-5 h-5" />
-              )}
-              Nova Planilha
-            </Button>
+            {canCreate && (
+              <Button
+                size="lg"
+                variant="outline"
+                className="gap-2 w-full sm:w-auto"
+                onClick={handleImportClick}
+                disabled={creating || importing}
+              >
+                {importing ? (
+                  <Spinner className="w-4 h-4" />
+                ) : (
+                  <Upload className="w-5 h-5" />
+                )}
+                {importing ? "Importando..." : "Importar Planilha"}
+              </Button>
+            )}
+            {canCreate && (
+              <Button
+                size="lg"
+                className="gap-2 w-full sm:w-auto"
+                onClick={handleCreate}
+                disabled={creating || importing}
+              >
+                {creating ? (
+                  <Spinner className="w-4 h-4" />
+                ) : (
+                  <Plus className="w-5 h-5" />
+                )}
+                Nova Planilha
+              </Button>
+            )}
           </div>
         </div>
 
