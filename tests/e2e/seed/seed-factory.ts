@@ -10,6 +10,7 @@ import { seedWallets } from "./data/wallets";
 import { seedSistemas } from "./data/sistemas";
 import { seedContacts } from "./data/contacts";
 import { seedProducts } from "./data/products";
+import { PERMS_USERS, seedPermissionTenant } from "./data/permissions";
 
 const PROJECT_ID = "demo-proops-test";
 
@@ -55,6 +56,7 @@ export async function seedAll(): Promise<void> {
   await seedTenants(db);
   await seedUsers(auth, db);
   await seedAiTenants(auth, db);
+  await seedPermissionTenant(auth, db);
   await seedWallets(db);
   await seedSistemas(db);
   await seedContacts(db);
@@ -79,6 +81,20 @@ export async function clearAll(): Promise<void> {
 
   for (const col of collections) {
     const snapshot = await db.collection(col).get();
+
+    // A subcolecao users/{uid}/permissions nao e apagada ao deletar o doc pai
+    // no Firestore — sem isto, um membro reaproveitaria as permissoes do run
+    // anterior e o teste passaria por dados velhos.
+    if (col === "users") {
+      for (const userDoc of snapshot.docs) {
+        const permSnap = await userDoc.ref.collection("permissions").get();
+        if (permSnap.docs.length === 0) continue;
+        const permBatch = db.batch();
+        permSnap.docs.forEach((doc) => permBatch.delete(doc.ref));
+        await permBatch.commit();
+      }
+    }
+
     const batch = db.batch();
     snapshot.docs.forEach((doc) => batch.delete(doc.ref));
     if (snapshot.docs.length > 0) await batch.commit();
@@ -97,6 +113,7 @@ export async function clearAll(): Promise<void> {
     "ai-starter-uid",
     "ai-free-uid",
     "ai-free-role-uid",
+    ...PERMS_USERS.map((u) => u.uid),
   ];
 
   for (const uid of uids) {

@@ -120,6 +120,47 @@ scroll — foi assim que o grid de lançamentos (~662px) ficou quebrado sem alar
 
 Não há screenshot baseline nem checagem de acessibilidade (axe) em nenhum projeto.
 
+## Sessão de MEMBRO no E2E (`tests/e2e/permissions/`)
+
+Até 2026-09-03 **nenhum teste do projeto exercitava a UI como membro**. Os seeds
+`USER_MEMBER_ALPHA`/`BETA` existiam, mas `fixtures/auth.fixture.ts` só expunha
+sessão de admin, e o único uso do membro era uma asserção de claims. Foi essa
+lacuna que deixou a chave fantasma `financial` — que fechava o módulo financeiro
+inteiro para todo membro — passar meses sem ser notada: ela **só** se manifesta
+com um membro de verdade.
+
+- **Fixtures**: `memberRestrito` (só `proposals.canView`) e `memberOperador`
+  (propostas e lançamentos com escrita, carteira e CRM só leitura, sem notas).
+  A espera de redirect não pode ser por `/dashboard`: a home de um membro
+  depende das permissões dele (`resolveUserHome`).
+- **Seed**: `tests/e2e/seed/data/permissions.ts` cria um tenant próprio
+  (`tenant-perms`, plano **enterprise**) com master e dois membros, cada um com
+  a subcoleção `users/{uid}/permissions` desenhada. Separado do `tenant-alpha`
+  de propósito — alpha é `pro` (sem CRM), e mudar o plano dele afetaria dezenas
+  de testes existentes.
+- `clearAll()` apaga a subcoleção `permissions` de cada user: deletar o doc pai
+  no Firestore **não** apaga subcoleção, e sem isso um membro reaproveitaria as
+  permissões do run anterior.
+- **Chamadas de API nos testes precisam do prefixo `v1/`**: o proxy
+  (`/api/backend/[...path]`) repassa o caminho verbatim para a function, e as
+  rotas são montadas em `/v1`. `/api/backend/transactions/summary` devolve 404,
+  não 403 — e um teste que aceite `[403, 404]` passa sem provar nada.
+- A dock põe `aria-label` **no wrapper do DockIcon e no `<Link>` interno**;
+  `getByLabel` casa os dois. Use `getByRole("link", { name })`.
+
+### Ao rodar localmente no Windows
+
+Duas fontes de falha que **não** são do código sob teste, e que se manifestam
+como todos os testes estourando `waitForURL` de uma vez:
+
+1. **Cache stale do Next de teste.** O sintoma é
+   `Failed to create session cookie (404)` no log do WebServer e 404 em toda
+   route handler — o login nunca completa e as chamadas de API viram 404.
+   Some com `rm -rf apps/web/.next-test`.
+2. **Porta ocupada por um run anterior.** O teardown mata a árvore do PID do
+   emulador, mas nem sempre o java filho. Confira 8080/9099/5001/3001 antes de
+   rodar.
+
 ## Merge Queue (`merge_group` trigger)
 
 When Merge Queue is enabled on a branch, GitHub creates a temporary branch with the real merge commit before merging. `test-suite.yml` runs on this commit via the `merge_group` trigger. This catches cases where develop + main integrate correctly in isolation but break when merged.

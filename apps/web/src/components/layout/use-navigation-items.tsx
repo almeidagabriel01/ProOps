@@ -8,6 +8,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import {
   menuItems,
   type MenuItem,
+  type SubMenuItem,
 } from "@/components/layout/navigation-config";
 import {
   getSolutionsPageConfig,
@@ -28,6 +29,16 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
 
   const visibleMenuItems = React.useMemo(() => {
     const solutionsConfig = getSolutionsPageConfig(tenant?.niche);
+
+    const filterChildren = (item: MenuItem): SubMenuItem[] =>
+      (item.children ?? []).filter((child) => {
+        if (!isPageEnabledForNiche(tenant?.niche, child.pageId)) return false;
+        if (child.masterOnly && !isMaster) return false;
+        if (child.pageId && !isMaster && !isDemo) {
+          return hasPermission(child.pageId, "view");
+        }
+        return true;
+      });
 
     return menuItems
       .map((item) => {
@@ -65,23 +76,22 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
 
         if (item.pageId) {
           if (item.children) {
-            const visibleChildren = item.children.filter((child) => {
-              if (!isPageEnabledForNiche(tenant?.niche, child.pageId)) {
-                return false;
-              }
-              if (child.masterOnly && !isMaster) return false;
-              if (child.pageId && !isMaster) {
-                return hasPermission(child.pageId, "view");
-              }
-              return true;
-            });
-            return visibleChildren.length > 0;
+            return filterChildren(item).length > 0;
           }
           return hasPermission(item.pageId, "view");
         }
 
         return true;
-      });
+      })
+      // Devolve o item com os filhos JÁ filtrados. Antes voltava o item
+      // original, e quem achata o grupo Financeiro na dock
+      // (`use-dock-entries`) reaplicava só `masterOnly` — então "Notas
+      // Fiscais" aparecia para quem tinha apenas `transactions.canView`, e
+      // clicar levava sempre a /403. Filtrar em dois lugares com critérios
+      // diferentes era a causa; agora só existe um.
+      .map((item) =>
+        item.children ? { ...item, children: filterChildren(item) } : item,
+      );
   }, [hasFinancial, hasKanban, hasWhatsApp, isMaster, isDemo, hasPermission, tenant?.niche]);
 
   return { visibleMenuItems };
