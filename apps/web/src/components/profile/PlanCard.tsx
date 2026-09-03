@@ -250,6 +250,30 @@ export function PlanCard({
                       : `${plan.features.maxStorageMB} MB`
                 }
               />
+              <FeatureRow
+                label="Carteiras"
+                value={
+                  plan.features.maxWallets === -1
+                    ? "Ilimitadas"
+                    : `Até ${plan.features.maxWallets}`
+                }
+              />
+              <FeatureRow
+                label="Planilhas"
+                value={
+                  plan.features.maxSpreadsheets === -1
+                    ? "Ilimitadas"
+                    : `Até ${plan.features.maxSpreadsheets}`
+                }
+              />
+              <FeatureRow
+                label="Mensagens da Lia (IA)"
+                value={
+                  plan.features.aiMessagesPerMonth === -1
+                    ? "Ilimitadas"
+                    : `${plan.features.aiMessagesPerMonth}/mês`
+                }
+              />
               <BooleanFeature
                 label="Controle financeiro"
                 available={plan.features.hasFinancial}
@@ -265,6 +289,14 @@ export function PlanCard({
               <BooleanFeature
                 label="CRM Kanban"
                 available={plan.features.hasKanban}
+              />
+              <BooleanFeature
+                label="Notas Fiscais (NF-e e NFS-e)"
+                available={plan.features.hasFiscal}
+              />
+              <BooleanFeature
+                label="Sincronia com o Google Agenda"
+                available={plan.features.hasCalendarSync}
               />
               {isEnterprise && (
                 <>

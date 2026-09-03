@@ -77,6 +77,7 @@ const FALLBACK_PLANS: PricingCard[] = [
       "Tudo do Essencial",
       "Financeiro e carteiras",
       "Editor de PDF avançado",
+      "Agenda sincronizada com o Google Agenda",
       "Permissões de equipe",
     ],
   },
@@ -89,6 +90,8 @@ const FALLBACK_PLANS: PricingCard[] = [
     prices: { monthly: 0, yearly: 0 },
     features: [
       "Tudo do Profissional",
+      "CRM Kanban",
+      "Emissão de NF-e e NFS-e",
       "WhatsApp integrado para consultas e envio de documentos",
       "Acordo de SLA",
       "Acompanhamento de implantação",
