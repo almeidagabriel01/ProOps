@@ -62,12 +62,18 @@ const DEMO_READABLE_PREFIXES = [
   "/v1/spreadsheets",
   "/v1/kanban",
   "/v1/calendar",
-  "/v1/ambientes",
-  "/v1/sistemas",
   "/v1/notifications",
-  "/v1/custom-fields",
-  "/v1/options",
-  "/v1/proposal-templates",
+  // Ambientes, sistemas, campos customizados, opcoes e templates de proposta
+  // vivem TODOS sob /v1/aux (app.use("/v1/aux", auxiliaryRoutes)).
+  //
+  // Ate 2026-09-03 esta lista trazia "/v1/ambientes", "/v1/sistemas",
+  // "/v1/custom-fields", "/v1/options" e "/v1/proposal-templates" — cinco
+  // caminhos que NAO EXISTEM. O casamento e por startsWith, entao nenhum deles
+  // batia, e toda conta demo levava 402 FREE_TIER_FORBIDDEN ao abrir Solucoes,
+  // Ambientes ou o formulario de proposta. O front ja usava o prefixo certo
+  // (DEMO_BLOCKED_MUTATION_PREFIXES tem "/v1/aux"); era esta lista que estava
+  // fora de sincronia.
+  "/v1/aux",
 ];
 
 function isDemoReadablePath(path: string): boolean {
