@@ -5,6 +5,7 @@ import { db } from "../../init";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 import { isGoogleCalendarSyncEnabled } from "../../lib/google-calendar-feature";
 import { isTenantAdminRole } from "../../lib/auth-context";
+import { hasPagePermission } from "../../lib/auth-helpers";
 import {
   selectRefreshTokenSource,
   buildRefreshTokenStorageFields,
@@ -1089,8 +1090,9 @@ async function validateSuperAdminCalendarTarget(
   });
 }
 
-function canViewCalendarEvents(req: Request): boolean {
-  return Boolean(req.user?.uid && resolveCalendarTenantId(req));
+async function canViewCalendarEvents(req: Request): Promise<boolean> {
+  if (!req.user?.uid || !resolveCalendarTenantId(req)) return false;
+  return hasPagePermission(req.user, "calendar", "canView");
 }
 
 function canManageGoogleCalendarIntegration(req: Request): boolean {
@@ -1112,7 +1114,21 @@ function serializeCalendarEvent(
   };
 }
 
-function canManageCalendarEvent(
+/**
+ * Posse do evento + permissao da pagina. A posse ja existia; a permissao e o
+ * que faltava — o backend do calendario era o unico modulo que ignorava
+ * completamente o que o master marcou na tela de Equipe.
+ */
+async function canManageCalendarEvent(
+  req: Request,
+  eventData: CalendarEventDocument,
+  action: "canEdit" | "canDelete",
+): Promise<boolean> {
+  if (!(await hasPagePermission(req.user, "calendar", action))) return false;
+  return ownsCalendarEvent(req, eventData);
+}
+
+function ownsCalendarEvent(
   req: Request,
   eventData: CalendarEventDocument,
 ): boolean {
@@ -1315,7 +1331,7 @@ async function listCalendarEventsWithTenantFallback(params: {
 export async function getCalendarEvents(req: Request, res: Response) {
   try {
     const tenantId = resolveCalendarTenantId(req);
-    if (!canViewCalendarEvents(req) || !tenantId || !req.user?.uid) {
+    if (!tenantId || !req.user?.uid || !(await canViewCalendarEvents(req))) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
 
@@ -1745,6 +1761,11 @@ export async function createCalendarEvent(req: Request, res: Response) {
     if (!req.user?.uid || !tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
+    if (!(await hasPagePermission(req.user, "calendar", "canCreate"))) {
+      return res
+        .status(403)
+        .json({ message: "Sem permissao para criar compromissos." });
+    }
     try {
       await validateSuperAdminCalendarTarget(req, tenantId);
     } catch {
@@ -1824,7 +1845,7 @@ export async function updateCalendarEvent(req: Request, res: Response) {
 
     const existingData = snapshot.data() as CalendarEventDocument;
 
-    if (!canManageCalendarEvent(req, existingData)) {
+    if (!(await canManageCalendarEvent(req, existingData, "canEdit"))) {
       return res.status(403).json({ message: "Acesso negado." });
     }
 
@@ -1905,7 +1926,7 @@ export async function deleteCalendarEvent(req: Request, res: Response) {
     }
 
     const existingData = snapshot.data() as CalendarEventDocument;
-    if (!canManageCalendarEvent(req, existingData)) {
+    if (!(await canManageCalendarEvent(req, existingData, "canDelete"))) {
       return res.status(403).json({ message: "Acesso negado." });
     }
 

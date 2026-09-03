@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
-import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import {
+  checkPermission,
+  resolveUserAndTenant,
+  type PermissionAction,
+} from "../../lib/auth-helpers";
 import { logger } from "../../lib/logger";
 import { describeFocusError } from "../services/fiscal/focus-error";
 import {
@@ -111,6 +115,37 @@ async function requireFiscalAdmin(
   if (!isMaster && !isSuperAdmin) {
     res.status(403).json({ message: "Sem permissão para configurar notas fiscais" });
     return null;
+  }
+
+  return { tenantId, isSuperAdmin };
+}
+
+/**
+ * Operar notas nao e configurar o emitente.
+ *
+ * O cadastro fiscal (CNPJ, certificado, serie, ambiente) e configuracao da
+ * empresa e segue exclusivo do master, como Asaas e Stripe. Emitir, consultar
+ * e cancelar nota e trabalho do dia a dia, e passa a ser gateado pela pagina
+ * "invoices" da tela de Equipe — que antes nao existia em lista nenhuma, e por
+ * isso nenhum membro conseguia sequer abrir /invoices.
+ */
+async function requireInvoiceAccess(
+  req: Request,
+  res: Response,
+  action: PermissionAction,
+): Promise<{ tenantId: string; isSuperAdmin: boolean } | null> {
+  const userId = req.user?.uid;
+  if (!userId) {
+    res.status(401).json({ message: "Não autenticado" });
+    return null;
+  }
+
+  const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
+  if (!isMaster && !isSuperAdmin) {
+    if (!(await checkPermission(userId, "invoices", action))) {
+      res.status(403).json({ message: "Sem permissão para notas fiscais" });
+      return null;
+    }
   }
 
   return { tenantId, isSuperAdmin };
@@ -555,7 +590,7 @@ export const suggestNcmHandler = async (req: Request, res: Response): Promise<vo
 // pelo webhook ou, se ele se perder, pelo cron processInvoiceRetries.
 export const issueInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const ctx = await requireFiscalAdmin(req, res);
+    const ctx = await requireInvoiceAccess(req, res, "canCreate");
     if (!ctx) return;
 
     const body = req.body as Record<string, unknown>;
@@ -669,7 +704,7 @@ export const issueInvoiceHandler = async (req: Request, res: Response): Promise<
 // POST /v1/fiscal/invoices/:id/cancel
 export const cancelInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const ctx = await requireFiscalAdmin(req, res);
+    const ctx = await requireInvoiceAccess(req, res, "canDelete");
     if (!ctx) return;
 
     const invoice = await getInvoice(String(req.params.id || ""));
@@ -725,7 +760,7 @@ async function issueFromSource(
   source: "proposal" | "transaction",
 ): Promise<void> {
   try {
-    const ctx = await requireFiscalAdmin(req, res);
+    const ctx = await requireInvoiceAccess(req, res, "canCreate");
     if (!ctx) return;
 
     const id = String(req.params.id || "");
@@ -878,7 +913,7 @@ export const setFiscalEnvironmentHandler = async (req: Request, res: Response) =
  */
 export const refreshInvoiceHandler = async (req: Request, res: Response) => {
   try {
-    const ctx = await requireFiscalAdmin(req, res);
+    const ctx = await requireInvoiceAccess(req, res, "canView");
     if (!ctx) return;
 
     const invoice = await getInvoice(String(req.params.id || ""));
@@ -956,7 +991,7 @@ export const previewFromProposalHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const ctx = await requireFiscalAdmin(req, res);
+    const ctx = await requireInvoiceAccess(req, res, "canView");
     if (!ctx) return;
 
     const id = String(req.params.id || "");
@@ -976,7 +1011,7 @@ export const previewFromProposalHandler = async (
 // GET /v1/fiscal/invoices
 export const listInvoicesHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const ctx = await requireFiscalAdmin(req, res);
+    const ctx = await requireInvoiceAccess(req, res, "canView");
     if (!ctx) return;
 
     const invoices = await listInvoices(ctx.tenantId, {
@@ -998,7 +1033,7 @@ export const listInvoicesHandler = async (req: Request, res: Response): Promise<
 // NCM nem CFOP; para esses o caminho é cancelar e reemitir.
 export const correctInvoiceHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    const ctx = await requireFiscalAdmin(req, res);
+    const ctx = await requireInvoiceAccess(req, res, "canEdit");
     if (!ctx) return;
 
     const invoice = await getInvoice(String(req.params.id || ""));
@@ -1054,7 +1089,7 @@ export const replayNotificationHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const ctx = await requireFiscalAdmin(req, res);
+    const ctx = await requireInvoiceAccess(req, res, "canEdit");
     if (!ctx) return;
 
     const invoice = await getInvoice(String(req.params.id || ""));
@@ -1077,7 +1112,7 @@ export const replayNotificationHandler = async (
 // Alimenta o seletor de natureza de operação. O CFOP sai daqui na emissão —
 // nunca do cadastro do produto.
 export const listNaturezasHandler = async (req: Request, res: Response): Promise<void> => {
-  const ctx = await requireFiscalAdmin(req, res);
+  const ctx = await requireInvoiceAccess(req, res, "canView");
   if (!ctx) return;
   res.status(200).json({ naturezas: listNaturezas() });
 };

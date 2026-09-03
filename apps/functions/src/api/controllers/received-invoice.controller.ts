@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import {
+  checkPermission,
+  resolveUserAndTenant,
+  type PermissionAction,
+} from "../../lib/auth-helpers";
 import { logger } from "../../lib/logger";
 import { describeFocusError } from "../services/fiscal/focus-error";
 import {
@@ -22,9 +26,15 @@ const VALID_MANIFESTATIONS: ManifestationType[] = [
   "nao_realizada",
 ];
 
+/**
+ * Notas de entrada sao a outra metade do modulo de notas, entao usam a mesma
+ * pagina de permissao ("invoices") da emissao. A manifestacao e declaracao
+ * formal perante a Receita — exige canEdit, nao so canView.
+ */
 async function requireTenant(
   req: Request,
   res: Response,
+  action: PermissionAction,
 ): Promise<{ tenantId: string } | null> {
   const userId = req.user?.uid;
   if (!userId) {
@@ -33,8 +43,10 @@ async function requireTenant(
   }
   const { tenantId, isMaster, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
   if (!isMaster && !isSuperAdmin) {
-    res.status(403).json({ message: "Sem permissão para acessar notas de entrada" });
-    return null;
+    if (!(await checkPermission(userId, "invoices", action))) {
+      res.status(403).json({ message: "Sem permissão para acessar notas de entrada" });
+      return null;
+    }
   }
   return { tenantId };
 }
@@ -45,7 +57,7 @@ export const listReceivedInvoicesHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const ctx = await requireTenant(req, res);
+    const ctx = await requireTenant(req, res, "canView");
     if (!ctx) return;
 
     const invoices = await listReceivedInvoices(ctx.tenantId, {
@@ -68,7 +80,7 @@ export const syncReceivedInvoicesHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const ctx = await requireTenant(req, res);
+    const ctx = await requireTenant(req, res, "canEdit");
     if (!ctx) return;
 
     res.status(200).json(await syncReceivedInvoices(ctx.tenantId));
@@ -88,7 +100,7 @@ export const manifestReceivedInvoiceHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const ctx = await requireTenant(req, res);
+    const ctx = await requireTenant(req, res, "canEdit");
     if (!ctx) return;
 
     const chave = String(req.params.chave || "").replace(/\D/g, "");
@@ -153,7 +165,7 @@ export const getReceivedInvoiceHandler = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const ctx = await requireTenant(req, res);
+    const ctx = await requireTenant(req, res, "canView");
     if (!ctx) return;
 
     const invoice = await getReceivedInvoice(
