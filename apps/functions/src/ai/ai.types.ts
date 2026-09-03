@@ -1,5 +1,6 @@
 import type { TenantPlanTier } from "../lib/tenant-plan-policy";
 import type { Timestamp } from "firebase-admin/firestore";
+import { PLAN_CATALOG } from "../shared/plan-capabilities";
 
 // Re-export for convenience within the ai/ module
 export type { TenantPlanTier };
@@ -43,10 +44,27 @@ export interface AiLimitConfig {
  * config no provider (`chats.create({ config })`), não aqui; ver
  * `providers/gemini.provider.ts`.
  */
+/**
+ * O MODELO e escolha desta camada (custo/capacidade do provider). A COTA e o
+ * histórico são propriedade comercial do plano e saem de `PLAN_CATALOG`, para
+ * que a tela de planos anuncie exatamente o número que o backend cobra.
+ */
 export const AI_LIMITS: Record<Exclude<TenantPlanTier, "free">, AiLimitConfig> = {
-  starter:    { model: "gemini-3.5-flash-lite",   messagesPerMonth: 80,   persistHistory: false },
-  pro:        { model: "gemini-3.6-flash",        messagesPerMonth: 400,  persistHistory: true  },
-  enterprise: { model: "gemini-3.7-flash",        messagesPerMonth: 1200, persistHistory: true  },
+  starter: {
+    model: "gemini-3.5-flash-lite",
+    messagesPerMonth: PLAN_CATALOG.starter.limits.aiMessagesPerMonth,
+    persistHistory: PLAN_CATALOG.starter.aiPersistHistory,
+  },
+  pro: {
+    model: "gemini-3.6-flash",
+    messagesPerMonth: PLAN_CATALOG.pro.limits.aiMessagesPerMonth,
+    persistHistory: PLAN_CATALOG.pro.aiPersistHistory,
+  },
+  enterprise: {
+    model: "gemini-3.7-flash",
+    messagesPerMonth: PLAN_CATALOG.enterprise.limits.aiMessagesPerMonth,
+    persistHistory: PLAN_CATALOG.enterprise.aiPersistHistory,
+  },
 } as const;
 
 /**

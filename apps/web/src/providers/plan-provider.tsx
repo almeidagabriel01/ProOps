@@ -34,19 +34,32 @@ import { db } from "@/lib/firebase";
 // Constants
 // ---------------------------------------------------------------------------
 
+// Espelha PLAN_CATALOG.free do backend (guard:
+// src/__tests__/plan-capabilities-parity.test.ts). maxStorageMB era 50 aqui
+// contra os 100 que o backend aplica — a tela mostrava um teto que não era o
+// que bloqueava.
 const FREE_PLAN_FEATURES: PlanFeatures = {
   maxProposals: 5,
   maxClients: 10,
   maxProducts: 20,
   maxUsers: 1,
-  hasFinancial: false,
-  canCustomizeTheme: false,
+  maxWallets: 2,
+  maxSpreadsheets: 5,
   maxPdfTemplates: 1,
-  canEditPdfSections: false,
-  hasKanban: false,
   maxImagesPerProduct: 2,
-  maxStorageMB: 50,
+  maxStorageMB: 100,
+  aiMessagesPerMonth: 0,
+  hasFinancial: false,
+  hasKanban: false,
+  hasFiscal: false,
+  hasCalendarSync: false,
+  hasWhatsApp: false,
+  canCustomizeTheme: false,
+  canEditPdfSections: false,
 };
+
+/** Exportado só para o guard de paridade com o catálogo do backend. */
+export const FREE_PLAN_FEATURES_FOR_TEST = FREE_PLAN_FEATURES;
 
 const ADDON_GRACE_PERIOD_DAYS = 7;
 
@@ -85,6 +98,12 @@ export interface PlanContextValue {
   trialInfo: TrialInfo;
   hasFinancial: boolean;
   hasKanban: boolean;
+  hasFiscal: boolean;
+  /**
+   * Flag de TENANT (`whatsappEnabled`), não a claim comercial do plano. São
+   * coisas diferentes com o mesmo nome: `features.hasWhatsApp` diz o que o
+   * plano vende, este diz se a integração está de fato ligada no tenant.
+   */
   hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
   canEditPdfSections: boolean;
@@ -154,13 +173,19 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           maxClients: -1,
           maxProducts: -1,
           maxUsers: -1,
-          hasFinancial: true,
-          canCustomizeTheme: true,
+          maxWallets: -1,
+          maxSpreadsheets: -1,
           maxPdfTemplates: -1,
-          canEditPdfSections: true,
-          hasKanban: true,
           maxImagesPerProduct: 3,
           maxStorageMB: -1,
+          aiMessagesPerMonth: -1,
+          hasFinancial: true,
+          hasKanban: true,
+          hasFiscal: true,
+          hasCalendarSync: true,
+          hasWhatsApp: true,
+          canCustomizeTheme: true,
+          canEditPdfSections: true,
         });
         setPlanTier("enterprise");
         setIsPlanLoading(false);
@@ -173,6 +198,11 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       // stay blocked downstream (api-client 402 + backend + Firestore rules).
       // planTier stays neutral so the plan label remains "Gratuito".
       if (String(user?.role || "").toLowerCase() === "free") {
+        // hasFiscal fica FALSE de propósito, fora deste destravamento: o modo
+        // demo existe para navegar módulos premium com escrita bloqueada, e o
+        // fiscal não tem dado de demonstração — a tela de configuração pede
+        // CNPJ e certificado A1, que não fazem sentido só-leitura. A coroa é o
+        // desfecho honesto ali, e ainda serve de upsell.
         setBaseFeatures({
           ...FREE_PLAN_FEATURES,
           hasFinancial: true,
@@ -588,6 +618,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       trialInfo,
       hasFinancial: mergedFeatures?.hasFinancial ?? false,
       hasKanban: mergedFeatures?.hasKanban ?? false,
+      hasFiscal: mergedFeatures?.hasFiscal ?? false,
       hasWhatsApp: featureFlags.whatsapp,
       canCustomizeTheme: mergedFeatures?.canCustomizeTheme ?? false,
       canEditPdfSections: mergedFeatures?.canEditPdfSections ?? false,

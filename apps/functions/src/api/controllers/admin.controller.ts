@@ -27,6 +27,10 @@ import { assertTenantExists } from "../../lib/tenant-resolution";
 import { enqueueTenantSync, isStale } from "../../billing";
 import { deriveSubscriptionDisplayStatus } from "../../shared/subscription-status";
 import {
+  buildPublicPlanFeatures,
+  type PublicPlanFeatures,
+} from "../../shared/plan-capabilities";
+import {
   clearTenantPlanCache,
   enforceTenantPlanLimit,
   getTenantPlanProfile,
@@ -990,11 +994,15 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       });
     };
 
-    const TIER_DEFAULT_FEATURES: Record<string, Record<string, unknown>> = {
-      free:       { maxUsers: 1,  hasFinancial: false, maxProposals: 15,  maxClients: 30,  maxProducts: 50  },
-      starter:    { maxUsers: 1,  hasFinancial: false, maxProposals: 80,  maxClients: 120, maxProducts: 220 },
-      pro:        { maxUsers: 2,  hasFinancial: true,  maxProposals: -1,  maxClients: -1,  maxProducts: -1  },
-      enterprise: { maxUsers: -1, hasFinancial: true,  maxProposals: -1,  maxClients: -1,  maxProducts: -1  },
+    // Derivado do catalogo. Enquanto era uma tabela literal, o painel de billing
+    // do superadmin mostrava `free.maxProposals: 15` contra os 5 que o
+    // enforcement realmente aplica — o numero exibido para diagnosticar um
+    // tenant nao era o numero que o bloqueava.
+    const TIER_DEFAULT_FEATURES: Record<string, PublicPlanFeatures> = {
+      free: buildPublicPlanFeatures("free"),
+      starter: buildPublicPlanFeatures("starter"),
+      pro: buildPublicPlanFeatures("pro"),
+      enterprise: buildPublicPlanFeatures("enterprise"),
     };
 
     // Process all users synchronously using pre-fetched data

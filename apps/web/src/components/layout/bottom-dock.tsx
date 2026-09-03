@@ -16,7 +16,10 @@ import {
   type DockEntry,
 } from "@/components/layout/use-dock-entries";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
-import { usePlanLimits } from "@/hooks/usePlanLimits";
+import {
+  resolveCapabilityRestriction,
+  useMenuCapabilities,
+} from "@/components/layout/capability-gate";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { useScrollContainer } from "@/providers/scroll-container-provider";
@@ -73,7 +76,7 @@ export function BottomDock() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
   const { tenant } = useTenant();
-  const { hasFinancial, hasKanban } = usePlanLimits();
+  const capabilities = useMenuCapabilities();
   const upgradeModal = useUpgradeModal();
 
   const hasHover = useHasHoverSupport();
@@ -212,17 +215,12 @@ export function BottomDock() {
   }
 
   const renderMenuItem = (entry: DockEntry) => {
-    const isFinancialRestricted = !!entry.requiresFinancial && !hasFinancial;
-    const isEnterpriseRestricted = !!entry.requiresEnterprise && !hasKanban;
-    const isRestricted = isFinancialRestricted || isEnterpriseRestricted;
+    const {
+      restricted: isRestricted,
+      requiredPlan,
+      description: restrictedDescription,
+    } = resolveCapabilityRestriction(entry.requiresCapability, capabilities);
     const active = !!activeHref && entry.href === activeHref;
-    const isCrmEntry = entry.pageId === "kanban" || entry.href === "/crm";
-    const restrictedDescription =
-      isEnterpriseRestricted && isCrmEntry
-        ? "O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise."
-        : isEnterpriseRestricted
-          ? "Gerencie suas propostas e lançamentos com nosso CRM visual."
-          : "Controle suas finanças com nosso módulo completo.";
 
     if (isRestricted) {
       return (
@@ -243,7 +241,7 @@ export function BottomDock() {
                 upgradeModal.showUpgradeModal(
                   entry.label,
                   restrictedDescription,
-                  isEnterpriseRestricted ? "enterprise" : "pro",
+                  requiredPlan,
                 )
               }
               className="flex items-center justify-center w-full h-full cursor-pointer"

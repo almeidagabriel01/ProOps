@@ -27,8 +27,17 @@ import {
   manifestReceivedInvoiceHandler,
 } from "../controllers/received-invoice.controller";
 import { fieldGenRateLimiter } from "../../ai/field-gen-rate-limiter";
+import { requirePlanCapability } from "../middleware/require-plan-capability";
 
 const router = Router();
+
+// Modulo fiscal inteiro — emissao, recepcao, cadastro do emitente e sugestao
+// de NCM. Ate aqui as 18 rotas so pediam token: qualquer assinante cadastrava
+// emitente, subia certificado A1 e emitia NF-e/NFS-e, e cada nota emitida OU
+// recebida consome uma unidade paga no Focus NFe.
+// Escopado por prefixo de proposito — todos os routers sao montados em "/v1",
+// entao um use() sem path pegaria a API inteira.
+router.use("/fiscal", requirePlanCapability("fiscal"));
 
 router.get("/fiscal/settings", validateFirebaseIdToken, getFiscalSettingsHandler);
 router.put("/fiscal/settings", validateFirebaseIdToken, saveFiscalSettingsHandler);

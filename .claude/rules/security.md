@@ -1,5 +1,12 @@
 # Security Rules
 
+## Camadas de acesso
+
+Isolamento por tenant é a primeira de quatro camadas. As outras três —
+permissão de membro, plano e modo demo — têm checklist próprio em
+`.claude/rules/access-control.md`, obrigatório para módulo ou funcionalidade
+nova.
+
 ## Multi-Tenant Isolation
 - Every Firestore document must have a `tenantId` field
 - Every query must filter by `tenantId` from `req.user.tenantId` (auth context) — never from request body

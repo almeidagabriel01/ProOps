@@ -14,6 +14,10 @@ import {
 import { cn } from "@/lib/utils";
 import type { DockEntry } from "@/components/layout/use-dock-entries";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
+import {
+  resolveCapabilityRestriction,
+  type MenuCapabilityMap,
+} from "@/components/layout/capability-gate";
 
 interface MobileNavSheetProps {
   open: boolean;
@@ -21,8 +25,7 @@ interface MobileNavSheetProps {
   /** Destinations that did not fit in the tab bar. */
   entries: DockEntry[];
   activeHref: string | null;
-  hasFinancial: boolean;
-  hasKanban: boolean;
+  capabilities: MenuCapabilityMap;
   onRestrictedClick: (entry: DockEntry) => void;
   onLogout: () => void;
 }
@@ -32,8 +35,7 @@ export function MobileNavSheet({
   onOpenChange,
   entries,
   activeHref,
-  hasFinancial,
-  hasKanban,
+  capabilities,
   onRestrictedClick,
   onLogout,
 }: MobileNavSheetProps) {
@@ -57,12 +59,10 @@ export function MobileNavSheet({
 
         <nav aria-label="Mais seções" className="flex flex-col gap-1">
           {entries.map((entry) => {
-            const isFinancialRestricted =
-              !!entry.requiresFinancial && !hasFinancial;
-            const isEnterpriseRestricted =
-              !!entry.requiresEnterprise && !hasKanban;
-            const isRestricted =
-              isFinancialRestricted || isEnterpriseRestricted;
+            const { restricted: isRestricted } = resolveCapabilityRestriction(
+              entry.requiresCapability,
+              capabilities,
+            );
             const active = !!activeHref && entry.href === activeHref;
 
             if (isRestricted) {

@@ -12,6 +12,12 @@ let _inFlightRequest: Promise<UserPlan[] | null> | null = null;
 // Default plans - FALLBACK ONLY when Stripe is unavailable
 // IMPORTANT: In production, prices come from Stripe via StripeService.getPlans()
 // These values are only used as a last resort if Stripe API fails
+//
+// As FEATURES aqui espelham PLAN_CATALOG em
+// apps/functions/src/shared/plan-capabilities.ts, que é a fonte da verdade.
+// Guard de paridade: src/__tests__/plan-capabilities-parity.test.ts falha se
+// divergirem — foi digitar os mesmos planos em cinco lugares que produziu o
+// bug de `free.maxProposals` valer 5 numa tabela e 15 noutra.
 export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
   {
     name: "Starter",
@@ -28,13 +34,19 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       maxClients: 120,
       maxProducts: 220,
       maxUsers: 1,
-      hasFinancial: false,
-      canCustomizeTheme: false,
+      maxWallets: 5,
+      maxSpreadsheets: 25,
       maxPdfTemplates: 1,
-      canEditPdfSections: false,
-      hasKanban: false,
       maxImagesPerProduct: 2,
       maxStorageMB: 200,
+      aiMessagesPerMonth: 80,
+      hasFinancial: false,
+      hasKanban: false,
+      hasFiscal: false,
+      hasCalendarSync: false,
+      hasWhatsApp: false,
+      canCustomizeTheme: false,
+      canEditPdfSections: false,
     },
     createdAt: new Date().toISOString(),
   },
@@ -54,13 +66,19 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       maxClients: -1,
       maxProducts: -1,
       maxUsers: 2,
-      hasFinancial: true,
-      canCustomizeTheme: true,
+      maxWallets: 30,
+      maxSpreadsheets: 250,
       maxPdfTemplates: -1,
-      canEditPdfSections: true,
-      hasKanban: false,
       maxImagesPerProduct: 3,
       maxStorageMB: 2560, // 2.5GB
+      aiMessagesPerMonth: 400,
+      hasFinancial: true,
+      hasKanban: false,
+      hasFiscal: false,
+      hasCalendarSync: true,
+      hasWhatsApp: false,
+      canCustomizeTheme: true,
+      canEditPdfSections: true,
     },
     createdAt: new Date().toISOString(),
   },
@@ -79,13 +97,19 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       maxClients: -1,
       maxProducts: -1,
       maxUsers: -1, // Unlimited
-      hasFinancial: true,
-      canCustomizeTheme: true,
+      maxWallets: -1,
+      maxSpreadsheets: -1,
       maxPdfTemplates: -1, // All templates
-      canEditPdfSections: true,
-      hasKanban: true,
       maxImagesPerProduct: 3,
       maxStorageMB: -1, // Unlimited
+      aiMessagesPerMonth: 1200,
+      hasFinancial: true,
+      hasKanban: true,
+      hasFiscal: true,
+      hasCalendarSync: true,
+      hasWhatsApp: true,
+      canCustomizeTheme: true,
+      canEditPdfSections: true,
     },
     createdAt: new Date().toISOString(),
   },

@@ -14,8 +14,19 @@ import {
   type SecurityCounterName,
   writeSecurityAuditEvent,
 } from "./security-observability";
+import {
+  PLAN_CATALOG,
+  normalizePlanTierId,
+  resolvePlanLimits,
+  type PlanTierId,
+} from "../shared/plan-capabilities";
 
-export type TenantPlanTier = "free" | "starter" | "pro" | "enterprise";
+/**
+ * Alias do tipo canonico de `shared/plan-capabilities`. Continua exportado
+ * daqui porque dezenas de arquivos ja importam `TenantPlanTier` deste modulo;
+ * a definicao, porem, mora um nivel abaixo, junto do catalogo.
+ */
+export type TenantPlanTier = PlanTierId;
 export type PlanEnforcementMode = "off" | "monitor" | "enforce";
 
 export type PlanLimitFeature =
@@ -126,48 +137,30 @@ const PLAN_CACHE = new LRUCache<string, CachedPlan>({
   ttl: 30_000,
 });
 
+/**
+ * Derivado de `PLAN_CATALOG`. Antes era uma tabela literal aqui, e era uma das
+ * cinco descricoes independentes dos mesmos planos espalhadas pelo projeto.
+ */
+function buildPlanLimits(tier: TenantPlanTier): TenantPlanLimits {
+  const catalog = resolvePlanLimits(tier);
+  return {
+    maxProposalsPerMonth: catalog.maxProposalsPerMonth,
+    maxWallets: catalog.maxWallets,
+    maxUsers: catalog.maxUsers,
+    storageQuotaMB: catalog.storageQuotaMB,
+    maxSpreadsheets: catalog.maxSpreadsheets,
+  };
+}
+
 const PLAN_LIMITS_BY_TIER: Record<TenantPlanTier, TenantPlanLimits> = {
-  free: {
-    maxProposalsPerMonth: 5,
-    maxWallets: 2,
-    maxUsers: 1,
-    storageQuotaMB: 100,
-    maxSpreadsheets: 5,
-  },
-  starter: {
-    maxProposalsPerMonth: 80,
-    maxWallets: 5,
-    maxUsers: 1,
-    storageQuotaMB: 200,
-    maxSpreadsheets: 25,
-  },
-  pro: {
-    maxProposalsPerMonth: -1,
-    maxWallets: 30,
-    maxUsers: 2,
-    storageQuotaMB: 2560,
-    maxSpreadsheets: 250,
-  },
-  enterprise: {
-    maxProposalsPerMonth: -1,
-    maxWallets: -1,
-    maxUsers: -1,
-    storageQuotaMB: -1,
-    maxSpreadsheets: -1,
-  },
+  free: buildPlanLimits("free"),
+  starter: buildPlanLimits("starter"),
+  pro: buildPlanLimits("pro"),
+  enterprise: buildPlanLimits("enterprise"),
 };
 
 export function normalizePlanTier(value: unknown): TenantPlanTier | null {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (
-    normalized === "free" ||
-    normalized === "starter" ||
-    normalized === "pro" ||
-    normalized === "enterprise"
-  ) {
-    return normalized;
-  }
-  return null;
+  return normalizePlanTierId(value);
 }
 
 function normalizeSubscriptionStatus(value: unknown): string {
@@ -298,8 +291,7 @@ function emitAudit(input: {
 }
 
 export function compareTiers(a: TenantPlanTier, b: TenantPlanTier): -1 | 0 | 1 {
-  const TIER_ORDER: Record<TenantPlanTier, number> = { free: 0, starter: 1, pro: 2, enterprise: 3 };
-  const diff = (TIER_ORDER[a] ?? 0) - (TIER_ORDER[b] ?? 0);
+  const diff = (PLAN_CATALOG[a]?.order ?? 0) - (PLAN_CATALOG[b]?.order ?? 0);
   return diff < 0 ? -1 : diff > 0 ? 1 : 0;
 }
 
@@ -862,7 +854,29 @@ export function setTenantPlanTelemetryForTest(
   };
 }
 
+/**
+ * Caches derivados do perfil de plano que precisam morrer junto com ele.
+ * Registro por callback em vez de import direto: `tenant-capabilities.ts`
+ * depende deste modulo, entao chama-lo de volta daqui fecharia um ciclo.
+ */
+type PlanCacheClearListener = (tenantId?: string) => void;
+const planCacheClearListeners: PlanCacheClearListener[] = [];
+
+export function registerPlanCacheClearListener(
+  listener: PlanCacheClearListener,
+): void {
+  planCacheClearListeners.push(listener);
+}
+
 export function clearTenantPlanCache(tenantId?: string): void {
+  for (const listener of planCacheClearListeners) {
+    try {
+      listener(tenantId);
+    } catch {
+      // Um cache derivado que falhe ao limpar nao pode impedir a limpeza dos outros.
+    }
+  }
+
   if (tenantId) {
     PLAN_CACHE.delete(tenantId);
     // O perfil deriva do doc tenant — limpar um sem o outro deixaria a

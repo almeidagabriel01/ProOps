@@ -11,6 +11,22 @@ tools: Read, Write, Edit, Bash
 
 # Agente Backend — ProOps
 
+## PARE antes de expor rota de módulo novo
+
+Rota nova de módulo precisa responder, ANTES de existir:
+
+1. **Permissão de membro** — qual `pageId`? O controller checa?
+2. **Plano** — qual capacidade? `requirePlanCapability` montado **por prefixo**
+   (`router.use("/meu-modulo", gate)`; sem path o gate pega toda a API `/v1`)?
+3. **Conta free / demo** — o prefixo entra em `DEMO_READABLE_PREFIXES`? Confira
+   contra o `app.use(...)` real em `api/index.ts`; a lista já teve cinco
+   entradas apontando para caminhos inexistentes, e ninguém percebeu.
+4. **Firestore rules** — coleção nova tem regra? DENY-by-default.
+
+Se a resposta não estiver no pedido, **pergunte**. Checklist executável em
+`.claude/rules/access-control.md`. Fiscal, calendário e Asaas nasceram sem o
+item 2 e ficaram meses abertos para qualquer assinante.
+
 ## Você é especialista em
 - Firebase Cloud Functions V2 (Express monolith em `southamerica-east1`)
 - Firestore: queries, transações, security rules, índices

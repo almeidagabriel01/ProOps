@@ -29,6 +29,11 @@ import {
 } from "../../lib/request-auth";
 import { writeSecurityAuditEvent } from "../../lib/security-observability";
 import { getTenantPlanProfile } from "../../lib/tenant-plan-policy";
+import {
+  PLAN_CATALOG,
+  buildPublicPlanFeatures,
+  type PublicPlanFeatures,
+} from "../../shared/plan-capabilities";
 import { isAddonAvailableForTier } from "../../shared/addon-definitions";
 import { logger } from "../../lib/logger";
 import { reserveCheckout, clearCheckoutReservation } from "../../billing";
@@ -1817,63 +1822,27 @@ export const getPlans = async (_req: Request, res: Response) => {
         description: string;
         order: number;
         highlighted?: boolean;
-        features: Record<string, number | boolean>;
+        features: PublicPlanFeatures;
       }
     > = {
       starter: {
         name: "Starter",
         description: "Ideal para freelancers e pequenos negócios",
-        order: 1,
-        features: {
-          maxProposals: 80,
-          maxClients: 120,
-          maxProducts: 220,
-          maxUsers: 1,
-          hasFinancial: false,
-          canCustomizeTheme: false,
-          maxPdfTemplates: 1,
-          canEditPdfSections: false,
-          hasKanban: false,
-          maxImagesPerProduct: 2,
-          maxStorageMB: 200,
-        },
+        order: PLAN_CATALOG.starter.order,
+        features: buildPublicPlanFeatures("starter"),
       },
       pro: {
         name: "Profissional",
         description: "Para empresas em crescimento",
-        order: 2,
+        order: PLAN_CATALOG.pro.order,
         highlighted: true,
-        features: {
-          maxProposals: -1,
-          maxClients: -1,
-          maxProducts: -1,
-          maxUsers: 2,
-          hasFinancial: true,
-          canCustomizeTheme: true,
-          maxPdfTemplates: -1,
-          canEditPdfSections: true,
-          hasKanban: false,
-          maxImagesPerProduct: 3,
-          maxStorageMB: 2560,
-        },
+        features: buildPublicPlanFeatures("pro"),
       },
       enterprise: {
         name: "Enterprise",
         description: "Acesso total para grandes operações",
-        order: 3,
-        features: {
-          maxProposals: -1,
-          maxClients: -1,
-          maxProducts: -1,
-          maxUsers: -1,
-          hasFinancial: true,
-          canCustomizeTheme: true,
-          maxPdfTemplates: -1,
-          canEditPdfSections: true,
-          hasKanban: true,
-          maxImagesPerProduct: 3,
-          maxStorageMB: -1,
-        },
+        order: PLAN_CATALOG.enterprise.order,
+        features: buildPublicPlanFeatures("enterprise"),
       },
     };
 

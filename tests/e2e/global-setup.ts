@@ -103,6 +103,15 @@ async function globalSetup(): Promise<void> {
   }
   // Always use mock AI provider in E2E — never call real Gemini/Groq in tests
   process.env.AI_PROVIDER = "mock";
+  // O gate de MODULO por plano nasce em `monitor` (foi ligado sobre rotas que
+  // estavam abertas, e virar direto derrubaria quem ja usa). No E2E ele precisa
+  // estar em `enforce`: um teste que aceitasse 200 em modo monitor passaria sem
+  // provar nada — exatamente a classe de teste inutil que este trabalho evita.
+  // Fica aqui e nao so em .env.demo-proops-test porque aquele arquivo e local
+  // (gitignored) e nao existe no CI.
+  if (!process.env.TENANT_PLAN_CAPABILITY_MODE) {
+    process.env.TENANT_PLAN_CAPABILITY_MODE = "enforce";
+  }
   if (!process.env.CONFIRMATION_SECRET) {
     process.env.CONFIRMATION_SECRET = "test-secret";
   }

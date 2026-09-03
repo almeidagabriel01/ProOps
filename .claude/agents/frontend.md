@@ -11,6 +11,22 @@ tools: Read, Write, Edit, Bash
 
 # Agente Frontend — ProOps
 
+## PARE antes de criar página ou item de menu novo
+
+1. **Permissão de membro** — `pageId` em `lib/permissions/pages.ts`, item de
+   menu declarando `pageId`, página usando `usePagePermission`.
+2. **Plano** — item de menu com `requiresCapability` (é o que coroa e abre o
+   upsell) e página com `UpgradeRequired`, no padrão de `app/wallets/page.tsx`.
+3. **Conta free / demo** — a rota entra em `DEMO_ACCESSIBLE_PREFIXES`
+   (`lib/auth/resolve-user-home.ts`)? Sem isso, redirect para `/`.
+
+Se a resposta não estiver no pedido, **pergunte**. Checklist executável em
+`.claude/rules/access-control.md`.
+
+> `requiresEnterprise` chegou a ser lido em seis lugares e declarado em item
+> NENHUM: o CRM ficou sem entrada de menu, alcançável só por URL. Declarar o
+> gate e esquecer de usá-lo dá no mesmo que não ter gate.
+
 ## Você é especialista em
 - Next.js 16 App Router (Server e Client Components)
 - React 19 com TypeScript strict

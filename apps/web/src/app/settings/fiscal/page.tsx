@@ -11,16 +11,31 @@ import { FiscalSettingsCard } from "@/app/settings/_components/fiscal-settings-c
 import { PaymentsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
 import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { usePermissions } from "@/providers/permissions-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { UpgradeRequired } from "@/components/ui/upgrade-required";
 
 export default function SettingsFiscalPage() {
   const { isMaster, isDemo, isLoading: permLoading } = usePermissions();
+  const { hasFiscal, isLoading: planLoading } = usePlanLimits();
   // Contas demo e free são donas do próprio tenant, então veem a seção — o
   // conteúdo é renderizado somente-leitura via `inert`, como em /settings/payments.
   const canSeeSection = isMaster || isDemo;
 
   const [cardLoading, setCardLoading] = React.useState(true);
-  const loading = permLoading || (canSeeSection && cardLoading);
+  const loading = permLoading || planLoading || (canSeeSection && cardLoading);
   useReportSettingsLoading(loading);
+
+  // Esta tela cadastra CNPJ, sobe certificado A1 e registra a empresa no
+  // provedor — o começo do fluxo que emite documento fiscal com custo por nota.
+  // Gatear /invoices sem gatear aqui deixaria a porta dos fundos aberta.
+  if (!planLoading && !hasFiscal && !isDemo) {
+    return (
+      <UpgradeRequired
+        feature="Notas Fiscais"
+        description="Emita NF-e e NFS-e direto da proposta aprovada, com arquivamento legal do XML e do DANFE. Disponível no plano Enterprise."
+      />
+    );
+  }
 
   return (
     <FormContainer>

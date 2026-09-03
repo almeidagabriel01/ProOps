@@ -26,6 +26,8 @@ import {
 import { TestModeBanner } from "@/components/features/fiscal/test-mode-banner";
 import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { RejectionDetailButton } from "@/components/features/fiscal/rejection-detail-button";
 import { useSort } from "@/hooks/use-sort";
 import { Loader } from "@/components/ui/loader";
@@ -100,6 +102,7 @@ export default function InvoicesPage() {
   // Cancelar uma nota autorizada e o "excluir" deste modulo: a nota nao sai do
   // acervo (guarda legal de 5 anos), mas deixa de valer.
   const { canDelete: canCancel } = usePagePermission("invoices");
+  const { hasFiscal, isLoading: isPlanLoading } = usePlanLimits();
   const [invoices, setInvoices] = React.useState<FiscalInvoice[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [notConfigured, setNotConfigured] = React.useState(false);
@@ -352,6 +355,19 @@ export default function InvoicesPage() {
     ],
     [refresh, refreshingId, canCancel],
   );
+
+  // Gate de plano ANTES do de configuração: sem ele, um assinante sem o módulo
+  // via a tela de "configure suas notas" e seguia para /settings/fiscal, que
+  // também não tinha gate nenhum. A página era a única do grupo Financeiro sem
+  // esta checagem — /transactions e /wallets já a tinham.
+  if (!isPlanLoading && !hasFiscal) {
+    return (
+      <UpgradeRequired
+        feature="Notas Fiscais"
+        description="Emita NF-e e NFS-e direto da proposta aprovada, com arquivamento legal do XML e do DANFE. Disponível no plano Enterprise."
+      />
+    );
+  }
 
   if (notConfigured) {
     return (

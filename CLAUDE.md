@@ -17,6 +17,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Only do this as a side effect of a change the user asked for. **Never** edit docs proactively or rewrite content the user did not ask you to touch — fix only what your change made inaccurate.
 - This rule does not apply to vendored/installed tooling: `.claude/gsd-*`, `.claude/get-shit-done/`, `.claude/skills/` (installed plugins), and stale copies under `.worktrees/`. Leave those alone.
 
+## Módulo ou Funcionalidade Nova — as quatro perguntas
+
+**Antes de escrever a primeira linha de um módulo ou funcionalidade nova,
+responda as quatro — e, se a resposta não estiver no pedido, PERGUNTE ao
+usuário em vez de escolher sozinho.** Nenhuma delas tem default seguro; as
+quatro falham em silêncio.
+
+1. **Permissão de membro** — qual `pageId`? O que um membro sem permissão vê?
+2. **Plano** — quais planos abrem isto? É vendável como add-on?
+3. **Conta free / modo demo** — uma conta gratuita navega isto em
+   somente-leitura, ou o módulo fica fora do demo?
+4. **Firestore rules** — a coleção nova tem regra? (DENY-by-default)
+
+O checklist executável de cada uma, com os arquivos exatos a tocar e os testes
+exigidos, está em **`.claude/rules/access-control.md`**. Siga-o — não confie na
+memória.
+
+O histórico do projeto tem um caso real de cada falha: uma chave de permissão
+fantasma fechou o módulo financeiro para todo membro; fiscal, calendário e
+Asaas nasceram sem gate de plano e ficaram meses abertos para qualquer
+assinante; e cinco prefixos mortos na lista de leitura do demo quebravam
+Soluções, Ambientes e o formulário de proposta para toda conta free.
+
 ## Bug Fix Policy
 
 Every confirmed bug fix **must** include automated test coverage for the exact failing scenario and the closest reasonable variants, committed in the same PR as the fix. The test must fail without the fix and pass with it.
@@ -109,6 +132,36 @@ npm run security:scan                  # OWASP ZAP baseline
 - **PDF** — Playwright/Chromium headless, rate-limited (5 req/60s per user)
 - **Google Calendar** — via `@googleapis/calendar` + `@googleapis/oauth2` (lazy-loaded)
 - **Zoom** — video meeting creation for demo bookings. Module: `apps/functions/src/services/zoom/`
+
+### Divisão de módulos por plano
+
+`apps/functions/src/shared/plan-capabilities.ts` (`PLAN_CATALOG`) é a **fonte
+única** do que cada plano libera — limites numéricos e capacidades booleanas
+juntos. Tudo deriva dele: `PLAN_LIMITS_BY_TIER`, os `LEGACY_*_LIMITS`, o
+`planMetadata` servido por `GET /v1/stripe/plans`, o `TIER_DEFAULT_FEATURES` do
+painel do superadmin e, via API, o `PlanProvider` do front, a landing e o
+`PlanCard`. **Não digite valor de plano em nenhum outro arquivo** — dois guards
+falham se uma cópia andar sozinha (`src/shared/__tests__/plan-capabilities.test.ts`
+e `apps/web/src/__tests__/plan-capabilities-parity.test.ts`).
+
+Duas metades, com portões distintos:
+
+- **Limite numérico** ("quantos ainda posso criar?") → `enforceTenantPlanLimit`.
+- **Capacidade** ("este plano abre este módulo?") → `requirePlanCapability`,
+  montado por prefixo na rota.
+
+**Ao criar um módulo novo, declare a capacidade no catálogo e monte o
+middleware na rota.** Sem isso ele nasce aberto para todo assinante — foi o que
+aconteceu com o fiscal, o calendário e o Asaas, que existiram meses com
+`hasFinancial`/`hasKanban` vivendo só no `PlanProvider` do frontend enquanto
+qualquer chamada HTTP direta passava.
+
+Matriz atual: **Starter** sem módulo premium nativo (compra `financial`, `crm` e
+`pdf_editor_*` como add-on); **Pro** com financeiro, editor de PDF, cores e
+sincronia do Google Agenda; **Enterprise** com tudo, mais CRM, Notas Fiscais e
+WhatsApp. Add-ons somam por cima do tier via `resolveTenantCapabilities`.
+
+Detalhes em `apps/functions/src/lib/CLAUDE.md`.
 
 ### Multi-Niche Support
 Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/`. Uses `tenantNiche` on tenant documents.

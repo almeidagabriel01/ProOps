@@ -128,18 +128,31 @@ export type PlanPricing = {
   yearly: number; // Preço anual total
 };
 
+/**
+ * Espelho de `PublicPlanFeatures` em
+ * apps/functions/src/shared/plan-capabilities.ts, que é a fonte da verdade e
+ * entrega este objeto por `GET /v1/stripe/plans`.
+ *
+ * Guard de paridade: src/__tests__/plan-capabilities-parity.test.ts.
+ */
 export type PlanFeatures = {
   maxProposals: number; // -1 for unlimited, per month
   maxClients: number; // -1 for unlimited
   maxProducts: number; // -1 for unlimited
   maxUsers: number; // -1 for unlimited
-  hasFinancial: boolean; // Access to financial module
-  canCustomizeTheme: boolean; // Can change colors/branding
+  maxWallets: number; // -1 for unlimited
+  maxSpreadsheets: number; // -1 for unlimited
   maxPdfTemplates: number; // Number of PDF templates available (-1 = all)
-  canEditPdfSections: boolean; // Can edit PDF sections (Enterprise only)
-  hasKanban: boolean; // Access to CRM board module (Enterprise or CRM add-on)
   maxImagesPerProduct: number; // Max images per product (2-3)
   maxStorageMB: number; // Total storage in MB (-1 = unlimited)
+  aiMessagesPerMonth: number; // Cota mensal da Lia (0 = sem acesso)
+  hasFinancial: boolean; // Lançamentos e carteiras
+  hasKanban: boolean; // CRM Kanban (Enterprise ou add-on de CRM)
+  hasFiscal: boolean; // Notas Fiscais (Enterprise)
+  hasCalendarSync: boolean; // Sincronia com o Google Agenda
+  hasWhatsApp: boolean; // Bot do WhatsApp (Enterprise)
+  canCustomizeTheme: boolean; // Can change colors/branding
+  canEditPdfSections: boolean; // Editor de PDF avançado
 };
 
 export type UserPlan = {

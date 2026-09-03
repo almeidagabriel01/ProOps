@@ -9,9 +9,17 @@ import {
   handleGoogleCalendarCallback,
   updateCalendarEvent,
 } from "../controllers/calendar.controller";
+import { requirePlanCapability } from "../middleware/require-plan-capability";
 
 const protectedRouter = Router();
 const publicRouter = Router();
+
+// So a SINCRONIA com o Google e gateada. A agenda interna (/calendar/events)
+// fica em todos os planos: ja esta na dock de todo mundo e e higiene basica.
+// O kill-switch global GOOGLE_CALENDAR_SYNC_ENABLED continua valendo por cima
+// — ele desliga a integracao para todos os tenants de uma vez, o que e outra
+// coisa e nao substitui um gate por plano.
+protectedRouter.use("/calendar/google", requirePlanCapability("calendarSync"));
 
 publicRouter.get("/calendar/google/callback", handleGoogleCalendarCallback);
 

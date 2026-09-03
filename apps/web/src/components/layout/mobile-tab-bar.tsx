@@ -21,7 +21,10 @@ import {
 } from "@/components/layout/use-dock-entries";
 import { cn } from "@/lib/utils";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
-import { usePlanLimits } from "@/hooks/usePlanLimits";
+import {
+  resolveCapabilityRestriction,
+  useMenuCapabilities,
+} from "@/components/layout/capability-gate";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
 
@@ -77,7 +80,7 @@ export function MobileTabBar() {
   const pathname = usePathname();
   const { logout, user } = useAuth();
   const { tenant } = useTenant();
-  const { hasFinancial, hasKanban } = usePlanLimits();
+  const capabilities = useMenuCapabilities();
   const upgradeModal = useUpgradeModal();
   const premiumColor = useThemePrimaryColor();
 
@@ -92,21 +95,13 @@ export function MobileTabBar() {
 
   const handleRestrictedClick = React.useCallback(
     (entry: DockEntry) => {
-      const isEnterpriseRestricted = !!entry.requiresEnterprise && !hasKanban;
-      const isCrmEntry = entry.pageId === "kanban" || entry.href === "/crm";
-      const description =
-        isEnterpriseRestricted && isCrmEntry
-          ? "O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise."
-          : isEnterpriseRestricted
-            ? "Gerencie suas propostas e lançamentos com nosso CRM visual."
-            : "Controle suas finanças com nosso módulo completo.";
-      upgradeModal.showUpgradeModal(
-        entry.label,
-        description,
-        isEnterpriseRestricted ? "enterprise" : "pro",
+      const { requiredPlan, description } = resolveCapabilityRestriction(
+        entry.requiresCapability,
+        capabilities,
       );
+      upgradeModal.showUpgradeModal(entry.label, description, requiredPlan);
     },
-    [hasKanban, upgradeModal],
+    [capabilities, upgradeModal],
   );
 
   // Mesma regra da dock: nada de navegação no /admin, exceto superadmin sem tenant.
@@ -138,11 +133,10 @@ export function MobileTabBar() {
           style={{ gridTemplateColumns: "repeat(" + columns + ", minmax(0, 1fr))" }}
         >
           {primaryEntries.map((entry) => {
-            const isFinancialRestricted =
-              !!entry.requiresFinancial && !hasFinancial;
-            const isEnterpriseRestricted =
-              !!entry.requiresEnterprise && !hasKanban;
-            const isRestricted = isFinancialRestricted || isEnterpriseRestricted;
+            const { restricted: isRestricted } = resolveCapabilityRestriction(
+              entry.requiresCapability,
+              capabilities,
+            );
             const active = !!activeHref && entry.href === activeHref;
 
             if (isRestricted) {
@@ -235,8 +229,7 @@ export function MobileTabBar() {
           onOpenChange={setSheetOpen}
           entries={overflowEntries}
           activeHref={activeHref}
-          hasFinancial={hasFinancial}
-          hasKanban={hasKanban}
+          capabilities={capabilities}
           onRestrictedClick={(entry) => {
             setSheetOpen(false);
             handleRestrictedClick(entry);

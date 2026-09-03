@@ -9,10 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useNavigationItems } from "@/components/layout/use-navigation-items";
-import { usePlanLimits } from "@/hooks/usePlanLimits";
+import {
+  useMenuCapabilities,
+  type MenuCapabilityMap,
+} from "@/components/layout/capability-gate";
 import {
   getVisibleChildren,
   type MenuItem,
+  type MenuCapability,
 } from "@/components/layout/navigation-config";
 import { UserOnboardingState } from "@/types";
 import { UserService } from "@/services/user-service";
@@ -33,8 +37,7 @@ type NavigationStepItem = {
   href: string;
   label: string;
   pageId?: string;
-  requiresFinancial?: boolean;
-  requiresEnterprise?: boolean;
+  requiresCapability?: MenuCapability;
 };
 
 const ONBOARDING_VERSION = "core-v1";
@@ -227,15 +230,12 @@ const ROUTE_STEP_TEMPLATES: Record<string, Omit<OnboardingStep, "title">> = {
 function flattenNavigationItems(
   visibleMenuItems: MenuItem[],
   isMaster: boolean,
-  hasFinancial: boolean,
-  hasKanban: boolean,
+  capabilities: MenuCapabilityMap,
 ): NavigationStepItem[] {
   return visibleMenuItems.flatMap((item) => {
-    if (item.requiresFinancial && !hasFinancial) {
-      return [];
-    }
-
-    if (item.requiresEnterprise && !hasKanban) {
+    // O onboarding REMOVE o módulo bloqueado em vez de coroá-lo: um passo
+    // guiado para uma tela que o plano não abre seria um beco sem saída.
+    if (item.requiresCapability && !capabilities[item.requiresCapability]) {
       return [];
     }
 
@@ -245,13 +245,17 @@ function flattenNavigationItems(
       (item.href === "/transactions" || item.label === "Financeiro") &&
       children.length > 0
     ) {
-      return children.map((child) => ({
-        href: child.href,
-        label: child.label,
-        pageId: child.pageId,
-        requiresFinancial: item.requiresFinancial,
-        requiresEnterprise: item.requiresEnterprise,
-      }));
+      return children
+        .filter(
+          (child) =>
+            !child.requiresCapability || capabilities[child.requiresCapability],
+        )
+        .map((child) => ({
+          href: child.href,
+          label: child.label,
+          pageId: child.pageId,
+          requiresCapability: child.requiresCapability ?? item.requiresCapability,
+        }));
     }
 
     return [
@@ -259,8 +263,7 @@ function flattenNavigationItems(
         href: item.href,
         label: item.label,
         pageId: item.pageId,
-        requiresFinancial: item.requiresFinancial,
-        requiresEnterprise: item.requiresEnterprise,
+        requiresCapability: item.requiresCapability,
       },
     ];
   });
@@ -269,14 +272,12 @@ function flattenNavigationItems(
 function buildOnboardingSteps(params: {
   visibleMenuItems: MenuItem[];
   isMaster: boolean;
-  hasFinancial: boolean;
-  hasKanban: boolean;
+  capabilities: MenuCapabilityMap;
 }): OnboardingStep[] {
   const flattenedItems = flattenNavigationItems(
     params.visibleMenuItems,
     params.isMaster,
-    params.hasFinancial,
-    params.hasKanban,
+    params.capabilities,
   );
   const steps: OnboardingStep[] = [];
   const seenStepIds = new Set<string>();
@@ -331,7 +332,7 @@ export function AppOnboarding() {
   const { user, refreshUser } = useAuth();
   const { isMaster } = usePermissions();
   const { visibleMenuItems } = useNavigationItems();
-  const { hasFinancial, hasKanban } = usePlanLimits();
+  const capabilities = useMenuCapabilities();
   const [localOnboarding, setLocalOnboarding] = React.useState<
     UserOnboardingState | undefined
   >(user?.onboarding);
@@ -346,10 +347,9 @@ export function AppOnboarding() {
       buildOnboardingSteps({
         visibleMenuItems,
         isMaster,
-        hasFinancial,
-        hasKanban,
+        capabilities,
       }),
-    [visibleMenuItems, isMaster, hasFinancial, hasKanban],
+    [visibleMenuItems, isMaster, capabilities],
   );
 
   const onboarding = React.useMemo(

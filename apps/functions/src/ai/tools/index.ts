@@ -1,5 +1,8 @@
 import type { FunctionDeclaration, FunctionDeclarationsTool } from "@google/generative-ai";
-import type { TenantPlanTier } from "../../lib/tenant-plan-policy";
+import type {
+  PlanCapabilities,
+  PlanCapabilityKey,
+} from "../../shared/plan-capabilities";
 import {
   resolvePagePermission,
   type PagePermissionMap,
@@ -12,8 +15,18 @@ import { TOOL_DEFINITIONS } from "./definitions";
  */
 export interface ToolRegistryEntry {
   declaration: FunctionDeclaration;
-  /** Minimum plan tier required to access this tool. */
-  minPlan: Exclude<TenantPlanTier, "free">;
+  /**
+   * Capacidade de plano exigida, do MESMO catalogo que gateia as rotas REST.
+   * `null` = disponivel em qualquer plano pago (o tier free ja e barrado antes,
+   * em chat.route.ts).
+   *
+   * Antes disto o campo era um `minPlan` proprio, e o CRM acabou com quatro
+   * regras diferentes: a UI dizia Enterprise, aqui dizia Pro, o add-on era
+   * vendido a Starter e Pro, e a REST nao bloqueava ninguem. Ler a mesma matriz
+   * elimina a possibilidade de divergirem de novo — e faz a Lia enxergar
+   * add-on comprado, que o `minPlan` por tier ignorava.
+   */
+  capability: PlanCapabilityKey | null;
   /** Minimum role required — "admin" means MASTER/ADMIN/WK/SUPERADMIN. */
   minRole: "member" | "admin";
   /** Module gating. null = always available (utility tools). */
@@ -29,15 +42,6 @@ export interface ToolRegistryEntry {
   permission: { pageId: string; action: PermissionAction } | null;
 }
 
-/**
- * Numeric rank for plan comparison.
- * Higher = more permissive plan.
- */
-const PLAN_RANK: Record<Exclude<TenantPlanTier, "free">, number> = {
-  starter: 1,
-  pro: 2,
-  enterprise: 3,
-};
 
 /**
  * Roles considered "admin" for tool gating purposes.
@@ -56,69 +60,73 @@ const ADMIN_ROLES = new Set(["MASTER", "ADMIN", "WK", "SUPERADMIN"]);
  */
 export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // ─── Utilities ────────────────────────────────────────────────────────────
-  { declaration: TOOL_DEFINITIONS.get_tenant_summary,    minPlan: "starter",    minRole: "member", module: null , permission: null },
-  { declaration: TOOL_DEFINITIONS.search_help,           minPlan: "starter",    minRole: "member", module: null , permission: null },
-  { declaration: TOOL_DEFINITIONS.request_confirmation,  minPlan: "starter",    minRole: "member", module: null , permission: null },
+  { declaration: TOOL_DEFINITIONS.get_tenant_summary,    capability: null,        minRole: "member", module: null , permission: null },
+  { declaration: TOOL_DEFINITIONS.search_help,           capability: null,        minRole: "member", module: null , permission: null },
+  { declaration: TOOL_DEFINITIONS.request_confirmation,  capability: null,        minRole: "member", module: null , permission: null },
 
   // ─── Proposals ────────────────────────────────────────────────────────────
-  { declaration: TOOL_DEFINITIONS.list_proposals,        minPlan: "starter",    minRole: "member", module: "proposals" , permission: { pageId: "proposals", action: "canView" } },
-  { declaration: TOOL_DEFINITIONS.get_proposal,          minPlan: "starter",    minRole: "member", module: "proposals" , permission: { pageId: "proposals", action: "canView" } },
-  { declaration: TOOL_DEFINITIONS.create_proposal,       minPlan: "starter",    minRole: "member", module: "proposals" , permission: { pageId: "proposals", action: "canCreate" } },
-  { declaration: TOOL_DEFINITIONS.update_proposal,       minPlan: "starter",    minRole: "admin",  module: "proposals" , permission: { pageId: "proposals", action: "canEdit" } },
-  { declaration: TOOL_DEFINITIONS.update_proposal_status, minPlan: "starter",   minRole: "member", module: "proposals" , permission: { pageId: "proposals", action: "canEdit" } },
-  { declaration: TOOL_DEFINITIONS.delete_proposal,       minPlan: "starter",    minRole: "admin",  module: "proposals" , permission: { pageId: "proposals", action: "canDelete" } },
+  { declaration: TOOL_DEFINITIONS.list_proposals,        capability: null,        minRole: "member", module: "proposals" , permission: { pageId: "proposals", action: "canView" } },
+  { declaration: TOOL_DEFINITIONS.get_proposal,          capability: null,        minRole: "member", module: "proposals" , permission: { pageId: "proposals", action: "canView" } },
+  { declaration: TOOL_DEFINITIONS.create_proposal,       capability: null,        minRole: "member", module: "proposals" , permission: { pageId: "proposals", action: "canCreate" } },
+  { declaration: TOOL_DEFINITIONS.update_proposal,       capability: null,        minRole: "admin",  module: "proposals" , permission: { pageId: "proposals", action: "canEdit" } },
+  { declaration: TOOL_DEFINITIONS.update_proposal_status, capability: null,        minRole: "member", module: "proposals" , permission: { pageId: "proposals", action: "canEdit" } },
+  { declaration: TOOL_DEFINITIONS.delete_proposal,       capability: null,        minRole: "admin",  module: "proposals" , permission: { pageId: "proposals", action: "canDelete" } },
 
   // ─── Contacts ─────────────────────────────────────────────────────────────
-  { declaration: TOOL_DEFINITIONS.list_contacts,         minPlan: "starter",    minRole: "member", module: "contacts" , permission: { pageId: "clients", action: "canView" } },
-  { declaration: TOOL_DEFINITIONS.get_contact,           minPlan: "starter",    minRole: "member", module: "contacts" , permission: { pageId: "clients", action: "canView" } },
-  { declaration: TOOL_DEFINITIONS.create_contact,        minPlan: "starter",    minRole: "member", module: "contacts" , permission: { pageId: "clients", action: "canCreate" } },
-  { declaration: TOOL_DEFINITIONS.update_contact,        minPlan: "starter",    minRole: "admin",  module: "contacts" , permission: { pageId: "clients", action: "canEdit" } },
-  { declaration: TOOL_DEFINITIONS.delete_contact,        minPlan: "starter",    minRole: "admin",  module: "contacts" , permission: { pageId: "clients", action: "canDelete" } },
+  { declaration: TOOL_DEFINITIONS.list_contacts,         capability: null,        minRole: "member", module: "contacts" , permission: { pageId: "clients", action: "canView" } },
+  { declaration: TOOL_DEFINITIONS.get_contact,           capability: null,        minRole: "member", module: "contacts" , permission: { pageId: "clients", action: "canView" } },
+  { declaration: TOOL_DEFINITIONS.create_contact,        capability: null,        minRole: "member", module: "contacts" , permission: { pageId: "clients", action: "canCreate" } },
+  { declaration: TOOL_DEFINITIONS.update_contact,        capability: null,        minRole: "admin",  module: "contacts" , permission: { pageId: "clients", action: "canEdit" } },
+  { declaration: TOOL_DEFINITIONS.delete_contact,        capability: null,        minRole: "admin",  module: "contacts" , permission: { pageId: "clients", action: "canDelete" } },
 
   // ─── Products ─────────────────────────────────────────────────────────────
-  { declaration: TOOL_DEFINITIONS.list_products,         minPlan: "starter",    minRole: "member", module: "products" , permission: { pageId: "products", action: "canView" } },
-  { declaration: TOOL_DEFINITIONS.get_product,           minPlan: "starter",    minRole: "member", module: "products" , permission: { pageId: "products", action: "canView" } },
-  { declaration: TOOL_DEFINITIONS.create_product,        minPlan: "starter",    minRole: "member", module: "products" , permission: { pageId: "products", action: "canCreate" } },
-  { declaration: TOOL_DEFINITIONS.update_product,        minPlan: "starter",    minRole: "admin",  module: "products" , permission: { pageId: "products", action: "canEdit" } },
-  { declaration: TOOL_DEFINITIONS.delete_product,        minPlan: "starter",    minRole: "admin",  module: "products" , permission: { pageId: "products", action: "canDelete" } },
+  { declaration: TOOL_DEFINITIONS.list_products,         capability: null,        minRole: "member", module: "products" , permission: { pageId: "products", action: "canView" } },
+  { declaration: TOOL_DEFINITIONS.get_product,           capability: null,        minRole: "member", module: "products" , permission: { pageId: "products", action: "canView" } },
+  { declaration: TOOL_DEFINITIONS.create_product,        capability: null,        minRole: "member", module: "products" , permission: { pageId: "products", action: "canCreate" } },
+  { declaration: TOOL_DEFINITIONS.update_product,        capability: null,        minRole: "admin",  module: "products" , permission: { pageId: "products", action: "canEdit" } },
+  { declaration: TOOL_DEFINITIONS.delete_product,        capability: null,        minRole: "admin",  module: "products" , permission: { pageId: "products", action: "canDelete" } },
 
   // ─── Financial ────────────────────────────────────────────────────────────
-  { declaration: TOOL_DEFINITIONS.list_transactions,     minPlan: "pro",        minRole: "member", module: "financial" , permission: { pageId: "transactions", action: "canView" } },
-  { declaration: TOOL_DEFINITIONS.create_transaction,    minPlan: "pro",        minRole: "member", module: "financial" , permission: { pageId: "transactions", action: "canCreate" } },
-  { declaration: TOOL_DEFINITIONS.list_wallets,          minPlan: "pro",        minRole: "member", module: "financial" , permission: { pageId: "wallet", action: "canView" } },
-  { declaration: TOOL_DEFINITIONS.create_wallet,         minPlan: "pro",        minRole: "admin",  module: "financial" , permission: { pageId: "wallet", action: "canCreate" } },
-  { declaration: TOOL_DEFINITIONS.transfer_between_wallets, minPlan: "pro",     minRole: "admin",  module: "financial" , permission: { pageId: "wallet", action: "canEdit" } },
-  { declaration: TOOL_DEFINITIONS.delete_transaction,    minPlan: "pro",        minRole: "admin",  module: "financial" , permission: { pageId: "transactions", action: "canDelete" } },
-  { declaration: TOOL_DEFINITIONS.pay_installment,       minPlan: "pro",        minRole: "admin",  module: "financial" , permission: { pageId: "transactions", action: "canEdit" } },
+  { declaration: TOOL_DEFINITIONS.list_transactions,     capability: "financial", minRole: "member", module: "financial" , permission: { pageId: "transactions", action: "canView" } },
+  { declaration: TOOL_DEFINITIONS.create_transaction,    capability: "financial", minRole: "member", module: "financial" , permission: { pageId: "transactions", action: "canCreate" } },
+  { declaration: TOOL_DEFINITIONS.list_wallets,          capability: "financial", minRole: "member", module: "financial" , permission: { pageId: "wallet", action: "canView" } },
+  { declaration: TOOL_DEFINITIONS.create_wallet,         capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "wallet", action: "canCreate" } },
+  { declaration: TOOL_DEFINITIONS.transfer_between_wallets, capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "wallet", action: "canEdit" } },
+  { declaration: TOOL_DEFINITIONS.delete_transaction,    capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "transactions", action: "canDelete" } },
+  { declaration: TOOL_DEFINITIONS.pay_installment,       capability: "financial", minRole: "admin", module: "financial" , permission: { pageId: "transactions", action: "canEdit" } },
 
   // ─── CRM ──────────────────────────────────────────────────────────────────
-  { declaration: TOOL_DEFINITIONS.list_crm_leads,        minPlan: "pro",        minRole: "member", module: "crm" , permission: { pageId: "kanban", action: "canView" } },
-  { declaration: TOOL_DEFINITIONS.update_crm_status,     minPlan: "pro",        minRole: "member", module: "crm" , permission: { pageId: "kanban", action: "canEdit" } },
+  { declaration: TOOL_DEFINITIONS.list_crm_leads,        capability: "crm",       minRole: "member", module: "crm" , permission: { pageId: "kanban", action: "canView" } },
+  { declaration: TOOL_DEFINITIONS.update_crm_status,     capability: "crm",       minRole: "member", module: "crm" , permission: { pageId: "kanban", action: "canEdit" } },
 
   // ─── WhatsApp (Enterprise) ────────────────────────────────────────────────
-  { declaration: TOOL_DEFINITIONS.send_whatsapp_message, minPlan: "enterprise", minRole: "admin",  module: "whatsapp" , permission: null },
+  { declaration: TOOL_DEFINITIONS.send_whatsapp_message, capability: "whatsapp",  minRole: "admin", module: "whatsapp" , permission: null },
 ];
 
 /**
  * Build the list of available tools for the Gemini model based on the tenant's
- * plan tier, the user's role, and the tenant's active modules.
+ * effective capabilities, the user's role, and the tenant's active modules.
  *
  * The model NEVER receives definitions for tools it is not allowed to call.
  * This filtering is the primary enforcement layer (T-14-04, T-14-05).
  *
- * @param planTier  - Tenant's current plan (starter | pro | enterprise)
+ * Recebe CAPACIDADES, nao o tier. A diferenca importa: capacidade ja carrega os
+ * add-ons comprados, entao um Starter que pagou o add-on financeiro passa a ver
+ * as ferramentas de lancamento — antes ele via a tela abrir e a Lia recusar,
+ * porque este filtro lia o tier e ignorava a compra.
+ *
+ * @param capabilities - Capacidades efetivas do tenant (tier + add-ons)
  * @param userRole  - User's role string from auth claims (e.g. "ADMIN", "MEMBER")
  * @param tenantData - Minimal tenant document fields used for module gating
  */
 export function buildAvailableTools(
-  planTier: Exclude<TenantPlanTier, "free">,
+  capabilities: PlanCapabilities,
   userRole: string,
   tenantData: { whatsappEnabled?: boolean },
   permissions?: PagePermissionMap,
 ): FunctionDeclarationsTool[] {
   const normalizedRole = userRole.toUpperCase();
   const isAdmin = ADMIN_ROLES.has(normalizedRole);
-  const rank = PLAN_RANK[planTier];
 
   const filtered = TOOL_REGISTRY.filter((entry) => {
     // Page permission check — o modelo nunca ve uma ferramenta que o usuario
@@ -135,8 +143,8 @@ export function buildAvailableTools(
       return false;
     }
 
-    // Plan rank check
-    if (PLAN_RANK[entry.minPlan] > rank) return false;
+    // Plan capability check
+    if (entry.capability && !capabilities[entry.capability]) return false;
     // Role check
     if (entry.minRole === "admin" && !isAdmin) return false;
     // Module check — only whatsapp has runtime gating via tenantData
