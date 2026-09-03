@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
+import { DEFAULT_PLANS } from "@/services/plan-service";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,48 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Crown, Sparkles, Check, ArrowRight } from "lucide-react";
+
+/**
+ * Destaques por plano, derivados de DEFAULT_PLANS — que o guard de paridade
+ * mantém colado no catálogo do backend.
+ *
+ * Antes eram bullets fixos no JSX, e o do Pro prometia "Até 10 usuários"
+ * contra os 2 que o backend realmente concede. O modal existe justamente para
+ * convencer alguém a pagar; errar o número ali é a pior hora de errar.
+ */
+const PLAN_HIGHLIGHTS: Record<"pro" | "enterprise", string[]> = {
+  pro: buildPlanHighlights("pro"),
+  enterprise: buildPlanHighlights("enterprise"),
+};
+
+function buildPlanHighlights(tier: "pro" | "enterprise"): string[] {
+  const features = DEFAULT_PLANS.find((p) => p.tier === tier)?.features;
+  if (!features) return [];
+
+  const seats =
+    features.maxUsers === -1
+      ? "Usuários ilimitados"
+      : `Até ${features.maxUsers} ${features.maxUsers === 1 ? "usuário" : "usuários"}`;
+
+  if (tier === "pro") {
+    return [
+      "Propostas ilimitadas",
+      "Módulo Financeiro completo",
+      "Personalização de cores",
+      "Editor de PDF avançado",
+      seats,
+    ];
+  }
+
+  return [
+    "Tudo do plano Profissional",
+    "CRM Kanban",
+    "Notas Fiscais (NF-e e NFS-e)",
+    "WhatsApp integrado",
+    "Consultoria dedicada",
+    seats,
+  ];
+}
 
 interface UpgradeModalProps {
   open: boolean;
@@ -69,69 +112,12 @@ export function UpgradeModal({
               Com o plano {planName} você tem:
             </p>
             <ul className="text-sm text-muted-foreground space-y-1.5">
-              {requiredPlan === "pro" ? (
-                <>
-                  <li className="flex items-center gap-2">
-                    <Check
-                      className="w-4 h-4"
-                      style={{ color: premiumColor }}
-                    />
-                    Propostas ilimitadas
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check
-                      className="w-4 h-4"
-                      style={{ color: premiumColor }}
-                    />
-                    Módulo Financeiro completo
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check
-                      className="w-4 h-4"
-                      style={{ color: premiumColor }}
-                    />
-                    Personalização de cores
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check
-                      className="w-4 h-4"
-                      style={{ color: premiumColor }}
-                    />
-                    Até 10 usuários
-                  </li>
-                </>
-              ) : (
-                <>
-                  <li className="flex items-center gap-2">
-                    <Check
-                      className="w-4 h-4"
-                      style={{ color: premiumColor }}
-                    />
-                    Tudo do plano Profissional
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check
-                      className="w-4 h-4"
-                      style={{ color: premiumColor }}
-                    />
-                    Consultoria
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check
-                      className="w-4 h-4"
-                      style={{ color: premiumColor }}
-                    />
-                    WhatsApp Integrado
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check
-                      className="w-4 h-4"
-                      style={{ color: premiumColor }}
-                    />
-                    Usuários ilimitados
-                  </li>
-                </>
-              )}
+              {PLAN_HIGHLIGHTS[requiredPlan].map((highlight) => (
+                <li key={highlight} className="flex items-center gap-2">
+                  <Check className="w-4 h-4" style={{ color: premiumColor }} />
+                  {highlight}
+                </li>
+              ))}
             </ul>
           </div>
         </div>

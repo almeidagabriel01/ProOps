@@ -23,7 +23,11 @@ import {
 const WHATSAPP_HREF = buildWhatsAppHref(BOT_WHATSAPP_DIGITS);
 
 export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
-  const { hasFinancial, hasKanban, hasWhatsApp } = usePlanLimits();
+  const { hasFinancial, hasKanban, hasFiscal, hasWhatsApp } = usePlanLimits();
+  const capabilities = React.useMemo(
+    () => ({ financial: hasFinancial, crm: hasKanban, fiscal: hasFiscal }),
+    [hasFinancial, hasKanban, hasFiscal],
+  );
   const { hasPermission, isMaster } = usePermissions();
   const { tenant, isDemo } = useTenant();
 
@@ -34,6 +38,11 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
       (item.children ?? []).filter((child) => {
         if (!isPageEnabledForNiche(tenant?.niche, child.pageId)) return false;
         if (child.masterOnly && !isMaster) return false;
+        // Filho com capacidade própria (Notas Fiscais) permanece visível e
+        // coroado, como o pai faz — some só por permissão ou nicho.
+        if (child.requiresCapability && !capabilities[child.requiresCapability]) {
+          return true;
+        }
         if (child.pageId && !isMaster && !isDemo) {
           return hasPermission(child.pageId, "view");
         }
@@ -66,8 +75,13 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
         // share pageId="solutions" for permissions but have separate niche gates.
         const availKey = item.availabilityPageId ?? item.pageId;
         if (!isPageEnabledForNiche(tenant?.niche, availKey)) return false;
-        if (item.requiresFinancial && !hasFinancial && !isMaster) return true;
-        if (item.requiresEnterprise && !hasKanban && !isMaster) return true;
+        if (
+          item.requiresCapability &&
+          !capabilities[item.requiresCapability] &&
+          !isMaster
+        ) {
+          return true;
+        }
 
         // Demo/free accounts have no permissions doc, but must see the whole
         // menu to browse: Starter modules navigable + premium ones crowned
@@ -92,7 +106,7 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
       .map((item) =>
         item.children ? { ...item, children: filterChildren(item) } : item,
       );
-  }, [hasFinancial, hasKanban, hasWhatsApp, isMaster, isDemo, hasPermission, tenant?.niche]);
+  }, [capabilities, hasWhatsApp, isMaster, isDemo, hasPermission, tenant?.niche]);
 
   return { visibleMenuItems };
 }

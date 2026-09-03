@@ -4,6 +4,7 @@ import * as React from "react";
 
 import {
   getVisibleChildren,
+  type MenuCapability,
   type MenuItem,
 } from "@/components/layout/navigation-config";
 import { useNavigationItems } from "@/components/layout/use-navigation-items";
@@ -14,8 +15,7 @@ export type DockEntry = {
   label: string;
   href: string;
   external?: boolean;
-  requiresFinancial?: boolean;
-  requiresEnterprise?: boolean;
+  requiresCapability?: MenuCapability;
   pageId?: string;
 };
 
@@ -46,7 +46,10 @@ export function useDockEntries(): DockEntry[] {
             icon: child.icon,
             label: child.label,
             href: child.href,
-            requiresFinancial: item.requiresFinancial,
+            // O filho pode exigir MAIS que o pai: Notas Fiscais é Enterprise
+            // enquanto o grupo Financeiro é Pro. Herdar sempre a do pai fazia
+            // um assinante Pro ver "Notas Fiscais" liberado.
+            requiresCapability: child.requiresCapability ?? item.requiresCapability,
             pageId: item.pageId,
           });
         }
@@ -58,8 +61,7 @@ export function useDockEntries(): DockEntry[] {
         label: item.label,
         href: item.href,
         external: item.external,
-        requiresFinancial: item.requiresFinancial,
-        requiresEnterprise: item.requiresEnterprise,
+        requiresCapability: item.requiresCapability,
         pageId: item.pageId,
       });
     }

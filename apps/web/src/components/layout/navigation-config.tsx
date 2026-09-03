@@ -12,7 +12,20 @@ import {
   Home,
   CalendarDays,
   MessageCircle,
+  Kanban,
 } from "lucide-react";
+
+/**
+ * Capacidade de plano exigida por um item de menu. Os nomes são os mesmos do
+ * catálogo do backend (`PlanCapabilityKey`), que é quem bloqueia de verdade.
+ *
+ * Substitui o par `requiresFinancial` / `requiresEnterprise`. `requiresEnterprise`
+ * era lido em seis lugares (dock, tab bar, sheet, onboarding) e declarado em
+ * NENHUM item — o caminho inteiro de coroa e upsell do Enterprise era código
+ * morto, e o CRM não tinha entrada de menu alguma: só era alcançado pelo
+ * command palette, por botões soltos ou por URL direta.
+ */
+export type MenuCapability = "financial" | "crm" | "fiscal";
 
 export type MenuItem = {
   icon: typeof LayoutDashboard;
@@ -21,8 +34,8 @@ export type MenuItem = {
   pageId?: string;
   /** Overrides pageId for niche availability checks (isPageEnabledForNiche). Defaults to pageId. */
   availabilityPageId?: string;
-  requiresFinancial?: boolean;
-  requiresEnterprise?: boolean;
+  requiresCapability?: MenuCapability;
+  /** Flag do TENANT (whatsappEnabled), não capacidade de plano — some por completo em vez de coroar. */
   requiresWhatsApp?: boolean;
   masterOnly?: boolean;
   /** Treat href as an external URL — render as <a target="_blank"> instead of <Link>. */
@@ -36,6 +49,8 @@ export type SubMenuItem = {
   href: string;
   masterOnly?: boolean;
   pageId?: string;
+  /** Sobrepõe a capacidade do pai. Notas Fiscais é Enterprise; Lançamentos é Pro. */
+  requiresCapability?: MenuCapability;
 };
 
 export const menuItems: MenuItem[] = [
@@ -52,11 +67,18 @@ export const menuItems: MenuItem[] = [
     pageId: "proposals",
   },
   {
+    icon: Kanban,
+    label: "CRM",
+    href: "/crm",
+    pageId: "kanban",
+    requiresCapability: "crm",
+  },
+  {
     icon: Wallet,
     label: "Financeiro",
     href: "/transactions",
     pageId: "financial",
-    requiresFinancial: true,
+    requiresCapability: "financial",
     children: [
       {
         icon: ReceiptText,
@@ -69,6 +91,10 @@ export const menuItems: MenuItem[] = [
         label: "Notas Fiscais",
         href: "/invoices",
         pageId: "invoices",
+        // Nota fiscal é Enterprise, o financeiro é Pro. Enquanto herdava a
+        // capacidade do pai, um assinante Pro via "Notas Fiscais" sem coroa e
+        // abria o módulo inteiro.
+        requiresCapability: "fiscal",
       },
     ],
   },

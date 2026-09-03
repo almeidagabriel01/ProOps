@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Package,
   FileText,
+  Crown,
   Users,
   Wallet,
   WalletCards,
@@ -21,7 +22,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
-import { usePlanLimits } from "@/hooks/usePlanLimits";
+import {
+  resolveCapabilityRestriction,
+  useMenuCapabilities,
+} from "@/components/layout/capability-gate";
+import type { MenuCapability } from "@/components/layout/navigation-config";
+import { useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import {
@@ -39,11 +45,11 @@ interface SearchItem {
   icon: React.ElementType;
   keywords?: string[];
   masterOnly?: boolean;
-  requiresFinancial?: boolean;
+  requiresCapability?: MenuCapability;
   requiresCreate?: string; // pageId that requires create permission
   /** pageId cuja permissao de visualizacao e exigida para o destino aparecer. */
   requiresView?: string;
-  requiresKanban?: boolean;
+
 }
 
 const searchItems: SearchItem[] = [
@@ -64,7 +70,7 @@ const searchItems: SearchItem[] = [
     icon: Kanban,
     requiresView: "kanban",
     keywords: ["quadro", "processos", "tarefas", "cartões", "crm", "kanban"],
-    requiresKanban: true,
+    requiresCapability: "crm",
   },
   {
     id: "spreadsheets",
@@ -163,7 +169,17 @@ const searchItems: SearchItem[] = [
       "receitas",
       "despesas",
     ],
-    requiresFinancial: true,
+    requiresCapability: "financial",
+  },
+  {
+    id: "invoices",
+    label: "Notas Fiscais",
+    description: "NF-e e NFS-e emitidas",
+    icon: FileText,
+    path: "/invoices",
+    requiresCapability: "fiscal",
+    requiresView: "invoices",
+    keywords: ["nota", "notas", "fiscal", "nfe", "nfse", "danfe", "xml"],
   },
   {
     id: "wallets",
@@ -173,7 +189,7 @@ const searchItems: SearchItem[] = [
     icon: WalletCards,
     requiresView: "wallet",
     keywords: ["carteira", "carteiras", "contas", "saldos"],
-    requiresFinancial: true,
+    requiresCapability: "financial",
   },
   {
     id: "solutions",
@@ -191,7 +207,7 @@ const searchItems: SearchItem[] = [
     path: "/transactions/new?type=income",
     icon: Wallet,
     keywords: ["adicionar", "entrada", "recebimento"],
-    requiresFinancial: true,
+    requiresCapability: "financial",
     requiresCreate: "transactions",
   },
   {
@@ -201,7 +217,7 @@ const searchItems: SearchItem[] = [
     path: "/transactions/new?type=expense",
     icon: Wallet,
     keywords: ["adicionar", "saída", "pagamento"],
-    requiresFinancial: true,
+    requiresCapability: "financial",
     requiresCreate: "transactions",
   },
   {
@@ -247,7 +263,8 @@ interface CommandPaletteProps {
 export function CommandPalette({ className }: CommandPaletteProps) {
   const router = useRouter();
   const { tenant } = useTenant();
-  const { hasFinancial, hasKanban } = usePlanLimits();
+  const capabilities = useMenuCapabilities();
+  const upgradeModal = useUpgradeModal();
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -284,8 +301,11 @@ export function CommandPalette({ className }: CommandPaletteProps) {
         // Check permission restrictions
         if (!isPageEnabledForNiche(tenant?.niche, item.id)) return false;
         if (item.masterOnly && !isMaster) return false;
-        if (item.requiresFinancial && !hasFinancial) return false;
-        if (item.requiresKanban && !hasKanban) return false;
+        // Módulo sem plano NÃO some daqui: aparece coroado e o clique abre o
+        // upgrade, igual à dock. Enquanto o palette escondia e a dock coroava,
+        // o mesmo módulo tinha dois comportamentos opostos — e quem buscasse
+        // "financeiro" recebia "nada encontrado", sem saber que o recurso
+        // existe e é vendido.
         // Destino de navegacao: exige a mesma permissao de visualizacao que a
         // dock e a guarda de rota exigem. Sem isto o palette era rota de fuga.
         if (item.requiresView && !hasPermission(item.requiresView, "view"))
@@ -312,24 +332,25 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
         return matchesLabel || matchesDescription || matchesKeywords;
       });
-  }, [
-    searchTerm,
-    isMaster,
-    hasFinancial,
-    hasKanban,
-    hasPermission,
-    tenant?.niche,
-  ]);
+  }, [searchTerm, isMaster, hasPermission, tenant?.niche]);
 
   // Handle item selection
   const handleSelect = React.useCallback(
     (item: SearchItem) => {
-      router.push(item.path);
       setIsOpen(false);
       setSearchTerm("");
       inputRef.current?.blur();
+
+      const { restricted, requiredPlan, description } =
+        resolveCapabilityRestriction(item.requiresCapability, capabilities);
+      if (restricted) {
+        upgradeModal.showUpgradeModal(item.label, description, requiredPlan);
+        return;
+      }
+
+      router.push(item.path);
     },
-    [router],
+    [router, capabilities, upgradeModal],
   );
 
   // Handle keyboard navigation
@@ -425,6 +446,10 @@ export function CommandPalette({ className }: CommandPaletteProps) {
             {filteredItems.map((item, index) => {
               const Icon = item.icon;
               const isSelected = index === selectedIndex;
+              const { restricted } = resolveCapabilityRestriction(
+                item.requiresCapability,
+                capabilities,
+              );
 
               return (
                 <button
@@ -442,7 +467,15 @@ export function CommandPalette({ className }: CommandPaletteProps) {
                     <Icon className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{item.label}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-sm">{item.label}</span>
+                      {restricted && (
+                        <Crown
+                          className="h-3 w-3 shrink-0 text-muted-foreground"
+                          aria-label="Requer upgrade de plano"
+                        />
+                      )}
+                    </div>
                     {item.description && (
                       <div className="text-xs text-muted-foreground truncate">
                         {item.description}
