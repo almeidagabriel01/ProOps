@@ -13,7 +13,7 @@ hooks/
 ├── use-window-focus.ts    # Detecção de foco da janela
 ├── useAiChat.ts           # Chat com a IA Lia
 ├── useClientActions.ts    # Ações CRUD de clientes
-├── useCreateMember.ts     # Criação de membros da equipe
+├── useCreateMember.ts     # Criação de membros da equipe (reexporta getDefaultPermissions de lib/permissions/pages)
 ├── useCreateProposal.ts   # Criação de propostas
 ├── useCurrentNicheConfig.ts # Config do nicho atual do tenant
 ├── useDashboardData.ts    # Dados do dashboard
@@ -28,7 +28,7 @@ hooks/
 ├── useMemberActions.ts    # Ações de membros
 ├── useNotificationScope.ts
 ├── useNotifications.ts    # Sistema de notificações
-├── usePagePermission.ts   # Verificação de permissões por página
+├── usePagePermission.ts   # Verificação de permissões por página (pageId de lib/permissions/pages)
 ├── usePageTitle.ts        # Título dinâmico da página
 ├── usePlanChange.ts       # Mudança de plano
 ├── usePlanLimits.ts       # Verificação de limites do plano

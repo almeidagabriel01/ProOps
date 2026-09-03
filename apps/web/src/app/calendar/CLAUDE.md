@@ -162,6 +162,31 @@ A página usa `usePagePermission("calendar")` para verificar:
 
 Membros sem `canCreate` não conseguem criar eventos (o handler `handleOpenCreateDialog` retorna cedo). Membros sem `canEdit` têm o drag-and-drop revertido automaticamente (`calendarEvent.revert()`).
 
+### O backend também checa (desde 2026-09-03)
+
+Até então o calendário era o único módulo cujo backend ignorava por completo o
+que o master marcou: `calendar.controller.ts` usava um modelo próprio, por
+**posse do evento** (`ownerUserId`), e nada mais. As tabelas acima eram, na
+prática, só UI — a API aceitaria a chamada.
+
+Agora as duas condições valem, e o gate só aperta:
+
+| Rota | Exige |
+|---|---|
+| `GET /v1/calendar/events` | `calendar.canView` |
+| `POST /v1/calendar/events` | `calendar.canCreate` |
+| `PUT /v1/calendar/events/:id` | `calendar.canEdit` **+** posse do evento |
+| `DELETE /v1/calendar/events/:id` | `calendar.canDelete` **+** posse do evento |
+
+`canManageCalendarEvent` foi dividido em `hasPagePermission` +
+`ownsCalendarEvent` justamente para os dois não se confundirem.
+
+**Pendência conhecida:** a listagem devolve os eventos de TODO o tenant, mas a
+Firestore Rule de `calendar_events` restringe o membro a `ownerUserId == uid`.
+As duas camadas discordam sobre se a agenda é compartilhada ou privada — é
+decisão de produto, não bug de uma delas, e mexer em qualquer um dos lados
+muda comportamento para quem já usa.
+
 ---
 
 ## Componentes de UI Internos
