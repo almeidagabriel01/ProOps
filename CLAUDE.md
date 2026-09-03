@@ -110,6 +110,36 @@ npm run security:scan                  # OWASP ZAP baseline
 - **Google Calendar** — via `@googleapis/calendar` + `@googleapis/oauth2` (lazy-loaded)
 - **Zoom** — video meeting creation for demo bookings. Module: `apps/functions/src/services/zoom/`
 
+### Divisão de módulos por plano
+
+`apps/functions/src/shared/plan-capabilities.ts` (`PLAN_CATALOG`) é a **fonte
+única** do que cada plano libera — limites numéricos e capacidades booleanas
+juntos. Tudo deriva dele: `PLAN_LIMITS_BY_TIER`, os `LEGACY_*_LIMITS`, o
+`planMetadata` servido por `GET /v1/stripe/plans`, o `TIER_DEFAULT_FEATURES` do
+painel do superadmin e, via API, o `PlanProvider` do front, a landing e o
+`PlanCard`. **Não digite valor de plano em nenhum outro arquivo** — dois guards
+falham se uma cópia andar sozinha (`src/shared/__tests__/plan-capabilities.test.ts`
+e `apps/web/src/__tests__/plan-capabilities-parity.test.ts`).
+
+Duas metades, com portões distintos:
+
+- **Limite numérico** ("quantos ainda posso criar?") → `enforceTenantPlanLimit`.
+- **Capacidade** ("este plano abre este módulo?") → `requirePlanCapability`,
+  montado por prefixo na rota.
+
+**Ao criar um módulo novo, declare a capacidade no catálogo e monte o
+middleware na rota.** Sem isso ele nasce aberto para todo assinante — foi o que
+aconteceu com o fiscal, o calendário e o Asaas, que existiram meses com
+`hasFinancial`/`hasKanban` vivendo só no `PlanProvider` do frontend enquanto
+qualquer chamada HTTP direta passava.
+
+Matriz atual: **Starter** sem módulo premium nativo (compra `financial`, `crm` e
+`pdf_editor_*` como add-on); **Pro** com financeiro, editor de PDF, cores e
+sincronia do Google Agenda; **Enterprise** com tudo, mais CRM, Notas Fiscais e
+WhatsApp. Add-ons somam por cima do tier via `resolveTenantCapabilities`.
+
+Detalhes em `apps/functions/src/lib/CLAUDE.md`.
+
 ### Multi-Niche Support
 Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/`. Uses `tenantNiche` on tenant documents.
 

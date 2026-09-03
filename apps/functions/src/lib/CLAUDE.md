@@ -193,6 +193,9 @@ Verificacao de limites de plano de forma **legada** (via `UserDoc`). Usado pelos
 
 ### Limites legados por tier
 
+Os VALORES saem de `shared/plan-capabilities.ts`; so a fonte de leitura
+(`UserDoc` em vez do doc do tenant) e que continua legada.
+
 ```typescript
 // Clientes
 LEGACY_LIMITS = { free: 10, starter: 120, pro: -1, enterprise: -1 }
@@ -232,27 +235,36 @@ Sistema moderno de enforecamento de limites de plano. Usado pelo `admin.controll
 
 ### Tiers e limites
 
-```typescript
-PLAN_LIMITS_BY_TIER = {
-  free:       { maxProposalsPerMonth: 5,  maxWallets: 2,  maxUsers: 1,  storageQuotaMB: 100,  maxSpreadsheets: 5   },
-  starter:    { maxProposalsPerMonth: 80, maxWallets: 5,  maxUsers: 1,  storageQuotaMB: 200,  maxSpreadsheets: 25  },
-  pro:        { maxProposalsPerMonth: -1, maxWallets: 30, maxUsers: 2,  storageQuotaMB: 2560, maxSpreadsheets: 250 },
-  enterprise: { maxProposalsPerMonth: -1, maxWallets: -1, maxUsers: -1, storageQuotaMB: -1,   maxSpreadsheets: -1  },
-}
-```
+`PLAN_LIMITS_BY_TIER` **deriva** de `shared/plan-capabilities.ts` — nao digite
+numero de plano aqui. Ate 2026-09-03 esta era uma de CINCO tabelas
+independentes descrevendo os mesmos planos (`LEGACY_*_LIMITS` em
+billing-helpers, `planMetadata` no stripe.controller, `TIER_DEFAULT_FEATURES`
+no admin.controller e `DEFAULT_PLANS` no front), e elas ja discordavam:
+`free.maxProposals` valia 5 aqui e 15 no admin.controller, entao o painel de
+billing do superadmin exibia um numero diferente do que bloqueava o tenant.
 
-`-1` = ilimitado.
-
-### Features gatadas
+### Duas metades: limites e capacidades
 
 ```typescript
+// "quantos ainda posso criar?" — enforceTenantPlanLimit
 type PlanLimitFeature =
   | "maxProposalsPerMonth"
   | "maxWallets"
   | "maxUsers"
   | "storageQuotaMB"
   | "maxSpreadsheets"
+
+// "este plano abre este modulo?" — requirePlanCapability
+type PlanCapabilityKey =
+  | "financial" | "crm" | "fiscal"
+  | "pdfEditor" | "customTheme" | "whatsapp" | "calendarSync"
 ```
+
+A segunda metade **nao existia**. `PlanLimitFeature` era fechado em 5 chaves
+numericas, entao modulo novo nao tinha onde declarar seu tier minimo — e foi
+assim que fiscal, calendario e Asaas nasceram sem gate nenhum, com
+`hasFinancial`/`hasKanban` existindo apenas no `PlanProvider` do frontend.
+Uma chamada HTTP direta contornava tudo.
 
 ### Cache em memoria
 
@@ -400,20 +412,64 @@ Retorna `true` para roles: `MASTER`, `ADMIN`, `SUPERADMIN`, `WK`.
 ## Relacao entre os sistemas de billing
 
 ```
-Controllers antigos          Controllers novos
-(clients, products,          (admin/createMember,
- proposals)                   wallets, spreadsheets)
-       |                              |
-billing-helpers.ts          tenant-plan-policy.ts
-       |                              |
-  UserDoc.subscription         tenants/{id}.plan
-  UserDoc.usage                tenants/{id}.planId
-       |                       tenants/{id}.priceId
-  plans/{id}.features               |
-                             PLAN_LIMITS_BY_TIER
-                                     |
-                              Cache em memoria
-                              (30s TTL por instance)
+                    shared/plan-capabilities.ts
+                      (PLAN_CATALOG — fonte unica)
+                                 |
+        +------------------------+------------------------+
+        |                        |                        |
+  limites numericos       capacidades              projecao publica
+        |                        |               (buildPublicPlanFeatures)
+tenant-plan-policy.ts   lib/tenant-capabilities.ts          |
+  PLAN_LIMITS_BY_TIER     tier + add-ons ativos     GET /v1/stripe/plans
+        |                        |                          |
+enforceTenantPlanLimit   requirePlanCapability       PlanProvider (front)
+  (402 PLAN_LIMIT_*)     (402 PLAN_CAPABILITY_       hasFinancial/hasKanban/
+        |                     REQUIRED)              hasFiscal + landing/PlanCard
+  billing-helpers.ts            |
+  (LEGACY_*, via UserDoc)  ai/tools/index.ts
+                           (ferramentas da Lia)
 ```
 
-**Regra:** ao criar novos features com verificacao de limite, usar `tenant-plan-policy.ts`.
+**Regras:**
+- Limite numerico novo: `enforceTenantPlanLimit`.
+- **Modulo novo: declare a capacidade em `PLAN_CATALOG` e monte
+  `requirePlanCapability` na rota.** Sem isso ele nasce aberto para todo
+  assinante, que foi o que aconteceu com fiscal, calendario e Asaas.
+- Nunca digite valor de plano fora de `plan-capabilities.ts`. O guard
+  `src/shared/__tests__/plan-capabilities.test.ts` (backend) e
+  `apps/web/src/__tests__/plan-capabilities-parity.test.ts` (front) falham se
+  alguma copia andar sozinha.
+
+### requirePlanCapability (`api/middleware/require-plan-capability.ts`)
+
+Montado por PREFIXO nas rotas, nunca `router.use(mw)` sem path: todos os
+routers sao montados em `app.use("/v1", ...)`, entao um `use()` sem path
+aplicaria o gate a API inteira.
+
+| Rota | Capacidade |
+|---|---|
+| `/v1/transactions`, `/v1/wallets` | `financial` |
+| `/v1/kanban-statuses` | `crm` |
+| `/v1/fiscal/*` | `fiscal` |
+| `/v1/asaas/*` | `financial` (segue o financeiro; payout vive sobre lancamentos) |
+| `/v1/calendar/google/*` | `calendarSync` (a agenda interna fica em todos os planos) |
+
+`TENANT_PLAN_CAPABILITY_MODE` (`off` | `monitor` | `enforce`, **default
+`monitor`**) e proprio, separado de `TENANT_PLAN_ENFORCEMENT_MODE`: os limites
+numericos ja rodam em `enforce` ha tempo, enquanto este gate foi ligado sobre
+rotas que estavam abertas. Um interruptor comum obrigaria a escolher entre
+afrouxar limites que funcionam e bloquear modulo sem medir antes quem depende
+dele. Em `monitor` emite `plan_capability_would_block`.
+
+Falha de resolucao **libera** a request (`plan_capability_resolution_failed`):
+nao pode tirar de um cliente pagante um modulo que ele contratou.
+
+### lib/tenant-capabilities.ts
+
+`resolveTenantCapabilities(tenantId)` = capacidades do tier **+ add-ons
+comprados**, com a mesma janela de graca de 7 dias em `past_due` que o front
+aplica. Porta para o backend a regra que so existia em
+`apps/web/src/services/addon-service.ts` — enquanto ela viveu so no front, um
+Starter que PAGOU o add-on financeiro via a tela abrir e era recusado pela Lia,
+que lia o tier e ignorava a compra. Cache LRU de 30s, invalidado junto com
+`clearTenantPlanCache` via `registerPlanCacheClearListener`.
