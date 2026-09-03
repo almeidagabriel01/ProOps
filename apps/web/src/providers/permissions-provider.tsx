@@ -70,20 +70,21 @@ const PermissionsContext = React.createContext<PermissionsContextType>({
  * Handles backwards compatibility with old role system
  *
  * Mapping:
- * - 'MASTER' | 'admin' | 'superadmin' → 'MASTER'
+ * - 'MASTER' | 'admin' | 'superadmin' | 'wk' → 'MASTER'
  * - 'MEMBER' | 'user' | 'free' → 'MEMBER'
+ *
+ * O conjunto tem que bater com `isTenantAdminRole` do backend
+ * (apps/functions/src/lib/auth-context.ts) e com `hasTenantAdminRole()` das
+ * Firestore Rules. `WK` faltava aqui: um usuário desses tinha poder de master
+ * na API e nas rules, e interface de membro na tela — a UI escondia dele
+ * ações que o backend aceitaria.
  */
+const MASTER_LEVEL_ROLES = new Set(["MASTER", "ADMIN", "SUPERADMIN", "WK"]);
+
 function normalizeRole(role: string | undefined): "MASTER" | "MEMBER" {
   if (!role) return "MEMBER"; // Default to MEMBER for safety
 
-  const normalizedRole = role.toUpperCase();
-
-  // MASTER-level roles
-  if (
-    normalizedRole === "MASTER" ||
-    normalizedRole === "ADMIN" ||
-    normalizedRole === "SUPERADMIN"
-  ) {
+  if (MASTER_LEVEL_ROLES.has(role.toUpperCase())) {
     return "MASTER";
   }
 

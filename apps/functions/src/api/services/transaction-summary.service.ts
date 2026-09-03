@@ -1,6 +1,7 @@
 import { AggregateField } from "firebase-admin/firestore";
 import { db } from "../../init";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import { checkFinancialPermission } from "../../lib/finance-helpers";
 
 /**
  * Summary financeiro via aggregation queries — substitui o cálculo no
@@ -48,7 +49,15 @@ export async function getTransactionsSummary(
   claims: Parameters<typeof resolveUserAndTenant>[1],
   requestedTenantId?: string,
 ): Promise<TransactionsSummary> {
-  const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, claims);
+  // Era a UNICA rota financeira que parava no resolveUserAndTenant: devolvia o
+  // total pago e pendente do tenant a qualquer membro, inclusive a quem nao
+  // tem a pagina de Lancamentos.
+  const { tenantId, isSuperAdmin } = await checkFinancialPermission(
+    userId,
+    "transactions",
+    "canView",
+    claims,
+  );
 
   // Superadmin pode consultar outro tenant (impersonation no dashboard);
   // qualquer outro role SEMPRE usa o tenant do próprio auth context.

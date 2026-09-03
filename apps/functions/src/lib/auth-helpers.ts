@@ -230,3 +230,20 @@ export const resolvePagePermission = (
   if (isTenantAdminRole(normalizeRole(claims?.role))) return true;
   return permissions?.[pageId]?.[action] === true;
 };
+
+/**
+ * Sem "Ver", as outras tres acoes nao significam nada — e a tela de Equipe
+ * desliga as tres ao desligar o "Ver". A cascata existia SO no cliente
+ * (team-management.tsx): a API aceitava `canCreate: true` com
+ * `canView: false`, gravando um estado que nenhuma tela consegue produzir e
+ * que a UI nao sabe representar.
+ */
+export function normalizePagePermission(perms: Record<string, boolean>) {
+  const canView = perms.canView ?? false;
+  return {
+    canView,
+    canCreate: canView ? (perms.canCreate ?? false) : false,
+    canEdit: canView ? (perms.canEdit ?? false) : false,
+    canDelete: canView ? (perms.canDelete ?? false) : false,
+  };
+}
