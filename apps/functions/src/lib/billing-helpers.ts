@@ -1,25 +1,31 @@
 import { db } from "../init";
 import { UserDoc } from "./auth-helpers";
+import { PLAN_CATALOG } from "../shared/plan-capabilities";
 
+// Estas tres tabelas continuam existindo com o nome "LEGACY" porque leem do
+// doc do USUARIO (abordagem antiga), enquanto tenant-plan-policy le do doc do
+// TENANT. O que mudou: os NUMEROS nao sao mais digitados aqui — saem do
+// catalogo. Enquanto eram literais, `free.maxProposals` valia 5 aqui e 15 no
+// admin.controller, e ninguem sabia qual era o certo.
 export const LEGACY_LIMITS: Record<string, number> = {
-  free: 10,
-  starter: 120,
-  pro: -1,
-  enterprise: -1,
+  free: PLAN_CATALOG.free.limits.maxClients,
+  starter: PLAN_CATALOG.starter.limits.maxClients,
+  pro: PLAN_CATALOG.pro.limits.maxClients,
+  enterprise: PLAN_CATALOG.enterprise.limits.maxClients,
 };
 
 export const LEGACY_USER_LIMITS: Record<string, number> = {
-  free: 1,
-  starter: 1,
-  pro: 2,
-  enterprise: -1,
+  free: PLAN_CATALOG.free.limits.maxUsers,
+  starter: PLAN_CATALOG.starter.limits.maxUsers,
+  pro: PLAN_CATALOG.pro.limits.maxUsers,
+  enterprise: PLAN_CATALOG.enterprise.limits.maxUsers,
 };
 
 export const LEGACY_PROPOSAL_LIMITS: Record<string, number> = {
-  free: 5,
-  starter: 80,
-  pro: -1,
-  enterprise: -1,
+  free: PLAN_CATALOG.free.limits.maxProposalsPerMonth,
+  starter: PLAN_CATALOG.starter.limits.maxProposalsPerMonth,
+  pro: PLAN_CATALOG.pro.limits.maxProposalsPerMonth,
+  enterprise: PLAN_CATALOG.enterprise.limits.maxProposalsPerMonth,
 };
 
 export const checkClientLimit = async (masterData: UserDoc): Promise<void> => {

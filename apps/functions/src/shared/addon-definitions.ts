@@ -1,4 +1,8 @@
-import type { TenantPlanTier } from "../lib/tenant-plan-policy";
+import {
+  type PlanCapabilities,
+  type PlanNumericLimits,
+  type PlanTierId,
+} from "./plan-capabilities";
 
 export type AddonId =
   | "financial"
@@ -8,7 +12,7 @@ export type AddonId =
 
 export interface AddonDefinitionBackend {
   id: AddonId;
-  availableForTiers: TenantPlanTier[];
+  availableForTiers: PlanTierId[];
 }
 
 /**
@@ -41,10 +45,59 @@ const ADDON_MAP = new Map<AddonId, AddonDefinitionBackend>(
 
 export function isAddonAvailableForTier(
   addonId: string,
-  planTier: TenantPlanTier | null,
+  planTier: PlanTierId | null,
 ): boolean {
   if (!planTier) return false;
   const def = ADDON_MAP.get(addonId as AddonId);
   if (!def) return false;
   return def.availableForTiers.includes(planTier);
+}
+
+export function isKnownAddonId(addonId: string): addonId is AddonId {
+  return ADDON_MAP.has(addonId as AddonId);
+}
+
+/**
+ * Aplica os add-ons COMPRADOS por cima das capacidades do tier.
+ *
+ * Espelha `applyAddonsToFeatures` em apps/web/src/services/addon-service.ts —
+ * que ate agora era o UNICO lugar do sistema que sabia que um add-on desbloqueia
+ * modulo. Enquanto a logica viveu so no front, um Starter que pagou o add-on
+ * financeiro via a tela abrir e era recusado pela Lia (`minPlan: "pro"`), porque
+ * o gate do backend lia o tier e ignorava a compra.
+ *
+ * Funcao pura: nao le o Firestore. Quem descobre os add-ons ativos e
+ * `resolveTenantCapabilities` em lib/tenant-capabilities.ts.
+ */
+export function applyAddonsToCapabilities(
+  base: { capabilities: PlanCapabilities; limits: PlanNumericLimits },
+  purchasedAddonIds: readonly string[],
+): { capabilities: PlanCapabilities; limits: PlanNumericLimits } {
+  const capabilities: PlanCapabilities = { ...base.capabilities };
+  const limits: PlanNumericLimits = { ...base.limits };
+
+  for (const rawId of purchasedAddonIds) {
+    switch (rawId) {
+      case "financial":
+        capabilities.financial = true;
+        break;
+      case "crm":
+        capabilities.crm = true;
+        break;
+      case "pdf_editor_partial":
+        // Nunca rebaixa quem ja tem tudo (-1 = ilimitado).
+        if (limits.maxPdfTemplates !== -1) {
+          limits.maxPdfTemplates = Math.max(limits.maxPdfTemplates, 3);
+        }
+        break;
+      case "pdf_editor_full":
+        limits.maxPdfTemplates = -1;
+        capabilities.pdfEditor = true;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return { capabilities, limits };
 }
