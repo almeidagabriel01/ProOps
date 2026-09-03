@@ -41,7 +41,7 @@ export default function ViewTransactionPage() {
   const router = useRouter();
   const params = useParams();
   const transactionId = params.id as string;
-  const { canEdit } = usePagePermission("financial");
+  const { canEdit } = usePagePermission("transactions");
 
   const [isLoading, setIsLoading] = React.useState(true);
   const [transaction, setTransaction] = React.useState<Transaction | null>(

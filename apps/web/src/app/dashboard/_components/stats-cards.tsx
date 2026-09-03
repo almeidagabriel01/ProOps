@@ -11,7 +11,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 export function QuickActionsCard() {
   const { canCreate: canCreateProposal } = usePagePermission("proposals");
-  const { canCreate: canCreateFinancial } = usePagePermission("financial");
+  const { canCreate: canCreateFinancial } = usePagePermission("transactions");
   const { canCreate: canCreateClient } = usePagePermission("clients");
   const { canCreate: canCreateProduct } = usePagePermission("products");
   const { hasFinancial } = usePlanLimits();

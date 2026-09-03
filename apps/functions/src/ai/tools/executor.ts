@@ -5,6 +5,10 @@ import { ToolSchemas } from "./schemas";
 import { generateConfirmationToken } from "../security/confirmation-token";
 import { sanitizeText } from "../../utils/sanitize";
 import { logSecurityEvent } from "../../lib/security-observability";
+import {
+  resolvePagePermission,
+  type PagePermissionMap,
+} from "../../lib/auth-helpers";
 import type { TenantPlanTier } from "../../lib/tenant-plan-policy";
 
 // Service imports — per user decision: tools call extracted service functions
@@ -51,6 +55,11 @@ export interface ToolCallContext {
   confirmed?: boolean;
   /** AI session ID — used to bind confirmation tokens to the current session */
   sessionId?: string;
+  /**
+   * Mapa de users/{uid}/permissions carregado uma vez por turno. Vazio para
+   * administradores do tenant, que passam pelo bypass.
+   */
+  permissions?: PagePermissionMap;
 }
 
 export interface ToolCallResult {
@@ -617,13 +626,37 @@ export async function executeToolCall(
     };
   }
 
-  // 4. Validate args with Zod schema (if schema exists for this tool)
+  // 4. Double-validate page permission — a Lia usa o MESMO par pageId/acao
+  //    que o controller equivalente. Sem isto ela era um desvio completo do
+  //    sistema de permissoes: os handlers chamam os services direto, e os
+  //    services nao checam nada.
+  if (
+    entry.permission &&
+    !resolvePagePermission(
+      { role: ctx.role },
+      ctx.permissions,
+      entry.permission.pageId,
+      entry.permission.action,
+    )
+  ) {
+    logSecurityEvent("ai_tool_permission_denied", {
+      tenantId: ctx.tenantId,
+      uid: ctx.uid,
+      reason: `tool=${toolName} required=${entry.permission.pageId}.${entry.permission.action}`,
+    });
+    return {
+      success: false,
+      error: `Voce nao tem permissao para esta acao (${entry.permission.pageId}).`,
+    };
+  }
+
+  // 5. Validate args with Zod schema (if schema exists for this tool)
   const validation = validateArgs(toolName, args);
   if (!validation.valid) {
     return { success: false, error: validation.error };
   }
 
-  // 5. Dispatch to handler
+  // 6. Dispatch to handler
   const handler = HANDLERS[toolName];
   if (!handler) {
     return { success: false, error: `Handler nao implementado: ${toolName}` };
@@ -634,7 +667,7 @@ export async function executeToolCall(
       validation.data as Record<string, unknown>,
       ctx,
     );
-    // 6. Log tool execution
+    // 7. Log tool execution
     logger.info("AI tool executed", {
       tenantId: ctx.tenantId,
       uid: ctx.uid,

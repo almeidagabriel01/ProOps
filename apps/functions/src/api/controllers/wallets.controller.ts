@@ -64,7 +64,7 @@ export const createWallet = async (req: Request, res: Response) => {
     if (typeof data.description === "string") data.description = sanitizeRichText(data.description);
 
     const { tenantId: userTenantId, isSuperAdmin } =
-      await checkFinancialPermission(userId, "canCreate", req.user);
+      await checkFinancialPermission(userId, "wallet", "canCreate", req.user);
 
     // Super admin can specify target tenant
     const tenantId =
@@ -181,11 +181,7 @@ export const updateWallet = async (req: Request, res: Response) => {
     if (typeof updateData.name === "string") updateData.name = sanitizeText(updateData.name);
     if (typeof updateData.description === "string") updateData.description = sanitizeRichText(updateData.description);
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canEdit",
-      req.user,
-    );
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canEdit", req.user);
     const walletRef = db.collection(WALLETS_COLLECTION).doc(id);
     const walletSnap = await walletRef.get();
 
@@ -286,11 +282,7 @@ export const deleteWallet = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { force } = req.query;
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canDelete",
-      req.user,
-    );
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canDelete", req.user);
     const walletRef = db.collection(WALLETS_COLLECTION).doc(id);
     const walletSnap = await walletRef.get();
 
@@ -345,11 +337,7 @@ export const transferValues = async (req: Request, res: Response) => {
     if (fromWalletId === toWalletId)
       return res.status(400).json({ message: "Mesma carteira." });
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canEdit",
-      req.user,
-    );
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canEdit", req.user);
 
     await db.runTransaction(async (t) => {
       const fromRef = db.collection(WALLETS_COLLECTION).doc(fromWalletId);
@@ -426,11 +414,7 @@ export const adjustBalance = async (req: Request, res: Response) => {
     if (!walletId || !amount || !description)
       return res.status(400).json({ message: "Dados incompletos." });
 
-    const { tenantId, isSuperAdmin } = await checkFinancialPermission(
-      userId,
-      "canEdit",
-      req.user,
-    );
+    const { tenantId, isSuperAdmin } = await checkFinancialPermission(userId, "wallet", "canEdit", req.user);
 
     const result = await db.runTransaction(async (t) => {
       const walletRef = db.collection(WALLETS_COLLECTION).doc(walletId);

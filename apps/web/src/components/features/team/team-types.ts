@@ -2,6 +2,8 @@
  * Team types and constants
  */
 
+import { PERMISSION_PAGES } from "@/lib/permissions/pages";
+
 export interface TeamMember {
   id: string;
   name: string;
@@ -19,52 +21,16 @@ export interface Permission {
   canDelete?: boolean;
 }
 
-export const AVAILABLE_PAGES = [
-  {
-    id: "dashboard",
-    name: "Dashboard",
-    description: "Visão geral e métricas",
-    viewOnly: true,
-  },
-  {
-    id: "kanban",
-    name: "CRM",
-    description: "Gestão de tarefas e fluxos",
-  },
-  {
-    id: "proposals",
-    name: "Propostas",
-    description: "Criar e gerenciar propostas",
-  },
-  { id: "clients", name: "Clientes", description: "Base de clientes" },
-  { id: "products", name: "Produtos", description: "Catálogo de produtos" },
-  { id: "services", name: "Serviços", description: "Catálogo de serviços" },
-  {
-    id: "spreadsheets",
-    name: "Planilhas",
-    description: "Planilhas integradas",
-  },
-  {
-    id: "calendar",
-    name: "Calendario",
-    description: "Agenda, compromissos e acompanhamento",
-  },
-  {
-    id: "transactions",
-    name: "Lançamentos (Financeiro)",
-    description: "Registros e movimentações financeiras",
-  },
-  {
-    id: "wallet",
-    name: "Carteira (Financeiro)",
-    description: "Gestão de saldos e contas",
-  },
-  {
-    id: "solutions",
-    name: "Soluções",
-    description: "Aplicativos e automações",
-  },
-];
+/**
+ * Lista exibida na tela de Equipe. Vive em `lib/permissions/pages.ts` para ser
+ * a MESMA consumida por `getDefaultPermissions()` no wizard de criação — antes
+ * eram duas listas e cada módulo novo entrava só numa delas.
+ */
+export { PERMISSION_PAGES as AVAILABLE_PAGES } from "@/lib/permissions/pages";
+export type { PermissionPage } from "@/lib/permissions/pages";
+
+/** Mantido para call sites que só precisam dos ids. */
+export const AVAILABLE_PAGE_IDS = PERMISSION_PAGES.map((page) => page.id);
 
 export const ROLE_PRESETS = [
   {

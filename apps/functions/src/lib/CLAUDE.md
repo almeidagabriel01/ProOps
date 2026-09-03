@@ -150,7 +150,38 @@ const canCreate = await checkPermission(userId, "products", "canCreate");
 
 Busca `users/{userId}/permissions/{permissionDoc}` e retorna `data[requiredField] === true`. Retorna `false` se o doc nao existir.
 
-**Docs de permissao conhecidos:** `products`, `services`, `clients` (novo), `customers` (legado), `proposals`, `transactions`, `kanban`, `calendar`, `notifications`
+**Docs de permissao conhecidos** — a lista canonica vive no frontend, em
+`apps/web/src/lib/permissions/pages.ts` (`PERMISSION_PAGES`), que e a MESMA
+consumida pelas duas telas da area de Equipe: `dashboard`, `kanban`,
+`proposals`, `clients` (+ `customers` legado), `products`, `services`,
+`spreadsheets`, `calendar`, `solutions`, `transactions`, `wallet`, `invoices`.
+
+**Nunca inventar uma chave aqui.** `checkFinancialPermission` lia um doc
+`financial` cravado no codigo que nenhum caminho de escrita jamais criou — a
+tela sempre gravou `transactions` e `wallet`. Como membro sem doc e negado, o
+modulo financeiro inteiro ficou fechado para membros, sem erro aparente alem de
+"Sem permissao financeira.". Guard: `__tests__/finance-permission.test.ts`.
+
+### `hasPagePermission(claims, pageId, action)` → `boolean`
+
+Mesmo gate, com o bypass de administrador do tenant ja aplicado e sem reler
+`users/{uid}`: resolve o role pelas claims. Os controllers antigos (products,
+services, clients, proposals) seguem com o bloco
+`if (!isMaster && !isSuperAdmin) checkPermission(...)` porque ja tem o contexto
+resolvido em maos; os padronizados depois (kanban, auxiliares, calendario)
+usam este. Guard: `__tests__/has-page-permission.test.ts`.
+
+### `loadPagePermissions(claims)` / `resolvePagePermission(...)`
+
+Le a subcolecao inteira numa consulta, para quem avalia VARIAS paginas na
+mesma request — a Lia, que monta a lista de 29 ferramentas por turno. Com
+`checkPermission` seriam ~29 leituras.
+
+### `normalizePagePermission(perms)`
+
+Sem `canView`, as outras tres acoes sao zeradas. A cascata existia so no
+cliente e a API aceitava `canCreate: true` com `canView: false` — estado que
+nenhuma tela produz. Guard: `__tests__/permission-cascade.test.ts`.
 
 ---
 

@@ -92,10 +92,14 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "create",
   },
-  "/clients": {
+  // A rota é /contacts. Ficou registrada como /clients por anos, então
+  // getPageConfig("/contacts") devolvia null e o ProtectedRoute não bloqueava
+  // acesso direto por URL — a dock escondia o item e a URL entrava.
+  // O pageId segue "clients": é a chave que a tela de Equipe grava.
+  "/contacts": {
     pageId: "clients",
-    slug: "/clients",
-    name: "Clientes",
+    slug: "/contacts",
+    name: "Contatos",
     module: "clients",
     requiresAuth: true,
     requiredPermission: "view",
@@ -105,6 +109,49 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     slug: "/products",
     name: "Produtos",
     module: "products",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
+  "/services": {
+    pageId: "services",
+    slug: "/services",
+    name: "Serviços",
+    module: "services",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
+  "/spreadsheets": {
+    pageId: "spreadsheets",
+    slug: "/spreadsheets",
+    name: "Planilhas",
+    module: "spreadsheets",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
+  // /solutions e /ambientes compartilham o pageId "solutions" (mesmo escopo
+  // funcional); qual das duas aparece é decidido pelo nicho do tenant em
+  // lib/niches/config.ts, não pela permissão.
+  "/solutions": {
+    pageId: "solutions",
+    slug: "/solutions",
+    name: "Soluções",
+    module: "solutions",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
+  "/ambientes": {
+    pageId: "solutions",
+    slug: "/ambientes",
+    name: "Ambientes",
+    module: "solutions",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
+  "/crm": {
+    pageId: "kanban",
+    slug: "/crm",
+    name: "CRM",
+    module: "kanban",
     requiresAuth: true,
     requiredPermission: "view",
   },
@@ -121,6 +168,16 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     slug: "/transactions",
     name: "Lançamentos",
     module: "transactions",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
+  // Alcançada pelo botão "Carteiras" dentro de /transactions, não pela dock —
+  // o gate do botão está em transactions/page.tsx, este é o da URL direta.
+  "/wallets": {
+    pageId: "wallet",
+    slug: "/wallets",
+    name: "Carteiras",
+    module: "financial",
     requiresAuth: true,
     requiredPermission: "view",
   },

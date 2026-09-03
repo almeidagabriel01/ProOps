@@ -11,6 +11,9 @@ interface SistemaListProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   isReadOnly?: boolean;
+  /** Permissao de Solucoes — gateia cada acao separadamente. */
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export function SistemaList({
@@ -18,6 +21,8 @@ export function SistemaList({
   onEdit,
   onDelete,
   isReadOnly = false,
+  canEdit = true,
+  canDelete = true,
 }: SistemaListProps) {
   if (sistemas.length === 0) {
     return (
@@ -75,22 +80,26 @@ export function SistemaList({
                 className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                 inert={isReadOnly || undefined}
               >
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => onEdit(sistema.id)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={() => onDelete(sistema.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={() => onEdit(sistema.id)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => onDelete(sistema.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
 

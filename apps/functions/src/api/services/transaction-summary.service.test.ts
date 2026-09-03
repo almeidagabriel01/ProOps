@@ -22,9 +22,16 @@ jest.mock("firebase-admin/firestore", () => ({
   AggregateField: { sum: jest.fn((field: string) => ({ field })) },
 }));
 
+// O summary passou a exigir transactions/canView (era a unica rota financeira
+// sem gate de permissao), entao o mock e do checkFinancialPermission — que
+// devolve o mesmo shape do resolveUserAndTenant para tenantId/isSuperAdmin.
 const resolveUserAndTenantMock = jest.fn();
 jest.mock("../../lib/auth-helpers", () => ({
   resolveUserAndTenant: (...args: unknown[]) => resolveUserAndTenantMock(...args),
+}));
+jest.mock("../../lib/finance-helpers", () => ({
+  checkFinancialPermission: (...args: unknown[]) =>
+    resolveUserAndTenantMock(...args),
 }));
 
 import { getTransactionsSummary } from "./transaction-summary.service";

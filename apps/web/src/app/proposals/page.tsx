@@ -20,7 +20,20 @@ import { ProposalInvoicePrompt } from "@/components/features/fiscal/proposal-inv
 import { ProposalAttachmentsDialog } from "@/components/features/proposal/proposal-attachments-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
-import { Plus, FileText, Search, ChevronDown, Check, Crown, Eye, FileDown, Trash2, Palette, Pencil, Kanban } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  Search,
+  ChevronDown,
+  Check,
+  Crown,
+  Eye,
+  FileDown,
+  Trash2,
+  Palette,
+  Pencil,
+  Kanban,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
@@ -109,6 +122,12 @@ export default function ProposalsPage() {
   const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
   const { canCreate, canEdit, canDelete } = usePagePermission("proposals");
+  // O CRM não está na dock — chega-se a ele por este botão, então é aqui que a
+  // permissão de kanban tem que ser checada (o plano é gate separado).
+  const { canView: canViewCrm } = usePagePermission("kanban");
+  // Emitir nota a partir da proposta e acao do modulo de notas, nao do de
+  // propostas — quem nao pode emitir nao ve o botao nem o convite.
+  const { canCreate: canIssueInvoice } = usePagePermission("invoices");
   const { hasKanban } = usePlanLimits();
   const upgradeModal = useUpgradeModal();
   const canAccessCrm = hasKanban || user?.role === "superadmin";
@@ -642,7 +661,10 @@ export default function ProposalsPage() {
       // vez de começar depois dela; serializadas, o convite aparecia segundos
       // depois do toast e a tela parecia travada nesse intervalo.
       const vaiAprovar = isProposalApproved({ ...proposal, status: newStatus });
-      const pendingPreview = vaiAprovar ? startPreview(proposalId) : null;
+      // Sem permissao de emitir, nem o preview e disparado: a chamada seria
+      // um 403 e o convite nunca poderia ser aceito.
+      const pendingPreview =
+        vaiAprovar && canIssueInvoice ? startPreview(proposalId) : null;
 
       setUpdatingStatusId(proposalId);
       try {
@@ -686,6 +708,7 @@ export default function ProposalsPage() {
       isProposalApproved,
       promptAfterApproval,
       startPreview,
+      canIssueInvoice,
     ],
   );
 
@@ -952,7 +975,7 @@ export default function ProposalsPage() {
 
               {/* Emitir NF — so faz sentido em proposta ganha. Uma proposta
                   mista gera duas notas: NF-e da mercadoria e NFS-e da mao de obra. */}
-              {isProposalApproved(proposal) && (
+              {isProposalApproved(proposal) && canIssueInvoice && (
                 <IssueInvoiceButton
                   source="proposal"
                   sourceId={proposal.id}
@@ -1055,7 +1078,9 @@ export default function ProposalsPage() {
                 onDelete={() => setDeleteId(proposal.id)}
                 canIssueInvoice={isProposalApproved(proposal)}
                 isIssuingInvoice={issuingInvoiceId === proposal.id}
-                onIssueInvoice={() => void issueInvoice("proposal", proposal.id)}
+                onIssueInvoice={() =>
+                  void issueInvoice("proposal", proposal.id)
+                }
               />
             </div>
           </div>
@@ -1065,6 +1090,7 @@ export default function ProposalsPage() {
     [
       canEdit,
       canDelete,
+      canIssueInvoice,
       canCreate,
       isProposalApproved,
       isReadOnly,
@@ -1143,47 +1169,50 @@ export default function ProposalsPage() {
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Propostas</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                  Propostas
+                </h1>
                 <p className="text-muted-foreground mt-1">
                   Gerencie suas propostas comerciais
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                {canAccessCrm ? (
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="lg"
-                    className="gap-2 w-full sm:w-auto"
-                  >
-                    <Link href="/crm?scope=proposals">
+                {canViewCrm &&
+                  (canAccessCrm ? (
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="lg"
+                      className="gap-2 w-full sm:w-auto"
+                    >
+                      <Link href="/crm?scope=proposals">
+                        <Kanban className="w-5 h-5" />
+                        CRM de Propostas
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="relative gap-2 pr-10 w-full sm:w-auto"
+                      onClick={() =>
+                        upgradeModal.showUpgradeModal(
+                          "CRM",
+                          "O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise.",
+                          "enterprise",
+                        )
+                      }
+                    >
                       <Kanban className="w-5 h-5" />
                       CRM de Propostas
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="relative gap-2 pr-10 w-full sm:w-auto"
-                    onClick={() =>
-                      upgradeModal.showUpgradeModal(
-                        "CRM",
-                        "O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise.",
-                        "enterprise",
-                      )
-                    }
-                  >
-                    <Kanban className="w-5 h-5" />
-                    CRM de Propostas
-                    <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-background ring-1 ring-border/70">
-                      <Crown
-                        className="h-3 w-3"
-                        style={{ color: premiumColor }}
-                      />
-                    </span>
-                  </Button>
-                )}
+                      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-background ring-1 ring-border/70">
+                        <Crown
+                          className="h-3 w-3"
+                          style={{ color: premiumColor }}
+                        />
+                      </span>
+                    </Button>
+                  ))}
 
                 {canCreate && (
                   <Button asChild size="lg" className="gap-2 w-full sm:w-auto">

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "../../init";
-import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import { checkPermission, resolveUserAndTenant } from "../../lib/auth-helpers";
 import {
   enforceTenantPlanLimit,
   getTenantSpreadsheetsUsage,
@@ -34,8 +34,18 @@ export const createSpreadsheet = async (req: Request, res: Response) => {
 
     const {
       tenantId: requesterTenantId,
+      isMaster,
       isSuperAdmin,
     } = await resolveUserAndTenant(userId, req.user);
+
+    if (!isMaster && !isSuperAdmin) {
+      const canCreate = await checkPermission(userId, "spreadsheets", "canCreate");
+      if (!canCreate) {
+        return res
+          .status(403)
+          .json({ message: "Sem permissão para criar planilhas." });
+      }
+    }
 
     const targetTenantId =
       isSuperAdmin && input.targetTenantId
@@ -140,8 +150,17 @@ export const updateSpreadsheet = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "ID da planilha é obrigatório." });
     }
 
-    const { tenantId: requesterTenantId, isSuperAdmin } =
+    const { tenantId: requesterTenantId, isMaster, isSuperAdmin } =
       await resolveUserAndTenant(userId, req.user);
+
+    if (!isMaster && !isSuperAdmin) {
+      const canEdit = await checkPermission(userId, "spreadsheets", "canEdit");
+      if (!canEdit) {
+        return res
+          .status(403)
+          .json({ message: "Sem permissão para editar planilhas." });
+      }
+    }
 
     const docRef = db.collection("spreadsheets").doc(id);
     const docSnap = await docRef.get();
@@ -223,8 +242,17 @@ export const deleteSpreadsheet = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "ID da planilha é obrigatório." });
     }
 
-    const { tenantId: requesterTenantId, isSuperAdmin } =
+    const { tenantId: requesterTenantId, isMaster, isSuperAdmin } =
       await resolveUserAndTenant(userId, req.user);
+
+    if (!isMaster && !isSuperAdmin) {
+      const canDelete = await checkPermission(userId, "spreadsheets", "canDelete");
+      if (!canDelete) {
+        return res
+          .status(403)
+          .json({ message: "Sem permissão para excluir planilhas." });
+      }
+    }
 
     const docRef = db.collection("spreadsheets").doc(id);
     const docSnap = await docRef.get();

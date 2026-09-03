@@ -11,6 +11,7 @@ import { checkAiLimit, reserveAiMessage, finalizeTokenUsage, refundAiMessage, ge
 import { loadConversation, saveConversation } from "./conversation-store";
 import { buildSystemPrompt } from "./context-builder";
 import { buildAvailableTools } from "./tools/index";
+import { loadPagePermissions } from "../lib/auth-helpers";
 import { executeToolCall, type ToolCallContext } from "./tools/executor";
 import type { ToolFeedback } from "./providers/index";
 import { validateConfirmationToken } from "./security/confirmation-token";
@@ -169,10 +170,18 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     },
   });
 
-  // Build available tools for this tenant's plan/role/modules
-  const tools: FunctionDeclarationsTool[] = buildAvailableTools(planTier, user.role || "member", {
-    whatsappEnabled,
-  });
+  // Permissoes do membro, uma consulta por turno. As ferramentas da Lia usam o
+  // MESMO par pageId/acao que os controllers — ela nao pode ser um caminho que
+  // contorna o que o master marcou na tela de Equipe.
+  const pagePermissions = await loadPagePermissions(user);
+
+  // Build available tools for this tenant's plan/role/modules/permissions
+  const tools: FunctionDeclarationsTool[] = buildAvailableTools(
+    planTier,
+    user.role || "member",
+    { whatsappEnabled },
+    pagePermissions,
+  );
 
   // 8. Select provider: AI_PROVIDER=mock > GEMINI_API_KEY > GROQ_API_KEY
   const groqApiKey = process.env.GROQ_API_KEY;
@@ -211,6 +220,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     planTier,
     confirmed: isConfirmed,
     sessionId: sessionId || undefined,
+    permissions: pagePermissions,
   };
 
   // Rastro do turno — nome de ferramenta, latência e desfecho. Nunca args

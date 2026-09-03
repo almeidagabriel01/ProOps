@@ -11,7 +11,7 @@ import { useWalletsData } from "./useWalletsData";
 
 export function useWalletsCtrl() {
   const { isLoading: tenantLoading } = useTenant();
-  const { canCreate, canEdit, canDelete } = usePagePermission("financial");
+  const { canCreate, canEdit, canDelete } = usePagePermission("wallet");
   const {
     wallets,
     summary,

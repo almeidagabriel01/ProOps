@@ -48,10 +48,7 @@ export function PermissionsStep({
               const isViewOnly = pageInfo?.viewOnly || false;
 
               // Skip Financial module if tenant doesn't have access
-              if (
-                (page === "wallet" || page === "transactions") &&
-                !hasFinancial
-              ) {
+              if (pageInfo?.requiresFinancial && !hasFinancial) {
                 return null;
               }
 

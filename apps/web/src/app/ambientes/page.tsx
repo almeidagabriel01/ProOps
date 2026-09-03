@@ -5,6 +5,7 @@ import { m as motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Plus, Home } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { useAuth } from "@/providers/auth-provider";
 import { AmbienteService } from "@/services/ambiente-service";
 import { Ambiente } from "@/types/automation";
@@ -64,6 +65,7 @@ function sortAmbientes(items: Ambiente[], sort: SortOption): Ambiente[] {
 
 export default function AmbientesPage() {
   const { tenant } = useTenant();
+  const { canCreate, canEdit, canDelete } = usePagePermission("solutions");
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -175,7 +177,7 @@ export default function AmbientesPage() {
     const ambienteToEdit =
       editingAmbienteId === "new"
         ? null
-        : ambientes.find((a) => a.id === editingAmbienteId) ?? null;
+        : (ambientes.find((a) => a.id === editingAmbienteId) ?? null);
 
     return (
       <motion.div
@@ -202,9 +204,14 @@ export default function AmbientesPage() {
   // List mode
   return (
     <div className="space-y-6 flex flex-col md:min-h-[calc(100vh-180px)]">
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Ambientes</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Ambientes
+          </h1>
           <p className="text-muted-foreground mt-1">
             Gerencie os ambientes e configure os produtos padrões de cada
             espaço.
@@ -213,19 +220,21 @@ export default function AmbientesPage() {
       </motion.div>
 
       <div className="flex justify-end border-b pb-4">
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
-          <Button
-            size="lg"
-            onClick={() => openEditor("new")}
-            className="gap-2"
-            disabled={isLoading}
+        {canCreate && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
           >
-            <Plus className="w-5 h-5" /> Novo Ambiente
-          </Button>
-        </motion.div>
+            <Button
+              size="lg"
+              onClick={() => openEditor("new")}
+              className="gap-2"
+              disabled={isLoading}
+            >
+              <Plus className="w-5 h-5" /> Novo Ambiente
+            </Button>
+          </motion.div>
+        )}
       </div>
 
       <motion.div
@@ -251,9 +260,11 @@ export default function AmbientesPage() {
                 Crie ambientes como Sala, Quarto, Escritório para usar nas suas
                 propostas de cortinas.
               </p>
-              <Button className="gap-2" onClick={() => openEditor("new")}>
-                <Plus className="w-4 h-4" /> Criar primeiro ambiente
-              </Button>
+              {canCreate && (
+                <Button className="gap-2" onClick={() => openEditor("new")}>
+                  <Plus className="w-4 h-4" /> Criar primeiro ambiente
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -279,6 +290,8 @@ export default function AmbientesPage() {
             </div>
             <AmbienteTemplateList
               ambientes={sortedAmbientes}
+              canEdit={canEdit}
+              canDelete={canDelete}
               onEdit={openEditor}
               onDelete={(id) => setDeleteTargetId(id)}
             />

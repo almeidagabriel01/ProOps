@@ -14,6 +14,7 @@ lib/
 ├── auth/                    # Helpers de autenticação (verificação de token, session)
 ├── niches/                  # Lógica multi-niche (automacao_residencial | cortinas)
 ├── plans/                   # Limites e permissões por plano (Free, Pro, etc.)
+├── permissions/             # Fonte única dos pageIds do sistema de permissões
 ├── notifications/           # Helpers do sistema de notificações
 ├── validations/             # Funções de validação reutilizáveis
 └── [utils].ts               # Helpers específicos (product-pricing, proposal-payment, etc.)
@@ -41,6 +42,19 @@ lib/
 - Nichos: `automacao_residencial` | `cortinas`
 - Usar `useCurrentNicheConfig()` no frontend ou helpers de nicho no backend
 - **Nunca** fazer `if (niche === 'cortinas')` espalhado pelo código — use os helpers
+
+### Permissions (`permissions/pages.ts`)
+- `PERMISSION_PAGES` é a **fonte única** dos `pageId` do sistema de permissões:
+  o id do doc em `users/{uid}/permissions/{id}`, e a mesma chave lida pela
+  guarda de rota (`page-config.ts`), pela dock, pelo `usePagePermission` e pelo
+  `checkPermission` do backend.
+- As duas telas da área de Equipe (criação e edição do membro) leem daqui.
+  Antes eram duas listas independentes e elas divergiam — cada módulo novo
+  entrava só numa. **Ao adicionar um módulo, acrescente aqui primeiro** e
+  depois ligue as quatro camadas.
+- `getDefaultPermissions()` também vive aqui: é função pura, e mantê-la no hook
+  obrigava todo consumidor (e todo teste) a arrastar o cliente HTTP e a init do
+  Firebase.
 
 ### Plans (`plans/`)
 - Limites por plano (número de propostas, usuários, produtos, etc.)

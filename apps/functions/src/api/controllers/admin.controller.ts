@@ -4,7 +4,10 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { randomUUID } from "node:crypto";
 import { generateRandomPassword } from "../../lib/admin-helpers";
-import { UserDoc } from "../../lib/auth-helpers";
+import {
+  UserDoc,
+  normalizePagePermission,
+} from "../../lib/auth-helpers";
 import { isSuperAdminClaim, isTenantAdminClaim } from "../../lib/request-auth";
 import { authorizeMfaReset } from "../../lib/mfa-reset-authz";
 import { clearUserMfaFactors } from "../../lib/mfa-reset";
@@ -281,10 +284,7 @@ export const createMember = async (req: Request, res: Response) => {
             pageId,
             pageSlug,
             pageName: pageSlug, // Simplified
-            canView: permData.canView ?? false,
-            canCreate: permData.canCreate ?? false,
-            canEdit: permData.canEdit ?? false,
-            canDelete: permData.canDelete ?? false,
+            ...normalizePagePermission(permData),
             updatedAt: now,
           });
         }
@@ -592,22 +592,13 @@ export const updatePermissions = async (req: Request, res: Response) => {
 
     const actualMemberId = memberId || targetUserId;
 
-    console.log("[updatePermissions] masterId:", masterId);
-    console.log("[updatePermissions] actualMemberId:", actualMemberId);
-
     if (!actualMemberId) {
       return res.status(400).json({ message: "ID do membro é obrigatório." });
     }
 
     const memberSnap = await db.collection("users").doc(actualMemberId).get();
 
-    console.log("[updatePermissions] memberSnap.exists:", memberSnap.exists);
-
     if (!memberSnap.exists) {
-      console.log(
-        "[updatePermissions] Member not found with ID:",
-        actualMemberId,
-      );
       return res.status(404).json({ message: "Membro não encontrado." });
     }
 
@@ -646,11 +637,13 @@ export const updatePermissions = async (req: Request, res: Response) => {
         {
           pageId,
           pageSlug: `/${pageId}`,
-          canView: existingData?.canView ?? false,
-          canCreate: existingData?.canCreate ?? false,
-          canEdit: existingData?.canEdit ?? false,
-          canDelete: existingData?.canDelete ?? false,
-          [key]: value,
+          ...normalizePagePermission({
+            canView: existingData?.canView ?? false,
+            canCreate: existingData?.canCreate ?? false,
+            canEdit: existingData?.canEdit ?? false,
+            canDelete: existingData?.canDelete ?? false,
+            [key]: value,
+          }),
           updatedAt: new Date().toISOString(),
           updatedBy: masterId,
         },
@@ -674,10 +667,7 @@ export const updatePermissions = async (req: Request, res: Response) => {
       batch.set(docRef, {
         pageId: pId,
         pageSlug: `/${pId}`,
-        canView: p.canView ?? false,
-        canCreate: p.canCreate ?? false,
-        canEdit: p.canEdit ?? false,
-        canDelete: p.canDelete ?? false,
+        ...normalizePagePermission(p),
         updatedAt: new Date().toISOString(),
         updatedBy: masterId,
       });

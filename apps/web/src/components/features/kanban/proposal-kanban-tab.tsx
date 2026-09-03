@@ -20,6 +20,7 @@ import {
 } from "@/services/kanban-board-service";
 import { Proposal } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { KanbanBoardSkeleton } from "@/app/crm/_components/kanban-skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,7 +82,19 @@ function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
 }
 
 export function ProposalKanbanTab() {
-  const { tenant, isReadOnly } = useTenant();
+  const { tenant, isReadOnly: isDemoReadOnly } = useTenant();
+  // Duas coisas diferentes no mesmo quadro:
+  //  - a COLUNA e um recurso proprio do CRM (kanban_statuses) → pageId kanban;
+  //  - arrastar um CARTAO muda o status da PROPOSTA → pageId proposals.
+  // Quem so tem "Ver" em kanban navega o quadro; mover proposta exige "Editar"
+  // em propostas, que e a permissao que o backend cobra no PUT /v1/proposals.
+  const {
+    canCreate: canCreateColumn,
+    canEdit: canEditColumn,
+    canDelete: canDeleteColumn,
+  } = usePagePermission("kanban");
+  const { canEdit: canEditProposal } = usePagePermission("proposals");
+  const canMoveCards = !isDemoReadOnly && canEditProposal;
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [columns, setColumns] = React.useState<KanbanStatusColumn[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -1023,7 +1036,7 @@ export function ProposalKanbanTab() {
               </DropdownMenu>
               <button
                 type="button"
-                disabled={isReadOnly}
+                disabled={isDemoReadOnly || !canEditColumn}
                 onClick={() => {
                   if (col) {
                     setEditingColumn(col);
@@ -1037,7 +1050,7 @@ export function ProposalKanbanTab() {
               </button>
               <button
                 type="button"
-                disabled={isReadOnly}
+                disabled={isDemoReadOnly || !canDeleteColumn}
                 onClick={() => setDeletingColumnId(column.id)}
                 className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
                 title="Excluir coluna"
@@ -1057,7 +1070,15 @@ export function ProposalKanbanTab() {
         </div>
       );
     },
-    [columns, columnFilters, clientOptions, columnMeta, isReadOnly],
+    [
+      columns,
+      columnFilters,
+      clientOptions,
+      columnMeta,
+      isDemoReadOnly,
+      canEditColumn,
+      canDeleteColumn,
+    ],
   );
 
   // Column footer — "Carregar mais" when the server still has docs
@@ -1102,7 +1123,7 @@ export function ProposalKanbanTab() {
             }}
             size="sm"
             variant="outline"
-            disabled={isReadOnly}
+            disabled={isDemoReadOnly || !canCreateColumn}
             className="gap-1.5 h-9 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -1114,13 +1135,13 @@ export function ProposalKanbanTab() {
               size="sm"
               className="gap-1.5 h-9 cursor-pointer text-muted-foreground hover:text-foreground"
               onClick={handleRestoreDefaults}
-              disabled={isSaving || isReadOnly}
+              disabled={isSaving || isDemoReadOnly || !canCreateColumn}
             >
               Restaurar Padrões
             </Button>
           )}
 
-          {!isReadOnly && (
+          {canMoveCards && (
             <p className="text-xs text-muted-foreground hidden sm:block">
               Arraste para alterar o status
             </p>
@@ -1132,9 +1153,11 @@ export function ProposalKanbanTab() {
       <KanbanBoard<Proposal>
         columns={boardColumns}
         onDragEnd={handleDragEnd}
-        onColumnDragEnd={onColumnDragEnd}
+        onColumnDragEnd={
+          isDemoReadOnly || !canEditColumn ? undefined : onColumnDragEnd
+        }
         onCardClick={handleCardClick}
-        isDragEnabled={!isReadOnly}
+        isDragEnabled={canMoveCards}
         getItemId={(p) => p.id}
         showColumnTotals
         getItemValue={(p) =>

@@ -35,7 +35,11 @@ import { SelectTenantState } from "@/components/shared/select-tenant-state";
 export default function FinancialPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   const { user } = useAuth();
-  const { canCreate, canEdit, canDelete } = usePagePermission("financial");
+  const { canCreate, canEdit, canDelete } = usePagePermission("transactions");
+  // Carteiras e CRM não estão na dock — chega-se a elas por estes botões, então
+  // é aqui que a permissão de cada uma tem que ser checada.
+  const { canView: canViewWallets } = usePagePermission("wallet");
+  const { canView: canViewCrm } = usePagePermission("kanban");
   const { hasKanban } = usePlanLimits();
   const upgradeModal = useUpgradeModal();
   const canAccessCrm = hasKanban || user?.role === "superadmin";
@@ -499,50 +503,53 @@ export default function FinancialPage() {
 
         <div className="flex flex-col items-stretch gap-3 sm:items-end">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-            {canAccessCrm ? (
+            {canViewCrm &&
+              (canAccessCrm ? (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="gap-2 w-full sm:w-auto"
+                >
+                  <Link href="/crm?scope=transactions">
+                    <Kanban className="w-5 h-5" />
+                    CRM de Lançamentos
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="relative gap-2 pr-10 w-full sm:w-auto"
+                  onClick={() =>
+                    upgradeModal.showUpgradeModal(
+                      "CRM",
+                      "O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise.",
+                      "enterprise",
+                    )
+                  }
+                >
+                  <Kanban className="w-5 h-5" />
+                  CRM de Lançamentos
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-background ring-1 ring-border/70">
+                    <Crown className="h-3 w-3" style={{ color: premiumColor }} />
+                  </span>
+                </Button>
+              ))}
+
+            {canViewWallets && (
               <Button
                 asChild
                 variant="outline"
                 size="lg"
                 className="gap-2 w-full sm:w-auto"
               >
-                <Link href="/crm?scope=transactions">
-                  <Kanban className="w-5 h-5" />
-                  CRM de Lançamentos
+                <Link href="/wallets">
+                  <WalletCards className="w-5 h-5" />
+                  Carteiras
                 </Link>
               </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="lg"
-                className="relative gap-2 pr-10 w-full sm:w-auto"
-                onClick={() =>
-                  upgradeModal.showUpgradeModal(
-                    "CRM",
-                    "O módulo CRM pode ser contratado como add-on ou vem incluído no plano Enterprise.",
-                    "enterprise",
-                  )
-                }
-              >
-                <Kanban className="w-5 h-5" />
-                CRM de Lançamentos
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-background ring-1 ring-border/70">
-                  <Crown className="h-3 w-3" style={{ color: premiumColor }} />
-                </span>
-              </Button>
             )}
-
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="gap-2 w-full sm:w-auto"
-            >
-              <Link href="/wallets">
-                <WalletCards className="w-5 h-5" />
-                Carteiras
-              </Link>
-            </Button>
 
             {canCreate && (
               <Button asChild size="lg" className="gap-2 w-full sm:w-auto">

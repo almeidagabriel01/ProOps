@@ -17,6 +17,8 @@ import {
   type KanbanColumnCursor,
 } from "@/services/kanban-board-service";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePagePermission } from "@/hooks/usePagePermission";
+import { usePermissions } from "@/providers/permissions-provider";
 import { KanbanBoardSkeleton } from "@/app/crm/_components/kanban-skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Loader } from "@/components/ui/loader";
@@ -61,7 +63,17 @@ function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
 
 export function TransactionKanbanTab() {
   const { statuses, isLoaded, reorderStatuses } = useTransactionStatuses();
-  const { tenant, isReadOnly } = useTenant();
+  const { tenant, isReadOnly: isDemoReadOnly } = useTenant();
+  // Arrastar um cartao aqui chama updateTransactionsStatusBatch — muda o
+  // status do LANCAMENTO, nao a coluna. Logo a permissao e transactions.canEdit,
+  // a mesma que o backend cobra. As colunas deste quadro sao FIXAS
+  // (pendente/atrasado/pago) e nao vem de kanban_statuses: reordenar grava
+  // transactionStatusOrder no doc do tenant, que o PUT /v1/tenants ja restringe
+  // ao master.
+  const { canEdit: canEditTransaction } = usePagePermission("transactions");
+  const { isMaster } = usePermissions();
+  const canMoveCards = !isDemoReadOnly && canEditTransaction;
+  const canReorderColumns = !isDemoReadOnly && isMaster;
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [columnFilters, setColumnFilters] = React.useState<
@@ -711,7 +723,7 @@ export function TransactionKanbanTab() {
       {/* Toolbar */}
       <div className="flex items-center justify-start gap-3 flex-wrap">
         {/* Drag hint */}
-        {!isReadOnly && (
+        {canMoveCards && (
           <p className="text-xs text-muted-foreground hidden sm:block">
             Arraste para alterar o status
           </p>
@@ -728,7 +740,7 @@ export function TransactionKanbanTab() {
             id="auto-overdue-toggle"
             checked={autoOverdue}
             onCheckedChange={handleToggleAutoOverdue}
-            disabled={isReadOnly}
+            disabled={isDemoReadOnly}
           />
         </div>
       </div>
@@ -737,10 +749,10 @@ export function TransactionKanbanTab() {
       <KanbanBoard<Transaction>
         columns={boardColumns}
         onDragEnd={handleDragEnd}
-        onColumnDragEnd={reorderStatuses}
+        onColumnDragEnd={canReorderColumns ? reorderStatuses : undefined}
         onCardClick={handleCardClick}
         getItemId={(t) => t.id}
-        isDragEnabled={!isReadOnly}
+        isDragEnabled={canMoveCards}
         showColumnTotals
         getItemValue={(t) => t.amount}
         renderCard={(transaction, _col, isDragging) => (

@@ -94,8 +94,22 @@ export async function resolveWalletRef(
   return null;
 }
 
+/**
+ * Páginas de permissão do módulo financeiro. São os ids que a tela de Equipe
+ * grava em `users/{uid}/permissions/{id}` — os MESMOS lidos pelo page-config
+ * e pelo `usePagePermission` no frontend.
+ *
+ * Até aqui esta função lia um doc `financial` cravado no código, que NENHUM
+ * caminho de escrita jamais criou: a tela sempre gravou `transactions` e
+ * `wallet`. O efeito era todo membro receber "Sem permissão financeira." em
+ * qualquer criação, edição ou exclusão, independentemente do que o master
+ * tivesse marcado.
+ */
+export type FinancialPageId = "transactions" | "wallet";
+
 export async function checkFinancialPermission(
   userId: string,
+  pageId: FinancialPageId,
   permission: string,
   claims?: { uid?: string; role?: string; tenantId?: string; [key: string]: unknown },
 ): Promise<{
@@ -152,7 +166,7 @@ export async function checkFinancialPermission(
     };
 
   // Member check - Needs Permissions Doc
-  const permRef = userRef.collection("permissions").doc("financial");
+  const permRef = userRef.collection("permissions").doc(pageId);
   const permSnap = await permRef.get();
 
   if (!permSnap.exists || !permSnap.data()?.[permission]) {

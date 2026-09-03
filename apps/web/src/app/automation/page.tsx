@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Plus, Box, Layers } from "lucide-react";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { useAuth } from "@/providers/auth-provider";
 import { AmbienteService } from "@/services/ambiente-service";
 import { SistemaService } from "@/services/sistema-service";
@@ -264,6 +265,7 @@ function useLocalLazyLoading<T>(items: T[], options: LocalLazyOptions) {
 
 export default function AutomationAdminPage() {
   const { tenant, isReadOnly } = useTenant();
+  const { canCreate, canEdit, canDelete } = usePagePermission("solutions");
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -476,7 +478,7 @@ export default function AutomationAdminPage() {
         </motion.div>
 
         <div className="flex justify-end border-b pb-4">
-          {!isReadOnly && (
+          {!isReadOnly && canCreate && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -518,6 +520,8 @@ export default function AutomationAdminPage() {
                 key={`ambientes-${ambienteSort}-templates`}
                 ambientes={displayedAmbientes}
                 isReadOnly={isReadOnly}
+                canEdit={canEdit}
+                canDelete={canDelete}
                 onEdit={(id: string) => setEditingAmbienteId(id)}
                 onDelete={(id: string) =>
                   setDeleteTarget({ type: "ambiente", id })
@@ -528,9 +532,7 @@ export default function AutomationAdminPage() {
                   ref={ambientesSentinelRef}
                   className="flex items-center justify-center mt-8 py-4 min-h-12"
                 >
-                  {isLoadingMoreAmbientes && (
-                    <Loader size="md" />
-                  )}
+                  {isLoadingMoreAmbientes && <Loader size="md" />}
                 </div>
               )}
             </CardContent>
@@ -616,20 +618,23 @@ export default function AutomationAdminPage() {
             </TabsTrigger>
           </TabsList>
 
-          {activeTab === "sistemas" && !isLoading && !isReadOnly && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <Button
-                size="lg"
-                onClick={() => setEditingSistemaId("new")}
-                className="gap-2 w-full sm:w-auto"
+          {activeTab === "sistemas" &&
+            !isLoading &&
+            !isReadOnly &&
+            canCreate && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
               >
-                <Plus className="w-5 h-5" /> Nova Solução
-              </Button>
-            </motion.div>
-          )}
+                <Button
+                  size="lg"
+                  onClick={() => setEditingSistemaId("new")}
+                  className="gap-2 w-full sm:w-auto"
+                >
+                  <Plus className="w-5 h-5" /> Nova Solução
+                </Button>
+              </motion.div>
+            )}
         </div>
 
         <motion.div
@@ -664,6 +669,8 @@ export default function AutomationAdminPage() {
                   key={`sistemas-${sistemaSort}`}
                   sistemas={displayedSistemas}
                   isReadOnly={isReadOnly}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                   onEdit={(id: string) => setEditingSistemaId(id)}
                   onDelete={(id: string) =>
                     setDeleteTarget({ type: "sistema", id })
@@ -674,9 +681,7 @@ export default function AutomationAdminPage() {
                     ref={sistemasSentinelRef}
                     className="flex items-center justify-center mt-8 py-4 min-h-12"
                   >
-                    {isLoadingMoreSistemas && (
-                      <Loader size="md" />
-                    )}
+                    {isLoadingMoreSistemas && <Loader size="md" />}
                   </div>
                 )}
               </CardContent>
@@ -717,6 +722,9 @@ export default function AutomationAdminPage() {
                   </div>
                 </div>
                 <AmbienteList
+                  canCreate={canCreate}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                   key={`ambientes-${ambienteSort}`}
                   ambientes={displayedAmbientes}
                   onUpdate={() => loadData(true)}
@@ -727,9 +735,7 @@ export default function AutomationAdminPage() {
                     ref={ambientesSentinelRef}
                     className="flex items-center justify-center mt-8 py-4 min-h-12"
                   >
-                    {isLoadingMoreAmbientes && (
-                      <Loader size="md" />
-                    )}
+                    {isLoadingMoreAmbientes && <Loader size="md" />}
                   </div>
                 )}
               </CardContent>
@@ -788,9 +794,7 @@ export default function AutomationAdminPage() {
                 }
               }}
             >
-              {isDeleting ? (
-                <Loader size="sm" className="mr-2" />
-              ) : null}
+              {isDeleting ? <Loader size="sm" className="mr-2" /> : null}
               Confirmar Exclusão
             </AlertDialogAction>
           </AlertDialogFooter>

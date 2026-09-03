@@ -1,4 +1,5 @@
 import { db } from "../init";
+import { isTenantAdminRole } from "./auth-context";
 
 export interface UserDoc {
   role: string;
@@ -155,3 +156,94 @@ export const checkPermission = async (
   if (!permSnap.exists) return false;
   return permSnap.data()?.[requiredField] === true;
 };
+
+export type PermissionAction =
+  | "canView"
+  | "canCreate"
+  | "canEdit"
+  | "canDelete";
+
+/**
+ * Gate de permissão por página, com o bypass de master já aplicado.
+ *
+ * Os controllers antigos (products, services, clients, proposals) repetem
+ * `if (!isMaster && !isSuperAdmin) { checkPermission(...) }` porque já têm o
+ * contexto resolvido em mãos. Os módulos que estão sendo padronizados agora
+ * (kanban, planilhas, auxiliares) não precisam do doc do usuário para nada
+ * além disto, então resolvem o role pelas claims e evitam a leitura extra de
+ * `users/{uid}`.
+ *
+ * `pageId` é o mesmo id que a tela de Equipe grava em
+ * `users/{uid}/permissions/{pageId}` — nunca inventar uma chave nova aqui: foi
+ * assim que o módulo financeiro ficou negando tudo para todo membro.
+ */
+export const hasPagePermission = async (
+  claims: { uid?: string; role?: string } | undefined,
+  pageId: string,
+  action: PermissionAction,
+): Promise<boolean> => {
+  const uid = claims?.uid;
+  if (!uid) return false;
+  if (isTenantAdminRole(normalizeRole(claims?.role))) return true;
+  return checkPermission(uid, pageId, action);
+};
+
+export type PagePermissionMap = Record<string, Record<string, boolean>>;
+
+/**
+ * Le a subcolecao de permissoes inteira de uma vez.
+ *
+ * `checkPermission` custa uma leitura por par pagina/acao, o que e certo para
+ * um controller que checa uma coisa. Quem precisa avaliar VARIAS paginas na
+ * mesma request — a Lia, que monta a lista de ferramentas disponiveis — faria
+ * uma dezena de leituras; aqui e uma consulta.
+ *
+ * Devolve mapa vazio para administradores do tenant: eles nao tem docs de
+ * permissao e o bypass e resolvido por `resolvePagePermission`.
+ */
+export const loadPagePermissions = async (
+  claims: { uid?: string; role?: string } | undefined,
+): Promise<PagePermissionMap> => {
+  const uid = claims?.uid;
+  if (!uid || isTenantAdminRole(normalizeRole(claims?.role))) return {};
+
+  const snap = await db
+    .collection("users")
+    .doc(uid)
+    .collection("permissions")
+    .get();
+
+  const map: PagePermissionMap = {};
+  snap.forEach((doc) => {
+    map[doc.id] = doc.data() as Record<string, boolean>;
+  });
+  return map;
+};
+
+/** Avalia o mapa de `loadPagePermissions`, aplicando o bypass de administrador. */
+export const resolvePagePermission = (
+  claims: { role?: string } | undefined,
+  permissions: PagePermissionMap | undefined,
+  pageId: string,
+  action: PermissionAction,
+): boolean => {
+  if (isTenantAdminRole(normalizeRole(claims?.role))) return true;
+  return permissions?.[pageId]?.[action] === true;
+};
+
+/**
+ * Sem "Ver", as outras tres acoes nao significam nada — e a tela de Equipe
+ * desliga as tres ao desligar o "Ver". A cascata existia SO no cliente
+ * (team-management.tsx): a API aceitava `canCreate: true` com
+ * `canView: false`, gravando um estado que nenhuma tela consegue produzir e
+ * que a UI nao sabe representar.
+ */
+export function normalizePagePermission(perms: Record<string, boolean>) {
+  const canView = perms.canView ?? false;
+  return {
+    canView,
+    canCreate: canView ? (perms.canCreate ?? false) : false,
+    canEdit: canView ? (perms.canEdit ?? false) : false,
+    canDelete: canView ? (perms.canDelete ?? false) : false,
+  };
+}

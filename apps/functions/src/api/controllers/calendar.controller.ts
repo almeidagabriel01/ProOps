@@ -5,6 +5,7 @@ import { db } from "../../init";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 import { isGoogleCalendarSyncEnabled } from "../../lib/google-calendar-feature";
 import { isTenantAdminRole } from "../../lib/auth-context";
+import { hasPagePermission } from "../../lib/auth-helpers";
 import {
   selectRefreshTokenSource,
   buildRefreshTokenStorageFields,
@@ -1089,8 +1090,9 @@ async function validateSuperAdminCalendarTarget(
   });
 }
 
-function canViewCalendarEvents(req: Request): boolean {
-  return Boolean(req.user?.uid && resolveCalendarTenantId(req));
+async function canViewCalendarEvents(req: Request): Promise<boolean> {
+  if (!req.user?.uid || !resolveCalendarTenantId(req)) return false;
+  return hasPagePermission(req.user, "calendar", "canView");
 }
 
 function canManageGoogleCalendarIntegration(req: Request): boolean {
@@ -1112,28 +1114,32 @@ function serializeCalendarEvent(
   };
 }
 
-function canManageCalendarEvent(
+/**
+ * O calendario e UM calendario do tenant, nao um por membro.
+ *
+ * Quando o master conecta a conta Google da empresa, todo membro com acesso ao
+ * Calendario ve os mesmos dados dessa conta, e o que um marca aparece para os
+ * outros. Por isso o gate e a permissao que o master concedeu na tela de
+ * Equipe — nao a posse do evento.
+ *
+ * A checagem de posse que existia aqui contradizia esse modelo, e ja tinha um
+ * escape para exatamente isso: qualquer evento sincronizado com o Google era
+ * gerenciavel por qualquer membro, o que na pratica cobria a maioria dos
+ * eventos e deixava so os criados localmente presos ao autor — uma diferenca
+ * que ninguem pediu e que nao aparece em lugar nenhum da UI.
+ *
+ * O que continua valendo: o evento tem que ser do MESMO tenant.
+ */
+async function canManageCalendarEvent(
   req: Request,
   eventData: CalendarEventDocument,
-): boolean {
+  action: "canEdit" | "canDelete",
+): Promise<boolean> {
   const tenantId = resolveCalendarTenantId(req);
-  if (!req.user?.uid || !tenantId) {
-    return false;
-  }
+  if (!req.user?.uid || !tenantId) return false;
+  if (eventData.tenantId !== tenantId) return false;
 
-  if (eventData.tenantId !== tenantId) {
-    return false;
-  }
-
-  if (eventData.googleSync?.provider === "google" && eventData.googleSync.enabled) {
-    return true;
-  }
-
-  return (
-    eventData.ownerUserId === req.user.uid ||
-    req.user.isSuperAdmin ||
-    isTenantAdminRole(req.user.role)
-  );
+  return hasPagePermission(req.user, "calendar", action);
 }
 
 function buildBaseGoogleSyncMetadata(): GoogleSyncMetadata {
@@ -1315,7 +1321,7 @@ async function listCalendarEventsWithTenantFallback(params: {
 export async function getCalendarEvents(req: Request, res: Response) {
   try {
     const tenantId = resolveCalendarTenantId(req);
-    if (!canViewCalendarEvents(req) || !tenantId || !req.user?.uid) {
+    if (!tenantId || !req.user?.uid || !(await canViewCalendarEvents(req))) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
 
@@ -1745,6 +1751,11 @@ export async function createCalendarEvent(req: Request, res: Response) {
     if (!req.user?.uid || !tenantId) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
+    if (!(await hasPagePermission(req.user, "calendar", "canCreate"))) {
+      return res
+        .status(403)
+        .json({ message: "Sem permissao para criar compromissos." });
+    }
     try {
       await validateSuperAdminCalendarTarget(req, tenantId);
     } catch {
@@ -1824,7 +1835,7 @@ export async function updateCalendarEvent(req: Request, res: Response) {
 
     const existingData = snapshot.data() as CalendarEventDocument;
 
-    if (!canManageCalendarEvent(req, existingData)) {
+    if (!(await canManageCalendarEvent(req, existingData, "canEdit"))) {
       return res.status(403).json({ message: "Acesso negado." });
     }
 
@@ -1905,7 +1916,7 @@ export async function deleteCalendarEvent(req: Request, res: Response) {
     }
 
     const existingData = snapshot.data() as CalendarEventDocument;
-    if (!canManageCalendarEvent(req, existingData)) {
+    if (!(await canManageCalendarEvent(req, existingData, "canDelete"))) {
       return res.status(403).json({ message: "Acesso negado." });
     }
 

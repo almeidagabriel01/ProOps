@@ -25,6 +25,7 @@ import {
 } from "@/services/fiscal-service";
 import { TestModeBanner } from "@/components/features/fiscal/test-mode-banner";
 import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { RejectionDetailButton } from "@/components/features/fiscal/rejection-detail-button";
 import { useSort } from "@/hooks/use-sort";
 import { Loader } from "@/components/ui/loader";
@@ -33,7 +34,11 @@ const STATUS_META: Record<
   FiscalInvoiceStatus,
   { label: string; icon: React.ElementType; className: string }
 > = {
-  draft: { label: "Rascunho", icon: FileText, className: "bg-muted text-muted-foreground" },
+  draft: {
+    label: "Rascunho",
+    icon: FileText,
+    className: "bg-muted text-muted-foreground",
+  },
   processing: {
     label: "Processando",
     icon: Clock,
@@ -49,7 +54,11 @@ const STATUS_META: Record<
     icon: XCircle,
     className: "bg-destructive/10 text-destructive",
   },
-  cancelled: { label: "Cancelada", icon: XCircle, className: "bg-muted text-muted-foreground" },
+  cancelled: {
+    label: "Cancelada",
+    icon: XCircle,
+    className: "bg-muted text-muted-foreground",
+  },
   error: {
     label: "Erro",
     icon: AlertTriangle,
@@ -58,16 +67,20 @@ const STATUS_META: Record<
 };
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-    value || 0,
-  );
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value || 0);
 }
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? "—"
-    : new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
+    : new Intl.DateTimeFormat("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(date);
 }
 
 function StatusBadge({ status }: { status: FiscalInvoiceStatus }) {
@@ -84,6 +97,9 @@ function StatusBadge({ status }: { status: FiscalInvoiceStatus }) {
 }
 
 export default function InvoicesPage() {
+  // Cancelar uma nota autorizada e o "excluir" deste modulo: a nota nao sai do
+  // acervo (guarda legal de 5 anos), mas deixa de valer.
+  const { canDelete: canCancel } = usePagePermission("invoices");
   const [invoices, setInvoices] = React.useState<FiscalInvoice[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [notConfigured, setNotConfigured] = React.useState(false);
@@ -94,14 +110,17 @@ export default function InvoicesPage() {
     setRefreshingId(id);
     try {
       const { invoice } = await FiscalService.refreshInvoice(id);
-      setInvoices((prev) => prev.map((item) => (item.id === id ? invoice : item)));
+      setInvoices((prev) =>
+        prev.map((item) => (item.id === id ? invoice : item)),
+      );
       if (invoice.status === "processing") {
         toast.info("A nota ainda está na fila do fisco.");
       } else if (invoice.status === "authorized" && !invoice.pdfUrl) {
         // Sem isto o clique não teria desfecho visível: o botão volta ao normal
         // e nada muda na linha, o que se confunde com um clique que não pegou.
         toast.info("O provedor ainda não disponibilizou o PDF desta nota.", {
-          description: "O XML continua disponível — ele é o documento que vale.",
+          description:
+            "O XML continua disponível — ele é o documento que vale.",
         });
       }
     } catch (error) {
@@ -157,7 +176,9 @@ export default function InvoicesPage() {
         render: (invoice) => (
           <div className="flex flex-col">
             <span className="font-medium">
-              {invoice.numero ? `${invoice.numero}${invoice.serie ? `/${invoice.serie}` : ""}` : "—"}
+              {invoice.numero
+                ? `${invoice.numero}${invoice.serie ? `/${invoice.serie}` : ""}`
+                : "—"}
             </span>
             <span className="text-xs text-muted-foreground">
               {invoice.type === "nfe" ? "NF-e · produto" : "NFS-e · serviço"}
@@ -184,7 +205,9 @@ export default function InvoicesPage() {
         // coluna seguinte e a leitura ficava pior que a comparação ganhava.
         className: "col-span-2",
         render: (invoice) => (
-          <span className="tabular-nums">{formatCurrency(invoice.valorTotal)}</span>
+          <span className="tabular-nums">
+            {formatCurrency(invoice.valorTotal)}
+          </span>
         ),
       },
       {
@@ -193,7 +216,9 @@ export default function InvoicesPage() {
         priority: "secondary",
         className: "col-span-2",
         render: (invoice) => (
-          <span className="text-sm text-muted-foreground">{formatDate(invoice.createdAt)}</span>
+          <span className="text-sm text-muted-foreground">
+            {formatDate(invoice.createdAt)}
+          </span>
         ),
       },
       {
@@ -230,7 +255,12 @@ export default function InvoicesPage() {
             return (
               <div className="flex items-center">
                 {invoice.pdfUrl ? (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    asChild
+                  >
                     <a
                       href={invoice.pdfUrl}
                       target="_blank"
@@ -261,7 +291,12 @@ export default function InvoicesPage() {
                   </Button>
                 )}
                 {invoice.xmlUrl && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    asChild
+                  >
                     <a
                       href={invoice.xmlUrl}
                       target="_blank"
@@ -272,14 +307,18 @@ export default function InvoicesPage() {
                     </a>
                   </Button>
                 )}
-                <CancelInvoiceButton
-                  invoice={invoice}
-                  onCancelled={(updated) =>
-                    setInvoices((prev) =>
-                      prev.map((item) => (item.id === updated.id ? updated : item)),
-                    )
-                  }
-                />
+                {canCancel && (
+                  <CancelInvoiceButton
+                    invoice={invoice}
+                    onCancelled={(updated) =>
+                      setInvoices((prev) =>
+                        prev.map((item) =>
+                          item.id === updated.id ? updated : item,
+                        ),
+                      )
+                    }
+                  />
+                )}
               </div>
             );
           }
@@ -311,7 +350,7 @@ export default function InvoicesPage() {
         },
       },
     ],
-    [refresh, refreshingId],
+    [refresh, refreshingId, canCancel],
   );
 
   if (notConfigured) {
@@ -321,10 +360,12 @@ export default function InvoicesPage() {
           <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
             <FileText className="h-12 w-12 text-muted-foreground" />
             <div>
-              <h2 className="text-xl font-semibold">Emissão de notas ainda não configurada</h2>
+              <h2 className="text-xl font-semibold">
+                Emissão de notas ainda não configurada
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Cadastre os dados fiscais da sua empresa e envie o certificado digital para
-                começar a emitir.
+                Cadastre os dados fiscais da sua empresa e envie o certificado
+                digital para começar a emitir.
               </p>
             </div>
             <Button asChild>
@@ -370,8 +411,8 @@ export default function InvoicesPage() {
             <FileText className="h-10 w-10 text-muted-foreground" />
             <p className="font-medium">Nenhuma nota emitida ainda</p>
             <p className="text-sm text-muted-foreground">
-              As notas aparecem aqui assim que forem emitidas a partir de um lançamento ou de
-              uma proposta aprovada.
+              As notas aparecem aqui assim que forem emitidas a partir de um
+              lançamento ou de uma proposta aprovada.
             </p>
           </CardContent>
         </Card>
@@ -392,7 +433,8 @@ export default function InvoicesPage() {
       {invoices.some((invoice) => invoice.status === "processing") && (
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="h-3 w-3" />
-          Notas em processamento são atualizadas automaticamente assim que o fisco responde.
+          Notas em processamento são atualizadas automaticamente assim que o
+          fisco responde.
         </p>
       )}
     </main>

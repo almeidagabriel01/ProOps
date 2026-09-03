@@ -54,29 +54,64 @@ Ao criar um membro, o usuário escolhe um preset que define as permissões inici
 | Editor | `editor` | `canView + canCreate + canEdit` em todas as páginas |
 | Administrador | `admin` | Permissões completas (`canView + canCreate + canEdit + canDelete`) |
 
-A função `getDefaultPermissions(roleType, hasFinancial)` em `src/hooks/useCreateMember.ts` retorna o mapa de permissões correspondente.
+A função `getDefaultPermissions(roleType, hasFinancial)` em
+`src/lib/permissions/pages.ts` retorna o mapa correspondente, derivando-o da
+lista canônica (reexportada por `src/hooks/useCreateMember.ts` para os call
+sites antigos).
 
 ---
 
 ## Páginas disponíveis para permissão
 
-Definidas em `AVAILABLE_PAGES` em `src/components/features/team/team-types.ts`:
+**Fonte única: `PERMISSION_PAGES` em `src/lib/permissions/pages.ts`.**
+`AVAILABLE_PAGES` (team-types.ts) é um reexport, e `getDefaultPermissions()`
+deriva os presets da mesma lista. Antes eram duas listas independentes e elas
+divergiam: o Calendário só aparecia na tela de edição do membro, nunca na de
+criação, e as Notas Fiscais em nenhuma das duas — o que deixava `/invoices`
+permanentemente em `/403` para todo membro. Guard:
+`src/lib/permissions/__tests__/pages.test.ts`.
 
-| `id` (pageId) | Nome exibido | viewOnly |
-|---------------|--------------|----------|
-| `dashboard` | Dashboard | sim (sem create/edit/delete) |
-| `kanban` | CRM | — |
-| `proposals` | Propostas | — |
-| `clients` | Clientes | — |
+| `id` (pageId) | Nome exibido | Observação |
+|---------------|--------------|------------|
+| `dashboard` | Dashboard | `viewOnly` — sem create/edit/delete |
+| `kanban` | CRM | rota `/crm` |
+| `proposals` | Propostas | também gateia custom_fields, options e proposal_templates |
+| `clients` | Clientes | rota `/contacts` |
 | `products` | Produtos | — |
-| `services` | Servicos | — |
+| `services` | Serviços | — |
 | `spreadsheets` | Planilhas | — |
 | `calendar` | Calendario | — |
-| `transactions` | Lancamentos (Financeiro) | — |
-| `wallet` | Carteira (Financeiro) | — |
-| `solutions` | Solucoes | — |
+| `solutions` | Soluções | também gateia `/ambientes`, sistemas e ambientes |
+| `transactions` | Lançamentos (Financeiro) | `requiresFinancial` |
+| `wallet` | Carteira (Financeiro) | `requiresFinancial` — rota `/wallets` |
+| `invoices` | Notas Fiscais (Financeiro) | `requiresFinancial` — emissão E notas de entrada |
 
-As páginas financeiras (`transactions`, `wallet`) são ocultadas em `MemberCard` quando o plano do tenant não inclui o módulo financeiro (`hasFinancial = false`).
+As páginas marcadas `requiresFinancial` são ocultadas nas duas telas quando o
+plano do tenant não inclui o módulo financeiro. **Não repetir a lista de ids
+financeiros em call site nenhum** — ler `requiresFinancial` da própria página
+foi o que corrigiu um filtro morto em `member-card.tsx`, que testava
+`page.id === "financial"`, id que nunca existiu.
+
+## As quatro camadas que leem o mesmo pageId
+
+Um módulo só está padronizado quando as quatro concordam. Um pageId que a tela
+de Equipe grava e que nenhuma delas lê é um toggle decorativo — foi o caso de
+`kanban`, `spreadsheets`, `solutions` e `wallet` até 2026-09-03.
+
+| Camada | Onde | O que faz |
+|---|---|---|
+| Rota | `lib/page-config.ts` + `auth/protected-route.tsx` | `/403` sem a permissão da página |
+| Navegação | `layout/use-navigation-items.tsx`, ou o **botão** que leva à tela quando ela não está na dock (Carteiras em `/transactions`, CRM em `/proposals`) | esconde o destino |
+| UI | `hooks/usePagePermission.ts` | esconde criar/editar/excluir |
+| Backend | `checkPermission` / `hasPagePermission` / `checkFinancialPermission` | 403 na API |
+
+O command palette (Ctrl+K) é uma **quinta** superfície de navegação: cada
+destino declara `requiresView` com o mesmo pageId.
+
+**Nunca inventar uma chave nova no backend.** `checkFinancialPermission` lia um
+doc `financial` que nenhum caminho de escrita jamais criou, e o efeito foi o
+módulo financeiro inteiro negar toda escrita para todo membro — sem erro
+aparente, só "Sem permissão financeira.".
 
 ---
 
@@ -164,7 +199,7 @@ POST /v1/admin/members
 Body: { name, email, password, phoneNumber, permissions }
 ```
 
-O backend (`members.controller.ts`) cria o usuário no Firebase Auth e grava o documento em Firestore, vinculando `masterId` ao usuário atual. Também escreve os documentos de permissão na subcoleção `users/{newMemberId}/permissions/`.
+O backend (`admin.controller.ts`) cria o usuário no Firebase Auth e grava o documento em Firestore, vinculando `masterId` ao usuário atual. Também escreve os documentos de permissão na subcoleção `users/{newMemberId}/permissions/`.
 
 ### Limites de plano
 

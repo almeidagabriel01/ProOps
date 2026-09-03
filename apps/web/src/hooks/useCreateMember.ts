@@ -15,22 +15,12 @@
 
 import { useState, useCallback } from "react";
 import { callApi } from "@/lib/api-client";
+import type { MemberPermissions } from "@/lib/permissions/pages";
 import { toast } from "@/lib/toast";
 
 // ============================================
 // TYPES
 // ============================================
-
-interface PagePermission {
-  canView: boolean;
-  canCreate?: boolean;
-  canEdit?: boolean;
-  canDelete?: boolean;
-}
-
-interface MemberPermissions {
-  [pageId: string]: PagePermission;
-}
 
 interface CreateMemberData {
   name: string;
@@ -160,112 +150,11 @@ export function useCreateMember(): UseCreateMemberReturn {
 // ============================================
 
 /**
- * Returns default permissions for a new MEMBER based on role type.
- * Uses pageId format (not path format) to match Cloud Function expectations.
- * @param roleType - The role type: viewer, editor, or admin
- * @param hasFinancial - Whether the user has access to the financial module (optional, defaults to true for backwards compatibility)
+ * Reexportado de `lib/permissions/pages` — é função pura e vive junto da lista
+ * canônica de páginas, para que a tela de criação e a de edição nunca voltem a
+ * oferecer conjuntos diferentes.
  */
-export function getDefaultPermissions(
-  roleType: "viewer" | "editor" | "admin" = "viewer",
-  hasFinancial: boolean = true,
-): MemberPermissions {
-  // Dashboard is view-only (no create/edit/delete functionality)
-  const basePermissions: MemberPermissions = {
-    dashboard: { canView: true },
-    kanban: { canView: true },
-    proposals: { canView: true },
-    clients: { canView: true },
-    products: { canView: true },
-    services: { canView: true },
-    spreadsheets: { canView: true },
-    solutions: { canView: true },
-    ...(hasFinancial && {
-      transactions: { canView: true },
-      wallet: { canView: true },
-    }),
-  };
-
-  if (roleType === "editor") {
-    return {
-      dashboard: { canView: true },
-      kanban: { canView: true, canCreate: true, canEdit: true },
-      proposals: { canView: true, canCreate: true, canEdit: true },
-      clients: { canView: true, canCreate: true, canEdit: true },
-      products: { canView: true, canCreate: true, canEdit: true },
-      services: { canView: true, canCreate: true, canEdit: true },
-      spreadsheets: { canView: true, canCreate: true, canEdit: true },
-      solutions: { canView: true, canCreate: true, canEdit: true },
-      ...(hasFinancial && {
-        transactions: { canView: true, canCreate: true, canEdit: true },
-        wallet: { canView: true, canCreate: true, canEdit: true },
-      }),
-    };
-  }
-
-  if (roleType === "admin") {
-    return {
-      dashboard: { canView: true },
-      kanban: {
-        canView: true,
-        canCreate: true,
-        canEdit: true,
-        canDelete: true,
-      },
-      proposals: {
-        canView: true,
-        canCreate: true,
-        canEdit: true,
-        canDelete: true,
-      },
-      clients: {
-        canView: true,
-        canCreate: true,
-        canEdit: true,
-        canDelete: true,
-      },
-      products: {
-        canView: true,
-        canCreate: true,
-        canEdit: true,
-        canDelete: true,
-      },
-      services: {
-        canView: true,
-        canCreate: true,
-        canEdit: true,
-        canDelete: true,
-      },
-      spreadsheets: {
-        canView: true,
-        canCreate: true,
-        canEdit: true,
-        canDelete: true,
-      },
-      solutions: {
-        canView: true,
-        canCreate: true,
-        canEdit: true,
-        canDelete: true,
-      },
-      ...(hasFinancial && {
-        transactions: {
-          canView: true,
-          canCreate: true,
-          canEdit: true,
-          canDelete: true,
-        },
-        wallet: {
-          canView: true,
-          canCreate: true,
-          canEdit: true,
-          canDelete: true,
-        },
-      }),
-    };
-  }
-
-  return basePermissions;
-}
+export { getDefaultPermissions } from "@/lib/permissions/pages";
 
 // ============================================
 // USAGE EXAMPLE

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
+import { hasPagePermission } from "../../lib/auth-helpers";
 
 const COLLECTION = "kanban_statuses";
 const MAX_COLUMNS_PER_TENANT = 20;
@@ -24,6 +25,12 @@ export async function createKanbanStatus(req: Request, res: Response) {
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
       return res.status(403).json({ message: "Tenant não identificado." });
+    }
+
+    if (!(await hasPagePermission(req.user, "kanban", "canCreate"))) {
+      return res
+        .status(403)
+        .json({ message: "Sem permissão para criar colunas." });
     }
 
     const { label, color, order, category, mappedStatus } = req.body;
@@ -103,6 +110,12 @@ export async function updateKanbanStatus(req: Request, res: Response) {
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
       return res.status(403).json({ message: "Tenant não identificado." });
+    }
+
+    if (!(await hasPagePermission(req.user, "kanban", "canEdit"))) {
+      return res
+        .status(403)
+        .json({ message: "Sem permissão para editar colunas." });
     }
 
     const { id } = req.params;
@@ -196,6 +209,12 @@ export async function deleteKanbanStatus(req: Request, res: Response) {
       return res.status(403).json({ message: "Tenant não identificado." });
     }
 
+    if (!(await hasPagePermission(req.user, "kanban", "canDelete"))) {
+      return res
+        .status(403)
+        .json({ message: "Sem permissão para excluir colunas." });
+    }
+
     const { id } = req.params;
     const docRef = db.collection(COLLECTION).doc(id);
     const doc = await docRef.get();
@@ -227,6 +246,12 @@ export async function reorderKanbanStatuses(req: Request, res: Response) {
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
       return res.status(403).json({ message: "Tenant não identificado." });
+    }
+
+    if (!(await hasPagePermission(req.user, "kanban", "canEdit"))) {
+      return res
+        .status(403)
+        .json({ message: "Sem permissão para reordenar colunas." });
     }
 
     const { statusIds } = req.body;
