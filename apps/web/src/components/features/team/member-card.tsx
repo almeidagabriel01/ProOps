@@ -132,8 +132,8 @@ export function MemberCard({
 
             <div className="space-y-2">
               {AVAILABLE_PAGES.map((page) => {
-                // Hide financial permission if tenant doesn't have it
-                if (page.id === "financial" && !hasFinancial) return null;
+                // Hide financial pages if tenant doesn't have the module
+                if (page.requiresFinancial && !hasFinancial) return null;
 
                 return (
                   <PagePermissionRow
