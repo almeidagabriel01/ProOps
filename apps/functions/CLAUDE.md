@@ -393,10 +393,22 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   enviado como `codigo_nbs` quando o servico tem `nbs`). No DANFSe v2.0 (NT 008/2026) o
   bloco de valores tem TRES linhas — "Valor Liquido da NFS-e", "Total do IBS/CBS" e "Valor
   Liquido da NFS-e + IBS/CBS" — e a NT manda preencher com traço o que nao vem no XML. A
-  terceira linha e um TOTAL A PAGAR, nao um valor de imposto: com IBS/CBS ausente ela
-  repete o valor liquido, e vir zerada e que estaria errado. Nada disso e configuravel do
-  nosso lado — nao enviamos campo de IBS/CBS, e o DANFSe e renderizado pelo Ambiente
-  Nacional.
+  terceira linha e um TOTAL A PAGAR, nao um valor de imposto.
+- **O DANFSe NAO e mais gerado pelo Ambiente Nacional.** A API nacional de geracao foi
+  suspensa em **03/08/2026** (NT 008/2026): desde entao cada sistema emissor renderiza o
+  proprio PDF a partir do XML. O PDF que baixamos e **do Focus**; o que o contador ve no
+  portal e do emissor web. Dois renderizadores lendo o mesmo XML podem divergir num campo
+  CALCULADO — e divergem: com o grupo IBSCBS ausente, o portal zera
+  "Valor Liquido da NFS-e + IBS/CBS" e o Focus repete o valor liquido. **O XML e o
+  documento que vale; o DANFSe e representacao.**
+- **Existe grupo IBSCBS na DPS e nos NAO o enviamos** — `ibs_cbs_situacao_tributaria`
+  (CST) e `ibs_cbs_classificacao_tributaria` (cClassTrib) no Focus, mais `regApIBSCBSSN`
+  para o Simples na NT 009. Na DPS so se declara a SITUACAO; aliquota e valor sao
+  calculados pelo Ambiente Nacional e voltam na nota autorizada. A validacao de
+  obrigatoriedade esta suspensa (NT 004 v2.00) e para Simples/MEI a regra so vale em
+  **01/01/2027** — por isso a nota passou sem o grupo. **Nao chutar CST/cClassTrib:** sao
+  codigos de classificacao fiscal, e um valor errado num documento fiscal e pior que a
+  ausencia. Os codigos tem zeros a esquerda significativos (`000001` != `1`).
 - **DANFE e XML sao espelhados no nosso Storage** (`tenants/{id}/fiscal/{invoiceId}/`) assim
   que a nota e autorizada. Nao e conveniencia: guarda legal de **5 anos + ano corrente**
   (Ajuste SINIEF 07/2005), e depender do link do provedor deixaria o acervo do cliente fora
