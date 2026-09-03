@@ -17,12 +17,14 @@ jest.mock("../../init", () => ({ db: {} }));
 
 import { executeToolCall } from "./executor";
 import { TOOL_REGISTRY, buildAvailableTools } from "./index";
+import { resolvePlanCapabilities } from "../../shared/plan-capabilities";
 
 const MEMBER = {
   tenantId: "tenant-1",
   uid: "member-1",
   role: "MEMBER",
   planTier: "enterprise" as const,
+  capabilities: resolvePlanCapabilities("enterprise"),
   confirmed: true,
   sessionId: "s1",
 };
@@ -161,7 +163,7 @@ describe("bypass de administrador do tenant", () => {
 
 describe("o modelo nao recebe a declaracao do que nao pode executar", () => {
   function toolNames(permissions: Record<string, Record<string, boolean>>) {
-    const built = buildAvailableTools("enterprise", "MEMBER", {}, permissions);
+    const built = buildAvailableTools(resolvePlanCapabilities("enterprise"), "MEMBER", {}, permissions);
     return built.flatMap((group) =>
       (group.functionDeclarations ?? []).map((d) => d.name),
     );
@@ -184,7 +186,7 @@ describe("o modelo nao recebe a declaracao do que nao pode executar", () => {
   });
 
   it("admin do tenant ve o conjunto completo do plano", () => {
-    const built = buildAvailableTools("enterprise", "MASTER", {}, {});
+    const built = buildAvailableTools(resolvePlanCapabilities("enterprise"), "MASTER", {}, {});
     const names = built.flatMap((group) =>
       (group.functionDeclarations ?? []).map((d) => d.name),
     );

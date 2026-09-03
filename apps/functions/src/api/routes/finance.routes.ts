@@ -24,8 +24,16 @@ import {
 } from "../controllers/shared-transactions.controller";
 import { downloadTransactionPdf } from "../controllers/transaction-pdf.controller";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
+import { requirePlanCapability } from "../middleware/require-plan-capability";
 
 const router = Router();
+
+// Gate de modulo. Escopado por PREFIXO, nunca `router.use(mw)` sem path: todos
+// os routers sao montados em `app.use("/v1", ...)`, entao um use() sem path
+// rodaria em toda request de /v1 — propostas e clientes inclusive.
+const financialGate = requirePlanCapability("financial");
+router.use("/transactions", financialGate);
+router.use("/wallets", financialGate);
 
 // Transactions
 // Summary agregado (aggregation queries) — substitui o cálculo no browser.

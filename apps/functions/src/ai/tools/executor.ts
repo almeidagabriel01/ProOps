@@ -10,6 +10,11 @@ import {
   type PagePermissionMap,
 } from "../../lib/auth-helpers";
 import type { TenantPlanTier } from "../../lib/tenant-plan-policy";
+import {
+  PLAN_TIER_LABELS,
+  minimumTierForCapability,
+} from "../../shared/plan-capabilities";
+import type { PlanCapabilities } from "../../shared/plan-capabilities";
 
 // Service imports — per user decision: tools call extracted service functions
 import * as proposalsService from "../../api/services/proposals.service";
@@ -51,6 +56,11 @@ export interface ToolCallContext {
   uid: string;
   role: string;
   planTier: Exclude<TenantPlanTier, "free">;
+  /**
+   * Capacidades efetivas (tier + add-ons). E o que a revalidacao usa; o
+   * `planTier` acima segue existindo para a mensagem de erro e para o log.
+   */
+  capabilities: PlanCapabilities;
   /** true when a valid confirmationToken (or deprecated confirmed boolean) was provided */
   confirmed?: boolean;
   /** AI session ID — used to bind confirmation tokens to the current session */
@@ -102,12 +112,6 @@ function validateArgs(
   return { valid: true, data: result.data };
 }
 
-// Duplicate from index.ts for double-validation (no cross-import of private constants)
-const PLAN_RANK: Record<Exclude<TenantPlanTier, "free">, number> = {
-  starter: 1,
-  pro: 2,
-  enterprise: 3,
-};
 
 const ADMIN_ROLES = new Set(["MASTER", "ADMIN", "WK", "SUPERADMIN"]);
 
@@ -599,16 +603,19 @@ export async function executeToolCall(
     return { success: false, error: `Tool desconhecida: ${toolName}` };
   }
 
-  // 2. Double-validate plan tier
-  if (PLAN_RANK[entry.minPlan] > PLAN_RANK[ctx.planTier]) {
+  // 2. Double-validate plan capability
+  if (entry.capability && !ctx.capabilities[entry.capability]) {
+    const requiredTier = minimumTierForCapability(entry.capability);
     logSecurityEvent("ai_tool_plan_denied", {
       tenantId: ctx.tenantId,
       uid: ctx.uid,
-      reason: `tool=${toolName} requiredPlan=${entry.minPlan} actualPlan=${ctx.planTier}`,
+      reason: `tool=${toolName} requiredCapability=${entry.capability} actualPlan=${ctx.planTier}`,
     });
     return {
       success: false,
-      error: `Tool ${toolName} requer plano ${entry.minPlan} ou superior. Seu plano: ${ctx.planTier}.`,
+      error: requiredTier
+        ? `Tool ${toolName} requer o plano ${PLAN_TIER_LABELS[requiredTier]} ou o add-on correspondente. Seu plano: ${ctx.planTier}.`
+        : `Tool ${toolName} nao esta disponivel no seu plano.`,
     };
   }
 

@@ -3,6 +3,7 @@ import { type FunctionDeclarationsTool } from "@google/generative-ai";
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "../init";
 import { getTenantPlanProfile, evaluateSubscriptionStatusAccess } from "../lib/tenant-plan-policy";
+import { resolveTenantCapabilities } from "../lib/tenant-capabilities";
 import { tenantPlanAllowsWhatsApp } from "../lib/whatsapp-eligibility";
 import { sanitizeText } from "../utils/sanitize";
 import { logger } from "../lib/logger";
@@ -99,6 +100,11 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
 
   const planTier = planProfile.tier;
 
+  // Capacidades EFETIVAS (tier + add-ons comprados). Sem isto a Lia recusava
+  // ferramenta de um modulo que o tenant tinha pago avulso, porque olhava so
+  // o tier.
+  const { capabilities } = await resolveTenantCapabilities(user.tenantId);
+
   // 4. Check monthly limit
   const limitCheck = await checkAiLimit(user.tenantId, planTier);
   if (!limitCheck.allowed) {
@@ -177,7 +183,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
 
   // Build available tools for this tenant's plan/role/modules/permissions
   const tools: FunctionDeclarationsTool[] = buildAvailableTools(
-    planTier,
+    capabilities,
     user.role || "member",
     { whatsappEnabled },
     pagePermissions,
@@ -218,6 +224,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     uid: user.uid,
     role: user.role || "member",
     planTier,
+    capabilities,
     confirmed: isConfirmed,
     sessionId: sessionId || undefined,
     permissions: pagePermissions,

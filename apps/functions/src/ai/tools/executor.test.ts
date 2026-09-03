@@ -78,6 +78,7 @@ jest.mock("firebase-admin/firestore", () => ({
 import { executeToolCall } from "./executor";
 import type { ToolCallContext } from "./executor";
 import { logSecurityEvent } from "../../lib/security-observability";
+import { resolvePlanCapabilities } from "../../shared/plan-capabilities";
 
 // ── Base contexts ──────────────────────────────────────────────────────────────
 
@@ -86,12 +87,17 @@ const adminCtx: ToolCallContext = {
   uid: "uid-admin",
   role: "ADMIN",
   planTier: "pro",
+  capabilities: resolvePlanCapabilities("pro"),
   confirmed: false,
   sessionId: "sess-1",
 };
 
 const memberCtx: ToolCallContext = { ...adminCtx, uid: "uid-member", role: "member" };
-const starterCtx: ToolCallContext = { ...adminCtx, planTier: "starter" };
+const starterCtx: ToolCallContext = {
+  ...adminCtx,
+  planTier: "starter",
+  capabilities: resolvePlanCapabilities("starter"),
+};
 
 // ── Plan tier gating ───────────────────────────────────────────────────────────
 
