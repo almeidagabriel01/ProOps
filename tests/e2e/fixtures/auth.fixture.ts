@@ -7,6 +7,14 @@ import {
   PERMS_MEMBER_RESTRITO,
   type SeedPermissionUser,
 } from "../seed/data/permissions";
+import {
+  PLAN_ENTERPRISE,
+  PLAN_PASSWORD,
+  PLAN_PRO,
+  PLAN_STARTER,
+  PLAN_STARTER_ADDON,
+  type SeedPlanTenant,
+} from "../seed/data/plans";
 
 interface AuthFixtures {
   /** Pre-authenticated page as tenant-alpha admin (admin@alpha.test) */
@@ -24,6 +32,14 @@ interface AuthFixtures {
    * carteira e CRM só leitura, sem notas fiscais.
    */
   memberOperador: Page;
+  /** MASTER de um tenant Starter — nenhum módulo premium nativo. */
+  planStarter: Page;
+  /** MASTER de um tenant Pro — financeiro sim, CRM e fiscal não. */
+  planPro: Page;
+  /** MASTER de um tenant Enterprise — tudo. */
+  planEnterprise: Page;
+  /** MASTER Starter que COMPROU o add-on financeiro. */
+  planStarterComAddon: Page;
 }
 
 // Override fetch AND XHR in the browser before any SDK code runs.
@@ -83,6 +99,20 @@ async function loginAsMember(
   );
 }
 
+/** MASTER de um tenant de plano: a home é sempre /dashboard (tem tudo liberado por role). */
+async function loginAsPlanMaster(
+  page: Page,
+  seed: SeedPlanTenant,
+): Promise<void> {
+  await interceptFirebaseRequests(page);
+
+  const loginPage = new LoginPage(page);
+  await loginPage.goto();
+  await loginPage.login(seed.email, PLAN_PASSWORD);
+
+  await page.waitForURL(/(dashboard|proposals)/, { timeout: 30000 });
+}
+
 export const test = base.extend<AuthFixtures>({
   authenticatedPage: async ({ page }, provide) => {
     await interceptFirebaseRequests(page);
@@ -117,6 +147,26 @@ export const test = base.extend<AuthFixtures>({
 
   memberOperador: async ({ page }, provide) => {
     await loginAsMember(page, PERMS_MEMBER_OPERADOR);
+    await provide(page);
+  },
+
+  planStarter: async ({ page }, provide) => {
+    await loginAsPlanMaster(page, PLAN_STARTER);
+    await provide(page);
+  },
+
+  planPro: async ({ page }, provide) => {
+    await loginAsPlanMaster(page, PLAN_PRO);
+    await provide(page);
+  },
+
+  planEnterprise: async ({ page }, provide) => {
+    await loginAsPlanMaster(page, PLAN_ENTERPRISE);
+    await provide(page);
+  },
+
+  planStarterComAddon: async ({ page }, provide) => {
+    await loginAsPlanMaster(page, PLAN_STARTER_ADDON);
     await provide(page);
   },
 });

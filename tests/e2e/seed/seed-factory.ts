@@ -11,6 +11,7 @@ import { seedSistemas } from "./data/sistemas";
 import { seedContacts } from "./data/contacts";
 import { seedProducts } from "./data/products";
 import { PERMS_USERS, seedPermissionTenant } from "./data/permissions";
+import { PLAN_TENANTS, seedPlanTenants } from "./data/plans";
 
 const PROJECT_ID = "demo-proops-test";
 
@@ -57,6 +58,7 @@ export async function seedAll(): Promise<void> {
   await seedUsers(auth, db);
   await seedAiTenants(auth, db);
   await seedPermissionTenant(auth, db);
+  await seedPlanTenants(auth, db);
   await seedWallets(db);
   await seedSistemas(db);
   await seedContacts(db);
@@ -77,7 +79,9 @@ export async function clearAll(): Promise<void> {
   const db = getDb();
   const auth = getAuth();
 
-  const collections = ["tenants", "users", "wallets", "sistemas", "ambientes", "clients", "products", "proposals", "transactions"];
+  // `addons` entra aqui porque o seed de planos cria add-on ativo: sem apagar,
+  // um Starter do run seguinte nasceria com o modulo financeiro aberto.
+  const collections = ["tenants", "users", "wallets", "sistemas", "ambientes", "clients", "products", "proposals", "transactions", "addons"];
 
   for (const col of collections) {
     const snapshot = await db.collection(col).get();
@@ -114,6 +118,7 @@ export async function clearAll(): Promise<void> {
     "ai-free-uid",
     "ai-free-role-uid",
     ...PERMS_USERS.map((u) => u.uid),
+    ...PLAN_TENANTS.map((t) => t.uid),
   ];
 
   for (const uid of uids) {
