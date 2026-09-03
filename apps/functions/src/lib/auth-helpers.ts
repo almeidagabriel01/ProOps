@@ -187,3 +187,46 @@ export const hasPagePermission = async (
   if (isTenantAdminRole(normalizeRole(claims?.role))) return true;
   return checkPermission(uid, pageId, action);
 };
+
+export type PagePermissionMap = Record<string, Record<string, boolean>>;
+
+/**
+ * Le a subcolecao de permissoes inteira de uma vez.
+ *
+ * `checkPermission` custa uma leitura por par pagina/acao, o que e certo para
+ * um controller que checa uma coisa. Quem precisa avaliar VARIAS paginas na
+ * mesma request — a Lia, que monta a lista de ferramentas disponiveis — faria
+ * uma dezena de leituras; aqui e uma consulta.
+ *
+ * Devolve mapa vazio para administradores do tenant: eles nao tem docs de
+ * permissao e o bypass e resolvido por `resolvePagePermission`.
+ */
+export const loadPagePermissions = async (
+  claims: { uid?: string; role?: string } | undefined,
+): Promise<PagePermissionMap> => {
+  const uid = claims?.uid;
+  if (!uid || isTenantAdminRole(normalizeRole(claims?.role))) return {};
+
+  const snap = await db
+    .collection("users")
+    .doc(uid)
+    .collection("permissions")
+    .get();
+
+  const map: PagePermissionMap = {};
+  snap.forEach((doc) => {
+    map[doc.id] = doc.data() as Record<string, boolean>;
+  });
+  return map;
+};
+
+/** Avalia o mapa de `loadPagePermissions`, aplicando o bypass de administrador. */
+export const resolvePagePermission = (
+  claims: { role?: string } | undefined,
+  permissions: PagePermissionMap | undefined,
+  pageId: string,
+  action: PermissionAction,
+): boolean => {
+  if (isTenantAdminRole(normalizeRole(claims?.role))) return true;
+  return permissions?.[pageId]?.[action] === true;
+};
