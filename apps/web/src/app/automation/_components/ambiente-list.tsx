@@ -5,7 +5,16 @@ import { Ambiente } from "@/types/automation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { Pencil, Trash2, Home, Plus, Check, X, LayoutGrid, Package } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Home,
+  Plus,
+  Check,
+  X,
+  LayoutGrid,
+  Package,
+} from "lucide-react";
 import { toast } from "@/lib/toast";
 import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
@@ -29,6 +38,10 @@ interface AmbienteListProps {
   enableProductTemplates?: boolean;
   helperText?: string;
   isReadOnly?: boolean;
+  /** Permissao de Solucoes — gateia cada acao separadamente. */
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export function AmbienteList({
@@ -37,6 +50,9 @@ export function AmbienteList({
   enableProductTemplates = false,
   helperText = "Adicione ambientes globais para serem utilizados em suas soluções.",
   isReadOnly = false,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }: AmbienteListProps) {
   const { tenant } = useTenant();
 
@@ -133,7 +149,7 @@ export function AmbienteList({
 
   return (
     <div className="space-y-8">
-      <div className="max-w-xl" inert={isReadOnly || undefined}>
+      <div className="max-w-xl" inert={isReadOnly || !canCreate || undefined}>
         <div className="flex items-center gap-2">
           <Input
             id="new-ambiente-input"
@@ -244,25 +260,29 @@ export function AmbienteList({
                           <Package className="h-3.5 w-3.5" />
                         </Button>
                       )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        onClick={() => startEdit(amb)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => {
-                          setDeletingId(amb.id);
-                          setDeleteConfirmOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => startEdit(amb)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => {
+                            setDeletingId(amb.id);
+                            setDeleteConfirmOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   <div className="mt-4">
@@ -303,11 +323,7 @@ export function AmbienteList({
               className="bg-destructive hover:bg-destructive/90"
               disabled={isDeleting}
             >
-              {isDeleting ? (
-                <Loader size="sm" className="mr-2" />
-              ) : (
-                "Excluir"
-              )}
+              {isDeleting ? <Loader size="sm" className="mr-2" /> : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

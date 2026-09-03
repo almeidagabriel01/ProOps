@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
-import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import {
+  hasPagePermission,
+  resolveUserAndTenant,
+} from "../../lib/auth-helpers";
 import { isSuperAdminClaim } from "../../lib/request-auth";
 
 function sanitizeCreateInput(
@@ -57,10 +60,16 @@ function resolveEffectiveTenantId(
   return requesterTenantId;
 }
 
+/**
+ * Os recursos auxiliares nao tem tela propria: cada um pertence ao modulo que
+ * o consome, e e a permissao DESSE modulo que os gateia. ambientes e sistemas
+ * sao Solucoes; custom_fields, options e proposal_templates sao Propostas.
+ */
 const handleCreate = async (
   req: Request,
   res: Response,
   collectionName: string,
+  pageId: string,
   requiredFields: string[],
 ) => {
   try {
@@ -76,6 +85,10 @@ const handleCreate = async (
       ) {
         return res.status(400).json({ message: `${field} e obrigatorio.` });
       }
+    }
+
+    if (!(await hasPagePermission(req.user, pageId, "canCreate"))) {
+      return res.status(403).json({ message: "Sem permissao para criar." });
     }
 
     const { tenantId: requesterTenantId } = await resolveUserAndTenant(
@@ -115,11 +128,20 @@ const handleUpdate = async (
   req: Request,
   res: Response,
   collectionName: string,
+  pageId: string,
 ) => {
   try {
     const { id } = req.params;
     const userId = req.user!.uid;
     const input = (req.body || {}) as Record<string, unknown>;
+
+    if (!(await hasPagePermission(req.user, pageId, "canEdit"))) {
+      return res.status(403).json({ message: "Sem permissao para editar." });
+    }
+
+    if (!(await hasPagePermission(req.user, pageId, "canDelete"))) {
+      return res.status(403).json({ message: "Sem permissao para excluir." });
+    }
 
     const { tenantId, isSuperAdmin } = await resolveUserAndTenant(userId, req.user);
 
@@ -154,6 +176,7 @@ const handleDelete = async (
   req: Request,
   res: Response,
   collectionName: string,
+  pageId: string,
 ) => {
   try {
     const { id } = req.params;
@@ -184,36 +207,36 @@ const handleDelete = async (
 };
 
 export const createAmbiente = (req: Request, res: Response) =>
-  handleCreate(req, res, "ambientes", ["name"]);
+  handleCreate(req, res, "ambientes", "solutions", ["name"]);
 export const updateAmbiente = (req: Request, res: Response) =>
-  handleUpdate(req, res, "ambientes");
+  handleUpdate(req, res, "ambientes", "solutions");
 export const deleteAmbiente = (req: Request, res: Response) =>
-  handleDelete(req, res, "ambientes");
+  handleDelete(req, res, "ambientes", "solutions");
 
 export const createSistema = (req: Request, res: Response) =>
-  handleCreate(req, res, "sistemas", ["name"]);
+  handleCreate(req, res, "sistemas", "solutions", ["name"]);
 export const updateSistema = (req: Request, res: Response) =>
-  handleUpdate(req, res, "sistemas");
+  handleUpdate(req, res, "sistemas", "solutions");
 export const deleteSistema = (req: Request, res: Response) =>
-  handleDelete(req, res, "sistemas");
+  handleDelete(req, res, "sistemas", "solutions");
 
 export const createCustomField = (req: Request, res: Response) =>
-  handleCreate(req, res, "customFields", ["label", "type"]);
+  handleCreate(req, res, "customFields", "proposals", ["label", "type"]);
 export const updateCustomField = (req: Request, res: Response) =>
-  handleUpdate(req, res, "customFields");
+  handleUpdate(req, res, "customFields", "proposals");
 export const deleteCustomField = (req: Request, res: Response) =>
-  handleDelete(req, res, "customFields");
+  handleDelete(req, res, "customFields", "proposals");
 
 export const createOption = (req: Request, res: Response) =>
-  handleCreate(req, res, "options", ["label"]);
+  handleCreate(req, res, "options", "proposals", ["label"]);
 export const updateOption = (req: Request, res: Response) =>
-  handleUpdate(req, res, "options");
+  handleUpdate(req, res, "options", "proposals");
 export const deleteOption = (req: Request, res: Response) =>
-  handleDelete(req, res, "options");
+  handleDelete(req, res, "options", "proposals");
 
 export const createProposalTemplate = (req: Request, res: Response) =>
-  handleCreate(req, res, "proposalTemplates", ["name", "content"]);
+  handleCreate(req, res, "proposalTemplates", "proposals", ["name", "content"]);
 export const updateProposalTemplate = (req: Request, res: Response) =>
-  handleUpdate(req, res, "proposalTemplates");
+  handleUpdate(req, res, "proposalTemplates", "proposals");
 export const deleteProposalTemplate = (req: Request, res: Response) =>
-  handleDelete(req, res, "proposalTemplates");
+  handleDelete(req, res, "proposalTemplates", "proposals");
