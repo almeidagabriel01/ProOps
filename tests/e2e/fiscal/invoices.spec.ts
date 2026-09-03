@@ -53,7 +53,11 @@ const ENDERECO_CLIENTE = {
 
 function settingsPayload(overrides: Record<string, unknown> = {}) {
   return {
-    cnpj: "12345678000123",
+    // DV correto. O fixture usava 12345678000123, cujos digitos verificadores
+    // sao 23 quando deveriam ser 95: `cnpjValidator.isValid` recusava com
+    // "CNPJ do emitente e invalido" ANTES de chegar na regra que cada teste
+    // queria medir, e 11 dos 20 testes deste arquivo falhavam por isso.
+    cnpj: "12345678000195",
     razaoSocial: "Automacao Residencial Ltda",
     inscricaoEstadual: "1234567",
     inscricaoMunicipal: "98765",
@@ -113,7 +117,7 @@ test.describe("FISCAL-01: configuração e emissão", () => {
       const body = await response.json();
 
       expect(body.configured).toBe(true);
-      expect(body.cnpj).toBe("12345678000123");
+      expect(body.cnpj).toBe("12345678000195");
 
       // A projeção pública é a única porta de saída do documento. Nenhum campo
       // de segredo pode atravessá-la — nem cifrado, nem o segredo do webhook.
@@ -352,7 +356,7 @@ test.describe("FISCAL-01: configuração e emissão", () => {
         ref: REF,
         status: "autorizado",
         status_sefaz: "100",
-        chave_nfe: "NFe35260812345678000123550010000000011000000017",
+        chave_nfe: "NFe35260812345678000195550010000000011000000017",
         numero: "1",
         serie: "1",
         protocolo: "135260000000123",

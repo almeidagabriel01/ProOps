@@ -99,6 +99,19 @@ export function requirePlanCapability(capability: PlanCapabilityKey) {
       return;
     }
 
+    // Conta FREE navega o ERP em modo demonstracao ("dar o gostinho"), e o
+    // frontend destrava hasFinancial/hasKanban de proposito para as telas
+    // premium renderizarem em vez de mostrarem a coroa.
+    //
+    // Barrar aqui quebraria justamente esse funil: `require-active-subscription`
+    // ja deixou passar SOMENTE um GET em prefixo de leitura de demo — toda
+    // mutacao morre antes, com FREE_TIER_FORBIDDEN, e o fiscal e o Asaas nem
+    // constam da lista. Entao chegar aqui como free significa leitura inofensiva.
+    if (String(user?.role || "").toLowerCase() === "free") {
+      next();
+      return;
+    }
+
     let allowed: boolean;
     let tier: string | undefined;
     try {

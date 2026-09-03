@@ -192,6 +192,26 @@ describe("requirePlanCapability", () => {
       expect(resolveMock).not.toHaveBeenCalled();
     });
 
+    it("conta FREE passa — e o funil de demonstracao", async () => {
+      // O frontend destrava hasFinancial/hasKanban para role=free navegar as
+      // telas premium. Barrar aqui quebraria o funil; e seguro porque
+      // require-active-subscription so deixa chegar aqui um GET em prefixo de
+      // leitura de demo — mutacao morre antes com FREE_TIER_FORBIDDEN, e
+      // fiscal e Asaas nem constam daquela lista.
+      const ctx = buildReqRes({ tenantId: "t1", uid: "u1", role: "free" });
+      await run("financial", ctx);
+      expect(ctx.next).toHaveBeenCalled();
+      expect(ctx.res.status).not.toHaveBeenCalled();
+      expect(resolveMock).not.toHaveBeenCalled();
+    });
+
+    it("role paga NAO recebe o bypass do free", async () => {
+      givenTenant("starter");
+      const ctx = buildReqRes({ tenantId: "t1", uid: "u1", role: "MASTER" });
+      await run("financial", ctx);
+      expect(ctx.res.status).toHaveBeenCalledWith(402);
+    });
+
     it("falha de leitura NAO tira o modulo de quem paga (fail-open)", async () => {
       resolveMock.mockRejectedValue(new Error("firestore indisponivel"));
       const ctx = buildReqRes();
