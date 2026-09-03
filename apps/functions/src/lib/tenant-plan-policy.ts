@@ -854,7 +854,29 @@ export function setTenantPlanTelemetryForTest(
   };
 }
 
+/**
+ * Caches derivados do perfil de plano que precisam morrer junto com ele.
+ * Registro por callback em vez de import direto: `tenant-capabilities.ts`
+ * depende deste modulo, entao chama-lo de volta daqui fecharia um ciclo.
+ */
+type PlanCacheClearListener = (tenantId?: string) => void;
+const planCacheClearListeners: PlanCacheClearListener[] = [];
+
+export function registerPlanCacheClearListener(
+  listener: PlanCacheClearListener,
+): void {
+  planCacheClearListeners.push(listener);
+}
+
 export function clearTenantPlanCache(tenantId?: string): void {
+  for (const listener of planCacheClearListeners) {
+    try {
+      listener(tenantId);
+    } catch {
+      // Um cache derivado que falhe ao limpar nao pode impedir a limpeza dos outros.
+    }
+  }
+
   if (tenantId) {
     PLAN_CACHE.delete(tenantId);
     // O perfil deriva do doc tenant — limpar um sem o outro deixaria a

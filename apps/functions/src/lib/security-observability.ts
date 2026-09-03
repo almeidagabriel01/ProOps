@@ -13,6 +13,9 @@ export type SecurityCounterName =
   | "ratelimit_triggered"
   | "plan_limit_blocked"
   | "plan_limit_would_block"
+  | "plan_capability_blocked"
+  | "plan_capability_would_block"
+  | "plan_capability_resolution_failed"
   | "plan_source_compat_default"
   | "whatsapp_eligibility_denied"
   | "whatsapp_message_dedupe_hit"
@@ -51,6 +54,9 @@ const KNOWN_COUNTERS = new Set<SecurityCounterName>([
   "ratelimit_triggered",
   "plan_limit_blocked",
   "plan_limit_would_block",
+  "plan_capability_blocked",
+  "plan_capability_would_block",
+  "plan_capability_resolution_failed",
   "plan_source_compat_default",
   "whatsapp_eligibility_denied",
   "whatsapp_message_dedupe_hit",
