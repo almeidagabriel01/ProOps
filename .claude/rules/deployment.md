@@ -37,6 +37,28 @@ Before deploying to any environment:
 - Set `NEXT_PUBLIC_USE_FIREBASE_EMULATORS=true` in `.env.local` to point frontend at emulators
 - Test cron functions locally: `POST /internal/cron/<name>` with `x-cron-secret` header
 
+## Variáveis do FRONTEND (`NEXT_PUBLIC_*`)
+
+O frontend é publicado pela Vercel, não pelos workflows daqui — então variável
+nova do front **não** entra nos secrets do GitHub nem em `apps/functions/.env.*`.
+Ela precisa ser cadastrada em **Vercel → Project Settings → Environment
+Variables**, em **Preview** e **Production** separadamente.
+
+Dois detalhes que custam tempo quando esquecidos:
+
+- **Valores diferentes por ambiente.** Preview fala com `erp-softcode` e
+  Production com `erp-softcode-prod`; credencial de um projeto Google/Stripe/etc
+  usada no outro falha com erro de cliente inválido, que não parece erro de
+  configuração.
+- **`NEXT_PUBLIC_*` é embutida no BUILD.** Cadastrar na Vercel não afeta o que já
+  está publicado — precisa de um redeploy. Localmente, precisa reiniciar o
+  `npm run dev`: com o servidor no ar a variável não é lida, e o sintoma é a
+  funcionalidade sumir como se nunca tivesse sido configurada.
+
+Quando a ausência da variável precisar degradar em vez de quebrar, gate a UI nela
+(o botão do Google Picker em `/settings/drive` some sozinho quando falta, e o
+resto do módulo continua utilizável).
+
 ## Risk Tiers
 - **Low risk** (deploy freely after checklist): UI changes, copy updates, new non-billing features
 - **Medium risk** (deploy to dev first, validate): New API routes, Firestore rule changes, new indexes
