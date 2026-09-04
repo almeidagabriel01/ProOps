@@ -214,6 +214,28 @@ describe("DriveSettingsCard", () => {
     expect(setRootFolder).not.toHaveBeenCalled();
   });
 
+  it("AVISA quando a autorização foi revogada", async () => {
+    // A conexão existe e está morta. Sem dizer isso na tela, o usuário só
+    // descobre ao tentar usar — provavelmente com a proposta já aprovada.
+    getStatus.mockResolvedValue({ ...PRONTO, needsReconnect: true });
+    render(<DriveSettingsCard />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/autorização do Google expirou ou foi revogada/i),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Reconectar" })).toBeInTheDocument();
+  });
+
+  it("não avisa reconexão quando está tudo certo", async () => {
+    getStatus.mockResolvedValue(PRONTO);
+    render(<DriveSettingsCard />);
+
+    await waitFor(() => expect(getStatus).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Reconectar" })).toBeNull();
+  });
+
   it("diz o que NÃO se perde ao desconectar", async () => {
     // Sem isto, "desconectar" parece que apaga os arquivos do Drive.
     getStatus.mockResolvedValue(PRONTO);

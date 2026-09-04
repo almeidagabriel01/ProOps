@@ -10,6 +10,8 @@ import { callApi } from "@/lib/api-client";
 
 export interface DriveStatus {
   connected: boolean;
+  /** Conexão existe mas o Google recusa renovar — só reconectando resolve. */
+  needsReconnect?: boolean;
   connectedEmail: string | null;
   rootFolderId: string | null;
   rootFolderName: string | null;

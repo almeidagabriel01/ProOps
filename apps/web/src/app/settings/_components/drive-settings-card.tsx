@@ -203,6 +203,7 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
 
   const conectado = status?.connected === true;
   const temPasta = Boolean(status?.rootFolderId);
+  const precisaReconectar = status?.needsReconnect === true;
 
   return (
     <div className="flex flex-col gap-6">
@@ -216,6 +217,21 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {conectado && precisaReconectar && (
+            /* A conexão existe e está morta. Dizer isso AQUI, e não só quando
+               a pessoa tentar usar, evita descobrir com a proposta aprovada. */
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+              <span>
+                A autorização do Google expirou ou foi revogada. Nenhuma
+                proposta está sendo enviada até você reconectar.
+              </span>
+              <Button size="sm" onClick={() => void handleConnect()} disabled={isConnecting}>
+                {isConnecting && <Loader size="sm" variant="button" className="mr-2" />}
+                Reconectar
+              </Button>
+            </div>
+          )}
+
           {conectado ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm">
               <span className="flex items-center gap-2">

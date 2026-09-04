@@ -23,6 +23,8 @@ import {
   fetchConnectedEmail,
   getDriveIntegration,
   GOOGLE_DRIVE_SCOPES,
+  isInvalidGrantError,
+  markNeedsReconnect,
   resolveDriveAppOrigin,
   saveDriveIntegration,
   saveRootFolder,
@@ -224,6 +226,9 @@ export async function getDriveStatus(req: Request, res: Response) {
     return res.json({
       success: true,
       connected: Boolean(integration),
+      // A conexão existe mas está morta: a tela precisa dizer isso ANTES de a
+      // pessoa tentar usar, não depois.
+      needsReconnect: integration?.lastError === "invalid_grant",
       connectedEmail: integration?.connectedEmail ?? null,
       rootFolderId: integration?.rootFolderId ?? null,
       rootFolderName: integration?.rootFolderName ?? null,
@@ -334,6 +339,9 @@ export async function createRootFolderHandler(req: Request, res: Response) {
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao criar a pasta raiz no Drive", { error: err.message });
+    if (isInvalidGrantError(err)) {
+      await markNeedsReconnect(resolveTenantId(req));
+    }
     return res
       .status(mapDriveErrorStatus(err))
       .json({ message: mapDriveErrorMessage(err), code: err.message });
@@ -374,12 +382,18 @@ export async function getClientFolderHandler(req: Request, res: Response) {
     logger.error("Falha ao resolver a pasta do cliente no Drive", {
       error: err.message,
     });
+    if (isInvalidGrantError(err)) {
+      await markNeedsReconnect(resolveTenantId(req));
+    }
     return res.status(mapDriveErrorStatus(err)).json({
       message: mapDriveErrorMessage(err),
       code: err.message,
     });
   }
 }
+
+export const DRIVE_RECONNECT_MESSAGE =
+  "A autorização do Google expirou ou foi revogada. Reconecte sua conta em Configurações → Google Drive.";
 
 const DRIVE_ERROR_MESSAGES: Record<string, string> = {
   DRIVE_NAO_CONECTADO:
@@ -395,10 +409,16 @@ const DRIVE_ERROR_MESSAGES: Record<string, string> = {
 
 /** Código interno não pode chegar na tela — ele não diz o que fazer. */
 export function mapDriveErrorMessage(error: Error): string {
+  if (isInvalidGrantError(error)) {
+    return DRIVE_RECONNECT_MESSAGE;
+  }
   return DRIVE_ERROR_MESSAGES[error.message] || error.message;
 }
 
 export function mapDriveErrorStatus(error: Error): number {
+  // 409 e não 500: o pedido faz sentido, falta uma ação do usuário. Um 500
+  // sugeriria bug nosso e mandaria a pessoa esperar em vez de reconectar.
+  if (isInvalidGrantError(error)) return 409;
   if (error.message === "CLIENTE_NAO_ENCONTRADO") return 404;
   if (error.message === "CLIENTE_DE_OUTRO_TENANT") return 403;
   if (

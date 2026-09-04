@@ -240,6 +240,37 @@ export async function disconnectDrive(tenantId: string): Promise<void> {
 }
 
 /**
+ * O Google recusou RENOVAR o acesso — a autorizacao nao existe mais.
+ *
+ * Nao e falha transitoria e nao adianta tentar de novo: acontece quando o
+ * usuario revoga o acesso do app na conta Google, troca a senha, ou o refresh
+ * token passa 6 meses sem uso. A unica saida e reconectar, e a mensagem tem que
+ * dizer isso — `invalid_grant` cru num 500 nao ajuda ninguem.
+ */
+export function isInvalidGrantError(error: unknown): boolean {
+  const texto =
+    error instanceof Error ? error.message : String(error ?? "");
+  return /invalid_grant|invalid_rapt|Token has been expired or revoked/i.test(
+    texto,
+  );
+}
+
+/**
+ * Marca a integracao como precisando de reconexao.
+ *
+ * Sem isto a tela de configuracao continuaria dizendo "Conectado" sobre uma
+ * autorizacao morta, e o usuario so descobriria ao tentar usar — provavelmente
+ * no pior momento, com a proposta ja aprovada.
+ */
+export async function markNeedsReconnect(tenantId: string): Promise<void> {
+  await db
+    .collection(DRIVE_INTEGRATIONS_COLLECTION)
+    .doc(tenantId)
+    .update({ lastError: "invalid_grant", updatedAt: nowIso() })
+    .catch(() => undefined);
+}
+
+/**
  * Cliente do Drive ja autenticado para o tenant.
  *
  * @throws `DRIVE_NAO_CONECTADO` quando nao ha integracao — quem chama traduz
