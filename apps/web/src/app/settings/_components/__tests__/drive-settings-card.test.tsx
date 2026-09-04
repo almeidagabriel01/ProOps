@@ -171,6 +171,21 @@ describe("DriveSettingsCard", () => {
     );
   });
 
+  it("mostra o CÓDIGO quando o motivo é desconhecido", async () => {
+    // A falha acontece no callback, do lado do servidor: não há nada em
+    // network nem no console. Engolir o código deixaria o usuário com um
+    // toast genérico e nenhuma forma de dizer o que houve.
+    searchParams = new URLSearchParams("googleDrive=error&reason=algo_novo");
+    getStatus.mockResolvedValue(DESCONECTADO);
+    render(<DriveSettingsCard />);
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        expect.stringContaining("algo_novo"),
+      ),
+    );
+  });
+
   it("confirma a conexão bem-sucedida", async () => {
     searchParams = new URLSearchParams("googleDrive=connected");
     getStatus.mockResolvedValue(PRONTO);

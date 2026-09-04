@@ -89,13 +89,26 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
   React.useEffect(() => {
     const resultado = searchParams.get("googleDrive");
     if (!resultado) return;
+
     if (resultado === "connected") {
       toast.success("Google Drive conectado.");
-    } else {
-      const reason = searchParams.get("reason") || "";
-      toast.error(REASON_MESSAGES[reason] || "Não foi possível conectar o Google Drive.");
+      // Só no sucesso: limpar a URL evita repetir o toast a cada refresh.
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
     }
-    window.history.replaceState({}, "", window.location.pathname);
+
+    /**
+     * No ERRO a query string FICA. Ela é a única pista do que aconteceu: a
+     * falha ocorre no callback, do lado do servidor, então não há nada em
+     * network nem no console do navegador. Apagar a URL na hora deixava o
+     * usuário com um toast genérico e nenhuma forma de dizer qual foi o
+     * motivo — inclusive para quem fosse ajudar a investigar.
+     */
+    const reason = searchParams.get("reason") || "";
+    toast.error(
+      REASON_MESSAGES[reason] ||
+        `Não foi possível conectar o Google Drive (${reason || "motivo desconhecido"}).`,
+    );
   }, [searchParams]);
 
   async function handleConnect() {
