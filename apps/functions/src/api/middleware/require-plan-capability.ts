@@ -32,6 +32,7 @@ const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   customTheme: "Cores personalizadas",
   whatsapp: "WhatsApp",
   calendarSync: "Google Agenda",
+  driveSync: "Google Drive",
 };
 
 /**
