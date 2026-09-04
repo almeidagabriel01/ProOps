@@ -84,7 +84,47 @@ function buildSituacaoTributaria(
   return kind === "csosn" ? { csosn: codigo } : { cstIcms: codigo };
 }
 
+/**
+ * Traduz o codigo interno para o que a pessoa precisa FAZER.
+ *
+ * Sem isto o cliente recebia `FISCAL_EMITENTE_NAO_REGISTRADO` cru na tela — um
+ * codigo de maquina que nao diz o que fazer, num caminho que ele alcanca
+ * facilmente: desconectar a configuracao e salvar de novo recria o cadastro
+ * SEM os tokens, porque token so nasce do envio do certificado.
+ *
+ * Codigo desconhecido cai na mensagem original: inventar texto amigavel para
+ * erro nao previsto esconderia a unica pista que sobrou.
+ */
+const FISCAL_ERROR_MESSAGES: Record<string, string> = {
+  FISCAL_EMITENTE_NAO_REGISTRADO:
+    "A empresa ainda nao foi registrada no provedor fiscal. Envie o certificado digital (.pfx) em Configuracao fiscal para concluir o cadastro.",
+  FISCAL_CERTIFICADO_AUSENTE:
+    "Envie o certificado digital (.pfx) da empresa em Configuracao fiscal.",
+  FISCAL_SETTINGS_NOT_FOUND:
+    "Nenhuma configuracao fiscal encontrada para esta empresa.",
+  FOCUS_NFE_TOKEN_NAO_CONFIGURADO:
+    "A integracao fiscal esta indisponivel no momento. Fale com o suporte.",
+  CCE_APENAS_NFE:
+    "Carta de correcao existe apenas para NF-e. Na NFS-e o caminho e cancelar e substituir.",
+  CCE_NAO_SUPORTADA:
+    "O provedor fiscal nao aceita carta de correcao para este documento.",
+  INVOICE_NAO_AUTORIZADA:
+    "So uma nota autorizada aceita esta operacao.",
+};
+
+export function mapFiscalErrorMessage(error: Error): string {
+  return FISCAL_ERROR_MESSAGES[error.message] ?? error.message;
+}
+
+/** Erro NOSSO, de pre-condicao — nao veio do provedor. */
+export function isKnownFiscalError(error: Error): boolean {
+  return error.message in FISCAL_ERROR_MESSAGES;
+}
+
 function mapFiscalErrorStatus(error: Error): number {
+  // 422: o cliente consegue resolver reenviando o certificado. Um 500 diria
+  // "problema nosso" sobre algo que so ele pode destravar.
+  if (error.message === "FISCAL_EMITENTE_NAO_REGISTRADO") return 422;
   if (error.message === "FISCAL_SETTINGS_NOT_FOUND") return 404;
   if (error.message === "FISCAL_CERTIFICADO_AUSENTE") return 422;
   if (error.message === "FISCAL_SETTINGS_SAVE_FAILED") return 500;
@@ -217,7 +257,9 @@ export const getFiscalSettingsHandler = async (
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao buscar configuração fiscal", { error: err.message });
-    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
   }
 };
 
@@ -354,7 +396,9 @@ export const saveFiscalSettingsHandler = async (
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao salvar configuração fiscal", { error: err.message });
-    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
   }
 };
 
@@ -378,6 +422,15 @@ export const lookupCnpjHandler = async (req: Request, res: Response): Promise<vo
 
     res.status(200).json(await provider.lookupCnpj(cnpj, env));
   } catch (error) {
+    // Erro nosso de pre-condicao chega aqui como Error comum, e
+    // `describeFocusError` devolveria o CODIGO como mensagem. Traduzir antes.
+    const interno = error as Error;
+    if (isKnownFiscalError(interno)) {
+      res
+        .status(mapFiscalErrorStatus(interno))
+        .json({ message: mapFiscalErrorMessage(interno), code: interno.message });
+      return;
+    }
     const detail = describeFocusError(error);
     logger.warn("Consulta de CNPJ falhou", {
       codigo: detail.codigo,
@@ -474,6 +527,15 @@ export const registerIssuerHandler = async (
 
     res.status(200).json({ ...result, webhookStatus });
   } catch (error) {
+    // Erro nosso de pre-condicao chega aqui como Error comum, e
+    // `describeFocusError` devolveria o CODIGO como mensagem. Traduzir antes.
+    const interno = error as Error;
+    if (isKnownFiscalError(interno)) {
+      res
+        .status(mapFiscalErrorStatus(interno))
+        .json({ message: mapFiscalErrorMessage(interno), code: interno.message });
+      return;
+    }
     const detail = describeFocusError(error);
     const ctxTenant = req.user?.tenantId;
     if (ctxTenant) {
@@ -697,7 +759,9 @@ export const issueInvoiceHandler = async (req: Request, res: Response): Promise<
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao emitir nota fiscal", { error: err.message });
-    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
   }
 };
 
@@ -737,6 +801,15 @@ export const cancelInvoiceHandler = async (req: Request, res: Response): Promise
         message: "Só é possível cancelar uma nota autorizada.",
         code: err.message,
       });
+      return;
+    }
+    // Erro nosso de pre-condicao chega aqui como Error comum, e
+    // `describeFocusError` devolveria o CODIGO como mensagem. Traduzir antes.
+    const interno = error as Error;
+    if (isKnownFiscalError(interno)) {
+      res
+        .status(mapFiscalErrorStatus(interno))
+        .json({ message: mapFiscalErrorMessage(interno), code: interno.message });
       return;
     }
     const detail = describeFocusError(error);
@@ -801,7 +874,9 @@ async function issueFromSource(
       source,
       error: err.message,
     });
-    res.status(mapFiscalErrorStatus(err)).json({ message: err.message, code: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
   }
 }
 
@@ -900,7 +975,9 @@ export const setFiscalEnvironmentHandler = async (req: Request, res: Response) =
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error("Falha ao trocar o ambiente fiscal", { error: err.message });
-    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
   }
 };
 
@@ -966,7 +1043,9 @@ export const retryFiscalWebhooksHandler = async (req: Request, res: Response) =>
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     logger.error("Falha ao reenviar gatilhos fiscais", { error: err.message });
-    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
   }
 };
 
@@ -1004,7 +1083,9 @@ export const previewFromProposalHandler = async (
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao verificar emissão da proposta", { error: err.message });
-    res.status(mapFiscalErrorStatus(err)).json({ message: err.message, code: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
   }
 };
 
@@ -1023,7 +1104,9 @@ export const listInvoicesHandler = async (req: Request, res: Response): Promise<
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao listar notas fiscais", { error: err.message });
-    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
   }
 };
 
@@ -1072,6 +1155,15 @@ export const correctInvoiceHandler = async (req: Request, res: Response): Promis
       res.status(422).json({ message: "Só é possível corrigir uma nota autorizada.", code: err.message });
       return;
     }
+    // Erro nosso de pre-condicao chega aqui como Error comum, e
+    // `describeFocusError` devolveria o CODIGO como mensagem. Traduzir antes.
+    const interno = error as Error;
+    if (isKnownFiscalError(interno)) {
+      res
+        .status(mapFiscalErrorStatus(interno))
+        .json({ message: mapFiscalErrorMessage(interno), code: interno.message });
+      return;
+    }
     const detail = describeFocusError(error);
     logger.error("Falha na carta de correção", { error: detail.message });
     res.status(detail.httpStatus && detail.httpStatus < 500 ? 422 : 502).json({
@@ -1101,6 +1193,15 @@ export const replayNotificationHandler = async (
     await replayInvoiceNotification(invoice.id);
     res.status(202).json({ message: "Reenvio solicitado ao provedor." });
   } catch (error) {
+    // Erro nosso de pre-condicao chega aqui como Error comum, e
+    // `describeFocusError` devolveria o CODIGO como mensagem. Traduzir antes.
+    const interno = error as Error;
+    if (isKnownFiscalError(interno)) {
+      res
+        .status(mapFiscalErrorStatus(interno))
+        .json({ message: mapFiscalErrorMessage(interno), code: interno.message });
+      return;
+    }
     const detail = describeFocusError(error);
     logger.error("Falha ao solicitar reenvio de notificação", { error: detail.message });
     res.status(502).json({ message: detail.message });
@@ -1134,6 +1235,8 @@ export const disconnectFiscalHandler = async (
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao remover configuração fiscal", { error: err.message });
-    res.status(mapFiscalErrorStatus(err)).json({ message: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
   }
 };
