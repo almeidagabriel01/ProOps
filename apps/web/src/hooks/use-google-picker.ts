@@ -61,8 +61,9 @@ interface GoogleGlobal {
       initTokenClient: (config: {
         client_id: string;
         scope: string;
+        prompt?: string;
         callback: (response: GoogleTokenResponse) => void;
-      }) => { requestAccessToken: () => void };
+      }) => { requestAccessToken: (overrides?: { prompt?: string }) => void };
     };
   };
   picker?: {
@@ -78,9 +79,10 @@ interface GoogleGlobal {
       setDeveloperKey: (key: string) => unknown;
       setCallback: (cb: (data: Record<string, unknown>) => void) => unknown;
       setTitle: (title: string) => unknown;
+      setOrigin: (origin: string) => unknown;
       build: () => { setVisible: (v: boolean) => void };
     };
-    Action: { PICKED: string };
+    Action: { PICKED: string; CANCEL: string };
     Response: { ACTION: string; DOCUMENTS: string };
   };
 }
@@ -127,15 +129,33 @@ function requestAccessToken(clientId: string): Promise<string> {
       reject(new Error("Google Identity Services não carregou."));
       return;
     }
+    /**
+     * `prompt: ""` pede o token EM SILÊNCIO.
+     *
+     * A conta já concedeu o `drive.file` ao conectar o Drive — reapresentar o
+     * seletor de contas a cada escolha de pasta abria uma janela "Sign in to
+     * your Google Account" que ficava para trás na tela, dando a impressão de
+     * que a sessão tinha caído bem no momento em que ela claramente existia.
+     *
+     * Se o silêncio não for possível (sessão realmente ausente, cookies de
+     * terceiros bloqueados), o GIS devolve erro e aí sim pedimos interação.
+     */
+    let tentouComInteracao = false;
     const tokenClient = oauth2.initTokenClient({
       client_id: clientId,
       scope: DRIVE_FILE_SCOPE,
+      prompt: "",
       callback: (response) => {
-        if (response.error || !response.access_token) {
-          reject(new Error(response.error || "Autorização não concedida."));
+        if (response.access_token) {
+          resolve(response.access_token);
           return;
         }
-        resolve(response.access_token);
+        if (!tentouComInteracao) {
+          tentouComInteracao = true;
+          tokenClient.requestAccessToken({ prompt: "consent" });
+          return;
+        }
+        reject(new Error(response.error || "Autorização não concedida."));
       },
     });
     tokenClient.requestAccessToken();
@@ -183,23 +203,28 @@ export function useGooglePicker(): UseGooglePickerResult {
       }
 
       return await new Promise<PickedFolder | null>((resolve) => {
+        // `ViewId.FOLDERS` já restringe a pastas. Um `setMimeTypes` por cima
+        // filtra também o que pode ser SELECIONADO e deixava o botão "Select"
+        // permanentemente desabilitado.
         const view = new picker.DocsView(picker.ViewId.FOLDERS);
         view.setIncludeFolders(true);
         view.setSelectFolderEnabled(true);
-        // Só pastas: o destino das propostas nunca é um arquivo.
-        view.setMimeTypes("application/vnd.google-apps.folder");
 
         const builder = new picker.PickerBuilder();
         builder.addView(view);
         builder.setOAuthToken(accessToken);
         builder.setDeveloperKey(apiKey);
         builder.setTitle("Escolha a pasta onde as propostas devem ficar");
+        // Sem isto o Picker tenta adivinhar a origem e erra — chegava a
+        // reportar `parent=<origem>/favicon.ico` —, o que atrapalha a
+        // comunicação de volta com a página que o abriu.
+        builder.setOrigin(window.location.origin);
         builder.setCallback((data) => {
           const action = data[picker.Response.ACTION];
           if (action !== picker.Action.PICKED) {
             // Fechar sem escolher não é erro — resolve com null e a tela
             // simplesmente não muda.
-            if (action === "cancel") resolve(null);
+            if (action === picker.Action.CANCEL) resolve(null);
             return;
           }
           const docs = data[picker.Response.DOCUMENTS] as
