@@ -21,6 +21,28 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
  * documentação e a proposta na mão pelo celular, sem abrir o ERP.
  */
 
+/**
+ * Abre a URL numa aba nova, por um link temporário.
+ *
+ * **Não usar `window.open` com `noopener`**: por especificação ele devolve
+ * `null` mesmo quando a aba abre com sucesso, e qualquer fallback baseado no
+ * retorno ("se não abriu, navega aqui") dispara sempre — abrindo a aba nova E
+ * levando a aba atual junto, que foi exatamente o defeito observado.
+ *
+ * Um `<a target="_blank" rel="noopener noreferrer">` clicado dá o mesmo
+ * isolamento sem depender de valor de retorno. É o padrão que o download de
+ * PDF do projeto já usa.
+ */
+function abrirEmNovaAba(url: string): void {
+  const link = document.createElement("a");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 interface OpenDriveFolderButtonProps {
   clientId: string;
   className?: string;
@@ -41,22 +63,7 @@ export function OpenDriveFolderButton({
     setIsOpening(true);
     try {
       const { url } = await DriveService.getClientFolder(clientId);
-      /**
-       * Abrir DEPOIS de resolver a URL, e não antes.
-       *
-       * A versão anterior pré-abria uma aba em branco para escapar do
-       * bloqueador de popup, e apostava que dava para navegá-la depois. Em
-       * navegador com bloqueio mais agressivo o resultado foi o pior dos dois
-       * mundos: uma aba `about:blank` órfã que ninguém fecha E a aba do ERP
-       * indo embora para o Drive.
-       *
-       * Assim, ou abre a aba nova, ou navega na própria — nunca as duas coisas,
-       * e nunca sobra aba vazia.
-       */
-      const aba = window.open(url, "_blank", "noopener,noreferrer");
-      if (!aba) {
-        window.location.href = url;
-      }
+      abrirEmNovaAba(url);
     } catch (error) {
       toast.error(
         error instanceof Error && error.message
