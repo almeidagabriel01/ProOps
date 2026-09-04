@@ -101,7 +101,10 @@ export async function syncProposalToDrive(params: {
 }): Promise<void> {
   try {
     const integration = await getDriveIntegration(params.tenantId);
-    if (!integration?.rootFolderId) {
+    // Sem token nao ha entrega — e o documento sobrevive ao desconectar para
+    // preservar a pasta, entao checar so a pasta geraria um PDF a toa (o
+    // recurso mais caro do backend) para falhar logo depois.
+    if (!integration?.refreshTokenEnc || !integration.rootFolderId) {
       return;
     }
 

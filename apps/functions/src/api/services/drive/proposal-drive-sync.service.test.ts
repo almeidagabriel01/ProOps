@@ -48,7 +48,10 @@ const PROPOSTA = { clientId: "c1", title: "Automação", proposalNumber: 12 };
 beforeEach(() => {
   jest.clearAllMocks();
   proposalUpdate.mockResolvedValue(undefined);
-  getDriveIntegration.mockResolvedValue({ rootFolderId: "raiz-1" });
+  getDriveIntegration.mockResolvedValue({
+    refreshTokenEnc: "enc:token",
+    rootFolderId: "raiz-1",
+  });
   getOrGenerateProposalPdfBuffer.mockResolvedValue(Buffer.from("%PDF"));
   uploadProposalPdf.mockResolvedValue({ fileId: "arq-1" });
   statusGet.mockResolvedValue({ exists: false });
@@ -135,8 +138,29 @@ describe("syncProposalToDrive", () => {
     expect(error).not.toHaveBeenCalled();
   });
 
+  it("sai calado quando a conta foi DESCONECTADA", async () => {
+    // O documento sobrevive ao desconectar para preservar a pasta — checar so
+    // a pasta geraria um PDF a toa (Chromium, o recurso mais caro do backend)
+    // para falhar logo depois.
+    getDriveIntegration.mockResolvedValue({
+      rootFolderId: "raiz-1",
+      refreshTokenEnc: undefined,
+    });
+
+    await syncProposalToDrive({
+      tenantId: "t1",
+      proposalId: "p1",
+      proposalData: PROPOSTA,
+    });
+
+    expect(getOrGenerateProposalPdfBuffer).not.toHaveBeenCalled();
+  });
+
   it("sai calado quando a pasta raiz ainda nao foi escolhida", async () => {
-    getDriveIntegration.mockResolvedValue({ rootFolderId: null });
+    getDriveIntegration.mockResolvedValue({
+      refreshTokenEnc: "enc:token",
+      rootFolderId: null,
+    });
 
     await syncProposalToDrive({
       tenantId: "t1",

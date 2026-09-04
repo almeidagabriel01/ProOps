@@ -226,7 +226,9 @@ export async function getDriveStatus(req: Request, res: Response) {
     // conectado, a qual conta e em qual pasta.
     return res.json({
       success: true,
-      connected: Boolean(integration),
+      // Conectado = TEM TOKEN. O documento sobrevive ao desconectar para
+      // guardar a pasta escolhida, entao a existencia dele nao prova nada.
+      connected: Boolean(integration?.refreshTokenEnc),
       // A conexão existe mas está morta: a tela precisa dizer isso ANTES de a
       // pessoa tentar usar, não depois.
       needsReconnect: integration?.lastError === "invalid_grant",

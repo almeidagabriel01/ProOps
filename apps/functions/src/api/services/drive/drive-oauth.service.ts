@@ -26,6 +26,7 @@
  */
 
 import crypto from "crypto";
+import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { resolveFrontendAppOrigin } from "../../../lib/frontend-app-url";
@@ -232,11 +233,35 @@ export async function saveRootFolder(
   });
 }
 
+/**
+ * Desconecta a conta, mas PRESERVA a pasta escolhida.
+ *
+ * Apagar o documento inteiro parecia mais limpo e estava errado: a pasta nao e
+ * segredo, e esquecer o id dela fazia reconectar criar uma SEGUNDA
+ * "ProOps - Propostas" ao lado da primeira, porque o sistema nao tinha como
+ * saber que ja existia uma. Aconteceu no teste real.
+ *
+ * O que precisa sumir e o refresh token — e ele some. Se a pessoa reconectar
+ * com OUTRA conta Google, a pasta antiga fica inacessivel e
+ * `ensureClientFolder`/`createRootFolder` recriam o que falta; nao ha estado
+ * preso.
+ */
 export async function disconnectDrive(tenantId: string): Promise<void> {
-  // Apaga o documento inteiro, pasta raiz inclusive: o token nao serve mais, e
-  // guardar o id de uma pasta que nao conseguimos mais acessar so faria a tela
-  // mentir sobre estar configurada.
-  await db.collection(DRIVE_INTEGRATIONS_COLLECTION).doc(tenantId).delete();
+  const existente = await getDriveIntegration(tenantId);
+  if (!existente) return;
+
+  await db.collection(DRIVE_INTEGRATIONS_COLLECTION).doc(tenantId).set(
+    {
+      tenantId,
+      provider: "google",
+      refreshTokenEnc: FieldValue.delete(),
+      connectedEmail: null,
+      scopes: [],
+      lastError: null,
+      updatedAt: nowIso(),
+    },
+    { merge: true },
+  );
 }
 
 /**

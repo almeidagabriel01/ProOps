@@ -695,13 +695,15 @@ pelo ERP chegar la sem baixar e subir a mao.
   inclusive sem querer — e **lixeira nao e apagada**: a API responde normalmente com
   `trashed: true`, criar dentro dela nao da erro, e a proposta simplesmente sumia. Erro na
   consulta conta como inutilizavel: recriar a toa incomoda menos que nao entregar.
-- **A pasta raiz e reencontrada por MARCA, nao pelo que gravamos.** Desconectar apaga o
-  documento inteiro da integracao, `rootFolderId` inclusive — entao desconectar e reconectar
-  deixava o sistema sem memoria e criava uma segunda "ProOps - Propostas" ao lado da
-  primeira (aconteceu no teste real). Toda raiz, criada por nos ou escolhida no Picker,
-  recebe `appProperties.proopsRoot`, e a criacao procura por ela antes. **Nao casar por
-  NOME**: o usuario pode renomear a pasta a vontade, e e justamente isso que o desenho
-  incentiva.
+- **Desconectar PRESERVA a pasta raiz.** Apagar o documento inteiro parecia mais limpo e
+  estava errado: a pasta nao e segredo, e esquecer o id dela fazia reconectar criar uma
+  SEGUNDA "ProOps - Propostas" ao lado da primeira, porque o sistema nao tinha como saber
+  que ja existia uma. O que some e o refresh token. Consequencia: **"conectado" significa
+  TER TOKEN** (`refreshTokenEnc`), nunca "o documento existe" — checar a existencia do doc
+  diria conectado para quem acabou de desconectar. Se a pessoa reconectar com outra conta
+  Google, a pasta antiga fica inacessivel e e recriada; nao ha estado preso.
+  Existe tambem uma marca (`appProperties.proopsRoot`) em toda raiz, criada por nos ou
+  escolhida no Picker, como segunda defesa — mas a garantia e o documento sobreviver.
 - **Um arquivo por proposta, marcado com `appProperties.proposalId`.** O `driveFileId`
   gravado na proposta nao basta: duas chamadas simultaneas leem o campo vazio e as duas
   criam, deixando dois PDFs identicos na pasta sem erro em lugar nenhum (aconteceu no
