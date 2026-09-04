@@ -14,18 +14,25 @@
  * certo e recebe 402 na API — sem que nada, nem no código nem na tela, revele
  * a contradição.
  *
+ * **O projeto vem de `GCLOUD_PROJECT` e o default é DEV** (`erp-softcode`).
+ * Produção exige a variável explícita — um script que escreve não pode herdar
+ * o projeto do ambiente em silêncio.
+ *
  * Uso (padrão é DRY-RUN — não escreve nada):
  *   cd apps/functions
  *   npx tsx src/scripts/audit-tenant-plan-drift.ts
- *   npx tsx src/scripts/audit-tenant-plan-drift.ts --apply
+ *   GCLOUD_PROJECT=erp-softcode-prod npx tsx src/scripts/audit-tenant-plan-drift.ts
  *
  * Um tenant só (recomendado na primeira corrida em produção):
- *   npx tsx src/scripts/audit-tenant-plan-drift.ts --tenant=tenant_abc123
- *   npx tsx src/scripts/audit-tenant-plan-drift.ts --tenant=tenant_abc123 --apply
+ *   GCLOUD_PROJECT=erp-softcode-prod npx tsx src/scripts/audit-tenant-plan-drift.ts  *     --tenant=a1hubvLmdWjKojrGJbmc
+ *
+ * Aplicando:
+ *   npx tsx src/scripts/audit-tenant-plan-drift.ts --tenant=abc --apply
  *
  * Idempotente: rodar de novo num tenant já corrigido não faz nada.
  */
-import { db } from "../init";
+import { getFirestore } from "firebase-admin/firestore";
+import { initScriptAdmin } from "./_script-init";
 import { normalizePlanTierId, type PlanTierId } from "../shared/plan-capabilities";
 
 const PAGE_SIZE = 200;
@@ -52,6 +59,7 @@ interface Drift {
  * tenants antigos ("admin", "ADMIN", "Admin").
  */
 async function findOwner(
+  db: FirebaseFirestore.Firestore,
   tenantId: string,
 ): Promise<{ uid: string; planId: string; updatedAt: string } | null> {
   const snap = await db
@@ -76,9 +84,16 @@ async function findOwner(
 }
 
 async function main(): Promise<void> {
+  // Antes de qualquer coisa: dizer em QUE BASE isto está falando. Um script que
+  // escreve herdando o projeto do ambiente em silêncio é como o "não encontrado"
+  // acontece — a busca roda na base errada e o resultado parece um dado limpo.
+  const projectId = initScriptAdmin();
+  const db = getFirestore();
+
   console.log(
     `=== audit-tenant-plan-drift: ${APPLY ? "APLICANDO" : "dry-run (nada será escrito)"} ===`,
   );
+  console.log(`projeto: ${projectId}`);
 
   if (ONLY_TENANT) {
     console.log(`escopo: apenas ${ONLY_TENANT}`);
@@ -104,7 +119,7 @@ async function main(): Promise<void> {
         normalizePlanTierId(data.planTier) ||
         normalizePlanTierId(data.tier);
 
-      const owner = await findOwner(doc.id);
+      const owner = await findOwner(db, doc.id);
       if (!owner) continue;
 
       const ownerTier = normalizePlanTierId(owner.planId);
@@ -128,7 +143,13 @@ async function main(): Promise<void> {
   }
 
   if (ONLY_TENANT && scanned === 0) {
-    console.log(`Tenant ${ONLY_TENANT} não encontrado nesta base.`);
+    console.log("");
+    console.log(`Tenant ${ONLY_TENANT} NAO existe no projeto ${projectId}.`);
+    console.log("Se ele e de producao, repita com:");
+    console.log(
+      "  GCLOUD_PROJECT=erp-softcode-prod npx tsx " +
+        `src/scripts/audit-tenant-plan-drift.ts --tenant=${ONLY_TENANT}`,
+    );
     return;
   }
 

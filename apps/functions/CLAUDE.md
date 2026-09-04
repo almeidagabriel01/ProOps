@@ -321,6 +321,14 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   notificacao escutando no outro — as notas voltariam a depender do cron, sem erro e sem
   explicacao. Best-effort e isolado num try/catch proprio: o ambiente JA foi gravado quando
   o registro roda, e deixar a excecao escapar devolveria erro para uma troca que aconteceu.
+- **"Ja existe um gatilho para este evento, empresa e url" NAO e falha.** O Focus
+  registra por (CNPJ, evento, URL) e recusa duplicata — se ele diz que ja existe, o
+  gatilho **esta no ar com a URL que queremos**. Tratar como erro mostrava
+  "Notificacao automatica nao registrada" sobre uma integracao funcionando, com um
+  botao "Tentar de novo" que nunca resolveria: cada tentativa recria a mesma
+  duplicata e recebe a mesma recusa. `isDuplicateWebhookError` conta como
+  registrado. Acontece quando o `reconcile` nao apagou o hook antigo — `listWebhooks`
+  falhou (o catch de la so registra warning) ou devolveu a lista de outro ambiente.
 - **Falha de registro de gatilho e visivel na UI** (`webhookStatus` em `fiscal_settings`,
   exibido no card fiscal) com botao de reenviar (`POST /v1/fiscal/webhooks/retry`). Antes o
   status era gravado e nunca mostrado, e a unica forma de repetir o registro era reenviar o
