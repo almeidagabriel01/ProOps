@@ -189,6 +189,19 @@ describe("createRootFolder", () => {
     expect(r.folderId).toBe("raiz-existente");
   });
 
+  it("RECRIA quando a raiz gravada foi apagada no Drive", async () => {
+    // Sem esta conferencia, apagar a raiz no Drive deixava o sistema apontando
+    // para ela para sempre — e as pastas de cliente passariam a ser criadas
+    // dentro de um pai na lixeira.
+    mockDrive("raiz-apagada");
+    filesGet.mockRejectedValue(new Error("File not found"));
+    filesCreate.mockResolvedValue({ data: { id: "raiz-nova" } });
+
+    const r = await createRootFolder("t1");
+
+    expect(r.folderId).toBe("raiz-nova");
+  });
+
   it("REAPROVEITA a pasta antiga depois de desconectar e reconectar", async () => {
     // Desconectar apaga o documento inteiro da integracao, `rootFolderId`
     // inclusive — sem consultar o Drive, reconectar criava uma segunda

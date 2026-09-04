@@ -690,8 +690,8 @@ pelo ERP chegar la sem baixar e subir a mao.
   destruindo a organizacao que a integracao promete. Classifica pelo `mappedStatus`/
   `category` da coluna, nunca pelo rotulo (cada empresa renomeia). Nunca lanca: o status ja
   mudou e a venda nao pode ser desfeita porque o Google recusou um upload.
-- **Id gravado nao e prova de que a pasta existe.** `ensureClientFolder` confere antes de
-  usar (`files.get` com `trashed`) e recria se sumiu. O usuario apaga pasta no Drive,
+- **Id gravado nao e prova de que a pasta existe.** `ensureClientFolder` **e**
+  `createRootFolder` conferem antes de usar (`files.get` com `trashed`) e recria se sumiu. O usuario apaga pasta no Drive,
   inclusive sem querer — e **lixeira nao e apagada**: a API responde normalmente com
   `trashed: true`, criar dentro dela nao da erro, e a proposta simplesmente sumia. Erro na
   consulta conta como inutilizavel: recriar a toa incomoda menos que nao entregar.

@@ -242,7 +242,14 @@ export async function createRootFolder(
   tenantId: string,
 ): Promise<{ folderId: string; folderName: string }> {
   const { client, integration } = await getDriveClient(tenantId);
-  if (integration.rootFolderId) {
+  // Mesma conferencia da pasta do cliente, um nivel acima: id gravado nao e
+  // prova de que a pasta existe. Sem isto, apagar a raiz no Drive deixava o
+  // sistema apontando para ela para sempre — e as pastas de cliente passariam a
+  // ser criadas dentro de um pai na lixeira.
+  if (
+    integration.rootFolderId &&
+    (await pastaUtilizavel(client, integration.rootFolderId))
+  ) {
     return {
       folderId: integration.rootFolderId,
       folderName: integration.rootFolderName || DEFAULT_ROOT_FOLDER_NAME,
