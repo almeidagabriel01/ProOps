@@ -118,9 +118,9 @@ describe("correctInvoice — recusa do fisco", () => {
 });
 
 describe("correctInvoice — documento do evento", () => {
-  it("arquiva o XML e o PDF da carta com o token da empresa", async () => {
-    // O caminho do provedor exige autenticacao: sem o token o arquivo nao desce
-    // e a guarda legal do evento fica descoberta.
+  it("arquiva o XML e o PDF da carta", async () => {
+    // A copia no nosso Storage e o que sustenta a guarda legal de 5 anos: o
+    // link do provedor e publico hoje, mas e acervo de terceiro.
     mockNota();
     correct.mockResolvedValue({
       ...OK,
@@ -139,7 +139,6 @@ describe("correctInvoice — documento do evento", () => {
       expect.objectContaining({ id: "inv-1" }),
       1,
       { xmlUrl: "https://api/cce.xml", pdfUrl: "https://api/cce.pdf" },
-      "token-da-empresa",
     );
     expect(correcaoGravada()).toMatchObject({
       numero: "1",
@@ -164,7 +163,6 @@ describe("correctInvoice — documento do evento", () => {
     expect(archiveCorrectionDocuments).toHaveBeenCalledWith(
       expect.anything(),
       3,
-      expect.anything(),
       expect.anything(),
     );
   });

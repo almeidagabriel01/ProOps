@@ -1120,12 +1120,13 @@ export const listInvoicesHandler = async (req: Request, res: Response): Promise<
 
 // GET /v1/fiscal/invoices/:id/correcoes/:indice/:kind
 //
-// Serve a copia arquivada do documento de uma carta de correcao.
+// Serve a NOSSA copia arquivada do documento de uma carta de correcao.
 //
-// Passa pelo backend, e nao por link direto, por dois motivos independentes: o
-// caminho do provedor exige o token da empresa (link direto devolveria 401), e
-// `storage.rules` nega a pasta `fiscal/` ao client — `application/xml` nem esta
-// na allowlist de content-type do bucket.
+// Os arquivos do provedor sao publicos, entao um link direto funcionaria — mas
+// o acervo tem guarda legal de 5 anos e depender de link de terceiro deixaria
+// essa obrigacao fora do nosso controle. Ler do nosso Storage exige o backend:
+// `storage.rules` nega a pasta `fiscal/` ao client, e `application/xml` nem
+// esta na allowlist de content-type do bucket.
 export const downloadCorrectionDocumentHandler = async (
   req: Request,
   res: Response,

@@ -466,15 +466,21 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   proprios. Se a resposta vier sem os caminhos, a correcao e registrada assim mesmo (o
   evento existe na SEFAZ de qualquer jeito) e sai um `logger.warn` com as CHAVES recebidas
   — e o que permite descobrir o nome certo sem adivinhar e sem expor valor nenhum.
+- **Os arquivos do provedor sao PUBLICOS — nao exigem token.** O caminho vem relativo a
+  API (`caminho_xml_nota_fiscal` -> `/arquivos_development/...` em homologacao) e
+  `toAbsoluteUrl` o resolve contra a base, mas o arquivo em si abre no navegador sem
+  autenticacao nenhuma (verificado em 2026-09-04 com o XML de uma NF-e autorizada). Ou
+  seja: os botoes de PDF/XML da nota, que sao `href` direto, **funcionam** — nos dois
+  tipos de documento —, e o `download` do arquivamento nunca precisou de credencial.
+  Nao mandar token ali e deliberado: seria expor a credencial da empresa a uma URL que
+  nao a pede.
 - **O download do documento da CC-e passa pelo backend**
   (`GET /fiscal/invoices/:id/correcoes/:indice/:kind`), lendo do NOSSO Storage via
-  `readArchivedDocument` — que ate entao era funcao orfa, sem rota. Dois motivos
-  independentes: o caminho no provedor exige o token da empresa (link direto = 401) e
-  `storage.rules` nega a pasta `fiscal/` ao client. **O `download` do arquivamento agora
-  aceita token**; sem ele o DANFE e o XML da NF-e nunca desciam, porque sao relativos a
-  API do provedor — o DANFSe funcionava por vir de um S3 publico.
-  Nota: os botoes de PDF/XML da NOTA na lista continuam sendo `href` direto ao provedor,
-  entao o XML de NF-e segue quebrado ali. Trocar para esta rota e mudanca de uma linha.
+  `readArchivedDocument` — que ate entao era funcao orfa, sem rota. O motivo NAO e
+  autenticacao (o link do provedor funcionaria): e que o acervo tem guarda legal de 5
+  anos e nao pode depender de link de terceiro. E ler a nossa copia exige backend —
+  `storage.rules` nega a pasta `fiscal/` ao client, e `application/xml` nem esta na
+  allowlist de content-type do bucket.
 - **O que a CC-e NAO corrige** (Ajuste SINIEF 01/07): base de calculo, aliquota,
   quantidade, valor da operacao, qualquer tributo, dado que mude remetente ou
   destinatario, e data de emissao ou de saida. Escrever algo assim **nao da erro** — gera

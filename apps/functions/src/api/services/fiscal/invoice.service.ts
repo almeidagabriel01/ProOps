@@ -695,12 +695,10 @@ export async function correctInvoice(
   const registradaEm = new Date().toISOString();
   const indice = (stored.correcoes?.length ?? 0) + 1;
 
-  const arquivos = await archiveCorrectionDocuments(
-    stored,
-    indice,
-    { xmlUrl: resultado.correcaoXmlUrl, pdfUrl: resultado.correcaoPdfUrl },
-    token,
-  );
+  const arquivos = await archiveCorrectionDocuments(stored, indice, {
+    xmlUrl: resultado.correcaoXmlUrl,
+    pdfUrl: resultado.correcaoPdfUrl,
+  });
 
   if (!resultado.correcaoXmlUrl && !resultado.correcaoPdfUrl) {
     // Sem os caminhos nao ha o que arquivar, e a guarda legal do evento fica
