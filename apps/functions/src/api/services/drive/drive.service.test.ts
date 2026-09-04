@@ -16,6 +16,7 @@ const proposalUpdate = jest.fn();
 const filesCreate = jest.fn();
 const filesUpdate = jest.fn();
 const filesList = jest.fn();
+const filesGet = jest.fn();
 const getDriveClient = jest.fn();
 
 jest.mock("../../../init", () => ({
@@ -51,7 +52,14 @@ function mockCliente(doc: Record<string, unknown> | null) {
 
 function mockDrive(rootFolderId: string | null = "raiz-1") {
   getDriveClient.mockResolvedValue({
-    client: { files: { create: filesCreate, update: filesUpdate, list: filesList } },
+    client: {
+      files: {
+        create: filesCreate,
+        update: filesUpdate,
+        list: filesList,
+        get: filesGet,
+      },
+    },
     integration: { rootFolderId },
   });
 }
@@ -64,6 +72,7 @@ beforeEach(() => {
   filesCreate.mockResolvedValue({ data: { id: "novo-1", webViewLink: "https://d/1" } });
   filesUpdate.mockResolvedValue({ data: { id: "arq-1", webViewLink: "https://d/1" } });
   filesList.mockResolvedValue({ data: { files: [] } });
+  filesGet.mockResolvedValue({ data: { id: "pasta-9", trashed: false } });
   filesCreate.mockResolvedValue({ data: { id: "novo-1", webViewLink: "https://d/1" } });
   mockDrive();
 });
@@ -76,6 +85,30 @@ describe("ensureClientFolder", () => {
 
     expect(await ensureClientFolder("t1", "c1")).toBe("pasta-9");
     expect(filesCreate).not.toHaveBeenCalled();
+  });
+
+  it("RECRIA quando a pasta gravada foi apagada no Drive", async () => {
+    // O usuario apaga pasta no Drive, inclusive sem querer. Sem conferir,
+    // "Pasta no Drive" abriria um link morto e a proxima proposta tentaria
+    // subir para um pai inexistente.
+    mockCliente({ tenantId: "t1", name: "Jose", driveFolderId: "sumiu" });
+    filesGet.mockRejectedValue(new Error("File not found: sumiu"));
+    filesCreate.mockResolvedValue({ data: { id: "pasta-recriada" } });
+
+    expect(await ensureClientFolder("t1", "c1")).toBe("pasta-recriada");
+    expect(clientUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ driveFolderId: "pasta-recriada" }),
+    );
+  });
+
+  it("RECRIA quando a pasta foi para a lixeira", async () => {
+    // Lixeira nao e "apagada": a API responde normalmente, com trashed=true, e
+    // criar dentro dela nao daria erro — a proposta simplesmente sumiria.
+    mockCliente({ tenantId: "t1", name: "Jose", driveFolderId: "na-lixeira" });
+    filesGet.mockResolvedValue({ data: { id: "na-lixeira", trashed: true } });
+    filesCreate.mockResolvedValue({ data: { id: "pasta-recriada" } });
+
+    expect(await ensureClientFolder("t1", "c1")).toBe("pasta-recriada");
   });
 
   it("cria a pasta dentro da raiz e grava o id no contato", async () => {

@@ -55,6 +55,30 @@ export function buildProposalFileName(
 }
 
 /**
+ * A pasta ainda existe e nao esta na lixeira?
+ *
+ * Erro na consulta conta como INUTILIZAVEL: recriar uma pasta a toa e um
+ * incomodo pequeno perto de deixar o cliente sem entrega nenhuma.
+ */
+type DriveClient = Awaited<ReturnType<typeof getDriveClient>>["client"];
+
+async function pastaUtilizavel(
+  client: DriveClient,
+  folderId: string,
+): Promise<boolean> {
+  try {
+    const { data } = await client.files.get({
+      fileId: folderId,
+      fields: "id, trashed",
+      supportsAllDrives: true,
+    });
+    return data.trashed !== true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Id da pasta do cliente, criando-a na raiz se ainda nao existir.
  *
  * O id gravado no contato e a unica forma de reencontrar a pasta: com
@@ -83,13 +107,30 @@ export async function ensureClientFolder(
   if (clientData.tenantId !== tenantId) {
     throw new Error("CLIENTE_DE_OUTRO_TENANT");
   }
-  if (clientData.driveFolderId) {
-    return clientData.driveFolderId;
-  }
-
   const { client, integration } = await getDriveClient(tenantId);
   if (!integration.rootFolderId) {
     throw new Error("DRIVE_SEM_PASTA_RAIZ");
+  }
+
+  /**
+   * O id gravado nao e prova de que a pasta existe.
+   *
+   * O usuario apaga pasta no Drive — inclusive sem querer, arrastando para a
+   * lixeira. Sem conferir, "Pasta no Drive" abriria um link morto e a proxima
+   * proposta tentaria subir para um pai inexistente, falhando com uma mensagem
+   * do Google que nao diz nada sobre pasta apagada.
+   *
+   * Uma chamada extra por clique e barata: isto roda quando alguem abre a pasta
+   * ou quando uma proposta e enviada, nao em laco.
+   */
+  if (clientData.driveFolderId) {
+    if (await pastaUtilizavel(client, clientData.driveFolderId)) {
+      return clientData.driveFolderId;
+    }
+    logger.info("Pasta do cliente sumiu do Drive; sera recriada", {
+      tenantId,
+      clientId,
+    });
   }
 
   const created = await client.files.create({
