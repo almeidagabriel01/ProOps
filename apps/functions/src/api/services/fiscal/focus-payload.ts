@@ -10,6 +10,7 @@
  */
 
 import { brasiliaDatePart } from "./fiscal-datetime";
+import { sanitizeFiscalText } from "./fiscal-text";
 import type {
   FiscalAddress,
   FiscalIeIndicator,
@@ -53,8 +54,21 @@ function digits(value: string | undefined): string {
   return String(value || "").replace(/\D/g, "");
 }
 
+/**
+ * Todo texto que sai daqui passa pelo saneamento do XSD (U+0020 a U+00FF).
+ *
+ * E o mesmo defeito que recusou a primeira carta de correcao real, e ele nao e
+ * exclusivo da CC-e: descricao de item, nome do destinatario e informacoes
+ * adicionais aceitam o que o usuario digitar, e um produto chamado
+ * "Cortina Blackout — 2,40m" derrubaria a nota inteira com a mesma mensagem
+ * ilegivel de schema.
+ *
+ * Sanear neste ponto cobre todos os campos de uma vez. Para os que ja sao
+ * codigo (CFOP, UF, unidade, item da LC 116) e no-op — sao ASCII por
+ * construcao.
+ */
 function trimmed(value: string | undefined): string {
-  return String(value || "").trim();
+  return sanitizeFiscalText(String(value || ""));
 }
 
 /** Money and quantities go as plain numbers rounded to the precision the schema accepts. */

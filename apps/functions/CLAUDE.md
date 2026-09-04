@@ -432,6 +432,24 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   `correctInvoice` **persiste** o texto em `InvoiceDocument.correcoes` (so DEPOIS de o
   fisco aceitar) e o dialogo abre pre-preenchido com a ultima. Limite de **20** eventos
   por NF-e; passar disso e a rejeicao **594**, entao a UI barra antes de gastar a chamada.
+- **Texto livre em documento fiscal nao aceita Unicode inteiro.** O XSD da NF-e usa o
+  padrao `[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}` — **U+0020 a U+00FF**, sem espaco na
+  primeira nem na ultima posicao. Latin-1 acentuado passa (`ç`, `é`, `ã`); o que nao passa
+  e o que teclado e editor produzem sozinhos: travessao `—`, aspas curvas, reticencias,
+  espaco nao separavel e **quebra de linha** (U+000A esta ABAIXO de U+0020, e o campo da
+  CC-e e um `<textarea>` de 5 linhas). A rejeicao vem da SEFAZ como erro de schema citando
+  o codepoint — mensagem que nao ajuda ninguem a entender que o problema e um traco.
+  `sanitizeFiscalText` (`fiscal-text.ts`) converte o que tem equivalente e descarta o
+  resto; **`trimmed()` de `focus-payload.ts` passa por ele**, entao descricao de item,
+  nome do destinatario e informacoes adicionais estao cobertos junto com a CC-e — o mesmo
+  defeito derrubaria uma nota inteira por causa de um produto chamado
+  "Cortina Blackout — 2,40m". Na CC-e o saneamento roda no controller **antes** de medir o
+  tamanho (o corte muda o comprimento) e de novo no service, e o texto GRAVADO e o saneado:
+  como a carta e cumulativa e o dialogo reabre pre-preenchido, guardar o texto cru
+  reenviaria o caractere recusado. Foi assim que a primeira carta real foi recusada — com
+  um travessao copiado do proprio placeholder do dialogo.
+  O front tem copia (`lib/fiscal/texto-fiscal.ts`) so para o contador e o aviso serem
+  honestos, com paridade garantida por `src/__tests__/fiscal-text-parity.test.ts`.
 - **O que a CC-e NAO corrige** (Ajuste SINIEF 01/07): base de calculo, aliquota,
   quantidade, valor da operacao, qualquer tributo, dado que mude remetente ou
   destinatario, e data de emissao ou de saida. Escrever algo assim **nao da erro** — gera

@@ -342,6 +342,46 @@ describe("buildNfsePayload", () => {
   });
 });
 
+describe("texto livre passa pelo saneamento do XSD", () => {
+  const comDescricao = (descricao: string) => {
+    const base = buildInput();
+    return buildNfePayload(
+      buildInput({ products: [{ ...base.products![0]!, descricao }] }),
+    );
+  };
+
+  it("limpa a descricao do item", () => {
+    // Nao e defeito exclusivo da carta de correcao: um produto batizado com
+    // travessao derrubaria a nota inteira, com a mesma mensagem ilegivel de
+    // schema citando o codepoint.
+    const items = comDescricao("Cortina Blackout — 2,40m").items as Array<
+      Record<string, unknown>
+    >;
+
+    expect(items[0].descricao).toBe("Cortina Blackout - 2,40m");
+  });
+
+  it("limpa o nome do destinatario", () => {
+    const payload = buildNfePayload(
+      buildInput({ recipient: { ...recipient, nome: "Casa D’Oeste Ltda" } }),
+    );
+
+    expect(payload.nome_destinatario).toBe("Casa D'Oeste Ltda");
+  });
+
+  it("nao mexe em acento nem em codigo", () => {
+    // Latin-1 passa no XSD; cortar acento trocaria a rejeicao por uma nota
+    // errada. E CFOP/unidade sao ASCII — o saneamento tem que ser no-op.
+    const items = comDescricao("Persiana de tecido acústico").items as Array<
+      Record<string, unknown>
+    >;
+
+    expect(items[0].descricao).toBe("Persiana de tecido acústico");
+    expect(items[0].cfop).toBe("5102");
+    expect(items[0].unidade_comercial).toBe("UN");
+  });
+});
+
 describe("buildNfePayload — grupos PIS e COFINS", () => {
   it("manda os dois grupos em todo item", () => {
     // A SEFAZ rejeitou a primeira NF-e real com 745 ("NF-e sem grupo do PIS").

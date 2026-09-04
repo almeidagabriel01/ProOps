@@ -78,6 +78,9 @@ o navegador valida input escondido). Quem dependia da validação nativa precisa
 de aviso próprio — é o caso da data de início de recebimento em
 `/settings/fiscal`, onde uma data futura é escolha permanente.
 
+O rodape do calendario traz um atalho **"Limpar"**. Onde "sem data" nao e um
+estado valido — ou e um estado caro —, passe `clearable={false}`.
+
 Guard: `src/__tests__/date-input-consistency.test.ts`.
 
 ## DataTable: as colunas têm que somar o grid

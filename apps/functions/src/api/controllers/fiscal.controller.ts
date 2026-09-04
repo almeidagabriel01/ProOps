@@ -58,6 +58,7 @@ import {
   replayInvoiceNotification,
   refreshInvoice,
 } from "../services/fiscal/invoice.service";
+import { sanitizeFiscalText } from "../services/fiscal/fiscal-text";
 import {
   issueFromProposal,
   previewFromProposal,
@@ -1131,7 +1132,12 @@ export const correctInvoiceHandler = async (req: Request, res: Response): Promis
       return;
     }
 
-    const texto = text((req.body as Record<string, unknown>).correcao);
+    // Sanear ANTES de medir: o corte muda o comprimento. Um texto de 15
+    // caracteres com invisiveis colados da web encolhe abaixo do minimo, e
+    // validar antes o aprovaria para ser recusado la na frente.
+    const texto = sanitizeFiscalText(
+      text((req.body as Record<string, unknown>).correcao),
+    );
     // Limites do Ajuste SINIEF 07/2005. Validar aqui evita gastar uma chamada
     // ao provedor para receber a mesma recusa.
     if (texto.length < CORRECTION_TEXT_MIN_LENGTH) {

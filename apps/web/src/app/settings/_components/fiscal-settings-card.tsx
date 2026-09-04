@@ -893,6 +893,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
               </Label>
               <DatePicker
                 id="fiscal-data-inicio-recebimento"
+                clearable={false}
                 className="sm:max-w-[220px]"
                 value={form.dataInicioRecebimento}
                 max={hojeIso()}

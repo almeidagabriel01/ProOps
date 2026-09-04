@@ -138,6 +138,56 @@ describe("CorrectInvoiceButton", () => {
     expect(campo()).toHaveValue("segunda versao, mais completa");
   });
 
+  it("envia o texto SANEADO — o XSD da NF-e não aceita travessão", async () => {
+    // A primeira carta real foi recusada por um `—` copiado do placeholder
+    // deste diálogo. A SEFAZ responde erro de schema citando o codepoint, que
+    // não ajuda ninguém a entender que o problema é um traço.
+    renderButton();
+    await abrir();
+
+    await userEvent.type(campo(), "endereco correto e Rua A, 320 — Centro");
+    await userEvent.click(registrar());
+
+    await waitFor(() =>
+      expect(correctInvoice).toHaveBeenCalledWith(
+        "inv-1",
+        "endereco correto e Rua A, 320 - Centro",
+      ),
+    );
+  });
+
+  it("avisa que o texto será ajustado antes de enviar", async () => {
+    renderButton();
+    await abrir();
+
+    await userEvent.type(campo(), "endereco correto e Rua A, 320 — Centro");
+
+    expect(
+      await screen.findByText(/Alguns caracteres serão ajustados/),
+    ).toBeInTheDocument();
+  });
+
+  it("não avisa quando não há nada a ajustar", async () => {
+    // Aviso que aparece sempre vira ruído e deixa de ser lido.
+    renderButton();
+    await abrir();
+
+    await userEvent.type(campo(), "endereco correto e Rua A, 320");
+
+    expect(screen.queryByText(/Alguns caracteres serão ajustados/)).toBeNull();
+  });
+
+  it("conta o tamanho DEPOIS do saneamento", async () => {
+    // O corte muda o comprimento: liberar o botão pelo texto cru mandaria para
+    // o servidor uma carta abaixo do mínimo da SEFAZ, para levar 400.
+    renderButton();
+    await abrir();
+
+    // 15 caracteres crus — o mínimo — e 11 depois de remover os invisíveis.
+    await userEvent.type(campo(), "curto​​​​demais");
+    expect(registrar()).toBeDisabled();
+  });
+
   it("bloqueia ao atingir o limite de 20 da SEFAZ", async () => {
     // Passar disso é a rejeição 594 — barrar aqui evita gastar a chamada.
     renderButton({

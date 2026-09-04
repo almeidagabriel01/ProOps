@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader } from "@/components/ui/loader";
 import { toast } from "@/lib/toast";
+import { sanitizarTextoFiscal } from "@/lib/fiscal/texto-fiscal";
 import {
   Dialog,
   DialogContent,
@@ -64,7 +65,20 @@ export function CorrectInvoiceButton({
     if (open) setTexto(anterior);
   }, [open, anterior]);
 
-  const tamanho = texto.trim().length;
+  /**
+   * O XSD da NF-e só aceita U+0020 a U+00FF. Travessão, aspas curvas e quebra
+   * de linha — que o teclado e este próprio `textarea` produzem sozinhos — são
+   * recusados pela SEFAZ como erro de schema citando o codepoint.
+   *
+   * O saneamento NÃO é aplicado a cada tecla: ele apara as pontas, então
+   * apagaria o espaço no instante em que a pessoa o digita. Aplicado aqui, o
+   * contador mede o que o servidor vai medir e o envio manda o que ele vai
+   * gravar.
+   */
+  const textoLimpo = sanitizarTextoFiscal(texto);
+  const seraAjustado = textoLimpo !== texto.trim();
+
+  const tamanho = textoLimpo.length;
   const valido =
     tamanho >= CORRECTION_TEXT_MIN_LENGTH &&
     tamanho <= CORRECTION_TEXT_MAX_LENGTH;
@@ -75,7 +89,7 @@ export function CorrectInvoiceButton({
     try {
       const atualizada = await FiscalService.correctInvoice(
         invoice.id,
-        texto.trim(),
+        textoLimpo,
       );
       onCorrected(atualizada);
       setOpen(false);
@@ -154,12 +168,18 @@ export function CorrectInvoiceButton({
               maxLength={CORRECTION_TEXT_MAX_LENGTH}
               rows={5}
               disabled={esgotado}
-              placeholder="Ex.: o endereço de entrega correto é Rua das Palmeiras, 320 — Centro"
+              placeholder="Ex.: o endereço de entrega correto é Rua das Palmeiras, 320 - Centro"
             />
             <p className="text-xs text-muted-foreground">
               {tamanho} de {CORRECTION_TEXT_MAX_LENGTH} caracteres — mínimo de{" "}
               {CORRECTION_TEXT_MIN_LENGTH}.
             </p>
+            {seraAjustado && (
+              <p className="text-xs text-amber-600">
+                Alguns caracteres serão ajustados no envio: a SEFAZ não aceita
+                travessão, aspas curvas nem quebra de linha.
+              </p>
+            )}
           </div>
 
           {esgotado && (

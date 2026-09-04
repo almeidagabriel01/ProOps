@@ -159,6 +159,25 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
     );
   });
 
+  it("não oferece LIMPAR a data no calendário", async () => {
+    // "Sem data" aqui não é um estado neutro: em branco o provedor puxa todo o
+    // histórico disponível e cobra por nota. O atalho existe no DatePicker e é
+    // útil na maioria das telas — neste campo ele é uma armadilha de um clique.
+    getSettings.mockResolvedValue({
+      ...BASE,
+      habilitaManifestacao: true,
+      dataInicioRecebimento: "2026-01-15",
+    });
+    render(<FiscalSettingsCard />);
+
+    await waitFor(() => expect(gatilhoData()).toBeInTheDocument());
+    await userEvent.click(gatilhoData());
+
+    // O calendário abriu — senão o teste passaria sem provar nada.
+    expect(await screen.findByText("Hoje")).toBeInTheDocument();
+    expect(screen.queryByText("Limpar")).toBeNull();
+  });
+
   it("trava o campo depois de a data ter ido para o provedor", async () => {
     // Oferecer edição do que o provedor já recusa faria a tela mentir sobre o
     // que está valendo lá.

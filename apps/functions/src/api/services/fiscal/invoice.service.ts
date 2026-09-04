@@ -20,6 +20,7 @@ import { logger } from "../../../lib/logger";
 import { getIssuingToken, setFiscalStatus } from "./fiscal-settings.service";
 import { archiveInvoiceDocuments } from "./invoice-archive.service";
 import { describeFocusError } from "./focus-error";
+import { sanitizeFiscalText } from "./fiscal-text";
 import {
   getFiscalProvider,
   resolveFiscalEnvironment,
@@ -626,10 +627,20 @@ export async function correctInvoice(
     throw new Error("CCE_NAO_SUPORTADA");
   }
 
+  /**
+   * Ultima linha de defesa contra o XSD da NF-e (U+0020 a U+00FF).
+   *
+   * E o MESMO valor que vai para o provedor e para o historico: a CC-e e
+   * cumulativa e o dialogo reabre pre-preenchido com a ultima, entao guardar o
+   * texto cru faria a proxima carta reenviar o caractere que a SEFAZ acabou de
+   * recusar.
+   */
+  const textoLimpo = sanitizeFiscalText(texto);
+
   const env = resolveFiscalEnvironment(stored.environment);
   await provider.correct(
     stored.ref,
-    texto,
+    textoLimpo,
     env,
     await getIssuingToken(stored.tenantId, env),
   );
@@ -638,7 +649,7 @@ export async function correctInvoice(
   // correção que não existe perante a SEFAZ, e a próxima carta a repetiria.
   const registradaEm = new Date().toISOString();
   await docRef(invoiceId).update({
-    correcoes: FieldValue.arrayUnion({ texto, registradaEm }),
+    correcoes: FieldValue.arrayUnion({ texto: textoLimpo, registradaEm }),
     updatedAt: registradaEm,
   });
 
