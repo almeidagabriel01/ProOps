@@ -515,6 +515,35 @@ permitimos a manifestacao.
   pessoa procurando onde o lancamento foi parar. Guards:
   `received-invoice-transaction.test.ts` e `launch-received-invoice-button.test.tsx`.
 
+### Plano do tenant: DUAS fontes que podem divergir
+
+O backend resolve o plano por **`tenants/{id}.plan`** (depois `.planTier`, `.tier`,
+`.planId`, priceId, dono) em `tenant-plan-policy.ts`. O frontend resolve por
+**`users/{uid}.planId`** (`plan-provider.tsx`). **Sao documentos diferentes.**
+
+Os dois passam a ser escritos juntos pelo writer unico
+(`syncTenantPlanBillingSnapshot`) desde **2026-05-07 22:51 BRT** (commit `bbfd638d`).
+Toda troca de plano ANTERIOR atualizou so o doc do usuario — o do tenant ficou para
+tras.
+
+A divergencia foi **inofensiva por meses**, porque ninguem lia `tenants.plan` para
+decidir acesso a modulo. Deixou de ser quando `requirePlanCapability` entrou em
+`enforce`: o tenant de dev tinha `users.planId = "enterprise"` e
+`tenants.plan = "pro"`, entao a tela mostrava Enterprise (com "Notas Fiscais"
+listado no plano) e a API devolvia 402 — sem nada, em lugar nenhum, revelando a
+contradicao.
+
+- O 402 devolve **`currentPlan`** (o tier que o BACKEND resolveu) alem do
+  `requiredPlan`. Sem ele, "plano insuficiente" e "dado desatualizado" produzem a
+  mesma resposta, e as duas exigem acoes opostas.
+- `npx tsx src/scripts/audit-tenant-plan-drift.ts` lista as divergencias;
+  `--apply` corrige adotando o doc do USUARIO como correto. **Conferir a lista
+  antes de aplicar**: se algum tenant foi rebaixado de proposito e so o doc do
+  tenant foi atualizado, aplicar o promoveria de volta.
+- **Nao "consertar" o resolvedor para preferir o tier mais alto.** Isso liberaria
+  modulo para quem foi rebaixado. Se um dia unificar, a decisao e sobre QUAL
+  documento e autoritativo — e tem implicacao de cobranca nos dois sentidos.
+
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`
 - Nunca commitar — arquivos ignorados pelo `.gitignore`
