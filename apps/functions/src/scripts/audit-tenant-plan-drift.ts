@@ -100,6 +100,12 @@ async function main(): Promise<void> {
   }
 
   const drifts: Drift[] = [];
+  const indeterminate: Array<{
+    tenantId: string;
+    tenantName: string;
+    ownerTier: string;
+    priceId: string;
+  }> = [];
   let scanned = 0;
   let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
 
@@ -123,10 +129,27 @@ async function main(): Promise<void> {
       if (!owner) continue;
 
       const ownerTier = normalizePlanTierId(owner.planId);
+
+      /**
+       * Sem tier guardado e uma TERCEIRA situacao, nao "esta tudo certo".
+       *
+       * O resolvedor cai na cadeia de fallback (planId -> priceId -> dono),
+       * que pode acertar ou nao — mas nada aqui prova qual. Relatar como
+       * "nada a corrigir" quase deu um falso OK numa decisao de producao.
+       */
+      if (!storedTier) {
+        indeterminate.push({
+          tenantId: doc.id,
+          tenantName: String(data.name || ""),
+          ownerTier: ownerTier ?? String(owner.planId),
+          priceId: String(data.stripePriceId || data.priceId || ""),
+        });
+        continue;
+      }
       // Só conta como divergência quando os DOIS lados resolvem para um tier
       // conhecido e diferente. `planId` de preço customizado não normaliza, e
       // ali o resolvedor já cai na cadeia de fallback — não há o que corrigir.
-      if (!ownerTier || !storedTier || storedTier === ownerTier) continue;
+      if (!ownerTier || storedTier === ownerTier) continue;
 
       drifts.push({
         tenantId: doc.id,
@@ -154,7 +177,21 @@ async function main(): Promise<void> {
   }
 
   console.log(`\ntenants varridos: ${scanned}`);
-  console.log(`divergências encontradas: ${drifts.length}\n`);
+  console.log(`divergencias encontradas: ${drifts.length}`);
+  console.log(`sem tier guardado (indeterminado): ${indeterminate.length}`);
+  console.log("");
+
+  for (const item of indeterminate) {
+    console.log(`  ${item.tenantId}  "${item.tenantName}"`);
+    console.log("    tenants.plan AUSENTE — o backend resolve por priceId/dono.");
+    console.log(
+      `    users.planId = ${item.ownerTier}   priceId = ${item.priceId || "(nenhum)"}`,
+    );
+    console.log(
+      "    NAO e divergencia provada, mas tambem NAO e garantia — confirme pelo",
+    );
+    console.log("    log plan_capability_would_block ou por um 402 com currentPlan.");
+  }
 
   for (const drift of drifts) {
     console.log(
@@ -165,7 +202,11 @@ async function main(): Promise<void> {
   }
 
   if (drifts.length === 0) {
-    console.log("Nada a corrigir.");
+    console.log(
+      indeterminate.length > 0
+        ? "Nenhuma divergencia PROVADA — mas veja os indeterminados acima."
+        : "Nada a corrigir.",
+    );
     return;
   }
 
