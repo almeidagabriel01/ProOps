@@ -157,6 +157,43 @@ describe("requirePlanCapability", () => {
     });
   });
 
+  describe("driveSync", () => {
+    /**
+     * O Drive nasce gateado — foi a falha do fiscal, do calendario e do Asaas,
+     * que existiram meses com a capacidade vivendo so no PlanProvider do
+     * frontend enquanto qualquer chamada HTTP direta passava.
+     */
+    it("bloqueia o Starter", async () => {
+      givenTenant("starter");
+      const ctx = buildReqRes();
+
+      await run("driveSync", ctx);
+
+      expect(ctx.next).not.toHaveBeenCalled();
+      expect(ctx.res.status).toHaveBeenCalledWith(402);
+    });
+
+    it("libera Pro e Enterprise — a mesma faixa do Google Agenda", async () => {
+      for (const tier of ["pro", "enterprise"] as const) {
+        givenTenant(tier);
+        const ctx = buildReqRes();
+
+        await run("driveSync", ctx);
+
+        expect(ctx.next).toHaveBeenCalled();
+      }
+    });
+
+    it("bloqueia a conta free", async () => {
+      givenTenant("free");
+      const ctx = buildReqRes();
+
+      await run("driveSync", ctx);
+
+      expect(ctx.res.status).toHaveBeenCalledWith(402);
+    });
+  });
+
   describe("escapes", () => {
     it("superadmin nao e bloqueado e nem consulta o plano", async () => {
       const ctx = buildReqRes({ tenantId: "t1", uid: "root", isSuperAdmin: true });
