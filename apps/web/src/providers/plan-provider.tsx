@@ -100,6 +100,7 @@ export interface PlanContextValue {
   hasFinancial: boolean;
   hasKanban: boolean;
   hasFiscal: boolean;
+  hasDriveSync: boolean;
   /**
    * Flag de TENANT (`whatsappEnabled`), não a claim comercial do plano. São
    * coisas diferentes com o mesmo nome: `features.hasWhatsApp` diz o que o
@@ -623,6 +624,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       hasFinancial: mergedFeatures?.hasFinancial ?? false,
       hasKanban: mergedFeatures?.hasKanban ?? false,
       hasFiscal: mergedFeatures?.hasFiscal ?? false,
+      hasDriveSync: mergedFeatures?.hasDriveSync ?? false,
       hasWhatsApp: featureFlags.whatsapp,
       canCustomizeTheme: mergedFeatures?.canCustomizeTheme ?? false,
       canEditPdfSections: mergedFeatures?.canEditPdfSections ?? false,
