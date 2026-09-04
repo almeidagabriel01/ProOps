@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  createRootFolderHandler,
   disconnectDriveHandler,
   getClientFolderHandler,
   getDriveAuthUrl,
@@ -24,6 +25,8 @@ publicRouter.get("/drive/google/callback", handleDriveCallback);
 protectedRouter.get("/drive/google/auth-url", getDriveAuthUrl);
 protectedRouter.get("/drive/google/status", getDriveStatus);
 protectedRouter.delete("/drive/google/status", disconnectDriveHandler);
+// POST cria a pasta (caminho padrao); PUT grava a que veio do Picker.
+protectedRouter.post("/drive/google/root-folder", createRootFolderHandler);
 protectedRouter.put("/drive/google/root-folder", setRootFolderHandler);
 
 protectedRouter.get("/drive/clients/:clientId/folder", getClientFolderHandler);

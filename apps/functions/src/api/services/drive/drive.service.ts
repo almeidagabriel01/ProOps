@@ -122,6 +122,62 @@ export async function ensureClientFolder(
   return folderId;
 }
 
+/**
+ * Nome da pasta que a ProOps cria quando o usuario nao quer escolher uma.
+ *
+ * Hifen simples e nao travessao: a pasta e sincronizada para Windows e macOS
+ * por quem usa o Drive de desktop, e caractere fora do ASCII no nome de pasta e
+ * fonte classica de arquivo que nao desce.
+ */
+export const DEFAULT_ROOT_FOLDER_NAME = "ProOps - Propostas";
+
+/**
+ * Cria a pasta raiz no Drive do tenant, na raiz do "Meu Drive".
+ *
+ * Alternativa ao Google Picker, e nao um substituto pior: no escopo
+ * `drive.file` o acesso segue o ARQUIVO, nao o caminho — o usuario pode
+ * **mover, renomear e compartilhar** esta pasta livremente que continuamos
+ * enxergando ela. Na pratica ele arrasta a pasta para dentro da estrutura que
+ * ja tem e o resultado e o mesmo de ter apontado uma pasta existente.
+ *
+ * Isso importa porque o Picker cobra caro em configuracao (API key propria,
+ * Picker API, popup, cookies de terceiros) e falha de formas que dependem do
+ * navegador do CLIENTE — o que nao pode ser pre-requisito para usar o modulo.
+ *
+ * Idempotente: se ja houver uma raiz definida, devolve ela em vez de criar
+ * outra. Dois cliques no botao nao podem produzir duas pastas.
+ */
+export async function createRootFolder(
+  tenantId: string,
+): Promise<{ folderId: string; folderName: string }> {
+  const { client, integration } = await getDriveClient(tenantId);
+  if (integration.rootFolderId) {
+    return {
+      folderId: integration.rootFolderId,
+      folderName: integration.rootFolderName || DEFAULT_ROOT_FOLDER_NAME,
+    };
+  }
+
+  const created = await client.files.create({
+    // Sem `parents`: nasce na raiz do "Meu Drive", de onde o usuario move para
+    // onde quiser.
+    requestBody: {
+      name: DEFAULT_ROOT_FOLDER_NAME,
+      mimeType: FOLDER_MIME,
+    },
+    fields: "id",
+    supportsAllDrives: true,
+  });
+
+  const folderId = String(created.data.id || "").trim();
+  if (!folderId) {
+    throw new Error("DRIVE_FALHA_AO_CRIAR_PASTA");
+  }
+
+  logger.info("Pasta raiz criada no Drive", { tenantId, folderId });
+  return { folderId, folderName: DEFAULT_ROOT_FOLDER_NAME };
+}
+
 export interface UploadProposalResult {
   fileId: string;
   folderId: string;

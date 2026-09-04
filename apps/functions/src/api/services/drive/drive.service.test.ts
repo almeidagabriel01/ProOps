@@ -35,6 +35,8 @@ jest.mock("./drive-oauth.service", () => ({ getDriveClient }));
 import {
   buildClientFolderName,
   buildProposalFileName,
+  createRootFolder,
+  DEFAULT_ROOT_FOLDER_NAME,
   ensureClientFolder,
   uploadProposalPdf,
 } from "./drive.service";
@@ -120,6 +122,41 @@ describe("ensureClientFolder", () => {
     await expect(ensureClientFolder("t1", "c1")).rejects.toThrow(
       "DRIVE_FALHA_AO_CRIAR_PASTA",
     );
+  });
+});
+
+describe("createRootFolder", () => {
+  it("cria na raiz do Meu Drive, sem pai", async () => {
+    // Sem `parents` a pasta nasce na raiz, de onde o usuario move para dentro
+    // da estrutura que ja tem — o acesso segue o ARQUIVO, nao o caminho.
+    mockDrive(null);
+    filesCreate.mockResolvedValue({ data: { id: "raiz-nova" } });
+
+    const r = await createRootFolder("t1");
+
+    expect(r).toEqual({
+      folderId: "raiz-nova",
+      folderName: DEFAULT_ROOT_FOLDER_NAME,
+    });
+    const args = filesCreate.mock.calls[0][0];
+    expect(args.requestBody).not.toHaveProperty("parents");
+  });
+
+  it("e IDEMPOTENTE: nao cria uma segunda raiz", async () => {
+    // Dois cliques no botao nao podem produzir duas pastas soltas no Drive de
+    // alguem.
+    mockDrive("raiz-existente");
+
+    const r = await createRootFolder("t1");
+
+    expect(filesCreate).not.toHaveBeenCalled();
+    expect(r.folderId).toBe("raiz-existente");
+  });
+
+  it("nao usa caractere fora do ASCII no nome", () => {
+    // A pasta e sincronizada para Windows e macOS por quem usa o Drive de
+    // desktop, e caractere exotico e fonte classica de arquivo que nao desce.
+    expect(DEFAULT_ROOT_FOLDER_NAME).toMatch(/^[ -~]+$/);
   });
 });
 

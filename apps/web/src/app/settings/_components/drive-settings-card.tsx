@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, FolderOpen, Link2, Unlink } from "lucide-react";
+import { CheckCircle2, FolderOpen, FolderPlus, Link2, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import {
@@ -67,6 +67,7 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
   const [isConnecting, setIsConnecting] = React.useState(false);
   const [isDisconnecting, setIsDisconnecting] = React.useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
+  const [isCreating, setIsCreating] = React.useState(false);
 
   React.useEffect(() => {
     onLoadingChange?.(isLoading);
@@ -127,6 +128,25 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
           ? error.message
           : "Não foi possível iniciar a conexão.",
       );
+    }
+  }
+
+  async function handleCreateFolder() {
+    setIsCreating(true);
+    try {
+      const { folderId, folderName } = await DriveService.createRootFolder();
+      setStatus((atual) =>
+        atual ? { ...atual, rootFolderId: folderId, rootFolderName: folderName } : atual,
+      );
+      toast.success(`Pasta "${folderName}" criada no seu Drive.`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível criar a pasta.",
+      );
+    } finally {
+      setIsCreating(false);
     }
   }
 
@@ -250,41 +270,64 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
                   <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <strong className="font-medium">{status?.rootFolderName}</strong>
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handlePickFolder()}
-                  disabled={isOpening || !isConfigured}
-                >
-                  {isOpening && <Loader size="sm" variant="button" className="mr-2" />}
-                  Trocar pasta
-                </Button>
+                {isConfigured && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handlePickFolder()}
+                    disabled={isOpening}
+                  >
+                    {isOpening && <Loader size="sm" variant="button" className="mr-2" />}
+                    Trocar pasta
+                  </Button>
+                )}
               </div>
             ) : (
               <>
                 {/* O estado que engana: conta conectada, integração parecendo
                     pronta, e nada sendo entregue por falta de destino. */}
                 <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-                  Nenhuma pasta escolhida ainda — enquanto isso, nenhuma proposta
+                  Nenhuma pasta definida ainda — enquanto isso, nenhuma proposta
                   é enviada para o Drive.
                 </p>
-                <Button
-                  className="self-start"
-                  onClick={() => void handlePickFolder()}
-                  disabled={isOpening || !isConfigured}
-                >
-                  {isOpening && <Loader size="sm" variant="button" className="mr-2" />}
-                  <FolderOpen className="mr-2 h-4 w-4" />
-                  Escolher pasta no Drive
-                </Button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    onClick={() => void handleCreateFolder()}
+                    disabled={isCreating}
+                  >
+                    {isCreating ? (
+                      <Loader size="sm" variant="button" className="mr-2" />
+                    ) : (
+                      <FolderPlus className="mr-2 h-4 w-4" />
+                    )}
+                    Criar pasta no meu Drive
+                  </Button>
+                  {/* Escolher uma pasta existente depende do seletor do Google,
+                      que exige configuração própria e falha em navegador que
+                      bloqueia cookies de terceiros. Por isso é a alternativa, e
+                      não o caminho principal. */}
+                  {isConfigured && (
+                    <Button
+                      variant="outline"
+                      onClick={() => void handlePickFolder()}
+                      disabled={isOpening}
+                    >
+                      {isOpening && (
+                        <Loader size="sm" variant="button" className="mr-2" />
+                      )}
+                      Escolher uma que já existe
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  A pasta é criada no seu &quot;Meu Drive&quot;. Depois você pode{" "}
+                  <strong className="text-foreground">
+                    movê-la, renomeá-la e compartilhá-la
+                  </strong>{" "}
+                  à vontade — inclusive para dentro da organização que você já
+                  tem. As propostas continuam chegando nela.
+                </p>
               </>
-            )}
-
-            {!isConfigured && (
-              <p className="text-xs text-muted-foreground">
-                O seletor de pastas do Google não está configurado neste
-                ambiente.
-              </p>
             )}
           </CardContent>
         </Card>

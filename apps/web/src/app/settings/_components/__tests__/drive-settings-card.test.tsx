@@ -17,16 +17,28 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const { getStatus, disconnect, setRootFolder, getAuthUrl, pickFolder, toastSuccess, toastError } =
-  vi.hoisted(() => ({
-    getStatus: vi.fn(),
-    disconnect: vi.fn(),
-    setRootFolder: vi.fn(),
-    getAuthUrl: vi.fn(),
-    pickFolder: vi.fn(),
-    toastSuccess: vi.fn(),
-    toastError: vi.fn(),
-  }));
+const {
+  getStatus,
+  disconnect,
+  setRootFolder,
+  createRootFolder,
+  getAuthUrl,
+  pickFolder,
+  toastSuccess,
+  toastError,
+} = vi.hoisted(() => ({
+  getStatus: vi.fn(),
+  disconnect: vi.fn(),
+  setRootFolder: vi.fn(),
+  createRootFolder: vi.fn(),
+  getAuthUrl: vi.fn(),
+  pickFolder: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
+/** O Picker é opcional: sem as variáveis públicas ele nem aparece. */
+let pickerConfigurado = true;
 
 let searchParams = new URLSearchParams();
 
@@ -34,10 +46,20 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
 }));
 vi.mock("@/services/drive-service", () => ({
-  DriveService: { getStatus, disconnect, setRootFolder, getAuthUrl },
+  DriveService: {
+    getStatus,
+    disconnect,
+    setRootFolder,
+    createRootFolder,
+    getAuthUrl,
+  },
 }));
 vi.mock("@/hooks/use-google-picker", () => ({
-  useGooglePicker: () => ({ pickFolder, isOpening: false, isConfigured: true }),
+  useGooglePicker: () => ({
+    pickFolder,
+    isOpening: false,
+    isConfigured: pickerConfigurado,
+  }),
 }));
 vi.mock("@/lib/toast", () => ({
   toast: { success: toastSuccess, error: toastError },
@@ -69,8 +91,14 @@ const PRONTO = {
 beforeEach(() => {
   vi.clearAllMocks();
   searchParams = new URLSearchParams();
+  pickerConfigurado = true;
   disconnect.mockResolvedValue({ success: true });
   setRootFolder.mockResolvedValue({ success: true });
+  createRootFolder.mockResolvedValue({
+    success: true,
+    folderId: "raiz-nova",
+    folderName: "ProOps - Propostas",
+  });
 });
 
 describe("DriveSettingsCard", () => {
@@ -111,15 +139,59 @@ describe("DriveSettingsCard", () => {
     expect(screen.queryByText(/nenhuma proposta é enviada/i)).toBeNull();
   });
 
+  it("CRIA a pasta como caminho principal", async () => {
+    // O Picker exige API key, Picker API e cookies de terceiro, e falha de
+    // formas que dependem do navegador do cliente — não pode ser pré-requisito
+    // para usar o módulo.
+    getStatus.mockResolvedValue(CONECTADO_SEM_PASTA);
+    render(<DriveSettingsCard />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Criar pasta no meu Drive/ })).toBeInTheDocument(),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Criar pasta no meu Drive/ }),
+    );
+
+    await waitFor(() => expect(createRootFolder).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByText("ProOps - Propostas")).toBeInTheDocument(),
+    );
+  });
+
+  it("explica que a pasta pode ser MOVIDA depois", async () => {
+    // É o que torna a criação equivalente a escolher: no escopo drive.file o
+    // acesso segue o arquivo, não o caminho.
+    getStatus.mockResolvedValue(CONECTADO_SEM_PASTA);
+    render(<DriveSettingsCard />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/movê-la, renomeá-la e compartilhá-la/)).toBeInTheDocument(),
+    );
+  });
+
+  it("ainda oferece criar quando o Picker não está configurado", async () => {
+    // Sem a API key o módulo continua utilizável — só a opção de apontar uma
+    // pasta existente some.
+    pickerConfigurado = false;
+    getStatus.mockResolvedValue(CONECTADO_SEM_PASTA);
+    render(<DriveSettingsCard />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Criar pasta no meu Drive/ })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("button", { name: /já existe/ })).toBeNull();
+  });
+
   it("grava a pasta escolhida no Picker", async () => {
     getStatus.mockResolvedValue(CONECTADO_SEM_PASTA);
     pickFolder.mockResolvedValue({ id: "pasta-9", name: "Obras 2026" });
     render(<DriveSettingsCard />);
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Escolher pasta/ })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /já existe/ })).toBeInTheDocument(),
     );
-    await userEvent.click(screen.getByRole("button", { name: /Escolher pasta/ }));
+    await userEvent.click(screen.getByRole("button", { name: /já existe/ }));
 
     await waitFor(() =>
       expect(setRootFolder).toHaveBeenCalledWith("pasta-9", "Obras 2026"),
@@ -134,9 +206,9 @@ describe("DriveSettingsCard", () => {
     render(<DriveSettingsCard />);
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Escolher pasta/ })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: /já existe/ })).toBeInTheDocument(),
     );
-    await userEvent.click(screen.getByRole("button", { name: /Escolher pasta/ }));
+    await userEvent.click(screen.getByRole("button", { name: /já existe/ }));
 
     await waitFor(() => expect(pickFolder).toHaveBeenCalled());
     expect(setRootFolder).not.toHaveBeenCalled();

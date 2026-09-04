@@ -27,7 +27,10 @@ import {
   saveDriveIntegration,
   saveRootFolder,
 } from "../services/drive/drive-oauth.service";
-import { ensureClientFolder } from "../services/drive/drive.service";
+import {
+  createRootFolder,
+  ensureClientFolder,
+} from "../services/drive/drive.service";
 
 // RFC 4122 UUID — o `state` sai de crypto.randomUUID() (v4).
 const UUID_RE =
@@ -302,6 +305,38 @@ export async function setRootFolderHandler(req: Request, res: Response) {
     return res
       .status(500)
       .json({ message: "Não foi possível salvar a pasta selecionada." });
+  }
+}
+
+// POST /v1/drive/google/root-folder
+//
+// Cria a pasta raiz no Drive do usuário — o caminho PADRÃO, sem Picker.
+//
+// Funciona porque no escopo `drive.file` o acesso segue o arquivo, não o
+// caminho: o usuário pode mover essa pasta para dentro da estrutura que já tem,
+// renomear e compartilhar, que continuamos enxergando ela.
+export async function createRootFolderHandler(req: Request, res: Response) {
+  try {
+    const tenantId = resolveTenantId(req);
+    if (!req.user?.uid || !tenantId) {
+      return res.status(403).json({ message: "Tenant não identificado." });
+    }
+    if (!canManageIntegration(req)) {
+      return res.status(403).json({
+        message: "Somente administradores podem criar a pasta do Drive.",
+      });
+    }
+
+    const { folderId, folderName } = await createRootFolder(tenantId);
+    await saveRootFolder(tenantId, folderId, folderName);
+
+    return res.json({ success: true, folderId, folderName });
+  } catch (error) {
+    const err = error as Error;
+    logger.error("Falha ao criar a pasta raiz no Drive", { error: err.message });
+    return res
+      .status(mapDriveErrorStatus(err))
+      .json({ message: mapDriveErrorMessage(err), code: err.message });
   }
 }
 
