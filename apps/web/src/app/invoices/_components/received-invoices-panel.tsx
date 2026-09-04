@@ -118,7 +118,10 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
         key: "emitenteNome",
         header: "Fornecedor",
         priority: "primary",
-        className: "col-span-4",
+        // 3 + 1 + 2 + 2 + 2 + 2 = 12. A soma TEM que fechar com o
+        // `gridClassName` — estourando, a última coluna cai para a linha de
+        // baixo e as ações somem do lugar onde a pessoa procura.
+        className: "col-span-3",
         render: (invoice) => (
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium">
@@ -136,7 +139,7 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
         key: "numero",
         header: "Nota",
         priority: "leading",
-        className: "col-span-2",
+        className: "col-span-1",
         render: (invoice) => (
           <span className="text-sm">
             {invoice.numero ? `${invoice.numero}` : "—"}

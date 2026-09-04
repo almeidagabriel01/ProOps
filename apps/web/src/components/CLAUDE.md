@@ -65,6 +65,17 @@ a cor vem de um `text-muted-foreground` do call site.
 
 Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer.
 
+## DataTable: as colunas têm que somar o grid
+
+A soma dos `col-span-*` das colunas precisa fechar **exatamente** com o
+`gridClassName="grid-cols-N"`. Estourando, o CSS Grid empurra a última coluna
+para a linha de baixo — e a última costuma ser a de **ações**: os botões
+continuam existindo, fora da linha onde a pessoa procura, com o cabeçalho
+"Ações" sozinho num segundo nível.
+
+Nada quebra e nada avisa; é aritmética dentro de string de classe, invisível
+para o TypeScript. Guard: `src/__tests__/data-table-grid-columns.test.ts`.
+
 ## Nomenclatura
 - Arquivo: `nome-componente.tsx` (kebab-case)
 - Componente: `NomeComponente` (PascalCase)
