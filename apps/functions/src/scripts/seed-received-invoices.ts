@@ -32,8 +32,13 @@ const TENANT =
   process.argv.find((arg) => arg.startsWith("--tenant="))?.split("=")[1]?.trim() ||
   null;
 
-/** Marca própria: permite achar e remover exatamente o que este script criou. */
-const SEED_FLAG = "__seed_received__";
+/**
+ * Marca própria: permite achar e remover exatamente o que este script criou.
+ *
+ * **Sem duplo underscore nas pontas** — o Firestore reserva `__qualquer__` e
+ * recusa a escrita inteira com `INVALID_ARGUMENT: field name ... is reserved`.
+ */
+const SEED_FLAG = "seedFixture";
 
 /**
  * Chaves de 44 dígitos que NÃO existem na Receita.
