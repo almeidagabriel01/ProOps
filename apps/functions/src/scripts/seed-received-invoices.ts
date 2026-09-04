@@ -211,6 +211,14 @@ async function main(): Promise<void> {
 
   console.log(`\n${notes.length} notas criadas para ${TENANT}.`);
   console.log("Abra /invoices, aba \"Recebidas\".");
+  console.log("");
+  console.log("FUNCIONA aqui: detalhes, NCM, lancar como despesa, aviso de");
+  console.log("duplicata e o estado Lancada — caminhos 100% nossos.");
+  console.log("");
+  console.log("NAO FUNCIONA: RESPONDER (manifestacao). Ela faz POST no Focus,");
+  console.log("e estas chaves nao existem na Receita — o provedor devolve");
+  console.log("\"Documento fiscal nao encontrado\". Isso e ESPERADO, nao bug.");
+  console.log("A interface dela esta coberta em manifest-invoice-dialog.test.tsx.");
   console.log(
     "Lembre de ligar \"Receber notas dos fornecedores\" em /settings/fiscal —\n" +
       "sem a flag a aba mostra o estado desligado e nao lista nada.",
