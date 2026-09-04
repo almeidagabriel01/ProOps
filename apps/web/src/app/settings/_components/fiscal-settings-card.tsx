@@ -840,7 +840,9 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
               <p className="text-sm font-medium">Receber notas dos fornecedores</p>
               <p className="text-xs text-muted-foreground">
                 Traz as notas emitidas contra o seu CNPJ e permite se manifestar
-                sobre elas. Cada nota recebida consome uma unidade do seu pacote.
+                sobre elas. Cada nota recebida consome uma unidade do seu pacote —
+                inclusive as que seus fornecedores já emitiram antes de você ligar
+                isto.
               </p>
             </div>
             <Switch

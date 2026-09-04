@@ -484,6 +484,20 @@ permitimos a manifestacao.
   criadas, e nenhuma forma de ligar. O mapeamento formulario -> payload virou funcao pura
   (`lib/fiscal/settings-payload.ts`) justamente porque a falha dele e silenciosa — campo
   que nao entra ali some sem erro em lugar nenhum.
+- **"Data de inicio de recebimento NFes" no cadastro do Focus e CONTROLE DE CUSTO, e e
+  IRREVERSIVEL.** Tooltip do painel, verbatim: *"notas com data de emissao anterior a esta
+  data serao descartadas e voce so sera cobrado pelas notas posteriores. Ao deixar em
+  branco, iremos recuperar todas as notas que estiverem disponiveis. Apos alterado, este
+  campo nao podera ser modificado."* Ou seja: **em branco, a primeira sincronizacao puxa
+  todo o historico disponivel e cobra por cada nota**. Nao e obrigatorio — nao e causa de
+  "nenhuma nota nova".
+  **Nos NAO enviamos esse campo** (`buildEmpresaPayload` manda so `habilita_manifestacao`),
+  e o **cliente nao tem painel do Focus** — a conta e da ProOps, as empresas sao cadastradas
+  sob ela. Entao hoje **so a ProOps consegue definir essa data**, manualmente, no painel,
+  por empresa, ANTES de o cliente ligar a recepcao. Pendente: pegar o nome do campo com o
+  suporte do Focus (a pagina `campos.focusnfe.com.br` responde 403 e o nome nao esta em
+  fonte publica) e passar a envia-lo — senao todo tenant que ligar a recepcao nasce com o
+  historico inteiro sendo cobrado.
 - **A UI vive como ABA da tela de notas** (`/invoices`, aba "Recebidas"), nao numa rota
   propria: sao as duas metades do mesmo modulo e compartilham o `pageId` "invoices" e o
   `requirePlanCapability("fiscal")`. O vocabulario e que muda — aqui nao ha numeracao
