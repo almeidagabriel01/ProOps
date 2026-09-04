@@ -12,6 +12,7 @@ import { useSort } from "@/hooks/use-sort";
 import { toast } from "@/lib/toast";
 import { ManifestInvoiceDialog } from "@/components/features/fiscal/manifest-invoice-dialog";
 import { ReceivedInvoiceItemsDialog } from "@/components/features/fiscal/received-invoice-items-dialog";
+import { LaunchReceivedInvoiceButton } from "@/components/features/fiscal/launch-received-invoice-button";
 import {
   ReceivedInvoiceService,
   type ReceivedInvoice,
@@ -105,11 +106,11 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
     }
   }
 
-  function replace(updated: ReceivedInvoice) {
+  const replace = React.useCallback((updated: ReceivedInvoice) => {
     setInvoices((prev) =>
       prev.map((item) => (item.id === updated.id ? updated : item)),
     );
-  }
+  }, []);
 
   const columns: DataTableColumn<ReceivedInvoice>[] = React.useMemo(
     () => [
@@ -205,20 +206,26 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
               </Button>
             )}
             {invoice.status !== "cancelada" && (
-              <Button
-                variant={invoice.manifestacao ? "ghost" : "outline"}
-                size="sm"
-                className="h-8"
-                onClick={() => setManifesting(invoice)}
-              >
-                {invoice.manifestacao ? "Rever" : "Responder"}
-              </Button>
+              <>
+                <LaunchReceivedInvoiceButton
+                  invoice={invoice}
+                  onLaunched={replace}
+                />
+                <Button
+                  variant={invoice.manifestacao ? "ghost" : "outline"}
+                  size="sm"
+                  className="h-8"
+                  onClick={() => setManifesting(invoice)}
+                >
+                  {invoice.manifestacao ? "Rever" : "Responder"}
+                </Button>
+              </>
             )}
           </div>
         ),
       },
     ],
-    [],
+    [replace],
   );
 
   if (!enabled) {

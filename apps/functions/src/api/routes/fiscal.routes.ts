@@ -21,6 +21,7 @@ import {
   disconnectFiscalHandler,
 } from "../controllers/fiscal.controller";
 import {
+  launchReceivedInvoiceHandler,
   listReceivedInvoicesHandler,
   getReceivedInvoiceHandler,
   syncReceivedInvoicesHandler,
@@ -115,6 +116,12 @@ router.post(
   "/fiscal/received-invoices/:chave/manifestacao",
   validateFirebaseIdToken,
   manifestReceivedInvoiceHandler,
+);
+// A nota do fornecedor vira despesa — sob clique, nunca sozinha.
+router.post(
+  "/fiscal/received-invoices/:chave/lancamento",
+  validateFirebaseIdToken,
+  launchReceivedInvoiceHandler,
 );
 
 export { router as fiscalRoutes };

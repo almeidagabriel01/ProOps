@@ -489,6 +489,31 @@ permitimos a manifestacao.
   emissao precisa.
 - Cron `syncReceivedInvoices` roda **de hora em hora**, nao a cada 15 min como o de emissao:
   nota de entrada nao tem urgencia de segundos, o destinatario tem dias para se manifestar.
+- **A nota vira despesa sob CLIQUE, nunca sozinha**
+  (`POST /fiscal/received-invoices/:chave/lancamento`). Quem compra costuma **ja ter
+  lancado a compra a mao** quando pagou o fornecedor, e um segundo lancamento nao e um
+  registro a mais — e o saldo da carteira errado, que so aparece na conciliacao semanas
+  depois. Por isso nao ha gatilho automatico nem configuracao para ligar um.
+- **Duas guardas distintas, com desfechos distintos:**
+  - `transactionId` ja gravado na nota => `already_launched`, devolve o id. Uma nota gera
+    UM lancamento; dois cliques seguidos ou dois usuarios na mesma tela nao duplicam.
+  - Despesa de valor equivalente na janela de **45 dias** => `needs_confirmation` com os
+    candidatos, HTTP **409**. A UI **avisa e deixa seguir** (`force`): comprar duas vezes o
+    mesmo valor do mesmo fornecedor e comum, e bloquear seria pior que avisar.
+- **A busca por duplicata casa por VALOR e periodo, nao por fornecedor.** O lancamento
+  manual raramente traz a razao social — quem digita escreve "material obra" ou o apelido.
+  Casar por nome nao acharia quase nada e daria a falsa sensacao de que nao ha duplicata.
+  A janela e larga porque o lancamento manual costuma ser feito no dia do PAGAMENTO, nao
+  no da emissao: boleto de fornecedor vence em 28 ou 30 dias. Tolerancia de 2 centavos —
+  quem digita a mao arredonda. Usa o indice `(tenantId, type, date)`, que ja existia.
+- **O lancamento passa pelo `TransactionService`, nao escreve o doc direto**: e ele que
+  valida a permissao financeira, ajusta saldo de carteira em transacao atomica e dispara o
+  trigger de totais. Escrever na mao pularia os tres.
+- **Nota cancelada pelo fornecedor nao vira despesa** — documento sem validade nao gera
+  obrigacao financeira.
+- O botao de uma nota ja lancada **vira atalho para a despesa**, nao some: sumir seria a
+  pessoa procurando onde o lancamento foi parar. Guards:
+  `received-invoice-transaction.test.ts` e `launch-received-invoice-button.test.tsx`.
 
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`

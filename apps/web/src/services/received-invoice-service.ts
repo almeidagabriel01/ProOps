@@ -76,6 +76,18 @@ export interface SyncResult {
   applied: number;
 }
 
+/** Despesa já existente que se parece com esta nota. */
+export interface DuplicateCandidate {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+}
+
+export type LaunchResult =
+  | { outcome: "created"; invoice: ReceivedInvoice; transactionId: string }
+  | { outcome: "already_launched"; transactionId: string };
+
 export const ReceivedInvoiceService = {
   list: (params?: { limit?: number }) => {
     const query = params?.limit ? `?limit=${params.limit}` : "";
@@ -90,6 +102,20 @@ export const ReceivedInvoiceService = {
 
   get: (chave: string) =>
     callApi<ReceivedInvoice>(`/v1/fiscal/received-invoices/${chave}`, "GET"),
+
+  /**
+   * Transforma a nota em despesa.
+   *
+   * Responde 409 com `candidates` quando já existe despesa parecida no período
+   * — aviso, não bloqueio: reenviar com `force` prossegue. Quem compra costuma
+   * já ter lançado a compra à mão, e duplicar suja o saldo da carteira.
+   */
+  launch: (chave: string, options?: { force?: boolean; wallet?: string }) =>
+    callApi<LaunchResult>(
+      `/v1/fiscal/received-invoices/${chave}/lancamento`,
+      "POST",
+      options ?? {},
+    ),
 
   manifest: (chave: string, tipo: ManifestationType, justificativa?: string) =>
     callApi<ReceivedInvoice>(
