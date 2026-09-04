@@ -199,9 +199,20 @@ export function useGooglePicker(): UseGooglePickerResult {
           resolve(first ? { id: first.id, name: first.name } : null);
         });
         builder.build().setVisible(true);
+        /**
+         * O carregamento termina AQUI, e não quando o usuário escolhe.
+         *
+         * O Picker é um modal do Google: quando ele falha — chave de API
+         * recusada, sessão ausente —, nenhum callback é disparado, e a promise
+         * ficaria pendente para sempre. Amarrar o estado de "abrindo" à escolha
+         * deixava o botão travado e sem explicação; amarrá-lo à exibição do
+         * modal descreve o que realmente estava acontecendo.
+         */
+        setIsOpening(false);
       });
-    } finally {
+    } catch (error) {
       setIsOpening(false);
+      throw error;
     }
   }, [clientId, apiKey, isConfigured]);
 
