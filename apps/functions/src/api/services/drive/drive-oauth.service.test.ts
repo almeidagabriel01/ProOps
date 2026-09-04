@@ -28,6 +28,7 @@ jest.mock("../../../lib/frontend-app-url", () => ({
 import {
   consumeOAuthState,
   GOOGLE_DRIVE_SCOPES,
+  resolveDriveAppOrigin,
   resolveDriveRedirectUri,
 } from "./drive-oauth.service";
 
@@ -110,5 +111,30 @@ describe("resolveDriveRedirectUri", () => {
     process.env.GOOGLE_DRIVE_REDIRECT_URI = "https://outro/callback";
 
     expect(resolveDriveRedirectUri()).toBe("https://outro/callback");
+  });
+});
+
+describe("resolveDriveAppOrigin", () => {
+  /**
+   * Onde o navegador e devolvido DEPOIS do consentimento. Tem que ser a mesma
+   * origem do `redirect_uri`: quando a sobrescrita existe — testar local contra
+   * o backend implantado —, a origem de `APP_URL` aponta para outro ambiente, e
+   * o usuario terminava o OAuth num app diferente daquele em que comecou.
+   */
+  it("segue a origem da sobrescrita, e nao a de APP_URL", () => {
+    process.env.GOOGLE_DRIVE_REDIRECT_URI =
+      "http://localhost:3000/api/backend/v1/drive/google/callback";
+
+    expect(resolveDriveAppOrigin()).toBe("http://localhost:3000");
+  });
+
+  it("cai na origem configurada quando nao ha sobrescrita", () => {
+    expect(resolveDriveAppOrigin()).toBe("https://app.exemplo.com");
+  });
+
+  it("ignora sobrescrita malformada em vez de estourar no meio do OAuth", () => {
+    process.env.GOOGLE_DRIVE_REDIRECT_URI = "nao-e-uma-url";
+
+    expect(resolveDriveAppOrigin()).toBe("https://app.exemplo.com");
   });
 });

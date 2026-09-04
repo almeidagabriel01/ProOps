@@ -15,7 +15,6 @@ import { z } from "zod";
 import { logger } from "../../lib/logger";
 import { isTenantAdminRole } from "../../lib/auth-context";
 import { hasPagePermission } from "../../lib/auth-helpers";
-import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
 import {
   consumeOAuthState,
   createDriveOAuthClient,
@@ -24,6 +23,7 @@ import {
   fetchConnectedEmail,
   getDriveIntegration,
   GOOGLE_DRIVE_SCOPES,
+  resolveDriveAppOrigin,
   saveDriveIntegration,
   saveRootFolder,
 } from "../services/drive/drive-oauth.service";
@@ -71,9 +71,11 @@ function canManageIntegration(req: Request): boolean {
 }
 
 function buildRedirectUrl(status: "connected" | "error", reason?: string): string {
-  // A origem e sempre a configurada (APP_URL), nunca o host da request — que
-  // um atacante pode forjar para influenciar o destino do redirect.
-  const url = new URL("/settings/drive", resolveFrontendAppOrigin());
+  // Origem configurada, NUNCA o host da request — que um atacante pode forjar
+  // para influenciar o destino do redirect. E a mesma origem do `redirect_uri`:
+  // usar a de `APP_URL` jogava quem testa local contra o backend implantado
+  // para fora da aplicacao onde comecou.
+  const url = new URL("/settings/drive", resolveDriveAppOrigin());
   url.searchParams.set("googleDrive", status);
   if (reason) {
     url.searchParams.set("reason", reason);
@@ -140,6 +142,13 @@ export async function handleDriveCallback(req: Request, res: Response) {
   try {
     const consumed = await consumeOAuthState(state);
     if ("error" in consumed) {
+      // O `state` e de uso unico, entao a causa mais comum de nao encontra-lo e
+      // o callback ter rodado duas vezes (refresh na aba, botao voltar) — a
+      // primeira ja gravou a integracao. Sem este log, os dois casos (replay
+      // acidental e tentativa de CSRF) sao indistinguiveis depois do fato.
+      logger.warn("Callback do Drive com state nao aproveitavel", {
+        motivo: consumed.error,
+      });
       return res.redirect(buildRedirectUrl("error", consumed.error));
     }
 

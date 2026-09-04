@@ -39,7 +39,11 @@ import { useGooglePicker } from "@/hooks/use-google-picker";
 /** Motivos que o callback do OAuth devolve na URL. */
 const REASON_MESSAGES: Record<string, string> = {
   access_denied: "Você recusou o acesso ao Google Drive.",
-  invalid_state: "A sessão de autorização expirou. Tente conectar de novo.",
+  // O `state` é de uso único: se a página do callback for recarregada, a
+  // segunda passagem cai aqui mesmo tendo a primeira dado certo. Mandar
+  // "tente de novo" faria reconectar por cima de uma conexão que já existe.
+  invalid_state:
+    "Não foi possível concluir a autorização. Se você recarregou a página, recarregue esta tela — a conexão pode já ter sido salva.",
   expired_state: "A sessão de autorização expirou. Tente conectar de novo.",
   missing_refresh_token:
     "O Google não devolveu a autorização de longo prazo. Tente de novo e mantenha a permissão marcada.",

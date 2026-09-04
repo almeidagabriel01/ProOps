@@ -106,6 +106,27 @@ export function resolveDriveRedirectUri(): string {
   return `${resolveFrontendAppOrigin()}/api/backend/v1/drive/google/callback`;
 }
 
+/**
+ * Origem do app para ONDE devolver o navegador depois do OAuth.
+ *
+ * Precisa ser a mesma origem do `redirect_uri`, e nao a derivada de `APP_URL`:
+ * quando a sobrescrita esta definida — o caso de testar localmente contra o
+ * backend implantado —, `resolveFrontendAppOrigin()` aponta para outro
+ * ambiente, e o usuario terminava o consentimento sendo jogado para fora da
+ * aplicacao onde comecou.
+ */
+export function resolveDriveAppOrigin(): string {
+  const configured = String(process.env.GOOGLE_DRIVE_REDIRECT_URI || "").trim();
+  if (configured) {
+    try {
+      return new URL(configured).origin;
+    } catch {
+      // URI malformada: cair no default e melhor que estourar no meio do OAuth.
+    }
+  }
+  return resolveFrontendAppOrigin();
+}
+
 export async function createDriveOAuthClient() {
   const clientId = String(process.env.GOOGLE_CALENDAR_CLIENT_ID || "").trim();
   const clientSecret = String(
