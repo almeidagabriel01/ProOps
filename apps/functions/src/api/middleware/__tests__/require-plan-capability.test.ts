@@ -141,6 +141,20 @@ describe("requirePlanCapability", () => {
         }),
       );
     });
+
+    it("diz tambem qual plano o BACKEND resolveu", async () => {
+      // Sem isto, "plano insuficiente" e "dado desatualizado" produzem a mesma
+      // resposta — e as duas exigem acoes opostas. O caso real: a tela mostrava
+      // Enterprise (lido de `users/{uid}.planId`) e o gate resolvia outro tier
+      // (de `tenants/{id}.plan`), sem nada na resposta que revelasse a
+      // divergencia.
+      givenTenant("pro");
+      const ctx = buildReqRes();
+      await run("fiscal", ctx);
+      expect(ctx.json).toHaveBeenCalledWith(
+        expect.objectContaining({ currentPlan: "pro", requiredPlan: "enterprise" }),
+      );
+    });
   });
 
   describe("escapes", () => {

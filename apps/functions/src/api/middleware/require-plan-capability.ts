@@ -150,6 +150,9 @@ export function requirePlanCapability(capability: PlanCapabilityKey) {
 
     if (mode === "monitor") {
       logger.warn("plan_capability_would_block", {
+        // O tier resolvido e o dado que a telemetria de `monitor` precisa: sem
+        // ele, "quem seria bloqueado" nao diz se e plano insuficiente ou dado
+        // divergente, e as duas exigem acoes opostas.
         tenantId,
         uid: user?.uid,
         capability,
@@ -192,11 +195,18 @@ export function requirePlanCapability(capability: PlanCapabilityKey) {
       }),
     ).catch(() => undefined);
 
+    // `currentPlan` e o tier RESOLVIDO pelo backend, nao o que a tela mostra.
+    // Sem ele a resposta diz o que voce precisa e cala o que o sistema acha que
+    // voce tem — e as duas causas viram a mesma mensagem: plano realmente
+    // insuficiente, ou `tenants/{id}.plan` desatualizado enquanto o frontend le
+    // `users/{uid}.planId` e mostra outro. Um Enterprise barrado no modulo
+    // Enterprise nao tinha como ser distinguido de um gate quebrado.
     res.status(402).json({
       message: buildCapabilityDeniedMessage(capability),
       code: "PLAN_CAPABILITY_REQUIRED",
       capability,
       requiredPlan: minimumTierForCapability(capability),
+      currentPlan: tier,
     });
   };
 }
