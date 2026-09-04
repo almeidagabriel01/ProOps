@@ -63,6 +63,7 @@ export interface FiscalSettingsDocument {
   habilitaNfse: boolean;
   /** Recepcao de notas de entrada. Desligada por padrao — consome pacote. */
   habilitaManifestacao?: boolean;
+  dataInicioRecebimento?: string;
   padraoNfse?: FiscalNfsePadrao;
   regimeApuracaoSimplesNacional?: 1 | 2 | 3;
   /** `pTotTribSN` — alíquota efetiva do DAS, exigida de ME/EPP. */
@@ -139,6 +140,9 @@ export interface FiscalSettingsPublic {
   habilitaNfe?: boolean;
   habilitaNfse?: boolean;
   habilitaManifestacao?: boolean;
+  dataInicioRecebimento?: string;
+  /** Derivado: o provedor ja recebeu a data e nao aceita mais altera-la. */
+  dataInicioRecebimentoBloqueada?: boolean;
   padraoNfse?: FiscalNfsePadrao;
   regimeApuracaoSimplesNacional?: 1 | 2 | 3;
   /** `pTotTribSN` — alíquota efetiva do DAS, exigida de ME/EPP. */
@@ -204,6 +208,14 @@ export function toPublicSettings(
     habilitaNfe: doc.habilitaNfe,
     habilitaNfse: doc.habilitaNfse,
     habilitaManifestacao: doc.habilitaManifestacao === true,
+    dataInicioRecebimento: doc.dataInicioRecebimento,
+    // Derivado aqui, e não na tela, para a regra de congelamento existir num
+    // lugar só — a mesma condição que `saveFiscalSettings` usa para ignorar a
+    // entrada. Duas cópias divergiriam e a tela ofereceria editar o que o
+    // provedor já recusa.
+    dataInicioRecebimentoBloqueada: Boolean(
+      doc.dataInicioRecebimento && doc.providerIssuerId,
+    ),
     padraoNfse: doc.padraoNfse === "municipal" ? "municipal" : "nacional",
     autoIssueRule: doc.autoIssueRule,
     certificadoArmazenado: Boolean(doc.certificadoSenhaEnc),
@@ -301,6 +313,23 @@ export async function saveFiscalSettings(
   const cnpjNormalizado = String(input.cnpj || "").replace(/\D/g, "");
   const trocouDeEmpresa = Boolean(existing) && existing?.cnpj !== cnpjNormalizado;
 
+  /**
+   * A data de início de recebimento é **irreversível no provedor**: uma vez
+   * enviada, ele não aceita alterá-la. Guardar aqui um valor diferente do que
+   * está lá criaria a pior versão do problema — a tela mostraria uma data, a
+   * cobrança seguiria outra, e nada denunciaria a diferença.
+   *
+   * Por isso ela congela quando a empresa já existe no provedor
+   * (`providerIssuerId`), não no primeiro save: antes de enviar o certificado
+   * nada foi comunicado, e um erro de digitação ainda tem conserto.
+   */
+  const jaEnviadaAoProvedor = Boolean(
+    existing?.dataInicioRecebimento && existing?.providerIssuerId,
+  );
+  const dataInicioRecebimentoFinal = jaEnviadaAoProvedor
+    ? undefined // no array `optional`, undefined = mantém o que está gravado
+    : input.dataInicioRecebimento;
+
   const payload: Record<string, unknown> = {
     tenantId,
     provider: input.provider ?? existing?.provider ?? "focus",
@@ -339,6 +368,7 @@ export async function saveFiscalSettings(
     ["certificadoValidade", input.certificadoValidade],
     ["providerIssuerId", input.providerIssuerId],
     ["defaultNaturezaOperacao", input.defaultNaturezaOperacao],
+    ["dataInicioRecebimento", dataInicioRecebimentoFinal],
   ];
   for (const [key, value] of optional) {
     // `undefined` means "not supplied, keep what is stored"; an empty string
@@ -459,6 +489,7 @@ export function buildIssuerConfig(
     habilitaNfe: settings.habilitaNfe,
     habilitaNfse: settings.habilitaNfse,
     habilitaManifestacao: settings.habilitaManifestacao === true,
+    dataInicioRecebimento: settings.dataInicioRecebimento,
     padraoNfse: settings.padraoNfse === "municipal" ? "municipal" : "nacional",
     // Sem isto o campo nunca chega ao payload e o XSD do Ambiente Nacional
     // rejeita a DPS por `regTrib` sem filho.

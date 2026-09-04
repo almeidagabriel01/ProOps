@@ -150,6 +150,7 @@ export type PlanFeatures = {
   hasKanban: boolean; // CRM Kanban (Enterprise ou add-on de CRM)
   hasFiscal: boolean; // Notas Fiscais (Enterprise)
   hasCalendarSync: boolean; // Sincronia com o Google Agenda
+  hasDriveSync: boolean; // Proposta entregue no Google Drive do cliente
   hasWhatsApp: boolean; // Bot do WhatsApp (Enterprise)
   canCustomizeTheme: boolean; // Can change colors/branding
   canEditPdfSections: boolean; // Editor de PDF avançado

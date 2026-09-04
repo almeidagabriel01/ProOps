@@ -610,6 +610,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Integracao com o Google Drive. Mesmo molde de calendar_integrations, pelo
+    // mesmo motivo: o documento guarda um refresh token do Google cifrado em
+    // KMS. Nem leitura pelo client — o tenant consulta o estado da conexao pela
+    // API (`GET /v1/drive/google/status`), que devolve so e-mail conectado e
+    // nome da pasta, nunca o token.
+    match /google_drive_integrations/{tenantId} {
+      allow read, write: if false;
+    }
+
+    match /drive_oauth_states/{stateId} {
+      allow read, write: if false;
+    }
+
     // Configuracao fiscal do emitente (CNPJ, IE/IM, regime, serie/numeracao e a
     // senha do certificado A1 cifrada em KMS). Colecao propria, e nao um map em
     // tenants/{id}, porque aquele doc e legivel por qualquer membro do tenant e

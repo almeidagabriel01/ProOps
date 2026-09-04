@@ -321,6 +321,14 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   notificacao escutando no outro — as notas voltariam a depender do cron, sem erro e sem
   explicacao. Best-effort e isolado num try/catch proprio: o ambiente JA foi gravado quando
   o registro roda, e deixar a excecao escapar devolveria erro para uma troca que aconteceu.
+- **"Ja existe um gatilho para este evento, empresa e url" NAO e falha.** O Focus
+  registra por (CNPJ, evento, URL) e recusa duplicata — se ele diz que ja existe, o
+  gatilho **esta no ar com a URL que queremos**. Tratar como erro mostrava
+  "Notificacao automatica nao registrada" sobre uma integracao funcionando, com um
+  botao "Tentar de novo" que nunca resolveria: cada tentativa recria a mesma
+  duplicata e recebe a mesma recusa. `isDuplicateWebhookError` conta como
+  registrado. Acontece quando o `reconcile` nao apagou o hook antigo — `listWebhooks`
+  falhou (o catch de la so registra warning) ou devolveu a lista de outro ambiente.
 - **Falha de registro de gatilho e visivel na UI** (`webhookStatus` em `fiscal_settings`,
   exibido no card fiscal) com botao de reenviar (`POST /v1/fiscal/webhooks/retry`). Antes o
   status era gravado e nunca mostrado, e a unica forma de repetir o registro era reenviar o
@@ -393,10 +401,37 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   enviado como `codigo_nbs` quando o servico tem `nbs`). No DANFSe v2.0 (NT 008/2026) o
   bloco de valores tem TRES linhas — "Valor Liquido da NFS-e", "Total do IBS/CBS" e "Valor
   Liquido da NFS-e + IBS/CBS" — e a NT manda preencher com traço o que nao vem no XML. A
-  terceira linha e um TOTAL A PAGAR, nao um valor de imposto: com IBS/CBS ausente ela
-  repete o valor liquido, e vir zerada e que estaria errado. Nada disso e configuravel do
-  nosso lado — nao enviamos campo de IBS/CBS, e o DANFSe e renderizado pelo Ambiente
-  Nacional.
+  terceira linha e um TOTAL A PAGAR, nao um valor de imposto.
+- **O DANFSe NAO e mais gerado pelo Ambiente Nacional.** A API nacional de geracao foi
+  suspensa em **03/08/2026** (NT 008/2026): desde entao cada sistema emissor renderiza o
+  proprio PDF a partir do XML. O PDF que baixamos e **do Focus**; o que o contador ve no
+  portal e do emissor web. Dois renderizadores lendo o mesmo XML podem divergir num campo
+  CALCULADO — e divergem: com o grupo IBSCBS ausente, o portal zera
+  "Valor Liquido da NFS-e + IBS/CBS" e o Focus repete o valor liquido. **O XML e o
+  documento que vale; o DANFSe e representacao.**
+- **O Focus confirmou que a divergencia do DANFSe e de RENDERIZADOR, e que ela se
+  resolve sozinha** (suporte, 2026-09-04): o DANFSe deles segue o **leiaute 1.01**, em que
+  informar IBS/CBS e obrigatorio, entao a linha "Valor Liquido da NFS-e + IBS/CBS" vem
+  preenchida; o PDF do ambiente nacional ainda esta no leiaute antigo porque a Receita
+  **prorrogou os novos campos para 01/10**. Em "Total do IBS/CBS" eles imprimem "-" porque
+  os valores *nao existem* na nota — que e diferente de existirem valendo zero, exatamente
+  o que a NT 008/2026 manda. Quando o ambiente nacional atualizar o PDF, o campo passa a
+  ser preenchido pelo `vTotNF` e os dois espelhos ficam iguais. **Nada a mudar no nosso
+  codigo**: a nota esta correta, e a terceira linha e um TOTAL A PAGAR, nao um imposto.
+- **01/10/2026 e data de RECHECAGEM.** O `vTotNF` que igualaria os dois espelhos so passa
+  a existir quando os grupos de IBS/CBS forem enviados. Fica em aberto se, a partir dessa
+  data, a DPS passa a exigir o grupo de emitente do **Simples (ME/EPP, opcao 3)** — o que
+  esta documentado aqui e que para Simples/MEI a obrigatoriedade comeca em **01/01/2027**,
+  e as duas datas nao podem ser confundidas. Confirmar antes de 01/10: uma exigencia nova
+  sem o grupo vira rejeicao em toda NFS-e.
+- **Existe grupo IBSCBS na DPS e nos NAO o enviamos** — `ibs_cbs_situacao_tributaria`
+  (CST) e `ibs_cbs_classificacao_tributaria` (cClassTrib) no Focus, mais `regApIBSCBSSN`
+  para o Simples na NT 009. Na DPS so se declara a SITUACAO; aliquota e valor sao
+  calculados pelo Ambiente Nacional e voltam na nota autorizada. A validacao de
+  obrigatoriedade esta suspensa (NT 004 v2.00) e para Simples/MEI a regra so vale em
+  **01/01/2027** — por isso a nota passou sem o grupo. **Nao chutar CST/cClassTrib:** sao
+  codigos de classificacao fiscal, e um valor errado num documento fiscal e pior que a
+  ausencia. Os codigos tem zeros a esquerda significativos (`000001` != `1`).
 - **DANFE e XML sao espelhados no nosso Storage** (`tenants/{id}/fiscal/{invoiceId}/`) assim
   que a nota e autorizada. Nao e conveniencia: guarda legal de **5 anos + ano corrente**
   (Ajuste SINIEF 07/2005), e depender do link do provedor deixaria o acervo do cliente fora
@@ -406,6 +441,68 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   `fiscal/` ao client e `application/xml` nem esta na allowlist de content-type.
 - **Lancamento avulso nao emite** — sem proposta vinculada nao ha itens, e o sistema
   falha com `LANCAMENTO_SEM_PROPOSTA` em vez de inventar uma linha.
+- **A CC-e e CUMULATIVA: a ultima sobrescreve as anteriores perante o fisco.** Cada nova
+  carta precisa repetir tudo o que ainda vale — mandar so a novidade apaga a correcao
+  anterior, sem erro nenhum, e ninguem descobre antes de uma fiscalizacao. Por isso
+  `correctInvoice` **persiste** o texto em `InvoiceDocument.correcoes` (so DEPOIS de o
+  fisco aceitar) e o dialogo abre pre-preenchido com a ultima. Limite de **20** eventos
+  por NF-e; passar disso e a rejeicao **594**, entao a UI barra antes de gastar a chamada.
+- **Texto livre em documento fiscal nao aceita Unicode inteiro.** O XSD da NF-e usa o
+  padrao `[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}` — **U+0020 a U+00FF**, sem espaco na
+  primeira nem na ultima posicao. Latin-1 acentuado passa (`ç`, `é`, `ã`); o que nao passa
+  e o que teclado e editor produzem sozinhos: travessao `—`, aspas curvas, reticencias,
+  espaco nao separavel e **quebra de linha** (U+000A esta ABAIXO de U+0020, e o campo da
+  CC-e e um `<textarea>` de 5 linhas). A rejeicao vem da SEFAZ como erro de schema citando
+  o codepoint — mensagem que nao ajuda ninguem a entender que o problema e um traco.
+  `sanitizeFiscalText` (`fiscal-text.ts`) converte o que tem equivalente e descarta o
+  resto; **`trimmed()` de `focus-payload.ts` passa por ele**, entao descricao de item,
+  nome do destinatario e informacoes adicionais estao cobertos junto com a CC-e — o mesmo
+  defeito derrubaria uma nota inteira por causa de um produto chamado
+  "Cortina Blackout — 2,40m". Na CC-e o saneamento roda no controller **antes** de medir o
+  tamanho (o corte muda o comprimento) e de novo no service, e o texto GRAVADO e o saneado:
+  como a carta e cumulativa e o dialogo reabre pre-preenchido, guardar o texto cru
+  reenviaria o caractere recusado. Foi assim que a primeira carta real foi recusada — com
+  um travessao copiado do proprio placeholder do dialogo.
+  O front tem copia (`lib/fiscal/texto-fiscal.ts`) so para o contador e o aviso serem
+  honestos, com paridade garantida por `src/__tests__/fiscal-text-parity.test.ts`.
+- **Recusa da CC-e nao chega como erro HTTP.** Mesmo caso do cancelamento: o provedor
+  responde 200 e a recusa vem no corpo. `correctInvoice` ignorava o retorno, entao
+  "sucesso" na tela significava apenas "nao deu erro de rede" — e uma carta fantasma no
+  historico e repetida pela proxima correcao, por ser cumulativa. A checagem agora e por
+  **prova de FALHA**, nao de sucesso: `status === "rejected"` ou `rejectionMessage`
+  presentes lancam; status desconhecido segue adiante e vira `logger.warn`. Exigir um
+  status especifico de sucesso recusaria toda correcao caso o provedor mude o formato da
+  resposta.
+- **A CC-e tem documentos PROPRIOS, arquivados a parte.** `caminho_xml_carta_correcao`,
+  `caminho_pdf_carta_correcao` e `numero_carta_correcao` na resposta — nomes **confirmados
+  em dev em 2026-09-04**, com a carta trazendo numero e os dois arquivos; espelhados em
+  `tenants/{id}/fiscal/{invoiceId}/cce-{indice}.{ext}` por `archiveCorrectionDocuments`.
+  O indice e 1-based e vem da posicao no historico: a ultima prevalecer perante o fisco
+  **nao apaga** as anteriores, que foram eventos distintos com protocolo e guarda legal
+  proprios. Se a resposta vier sem os caminhos, a correcao e registrada assim mesmo (o
+  evento existe na SEFAZ de qualquer jeito) e sai um `logger.warn` com as CHAVES recebidas
+  — e o que permite descobrir o nome certo sem adivinhar e sem expor valor nenhum.
+- **Os arquivos do provedor sao PUBLICOS — nao exigem token.** O caminho vem relativo a
+  API (`caminho_xml_nota_fiscal` -> `/arquivos_development/...` em homologacao) e
+  `toAbsoluteUrl` o resolve contra a base, mas o arquivo em si abre no navegador sem
+  autenticacao nenhuma (verificado em 2026-09-04 com o XML de uma NF-e autorizada). Ou
+  seja: os botoes de PDF/XML da nota, que sao `href` direto, **funcionam** — nos dois
+  tipos de documento —, e o `download` do arquivamento nunca precisou de credencial.
+  Nao mandar token ali e deliberado: seria expor a credencial da empresa a uma URL que
+  nao a pede.
+- **O download do documento da CC-e passa pelo backend**
+  (`GET /fiscal/invoices/:id/correcoes/:indice/:kind`), lendo do NOSSO Storage via
+  `readArchivedDocument` — que ate entao era funcao orfa, sem rota. O motivo NAO e
+  autenticacao (o link do provedor funcionaria): e que o acervo tem guarda legal de 5
+  anos e nao pode depender de link de terceiro. E ler a nossa copia exige backend —
+  `storage.rules` nega a pasta `fiscal/` ao client, e `application/xml` nem esta na
+  allowlist de content-type do bucket.
+- **O que a CC-e NAO corrige** (Ajuste SINIEF 01/07): base de calculo, aliquota,
+  quantidade, valor da operacao, qualquer tributo, dado que mude remetente ou
+  destinatario, e data de emissao ou de saida. Escrever algo assim **nao da erro** — gera
+  uma carta registrada e inutil, com falsa sensacao de resolvido. O dialogo diz isso antes
+  do campo de texto. So NF-e tem CC-e; na NFS-e o caminho e cancelar e substituir, e a
+  regra e de cada prefeitura.
 - **Cancelamento recusado LANCA, nao passa em silencio.** O provedor responde **200 mesmo
   quando o fisco recusa** — o corpo traz `erro_cancelamento` e a nota continua autorizada.
   Sem checar `result.status !== "cancelled"`, o resultado caia em `error`, `canApplyStatus`
@@ -447,7 +544,46 @@ permitimos a manifestacao.
   da empresa no Focus). Nasce **desligada** porque **cada nota recebida consome uma unidade
   do pacote mensal** — a regra do Focus e "cada nota emitida OU RECEBIDA conta como uma
   unidade". O campo e enviado sempre, inclusive `false`, para o cadastro nao precisar ser
-  refeito quando a recepcao for ligada.
+  refeito quando a recepcao for ligada. **Ate 2026-09-03 o formulario nao mandava esse
+  campo**, entao o modulo inteiro era inalcancavel: backend pronto, cron rodando, colecoes
+  criadas, e nenhuma forma de ligar. O mapeamento formulario -> payload virou funcao pura
+  (`lib/fiscal/settings-payload.ts`) justamente porque a falha dele e silenciosa — campo
+  que nao entra ali some sem erro em lugar nenhum.
+- **"Data de inicio de recebimento" e CONTROLE DE CUSTO, e e IRREVERSIVEL.** Tooltip do
+  painel do Focus, verbatim: *"notas com data de emissao anterior a esta data serao
+  descartadas e voce so sera cobrado pelas notas posteriores. Ao deixar em branco, iremos
+  recuperar todas as notas que estiverem disponiveis. Apos alterado, este campo nao podera
+  ser modificado."* Ou seja: **em branco, a primeira sincronizacao puxa todo o historico
+  disponivel e cobra por nota**. O campo e `data_inicio_recebimento_nfe`
+  (irmaos: `_cte`, `_nfsen`).
+  O **cliente nao tem painel do Focus** — a conta e da ProOps, as empresas sao cadastradas
+  sob ela. Entao deixar isso como operacao manual nossa significaria que todo tenant que
+  ligasse a recepcao ficaria no escuro sobre de quando as notas vem, com o pior default
+  possivel. O campo esta em `/settings/fiscal`, aparece com a recepcao ligada, **sugere
+  hoje** e diz o custo de recuar (traz o historico do fornecedor — util pelos NCM — mas
+  cada nota trazida consome uma unidade do pacote).
+- **A data CONGELA quando a empresa ja existe no provedor** (`providerIssuerId`), nao no
+  primeiro salvamento: antes de enviar o certificado nada foi comunicado e um erro de
+  digitacao ainda tem conserto. Depois disso `saveFiscalSettings` ignora a entrada e a tela
+  mostra o campo travado — guardar aqui um valor diferente do que esta la seria a pior
+  versao do problema: a tela mostrando uma data, a cobranca seguindo outra, e nada
+  denunciando. A condicao e derivada no backend (`dataInicioRecebimentoBloqueada` na view
+  publica) para nao existir uma segunda copia da regra na tela.
+  Guards: `fiscal-settings.data-recebimento.test.ts` e
+  `fiscal-settings-card.recebimento.test.tsx`.
+- **A recepcao e ligada nos DOIS ambientes.** O provedor tem
+  `habilita_manifestacao` **e** `habilita_manifestacao_homologacao`, do mesmo jeito que
+  separa `habilita_nfsen_producao` / `_homologacao`. Ate 2026-09-04 so a de producao era
+  enviada, entao um emitente em homologacao ligava a recepcao e nao recebia nada — sem erro
+  em lugar nenhum.
+- **A UI vive como ABA da tela de notas** (`/invoices`, aba "Recebidas"), nao numa rota
+  propria: sao as duas metades do mesmo modulo e compartilham o `pageId` "invoices" e o
+  `requirePlanCapability("fiscal")`. O vocabulario e que muda — aqui nao ha numeracao
+  nossa, nada e assinado por nos e nao existe cancelamento.
+- **O dialogo de manifestacao descreve a CONSEQUENCIA, nao o termo tecnico** ("Confirmo a
+  compra", nao "ciencia da operacao"): quem instala automacao nao sabe o jargao mas sabe
+  dizer se comprou. Nada vem pre-selecionado e a escolha e zerada ao abrir para outra nota
+  — herdar seria o caminho mais curto para manifestar a nota errada.
 - **Sincronizacao incremental por `versao`.** Cada nota recebida tem um campo `versao`, unico
   por CNPJ e incrementado a cada alteracao (cancelamento, carta de correcao). O cursor fica em
   `received_invoice_cursors/{tenantId}` e **so avanca depois da gravacao** — se o processo
@@ -465,6 +601,160 @@ permitimos a manifestacao.
   emissao precisa.
 - Cron `syncReceivedInvoices` roda **de hora em hora**, nao a cada 15 min como o de emissao:
   nota de entrada nao tem urgencia de segundos, o destinatario tem dias para se manifestar.
+- **O detalhe da nota mostra a CHAVE DE ACESSO**, nao so valor e fornecedor. E com
+  ela que se consulta a nota no portal da Receita, e e o que o contador pede — sem
+  exibir, o dado existe no nosso banco e fica inalcancavel para quem precisa dele. O
+  dialogo abre em TODA nota, inclusive antes da manifestacao: ali ainda nao ha itens,
+  e o texto explica que o detalhamento so vem depois da confirmacao (etapa do
+  processo, nao falta de dado).
+- **Testar a tela em dev sem fornecedor:**
+  `npx tsx src/scripts/seed-received-invoices.ts --tenant=<id>` cria 4 notas
+  ficticias (resumo sem resposta, confirmada com itens e NCM, so ciencia,
+  cancelada). Recusa rodar em producao; `--clean` remove so o que ele criou.
+  Chaves comecam com "99", que nao e UF nenhuma, entao nao colidem com nota real.
+  **Nao cobre a manifestacao** — ela faz POST no provedor e seria recusada para
+  uma chave inexistente; o comportamento de interface dela esta em
+  `manifest-invoice-dialog.test.tsx`. Cobre lista, itens/NCM, lancamento, aviso
+  de duplicata e o estado "Lancada", que sao caminhos 100% nossos.
+- **A nota vira despesa sob CLIQUE, nunca sozinha**
+  (`POST /fiscal/received-invoices/:chave/lancamento`). Quem compra costuma **ja ter
+  lancado a compra a mao** quando pagou o fornecedor, e um segundo lancamento nao e um
+  registro a mais — e o saldo da carteira errado, que so aparece na conciliacao semanas
+  depois. Por isso nao ha gatilho automatico nem configuracao para ligar um.
+- **Duas guardas distintas, com desfechos distintos:**
+  - `transactionId` ja gravado na nota => `already_launched`, devolve o id. Uma nota gera
+    UM lancamento; dois cliques seguidos ou dois usuarios na mesma tela nao duplicam.
+  - Despesa de valor equivalente na janela de **45 dias** => `needs_confirmation` com os
+    candidatos, HTTP **409**. A UI **avisa e deixa seguir** (`force`): comprar duas vezes o
+    mesmo valor do mesmo fornecedor e comum, e bloquear seria pior que avisar.
+- **Intervalo sem `orderBy` = ASC, e o indice do projeto e DESC.** A consulta de
+  duplicatas usa `where(date >=) + where(date <=)`; sem `orderBy` explicito o Firestore
+  assume ASC e pede um indice NOVO, enquanto `(tenantId, type, date DESC)` ja existe.
+  O sintoma so aparece em runtime (`FAILED_PRECONDITION`), no primeiro clique de alguem
+  — foi assim no primeiro "Lancar". Guard: `received-invoice-transaction.index.test.ts`
+  grava a cadeia que o servico monta e confere contra `firestore.indexes.json`, direcao
+  inclusive. **Reusar indice existente e sempre mais barato que declarar um novo**:
+  indice novo custa build, armazenamento e um deploy que ninguem lembra de fazer.
+- **A busca por duplicata casa por VALOR e periodo, nao por fornecedor.** O lancamento
+  manual raramente traz a razao social — quem digita escreve "material obra" ou o apelido.
+  Casar por nome nao acharia quase nada e daria a falsa sensacao de que nao ha duplicata.
+  A janela e larga porque o lancamento manual costuma ser feito no dia do PAGAMENTO, nao
+  no da emissao: boleto de fornecedor vence em 28 ou 30 dias. Tolerancia de 2 centavos —
+  quem digita a mao arredonda. Usa o indice `(tenantId, type, date)`, que ja existia.
+- **O lancamento passa pelo `TransactionService`, nao escreve o doc direto**: e ele que
+  valida a permissao financeira, ajusta saldo de carteira em transacao atomica e dispara o
+  trigger de totais. Escrever na mao pularia os tres.
+- **Nota cancelada pelo fornecedor nao vira despesa** — documento sem validade nao gera
+  obrigacao financeira.
+- O botao de uma nota ja lancada **vira atalho para a despesa**, nao some: sumir seria a
+  pessoa procurando onde o lancamento foi parar. Guards:
+  `received-invoice-transaction.test.ts` e `launch-received-invoice-button.test.tsx`.
+
+### Integracao com o Google Drive
+
+Entrega a proposta na pasta do cliente, no Drive DO TENANT. **So de ida** — nada e lido
+de la. Nasceu de um pedido de cliente cuja dor era "nao manter duas organizacoes": ele ja
+guarda projeto, memorial e planta numa pasta por cliente, e so faltava a proposta gerada
+pelo ERP chegar la sem baixar e subir a mao.
+
+- **Consentimento SEPARADO do Google Agenda**, com o MESMO app OAuth. O refresh token vale
+  para os escopos concedidos quando ele nasceu, entao acrescentar `drive.file` a lista do
+  Calendar invalidaria todo consentimento existente — cada cliente com a Agenda conectada
+  passaria a receber "insufficient authentication scopes" ate reconectar. Colecoes proprias
+  (`google_drive_integrations`, `drive_oauth_states`), DENY nas rules, refresh token cifrado
+  com a MESMA chave KMS do Calendar (`CALENDAR_TOKEN`): e a mesma classe de segredo, e uma
+  chave propria exigiria provisionamento manual sem separar risco de verdade.
+- **Escopo `drive.file`, jamais `drive`/`drive.readonly`.** O Google classifica `drive.file`
+  como **nao sensivel**; os amplos sao **restritos** e disparam o assessment CASA, refeito a
+  cada 12 meses enquanto o app existir. A consequencia de projeto: **nao conseguimos listar
+  as pastas do usuario** — so o que nos mesmos criamos.
+- **Criar a pasta raiz e o caminho PADRAO; o Google Picker e opcional.** O Picker era a
+  forma "correta" de apontar uma pasta existente, mas cobra API key propria, Picker API
+  habilitada, popup e cookies de terceiros — e falha de formas que dependem do NAVEGADOR DO
+  CLIENTE (no Brave ele abre em janela separada e o retorno nunca chega). Criar nao e
+  substituto pior: no `drive.file` o acesso segue o ARQUIVO, nao o caminho, entao o usuario
+  **move a pasta para dentro da estrutura que ja tem**, renomeia e compartilha, e continuamos
+  enxergando ela. O botao do Picker some sozinho quando as `NEXT_PUBLIC_*` faltam — sem elas
+  o modulo segue utilizavel em vez de ficar bloqueado.
+- **A API key do Picker NAO pode ter restricao por referenciador HTTP.** A validacao roda
+  dentro do iframe do `docs.google.com`, entao o referenciador visto pelo Google e o dele —
+  qualquer padrao com a origem do app da "The API developer key is invalid", num popup fora
+  do console do navegador. A protecao correta e a restricao de API (so Picker API): a chave
+  sozinha nao le o Drive de ninguem, porque toda operacao real exige o token OAuth.
+- **O token do Picker e pedido pelo NAVEGADOR** (Google Identity Services), nao cunhado pelo
+  backend a partir do refresh token guardado. Seria mais simples cunhar, mas poria uma
+  credencial emitida por nos ao alcance de qualquer XSS.
+- **A entrega dispara quando a proposta SAI DO RASCUNHO** (status mapeado para `sent` ou
+  aprovado), nao "ao gerar o PDF". O PDF e gerado sob demanda, toda vez que alguem abre a
+  proposta para conferir — subir em cada geracao encheria a pasta do cliente de rascunho,
+  destruindo a organizacao que a integracao promete. Classifica pelo `mappedStatus`/
+  `category` da coluna, nunca pelo rotulo (cada empresa renomeia). Nunca lanca: o status ja
+  mudou e a venda nao pode ser desfeita porque o Google recusou um upload.
+- **Id gravado nao e prova de que a pasta existe.** `ensureClientFolder` **e**
+  `createRootFolder` conferem antes de usar (`files.get` com `trashed`) e recria se sumiu. O usuario apaga pasta no Drive,
+  inclusive sem querer — e **lixeira nao e apagada**: a API responde normalmente com
+  `trashed: true`, criar dentro dela nao da erro, e a proposta simplesmente sumia. Erro na
+  consulta conta como inutilizavel: recriar a toa incomoda menos que nao entregar.
+- **Desconectar PRESERVA a pasta raiz.** Apagar o documento inteiro parecia mais limpo e
+  estava errado: a pasta nao e segredo, e esquecer o id dela fazia reconectar criar uma
+  SEGUNDA "ProOps - Propostas" ao lado da primeira, porque o sistema nao tinha como saber
+  que ja existia uma. O que some e o refresh token. Consequencia: **"conectado" significa
+  TER TOKEN** (`refreshTokenEnc`), nunca "o documento existe" — checar a existencia do doc
+  diria conectado para quem acabou de desconectar. Se a pessoa reconectar com outra conta
+  Google, a pasta antiga fica inacessivel e e recriada; nao ha estado preso.
+  Existe tambem uma marca (`appProperties.proopsRoot`) em toda raiz, criada por nos ou
+  escolhida no Picker, como segunda defesa — mas a garantia e o documento sobreviver.
+- **Um arquivo por proposta, marcado com `appProperties.proposalId`.** O `driveFileId`
+  gravado na proposta nao basta: duas chamadas simultaneas leem o campo vazio e as duas
+  criam, deixando dois PDFs identicos na pasta sem erro em lugar nenhum (aconteceu no
+  primeiro teste real). Antes de criar, procura pela marca — `drive.file` deixa listar o que
+  o proprio app criou. **Nao casar por NOME**: duas propostas do mesmo cliente podem ter o
+  mesmo titulo e uma sobrescreveria a outra.
+- **`invalid_grant` nao e erro 500.** Acontece quando o usuario revoga o acesso na conta
+  Google, troca a senha, ou o refresh token passa 6 meses sem uso — e tentar de novo nunca
+  resolve. Responde 409 com "reconecte", marca `lastError` na integracao, e a tela de
+  configuracao avisa ANTES de a pessoa tentar usar, em vez de ela descobrir com a proposta ja
+  aprovada.
+- **`GOOGLE_DRIVE_REDIRECT_URI` e sobrescrita de ambiente.** O default deriva de `APP_URL`,
+  que **em dev e a URL de preview da Vercel, nao localhost** — conectar a partir de
+  `localhost:3000` sem essa variavel da `redirect_uri_mismatch`. `resolveDriveAppOrigin()`
+  usa a origem DELA tambem para o redirect final: sem isso o usuario terminava o
+  consentimento sendo jogado para outro ambiente.
+- **Pendencia conhecida: a mudanca de status fica LENTA** quando o PDF nao esta em cache,
+  porque a entrega (Chromium + upload) e aguardada dentro da request. Nao da para
+  dispare-e-esqueca — no Cloud Run a CPU e congelada quando a request termina. A saida
+  indicada e **Cloud Tasks** (`.claude/rules/scaling-roadmap.md`, 4.2), nao um trigger de
+  Firestore: o trigger dispararia na propria escrita da entrega (`driveFileId`), criando
+  laco, e traria Chromium para um lugar que ninguem configurou para isso.
+
+### Plano do tenant: DUAS fontes que podem divergir
+
+O backend resolve o plano por **`tenants/{id}.plan`** (depois `.planTier`, `.tier`,
+`.planId`, priceId, dono) em `tenant-plan-policy.ts`. O frontend resolve por
+**`users/{uid}.planId`** (`plan-provider.tsx`). **Sao documentos diferentes.**
+
+Os dois passam a ser escritos juntos pelo writer unico
+(`syncTenantPlanBillingSnapshot`) desde **2026-05-07 22:51 BRT** (commit `bbfd638d`).
+Toda troca de plano ANTERIOR atualizou so o doc do usuario — o do tenant ficou para
+tras.
+
+A divergencia foi **inofensiva por meses**, porque ninguem lia `tenants.plan` para
+decidir acesso a modulo. Deixou de ser quando `requirePlanCapability` entrou em
+`enforce`: o tenant de dev tinha `users.planId = "enterprise"` e
+`tenants.plan = "pro"`, entao a tela mostrava Enterprise (com "Notas Fiscais"
+listado no plano) e a API devolvia 402 — sem nada, em lugar nenhum, revelando a
+contradicao.
+
+- O 402 devolve **`currentPlan`** (o tier que o BACKEND resolveu) alem do
+  `requiredPlan`. Sem ele, "plano insuficiente" e "dado desatualizado" produzem a
+  mesma resposta, e as duas exigem acoes opostas.
+- `npx tsx src/scripts/audit-tenant-plan-drift.ts` lista as divergencias;
+  `--apply` corrige adotando o doc do USUARIO como correto. **Conferir a lista
+  antes de aplicar**: se algum tenant foi rebaixado de proposito e so o doc do
+  tenant foi atualizado, aplicar o promoveria de volta.
+- **Nao "consertar" o resolvedor para preferir o tier mais alto.** Isso liberaria
+  modulo para quem foi rebaixado. Se um dia unificar, a decisao e sobre QUAL
+  documento e autoritativo — e tem implicacao de cobranca nos dois sentidos.
 
 ### Secrets
 - Ficam APENAS em `apps/functions/.env.erp-softcode` e `apps/functions/.env.erp-softcode-prod`

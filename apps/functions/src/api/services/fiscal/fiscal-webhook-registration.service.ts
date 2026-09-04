@@ -34,6 +34,36 @@ export interface FiscalWebhookStatus {
  * Remove gatilhos que já apontam para a nossa URL antes de recriar.
  * Falha aqui é tolerada: se a listagem não veio, a criação ainda pode dar certo.
  */
+/**
+ * "Ja existe um gatilho para este evento, empresa e url" NAO e falha.
+ *
+ * O Focus registra por (CNPJ, evento, URL) e recusa duplicata. Se ele diz que
+ * ja existe, o gatilho **esta no ar com a URL que queremos** — o estado
+ * desejado foi alcancado, so nao por esta chamada. Tratar isso como erro
+ * mostrava "Notificacao automatica nao registrada" sobre uma integracao
+ * funcionando, e mandava o usuario clicar em "Tentar de novo" para sempre.
+ *
+ * Acontece quando o `reconcile` nao apagou o hook antigo: `listWebhooks` pode
+ * ter falhado (o catch de la so registra warning) ou devolvido a lista de outro
+ * ambiente. Nos dois casos o desfecho e o mesmo — e e bom.
+ */
+export function isDuplicateWebhookError(detail: {
+  codigo?: string;
+  message?: string;
+}): boolean {
+  // Separadores viram espaco: so a MENSAGEM foi observada de fato
+  // ("Ja existe um gatilho..."); o formato do `codigo` nao. Normalizar deixa
+  // `ja_existe` e `ja-existe` casarem sem inventar um valor especifico.
+  const texto = `${detail.codigo ?? ""} ${detail.message ?? ""}`
+    .toLowerCase()
+    .replace(/[_-]+/g, " ");
+  return (
+    texto.includes("já existe") ||
+    texto.includes("ja existe") ||
+    texto.includes("already exists")
+  );
+}
+
 async function reconcile(
   cnpj: string,
   event: string,
@@ -128,6 +158,18 @@ export async function registerFiscalWebhooks(params: {
       registered.push(event);
     } catch (error) {
       const detail = describeFocusError(error);
+
+      // Duplicata = o gatilho que queremos já está lá. Conta como registrado.
+      if (isDuplicateWebhookError(detail)) {
+        registered.push(event);
+        logger.info("Gatilho fiscal já existia no provedor", {
+          tenantId: params.tenantId,
+          cnpj,
+          event,
+        });
+        continue;
+      }
+
       lastError = detail.message;
       // A URL contém o segredo do tenant — nunca logar.
       logger.error("Registro de gatilho fiscal falhou", {

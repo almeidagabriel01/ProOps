@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
@@ -35,6 +36,20 @@ import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
 import { maskCep } from "@/lib/fiscal/cep";
 import { validarSerieNfse } from "@/lib/fiscal/serie-dps";
 import { Loader } from "@/components/ui/loader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  buildFiscalSettingsPayload,
+  type FiscalFormState,
+} from "@/lib/fiscal/settings-payload";
 
 /** ViaCEP devolve o código IBGE em `ibge` — é ele que a SEFAZ valida. */
 interface ViaCepResponse {
@@ -57,28 +72,7 @@ const EMPTY_ADDRESS: FiscalAddress = {
   cep: "",
 };
 
-interface FormState {
-  cnpj: string;
-  razaoSocial: string;
-  nomeFantasia: string;
-  inscricaoEstadual: string;
-  inscricaoMunicipal: string;
-  cnae: string;
-  regimeTributario: FiscalTaxRegime;
-  percentualSimplesNacional: string;
-  email: string;
-  telefone: string;
-  endereco: FiscalAddress;
-  habilitaNfe: boolean;
-  habilitaNfse: boolean;
-  padraoNfse: FiscalNfsePadrao;
-  serieNfe: string;
-  proximoNumeroNfe: string;
-  serieNfse: string;
-  proximoNumeroNfse: string;
-  certificadoValidade: string;
-  certificadoSenha: string;
-}
+type FormState = FiscalFormState;
 
 const INITIAL_FORM: FormState = {
   cnpj: "",
@@ -94,6 +88,8 @@ const INITIAL_FORM: FormState = {
   endereco: { ...EMPTY_ADDRESS },
   habilitaNfe: false,
   habilitaNfse: true,
+  habilitaManifestacao: false,
+  dataInicioRecebimento: "",
   padraoNfse: "nacional",
   serieNfe: "",
   proximoNumeroNfe: "",
@@ -102,6 +98,20 @@ const INITIAL_FORM: FormState = {
   certificadoValidade: "",
   certificadoSenha: "",
 };
+
+/**
+ * Hoje no fuso LOCAL, não em UTC.
+ *
+ * `toISOString().slice(0, 10)` adianta o dia toda noite depois das 21h no
+ * horário de Brasília — e aqui isso sugeriria uma data futura para um campo
+ * que o provedor não deixa corrigir depois.
+ */
+function hojeIso(): string {
+  const agora = new Date();
+  const mes = String(agora.getMonth() + 1).padStart(2, "0");
+  const dia = String(agora.getDate()).padStart(2, "0");
+  return `${agora.getFullYear()}-${mes}-${dia}`;
+}
 
 function digits(value: string): string {
   return value.replace(/\D/g, "");
@@ -136,6 +146,8 @@ function hydrate(settings: FiscalSettings): FormState {
     endereco: settings.endereco ?? { ...EMPTY_ADDRESS },
     habilitaNfe: settings.habilitaNfe ?? false,
     habilitaNfse: settings.habilitaNfse ?? true,
+    habilitaManifestacao: settings.habilitaManifestacao === true,
+    dataInicioRecebimento: settings.dataInicioRecebimento ?? "",
     padraoNfse: settings.padraoNfse ?? "nacional",
     serieNfe: settings.serieNfe != null ? String(settings.serieNfe) : "",
     proximoNumeroNfe:
@@ -161,9 +173,20 @@ interface FiscalSettingsCardProps {
 
 export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps) {
   const [settings, setSettings] = React.useState<FiscalSettings | null>(null);
+  const dataRecebimentoBloqueada =
+    settings?.dataInicioRecebimentoBloqueada === true;
   const [form, setForm] = React.useState<FormState>(INITIAL_FORM);
+  /**
+   * O `max` do `DatePicker` só chega ao input escondido — o calendário não o
+   * aplica, e input escondido o navegador não valida. Sem este aviso a troca
+   * pelo componente padrão teria perdido a trava em silêncio, e aqui uma data
+   * futura é permanente: o provedor não deixa corrigir depois.
+   */
+  const dataRecebimentoFutura = form.dataInicioRecebimento > hojeIso();
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDisconnecting, setIsDisconnecting] = React.useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
   const [isLookingUp, setIsLookingUp] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const [isRetryingWebhooks, setIsRetryingWebhooks] = React.useState(false);
@@ -289,39 +312,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
    * Extraído porque o envio do certificado precisa gravar os mesmos dados antes
    * de registrar a empresa — ver `handleCertificateUpload`.
    */
-  const buildSettingsPayload = () => ({
-        cnpj: digits(form.cnpj),
-        razaoSocial: form.razaoSocial.trim(),
-        nomeFantasia: form.nomeFantasia.trim(),
-        inscricaoEstadual: form.inscricaoEstadual.trim(),
-        inscricaoMunicipal: form.inscricaoMunicipal.trim(),
-        cnae: form.cnae.trim(),
-        regimeTributario: form.regimeTributario,
-        // Em branco vira undefined, nunca 0: 0% é uma alíquota válida e
-        // sairia na nota sem ninguém ter escolhido.
-        percentualTotalTributosSimplesNacional:
-          form.percentualSimplesNacional.trim() === ""
-            ? undefined
-            : Number(form.percentualSimplesNacional.replace(",", ".")),
-        email: form.email.trim(),
-        telefone: form.telefone.trim(),
-        endereco: {
-          ...form.endereco,
-          cep: digits(form.endereco.cep),
-          codigoIbge: digits(form.endereco.codigoIbge),
-          uf: form.endereco.uf.toUpperCase(),
-        },
-        habilitaNfe: form.habilitaNfe,
-        habilitaNfse: form.habilitaNfse,
-        padraoNfse: form.padraoNfse,
-        serieNfe: form.serieNfe ? Number(form.serieNfe) : undefined,
-        proximoNumeroNfe: form.proximoNumeroNfe ? Number(form.proximoNumeroNfe) : undefined,
-        serieNfse: form.serieNfse.trim(),
-        proximoNumeroNfse: form.proximoNumeroNfse
-          ? Number(form.proximoNumeroNfse)
-          : undefined,
-        certificadoSenha: form.certificadoSenha || undefined,
-  });
+  const buildSettingsPayload = () => buildFiscalSettingsPayload(form);
 
   const handleRetryWebhooks = async () => {
     setIsRetryingWebhooks(true);
@@ -337,6 +328,34 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
       toast.error(error instanceof Error ? error.message : "Não foi possível registrar.");
     } finally {
       setIsRetryingWebhooks(false);
+    }
+  };
+
+  /**
+   * Desconecta e volta o formulário ao estado inicial.
+   *
+   * Sem limpar o formulário, os campos continuariam preenchidos sobre uma
+   * configuração que já não existe — e o próximo "Salvar" recriaria tudo, menos
+   * o certificado. Um emitente meio configurado é pior que nenhum.
+   */
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      await FiscalService.disconnect();
+      setSettings(null);
+      setForm({ ...INITIAL_FORM, endereco: { ...EMPTY_ADDRESS } });
+      setConfirmDisconnect(false);
+      toast.success("Emissão desconectada.", {
+        description: "As notas já emitidas continuam disponíveis.",
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Não foi possível desconectar.",
+      );
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -836,6 +855,80 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
               </div>
             </div>
           )}
+
+          {/* Recepção fica junto da emissão porque são as duas metades do mesmo
+              módulo — mas desligada por padrão, e com o custo dito na frente:
+              cada nota recebida consome uma unidade do pacote mensal do
+              provedor, do mesmo jeito que uma emitida. Ligar isso sem saber
+              disso seria descobrir na fatura. */}
+          <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+            <div>
+              <p className="text-sm font-medium">Receber notas dos fornecedores</p>
+              <p className="text-xs text-muted-foreground">
+                Traz as notas emitidas contra o seu CNPJ e permite se manifestar
+                sobre elas. Cada nota recebida consome uma unidade do seu pacote —
+                inclusive as que seus fornecedores já emitiram antes de você ligar
+                isto.
+              </p>
+            </div>
+            <Switch
+              aria-label="Receber notas dos fornecedores"
+              checked={form.habilitaManifestacao}
+              onCheckedChange={(checked) => {
+                setField("habilitaManifestacao", checked);
+                // Hoje como padrão: em branco o provedor puxa TODO o histórico
+                // e cobra por nota. Quem quiser o histórico escolhe a data —
+                // ninguém deve pagar por ele sem ter pedido.
+                if (checked && !form.dataInicioRecebimento) {
+                  setField("dataInicioRecebimento", hojeIso());
+                }
+              }}
+            />
+          </div>
+
+          {form.habilitaManifestacao && (
+            <div className="flex flex-col gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+              <Label htmlFor="fiscal-data-inicio-recebimento">
+                Buscar notas emitidas a partir de
+              </Label>
+              <DatePicker
+                id="fiscal-data-inicio-recebimento"
+                clearable={false}
+                className="sm:max-w-[220px]"
+                value={form.dataInicioRecebimento}
+                max={hojeIso()}
+                disabled={dataRecebimentoBloqueada}
+                onChange={(e) => setField("dataInicioRecebimento", e.target.value)}
+              />
+              {dataRecebimentoFutura && (
+                <p className="text-xs text-amber-600">
+                  Data no futuro: nenhuma nota será recebida até lá — e esta
+                  escolha não poderá ser desfeita.
+                </p>
+              )}
+              {dataRecebimentoBloqueada ? (
+                <p className="text-xs text-muted-foreground">
+                  Esta data já foi registrada no provedor fiscal e não pode mais
+                  ser alterada.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Notas emitidas antes desta data são descartadas e{" "}
+                  <strong className="text-foreground">não são cobradas</strong>.
+                  Recuar a data traz o histórico do fornecedor — útil para
+                  aproveitar os NCM de compras antigas —, mas{" "}
+                  <strong className="text-foreground">
+                    cada nota trazida consome uma unidade do seu pacote
+                  </strong>
+                  . Depois de enviar o certificado,{" "}
+                  <strong className="text-foreground">
+                    esta data não pode mais ser alterada
+                  </strong>
+                  .
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -920,6 +1013,89 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
           Salvar configuração
         </Button>
       </div>
+
+      {/* `configured`, não `settings`: o GET nunca devolve null — devolve
+          `{ configured: false }` quando nada foi configurado. Testar só o
+          objeto mostraria "Desconectar" para quem nunca configurou nada, o que
+          é ruído e assusta antes da hora. */}
+      {settings?.configured && (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-base">Desconectar emissão</CardTitle>
+            <CardDescription>
+              Para parar de emitir por aqui, ou trocar o CNPJ do emitente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-xl text-sm text-muted-foreground">
+              As notas já emitidas <strong>continuam</strong> disponíveis — elas
+              têm guarda legal de 5 anos e não somem com a desconexão.
+            </p>
+            <Button
+              variant="outline"
+              className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmDisconnect(true)}
+              disabled={isDisconnecting}
+            >
+              {isDisconnecting && (
+                <Loader size="sm" variant="button" className="mr-2" />
+              )}
+              Desconectar
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <AlertDialog
+        open={confirmDisconnect}
+        onOpenChange={(open) => !isDisconnecting && setConfirmDisconnect(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desconectar a emissão de notas?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  A emissão para imediatamente. As notas já emitidas continuam
+                  aqui — guarda legal de 5 anos.
+                </p>
+                {/* Estas duas são o que dói na volta, e ninguém adivinha: a
+                    senha do certificado é cifrada em KMS e não é recuperável, e
+                    numeração errada vira rejeição por duplicidade. */}
+                <p>Para reconectar depois, será preciso:</p>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    enviar o certificado <strong>.pfx</strong> de novo, com a
+                    senha — ela não fica guardada em texto e não dá para
+                    recuperar;
+                  </li>
+                  <li>
+                    reinformar <strong>série e próximo número</strong>, e eles
+                    precisam continuar de onde pararam, senão o fisco recusa por
+                    duplicidade.
+                  </li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDisconnecting}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDisconnect();
+              }}
+              disabled={isDisconnecting}
+              className="bg-destructive hover:bg-destructive/90 gap-2"
+            >
+              {isDisconnecting && <Loader size="sm" variant="button" />}
+              Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

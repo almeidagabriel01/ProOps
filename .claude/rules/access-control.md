@@ -75,6 +75,18 @@ Uma chave nova no catálogo aparece sozinha na descrição dos planos — o que
 significa que **um limite que você aplica sem declarar ali vira cobrança
 silenciosa**, descoberta pelo cliente no 402.
 
+> **Capacidade nova só aparece na tela DEPOIS de o backend subir.** O front lê
+> as features de `getLivePlans()` → `GET /v1/stripe/plans`, e esse caminho
+> devolve a resposta do backend **sem mesclar** com a cópia local do catálogo
+> (o caminho do Firestore, em `getPlanById`, mescla — o live não). Com o backend
+> rodando código antigo, a chave nova chega ausente e o `?? false` fecha a
+> seção. Isso é o comportamento CERTO: o gate do backend também não conhece a
+> capacidade ainda, então mostrar a tela seria prometer um 402. Sintoma:
+> "Recurso Bloqueado" numa conta cujo plano claramente inclui o módulo.
+> Resolve com `npm run deploy:dev` (ou `npm run build` em `apps/functions` se
+> for emulador — ele serve o `lib/` compilado). Os planos ficam **5 min em
+> cache** no navegador depois disso.
+
 > Não digite valor de plano fora de `plan-capabilities.ts`. Dois guards falham
 > se uma cópia andar sozinha: `src/shared/__tests__/plan-capabilities.test.ts`
 > e `apps/web/src/__tests__/plan-capabilities-parity.test.ts`.

@@ -1,0 +1,97 @@
+// @vitest-environment jsdom
+/**
+ * "Pasta no Drive" no cadastro do cliente.
+ *
+ * Duas coisas aqui erram em silêncio:
+ *
+ * 1. **Abrir a aba DEPOIS do await** — o navegador só permite `window.open`
+ *    durante o gesto do usuário. Abrir depois da resposta da API é bloqueado
+ *    como popup, e o clique some sem erro nenhum.
+ * 2. **Mostrar o botão sem o plano** — ele chamaria uma rota que devolve 402,
+ *    virando uma promessa que a conta não pode cumprir.
+ */
+
+import "@testing-library/jest-dom/vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+const { getClientFolder, toastError, planLimits } = vi.hoisted(() => ({
+  getClientFolder: vi.fn(),
+  toastError: vi.fn(),
+  planLimits: { hasDriveSync: true },
+}));
+
+vi.mock("@/services/drive-service", () => ({
+  DriveService: { getClientFolder },
+}));
+vi.mock("@/lib/toast", () => ({ toast: { error: toastError, success: vi.fn() } }));
+vi.mock("@/hooks/usePlanLimits", () => ({
+  usePlanLimits: () => planLimits,
+}));
+
+import { OpenDriveFolderButton } from "../open-drive-folder-button";
+
+const botao = () => screen.getByRole("button", { name: /Pasta no Drive/ });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  planLimits.hasDriveSync = true;
+  getClientFolder.mockResolvedValue({
+    success: true,
+    folderId: "pasta-9",
+    url: "https://drive.google.com/drive/folders/pasta-9",
+  });
+});
+
+describe("OpenDriveFolderButton", () => {
+  it("não aparece sem o plano", () => {
+    // Aparecer levaria a um 402 — uma promessa que a conta não pode cumprir.
+    planLimits.hasDriveSync = false;
+    render(<OpenDriveFolderButton clientId="c1" />);
+
+    expect(screen.queryByRole("button", { name: /Pasta no Drive/ })).toBeNull();
+  });
+
+  it("abre em aba nova SEM levar a aba atual junto", async () => {
+    // `window.open` com `noopener` devolve null por especificação, mesmo
+    // abrindo a aba. Qualquer fallback baseado no retorno dispara sempre, e o
+    // resultado era abrir a aba nova E navegar a atual para o Drive.
+    const cliques: Array<{ href: string; target: string; rel: string }> = [];
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        cliques.push({ href: this.href, target: this.target, rel: this.rel });
+      });
+    const location = { href: "nao-mudou" };
+    Object.defineProperty(window, "location", { value: location, writable: true });
+
+    render(<OpenDriveFolderButton clientId="c1" />);
+    await userEvent.click(botao());
+
+    await waitFor(() => expect(cliques).toHaveLength(1));
+    expect(cliques[0]).toEqual({
+      href: "https://drive.google.com/drive/folders/pasta-9",
+      target: "_blank",
+      rel: "noopener noreferrer",
+    });
+    // A aba atual fica onde estava.
+    expect(location.href).toBe("nao-mudou");
+    clickSpy.mockRestore();
+  });
+
+  it("não abre aba nenhuma quando a API falha", async () => {
+    // Aba em branco sobrando é pior que não abrir nada.
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    getClientFolder.mockRejectedValue(new Error("Escolha a pasta do Drive."));
+
+    render(<OpenDriveFolderButton clientId="c1" />);
+    await userEvent.click(botao());
+
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(clickSpy).not.toHaveBeenCalled();
+    clickSpy.mockRestore();
+  });
+});

@@ -21,6 +21,15 @@ export interface DatePickerProps {
   className?: string;
   min?: string;
   max?: string;
+  /**
+   * Mostra o atalho "Limpar" no rodapé do calendário. Ligado por padrão.
+   *
+   * Desligue onde "sem data" não é um estado válido — ou é um estado CARO. É o
+   * caso da data de início de recebimento fiscal: em branco o provedor puxa
+   * todo o histórico de notas disponível e cobra por cada uma, e a escolha não
+   * pode ser desfeita.
+   */
+  clearable?: boolean;
 }
 
 type CalendarView = "days" | "months" | "years";
@@ -111,6 +120,7 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
       className,
       min,
       max,
+      clearable = true,
     },
     ref,
   ) => {
@@ -591,7 +601,7 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
                     >
                       Hoje
                     </button>
-                    {value && (
+                    {value && clearable && (
                       <button
                         type="button"
                         onClick={() => {

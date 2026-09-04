@@ -26,6 +26,7 @@ import { recoveryCodesRoutes } from "./routes/recovery-codes.routes";
 import { kanbanRoutes } from "./routes/kanban.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
+import { drivePublicRoutes, driveRoutes } from "./routes/drive.routes";
 import { paymentPublicRoutes } from "./routes/payment-public.routes";
 import { asaasRoutes } from "./routes/asaas.routes";
 import { fiscalRoutes } from "./routes/fiscal.routes";
@@ -372,6 +373,7 @@ app.use(
   validationRoutes,
 );
 app.use("/v1", publicGeneralLimiter, calendarPublicRoutes);
+app.use("/v1", publicGeneralLimiter, drivePublicRoutes);
 
 // Public shared links
 app.use("/v1", publicShareLimiter, sharedProposalsRoutes);
@@ -442,6 +444,7 @@ app.use("/v1/auth/recovery-codes", recoveryCodesRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);
+app.use("/v1", driveRoutes);
 app.use("/internal", internalRoutes);
 app.use("/v1/notifications", notificationsRoutes);
 app.use("/v1", asaasRoutes);

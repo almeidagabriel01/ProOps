@@ -24,6 +24,9 @@ import {
   type FiscalSettings,
 } from "@/services/fiscal-service";
 import { TestModeBanner } from "@/components/features/fiscal/test-mode-banner";
+import { CorrectInvoiceButton } from "@/components/features/fiscal/correct-invoice-button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReceivedInvoicesPanel } from "./_components/received-invoices-panel";
 import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -310,6 +313,20 @@ export default function InvoicesPage() {
                     </a>
                   </Button>
                 )}
+                {/* Só NF-e: a NFS-e não tem carta de correção — lá o caminho
+                    é cancelar e substituir, e cada prefeitura tem sua regra. */}
+                {invoice.type === "nfe" && (
+                  <CorrectInvoiceButton
+                    invoice={invoice}
+                    onCorrected={(updated) =>
+                      setInvoices((prev) =>
+                        prev.map((item) =>
+                          item.id === updated.id ? updated : item,
+                        ),
+                      )
+                    }
+                  />
+                )}
                 {canCancel && (
                   <CancelInvoiceButton
                     invoice={invoice}
@@ -402,7 +419,7 @@ export default function InvoicesPage() {
         <div>
           <h1 className="text-2xl font-bold">Notas Fiscais</h1>
           <p className="text-sm text-muted-foreground">
-            Documentos emitidos pela sua empresa.
+            Documentos emitidos pela sua empresa e recebidos dos fornecedores.
           </p>
         </div>
         <Button variant="outline" asChild>
@@ -415,6 +432,13 @@ export default function InvoicesPage() {
 
       <TestModeBanner settings={settings} onChanged={setSettings} />
 
+      <Tabs defaultValue="emitidas" className="flex flex-col gap-4">
+        <TabsList>
+          <TabsTrigger value="emitidas">Emitidas</TabsTrigger>
+          <TabsTrigger value="recebidas">Recebidas</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="emitidas" className="flex flex-col gap-4">
       {isLoading ? (
         <Card>
           <CardContent className="flex items-center justify-center py-16">
@@ -453,6 +477,16 @@ export default function InvoicesPage() {
           fisco responde.
         </p>
       )}
+        </TabsContent>
+
+        <TabsContent value="recebidas">
+          {/* O painel se carrega sozinho: montar a busca aqui faria toda visita
+              à tela de emitidas pagar por uma lista que ninguém abriu. */}
+          <ReceivedInvoicesPanel
+            enabled={settings?.habilitaManifestacao === true}
+          />
+        </TabsContent>
+      </Tabs>
     </main>
   );
 }

@@ -84,6 +84,10 @@ export interface FiscalSettings {
   endereco?: FiscalAddress;
   habilitaNfe?: boolean;
   habilitaNfse?: boolean;
+  /** Recepção de notas de ENTRADA. Nasce desligada — consome pacote do provedor. */
+  habilitaManifestacao?: boolean;
+  dataInicioRecebimento?: string;
+  dataInicioRecebimentoBloqueada?: boolean;
   padraoNfse?: FiscalNfsePadrao;
   serieNfe?: number;
   proximoNumeroNfe?: number;
@@ -114,6 +118,8 @@ export interface SaveFiscalSettingsPayload {
   endereco: FiscalAddress;
   habilitaNfe: boolean;
   habilitaNfse: boolean;
+  habilitaManifestacao?: boolean;
+  dataInicioRecebimento?: string;
   padraoNfse?: FiscalNfsePadrao;
   environment?: FiscalEnvironment;
   serieNfe?: number;
@@ -157,6 +163,29 @@ export interface FiscalGap {
   message: string;
 }
 
+/** Limites do Ajuste SINIEF 07/2005, espelhados do backend. */
+export const CORRECTION_TEXT_MIN_LENGTH = 15;
+export const CORRECTION_TEXT_MAX_LENGTH = 1000;
+/** Teto de eventos por NF-e; passar disso é a rejeição 594. */
+export const CORRECTION_MAX_COUNT = 20;
+
+/**
+ * Uma carta de correção registrada.
+ *
+ * A CC-e é cumulativa — a última prevalece perante o fisco —, mas cada uma foi
+ * um evento distinto, com protocolo e guarda legal próprios.
+ *
+ * As duas `storage*Path` não são exibidas: servem para saber SE há documento
+ * arquivado para baixar. O download passa pelo backend, nunca por esse caminho.
+ */
+export interface FiscalInvoiceCorrection {
+  texto: string;
+  registradaEm: string;
+  numero?: string;
+  storageXmlPath?: string;
+  storagePdfPath?: string;
+}
+
 export interface FiscalInvoice {
   id: string;
   tenantId: string;
@@ -176,6 +205,8 @@ export interface FiscalInvoice {
   clientName?: string;
   transactionId?: string;
   proposalId?: string;
+  /** Cartas de correção já registradas — a última é a que vale perante o fisco. */
+  correcoes?: FiscalInvoiceCorrection[];
   rejectionCode?: string;
   rejectionMessage?: string;
   createdAt: string;
@@ -258,6 +289,15 @@ export const FiscalService = {
   },
 
   /**
+   * Remove a configuração fiscal do tenant.
+   *
+   * As notas já emitidas PERMANECEM — documento fiscal tem guarda legal de 5
+   * anos e não some com a desconexão. O que se perde é o cadastro do emitente:
+   * CNPJ, série, numeração e a senha do certificado cifrada em KMS.
+   */
+  disconnect: () => callApi<{ message: string }>("/v1/fiscal/settings", "DELETE"),
+
+  /**
    * Pergunta se a nota desta proposta pode sair — sem emitir.
    *
    * Sustenta o convite ao aprovar: sem ele o modal apareceria também para quem
@@ -292,6 +332,43 @@ export const FiscalService = {
       "POST",
       {},
     ),
+
+  /**
+   * Carta de correção — só NF-e autorizada.
+   *
+   * **Cumulativa**: a última sobrescreve as anteriores perante o fisco, então o
+   * texto enviado precisa conter tudo o que ainda vale.
+   */
+  correctInvoice: (invoiceId: string, correcao: string) =>
+    callApi<FiscalInvoice>(`/v1/fiscal/invoices/${invoiceId}/correction`, "POST", {
+      correcao,
+    }),
+
+  /**
+   * Baixa o documento arquivado de uma carta de correção.
+   *
+   * Pelo BACKEND, nunca por link direto: o caminho no provedor exige o token da
+   * empresa, e `storage.rules` nega a pasta `fiscal/` ao client.
+   */
+  downloadCorrectionDocument: async (
+    invoiceId: string,
+    indice: number,
+    kind: "pdf" | "xml",
+    nomeArquivo: string,
+  ) => {
+    // Import tardio de proposito: o cliente de download inicializa o Firebase
+    // Auth no topo do modulo, e o resto deste service nao depende disso —
+    // importa-lo aqui em cima obrigaria todo consumidor (e todo teste) a
+    // carregar a init do Firebase para chamar qualquer outro metodo.
+    const { downloadPdfFromApiEndpoint } = await import(
+      "@/services/pdf/download-pdf-client"
+    );
+    return downloadPdfFromApiEndpoint({
+      endpointPath: `/v1/fiscal/invoices/${invoiceId}/correcoes/${indice}/${kind}`,
+      forceFilename: nomeArquivo,
+      requiresAuth: true,
+    });
+  },
 
   cancelInvoice: (invoiceId: string, justificativa: string) =>
     callApi<FiscalInvoice>(`/v1/fiscal/invoices/${invoiceId}/cancel`, "POST", {

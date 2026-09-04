@@ -29,6 +29,7 @@ import { FormStepCard } from "@/components/ui/form-step-card";
 import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Users, Building2, CreditCard } from "lucide-react";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { formatDocumento } from "@/lib/format-document";
+import { OpenDriveFolderButton } from "@/components/features/drive/open-drive-folder-button";
 
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
@@ -341,11 +342,14 @@ export default function EditCustomerPage() {
           icon={User}
           onBack={() => router.push("/contacts")}
           badge={
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
-            >
-              {sourceInfo.label}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
+              >
+                {sourceInfo.label}
+              </span>
+              <OpenDriveFolderButton clientId={clientId} />
+            </div>
           }
         />
 
@@ -434,11 +438,14 @@ export default function EditCustomerPage() {
         icon={User}
         onBack={() => router.push("/contacts")}
         badge={
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
-          >
-            {sourceInfo.label}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
+            >
+              {sourceInfo.label}
+            </span>
+            <OpenDriveFolderButton clientId={clientId} />
+          </div>
         }
       />
 
