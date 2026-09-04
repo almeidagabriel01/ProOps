@@ -21,8 +21,18 @@ import * as React from "react";
  * e o refresh token continua exclusivamente no servidor, cifrado em KMS.
  *
  * O `client_id` e a API key são públicos por natureza (vão no HTML). O que
- * protege a API key é a restrição por referenciador HTTP configurada no Google
- * Cloud; o que protege o client_id são as origens JavaScript autorizadas.
+ * protege o client_id são as **origens JavaScript autorizadas**.
+ *
+ * **A API key do Picker NÃO pode ter restrição por referenciador HTTP.** Parece
+ * descuido, e não é: a validação da chave acontece dentro do iframe do
+ * `docs.google.com`, então o referenciador que o Google enxerga é o dele
+ * próprio — nunca a origem do nosso app. Qualquer padrão cadastrado ali
+ * (`http://localhost:3000/*` e companhia) resulta em "The API developer key is
+ * invalid", com a agravante de o erro aparecer só na janela do Picker, fora do
+ * console do navegador. A proteção correta é a **restrição de API**: limitada à
+ * Google Picker API, a chave sozinha não lê o Drive de ninguém — toda operação
+ * real exige o token OAuth do usuário, e ela só identifica o projeto para
+ * efeito de cota.
  */
 
 const GIS_SRC = "https://accounts.google.com/gsi/client";
