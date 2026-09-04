@@ -19,6 +19,10 @@
  *   npx tsx src/scripts/audit-tenant-plan-drift.ts
  *   npx tsx src/scripts/audit-tenant-plan-drift.ts --apply
  *
+ * Um tenant só (recomendado na primeira corrida em produção):
+ *   npx tsx src/scripts/audit-tenant-plan-drift.ts --tenant=tenant_abc123
+ *   npx tsx src/scripts/audit-tenant-plan-drift.ts --tenant=tenant_abc123 --apply
+ *
  * Idempotente: rodar de novo num tenant já corrigido não faz nada.
  */
 import { db } from "../init";
@@ -26,6 +30,10 @@ import { normalizePlanTierId, type PlanTierId } from "../shared/plan-capabilitie
 
 const PAGE_SIZE = 200;
 const APPLY = process.argv.includes("--apply");
+/** Corrigir um tenant por vez é o caminho prudente em produção. */
+const ONLY_TENANT =
+  process.argv.find((arg) => arg.startsWith("--tenant="))?.split("=")[1]?.trim() ||
+  null;
 
 interface Drift {
   tenantId: string;
@@ -72,6 +80,10 @@ async function main(): Promise<void> {
     `=== audit-tenant-plan-drift: ${APPLY ? "APLICANDO" : "dry-run (nada será escrito)"} ===`,
   );
 
+  if (ONLY_TENANT) {
+    console.log(`escopo: apenas ${ONLY_TENANT}`);
+  }
+
   const drifts: Drift[] = [];
   let scanned = 0;
   let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
@@ -84,6 +96,7 @@ async function main(): Promise<void> {
     if (snap.empty) break;
 
     for (const doc of snap.docs) {
+      if (ONLY_TENANT && doc.id !== ONLY_TENANT) continue;
       scanned += 1;
       const data = doc.data() as Record<string, unknown>;
       const storedTier =
@@ -112,6 +125,11 @@ async function main(): Promise<void> {
 
     lastDoc = snap.docs[snap.docs.length - 1] ?? null;
     if (snap.size < PAGE_SIZE) break;
+  }
+
+  if (ONLY_TENANT && scanned === 0) {
+    console.log(`Tenant ${ONLY_TENANT} não encontrado nesta base.`);
+    return;
   }
 
   console.log(`\ntenants varridos: ${scanned}`);
