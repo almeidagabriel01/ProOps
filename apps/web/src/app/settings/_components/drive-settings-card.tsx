@@ -47,6 +47,10 @@ const REASON_MESSAGES: Record<string, string> = {
   expired_state: "A sessão de autorização expirou. Tente conectar de novo.",
   missing_refresh_token:
     "O Google não devolveu a autorização de longo prazo. Tente de novo e mantenha a permissão marcada.",
+  token_exchange_failed:
+    "O Google recusou a troca de credenciais. É configuração do servidor (client_id/secret ou URI de redirecionamento), não sua.",
+  save_failed:
+    "A autorização deu certo, mas não conseguimos guardá-la com segurança. É configuração do servidor (chave de criptografia), não sua.",
   oauth_failed: "Não foi possível concluir a conexão com o Google.",
 };
 

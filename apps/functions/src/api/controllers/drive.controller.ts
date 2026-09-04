@@ -152,23 +152,51 @@ export async function handleDriveCallback(req: Request, res: Response) {
       return res.redirect(buildRedirectUrl("error", consumed.error));
     }
 
+    /**
+     * As duas etapas seguintes falham por motivos COMPLETAMENTE distintos, e um
+     * catch único as tornava indistinguíveis — o usuário via "oauth_failed" e
+     * não havia como saber se o problema era com o Google ou com a nossa
+     * infraestrutura sem abrir o log da função.
+     *
+     * Troca do código: `redirect_uri` divergente, código já usado
+     * (`invalid_grant`), credenciais do cliente OAuth erradas.
+     * Gravação: KMS não configurado no ambiente, Firestore indisponível.
+     */
     const oauthClient = await createDriveOAuthClient();
-    const { tokens } = await oauthClient.getToken(code);
-    oauthClient.setCredentials(tokens);
 
-    const refreshToken = String(tokens.refresh_token || "").trim();
+    let refreshToken: string;
+    try {
+      const { tokens } = await oauthClient.getToken(code);
+      oauthClient.setCredentials(tokens);
+      refreshToken = String(tokens.refresh_token || "").trim();
+    } catch (error) {
+      logger.error("Troca do código por token falhou no Google Drive", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return res.redirect(buildRedirectUrl("error", "token_exchange_failed"));
+    }
+
     if (!refreshToken) {
       // Sem refresh token a conexão dura horas e morre sozinha. Falhar aqui é
       // melhor que gravar uma integração que vai parar sem explicação.
       return res.redirect(buildRedirectUrl("error", "missing_refresh_token"));
     }
 
-    await saveDriveIntegration({
-      tenantId: consumed.tenantId,
-      uid: consumed.uid,
-      refreshToken,
-      connectedEmail: await fetchConnectedEmail(oauthClient),
-    });
+    try {
+      await saveDriveIntegration({
+        tenantId: consumed.tenantId,
+        uid: consumed.uid,
+        refreshToken,
+        connectedEmail: await fetchConnectedEmail(oauthClient),
+      });
+    } catch (error) {
+      // O caso mais provável aqui é a chave KMS ausente no ambiente: o token
+      // é cifrado antes de ser gravado, e sem a chave nada é persistido.
+      logger.error("Falha ao gravar a integração do Google Drive", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return res.redirect(buildRedirectUrl("error", "save_failed"));
+    }
 
     return res.redirect(buildRedirectUrl("connected"));
   } catch (error) {
