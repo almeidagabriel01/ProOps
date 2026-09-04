@@ -497,6 +497,12 @@ permitimos a manifestacao.
   emissao precisa.
 - Cron `syncReceivedInvoices` roda **de hora em hora**, nao a cada 15 min como o de emissao:
   nota de entrada nao tem urgencia de segundos, o destinatario tem dias para se manifestar.
+- **O detalhe da nota mostra a CHAVE DE ACESSO**, nao so valor e fornecedor. E com
+  ela que se consulta a nota no portal da Receita, e e o que o contador pede — sem
+  exibir, o dado existe no nosso banco e fica inalcancavel para quem precisa dele. O
+  dialogo abre em TODA nota, inclusive antes da manifestacao: ali ainda nao ha itens,
+  e o texto explica que o detalhamento so vem depois da confirmacao (etapa do
+  processo, nao falta de dado).
 - **Testar a tela em dev sem fornecedor:**
   `npx tsx src/scripts/seed-received-invoices.ts --tenant=<id>` cria 4 notas
   ficticias (resumo sem resposta, confirmada com itens e NCM, so ciencia,

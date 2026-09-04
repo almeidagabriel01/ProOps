@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Boxes, Inbox, RefreshCw, Settings } from "lucide-react";
+import { FileSearch, Inbox, RefreshCw, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { useSort } from "@/hooks/use-sort";
 import { toast } from "@/lib/toast";
 import { ManifestInvoiceDialog } from "@/components/features/fiscal/manifest-invoice-dialog";
-import { ReceivedInvoiceItemsDialog } from "@/components/features/fiscal/received-invoice-items-dialog";
+import { ReceivedInvoiceDetailsDialog } from "@/components/features/fiscal/received-invoice-details-dialog";
 import { LaunchReceivedInvoiceButton } from "@/components/features/fiscal/launch-received-invoice-button";
 import {
   ReceivedInvoiceService,
@@ -60,7 +60,7 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [manifesting, setManifesting] = React.useState<ReceivedInvoice | null>(null);
-  const [viewingItems, setViewingItems] = React.useState<ReceivedInvoice | null>(null);
+  const [viewing, setViewing] = React.useState<ReceivedInvoice | null>(null);
 
   const { items: sorted, requestSort, sortConfig } = useSort(invoices);
 
@@ -197,17 +197,19 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
         headerClassName: "flex justify-end",
         render: (invoice) => (
           <div className="flex items-center gap-1">
-            {invoice.itens && invoice.itens.length > 0 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                title="Ver produtos e NCM"
-                onClick={() => setViewingItems(invoice)}
-              >
-                <Boxes className="h-4 w-4" />
-              </Button>
-            )}
+            {/* Sempre disponível, e não só quando há itens: a chave de acesso e
+                os dados do fornecedor existem em TODA nota, e são o que se
+                confere. Esconder até a confirmação deixava o dado inalcançável
+                justamente na etapa em que se decide o que responder. */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="Ver detalhes da nota"
+              onClick={() => setViewing(invoice)}
+            >
+              <FileSearch className="h-4 w-4" />
+            </Button>
             {invoice.status !== "cancelada" && (
               <>
                 <LaunchReceivedInvoiceButton
@@ -311,9 +313,9 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
         onManifested={replace}
       />
 
-      <ReceivedInvoiceItemsDialog
-        invoice={viewingItems}
-        onClose={() => setViewingItems(null)}
+      <ReceivedInvoiceDetailsDialog
+        invoice={viewing}
+        onClose={() => setViewing(null)}
       />
     </div>
   );
