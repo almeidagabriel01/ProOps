@@ -497,6 +497,15 @@ permitimos a manifestacao.
   emissao precisa.
 - Cron `syncReceivedInvoices` roda **de hora em hora**, nao a cada 15 min como o de emissao:
   nota de entrada nao tem urgencia de segundos, o destinatario tem dias para se manifestar.
+- **Testar a tela em dev sem fornecedor:**
+  `npx tsx src/scripts/seed-received-invoices.ts --tenant=<id>` cria 4 notas
+  ficticias (resumo sem resposta, confirmada com itens e NCM, so ciencia,
+  cancelada). Recusa rodar em producao; `--clean` remove so o que ele criou.
+  Chaves comecam com "99", que nao e UF nenhuma, entao nao colidem com nota real.
+  **Nao cobre a manifestacao** — ela faz POST no provedor e seria recusada para
+  uma chave inexistente; o comportamento de interface dela esta em
+  `manifest-invoice-dialog.test.tsx`. Cobre lista, itens/NCM, lancamento, aviso
+  de duplicata e o estado "Lancada", que sao caminhos 100% nossos.
 - **A nota vira despesa sob CLIQUE, nunca sozinha**
   (`POST /fiscal/received-invoices/:chave/lancamento`). Quem compra costuma **ja ter
   lancado a compra a mao** quando pagou o fornecedor, e um segundo lancamento nao e um
