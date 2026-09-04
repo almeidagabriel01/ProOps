@@ -261,6 +261,15 @@ export const FiscalService = {
   },
 
   /**
+   * Remove a configuração fiscal do tenant.
+   *
+   * As notas já emitidas PERMANECEM — documento fiscal tem guarda legal de 5
+   * anos e não some com a desconexão. O que se perde é o cadastro do emitente:
+   * CNPJ, série, numeração e a senha do certificado cifrada em KMS.
+   */
+  disconnect: () => callApi<{ message: string }>("/v1/fiscal/settings", "DELETE"),
+
+  /**
    * Pergunta se a nota desta proposta pode sair — sem emitir.
    *
    * Sustenta o convite ao aprovar: sem ele o modal apareceria também para quem

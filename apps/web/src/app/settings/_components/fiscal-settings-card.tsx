@@ -36,6 +36,16 @@ import { maskCep } from "@/lib/fiscal/cep";
 import { validarSerieNfse } from "@/lib/fiscal/serie-dps";
 import { Loader } from "@/components/ui/loader";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   buildFiscalSettingsPayload,
   type FiscalFormState,
 } from "@/lib/fiscal/settings-payload";
@@ -149,6 +159,8 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
   const [form, setForm] = React.useState<FormState>(INITIAL_FORM);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDisconnecting, setIsDisconnecting] = React.useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
   const [isLookingUp, setIsLookingUp] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const [isRetryingWebhooks, setIsRetryingWebhooks] = React.useState(false);
@@ -290,6 +302,34 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
       toast.error(error instanceof Error ? error.message : "Não foi possível registrar.");
     } finally {
       setIsRetryingWebhooks(false);
+    }
+  };
+
+  /**
+   * Desconecta e volta o formulário ao estado inicial.
+   *
+   * Sem limpar o formulário, os campos continuariam preenchidos sobre uma
+   * configuração que já não existe — e o próximo "Salvar" recriaria tudo, menos
+   * o certificado. Um emitente meio configurado é pior que nenhum.
+   */
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      await FiscalService.disconnect();
+      setSettings(null);
+      setForm({ ...INITIAL_FORM, endereco: { ...EMPTY_ADDRESS } });
+      setConfirmDisconnect(false);
+      toast.success("Emissão desconectada.", {
+        description: "As notas já emitidas continuam disponíveis.",
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Não foi possível desconectar.",
+      );
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -892,6 +932,89 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
           Salvar configuração
         </Button>
       </div>
+
+      {/* `configured`, não `settings`: o GET nunca devolve null — devolve
+          `{ configured: false }` quando nada foi configurado. Testar só o
+          objeto mostraria "Desconectar" para quem nunca configurou nada, o que
+          é ruído e assusta antes da hora. */}
+      {settings?.configured && (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-base">Desconectar emissão</CardTitle>
+            <CardDescription>
+              Para parar de emitir por aqui, ou trocar o CNPJ do emitente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            <p className="max-w-xl text-sm text-muted-foreground">
+              As notas já emitidas <strong>continuam</strong> disponíveis — elas
+              têm guarda legal de 5 anos e não somem com a desconexão.
+            </p>
+            <Button
+              variant="outline"
+              className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmDisconnect(true)}
+              disabled={isDisconnecting}
+            >
+              {isDisconnecting && (
+                <Loader size="sm" variant="button" className="mr-2" />
+              )}
+              Desconectar
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <AlertDialog
+        open={confirmDisconnect}
+        onOpenChange={(open) => !isDisconnecting && setConfirmDisconnect(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desconectar a emissão de notas?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  A emissão para imediatamente. As notas já emitidas continuam
+                  aqui — guarda legal de 5 anos.
+                </p>
+                {/* Estas duas são o que dói na volta, e ninguém adivinha: a
+                    senha do certificado é cifrada em KMS e não é recuperável, e
+                    numeração errada vira rejeição por duplicidade. */}
+                <p>Para reconectar depois, será preciso:</p>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    enviar o certificado <strong>.pfx</strong> de novo, com a
+                    senha — ela não fica guardada em texto e não dá para
+                    recuperar;
+                  </li>
+                  <li>
+                    reinformar <strong>série e próximo número</strong>, e eles
+                    precisam continuar de onde pararam, senão o fisco recusa por
+                    duplicidade.
+                  </li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDisconnecting}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDisconnect();
+              }}
+              disabled={isDisconnecting}
+              className="bg-destructive hover:bg-destructive/90 gap-2"
+            >
+              {isDisconnecting && <Loader size="sm" variant="button" />}
+              Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

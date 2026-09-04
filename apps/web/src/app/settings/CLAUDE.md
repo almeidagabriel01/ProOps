@@ -186,6 +186,18 @@ Dois campos são preenchidos pelo sistema e **não devem virar input**:
 O arquivo `.pfx` **não é persistido**: sobe uma vez para o provedor, que o custodia, e sai
 da memória. Só a senha fica, cifrada em KMS (`FISCAL_SECRET_KMS_KEY`).
 
+**Desconectar** (`DELETE /v1/fiscal/settings`) apaga o doc `fiscal_settings/{tenantId}`
+inteiro. As notas já emitidas ficam — são outra coleção, e têm guarda legal de 5 anos.
+O que se perde e ninguém adivinha: a **senha do certificado** (cifrada em KMS, não
+recuperável — reconectar exige reenviar o `.pfx`) e a **numeração**, que precisa
+continuar de onde parou, senão o fisco recusa por duplicidade. O diálogo diz as duas
+coisas antes de confirmar.
+
+A seção só aparece com `settings?.configured` — **não** com `settings`: o
+`GET /v1/fiscal/settings` nunca devolve null, devolve `{ configured: false }`. Testar
+só o objeto ofereceria "Desconectar" a quem nunca configurou nada. Guard:
+`__tests__/fiscal-settings-card.disconnect.test.tsx`.
+
 ## Padrões de componente para settings
 
 Ao criar um novo formulário de configurações:
