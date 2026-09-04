@@ -35,6 +35,10 @@ import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
 import { maskCep } from "@/lib/fiscal/cep";
 import { validarSerieNfse } from "@/lib/fiscal/serie-dps";
 import { Loader } from "@/components/ui/loader";
+import {
+  buildFiscalSettingsPayload,
+  type FiscalFormState,
+} from "@/lib/fiscal/settings-payload";
 
 /** ViaCEP devolve o código IBGE em `ibge` — é ele que a SEFAZ valida. */
 interface ViaCepResponse {
@@ -57,28 +61,7 @@ const EMPTY_ADDRESS: FiscalAddress = {
   cep: "",
 };
 
-interface FormState {
-  cnpj: string;
-  razaoSocial: string;
-  nomeFantasia: string;
-  inscricaoEstadual: string;
-  inscricaoMunicipal: string;
-  cnae: string;
-  regimeTributario: FiscalTaxRegime;
-  percentualSimplesNacional: string;
-  email: string;
-  telefone: string;
-  endereco: FiscalAddress;
-  habilitaNfe: boolean;
-  habilitaNfse: boolean;
-  padraoNfse: FiscalNfsePadrao;
-  serieNfe: string;
-  proximoNumeroNfe: string;
-  serieNfse: string;
-  proximoNumeroNfse: string;
-  certificadoValidade: string;
-  certificadoSenha: string;
-}
+type FormState = FiscalFormState;
 
 const INITIAL_FORM: FormState = {
   cnpj: "",
@@ -94,6 +77,7 @@ const INITIAL_FORM: FormState = {
   endereco: { ...EMPTY_ADDRESS },
   habilitaNfe: false,
   habilitaNfse: true,
+  habilitaManifestacao: false,
   padraoNfse: "nacional",
   serieNfe: "",
   proximoNumeroNfe: "",
@@ -136,6 +120,7 @@ function hydrate(settings: FiscalSettings): FormState {
     endereco: settings.endereco ?? { ...EMPTY_ADDRESS },
     habilitaNfe: settings.habilitaNfe ?? false,
     habilitaNfse: settings.habilitaNfse ?? true,
+    habilitaManifestacao: settings.habilitaManifestacao === true,
     padraoNfse: settings.padraoNfse ?? "nacional",
     serieNfe: settings.serieNfe != null ? String(settings.serieNfe) : "",
     proximoNumeroNfe:
@@ -289,39 +274,7 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
    * Extraído porque o envio do certificado precisa gravar os mesmos dados antes
    * de registrar a empresa — ver `handleCertificateUpload`.
    */
-  const buildSettingsPayload = () => ({
-        cnpj: digits(form.cnpj),
-        razaoSocial: form.razaoSocial.trim(),
-        nomeFantasia: form.nomeFantasia.trim(),
-        inscricaoEstadual: form.inscricaoEstadual.trim(),
-        inscricaoMunicipal: form.inscricaoMunicipal.trim(),
-        cnae: form.cnae.trim(),
-        regimeTributario: form.regimeTributario,
-        // Em branco vira undefined, nunca 0: 0% é uma alíquota válida e
-        // sairia na nota sem ninguém ter escolhido.
-        percentualTotalTributosSimplesNacional:
-          form.percentualSimplesNacional.trim() === ""
-            ? undefined
-            : Number(form.percentualSimplesNacional.replace(",", ".")),
-        email: form.email.trim(),
-        telefone: form.telefone.trim(),
-        endereco: {
-          ...form.endereco,
-          cep: digits(form.endereco.cep),
-          codigoIbge: digits(form.endereco.codigoIbge),
-          uf: form.endereco.uf.toUpperCase(),
-        },
-        habilitaNfe: form.habilitaNfe,
-        habilitaNfse: form.habilitaNfse,
-        padraoNfse: form.padraoNfse,
-        serieNfe: form.serieNfe ? Number(form.serieNfe) : undefined,
-        proximoNumeroNfe: form.proximoNumeroNfe ? Number(form.proximoNumeroNfe) : undefined,
-        serieNfse: form.serieNfse.trim(),
-        proximoNumeroNfse: form.proximoNumeroNfse
-          ? Number(form.proximoNumeroNfse)
-          : undefined,
-        certificadoSenha: form.certificadoSenha || undefined,
-  });
+  const buildSettingsPayload = () => buildFiscalSettingsPayload(form);
 
   const handleRetryWebhooks = async () => {
     setIsRetryingWebhooks(true);
@@ -836,6 +789,25 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
               </div>
             </div>
           )}
+
+          {/* Recepção fica junto da emissão porque são as duas metades do mesmo
+              módulo — mas desligada por padrão, e com o custo dito na frente:
+              cada nota recebida consome uma unidade do pacote mensal do
+              provedor, do mesmo jeito que uma emitida. Ligar isso sem saber
+              disso seria descobrir na fatura. */}
+          <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+            <div>
+              <p className="text-sm font-medium">Receber notas dos fornecedores</p>
+              <p className="text-xs text-muted-foreground">
+                Traz as notas emitidas contra o seu CNPJ e permite se manifestar
+                sobre elas. Cada nota recebida consome uma unidade do seu pacote.
+              </p>
+            </div>
+            <Switch
+              checked={form.habilitaManifestacao}
+              onCheckedChange={(checked) => setField("habilitaManifestacao", checked)}
+            />
+          </div>
         </CardContent>
       </Card>
 

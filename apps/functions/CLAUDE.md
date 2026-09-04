@@ -459,7 +459,19 @@ permitimos a manifestacao.
   da empresa no Focus). Nasce **desligada** porque **cada nota recebida consome uma unidade
   do pacote mensal** — a regra do Focus e "cada nota emitida OU RECEBIDA conta como uma
   unidade". O campo e enviado sempre, inclusive `false`, para o cadastro nao precisar ser
-  refeito quando a recepcao for ligada.
+  refeito quando a recepcao for ligada. **Ate 2026-09-03 o formulario nao mandava esse
+  campo**, entao o modulo inteiro era inalcancavel: backend pronto, cron rodando, colecoes
+  criadas, e nenhuma forma de ligar. O mapeamento formulario -> payload virou funcao pura
+  (`lib/fiscal/settings-payload.ts`) justamente porque a falha dele e silenciosa — campo
+  que nao entra ali some sem erro em lugar nenhum.
+- **A UI vive como ABA da tela de notas** (`/invoices`, aba "Recebidas"), nao numa rota
+  propria: sao as duas metades do mesmo modulo e compartilham o `pageId` "invoices" e o
+  `requirePlanCapability("fiscal")`. O vocabulario e que muda — aqui nao ha numeracao
+  nossa, nada e assinado por nos e nao existe cancelamento.
+- **O dialogo de manifestacao descreve a CONSEQUENCIA, nao o termo tecnico** ("Confirmo a
+  compra", nao "ciencia da operacao"): quem instala automacao nao sabe o jargao mas sabe
+  dizer se comprou. Nada vem pre-selecionado e a escolha e zerada ao abrir para outra nota
+  — herdar seria o caminho mais curto para manifestar a nota errada.
 - **Sincronizacao incremental por `versao`.** Cada nota recebida tem um campo `versao`, unico
   por CNPJ e incrementado a cada alteracao (cancelamento, carta de correcao). O cursor fica em
   `received_invoice_cursors/{tenantId}` e **so avanca depois da gravacao** — se o processo
