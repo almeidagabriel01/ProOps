@@ -69,6 +69,12 @@ async function findDuplicateCandidates(
     .where("type", "==", "expense")
     .where("date", ">=", shiftDays(referenceDate, -DUPLICATE_WINDOW_DAYS))
     .where("date", "<=", shiftDays(referenceDate, DUPLICATE_WINDOW_DAYS))
+    // `desc` EXPLICITO, e nao por gosto de ordem: um intervalo sem `orderBy`
+    // faz o Firestore assumir ASC, e o indice que o projeto ja tem e
+    // `(tenantId, type, date DESC)`. Sem esta linha a consulta pede um indice
+    // novo e falha com FAILED_PRECONDITION — em producao, na primeira vez que
+    // alguem clicasse em "Lancar".
+    .orderBy("date", "desc")
     .limit(DUPLICATE_SCAN_LIMIT)
     .get();
 

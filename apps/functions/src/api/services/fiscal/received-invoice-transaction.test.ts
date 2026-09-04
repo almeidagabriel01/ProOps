@@ -18,6 +18,9 @@ jest.mock("../../../init", () => ({
       where: function () {
         return this;
       },
+      orderBy: function () {
+        return this;
+      },
       limit: function () {
         return this;
       },

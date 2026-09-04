@@ -523,6 +523,14 @@ permitimos a manifestacao.
   - Despesa de valor equivalente na janela de **45 dias** => `needs_confirmation` com os
     candidatos, HTTP **409**. A UI **avisa e deixa seguir** (`force`): comprar duas vezes o
     mesmo valor do mesmo fornecedor e comum, e bloquear seria pior que avisar.
+- **Intervalo sem `orderBy` = ASC, e o indice do projeto e DESC.** A consulta de
+  duplicatas usa `where(date >=) + where(date <=)`; sem `orderBy` explicito o Firestore
+  assume ASC e pede um indice NOVO, enquanto `(tenantId, type, date DESC)` ja existe.
+  O sintoma so aparece em runtime (`FAILED_PRECONDITION`), no primeiro clique de alguem
+  — foi assim no primeiro "Lancar". Guard: `received-invoice-transaction.index.test.ts`
+  grava a cadeia que o servico monta e confere contra `firestore.indexes.json`, direcao
+  inclusive. **Reusar indice existente e sempre mais barato que declarar um novo**:
+  indice novo custa build, armazenamento e um deploy que ninguem lembra de fazer.
 - **A busca por duplicata casa por VALOR e periodo, nao por fornecedor.** O lancamento
   manual raramente traz a razao social — quem digita escreve "material obra" ou o apelido.
   Casar por nome nao acharia quase nada e daria a falsa sensacao de que nao ha duplicata.
