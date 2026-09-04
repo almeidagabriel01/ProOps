@@ -15,7 +15,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const { getSettings } = vi.hoisted(() => ({ getSettings: vi.fn() }));
@@ -66,9 +66,15 @@ const BASE = {
   habilitaNfse: true,
 };
 
-const campoData = () => screen.queryByLabelText(/Buscar notas emitidas a partir de/i);
-/** O bloco inteiro: `Input` se envolve numa div própria, que não tem os textos. */
+/**
+ * O `DatePicker` do projeto não é um `<input type="date">`: ele mostra um botão
+ * com a data formatada e mantém um input ESCONDIDO com o valor ISO. O valor é o
+ * contrato (é o que vai no PUT); o botão é o que a pessoa vê e clica.
+ */
+const campoData = () =>
+  document.getElementById("fiscal-data-inicio-recebimento") as HTMLInputElement | null;
 const bloco = () => campoData()!.closest("div.rounded-md") as HTMLElement;
+const gatilhoData = () => within(bloco()).getByRole("button");
 const toggle = () =>
   screen.getByRole("switch", { name: "Receber notas dos fornecedores" });
 
@@ -125,6 +131,34 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
     expect(bloco()).toHaveTextContent(/não pode mais ser alterada/);
   });
 
+  it("mostra a data escolhida no gatilho, formatada", async () => {
+    // O valor ISO é o contrato com o backend; o que a pessoa lê é isto.
+    getSettings.mockResolvedValue({
+      ...BASE,
+      habilitaManifestacao: true,
+      dataInicioRecebimento: "2026-01-15",
+    });
+    render(<FiscalSettingsCard />);
+
+    await waitFor(() => expect(gatilhoData()).toHaveTextContent("15/01/2026"));
+  });
+
+  it("avisa quando a data escolhida está no futuro", async () => {
+    // O `max` do DatePicker só chega ao input escondido — o calendário não o
+    // aplica. Sem este aviso, trocar o input nativo pelo componente padrão
+    // teria perdido a trava em silêncio, e aqui o erro é permanente.
+    getSettings.mockResolvedValue({
+      ...BASE,
+      habilitaManifestacao: true,
+      dataInicioRecebimento: "2099-01-01",
+    });
+    render(<FiscalSettingsCard />);
+
+    await waitFor(() =>
+      expect(bloco()).toHaveTextContent(/nenhuma nota será recebida até lá/),
+    );
+  });
+
   it("trava o campo depois de a data ter ido para o provedor", async () => {
     // Oferecer edição do que o provedor já recusa faria a tela mentir sobre o
     // que está valendo lá.
@@ -136,7 +170,7 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
     });
     render(<FiscalSettingsCard />);
 
-    await waitFor(() => expect(campoData()).toBeDisabled());
+    await waitFor(() => expect(gatilhoData()).toBeDisabled());
     expect(bloco()).toHaveTextContent(/já foi registrada no provedor fiscal/);
   });
 });

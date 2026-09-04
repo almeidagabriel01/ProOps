@@ -65,6 +65,21 @@ a cor vem de um `text-muted-foreground` do call site.
 
 Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer.
 
+## Data
+
+O seletor de data do projeto é o `DatePicker` (`ui/date-picker.tsx`), **nunca**
+um `<input type="date">`. O nativo muda de aparência, idioma e até de ordem dos
+campos conforme o sistema operacional e o locale — dois campos de data no mesmo
+formulário se comportariam de formas diferentes.
+
+Ao trocar um nativo pelo `DatePicker`, cuidado com uma perda silenciosa:
+**`min`/`max` chegam só ao input escondido**, e o calendário não os aplica (nem
+o navegador valida input escondido). Quem dependia da validação nativa precisa
+de aviso próprio — é o caso da data de início de recebimento em
+`/settings/fiscal`, onde uma data futura é escolha permanente.
+
+Guard: `src/__tests__/date-input-consistency.test.ts`.
+
 ## DataTable: as colunas têm que somar o grid
 
 A soma dos `col-span-*` das colunas precisa fechar **exatamente** com o

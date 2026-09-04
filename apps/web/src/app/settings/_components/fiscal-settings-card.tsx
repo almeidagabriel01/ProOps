@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
@@ -175,6 +176,13 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
   const dataRecebimentoBloqueada =
     settings?.dataInicioRecebimentoBloqueada === true;
   const [form, setForm] = React.useState<FormState>(INITIAL_FORM);
+  /**
+   * O `max` do `DatePicker` só chega ao input escondido — o calendário não o
+   * aplica, e input escondido o navegador não valida. Sem este aviso a troca
+   * pelo componente padrão teria perdido a trava em silêncio, e aqui uma data
+   * futura é permanente: o provedor não deixa corrigir depois.
+   */
+  const dataRecebimentoFutura = form.dataInicioRecebimento > hojeIso();
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
   const [isDisconnecting, setIsDisconnecting] = React.useState(false);
@@ -883,15 +891,20 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
               <Label htmlFor="fiscal-data-inicio-recebimento">
                 Buscar notas emitidas a partir de
               </Label>
-              <Input
+              <DatePicker
                 id="fiscal-data-inicio-recebimento"
-                type="date"
-                className="max-w-[200px]"
+                className="sm:max-w-[220px]"
                 value={form.dataInicioRecebimento}
                 max={hojeIso()}
                 disabled={dataRecebimentoBloqueada}
                 onChange={(e) => setField("dataInicioRecebimento", e.target.value)}
               />
+              {dataRecebimentoFutura && (
+                <p className="text-xs text-amber-600">
+                  Data no futuro: nenhuma nota será recebida até lá — e esta
+                  escolha não poderá ser desfeita.
+                </p>
+              )}
               {dataRecebimentoBloqueada ? (
                 <p className="text-xs text-muted-foreground">
                   Esta data já foi registrada no provedor fiscal e não pode mais
