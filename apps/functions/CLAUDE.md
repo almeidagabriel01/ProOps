@@ -409,6 +409,21 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   CALCULADO — e divergem: com o grupo IBSCBS ausente, o portal zera
   "Valor Liquido da NFS-e + IBS/CBS" e o Focus repete o valor liquido. **O XML e o
   documento que vale; o DANFSe e representacao.**
+- **O Focus confirmou que a divergencia do DANFSe e de RENDERIZADOR, e que ela se
+  resolve sozinha** (suporte, 2026-09-04): o DANFSe deles segue o **leiaute 1.01**, em que
+  informar IBS/CBS e obrigatorio, entao a linha "Valor Liquido da NFS-e + IBS/CBS" vem
+  preenchida; o PDF do ambiente nacional ainda esta no leiaute antigo porque a Receita
+  **prorrogou os novos campos para 01/10**. Em "Total do IBS/CBS" eles imprimem "-" porque
+  os valores *nao existem* na nota — que e diferente de existirem valendo zero, exatamente
+  o que a NT 008/2026 manda. Quando o ambiente nacional atualizar o PDF, o campo passa a
+  ser preenchido pelo `vTotNF` e os dois espelhos ficam iguais. **Nada a mudar no nosso
+  codigo**: a nota esta correta, e a terceira linha e um TOTAL A PAGAR, nao um imposto.
+- **01/10/2026 e data de RECHECAGEM.** O `vTotNF` que igualaria os dois espelhos so passa
+  a existir quando os grupos de IBS/CBS forem enviados. Fica em aberto se, a partir dessa
+  data, a DPS passa a exigir o grupo de emitente do **Simples (ME/EPP, opcao 3)** — o que
+  esta documentado aqui e que para Simples/MEI a obrigatoriedade comeca em **01/01/2027**,
+  e as duas datas nao podem ser confundidas. Confirmar antes de 01/10: uma exigencia nova
+  sem o grupo vira rejeicao em toda NFS-e.
 - **Existe grupo IBSCBS na DPS e nos NAO o enviamos** — `ibs_cbs_situacao_tributaria`
   (CST) e `ibs_cbs_classificacao_tributaria` (cClassTrib) no Focus, mais `regApIBSCBSSN`
   para o Simples na NT 009. Na DPS so se declara a SITUACAO; aliquota e valor sao
