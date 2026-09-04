@@ -39,20 +39,25 @@ export function OpenDriveFolderButton({
 
   async function handleClick() {
     setIsOpening(true);
-    // Aberto ANTES do await: o navegador só permite abrir aba nova durante o
-    // gesto do usuário. Abrir depois da resposta seria bloqueado como popup.
-    const aba = window.open("", "_blank", "noopener,noreferrer");
     try {
       const { url } = await DriveService.getClientFolder(clientId);
-      if (aba) {
-        aba.location.href = url;
-      } else {
-        // Bloqueador de popup ativo — melhor navegar na própria aba que perder
-        // o clique em silêncio.
+      /**
+       * Abrir DEPOIS de resolver a URL, e não antes.
+       *
+       * A versão anterior pré-abria uma aba em branco para escapar do
+       * bloqueador de popup, e apostava que dava para navegá-la depois. Em
+       * navegador com bloqueio mais agressivo o resultado foi o pior dos dois
+       * mundos: uma aba `about:blank` órfã que ninguém fecha E a aba do ERP
+       * indo embora para o Drive.
+       *
+       * Assim, ou abre a aba nova, ou navega na própria — nunca as duas coisas,
+       * e nunca sobra aba vazia.
+       */
+      const aba = window.open(url, "_blank", "noopener,noreferrer");
+      if (!aba) {
         window.location.href = url;
       }
     } catch (error) {
-      aba?.close();
       toast.error(
         error instanceof Error && error.message
           ? error.message

@@ -15,6 +15,7 @@ const proposalGet = jest.fn();
 const proposalUpdate = jest.fn();
 const filesCreate = jest.fn();
 const filesUpdate = jest.fn();
+const filesList = jest.fn();
 const getDriveClient = jest.fn();
 
 jest.mock("../../../init", () => ({
@@ -50,7 +51,7 @@ function mockCliente(doc: Record<string, unknown> | null) {
 
 function mockDrive(rootFolderId: string | null = "raiz-1") {
   getDriveClient.mockResolvedValue({
-    client: { files: { create: filesCreate, update: filesUpdate } },
+    client: { files: { create: filesCreate, update: filesUpdate, list: filesList } },
     integration: { rootFolderId },
   });
 }
@@ -62,6 +63,7 @@ beforeEach(() => {
   proposalGet.mockResolvedValue({ data: () => ({}) });
   filesCreate.mockResolvedValue({ data: { id: "novo-1", webViewLink: "https://d/1" } });
   filesUpdate.mockResolvedValue({ data: { id: "arq-1", webViewLink: "https://d/1" } });
+  filesList.mockResolvedValue({ data: { files: [] } });
   mockDrive();
 });
 
@@ -189,12 +191,71 @@ describe("uploadProposalPdf", () => {
 
     expect(filesCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestBody: { name: "12 - Proposta.pdf", parents: ["pasta-9"] },
+        requestBody: expect.objectContaining({
+          name: "12 - Proposta.pdf",
+          parents: ["pasta-9"],
+        }),
       }),
     );
     expect(proposalUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ driveFileId: "novo-1" }),
     );
+  });
+
+  it("ACHA o arquivo pelo proposalId quando o campo nao foi gravado", async () => {
+    // A duplicata real veio daqui: duas chamadas simultaneas leram
+    // `driveFileId` vazio e as duas criaram, deixando dois PDFs identicos na
+    // pasta do cliente sem erro em lugar nenhum.
+    mockCliente({ tenantId: "t1", name: "Jose", driveFolderId: "pasta-9" });
+    proposalGet.mockResolvedValue({ data: () => ({}) });
+    filesList.mockResolvedValue({ data: { files: [{ id: "ja-existia" }] } });
+    // O Drive devolve o id do arquivo que foi atualizado.
+    filesUpdate.mockResolvedValue({ data: { id: "ja-existia" } });
+
+    const r = await uploadProposalPdf(params);
+
+    expect(filesCreate).not.toHaveBeenCalled();
+    expect(filesUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ fileId: "ja-existia" }),
+    );
+    expect(r.fileId).toBe("ja-existia");
+  });
+
+  it("procura pelo proposalId, nao pelo nome", async () => {
+    // Duas propostas do mesmo cliente podem ter o mesmo titulo — casar por
+    // nome faria uma sobrescrever a outra.
+    mockCliente({ tenantId: "t1", name: "Jose", driveFolderId: "pasta-9" });
+
+    await uploadProposalPdf(params);
+
+    const q = String(filesList.mock.calls[0][0].q);
+    expect(q).toContain("value='p1'");
+    expect(q).not.toContain(params.fileName);
+  });
+
+  it("marca o arquivo criado com o proposalId", async () => {
+    mockCliente({ tenantId: "t1", name: "Jose", driveFolderId: "pasta-9" });
+
+    await uploadProposalPdf(params);
+
+    expect(filesCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestBody: expect.objectContaining({
+          appProperties: { proposalId: "p1" },
+        }),
+      }),
+    );
+  });
+
+  it("entrega mesmo se a consulta de duplicata falhar", async () => {
+    // Perder a consulta nao pode impedir a entrega — no pior caso volta a
+    // depender so do campo gravado, que era o comportamento anterior.
+    mockCliente({ tenantId: "t1", name: "Jose", driveFolderId: "pasta-9" });
+    filesList.mockRejectedValue(new Error("backend error"));
+
+    const r = await uploadProposalPdf(params);
+
+    expect(r.fileId).toBe("novo-1");
   });
 
   it("RECRIA quando o arquivo foi apagado no Drive", async () => {

@@ -53,49 +53,37 @@ describe("OpenDriveFolderButton", () => {
     expect(screen.queryByRole("button", { name: /Pasta no Drive/ })).toBeNull();
   });
 
-  it("abre a aba ANTES de chamar a API", async () => {
-    // Se a aba fosse aberta depois do await, o bloqueador de popup a mataria —
-    // e o usuário veria o clique não fazer nada.
-    const aba = { location: { href: "" }, close: vi.fn() };
-    const open = vi.fn(() => aba as unknown as Window);
+  it("abre a aba nova com a URL já resolvida", async () => {
+    // Pré-abrir uma aba em branco e navegá-la depois produzia, em navegador
+    // com bloqueio agressivo, o pior dos dois mundos: uma aba `about:blank`
+    // órfã E a aba do ERP indo embora para o Drive.
+    const open = vi.fn(() => ({}) as unknown as Window);
     vi.stubGlobal("open", open);
 
-    let resolveApi: (v: unknown) => void = () => {};
-    getClientFolder.mockReturnValue(
-      new Promise((resolve) => {
-        resolveApi = resolve;
-      }),
-    );
-
     render(<OpenDriveFolderButton clientId="c1" />);
     await userEvent.click(botao());
 
-    expect(open).toHaveBeenCalled();
-    expect(aba.location.href).toBe("");
-
-    resolveApi({ url: "https://drive.google.com/drive/folders/pasta-9" });
     await waitFor(() =>
-      expect(aba.location.href).toBe(
+      expect(open).toHaveBeenCalledWith(
         "https://drive.google.com/drive/folders/pasta-9",
+        "_blank",
+        "noopener,noreferrer",
       ),
     );
+    expect(open).toHaveBeenCalledTimes(1);
   });
 
-  it("fecha a aba e avisa quando a API falha", async () => {
-    // Deixar uma aba em branco aberta seria pior que não abrir nenhuma.
-    const aba = { location: { href: "" }, close: vi.fn() };
-    vi.stubGlobal("open", vi.fn(() => aba as unknown as Window));
-    getClientFolder.mockRejectedValue(
-      new Error("Escolha a pasta do Drive em Configurações → Google Drive."),
-    );
+  it("não abre aba nenhuma quando a API falha", async () => {
+    // Aba em branco sobrando é pior que não abrir nada.
+    const open = vi.fn();
+    vi.stubGlobal("open", open);
+    getClientFolder.mockRejectedValue(new Error("Escolha a pasta do Drive."));
 
     render(<OpenDriveFolderButton clientId="c1" />);
     await userEvent.click(botao());
 
-    await waitFor(() => expect(aba.close).toHaveBeenCalled());
-    expect(toastError).toHaveBeenCalledWith(
-      "Escolha a pasta do Drive em Configurações → Google Drive.",
-    );
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(open).not.toHaveBeenCalled();
   });
 
   it("navega na própria aba se o popup for bloqueado", async () => {

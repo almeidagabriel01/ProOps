@@ -218,19 +218,61 @@ export async function uploadProposalPdf(params: {
     body: Readable.from(params.pdf),
   };
 
+  /**
+   * Segunda linha de defesa contra arquivo duplicado.
+   *
+   * O `driveFileId` gravado na proposta nao basta: duas chamadas simultaneas
+   * — dois cliques, um retry do cliente, o mesmo evento entregue duas vezes —
+   * leem o campo vazio e as duas criam. O resultado sao dois PDFs identicos na
+   * pasta do cliente, sem erro em lugar nenhum.
+   *
+   * `drive.file` NAO nos deixa listar o Drive do usuario, mas deixa listar o
+   * que o proprio app criou. Marcamos o arquivo com o `proposalId` em
+   * `appProperties` — invisivel para quem olha a pasta — e perguntamos por ele
+   * antes de criar. Marcar pelo NOME nao serviria: duas propostas do mesmo
+   * cliente podem ter o mesmo titulo, e uma sobrescreveria a outra.
+   */
   let fileId = existingFileId;
+  if (!fileId) {
+    try {
+      const encontrado = await client.files.list({
+        q: [
+          `'${folderId}' in parents`,
+          "trashed = false",
+          `appProperties has { key='proposalId' and value='${params.proposalId}' }`,
+        ].join(" and "),
+        fields: "files(id)",
+        pageSize: 1,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      });
+      fileId = String(encontrado.data.files?.[0]?.id || "").trim();
+    } catch (error) {
+      // Falhar a consulta nao pode impedir a entrega — no pior caso volta a
+      // depender so do `driveFileId`, que e o comportamento anterior.
+      logger.warn("Consulta de arquivo existente no Drive falhou", {
+        proposalId: params.proposalId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   let webViewLink: string | null = null;
 
-  if (existingFileId) {
+  // `fileId`, e nao `existingFileId`: o arquivo pode ter vindo da consulta
+  // acima, e testar o campo antigo aqui fazia o achado ser ignorado — nem
+  // atualizava, nem criava.
+  if (fileId) {
+    const alvo = fileId;
     try {
       const updated = await client.files.update({
-        fileId: existingFileId,
+        fileId: alvo,
         media,
         requestBody: { name: params.fileName },
         fields: "id, webViewLink",
         supportsAllDrives: true,
       });
-      fileId = String(updated.data.id || existingFileId);
+      fileId = String(updated.data.id || alvo);
       webViewLink = updated.data.webViewLink ?? null;
     } catch (error) {
       // Arquivo apagado no Drive: recriar e o comportamento util.
@@ -245,7 +287,13 @@ export async function uploadProposalPdf(params: {
 
   if (!fileId) {
     const created = await client.files.create({
-      requestBody: { name: params.fileName, parents: [folderId] },
+      requestBody: {
+        name: params.fileName,
+        parents: [folderId],
+        // A marca que permite reencontrar ESTE arquivo depois, sem depender do
+        // nome (que pode repetir) nem do campo gravado (que pode nao ter sido).
+        appProperties: { proposalId: params.proposalId },
+      },
       media,
       fields: "id, webViewLink",
       supportsAllDrives: true,
