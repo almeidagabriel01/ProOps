@@ -169,6 +169,23 @@ export const CORRECTION_TEXT_MAX_LENGTH = 1000;
 /** Teto de eventos por NF-e; passar disso é a rejeição 594. */
 export const CORRECTION_MAX_COUNT = 20;
 
+/**
+ * Uma carta de correção registrada.
+ *
+ * A CC-e é cumulativa — a última prevalece perante o fisco —, mas cada uma foi
+ * um evento distinto, com protocolo e guarda legal próprios.
+ *
+ * As duas `storage*Path` não são exibidas: servem para saber SE há documento
+ * arquivado para baixar. O download passa pelo backend, nunca por esse caminho.
+ */
+export interface FiscalInvoiceCorrection {
+  texto: string;
+  registradaEm: string;
+  numero?: string;
+  storageXmlPath?: string;
+  storagePdfPath?: string;
+}
+
 export interface FiscalInvoice {
   id: string;
   tenantId: string;
@@ -189,7 +206,7 @@ export interface FiscalInvoice {
   transactionId?: string;
   proposalId?: string;
   /** Cartas de correção já registradas — a última é a que vale perante o fisco. */
-  correcoes?: Array<{ texto: string; registradaEm: string }>;
+  correcoes?: FiscalInvoiceCorrection[];
   rejectionCode?: string;
   rejectionMessage?: string;
   createdAt: string;
@@ -326,6 +343,32 @@ export const FiscalService = {
     callApi<FiscalInvoice>(`/v1/fiscal/invoices/${invoiceId}/correction`, "POST", {
       correcao,
     }),
+
+  /**
+   * Baixa o documento arquivado de uma carta de correção.
+   *
+   * Pelo BACKEND, nunca por link direto: o caminho no provedor exige o token da
+   * empresa, e `storage.rules` nega a pasta `fiscal/` ao client.
+   */
+  downloadCorrectionDocument: async (
+    invoiceId: string,
+    indice: number,
+    kind: "pdf" | "xml",
+    nomeArquivo: string,
+  ) => {
+    // Import tardio de proposito: o cliente de download inicializa o Firebase
+    // Auth no topo do modulo, e o resto deste service nao depende disso —
+    // importa-lo aqui em cima obrigaria todo consumidor (e todo teste) a
+    // carregar a init do Firebase para chamar qualquer outro metodo.
+    const { downloadPdfFromApiEndpoint } = await import(
+      "@/services/pdf/download-pdf-client"
+    );
+    return downloadPdfFromApiEndpoint({
+      endpointPath: `/v1/fiscal/invoices/${invoiceId}/correcoes/${indice}/${kind}`,
+      forceFilename: nomeArquivo,
+      requiresAuth: true,
+    });
+  },
 
   cancelInvoice: (invoiceId: string, justificativa: string) =>
     callApi<FiscalInvoice>(`/v1/fiscal/invoices/${invoiceId}/cancel`, "POST", {

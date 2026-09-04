@@ -224,6 +224,15 @@ export interface FiscalInvoiceResult {
   /** Provider-hosted PDF (DANFE or DANFSe). Mirrored to our Storage once authorized. */
   pdfUrl?: string;
   xmlUrl?: string;
+  /**
+   * Documentos da CARTA DE CORRECAO, quando a resposta os traz.
+   *
+   * Sao de um EVENTO, nao da nota: a NF-e nao muda com a CC-e e o DANFE nao
+   * carrega a correcao. A guarda legal de 5 anos vale para o evento tambem.
+   */
+  correcaoXmlUrl?: string;
+  correcaoPdfUrl?: string;
+  correcaoNumero?: string;
   /** Public verification page, when the municipality exposes one. */
   publicUrl?: string;
   /** Raw provider/SEFAZ code, kept for the humanized error dictionary. */

@@ -42,6 +42,16 @@ export interface FocusNfeResponse {
   cnpj_emitente?: string;
   caminho_xml_nota_fiscal?: string;
   caminho_danfe?: string;
+  /**
+   * Documentos da CARTA DE CORRECAO — evento proprio, com protocolo proprio.
+   *
+   * Nao substituem os da nota: a NF-e nao muda com a CC-e, e o DANFE impresso
+   * nao carrega a correcao. Quem recebeu a mercadoria precisa do documento do
+   * evento a parte, e a guarda legal de 5 anos vale para ele tambem.
+   */
+  caminho_xml_carta_correcao?: string;
+  caminho_pdf_carta_correcao?: string;
+  numero_carta_correcao?: string | number;
   erros?: Array<{ campo?: string; mensagem?: string; codigo?: string }>;
 }
 
@@ -176,6 +186,15 @@ export function mapFocusResponse(
 
   const xmlUrl = toAbsoluteUrl(raw.caminho_xml_nota_fiscal, baseUrl);
   if (xmlUrl) result.xmlUrl = xmlUrl;
+
+  const correcaoXmlUrl = toAbsoluteUrl(raw.caminho_xml_carta_correcao, baseUrl);
+  if (correcaoXmlUrl) result.correcaoXmlUrl = correcaoXmlUrl;
+
+  const correcaoPdfUrl = toAbsoluteUrl(raw.caminho_pdf_carta_correcao, baseUrl);
+  if (correcaoPdfUrl) result.correcaoPdfUrl = correcaoPdfUrl;
+
+  const correcaoNumero = String(raw.numero_carta_correcao ?? "").trim();
+  if (correcaoNumero) result.correcaoNumero = correcaoNumero;
 
   const publicUrl = String(raw.url || "").trim();
   if (publicUrl) result.publicUrl = publicUrl;

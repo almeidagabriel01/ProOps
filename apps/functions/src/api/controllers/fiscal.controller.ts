@@ -59,6 +59,7 @@ import {
   refreshInvoice,
 } from "../services/fiscal/invoice.service";
 import { sanitizeFiscalText } from "../services/fiscal/fiscal-text";
+import { readArchivedDocument } from "../services/fiscal/invoice-archive.service";
 import {
   issueFromProposal,
   previewFromProposal,
@@ -1111,6 +1112,83 @@ export const listInvoicesHandler = async (req: Request, res: Response): Promise<
   } catch (error) {
     const err = error as Error;
     logger.error("Falha ao listar notas fiscais", { error: err.message });
+    res
+      .status(mapFiscalErrorStatus(err))
+      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+  }
+};
+
+// GET /v1/fiscal/invoices/:id/correcoes/:indice/:kind
+//
+// Serve a copia arquivada do documento de uma carta de correcao.
+//
+// Passa pelo backend, e nao por link direto, por dois motivos independentes: o
+// caminho do provedor exige o token da empresa (link direto devolveria 401), e
+// `storage.rules` nega a pasta `fiscal/` ao client — `application/xml` nem esta
+// na allowlist de content-type do bucket.
+export const downloadCorrectionDocumentHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    // Leitura: quem pode VER a nota pode baixar o documento dela.
+    const ctx = await requireInvoiceAccess(req, res, "canView");
+    if (!ctx) return;
+
+    const invoice = await getInvoice(String(req.params.id || ""));
+    if (!invoice || (invoice.tenantId !== ctx.tenantId && !ctx.isSuperAdmin)) {
+      res.status(404).json({ message: "Nota fiscal não encontrada" });
+      return;
+    }
+
+    const kind = String(req.params.kind || "");
+    if (kind !== "pdf" && kind !== "xml") {
+      res.status(400).json({ message: "Tipo de documento inválido" });
+      return;
+    }
+
+    const indice = Number(req.params.indice);
+    const correcao = invoice.correcoes?.[indice - 1];
+    if (!Number.isInteger(indice) || indice < 1 || !correcao) {
+      res.status(404).json({ message: "Carta de correção não encontrada" });
+      return;
+    }
+
+    const arquivado =
+      kind === "pdf" ? correcao.storagePdfPath : correcao.storageXmlPath;
+    if (!arquivado) {
+      // O evento existe na SEFAZ; o que falta e a copia. Dizer isso e melhor
+      // que um 404 generico, que faria parecer que a correcao nao aconteceu.
+      res.status(404).json({
+        message:
+          "O documento desta correção não foi arquivado. A correção continua válida na SEFAZ.",
+      });
+      return;
+    }
+
+    const buffer = await readArchivedDocument(
+      invoice.tenantId,
+      invoice.id,
+      kind,
+      indice,
+    );
+    if (!buffer) {
+      res.status(404).json({ message: "Documento não encontrado no arquivo" });
+      return;
+    }
+
+    const nome = `carta-correcao-${invoice.numero ?? invoice.ref}-${indice}.${kind}`;
+    res.setHeader(
+      "Content-Type",
+      kind === "pdf" ? "application/pdf" : "application/xml",
+    );
+    res.setHeader("Content-Disposition", `attachment; filename="${nome}"`);
+    res.status(200).send(buffer);
+  } catch (error) {
+    const err = error as Error;
+    logger.error("Falha ao baixar documento da carta de correção", {
+      error: err.message,
+    });
     res
       .status(mapFiscalErrorStatus(err))
       .json({ message: mapFiscalErrorMessage(err), code: err.message });

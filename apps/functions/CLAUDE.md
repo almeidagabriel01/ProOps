@@ -450,6 +450,31 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   um travessao copiado do proprio placeholder do dialogo.
   O front tem copia (`lib/fiscal/texto-fiscal.ts`) so para o contador e o aviso serem
   honestos, com paridade garantida por `src/__tests__/fiscal-text-parity.test.ts`.
+- **Recusa da CC-e nao chega como erro HTTP.** Mesmo caso do cancelamento: o provedor
+  responde 200 e a recusa vem no corpo. `correctInvoice` ignorava o retorno, entao
+  "sucesso" na tela significava apenas "nao deu erro de rede" — e uma carta fantasma no
+  historico e repetida pela proxima correcao, por ser cumulativa. A checagem agora e por
+  **prova de FALHA**, nao de sucesso: `status === "rejected"` ou `rejectionMessage`
+  presentes lancam; status desconhecido segue adiante e vira `logger.warn`. Exigir um
+  status especifico de sucesso recusaria toda correcao caso o provedor mude o formato da
+  resposta — e o formato exato do retorno da CC-e nao esta em fonte publica.
+- **A CC-e tem documentos PROPRIOS, arquivados a parte.** `caminho_xml_carta_correcao`,
+  `caminho_pdf_carta_correcao` e `numero_carta_correcao` na resposta; espelhados em
+  `tenants/{id}/fiscal/{invoiceId}/cce-{indice}.{ext}` por `archiveCorrectionDocuments`.
+  O indice e 1-based e vem da posicao no historico: a ultima prevalecer perante o fisco
+  **nao apaga** as anteriores, que foram eventos distintos com protocolo e guarda legal
+  proprios. Se a resposta vier sem os caminhos, a correcao e registrada assim mesmo (o
+  evento existe na SEFAZ de qualquer jeito) e sai um `logger.warn` com as CHAVES recebidas
+  — e o que permite descobrir o nome certo sem adivinhar e sem expor valor nenhum.
+- **O download do documento da CC-e passa pelo backend**
+  (`GET /fiscal/invoices/:id/correcoes/:indice/:kind`), lendo do NOSSO Storage via
+  `readArchivedDocument` — que ate entao era funcao orfa, sem rota. Dois motivos
+  independentes: o caminho no provedor exige o token da empresa (link direto = 401) e
+  `storage.rules` nega a pasta `fiscal/` ao client. **O `download` do arquivamento agora
+  aceita token**; sem ele o DANFE e o XML da NF-e nunca desciam, porque sao relativos a
+  API do provedor — o DANFSe funcionava por vir de um S3 publico.
+  Nota: os botoes de PDF/XML da NOTA na lista continuam sendo `href` direto ao provedor,
+  entao o XML de NF-e segue quebrado ali. Trocar para esta rota e mudanca de uma linha.
 - **O que a CC-e NAO corrige** (Ajuste SINIEF 01/07): base de calculo, aliquota,
   quantidade, valor da operacao, qualquer tributo, dado que mude remetente ou
   destinatario, e data de emissao ou de saida. Escrever algo assim **nao da erro** — gera

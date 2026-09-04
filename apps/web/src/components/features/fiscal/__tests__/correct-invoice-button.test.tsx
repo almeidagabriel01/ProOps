@@ -13,14 +13,20 @@
 
 import "@testing-library/jest-dom/vitest";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const { correctInvoice } = vi.hoisted(() => ({ correctInvoice: vi.fn() }));
+const { correctInvoice, downloadCorrectionDocument } = vi.hoisted(() => ({
+  correctInvoice: vi.fn(),
+  downloadCorrectionDocument: vi.fn(),
+}));
 
 vi.mock("@/services/fiscal-service", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/fiscal-service")>();
-  return { ...actual, FiscalService: { correctInvoice } };
+  return {
+    ...actual,
+    FiscalService: { correctInvoice, downloadCorrectionDocument },
+  };
 });
 vi.mock("@/lib/toast", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -202,5 +208,81 @@ describe("CorrectInvoiceButton", () => {
     expect(screen.getByText(/limite de 20 correções/)).toBeInTheDocument();
     expect(registrar()).toBeDisabled();
     expect(campo()).toBeDisabled();
+  });
+
+  describe("histórico", () => {
+    const COM_HISTORICO = {
+      ...NOTA,
+      correcoes: [
+        {
+          texto: "primeira correcao registrada",
+          registradaEm: "2026-09-01T13:45:00.000Z",
+          numero: "1",
+          storagePdfPath: "tenants/t1/fiscal/inv-1/cce-1.pdf",
+          storageXmlPath: "tenants/t1/fiscal/inv-1/cce-1.xml",
+        },
+        {
+          texto: "segunda correcao registrada",
+          registradaEm: "2026-09-02T13:45:00.000Z",
+          numero: "2",
+        },
+      ],
+    } as FiscalInvoice;
+
+    it("lista cada correção com a data em que foi registrada", async () => {
+      // A data estava gravada e não aparecia em lugar nenhum — sem ela não dá
+      // para saber a qual momento a correção se refere.
+      renderButton(COM_HISTORICO);
+      await abrir();
+
+      // Escopado na lista: o campo de texto abre pré-preenchido com a última
+      // correção, então o texto dela existe duas vezes na tela.
+      const historico = within(screen.getByRole("list"));
+      expect(historico.getByText("primeira correcao registrada")).toBeInTheDocument();
+      expect(historico.getByText("segunda correcao registrada")).toBeInTheDocument();
+      expect(screen.getByText(/01\/09\/2026/)).toBeInTheDocument();
+    });
+
+    it("marca só a ÚLTIMA como em vigor", async () => {
+      // Todas ficam no histórico, mas só a última vale perante o fisco.
+      renderButton(COM_HISTORICO);
+      await abrir();
+
+      expect(screen.getAllByText("Em vigor")).toHaveLength(1);
+    });
+
+    it("oferece download só de quem tem documento arquivado", async () => {
+      // A segunda correção não tem cópia: um botão que sempre falha é pior que
+      // botão nenhum.
+      renderButton(COM_HISTORICO);
+      await abrir();
+
+      expect(screen.getAllByRole("button", { name: "PDF" })).toHaveLength(1);
+      expect(screen.getAllByRole("button", { name: "XML" })).toHaveLength(1);
+    });
+
+    it("baixa pelo backend, com o índice da correção", async () => {
+      renderButton(COM_HISTORICO);
+      await abrir();
+
+      await userEvent.click(screen.getByRole("button", { name: "XML" }));
+
+      await waitFor(() =>
+        expect(downloadCorrectionDocument).toHaveBeenCalledWith(
+          "inv-1",
+          1,
+          "xml",
+          "carta-correcao-12-1.xml",
+        ),
+      );
+    });
+
+    it("mostra no ícone quantas correções a nota tem", async () => {
+      // Na lista, nota corrigida era idêntica a nota sem correção — e `title`
+      // não existe no celular.
+      renderButton(COM_HISTORICO);
+
+      expect(screen.getByText("2")).toBeInTheDocument();
+    });
   });
 });
