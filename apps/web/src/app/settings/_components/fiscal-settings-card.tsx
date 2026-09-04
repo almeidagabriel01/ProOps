@@ -88,6 +88,7 @@ const INITIAL_FORM: FormState = {
   habilitaNfe: false,
   habilitaNfse: true,
   habilitaManifestacao: false,
+  dataInicioRecebimento: "",
   padraoNfse: "nacional",
   serieNfe: "",
   proximoNumeroNfe: "",
@@ -96,6 +97,20 @@ const INITIAL_FORM: FormState = {
   certificadoValidade: "",
   certificadoSenha: "",
 };
+
+/**
+ * Hoje no fuso LOCAL, não em UTC.
+ *
+ * `toISOString().slice(0, 10)` adianta o dia toda noite depois das 21h no
+ * horário de Brasília — e aqui isso sugeriria uma data futura para um campo
+ * que o provedor não deixa corrigir depois.
+ */
+function hojeIso(): string {
+  const agora = new Date();
+  const mes = String(agora.getMonth() + 1).padStart(2, "0");
+  const dia = String(agora.getDate()).padStart(2, "0");
+  return `${agora.getFullYear()}-${mes}-${dia}`;
+}
 
 function digits(value: string): string {
   return value.replace(/\D/g, "");
@@ -131,6 +146,7 @@ function hydrate(settings: FiscalSettings): FormState {
     habilitaNfe: settings.habilitaNfe ?? false,
     habilitaNfse: settings.habilitaNfse ?? true,
     habilitaManifestacao: settings.habilitaManifestacao === true,
+    dataInicioRecebimento: settings.dataInicioRecebimento ?? "",
     padraoNfse: settings.padraoNfse ?? "nacional",
     serieNfe: settings.serieNfe != null ? String(settings.serieNfe) : "",
     proximoNumeroNfe:
@@ -156,6 +172,8 @@ interface FiscalSettingsCardProps {
 
 export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps) {
   const [settings, setSettings] = React.useState<FiscalSettings | null>(null);
+  const dataRecebimentoBloqueada =
+    settings?.dataInicioRecebimentoBloqueada === true;
   const [form, setForm] = React.useState<FormState>(INITIAL_FORM);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -846,10 +864,57 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
               </p>
             </div>
             <Switch
+              aria-label="Receber notas dos fornecedores"
               checked={form.habilitaManifestacao}
-              onCheckedChange={(checked) => setField("habilitaManifestacao", checked)}
+              onCheckedChange={(checked) => {
+                setField("habilitaManifestacao", checked);
+                // Hoje como padrão: em branco o provedor puxa TODO o histórico
+                // e cobra por nota. Quem quiser o histórico escolhe a data —
+                // ninguém deve pagar por ele sem ter pedido.
+                if (checked && !form.dataInicioRecebimento) {
+                  setField("dataInicioRecebimento", hojeIso());
+                }
+              }}
             />
           </div>
+
+          {form.habilitaManifestacao && (
+            <div className="flex flex-col gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+              <Label htmlFor="fiscal-data-inicio-recebimento">
+                Buscar notas emitidas a partir de
+              </Label>
+              <Input
+                id="fiscal-data-inicio-recebimento"
+                type="date"
+                className="max-w-[200px]"
+                value={form.dataInicioRecebimento}
+                max={hojeIso()}
+                disabled={dataRecebimentoBloqueada}
+                onChange={(e) => setField("dataInicioRecebimento", e.target.value)}
+              />
+              {dataRecebimentoBloqueada ? (
+                <p className="text-xs text-muted-foreground">
+                  Esta data já foi registrada no provedor fiscal e não pode mais
+                  ser alterada.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Notas emitidas antes desta data são descartadas e{" "}
+                  <strong className="text-foreground">não são cobradas</strong>.
+                  Recuar a data traz o histórico do fornecedor — útil para
+                  aproveitar os NCM de compras antigas —, mas{" "}
+                  <strong className="text-foreground">
+                    cada nota trazida consome uma unidade do seu pacote
+                  </strong>
+                  . Depois de enviar o certificado,{" "}
+                  <strong className="text-foreground">
+                    esta data não pode mais ser alterada
+                  </strong>
+                  .
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

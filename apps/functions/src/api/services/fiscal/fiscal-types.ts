@@ -124,6 +124,16 @@ export interface FiscalIssuerConfig {
    * do tenant, não nosso: fica no cadastro em vez de virar pergunta a cada nota.
    */
   percentualTotalTributosSimplesNacional?: number;
+  /**
+   * `data_inicio_recebimento_nfe` — a partir de quando buscar notas recebidas.
+   *
+   * Não é detalhe técnico, é **controle de custo**: notas emitidas antes dela
+   * são descartadas e NÃO cobradas; em branco, o provedor recupera todo o
+   * histórico disponível e cobra por cada uma. E o provedor **não deixa
+   * alterar depois de definida** — por isso ela é escolha do tenant, com o
+   * custo dito na frente, e não um default silencioso nosso.
+   */
+  dataInicioRecebimento?: string;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;

@@ -31,6 +31,7 @@ export interface FiscalFormState {
   habilitaNfe: boolean;
   habilitaNfse: boolean;
   habilitaManifestacao: boolean;
+  dataInicioRecebimento: string;
   padraoNfse: FiscalNfsePadrao;
   serieNfe: string;
   proximoNumeroNfe: string;
@@ -79,6 +80,12 @@ export function buildFiscalSettingsPayload(
     habilitaNfe: form.habilitaNfe,
     habilitaNfse: form.habilitaNfse,
     habilitaManifestacao: form.habilitaManifestacao,
+    // Só faz sentido com a recepção ligada, e desligar precisa LIMPAR a data:
+    // enviá-la junto de `habilitaManifestacao: false` gravaria uma escolha
+    // irreversível que ninguém fez.
+    dataInicioRecebimento: form.habilitaManifestacao
+      ? form.dataInicioRecebimento
+      : "",
     padraoNfse: form.padraoNfse,
     serieNfe: optionalNumber(form.serieNfe),
     proximoNumeroNfe: optionalNumber(form.proximoNumeroNfe),

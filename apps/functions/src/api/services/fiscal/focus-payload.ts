@@ -79,6 +79,8 @@ export interface FocusEmpresaPayload extends Record<string, unknown> {
   habilita_nfsen_producao: boolean;
   habilita_nfsen_homologacao: boolean;
   habilita_manifestacao: boolean;
+  habilita_manifestacao_homologacao: boolean;
+  data_inicio_recebimento_nfe?: string;
   arquivo_certificado_base64: string;
   senha_certificado: string;
 }
@@ -139,7 +141,16 @@ export function buildEmpresaPayload(issuer: FiscalIssuerConfig): FocusEmpresaPay
     habilita_nfsen_homologacao: issuer.habilitaNfse && nfsePadrao === "nacional",
     // Enviado sempre, inclusive false: assim o cadastro nao precisa ser
     // refeito quando a recepcao de notas for ligada mais tarde.
+    // Os DOIS ambientes, mesma regra dos `habilita_nfsen_*`: o provedor separa
+    // recepção de produção e de homologação, e mandar só a de produção deixa
+    // um emitente em homologação sem receber nada — sem erro em lugar nenhum.
     habilita_manifestacao: issuer.habilitaManifestacao === true,
+    habilita_manifestacao_homologacao: issuer.habilitaManifestacao === true,
+    // Só quando existe: em branco o provedor puxa TODO o histórico disponível e
+    // cobra por nota. Mandar uma data vazia não é neutro.
+    ...(issuer.dataInicioRecebimento
+      ? { data_inicio_recebimento_nfe: issuer.dataInicioRecebimento }
+      : {}),
     arquivo_certificado_base64: issuer.certificadoBase64,
     senha_certificado: issuer.certificadoSenha,
   };

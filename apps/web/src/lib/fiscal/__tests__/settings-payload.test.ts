@@ -36,6 +36,7 @@ const FORM: FiscalFormState = {
   habilitaNfe: false,
   habilitaNfse: true,
   habilitaManifestacao: false,
+  dataInicioRecebimento: "",
   padraoNfse: "nacional",
   serieNfe: "",
   proximoNumeroNfe: "",
@@ -108,5 +109,35 @@ describe("buildFiscalSettingsPayload", () => {
     // String vazia aqui apagaria a senha guardada em KMS e o emitente pararia
     // de assinar, sem nada na tela dizendo por quê.
     expect(buildFiscalSettingsPayload(FORM).certificadoSenha).toBeUndefined();
+  });
+});
+
+describe("data de início de recebimento", () => {
+  /**
+   * Ela é IRREVERSÍVEL no provedor e é controle de custo: notas anteriores a
+   * ela são descartadas e não cobradas; sem ela, o provedor puxa todo o
+   * histórico disponível e cobra por cada nota.
+   */
+  it("vai junto quando a recepção está ligada", () => {
+    const payload = buildFiscalSettingsPayload({
+      ...FORM,
+      habilitaManifestacao: true,
+      dataInicioRecebimento: "2026-09-04",
+    });
+
+    expect(payload.dataInicioRecebimento).toBe("2026-09-04");
+  });
+
+  it("é LIMPA quando a recepção está desligada", () => {
+    // Gravar a data junto de `habilitaManifestacao: false` registraria uma
+    // escolha irreversível que ninguém fez — basta o usuário ter ligado o
+    // toggle, visto a data sugerida e desligado de novo antes de salvar.
+    const payload = buildFiscalSettingsPayload({
+      ...FORM,
+      habilitaManifestacao: false,
+      dataInicioRecebimento: "2026-09-04",
+    });
+
+    expect(payload.dataInicioRecebimento).toBe("");
   });
 });

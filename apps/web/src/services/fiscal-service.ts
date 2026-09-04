@@ -86,6 +86,8 @@ export interface FiscalSettings {
   habilitaNfse?: boolean;
   /** Recepção de notas de ENTRADA. Nasce desligada — consome pacote do provedor. */
   habilitaManifestacao?: boolean;
+  dataInicioRecebimento?: string;
+  dataInicioRecebimentoBloqueada?: boolean;
   padraoNfse?: FiscalNfsePadrao;
   serieNfe?: number;
   proximoNumeroNfe?: number;
@@ -117,6 +119,7 @@ export interface SaveFiscalSettingsPayload {
   habilitaNfe: boolean;
   habilitaNfse: boolean;
   habilitaManifestacao?: boolean;
+  dataInicioRecebimento?: string;
   padraoNfse?: FiscalNfsePadrao;
   environment?: FiscalEnvironment;
   serieNfe?: number;
