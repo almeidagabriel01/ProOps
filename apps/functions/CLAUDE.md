@@ -690,6 +690,13 @@ pelo ERP chegar la sem baixar e subir a mao.
   destruindo a organizacao que a integracao promete. Classifica pelo `mappedStatus`/
   `category` da coluna, nunca pelo rotulo (cada empresa renomeia). Nunca lanca: o status ja
   mudou e a venda nao pode ser desfeita porque o Google recusou um upload.
+- **A pasta raiz e reencontrada por MARCA, nao pelo que gravamos.** Desconectar apaga o
+  documento inteiro da integracao, `rootFolderId` inclusive — entao desconectar e reconectar
+  deixava o sistema sem memoria e criava uma segunda "ProOps - Propostas" ao lado da
+  primeira (aconteceu no teste real). Toda raiz, criada por nos ou escolhida no Picker,
+  recebe `appProperties.proopsRoot`, e a criacao procura por ela antes. **Nao casar por
+  NOME**: o usuario pode renomear a pasta a vontade, e e justamente isso que o desenho
+  incentiva.
 - **Um arquivo por proposta, marcado com `appProperties.proposalId`.** O `driveFileId`
   gravado na proposta nao basta: duas chamadas simultaneas leem o campo vazio e as duas
   criam, deixando dois PDFs identicos na pasta sem erro em lugar nenhum (aconteceu no

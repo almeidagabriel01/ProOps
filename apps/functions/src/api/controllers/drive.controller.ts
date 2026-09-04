@@ -32,6 +32,7 @@ import {
 import {
   createRootFolder,
   ensureClientFolder,
+  tagRootFolder,
 } from "../services/drive/drive.service";
 
 // RFC 4122 UUID — o `state` sai de crypto.randomUUID() (v4).
@@ -302,6 +303,10 @@ export async function setRootFolderHandler(req: Request, res: Response) {
     }
 
     await saveRootFolder(tenantId, folderId, folderName || "Pasta selecionada");
+    // Marca também a pasta escolhida: sem isso só a criada por nós seria
+    // reencontrada depois de um desconectar, e quem usou o Picker acabaria com
+    // uma segunda pasta ao reconectar.
+    await tagRootFolder(tenantId, folderId);
     return res.json({ success: true });
   } catch (error) {
     logger.error("Falha ao gravar a pasta raiz do Drive", {

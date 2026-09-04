@@ -64,6 +64,7 @@ beforeEach(() => {
   filesCreate.mockResolvedValue({ data: { id: "novo-1", webViewLink: "https://d/1" } });
   filesUpdate.mockResolvedValue({ data: { id: "arq-1", webViewLink: "https://d/1" } });
   filesList.mockResolvedValue({ data: { files: [] } });
+  filesCreate.mockResolvedValue({ data: { id: "novo-1", webViewLink: "https://d/1" } });
   mockDrive();
 });
 
@@ -153,6 +154,57 @@ describe("createRootFolder", () => {
 
     expect(filesCreate).not.toHaveBeenCalled();
     expect(r.folderId).toBe("raiz-existente");
+  });
+
+  it("REAPROVEITA a pasta antiga depois de desconectar e reconectar", async () => {
+    // Desconectar apaga o documento inteiro da integracao, `rootFolderId`
+    // inclusive — sem consultar o Drive, reconectar criava uma segunda
+    // "ProOps - Propostas" ao lado da primeira. Aconteceu no teste real.
+    mockDrive(null);
+    filesList.mockResolvedValue({
+      data: { files: [{ id: "raiz-antiga", name: "Propostas do Zé" }] },
+    });
+
+    const r = await createRootFolder("t1");
+
+    expect(filesCreate).not.toHaveBeenCalled();
+    // E preserva o nome que o usuario deu, se ele renomeou.
+    expect(r).toEqual({ folderId: "raiz-antiga", folderName: "Propostas do Zé" });
+  });
+
+  it("procura pela MARCA, nao pelo nome", async () => {
+    // O usuario pode renomear a pasta a vontade — casar por nome perderia ela.
+    mockDrive(null);
+
+    await createRootFolder("t1");
+
+    const q = String(filesList.mock.calls[0][0].q);
+    expect(q).toContain("proopsRoot");
+    expect(q).not.toContain(DEFAULT_ROOT_FOLDER_NAME);
+  });
+
+  it("marca a pasta criada para ser reencontravel depois", async () => {
+    mockDrive(null);
+
+    await createRootFolder("t1");
+
+    expect(filesCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestBody: expect.objectContaining({
+          appProperties: { proopsRoot: "1" },
+        }),
+      }),
+    );
+  });
+
+  it("cria quando a consulta falha — nao pode travar a configuracao", async () => {
+    mockDrive(null);
+    filesList.mockRejectedValue(new Error("backend error"));
+    filesCreate.mockResolvedValue({ data: { id: "raiz-nova" } });
+
+    const r = await createRootFolder("t1");
+
+    expect(r.folderId).toBe("raiz-nova");
   });
 
   it("nao usa caractere fora do ASCII no nome", () => {

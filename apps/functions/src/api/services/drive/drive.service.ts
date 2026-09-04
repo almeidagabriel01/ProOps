@@ -147,6 +147,56 @@ export const DEFAULT_ROOT_FOLDER_NAME = "ProOps - Propostas";
  * Idempotente: se ja houver uma raiz definida, devolve ela em vez de criar
  * outra. Dois cliques no botao nao podem produzir duas pastas.
  */
+/** Marca invisivel que torna a pasta raiz reencontravel. */
+const ROOT_MARKER = { proopsRoot: "1" };
+
+/**
+ * Marca uma pasta como a raiz deste tenant.
+ *
+ * Best-effort: falhar aqui nao pode impedir o uso da pasta — o pior caso e ela
+ * nao ser reencontrada num futuro reconectar, que e o comportamento antigo.
+ */
+export async function tagRootFolder(
+  tenantId: string,
+  folderId: string,
+): Promise<void> {
+  try {
+    const { client } = await getDriveClient(tenantId);
+    await client.files.update({
+      fileId: folderId,
+      requestBody: { appProperties: ROOT_MARKER },
+      supportsAllDrives: true,
+    });
+  } catch (error) {
+    logger.warn("Nao foi possivel marcar a pasta raiz no Drive", {
+      tenantId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+/**
+ * Cria a pasta raiz no Drive do tenant, na raiz do "Meu Drive".
+ *
+ * Alternativa ao Google Picker, e nao um substituto pior: no escopo
+ * `drive.file` o acesso segue o ARQUIVO, nao o caminho — o usuario pode
+ * **mover, renomear e compartilhar** esta pasta livremente que continuamos
+ * enxergando ela. Na pratica ele arrasta a pasta para dentro da estrutura que
+ * ja tem e o resultado e o mesmo de ter apontado uma pasta existente.
+ *
+ * Isso importa porque o Picker cobra caro em configuracao (API key propria,
+ * Picker API, popup, cookies de terceiros) e falha de formas que dependem do
+ * navegador do CLIENTE — o que nao pode ser pre-requisito para usar o modulo.
+ *
+ * **Idempotente em DOIS niveis**, e o segundo nao e paranoia:
+ *
+ * 1. Se ha raiz gravada, devolve ela — dois cliques no botao nao criam duas
+ *    pastas.
+ * 2. Se NAO ha, procura no Drive por uma que ja tenhamos criado. Desconectar
+ *    apaga o documento inteiro da integracao, `rootFolderId` inclusive, entao
+ *    desconectar-e-reconectar deixava o sistema sem memoria nenhuma e criava
+ *    uma segunda "ProOps - Propostas" ao lado da primeira.
+ */
 export async function createRootFolder(
   tenantId: string,
 ): Promise<{ folderId: string; folderName: string }> {
@@ -158,12 +208,45 @@ export async function createRootFolder(
     };
   }
 
+  try {
+    const existente = await client.files.list({
+      q: [
+        `mimeType = '${FOLDER_MIME}'`,
+        "trashed = false",
+        "appProperties has { key='proopsRoot' and value='1' }",
+      ].join(" and "),
+      fields: "files(id, name)",
+      pageSize: 1,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    });
+    const achada = existente.data.files?.[0];
+    if (achada?.id) {
+      logger.info("Pasta raiz reaproveitada no Drive", {
+        tenantId,
+        folderId: achada.id,
+      });
+      return {
+        folderId: achada.id,
+        folderName: achada.name || DEFAULT_ROOT_FOLDER_NAME,
+      };
+    }
+  } catch (error) {
+    // Sem a consulta, no pior caso cria uma nova — que era o comportamento
+    // anterior. Nao pode impedir a configuracao.
+    logger.warn("Consulta por pasta raiz existente falhou", {
+      tenantId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   const created = await client.files.create({
     // Sem `parents`: nasce na raiz do "Meu Drive", de onde o usuario move para
     // onde quiser.
     requestBody: {
       name: DEFAULT_ROOT_FOLDER_NAME,
       mimeType: FOLDER_MIME,
+      appProperties: ROOT_MARKER,
     },
     fields: "id",
     supportsAllDrives: true,
