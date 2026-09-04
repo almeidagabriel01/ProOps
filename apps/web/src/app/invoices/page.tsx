@@ -24,6 +24,7 @@ import {
   type FiscalSettings,
 } from "@/services/fiscal-service";
 import { TestModeBanner } from "@/components/features/fiscal/test-mode-banner";
+import { CorrectInvoiceButton } from "@/components/features/fiscal/correct-invoice-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ReceivedInvoicesPanel } from "./_components/received-invoices-panel";
 import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
@@ -311,6 +312,20 @@ export default function InvoicesPage() {
                       <FileCode className="h-4 w-4" />
                     </a>
                   </Button>
+                )}
+                {/* Só NF-e: a NFS-e não tem carta de correção — lá o caminho
+                    é cancelar e substituir, e cada prefeitura tem sua regra. */}
+                {invoice.type === "nfe" && (
+                  <CorrectInvoiceButton
+                    invoice={invoice}
+                    onCorrected={(updated) =>
+                      setInvoices((prev) =>
+                        prev.map((item) =>
+                          item.id === updated.id ? updated : item,
+                        ),
+                      )
+                    }
+                  />
                 )}
                 {canCancel && (
                   <CancelInvoiceButton

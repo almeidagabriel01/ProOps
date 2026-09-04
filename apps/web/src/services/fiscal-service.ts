@@ -160,6 +160,12 @@ export interface FiscalGap {
   message: string;
 }
 
+/** Limites do Ajuste SINIEF 07/2005, espelhados do backend. */
+export const CORRECTION_TEXT_MIN_LENGTH = 15;
+export const CORRECTION_TEXT_MAX_LENGTH = 1000;
+/** Teto de eventos por NF-e; passar disso é a rejeição 594. */
+export const CORRECTION_MAX_COUNT = 20;
+
 export interface FiscalInvoice {
   id: string;
   tenantId: string;
@@ -179,6 +185,8 @@ export interface FiscalInvoice {
   clientName?: string;
   transactionId?: string;
   proposalId?: string;
+  /** Cartas de correção já registradas — a última é a que vale perante o fisco. */
+  correcoes?: Array<{ texto: string; registradaEm: string }>;
   rejectionCode?: string;
   rejectionMessage?: string;
   createdAt: string;
@@ -304,6 +312,17 @@ export const FiscalService = {
       "POST",
       {},
     ),
+
+  /**
+   * Carta de correção — só NF-e autorizada.
+   *
+   * **Cumulativa**: a última sobrescreve as anteriores perante o fisco, então o
+   * texto enviado precisa conter tudo o que ainda vale.
+   */
+  correctInvoice: (invoiceId: string, correcao: string) =>
+    callApi<FiscalInvoice>(`/v1/fiscal/invoices/${invoiceId}/correction`, "POST", {
+      correcao,
+    }),
 
   cancelInvoice: (invoiceId: string, justificativa: string) =>
     callApi<FiscalInvoice>(`/v1/fiscal/invoices/${invoiceId}/cancel`, "POST", {

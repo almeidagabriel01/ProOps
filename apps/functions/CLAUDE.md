@@ -426,6 +426,18 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   `fiscal/` ao client e `application/xml` nem esta na allowlist de content-type.
 - **Lancamento avulso nao emite** — sem proposta vinculada nao ha itens, e o sistema
   falha com `LANCAMENTO_SEM_PROPOSTA` em vez de inventar uma linha.
+- **A CC-e e CUMULATIVA: a ultima sobrescreve as anteriores perante o fisco.** Cada nova
+  carta precisa repetir tudo o que ainda vale — mandar so a novidade apaga a correcao
+  anterior, sem erro nenhum, e ninguem descobre antes de uma fiscalizacao. Por isso
+  `correctInvoice` **persiste** o texto em `InvoiceDocument.correcoes` (so DEPOIS de o
+  fisco aceitar) e o dialogo abre pre-preenchido com a ultima. Limite de **20** eventos
+  por NF-e; passar disso e a rejeicao **594**, entao a UI barra antes de gastar a chamada.
+- **O que a CC-e NAO corrige** (Ajuste SINIEF 01/07): base de calculo, aliquota,
+  quantidade, valor da operacao, qualquer tributo, dado que mude remetente ou
+  destinatario, e data de emissao ou de saida. Escrever algo assim **nao da erro** — gera
+  uma carta registrada e inutil, com falsa sensacao de resolvido. O dialogo diz isso antes
+  do campo de texto. So NF-e tem CC-e; na NFS-e o caminho e cancelar e substituir, e a
+  regra e de cada prefeitura.
 - **Cancelamento recusado LANCA, nao passa em silencio.** O provedor responde **200 mesmo
   quando o fisco recusa** — o corpo traz `erro_cancelamento` e a nota continua autorizada.
   Sem checar `result.status !== "cancelled"`, o resultado caia em `error`, `canApplyStatus`

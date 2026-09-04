@@ -78,6 +78,17 @@ export interface InvoiceDocument {
   transactionId?: string;
   proposalId?: string;
 
+  /**
+   * Cartas de correção já registradas nesta nota.
+   *
+   * Guardadas do NOSSO lado porque a CC-e é **cumulativa**: a última sobrescreve
+   * as anteriores perante o fisco, então cada nova precisa repetir tudo o que
+   * ainda vale. Sem o texto anterior à mão, a segunda correção apagaria a
+   * primeira em silêncio — e o usuário só descobriria numa fiscalização.
+   * O limite é 20 por nota (rejeição 594 ao passar).
+   */
+  correcoes?: Array<{ texto: string; registradaEm: string }>;
+
   rejectionCode?: string;
   rejectionMessage?: string;
 
@@ -622,6 +633,14 @@ export async function correctInvoice(
     env,
     await getIssuingToken(stored.tenantId, env),
   );
+
+  // Só depois de o fisco aceitar: registrar antes deixaria no histórico uma
+  // correção que não existe perante a SEFAZ, e a próxima carta a repetiria.
+  const registradaEm = new Date().toISOString();
+  await docRef(invoiceId).update({
+    correcoes: FieldValue.arrayUnion({ texto, registradaEm }),
+    updatedAt: registradaEm,
+  });
 
   return (await getInvoice(invoiceId)) ?? stored;
 }
