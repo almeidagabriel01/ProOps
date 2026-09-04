@@ -457,9 +457,10 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   **prova de FALHA**, nao de sucesso: `status === "rejected"` ou `rejectionMessage`
   presentes lancam; status desconhecido segue adiante e vira `logger.warn`. Exigir um
   status especifico de sucesso recusaria toda correcao caso o provedor mude o formato da
-  resposta — e o formato exato do retorno da CC-e nao esta em fonte publica.
+  resposta.
 - **A CC-e tem documentos PROPRIOS, arquivados a parte.** `caminho_xml_carta_correcao`,
-  `caminho_pdf_carta_correcao` e `numero_carta_correcao` na resposta; espelhados em
+  `caminho_pdf_carta_correcao` e `numero_carta_correcao` na resposta — nomes **confirmados
+  em dev em 2026-09-04**, com a carta trazendo numero e os dois arquivos; espelhados em
   `tenants/{id}/fiscal/{invoiceId}/cce-{indice}.{ext}` por `archiveCorrectionDocuments`.
   O indice e 1-based e vem da posicao no historico: a ultima prevalecer perante o fisco
   **nao apaga** as anteriores, que foram eventos distintos com protocolo e guarda legal
