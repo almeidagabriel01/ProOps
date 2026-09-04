@@ -128,6 +128,9 @@ npm run security:scan                  # OWASP ZAP baseline
   ficam só em `focus-payload.ts` e `focus-response.ts`. Webhook: `/webhooks/focus/:tenantId/:secret/:type`
   (o Focus não manda cabeçalho de auth — a URL é a credencial). Config em `/settings/fiscal`,
   notas em `/invoices`.
+- **Google Drive** — entrega o PDF da proposta na pasta do cliente, no Drive do tenant.
+  Só de ida (nada é lido), escopo `drive.file` (não sensível). Consentimento separado do
+  Calendar, mesmo app OAuth. Config em `/settings/drive`. Detalhes em `apps/functions/CLAUDE.md`.
 - **AI/Lia** — Google Gemini + Groq. Module: `apps/functions/src/ai/`. Rate-limited per user.
 - **PDF** — Playwright/Chromium headless, rate-limited (5 req/60s per user)
 - **Google Calendar** — via `@googleapis/calendar` + `@googleapis/oauth2` (lazy-loaded)

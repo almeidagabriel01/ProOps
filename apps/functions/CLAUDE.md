@@ -650,6 +650,69 @@ permitimos a manifestacao.
   pessoa procurando onde o lancamento foi parar. Guards:
   `received-invoice-transaction.test.ts` e `launch-received-invoice-button.test.tsx`.
 
+### Integracao com o Google Drive
+
+Entrega a proposta na pasta do cliente, no Drive DO TENANT. **So de ida** — nada e lido
+de la. Nasceu de um pedido de cliente cuja dor era "nao manter duas organizacoes": ele ja
+guarda projeto, memorial e planta numa pasta por cliente, e so faltava a proposta gerada
+pelo ERP chegar la sem baixar e subir a mao.
+
+- **Consentimento SEPARADO do Google Agenda**, com o MESMO app OAuth. O refresh token vale
+  para os escopos concedidos quando ele nasceu, entao acrescentar `drive.file` a lista do
+  Calendar invalidaria todo consentimento existente — cada cliente com a Agenda conectada
+  passaria a receber "insufficient authentication scopes" ate reconectar. Colecoes proprias
+  (`google_drive_integrations`, `drive_oauth_states`), DENY nas rules, refresh token cifrado
+  com a MESMA chave KMS do Calendar (`CALENDAR_TOKEN`): e a mesma classe de segredo, e uma
+  chave propria exigiria provisionamento manual sem separar risco de verdade.
+- **Escopo `drive.file`, jamais `drive`/`drive.readonly`.** O Google classifica `drive.file`
+  como **nao sensivel**; os amplos sao **restritos** e disparam o assessment CASA, refeito a
+  cada 12 meses enquanto o app existir. A consequencia de projeto: **nao conseguimos listar
+  as pastas do usuario** — so o que nos mesmos criamos.
+- **Criar a pasta raiz e o caminho PADRAO; o Google Picker e opcional.** O Picker era a
+  forma "correta" de apontar uma pasta existente, mas cobra API key propria, Picker API
+  habilitada, popup e cookies de terceiros — e falha de formas que dependem do NAVEGADOR DO
+  CLIENTE (no Brave ele abre em janela separada e o retorno nunca chega). Criar nao e
+  substituto pior: no `drive.file` o acesso segue o ARQUIVO, nao o caminho, entao o usuario
+  **move a pasta para dentro da estrutura que ja tem**, renomeia e compartilha, e continuamos
+  enxergando ela. O botao do Picker some sozinho quando as `NEXT_PUBLIC_*` faltam — sem elas
+  o modulo segue utilizavel em vez de ficar bloqueado.
+- **A API key do Picker NAO pode ter restricao por referenciador HTTP.** A validacao roda
+  dentro do iframe do `docs.google.com`, entao o referenciador visto pelo Google e o dele —
+  qualquer padrao com a origem do app da "The API developer key is invalid", num popup fora
+  do console do navegador. A protecao correta e a restricao de API (so Picker API): a chave
+  sozinha nao le o Drive de ninguem, porque toda operacao real exige o token OAuth.
+- **O token do Picker e pedido pelo NAVEGADOR** (Google Identity Services), nao cunhado pelo
+  backend a partir do refresh token guardado. Seria mais simples cunhar, mas poria uma
+  credencial emitida por nos ao alcance de qualquer XSS.
+- **A entrega dispara quando a proposta SAI DO RASCUNHO** (status mapeado para `sent` ou
+  aprovado), nao "ao gerar o PDF". O PDF e gerado sob demanda, toda vez que alguem abre a
+  proposta para conferir — subir em cada geracao encheria a pasta do cliente de rascunho,
+  destruindo a organizacao que a integracao promete. Classifica pelo `mappedStatus`/
+  `category` da coluna, nunca pelo rotulo (cada empresa renomeia). Nunca lanca: o status ja
+  mudou e a venda nao pode ser desfeita porque o Google recusou um upload.
+- **Um arquivo por proposta, marcado com `appProperties.proposalId`.** O `driveFileId`
+  gravado na proposta nao basta: duas chamadas simultaneas leem o campo vazio e as duas
+  criam, deixando dois PDFs identicos na pasta sem erro em lugar nenhum (aconteceu no
+  primeiro teste real). Antes de criar, procura pela marca — `drive.file` deixa listar o que
+  o proprio app criou. **Nao casar por NOME**: duas propostas do mesmo cliente podem ter o
+  mesmo titulo e uma sobrescreveria a outra.
+- **`invalid_grant` nao e erro 500.** Acontece quando o usuario revoga o acesso na conta
+  Google, troca a senha, ou o refresh token passa 6 meses sem uso — e tentar de novo nunca
+  resolve. Responde 409 com "reconecte", marca `lastError` na integracao, e a tela de
+  configuracao avisa ANTES de a pessoa tentar usar, em vez de ela descobrir com a proposta ja
+  aprovada.
+- **`GOOGLE_DRIVE_REDIRECT_URI` e sobrescrita de ambiente.** O default deriva de `APP_URL`,
+  que **em dev e a URL de preview da Vercel, nao localhost** — conectar a partir de
+  `localhost:3000` sem essa variavel da `redirect_uri_mismatch`. `resolveDriveAppOrigin()`
+  usa a origem DELA tambem para o redirect final: sem isso o usuario terminava o
+  consentimento sendo jogado para outro ambiente.
+- **Pendencia conhecida: a mudanca de status fica LENTA** quando o PDF nao esta em cache,
+  porque a entrega (Chromium + upload) e aguardada dentro da request. Nao da para
+  dispare-e-esqueca — no Cloud Run a CPU e congelada quando a request termina. A saida
+  indicada e **Cloud Tasks** (`.claude/rules/scaling-roadmap.md`, 4.2), nao um trigger de
+  Firestore: o trigger dispararia na propria escrita da entrega (`driveFileId`), criando
+  laco, e traria Chromium para um lugar que ninguem configurou para isso.
+
 ### Plano do tenant: DUAS fontes que podem divergir
 
 O backend resolve o plano por **`tenants/{id}.plan`** (depois `.planTier`, `.tier`,
