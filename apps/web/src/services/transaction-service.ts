@@ -80,6 +80,20 @@ export type Transaction = {
   parentTransactionId?: string; // ID of the transaction this was split from (or related to)
   extraCosts?: ExtraCost[]; // Inline extra costs that don't need their own transaction documents
   paidAt?: string; // Timestamp set when transaction is marked as paid
+  /**
+   * Despesa de comissão gerada pela aprovação da proposta (ver
+   * apps/functions/src/api/controllers/proposal-commissions.ts). Escrita SÓ
+   * pelo backend: os campos ficam fora de `UPDATABLE_TRANSACTION_FIELDS` de
+   * propósito, então um PUT do cliente não consegue marcar um lançamento
+   * qualquer como comissão.
+   */
+  isCommission?: boolean;
+  commissionContactId?: string;
+  commissionContactName?: string;
+  commissionRole?: "vendedor" | "arquiteto";
+  commissionPercentage?: number;
+  /** Qual receita esta parcela de comissão espelha. */
+  commissionSourceKey?: string;
 };
 
 export type UpdateFinancialEntryWithInstallmentsPayload = {

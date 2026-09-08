@@ -78,6 +78,21 @@ export interface ProposalAttachment {
   uploadedAt: string;
 }
 
+/**
+ * Comissao de um parceiro sobre esta proposta.
+ *
+ * O percentual e copiado do cadastro do contato ao adicionar, mas o que vale e
+ * o valor gravado AQUI: mudar a comissao padrao do parceiro nao pode reescrever
+ * o que ja foi combinado numa proposta.
+ */
+export interface ProposalCommission {
+  contactId: string;
+  /** Desnormalizado, no mesmo padrao de `clientName`. */
+  contactName: string;
+  role: "vendedor" | "arquiteto";
+  percentage: number;
+}
+
 export interface ProposalPdfMetadata {
   storagePath: string;
   versionHash: string;
@@ -124,6 +139,12 @@ export interface Proposal {
   firstInstallmentDate?: string; // YYYY-MM-DD - date of first installment
   installmentsPaymentMethod?: string; // Shown in PDF for installments/single payment
   paymentMethod?: string; // Shown in PDF payment terms
+
+  /**
+   * Comissoes de vendedor e arquiteto. Informacao INTERNA: nao entra no PDF,
+   * como `downPaymentWallet` e `installmentsWallet` tambem nao entram.
+   */
+  commissions?: ProposalCommission[];
 
   // Flattened fields for sorting
   primarySystem?: string;

@@ -1,8 +1,23 @@
 import { db } from "../../init";
+import {
+  buildCommissionDrafts,
+  buildCommissionTransactionKey,
+  readProposalCommissions,
+  type CommissionDraft,
+  type CommissionSourceDraft,
+} from "./proposal-commissions";
 
+/**
+ * Um lancamento gerado pela aprovacao da proposta.
+ *
+ * O tipo cobre RECEITA (o que o cliente paga) e DESPESA de comissao (o que o
+ * parceiro recebe), porque os dois atravessam o mesmo diff idempotente em
+ * `syncApprovedProposalTransactions`. Os campos de comissao sao opcionais e so
+ * aparecem nas despesas; ver `proposal-commissions.ts`.
+ */
 export type ProposalLinkedTransactionDraft = {
   tenantId: string;
-  type: "income";
+  type: "income" | "expense";
   description: string;
   amount: number;
   date: string;
@@ -12,7 +27,7 @@ export type ProposalLinkedTransactionDraft = {
   clientName: string | null;
   proposalId: string;
   proposalGroupId: string | null;
-  category: null;
+  category: string | null;
   wallet: string | null;
   isDownPayment: boolean;
   downPaymentType?: "value" | "percentage";
@@ -23,6 +38,12 @@ export type ProposalLinkedTransactionDraft = {
   installmentGroupId: string | null;
   notes: string;
   createdById: string;
+  isCommission?: boolean;
+  commissionContactId?: string;
+  commissionContactName?: string;
+  commissionRole?: CommissionDraft["commissionRole"];
+  commissionPercentage?: number;
+  commissionSourceKey?: string;
 };
 
 export function normalizeProposalTransactionTitle(value: unknown): string {
@@ -230,14 +251,61 @@ export function buildApprovedProposalTransactionDrafts(params: {
     });
   }
 
-  return { drafts, effectiveDownPaymentValue, effectiveInstallmentValue };
+  const commissionDrafts = buildCommissionDrafts({
+    tenantId,
+    proposalId,
+    proposalTitle: title,
+    commissions: readProposalCommissions(proposalData),
+    sources: drafts.map(toCommissionSource),
+    baseTotal: effectiveTotalValue,
+    walletName: defaultWalletName,
+    userId,
+  });
+
+  return {
+    drafts: [...drafts, ...commissionDrafts],
+    effectiveDownPaymentValue,
+    effectiveInstallmentValue,
+  };
 }
 
+/**
+ * Converte a receita na "fonte" que a comissao espelha. Reusa a chave do sync
+ * para que despesa e receita apontem sempre para a mesma parcela.
+ */
+function toCommissionSource(
+  draft: ProposalLinkedTransactionDraft,
+): CommissionSourceDraft {
+  return {
+    sourceKey:
+      getProposalLinkedTransactionKey(
+        draft as unknown as Record<string, unknown>,
+      ) || "single",
+    amount: draft.amount,
+    date: draft.date,
+    dueDate: draft.dueDate,
+    installmentCount: draft.installmentCount,
+    installmentNumber: draft.installmentNumber,
+  };
+}
+
+/**
+ * Chave do diff do sync, valida tanto para um draft quanto para um doc ja
+ * gravado. Uma funcao so para os dois lados de proposito: chaves que divergem
+ * fariam o sync recriar o que ja existe, duplicando lancamento.
+ */
 export function getProposalLinkedTransactionKey(
   transaction: Record<string, unknown>,
 ): string | null {
   if (transaction.isPartialPayment || transaction.parentTransactionId) {
     return null;
+  }
+  if (transaction.isCommission) {
+    const contactId = String(transaction.commissionContactId || "").trim();
+    const role = String(transaction.commissionRole || "").trim();
+    const sourceKey = String(transaction.commissionSourceKey || "").trim();
+    if (!contactId || !role || !sourceKey) return null;
+    return buildCommissionTransactionKey(contactId, role, sourceKey);
   }
   if (transaction.isDownPayment) return "down_payment";
   if (transaction.isInstallment) {

@@ -36,6 +36,10 @@ import {
   buildApprovedProposalTransactionDrafts,
   getProposalLinkedTransactionKey,
 } from "./proposals.helpers";
+import {
+  MAX_COMMISSIONS_PER_PROPOSAL,
+  sanitizeProposalCommissionsInput,
+} from "./proposal-commissions";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
@@ -78,6 +82,10 @@ const CreateProposalSchema = z.object({
   installmentsPaymentMethod: z.string().max(50).optional(),
   paymentMethod: z.string().max(50).optional(),
   closedValue: z.number().nullable().optional(),
+  // Comissoes — normalizadas por sanitizeProposalCommissionsInput. Declaradas
+  // aqui mesmo com o .passthrough() ligado: e o que impede um percentual
+  // absurdo de chegar ao calculo das despesas.
+  commissions: z.array(z.unknown()).max(MAX_COMMISSIONS_PER_PROPOSAL).optional(),
 }).passthrough();
 
 const UpdateProposalSchema = CreateProposalSchema.partial();
@@ -631,15 +639,16 @@ async function syncApprovedProposalTransactions(params: {
     defaultWalletName,
     initialStatus,
   });
+  // A chave sai da MESMA funcao que le os docs ja gravados. Derivar aqui de
+  // novo faria uma comissao (que tambem tem installmentNumber) colidir com a
+  // parcela de receita de mesmo numero, e uma sobrescreveria a outra.
   const desiredByKey = new Map(
-    desiredDrafts.map((draft) => [
-      draft.isDownPayment
-        ? "down_payment"
-        : draft.isInstallment
-          ? `installment_${draft.installmentNumber || 0}`
-          : "single",
-      draft,
-    ]),
+    desiredDrafts.flatMap((draft) => {
+      const key = getProposalLinkedTransactionKey(
+        draft as unknown as Record<string, unknown>,
+      );
+      return key ? [[key, draft] as const] : [];
+    }),
   );
 
   const transactionsQuery = await db
@@ -681,6 +690,10 @@ async function syncApprovedProposalTransactions(params: {
     const batch = db.batch();
 
     transactionsQuery.docs.forEach((doc) => {
+      // Comissao fica de fora: a descricao dela nomeia o parceiro e o
+      // `clientId` dela APONTA para o parceiro, nao para o comprador.
+      // Reescrever aqui trocaria o destinatario da despesa em silencio.
+      if (doc.data().isCommission) return;
       batch.update(doc.ref, {
         description: title,
         clientId,
@@ -718,6 +731,14 @@ async function syncApprovedProposalTransactions(params: {
         "Nao e possivel remover ou reduzir parcelas/entradas ja pagas de uma proposta aprovada.",
       );
     }
+    // Apagar uma DESPESA paga em lote nao devolve o valor a carteira: o saldo
+    // ficaria errado em silencio, e so apareceria numa conciliacao semanas
+    // depois. Reverta o pagamento da comissao antes de mexer no percentual.
+    if (data.status === "paid" && data.isCommission) {
+      throw new Error(
+        "Nao e possivel remover uma comissao ja paga. Reverta o pagamento dela antes de alterar as comissoes da proposta.",
+      );
+    }
 
     batch.delete(doc.ref);
   }
@@ -725,13 +746,16 @@ async function syncApprovedProposalTransactions(params: {
   desiredByKey.forEach((draft, key) => {
     const existingDoc = existingByKey.get(key);
     if (!existingDoc) {
-      const status =
-        initialStatus ||
-        (key === "down_payment"
-          ? String(
-              existingByKey.get("installment_1")?.data().status || "pending",
-            )
-          : "pending");
+      // Comissao nasce sempre pendente, inclusive quando a receita nasce paga:
+      // ter recebido do cliente nao significa ter pago o parceiro.
+      const status = draft.isCommission
+        ? draft.status
+        : initialStatus ||
+          (key === "down_payment"
+            ? String(
+                existingByKey.get("installment_1")?.data().status || "pending",
+              )
+            : "pending");
 
       batch.set(db.collection("transactions").doc(), {
         ...draft,
@@ -748,13 +772,28 @@ async function syncApprovedProposalTransactions(params: {
     const nextAmount = Number(draft.amount || 0);
     const previousAmount = Number(existingData.amount || 0);
 
+    const amountOrWalletChanged =
+      previousAmount !== nextAmount || previousWallet !== nextWallet;
+
     if (
       existingData.status === "paid" &&
       existingData.type === "income" &&
-      (previousAmount !== nextAmount || previousWallet !== nextWallet)
+      amountOrWalletChanged
     ) {
       registerAdjustment(previousWallet, -previousAmount);
       registerAdjustment(nextWallet, nextAmount);
+    }
+
+    // Mesma razao do guard de exclusao: mexer no valor de uma despesa ja paga
+    // por este caminho nao compensa o saldo da carteira.
+    if (
+      existingData.status === "paid" &&
+      existingData.isCommission &&
+      amountOrWalletChanged
+    ) {
+      throw new Error(
+        "Nao e possivel alterar uma comissao ja paga. Reverta o pagamento dela antes de alterar as comissoes da proposta.",
+      );
     }
 
     const updatePayload = {
@@ -775,6 +814,15 @@ async function syncApprovedProposalTransactions(params: {
       installmentNumber: draft.installmentNumber,
       installmentGroupId: draft.installmentGroupId,
       notes: draft.notes,
+      // Campos de comissao: sem eles, mudar o percentual reescreveria o valor
+      // e deixaria `commissionPercentage` mostrando o numero antigo.
+      category: draft.category ?? null,
+      isCommission: draft.isCommission ?? false,
+      commissionContactId: draft.commissionContactId ?? null,
+      commissionContactName: draft.commissionContactName ?? null,
+      commissionRole: draft.commissionRole ?? null,
+      commissionPercentage: draft.commissionPercentage ?? null,
+      commissionSourceKey: draft.commissionSourceKey ?? null,
       updatedAt: now,
     };
 
@@ -1119,6 +1167,8 @@ export const createProposal = async (req: Request, res: Response) => {
           firstInstallmentDate: input.firstInstallmentDate || null,
           installmentsPaymentMethod: input.installmentsPaymentMethod || null,
           paymentMethod: input.paymentMethod || null,
+          // Comissoes de vendedor/arquiteto (informacao interna, fora do PDF)
+          commissions: sanitizeProposalCommissionsInput(input.commissions),
           // PDF display settings (which elements to show/hide in PDF)
           pdfSettings: input.pdfSettings || null,
           // Attachments
@@ -1363,6 +1413,8 @@ export const updateProposal = async (req: Request, res: Response) => {
       "firstInstallmentDate",
       "installmentsPaymentMethod",
       "paymentMethod",
+      // Comissoes
+      "commissions",
       // Attachments
       "attachments",
     ];
@@ -1375,6 +1427,10 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
       if (f === "products") {
         safeUpdate[f] = sanitizedProducts || [];
+        return;
+      }
+      if (f === "commissions") {
+        safeUpdate[f] = sanitizeProposalCommissionsInput(updateData[f]);
         return;
       }
       safeUpdate[f] = updateData[f];
