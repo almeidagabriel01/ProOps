@@ -247,7 +247,14 @@ gh secret set FUNCTIONS_ENV_STAGING --env staging --repo almeidagabriel01/ProOps
 
 O step falha o deploy se faltar qualquer uma destas: `RESEND_API_KEY`,
 `STRIPE_SECRET_KEY`, `FOCUS_NFE_MASTER_TOKEN`, `FISCAL_SECRET_KMS_KEY`,
-`CALENDAR_TOKEN_KMS_KEY`. Antes a checagem era só do `RESEND_API_KEY` — e uma
+`CALENDAR_TOKEN_KMS_KEY`, `GOOGLE_CALENDAR_CLIENT_ID`,
+`GOOGLE_CALENDAR_CLIENT_SECRET`.
+
+> As duas do Google entraram em 2026-09-04, depois de o secret defasado em dev
+> quebrar Drive **e** Agenda ao mesmo tempo com `invalid_client` — erro que so
+> aparece na hora de conectar, meses depois de a chave ter sido rotacionada. A
+> checagem cobre AUSENCIA, nao valor errado; conferir os 4 ultimos caracteres
+> contra o console continua sendo manual. Antes a checagem era só do `RESEND_API_KEY` — e uma
 variável só não prova nada: ela existe desde sempre, então o teste passava com um
 secret congelado meses atrás. Ao adicionar uma integração que dependa de env var
 nova, **acrescente a chave nessa lista nos dois workflows**; sem isso a função

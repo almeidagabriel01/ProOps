@@ -106,7 +106,7 @@ jobs:
           # FOCUS_NFE_TOKEN_NAO_CONFIGURADO, sem chave KMS a senha do
           # certificado nao decifra, e nenhum dos dois aparece no deploy.
           missing=""
-          for key in             RESEND_API_KEY             STRIPE_SECRET_KEY             FOCUS_NFE_MASTER_TOKEN             FISCAL_SECRET_KMS_KEY             CALENDAR_TOKEN_KMS_KEY
+          for key in             RESEND_API_KEY             STRIPE_SECRET_KEY             FOCUS_NFE_MASTER_TOKEN             FISCAL_SECRET_KMS_KEY             CALENDAR_TOKEN_KMS_KEY             GOOGLE_CALENDAR_CLIENT_ID             GOOGLE_CALENDAR_CLIENT_SECRET
           do
             grep -qE "^${key}=." "$ENV_FILE" || missing="$missing $key"
           done
