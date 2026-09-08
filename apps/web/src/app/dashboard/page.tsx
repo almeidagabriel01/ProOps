@@ -21,6 +21,7 @@ import {
   ProposalStatsCard,
   ClientsStatsCard,
   MonthStats,
+  CommissionsPanel,
   FutureBalanceChart,
 } from "./_components";
 import { DashboardSkeleton } from "./_components/dashboard-skeleton";
@@ -45,6 +46,7 @@ export default function DashboardPage() {
     recentProposals,
     balance,
     currentMonthStats,
+    commissionReport,
     isLoading,
   } = useDashboardData();
 
@@ -143,6 +145,9 @@ export default function DashboardPage() {
         <RecentProposalsList proposals={recentProposals} />
         <MonthStats currentMonthStats={currentMonthStats} />
       </div>
+
+      {/* Comissões a pagar no mês — some sozinho quando não há nenhuma */}
+      <CommissionsPanel report={commissionReport} />
 
       {/* Stats row */}
       <div className="grid md:grid-cols-2 gap-6">

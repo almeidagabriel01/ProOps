@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   TransactionService,
   Transaction,
+  type CommissionReport,
 } from "@/services/transaction-service";
 import { ProposalService, Proposal } from "@/services/proposal-service";
 import { ClientService } from "@/services/client-service";
@@ -59,6 +60,8 @@ interface DashboardData {
   recentTransactions: Transaction[];
   recentProposals: Proposal[];
   balance: number;
+  /** Comissões a pagar no mês corrente. `null` quando o tenant não tem acesso. */
+  commissionReport: CommissionReport | null;
 
   // Loading state
   isLoading: boolean;
@@ -90,6 +93,7 @@ const initialState: DashboardData = {
   recentTransactions: [],
   recentProposals: [],
   balance: 0,
+  commissionReport: null,
   isLoading: true,
 };
 
@@ -124,6 +128,7 @@ export function useDashboardData(): DashboardData {
     recentProposals: [] as Proposal[],
     totalClients: 0,
     newClientsThisMonth: 0,
+    commissionReport: null as CommissionReport | null,
   });
   const [isDataLoading, setIsDataLoading] = React.useState(true);
 
@@ -174,6 +179,7 @@ export function useDashboardData(): DashboardData {
           recentProposals,
           totalClients,
           newClientsThisMonth,
+          commissionReport,
         ] = await Promise.all([
           TransactionService.getTransactionsScoped(tenant.id, {
             start: isoDay(monthStart),
@@ -198,6 +204,15 @@ export function useDashboardData(): DashboardData {
           ProposalService.getRecentProposals(tenant.id, 5),
           ClientService.countClients(tenant.id),
           ClientService.countClientsCreatedBetween(tenant.id, monthStart, monthEnd),
+          // Agregado no backend (uma chamada), não um full-fetch de
+          // transactions. Mesmo motivo do summary: a conta demo é rejeitada
+          // pelo backend, então resolve nulo em vez de derrubar o painel.
+          isDemo
+            ? Promise.resolve(null)
+            : TransactionService.getCommissionReport(tenant.id, "").catch(
+                // O painel inteiro não pode cair porque as comissões falharam.
+                () => null,
+              ),
         ]);
 
         const byId = new Map<string, Transaction>();
@@ -235,6 +250,7 @@ export function useDashboardData(): DashboardData {
             recentProposals,
             totalClients,
             newClientsThisMonth,
+            commissionReport,
           });
         }
       } catch (error) {
