@@ -75,6 +75,42 @@ const ORIGEM_OPTIONS: Array<{ value: string; label: string }> = [
 const DESCRIPTION =
   "Só precisam estar preenchidos na hora de emitir a nota. Deixe em branco se ainda não souber.";
 
+interface NotaFiscalExplicativa {
+  titulo: string;
+  texto: string;
+}
+
+const NOTAS_PRODUTO: NotaFiscalExplicativa[] = [
+  {
+    titulo: "Onde encontrar o NCM",
+    texto:
+      "Costuma vir na nota do fornecedor ou na ficha técnica do fabricante. A varinha ao lado do campo sugere um código a partir do nome do produto — confira antes de usar: a classificação fiscal é responsabilidade de quem emite.",
+  },
+  {
+    titulo: "Pode ficar em branco",
+    texto:
+      "Nada aqui bloqueia o cadastro. Na hora de emitir a nota, a tela de emissão lista de uma vez tudo o que falta.",
+  },
+  {
+    titulo: "CFOP, CST e unidade não ficam aqui",
+    texto:
+      "São derivados da operação e do regime de quem emite, não do item: a mesma mercadoria tem um CFOP dentro do estado e outro fora dele.",
+  },
+];
+
+const NOTAS_SERVICO: NotaFiscalExplicativa[] = [
+  {
+    titulo: "Onde encontrar os códigos",
+    texto:
+      "O LC 116 é o item da lista de serviços da Lei Complementar 116/2003 — o mesmo que aparece na nota que a prefeitura emite hoje. O código de tributação nacional é o desdobramento dele no layout da NFS-e Nacional.",
+  },
+  {
+    titulo: "Pode ficar em branco",
+    texto:
+      "Nada aqui bloqueia o cadastro. Na hora de emitir a nota, a tela de emissão lista de uma vez tudo o que falta.",
+  },
+];
+
 export function CatalogFiscalFields({
   entityType,
   values,
@@ -118,11 +154,7 @@ export function CatalogFiscalFields({
     entityType === "product" ? (
       <div className="space-y-5">
         <FormGroup cols={2}>
-          <FormItem
-            label="NCM"
-            htmlFor="fiscal-ncm"
-            hint="8 dígitos. Costuma vir na nota do fornecedor."
-          >
+          <FormItem label="NCM" htmlFor="fiscal-ncm">
             <div className="flex gap-2">
               <Input
                 id="fiscal-ncm"
@@ -152,13 +184,12 @@ export function CatalogFiscalFields({
                 <WandSparkles className="h-4 w-4" />
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              8 dígitos. Costuma vir na nota do fornecedor.
+            </p>
           </FormItem>
 
-          <FormItem
-            label="Origem"
-            htmlFor="fiscal-origem"
-            hint="Em branco equivale a nacional."
-          >
+          <FormItem label="Origem" htmlFor="fiscal-origem">
             <Select
               id="fiscal-origem"
               name="origem"
@@ -173,6 +204,9 @@ export function CatalogFiscalFields({
                 </option>
               ))}
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Em branco equivale a nacional.
+            </p>
           </FormItem>
         </FormGroup>
 
@@ -208,61 +242,65 @@ export function CatalogFiscalFields({
         )}
       </div>
     ) : (
-      <FormGroup cols={3}>
-        <FormItem
-          label="Código LC 116"
-          htmlFor="fiscal-lc116"
-          hint="Item da lista de serviços. Ex.: 31.01, 7.02, 14.06."
-        >
-          <Input
-            id="fiscal-lc116"
-            name="codigoLc116"
-            placeholder="31.01"
-            maxLength={10}
-            value={values.codigoLc116}
-            disabled={disabled}
-            onChange={(e) => onChange("codigoLc116", e.target.value)}
-          />
-        </FormItem>
+      <div className="space-y-5">
+        <FormGroup cols={2}>
+          <FormItem label="Código LC 116" htmlFor="fiscal-lc116">
+            <Input
+              id="fiscal-lc116"
+              name="codigoLc116"
+              placeholder="31.01"
+              maxLength={10}
+              value={values.codigoLc116}
+              disabled={disabled}
+              onChange={(e) => onChange("codigoLc116", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Item da lista de serviços. Ex.: 31.01, 7.02, 14.06.
+            </p>
+          </FormItem>
 
-        <FormItem
-          label="Código de tributação nacional"
-          htmlFor="fiscal-tributacao-nacional"
-          hint="Layout da NFS-e Nacional. Ex.: 310102."
-        >
-          <Input
-            id="fiscal-tributacao-nacional"
-            name="codigoTributacaoNacional"
-            placeholder="310102"
-            maxLength={20}
-            value={values.codigoTributacaoNacional}
-            disabled={disabled}
-            onChange={(e) =>
-              onChange("codigoTributacaoNacional", e.target.value)
-            }
-          />
-        </FormItem>
+          <FormItem
+            label="Código de tributação nacional"
+            htmlFor="fiscal-tributacao-nacional"
+          >
+            <Input
+              id="fiscal-tributacao-nacional"
+              name="codigoTributacaoNacional"
+              placeholder="310102"
+              maxLength={20}
+              value={values.codigoTributacaoNacional}
+              disabled={disabled}
+              onChange={(e) =>
+                onChange("codigoTributacaoNacional", e.target.value)
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Layout da NFS-e Nacional. Ex.: 310102.
+            </p>
+          </FormItem>
+        </FormGroup>
 
-        <FormItem
-          label="Alíquota de ISS (%)"
-          htmlFor="fiscal-aliquota-iss"
-          hint="No Simples Nacional o ISS sai no DAS — use 0."
-        >
-          <Input
-            id="fiscal-aliquota-iss"
-            name="aliquotaIss"
-            type="number"
-            inputMode="decimal"
-            placeholder="0"
-            min="0"
-            max="100"
-            step="0.01"
-            value={values.aliquotaIss}
-            disabled={disabled}
-            onChange={(e) => onChange("aliquotaIss", e.target.value)}
-          />
-        </FormItem>
-      </FormGroup>
+        <FormGroup cols={2}>
+          <FormItem label="Alíquota de ISS (%)" htmlFor="fiscal-aliquota-iss">
+            <Input
+              id="fiscal-aliquota-iss"
+              name="aliquotaIss"
+              type="number"
+              inputMode="decimal"
+              placeholder="0"
+              min="0"
+              max="100"
+              step="0.01"
+              value={values.aliquotaIss}
+              disabled={disabled}
+              onChange={(e) => onChange("aliquotaIss", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              No Simples Nacional o ISS sai no DAS — use 0.
+            </p>
+          </FormItem>
+        </FormGroup>
+      </div>
     );
 
   if (variant === "step") {
@@ -278,6 +316,22 @@ export function CatalogFiscalFields({
           </div>
         </div>
         {fields}
+        {/* Um passo com dois campos deixaria meia tela vazia — e as perguntas
+            que sobram são sempre as mesmas: de onde tirar o código, o que
+            acontece se ficar em branco, e por que os outros campos fiscais que
+            a pessoa esperava não estão aqui. */}
+        <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-3">
+          {(entityType === "product" ? NOTAS_PRODUTO : NOTAS_SERVICO).map(
+            (nota) => (
+              <div key={nota.titulo} className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  {nota.titulo}
+                </p>
+                <p className="text-sm text-muted-foreground">{nota.texto}</p>
+              </div>
+            ),
+          )}
+        </div>
       </>
     );
   }

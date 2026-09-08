@@ -150,17 +150,7 @@ export function ClientFiscalFields({
   const fields = (
     <div className="space-y-5">
       <FormGroup cols={2}>
-        <FormItem
-          label="CEP"
-          htmlFor="cliente-cep"
-          hint={
-            cepState === "loading"
-              ? "Buscando endereço…"
-              : cepState === "notFound"
-                ? "CEP não encontrado — preencha o endereço à mão."
-                : "Preenche o resto do endereço."
-          }
-        >
+        <FormItem label="CEP" htmlFor="cliente-cep">
           <Input
             id="cliente-cep"
             inputMode="numeric"
@@ -175,6 +165,19 @@ export function ClientFiscalFields({
               void lookupCep(masked, next);
             }}
           />
+          <p
+            className={
+              cepState === "notFound"
+                ? "text-xs text-amber-600"
+                : "text-xs text-muted-foreground"
+            }
+          >
+            {cepState === "loading"
+              ? "Buscando endereço…"
+              : cepState === "notFound"
+                ? "CEP não encontrado — preencha o endereço à mão."
+                : "Preenche o resto do endereço."}
+          </p>
         </FormItem>
         <FormItem label="Logradouro" htmlFor="cliente-logradouro">
           <Input
@@ -234,17 +237,16 @@ export function ClientFiscalFields({
             onChange={(e) => setField("uf", e.target.value.toUpperCase())}
           />
         </FormItem>
-        <FormItem
-          label="Código IBGE do município"
-          htmlFor="cliente-ibge"
-          hint="Preenchido pela busca de CEP. A SEFAZ valida o município por ele."
-        >
+        <FormItem label="Código IBGE do município" htmlFor="cliente-ibge">
           <Input
             id="cliente-ibge"
             value={values.codigoIbge}
             disabled={disabled}
             onChange={(e) => setField("codigoIbge", onlyDigits(e.target.value))}
           />
+          <p className="text-xs text-muted-foreground">
+            Preenchido pela busca de CEP. A SEFAZ valida o município por ele.
+          </p>
         </FormItem>
       </FormGroup>
 
@@ -252,7 +254,6 @@ export function ClientFiscalFields({
         <FormItem
           label="Indicador de inscrição estadual"
           htmlFor="cliente-indicador-ie"
-          hint='Pessoa física é sempre "não contribuinte" — nunca "isento".'
         >
           <Select
             id="cliente-indicador-ie"
@@ -265,18 +266,21 @@ export function ClientFiscalFields({
             <option value="contribuinte">Contribuinte de ICMS</option>
             <option value="isento">Isento de inscrição estadual</option>
           </Select>
+          <p className="text-xs text-muted-foreground">
+            Pessoa física é sempre &quot;não contribuinte&quot; — nunca
+            &quot;isento&quot;.
+          </p>
         </FormItem>
-        <FormItem
-          label="Inscrição estadual do cliente"
-          htmlFor="cliente-ie"
-          hint="Só para cliente marcado como contribuinte."
-        >
+        <FormItem label="Inscrição estadual do cliente" htmlFor="cliente-ie">
           <Input
             id="cliente-ie"
             value={values.inscricaoEstadual}
             disabled={disabled}
             onChange={(e) => setField("inscricaoEstadual", e.target.value)}
           />
+          <p className="text-xs text-muted-foreground">
+            Só para cliente marcado como contribuinte.
+          </p>
         </FormItem>
       </FormGroup>
     </div>
