@@ -19,7 +19,7 @@
 | `cleanupStorageAndSharedLinks` | Scheduled | Limpeza de arquivos e links expirados |
 | `reconcileAddons` | Scheduled | Reconciliacao de add-ons |
 | `processPayoutRetries` | Scheduled | Retries de payout (Asaas) |
-| `processDriveDeliveries` | Scheduled | Entrega as propostas pendentes no Google Drive (a cada 5 min) — tira o Chromium da request de salvar |
+| `processDriveDeliveries` | Scheduled | Entrega as propostas pendentes no Google Drive (a cada minuto; `cpu: 1`, `concurrency: 1`) — tira o Chromium da request de salvar |
 | `processInvoiceRetries` | Scheduled | Consulta notas fiscais pendentes (a cada 15 min) — backstop do webhook do Focus |
 | `checkFiscalCertificateExpiry` | Scheduled | Avisa vencimento do certificado A1 em D-30/15/7/1 e diariamente apos vencer |
 | `syncReceivedInvoices` | Scheduled | Busca notas de ENTRADA (de hora em hora), incremental por `versao` |

@@ -771,9 +771,20 @@ pelo ERP chegar la sem baixar e subir a mao.
     salvar cinco vezes seguidas nao vira cinco renders do mesmo PDF; o `set`
     com merge reabre o job existente e zera as tentativas, porque ha mudanca
     nova a entregar. Admin SDK only nas rules.
-  - Cron `processDriveDeliveries`, a cada 5 min, `1GiB` e 540s (roda Chromium,
-    nao so leitura de Firestore). Backoff de 1/5/15/60 min, desistindo em
+  - Cron `processDriveDeliveries`, **a cada minuto** (piso do Cloud Scheduler;
+    varrer uma fila vazia e uma consulta so, e o container escala a zero entre
+    as execucoes). Backoff de 1/5/15/60 min, desistindo em
     `MAX_DRIVE_DELIVERY_ATTEMPTS = 5` com o motivo gravado em `lastError`.
+  - **Os recursos NAO sao os do padrao de cron.** `SCHEDULE_OPTIONS` traz
+    `cpu: 0.25` (0,083 em dev), calibrado para cron que so le Firestore; aqui
+    roda Chromium, entao o cron sobrescreve para `cpu: 1` e `memory: 1GiB`, os
+    mesmos da funcao `pdf`. Tambem `concurrency: 1`: com cadencia de um minuto
+    e render que pode passar disso, dois ciclos simultaneos pegariam o mesmo
+    job e renderizariam o mesmo PDF duas vezes. Lote de 20 por ciclo, para
+    caber nos 540s.
+  - A resposta de `PUT /v1/proposals/:id` devolve `driveDeliveryQueued`, e a
+    tela so avisa "vai para o Drive" quando isso e verdade: deduzir no frontend
+    prometeria a entrega para quem nem conectou a integracao.
   - Indice `(status, nextRunAt ASC)`, com `orderBy` explicito — mesmo par de
     `payout_attempts`.
   - **Cron agendado nao dispara no emulador**, entao existe

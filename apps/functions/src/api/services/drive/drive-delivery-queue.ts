@@ -163,9 +163,15 @@ export async function runDriveDeliveryJob(jobId: string): Promise<void> {
   }
 }
 
-/** Varre os jobs vencidos. Devolve quantos processou, para o log do cron. */
+/**
+ * Varre os jobs vencidos. Devolve quantos processou, para o log do cron.
+ *
+ * O lote e pequeno de proposito: cada entrega renderiza um PDF, e um lote que
+ * nao caiba nos 540s do cron seria cortado no meio. Com cadencia de um minuto,
+ * 20 por ciclo dao vazao de sobra.
+ */
 export async function processDriveDeliveryQueue(
-  limit = 50,
+  limit = 20,
 ): Promise<{ processed: number }> {
   const snap = await db
     .collection(DRIVE_DELIVERY_JOBS_COLLECTION)

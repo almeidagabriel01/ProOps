@@ -172,6 +172,19 @@ function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
   } as Proposal;
 }
 
+/**
+ * Resposta de `PUT /v1/proposals/:id`.
+ *
+ * `driveDeliveryQueued` vem do backend em vez de ser deduzido aqui: a tela não
+ * sabe se o tenant conectou o Google Drive, e avisar "vai para o Drive" para
+ * quem não usa a integração seria prometer algo que nunca acontece.
+ */
+export type UpdateProposalResult = {
+  success?: boolean;
+  message?: string;
+  driveDeliveryQueued?: boolean;
+};
+
 export const ProposalService = {
   // Saving synchronization
   notifySavingStarted: () => {
@@ -397,7 +410,7 @@ export const ProposalService = {
   updateProposal: async (
     id: string,
     data: Partial<Proposal>,
-  ): Promise<void> => {
+  ): Promise<UpdateProposalResult> => {
     try {
       const payload = { ...data };
 
@@ -407,8 +420,13 @@ export const ProposalService = {
         Object.assign(payload, computeProposalSortFields(data));
       }
 
-      await callApi(`/v1/proposals/${id}`, "PUT", payload);
+      const response = await callApi<UpdateProposalResult>(
+        `/v1/proposals/${id}`,
+        "PUT",
+        payload,
+      );
       notifyListeners(); // Notify list to refresh
+      return response ?? {};
     } catch (error) {
       console.error("Error updating proposal:", error);
       throw error;

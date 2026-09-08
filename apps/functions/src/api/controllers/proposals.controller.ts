@@ -1936,6 +1936,10 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
     };
 
+    // Contado de volta para a tela: sem isso o aviso de "vai para o Drive"
+    // apareceria tambem para quem nao usa a integracao, prometendo algo que
+    // nunca acontece.
+    let driveDeliveryQueued = false;
     let approvedSyncError: unknown = null;
     if (shouldSyncApprovedTransactions) {
       try {
@@ -1996,6 +2000,7 @@ export const updateProposal = async (req: Request, res: Response) => {
         await timed("driveEnqueueMs", () =>
           enqueueDriveDelivery({ tenantId: proposalTenantId, proposalId: id }),
         );
+        driveDeliveryQueued = true;
       }
     }
 
@@ -2008,7 +2013,11 @@ export const updateProposal = async (req: Request, res: Response) => {
 
     if (approvedSyncError) throw approvedSyncError;
 
-    return res.json({ success: true, message: "Proposta atualizada." });
+    return res.json({
+      success: true,
+      message: "Proposta atualizada.",
+      driveDeliveryQueued,
+    });
   } catch (error: unknown) {
     const err = error as Error;
     return res.status(500).json({ message: err.message });

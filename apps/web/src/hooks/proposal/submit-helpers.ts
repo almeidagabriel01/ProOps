@@ -5,6 +5,7 @@ import {
 } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProposalStatus, ProposalSystemInstance } from "@/types/proposal";
+import { DRIVE_DELIVERY_PENDING_HINT } from "@/lib/proposal-payment";
 import { toast } from '@/lib/toast';
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
@@ -244,7 +245,7 @@ export async function updateProposal(
     ? `"${formData.title.trim()}"`
     : `ID ${proposalId}`;
 
-  await ProposalService.updateProposal(proposalId, {
+  const result = await ProposalService.updateProposal(proposalId, {
     title: formData.title,
     clientId: selectedClientId,
     clientName: formData.clientName,
@@ -284,6 +285,10 @@ export async function updateProposal(
   toast.success(`Proposta ${proposalLabel} foi atualizada com sucesso.`, {
     title: "Sucesso ao editar",
   });
+
+  if (result?.driveDeliveryQueued) {
+    toast.info(DRIVE_DELIVERY_PENDING_HINT);
+  }
 }
 
 // Prepare proposal data for creation
