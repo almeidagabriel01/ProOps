@@ -105,7 +105,7 @@ export function ReceivedInvoiceDetailsDialog({
             {invoice?.emitenteNome || formatarCnpj(invoice?.emitenteCnpj ?? "")}
           </DialogTitle>
           <DialogDescription>
-            Nota emitida contra o seu CNPJ. Os dados são do fornecedor — a ProOps
+            Nota emitida contra o seu CNPJ. Os dados são do fornecedor: a ProOps
             só recebe e guarda.
           </DialogDescription>
         </DialogHeader>
@@ -187,7 +187,7 @@ export function ReceivedInvoiceDetailsDialog({
               <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
                 {invoice?.status === "cancelada"
                   ? "Esta nota foi cancelada pelo fornecedor."
-                  : "O detalhamento só chega depois que você confirma a compra — é assim que a Receita entrega."}
+                  : "O detalhamento só chega depois que você confirma a compra; é assim que a Receita entrega."}
               </p>
             ) : (
               itens.map((item) => (

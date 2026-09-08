@@ -41,7 +41,7 @@ const PILLARS: Pillar[] = [
     icon: Lock,
     title: "Criptografia em trânsito e em repouso",
     description:
-      "Conexões protegidas por TLS e dados sensíveis cifrados — inclusive integrações como o Google Agenda.",
+      "Conexões protegidas por TLS e dados sensíveis cifrados, inclusive integrações como o Google Agenda.",
     radius: 66,
     angle: "right",
   },
@@ -343,7 +343,7 @@ export function LandingSecurity() {
                 Seus dados <Accent>protegidos</Accent> por padrão
               </>
             }
-            description="Segurança não é um recurso à parte — é a base da plataforma. Veja como cuidamos das informações do seu negócio e dos seus clientes."
+            description="Segurança não é um recurso à parte: é a base da plataforma. Veja como cuidamos das informações do seu negócio e dos seus clientes."
             className="mb-8"
           />
           <div className="border-y border-black/10 dark:border-white/10">
@@ -377,7 +377,7 @@ export function LandingSecurity() {
             Seus dados <Accent>protegidos</Accent> por padrão
           </>
         }
-        description="Segurança não é um recurso à parte — é a base da plataforma. Veja como cuidamos das informações do seu negócio e dos seus clientes."
+        description="Segurança não é um recurso à parte: é a base da plataforma. Veja como cuidamos das informações do seu negócio e dos seus clientes."
         className="mb-10"
       />
       <div className="mb-12 flex justify-center">
@@ -428,7 +428,7 @@ export function LandingSecurity() {
                   Seus dados <Accent>protegidos</Accent> por padrão
                 </>
               }
-              description="Segurança não é um recurso à parte — é a base da plataforma. Cada camada protege as informações do seu negócio e dos seus clientes."
+              description="Segurança não é um recurso à parte: é a base da plataforma. Cada camada protege as informações do seu negócio e dos seus clientes."
               className="mb-8 [@media(max-height:860px)]:mb-4 [@media(max-height:740px)]:mb-2"
             />
             <div>

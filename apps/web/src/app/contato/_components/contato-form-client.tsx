@@ -161,8 +161,8 @@ export function ContatoFormClient() {
                 style={riseStyle(0.5)}
                 className="hero-enter mt-7 max-w-md text-lg leading-relaxed text-black/65 dark:text-white/65"
               >
-                Tirou uma dúvida que o FAQ não respondeu? Conte o que você precisa
-                — sem robô, sem fila. Retornamos por email.
+                Tirou uma dúvida que o FAQ não respondeu? Conte o que você precisa,
+                sem robô, sem fila. Retornamos por email.
               </p>
             </div>
 

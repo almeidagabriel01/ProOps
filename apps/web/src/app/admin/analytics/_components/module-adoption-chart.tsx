@@ -36,7 +36,7 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
       <p className="font-semibold">{item.label}</p>
       <p className="text-muted-foreground">
         <span className="font-medium text-foreground">{item.count}</span>{" "}
-        empresa{item.count !== 1 ? "s" : ""} —{" "}
+        empresa{item.count !== 1 ? "s" : ""},{" "}
         <span className="font-medium text-foreground">{item.percentage}%</span> do total
       </p>
       {item.avgDepth !== undefined && item.avgDepth > 0 && (
@@ -67,7 +67,7 @@ export function ModuleAdoptionChart({ data }: ModuleAdoptionChartProps) {
       <div className="mb-5">
         <h3 className="text-base font-semibold">Adoção de Módulos</h3>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Uso real por módulo — empresas com itens criados em cada área
+          Uso real por módulo: empresas com itens criados em cada área
         </p>
       </div>
 

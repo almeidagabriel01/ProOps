@@ -164,7 +164,7 @@ export function LandingIntegrations() {
               Conectado ao que você <Accent>já usa</Accent>
             </>
           }
-          description="Pagamentos, mensagens e agenda em um fluxo só. Cartão via Stripe, pix e boleto via Asaas — sem trocar de tela."
+          description="Pagamentos, mensagens e agenda em um fluxo só. Cartão via Stripe, pix e boleto via Asaas, sem trocar de tela."
           className="mb-14"
         />
 
@@ -276,7 +276,7 @@ export function LandingIntegrations() {
         </div>
 
         <p className="mx-auto mt-10 max-w-xl text-center text-sm text-black/55 dark:text-white/55">
-          Não vê a integração que precisa? Fale com a gente — avaliamos novas
+          Não vê a integração que precisa? Fale com a gente: avaliamos novas
           conexões conforme a demanda.
         </p>
       </div>

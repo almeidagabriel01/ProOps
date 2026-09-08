@@ -11,11 +11,11 @@ export interface RecoveryCodeUsedEmailContent {
 export function renderRecoveryCodeUsedEmail(
   data: RecoveryCodeUsedEmailData,
 ): RecoveryCodeUsedEmailContent {
-  const subject = "Um código de recuperação foi usado — ProOps";
+  const subject = "Um código de recuperação foi usado na ProOps";
   const greetingName = data.name ? data.name.trim() : "";
   const greeting = greetingName ? `Olá, ${greetingName}` : "Olá";
 
-  const text = `Um código de recuperação foi usado — ProOps
+  const text = `Um código de recuperação foi usado na ProOps
 
 ${greeting}, um código de recuperação foi usado para entrar na sua conta na ProOps.
 
@@ -25,7 +25,7 @@ Se foi você, nenhuma ação é necessária. Recomendamos revisar seus códigos 
 
 Se você NÃO reconhece este acesso, sua conta pode estar comprometida. Entre em contato com o suporte imediatamente respondendo este email ou escrevendo para gestao@proops.com.br.
 
-ProOps — Sistema ERP para gestão de serviços
+ProOps: sistema ERP para gestão de serviços
 gestao@proops.com.br
 `;
 
@@ -34,7 +34,7 @@ gestao@proops.com.br
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Um código de recuperação foi usado — ProOps</title>
+  <title>Um código de recuperação foi usado | ProOps</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">

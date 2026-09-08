@@ -65,7 +65,7 @@ export function useTotpEnrollment() {
     if (!gate.ok) {
       setError(
         gate.reason === "email-unverified"
-          ? "Seu email não está verificado. O Firebase exige email verificado antes de ativar o MFA — verifique seu email e tente de novo."
+          ? "Seu email não está verificado. O Firebase exige email verificado antes de ativar o MFA: verifique seu email e tente de novo."
           : "Sessão não encontrada. Saia e entre novamente.",
       );
       return;

@@ -247,7 +247,7 @@ export function CorrectInvoiceButton({
                 {correcoes.length}{" "}
                 {correcoes.length === 1 ? "correção" : "correções"}
               </strong>
-              . A nova <strong>substitui</strong> a anterior perante o fisco — o
+              . A nova <strong>substitui</strong> a anterior perante o fisco: o
               texto abaixo já veio preenchido com ela. Mantenha o que ainda vale
               e acrescente o resto.
             </div>
@@ -265,7 +265,7 @@ export function CorrectInvoiceButton({
               placeholder="Ex.: o endereço de entrega correto é Rua das Palmeiras, 320 - Centro"
             />
             <p className="text-xs text-muted-foreground">
-              {tamanho} de {CORRECTION_TEXT_MAX_LENGTH} caracteres — mínimo de{" "}
+              {tamanho} de {CORRECTION_TEXT_MAX_LENGTH} caracteres, mínimo de{" "}
               {CORRECTION_TEXT_MIN_LENGTH}.
             </p>
             {seraAjustado && (

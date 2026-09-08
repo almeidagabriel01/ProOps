@@ -175,7 +175,7 @@ export function TestModeBanner({ settings, onChanged }: TestModeBannerProps) {
                     <p>
                       Uma nota de teste autorizada é o que prova que a empresa está
                       credenciada na prefeitura ou na SEFAZ. Sem ela, a primeira
-                      nota real pode falhar — e falhar na frente do cliente.
+                      nota real pode falhar, e falhar na frente do cliente.
                     </p>
                     <p>
                       Se a empresa <strong>já emite nota hoje</strong> por outro

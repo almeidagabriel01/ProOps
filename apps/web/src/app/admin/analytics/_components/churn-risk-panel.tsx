@@ -105,7 +105,7 @@ export function ChurnRiskPanel({ churnRisk }: ChurnRiskPanelProps) {
           <div>
             <h3 className="text-base font-semibold">Risco de Churn</h3>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Pontuação multifatorial — pagamento, engajamento, vencimento e adoção de equipe
+              Pontuação multifatorial: pagamento, engajamento, vencimento e adoção de equipe
             </p>
           </div>
         </div>
@@ -125,7 +125,7 @@ export function ChurnRiskPanel({ churnRisk }: ChurnRiskPanelProps) {
         <div className="space-y-4">
           <RiskSection
             title="Crítico"
-            description="Score ≥ 5 — ação imediata necessária (pagamento atrasado, cancelamento agendado, zero atividade em plano pago)"
+            description="Score ≥ 5: ação imediata necessária (pagamento atrasado, cancelamento agendado, zero atividade em plano pago)"
             items={churnRisk.critical}
             accentClass="border-red-200 dark:border-red-800/50 bg-red-50/50 dark:bg-red-900/5"
             headerClass="text-red-700 dark:text-red-400"
@@ -133,7 +133,7 @@ export function ChurnRiskPanel({ churnRisk }: ChurnRiskPanelProps) {
           />
           <RiskSection
             title="Alto"
-            description="Score 2–4 — monitorar proximamente (vencimento próximo, engajamento muito baixo)"
+            description="Score 2–4: monitorar proximamente (vencimento próximo, engajamento muito baixo)"
             items={churnRisk.high}
             accentClass="border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-900/5"
             headerClass="text-amber-700 dark:text-amber-400"
@@ -141,7 +141,7 @@ export function ChurnRiskPanel({ churnRisk }: ChurnRiskPanelProps) {
           />
           <RiskSection
             title="Médio"
-            description="Score 1 — sinais iniciais (sem equipe adicionada, assinatura expirando em 30 dias)"
+            description="Score 1: sinais iniciais (sem equipe adicionada, assinatura expirando em 30 dias)"
             items={churnRisk.medium}
             accentClass="border-yellow-200 dark:border-yellow-800/50 bg-yellow-50/50 dark:bg-yellow-900/5"
             headerClass="text-yellow-700 dark:text-yellow-500"
@@ -152,14 +152,14 @@ export function ChurnRiskPanel({ churnRisk }: ChurnRiskPanelProps) {
           <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
             <p className="font-medium text-foreground mb-1.5">Fatores de pontuação</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-              <span>+4 — Pagamento atrasado</span>
-              <span>+3 — Cancelamento agendado</span>
-              <span>+3 — Plano pago sem atividade (&gt;7 dias)</span>
-              <span>+2 — Assinatura expira em ≤7 dias</span>
-              <span>+2 — Engajamento muito baixo (&lt;5 itens / 30d)</span>
-              <span>+1 — Assinatura expira em 8–30 dias</span>
-              <span>+1 — Engajamento fraco (&lt;20 itens / 60d)</span>
-              <span>+1 — Nenhum membro de equipe (14+ dias)</span>
+              <span>+4: Pagamento atrasado</span>
+              <span>+3: Cancelamento agendado</span>
+              <span>+3: Plano pago sem atividade (&gt;7 dias)</span>
+              <span>+2: Assinatura expira em ≤7 dias</span>
+              <span>+2: Engajamento muito baixo (&lt;5 itens / 30d)</span>
+              <span>+1: Assinatura expira em 8–30 dias</span>
+              <span>+1: Engajamento fraco (&lt;20 itens / 60d)</span>
+              <span>+1: Nenhum membro de equipe (14+ dias)</span>
             </div>
           </div>
         </div>

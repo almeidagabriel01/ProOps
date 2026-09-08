@@ -12,9 +12,9 @@ export interface EmailVerificationEmailContent {
 export function renderEmailVerificationEmail(
   data: EmailVerificationEmailData,
 ): EmailVerificationEmailContent {
-  const subject = "Confirme seu email — ProOps";
+  const subject = "Confirme seu email na ProOps";
 
-  const text = `Confirme seu email — ProOps
+  const text = `Confirme seu email na ProOps
 
 Olá, recebemos seu cadastro na ProOps. Para ativar sua conta, confirme seu endereço de email abrindo o link abaixo no seu navegador:
 
@@ -22,7 +22,7 @@ ${data.verifyUrl}
 
 Este link expira em 24 horas. Se você não criou esta conta, ignore este email.
 
-ProOps — Sistema ERP para gestão de serviços
+ProOps: sistema ERP para gestão de serviços
 gestao@proops.com.br
 `;
 
@@ -31,7 +31,7 @@ gestao@proops.com.br
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Confirme seu email — ProOps</title>
+  <title>Confirme seu email | ProOps</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">

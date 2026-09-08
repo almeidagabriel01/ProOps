@@ -42,7 +42,7 @@ const REASON_MESSAGES: Record<string, string> = {
   // segunda passagem cai aqui mesmo tendo a primeira dado certo. Mandar
   // "tente de novo" faria reconectar por cima de uma conexão que já existe.
   invalid_state:
-    "Não foi possível concluir a autorização. Se você recarregou a página, recarregue esta tela — a conexão pode já ter sido salva.",
+    "Não foi possível concluir a autorização. Se você recarregou a página, recarregue esta tela: a conexão pode já ter sido salva.",
   expired_state: "A sessão de autorização expirou. Tente conectar de novo.",
   missing_refresh_token:
     "O Google não devolveu a autorização de longo prazo. Tente de novo e mantenha a permissão marcada.",
@@ -212,7 +212,7 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
         <CardHeader>
           <CardTitle className="text-base">Conta Google</CardTitle>
           <CardDescription>
-            As propostas são entregues no seu Drive, com o seu armazenamento — a
+            As propostas são entregues no seu Drive, com o seu armazenamento: a
             ProOps não guarda cópia lá nem impõe limite de espaço. Nada é lido do
             seu Drive: a integração só escreve.
           </CardDescription>
@@ -276,7 +276,7 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
               <strong className="text-foreground">
                 prefira um Drive compartilhado
               </strong>{" "}
-              — numa pasta pessoal tudo fica preso à sua conta, e a equipe perde
+              : numa pasta pessoal tudo fica preso à sua conta, e a equipe perde
               o acesso se ela mudar.
             </CardDescription>
           </CardHeader>
@@ -292,8 +292,8 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
                     pronta, e nada sendo entregue por falta de destino. */}
                 <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                   {pastaSumiu
-                    ? `A pasta "${status?.rootFolderName}" não está mais no seu Drive — foi apagada ou movida para a lixeira. Nenhuma proposta é enviada até você definir outra.`
-                    : "Nenhuma pasta definida ainda — enquanto isso, nenhuma proposta é enviada para o Drive."}
+                    ? `A pasta "${status?.rootFolderName}" não está mais no seu Drive: foi apagada ou movida para a lixeira. Nenhuma proposta é enviada até você definir outra.`
+                    : "Nenhuma pasta definida ainda; enquanto isso, nenhuma proposta é enviada para o Drive."}
                 </p>
                 <Button
                   className="self-start"
@@ -312,7 +312,7 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
                   <strong className="text-foreground">
                     movê-la, renomeá-la e compartilhá-la
                   </strong>{" "}
-                  à vontade — inclusive para dentro da organização que você já
+                  à vontade, inclusive para dentro da organização que você já
                   tem. As propostas continuam chegando nela.
                 </p>
               </>
@@ -330,7 +330,7 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
                 <p>
                   As pastas e os arquivos já enviados{" "}
                   <strong className="text-foreground">continuam no seu Drive</strong>
-                  , intactos — nada é apagado.
+                  , intactos: nada é apagado.
                 </p>
                 <p>
                   O que para é a entrega automática: novas propostas deixam de

@@ -132,7 +132,7 @@ export const checkPriceChanges = onSchedule(
 
             if (subscription.cancel_at_period_end) {
               logger.info(
-                "[checkPriceChanges] skipping migration — cancel_at_period_end=true",
+                "[checkPriceChanges] skipping migration: cancel_at_period_end=true",
                 { tenantId },
               );
               skipped++;
@@ -273,7 +273,7 @@ export const checkPriceChanges = onSchedule(
 
               await sendEmail({
                 to: ownerEmail,
-                subject: `Atualização de preço do ${planName} — ProOps`,
+                subject: `Atualização de preço do ${planName} na ProOps`,
                 html,
                 tenantId,
                 type: "price_change",

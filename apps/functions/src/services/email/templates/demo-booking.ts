@@ -62,7 +62,7 @@ function shell(title: string, heading: string, rowsHtml: string, footer: string,
 export function renderDemoBookingInternalEmail(
   data: DemoBookingEmailData,
 ): { subject: string; html: string } {
-  const subject = `[ProOps] Nova demonstração agendada: ${data.name} — ${data.dateLabel} ${data.timeLabel}`;
+  const subject = `[ProOps] Nova demonstração agendada: ${data.name}, ${data.dateLabel} ${data.timeLabel}`;
   const rows =
     row("Nome", escapeHtml(data.name), true) +
     row("Email", escapeHtml(data.email)) +
@@ -73,7 +73,7 @@ export function renderDemoBookingInternalEmail(
     row("Duração", escapeHtml(data.durationLabel)) +
     row("Mensagem", data.message ? escapeHtml(data.message) : "—");
   const html = shell(
-    "Nova demonstração agendada — ProOps",
+    "Nova demonstração agendada na ProOps",
     "Nova demonstração agendada",
     rows,
     "Agendamento recebido pela página /agendar da ProOps.<br/>ProOps · gestao@proops.com.br",
@@ -85,13 +85,13 @@ export function renderDemoBookingInternalEmail(
 export function renderDemoBookingConfirmationEmail(
   data: DemoBookingEmailData,
 ): { subject: string; html: string } {
-  const subject = `Sua demonstração com a ProOps — ${data.dateLabel}, ${data.timeLabel}`;
+  const subject = `Sua demonstração com a ProOps: ${data.dateLabel}, ${data.timeLabel}`;
   const rows =
     row("Dia", escapeHtml(data.dateLabel), true) +
     row("Horário", escapeHtml(data.timeLabel)) +
     row("Duração", escapeHtml(data.durationLabel));
   const html = shell(
-    "Demonstração confirmada — ProOps",
+    "Demonstração confirmada na ProOps",
     `Tudo certo, ${escapeHtml(data.name.split(" ")[0])}!`,
     rows,
     "Sua demonstração com a ProOps está confirmada. Se precisar remarcar, responda este email.<br/>ProOps · gestao@proops.com.br",

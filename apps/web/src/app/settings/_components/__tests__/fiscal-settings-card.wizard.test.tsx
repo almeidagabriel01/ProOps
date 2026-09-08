@@ -171,7 +171,7 @@ describe("FiscalSettingsCard — formulário em passos", () => {
     expect(await screen.findByText("CEP deve ter 8 dígitos")).toBeInTheDocument();
     expect(screen.getByText("Logradouro é obrigatório")).toBeInTheDocument();
     expect(
-      screen.getByText("Deve ter 7 dígitos — confira o CEP"),
+      screen.getByText("Deve ter 7 dígitos, confira o CEP"),
     ).toBeInTheDocument();
     // Não passou do endereço.
     expect(

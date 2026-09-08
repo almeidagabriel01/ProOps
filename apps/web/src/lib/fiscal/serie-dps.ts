@@ -32,7 +32,7 @@ export function validarSerieNfse(serie: string): string | null {
 
   if (numero > SERIE_APP_PROPRIO_MAX) {
     if (numero >= 70000 && numero <= 79999) {
-      return "Essa faixa é do emissor web (portal nfse.gov.br). Para emitir por aqui, use uma série entre 1 e 49999 — a numeração dela começa do zero, sem conflito com as notas do portal.";
+      return "Essa faixa é do emissor web (portal nfse.gov.br). Para emitir por aqui, use uma série entre 1 e 49999, a numeração dela começa do zero, sem conflito com as notas do portal.";
     }
     return `Série fora da faixa de aplicativo próprio (${SERIE_APP_PROPRIO_MIN} a ${SERIE_APP_PROPRIO_MAX}).`;
   }

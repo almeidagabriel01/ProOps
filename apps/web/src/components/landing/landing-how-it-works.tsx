@@ -39,7 +39,7 @@ const STEPS: Step[] = [
   {
     title: "Gerencie a operação",
     description:
-      "Financeiro, carteiras, agenda e CRM atualizados automaticamente a cada proposta aprovada — visão única do negócio.",
+      "Financeiro, carteiras, agenda e CRM atualizados automaticamente a cada proposta aprovada: visão única do negócio.",
     icon: LayoutDashboard,
   },
 ];

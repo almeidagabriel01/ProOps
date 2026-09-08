@@ -699,7 +699,7 @@ const DatePicker = React.forwardRef<HTMLInputElement, DatePickerProps>(
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <span className="text-sm font-bold text-muted-foreground">
-                      {yearRangeStart} — {yearRangeStart + 11}
+                      {yearRangeStart} a {yearRangeStart + 11}
                     </span>
                     <button
                       type="button"

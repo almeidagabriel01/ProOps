@@ -243,7 +243,7 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
             <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
               Ligando isto, as notas que seus fornecedores emitem contra o seu
               CNPJ aparecem aqui. Confirmando uma compra, você recebe os
-              produtos com o NCM de cada um — que é o dado que falta ao
+              produtos com o NCM de cada um, que é o dado que falta ao
               cadastrar produto para emitir nota.
             </p>
           </div>

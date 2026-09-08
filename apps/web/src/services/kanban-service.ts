@@ -107,7 +107,7 @@ export const KanbanService = {
         error.message.includes("Missing or insufficient permissions");
       if (isPermissionError) {
         console.warn(
-          "[KanbanService] Permission denied reading kanban_statuses — falling back to defaults.",
+          "[KanbanService] Permission denied reading kanban_statuses, falling back to defaults.",
         );
         return [];
       }

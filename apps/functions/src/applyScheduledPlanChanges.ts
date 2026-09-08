@@ -61,7 +61,7 @@ export const applyScheduledPlanChanges = onSchedule(
         if (!scheduledTier || !scheduledPlanAt) {
           skipped++;
           console.warn(
-            `[applyScheduledPlanChanges] Tenant ${tenantId} matched query but has invalid scheduledPlan/scheduledPlanAt — skipping`,
+            `[applyScheduledPlanChanges] Tenant ${tenantId} matched query but has invalid scheduledPlan/scheduledPlanAt; skipping`,
           );
           continue;
         }

@@ -95,7 +95,7 @@ async function findDuplicateCandidates(
 
 function buildDescription(invoice: ReceivedInvoiceDocument): string {
   const fornecedor = invoice.emitenteNome?.trim() || invoice.emitenteCnpj;
-  const nota = invoice.numero ? ` — nota ${invoice.numero}` : "";
+  const nota = invoice.numero ? `, nota ${invoice.numero}` : "";
   return `${fornecedor}${nota}`;
 }
 

@@ -122,7 +122,7 @@ export function AnalyticsKPIs({ kpis }: AnalyticsKPIsProps) {
             gradient="bg-gradient-to-br from-emerald-600 to-emerald-800 dark:from-emerald-700 dark:to-emerald-900"
             iconBg="bg-white/20"
             delay={0.03}
-            infoTooltip="Monthly Recurring Revenue — soma de todas as assinaturas ativas convertidas para valor mensal. Assinaturas anuais são divididas por 12."
+            infoTooltip="Monthly Recurring Revenue: soma de todas as assinaturas ativas convertidas para valor mensal. Assinaturas anuais são divididas por 12."
           />
           <MetricCard
             title="ARR"
@@ -132,7 +132,7 @@ export function AnalyticsKPIs({ kpis }: AnalyticsKPIsProps) {
             gradient="bg-gradient-to-br from-teal-600 to-teal-800 dark:from-teal-700 dark:to-teal-900"
             iconBg="bg-white/20"
             delay={0.06}
-            infoTooltip="Annual Recurring Revenue — MRR × 12. Representa a receita projetada para os próximos 12 meses mantendo a base atual."
+            infoTooltip="Annual Recurring Revenue: MRR × 12. Representa a receita projetada para os próximos 12 meses mantendo a base atual."
           />
           <MetricCard
             title="ARPU"
@@ -142,7 +142,7 @@ export function AnalyticsKPIs({ kpis }: AnalyticsKPIsProps) {
             gradient="bg-gradient-to-br from-cyan-600 to-cyan-800 dark:from-cyan-700 dark:to-cyan-900"
             iconBg="bg-white/20"
             delay={0.09}
-            infoTooltip="Average Revenue Per User — MRR dividido pelo número de empresas com assinatura paga. Indica o valor médio gerado por cliente."
+            infoTooltip="Average Revenue Per User: MRR dividido pelo número de empresas com assinatura paga. Indica o valor médio gerado por cliente."
           />
           <MetricCard
             title="Upgrade Signals"
@@ -159,7 +159,7 @@ export function AnalyticsKPIs({ kpis }: AnalyticsKPIsProps) {
                 </span>
               ) : undefined
             }
-            infoTooltip="Product Qualified Leads — empresas que atingiram ≥80% dos limites do plano atual (propostas, clientes, produtos ou usuários). São candidatas naturais a upgrade."
+            infoTooltip="Product Qualified Leads: empresas que atingiram ≥80% dos limites do plano atual (propostas, clientes, produtos ou usuários). São candidatas naturais a upgrade."
           />
         </div>
       </div>

@@ -35,12 +35,12 @@ function buildEventCopy(data: InternalLifecycleEmailData): EventCopy {
   switch (data.event) {
     case "signup":
       return {
-        subject: `[ProOps] Novo cadastro: ${name} — ${company}`,
+        subject: `[ProOps] Novo cadastro: ${name} (${company})`,
         heading: "Novo cadastro na plataforma",
       };
     case "team_member_added":
       return {
-        subject: `[ProOps] Novo membro de equipe: ${name} — ${company}`,
+        subject: `[ProOps] Novo membro de equipe: ${name} (${company})`,
         heading: "Novo membro de equipe adicionado",
       };
     case "new_subscription":
@@ -50,12 +50,12 @@ function buildEventCopy(data: InternalLifecycleEmailData): EventCopy {
       };
     case "plan_upgrade":
       return {
-        subject: `[ProOps] Upgrade de plano: ${company} — ${from} → ${to}`,
+        subject: `[ProOps] Upgrade de plano: ${company}, ${from} → ${to}`,
         heading: "Upgrade de plano",
       };
     case "plan_downgrade":
       return {
-        subject: `[ProOps] Downgrade de plano: ${company} — ${from} → ${to}`,
+        subject: `[ProOps] Downgrade de plano: ${company}, ${from} → ${to}`,
         heading: "Downgrade de plano",
       };
     case "cancel_scheduled":
@@ -70,7 +70,7 @@ function buildEventCopy(data: InternalLifecycleEmailData): EventCopy {
       };
     case "subscription_canceled":
       return {
-        subject: `[ProOps] Assinatura cancelada: ${company} — ${from} → free`,
+        subject: `[ProOps] Assinatura cancelada: ${company}, ${from} → free`,
         heading: "Assinatura cancelada",
       };
   }
@@ -119,7 +119,7 @@ export function renderInternalLifecycleEmail(
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(copy.heading)} — ProOps</title>
+  <title>${escapeHtml(copy.heading)} | ProOps</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">

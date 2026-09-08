@@ -237,7 +237,7 @@ export function AgendarClient() {
                 }
                 className="hero-enter max-w-sm text-base leading-relaxed text-black/60 dark:text-white/60"
               >
-                Escolha um dia e um horário — enviamos o link da videochamada
+                Escolha um dia e um horário; enviamos o link da videochamada
                 por email. Uma demonstração direta da ProOps, sem compromisso.
               </p>
 

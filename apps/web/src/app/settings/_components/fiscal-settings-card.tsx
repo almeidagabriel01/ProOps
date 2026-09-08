@@ -356,7 +356,7 @@ export function FiscalSettingsCard({
     // A SEFAZ valida o município pelo código, não pelo nome. Sem os 7 dígitos o
     // provedor recusa, e o CEP é quem os traz.
     if (digits(codigoIbge).length !== 7)
-      next.codigoIbge = "Deve ter 7 dígitos — confira o CEP";
+      next.codigoIbge = "Deve ter 7 dígitos, confira o CEP";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -575,7 +575,7 @@ export function FiscalSettingsCard({
                     </p>
                     <p className="text-muted-foreground">
                       As notas continuam sendo emitidas, mas o resultado só chega pela
-                      consulta periódica — pode demorar até 15 minutos para aparecer.
+                      consulta periódica, que pode demorar até 15 minutos para aparecer.
                     </p>
                     {settings?.webhookStatus?.lastError && (
                       <p className="font-mono text-xs text-muted-foreground/80">
@@ -685,7 +685,7 @@ export function FiscalSettingsCard({
             </CardHeader>
             <CardContent className="flex flex-wrap items-center justify-between gap-3">
               <p className="max-w-xl text-sm text-muted-foreground">
-                As notas já emitidas <strong>continuam</strong> disponíveis — elas
+                As notas já emitidas <strong>continuam</strong> disponíveis: elas
                 têm guarda legal de 5 anos e não somem com a desconexão.
               </p>
               <Button
@@ -715,7 +715,7 @@ export function FiscalSettingsCard({
               <div className="space-y-3 text-sm">
                 <p>
                   A emissão para imediatamente. As notas já emitidas continuam
-                  aqui — guarda legal de 5 anos.
+                  aqui, com guarda legal de 5 anos.
                 </p>
                 {/* Estas duas são o que dói na volta, e ninguém adivinha: a
                     senha do certificado é cifrada em KMS e não é recuperável, e
@@ -724,7 +724,7 @@ export function FiscalSettingsCard({
                 <ul className="list-disc space-y-1 pl-5">
                   <li>
                     enviar o certificado <strong>.pfx</strong> de novo, com a
-                    senha — ela não fica guardada em texto e não dá para
+                    senha, que não fica guardada em texto e não dá para
                     recuperar;
                   </li>
                   <li>

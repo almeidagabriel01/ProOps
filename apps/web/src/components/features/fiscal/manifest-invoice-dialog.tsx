@@ -65,7 +65,7 @@ const OPCOES: OpcaoManifestacao[] = [
     tipo: "nao_realizada",
     titulo: "A compra foi cancelada",
     descricao:
-      "Você reconhece a negociação, mas ela não se concretizou — devolução ou desistência.",
+      "Você reconhece a negociação, mas ela não se concretizou: devolução ou desistência.",
     icon: HelpCircle,
   },
   {
@@ -219,7 +219,7 @@ export function ManifestInvoiceDialog({
                 escrever pouco e descobrir só na recusa. */}
             <p className="text-xs text-muted-foreground">
               {tamanhoJustificativa} de {MANIFESTATION_JUSTIFICATION_MAX_LENGTH}{" "}
-              caracteres — mínimo de {MANIFESTATION_JUSTIFICATION_MIN_LENGTH}.
+              caracteres, mínimo de {MANIFESTATION_JUSTIFICATION_MIN_LENGTH}.
             </p>
           </div>
         )}

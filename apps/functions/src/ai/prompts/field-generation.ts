@@ -80,7 +80,20 @@ function truncate(s: string | undefined, max = 500): string {
   return s.length > max ? s.slice(0, max) : s;
 }
 
+/**
+ * Regra de estilo comum a TODOS os prompts: o texto gerado aqui vai direto
+ * para a proposta que o cliente final lê. Sem isto o modelo pontua com
+ * travessão por conta própria, e o texto sai fora do padrão do resto do ERP.
+ */
+const REGRA_DE_PONTUACAO =
+  "\n\nNunca use travessão como pontuação de frase. Use vírgula, dois-pontos ou ponto e vírgula.";
+
 export function buildPrompt(req: GenerateFieldRequest): { system: string; user: string } {
+  const prompt = buildFieldPrompt(req);
+  return { ...prompt, system: prompt.system + REGRA_DE_PONTUACAO };
+}
+
+function buildFieldPrompt(req: GenerateFieldRequest): { system: string; user: string } {
   switch (req.field) {
     case "product.description":
       return {
@@ -110,7 +123,7 @@ export function buildPrompt(req: GenerateFieldRequest): { system: string; user: 
 
       if (currentContent) {
         return {
-          system: `Você é redator de documentos comerciais em PT-BR. O usuário escreveu o início de um texto e quer que você o complete e expanda em um parágrafo profissional.\n\nREGRAS ABSOLUTAS:\n- Preserve EXATAMENTE as palavras de abertura do usuário — não as altere, não as substitua, não as mova.\n- Continue e expanda o texto no mesmo assunto e tom que o usuário iniciou. Se começou com gratidão, expanda esse tema. Se começou com uma afirmação, desenvolva-a.\n- NÃO mude de assunto. NÃO introduza temas que não estejam na abertura do usuário.\n- Resultado: 3 a 5 frases no total (incluindo a abertura), máximo 120 palavras.\n- Você pode usar **negrito** em até 2 termos-chave.\n- Não use títulos (#, ##), links, imagens, emojis, código nem JSON.`,
+          system: `Você é redator de documentos comerciais em PT-BR. O usuário escreveu o início de um texto e quer que você o complete e expanda em um parágrafo profissional.\n\nREGRAS ABSOLUTAS:\n- Preserve EXATAMENTE as palavras de abertura do usuário: não as altere, não as substitua, não as mova.\n- Continue e expanda o texto no mesmo assunto e tom que o usuário iniciou. Se começou com gratidão, expanda esse tema. Se começou com uma afirmação, desenvolva-a.\n- NÃO mude de assunto. NÃO introduza temas que não estejam na abertura do usuário.\n- Resultado: 3 a 5 frases no total (incluindo a abertura), máximo 120 palavras.\n- Você pode usar **negrito** em até 2 termos-chave.\n- Não use títulos (#, ##), links, imagens, emojis, código nem JSON.`,
           user: `Complete e expanda este texto preservando a abertura exata:\n"""\n${truncate(currentContent, 800)}\n"""`,
         };
       }

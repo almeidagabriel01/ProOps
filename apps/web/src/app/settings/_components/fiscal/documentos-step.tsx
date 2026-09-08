@@ -80,13 +80,13 @@ export function DocumentosStep({
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 p-4">
             <div>
-              <p className="text-sm font-medium">NF-e — nota de produto</p>
+              <p className="text-sm font-medium">NF-e: nota de produto</p>
               <p className="text-xs text-muted-foreground">
                 Mercadoria, com ICMS.
               </p>
             </div>
             <Switch
-              aria-label="NF-e — nota de produto"
+              aria-label="NF-e: nota de produto"
               checked={form.habilitaNfe}
               onCheckedChange={(checked) => setField("habilitaNfe", checked)}
             />
@@ -136,13 +136,13 @@ export function DocumentosStep({
 
           <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 p-4">
             <div>
-              <p className="text-sm font-medium">NFS-e — nota de serviço</p>
+              <p className="text-sm font-medium">NFS-e: nota de serviço</p>
               <p className="text-xs text-muted-foreground">
                 Instalação e mão de obra, com ISS.
               </p>
             </div>
             <Switch
-              aria-label="NFS-e — nota de serviço"
+              aria-label="NFS-e: nota de serviço"
               checked={form.habilitaNfse}
               onCheckedChange={(checked) => setField("habilitaNfse", checked)}
             />
@@ -159,10 +159,10 @@ export function DocumentosStep({
                   }
                 >
                   <option value="nacional">
-                    Nacional — portal nfse.gov.br
+                    Nacional: portal nfse.gov.br
                   </option>
                   <option value="municipal">
-                    Municipal — sistema próprio da prefeitura
+                    Municipal: sistema próprio da prefeitura
                   </option>
                 </Select>
                 <p className="text-xs text-muted-foreground">
@@ -226,8 +226,8 @@ export function DocumentosStep({
               </p>
               <p className="text-xs text-muted-foreground">
                 Traz as notas emitidas contra o seu CNPJ e permite se manifestar
-                sobre elas. Cada nota recebida consome uma unidade do seu pacote
-                — inclusive as que seus fornecedores já emitiram antes de você
+                sobre elas. Cada nota recebida consome uma unidade do seu pacote,
+                inclusive as que seus fornecedores já emitiram antes de você
                 ligar isto.
               </p>
             </div>
@@ -264,7 +264,7 @@ export function DocumentosStep({
               />
               {dataRecebimentoFutura && (
                 <p className="text-xs text-amber-600">
-                  Data no futuro: nenhuma nota será recebida até lá — e esta
+                  Data no futuro: nenhuma nota será recebida até lá, e esta
                   escolha não poderá ser desfeita.
                 </p>
               )}
@@ -277,8 +277,8 @@ export function DocumentosStep({
                 <p className="text-xs text-muted-foreground">
                   Notas emitidas antes desta data são descartadas e{" "}
                   <strong className="text-foreground">não são cobradas</strong>.
-                  Recuar a data traz o histórico do fornecedor — útil para
-                  aproveitar os NCM de compras antigas —, mas{" "}
+                  Recuar a data traz o histórico do fornecedor, útil para
+                  aproveitar os NCM de compras antigas, mas{" "}
                   <strong className="text-foreground">
                     cada nota trazida consome uma unidade do seu pacote
                   </strong>

@@ -420,7 +420,7 @@ export const lookupCnpjHandler = async (req: Request, res: Response): Promise<vo
     if (!cnpjValidator.isValid(cnpj)) {
       // O provedor responde 404 para CNPJ inexistente, o que se confunde com
       // rota errada. Barrar antes dá a mensagem certa e economiza a chamada.
-      res.status(400).json({ message: "CNPJ inválido — confira os dígitos" });
+      res.status(400).json({ message: "CNPJ inválido, confira os dígitos" });
       return;
     }
 

@@ -44,12 +44,12 @@ export default function CookiesPage() {
                 sessão.
               </p>
               <p>
-                <strong>__session</strong> — cookie de autenticação do Firebase.
+                <strong>__session</strong>: cookie de autenticação do Firebase.
                 Mantém sua sessão ativa de forma segura (httpOnly), com validade de
                 até 5 dias.
               </p>
               <p>
-                <strong>firebase-auth-token</strong> — cookie de compatibilidade
+                <strong>firebase-auth-token</strong>: cookie de compatibilidade
                 utilizado apenas em ambientes de desenvolvimento como fallback de
                 autenticação.
               </p>
@@ -67,12 +67,12 @@ export default function CookiesPage() {
               </p>
               <p>
                 <strong>Google Analytics</strong> (cookies <code>_ga</code>,{" "}
-                <code>_gid</code>, <code>_ga_*</code>) — estatísticas de uso,
+                <code>_gid</code>, <code>_ga_*</code>): estatísticas de uso,
                 páginas visitadas e origem do tráfego.
               </p>
               <p>
                 <strong>Vercel Analytics</strong> e{" "}
-                <strong>Vercel Speed Insights</strong> — métricas de desempenho e
+                <strong>Vercel Speed Insights</strong>: métricas de desempenho e
                 de experiência de carregamento (Core Web Vitals).
               </p>
             </>
@@ -103,7 +103,7 @@ export default function CookiesPage() {
               </p>
               <p>
                 Observe que, ao desativar os cookies estritamente necessários,
-                algumas funcionalidades da plataforma — como manter-se conectado —
+                algumas funcionalidades da plataforma, como manter-se conectado,
                 podem deixar de funcionar corretamente.
               </p>
               <p>

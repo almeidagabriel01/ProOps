@@ -44,13 +44,13 @@ const REJECTIONS: Record<string, RejectionEntry> = {
   "805": {
     titulo: "O cliente está marcado como isento de inscrição estadual",
     explicacao:
-      "A Receita do estado do cliente não aceita 'isento'. Quem não é contribuinte de ICMS — pessoa física, por exemplo — deve ser marcado como 'não contribuinte'.",
+      "A Receita do estado do cliente não aceita 'isento'. Quem não é contribuinte de ICMS, como pessoa física, deve ser marcado como 'não contribuinte'.",
     acao: { label: "Corrigir cadastro do cliente", focusField: "indicadorIe" },
   },
   "209": {
     titulo: "A inscrição municipal do emitente é inválida",
     explicacao:
-      "A prefeitura não reconheceu a inscrição municipal cadastrada. Confira o número no portal da prefeitura — o formato varia de município para município.",
+      "A prefeitura não reconheceu a inscrição municipal cadastrada. Confira o número no portal da prefeitura: o formato varia de município para município.",
     acao: {
       label: "Revisar dados fiscais",
       href: "/settings/fiscal",
@@ -66,7 +66,7 @@ const REJECTIONS: Record<string, RejectionEntry> = {
   "215": {
     titulo: "A nota foi montada fora do padrão aceito",
     explicacao:
-      "Algum campo saiu em formato inválido. Isso costuma ser um dado do cadastro com caractere estranho — acento em campo que não aceita, ou símbolo na descrição.",
+      "Algum campo saiu em formato inválido. Isso costuma ser um dado do cadastro com caractere estranho: acento em campo que não aceita, ou símbolo na descrição.",
   },
   "225": {
     titulo: "Falha na estrutura da nota",
@@ -81,12 +81,12 @@ const REJECTIONS: Record<string, RejectionEntry> = {
   "239": {
     titulo: "Versão de layout não suportada",
     explicacao:
-      "A SEFAZ deste estado não aceita a versão de layout enviada. É um ajuste do provedor, não do seu cadastro — acione o suporte.",
+      "A SEFAZ deste estado não aceita a versão de layout enviada. É um ajuste do provedor, não do seu cadastro; acione o suporte.",
   },
   "252": {
     titulo: "Fora do prazo de cancelamento",
     explicacao:
-      "O prazo para cancelar essa nota já passou — em geral 24 horas, até 7 dias em alguns estados. O caminho agora é emitir uma nota de devolução.",
+      "O prazo para cancelar essa nota já passou: em geral 24 horas, até 7 dias em alguns estados. O caminho agora é emitir uma nota de devolução.",
   },
   "494": {
     titulo: "Chave de acesso inexistente",
@@ -96,7 +96,7 @@ const REJECTIONS: Record<string, RejectionEntry> = {
   "539": {
     titulo: "Já existe uma nota com essa numeração",
     explicacao:
-      "A numeração da sua série saiu de sincronia com a SEFAZ — normalmente porque notas foram emitidas por outro sistema. Ajuste o próximo número nas configurações fiscais.",
+      "A numeração da sua série saiu de sincronia com a SEFAZ, normalmente porque notas foram emitidas por outro sistema. Ajuste o próximo número nas configurações fiscais.",
     acao: {
       label: "Ajustar numeração",
       href: "/settings/fiscal",
@@ -127,7 +127,7 @@ const REJECTIONS: Record<string, RejectionEntry> = {
   SEM_CREDENCIAMENTO: {
     titulo: "A empresa não está autorizada a emitir por sistema",
     explicacao:
-      "Além do certificado, é preciso pedir liberação para emitir por webservice — na SEFAZ do estado, para nota de produto, ou na prefeitura, para nota de serviço. É um pedido único, feito uma vez.",
+      "Além do certificado, é preciso pedir liberação para emitir por webservice: na SEFAZ do estado, para nota de produto, ou na prefeitura, para nota de serviço. É um pedido único, feito uma vez.",
     matches: /(credenciad|n[ãa]o autorizad|sem permiss[ãa]o para emitir)/i,
   },
   MUNICIPIO_IBGE: {
@@ -190,6 +190,6 @@ export function humanizeRejection(
     explicacao:
       original ||
       "O fisco recusou a emissão e não detalhou o motivo. Tente novamente; se persistir, acione o suporte.",
-    ...(cleanCode ? { original: `Código ${cleanCode}${original ? ` — ${original}` : ""}` } : {}),
+    ...(cleanCode ? { original: `Código ${cleanCode}${original ? `: ${original}` : ""}` } : {}),
   };
 }

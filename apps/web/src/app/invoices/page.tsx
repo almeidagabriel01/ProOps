@@ -126,7 +126,7 @@ export default function InvoicesPage() {
         // e nada muda na linha, o que se confunde com um clique que não pegou.
         toast.info("O provedor ainda não disponibilizou o PDF desta nota.", {
           description:
-            "O XML continua disponível — ele é o documento que vale.",
+            "O XML continua disponível: ele é o documento que vale.",
         });
       }
     } catch (error) {

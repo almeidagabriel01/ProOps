@@ -164,7 +164,7 @@ export function checkIssuerReadinessForType(
       scope: "emitente",
       field: "percentualTotalTributosSimplesNacional",
       message:
-        "Informe a alíquota aproximada do Simples Nacional da sua empresa — ela sai do seu DAS e é obrigatória na nota de serviço.",
+        "Informe a alíquota aproximada do Simples Nacional da sua empresa: ela sai do seu DAS e é obrigatória na nota de serviço.",
     });
   }
 
@@ -217,7 +217,7 @@ export function checkRecipientReadiness(
   ) {
     add(
       "inscricaoEstadual",
-      'Cliente marcado como contribuinte precisa de inscrição estadual — ou mude para "não contribuinte".',
+      'Cliente marcado como contribuinte precisa de inscrição estadual, ou mude para "não contribuinte".',
     );
   }
 

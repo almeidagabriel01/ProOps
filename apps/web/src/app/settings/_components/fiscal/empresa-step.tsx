@@ -50,7 +50,7 @@ export function EmpresaStep({
           <div>
             <h3 className="text-lg font-semibold">Dados da empresa</h3>
             <p className="text-sm text-muted-foreground">
-              Informe o CNPJ e busque — o resto é preenchido automaticamente
+              Informe o CNPJ e busque: o resto é preenchido automaticamente
             </p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export function EmpresaStep({
               }
             >
               <option value="1">Simples Nacional</option>
-              <option value="2">Simples Nacional — excesso de sublimite</option>
+              <option value="2">Simples Nacional: excesso de sublimite</option>
               <option value="3">Regime Normal (Presumido ou Real)</option>
               <option value="4">MEI</option>
             </Select>

@@ -372,7 +372,7 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
             <DialogTitle>Habilitar Pagamentos Online</DialogTitle>
             <DialogDescription>
               Preencha os dados da sua empresa. A conta de recebimentos é criada
-              automaticamente — seus dados são enviados diretamente ao Asaas.
+              automaticamente: seus dados são enviados diretamente ao Asaas.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleConnect} noValidate>
@@ -754,8 +754,8 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
             <>
               <p className="text-sm text-muted-foreground">
                 Habilite para aceitar PIX e boleto bancário nos links
-                compartilhados. A conta de recebimentos é criada automaticamente
-                — você não precisa criar uma conta no Asaas.
+                compartilhados. A conta de recebimentos é criada automaticamente,
+                você não precisa criar uma conta no Asaas.
               </p>
               <Button size="sm" onClick={() => setShowOnboardDialog(true)}>
                 <CreditCard className="mr-2 h-4 w-4" aria-hidden="true" />

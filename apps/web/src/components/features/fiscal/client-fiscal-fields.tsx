@@ -175,7 +175,7 @@ export function ClientFiscalFields({
             {cepState === "loading"
               ? "Buscando endereço…"
               : cepState === "notFound"
-                ? "CEP não encontrado — preencha o endereço à mão."
+                ? "CEP não encontrado: preencha o endereço à mão."
                 : "Preenche o resto do endereço."}
           </p>
         </FormItem>
@@ -267,7 +267,7 @@ export function ClientFiscalFields({
             <option value="isento">Isento de inscrição estadual</option>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Pessoa física é sempre &quot;não contribuinte&quot; — nunca
+            Pessoa física é sempre &quot;não contribuinte&quot;, nunca
             &quot;isento&quot;.
           </p>
         </FormItem>

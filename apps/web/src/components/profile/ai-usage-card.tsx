@@ -23,7 +23,7 @@ export function AiUsageCard() {
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <BotMessageSquare className="w-4 h-4" />
-          Lia — Uso de Mensagens
+          Lia: Uso de Mensagens
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

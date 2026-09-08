@@ -102,10 +102,10 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   // converts automatically at the end (no "assinar" action for the user to take).
   const trialMessage =
     trialDays <= 0
-      ? "Seu período gratuito termina hoje — sua assinatura será cobrada automaticamente."
+      ? "Seu período gratuito termina hoje: sua assinatura será cobrada automaticamente."
       : trialDays === 1
         ? "Falta 1 dia no seu período gratuito."
-        : `Você está no período gratuito — faltam ${trialDays} dias.`;
+        : `Você está no período gratuito: faltam ${trialDays} dias.`;
 
   return (
     <SubscriptionGuard>
@@ -119,7 +119,7 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
           {isDemo && (
             <BillingStateBanner
               variant="info"
-              message="Você está no modo demonstração — os dados são fictícios e não podem ser alterados. Assine para usar o ERP com seus próprios dados."
+              message="Você está no modo demonstração: os dados são fictícios e não podem ser alterados. Assine para usar o ERP com seus próprios dados."
               ctaLabel="Assinar agora"
               onCta={() => router.push("/profile?tab=billing")}
               dataTestid="billing-state-banner-demo"

@@ -28,7 +28,7 @@ export default function SettingsDrivePage() {
     return (
       <UpgradeRequired
         feature="Google Drive"
-        description="Cada cliente ganha uma pasta no seu Drive, e toda proposta enviada cai nela sozinha — sem baixar e subir à mão. Disponível a partir do plano Pro."
+        description="Cada cliente ganha uma pasta no seu Drive, e toda proposta enviada cai nela sozinha, sem baixar e subir à mão. Disponível a partir do plano Pro."
       />
     );
   }

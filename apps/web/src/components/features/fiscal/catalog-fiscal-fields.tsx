@@ -55,21 +55,21 @@ interface CatalogFiscalFieldsProps {
 }
 
 const ORIGEM_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "0", label: "0 — Nacional" },
-  { value: "1", label: "1 — Estrangeira, importação direta" },
-  { value: "2", label: "2 — Estrangeira, adquirida no mercado interno" },
-  { value: "3", label: "3 — Nacional, importação entre 40% e 70%" },
-  { value: "4", label: "4 — Nacional, produção conforme processos básicos" },
-  { value: "5", label: "5 — Nacional, importação até 40%" },
+  { value: "0", label: "0: Nacional" },
+  { value: "1", label: "1: Estrangeira, importação direta" },
+  { value: "2", label: "2: Estrangeira, adquirida no mercado interno" },
+  { value: "3", label: "3: Nacional, importação entre 40% e 70%" },
+  { value: "4", label: "4: Nacional, produção conforme processos básicos" },
+  { value: "5", label: "5: Nacional, importação até 40%" },
   {
     value: "6",
-    label: "6 — Estrangeira, importação direta sem similar nacional",
+    label: "6: Estrangeira, importação direta sem similar nacional",
   },
   {
     value: "7",
-    label: "7 — Estrangeira, mercado interno sem similar nacional",
+    label: "7: Estrangeira, mercado interno sem similar nacional",
   },
-  { value: "8", label: "8 — Nacional, importação superior a 70%" },
+  { value: "8", label: "8: Nacional, importação superior a 70%" },
 ];
 
 const DESCRIPTION =
@@ -84,7 +84,7 @@ const NOTAS_PRODUTO: NotaFiscalExplicativa[] = [
   {
     titulo: "Onde encontrar o NCM",
     texto:
-      "Costuma vir na nota do fornecedor ou na ficha técnica do fabricante. A varinha ao lado do campo sugere um código a partir do nome do produto — confira antes de usar: a classificação fiscal é responsabilidade de quem emite.",
+      "Costuma vir na nota do fornecedor ou na ficha técnica do fabricante. A varinha ao lado do campo sugere um código a partir do nome do produto. Confira antes de usar: a classificação fiscal é responsabilidade de quem emite.",
   },
   {
     titulo: "Pode ficar em branco",
@@ -102,7 +102,7 @@ const NOTAS_SERVICO: NotaFiscalExplicativa[] = [
   {
     titulo: "Onde encontrar os códigos",
     texto:
-      "O LC 116 é o item da lista de serviços da Lei Complementar 116/2003 — o mesmo que aparece na nota que a prefeitura emite hoje. O código de tributação nacional é o desdobramento dele no layout da NFS-e Nacional.",
+      "O LC 116 é o item da lista de serviços da Lei Complementar 116/2003, o mesmo que aparece na nota que a prefeitura emite hoje. O código de tributação nacional é o desdobramento dele no layout da NFS-e Nacional.",
   },
   {
     titulo: "Pode ficar em branco",
@@ -213,7 +213,7 @@ export function CatalogFiscalFields({
         {suggestions.length > 0 && (
           <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
             <p className="mb-2 text-xs text-muted-foreground">
-              Sugestões da IA — confira antes de usar. A classificação fiscal é
+              Sugestões da IA. Confira antes de usar: a classificação fiscal é
               responsabilidade de quem emite.
             </p>
             <ul className="space-y-1.5">
@@ -296,7 +296,7 @@ export function CatalogFiscalFields({
               onChange={(e) => onChange("aliquotaIss", e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              No Simples Nacional o ISS sai no DAS — use 0.
+              No Simples Nacional o ISS sai no DAS, use 0.
             </p>
           </FormItem>
         </FormGroup>

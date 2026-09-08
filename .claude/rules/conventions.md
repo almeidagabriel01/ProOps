@@ -26,6 +26,34 @@
 - `middleware/` — Express middleware only (auth, rate limiting)
 - `types/` — domain-specific TypeScript interfaces
 
+## Texto que o usuário lê
+
+**Nunca use travessão como pontuação.** Vale para toda superfície que vira
+texto: tela, e-mail, mensagem de erro, toast, título de SEO, prompt da Lia e os
+dados do tenant de demonstração. A pontuação deste produto é vírgula,
+dois-pontos e ponto e vírgula.
+
+| Em vez de | Escreva |
+|---|---|
+| `NF-e — nota de produto` | `NF-e: nota de produto` |
+| `Nada para sincronizar — todas as referências já estavam atualizadas.` | `Nada para sincronizar: todas as referências já estavam atualizadas.` |
+| `o dia a dia — do primeiro contato ao pós-venda — em uma base única` | `o dia a dia, do primeiro contato ao pós-venda, em uma base única` |
+| `Confirme seu email — ProOps` (assunto) | `Confirme seu email na ProOps` |
+| `Confirme seu email — ProOps` (`<title>`) | `Confirme seu email \| ProOps` |
+
+Duas exceções, porque ali o travessão não pontua frase nenhuma:
+
+- **Marca de campo vazio** (`"—"` numa célula de tabela ou num resumo). É o
+  símbolo convencional de "sem valor".
+- **Comentário de código e log** (`console.*`, `logger.*`), que são conversa
+  entre quem programa, não texto de produto.
+
+O guard `apps/web/src/__tests__/no-em-dash-in-copy.test.ts` varre a interface
+inteira e os templates de e-mail e falha se um travessão voltar. Os prompts da
+Lia carregam a regra por escrito (`ai/context-builder.ts` e
+`ai/prompts/field-generation.ts`): sem isso o modelo pontua com travessão por
+conta própria, e o texto gerado vai direto para a proposta do cliente.
+
 ## Comments and Documentation
 - Write self-documenting code — avoid comments that restate what the code does
 - Add inline comments only for: non-obvious logic, complex calculations, security-critical sections

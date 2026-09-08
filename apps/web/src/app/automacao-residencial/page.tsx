@@ -8,7 +8,7 @@ import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
 import { NicheLandingPage } from "@/components/landing/niche/niche-landing-page";
 
 export const metadata: Metadata = {
-  title: "ERP para Automação Residencial — propostas, projetos e gestão",
+  title: "ERP para Automação Residencial: propostas, projetos e gestão",
   description:
     "ProOps é o sistema ERP especializado para empresas de automação residencial. Gerencie propostas comerciais com PDF profissional, CRM, financeiro, agenda e WhatsApp em uma plataforma integrada.",
   keywords: [
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/automacao-residencial" },
   openGraph: {
-    title: "ERP para Automação Residencial — ProOps",
+    title: "ERP para Automação Residencial | ProOps",
     description:
       "Sistema completo para integradores: propostas em PDF, CRM, financeiro, agenda e WhatsApp integrados.",
     url: "/automacao-residencial",

@@ -25,7 +25,7 @@ function baseData(
 describe("renderInternalLifecycleEmail", () => {
   it("renders signup subject and heading with name and company", () => {
     const { subject, html } = renderInternalLifecycleEmail(baseData());
-    expect(subject).toBe("[ProOps] Novo cadastro: João Silva — Automação XYZ");
+    expect(subject).toBe("[ProOps] Novo cadastro: João Silva (Automação XYZ)");
     expect(html).toContain("Novo cadastro na plataforma");
     expect(html).toContain("joao@exemplo.com");
     expect(html).toContain("+55 11 99999-0000");
@@ -38,7 +38,7 @@ describe("renderInternalLifecycleEmail", () => {
       baseData({ event: "team_member_added" }),
     );
     expect(subject).toBe(
-      "[ProOps] Novo membro de equipe: João Silva — Automação XYZ",
+      "[ProOps] Novo membro de equipe: João Silva (Automação XYZ)",
     );
     expect(html).toContain("Novo membro de equipe adicionado");
   });
@@ -61,7 +61,7 @@ describe("renderInternalLifecycleEmail", () => {
       baseData({ event: "plan_upgrade", plan: { from: "starter", to: "pro" } }),
     );
     expect(subject).toBe(
-      "[ProOps] Upgrade de plano: Automação XYZ — starter → pro",
+      "[ProOps] Upgrade de plano: Automação XYZ, starter → pro",
     );
   });
 
@@ -73,7 +73,7 @@ describe("renderInternalLifecycleEmail", () => {
       }),
     );
     expect(subject).toBe(
-      "[ProOps] Downgrade de plano: Automação XYZ — pro → starter",
+      "[ProOps] Downgrade de plano: Automação XYZ, pro → starter",
     );
     expect(html).toContain("Efetivo em");
     expect(html).toContain("01/08/2026");
@@ -115,7 +115,7 @@ describe("renderInternalLifecycleEmail", () => {
       }),
     );
     expect(subject).toBe(
-      "[ProOps] Assinatura cancelada: Automação XYZ — pro → free",
+      "[ProOps] Assinatura cancelada: Automação XYZ, pro → free",
     );
     expect(html).toContain("Assinatura cancelada");
   });
@@ -125,7 +125,7 @@ describe("renderInternalLifecycleEmail", () => {
       baseData({ isDev: true }),
     );
     expect(subject).toBe(
-      "[DEV] [ProOps] Novo cadastro: João Silva — Automação XYZ",
+      "[DEV] [ProOps] Novo cadastro: João Silva (Automação XYZ)",
     );
   });
 

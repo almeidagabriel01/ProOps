@@ -73,7 +73,7 @@ export function LaunchReceivedInvoiceButton({
       onLaunched(result.invoice);
       setCandidates(null);
       toast.success("Despesa criada.", {
-        description: "Ela entra como pendente — ajuste carteira e vencimento se precisar.",
+        description: "Ela entra como pendente: ajuste carteira e vencimento se precisar.",
       });
     } catch (error) {
       const payload = (error instanceof ApiError ? error.data : null) as {
@@ -147,7 +147,7 @@ export function LaunchReceivedInvoiceButton({
             <DialogDescription>
               Encontramos {candidates?.length === 1 ? "uma despesa" : "despesas"} de
               valor equivalente perto da data desta nota. Se for a mesma compra
-              lançada à mão, cancele aqui — lançar de novo duplicaria o valor na
+              lançada à mão, cancele aqui: lançar de novo duplicaria o valor na
               carteira.
             </DialogDescription>
           </DialogHeader>

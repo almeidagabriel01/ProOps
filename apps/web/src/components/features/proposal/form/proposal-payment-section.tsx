@@ -256,7 +256,7 @@ export function ProposalPaymentSection({
             </div>
             <p className="text-sm text-purple-700/80 dark:text-purple-300/80 mb-4">
               Aplique um percentual de desconto <strong>ou</strong> defina um
-              valor combinado com o cliente — o valor final que substituirá o
+              valor combinado com o cliente: o valor final que substituirá o
               total da proposta.
             </p>
           </div>

@@ -41,7 +41,7 @@ export function EnderecoStep({
           <div>
             <h3 className="text-lg font-semibold">Endereço do emitente</h3>
             <p className="text-sm text-muted-foreground">
-              Preencha o CEP — o restante vem da consulta
+              Preencha o CEP: o restante vem da consulta
             </p>
           </div>
         </div>

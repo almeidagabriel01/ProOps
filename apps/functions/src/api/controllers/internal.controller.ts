@@ -426,7 +426,7 @@ export const checkPriceChangesManual = async (
               });
               await sendEmail({
                 to: ownerEmail,
-                subject: `Atualização de preço do ${planName} — ProOps`,
+                subject: `Atualização de preço do ${planName} na ProOps`,
                 html,
                 tenantId,
                 type: "price_change",

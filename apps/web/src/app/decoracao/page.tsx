@@ -8,7 +8,7 @@ import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
 import { NicheLandingPage } from "@/components/landing/niche/niche-landing-page";
 
 export const metadata: Metadata = {
-  title: "ERP para Decoração — cortinas, persianas e papéis de parede",
+  title: "ERP para Decoração: cortinas, persianas e papéis de parede",
   description:
     "ProOps é o ERP para lojas de decoração. Propostas com cálculo automático de metros, CRM, financeiro e WhatsApp integrados.",
   keywords: [
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/decoracao" },
   openGraph: {
-    title: "ERP para Decoração — ProOps",
+    title: "ERP para Decoração | ProOps",
     description:
       "Sistema completo para lojas de decoração: propostas com medidas, CRM, financeiro e WhatsApp.",
     url: "/decoracao",

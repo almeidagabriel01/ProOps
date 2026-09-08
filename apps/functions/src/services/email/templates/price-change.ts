@@ -62,7 +62,7 @@ export function renderPriceChangeEmail(props: PriceChangeEmailProps): string {
               </table>
 
               <p style="font-size:13px;color:#a1a1aa;line-height:1.6;margin:0;">
-                Se você optar por manter sua assinatura, nenhuma ação é necessária — o novo preço será aplicado automaticamente na renovação.
+                Se você optar por manter sua assinatura, nenhuma ação é necessária: o novo preço será aplicado automaticamente na renovação.
               </p>
             </td>
           </tr>
