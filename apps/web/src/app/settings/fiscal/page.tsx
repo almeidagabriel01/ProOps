@@ -18,7 +18,9 @@ export default function SettingsFiscalPage() {
   const { isMaster, isDemo, isLoading: permLoading } = usePermissions();
   const { hasFiscal, isLoading: planLoading } = usePlanLimits();
   // Contas demo e free são donas do próprio tenant, então veem a seção — o
-  // conteúdo é renderizado somente-leitura via `inert`, como em /settings/payments.
+  // conteúdo é somente-leitura. O `inert` fica DENTRO do card, passo a passo:
+  // aqui por cima ele mataria também a navegação do wizard e prenderia a conta
+  // no primeiro passo.
   const canSeeSection = isMaster || isDemo;
 
   const [cardLoading, setCardLoading] = React.useState(true);
@@ -51,9 +53,10 @@ export default function SettingsFiscalPage() {
       {permLoading ? (
         <PaymentsCardSkeleton />
       ) : canSeeSection ? (
-        <div className="contents" inert={isDemo || undefined}>
-          <FiscalSettingsCard onLoadingChange={setCardLoading} />
-        </div>
+        <FiscalSettingsCard
+          onLoadingChange={setCardLoading}
+          demoReadOnly={isDemo}
+        />
       ) : (
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
           <Shield className="w-16 h-16 text-muted-foreground mb-4" />

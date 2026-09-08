@@ -23,7 +23,14 @@ src/app/settings/
 │   ├── asaas-connect-card.tsx
 │   ├── asaas-payout-config-section.tsx
 │   ├── asaas-webhook-status-alert.tsx
-│   └── fiscal-settings-card.tsx
+│   ├── fiscal-settings-card.tsx   # Orquestra o wizard fiscal (estado + status + desconectar)
+│   └── fiscal/                    # Passos do wizard fiscal
+│       ├── fiscal-steps.ts        # Definição dos 4 passos (título, descrição, ícone)
+│       ├── types.ts               # SetFiscalField / SetFiscalAddress / FiscalErrors
+│       ├── empresa-step.tsx
+│       ├── endereco-step.tsx
+│       ├── documentos-step.tsx
+│       └── certificado-step.tsx
 └── CLAUDE.md                 # Este arquivo
 ```
 
@@ -197,6 +204,37 @@ A seção só aparece com `settings?.configured` — **não** com `settings`: o
 `GET /v1/fiscal/settings` nunca devolve null, devolve `{ configured: false }`. Testar
 só o objeto ofereceria "Desconectar" a quem nunca configurou nada. Guard:
 `__tests__/fiscal-settings-card.disconnect.test.tsx`.
+
+### O formulário é um wizard de 4 passos
+
+Empresa → Endereço → Documentos → Certificado, no `StepWizard` padrão do ERP
+(`FormStepCard` + `StepNavigation`, como propostas, produtos e lançamentos). Antes
+eram quatro cards abertos numa coluna só, com um "Salvar" no fim.
+
+- **A validação de cada passo espelha, campo a campo, o que o
+  `PUT /v1/fiscal/settings` recusa** (CNPJ com dígito verificador, razão social,
+  e-mail, endereço completo **com código IBGE de 7 dígitos**, ao menos um tipo de
+  nota, inscrição municipal quando há NFS-e). Divergir do servidor é o risco real
+  aqui: mais frouxo devolve 400 no fim do wizard; mais rígido bloqueia dado que o
+  servidor aceitaria. Ao mexer na validação do controller, mexa nos dois lados.
+  Guard: `__tests__/fiscal-settings-card.wizard.test.tsx`.
+- **Inscrição estadual e municipal ficam no passo Documentos**, cada uma sob o
+  documento que a exige — é lá que a obrigatoriedade nasce (IE para NF-e, IM para
+  NFS-e) e é lá que o erro precisa aparecer. A IE **não** é validada: o servidor
+  não a exige, e há emitente isento.
+- **`allowClickAhead` só com `settings.configured`.** Em edição, obrigar a
+  reatravessar quatro passos para trocar uma série é custo sem ganho; numa
+  configuração nova a ordem importa, porque o registro no provedor (passo do
+  certificado) é montado a partir do que os passos anteriores gravaram.
+- **Conta demo:** o `inert` vai em cada `FormStepCard` (`contentDisabled`) e nos
+  blocos fora do wizard — nunca num wrapper por cima de tudo, como a page fazia
+  antes. `inert` num ancestral comum mataria os botões de navegação e prenderia a
+  conta free no passo 1.
+- **Em teste, passo inativo é `aria-hidden`:** o nó existe no DOM mas fica fora da
+  árvore de acessibilidade, então `getByRole` só encontra o campo depois de abrir
+  o passo (`userEvent.click` no botão da trilha). `getByLabelText` e
+  `getElementById` encontram de qualquer jeito — e um teste que use só esses passa
+  sem provar que o campo é alcançável.
 
 ## Padrões de componente para settings
 

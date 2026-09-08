@@ -78,6 +78,19 @@ const gatilhoData = () => within(bloco()).getByRole("button");
 const toggle = () =>
   screen.getByRole("switch", { name: "Receber notas dos fornecedores" });
 
+/**
+ * A recepção de notas vive no passo "Documentos" do wizard fiscal, e passo
+ * inativo é `aria-hidden` — o nó existe no DOM mas fica fora da árvore de
+ * acessibilidade, então toda query por ROLE (o toggle, o gatilho do calendário)
+ * falha antes de o passo estar aberto. Abrir o passo é o que a pessoa faz de
+ * verdade; os testes fazem o mesmo.
+ */
+async function abrirPassoDocumentos(): Promise<void> {
+  await userEvent.click(
+    await screen.findByRole("button", { name: /Documentos/ }),
+  );
+}
+
 function hojeIso(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -92,6 +105,7 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
     // Não há o que decidir enquanto nada será recebido.
     getSettings.mockResolvedValue({ ...BASE, habilitaManifestacao: false });
     render(<FiscalSettingsCard />);
+    await abrirPassoDocumentos();
 
     await waitFor(() => expect(getSettings).toHaveBeenCalled());
     expect(campoData()).toBeNull();
@@ -104,6 +118,7 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
       dataInicioRecebimento: "2026-01-15",
     });
     render(<FiscalSettingsCard />);
+    await abrirPassoDocumentos();
 
     await waitFor(() => expect(campoData()).toHaveValue("2026-01-15"));
   });
@@ -113,6 +128,7 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
     // branco seria repassar essa conta a quem só ligou um toggle.
     getSettings.mockResolvedValue({ ...BASE, habilitaManifestacao: false });
     render(<FiscalSettingsCard />);
+    await abrirPassoDocumentos();
 
     await waitFor(() => expect(getSettings).toHaveBeenCalled());
     await userEvent.click(toggle());
@@ -123,6 +139,7 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
   it("diz o custo de recuar a data antes de ela ser escolhida", async () => {
     getSettings.mockResolvedValue({ ...BASE, habilitaManifestacao: true });
     render(<FiscalSettingsCard />);
+    await abrirPassoDocumentos();
 
     await waitFor(() => expect(campoData()).toBeInTheDocument());
     expect(bloco()).toHaveTextContent(/não são cobradas/);
@@ -139,6 +156,7 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
       dataInicioRecebimento: "2026-01-15",
     });
     render(<FiscalSettingsCard />);
+    await abrirPassoDocumentos();
 
     await waitFor(() => expect(gatilhoData()).toHaveTextContent("15/01/2026"));
   });
@@ -153,6 +171,7 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
       dataInicioRecebimento: "2099-01-01",
     });
     render(<FiscalSettingsCard />);
+    await abrirPassoDocumentos();
 
     await waitFor(() =>
       expect(bloco()).toHaveTextContent(/nenhuma nota será recebida até lá/),
@@ -169,6 +188,7 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
       dataInicioRecebimento: "2026-01-15",
     });
     render(<FiscalSettingsCard />);
+    await abrirPassoDocumentos();
 
     await waitFor(() => expect(gatilhoData()).toBeInTheDocument());
     await userEvent.click(gatilhoData());
@@ -188,6 +208,7 @@ describe("FiscalSettingsCard — data de início de recebimento", () => {
       dataInicioRecebimentoBloqueada: true,
     });
     render(<FiscalSettingsCard />);
+    await abrirPassoDocumentos();
 
     await waitFor(() => expect(gatilhoData()).toBeDisabled());
     expect(bloco()).toHaveTextContent(/já foi registrada no provedor fiscal/);
