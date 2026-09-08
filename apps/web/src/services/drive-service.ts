@@ -41,29 +41,16 @@ export const DriveService = {
     ),
 
   /**
-   * Cria a pasta raiz no Drive do usuário — o caminho padrão.
+   * Cria a pasta raiz no Drive do usuário.
    *
-   * Não é um substituto pior do que escolher: no escopo `drive.file` o acesso
-   * segue o arquivo, não o caminho, então o usuário pode mover essa pasta para
-   * dentro da estrutura que já tem e o resultado é o mesmo.
+   * No escopo `drive.file` o acesso segue o arquivo, não o caminho — o usuário
+   * move essa pasta para dentro da estrutura que já tem e nada quebra.
    */
   createRootFolder: () =>
     callApi<{ success: boolean; folderId: string; folderName: string }>(
       "/v1/drive/google/root-folder",
       "POST",
     ),
-
-  /**
-   * Grava a pasta raiz escolhida no Google Picker.
-   *
-   * O id vem do Picker e não de uma busca nossa: com `drive.file` o app não
-   * enxerga o que não criou, e é o Picker que "abre" a pasta para ele.
-   */
-  setRootFolder: (folderId: string, folderName: string) =>
-    callApi<{ success: boolean }>("/v1/drive/google/root-folder", "PUT", {
-      folderId,
-      folderName,
-    }),
 
   /** Resolve (criando se preciso) a pasta do cliente e devolve o link. */
   getClientFolder: (clientId: string) =>

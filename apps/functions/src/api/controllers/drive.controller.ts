@@ -33,7 +33,6 @@ import {
   createRootFolder,
   ensureClientFolder,
   isRootFolderUsable,
-  tagRootFolder,
 } from "../services/drive/drive.service";
 
 // RFC 4122 UUID — o `state` sai de crypto.randomUUID() (v4).
@@ -57,9 +56,6 @@ const CallbackQuerySchema = z
   .refine((data) => Boolean(data.code) || Boolean(data.error), {
     message: "code_or_error_required",
   });
-
-/** O id de uma pasta do Drive: opaco, mas limitado a um alfabeto conhecido. */
-const DRIVE_ID_RE = /^[A-Za-z0-9_-]{10,200}$/;
 
 function resolveTenantId(req: Request): string {
   if (req.user?.tenantId) {
@@ -288,52 +284,6 @@ export async function disconnectDriveHandler(req: Request, res: Response) {
     return res
       .status(500)
       .json({ message: "Não foi possível desconectar o Google Drive." });
-  }
-}
-
-// PUT /v1/drive/google/root-folder
-//
-// O id vem do Google Picker, no navegador. É ele que "abre" a pasta para o app
-// dentro do escopo `drive.file` — sem Picker não haveria como apontar uma pasta
-// que já existe sem pedir um escopo restrito.
-export async function setRootFolderHandler(req: Request, res: Response) {
-  try {
-    const tenantId = resolveTenantId(req);
-    if (!req.user?.uid || !tenantId) {
-      return res.status(403).json({ message: "Tenant não identificado." });
-    }
-    if (!canManageIntegration(req)) {
-      return res.status(403).json({
-        message: "Somente administradores podem escolher a pasta do Drive.",
-      });
-    }
-
-    const body = req.body as { folderId?: unknown; folderName?: unknown };
-    const folderId = String(body.folderId || "").trim();
-    const folderName = String(body.folderName || "").trim();
-
-    if (!DRIVE_ID_RE.test(folderId)) {
-      return res.status(400).json({ message: "Pasta inválida." });
-    }
-    if (!(await getDriveIntegration(tenantId))) {
-      return res
-        .status(409)
-        .json({ message: "Conecte a conta Google antes de escolher a pasta." });
-    }
-
-    await saveRootFolder(tenantId, folderId, folderName || "Pasta selecionada");
-    // Marca também a pasta escolhida: sem isso só a criada por nós seria
-    // reencontrada depois de um desconectar, e quem usou o Picker acabaria com
-    // uma segunda pasta ao reconectar.
-    await tagRootFolder(tenantId, folderId);
-    return res.json({ success: true });
-  } catch (error) {
-    logger.error("Falha ao gravar a pasta raiz do Drive", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return res
-      .status(500)
-      .json({ message: "Não foi possível salvar a pasta selecionada." });
   }
 }
 

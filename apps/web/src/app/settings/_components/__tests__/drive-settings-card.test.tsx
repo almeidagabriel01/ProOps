@@ -20,25 +20,19 @@ import userEvent from "@testing-library/user-event";
 const {
   getStatus,
   disconnect,
-  setRootFolder,
   createRootFolder,
   getAuthUrl,
-  pickFolder,
   toastSuccess,
   toastError,
 } = vi.hoisted(() => ({
   getStatus: vi.fn(),
   disconnect: vi.fn(),
-  setRootFolder: vi.fn(),
   createRootFolder: vi.fn(),
   getAuthUrl: vi.fn(),
-  pickFolder: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
 
-/** O Picker é opcional: sem as variáveis públicas ele nem aparece. */
-let pickerConfigurado = true;
 
 let searchParams = new URLSearchParams();
 
@@ -49,17 +43,9 @@ vi.mock("@/services/drive-service", () => ({
   DriveService: {
     getStatus,
     disconnect,
-    setRootFolder,
     createRootFolder,
     getAuthUrl,
   },
-}));
-vi.mock("@/hooks/use-google-picker", () => ({
-  useGooglePicker: () => ({
-    pickFolder,
-    isOpening: false,
-    isConfigured: pickerConfigurado,
-  }),
 }));
 vi.mock("@/lib/toast", () => ({
   toast: { success: toastSuccess, error: toastError },
@@ -91,9 +77,7 @@ const PRONTO = {
 beforeEach(() => {
   vi.clearAllMocks();
   searchParams = new URLSearchParams();
-  pickerConfigurado = true;
   disconnect.mockResolvedValue({ success: true });
-  setRootFolder.mockResolvedValue({ success: true });
   createRootFolder.mockResolvedValue({
     success: true,
     folderId: "raiz-nova",
@@ -139,10 +123,10 @@ describe("DriveSettingsCard", () => {
     expect(screen.queryByText(/nenhuma proposta é enviada/i)).toBeNull();
   });
 
-  it("CRIA a pasta como caminho principal", async () => {
-    // O Picker exige API key, Picker API e cookies de terceiro, e falha de
-    // formas que dependem do navegador do cliente — não pode ser pré-requisito
-    // para usar o módulo.
+  it("CRIA a pasta", async () => {
+    // Definir a pasta não pode depender do navegador do cliente: o seletor do
+    // Google exigia API key, Picker API e cookies de terceiro, e falhava em
+    // navegador com bloqueio. Criar a pasta funciona em qualquer um.
     getStatus.mockResolvedValue(CONECTADO_SEM_PASTA);
     render(<DriveSettingsCard />);
 
@@ -168,106 +152,6 @@ describe("DriveSettingsCard", () => {
     await waitFor(() =>
       expect(screen.getByText(/movê-la, renomeá-la e compartilhá-la/)).toBeInTheDocument(),
     );
-  });
-
-  it("ainda oferece criar quando o Picker não está configurado", async () => {
-    // Sem a API key o módulo continua utilizável — só a opção de apontar uma
-    // pasta existente some.
-    pickerConfigurado = false;
-    getStatus.mockResolvedValue(CONECTADO_SEM_PASTA);
-    render(<DriveSettingsCard />);
-
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /Criar pasta no meu Drive/ })).toBeInTheDocument(),
-    );
-    expect(screen.queryByRole("button", { name: /já existe/ })).toBeNull();
-  });
-
-  it("grava a pasta escolhida no Picker", async () => {
-    getStatus.mockResolvedValue(CONECTADO_SEM_PASTA);
-    pickFolder.mockResolvedValue({ id: "pasta-9", name: "Obras 2026" });
-    render(<DriveSettingsCard />);
-
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /já existe/ })).toBeInTheDocument(),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /já existe/ }));
-
-    await waitFor(() =>
-      expect(setRootFolder).toHaveBeenCalledWith("pasta-9", "Obras 2026"),
-    );
-    // E a tela reflete na hora, sem recarregar.
-    await waitFor(() => expect(screen.getByText("Obras 2026")).toBeInTheDocument());
-  });
-
-  it("cancelar o Picker não grava nada", async () => {
-    getStatus.mockResolvedValue(CONECTADO_SEM_PASTA);
-    pickFolder.mockResolvedValue(null);
-    render(<DriveSettingsCard />);
-
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /já existe/ })).toBeInTheDocument(),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /já existe/ }));
-
-    await waitFor(() => expect(pickFolder).toHaveBeenCalled());
-    expect(setRootFolder).not.toHaveBeenCalled();
-  });
-
-  it("oferece recriar quando a pasta foi APAGADA do Drive", async () => {
-    // Id gravado não é prova. Mostrar o nome de uma pasta morta sem oferecer
-    // recriar deixava como única saída o Picker, que depende do navegador.
-    getStatus.mockResolvedValue({ ...PRONTO, rootFolderMissing: true });
-    render(<DriveSettingsCard />);
-
-    await waitFor(() =>
-      expect(screen.getByText(/não está mais no seu Drive/i)).toBeInTheDocument(),
-    );
-    expect(
-      screen.getByRole("button", { name: /Criar pasta no meu Drive/ }),
-    ).toBeInTheDocument();
-  });
-
-  it("LIMPA o aviso ao criar a pasta que faltava", async () => {
-    // Atualizar só o id e o nome deixava a tela decidindo pela marca antiga: a
-    // pasta era criada no Drive, o aviso continuava e o botão não voltava —
-    // parecendo que nada tinha acontecido.
-    getStatus.mockResolvedValue({ ...PRONTO, rootFolderMissing: true });
-    render(<DriveSettingsCard />);
-
-    await waitFor(() =>
-      expect(screen.getByText(/não está mais no seu Drive/i)).toBeInTheDocument(),
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Criar pasta no meu Drive/ }),
-    );
-
-    await waitFor(() =>
-      expect(screen.queryByText(/não está mais no seu Drive/i)).toBeNull(),
-    );
-    expect(screen.getByText("ProOps - Propostas")).toBeInTheDocument();
-  });
-
-  it("AVISA quando a autorização foi revogada", async () => {
-    // A conexão existe e está morta. Sem dizer isso na tela, o usuário só
-    // descobre ao tentar usar — provavelmente com a proposta já aprovada.
-    getStatus.mockResolvedValue({ ...PRONTO, needsReconnect: true });
-    render(<DriveSettingsCard />);
-
-    await waitFor(() =>
-      expect(
-        screen.getByText(/autorização do Google expirou ou foi revogada/i),
-      ).toBeInTheDocument(),
-    );
-    expect(screen.getByRole("button", { name: "Reconectar" })).toBeInTheDocument();
-  });
-
-  it("não avisa reconexão quando está tudo certo", async () => {
-    getStatus.mockResolvedValue(PRONTO);
-    render(<DriveSettingsCard />);
-
-    await waitFor(() => expect(getStatus).toHaveBeenCalled());
-    expect(screen.queryByRole("button", { name: "Reconectar" })).toBeNull();
   });
 
   it("diz o que NÃO se perde ao desconectar", async () => {

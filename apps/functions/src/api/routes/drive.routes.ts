@@ -6,7 +6,6 @@ import {
   getDriveAuthUrl,
   getDriveStatus,
   handleDriveCallback,
-  setRootFolderHandler,
 } from "../controllers/drive.controller";
 import { requirePlanCapability } from "../middleware/require-plan-capability";
 
@@ -25,9 +24,7 @@ publicRouter.get("/drive/google/callback", handleDriveCallback);
 protectedRouter.get("/drive/google/auth-url", getDriveAuthUrl);
 protectedRouter.get("/drive/google/status", getDriveStatus);
 protectedRouter.delete("/drive/google/status", disconnectDriveHandler);
-// POST cria a pasta (caminho padrao); PUT grava a que veio do Picker.
 protectedRouter.post("/drive/google/root-folder", createRootFolderHandler);
-protectedRouter.put("/drive/google/root-folder", setRootFolderHandler);
 
 protectedRouter.get("/drive/clients/:clientId/folder", getClientFolderHandler);
 

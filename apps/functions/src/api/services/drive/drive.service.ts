@@ -180,7 +180,7 @@ export async function ensureClientFolder(
 }
 
 /**
- * Nome da pasta que a ProOps cria quando o usuario nao quer escolher uma.
+ * Nome da pasta que a ProOps cria no Drive do usuario.
  *
  * Hifen simples e nao travessao: a pasta e sincronizada para Windows e macOS
  * por quem usa o Drive de desktop, e caractere fora do ASCII no nome de pasta e
@@ -188,71 +188,29 @@ export async function ensureClientFolder(
  */
 export const DEFAULT_ROOT_FOLDER_NAME = "ProOps - Propostas";
 
-/**
- * Cria a pasta raiz no Drive do tenant, na raiz do "Meu Drive".
- *
- * Alternativa ao Google Picker, e nao um substituto pior: no escopo
- * `drive.file` o acesso segue o ARQUIVO, nao o caminho — o usuario pode
- * **mover, renomear e compartilhar** esta pasta livremente que continuamos
- * enxergando ela. Na pratica ele arrasta a pasta para dentro da estrutura que
- * ja tem e o resultado e o mesmo de ter apontado uma pasta existente.
- *
- * Isso importa porque o Picker cobra caro em configuracao (API key propria,
- * Picker API, popup, cookies de terceiros) e falha de formas que dependem do
- * navegador do CLIENTE — o que nao pode ser pre-requisito para usar o modulo.
- *
- * Idempotente: se ja houver uma raiz definida, devolve ela em vez de criar
- * outra. Dois cliques no botao nao podem produzir duas pastas.
- */
 /** Marca invisivel que torna a pasta raiz reencontravel. */
 const ROOT_MARKER = { proopsRoot: "1" };
 
 /**
- * Marca uma pasta como a raiz deste tenant.
- *
- * Best-effort: falhar aqui nao pode impedir o uso da pasta — o pior caso e ela
- * nao ser reencontrada num futuro reconectar, que e o comportamento antigo.
- */
-export async function tagRootFolder(
-  tenantId: string,
-  folderId: string,
-): Promise<void> {
-  try {
-    const { client } = await getDriveClient(tenantId);
-    await client.files.update({
-      fileId: folderId,
-      requestBody: { appProperties: ROOT_MARKER },
-      supportsAllDrives: true,
-    });
-  } catch (error) {
-    logger.warn("Nao foi possivel marcar a pasta raiz no Drive", {
-      tenantId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
-
-/**
  * Cria a pasta raiz no Drive do tenant, na raiz do "Meu Drive".
  *
- * Alternativa ao Google Picker, e nao um substituto pior: no escopo
- * `drive.file` o acesso segue o ARQUIVO, nao o caminho — o usuario pode
- * **mover, renomear e compartilhar** esta pasta livremente que continuamos
- * enxergando ela. Na pratica ele arrasta a pasta para dentro da estrutura que
- * ja tem e o resultado e o mesmo de ter apontado uma pasta existente.
+ * A pasta e CRIADA, e nao apontada: no escopo `drive.file` o acesso segue o
+ * ARQUIVO, nao o caminho, entao o usuario pode **mover, renomear e
+ * compartilhar** esta pasta livremente que continuamos enxergando ela. Na
+ * pratica ele arrasta a pasta para dentro da estrutura que ja tem, e o
+ * resultado e o mesmo de ter apontado uma pasta existente.
  *
- * Isso importa porque o Picker cobra caro em configuracao (API key propria,
- * Picker API, popup, cookies de terceiros) e falha de formas que dependem do
- * navegador do CLIENTE — o que nao pode ser pre-requisito para usar o modulo.
+ * Houve um caminho alternativo pelo Google Picker, removido em 2026-09-04: ele
+ * exigia API key propria, Picker API habilitada e cookies de terceiros, e
+ * falhava de formas que dependem do NAVEGADOR DO CLIENTE (no Brave abria em
+ * janela separada e o retorno nunca chegava). Nao da para exigir um navegador
+ * especifico para configurar o modulo.
  *
  * **Idempotente em DOIS niveis**, e o segundo nao e paranoia:
  *
- * 1. Se ha raiz gravada, devolve ela — dois cliques no botao nao criam duas
- *    pastas.
- * 2. Se NAO ha, procura no Drive por uma que ja tenhamos criado. Desconectar
- *    apaga o documento inteiro da integracao, `rootFolderId` inclusive, entao
- *    desconectar-e-reconectar deixava o sistema sem memoria nenhuma e criava
- *    uma segunda "ProOps - Propostas" ao lado da primeira.
+ * 1. Se ha raiz gravada E utilizavel, devolve ela — dois cliques no botao nao
+ *    criam duas pastas.
+ * 2. Se nao ha, procura no Drive por uma que ja tenhamos criado, pela marca.
  */
 export async function createRootFolder(
   tenantId: string,

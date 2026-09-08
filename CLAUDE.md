@@ -130,7 +130,8 @@ npm run security:scan                  # OWASP ZAP baseline
   notas em `/invoices`.
 - **Google Drive** — entrega o PDF da proposta na pasta do cliente, no Drive do tenant.
   Só de ida (nada é lido), escopo `drive.file` (não sensível). Consentimento separado do
-  Calendar, mesmo app OAuth. Config em `/settings/drive`. Detalhes em `apps/functions/CLAUDE.md`.
+  Calendar, mesmo app OAuth. A pasta é criada por nós — sem Picker, sem chave de API, sem
+  variável pública. Config em `/settings/drive`. Detalhes em `apps/functions/CLAUDE.md`.
 - **AI/Lia** — Google Gemini + Groq. Module: `apps/functions/src/ai/`. Rate-limited per user.
 - **PDF** — Playwright/Chromium headless, rate-limited (5 req/60s per user)
 - **Google Calendar** — via `@googleapis/calendar` + `@googleapis/oauth2` (lazy-loaded)

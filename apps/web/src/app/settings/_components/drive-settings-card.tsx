@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/lib/toast";
 import { DriveService, type DriveStatus } from "@/services/drive-service";
-import { useGooglePicker } from "@/hooks/use-google-picker";
 
 /**
  * Conexão com o Google Drive.
@@ -81,7 +80,6 @@ interface DriveSettingsCardProps {
 
 export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
   const searchParams = useSearchParams();
-  const { pickFolder, isOpening, isConfigured } = useGooglePicker();
 
   const [status, setStatus] = React.useState<DriveStatus | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -166,24 +164,6 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
       );
     } finally {
       setIsCreating(false);
-    }
-  }
-
-  async function handlePickFolder() {
-    try {
-      const folder = await pickFolder();
-      if (!folder) return;
-      await DriveService.setRootFolder(folder.id, folder.name);
-      setStatus((atual) =>
-        atual ? comPasta(atual, folder.id, folder.name) : atual,
-      );
-      toast.success(`As propostas serão entregues em "${folder.name}".`);
-    } catch (error) {
-      toast.error(
-        error instanceof Error && error.message
-          ? error.message
-          : "Não foi possível escolher a pasta.",
-      );
     }
   }
 
@@ -290,9 +270,9 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
           <CardHeader>
             <CardTitle className="text-base">Pasta das propostas</CardTitle>
             <CardDescription>
-              Escolha uma pasta que já existe no seu Drive. Dentro dela, cada
-              cliente ganha uma subpasta automática, e toda proposta enviada cai
-              nela. Se você usa Google Workspace,{" "}
+              A ProOps cria uma pasta no seu Drive. Dentro dela, cada cliente
+              ganha uma subpasta automática, e toda proposta enviada cai nela. Se
+              você usa Google Workspace,{" "}
               <strong className="text-foreground">
                 prefira um Drive compartilhado
               </strong>{" "}
@@ -302,22 +282,9 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {temPasta ? (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm">
-                <span className="flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <strong className="font-medium">{status?.rootFolderName}</strong>
-                </span>
-                {isConfigured && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handlePickFolder()}
-                    disabled={isOpening}
-                  >
-                    {isOpening && <Loader size="sm" variant="button" className="mr-2" />}
-                    Trocar pasta
-                  </Button>
-                )}
+              <div className="flex items-center gap-2 rounded-md border p-3 text-sm">
+                <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <strong className="font-medium">{status?.rootFolderName}</strong>
               </div>
             ) : (
               <>
@@ -328,35 +295,18 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
                     ? `A pasta "${status?.rootFolderName}" não está mais no seu Drive — foi apagada ou movida para a lixeira. Nenhuma proposta é enviada até você definir outra.`
                     : "Nenhuma pasta definida ainda — enquanto isso, nenhuma proposta é enviada para o Drive."}
                 </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    onClick={() => void handleCreateFolder()}
-                    disabled={isCreating}
-                  >
-                    {isCreating ? (
-                      <Loader size="sm" variant="button" className="mr-2" />
-                    ) : (
-                      <FolderPlus className="mr-2 h-4 w-4" />
-                    )}
-                    Criar pasta no meu Drive
-                  </Button>
-                  {/* Escolher uma pasta existente depende do seletor do Google,
-                      que exige configuração própria e falha em navegador que
-                      bloqueia cookies de terceiros. Por isso é a alternativa, e
-                      não o caminho principal. */}
-                  {isConfigured && (
-                    <Button
-                      variant="outline"
-                      onClick={() => void handlePickFolder()}
-                      disabled={isOpening}
-                    >
-                      {isOpening && (
-                        <Loader size="sm" variant="button" className="mr-2" />
-                      )}
-                      Escolher uma que já existe
-                    </Button>
+                <Button
+                  className="self-start"
+                  onClick={() => void handleCreateFolder()}
+                  disabled={isCreating}
+                >
+                  {isCreating ? (
+                    <Loader size="sm" variant="button" className="mr-2" />
+                  ) : (
+                    <FolderPlus className="mr-2 h-4 w-4" />
                   )}
-                </div>
+                  Criar pasta no meu Drive
+                </Button>
                 <p className="text-xs text-muted-foreground">
                   A pasta é criada no seu &quot;Meu Drive&quot;. Depois você pode{" "}
                   <strong className="text-foreground">

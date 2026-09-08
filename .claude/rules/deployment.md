@@ -55,9 +55,9 @@ Dois detalhes que custam tempo quando esquecidos:
   `npm run dev`: com o servidor no ar a variável não é lida, e o sintoma é a
   funcionalidade sumir como se nunca tivesse sido configurada.
 
-Quando a ausência da variável precisar degradar em vez de quebrar, gate a UI nela
-(o botão do Google Picker em `/settings/drive` some sozinho quando falta, e o
-resto do módulo continua utilizável).
+Quando a ausência da variável precisar degradar em vez de quebrar, gate a UI
+nela — o recurso some sozinho e o resto do módulo continua utilizável, em vez de
+a tela quebrar com um valor vazio.
 
 ## Risk Tiers
 - **Low risk** (deploy freely after checklist): UI changes, copy updates, new non-billing features
