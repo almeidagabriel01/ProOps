@@ -90,6 +90,74 @@ const CreateProposalSchema = z.object({
 
 const UpdateProposalSchema = CreateProposalSchema.partial();
 
+/**
+ * Campos cuja edicao numa proposta APROVADA obriga a ressincronizar os
+ * lancamentos. Um campo que afete os lancamentos gerados e nao esteja aqui
+ * falha em silencio: a proposta salva, e o financeiro fica desatualizado sem
+ * erro em lugar nenhum.
+ *
+ * Foi o que aconteceu com `commissions` quando o modulo de comissao entrou:
+ * mudar so o percentual do arquiteto nao reescrevia despesa nenhuma.
+ * Guard: `proposals.approved-sync-fields.test.ts`.
+ */
+export const APPROVED_SYNC_FIELDS = new Set([
+  "title",
+  "clientId",
+  "clientName",
+  "totalValue",
+  // `closedValue` estava so na lista estrutural, que e um SUBCONJUNTO desta e
+  // por isso nunca era alcancado por ele sozinho. Latente enquanto o formulario
+  // manda o payload inteiro (o `totalValue` junto disparava o sync), mas uma
+  // chamada parcial a API mudaria o valor fechado sem mexer nos lancamentos.
+  // Passou a importar mais com a comissao, que calcula sobre este valor.
+  "closedValue",
+  "validUntil",
+  "downPaymentEnabled",
+  "downPaymentType",
+  "downPaymentPercentage",
+  "downPaymentValue",
+  "downPaymentWallet",
+  "downPaymentDueDate",
+  "installmentsEnabled",
+  "installmentsCount",
+  "installmentValue",
+  "installmentsWallet",
+  "firstInstallmentDate",
+  "products",
+  "discount",
+  "extraExpense",
+  "status",
+  "commissions",
+]);
+
+/**
+ * Subconjunto que muda VALOR ou CRONOGRAMA, e nao so rotulo. Fora daqui o sync
+ * roda em `metadataOnly`, que diante de pagamento parcial apenas atualiza a
+ * descricao em vez de recusar a operacao. Percentual de comissao muda valor,
+ * entao entra.
+ */
+export const STRUCTURAL_APPROVED_SYNC_FIELDS = new Set([
+  "totalValue",
+  "closedValue",
+  "validUntil",
+  "downPaymentEnabled",
+  "downPaymentType",
+  "downPaymentPercentage",
+  "downPaymentValue",
+  "downPaymentWallet",
+  "downPaymentDueDate",
+  "installmentsEnabled",
+  "installmentsCount",
+  "installmentValue",
+  "installmentsWallet",
+  "firstInstallmentDate",
+  "products",
+  "discount",
+  "extraExpense",
+  "status",
+  "commissions",
+]);
+
 const PROPOSALS_COLLECTION = "proposals";
 const TENANT_USAGE_COLLECTION = "tenant_usage";
 const MAX_ATTACHMENTS_PER_PROPOSAL = 20;
@@ -1511,57 +1579,15 @@ export const updateProposal = async (req: Request, res: Response) => {
     const isAlreadyApproved =
       isCurrentlyApproved &&
       (updateData.status === undefined || willBeApproved);
-    const approvedSyncFields = new Set([
-      "title",
-      "clientId",
-      "clientName",
-      "totalValue",
-      "validUntil",
-      "downPaymentEnabled",
-      "downPaymentType",
-      "downPaymentPercentage",
-      "downPaymentValue",
-      "downPaymentWallet",
-      "downPaymentDueDate",
-      "installmentsEnabled",
-      "installmentsCount",
-      "installmentValue",
-      "installmentsWallet",
-      "firstInstallmentDate",
-      "products",
-      "discount",
-      "extraExpense",
-      "status",
-    ]);
     const shouldSyncApprovedTransactions =
       (isAlreadyApproved || isBeingApproved) &&
       Object.keys(updateData || {}).some((field) =>
-        approvedSyncFields.has(field),
+        APPROVED_SYNC_FIELDS.has(field),
       );
-    const structuralApprovedSyncFields = new Set([
-      "totalValue",
-      "closedValue",
-      "validUntil",
-      "downPaymentEnabled",
-      "downPaymentType",
-      "downPaymentPercentage",
-      "downPaymentValue",
-      "downPaymentWallet",
-      "downPaymentDueDate",
-      "installmentsEnabled",
-      "installmentsCount",
-      "installmentValue",
-      "installmentsWallet",
-      "firstInstallmentDate",
-      "products",
-      "discount",
-      "extraExpense",
-      "status",
-    ]);
     const approvedSyncIsMetadataOnly =
       shouldSyncApprovedTransactions &&
       !Object.keys(updateData || {}).some((field) =>
-        structuralApprovedSyncFields.has(field),
+        STRUCTURAL_APPROVED_SYNC_FIELDS.has(field),
       );
 
     if (false && isAlreadyApproved) {
