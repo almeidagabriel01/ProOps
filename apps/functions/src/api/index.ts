@@ -452,12 +452,24 @@ app.use((req, res, next) => {
       // agrupar. Sem o orcamento aplicado, porem, um 408 nao distingue "a
       // operacao demorou demais" de "esta rota caiu no teto errado", e as duas
       // exigem acoes opostas.
+      //
+      // `phases` sao as etapas que o handler ja tinha concluido quando o tempo
+      // acabou (ver `recordPhase`). Vao no CORPO da resposta de proposito: um
+      // timeout e o momento em que os logs do servidor sao menos acessiveis a
+      // quem esta olhando a tela, e sem isso descobrir onde travou depende de
+      // alguem achar a linha certa num terminal.
+      const phases = (res.locals?.timings ?? {}) as Record<string, number>;
       logger.warn("protected_route_timeout", {
         method: req.method,
         route: sanitizeLoggedPath(req.path),
         timeoutMs,
+        phases,
       });
-      res.status(408).json({ message: "Request timeout" });
+      res.status(408).json({
+        message: "Request timeout",
+        timeoutMs,
+        phases,
+      });
     }
   }, timeoutMs);
 

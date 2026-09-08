@@ -28,7 +28,7 @@ import {
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildSearchTokens } from "../../lib/search-tokens";
-import { logger } from "../../lib/logger";
+import { logger, recordPhase } from "../../lib/logger";
 import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
 import {
   normalizeProposalTransactionTitle,
@@ -1464,7 +1464,9 @@ export const updateProposal = async (req: Request, res: Response) => {
         return await run();
       } finally {
         timings[label] = Date.now() - startedAt;
-        logger.info("proposal_update_phase", {
+        // Vai para o log E para `res.locals`, que e o que sobrevive a um
+        // timeout: o resumo final nunca chega quando a request estoura.
+        recordPhase(res, "proposal_update_phase", {
           proposalId: id,
           phase: label,
           ms: timings[label],

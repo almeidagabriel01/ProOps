@@ -143,6 +143,17 @@ export const callApi = async <T = unknown>(
       } catch {
         errorData = { raw: text };
       }
+      // Um 408 traz as etapas que o servidor concluiu antes de estourar. Sem
+      // imprimir isso, a informacao morre no corpo da resposta e descobrir
+      // onde a operacao travou volta a depender de achar a linha certa no
+      // terminal do backend.
+      if (response.status === 408 && errorData?.phases) {
+        console.warn(
+          `[timeout] ${method} ${path} estourou ${errorData.timeoutMs ?? "?"}ms. Etapas concluidas:`,
+          errorData.phases,
+        );
+      }
+
       throw new ApiError(
         response.status,
         errorData.message ||
