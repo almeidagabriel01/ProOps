@@ -21,28 +21,6 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
  * documentação e a proposta na mão pelo celular, sem abrir o ERP.
  */
 
-/**
- * Abre a URL numa aba nova, por um link temporário.
- *
- * **Não usar `window.open` com `noopener`**: por especificação ele devolve
- * `null` mesmo quando a aba abre com sucesso, e qualquer fallback baseado no
- * retorno ("se não abriu, navega aqui") dispara sempre — abrindo a aba nova E
- * levando a aba atual junto, que foi exatamente o defeito observado.
- *
- * Um `<a target="_blank" rel="noopener noreferrer">` clicado dá o mesmo
- * isolamento sem depender de valor de retorno. É o padrão que o download de
- * PDF do projeto já usa.
- */
-function abrirEmNovaAba(url: string): void {
-  const link = document.createElement("a");
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-
 interface OpenDriveFolderButtonProps {
   clientId: string;
   className?: string;
@@ -61,10 +39,33 @@ export function OpenDriveFolderButton({
 
   async function handleClick() {
     setIsOpening(true);
+    /**
+     * A aba precisa ser aberta AGORA, dentro do gesto do usuário.
+     *
+     * A pasta pode nem existir ainda — ela é criada nesta chamada —, então a
+     * URL só é conhecida depois do `await`. E abrir depois dele já não conta
+     * como gesto: o navegador bloqueia e o clique não faz nada, que foi o que
+     * aconteceu com um link temporário clicado após a resposta.
+     *
+     * **Sem `noopener` na string de opções**: com ele o `window.open` devolve
+     * `null` por especificação mesmo abrindo a aba, e qualquer decisão baseada
+     * no retorno sai errada. O isolamento vem de zerar o `opener` enquanto a
+     * aba ainda é `about:blank` — antes de ela navegar para fora do domínio.
+     */
+    const aba = window.open("", "_blank");
     try {
       const { url } = await DriveService.getClientFolder(clientId);
-      abrirEmNovaAba(url);
+      if (aba) {
+        aba.opener = null;
+        aba.location.href = url;
+      } else {
+        // Popup bloqueado de verdade: navegar aqui é melhor que perder o
+        // clique em silêncio.
+        window.location.href = url;
+      }
     } catch (error) {
+      // Aba em branco sobrando é pior que não abrir nada.
+      aba?.close();
       toast.error(
         error instanceof Error && error.message
           ? error.message

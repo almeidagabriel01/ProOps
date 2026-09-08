@@ -53,31 +53,63 @@ describe("OpenDriveFolderButton", () => {
     expect(screen.queryByRole("button", { name: /Pasta no Drive/ })).toBeNull();
   });
 
-  it("abre em aba nova SEM levar a aba atual junto", async () => {
-    // `window.open` com `noopener` devolve null por especificação, mesmo
-    // abrindo a aba. Qualquer fallback baseado no retorno dispara sempre, e o
-    // resultado era abrir a aba nova E navegar a atual para o Drive.
-    const cliques: Array<{ href: string; target: string; rel: string }> = [];
-    const clickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(function (this: HTMLAnchorElement) {
-        cliques.push({ href: this.href, target: this.target, rel: this.rel });
-      });
-    const location = { href: "nao-mudou" };
+  it("abre a aba DENTRO do gesto e navega quando a URL chega", async () => {
+    // A pasta pode nem existir ainda — e criada nesta chamada —, entao a URL so
+    // vem depois do await. Abrir depois dele nao conta como gesto: o navegador
+    // bloqueia e o clique nao faz nada.
+    const aba = { location: { href: "" }, opener: {} as unknown, close: vi.fn() };
+    const open = vi.fn(() => aba as unknown as Window);
+    vi.stubGlobal("open", open);
+
+    let resolveApi: (v: unknown) => void = () => {};
+    getClientFolder.mockReturnValue(
+      new Promise((resolve) => {
+        resolveApi = resolve;
+      }),
+    );
+
+    render(<OpenDriveFolderButton clientId="c1" />);
+    await userEvent.click(botao());
+
+    // Aberta imediatamente, ainda em branco.
+    expect(open).toHaveBeenCalledWith("", "_blank");
+    expect(aba.location.href).toBe("");
+
+    resolveApi({ url: "https://drive.google.com/drive/folders/pasta-9" });
+
+    await waitFor(() =>
+      expect(aba.location.href).toBe(
+        "https://drive.google.com/drive/folders/pasta-9",
+      ),
+    );
+    // `opener` zerado ANTES de sair do domínio — o isolamento que o `noopener`
+    // daria, sem o efeito colateral de o `window.open` devolver null.
+    expect(aba.opener).toBeNull();
+  });
+
+  it("fecha a aba em branco quando a API falha", async () => {
+    const aba = { location: { href: "" }, opener: {} as unknown, close: vi.fn() };
+    vi.stubGlobal("open", vi.fn(() => aba as unknown as Window));
+    getClientFolder.mockRejectedValue(new Error("Escolha a pasta do Drive."));
+
+    render(<OpenDriveFolderButton clientId="c1" />);
+    await userEvent.click(botao());
+
+    await waitFor(() => expect(aba.close).toHaveBeenCalled());
+    expect(toastError).toHaveBeenCalled();
+  });
+
+  it("navega na própria aba se o popup for bloqueado de verdade", async () => {
+    vi.stubGlobal("open", vi.fn(() => null));
+    const location = { href: "" };
     Object.defineProperty(window, "location", { value: location, writable: true });
 
     render(<OpenDriveFolderButton clientId="c1" />);
     await userEvent.click(botao());
 
-    await waitFor(() => expect(cliques).toHaveLength(1));
-    expect(cliques[0]).toEqual({
-      href: "https://drive.google.com/drive/folders/pasta-9",
-      target: "_blank",
-      rel: "noopener noreferrer",
-    });
-    // A aba atual fica onde estava.
-    expect(location.href).toBe("nao-mudou");
-    clickSpy.mockRestore();
+    await waitFor(() =>
+      expect(location.href).toBe("https://drive.google.com/drive/folders/pasta-9"),
+    );
   });
 
   it("não abre aba nenhuma quando a API falha", async () => {
