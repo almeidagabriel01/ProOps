@@ -181,6 +181,12 @@ Três consequências para esta pasta:
 - `getProposalTransactionDisplayName` não mexe na descrição delas: o prefixo
   legado que ele remove ("Entrada: ", "Parcela N/M: ", "Proposta: ") não casa
   com "Comissão Fulano: Título".
+- A linha que espelha a entrada aparece como **"Entrada"**, não "Parcela 1/5".
+  A estrutura continua sendo série (é o que faz o card listá-la), e só o rótulo
+  diz o que ela é, espelhando o card de receita logo acima. Fonte única em
+  `_lib/proposal-transaction.ts` (`getInstallmentLabel`), usada nas duas
+  posições da lista de parcelas; guard em
+  `_lib/__tests__/proposal-transaction.test.ts`.
 
 O relatório por parceiro fica em `/commissions`, alimentado por
 `GET /v1/transactions/commissions`. Ele é `masterOnly` no menu, mas **as
