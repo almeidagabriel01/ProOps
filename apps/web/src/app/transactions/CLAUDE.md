@@ -171,7 +171,13 @@ Três consequências para esta pasta:
 - Elas **não** têm `proposalGroupId`. Cada parceiro tem
   `installmentGroupId` próprio (`commission_{proposalId}_{contactId}_{role}`),
   então na aba Agrupados viram um card por parceiro em vez de entrar no card
-  dos recebíveis do cliente — que somaria receita com despesa.
+  dos recebíveis do cliente — que somaria receita com despesa. Uma comissão
+  única (proposta à vista) fica **avulsa**, sem grupo.
+- A série é numerada **1..N sobre todas as receitas**, entrada inclusive. Não
+  copie o `isInstallment` da receita espelhada: o card de grupo desta pasta só
+  lista os membros marcados como parcela, então numa série mista a comissão da
+  entrada desaparecia da lista e o total do cabeçalho deixava de bater com a
+  soma das linhas.
 - `getProposalTransactionDisplayName` não mexe na descrição delas: o prefixo
   legado que ele remove ("Entrada: ", "Parcela N/M: ", "Proposta: ") não casa
   com "Comissão Fulano: Título".

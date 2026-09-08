@@ -723,6 +723,23 @@ pelo ERP chegar la sem baixar e subir a mao.
   Firestore: o trigger dispararia na propria escrita da entrega (`driveFileId`), criando
   laco, e traria Chromium para um lugar que ninguem configurou para isso.
 
+  Tres mitigacoes entraram em 2026-09-08, depois de a operacao estourar o teto de
+  30s do proxy com o backend seguindo em frente — o usuario via "Request timeout"
+  sobre uma mudanca de status que tinha dado certo, e o financeiro so aparecia
+  depois de um F5:
+  1. **`buildVersionHash` ignora o que nao entra no PDF** (`status`, `commissions`,
+     `searchTokens`, `primarySystem`/`primaryEnvironment` e, o pior deles,
+     `driveFileId`/`driveSyncError`, que a PROPRIA entrega grava na proposta e
+     assim invalidavam o cache do PDF recem-gerado). Antes, toda troca de status
+     reabria o Chromium.
+  2. **`syncApprovedProposalTransactions` roda ANTES da entrega no Drive.** O erro
+     dele e guardado e relancado depois da entrega: precisa chegar ao cliente, mas
+     nao pode cancelar um upload que nada tem a ver com ele. Assim, uma request que
+     estoure o tempo do cliente ja deixou os lancamentos gravados.
+  3. O proxy da a `PUT/POST /v1/proposals*` o mesmo teto do PDF (80s), porque a
+     request pode mesmo renderizar um — ver `mayRenderPdfInline` em
+     `app/api/backend/[...path]/route.ts`.
+
 ### Plano do tenant: DUAS fontes que podem divergir
 
 O backend resolve o plano por **`tenants/{id}.plan`** (depois `.planTier`, `.tier`,
@@ -875,6 +892,14 @@ proposta.
   `transaction_groups` dos recebíveis e a aba Agrupados somaria receita com
   despesa no mesmo card. Cada parceiro tem `installmentGroupId` próprio
   (`commission_{proposalId}_{contactId}_{role}`).
+- **A comissão vira UMA série numerada 1..N**, e não uma cópia do
+  `isInstallment` de cada receita. Numa proposta com entrada, a série mista
+  (entrada fora, parcelas dentro) quebrava o card de grupo da tela de
+  Lançamentos, que só lista os membros marcados como parcela: a comissão da
+  entrada sumia da lista e aparecia apenas no total do cabeçalho, que então não
+  batia com a soma das linhas visíveis.
+- **Comissão única fica avulsa** (`installmentGroupId: null`), em vez de virar
+  um grupo de um membro só na aba Agrupados.
 - **Nasce sempre `pending`**, mesmo quando a receita nasce paga: ter recebido do
   cliente não significa ter pago o parceiro.
 - **A chave do diff sai de `getProposalLinkedTransactionKey`, para draft e para
