@@ -38,6 +38,7 @@ import {
   ProposalProductsSection,
   ProposalSummarySection,
   ProposalPaymentSection,
+  ProposalCommissionsSection,
   ProposalReadOnlyView,
   PdfDisplayOptionsSection,
 } from "./form";
@@ -1243,6 +1244,15 @@ export function SimpleProposalForm({
               }}
               noContainer
               errors={errors}
+              isReadOnly={isDemo}
+            />
+
+            <ProposalCommissionsSection
+              commissions={formData.commissions || []}
+              onChange={(commissions) =>
+                setFormData((prev) => ({ ...prev, commissions }))
+              }
+              totalValue={calculateTotal()}
               isReadOnly={isDemo}
             />
           </div>

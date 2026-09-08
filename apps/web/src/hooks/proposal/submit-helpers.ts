@@ -275,6 +275,8 @@ export async function updateProposal(
     installmentsPaymentMethod:
       formData.installmentsPaymentMethod || formData.paymentMethod || "",
     paymentMethod: formData.paymentMethod || "",
+    // Comissoes de vendedor/arquiteto (interno; nao entra no PDF)
+    commissions: formData.commissions || [],
     // PDF display settings (persisted for correct PDF rendering)
     pdfSettings: formData.pdfSettings || undefined,
   });
@@ -350,6 +352,8 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     installmentsPaymentMethod:
       formData.installmentsPaymentMethod || formData.paymentMethod || "",
     paymentMethod: formData.paymentMethod || "",
+    // Comissoes de vendedor/arquiteto (interno; nao entra no PDF)
+    commissions: formData.commissions || [],
     // PDF display settings (persisted for correct PDF rendering)
     pdfSettings: formData.pdfSettings || undefined,
   };

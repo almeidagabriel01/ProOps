@@ -34,6 +34,7 @@ export function createInitialProposalFormData(): Partial<Proposal> {
     firstInstallmentDate: "",
     installmentsPaymentMethod: DEFAULT_PROPOSAL_PAYMENT_METHOD,
     paymentMethod: DEFAULT_PROPOSAL_PAYMENT_METHOD,
+    commissions: [],
     pdfSettings: {
       showProductImages: true,
       showProductDescriptions: true,
@@ -132,6 +133,9 @@ function buildFormSnapshotObject(
       data.paymentMethod ||
       DEFAULT_PROPOSAL_PAYMENT_METHOD,
     paymentMethod: data.paymentMethod || DEFAULT_PROPOSAL_PAYMENT_METHOD,
+    // No snapshot para o formulario ficar sujo ao mexer numa comissao; sem
+    // isto o botao de salvar continuaria desabilitado.
+    commissions: data.commissions || [],
     pdfSettings: mergePdfDisplaySettings(data.pdfSettings),
   };
 }
