@@ -90,34 +90,38 @@ function stableHash(payload: unknown): string {
   return createHash("sha256").update(serialized).digest("hex");
 }
 
+/**
+ * Campos do documento da proposta que NAO entram no PDF.
+ *
+ * Fonte unica de duas decisoes: o hash de versao (abaixo) e a decisao de
+ * reentregar no Google Drive (`proposals.controller.ts`). Se um campo daqui
+ * mudou e nada mais mudou, o PDF e byte a byte o mesmo — nao ha o que renderizar
+ * nem o que reenviar.
+ */
+export const PDF_IRRELEVANT_PROPOSAL_FIELDS = new Set([
+  "pdf",
+  "pdfGenerationLock",
+  "createdAt",
+  "updatedAt",
+  "status",
+  "driveFileId",
+  "driveSyncError",
+  "searchTokens",
+  "primarySystem",
+  "primaryEnvironment",
+  "commissions",
+]);
+
 function buildVersionHash(
   proposalId: string,
   proposalData: ProposalDocData,
   tenantData: TenantDocData,
 ): string {
-  const {
-    pdf: _pdfMetadata,
-    pdfGenerationLock: _pdfGenerationLock,
-    createdAt: _createdAt,
-    updatedAt: _updatedAt,
-    // Campos que NAO entram no documento. Deixa-los no hash fazia toda troca de
-    // status invalidar o cache e reabrir o Chromium — e a entrega no Drive
-    // roda dentro da propria request de mudanca de status, entao o custo caia
-    // em cima do usuario, que via a operacao estourar o timeout de 30s do
-    // proxy enquanto o backend seguia trabalhando.
-    //
-    // `driveFileId` e `driveSyncError` sao piores que os outros: a PROPRIA
-    // entrega os escreve na proposta, entao o PDF que acabou de ser gerado
-    // invalidava o proprio cache.
-    status: _status,
-    driveFileId: _driveFileId,
-    driveSyncError: _driveSyncError,
-    searchTokens: _searchTokens,
-    primarySystem: _primarySystem,
-    primaryEnvironment: _primaryEnvironment,
-    commissions: _commissions,
-    ...proposalRelevant
-  } = proposalData;
+  const proposalRelevant = Object.fromEntries(
+    Object.entries(proposalData).filter(
+      ([key]) => !PDF_IRRELEVANT_PROPOSAL_FIELDS.has(key),
+    ),
+  );
 
   return stableHash({
     templateVersion: PDF_TEMPLATE_VERSION,

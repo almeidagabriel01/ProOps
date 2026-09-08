@@ -30,6 +30,8 @@ import {
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildSearchTokens } from "../../lib/search-tokens";
+import { logger } from "../../lib/logger";
+import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
 import {
   normalizeProposalTransactionTitle,
   resolveDefaultWalletNameForTenant,
@@ -1352,6 +1354,7 @@ export const createProposal = async (req: Request, res: Response) => {
 };
 
 export const updateProposal = async (req: Request, res: Response) => {
+  const requestStartedAt = Date.now();
   try {
     const userId = req.user!.uid;
     const { id } = req.params;
@@ -1922,45 +1925,93 @@ export const updateProposal = async (req: Request, res: Response) => {
     // O erro do sync e guardado em vez de lancado na hora: ele precisa chegar
     // ao cliente (e o que avisa sobre comissao paga, por exemplo), mas nao
     // pode cancelar uma entrega de PDF que nada tem a ver com ele.
+    // Cronometra as duas etapas caras. Sem isto, "salvar proposta esta lento"
+    // vira adivinhacao: as duas fazem I/O externo e so uma delas (o Drive)
+    // renderiza PDF.
+    const timings: Record<string, number> = {};
+    const timed = async <T>(label: string, run: () => Promise<T>): Promise<T> => {
+      const startedAt = Date.now();
+      try {
+        return await run();
+      } finally {
+        timings[label] = Date.now() - startedAt;
+      }
+    };
+
     let approvedSyncError: unknown = null;
     if (shouldSyncApprovedTransactions) {
       try {
-        await syncApprovedProposalTransactions({
-          proposalId: id,
-          proposalTenantId,
-          proposalData: {
-            ...proposalData,
-            ...safeUpdate,
-          } as Record<string, unknown>,
-          userId,
-          initialStatus: isBeingApproved
-            ? updateData.initialPaymentStatus || "pending"
-            : undefined,
-          metadataOnly: approvedSyncIsMetadataOnly,
-        });
+        await timed("approvedSyncMs", () =>
+          syncApprovedProposalTransactions({
+            proposalId: id,
+            proposalTenantId,
+            proposalData: {
+              ...proposalData,
+              ...safeUpdate,
+            } as Record<string, unknown>,
+            userId,
+            initialStatus: isBeingApproved
+              ? updateData.initialPaymentStatus || "pending"
+              : undefined,
+            metadataOnly: approvedSyncIsMetadataOnly,
+          }),
+        );
       } catch (error) {
         approvedSyncError = error;
       }
     }
 
-    // Entrega no Google Drive: acontece ao a proposta sair do rascunho, e nao
+    // Entrega no Google Drive: acontece ao a proposta SAIR do rascunho, e nao
     // a cada geracao do PDF — o PDF e gerado sob demanda, e subir em cada
     // geracao encheria a pasta do cliente de rascunho. `await` de proposito:
     // no Cloud Run a CPU so fica alocada durante a request, entao dispare-e-
     // esqueca aqui perderia o upload em silencio.
+    //
+    // "SAIR do rascunho" e uma TRANSICAO, e ate agora o codigo olhava so o
+    // destino: o formulario manda `status` em todo salvamento, entao editar uma
+    // proposta ja aprovada reentregava o arquivo — e, quando o PDF nao estava
+    // em cache, pagava um Chromium inteiro dentro da request do usuario. Agora
+    // so entrega quando ha motivo: a proposta acabou de ficar entregavel, o
+    // conteudo que vai NO PDF mudou, ou nunca houve entrega bem-sucedida.
     if (updateData.status !== undefined) {
-      const podeEntregar = await isStatusDeliverableToDrive(
-        updateData.status as string,
-        proposalTenantId,
+      const nextStatus = String(updateData.status);
+      const [podeEntregar, jaEraEntregavel] = await Promise.all([
+        isStatusDeliverableToDrive(nextStatus, proposalTenantId),
+        isStatusDeliverableToDrive(
+          proposalData?.status as string | undefined,
+          proposalTenantId,
+        ),
+      ]);
+
+      const conteudoDoPdfMudou = Object.keys(safeUpdate).some(
+        (field) => !PDF_IRRELEVANT_PROPOSAL_FIELDS.has(field),
       );
-      if (podeEntregar) {
-        await syncProposalToDrive({
-          tenantId: proposalTenantId,
-          proposalId: id,
-          proposalData: { ...proposalData, ...safeUpdate } as Record<string, unknown>,
-        });
+      const nuncaEntregue = !proposalData?.driveFileId;
+
+      const deveEntregar =
+        podeEntregar &&
+        (!jaEraEntregavel || conteudoDoPdfMudou || nuncaEntregue);
+
+      if (deveEntregar) {
+        await timed("driveDeliveryMs", () =>
+          syncProposalToDrive({
+            tenantId: proposalTenantId,
+            proposalId: id,
+            proposalData: { ...proposalData, ...safeUpdate } as Record<
+              string,
+              unknown
+            >,
+          }),
+        );
       }
     }
+
+    logger.info("proposal_update_timing", {
+      tenantId: proposalTenantId,
+      proposalId: id,
+      totalMs: Date.now() - requestStartedAt,
+      ...timings,
+    });
 
     if (approvedSyncError) throw approvedSyncError;
 

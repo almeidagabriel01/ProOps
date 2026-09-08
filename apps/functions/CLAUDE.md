@@ -747,6 +747,20 @@ pelo ERP chegar la sem baixar e subir a mao.
      `app/api/backend/[...path]/route.ts`). A ordem importa: o backend tem que
      responder ANTES de o cliente abortar, senao a mensagem util vira erro
      generico de rede. Guard: `api/protected-route-timeout.test.ts`.
+  4. **A entrega so acontece quando ha motivo.** "Sair do rascunho" e uma
+     TRANSICAO, e o codigo olhava so o destino: como o formulario manda `status`
+     em todo salvamento, editar uma proposta ja aprovada reentregava o arquivo e
+     pagava um Chromium inteiro dentro da request. Agora entrega quando a
+     proposta acabou de ficar entregavel, quando mudou algum campo que aparece
+     NO PDF, ou quando nunca houve entrega bem-sucedida (`driveFileId` ausente).
+     A definicao de "aparece no PDF" e unica, em
+     `PDF_IRRELEVANT_PROPOSAL_FIELDS` (`api/services/proposal-pdf.service.ts`),
+     compartilhada com o hash de versao. Guard:
+     `api/services/pdf-irrelevant-fields.test.ts`.
+  5. `updateProposal` loga `proposal_update_timing` com `totalMs`,
+     `approvedSyncMs` e `driveDeliveryMs`. Sem isso, "salvar proposta esta
+     lento" e adivinhacao: as duas etapas fazem I/O externo e so uma renderiza
+     PDF.
 
 ### Plano do tenant: DUAS fontes que podem divergir
 
