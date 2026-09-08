@@ -10,6 +10,7 @@ import {
   deleteTransactionGroup,
   registerPartialPayment,
   getTransactionsSummary,
+  getCommissionReport,
 } from "../controllers/transactions.controller";
 import {
   createWallet,
@@ -39,6 +40,9 @@ router.use("/wallets", financialGate);
 // Summary agregado (aggregation queries) — substitui o cálculo no browser.
 // Registrado antes das rotas /:id para o path literal "summary" não colidir.
 router.get("/transactions/summary", getTransactionsSummary);
+// Relatorio mensal de comissoes. Tambem antes das rotas /:id, e sob
+// /transactions para herdar o gate de plano e o prefixo do modo demo.
+router.get("/transactions/commissions", getCommissionReport);
 router.post("/transactions", createTransaction);
 router.post("/transactions/:id/share-link", createTransactionShareLink);
 router.get("/transactions/:id/share-link", getShareLinkInfo);
