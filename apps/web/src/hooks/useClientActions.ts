@@ -9,6 +9,7 @@ import { useState } from "react";
 import { toast } from '@/lib/toast';
 import { callApi } from "@/lib/api-client";
 import type { ClientType } from "@/services/client-service";
+import { describeContactTypes } from "@/lib/contacts/commission-partner";
 
 // ============================================
 // TYPES
@@ -54,7 +55,11 @@ export function useClientActions() {
       });
 
       if (!options?.suppressSuccessToast) {
-        toast.success("Cliente criado com sucesso!");
+        // Diz o QUE foi cadastrado. "Cliente criado" era literalmente falso
+        // para quem acabou de cadastrar um arquiteto.
+        toast.success(
+          `Contato cadastrado como ${describeContactTypes(data.types || ["cliente"]).toLowerCase()}.`,
+        );
       }
       return result;
     } catch (error: unknown) {
@@ -78,7 +83,7 @@ export function useClientActions() {
         "DELETE",
       );
 
-      toast.success("Cliente removido com sucesso!");
+      toast.success("Contato removido com sucesso!");
       return true;
     } catch (error: unknown) {
       console.error("Error deleting client:", error);

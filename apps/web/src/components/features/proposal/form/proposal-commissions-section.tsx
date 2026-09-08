@@ -147,71 +147,77 @@ export function ProposalCommissionsSection({
       {commissions.map((commission, index) => (
         <div
           key={`${commission.contactId}-${commission.role}`}
-          className="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-end"
+          className="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center"
         >
           <div className="min-w-0 flex-1">
-            <p className="font-medium truncate">{commission.contactName}</p>
+            <p className="truncate font-medium">{commission.contactName}</p>
             <p className="text-xs text-muted-foreground">
               {COMMISSION_ROLE_LABELS[commission.role]}
             </p>
           </div>
 
-          <div className="w-full sm:w-32">
-            <Label
-              htmlFor={`commission-${index}`}
-              className="text-xs text-muted-foreground"
-            >
-              Percentual (%)
-            </Label>
-            <DecimalInput
-              id={`commission-${index}`}
-              value={commission.percentage}
-              onChange={(value) => updatePercentage(index, value)}
-              disabled={isReadOnly}
-              className="text-base md:text-sm"
-              aria-label={`Percentual de comissão de ${commission.contactName}`}
-            />
-          </div>
+          <div className="flex items-end gap-3">
+            {/* Os dois campos têm a MESMA altura de controle (h-8, a do
+                DecimalInput) para os rótulos ficarem na mesma linha de base e o
+                valor alinhar com o input, não com o topo dele. */}
+            <div className="w-28 shrink-0">
+              <Label
+                htmlFor={`commission-${index}`}
+                className="mb-1 block text-xs font-normal text-muted-foreground"
+              >
+                Percentual (%)
+              </Label>
+              <DecimalInput
+                id={`commission-${index}`}
+                value={commission.percentage}
+                onChange={(value) => updatePercentage(index, value)}
+                disabled={isReadOnly}
+                className="w-full text-base md:text-sm"
+                aria-label={`Percentual de comissão de ${commission.contactName}`}
+              />
+            </div>
 
-          <div className="w-full sm:w-36">
-            <Label className="text-xs text-muted-foreground">Valor</Label>
-            <p className="h-9 flex items-center font-mono text-sm">
-              {formatBRL(commissionValue(commission.percentage))}
-            </p>
-          </div>
+            <div className="w-32 shrink-0">
+              <Label className="mb-1 block text-xs font-normal text-muted-foreground">
+                Valor
+              </Label>
+              <p className="flex h-8 items-center justify-end font-mono text-sm font-semibold tabular-nums">
+                {formatBRL(commissionValue(commission.percentage))}
+              </p>
+            </div>
 
-          {!isReadOnly && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => remove(index)}
-              aria-label={`Remover comissão de ${commission.contactName}`}
-            >
-              <Trash2 className="w-4 h-4 text-destructive" />
-            </Button>
-          )}
+            {!isReadOnly && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => remove(index)}
+                aria-label={`Remover comissão de ${commission.contactName}`}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
+          </div>
         </div>
       ))}
 
       {!isReadOnly && availableOptions.length > 0 && (
-        <div className="flex items-end gap-2">
-          <div className="min-w-0 flex-1">
-            <Label
-              htmlFor="commission-add"
-              className="text-xs text-muted-foreground"
-            >
-              Adicionar parceiro
-            </Label>
-            <SearchableSelect
-              id="commission-add"
-              value=""
-              options={availableOptions}
-              onValueChange={addPartner}
-              placeholder="Selecione um vendedor ou arquiteto"
-            />
-          </div>
-          <Plus className="mb-2.5 w-4 h-4 text-muted-foreground" aria-hidden />
+        <div>
+          <Label
+            htmlFor="commission-add"
+            className="mb-1 flex items-center gap-1.5 text-xs font-normal text-muted-foreground"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Adicionar parceiro
+          </Label>
+          <SearchableSelect
+            id="commission-add"
+            value=""
+            options={availableOptions}
+            onValueChange={addPartner}
+            placeholder="Selecione um vendedor ou arquiteto"
+          />
         </div>
       )}
 

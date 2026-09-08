@@ -320,7 +320,7 @@ export default function EditCustomerPage() {
 
   // Show loading while permissions/data loading OR while redirecting (no view permission)
   if (isLoading || permLoading || !canView) {
-    return <EntityLoadingState message="Carregando cliente..." />;
+    return <EntityLoadingState message="Carregando contato..." />;
   }
 
   if (!client) {
@@ -482,7 +482,7 @@ export default function EditCustomerPage() {
   return (
     <FormContainer>
       <FormHeader
-        title="Editar Cliente"
+        title="Editar Contato"
         subtitle={`Atualize as informações de "${formData.name}"`}
         icon={User}
         onBack={() => router.push("/contacts")}

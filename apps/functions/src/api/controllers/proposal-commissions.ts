@@ -147,7 +147,7 @@ export type CommissionDraft = {
   isInstallment: boolean;
   installmentCount: number | null;
   installmentNumber: number | null;
-  installmentGroupId: string;
+  installmentGroupId: string | null;
   notes: string;
   createdById: string;
   isCommission: true;
@@ -230,11 +230,17 @@ export function buildCommissionDrafts(params: {
 
     const amounts = splitCommissionAcrossSources(commissionTotal, sources);
 
+    // A comissao vira UMA SERIE de parcelas, numerada 1..N sobre as receitas
+    // que ela espelha — inclusive a que espelha a ENTRADA. Antes cada despesa
+    // herdava o `isInstallment` da receita, entao numa proposta com entrada a
+    // serie ficava mista: o card de grupo da tela de Lancamentos so renderiza
+    // os membros `isInstallment`, e a comissao da entrada sumia da lista
+    // (aparecia so no total do cabecalho, que nao batia com as linhas).
+    const isSeries = sources.length > 1;
+
     sources.forEach((source, index) => {
       const amount = amounts[index];
       if (amount <= 0) return;
-
-      const isInstallment = source.sourceKey.startsWith("installment_");
 
       drafts.push({
         tenantId,
@@ -251,14 +257,18 @@ export function buildCommissionDrafts(params: {
         category: COMMISSION_CATEGORY,
         wallet: walletName,
         isDownPayment: false,
-        isInstallment,
-        installmentCount: isInstallment ? source.installmentCount : null,
-        installmentNumber: isInstallment ? source.installmentNumber : null,
-        installmentGroupId: buildCommissionInstallmentGroupId(
-          proposalId,
-          commission.contactId,
-          commission.role,
-        ),
+        isInstallment: isSeries,
+        installmentCount: isSeries ? sources.length : null,
+        installmentNumber: isSeries ? index + 1 : null,
+        // Comissao unica nao vira grupo de um membro so: fica avulsa, como
+        // qualquer outra despesa sem parcelamento.
+        installmentGroupId: isSeries
+          ? buildCommissionInstallmentGroupId(
+              proposalId,
+              commission.contactId,
+              commission.role,
+            )
+          : null,
         notes: `Comissão de ${commission.percentage}% gerada automaticamente pela proposta`,
         createdById: userId,
         isCommission: true,

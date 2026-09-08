@@ -32,3 +32,31 @@ export function primaryCommissionRole(contact: {
 }): CommissionRole | null {
   return (contact.types || []).find(isCommissionRole) ?? null;
 }
+
+/** Rótulo de cada tipo de contato, na ordem em que a tela os apresenta. */
+const CONTACT_TYPE_LABELS: Record<string, string> = {
+  cliente: "Cliente",
+  fornecedor: "Fornecedor",
+  vendedor: "Vendedor",
+  arquiteto: "Arquiteto",
+};
+
+const CONTACT_TYPE_ORDER = ["cliente", "fornecedor", "vendedor", "arquiteto"];
+
+/**
+ * "Cliente", "Cliente e arquiteto", "Cliente, fornecedor e arquiteto".
+ *
+ * Existe porque as mensagens do cadastro diziam "Cliente" a seco, e passaram a
+ * mentir quando vendedor e arquiteto entraram: quem cadastrava um arquiteto
+ * lia "Cliente criado com sucesso".
+ */
+export function describeContactTypes(types: readonly string[] = []): string {
+  const rotulos = CONTACT_TYPE_ORDER.filter((t) => types.includes(t)).map(
+    (t, index) =>
+      index === 0 ? CONTACT_TYPE_LABELS[t] : CONTACT_TYPE_LABELS[t].toLowerCase(),
+  );
+
+  if (rotulos.length === 0) return "Contato";
+  if (rotulos.length === 1) return rotulos[0];
+  return `${rotulos.slice(0, -1).join(", ")} e ${rotulos[rotulos.length - 1]}`;
+}

@@ -1913,6 +1913,36 @@ export const updateProposal = async (req: Request, res: Response) => {
       await cleanupProposalTransactions(id, proposalData?.tenantId || tenantId);
     }
 
+    // Lancamentos ANTES da entrega no Drive. Os dois sao awaited, mas o Drive
+    // pode gastar dezenas de segundos gerando o PDF (Chromium) e subindo o
+    // arquivo. Com ele na frente, uma request que estoure o timeout do cliente
+    // deixava a proposta aprovada e o financeiro vazio ate alguem recarregar a
+    // pagina; agora o dinheiro ja esta gravado quando a parte lenta comeca.
+    //
+    // O erro do sync e guardado em vez de lancado na hora: ele precisa chegar
+    // ao cliente (e o que avisa sobre comissao paga, por exemplo), mas nao
+    // pode cancelar uma entrega de PDF que nada tem a ver com ele.
+    let approvedSyncError: unknown = null;
+    if (shouldSyncApprovedTransactions) {
+      try {
+        await syncApprovedProposalTransactions({
+          proposalId: id,
+          proposalTenantId,
+          proposalData: {
+            ...proposalData,
+            ...safeUpdate,
+          } as Record<string, unknown>,
+          userId,
+          initialStatus: isBeingApproved
+            ? updateData.initialPaymentStatus || "pending"
+            : undefined,
+          metadataOnly: approvedSyncIsMetadataOnly,
+        });
+      } catch (error) {
+        approvedSyncError = error;
+      }
+    }
+
     // Entrega no Google Drive: acontece ao a proposta sair do rascunho, e nao
     // a cada geracao do PDF — o PDF e gerado sob demanda, e subir em cada
     // geracao encheria a pasta do cliente de rascunho. `await` de proposito:
@@ -1932,21 +1962,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
     }
 
-    if (shouldSyncApprovedTransactions) {
-      await syncApprovedProposalTransactions({
-        proposalId: id,
-        proposalTenantId,
-        proposalData: {
-          ...proposalData,
-          ...safeUpdate,
-        } as Record<string, unknown>,
-        userId,
-        initialStatus: isBeingApproved
-          ? updateData.initialPaymentStatus || "pending"
-          : undefined,
-        metadataOnly: approvedSyncIsMetadataOnly,
-      });
-    }
+    if (approvedSyncError) throw approvedSyncError;
 
     return res.json({ success: true, message: "Proposta atualizada." });
   } catch (error: unknown) {

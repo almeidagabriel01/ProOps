@@ -100,6 +100,22 @@ function buildVersionHash(
     pdfGenerationLock: _pdfGenerationLock,
     createdAt: _createdAt,
     updatedAt: _updatedAt,
+    // Campos que NAO entram no documento. Deixa-los no hash fazia toda troca de
+    // status invalidar o cache e reabrir o Chromium — e a entrega no Drive
+    // roda dentro da propria request de mudanca de status, entao o custo caia
+    // em cima do usuario, que via a operacao estourar o timeout de 30s do
+    // proxy enquanto o backend seguia trabalhando.
+    //
+    // `driveFileId` e `driveSyncError` sao piores que os outros: a PROPRIA
+    // entrega os escreve na proposta, entao o PDF que acabou de ser gerado
+    // invalidava o proprio cache.
+    status: _status,
+    driveFileId: _driveFileId,
+    driveSyncError: _driveSyncError,
+    searchTokens: _searchTokens,
+    primarySystem: _primarySystem,
+    primaryEnvironment: _primaryEnvironment,
+    commissions: _commissions,
     ...proposalRelevant
   } = proposalData;
 

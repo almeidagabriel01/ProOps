@@ -41,6 +41,23 @@ function isPdfPath(path: string[]): boolean {
   return path[path.length - 1] === "pdf";
 }
 
+/**
+ * Rotas que NÃO são de PDF mas podem renderizar um dentro da própria request.
+ *
+ * Salvar uma proposta fora do rascunho dispara a entrega no Google Drive, que
+ * gera o PDF com Chromium e sobe o arquivo. Com o teto de 30s a operação
+ * estourava enquanto o backend seguia trabalhando: o usuário via "Request
+ * timeout", o status mudava assim mesmo, e só um F5 revelava isso. Errar para
+ * o lado de esperar é melhor que errar para o lado de mentir.
+ *
+ * A saída definitiva é tirar a entrega da request (Cloud Tasks, item 4.2 de
+ * `.claude/rules/scaling-roadmap.md`); até lá, o teto aqui é o mesmo do PDF.
+ */
+function mayRenderPdfInline(req: NextRequest, path: string[]): boolean {
+  if (req.method !== "PUT" && req.method !== "POST") return false;
+  return path[0] === "v1" && path[1] === "proposals";
+}
+
 function buildUpstreamUrl(req: NextRequest, path: string[]): string {
   const { baseUrl } = resolveFunctionsApiUpstream(req);
   // Paths de PDF vão para a função Cloud dedicada `pdf` (Chromium isolado).
@@ -105,7 +122,12 @@ async function proxyRequest(
   const acceptHeader = req.headers.get("accept") ?? "";
   const isSSE = acceptHeader.includes("text/event-stream");
   const isPdfRequest = isPdfPath(path);
-  const timeoutMs = isSSE ? SSE_TIMEOUT_MS : isPdfRequest ? PDF_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+  const isSlowInlineRender = mayRenderPdfInline(req, path);
+  const timeoutMs = isSSE
+    ? SSE_TIMEOUT_MS
+    : isPdfRequest || isSlowInlineRender
+      ? PDF_TIMEOUT_MS
+      : REQUEST_TIMEOUT_MS;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 

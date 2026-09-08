@@ -212,6 +212,64 @@ describe("formato do lancamento de comissao", () => {
     ).toBe("commission_p1_ven1_vendedor");
   });
 
+  // O card de grupo da tela de Lancamentos so lista os membros marcados como
+  // parcela. Com a serie mista (entrada fora, parcelas dentro), a comissao da
+  // ENTRADA sumia da lista e so aparecia no total do cabecalho — que entao nao
+  // batia com a soma das linhas visiveis.
+  test("entrada e parcelas formam UMA serie numerada, sem membro solto", () => {
+    const { comissoes } = build({
+      downPaymentEnabled: true,
+      downPaymentType: "percentage",
+      downPaymentPercentage: 60,
+      downPaymentDueDate: "2026-10-10",
+      installmentsEnabled: true,
+      installmentsCount: 4,
+      firstInstallmentDate: "2026-11-10",
+    });
+
+    const doArquiteto = comissoes.filter(
+      (c) => c.commissionContactId === "arq1",
+    );
+
+    expect(doArquiteto).toHaveLength(5);
+    expect(doArquiteto.every((c) => c.isInstallment)).toBe(true);
+    expect(doArquiteto.map((c) => c.installmentNumber)).toEqual([1, 2, 3, 4, 5]);
+    expect(doArquiteto.every((c) => c.installmentCount === 5)).toBe(true);
+    expect(
+      new Set(doArquiteto.map((c) => c.installmentGroupId)).size,
+    ).toBe(1);
+    // A primeira da serie e a que espelha a entrada.
+    expect(doArquiteto[0].amount).toBe(6000);
+    expect(doArquiteto[0].commissionSourceKey).toBe("down_payment");
+  });
+
+  test("entrada mais saldo tambem viram serie de duas", () => {
+    const { comissoes } = build({
+      downPaymentEnabled: true,
+      downPaymentType: "percentage",
+      downPaymentPercentage: 80,
+      downPaymentDueDate: "2026-10-10",
+      validUntil: "2026-12-20",
+    });
+
+    const doArquiteto = comissoes.filter(
+      (c) => c.commissionContactId === "arq1",
+    );
+    expect(doArquiteto.map((c) => c.amount)).toEqual([8000, 2000]);
+    expect(doArquiteto.map((c) => c.installmentNumber)).toEqual([1, 2]);
+    expect(doArquiteto.every((c) => c.installmentCount === 2)).toBe(true);
+  });
+
+  // Uma comissao so nao e "parcela 1/1": vira despesa avulsa, senao a aba
+  // Agrupados criaria um grupo de um membro so.
+  test("comissao unica fica avulsa, sem grupo", () => {
+    const { comissoes } = build();
+    expect(comissoes).toHaveLength(2);
+    expect(comissoes.every((c) => c.isInstallment)).toBe(false);
+    expect(comissoes.every((c) => c.installmentGroupId === null)).toBe(true);
+    expect(comissoes.every((c) => c.installmentCount === null)).toBe(true);
+  });
+
   // O sync casa desejado com existente por chave. Chave repetida faria uma
   // comissao sobrescrever a outra, ou a parcela de receita de mesmo numero.
   test("cada comissao tem chave propria, sem colidir com as receitas", () => {

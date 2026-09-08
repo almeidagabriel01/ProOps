@@ -186,14 +186,14 @@ export default function NewCustomerPage() {
 
   // Show loading while checking permissions OR while redirecting (no permission)
   if (permLoading || !canCreate) {
-    return <EntityLoadingState message="Carregando cliente..." />;
+    return <EntityLoadingState message="Carregando contato..." />;
   }
 
   return (
     <FormContainer>
       <FormHeader
-        title="Novo Cliente"
-        subtitle="Adicione um novo cliente à sua base de contatos"
+        title="Novo Contato"
+        subtitle="Cliente, fornecedor, vendedor ou arquiteto"
         icon={User}
         onBack={() => router.push("/contacts")}
       />
