@@ -31,6 +31,30 @@ Before deploying to any environment:
 - Always run `npm run build` in `apps/functions/` before running emulators or deploying
 - Target runtime: Node.js 22, Cloud Run region `southamerica-east1`
 
+## Qual backend o front local está chamando
+
+`apps/web/.env.local` pode definir **`FUNCTIONS_LOCAL_API_URL`**, que aponta o
+front rodando em `localhost` para um backend específico. É útil de propósito
+(testar a tela contra o dev publicado), e é uma armadilha quando fica esquecida:
+o emulador segue no ar, o `lib/` recompila, e **nada do que você muda no backend
+tem efeito** — o comportamento observado é o do que está publicado.
+
+Como conferir em um segundo:
+
+```bash
+curl -s http://localhost:3000/api/backend/health
+# {"status":"OK","build":"..."}  → emulador local
+# OK                             → backend publicado (código antigo)
+```
+
+O proxy também devolve o cabeçalho **`x-api-upstream`** (`local` | `dev`, nunca
+em produção), visível na aba Network, e emite um `console.warn` uma vez por
+processo quando o front em localhost cai num backend remoto.
+
+Isso custou uma sessão inteira de investigação: os sintomas eram reais (timeout,
+dado gravado em formato antigo), mas vinham do backend publicado, enquanto todo
+diagnóstico era feito contra o código local.
+
 ## Emulators
 - Start all emulators: `firebase emulators:start`
 - Ports: Functions:5001, Firestore:8080, Auth:9099, Storage:9199, UI:4000

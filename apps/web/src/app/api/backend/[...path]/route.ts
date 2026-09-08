@@ -37,6 +37,34 @@ function getRequestId(req: NextRequest): string {
   return req.headers.get("x-request-id") || crypto.randomUUID();
 }
 
+let avisouUpstreamRemoto = false;
+
+/**
+ * Avisa uma vez quando o navegador esta em localhost mas o backend e remoto.
+ *
+ * `FUNCTIONS_LOCAL_API_URL` existe para casos legitimos (apontar o front local
+ * para o backend de dev), mas quando esquecida ela silencia o emulador: o
+ * codigo que voce acabou de compilar nao roda, os logs saem em outro lugar, e o
+ * comportamento observado e o do que esta PUBLICADO. Sem este aviso a unica
+ * pista era um `console.info` por request, no meio do ruido do dev server.
+ */
+function warnIfLocalHostUsesRemoteUpstream(
+  req: NextRequest,
+  upstream: { target: string },
+): void {
+  if (avisouUpstreamRemoto) return;
+  const host = (req.headers.get("host") ?? "").split(":")[0].toLowerCase();
+  const ehLocal = host === "localhost" || host === "127.0.0.1";
+  if (!ehLocal || upstream.target === "local") return;
+
+  avisouUpstreamRemoto = true;
+  console.warn(
+    `[Proxy] ATENCAO: o front em ${host} esta chamando o backend "${upstream.target}" (publicado), nao o emulador local. ` +
+      "Isso vem de FUNCTIONS_LOCAL_API_URL em apps/web/.env.local. " +
+      "Enquanto isso valer, alteracoes no backend local NAO tem efeito.",
+  );
+}
+
 function isPdfPath(path: string[]): boolean {
   return path[path.length - 1] === "pdf";
 }
@@ -119,6 +147,7 @@ async function proxyRequest(
   const { path } = await context.params;
   const upstream = resolveFunctionsApiUpstream(req);
   const upstreamUrl = buildUpstreamUrl(req, path);
+  warnIfLocalHostUsesRemoteUpstream(req, upstream);
   const acceptHeader = req.headers.get("accept") ?? "";
   const isSSE = acceptHeader.includes("text/event-stream");
   const isPdfRequest = isPdfPath(path);
@@ -196,6 +225,15 @@ async function proxyRequest(
     }
 
     response.headers.set("x-request-id", requestId);
+    // Qual backend respondeu. Sem isto, "estou testando o quê?" só se responde
+    // lendo env var e código: uma sessao inteira de investigacao foi gasta
+    // porque o navegador em localhost falava com o backend de dev PUBLICADO
+    // (via `FUNCTIONS_LOCAL_API_URL`), entao todo diagnostico batia contra o
+    // codigo local enquanto o comportamento vinha de outro lugar. Fora de
+    // producao o cabecalho e barato e responde na aba Network.
+    if (upstream.target !== "prod") {
+      response.headers.set("x-api-upstream", upstream.target);
+    }
 
     console.info(
       JSON.stringify({
