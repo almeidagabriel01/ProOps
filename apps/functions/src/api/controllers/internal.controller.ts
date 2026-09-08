@@ -581,6 +581,38 @@ export const markOverdueTransactionsManual = async (
   }
 };
 
+/**
+ * Dispara a fila de entrega no Drive a mao.
+ *
+ * Existe porque o cron roda a cada 5 minutos e, no emulador local, cron
+ * agendado nao dispara: sem este endpoint nao haveria como exercitar a entrega
+ * em desenvolvimento.
+ */
+export const processDriveDeliveriesManual = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const expectedSecret = process.env.CRON_SECRET;
+    const headerSecret = req.headers["x-cron-secret"];
+    if (!expectedSecret || headerSecret !== expectedSecret) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const { processDriveDeliveryQueue } = await import(
+      "../services/drive/drive-delivery-queue"
+    );
+    const result = await processDriveDeliveryQueue();
+    logger.info("[processDriveDeliveries manual] completed", { ...result });
+    return res.json(result);
+  } catch (error) {
+    logger.error("[processDriveDeliveries manual] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const cleanupSecurityAuditEventsManual = async (
   req: Request,
   res: Response,

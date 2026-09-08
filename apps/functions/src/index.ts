@@ -34,6 +34,7 @@ export { checkPriceChanges } from "./checkPriceChanges";
 export { cleanupStorageAndSharedLinks } from "./cleanupStorageAndSharedLinks";
 export { reconcileAddons } from "./reconcileAddons";
 export { processPayoutRetries } from "./processPayoutRetries";
+export { processDriveDeliveries } from "./processDriveDeliveries";
 export { processInvoiceRetries } from "./processInvoiceRetries";
 export { checkFiscalCertificateExpiry } from "./checkFiscalCertificateExpiry";
 export { syncReceivedInvoices } from "./syncReceivedInvoices";

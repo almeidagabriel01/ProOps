@@ -758,9 +758,34 @@ pelo ERP chegar la sem baixar e subir a mao.
      compartilhada com o hash de versao. Guard:
      `api/services/pdf-irrelevant-fields.test.ts`.
   5. `updateProposal` loga `proposal_update_timing` com `totalMs`,
-     `approvedSyncMs` e `driveDeliveryMs`. Sem isso, "salvar proposta esta
+     `approvedSyncMs` e `driveEnqueueMs`. Sem isso, "salvar proposta esta
      lento" e adivinhacao: as duas etapas fazem I/O externo e so uma renderiza
      PDF.
+
+  **A entrega saiu da request de vez (2026-09-08).** As mitigacoes acima
+  reduziam a frequencia, nao o custo: a transicao para aprovada ainda pagava um
+  Chromium com o usuario esperando. Agora `updateProposal` so grava um job e
+  responde:
+
+  - `drive_delivery_jobs/{tenantId}_{proposalId}` — id DETERMINISTICO, entao
+    salvar cinco vezes seguidas nao vira cinco renders do mesmo PDF; o `set`
+    com merge reabre o job existente e zera as tentativas, porque ha mudanca
+    nova a entregar. Admin SDK only nas rules.
+  - Cron `processDriveDeliveries`, a cada 5 min, `1GiB` e 540s (roda Chromium,
+    nao so leitura de Firestore). Backoff de 1/5/15/60 min, desistindo em
+    `MAX_DRIVE_DELIVERY_ATTEMPTS = 5` com o motivo gravado em `lastError`.
+  - Indice `(status, nextRunAt ASC)`, com `orderBy` explicito — mesmo par de
+    `payout_attempts`.
+  - **Cron agendado nao dispara no emulador**, entao existe
+    `POST /internal/cron/drive-deliveries` com `x-cron-secret` para exercitar a
+    entrega em dev. Sem ele o fluxo seria intestavel localmente.
+  - Nao foi Cloud Tasks (roadmap 4.2) porque exige fila provisionada e o
+    suporte no emulador e instavel; o desenho aqui e o mesmo de
+    `payout_attempts` e `wallet_cascade_jobs`, que ja existem no projeto.
+  - Consequencia a lembrar: a proposta chega ao Drive em ate ~5 min, nao na
+    hora. Ninguem observa a pasta em tempo real, e perder a entrega e que era
+    inaceitavel — por isso o trabalho e DOCUMENTO, nao promessa solta.
+  Guards: `api/services/drive/drive-delivery-queue.test.ts`.
 
 ### Plano do tenant: DUAS fontes que podem divergir
 

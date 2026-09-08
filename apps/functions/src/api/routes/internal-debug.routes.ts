@@ -16,6 +16,7 @@ import {
   markOverdueTransactionsManual,
   cleanupSecurityAuditEventsManual,
   remindNoSubscriptionSignupsManual,
+  processDriveDeliveriesManual,
 } from "../controllers/internal.controller";
 
 const router = Router();
@@ -27,5 +28,6 @@ router.post("/admin/cleanup-billing-redundant-fields", cleanupBillingRedundantFi
 router.post("/cron/mark-overdue", markOverdueTransactionsManual);
 router.post("/cron/cleanup-security-audit-events", cleanupSecurityAuditEventsManual);
 router.post("/cron/remind-no-subscription", remindNoSubscriptionSignupsManual);
+router.post("/cron/drive-deliveries", processDriveDeliveriesManual);
 
 export { router as internalDebugRoutes };

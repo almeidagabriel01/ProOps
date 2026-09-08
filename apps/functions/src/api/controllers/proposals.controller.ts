@@ -1,10 +1,8 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { tryAutoIssue } from "../services/fiscal/invoice-issue.service";
-import {
-  isStatusDeliverableToDrive,
-  syncProposalToDrive,
-} from "../services/drive/proposal-drive-sync.service";
+import { isStatusDeliverableToDrive } from "../services/drive/proposal-drive-sync.service";
+import { enqueueDriveDelivery } from "../services/drive/drive-delivery-queue";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
@@ -1993,15 +1991,10 @@ export const updateProposal = async (req: Request, res: Response) => {
         (!jaEraEntregavel || conteudoDoPdfMudou || nuncaEntregue);
 
       if (deveEntregar) {
-        await timed("driveDeliveryMs", () =>
-          syncProposalToDrive({
-            tenantId: proposalTenantId,
-            proposalId: id,
-            proposalData: { ...proposalData, ...safeUpdate } as Record<
-              string,
-              unknown
-            >,
-          }),
+        // Enfileira e responde. A entrega em si (Chromium + upload) roda no
+        // cron `processDriveDeliveries`; ver `drive-delivery-queue.ts`.
+        await timed("driveEnqueueMs", () =>
+          enqueueDriveDelivery({ tenantId: proposalTenantId, proposalId: id }),
         );
       }
     }

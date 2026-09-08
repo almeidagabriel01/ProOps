@@ -19,6 +19,7 @@
 | `cleanupStorageAndSharedLinks` | Scheduled | Limpeza de arquivos e links expirados |
 | `reconcileAddons` | Scheduled | Reconciliacao de add-ons |
 | `processPayoutRetries` | Scheduled | Retries de payout (Asaas) |
+| `processDriveDeliveries` | Scheduled | Entrega as propostas pendentes no Google Drive (a cada 5 min) — tira o Chromium da request de salvar |
 | `processInvoiceRetries` | Scheduled | Consulta notas fiscais pendentes (a cada 15 min) — backstop do webhook do Focus |
 | `checkFiscalCertificateExpiry` | Scheduled | Avisa vencimento do certificado A1 em D-30/15/7/1 e diariamente apos vencer |
 | `syncReceivedInvoices` | Scheduled | Busca notas de ENTRADA (de hora em hora), incremental por `versao` |
@@ -266,6 +267,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `whatsappRateLimit/{phone}` | WhatsApp | Rate limit por minuto/dia |
 | `whatsappUsage/{tenantId}/months/{YYYY-MM}` | WhatsApp | Uso mensal e overage |
 | `whatsappLogs` | WhatsApp | Audit trail de acoes do bot |
+| `drive_delivery_jobs/{tenantId}_{proposalId}` | Drive | Fila de entrega da proposta no Drive. Admin SDK only |
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |
