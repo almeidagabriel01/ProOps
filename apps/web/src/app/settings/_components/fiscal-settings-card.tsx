@@ -21,6 +21,7 @@ import {
 } from "@/services/fiscal-service";
 import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
+import { maskCep } from "@/lib/fiscal/cep";
 import { Loader } from "@/components/ui/loader";
 import {
   AlertDialog,
@@ -271,7 +272,10 @@ export function FiscalSettingsCard({
           municipio: data.municipio || prev.endereco.municipio,
           codigoIbge: data.codigoIbge || prev.endereco.codigoIbge,
           uf: data.uf || prev.endereco.uf,
-          cep: data.cep || prev.endereco.cep,
+          // Mascarado como se tivesse sido digitado: a Receita devolve 8
+          // dígitos crus, e o campo ficava com uma cara diferente do resto do
+          // endereço só por ter vindo da busca.
+          cep: data.cep ? maskCep(data.cep) : prev.endereco.cep,
         },
       }));
       setErrors({});
