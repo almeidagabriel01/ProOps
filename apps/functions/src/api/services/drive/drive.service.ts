@@ -21,6 +21,7 @@
  */
 
 import { Readable } from "stream";
+import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { getDriveClient } from "./drive-oauth.service";
@@ -414,6 +415,10 @@ export async function uploadProposalPdf(params: {
   await proposalRef.update({
     driveFileId: fileId,
     driveSyncedAt: new Date().toISOString(),
+    // Limpa o erro da tentativa anterior. Sem isto a proposta ficava com o
+    // registro de uma falha ja resolvida, e quem fosse investigar depois leria
+    // um erro que nao vale mais.
+    driveSyncError: FieldValue.delete(),
   });
 
   return { fileId, folderId, webViewLink };

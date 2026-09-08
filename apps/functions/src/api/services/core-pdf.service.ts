@@ -61,7 +61,28 @@ const BLOCKED_IP_PATTERNS: RegExp[] = [
  * Apenas bloqueia protocolos que não sejam http/https, ou hostnames/IPs internos.
  * URLs https para domínios públicos são sempre permitidas.
  */
-function isSsrfBlockedUrl(url: string): boolean {
+/**
+ * Loopback so e liberado DENTRO do emulador.
+ *
+ * Em desenvolvimento o proprio app e `http://localhost:3000`, entao a guarda de
+ * SSRF barrava a pagina que o render precisa abrir: nenhum PDF era gerado
+ * localmente, e por tabela a entrega da proposta no Drive nunca podia ser
+ * testada fora da nuvem.
+ *
+ * `FUNCTIONS_EMULATOR` e posta pelo emulador do Firebase e **nunca** existe em
+ * Cloud Run, entao producao segue com a regra inalterada: loopback e faixas
+ * privadas continuam bloqueadas. A relaxacao vale so para o alvo de loopback;
+ * metadados de cloud e faixas RFC-1918 permanecem barrados mesmo no emulador,
+ * porque ali o risco nao e "e a minha propria maquina", e sim credencial de
+ * instancia.
+ */
+function loopbackLiberado(): boolean {
+  return process.env.FUNCTIONS_EMULATOR === "true";
+}
+
+const LOOPBACK_PATTERNS: RegExp[] = [/^localhost$/i, /^127\./, /^\[?::1\]?$/];
+
+export function isSsrfBlockedUrl(url: string): boolean {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -81,6 +102,11 @@ function isSsrfBlockedUrl(url: string): boolean {
   }
 
   const hostname = parsed.hostname.replace(/^\[|\]$/g, ""); // remove brackets IPv6
+
+  const ehLoopback = LOOPBACK_PATTERNS.some((pattern) => pattern.test(hostname));
+  if (ehLoopback) {
+    return !loopbackLiberado();
+  }
 
   // Verificar contra padrões de IP/hostname bloqueados.
   return BLOCKED_IP_PATTERNS.some((pattern) => pattern.test(hostname));
@@ -118,23 +144,50 @@ export interface RenderPdfOptions {
  * Toda lógica de browser é encapsulada aqui; os serviços específicos (proposal
  * e transaction) apenas chamam esta função.
  */
+/**
+ * O binario empacotado do `@sparticuz/chromium` e Linux-only.
+ *
+ * Isolado para ser testavel: trocar esta condicao por engano faria producao
+ * procurar um navegador que nao existe na imagem do Cloud Run, e o sintoma
+ * (PDF que nao gera) so apareceria depois do deploy.
+ */
+export function useServerlessChromium(
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  return platform === "linux";
+}
+
 export async function renderPageToPdfBuffer(options: RenderPdfOptions): Promise<Buffer> {
   const { url, readySelector, vercelBypassSecret } = options;
 
   // Lazy-load to keep module initialization fast (avoids 10s timeout during Firebase spec detection)
   const { chromium } = await import("playwright-core");
-  const chromiumPackage = (await import("@sparticuz/chromium")).default;
-
-  chromiumPackage.setGraphicsMode = false;
-  const executablePath = await chromiumPackage.executablePath();
   const pageErrors: string[] = [];
 
+  // `@sparticuz/chromium` empacota um binario LINUX. Em Cloud Run e no CI isso
+  // e exatamente o certo; numa maquina Windows ou macOS o `executablePath()`
+  // aponta para um arquivo que nao existe e o launch morre com
+  // `spawn ...\Temp\chromium ENOENT`. Como a entrega no Drive renderiza um PDF,
+  // o efeito era a entrega falhar sempre em desenvolvimento — e, ate a fila
+  // passar a olhar o desfecho, falhar em silencio.
+  //
+  // Fora do Linux usamos o Chromium que o proprio Playwright instala. Exige
+  // `npx playwright install chromium` uma vez dentro de `apps/functions`,
+  // porque a revisao e casada com a versao do `playwright-core` de la.
+  const launchOptions = useServerlessChromium()
+    ? await (async () => {
+        const chromiumPackage = (await import("@sparticuz/chromium")).default;
+        chromiumPackage.setGraphicsMode = false;
+        return {
+          executablePath: await chromiumPackage.executablePath(),
+          args: chromiumPackage.args,
+          headless: true as const,
+        };
+      })()
+    : { headless: true as const };
+
   console.time("pdf:launch");
-  const browser = await chromium.launch({
-    executablePath,
-    args: chromiumPackage.args,
-    headless: true,
-  });
+  const browser = await chromium.launch(launchOptions);
   console.timeEnd("pdf:launch");
 
   try {

@@ -95,7 +95,7 @@ beforeEach(() => {
   queryResult.length = 0;
   ultimaConsulta = [];
   jest.clearAllMocks();
-  syncProposalToDrive.mockResolvedValue(undefined);
+  syncProposalToDrive.mockResolvedValue({ status: "delivered", fileId: "f1" });
   seedProposal();
 });
 
@@ -158,7 +158,52 @@ describe("runDriveDeliveryJob", () => {
     expect(syncProposalToDrive).toHaveBeenCalledTimes(1);
   });
 
-  it("falha volta para a fila com backoff, sem perder a entrega", async () => {
+  // A entrega NAO lanca: ela devolve o desfecho. Enquanto a fila lia "nao
+  // lancou" como sucesso, um job que falhou virava "delivered", o retry nunca
+  // disparava e o operador via `processed: 1` sobre uma entrega que nao
+  // aconteceu. Foi assim com o Chromium que nao sobe no Windows.
+  it("desfecho de falha volta para a fila com backoff", async () => {
+    syncProposalToDrive.mockResolvedValue({
+      status: "failed",
+      error: "browserType.launch: Failed to launch",
+    });
+    await enqueueDriveDelivery({ tenantId: "t1", proposalId: "p1" });
+    await runDriveDeliveryJob(JOB_ID);
+
+    expect(job().status).toBe("pending");
+    expect(job().attempts).toBe(1);
+    expect(job().lastError).toBe("browserType.launch: Failed to launch");
+    expect(new Date(job().nextRunAt as string).getTime()).toBeGreaterThan(
+      Date.now(),
+    );
+  });
+
+  // Sem integracao conectada nao ha o que entregar, e retentar ate esgotar
+  // gastaria ciclos para produzir sempre o mesmo nada.
+  it("sem integracao o job encerra como skipped, nao como falha", async () => {
+    syncProposalToDrive.mockResolvedValue({
+      status: "skipped",
+      reason: "sem_integracao",
+    });
+    await enqueueDriveDelivery({ tenantId: "t1", proposalId: "p1" });
+    await runDriveDeliveryJob(JOB_ID);
+
+    expect(job().status).toBe("skipped");
+    expect(job().lastError).toBe("sem_integracao");
+  });
+
+  it("proposta sem cliente tambem encerra como skipped", async () => {
+    syncProposalToDrive.mockResolvedValue({
+      status: "skipped",
+      reason: "sem_cliente",
+    });
+    await enqueueDriveDelivery({ tenantId: "t1", proposalId: "p1" });
+    await runDriveDeliveryJob(JOB_ID);
+
+    expect(job().status).toBe("skipped");
+  });
+
+  it("excecao de infraestrutura tambem volta para a fila", async () => {
     syncProposalToDrive.mockRejectedValue(new Error("ECONNRESET"));
     await enqueueDriveDelivery({ tenantId: "t1", proposalId: "p1" });
     await runDriveDeliveryJob(JOB_ID);
@@ -172,7 +217,10 @@ describe("runDriveDeliveryJob", () => {
   });
 
   it("desiste depois do teto de tentativas, deixando o motivo registrado", async () => {
-    syncProposalToDrive.mockRejectedValue(new Error("invalid_grant"));
+    syncProposalToDrive.mockResolvedValue({
+      status: "failed",
+      error: "invalid_grant",
+    });
     await enqueueDriveDelivery({ tenantId: "t1", proposalId: "p1" });
 
     for (let i = 0; i < MAX_DRIVE_DELIVERY_ATTEMPTS; i += 1) {
@@ -265,7 +313,10 @@ describe("processDriveDeliveryQueue", () => {
     });
     docs.set("proposals/p2", { tenantId: "t1", title: "Outra" });
 
-    syncProposalToDrive.mockRejectedValueOnce(new Error("falhou"));
+    syncProposalToDrive.mockResolvedValueOnce({
+      status: "failed",
+      error: "falhou",
+    });
     queryResult.push({ id: JOB_ID }, { id: "t1_p2" });
 
     const { processed } = await processDriveDeliveryQueue();

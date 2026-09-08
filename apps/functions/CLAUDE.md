@@ -797,6 +797,38 @@ pelo ERP chegar la sem baixar e subir a mao.
     hora. Ninguem observa a pasta em tempo real, e perder a entrega e que era
     inaceitavel — por isso o trabalho e DOCUMENTO, nao promessa solta.
   Guards: `api/services/drive/drive-delivery-queue.test.ts`.
+  - **`syncProposalToDrive` DEVOLVE o desfecho** (`delivered` | `skipped` |
+    `failed`), em vez de `void`. Ela continua nao lancando, mas engolir o erro e
+    retornar vazio fazia a fila ler "nao lancou" como "entregue": o job virava
+    `delivered`, o retry nunca disparava, e o operador via `processed: 1` sobre
+    uma entrega que nao aconteceu. `skipped` (sem integracao, proposta sem
+    cliente) e terminal e NAO retenta: retentar produziria sempre o mesmo nada.
+  - Entrega bem-sucedida **limpa** o `driveSyncError` da proposta; sem isso o
+    documento ficava com o registro de uma falha ja resolvida.
+
+### PDF em desenvolvimento (fora do Linux)
+
+Duas barreiras faziam a geracao de PDF — e portanto a entrega no Drive —
+falhar SEMPRE numa maquina Windows ou macOS, o que so era visivel quando o
+front local apontava para o backend local:
+
+1. **`@sparticuz/chromium` empacota um binario LINUX.** Fora do Linux o
+   `executablePath()` aponta para um arquivo inexistente e o launch morre com
+   `spawn ...\Temp\chromium ENOENT`. `useServerlessChromium()`
+   (`api/services/core-pdf.service.ts`) decide pela plataforma; fora do Linux o
+   render usa o Chromium do proprio Playwright. Exige, uma vez:
+   ```bash
+   cd apps/functions && node node_modules/playwright-core/cli.js install chromium
+   ```
+   Tem que ser o CLI do `playwright-core` DE LA: `npx playwright install`
+   resolve o `@playwright/test` da raiz, que instala outra revisao.
+   Guard: `api/services/core-pdf.chromium-platform.test.ts`.
+2. **A guarda de SSRF barrava `localhost`**, que em dev e o proprio app. Agora
+   loopback e liberado SO quando `FUNCTIONS_EMULATOR === "true"` — variavel que
+   o emulador poe e o Cloud Run nunca tem. Faixas RFC-1918 e metadados de cloud
+   seguem bloqueados inclusive no emulador: ali o risco nao e a propria
+   maquina, e sim credencial de instancia.
+   Guard: `api/services/core-pdf.ssrf.test.ts`.
 
 ### Plano do tenant: DUAS fontes que podem divergir
 

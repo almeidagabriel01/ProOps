@@ -33,7 +33,16 @@ export const MAX_DRIVE_DELIVERY_ATTEMPTS = 5;
 /** Backoff: 1min, 5min, 15min, 60min. */
 const RETRY_DELAYS_MS = [60_000, 300_000, 900_000, 3_600_000];
 
-export type DriveDeliveryJobStatus = "pending" | "delivered" | "failed";
+/**
+ * `skipped` e terminal e NAO e falha: o tenant nao conectou o Drive, ou a
+ * proposta nao tem cliente. Retentar isso ate esgotar as tentativas gastaria
+ * ciclos para produzir sempre o mesmo nada.
+ */
+export type DriveDeliveryJobStatus =
+  | "pending"
+  | "delivered"
+  | "skipped"
+  | "failed";
 
 export type DriveDeliveryJob = {
   tenantId: string;
@@ -125,42 +134,66 @@ export async function runDriveDeliveryJob(jobId: string): Promise<void> {
 
   const attempts = Number(job.attempts || 0) + 1;
 
+  // `syncProposalToDrive` nao lanca: ela DEVOLVE o desfecho. Tratar "nao
+  // lancou" como sucesso marcava como entregue o que tinha falhado, e o retry
+  // desta fila nunca disparava.
+  let resultado: Awaited<ReturnType<typeof syncProposalToDrive>>;
   try {
-    // `syncProposalToDrive` ja e best-effort e trata os proprios erros
-    // (integracao ausente, `invalid_grant`, pasta apagada). O que chega aqui
-    // como excecao e falha de infraestrutura.
-    await syncProposalToDrive({
+    resultado = await syncProposalToDrive({
       tenantId: job.tenantId,
       proposalId: job.proposalId,
       proposalData: proposalSnap.data() as Record<string, unknown>,
     });
+  } catch (error) {
+    // Falha de infraestrutura antes de a funcao poder classificar o desfecho.
+    resultado = {
+      status: "failed",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 
+  if (resultado.status === "delivered") {
     await ref.update({
       status: "delivered",
       attempts,
       lastError: null,
       updatedAt: Timestamp.now(),
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const esgotou = attempts >= MAX_DRIVE_DELIVERY_ATTEMPTS;
+    return;
+  }
 
+  if (resultado.status === "skipped") {
     await ref.update({
-      status: esgotou ? "failed" : "pending",
+      status: "skipped",
       attempts,
-      nextRunAt: esgotou ? job.nextRunAt : resolveNextRunAt(attempts),
-      lastError: message,
+      lastError: resultado.reason,
       updatedAt: Timestamp.now(),
     });
-
-    logger.error("drive_delivery_job_failed", {
+    logger.info("drive_delivery_job_skipped", {
       tenantId: job.tenantId,
       proposalId: job.proposalId,
-      attempts,
-      esgotou,
-      error: message,
+      reason: resultado.reason,
     });
+    return;
   }
+
+  const esgotou = attempts >= MAX_DRIVE_DELIVERY_ATTEMPTS;
+
+  await ref.update({
+    status: esgotou ? "failed" : "pending",
+    attempts,
+    nextRunAt: esgotou ? job.nextRunAt : resolveNextRunAt(attempts),
+    lastError: resultado.error,
+    updatedAt: Timestamp.now(),
+  });
+
+  logger.error("drive_delivery_job_failed", {
+    tenantId: job.tenantId,
+    proposalId: job.proposalId,
+    attempts,
+    esgotou,
+    error: resultado.error,
+  });
 }
 
 /**

@@ -186,15 +186,21 @@ describe("syncProposalToDrive", () => {
   it("NUNCA lanca — a venda nao pode ser desfeita por falha de upload", async () => {
     uploadProposalPdf.mockRejectedValue(new Error("quota do Drive excedida"));
 
+    // Nao lanca, mas DEVOLVE a falha. Enquanto devolvia `undefined`, a fila
+    // lia "nao lancou" como "entregue": o retry existia e nunca disparava, e o
+    // operador via sucesso sobre uma entrega que nao aconteceu.
     await expect(
       syncProposalToDrive({
         tenantId: "t1",
         proposalId: "p1",
         proposalData: PROPOSTA,
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({
+      status: "failed",
+      error: "quota do Drive excedida",
+    });
 
-    // Mas deixa rastro nos dois lugares: log e o proprio documento.
+    // E deixa rastro nos dois lugares: log e o proprio documento.
     expect(error).toHaveBeenCalled();
     expect(proposalUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ driveSyncError: "quota do Drive excedida" }),

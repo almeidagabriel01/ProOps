@@ -94,18 +94,33 @@ export async function isStatusDeliverableToDrive(
  * configurado e o caso NORMAL — a maioria dos tenants nunca vai conectar, e
  * registrar isso como erro encheria o log de ruido.
  */
+/**
+ * Desfecho da entrega.
+ *
+ * A funcao continua NAO lancando: o status da proposta ja mudou e a venda nao
+ * pode ser desfeita porque o Google recusou um upload. Mas engolir o erro e
+ * retornar `void` fazia a fila marcar como entregue o que tinha falhado — o
+ * retry existia e nunca disparava, e o operador via "processed: 1" sobre uma
+ * entrega que nao aconteceu. Quem chama precisa saber a diferenca entre
+ * "entregue", "nao havia o que fazer" e "falhou".
+ */
+export type DriveDeliveryResult =
+  | { status: "delivered"; fileId: string }
+  | { status: "skipped"; reason: "sem_integracao" | "sem_cliente" }
+  | { status: "failed"; error: string };
+
 export async function syncProposalToDrive(params: {
   tenantId: string;
   proposalId: string;
   proposalData: Record<string, unknown>;
-}): Promise<void> {
+}): Promise<DriveDeliveryResult> {
   try {
     const integration = await getDriveIntegration(params.tenantId);
     // Sem token nao ha entrega — e o documento sobrevive ao desconectar para
     // preservar a pasta, entao checar so a pasta geraria um PDF a toa (o
     // recurso mais caro do backend) para falhar logo depois.
     if (!integration?.refreshTokenEnc || !integration.rootFolderId) {
-      return;
+      return { status: "skipped", reason: "sem_integracao" };
     }
 
     const clientId = String(params.proposalData.clientId || "").trim();
@@ -115,7 +130,7 @@ export async function syncProposalToDrive(params: {
         tenantId: params.tenantId,
         proposalId: params.proposalId,
       });
-      return;
+      return { status: "skipped", reason: "sem_cliente" };
     }
 
     const pdf = await getOrGenerateProposalPdfBuffer(
@@ -139,6 +154,8 @@ export async function syncProposalToDrive(params: {
       proposalId: params.proposalId,
       fileId: result.fileId,
     });
+
+    return { status: "delivered", fileId: result.fileId };
   } catch (error) {
     // Best-effort: o status ja mudou e a venda nao pode ser desfeita porque o
     // Google recusou um upload. Fica o registro para investigar.
@@ -155,5 +172,10 @@ export async function syncProposalToDrive(params: {
           error instanceof Error ? error.message : String(error),
       })
       .catch(() => undefined);
+
+    return {
+      status: "failed",
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
