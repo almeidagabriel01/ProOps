@@ -228,6 +228,26 @@ describe("DriveSettingsCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("LIMPA o aviso ao criar a pasta que faltava", async () => {
+    // Atualizar só o id e o nome deixava a tela decidindo pela marca antiga: a
+    // pasta era criada no Drive, o aviso continuava e o botão não voltava —
+    // parecendo que nada tinha acontecido.
+    getStatus.mockResolvedValue({ ...PRONTO, rootFolderMissing: true });
+    render(<DriveSettingsCard />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/não está mais no seu Drive/i)).toBeInTheDocument(),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Criar pasta no meu Drive/ }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByText(/não está mais no seu Drive/i)).toBeNull(),
+    );
+    expect(screen.getByText("ProOps - Propostas")).toBeInTheDocument();
+  });
+
   it("AVISA quando a autorização foi revogada", async () => {
     // A conexão existe e está morta. Sem dizer isso na tela, o usuário só
     // descobre ao tentar usar — provavelmente com a proposta já aprovada.

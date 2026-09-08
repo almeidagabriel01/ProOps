@@ -54,6 +54,27 @@ const REASON_MESSAGES: Record<string, string> = {
   oauth_failed: "Não foi possível concluir a conexão com o Google.",
 };
 
+/**
+ * Aplica a pasta recém-definida ao estado da tela.
+ *
+ * `rootFolderMissing` PRECISA ser limpo junto. Atualizar só o id e o nome
+ * deixava a tela decidindo pela marca antiga: a pasta era criada no Drive, o
+ * aviso de "não está mais no seu Drive" continuava na tela e o botão de criar
+ * não voltava — dando a impressão de que nada tinha acontecido.
+ */
+function comPasta(
+  atual: DriveStatus,
+  folderId: string,
+  folderName: string,
+): DriveStatus {
+  return {
+    ...atual,
+    rootFolderId: folderId,
+    rootFolderName: folderName,
+    rootFolderMissing: false,
+  };
+}
+
 interface DriveSettingsCardProps {
   onLoadingChange?: (loading: boolean) => void;
 }
@@ -135,9 +156,7 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
     setIsCreating(true);
     try {
       const { folderId, folderName } = await DriveService.createRootFolder();
-      setStatus((atual) =>
-        atual ? { ...atual, rootFolderId: folderId, rootFolderName: folderName } : atual,
-      );
+      setStatus((atual) => (atual ? comPasta(atual, folderId, folderName) : atual));
       toast.success(`Pasta "${folderName}" criada no seu Drive.`);
     } catch (error) {
       toast.error(
@@ -156,9 +175,7 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
       if (!folder) return;
       await DriveService.setRootFolder(folder.id, folder.name);
       setStatus((atual) =>
-        atual
-          ? { ...atual, rootFolderId: folder.id, rootFolderName: folder.name }
-          : atual,
+        atual ? comPasta(atual, folder.id, folder.name) : atual,
       );
       toast.success(`As propostas serão entregues em "${folder.name}".`);
     } catch (error) {
