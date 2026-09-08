@@ -217,6 +217,43 @@ describe("processDriveDeliveryQueue", () => {
     ]);
   });
 
+  // A consulta e igualdade + intervalo + orderBy, o que EXIGE indice composto.
+  // Como a colecao nasceu neste commit, o Firestore recusa a consulta com
+  // FAILED_PRECONDITION ate o indice ser publicado — e o sintoma e um 500 no
+  // cron, longe da causa.
+  it("a consulta casa com um indice declarado", () => {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const arquivo = path.resolve(
+      __dirname,
+      "..","..","..","..","..","..",
+      "firebase",
+      "firestore.indexes.json",
+    );
+    const bruto = fs.readFileSync(arquivo, "utf8").replace(/^﻿/, "");
+    const indices = (JSON.parse(bruto).indexes ?? []) as Array<{
+      collectionGroup: string;
+      fields: Array<{ fieldPath: string; order?: string }>;
+    }>;
+
+    const casa = indices.some((indice) => {
+      if (indice.collectionGroup !== DRIVE_DELIVERY_JOBS_COLLECTION) return false;
+      const campos = indice.fields.filter((f) => f.fieldPath !== "__name__");
+      return (
+        campos[0]?.fieldPath === "status" &&
+        campos[1]?.fieldPath === "nextRunAt" &&
+        campos[1]?.order === "ASCENDING"
+      );
+    });
+
+    if (!casa) {
+      throw new Error(
+        "Falta o indice (status, nextRunAt ASC) de drive_delivery_jobs em firebase/firestore.indexes.json.",
+      );
+    }
+    expect(casa).toBe(true);
+  });
+
   it("uma proposta com erro nao derruba o lote", async () => {
     await enqueueDriveDelivery({ tenantId: "t1", proposalId: "p1" });
     docs.set(`${DRIVE_DELIVERY_JOBS_COLLECTION}/t1_p2`, {
