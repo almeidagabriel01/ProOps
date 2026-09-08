@@ -736,9 +736,17 @@ pelo ERP chegar la sem baixar e subir a mao.
      dele e guardado e relancado depois da entrega: precisa chegar ao cliente, mas
      nao pode cancelar um upload que nada tem a ver com ele. Assim, uma request que
      estoure o tempo do cliente ja deixou os lancamentos gravados.
-  3. O proxy da a `PUT/POST /v1/proposals*` o mesmo teto do PDF (80s), porque a
-     request pode mesmo renderizar um — ver `mayRenderPdfInline` em
-     `app/api/backend/[...path]/route.ts`.
+  3. **Os DOIS tetos de tempo reconhecem o custo.** O que barrava de verdade era
+     o middleware de timeout do proprio Express (`resolveProtectedRouteTimeoutMs`
+     em `api/index.ts`): 20s para toda rota protegida, com excecao apenas do
+     download de PDF. Ele responde 408 "Request timeout" e **deixa o handler
+     correndo**, entao a aprovacao valia e o usuario via erro. Escrita de
+     proposta passou a ter orcamento proprio de 60s
+     (`PROTECTED_PROPOSAL_WRITE_TIMEOUT_MS`), e o proxy da 80s a
+     `PUT/POST /v1/proposals*` (`mayRenderPdfInline` em
+     `app/api/backend/[...path]/route.ts`). A ordem importa: o backend tem que
+     responder ANTES de o cliente abortar, senao a mensagem util vira erro
+     generico de rede. Guard: `api/protected-route-timeout.test.ts`.
 
 ### Plano do tenant: DUAS fontes que podem divergir
 

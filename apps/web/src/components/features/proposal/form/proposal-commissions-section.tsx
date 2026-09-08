@@ -159,11 +159,15 @@ export function ProposalCommissionsSection({
           <div className="flex items-end gap-3">
             {/* Os dois campos têm a MESMA altura de controle (h-8, a do
                 DecimalInput) para os rótulos ficarem na mesma linha de base e o
-                valor alinhar com o input, não com o topo dele. */}
+                valor alinhar com o input, não com o topo dele.
+
+                Cada rótulo segue o alinhamento do PRÓPRIO campo: o input é
+                centralizado, o valor é alinhado à direita. Rótulo sempre à
+                esquerda deixava "Valor" deslocado do número que ele nomeia. */}
             <div className="w-28 shrink-0">
               <Label
                 htmlFor={`commission-${index}`}
-                className="mb-1 block text-xs font-normal text-muted-foreground"
+                className="mb-1 block text-center text-xs font-normal text-muted-foreground"
               >
                 Percentual (%)
               </Label>
@@ -178,7 +182,7 @@ export function ProposalCommissionsSection({
             </div>
 
             <div className="w-32 shrink-0">
-              <Label className="mb-1 block text-xs font-normal text-muted-foreground">
+              <Label className="mb-1 block text-right text-xs font-normal text-muted-foreground">
                 Valor
               </Label>
               <p className="flex h-8 items-center justify-end font-mono text-sm font-semibold tabular-nums">

@@ -71,8 +71,28 @@ runSecretRotationGuard({ source: "api" });
 
 const DEFAULT_PROTECTED_TIMEOUT_MS = 20_000;
 const DEFAULT_PROTECTED_PDF_TIMEOUT_MS = 120_000;
+/**
+ * Escrita de proposta rende MAIS que os 20s do teto comum: sair do rascunho
+ * dispara a entrega no Google Drive, que renderiza o PDF com Chromium e sobe o
+ * arquivo dentro da propria request.
+ *
+ * Com o teto comum o middleware respondia 408 "Request timeout" enquanto o
+ * handler seguia trabalhando: a mudanca de status DAVA CERTO, o usuario via um
+ * erro, e so descobria ao recarregar a pagina. Errar para o lado de esperar e
+ * melhor que errar para o lado de mentir.
+ *
+ * Menor que o teto do proxy (80s, `mayRenderPdfInline` em
+ * `app/api/backend/[...path]/route.ts`) de proposito: assim quem responde e
+ * SEMPRE o backend, com mensagem propria, em vez de o cliente abortar a
+ * conexao e a resposta virar um erro generico de rede.
+ *
+ * A saida definitiva e tirar a entrega da request (Cloud Tasks,
+ * `.claude/rules/scaling-roadmap.md`, 4.2). Ate la, o teto reconhece o custo
+ * real em vez de fingir que ele nao existe.
+ */
+const DEFAULT_PROPOSAL_WRITE_TIMEOUT_MS = 60_000;
 
-function resolveProtectedRouteTimeoutMs(req: express.Request): number {
+export function resolveProtectedRouteTimeoutMs(req: express.Request): number {
   const originalPath = String(req.originalUrl || req.url || req.path || "")
     .split("?")[0]
     .trim();
@@ -84,6 +104,18 @@ function resolveProtectedRouteTimeoutMs(req: express.Request): number {
     return Number(
       process.env.PROTECTED_PDF_ROUTE_TIMEOUT_MS ||
         DEFAULT_PROTECTED_PDF_TIMEOUT_MS,
+    );
+  }
+
+  const method = String(req.method || "").toUpperCase();
+  const isProposalWrite =
+    (method === "PUT" || method === "POST") &&
+    /(?:^|\/)v1\/proposals(?:\/|$)/.test(originalPath);
+
+  if (isProposalWrite) {
+    return Number(
+      process.env.PROTECTED_PROPOSAL_WRITE_TIMEOUT_MS ||
+        DEFAULT_PROPOSAL_WRITE_TIMEOUT_MS,
     );
   }
 
