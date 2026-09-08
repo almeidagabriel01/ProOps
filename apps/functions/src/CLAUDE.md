@@ -306,6 +306,28 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 
 ---
 
+## Saber QUE VERSAO o emulador esta rodando
+
+`GET /api/health` devolve `{ status, build }`, onde `build` e a data de
+modificacao do modulo que o processo carregou — nao a do arquivo em disco.
+
+```bash
+curl -s http://127.0.0.1:5001/erp-softcode/southamerica-east1/api/health
+```
+
+A distincao custou horas de investigacao: `lib/` recompilado e emulador
+reiniciado NAO provam que o runtime tem o codigo novo, e sem uma forma de
+perguntar "qual versao voce esta rodando?" a analise vira comparacao de sintoma
+com codigo-fonte, que produziu diagnosticos errados seguidos. Se o `build` for
+anterior a sua ultima compilacao, o que voce esta testando nao e o que voce
+escreveu.
+
+Companheiro dele: `npx tsx src/scripts/inspect-proposal-transactions.ts
+--title="<titulo>"` (ou `--proposal=<id>`) imprime os lancamentos que a proposta
+gerou com `isInstallment`, `installmentNumber`, `installmentCount` e o grupo —
+os campos que decidem como a tela monta o card. Serve para separar "gravou
+errado" de "a tela agrupa errado", que exigem correcoes opostas.
+
 ## Comandos de deploy
 
 ```bash

@@ -381,12 +381,31 @@ app.use(
   },
 );
 
+/**
+ * Carimbo do build que o PROCESSO carregou, nao o que esta em disco.
+ *
+ * A distincao custou horas: `lib/` recompilado e emulador reiniciado nao
+ * garantem que o runtime tenha o codigo novo, e sem uma forma de perguntar
+ * "qual versao voce esta rodando?" a investigacao vira comparacao de sintomas
+ * contra o codigo-fonte, que foi o que produziu diagnosticos errados seguidos.
+ *
+ * Calculado uma vez, no load: e a data de modificacao do proprio modulo.
+ */
+const BUILD_STAMP = (() => {
+  try {
+    const { statSync } = require("node:fs") as typeof import("node:fs");
+    return statSync(__filename).mtime.toISOString();
+  } catch {
+    return "unknown";
+  }
+})();
+
 // Public routes (no authentication required)
 app.get(
   "/health",
   publicGeneralLimiter,
   (_req: express.Request, res: express.Response) => {
-    res.send("OK");
+    res.json({ status: "OK", build: BUILD_STAMP });
   },
 );
 
