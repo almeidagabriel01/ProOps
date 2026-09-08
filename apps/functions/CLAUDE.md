@@ -853,6 +853,56 @@ Quando a transação muda de carteira, o campo correspondente na proposta é atu
 
 **Guard crítico:** transações pagas vinculadas a propostas aprovadas NÃO podem ser revertidas para pendente. Para reverter: primeiro reverter a proposta para rascunho.
 
+### Comissão de vendedor e arquiteto
+
+Comissão **espelha o cronograma de pagamento do cliente**: se ele paga 60% de
+sinal e o resto em 4x, o parceiro recebe 60% da comissão junto do sinal e o
+resto em 4x, nas mesmas datas. `buildCommissionDrafts`
+(`api/controllers/proposal-commissions.ts`) não calcula datas por conta própria
+— ele espelha, uma a uma, as receitas que
+`buildApprovedProposalTransactionDrafts` já produziu, com o valor **proporcional
+a cada parcela**. É o que faz "80% à vista e o saldo na entrega" sair certo pela
+mesma fórmula, sem caso especial.
+
+Quem recebe são contatos com `types` incluindo `vendedor` ou `arquiteto`; o
+percentual vem do cadastro e é gravado em `Proposal.commissions[]`, editável por
+proposta.
+
+- **Despesa própria, nunca `extraCosts`.** `getWalletImpacts` aplica ao
+  extraCost o **sinal do pai**, então comissão pendurada numa receita
+  creditaria a carteira em vez de debitar.
+- **Sem `proposalGroupId`.** Com ele as comissões cairiam no doc-resumo de
+  `transaction_groups` dos recebíveis e a aba Agrupados somaria receita com
+  despesa no mesmo card. Cada parceiro tem `installmentGroupId` próprio
+  (`commission_{proposalId}_{contactId}_{role}`).
+- **Nasce sempre `pending`**, mesmo quando a receita nasce paga: ter recebido do
+  cliente não significa ter pago o parceiro.
+- **A chave do diff sai de `getProposalLinkedTransactionKey`, para draft e para
+  doc gravado.** O sync joga em `complexDocs` (e aborta) todo doc com
+  `proposalId` que ele não consiga keyar; e derivar a chave duas vezes faria uma
+  comissão (que também tem `installmentNumber`) colidir com a parcela de receita
+  de mesmo número.
+- **Comissão PAGA não é apagada nem alterada pelo sync — lança.** `batch.delete`
+  de uma despesa paga não devolve o valor à carteira: o saldo ficaria errado em
+  silêncio. Para mexer no percentual, reverta o pagamento antes.
+- **O caminho `metadataOnly` pula as comissões:** o `clientId` delas aponta para
+  o parceiro, não para o comprador.
+- Os campos `isCommission`/`commission*` ficam **fora** de
+  `UPDATABLE_TRANSACTION_FIELDS` de propósito: são escritos só pelo sync, e um
+  PUT do cliente não consegue marcar um lançamento qualquer como comissão.
+  Como aquela whitelist só FILTRA o update, os campos sobrevivem a qualquer
+  edição de lançamento.
+
+Relatório mensal: `GET /v1/transactions/commissions?month=YYYY-MM`
+(`api/services/commission-report.service.ts`), agrupado por parceiro **em
+memória** — `sum()` e `count()` não agrupam por campo, e o volume é de dezenas
+de docs por mês. Montado sob `/transactions` para herdar o
+`requirePlanCapability("financial")` e o prefixo já presente em
+`DEMO_READABLE_PREFIXES`. Índice: `(tenantId, isCommission, dueDate ASC)`, com
+`orderBy` explícito. Guards: `proposal-commissions.test.ts`,
+`commission-report.service.test.ts`, `commission-report.index.test.ts` e
+`finance.routes.commissions.test.ts`.
+
 ### Infraestrutura / GCP
 
 - **Cloud Monitoring alerts** — as policies vivem SÓ no GCP (o script

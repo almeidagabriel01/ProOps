@@ -154,6 +154,33 @@ Campos de grupo:
 
 Entrada pode ter wallet diferente das parcelas (`downPaymentWallet`).
 
+## Comissões aparecem aqui, e são despesas
+
+Aprovar uma proposta com vendedor ou arquiteto gera, além das receitas, uma
+**despesa de comissão por parceiro por parcela**, com o mesmo vencimento da
+receita que ela espelha (`isCommission: true`, `category: "Comissao"`,
+`clientId` apontando para o PARCEIRO). A regra completa vive no backend, em
+`apps/functions/src/api/controllers/proposal-commissions.ts`.
+
+Três consequências para esta pasta:
+
+- Elas têm `proposalId`, então `isProposalLinkedTransaction` as considera
+  ligadas a proposta — e isso é o certo: o valor vem do percentual da proposta,
+  e editar direto aqui seria contornar a fonte. Para mudar, muda-se o
+  percentual na proposta.
+- Elas **não** têm `proposalGroupId`. Cada parceiro tem
+  `installmentGroupId` próprio (`commission_{proposalId}_{contactId}_{role}`),
+  então na aba Agrupados viram um card por parceiro em vez de entrar no card
+  dos recebíveis do cliente — que somaria receita com despesa.
+- `getProposalTransactionDisplayName` não mexe na descrição delas: o prefixo
+  legado que ele remove ("Entrada: ", "Parcela N/M: ", "Proposta: ") não casa
+  com "Comissão Fulano: Título".
+
+O relatório por parceiro fica em `/commissions`, alimentado por
+`GET /v1/transactions/commissions`. Ele é `masterOnly` no menu, mas **as
+despesas de comissão continuam visíveis nesta lista** para quem tem permissão
+de Lançamentos: escondê-las daqui exigiria filtrar a lista, e é decisão à parte.
+
 ## Race conditions e guards (frontend)
 
 - `updatingIdsRef` (Set) em `useFinancialData.ts` previne cliques duplos nos handlers: `updateTransactionStatus`, `updateTransaction`, `updateGroupStatus`

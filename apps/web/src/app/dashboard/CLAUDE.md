@@ -20,6 +20,7 @@ O hook `useDashboardData` (`src/hooks/useDashboardData.ts`) é a única fonte de
 | `ProposalService` | `countProposals` / `countProposalsByStatuses` | Contagens de proposta via aggregation — sets de status derivados das colunas do kanban (`buildProposalStatusSets`) |
 | `ClientService` | `countClients` / `countClientsCreatedBetween` | Contagens de cliente via aggregation. `createdAt` é MISTO no banco (Timestamp e string ISO) — a contagem por período soma 2 counts, um por representação |
 | `WalletService` | `getWallets(tenantId)` | Carteiras ativas |
+| `TransactionService` | `getCommissionReport(tenantId, "")` | Comissões a pagar no mês corrente, agregadas no backend (uma chamada, não full-fetch). Resolve `null` na conta demo e também num erro: o painel inteiro não cai porque as comissões falharam |
 | `KanbanService` | `getStatuses(tenantId)` | Colunas do kanban para montar os sets de status das contagens |
 
 As contagens de proposta rodam numa 2ª etapa (dependem das colunas do kanban).
@@ -80,6 +81,7 @@ page.tsx (DashboardPage)
   ├── Grid 2 colunas
   │   ├── RecentProposalsList — últimas 5 propostas
   │   └── MonthStats — breakdown do mês atual
+  ├── CommissionsPanel — comissões a pagar no mês (some quando não há nenhuma)
   ├── Grid 2 colunas (Stats)
   │   ├── ProposalStatsCard — donut chart de propostas
   │   └── ClientsStatsCard — total e novos clientes
@@ -93,6 +95,7 @@ page.tsx (DashboardPage)
 | `metric-cards.tsx` | `FinancialMetricCards`, `AlertsCard` | Cards financeiros e alertas de vencimento |
 | `future-balance-chart.tsx` | `FutureBalanceChart` | LineChart (Recharts) com seletor de período (3/6/12 meses) |
 | `month-stats.tsx` | `MonthStats` | Barra de progresso por categoria + movimentação por carteira |
+| `commissions-panel.tsx` | `CommissionsPanel` | Quanto pagar a cada vendedor e arquiteto no mês, com link para `/commissions`. Renderiza `null` sem comissões, então não tem bloco no skeleton |
 | `recent-lists.tsx` | `RecentTransactionsList`, `RecentProposalsList` | Listas de atividade recente |
 | `stats-cards.tsx` | `QuickActionsCard`, `ProposalStatsCard`, `ClientsStatsCard` | Ações rápidas e estatísticas com PieChart (Recharts) |
 | `wallets-grid.tsx` | `WalletsGrid` | Grade de carteiras (exportado no barrel mas não usado em `page.tsx` atualmente) |
