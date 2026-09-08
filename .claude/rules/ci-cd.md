@@ -250,16 +250,19 @@ O step falha o deploy se faltar qualquer uma destas: `RESEND_API_KEY`,
 `CALENDAR_TOKEN_KMS_KEY`, `GOOGLE_CALENDAR_CLIENT_ID`,
 `GOOGLE_CALENDAR_CLIENT_SECRET`.
 
-> As duas do Google entraram em 2026-09-04, depois de o secret defasado em dev
-> quebrar Drive **e** Agenda ao mesmo tempo com `invalid_client` — erro que so
-> aparece na hora de conectar, meses depois de a chave ter sido rotacionada. A
-> checagem cobre AUSENCIA, nao valor errado; conferir os 4 ultimos caracteres
-> contra o console continua sendo manual. Antes a checagem era só do `RESEND_API_KEY` — e uma
+Antes a checagem era só do `RESEND_API_KEY` — e uma
 variável só não prova nada: ela existe desde sempre, então o teste passava com um
 secret congelado meses atrás. Ao adicionar uma integração que dependa de env var
 nova, **acrescente a chave nessa lista nos dois workflows**; sem isso a função
 sobe sem ela e falha em silêncio (emissão fiscal morre com
 `FOCUS_NFE_TOKEN_NAO_CONFIGURADO`, senha de certificado não decifra).
+
+> As duas do Google entraram em 2026-09-04, depois de um secret defasado em dev
+> quebrar Drive **e** Agenda ao mesmo tempo com `invalid_client` — erro que só
+> aparece na hora de conectar, possivelmente meses depois de a chave ter sido
+> rotacionada. Atenção ao limite: a checagem cobre **ausência**, não valor
+> errado. Conferir os 4 últimos caracteres contra o console continua sendo
+> manual, e é o que teria pego o caso real.
 Falhar é intencional: melhor abortar do que criar uma função sem env vars, que fica
 quebrada em silêncio para sempre.
 
