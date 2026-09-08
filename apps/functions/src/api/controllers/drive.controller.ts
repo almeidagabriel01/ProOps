@@ -32,6 +32,7 @@ import {
 import {
   createRootFolder,
   ensureClientFolder,
+  isRootFolderUsable,
   tagRootFolder,
 } from "../services/drive/drive.service";
 
@@ -222,6 +223,21 @@ export async function getDriveStatus(req: Request, res: Response) {
     }
 
     const integration = await getDriveIntegration(tenantId);
+
+    /**
+     * Confere se a pasta ainda existe.
+     *
+     * Id gravado nao e prova — o usuario apaga pasta no Drive. Sem esta
+     * checagem a tela mostrava o nome de uma pasta morta e nao oferecia
+     * recriar, deixando como unica saida o Picker (que depende do navegador).
+     */
+    let rootFolderMissing = false;
+    if (integration?.refreshTokenEnc && integration.rootFolderId) {
+      rootFolderMissing = !(await isRootFolderUsable(
+        tenantId,
+        integration.rootFolderId,
+      ).catch(() => true));
+    }
     // O token NUNCA sai daqui, nem cifrado: a tela só precisa saber se está
     // conectado, a qual conta e em qual pasta.
     return res.json({
@@ -232,6 +248,7 @@ export async function getDriveStatus(req: Request, res: Response) {
       // A conexão existe mas está morta: a tela precisa dizer isso ANTES de a
       // pessoa tentar usar, não depois.
       needsReconnect: integration?.lastError === "invalid_grant",
+      rootFolderMissing,
       connectedEmail: integration?.connectedEmail ?? null,
       rootFolderId: integration?.rootFolderId ?? null,
       rootFolderName: integration?.rootFolderName ?? null,

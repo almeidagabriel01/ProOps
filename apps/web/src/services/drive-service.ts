@@ -14,6 +14,8 @@ export interface DriveStatus {
   needsReconnect?: boolean;
   connectedEmail: string | null;
   rootFolderId: string | null;
+  /** A pasta gravada nao existe mais no Drive — foi apagada de la. */
+  rootFolderMissing?: boolean;
   rootFolderName: string | null;
 }
 

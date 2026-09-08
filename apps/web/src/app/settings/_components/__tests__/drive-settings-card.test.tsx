@@ -214,6 +214,20 @@ describe("DriveSettingsCard", () => {
     expect(setRootFolder).not.toHaveBeenCalled();
   });
 
+  it("oferece recriar quando a pasta foi APAGADA do Drive", async () => {
+    // Id gravado não é prova. Mostrar o nome de uma pasta morta sem oferecer
+    // recriar deixava como única saída o Picker, que depende do navegador.
+    getStatus.mockResolvedValue({ ...PRONTO, rootFolderMissing: true });
+    render(<DriveSettingsCard />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/não está mais no seu Drive/i)).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("button", { name: /Criar pasta no meu Drive/ }),
+    ).toBeInTheDocument();
+  });
+
   it("AVISA quando a autorização foi revogada", async () => {
     // A conexão existe e está morta. Sem dizer isso na tela, o usuário só
     // descobre ao tentar usar — provavelmente com a proposta já aprovada.

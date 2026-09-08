@@ -79,6 +79,22 @@ async function pastaUtilizavel(
 }
 
 /**
+ * A pasta gravada ainda serve? Para a TELA saber o que oferecer.
+ *
+ * Sem isto, apagar a pasta no Drive deixava a configuracao dizendo o nome dela
+ * para sempre, sem botao de recriar — a unica saida visivel era o Picker, que
+ * depende do navegador. Uma chamada extra ao abrir uma tela de configuracao e
+ * barata perto de deixar o usuario preso.
+ */
+export async function isRootFolderUsable(
+  tenantId: string,
+  folderId: string,
+): Promise<boolean> {
+  const { client } = await getDriveClient(tenantId);
+  return pastaUtilizavel(client, folderId);
+}
+
+/**
  * Id da pasta do cliente, criando-a na raiz se ainda nao existir.
  *
  * O id gravado no contato e a unica forma de reencontrar a pasta: com

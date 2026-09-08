@@ -202,7 +202,11 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
   }
 
   const conectado = status?.connected === true;
-  const temPasta = Boolean(status?.rootFolderId);
+  // Pasta gravada que nao existe mais no Drive vale como "sem pasta": mostrar
+  // o nome dela sem oferecer recriar deixava o usuario preso.
+  const temPasta =
+    Boolean(status?.rootFolderId) && status?.rootFolderMissing !== true;
+  const pastaSumiu = status?.rootFolderMissing === true;
   const precisaReconectar = status?.needsReconnect === true;
 
   return (
@@ -303,8 +307,9 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
                 {/* O estado que engana: conta conectada, integração parecendo
                     pronta, e nada sendo entregue por falta de destino. */}
                 <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-                  Nenhuma pasta definida ainda — enquanto isso, nenhuma proposta
-                  é enviada para o Drive.
+                  {pastaSumiu
+                    ? `A pasta "${status?.rootFolderName}" não está mais no seu Drive — foi apagada ou movida para a lixeira. Nenhuma proposta é enviada até você definir outra.`
+                    : "Nenhuma pasta definida ainda — enquanto isso, nenhuma proposta é enviada para o Drive."}
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <Button
