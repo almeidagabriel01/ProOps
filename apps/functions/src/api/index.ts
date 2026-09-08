@@ -447,6 +447,16 @@ app.use((req, res, next) => {
         source: "timeout",
       });
       logSecurityEvent("request_timeout", context, "WARN");
+      // Linha separada, e nao um campo em `SecurityLogContext`: aquele tipo
+      // alimenta contadores e auditoria, e `reason` precisa ser estavel para
+      // agrupar. Sem o orcamento aplicado, porem, um 408 nao distingue "a
+      // operacao demorou demais" de "esta rota caiu no teto errado", e as duas
+      // exigem acoes opostas.
+      logger.warn("protected_route_timeout", {
+        method: req.method,
+        route: sanitizeLoggedPath(req.path),
+        timeoutMs,
+      });
       res.status(408).json({ message: "Request timeout" });
     }
   }, timeoutMs);

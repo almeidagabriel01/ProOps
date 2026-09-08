@@ -1444,6 +1444,38 @@ export const updateProposal = async (req: Request, res: Response) => {
           )
         : [];
 
+    // Marca a entrada no handler. Sem isto nao da para distinguir "o handler
+    // nem comecou" (auth, assinatura, rate limit) de "travou la dentro".
+    logger.info("proposal_update_start", {
+      proposalId: id,
+      untilHandlerMs: Date.now() - requestStartedAt,
+    });
+
+    // Cronometra as etapas caras, logando CADA UMA assim que termina.
+    //
+    // Logar so um resumo no fim era inutil justamente no caso que interessa: se
+    // a request estoura o timeout, o fim nunca chega e o terminal fica mudo,
+    // sem dizer onde travou. Com uma linha por etapa, o rastro que ja saiu
+    // mostra ate onde foi.
+    const timings: Record<string, number> = {};
+    const timed = async <T>(label: string, run: () => Promise<T>): Promise<T> => {
+      const startedAt = Date.now();
+      try {
+        return await run();
+      } finally {
+        timings[label] = Date.now() - startedAt;
+        logger.info("proposal_update_phase", {
+          proposalId: id,
+          phase: label,
+          ms: timings[label],
+          sinceStartMs: Date.now() - requestStartedAt,
+        });
+      }
+    };
+
+    // Contado de volta para a tela: sem isso o aviso de "vai para o Drive"
+    // apareceria tambem para quem nao usa a integracao, prometendo algo que
+    // nunca acontece.
     const safeUpdate: Record<string, unknown> = { updatedAt: Timestamp.now() };
     const fields = [
       "title",
@@ -1551,7 +1583,7 @@ export const updateProposal = async (req: Request, res: Response) => {
           : Math.max(0, computedTotal);
     }
 
-    await proposalRef.update(safeUpdate);
+    await timed("proposalWriteMs", () => proposalRef.update(safeUpdate));
 
     if (removedAttachmentPaths.length > 0) {
       await deleteStorageObjectsBestEffort(removedAttachmentPaths, {
@@ -1923,22 +1955,6 @@ export const updateProposal = async (req: Request, res: Response) => {
     // O erro do sync e guardado em vez de lancado na hora: ele precisa chegar
     // ao cliente (e o que avisa sobre comissao paga, por exemplo), mas nao
     // pode cancelar uma entrega de PDF que nada tem a ver com ele.
-    // Cronometra as duas etapas caras. Sem isto, "salvar proposta esta lento"
-    // vira adivinhacao: as duas fazem I/O externo e so uma delas (o Drive)
-    // renderiza PDF.
-    const timings: Record<string, number> = {};
-    const timed = async <T>(label: string, run: () => Promise<T>): Promise<T> => {
-      const startedAt = Date.now();
-      try {
-        return await run();
-      } finally {
-        timings[label] = Date.now() - startedAt;
-      }
-    };
-
-    // Contado de volta para a tela: sem isso o aviso de "vai para o Drive"
-    // apareceria tambem para quem nao usa a integracao, prometendo algo que
-    // nunca acontece.
     let driveDeliveryQueued = false;
     let approvedSyncError: unknown = null;
     if (shouldSyncApprovedTransactions) {
@@ -2004,7 +2020,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
     }
 
-    logger.info("proposal_update_timing", {
+    logger.info("proposal_update_done", {
       tenantId: proposalTenantId,
       proposalId: id,
       totalMs: Date.now() - requestStartedAt,
