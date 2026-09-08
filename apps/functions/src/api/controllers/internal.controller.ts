@@ -606,10 +606,12 @@ export const processDriveDeliveriesManual = async (
     logger.info("[processDriveDeliveries manual] completed", { ...result });
     return res.json(result);
   } catch (error) {
-    logger.error("[processDriveDeliveries manual] failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return res.status(500).json({ message: "Internal Server Error" });
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("[processDriveDeliveries manual] failed", { error: message });
+    // Este endpoint devolve o erro, ao contrario dos outros internos: ele
+    // existe SO para diagnosticar, ja e gateado por segredo, e "Internal Server
+    // Error" obrigava a ir ler o terminal para descobrir que faltava um indice.
+    return res.status(500).json({ message: "Internal Server Error", error: message });
   }
 };
 
