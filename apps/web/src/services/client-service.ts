@@ -22,7 +22,7 @@ import { firstSearchToken, normalizeSearchWords } from "@/lib/search-term";
 
 export type ClientSource = "manual" | "proposal" | "financial";
 
-export type ClientType = "cliente" | "fornecedor";
+export type ClientType = "cliente" | "fornecedor" | "vendedor" | "arquiteto";
 
 export type Client = {
   id: string;
@@ -57,6 +57,12 @@ export type Client = {
   /** Vazio = derivado do documento. Pessoa física nunca é "isento" (rejeição 805). */
   indicadorIe?: "contribuinte" | "isento" | "nao_contribuinte";
   consumidorFinal?: boolean;
+  /**
+   * Percentual de comissao padrao deste parceiro, usado para pre-preencher a
+   * proposta. Em branco e `null`, nunca 0: zero e um percentual valido, e
+   * deixar passar faria a proposta nascer com uma comissao que ninguem escolheu.
+   */
+  commissionPercentage?: number | null;
 };
 
 export interface PaginatedResult<T> {

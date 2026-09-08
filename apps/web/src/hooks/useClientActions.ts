@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { toast } from '@/lib/toast';
 import { callApi } from "@/lib/api-client";
+import type { ClientType } from "@/services/client-service";
 
 // ============================================
 // TYPES
@@ -20,7 +21,9 @@ export interface CreateClientData {
   address?: string;
   notes?: string;
   document?: string; // CPF (11 digits) or CNPJ (14 digits), stored without mask
-  types?: ("cliente" | "fornecedor")[]; // Array to allow both
+  types?: ClientType[]; // Array to allow both
+  /** Comissao padrao do parceiro; `null` = nao informada. */
+  commissionPercentage?: number | null;
   source?: "manual" | "proposal" | "financial"; // default manual
   targetTenantId?: string; // For super admin to create for a specific tenant
 }

@@ -56,6 +56,8 @@ const CreateClientSchema = z.object({
   address: z.string().max(500).trim().optional().or(z.literal("")),
   notes: z.string().max(2000).trim().optional().or(z.literal("")),
   types: z.array(z.string().max(50)).max(10).optional(),
+  /** Comissao padrao do parceiro. `null` limpa; nunca 0 por omissao. */
+  commissionPercentage: z.number().min(0).max(100).nullable().optional(),
   source: z.string().max(50).trim().optional(),
   sourceId: z.string().max(100).trim().optional().nullable(),
   targetTenantId: z.string().max(100).optional(),
@@ -70,6 +72,8 @@ const UpdateClientSchema = z.object({
   address: z.string().max(500).trim().optional().or(z.literal("")),
   notes: z.string().max(2000).trim().optional().or(z.literal("")),
   types: z.array(z.string().max(50)).max(10).optional(),
+  /** Comissao padrao do parceiro. `null` limpa; nunca 0 por omissao. */
+  commissionPercentage: z.number().min(0).max(100).nullable().optional(),
   ...ClientFiscalFields,
 });
 
@@ -257,6 +261,8 @@ export const createClient = async (req: Request, res: Response) => {
       if (input.document) clientData.document = input.document.replace(/\D/g, "");
       if (input.address) clientData.address = input.address;
       if (input.notes) clientData.notes = input.notes;
+      if (input.commissionPercentage != null)
+        clientData.commissionPercentage = input.commissionPercentage;
 
       const enderecoFiscal = compactEnderecoFiscal(input.enderecoFiscal);
       if (enderecoFiscal) clientData.enderecoFiscal = enderecoFiscal;
@@ -378,6 +384,10 @@ export const updateClient = async (req: Request, res: Response) => {
       safeUpdate.address = updateData.address;
     if (updateData.notes !== undefined) safeUpdate.notes = updateData.notes;
     if (updateData.types !== undefined) safeUpdate.types = updateData.types;
+    if (updateData.commissionPercentage !== undefined) {
+      safeUpdate.commissionPercentage =
+        updateData.commissionPercentage ?? FieldValue.delete();
+    }
 
     if (updateData.enderecoFiscal !== undefined) {
       // `null` apaga o endereço inteiro; um objeto só com campos vazios também.

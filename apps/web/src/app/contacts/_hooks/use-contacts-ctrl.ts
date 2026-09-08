@@ -8,7 +8,12 @@ import { useSort } from "@/hooks/use-sort";
 import { normalize } from "@/utils/text";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
-export type ContactsTypeFilter = "todos" | "cliente" | "fornecedor";
+export type ContactsTypeFilter =
+  | "todos"
+  | "cliente"
+  | "fornecedor"
+  | "vendedor"
+  | "arquiteto";
 
 export function useContactsCtrl() {
   const { tenant, isLoading: tenantLoading } = useTenant();

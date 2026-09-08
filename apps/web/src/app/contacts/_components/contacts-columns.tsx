@@ -33,6 +33,8 @@ const typeConfig: Record<
 > = {
   cliente: { label: "Cliente", variant: "default" },
   fornecedor: { label: "Fornecedor", variant: "outline" },
+  vendedor: { label: "Vendedor", variant: "success" },
+  arquiteto: { label: "Arquiteto", variant: "warning" },
 };
 
 export const createColumns = ({
