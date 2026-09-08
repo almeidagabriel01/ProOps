@@ -3,6 +3,7 @@
 import * as React from "react";
 import { FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/loader";
 import { toast } from "@/lib/toast";
 import { DriveService } from "@/services/drive-service";
@@ -24,11 +25,18 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 interface OpenDriveFolderButtonProps {
   clientId: string;
   className?: string;
+  /**
+   * Botão só de ícone, para a coluna de ações da listagem — onde o rótulo não
+   * cabe ao lado de Editar e Excluir. O nome acessível continua sendo "Pasta no
+   * Drive": um ícone mudo numa linha de tabela não diz o que faz.
+   */
+  iconOnly?: boolean;
 }
 
 export function OpenDriveFolderButton({
   clientId,
   className,
+  iconOnly = false,
 }: OpenDriveFolderButtonProps) {
   const { hasDriveSync } = usePlanLimits();
   const [isOpening, setIsOpening] = React.useState(false);
@@ -74,6 +82,27 @@ export function OpenDriveFolderButton({
     } finally {
       setIsOpening(false);
     }
+  }
+
+  if (iconOnly) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={cn("h-8 w-8", className)}
+        onClick={() => void handleClick()}
+        disabled={isOpening}
+        title="Pasta no Drive"
+        aria-label="Pasta no Drive"
+      >
+        {isOpening ? (
+          <Loader size="sm" variant="button" />
+        ) : (
+          <FolderOpen className="h-4 w-4" />
+        )}
+      </Button>
+    );
   }
 
   return (

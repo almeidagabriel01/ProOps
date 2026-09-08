@@ -94,6 +94,25 @@ continuam existindo, fora da linha onde a pessoa procura, com o cabeçalho
 Nada quebra e nada avisa; é aritmética dentro de string de classe, invisível
 para o TypeScript. Guard: `src/__tests__/data-table-grid-columns.test.ts`.
 
+## StepWizard: cada passo precisa do seu card
+
+O `StepWizard` desenha a trilha a partir do array `steps` e casa o conteúdo por
+**posição** (`React.Children.map`). Um passo declarado sem card correspondente
+fica clicável e **vazio** — o conteúdo não existe, a tela some inteira, e nada
+avisa: não é erro de tipo (é aritmética entre um array e a quantidade de filhos
+JSX) nem de runtime.
+
+O jeito clássico de cair nisso é um mesmo array alimentar **dois** wizards no
+mesmo arquivo — em `/contacts/[id]`, o de edição e o somente-leitura — e o passo
+novo entrar só num deles. Um card a mais é o espelho: existe e nunca é
+alcançável.
+
+Guard: `src/__tests__/step-wizard-children-parity.test.ts`.
+
+Bloco que ganha um passo próprio **não pode ser recolhível**: recolher esconde o
+único conteúdo do passo. É por isso que `CatalogFiscalFields` e
+`ClientFiscalFields` têm `variant="step"` além do `"section"` recolhível.
+
 ## Nomenclatura
 - Arquivo: `nome-componente.tsx` (kebab-case)
 - Componente: `NomeComponente` (PascalCase)

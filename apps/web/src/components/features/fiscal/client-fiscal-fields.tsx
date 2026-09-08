@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { Receipt } from "lucide-react";
-import { FormSection, FormGroup, FormItem } from "@/components/ui/form-components";
+import {
+  FormSection,
+  FormGroup,
+  FormItem,
+} from "@/components/ui/form-components";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { maskCep, onlyDigits } from "@/lib/fiscal/cep";
@@ -59,14 +63,30 @@ interface ClientFiscalFieldsProps {
   values: ClientFiscalValues;
   onChange: (values: ClientFiscalValues) => void;
   disabled?: boolean;
+  /**
+   * `section` (padrão) — card recolhível. `step` — passo próprio de um
+   * `StepWizard`: cabeçalho no padrão dos outros passos e campos sempre
+   * visíveis, porque recolher esconderia o único conteúdo do passo.
+   */
+  variant?: "section" | "step";
 }
+
+const DESCRIPTION_SECTION =
+  "Necessários apenas para emitir nota de produto (NF-e). Preenchendo aqui, o endereço do cadastro acima é completado sozinho.";
+
+/** No wizard o endereço livre está no passo anterior, não "acima". */
+const DESCRIPTION_STEP =
+  "Necessários apenas para emitir nota de produto (NF-e). Preenchendo aqui, o endereço do passo anterior é completado sozinho.";
 
 export function ClientFiscalFields({
   values,
   onChange,
   disabled,
+  variant = "section",
 }: ClientFiscalFieldsProps) {
-  const [cepState, setCepState] = React.useState<"idle" | "loading" | "notFound">("idle");
+  const [cepState, setCepState] = React.useState<
+    "idle" | "loading" | "notFound"
+  >("idle");
   const lastLookup = React.useRef<string>("");
 
   const setField = (field: keyof ClientFiscalValues, value: string) =>
@@ -127,146 +147,167 @@ export function ClientFiscalFields({
     [onChange],
   );
 
+  const fields = (
+    <div className="space-y-5">
+      <FormGroup cols={2}>
+        <FormItem
+          label="CEP"
+          htmlFor="cliente-cep"
+          hint={
+            cepState === "loading"
+              ? "Buscando endereço…"
+              : cepState === "notFound"
+                ? "CEP não encontrado — preencha o endereço à mão."
+                : "Preenche o resto do endereço."
+          }
+        >
+          <Input
+            id="cliente-cep"
+            inputMode="numeric"
+            placeholder="00000-000"
+            maxLength={9}
+            value={values.cep}
+            disabled={disabled}
+            onChange={(e) => {
+              const masked = maskCep(e.target.value);
+              const next = { ...values, cep: masked };
+              onChange(next);
+              void lookupCep(masked, next);
+            }}
+          />
+        </FormItem>
+        <FormItem label="Logradouro" htmlFor="cliente-logradouro">
+          <Input
+            id="cliente-logradouro"
+            value={values.logradouro}
+            disabled={disabled}
+            onChange={(e) => setField("logradouro", e.target.value)}
+          />
+        </FormItem>
+      </FormGroup>
+
+      <FormGroup cols={2}>
+        <FormItem label="Número" htmlFor="cliente-numero">
+          <Input
+            id="cliente-numero"
+            value={values.numero}
+            disabled={disabled}
+            onChange={(e) => setField("numero", e.target.value)}
+          />
+        </FormItem>
+        <FormItem label="Complemento" htmlFor="cliente-complemento">
+          <Input
+            id="cliente-complemento"
+            value={values.complemento}
+            disabled={disabled}
+            onChange={(e) => setField("complemento", e.target.value)}
+          />
+        </FormItem>
+      </FormGroup>
+
+      <FormGroup cols={2}>
+        <FormItem label="Bairro" htmlFor="cliente-bairro">
+          <Input
+            id="cliente-bairro"
+            value={values.bairro}
+            disabled={disabled}
+            onChange={(e) => setField("bairro", e.target.value)}
+          />
+        </FormItem>
+        <FormItem label="Município" htmlFor="cliente-municipio">
+          <Input
+            id="cliente-municipio"
+            value={values.municipio}
+            disabled={disabled}
+            onChange={(e) => setField("municipio", e.target.value)}
+          />
+        </FormItem>
+      </FormGroup>
+
+      <FormGroup cols={2}>
+        <FormItem label="UF" htmlFor="cliente-uf">
+          <Input
+            id="cliente-uf"
+            maxLength={2}
+            value={values.uf}
+            disabled={disabled}
+            onChange={(e) => setField("uf", e.target.value.toUpperCase())}
+          />
+        </FormItem>
+        <FormItem
+          label="Código IBGE do município"
+          htmlFor="cliente-ibge"
+          hint="Preenchido pela busca de CEP. A SEFAZ valida o município por ele."
+        >
+          <Input
+            id="cliente-ibge"
+            value={values.codigoIbge}
+            disabled={disabled}
+            onChange={(e) => setField("codigoIbge", onlyDigits(e.target.value))}
+          />
+        </FormItem>
+      </FormGroup>
+
+      <FormGroup cols={2}>
+        <FormItem
+          label="Indicador de inscrição estadual"
+          htmlFor="cliente-indicador-ie"
+          hint='Pessoa física é sempre "não contribuinte" — nunca "isento".'
+        >
+          <Select
+            id="cliente-indicador-ie"
+            value={values.indicadorIe}
+            disabled={disabled}
+            onChange={(e) => setField("indicadorIe", e.target.value)}
+          >
+            <option value="">Detectar automaticamente</option>
+            <option value="nao_contribuinte">Não contribuinte</option>
+            <option value="contribuinte">Contribuinte de ICMS</option>
+            <option value="isento">Isento de inscrição estadual</option>
+          </Select>
+        </FormItem>
+        <FormItem
+          label="Inscrição estadual do cliente"
+          htmlFor="cliente-ie"
+          hint="Só para cliente marcado como contribuinte."
+        >
+          <Input
+            id="cliente-ie"
+            value={values.inscricaoEstadual}
+            disabled={disabled}
+            onChange={(e) => setField("inscricaoEstadual", e.target.value)}
+          />
+        </FormItem>
+      </FormGroup>
+    </div>
+  );
+
+  if (variant === "step") {
+    return (
+      <>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
+            <Receipt className="w-6 h-6 text-emerald-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold">Dados fiscais</h3>
+            <p className="text-sm text-muted-foreground">{DESCRIPTION_STEP}</p>
+          </div>
+        </div>
+        {fields}
+      </>
+    );
+  }
+
   return (
     <FormSection
       title="Dados fiscais"
-      description="Necessários apenas para emitir nota de produto (NF-e). Preenchendo aqui, o endereço do cadastro acima é completado sozinho."
+      description={DESCRIPTION_SECTION}
       icon={Receipt}
       collapsible
       defaultOpen={false}
     >
-      <div className="space-y-5">
-        <FormGroup cols={2}>
-          <FormItem
-            label="CEP"
-            htmlFor="cliente-cep"
-            hint={
-              cepState === "loading"
-                ? "Buscando endereço…"
-                : cepState === "notFound"
-                  ? "CEP não encontrado — preencha o endereço à mão."
-                  : "Preenche o resto do endereço."
-            }
-          >
-            <Input
-              id="cliente-cep"
-              inputMode="numeric"
-              placeholder="00000-000"
-              maxLength={9}
-              value={values.cep}
-              disabled={disabled}
-              onChange={(e) => {
-                const masked = maskCep(e.target.value);
-                const next = { ...values, cep: masked };
-                onChange(next);
-                void lookupCep(masked, next);
-              }}
-            />
-          </FormItem>
-          <FormItem label="Logradouro" htmlFor="cliente-logradouro">
-            <Input
-              id="cliente-logradouro"
-              value={values.logradouro}
-              disabled={disabled}
-              onChange={(e) => setField("logradouro", e.target.value)}
-            />
-          </FormItem>
-        </FormGroup>
-
-        <FormGroup cols={2}>
-          <FormItem label="Número" htmlFor="cliente-numero">
-            <Input
-              id="cliente-numero"
-              value={values.numero}
-              disabled={disabled}
-              onChange={(e) => setField("numero", e.target.value)}
-            />
-          </FormItem>
-          <FormItem label="Complemento" htmlFor="cliente-complemento">
-            <Input
-              id="cliente-complemento"
-              value={values.complemento}
-              disabled={disabled}
-              onChange={(e) => setField("complemento", e.target.value)}
-            />
-          </FormItem>
-        </FormGroup>
-
-        <FormGroup cols={2}>
-          <FormItem label="Bairro" htmlFor="cliente-bairro">
-            <Input
-              id="cliente-bairro"
-              value={values.bairro}
-              disabled={disabled}
-              onChange={(e) => setField("bairro", e.target.value)}
-            />
-          </FormItem>
-          <FormItem label="Município" htmlFor="cliente-municipio">
-            <Input
-              id="cliente-municipio"
-              value={values.municipio}
-              disabled={disabled}
-              onChange={(e) => setField("municipio", e.target.value)}
-            />
-          </FormItem>
-        </FormGroup>
-
-        <FormGroup cols={2}>
-          <FormItem label="UF" htmlFor="cliente-uf">
-            <Input
-              id="cliente-uf"
-              maxLength={2}
-              value={values.uf}
-              disabled={disabled}
-              onChange={(e) => setField("uf", e.target.value.toUpperCase())}
-            />
-          </FormItem>
-          <FormItem
-            label="Código IBGE do município"
-            htmlFor="cliente-ibge"
-            hint="Preenchido pela busca de CEP. A SEFAZ valida o município por ele."
-          >
-            <Input
-              id="cliente-ibge"
-              value={values.codigoIbge}
-              disabled={disabled}
-              onChange={(e) => setField("codigoIbge", onlyDigits(e.target.value))}
-            />
-          </FormItem>
-        </FormGroup>
-
-        <FormGroup cols={2}>
-          <FormItem
-            label="Indicador de inscrição estadual"
-            htmlFor="cliente-indicador-ie"
-            hint='Pessoa física é sempre "não contribuinte" — nunca "isento".'
-          >
-            <Select
-              id="cliente-indicador-ie"
-              value={values.indicadorIe}
-              disabled={disabled}
-              onChange={(e) => setField("indicadorIe", e.target.value)}
-            >
-              <option value="">Detectar automaticamente</option>
-              <option value="nao_contribuinte">Não contribuinte</option>
-              <option value="contribuinte">Contribuinte de ICMS</option>
-              <option value="isento">Isento de inscrição estadual</option>
-            </Select>
-          </FormItem>
-          <FormItem
-            label="Inscrição estadual do cliente"
-            htmlFor="cliente-ie"
-            hint="Só para cliente marcado como contribuinte."
-          >
-            <Input
-              id="cliente-ie"
-              value={values.inscricaoEstadual}
-              disabled={disabled}
-              onChange={(e) => setField("inscricaoEstadual", e.target.value)}
-            />
-          </FormItem>
-        </FormGroup>
-      </div>
+      {fields}
     </FormSection>
   );
 }

@@ -3,10 +3,16 @@ import type { Page, Locator } from "@playwright/test";
 /**
  * Page Object Model for the contacts list page (/contacts).
  *
- * Contacts (clients) use a 3-step StepWizard:
- *   Step 1 — Informações: type toggles, name (#name), email (#email), phone (#phone)
- *   Step 2 — Endereço:    address (#address)
- *   Step 3 — Finalizar:   notes (#notes) + summary + submit
+ * Contacts (clients) use a StepWizard. Criação (/contacts/new) tem 3 passos;
+ * edição (/contacts/[id]) tem 4 — "Dados Fiscais" entra antes de "Finalizar",
+ * e só existe na edição:
+ *   Step 1 — Informações:   type toggles, name (#name), email (#email), phone (#phone)
+ *   Step 2 — Endereço:      address (#address)
+ *   Step 3 — Dados Fiscais: só na edição — endereço fiscal (#cliente-cep…)
+ *   Step 4 — Finalizar:     notes (#notes) + summary + submit
+ *
+ * Por isso o helper de edição salta pelo indicador ("Finalizar"), e não por N
+ * cliques em "Próximo" — a contagem de passos deixa de importar.
  *
  * Create submit label: "Cadastrar Cliente"
  * Edit submit label:   "Salvar Alterações" (disabled when no changes detected)
@@ -83,7 +89,7 @@ export class ContactsPage {
   /**
    * Edits an existing contact by navigating directly to /contacts/[contactId].
    * Uses allowClickAhead=true StepWizard — clicks the "Finalizar" step indicator
-   * to jump to step 3, then clicks "Salvar Alterações".
+   * to jump to the last step, then clicks "Salvar Alterações".
    *
    * Note: "Salvar Alterações" is disabled when no changes have been made.
    * Always modify at least one field before calling this method.
@@ -101,10 +107,11 @@ export class ContactsPage {
       await nameInput.fill(data.name);
     }
 
-    // allowClickAhead=true on edit page — click "Finalizar" step indicator to jump to step 3
+    // allowClickAhead=true on edit page — click "Finalizar" step indicator to
+    // jump to the last step (a contagem de passos difere de /contacts/new)
     await this.page.getByRole("button", { name: /finalizar/i }).click();
 
-    // Wait for the submit button to appear on step 3
+    // Wait for the submit button to appear on the last step
     const saveButton = this.page.getByRole("button", { name: /salvar alterações/i });
     await saveButton.waitFor({ state: "visible", timeout: 10000 });
     await saveButton.click();

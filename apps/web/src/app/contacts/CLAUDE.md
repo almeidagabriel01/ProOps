@@ -17,6 +17,7 @@ Clientes podem ser criados de três formas:
 /contacts              → Listagem paginada com busca e filtro de tipo
 /contacts/new          → Formulário de criação (StepWizard em 3 passos)
 /contacts/[id]         → Formulário de edição / visualização somente leitura
+                         (StepWizard em 4 passos — inclui "Dados Fiscais")
 ```
 
 Não há sub-rota de API aqui — todas as mutações passam por `/api/backend/` (proxy → Cloud Functions).
@@ -169,23 +170,46 @@ A `DataTable` recebe colunas criadas por `createColumns({ canEdit, canDelete, on
 | Endereço | `address` | Texto truncado |
 | Contato | `email` + `phone` | Exibidos com ícones |
 | Origem | `source` | Badge colorida: manual/proposal/financial |
-| Ações | — | Botões de editar e excluir condicionais por permissão |
+| Ações | — | "Pasta no Drive", editar e excluir |
 
-### Formulário em StepWizard (3 passos)
+A ação **"Pasta no Drive"** (`OpenDriveFolderButton` com `iconOnly`) fica na
+listagem, não dentro do cadastro: chegar à pasta não deveria exigir abrir o
+formulário de um contato por vez — o caso de uso é o vendedor na casa do
+cliente, no celular. Ela **não** é gateada por `canEdit`: abrir a pasta não
+altera nada, e prendê-la à edição a esconderia justamente de quem tem só
+leitura. O gate de plano (`hasDriveSync`) vive dentro do próprio botão, que se
+esconde sozinho — não reimplementar isso na coluna. Guard:
+`_components/__tests__/contacts-columns.test.tsx`.
 
-Usado tanto em `/contacts/new` quanto em `/contacts/[id]`:
+### Formulário em StepWizard
+
+**A criação tem 3 passos e a edição tem 4** — "Dados Fiscais" só existe em
+`/contacts/[id]`, porque só lá o cadastro fiscal do destinatário faz parte do
+formulário:
 
 | Passo | Conteúdo | Validação |
 |-------|----------|-----------|
 | 1 — Informações | Tipo (cliente/fornecedor), Nome, Email, Telefone | `name` e `phone` obrigatórios (validação em `validateStep1`) |
 | 2 — Endereço | Campo de endereço livre | Opcional |
-| 3 — Finalizar | Observações + resumo dos dados | Submissão |
+| 3 — Dados Fiscais *(só na edição)* | `ClientFiscalFields` com `variant="step"` — endereço fiscal estruturado + indicador de IE | Opcional |
+| 4 — Finalizar | Observações + resumo dos dados | Submissão |
 
 O botão "Próximo" do passo 1 é bloqueado até que `validateStep1()` retorne `true`.
 
+Até 2026-09-08 os dados fiscais eram uma `FormSection` **recolhida** dentro do
+passo Finalizar. Fechada embaixo do resumo, ninguém achava o endereço fiscal — e
+ele é justamente o que a NF-e exige do destinatário. Em passo próprio o bloco não
+recolhe (recolher esconderia o passo inteiro).
+
+> **O array `customerSteps` de `[id]/page.tsx` alimenta DOIS wizards** — o de
+> edição e o somente-leitura. Passo declarado sem card correspondente vira um
+> passo clicável e **vazio**, sem erro nenhum: o `StepWizard` casa conteúdo por
+> posição. Ao acrescentar um passo, acrescente o card nos dois. Guard:
+> `src/__tests__/step-wizard-children-parity.test.ts`.
+
 ### Visualização somente leitura
 
-Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) em vez de inputs. O botão de submit vira "Voltar".
+Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) em vez de inputs — inclusive o de Dados Fiscais, que mostra o endereço fiscal montado por `formatEnderecoFiscal`. O botão de submit vira "Voltar".
 
 ### Detecção de alterações
 

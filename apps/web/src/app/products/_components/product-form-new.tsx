@@ -24,6 +24,7 @@ import {
   Package,
   DollarSign,
   Image as ImageIcon,
+  Receipt,
   Settings,
   X,
   Tag,
@@ -71,6 +72,12 @@ const productSteps = [
     title: "Imagens",
     description: "Fotos do produto",
     icon: ImageIcon,
+  },
+  {
+    id: "fiscal",
+    title: "Dados Fiscais",
+    description: "Classificação",
+    icon: Receipt,
   },
   {
     id: "settings",
@@ -553,6 +560,33 @@ export function ProductFormNew({
           <StepNavigation />
         </FormStepCard>
 
+        {/* Passo próprio, e não um bloco recolhido dentro do Resumo: quem
+            precisa classificar fiscalmente um item não descobria que a opção
+            existia — ela nascia fechada, embaixo do resumo, no fim da tela. */}
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
+          <div className="space-y-6">
+            <CatalogFiscalFields
+              variant="step"
+              entityType={entityType}
+              values={formData}
+              onChange={setFieldValue}
+              disabled={demoReadOnly}
+              suggestionContext={
+                entityType === "product"
+                  ? {
+                      nome: formData.name,
+                      descricao: formData.description,
+                      categoria: formData.category,
+                      fabricante: formData.manufacturer,
+                    }
+                  : undefined
+              }
+            />
+          </div>
+
+          <StepNavigation />
+        </FormStepCard>
+
         <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -643,23 +677,6 @@ export function ProductFormNew({
                 </div>
               </div>
             </div>
-
-            <CatalogFiscalFields
-              entityType={entityType}
-              values={formData}
-              onChange={setFieldValue}
-              disabled={demoReadOnly}
-              suggestionContext={
-                entityType === "product"
-                  ? {
-                      nome: formData.name,
-                      descricao: formData.description,
-                      categoria: formData.category,
-                      fabricante: formData.manufacturer,
-                    }
-                  : undefined
-              }
-            />
           </div>
 
           <StepNavigation

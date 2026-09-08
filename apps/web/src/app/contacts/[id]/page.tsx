@@ -26,10 +26,9 @@ import {
 } from "@/components/ui/form-components";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
-import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Users, Building2, CreditCard } from "lucide-react";
+import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Receipt, Users, Building2, CreditCard } from "lucide-react";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { formatDocumento } from "@/lib/format-document";
-import { OpenDriveFolderButton } from "@/components/features/drive/open-drive-folder-button";
 
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
@@ -59,6 +58,12 @@ const customerSteps = [
     title: "Endereço",
     description: "Localização",
     icon: MapPin,
+  },
+  {
+    id: "fiscal",
+    title: "Dados Fiscais",
+    description: "Endereço da NF-e",
+    icon: Receipt,
   },
   {
     id: "notes",
@@ -342,14 +347,11 @@ export default function EditCustomerPage() {
           icon={User}
           onBack={() => router.push("/contacts")}
           badge={
-            <div className="flex items-center gap-2">
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
-              >
-                {sourceInfo.label}
-              </span>
-              <OpenDriveFolderButton clientId={clientId} />
-            </div>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
+            >
+              {sourceInfo.label}
+            </span>
           }
         />
 
@@ -403,7 +405,40 @@ export default function EditCustomerPage() {
             <StepNavigation />
           </FormStepCard>
 
-          {/* Step 3: Notes */}
+          {/* Step 3: Dados fiscais — só leitura */}
+          <FormStepCard>
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
+                  <Receipt className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Dados fiscais</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Usados apenas para emitir nota de produto (NF-e)
+                  </p>
+                </div>
+              </div>
+
+              <FormStatic
+                label="Endereço fiscal"
+                value={formatEnderecoFiscal(formData.fiscal)}
+              />
+              <FormGroup>
+                <FormStatic
+                  label="Código IBGE do município"
+                  value={formData.fiscal.codigoIbge}
+                />
+                <FormStatic
+                  label="Inscrição estadual"
+                  value={formData.fiscal.inscricaoEstadual}
+                />
+              </FormGroup>
+            </div>
+            <StepNavigation />
+          </FormStepCard>
+
+          {/* Step 4: Notes */}
           <FormStepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
@@ -438,14 +473,11 @@ export default function EditCustomerPage() {
         icon={User}
         onBack={() => router.push("/contacts")}
         badge={
-          <div className="flex items-center gap-2">
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
-            >
-              {sourceInfo.label}
-            </span>
-            <OpenDriveFolderButton clientId={clientId} />
-          </div>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-medium border ${sourceInfo.color}`}
+          >
+            {sourceInfo.label}
+          </span>
         }
       />
 
@@ -671,7 +703,34 @@ export default function EditCustomerPage() {
           <StepNavigation />
         </FormStepCard>
 
-        {/* Step 3: Notes & Submit */}
+        {/* Step 3: Dados fiscais — passo próprio, e não um bloco recolhido no
+            fim do Resumo: fechado embaixo do resumo, ninguém achava o endereço
+            fiscal, que é o que a NF-e exige do destinatário. */}
+        <FormStepCard>
+          <div className="space-y-6">
+            <ClientFiscalFields
+              variant="step"
+              values={formData.fiscal}
+              onChange={(fiscal) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  fiscal,
+                  // Preenche o endereço livre a partir do fiscal enquanto ele
+                  // estiver vazio — evita digitar o mesmo endereço duas vezes.
+                  // Só enquanto vazio: quem escreveu "Rua tal, portão azul" não
+                  // pode ver isso sumir por causa de uma busca de CEP.
+                  address: prev.address.trim()
+                    ? prev.address
+                    : formatEnderecoFiscal(fiscal),
+                }))
+              }
+              disabled={!isEditable}
+            />
+          </div>
+          <StepNavigation />
+        </FormStepCard>
+
+        {/* Step 4: Notes & Submit */}
         <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -696,24 +755,6 @@ export default function EditCustomerPage() {
                 className="min-h-[120px]"
               />
             </FormItem>
-
-            <ClientFiscalFields
-              values={formData.fiscal}
-              onChange={(fiscal) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  fiscal,
-                  // Preenche o endereço livre a partir do fiscal enquanto ele
-                  // estiver vazio — evita digitar o mesmo endereço duas vezes.
-                  // Só enquanto vazio: quem escreveu "Rua tal, portão azul" não
-                  // pode ver isso sumir por causa de uma busca de CEP.
-                  address: prev.address.trim()
-                    ? prev.address
-                    : formatEnderecoFiscal(fiscal),
-                }))
-              }
-              disabled={!isEditable}
-            />
 
             {/* Summary card */}
             <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">
