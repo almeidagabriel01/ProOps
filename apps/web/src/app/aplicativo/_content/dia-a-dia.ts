@@ -31,6 +31,15 @@ export interface Momento {
   texto: string;
   bolhas: Bolha[];
   /**
+   * The light of that hour, as a CSS gradient behind the conversation.
+   *
+   * There are no photographs for this section and there will not be, so the
+   * passing of the day is carried by colour instead: cold and low at dawn,
+   * open at midday, warm at dusk, deep at night. It is the one thing a stock
+   * photo would have done that a chat panel cannot do on its own.
+   */
+  luz: string;
+  /**
    * Optional photograph, under public/. When present it replaces the
    * conversation mock, and the frame is already the right shape so dropping
    * one in moves nothing else on the page.
@@ -41,6 +50,7 @@ export interface Momento {
 export const MOMENTOS: Momento[] = [
   {
     horaCurta: "07:40",
+    luz: "radial-gradient(120% 90% at 15% 100%, rgba(255,176,102,0.20) 0%, rgba(255,140,80,0.07) 34%, transparent 70%)",
     hora: "07h40",
     titulo: "O que vence hoje chega",
     destaque: "antes do café.",
@@ -58,6 +68,7 @@ export const MOMENTOS: Momento[] = [
   },
   {
     horaCurta: "09:15",
+    luz: "radial-gradient(120% 90% at 80% 0%, rgba(140,196,255,0.18) 0%, rgba(110,170,255,0.06) 38%, transparent 72%)",
     hora: "09h15",
     titulo: "Um áudio no trânsito",
     destaque: "vira lembrete.",
@@ -79,6 +90,7 @@ export const MOMENTOS: Momento[] = [
   },
   {
     horaCurta: "12:30",
+    luz: "radial-gradient(130% 100% at 50% -10%, rgba(232,240,246,0.16) 0%, rgba(200,220,235,0.05) 40%, transparent 74%)",
     hora: "12h30",
     titulo: "O almoço entra",
     destaque: "sozinho.",
@@ -99,7 +111,8 @@ export const MOMENTOS: Momento[] = [
     ],
   },
   {
-    horaCurta: "18h20",
+    horaCurta: "18:20",
+    luz: "radial-gradient(120% 95% at 12% 15%, rgba(255,138,116,0.20) 0%, rgba(168,104,196,0.10) 42%, transparent 76%)",
     hora: "18h20",
     titulo: "Gasto grande pede",
     destaque: "um sim.",
@@ -117,6 +130,7 @@ export const MOMENTOS: Momento[] = [
   },
   {
     horaCurta: "22:00",
+    luz: "radial-gradient(120% 100% at 70% 105%, rgba(84,104,196,0.20) 0%, rgba(52,62,132,0.08) 40%, transparent 75%)",
     hora: "22h00",
     titulo: "Antes de dormir,",
     destaque: "quanto sobra.",

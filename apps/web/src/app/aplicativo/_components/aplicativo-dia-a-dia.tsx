@@ -13,7 +13,7 @@ import { MOMENTOS, type Bolha } from "../_content/dia-a-dia";
 function BolhaChat({ bolha }: { bolha: Bolha }) {
   if (bolha.alerta) {
     return (
-      <div className="max-w-[85%] rounded-2xl border border-white/[0.08] bg-[var(--app-surface)] p-3.5 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.9)]">
+      <div className="max-w-[88%] rounded-2xl border border-white/[0.08] bg-[var(--app-surface)]/90 p-4 shadow-[0_20px_44px_-22px_rgba(0,0,0,0.9)] backdrop-blur-sm">
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
@@ -40,10 +40,10 @@ function BolhaChat({ bolha }: { bolha: Bolha }) {
   return (
     <div className={meu ? "flex justify-end" : "flex justify-start"}>
       <div
-        className={`max-w-[86%] rounded-2xl px-3.5 py-2.5 ${
+        className={`max-w-[86%] rounded-2xl px-3.5 py-2.5 shadow-[0_14px_34px_-20px_rgba(0,0,0,0.8)] ${
           meu
             ? "bg-[var(--app-tint)]/18 text-[var(--app-text)]"
-            : "border border-white/[0.07] bg-[var(--app-surface)] text-[var(--app-text)]"
+            : "border border-white/[0.07] bg-[var(--app-surface)]/90 text-[var(--app-text)] backdrop-blur-sm"
         }`}
       >
         {bolha.audio ? (
@@ -54,7 +54,6 @@ function BolhaChat({ bolha }: { bolha: Bolha }) {
             >
               ▶
             </span>
-            {/* A waveform, not a picture of one. */}
             <span
               aria-hidden="true"
               className="flex h-6 items-center gap-[2px]"
@@ -115,71 +114,105 @@ function BolhaChat({ bolha }: { bolha: Bolha }) {
   );
 }
 
+/** How long a moment stays still, in timeline units. */
+const ESPERA = 1;
+/** How long the crossing between two moments lasts, in the same units. */
+const TRAVESSIA = 0.8;
+/** Screens of scroll per unit. */
+const ROLAGEM_POR_UNIDADE = 0.46;
+
 /**
  * A day with the app, told as five moments.
  *
- * Above `md` the section pins and the scroll steps through them: the panel on
- * the left, the rail in the middle and the text on the right all move together,
- * one moment at a time. Below `md`, and for anyone who asked for less movement,
- * nothing is pinned and the same five moments are simply five blocks that
- * scroll: the rail collapses and each block carries its own time.
+ * The timeline is built as HOLD, CROSS, HOLD, CROSS, and so on, rather than as
+ * one continuous cross-fade. That structure is the whole point: a moment stays
+ * completely still while it is being read, and the swap happens only while the
+ * dot is travelling between two marks on the rail, landing exactly as the dot
+ * reaches the next hour. Spread evenly instead, the text starts dissolving the
+ * instant you scroll, long before the dot has gone anywhere, and the rail stops
+ * meaning anything.
  *
- * That fallback is why the moments are absolutely stacked only from `md` up.
- * One set of markup serves both, so the reduced-motion path cannot rot into a
- * second implementation that nobody looks at.
+ * The outgoing moment leaves upward and the incoming one arrives from below, so
+ * the section reads as time moving forward rather than as two slides swapping.
+ *
+ * Above `md` the section pins. Below it, and for anyone who asked for less
+ * movement, nothing is pinned and the same five moments are five blocks that
+ * scroll normally, each carrying its own hour, with the rail collapsed away.
  */
 export function AplicativoDiaADia() {
   const sectionRef = React.useRef<HTMLElement>(null);
+  const total = MOMENTOS.length;
+  const unidades = ESPERA * total + TRAVESSIA * (total - 1);
+
+  /** Where a mark sits on the rail, as a percentage of its height. */
+  const marca = (i: number) => `${(i / (total - 1)) * 100}%`;
 
   useScrollScene(sectionRef, () => {
-    const total = MOMENTOS.length;
-
-    // The moments are authored VISIBLE, because that is what mobile and
-    // reduced-motion get: five blocks stacked down the page. Only the desktop
-    // scene, which is the one running here, hides the ones that have not
-    // arrived yet. Authoring them hidden would leave the fallback blank.
+    // Authored VISIBLE, because that is what mobile and reduced motion get.
+    // Only this scene, which is the desktop one, hides what has not arrived.
     for (let i = 1; i < total; i += 1) {
       gsap.set(`.momento-${i}`, { autoAlpha: 0 });
-      gsap.set(`.rail-marca-${i}`, { opacity: 0.35 });
+      gsap.set(`.rail-marca-${i}`, { opacity: 0.32 });
     }
+    gsap.set(".rail-ponto", { top: marca(0) });
 
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: sectionRef.current,
         start: "top top",
-        // Roughly nine tenths of a screen of scroll per step. Long enough to
-        // read the moment, short enough that five of them do not feel like a
-        // hostage situation.
-        end: () => `+=${Math.round(window.innerHeight * 0.9 * (total - 1))}`,
+        end: () =>
+          `+=${Math.round(window.innerHeight * ROLAGEM_POR_UNIDADE * unidades)}`,
         pin: true,
-        scrub: 0.7,
+        scrub: 1,
         invalidateOnRefresh: true,
       },
     });
 
     for (let i = 1; i < total; i += 1) {
-      const saindo = `.momento-${i - 1}`;
-      const entrando = `.momento-${i}`;
+      const inicio = ESPERA + (i - 1) * (ESPERA + TRAVESSIA);
 
-      tl.to(saindo, { autoAlpha: 0, y: -24, duration: 0.45 }, i - 1)
+      tl.to(
+        `.momento-${i - 1}`,
+        {
+          autoAlpha: 0,
+          y: -64,
+          duration: TRAVESSIA * 0.66,
+          ease: "power2.in",
+        },
+        inicio,
+      )
         .fromTo(
-          entrando,
-          { autoAlpha: 0, y: 28 },
-          { autoAlpha: 1, y: 0, duration: 0.45, ease: "expo.out" },
-          i - 1 + 0.18,
+          `.momento-${i}`,
+          { autoAlpha: 0, y: 72 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: TRAVESSIA * 0.7,
+            ease: "power3.out",
+          },
+          inicio + TRAVESSIA * 0.3,
         )
-        // The rail marks the step it is on, in step with the panels.
-        .to(`.rail-marca-${i - 1}`, { opacity: 0.35, duration: 0.3 }, i - 1)
-        .to(`.rail-marca-${i}`, { opacity: 1, duration: 0.3 }, i - 1);
+        // The dot arrives on the mark exactly as the new moment settles.
+        .to(
+          ".rail-ponto",
+          { top: marca(i), duration: TRAVESSIA, ease: "power2.inOut" },
+          inicio,
+        )
+        .to(
+          `.rail-marca-${i - 1}`,
+          { opacity: 0.32, duration: TRAVESSIA * 0.5 },
+          inicio,
+        )
+        .to(
+          `.rail-marca-${i}`,
+          { opacity: 1, duration: TRAVESSIA * 0.5 },
+          inicio + TRAVESSIA * 0.5,
+        );
     }
 
-    // The dot travels the rail once, linearly, across the whole sequence.
-    tl.fromTo(
-      ".rail-ponto",
-      { top: "0%" },
-      { top: "100%", ease: "none", duration: total - 1 },
-      0,
-    );
+    // The final hold. Without it the last moment would be swept off the screen
+    // the instant it arrives, because the timeline would end with the tween.
+    tl.to({}, { duration: ESPERA });
   });
 
   return (
@@ -198,8 +231,8 @@ export function AplicativoDiaADia() {
           </h2>
         </header>
 
-        <div className="relative mt-12 md:mt-14 md:min-h-[26rem] md:flex-1 md:max-h-[32rem]">
-          {/* The rail. Desktop only: on a phone the times live inside each
+        <div className="relative mt-12 md:mt-12 md:max-h-[30rem] md:min-h-[24rem] md:flex-1">
+          {/* The rail. Desktop only: on a phone the hours live inside each
               block, where they do not need a column of their own. */}
           <div
             aria-hidden="true"
@@ -209,14 +242,12 @@ export function AplicativoDiaADia() {
             {MOMENTOS.map((momento, i) => (
               <span
                 key={momento.horaCurta}
-                style={{ top: `${(i / (MOMENTOS.length - 1)) * 100}%` }}
+                style={{ top: marca(i) }}
                 className={`rail-marca-${i} absolute left-4 -translate-y-1/2 whitespace-nowrap [font-family:var(--font-jetbrains-mono)] text-[11px] text-[var(--app-text-muted)]`}
-                // The first moment starts lit; the rest are dimmed until the
-                // scroll reaches them.
               >
                 <span
-                  className="absolute -left-[1.05rem] top-1/2 h-px w-2 -translate-y-1/2 bg-white/20"
                   aria-hidden="true"
+                  className="absolute -left-[1.05rem] top-1/2 h-px w-2 -translate-y-1/2 bg-white/20"
                 />
                 {momento.horaCurta}
               </span>
@@ -228,11 +259,19 @@ export function AplicativoDiaADia() {
               key={momento.hora}
               className={`momento-${i} mb-16 last:mb-0 md:absolute md:inset-0 md:mb-0 md:grid md:grid-cols-[46%_8%_46%] md:items-center`}
             >
-              <div className="overflow-hidden rounded-3xl border border-white/[0.07] bg-[linear-gradient(150deg,rgba(255,255,255,0.05),rgba(255,255,255,0.01))]">
-                {/* A photograph when there is one, and the conversation
-                    itself when there is not. The bubbles are anchored to the
-                    bottom, the way a chat sits; centred, the same bubbles read
-                    as a diagram of a chat rather than one. */}
+              <div className="relative overflow-hidden rounded-3xl border border-white/[0.07] bg-[linear-gradient(150deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
+                {/* The light of the hour. This is what carries the day passing,
+                    in the absence of a photograph. */}
+                <span
+                  aria-hidden="true"
+                  style={{ backgroundImage: momento.luz }}
+                  className="pointer-events-none absolute inset-0"
+                />
+                <span
+                  aria-hidden="true"
+                  className="grain-overlay pointer-events-none absolute inset-0 opacity-[0.35]"
+                />
+
                 {momento.imagem ? (
                   <div className="relative aspect-[4/3]">
                     <Image
@@ -244,7 +283,7 @@ export function AplicativoDiaADia() {
                     />
                   </div>
                 ) : (
-                  <div className="flex aspect-[4/3] flex-col justify-end gap-3 p-6 md:p-8">
+                  <div className="relative flex aspect-[4/3] flex-col justify-end gap-3 p-6 md:p-8">
                     {momento.bolhas.map((bolha, b) => (
                       <BolhaChat key={b} bolha={bolha} />
                     ))}
