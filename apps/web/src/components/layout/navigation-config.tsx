@@ -28,10 +28,23 @@ import {
  */
 export type MenuCapability = "financial" | "crm" | "fiscal";
 
+/**
+ * Quais capacidades o plano do tenant abre. Mora aqui, e não em
+ * `capability-gate.ts`, porque as funções puras deste arquivo precisam dele e o
+ * caminho contrário seria import circular: capability-gate já importa
+ * MenuCapability daqui.
+ */
+export type MenuCapabilityMap = Record<MenuCapability, boolean>;
+
 export type MenuItem = {
   icon: typeof LayoutDashboard;
   label: string;
-  href: string;
+  /**
+   * Ausente num GRUPO: o destino depende de quem está olhando, porque um membro
+   * pode ter permissão só para o segundo filho. Quem resolve é
+   * `resolveGroupTarget`.
+   */
+  href?: string;
   pageId?: string;
   /** Overrides pageId for niche availability checks (isPageEnabledForNiche). Defaults to pageId. */
   availabilityPageId?: string;
@@ -50,6 +63,13 @@ export type SubMenuItem = {
   href: string;
   masterOnly?: boolean;
   pageId?: string;
+  /**
+   * Sobrepõe pageId na checagem de nicho, como em MenuItem. Ambientes divide o
+   * pageId "solutions" com Soluções para a permissão, mas tem porta de nicho
+   * própria: sem isto os dois sumiriam no nicho cortinas, onde
+   * pageAvailability.solutions é false.
+   */
+  availabilityPageId?: string;
   /** Sobrepõe a capacidade do pai. Notas Fiscais é Enterprise; Lançamentos é Pro. */
   requiresCapability?: MenuCapability;
 };
@@ -177,4 +197,74 @@ export function getVisibleChildren(
     if (child.masterOnly) return isMaster;
     return true;
   });
+}
+
+/**
+ * Colapsa um grupo em UM destino, para a dock desenhar um ícone só.
+ *
+ * `children` já chega filtrado por permissão, nicho e masterOnly: quem filtra é
+ * `useNavigationItems`, em um lugar só. Refiltrar aqui recriaria os dois
+ * critérios divergentes que já causaram "Notas Fiscais" visível para quem tinha
+ * apenas `transactions.canView`.
+ *
+ * Devolve null quando não sobrou filho nenhum: o grupo some da dock.
+ */
+export function resolveGroupTarget(
+  item: MenuItem,
+  children: SubMenuItem[],
+  capabilities: MenuCapabilityMap,
+): { href: string; requiresCapability?: MenuCapability } | null {
+  if (children.length === 0) return null;
+
+  const effectiveCapability = (child: SubMenuItem) =>
+    child.requiresCapability ?? item.requiresCapability;
+
+  // O primeiro filho que o plano REALMENTE abre; se nenhum abre, o primeiro
+  // visível. É o que faz um assinante Pro ver "Financeiro" sem coroa (ele tem
+  // Lançamentos) enquanto "Notas Fiscais" segue coroada lá dentro, e o que
+  // impede o upsell de empurrar Enterprise quando Pro já resolveria.
+  const primary =
+    children.find((child) => {
+      const capability = effectiveCapability(child);
+      return !capability || capabilities[capability];
+    }) ?? children[0];
+
+  return {
+    href: primary.href,
+    requiresCapability: effectiveCapability(primary),
+  };
+}
+
+/**
+ * Um item por DESTINO, grupo desmontado. É o que o onboarding quer: ele monta um
+ * passo por rota (`ROUTE_STEP_TEMPLATES`), não por ícone da dock.
+ */
+export function flattenMenuItems(items: MenuItem[]): SubMenuItem[] {
+  const leaves: SubMenuItem[] = [];
+
+  for (const item of items) {
+    if (item.children) {
+      for (const child of item.children) {
+        leaves.push({
+          ...child,
+          requiresCapability: child.requiresCapability ?? item.requiresCapability,
+        });
+      }
+      continue;
+    }
+    // Item sem href e sem filhos não é destino nem grupo: não existe hoje, e se
+    // passar a existir é erro de declaração, não algo para o onboarding montar.
+    if (!item.href) continue;
+    leaves.push({
+      icon: item.icon,
+      label: item.label,
+      href: item.href,
+      pageId: item.pageId,
+      availabilityPageId: item.availabilityPageId,
+      requiresCapability: item.requiresCapability,
+      masterOnly: item.masterOnly,
+    });
+  }
+
+  return leaves;
 }

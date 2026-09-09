@@ -56,6 +56,7 @@ export function useDockEntries(): DockEntry[] {
         continue;
       }
 
+      if (!item.href) continue;
       entries.push({
         icon: item.icon,
         label: item.label,

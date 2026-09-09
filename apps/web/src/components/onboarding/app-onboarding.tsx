@@ -7,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/providers/auth-provider";
-import { usePermissions } from "@/providers/permissions-provider";
 import { useNavigationItems } from "@/components/layout/use-navigation-items";
 import {
   useMenuCapabilities,
   type MenuCapabilityMap,
 } from "@/components/layout/capability-gate";
 import {
-  getVisibleChildren,
+  flattenMenuItems,
   type MenuItem,
   type MenuCapability,
 } from "@/components/layout/navigation-config";
@@ -229,54 +228,33 @@ const ROUTE_STEP_TEMPLATES: Record<string, Omit<OnboardingStep, "title">> = {
 
 function flattenNavigationItems(
   visibleMenuItems: MenuItem[],
-  isMaster: boolean,
   capabilities: MenuCapabilityMap,
 ): NavigationStepItem[] {
-  return visibleMenuItems.flatMap((item) => {
-    // O onboarding REMOVE o módulo bloqueado em vez de coroá-lo: um passo
-    // guiado para uma tela que o plano não abre seria um beco sem saída.
-    if (item.requiresCapability && !capabilities[item.requiresCapability]) {
-      return [];
-    }
-
-    const children = item.children ? getVisibleChildren(item, isMaster) : [];
-
-    if (
-      (item.href === "/transactions" || item.label === "Financeiro") &&
-      children.length > 0
-    ) {
-      return children
-        .filter(
-          (child) =>
-            !child.requiresCapability || capabilities[child.requiresCapability],
-        )
-        .map((child) => ({
-          href: child.href,
-          label: child.label,
-          pageId: child.pageId,
-          requiresCapability: child.requiresCapability ?? item.requiresCapability,
-        }));
-    }
-
-    return [
-      {
-        href: item.href,
-        label: item.label,
-        pageId: item.pageId,
-        requiresCapability: item.requiresCapability,
-      },
-    ];
-  });
+  // O onboarding monta um passo por ROTA (ROUTE_STEP_TEMPLATES), então continua
+  // achatando de propósito, ao contrário da dock, que colapsa. O que sai daqui é
+  // a cópia do achatamento do Financeiro: agora é `flattenMenuItems`, o mesmo
+  // que a navegação usa.
+  return flattenMenuItems(visibleMenuItems)
+    // REMOVE o módulo bloqueado em vez de coroá-lo: um passo guiado para uma
+    // tela que o plano não abre seria um beco sem saída.
+    .filter(
+      (leaf) =>
+        !leaf.requiresCapability || capabilities[leaf.requiresCapability],
+    )
+    .map((leaf) => ({
+      href: leaf.href,
+      label: leaf.label,
+      pageId: leaf.pageId,
+      requiresCapability: leaf.requiresCapability,
+    }));
 }
 
 function buildOnboardingSteps(params: {
   visibleMenuItems: MenuItem[];
-  isMaster: boolean;
   capabilities: MenuCapabilityMap;
 }): OnboardingStep[] {
   const flattenedItems = flattenNavigationItems(
     params.visibleMenuItems,
-    params.isMaster,
     params.capabilities,
   );
   const steps: OnboardingStep[] = [];
@@ -330,7 +308,6 @@ export function AppOnboarding() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, refreshUser } = useAuth();
-  const { isMaster } = usePermissions();
   const { visibleMenuItems } = useNavigationItems();
   const capabilities = useMenuCapabilities();
   const [localOnboarding, setLocalOnboarding] = React.useState<
@@ -346,10 +323,9 @@ export function AppOnboarding() {
     () =>
       buildOnboardingSteps({
         visibleMenuItems,
-        isMaster,
         capabilities,
       }),
-    [visibleMenuItems, isMaster, capabilities],
+    [visibleMenuItems, capabilities],
   );
 
   const onboarding = React.useMemo(

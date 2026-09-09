@@ -35,19 +35,34 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
     const solutionsConfig = getSolutionsPageConfig(tenant?.niche);
 
     const filterChildren = (item: MenuItem): SubMenuItem[] =>
-      (item.children ?? []).filter((child) => {
-        if (!isPageEnabledForNiche(tenant?.niche, child.pageId)) return false;
-        if (child.masterOnly && !isMaster) return false;
-        // Filho com capacidade própria (Notas Fiscais) permanece visível e
-        // coroado, como o pai faz — some só por permissão ou nicho.
-        if (child.requiresCapability && !capabilities[child.requiresCapability]) {
+      (item.children ?? [])
+        .filter((child) => {
+          // availabilityPageId, não pageId: Ambientes divide "solutions" com
+          // Soluções para a permissão, mas tem porta de nicho própria. Checando
+          // por pageId, os dois sumiriam no nicho cortinas.
+          const availKey = child.availabilityPageId ?? child.pageId;
+          if (!isPageEnabledForNiche(tenant?.niche, availKey)) return false;
+          if (child.masterOnly && !isMaster) return false;
+          // Filho com capacidade própria (Notas Fiscais) permanece visível e
+          // coroado, como o pai faz: some só por permissão ou nicho.
+          if (
+            child.requiresCapability &&
+            !capabilities[child.requiresCapability]
+          ) {
+            return true;
+          }
+          if (child.pageId && !isMaster && !isDemo) {
+            return hasPermission(child.pageId, "view");
+          }
           return true;
-        }
-        if (child.pageId && !isMaster && !isDemo) {
-          return hasPermission(child.pageId, "view");
-        }
-        return true;
-      });
+        })
+        // O rótulo de /solutions vem do nicho. Mora aqui, e não no map de nível
+        // superior, porque Soluções é filho do Catálogo.
+        .map((child) =>
+          child.href === "/solutions"
+            ? { ...child, label: solutionsConfig.navigationLabel }
+            : child,
+        );
 
     return menuItems
       .map((item) => {
@@ -88,12 +103,10 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
         // (the premium early-returns above already flagged those).
         if (isMaster || isDemo) return true;
 
-        if (item.pageId) {
-          if (item.children) {
-            return filterChildren(item).length > 0;
-          }
-          return hasPermission(item.pageId, "view");
-        }
+        // Grupo antes de folha: um grupo existe enquanto sobrar filho, e não
+        // tem pageId próprio para consultar.
+        if (item.children) return filterChildren(item).length > 0;
+        if (item.pageId) return hasPermission(item.pageId, "view");
 
         return true;
       })
