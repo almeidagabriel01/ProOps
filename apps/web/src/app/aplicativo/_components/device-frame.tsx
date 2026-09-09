@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils";
 interface DeviceFrameProps {
   children: React.ReactNode;
   platform?: "ios" | "android";
-  /** Accessible name for the device, e.g. "Tela Hoje no iPhone". */
-  label?: string;
   className?: string;
 }
 
@@ -29,11 +27,16 @@ interface DeviceFrameProps {
  * a punch-hole camera and both keys on the same side. Showing an Android
  * capture inside an iPhone is the kind of detail that people who use phones
  * notice immediately.
+ *
+ * The frame carries NO role and NO label. It started with `role="img"` plus an
+ * aria-label, which reads fine over a screenshot and is wrong over the hero,
+ * whose screen is real text: the role makes the whole subtree opaque, so every
+ * figure and label inside it disappears from assistive tech. Semantics belong
+ * to whatever is put inside, an `alt` on the image or the text itself.
  */
 export function DeviceFrame({
   children,
   platform = "ios",
-  label,
   className,
 }: DeviceFrameProps) {
   const isIos = platform === "ios";
@@ -88,8 +91,6 @@ export function DeviceFrame({
           <div
             style={{ borderRadius: "11% / 5.2%" }}
             className="relative aspect-[9/19.5] overflow-hidden bg-[var(--app-bg)]"
-            role={label ? "img" : undefined}
-            aria-label={label}
           >
             {children}
 

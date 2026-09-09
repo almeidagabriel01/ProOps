@@ -20,6 +20,10 @@ describe("proxy matcher", () => {
     "/apple-icon.png",
     "/opengraph-image.png",
     "/features/feature-1.webm",
+    // Regression: every new folder under public/ has to be added to the
+    // matcher. Without it the auth proxy intercepts the file and 307s it to
+    // /auth/refresh, so the image simply never appears and nothing errors.
+    "/mockup-ios/hoje.jpg",
     // beforeInteractive static scripts: must bypass the auth proxy, otherwise
     // they 307-redirect to /auth/refresh and never execute (the consent banner
     // would then paint ~6s late after hydration and become the LCP element).
@@ -34,6 +38,6 @@ describe("proxy matcher", () => {
     "still intercepts app route %s",
     (path) => {
       expect(matcher.test(path)).toBe(true);
-    }
+    },
   );
 });

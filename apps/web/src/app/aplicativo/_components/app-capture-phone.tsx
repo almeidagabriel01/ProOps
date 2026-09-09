@@ -69,7 +69,7 @@ export function AppCapturePhone() {
 
   return (
     <div ref={rootRef} className="relative mx-auto w-full max-w-[21rem]">
-      <DeviceFrame platform="ios" label="Tela inicial do aplicativo">
+      <DeviceFrame platform="ios">
         <div className="flex h-full flex-col px-5 pb-3">
           {/* Status bar. Sits beside the island, as on the device. */}
           <div className="flex items-center justify-between pb-1 pt-[3.2%]">
@@ -196,7 +196,9 @@ export function AppCapturePhone() {
             ].map((aba) => (
               <span
                 key={aba.abrev}
-                className="flex flex-col items-center gap-1.5"
+                className={`flex flex-col items-center gap-1 rounded-full px-2 py-1 ${
+                  aba.ativo ? "bg-[var(--app-tint)]/15" : ""
+                }`}
               >
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
