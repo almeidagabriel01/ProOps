@@ -175,6 +175,28 @@ describe("a virada do apex", () => {
     expect(apexRedirectPara("/", DEPOIS)).toBeNull();
   });
 
+  /**
+   * Decisão registrada: o link público de proposta mora no ERP.
+   *
+   * `/share/<token>` é o que o cliente da ProOps manda para o cliente FINAL
+   * dele. Ele podia ficar no apex, por ser um endereço mais curto para quem
+   * recebe, e a escolha foi a outra: quem gera o link é o ERP, e é lá que ele
+   * mora. Fica como teste porque é uma decisão de produto que o código não
+   * revela sozinho, e sem isto alguém a "corrigiria" acrescentando /share ao
+   * APEX_OWNED_PATHS achando que era esquecimento.
+   *
+   * Os links JÁ ENVIADOS não quebram: apontam para o apex e chegam ao mesmo
+   * lugar por este 301, que preserva o caminho e a query.
+   */
+  it("depois manda o link público de proposta para o ERP", () => {
+    expect(apexRedirectPara("/share/abc123", DEPOIS)).toBe(
+      "https://erp.proops.com.br/share/abc123",
+    );
+    expect(apexRedirectPara("/share/transaction/xyz", DEPOIS)).toBe(
+      "https://erp.proops.com.br/share/transaction/xyz",
+    );
+  });
+
   it("depois mantém as páginas legais no apex, que é onde o canonical delas aponta", () => {
     for (const p of APEX_OWNED_PATHS) {
       expect(apexRedirectPara(p, DEPOIS)).toBeNull();

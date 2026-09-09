@@ -91,10 +91,22 @@ Nenhum item aqui é código, e cada um falha de um jeito diferente.
 - [ ] **`NEXT_PUBLIC_*` na Vercel**, em Preview e Production separadamente.
       Elas são embutidas no BUILD: cadastrar não afeta o que já está publicado,
       precisa de redeploy.
-- [ ] **Links dos e-mails transacionais** (`APP_URL` no backend). Repare que
-      `app.proops.com.br` já era o default de `APP_URL` em dois pontos, e esse
-      host agora é a landing do aplicativo: um e-mail de mudança de preço
-      levaria o cliente para uma página de marketing.
+- [ ] **`APP_URL` → `https://erp.proops.com.br`.** Ela alimenta os links dos
+      e-mails transacionais **e** o link público de proposta (`/share/<token>`).
+      Repare que `app.proops.com.br` já era o default de `APP_URL` em dois
+      pontos do backend, e esse host agora é a landing do aplicativo: um e-mail
+      de mudança de preço levaria o cliente para uma página de marketing (os
+      dois defaults já foram corrigidos para o subdomínio do ERP).
+
+      **Decidido: o link `/share/<token>` mora no ERP**, porque quem o gera é o
+      ERP. Ele podia ter ficado no apex, por ser um endereço mais curto para
+      quem recebe, e a escolha foi a outra; há um teste travando isso
+      (`surfaces.test.ts`), para ninguém "corrigir" acrescentando `/share` ao
+      `APEX_OWNED_PATHS` achando que foi esquecimento. Os links já enviados não
+      quebram: apontam para o apex e chegam pelo 301, que preserva caminho e
+      query. O default de produção em `frontend-app-url.ts` é
+      `www.proops.com.br`, então mesmo que `APP_URL` sumisse os links chegariam
+      pelo mesmo 301, com um salto a mais.
 - [ ] **Search Console:** propriedade nova para `erp.proops.com.br`, sitemap
       submetido, e a mudança de endereço NÃO se aplica (não é migração de
       domínio inteiro, é uma divisão).
