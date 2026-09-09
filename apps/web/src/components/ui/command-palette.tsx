@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Crown, Home, Search } from "lucide-react";
+import { Crown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,10 +12,7 @@ import {
 import { useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useTenant } from "@/providers/tenant-provider";
-import {
-  getSolutionsPageConfig,
-  isPageEnabledForNiche,
-} from "@/lib/niches/config";
+import { isPageEnabledForNiche } from "@/lib/niches/config";
 import { normalize } from "@/utils/text";
 import {
   searchItems,
@@ -47,29 +44,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
   // Filter items based on search term and user permissions
   const filteredItems = React.useMemo(() => {
-    const solutionsConfig = getSolutionsPageConfig(tenant?.niche);
-
     return searchItems
-      .map((item) => {
-        if (item.id !== "solutions") return item;
-        if (solutionsConfig.mode !== "environment") return item;
-
-        // Vira o item de Ambientes de verdade, id e path inclusive. Antes só o
-        // rótulo mudava: o id continuava "solutions", e o filtro de nicho logo
-        // abaixo casa por id, então em cortinas (pageAvailability.solutions =
-        // false) o item era derrubado e não havia como achar Ambientes pelo
-        // palette. O remap inteiro era código morto justamente no nicho a que
-        // servia.
-        return {
-          ...item,
-          id: "ambientes",
-          path: "/ambientes",
-          icon: Home,
-          label: solutionsConfig.navigationLabel,
-          description: "Gerenciar ambientes e produtos padrões",
-          keywords: [...(item.keywords || []), "ambiente", "ambientes"],
-        };
-      })
       .filter((item) => {
         // Check permission restrictions
         if (!isPageEnabledForNiche(tenant?.niche, item.id)) return false;

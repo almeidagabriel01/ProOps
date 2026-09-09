@@ -1,9 +1,11 @@
 import {
   Bot,
+  CalendarDays,
   CreditCard,
   FileSpreadsheet,
   FileText,
   Handshake,
+  Home,
   Kanban,
   LayoutDashboard,
   Package,
@@ -64,6 +66,22 @@ export const searchItems: SearchItem[] = [
     requiresView: "kanban",
     keywords: ["quadro", "processos", "tarefas", "cartões", "crm", "kanban"],
     requiresCapability: "crm",
+  },
+  {
+    id: "calendar",
+    label: "Calendario",
+    description: "Agenda de compromissos e visitas",
+    path: "/calendar",
+    icon: CalendarDays,
+    requiresView: "calendar",
+    keywords: [
+      "calendario",
+      "calendário",
+      "agenda",
+      "compromisso",
+      "visita",
+      "evento",
+    ],
   },
   {
     id: "spreadsheets",
@@ -213,6 +231,17 @@ export const searchItems: SearchItem[] = [
     keywords: ["solucoes", "soluções", "automacao", "automação", "templates"],
   },
   {
+    // Par de "solutions", como no menu: mesmo pageId de permissao, porta de
+    // nicho propria. O filtro por id derruba um dos dois, nunca os dois.
+    id: "ambientes",
+    label: "Ambientes",
+    description: "Gerenciar ambientes e produtos padrões",
+    path: "/ambientes",
+    icon: Home,
+    requiresView: "solutions",
+    keywords: ["ambiente", "ambientes", "espaco", "espaço", "comodo", "cômodo"],
+  },
+  {
     id: "new-income",
     label: "Nova Receita",
     description: "Registrar uma nova receita",
@@ -261,7 +290,9 @@ export const searchItems: SearchItem[] = [
     id: "billing",
     label: "Plano e Cobrança",
     description: "Gerenciar seu plano",
-    path: "/settings/billing",
+    // /settings/billing e declarada em PAGE_CONFIG mas nao existe em disco:
+    // o link dava 404. O destino real e a aba de faturamento do perfil.
+    path: "/profile?tab=billing",
     icon: CreditCard,
     keywords: ["assinatura", "pagamento", "upgrade"],
     masterOnly: true,
