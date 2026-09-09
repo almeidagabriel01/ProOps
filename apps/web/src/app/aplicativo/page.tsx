@@ -4,11 +4,10 @@ import { SmoothScroll } from "@/components/marketing/_shared/smooth-scroll";
 import { APP_NAME } from "@/lib/site/app-brand";
 
 import { AplicativoAgente } from "./_components/aplicativo-agente";
+import { AplicativoDiaADia } from "./_components/aplicativo-dia-a-dia";
 import { AplicativoFooter } from "./_components/aplicativo-footer";
 import { AplicativoGaleria } from "./_components/aplicativo-galeria";
 import { AplicativoHero } from "./_components/aplicativo-hero";
-import { AplicativoPrivacidade } from "./_components/aplicativo-privacidade";
-import { AplicativoRecursos } from "./_components/aplicativo-recursos";
 import { AplicativoListaEspera } from "./_components/aplicativo-lista-espera";
 import { AplicativoNavbar } from "./_components/aplicativo-navbar";
 
@@ -39,8 +38,7 @@ export default function AplicativoPage() {
       <AplicativoNavbar />
       <AplicativoHero />
       <AplicativoAgente />
-      <AplicativoPrivacidade />
-      <AplicativoRecursos />
+      <AplicativoDiaADia />
       <AplicativoGaleria />
       <AplicativoListaEspera />
       <AplicativoFooter />

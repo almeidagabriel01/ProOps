@@ -2,7 +2,7 @@ import React from "react";
 
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 
-import { AppCapturePhone } from "./app-capture-phone";
+import { AppHeroPhone } from "./app-hero-phone";
 
 /**
  * The app landing opens on the promise itself, not on a description of it.
@@ -95,7 +95,7 @@ export function AplicativoHero() {
             } as React.CSSProperties
           }
         >
-          <AppCapturePhone />
+          <AppHeroPhone />
         </div>
       </div>
     </section>

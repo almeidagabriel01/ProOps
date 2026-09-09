@@ -68,11 +68,19 @@ const TELAS: Tela[] = [
     plataforma: "ios",
     imagem: "/mockup-ios/notas.jpg",
   },
+  // The Android captures cover the two screens the iOS set does not, so the
+  // shelf proves both platforms without showing the same screen twice.
+  {
+    nome: "Agente",
+    descricao: "A assistente dentro do aplicativo",
+    plataforma: "android",
+    imagem: "/mockup-android/agente.jpg",
+  },
   {
     nome: "Perfil",
     descricao: "WhatsApp e a cota de IA por canal",
-    plataforma: "ios",
-    imagem: "/mockup-ios/perfil.jpg",
+    plataforma: "android",
+    imagem: "/mockup-android/perfil.jpg",
   },
 ];
 
@@ -159,11 +167,15 @@ export function AplicativoGaleria() {
                     className="object-cover"
                   />
                 </DeviceFrame>
-                <p className="mt-3.5 truncate text-xs text-[var(--app-text-muted)]">
-                  <span className="[font-family:var(--font-hanken)] font-semibold text-[var(--app-text)]">
+                <p className="mt-3.5 flex items-baseline gap-1.5">
+                  <span className="[font-family:var(--font-hanken)] text-sm font-semibold text-[var(--app-text)]">
                     {tela.nome}
                   </span>
-                  <span className="mx-1.5 opacity-40">·</span>
+                  <span className="rounded-full border border-white/10 px-1.5 py-px text-[9px] uppercase tracking-wider text-[var(--app-text-muted)]">
+                    {tela.plataforma === "ios" ? "iOS" : "Android"}
+                  </span>
+                </p>
+                <p className="mt-1 truncate text-xs text-[var(--app-text-muted)]">
                   {tela.descricao}
                 </p>
               </li>
