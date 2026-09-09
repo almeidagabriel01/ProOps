@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 
+import { SmoothScroll } from "@/components/marketing/_shared/smooth-scroll";
 import { APP_NAME } from "@/lib/site/app-brand";
+
+import { AplicativoFooter } from "./_components/aplicativo-footer";
+import { AplicativoHero } from "./_components/aplicativo-hero";
+import { AplicativoListaEspera } from "./_components/aplicativo-lista-espera";
+import { AplicativoNavbar } from "./_components/aplicativo-navbar";
 
 /**
  * The mobile app landing page.
@@ -24,13 +30,12 @@ export const metadata: Metadata = {
 
 export default function AplicativoPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <p className="[font-family:var(--font-hanken)] text-2xl font-semibold tracking-tight text-black dark:text-white">
-        {APP_NAME},{" "}
-        <span className="[font-family:var(--font-jetbrains-mono)] font-medium">
-          em construção
-        </span>
-      </p>
-    </div>
+    <>
+      <SmoothScroll />
+      <AplicativoNavbar />
+      <AplicativoHero />
+      <AplicativoListaEspera />
+      <AplicativoFooter />
+    </>
   );
 }

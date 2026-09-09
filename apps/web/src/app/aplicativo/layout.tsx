@@ -33,7 +33,7 @@ export default function AplicativoLayout({
   children: ReactNode;
 }) {
   return (
-    <div className={`${hanken.variable} ${jetbrainsMono.variable}`}>
+    <div className={`app-theme ${hanken.variable} ${jetbrainsMono.variable}`}>
       {children}
     </div>
   );

@@ -1196,6 +1196,124 @@ html[data-shell="locked"] body {
   }
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Liquid glass — the signature of the app page.
+
+   The app itself is built on `expo-glass-effect` (iOS 26 Liquid Glass), so the
+   landing is set in the same material as the product it sells, not in an
+   imitation of it.
+
+   What actually sells the effect is not the blur, which every glassmorphism
+   card since 2020 already has. It is the EDGE: a bright specular line along the
+   top inner rim and a dim one along the bottom, which is what a real bevel does
+   to light. Remove those two inset shadows and the card immediately reads as a
+   translucent rectangle again.
+
+   Note on what is NOT here: true refraction, where the backdrop bends through
+   the surface, needs an SVG `feDisplacementMap` fed into `backdrop-filter`.
+   Chromium is the only engine that accepts an SVG filter there, so it would be
+   an effect most visitors never see, and it costs a second full-surface
+   rasterisation of everything behind the element on every frame. On a page
+   whose CI budget is measured on a throttled mid-range phone, that is a bad
+   trade for a one-browser flourish.
+
+   `backdrop-filter` is expensive on its own, so this belongs on small surfaces
+   over a busy backdrop, never on a full-bleed band. */
+.liquid-glass {
+  position: relative;
+  isolation: isolate;
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.13),
+    rgba(255, 255, 255, 0.04) 55%,
+    rgba(255, 255, 255, 0.07)
+  );
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    0 24px 60px -18px rgba(0, 0, 0, 0.75);
+}
+
+/* The highlight that travels across the surface, the "liquid" half of the
+   name. Paint-only work, so it is slow, pausable and off under reduced
+   motion, exactly like the chrome sweep. */
+.liquid-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: linear-gradient(
+    100deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.1) 48%,
+    rgba(255, 255, 255, 0.03) 54%,
+    transparent 64%
+  );
+  background-size: 250% 100%;
+  background-position: 190% 0;
+  background-repeat: no-repeat;
+  animation: glass-sheen var(--glass-dur, 9s) ease-in-out var(--glass-delay, 2s)
+    infinite;
+}
+
+@keyframes glass-sheen {
+  0%,
+  100% {
+    background-position: 190% 0;
+  }
+  55% {
+    background-position: -70% 0;
+  }
+}
+
+/* Where the backdrop cannot be blurred the card would be a nearly transparent
+   rectangle with unreadable text on top, so it falls back to an opaque tint. */
+@supports not (backdrop-filter: blur(1px)) {
+  .liquid-glass {
+    background-color: rgba(32, 31, 33, 0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass::after {
+    animation: none;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   The app's own palette, lifted verbatim from its `src/constants/theme.ts`
+   (dark scheme). The landing rebuilds a few of the product's screens in HTML so
+   they can be animated, and the only thing that keeps those rebuilds honest is
+   reading the same values the app ships.
+
+   Scoped to a class rather than :root so nothing here can leak into the ERP.
+   The names mirror the app's roles, not their colours, for the same reason the
+   app names them that way. */
+.app-theme {
+  --app-bg: #131315;
+  --app-surface: #1b1b1d;
+  --app-element: #201f21;
+  --app-selected: #2a2a2c;
+  --app-raised: #39393b;
+  --app-text: #e5e1e4;
+  --app-text-muted: #a9aeaf;
+  --app-tint: #6ddc9e;
+  --app-on-tint: #003920;
+  --app-danger: #ffb4ab;
+  --app-warning: #ffb95f;
+  --app-separator: #444748;
+  --app-card-border: rgba(255, 255, 255, 0.07);
+  /* The highlight panel is dark in BOTH of the app's themes, on purpose: it is
+     the block that has to dominate the screen. */
+  --app-hero-top: #2a2a2c;
+  --app-hero-bottom: #1b1b1d;
+  --app-on-hero-muted: rgba(229, 225, 228, 0.6);
+}
+
 /* Cookie-consent banner: DOM is always server-rendered but hidden; visibility is
    gated by the html attribute that public/cookie-consent-init.js sets at first
    paint (before hydration). This keeps the banner off the LCP critical path —
