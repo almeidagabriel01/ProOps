@@ -576,9 +576,9 @@ permitimos a manifestacao.
   separa `habilita_nfsen_producao` / `_homologacao`. Ate 2026-09-04 so a de producao era
   enviada, entao um emitente em homologacao ligava a recepcao e nao recebia nada — sem erro
   em lugar nenhum.
-- **A UI vive como ABA da tela de notas** (`/invoices`, aba "Recebidas"), nao numa rota
-  propria: sao as duas metades do mesmo modulo e compartilham o `pageId` "invoices" e o
-  `requirePlanCapability("fiscal")`. O vocabulario e que muda — aqui nao ha numeracao
+- **A UI vive na MESMA tela das emitidas** (`/invoices`, visao "Recebidas" do seletor no
+  cabecalho), nao numa rota propria: sao as duas metades do mesmo modulo e compartilham o
+  `pageId` "invoices" e o `requirePlanCapability("fiscal")`. O vocabulario e que muda — aqui nao ha numeracao
   nossa, nada e assinado por nos e nao existe cancelamento.
 - **O dialogo de manifestacao descreve a CONSEQUENCIA, nao o termo tecnico** ("Confirmo a
   compra", nao "ciencia da operacao"): quem instala automacao nao sabe o jargao mas sabe

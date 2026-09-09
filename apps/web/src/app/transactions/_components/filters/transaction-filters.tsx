@@ -12,11 +12,14 @@ import {
   ListOrdered,
   X,
 } from "lucide-react";
-import type { TransactionType, TransactionStatus } from "@/services/transaction-service";
+import type {
+  TransactionType,
+  TransactionStatus,
+} from "@/services/transaction-service";
 import type { Wallet } from "@/types";
 import { WalletService } from "@/services/wallet-service";
 import { useTenant } from "@/providers/tenant-provider";
-import { FilterSegmented } from "./filter-segmented";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { FilterStatusPills } from "./filter-status-pills";
 import { FilterPeriod } from "./filter-period";
 import { FilterClearButton } from "./filter-clear-button";
@@ -121,10 +124,12 @@ export function TransactionFilters(props: TransactionFiltersProps) {
             onClear={clearAll}
           />
           {props.onViewModeChange && props.viewMode !== undefined && (
-            <FilterSegmented
+            <SegmentedControl
               id="view-mode"
               value={props.viewMode}
-              onChange={(v) => props.onViewModeChange?.(v as "grouped" | "byDueDate")}
+              onChange={(v) =>
+                props.onViewModeChange?.(v as "grouped" | "byDueDate")
+              }
               options={[
                 {
                   value: "byDueDate",
@@ -144,7 +149,7 @@ export function TransactionFilters(props: TransactionFiltersProps) {
 
       {/* Linha 2 — Classificação: tipo + status */}
       <div className="flex items-center gap-3 flex-wrap">
-        <FilterSegmented
+        <SegmentedControl
           id="tx-type"
           value={props.filterType}
           onChange={(v) => props.onFilterChange(v as TransactionType | "all")}
@@ -162,7 +167,10 @@ export function TransactionFilters(props: TransactionFiltersProps) {
             },
           ]}
         />
-        <FilterStatusPills value={props.filterStatus} onChange={props.onStatusChange} />
+        <FilterStatusPills
+          value={props.filterStatus}
+          onChange={props.onStatusChange}
+        />
       </div>
 
       {/* Linha 3 — Refinamento: carteira + período + ordenação.

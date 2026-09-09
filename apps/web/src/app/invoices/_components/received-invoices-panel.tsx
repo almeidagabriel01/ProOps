@@ -21,8 +21,8 @@ import {
 /**
  * Notas de ENTRADA — as que os fornecedores emitiram contra o CNPJ do tenant.
  *
- * Vive como aba da mesma tela das emitidas porque são as duas metades do
- * módulo, mas o vocabulário é outro: aqui não há numeração nossa, nada é
+ * Vive na mesma tela das emitidas porque são as duas metades do módulo, como
+ * uma das visões do seletor do cabeçalho, mas o vocabulário é outro: aqui não há numeração nossa, nada é
  * assinado por nós e não existe cancelamento — só recepção, resposta e guarda.
  */
 
@@ -40,7 +40,10 @@ function formatarData(iso: string | undefined): string {
 function formatarCnpj(cnpj: string): string {
   const digits = cnpj.replace(/\D/g, "");
   if (digits.length !== 14) return cnpj;
-  return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  return digits.replace(
+    /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+    "$1.$2.$3/$4-$5",
+  );
 }
 
 const MANIFESTACAO_LABEL: Record<string, string> = {
@@ -53,16 +56,33 @@ const MANIFESTACAO_LABEL: Record<string, string> = {
 interface ReceivedInvoicesPanelProps {
   /** Quando falso, o módulo está desligado nas configurações fiscais. */
   enabled: boolean;
+  /** Alimenta o contador do seletor de visão da tela. */
+  onCountChange?: (count: number) => void;
 }
 
-export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
+export function ReceivedInvoicesPanel({
+  enabled,
+  onCountChange,
+}: ReceivedInvoicesPanelProps) {
   const [invoices, setInvoices] = React.useState<ReceivedInvoice[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSyncing, setIsSyncing] = React.useState(false);
-  const [manifesting, setManifesting] = React.useState<ReceivedInvoice | null>(null);
+  const [manifesting, setManifesting] = React.useState<ReceivedInvoice | null>(
+    null,
+  );
   const [viewing, setViewing] = React.useState<ReceivedInvoice | null>(null);
 
   const { items: sorted, requestSort, sortConfig } = useSort(invoices);
+
+  /**
+   * Por ref, e não na lista de dependências de `load`: um call site que passe
+   * uma arrow inline recriaria `load` a cada render do pai, e o efeito abaixo
+   * refaria a busca em laço.
+   */
+  const reportCount = React.useRef(onCountChange);
+  React.useEffect(() => {
+    reportCount.current = onCountChange;
+  }, [onCountChange]);
 
   const load = React.useCallback(async () => {
     if (!enabled) {
@@ -72,6 +92,7 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
     try {
       const { invoices: list } = await ReceivedInvoiceService.list();
       setInvoices(list);
+      reportCount.current?.(list.length);
     } catch {
       // O acervo é secundário à emissão: falhar aqui não pode derrubar a tela
       // inteira, e o botão de buscar continua disponível.
@@ -243,8 +264,8 @@ export function ReceivedInvoicesPanel({ enabled }: ReceivedInvoicesPanelProps) {
             <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
               Ligando isto, as notas que seus fornecedores emitem contra o seu
               CNPJ aparecem aqui. Confirmando uma compra, você recebe os
-              produtos com o NCM de cada um, que é o dado que falta ao
-              cadastrar produto para emitir nota.
+              produtos com o NCM de cada um, que é o dado que falta ao cadastrar
+              produto para emitir nota.
             </p>
           </div>
           <Button variant="outline" asChild>

@@ -8,6 +8,8 @@ import {
   Clock,
   Download,
   FileCode,
+  FileInput,
+  FileOutput,
   FileText,
   RefreshCw,
   Settings,
@@ -25,7 +27,7 @@ import {
 } from "@/services/fiscal-service";
 import { TestModeBanner } from "@/components/features/fiscal/test-mode-banner";
 import { CorrectInvoiceButton } from "@/components/features/fiscal/correct-invoice-button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ReceivedInvoicesPanel } from "./_components/received-invoices-panel";
 import { CancelInvoiceButton } from "@/components/features/fiscal/cancel-invoice-button";
 import { usePagePermission } from "@/hooks/usePagePermission";
@@ -111,6 +113,9 @@ export default function InvoicesPage() {
   const [notConfigured, setNotConfigured] = React.useState(false);
   const [settings, setSettings] = React.useState<FiscalSettings | null>(null);
   const [refreshingId, setRefreshingId] = React.useState<string | null>(null);
+  const [view, setView] = React.useState<"emitidas" | "recebidas">("emitidas");
+  /** `undefined` até a lista chegar: contador provisório em zero mentiria. */
+  const [receivedCount, setReceivedCount] = React.useState<number>();
 
   const refresh = React.useCallback(async (id: string) => {
     setRefreshingId(id);
@@ -125,8 +130,7 @@ export default function InvoicesPage() {
         // Sem isto o clique não teria desfecho visível: o botão volta ao normal
         // e nada muda na linha, o que se confunde com um clique que não pegou.
         toast.info("O provedor ainda não disponibilizou o PDF desta nota.", {
-          description:
-            "O XML continua disponível: ele é o documento que vale.",
+          description: "O XML continua disponível: ele é o documento que vale.",
         });
       }
     } catch (error) {
@@ -415,78 +419,95 @@ export default function InvoicesPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 md:p-8">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Notas Fiscais</h1>
           <p className="text-sm text-muted-foreground">
             Documentos emitidos pela sua empresa e recebidos dos fornecedores.
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <Link href="/settings/fiscal">
-            <Settings className="mr-2 h-4 w-4" />
-            Configuração fiscal
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <SegmentedControl
+            id="Notas emitidas ou recebidas"
+            value={view}
+            onChange={(v) => setView(v as "emitidas" | "recebidas")}
+            options={[
+              {
+                value: "emitidas",
+                label: "Emitidas",
+                icon: <FileOutput className="h-3.5 w-3.5" />,
+                count: isLoading ? undefined : invoices.length,
+              },
+              {
+                value: "recebidas",
+                label: "Recebidas",
+                icon: <FileInput className="h-3.5 w-3.5" />,
+                count: receivedCount,
+              },
+            ]}
+          />
+          <Button variant="outline" asChild>
+            <Link href="/settings/fiscal">
+              <Settings className="mr-2 h-4 w-4" />
+              Configuração fiscal
+            </Link>
+          </Button>
+        </div>
       </header>
 
       <TestModeBanner settings={settings} onChanged={setSettings} />
 
-      <Tabs defaultValue="emitidas" className="flex flex-col gap-4">
-        <TabsList>
-          <TabsTrigger value="emitidas">Emitidas</TabsTrigger>
-          <TabsTrigger value="recebidas">Recebidas</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="emitidas" className="flex flex-col gap-4">
-      {isLoading ? (
-        <Card>
-          <CardContent className="flex items-center justify-center py-16">
-            <Loader size="md" />
-          </CardContent>
-        </Card>
-      ) : invoices.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
-            <FileText className="h-10 w-10 text-muted-foreground" />
-            <p className="font-medium">Nenhuma nota emitida ainda</p>
-            <p className="text-sm text-muted-foreground">
-              As notas aparecem aqui assim que forem emitidas a partir de um
-              lançamento ou de uma proposta aprovada.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={sortedInvoices}
-          keyExtractor={(invoice) => invoice.id}
-          sortConfig={sortConfig}
-          onSort={requestSort}
-          // Sem `minWidth` a tabela nunca gera rolagem horizontal: o grid se
-          // ajusta ao container, e abaixo de `md` o DataTable já colapsa em
-          // cards pela `priority` de cada coluna.
-          gridClassName="grid-cols-12"
-        />
-      )}
-
-      {invoices.some((invoice) => invoice.status === "processing") && (
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Clock className="h-3 w-3" />
-          Notas em processamento são atualizadas automaticamente assim que o
-          fisco responde.
-        </p>
-      )}
-        </TabsContent>
-
-        <TabsContent value="recebidas">
-          {/* O painel se carrega sozinho: montar a busca aqui faria toda visita
-              à tela de emitidas pagar por uma lista que ninguém abriu. */}
-          <ReceivedInvoicesPanel
-            enabled={settings?.habilitaManifestacao === true}
+      <div className="flex flex-col gap-4" hidden={view !== "emitidas"}>
+        {isLoading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-16">
+              <Loader size="md" />
+            </CardContent>
+          </Card>
+        ) : invoices.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
+              <FileText className="h-10 w-10 text-muted-foreground" />
+              <p className="font-medium">Nenhuma nota emitida ainda</p>
+              <p className="text-sm text-muted-foreground">
+                As notas aparecem aqui assim que forem emitidas a partir de um
+                lançamento ou de uma proposta aprovada.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={sortedInvoices}
+            keyExtractor={(invoice) => invoice.id}
+            sortConfig={sortConfig}
+            onSort={requestSort}
+            // Sem `minWidth` a tabela nunca gera rolagem horizontal: o grid se
+            // ajusta ao container, e abaixo de `md` o DataTable já colapsa em
+            // cards pela `priority` de cada coluna.
+            gridClassName="grid-cols-12"
           />
-        </TabsContent>
-      </Tabs>
+        )}
+
+        {invoices.some((invoice) => invoice.status === "processing") && (
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            Notas em processamento são atualizadas automaticamente assim que o
+            fisco responde.
+          </p>
+        )}
+      </div>
+
+      {/* Montado nas duas visões, escondido numa delas: o contador do seletor
+          precisa do total, e a lista é a mesma quando se volta para cá. O
+          painel só busca quando a recepção está ligada, então quem não usa o
+          módulo não paga request nenhuma. */}
+      <div hidden={view !== "recebidas"}>
+        <ReceivedInvoicesPanel
+          enabled={settings?.habilitaManifestacao === true}
+          onCountChange={setReceivedCount}
+        />
+      </div>
     </main>
   );
 }
