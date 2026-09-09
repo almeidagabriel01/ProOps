@@ -106,9 +106,48 @@ export function AplicativoGaleria() {
     // would flick through every screen in a third of a flick of the wheel.
     const SCROLL_STRETCH = 2.4;
 
+    // Emphasis: whatever is crossing the middle of the screen is at full size
+    // and full strength, and everything falls away towards the edges. It is
+    // what gives a shelf depth instead of the flatness of a filmstrip.
+    // Written straight to the CSS `scale` and `opacity` properties rather than
+    // through gsap. `gsap.quickSetter(el, "scale")` looks like it should work
+    // and does nothing: without a unit it sets a plain JS property on the
+    // element, which the DOM ignores, so the opacity half of the effect landed
+    // and the size half silently did not. Nothing here fights gsap, because
+    // gsap only ever touches the track's `x`, never these elements.
+    const itens = gsap.utils.toArray<HTMLElement>(".tela-item");
+
+    // Centres are measured once per refresh rather than read every frame:
+    // getBoundingClientRect in a scroll handler forces layout on each tick,
+    // and the track only moves by transform, which does not change offsets.
+    let centros: number[] = [];
+    const medir = () => {
+      const x = Number(gsap.getProperty(track, "x")) || 0;
+      const base = track.getBoundingClientRect().left - x;
+      centros = itens.map((el) => base + el.offsetLeft + el.offsetWidth / 2);
+    };
+
+    const aplicar = () => {
+      if (!centros.length) return;
+      const x = Number(gsap.getProperty(track, "x")) || 0;
+      const meio = window.innerWidth / 2;
+      const alcance = window.innerWidth * 0.52;
+
+      for (let i = 0; i < itens.length; i += 1) {
+        const perto = gsap.utils.clamp(
+          0,
+          1,
+          1 - Math.abs(centros[i] + x - meio) / alcance,
+        );
+        itens[i].style.scale = String(0.9 + 0.1 * perto);
+        itens[i].style.opacity = String(0.42 + 0.58 * perto);
+      }
+    };
+
     gsap.to(track, {
       x: () => -distance(),
       ease: "none",
+      onUpdate: aplicar,
       scrollTrigger: {
         trigger: sectionRef.current,
         start: "top top",
@@ -118,8 +157,25 @@ export function AplicativoGaleria() {
         pin: true,
         scrub: 0.8,
         invalidateOnRefresh: true,
+        onRefresh: () => {
+          medir();
+          aplicar();
+        },
       },
     });
+
+    medir();
+    aplicar();
+
+    // gsap has nothing recorded to revert, since these were written by hand.
+    // Below `md`, and under reduced motion, every screen has to be back at
+    // full size and full strength.
+    return () => {
+      itens.forEach((el) => {
+        el.style.scale = "";
+        el.style.opacity = "";
+      });
+    };
   });
 
   // Both platforms have the same number of screens, so switching cannot change
@@ -217,7 +273,7 @@ export function AplicativoGaleria() {
             {telas.map((tela, index) => (
               <li
                 key={tela.nome}
-                className="w-[52%] shrink-0 snap-start sm:w-[33%] md:w-[15rem] lg:w-[19rem]"
+                className="tela-item w-[52%] shrink-0 snap-start sm:w-[33%] md:w-[15rem] lg:w-[19rem]"
               >
                 <DeviceFrame platform={plataforma}>
                   <Image

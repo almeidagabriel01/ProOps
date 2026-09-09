@@ -43,18 +43,23 @@ interface ScrollSceneOptions {
  * Callers import `gsap` and `ScrollTrigger` themselves, as the thirteen
  * existing sections do. Registering the plugin here means they never have to
  * remember to.
+ *
+ * A scene may return a cleanup function, which runs when the media query stops
+ * matching or the component unmounts.
  */
 export function useScrollScene(
   scope: React.RefObject<HTMLElement | null>,
-  build: () => void,
+  build: () => void | (() => void),
   { query = SCENE_DESKTOP, dependencies = [] }: ScrollSceneOptions = {},
 ) {
   useGSAP(
     () => {
       const mm = gsap.matchMedia();
-      mm.add(query, () => {
-        build();
-      });
+      // The return value is forwarded: gsap.matchMedia calls a scene's
+      // cleanup on revert, which is the only way to undo properties written
+      // per frame with a quickSetter, since those bypass gsap's own recording
+      // and would otherwise stay stuck on the element below the breakpoint.
+      mm.add(query, () => build());
       return () => {
         mm.revert();
       };
