@@ -101,10 +101,11 @@ export function AplicativoGaleria() {
 
     const distance = () => Math.max(track.scrollWidth - window.innerWidth, 0);
 
-    // How much page scroll the pan is spread over. The track is only a few
-    // hundred pixels wider than a big monitor, and mapping that one to one
-    // would flick through every screen in a third of a flick of the wheel.
-    const SCROLL_STRETCH = 2.4;
+    // How much page scroll the pan is spread over. Lower than it once was:
+    // the lead-in and lead-out that let the end screens reach the centre also
+    // made the track genuinely long, so it no longer needs stretching to be
+    // worth pinning for.
+    const SCROLL_STRETCH = 1.4;
 
     // Emphasis: whatever is crossing the middle of the screen is at full size
     // and full strength, and everything falls away towards the edges. It is
@@ -263,12 +264,18 @@ export function AplicativoGaleria() {
             </div>
           </div>
 
-          {/* Full-bleed shelf: the row runs past the container so the last
-              screen is cut by the viewport edge rather than by a margin, which
-              is what reads as "there is more" instead of "this is the end". */}
+          {/*
+            The lead-in and lead-out are half a viewport minus half a screen,
+            which is exactly what it takes for the FIRST screen to start
+            centred and the LAST to end centred. Without them the track runs
+            edge to edge and the screens at the two ends never reach the middle
+            at all, so the emphasis only ever lands on the ones in between: the
+            first and last are dim and small for the whole pan and then the
+            section is gone.
+          */}
           <ul
             ref={trackRef}
-            className="landing-scrollbar mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-8 md:mt-10 md:w-max md:snap-none md:gap-8 md:overflow-visible md:px-10 md:pb-0"
+            className="landing-scrollbar mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-8 md:mt-10 md:w-max md:snap-none md:gap-8 md:overflow-visible md:px-[calc(50vw_-_7.5rem)] md:pb-0 lg:px-[calc(50vw_-_9.5rem)]"
           >
             {telas.map((tela, index) => (
               <li
