@@ -114,23 +114,36 @@ function BolhaChat({ bolha }: { bolha: Bolha }) {
   );
 }
 
-/** How long a moment stays still, in timeline units. */
-const ESPERA = 1;
-/** How long the crossing between two moments lasts, in the same units. */
-const TRAVESSIA = 0.8;
+/**
+ * One unit is the gap between two marks on the rail, so the dot advances
+ * exactly one unit per hour and its position IS the timeline's progress.
+ */
+/**
+ * How much of a unit the crossing between two moments takes.
+ *
+ * Kept to the last third or so of the approach. Half a unit meant the outgoing
+ * and incoming text overlapped for most of the way between two hours, which
+ * reads as mush; a third leaves the moment visibly still while the dot closes
+ * in, and the change lands on the hour.
+ */
+const TRAVESSIA = 0.4;
+/** Extra units at the end, so the last moment is readable before the unpin. */
+const CAUDA = 0.7;
 /** Screens of scroll per unit. */
-const ROLAGEM_POR_UNIDADE = 0.46;
+const ROLAGEM_POR_UNIDADE = 0.8;
 
 /**
  * A day with the app, told as five moments.
  *
- * The timeline is built as HOLD, CROSS, HOLD, CROSS, and so on, rather than as
- * one continuous cross-fade. That structure is the whole point: a moment stays
- * completely still while it is being read, and the swap happens only while the
- * dot is travelling between two marks on the rail, landing exactly as the dot
- * reaches the next hour. Spread evenly instead, the text starts dissolving the
- * instant you scroll, long before the dot has gone anywhere, and the rail stops
- * meaning anything.
+ * The dot never stops. It runs the whole rail at a constant rate, so one unit
+ * of the timeline is exactly the gap between two hours and the dot's position
+ * is the progress itself.
+ *
+ * The content, though, does NOT follow it continuously. Each swap is packed
+ * into the last half-unit before a mark and finishes on the mark, so a moment
+ * sits completely still while the dot approaches, and changes as the dot lands
+ * on the hour. Cross-fading in step with the dot instead would start dissolving
+ * the text the instant you scroll, and the rail would stop meaning anything.
  *
  * The outgoing moment leaves upward and the incoming one arrives from below, so
  * the section reads as time moving forward rather than as two slides swapping.
@@ -142,7 +155,7 @@ const ROLAGEM_POR_UNIDADE = 0.46;
 export function AplicativoDiaADia() {
   const sectionRef = React.useRef<HTMLElement>(null);
   const total = MOMENTOS.length;
-  const unidades = ESPERA * total + TRAVESSIA * (total - 1);
+  const unidades = total - 1 + CAUDA;
 
   /** Where a mark sits on the rail, as a percentage of its height. */
   const marca = (i: number) => `${(i / (total - 1)) * 100}%`;
@@ -168,15 +181,27 @@ export function AplicativoDiaADia() {
       },
     });
 
+    // The dot runs the rail once, at a constant rate, over the hours. It then
+    // rests at the end while the tail keeps the last moment on screen.
+    tl.fromTo(
+      ".rail-ponto",
+      { top: marca(0) },
+      { top: marca(total - 1), ease: "none", duration: total - 1 },
+      0,
+    );
+
     for (let i = 1; i < total; i += 1) {
-      const inicio = ESPERA + (i - 1) * (ESPERA + TRAVESSIA);
+      // Everything is timed backwards from the mark: the swap ENDS at `i`,
+      // which is the instant the dot lands on that hour.
+      const chegada = i;
+      const inicio = chegada - TRAVESSIA;
 
       tl.to(
         `.momento-${i - 1}`,
         {
           autoAlpha: 0,
           y: -64,
-          duration: TRAVESSIA * 0.66,
+          duration: TRAVESSIA * 0.5,
           ease: "power2.in",
         },
         inicio,
@@ -187,16 +212,12 @@ export function AplicativoDiaADia() {
           {
             autoAlpha: 1,
             y: 0,
-            duration: TRAVESSIA * 0.7,
+            duration: TRAVESSIA * 0.55,
             ease: "power3.out",
           },
-          inicio + TRAVESSIA * 0.3,
-        )
-        // The dot arrives on the mark exactly as the new moment settles.
-        .to(
-          ".rail-ponto",
-          { top: marca(i), duration: TRAVESSIA, ease: "power2.inOut" },
-          inicio,
+          // Starts a hair before the outgoing one is gone, so there is never a
+          // frame with nothing on screen, and lands exactly on the hour.
+          chegada - TRAVESSIA * 0.55,
         )
         .to(
           `.rail-marca-${i - 1}`,
@@ -206,13 +227,13 @@ export function AplicativoDiaADia() {
         .to(
           `.rail-marca-${i}`,
           { opacity: 1, duration: TRAVESSIA * 0.5 },
-          inicio + TRAVESSIA * 0.5,
+          chegada - TRAVESSIA * 0.5,
         );
     }
 
-    // The final hold. Without it the last moment would be swept off the screen
-    // the instant it arrives, because the timeline would end with the tween.
-    tl.to({}, { duration: ESPERA });
+    // The tail. Without it the section would unpin the instant the last moment
+    // arrives, giving it no time to be read at all.
+    tl.to({}, { duration: CAUDA }, total - 1);
   });
 
   return (
