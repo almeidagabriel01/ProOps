@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Bot, FileText, Handshake, Home, Package2, ReceiptText, Wallet, WalletCards, Wrench } from "lucide-react";
 
 import {
+  filterVisibleChildren,
   flattenMenuItems,
   menuItems,
   resolveGroupTarget,
@@ -177,5 +178,58 @@ describe("flattenMenuItems", () => {
     const leaves = flattenMenuItems([FINANCEIRO]);
     expect(leaves.find((l) => l.href === "/transactions")?.requiresCapability).toBe("financial");
     expect(leaves.find((l) => l.href === "/invoices")?.requiresCapability).toBe("fiscal");
+  });
+});
+
+describe("filterVisibleChildren: permissão antes de plano", () => {
+  const viewer = (temInvoices: boolean) => ({
+    isMaster: false,
+    isDemo: false,
+    hasPermission: (pageId: string) =>
+      pageId === "invoices" ? temInvoices : true,
+    isPageEnabled: () => true,
+  });
+
+  it("membro sem a permissão não vê Notas Fiscais, em tier nenhum", () => {
+    // A ordem inversa devolvia cedo quando a capacidade faltava, então o mesmo
+    // membro via o item no Pro e não via no Enterprise. A função não conhece
+    // mais o plano: o desfecho é o mesmo nos dois.
+    const hrefs = filterVisibleChildren(FINANCEIRO, viewer(false)).map(
+      (child) => child.href,
+    );
+    expect(hrefs).not.toContain("/invoices");
+    expect(hrefs).toContain("/transactions");
+  });
+
+  it("membro COM a permissão vê o item, para a dock poder coroá-lo", () => {
+    const visiveis = filterVisibleChildren(FINANCEIRO, viewer(true));
+    const notas = visiveis.find((child) => child.href === "/invoices");
+    expect(notas).toBeDefined();
+
+    // Sem o plano ele permanece e vira coroa, não some: quem decide isso é
+    // resolveCapabilityRestriction, não este filtro.
+    expect(
+      resolveGroupTarget(FINANCEIRO, [notas!], CAPS.pro)?.requiresCapability,
+    ).toBe("fiscal");
+  });
+
+  it("masterOnly derruba Comissões para quem não é master", () => {
+    const hrefs = filterVisibleChildren(FINANCEIRO, viewer(true)).map(
+      (child) => child.href,
+    );
+    expect(hrefs).not.toContain("/commissions");
+  });
+
+  it("o nicho derruba o filho indisponível", () => {
+    const hrefs = filterVisibleChildren(CATALOGO, {
+      isMaster: true,
+      isDemo: false,
+      hasPermission: () => true,
+      // cortinas: solutions false, ambientes true
+      isPageEnabled: (pageId?: string | null) => pageId !== "solutions",
+    }).map((child) => child.href);
+
+    expect(hrefs).toContain("/ambientes");
+    expect(hrefs).not.toContain("/solutions");
   });
 });

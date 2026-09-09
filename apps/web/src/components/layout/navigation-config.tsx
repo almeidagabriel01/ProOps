@@ -213,6 +213,47 @@ export function getVisibleChildren(
   });
 }
 
+/** O que o gate precisa saber de quem está olhando. */
+export type NavigationViewer = {
+  isMaster: boolean;
+  isDemo: boolean;
+  hasPermission: (pageId: string, action: "view") => boolean;
+  /** `isPageEnabledForNiche` já ligado ao nicho do tenant. */
+  isPageEnabled: (pageId?: string | null) => boolean;
+};
+
+/**
+ * Os filhos de um grupo que esta pessoa pode ver.
+ *
+ * PERMISSÃO ANTES DE PLANO. A ordem inversa fazia o mesmo membro sem permissão
+ * de `invoices` NÃO ver Notas Fiscais num tenant Enterprise, onde a capacidade
+ * estava satisfeita e a checagem caía na permissão, e VER, coroada, num tenant
+ * Pro, onde a capacidade faltava e a função devolvia cedo. Visibilidade oposta
+ * conforme o tier, para a mesma pessoa, com o upsell aparecendo para quem não
+ * poderia usar o módulo nem depois do upgrade.
+ *
+ * Plano NÃO filtra: item sem a capacidade permanece e quem o coroa é
+ * `resolveCapabilityRestriction`, na dock e no seletor. Some por permissão,
+ * nicho ou masterOnly, nunca por plano.
+ */
+export function filterVisibleChildren(
+  item: MenuItem,
+  viewer: NavigationViewer,
+): SubMenuItem[] {
+  return (item.children ?? []).filter((child) => {
+    // availabilityPageId, não pageId: Ambientes divide "solutions" com Soluções
+    // para a permissão, mas tem porta de nicho própria. Checando por pageId, os
+    // dois sumiriam no nicho cortinas.
+    const availKey = child.availabilityPageId ?? child.pageId;
+    if (!viewer.isPageEnabled(availKey)) return false;
+    if (child.masterOnly && !viewer.isMaster) return false;
+    if (child.pageId && !viewer.isMaster && !viewer.isDemo) {
+      if (!viewer.hasPermission(child.pageId, "view")) return false;
+    }
+    return true;
+  });
+}
+
 /**
  * Colapsa um grupo em UM destino, para a dock desenhar um ícone só.
  *
