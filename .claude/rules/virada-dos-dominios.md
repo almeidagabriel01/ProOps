@@ -73,48 +73,57 @@ como evitar. **Avise antes.**
 
 ---
 
-## Checklist de consoles
+## Checklist, na ordem de execução
 
-Nenhum item aqui é código, e cada um falha de um jeito diferente.
+A ordem importa mais que a lista. **Quase tudo aqui é aditivo e pode ser feito
+dias antes, sem mudar nada para ninguém**: acrescentar um domínio autorizado ou
+uma URL de retorno não remove a antiga. Fazer isso antes encurta a janela em que
+algo pode estar errado, porque no dia sobram só três coisas.
 
-- [ ] **Firebase Auth → domínios autorizados.** Adicionar `erp.proops.com.br`.
-      Sem isso o login inteiro morre com `auth/unauthorized-domain`.
-- [ ] **`CORS_ALLOWED_ORIGINS`** em `apps/functions/.env.erp-softcode-prod`, com
-      o subdomínio novo. **Exige `npm run deploy:prod`**: mudar o arquivo não
-      alcança as funções já publicadas. É o único item do checklist que toca
-      produção de verdade antes da virada, então deixe-o para o dia.
-- [ ] **Atualizar o secret `FUNCTIONS_ENV_PRODUCTION` no GitHub** junto, senão a
-      próxima função nova nasce sem a variável (ver `ci-cd.md`).
-- [ ] **Stripe → URLs de retorno** do checkout e do portal.
-- [ ] **Google OAuth → redirect URIs**, Agenda e Drive. Erra com
-      `redirect_uri_mismatch`, que só aparece na hora de conectar.
-- [ ] **`NEXT_PUBLIC_*` na Vercel**, em Preview e Production separadamente.
+### A. Dias antes (aditivo, não muda nada)
+
+- [ ] **Firebase Auth → domínios autorizados:** acrescentar `erp.proops.com.br`.
+      **Mantenha `proops.com.br` na lista.** Sem o novo, o login inteiro morre
+      com `auth/unauthorized-domain` no minuto da virada.
+- [ ] **Stripe → URLs de retorno** do checkout e do portal: acrescentar as do
+      subdomínio. O Stripe aceita várias; as antigas continuam válidas.
+- [ ] **Google OAuth → redirect URIs** (Agenda e Drive): acrescentar as novas,
+      sem remover as atuais. Erra com `redirect_uri_mismatch`, e **só aparece na
+      hora de alguém conectar**, que pode ser semanas depois.
+- [ ] **`NEXT_PUBLIC_*` na Vercel**, em **Preview e Production separadamente**.
       Elas são embutidas no BUILD: cadastrar não afeta o que já está publicado,
       precisa de redeploy.
-- [ ] **`APP_URL` → `https://erp.proops.com.br`.** Ela alimenta os links dos
-      e-mails transacionais **e** o link público de proposta (`/share/<token>`).
-      Repare que `app.proops.com.br` já era o default de `APP_URL` em dois
-      pontos do backend, e esse host agora é a landing do aplicativo: um e-mail
-      de mudança de preço levaria o cliente para uma página de marketing (os
-      dois defaults já foram corrigidos para o subdomínio do ERP).
+- [ ] **Desligar a Deployment Protection** dos subdomínios na Vercel. Enquanto
+      estiver ligada eles respondem 302 para o SSO e nenhum crawler entra, o que
+      hoje é proposital; desligar antes permite navegar os dois hosts de verdade
+      e conferir tudo com calma. Eles continuam `noindex` até a virada, então
+      não há risco de indexação precoce.
 
-      **Decidido: o link `/share/<token>` mora no ERP**, porque quem o gera é o
-      ERP. Ele podia ter ficado no apex, por ser um endereço mais curto para
-      quem recebe, e a escolha foi a outra; há um teste travando isso
-      (`surfaces.test.ts`), para ninguém "corrigir" acrescentando `/share` ao
-      `APEX_OWNED_PATHS` achando que foi esquecimento. Os links já enviados não
-      quebram: apontam para o apex e chegam pelo 301, que preserva caminho e
-      query. O default de produção em `frontend-app-url.ts` é
-      `www.proops.com.br`, então mesmo que `APP_URL` sumisse os links chegariam
-      pelo mesmo 301, com um salto a mais.
-- [ ] **Search Console:** propriedade nova para `erp.proops.com.br`, sitemap
-      submetido, e a mudança de endereço NÃO se aplica (não é migração de
-      domínio inteiro, é uma divisão).
-- [ ] **Desligar a Deployment Protection** dos domínios na Vercel, se ainda
-      estiver ligada. Enquanto estiver, os subdomínios respondem 302 para o SSO
-      e nenhum crawler entra.
+### B. No dia, e nesta ordem
 
----
+- [ ] **1. `CORS_ALLOWED_ORIGINS`** em `apps/functions/.env.erp-softcode-prod`,
+      acrescentando o subdomínio, **e `APP_URL` → `https://erp.proops.com.br`**.
+- [ ] **2. Atualizar o secret `FUNCTIONS_ENV_PRODUCTION` no GitHub**, senão a
+      próxima função nova nasce sem as variáveis (ver `ci-cd.md`).
+- [ ] **3. `npm run deploy:prod`.** Sem ele nada dos dois itens acima alcança as
+      funções publicadas: o Cloud Run preserva as variáveis que já estão lá.
+      **Este passo vem ANTES do flip**, e é o único que toca produção sozinho.
+      Feito nesta ordem, ele é inofensivo: o backend passa a aceitar os dois
+      domínios enquanto só um está em uso.
+- [ ] **4. Trocar `APEX_SURFACE` para `"institucional"`** e atualizar o E2E
+      `superficies/host-routing.spec.ts`, que hoje afirma que o apex ainda serve
+      o ERP, no mesmo commit.
+- [ ] **5. Merge e redeploy da Vercel.**
+
+### C. Depois
+
+- [ ] **Avisar a base do re-login.** Todo mundo é deslogado, e isso não é
+      configuração, é consequência (ver acima).
+- [ ] **Conferir os 301** na mão: `proops.com.br/login`, `/dashboard`,
+      `/decoracao` e um `/share/<token>` real devem chegar ao subdomínio.
+- [ ] **Search Console:** propriedade nova para `erp.proops.com.br`, com o
+      sitemap submetido. A ferramenta de "mudança de endereço" **não se aplica**:
+      ela é para migração de domínio inteiro, e isto é uma divisão.
 
 ## Rollback
 
