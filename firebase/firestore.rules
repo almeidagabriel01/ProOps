@@ -595,6 +595,16 @@ service cloud.firestore {
       allow read, write: if false; // backend-only via Admin SDK
     }
 
+    // APP WAITLIST — pre-launch signups from the mobile app's landing page.
+    // Written only by the public endpoint through the Admin SDK, which bypasses
+    // these rules. Denied to every client: the collection is a list of e-mail
+    // addresses, so a readable rule here would be an open mailing list, and a
+    // writable one would let anyone seed it without passing the rate limiter or
+    // the honeypot.
+    match /app_waitlist/{emailHash} {
+      allow read, write: if false;
+    }
+
     // EMAIL AUDIT — written exclusively by Cloud Functions (Admin SDK)
     // Super admins can read for operational monitoring; no tenant-level access needed
     match /email_audit/{auditId} {

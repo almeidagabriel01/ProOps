@@ -112,3 +112,8 @@ apps/web/.next-test/
 
 # ownership migration snapshots and backups (contain PII)
 .migration/
+
+# Gerados pelo Next 16 a cada `npm run dev` (agentRules). Nao sao os CLAUDE.md
+# do projeto: aqueles ficam na raiz e em src/**, e sao versionados.
+apps/web/AGENTS.md
+apps/web/CLAUDE.md

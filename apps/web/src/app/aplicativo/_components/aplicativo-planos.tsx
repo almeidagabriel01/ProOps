@@ -1,0 +1,151 @@
+import React from "react";
+
+import { LiquidGlass } from "@/components/marketing/_shared/liquid-glass";
+import { PauseOffscreen } from "@/components/marketing/_shared/pause-offscreen";
+
+interface Plano {
+  nome: string;
+  mensal: string;
+  anual: string;
+  para: string;
+  inclui: string[];
+  destaque?: boolean;
+}
+
+/**
+ * Prices as the app itself defines them, in `src/lib/billing.ts`.
+ *
+ * The permanent free tier is NOT advertised. It exists in the app today, and
+ * the product decision to replace it with the seven-day trial is already
+ * recorded in the app's own handoff notes. Putting it on a page that goes live
+ * around launch would be promising something scheduled for removal, which is
+ * the one promise a pricing section must never make.
+ */
+const PLANOS: Plano[] = [
+  {
+    nome: "Pro",
+    mensal: "R$ 24,90",
+    anual: "R$ 249,00 por ano",
+    para: "Para você, e mais duas pessoas",
+    inclui: [
+      "3 pessoas no mesmo financeiro",
+      "1.000 mensagens de IA por mês",
+      "Importação de extrato OFX e CSV",
+    ],
+    destaque: true,
+  },
+  {
+    nome: "Família",
+    mensal: "R$ 39,90",
+    anual: "R$ 399,00 por ano",
+    para: "Para a casa inteira",
+    inclui: [
+      "5 pessoas no mesmo financeiro",
+      "2.000 mensagens de IA por mês",
+      "Autoria por lançamento",
+    ],
+  },
+];
+
+/**
+ * Prices, with nothing to click.
+ *
+ * Informative on purpose. The app charges through in-app purchase, so the
+ * transaction happens inside the store and there is no web checkout to link
+ * to. A buy button here would also drag the page into App Review's scope,
+ * which an informative page stays out of.
+ */
+export function AplicativoPlanos() {
+  return (
+    <section className="border-t border-white/[0.06] bg-[var(--app-bg)] px-6 py-28 text-[var(--app-text)] md:px-10 md:py-36">
+      <div className="mx-auto max-w-5xl">
+        <p className="mb-4 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--app-tint)]">
+          <span className="h-px w-7 bg-[var(--app-tint)]/50" />
+          Planos
+        </p>
+
+        <h2 className="max-w-2xl [font-family:var(--font-hanken)] text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-5xl">
+          Sete dias para testar. Depois você decide.
+        </h2>
+
+        <PauseOffscreen className="mt-14 grid gap-4 md:mt-16 md:grid-cols-2">
+          {PLANOS.map((plano, index) => (
+            <LiquidGlass
+              key={plano.nome}
+              as="article"
+              className={`flex flex-col rounded-3xl p-8 md:p-10 ${
+                plano.destaque ? "ring-1 ring-[var(--app-tint)]/25" : ""
+              }`}
+              delaySeconds={2 + index * 1.6}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="[font-family:var(--font-hanken)] text-xl font-bold tracking-tight">
+                  {plano.nome}
+                </h3>
+                {plano.destaque ? (
+                  <span className="rounded-full bg-[var(--app-tint)]/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-tint)]">
+                    Mais escolhido
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="mt-1 text-sm text-[var(--app-text-muted)]">
+                {plano.para}
+              </p>
+
+              <p className="mt-7 flex items-baseline gap-1.5">
+                <span className="[font-family:var(--font-jetbrains-mono)] text-4xl font-semibold tracking-tight md:text-5xl">
+                  {plano.mensal}
+                </span>
+                <span className="text-sm text-[var(--app-text-muted)]">
+                  por mês
+                </span>
+              </p>
+              <p className="mt-1.5 text-sm text-[var(--app-text-muted)]">
+                ou {plano.anual}
+              </p>
+
+              <ul className="mt-8 space-y-3 border-t border-white/[0.08] pt-7">
+                {plano.inclui.map((item) => (
+                  <li
+                    key={item}
+                    className="flex items-baseline gap-3 text-sm text-[var(--app-text)]/85"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="mt-[0.45em] h-1 w-1 shrink-0 rounded-full bg-[var(--app-tint)]"
+                    />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </LiquidGlass>
+          ))}
+        </PauseOffscreen>
+
+        {/* The app says this on its own subscription screen. Repeating it here
+            is the point: it is a promise, and a promise made only after someone
+            has already paid is worth less. */}
+        <div className="mt-10 grid gap-3 sm:grid-cols-3">
+          {[
+            "Sem contagem regressiva e sem preço riscado.",
+            "Cancelar é um toque, na própria loja.",
+            "Se cancelar, nada é apagado.",
+          ].map((frase) => (
+            <p
+              key={frase}
+              className="rounded-2xl border border-white/[0.07] px-5 py-4 text-sm leading-relaxed text-[var(--app-text-muted)]"
+            >
+              {frase}
+            </p>
+          ))}
+        </div>
+
+        <p className="mt-8 text-xs text-[var(--app-text-muted)]/70">
+          A assinatura é feita dentro do aplicativo, pela App Store ou pelo
+          Google Play.
+        </p>
+      </div>
+    </section>
+  );
+}
