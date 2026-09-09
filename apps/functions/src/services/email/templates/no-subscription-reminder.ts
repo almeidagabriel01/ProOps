@@ -13,7 +13,7 @@ export interface NoSubscriptionReminderEmailContent {
 export function renderNoSubscriptionReminderEmail(
   data: NoSubscriptionReminderEmailData,
 ): NoSubscriptionReminderEmailContent {
-  const subject = "Escolha seu plano e comece a usar o ProOps";
+  const subject = "Escolha seu plano e comece a usar a ProOps";
 
   const greetingName = (data.recipientName || "").trim();
   const greeting = greetingName ? `Olá, ${greetingName}` : "Olá";

@@ -202,7 +202,7 @@ export function AplicativoGaleria() {
                   Por dentro
                 </p>
                 <h2 className="max-w-2xl [font-family:var(--font-hanken)] text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-4xl">
-                  O {APP_NAME}, tela por tela.
+                  A {APP_NAME}, tela por tela.
                 </h2>
               </div>
 
@@ -289,7 +289,7 @@ export function AplicativoGaleria() {
                     // capture on screen until the new one decodes.
                     key={plataforma}
                     src={`/mockup-${plataforma}/${tela.arquivo}`}
-                    alt={`Tela ${tela.nome} do ${APP_NAME} no ${ROTULO[plataforma]}: ${tela.descricao}`}
+                    alt={`Tela ${tela.nome} da ${APP_NAME} no ${ROTULO[plataforma]}: ${tela.descricao}`}
                     fill
                     sizes="(min-width: 1024px) 19rem, (min-width: 768px) 15rem, 52vw"
                     loading={index < 2 ? "eager" : "lazy"}

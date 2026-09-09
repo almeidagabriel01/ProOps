@@ -20,7 +20,7 @@ export function AppHeroPhone() {
       <DeviceFrame platform="ios">
         <Image
           src="/mockup-ios/hoje.jpg"
-          alt={`Tela inicial do ${APP_NAME}, com a sobra projetada do mês e as pendências do dia`}
+          alt={`Tela inicial da ${APP_NAME}, com a sobra projetada do mês e as pendências do dia`}
           fill
           sizes="(min-width: 1024px) 22rem, (min-width: 640px) 60vw, 80vw"
           priority

@@ -109,7 +109,7 @@ export function AplicativoAgente() {
           </div>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-[var(--app-text-muted)]">
             O que você conversa no WhatsApp não se mistura com o que você
-            conversa dentro do {APP_NAME}. O limite mensal, sim, é o mesmo para
+            conversa dentro da {APP_NAME}. O limite mensal, sim, é o mesmo para
             os dois.
           </p>
         </div>

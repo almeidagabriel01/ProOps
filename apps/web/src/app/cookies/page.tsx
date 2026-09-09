@@ -4,14 +4,14 @@ import { LegalPage } from "@/components/legal/legal-page";
 export const metadata: Metadata = {
   title: "Política de Cookies | ProOps",
   description:
-    "Saiba quais cookies o ProOps utiliza, para quais finalidades e como você pode gerenciá-los.",
+    "Saiba quais cookies a ProOps utiliza, para quais finalidades e como você pode gerenciá-los.",
 };
 
 export default function CookiesPage() {
   return (
     <LegalPage
       title="Política de Cookies"
-      description="Esta página explica o que são cookies, quais tipos o ProOps utiliza, com quais finalidades e como você pode gerenciá-los no seu navegador."
+      description="Esta página explica o que são cookies, quais tipos a ProOps utiliza, com quais finalidades e como você pode gerenciá-los no seu navegador."
       updatedAt="5 de junho de 2026"
       sections={[
         {

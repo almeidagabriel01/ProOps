@@ -11,7 +11,7 @@ export default function DataDeletionPage() {
   return (
     <LegalPage
       title="Exclusão de Dados"
-      description="Esta página explica como solicitar a exclusão dos seus dados pessoais armazenados pelo ProOps e descreve o processo adotado para atender essas solicitações."
+      description="Esta página explica como solicitar a exclusão dos seus dados pessoais armazenados pela ProOps e descreve o processo adotado para atender essas solicitações."
       updatedAt="5 de maio de 2026"
       sections={[
         {
@@ -21,12 +21,12 @@ export default function DataDeletionPage() {
               <p>
                 Nos termos da Lei Geral de Proteção de Dados (LGPD) e de outras
                 legislações aplicáveis, você tem o direito de solicitar a
-                exclusão dos seus dados pessoais tratados pelo ProOps, quando
+                exclusão dos seus dados pessoais tratados pela ProOps, quando
                 não houver base legal que justifique sua manutenção.
               </p>
               <p>
                 Este direito se aplica a dados de usuários da plataforma,
-                incluindo aqueles que interagiram com o ProOps por meio de
+                incluindo aqueles que interagiram com a ProOps por meio de
                 integrações como WhatsApp, Google Agenda ou outras ferramentas
                 conectadas.
               </p>

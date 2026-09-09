@@ -28,6 +28,35 @@
 
 ## Texto que o usuário lê
 
+**ProOps é palavra feminina: sempre "a ProOps".** A marca nomeia a empresa, não
+"o sistema" nem "o produto", então ela não herda o gênero deles. Vale para toda
+superfície que vira texto: tela, e-mail, mensagem de erro, toast, título e
+descrição de SEO, prompt da Lia e página legal.
+
+| Em vez de | Escreva |
+|---|---|
+| `O ProOps adapta-se ao seu nicho` | `A ProOps adapta-se ao seu nicho` |
+| `dados tratados pelo ProOps` | `dados tratados pela ProOps` |
+| `quem já usa o ProOps` | `quem já usa a ProOps` |
+| `Ao acessar ou utilizar o ProOps` | `Ao acessar ou utilizar a ProOps` |
+| `O ProOps é específico para automação?` | `A ProOps é específica para automação?` |
+
+Trocar o artigo não basta quando a frase continua concordando no masculino:
+`O ProOps é um sistema web responsivo` vira `A ProOps é uma plataforma web
+responsiva`, não `A ProOps é um sistema`.
+
+**O artigo pode estar longe da marca.** `APP_NAME`
+(`apps/web/src/lib/site/app-brand.ts`) vale "ProOps Pessoal", e nas páginas de
+marketing ele entra interpolado: `do {APP_NAME}` é o mesmo erro escrito de outro
+jeito, e foi onde estava boa parte dos casos corrigidos.
+
+O guard `apps/web/src/__tests__/proops-e-substantivo-feminino.test.ts` varre a
+interface e os templates de e-mail e falha quando um determinante masculino
+aparece antes de `ProOps` ou de `APP_NAME`. Ele cobre **determinante**, não
+adjetivo: `é específico` e `foi criado` não são detectáveis sem análise
+sintática, e um guard que tenta adivinhá-los acusa texto correto. Comentário de
+código e log ficam de fora, pelo mesmo critério do travessão.
+
 **Nunca use travessão como pontuação.** Vale para toda superfície que vira
 texto: tela, e-mail, mensagem de erro, toast, título de SEO, prompt da Lia e os
 dados do tenant de demonstração. A pontuação deste produto é vírgula,

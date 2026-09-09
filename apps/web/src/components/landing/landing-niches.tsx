@@ -368,7 +368,7 @@ function NicheFooterCTA() {
   return (
     <div className="mx-auto max-w-xl text-center">
       <p className="mb-3 text-sm text-black/60 dark:text-white/60">
-        Atua em outro segmento? O ProOps adapta-se ao seu nicho.
+        Atua em outro segmento? A ProOps adapta-se ao seu nicho.
       </p>
       <LandingButton
         href="/contato"

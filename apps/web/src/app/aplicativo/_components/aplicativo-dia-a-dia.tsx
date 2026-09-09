@@ -248,7 +248,7 @@ export function AplicativoDiaADia() {
             Um dia qualquer
           </p>
           <h2 className="max-w-2xl [font-family:var(--font-hanken)] text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-4xl">
-            Seu dia a dia com o {APP_NAME}.
+            Seu dia a dia com a {APP_NAME}.
           </h2>
         </header>
 

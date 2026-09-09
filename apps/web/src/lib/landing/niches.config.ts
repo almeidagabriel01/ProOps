@@ -25,7 +25,7 @@ export const NICHE_LANDING_CONFIG: Record<
       title: "ERP para",
       titleHighlight: "Automação Residencial",
       subtitle:
-        "O ProOps tem um pacote pronto para integradores e empresas de automação residencial: gestão de propostas, CRM, financeiro e agenda integrados em um só lugar.",
+        "A ProOps tem um pacote pronto para integradores e empresas de automação residencial: gestão de propostas, CRM, financeiro e agenda integrados em um só lugar.",
       primaryCta: { label: "Começar agora", href: "/register" },
       secondaryCta: { label: "Fazer login", href: "/login" },
     },
@@ -70,7 +70,7 @@ export const NICHE_LANDING_CONFIG: Record<
     modulesSection: {
       title: "Módulos específicos para automação",
       subtitle:
-        "O ProOps oferece módulos pensados para a realidade de integradores e empresas de AV.",
+        "A ProOps oferece módulos pensados para a realidade de integradores e empresas de AV.",
     },
     modules: [
       {
@@ -109,9 +109,9 @@ export const NICHE_LANDING_CONFIG: Record<
     ],
     faq: [
       {
-        question: "O ProOps é específico para automação residencial?",
+        question: "A ProOps é específica para automação residencial?",
         answer:
-          "Não exclusivamente. O ProOps adapta-se ao seu nicho: para automação residencial já temos catálogo de produtos, templates de proposta e campos específicos prontos. Também personalizamos para outros segmentos.",
+          "Não exclusivamente. A ProOps adapta-se ao seu nicho: para automação residencial já temos catálogo de produtos, templates de proposta e campos específicos prontos. Também personalizamos para outros segmentos.",
       },
       {
         question: "Posso personalizar os templates de proposta com minha marca?",
@@ -121,7 +121,7 @@ export const NICHE_LANDING_CONFIG: Record<
       {
         question: "Tem app mobile?",
         answer:
-          "O ProOps é um sistema web responsivo que funciona bem em smartphones e tablets. Um app nativo está no roadmap.",
+          "A ProOps é uma plataforma web responsiva que funciona bem em smartphones e tablets. Um app nativo está no roadmap.",
       },
       {
         question: "Qual o custo para começar?",
@@ -132,7 +132,7 @@ export const NICHE_LANDING_CONFIG: Record<
     cta: {
       title: "Profissionalize sua empresa de automação residencial",
       subtitle:
-        "Junte-se a integradores que já usam o ProOps para fechar mais projetos com propostas profissionais.",
+        "Junte-se a integradores que já usam a ProOps para fechar mais projetos com propostas profissionais.",
       crossLink: {
         label: "Ver também: ERP para Decoração",
         href: "/decoracao",
@@ -154,7 +154,7 @@ export const NICHE_LANDING_CONFIG: Record<
       title: "ERP para",
       titleHighlight: "Lojas de Decoração",
       subtitle:
-        "O ProOps tem um pacote pronto para lojas de cortinas, persianas e papéis de parede: propostas com cálculo automático de metros, catálogo de tecidos, CRM e financeiro integrados.",
+        "A ProOps tem um pacote pronto para lojas de cortinas, persianas e papéis de parede: propostas com cálculo automático de metros, catálogo de tecidos, CRM e financeiro integrados.",
       primaryCta: { label: "Começar agora", href: "/register" },
       secondaryCta: { label: "Fazer login", href: "/login" },
     },
@@ -199,14 +199,14 @@ export const NICHE_LANDING_CONFIG: Record<
     modulesSection: {
       title: "Modos de precificação para decoração",
       subtitle:
-        "O ProOps oferece três modelos de cálculo de preço específicos para lojas de decoração.",
+        "A ProOps oferece três modelos de cálculo de preço específicos para lojas de decoração.",
     },
     modules: [
       {
         icon: Ruler,
         title: "Precificação por m²",
         description:
-          "Defina o preço por metro quadrado e o ProOps calcula o total automaticamente ao informar largura e altura de cada ambiente.",
+          "Defina o preço por metro quadrado e a ProOps calcula o total automaticamente ao informar largura e altura de cada ambiente.",
         bullets: [
           "Largura e altura em qualquer unidade de medida",
           "Cálculo automático do total sem erro manual",
@@ -238,9 +238,9 @@ export const NICHE_LANDING_CONFIG: Record<
     ],
     faq: [
       {
-        question: "O ProOps funciona para lojas de cortinas e persianas?",
+        question: "A ProOps funciona para lojas de cortinas e persianas?",
         answer:
-          "Não exclusivamente. O ProOps adapta-se ao seu nicho: para decoração já temos cálculo por metro, catálogo de tecidos e campos de medida prontos. Também personalizamos para outros segmentos.",
+          "Não exclusivamente. A ProOps adapta-se ao seu nicho: para decoração já temos cálculo por metro, catálogo de tecidos e campos de medida prontos. Também personalizamos para outros segmentos.",
       },
       {
         question: "Posso incluir fotos dos produtos nas propostas?",
@@ -250,7 +250,7 @@ export const NICHE_LANDING_CONFIG: Record<
       {
         question: "O sistema calcula o preço total automaticamente?",
         answer:
-          "Sim. Ao adicionar itens com quantidade e preço unitário, ou com medidas e preço por m², o ProOps calcula o total da proposta e atualiza o financeiro automaticamente.",
+          "Sim. Ao adicionar itens com quantidade e preço unitário, ou com medidas e preço por m², a ProOps calcula o total da proposta e atualiza o financeiro automaticamente.",
       },
       {
         question: "Qual o custo para começar?",
@@ -261,7 +261,7 @@ export const NICHE_LANDING_CONFIG: Record<
     cta: {
       title: "Sua loja de decoração merece um sistema profissional",
       subtitle:
-        "Junte-se a lojas de cortinas, persianas e papéis de parede que já usam o ProOps para fechar mais vendas com propostas profissionais.",
+        "Junte-se a lojas de cortinas, persianas e papéis de parede que já usam a ProOps para fechar mais vendas com propostas profissionais.",
       crossLink: {
         label: "Ver também: ERP para Automação Residencial",
         href: "/automacao-residencial",
