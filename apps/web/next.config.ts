@@ -14,8 +14,14 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=()",
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=31536000; includeSubDomains; preload",
+  },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
   {
@@ -40,7 +46,17 @@ const nextConfig: NextConfig = {
   deploymentId: process.env.VERCEL_DEPLOYMENT_ID,
   reactStrictMode: false,
   reactCompiler: true,
-  output: "standalone",
+  // NAO reintroduzir `output: "standalone"`.
+  //
+  // Nada neste repositorio consome `.next/standalone`: nao ha Dockerfile, o CI
+  // e o Lighthouse sobem `next start` (que le `.next/` direto) e o frontend e
+  // publicado pela Vercel a partir do git, sem workflow. A Vercel monta a
+  // propria saida serverless e ignora a standalone.
+  //
+  // A partir do Next 16.3 essa opcao QUEBRA o deploy: o `next build` termina,
+  // e o empacotamento da Vercel morre em onBuildComplete com
+  // `ENOENT ... .next/next-server.js.nft.json`. O build local passa, o da
+  // Vercel nao. Regressao conhecida do 16.3 (16.2.6 ainda funcionava).
   outputFileTracingRoot: path.join(__dirname, "../.."),
   images: {
     remotePatterns: [
