@@ -19,6 +19,16 @@ interface LiquidGlassProps {
  * this costs nothing on the client. Pausing the highlight off-screen is the
  * caller's job, via `PauseOffscreen` around the group.
  *
+ * The blur comes from Tailwind's `backdrop-blur` utility, not from the
+ * stylesheet: a raw `backdrop-filter` written in globals.css is stripped
+ * before it reaches the browser, silently, while every other declaration in
+ * the same rule survives.
+ *
+ * It sets `position: relative`, and because globals.css is unlayered that
+ * declaration BEATS Tailwind's `absolute` and `fixed` utilities on equal
+ * specificity. To place a pane, wrap it in a positioned element rather than
+ * passing the positioning class here, or it silently stays in normal flow.
+ *
  * Give it a `rounded-*` class at the call site. The inner highlight inherits
  * the radius, and a square-cornered pane of glass looks like a mistake.
  */
@@ -33,7 +43,10 @@ export function LiquidGlass({
 
   return (
     <Tag
-      className={cn("liquid-glass", className)}
+      className={cn(
+        "liquid-glass backdrop-blur-xl backdrop-saturate-[1.8]",
+        className,
+      )}
       style={
         {
           ...(durationSeconds ? { "--glass-dur": `${durationSeconds}s` } : {}),

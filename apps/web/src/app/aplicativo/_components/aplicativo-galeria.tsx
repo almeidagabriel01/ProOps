@@ -122,7 +122,12 @@ export function AplicativoGaleria() {
                 <span className="h-px w-7 bg-[var(--app-tint)]/50" />
                 Por dentro
               </p>
-              <h2 className="max-w-2xl [font-family:var(--font-hanken)] text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-5xl">
+              {/* One step smaller than the other section headings, and the
+                  gap below it is tighter. A phone is 2.167 times as tall as it
+                  is wide, so every pixel reclaimed here buys almost half a
+                  pixel of frame width, and frame width is what makes the pan
+                  long enough to be worth pinning for. */}
+              <h2 className="max-w-2xl [font-family:var(--font-hanken)] text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-4xl">
                 O {APP_NAME}, tela por tela.
               </h2>
             </div>
@@ -130,27 +135,28 @@ export function AplicativoGaleria() {
 
           <ul
             ref={trackRef}
-            className="landing-scrollbar mt-12 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-8 md:mt-14 md:w-max md:snap-none md:overflow-visible md:px-10 md:pb-0"
+            className="landing-scrollbar mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-8 md:mt-10 md:w-max md:snap-none md:overflow-visible md:px-10 md:pb-0"
           >
             {TELAS.map((tela, index) => (
               <li
                 key={tela.nome}
-                className="w-[52%] shrink-0 snap-start sm:w-[33%] md:w-[14rem] lg:w-[18rem]"
+                className="w-[52%] shrink-0 snap-start sm:w-[33%] md:w-[15rem] lg:w-[19rem]"
               >
                 <DeviceFrame platform={tela.plataforma}>
                   <Image
                     src={tela.imagem}
                     alt={`Tela ${tela.nome} do ${APP_NAME}: ${tela.descricao}`}
                     fill
-                    sizes="(min-width: 1024px) 18rem, (min-width: 768px) 14rem, 52vw"
+                    sizes="(min-width: 1024px) 19rem, (min-width: 768px) 15rem, 52vw"
                     loading={index < 2 ? "eager" : "lazy"}
                     className="object-cover"
                   />
                 </DeviceFrame>
-                <p className="mt-4 [font-family:var(--font-hanken)] text-sm font-semibold">
-                  {tela.nome}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--app-text-muted)]">
+                <p className="mt-3.5 truncate text-xs text-[var(--app-text-muted)]">
+                  <span className="[font-family:var(--font-hanken)] font-semibold text-[var(--app-text)]">
+                    {tela.nome}
+                  </span>
+                  <span className="mx-1.5 opacity-40">·</span>
                   {tela.descricao}
                 </p>
               </li>
@@ -162,7 +168,7 @@ export function AplicativoGaleria() {
               already fit a wide monitor, and padding the track with empty
               space to force movement would be moving nothing.
             */}
-            <li className="flex w-[52%] shrink-0 snap-start items-center sm:w-[33%] md:w-[14rem] lg:w-[18rem]">
+            <li className="flex w-[52%] shrink-0 snap-start items-center sm:w-[33%] md:w-[15rem] lg:w-[19rem]">
               <a
                 href="#lista-de-espera"
                 className="flex aspect-[9/19.5] w-full flex-col justify-center rounded-[1.75rem] border border-dashed border-white/15 px-6 text-center transition-colors hover:border-[var(--app-tint)]/50 hover:bg-white/[0.02]"
