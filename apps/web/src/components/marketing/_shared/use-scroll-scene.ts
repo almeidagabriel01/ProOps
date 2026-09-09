@@ -39,20 +39,21 @@ interface ScrollSceneOptions {
  * Under `reduce`, no timeline is ever created and the DOM keeps whatever the
  * server rendered. That is why sections must be authored in their FINAL state
  * and animated with `fromTo`, never with `to` from an invisible start.
+ *
+ * Callers import `gsap` and `ScrollTrigger` themselves, as the thirteen
+ * existing sections do. Registering the plugin here means they never have to
+ * remember to.
  */
 export function useScrollScene(
   scope: React.RefObject<HTMLElement | null>,
-  build: (context: {
-    timeline: typeof gsap;
-    scrollTrigger: typeof ScrollTrigger;
-  }) => void,
+  build: () => void,
   { query = SCENE_DESKTOP, dependencies = [] }: ScrollSceneOptions = {},
 ) {
   useGSAP(
     () => {
       const mm = gsap.matchMedia();
       mm.add(query, () => {
-        build({ timeline: gsap, scrollTrigger: ScrollTrigger });
+        build();
       });
       return () => {
         mm.revert();

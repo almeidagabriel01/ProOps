@@ -2,9 +2,13 @@ import type { Metadata } from "next";
 
 import { SmoothScroll } from "@/components/marketing/_shared/smooth-scroll";
 
+import { InstitucionalCta } from "./_components/institucional-cta";
 import { InstitucionalFooter } from "./_components/institucional-footer";
+import { InstitucionalHistoria } from "./_components/institucional-historia";
 import { InstitucionalHero } from "./_components/institucional-hero";
+import { InstitucionalManifesto } from "./_components/institucional-manifesto";
 import { InstitucionalNavbar } from "./_components/institucional-navbar";
+import { InstitucionalProdutos } from "./_components/institucional-produtos";
 
 /**
  * The ProOps company page.
@@ -34,6 +38,10 @@ export default function InstitucionalPage() {
       <SmoothScroll />
       <InstitucionalNavbar />
       <InstitucionalHero />
+      <InstitucionalProdutos />
+      <InstitucionalManifesto />
+      <InstitucionalHistoria />
+      <InstitucionalCta />
       <InstitucionalFooter />
     </>
   );
