@@ -26,6 +26,11 @@ export const PUBLIC_MARKETING_ROUTES = [
   "/decoracao",
   "/contato",
   "/agendar",
+  // The two host-routed sites. `proops.com.br/` and `app.proops.com.br/` are
+  // rewritten onto these paths by the proxy, and both remain directly
+  // reachable so they can be reviewed on any host while being built.
+  "/institucional",
+  "/aplicativo",
 ] as const;
 
 /**

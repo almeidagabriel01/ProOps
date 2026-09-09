@@ -27,6 +27,11 @@ import {
   isPublicRoute,
   shouldSkipRoute,
 } from "@/lib/auth/route-access";
+import {
+  APEX_STILL_SERVES_ERP,
+  resolveRewritePath,
+  resolveSurface,
+} from "@/lib/site/surfaces";
 
 // Route classification (public / billing-exempt / skip) lives in the pure,
 // unit-tested @/lib/auth/route-access module so the proxy and providers.tsx
@@ -45,6 +50,39 @@ interface BillingStatusResponse {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Skip static assets and API routes FIRST.
+  //
+  // Order matters more than it looks: `config.matcher` below does NOT exclude
+  // `/api`, and Next invokes the proxy for `/_next/data/*` even when the
+  // matcher excludes it. SKIP_PATTERNS is what actually spares them, so any
+  // rule that rewrites or redirects broadly has to sit below this line —
+  // above it, a host rule would catch `/api/webhooks/stripe` and turn a signed
+  // webhook POST into a redirect.
+  if (shouldSkipRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Which of the three ProOps sites is this? See @/lib/site/surfaces.
+  const surface = resolveSurface(
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+  );
+
+  // While the apex still serves the ERP, erp.proops.com.br is a byte-for-byte
+  // duplicate of proops.com.br. Keep the new hosts out of the index until the
+  // cutover, otherwise Google picks a canonical between them for us.
+  const transitionalNoIndex = APEX_STILL_SERVES_ERP && surface !== "erp";
+
+  const rewriteTo = resolveRewritePath(surface, pathname);
+  if (rewriteTo) {
+    const url = request.nextUrl.clone();
+    url.pathname = rewriteTo;
+    const resp = NextResponse.rewrite(url);
+    if (transitionalNoIndex) {
+      resp.headers.set("X-Robots-Tag", "noindex, nofollow");
+    }
+    return resp;
+  }
+
   // Legacy route redirect: /automation -> /solutions
   if (pathname === "/automation" || pathname.startsWith("/automation/")) {
     const redirectUrl = request.nextUrl.clone();
@@ -52,11 +90,6 @@ export async function proxy(request: NextRequest) {
     const resp = NextResponse.redirect(redirectUrl);
     resp.headers.set("Content-Type", "text/plain");
     return resp;
-  }
-
-  // Skip static assets and API routes
-  if (shouldSkipRoute(pathname)) {
-    return NextResponse.next();
   }
 
   // Billing-allowed routes (e.g., /subscription-blocked) are accessible to everyone, including
@@ -70,7 +103,11 @@ export async function proxy(request: NextRequest) {
 
   // Allow public routes
   if (isPublicRoute(pathname)) {
-    return NextResponse.next();
+    const resp = NextResponse.next();
+    if (transitionalNoIndex) {
+      resp.headers.set("X-Robots-Tag", "noindex, nofollow");
+    }
+    return resp;
   }
 
   // Check for auth session
