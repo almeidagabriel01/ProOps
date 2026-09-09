@@ -771,10 +771,14 @@ pelo ERP chegar la sem baixar e subir a mao.
     salvar cinco vezes seguidas nao vira cinco renders do mesmo PDF; o `set`
     com merge reabre o job existente e zera as tentativas, porque ha mudanca
     nova a entregar. Admin SDK only nas rules.
-  - Cron `processDriveDeliveries`, **a cada minuto** (piso do Cloud Scheduler;
-    varrer uma fila vazia e uma consulta so, e o container escala a zero entre
-    as execucoes). Backoff de 1/5/15/60 min, desistindo em
-    `MAX_DRIVE_DELIVERY_ATTEMPTS = 5` com o motivo gravado em `lastError`.
+  - Cron `processDriveDeliveries`, **a cada 3 minutos**. Nao e o piso do Cloud
+    Scheduler (1 min) porque o custo nao esta na fatura, e sim nas LEITURAS: uma
+    varredura de fila vazia e cobrada como uma leitura do Firestore, entao de
+    minuto em minuto seriam 1.440/dia contra 480 aqui — e o baseline medido do
+    projeto e ~1.666/dia (mediana), ou seja, o cron de 1 minuto quase dobrava o
+    consumo e deslocava a linha de base do alerta de leituras. Backoff de
+    1/5/15/60 min, desistindo em `MAX_DRIVE_DELIVERY_ATTEMPTS = 5` com o motivo
+    gravado em `lastError`.
   - **Os recursos NAO sao os do padrao de cron.** `SCHEDULE_OPTIONS` traz
     `cpu: 0.25` (0,083 em dev), calibrado para cron que so le Firestore; aqui
     roda Chromium, entao o cron sobrescreve para `cpu: 1` e `memory: 1GiB`, os

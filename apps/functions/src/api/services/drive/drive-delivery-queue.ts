@@ -200,8 +200,9 @@ export async function runDriveDeliveryJob(jobId: string): Promise<void> {
  * Varre os jobs vencidos. Devolve quantos processou, para o log do cron.
  *
  * O lote e pequeno de proposito: cada entrega renderiza um PDF, e um lote que
- * nao caiba nos 540s do cron seria cortado no meio. Com cadencia de um minuto,
- * 20 por ciclo dao vazao de sobra.
+ * nao caiba nos 540s do cron seria cortado no meio. Com cadencia de 3 minutos,
+ * 20 por ciclo dao 400 entregas por hora — vazao de sobra, e o que sobrar fica
+ * na fila para o ciclo seguinte em vez de estourar o timeout.
  */
 export async function processDriveDeliveryQueue(
   limit = 20,
