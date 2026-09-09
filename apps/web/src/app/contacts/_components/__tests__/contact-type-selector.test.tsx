@@ -7,16 +7,12 @@
  * `types` sempre foi array, entao a mesma pessoa pode ser fornecedor e
  * arquiteto.
  *
- * Tres coisas erram em silencio neste bloco:
+ * O que erra em silencio neste bloco e **ficar sem nenhum tipo**: desmarcar o
+ * unico tipo marcado deixaria o contato sem classificacao, e o backend grava
+ * `["cliente"]` por omissao, revertendo a escolha sem avisar.
  *
- * 1. **Zero virar comissao.** O campo em branco tem que virar `null`. Zero e um
- *    percentual valido, entao deixar passar faria a proposta nascer com uma
- *    comissao que ninguem escolheu.
- * 2. **Ficar sem nenhum tipo.** Desmarcar o unico tipo marcado deixaria o
- *    contato sem classificacao, e o backend grava `["cliente"]` por omissao,
- *    revertendo a escolha sem avisar.
- * 3. **O campo de comissao aparecer para cliente/fornecedor**, que nao recebem
- *    comissao nenhuma.
+ * A comissao do parceiro saiu daqui para o `ContactCommissionField`, que tem
+ * teste proprio.
  */
 
 import "@testing-library/jest-dom/vitest";
@@ -27,18 +23,12 @@ import userEvent from "@testing-library/user-event";
 import { ContactTypeSelector } from "../contact-type-selector";
 import type { ClientType } from "@/services/client-service";
 
-function setup(types: ClientType[], commissionPercentage: number | null = null) {
+function setup(types: ClientType[]) {
   const onTypesChange = vi.fn();
-  const onCommissionPercentageChange = vi.fn();
   render(
-    <ContactTypeSelector
-      types={types}
-      onTypesChange={onTypesChange}
-      commissionPercentage={commissionPercentage}
-      onCommissionPercentageChange={onCommissionPercentageChange}
-    />,
+    <ContactTypeSelector types={types} onTypesChange={onTypesChange} />,
   );
-  return { onTypesChange, onCommissionPercentageChange };
+  return { onTypesChange };
 }
 
 describe("ContactTypeSelector", () => {
@@ -61,22 +51,9 @@ describe("ContactTypeSelector", () => {
     expect(onTypesChange).toHaveBeenCalledWith(["vendedor"]);
   });
 
-  it("nao pede comissao de cliente nem de fornecedor", () => {
-    setup(["cliente", "fornecedor"]);
+  it("nao pede comissao: ela vive no passo dos dados fiscais", () => {
+    setup(["vendedor"]);
     expect(screen.queryByLabelText(/Comissão padrão/)).toBeNull();
-  });
-
-  it("pede comissao de vendedor e de arquiteto", () => {
-    setup(["arquiteto"]);
-    expect(screen.getByLabelText(/Comissão padrão/)).toBeInTheDocument();
-  });
-
-  it("percentual zerado vira null, nunca 0", async () => {
-    const { onCommissionPercentageChange } = setup(["vendedor"], 10);
-    const input = screen.getByLabelText(/Comissão padrão/);
-    await userEvent.clear(input);
-    expect(onCommissionPercentageChange).toHaveBeenCalledWith(null);
-    expect(onCommissionPercentageChange).not.toHaveBeenCalledWith(0);
   });
 
   it("nao descreve Fornecedor como vendedor", () => {

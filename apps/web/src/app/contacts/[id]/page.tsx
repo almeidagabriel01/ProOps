@@ -29,8 +29,10 @@ import {
 } from "@/components/ui/form-components";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
-import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Receipt, CreditCard } from "lucide-react";
+import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Receipt, CreditCard, Percent } from "lucide-react";
 import { ContactTypeSelector } from "../_components/contact-type-selector";
+import { ContactCommissionField } from "../_components/contact-commission-field";
+import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { formatDocumento } from "@/lib/format-document";
 
@@ -51,24 +53,22 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
 };
 
 /**
- * A trilha é a MESMA de `/contacts/new`, e os dados fiscais vivem DENTRO do
- * passo de endereço: são o mesmo endereço em dois níveis de estrutura, e no
- * mesmo passo a busca de CEP completa o campo livre à vista de quem digita.
- * Separados, o passo de endereço tinha um campo só e o fiscal repetia a
- * pergunta.
+ * A trilha é a MESMA de `/contacts/new`: o passo 1 responde "quem é este
+ * contato", endereço incluído, e o passo 2 junta o que quase todo cadastro
+ * pula, a comissão do parceiro e os campos da nota.
  */
 const customerSteps = [
   {
     id: "info",
     title: "Informações",
-    description: "Dados e contato",
+    description: "Contato e endereço",
     icon: User,
   },
   {
-    id: "address",
-    title: "Endereço",
-    description: "Local e dados fiscais",
-    icon: MapPin,
+    id: "fiscal",
+    title: "Dados Fiscais",
+    description: "NF-e e comissão",
+    icon: Receipt,
   },
   {
     id: "notes",
@@ -399,28 +399,41 @@ export default function EditCustomerPage() {
               {formData.document && (
                 <FormStatic label="CPF ou CNPJ" value={formData.document} />
               )}
+              <FormStatic label="Endereço Completo" value={formData.address} />
             </div>
             <StepNavigation />
           </FormStepCard>
 
-          {/* Step 2: endereço livre + dados fiscais */}
+          {/* Step 2: comissão + dados fiscais */}
           <FormStepCard>
             <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
-                  <MapPin className="w-6 h-6 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Endereço</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Localização para entregas e correspondências
-                  </p>
-                </div>
-              </div>
+              {isCommissionPartner({ types: formData.types }) && (
+                <div className="space-y-5 pb-6 border-b border-border/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                      <Percent className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">Comissão</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Percentual padrão deste parceiro, sugerido ao montar a
+                        proposta
+                      </p>
+                    </div>
+                  </div>
 
-              <FormStatic label="Endereço Completo" value={formData.address} />
+                  <FormStatic
+                    label="Comissão padrão"
+                    value={
+                      formData.commissionPercentage === null
+                        ? ""
+                        : `${formData.commissionPercentage}%`
+                    }
+                  />
+                </div>
+              )}
 
-              <div className="pt-6 border-t border-border/50 space-y-6">
+              <div className="space-y-6">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
                     <Receipt className="w-6 h-6 text-emerald-600" />
@@ -518,10 +531,6 @@ export default function EditCustomerPage() {
               onTypesChange={(types) =>
                 setFormData((prev) => ({ ...prev, types }))
               }
-              commissionPercentage={formData.commissionPercentage}
-              onCommissionPercentageChange={(commissionPercentage) =>
-                setFormData((prev) => ({ ...prev, commissionPercentage }))
-              }
             />
 
             <FormItem
@@ -593,24 +602,6 @@ export default function EditCustomerPage() {
                 className={errors.document ? "border-destructive" : ""}
               />
             </FormItem>
-          </div>
-          <StepNavigation onBeforeNext={validateStep1} />
-        </FormStepCard>
-
-        {/* Step 2: endereço livre + dados fiscais */}
-        <FormStepCard>
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
-                <MapPin className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Endereço</h3>
-                <p className="text-sm text-muted-foreground">
-                  Localização para entregas e correspondências
-                </p>
-              </div>
-            </div>
 
             <FormItem label="Endereço Completo" htmlFor="address">
               <Input
@@ -622,30 +613,43 @@ export default function EditCustomerPage() {
                 icon={<MapPin className="w-4 h-4" />}
               />
             </FormItem>
+          </div>
+          <StepNavigation onBeforeNext={validateStep1} />
+        </FormStepCard>
 
-            {/* Não recolhível, e não escondido no fim do Resumo: fechado
-                embaixo do resumo, ninguém achava o endereço fiscal, que é o
-                que a NF-e exige do destinatário. */}
-            <div className="pt-6 border-t border-border/50">
-              <ClientFiscalFields
-                variant="step"
-                values={formData.fiscal}
-                onChange={(fiscal) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    fiscal,
-                    // O endereço livre acompanha o fiscal enquanto ninguém o
-                    // tiver escrito à mão, para não digitar o mesmo endereço
-                    // duas vezes. Texto próprio ("Rua tal, portão azul") nunca
-                    // é sobrescrito por uma busca de CEP.
-                    address: isDerivedFreeAddress(prev.address, prev.fiscal)
-                      ? formatEnderecoFiscal(fiscal)
-                      : prev.address,
-                  }))
-                }
-                disabled={!isEditable}
-              />
-            </div>
+        {/* Step 2: comissão + dados fiscais. A comissão vem primeiro e com
+            cabeçalho próprio: divide o passo com o bloco fiscal mas NÃO é dado
+            fiscal, e sem separação seria lida como campo da nota. O bloco
+            fiscal não recolhe: fechado, ninguém achava o endereço que a NF-e
+            exige do destinatário. */}
+        <FormStepCard>
+          <div className="space-y-6">
+            <ContactCommissionField
+              types={formData.types}
+              value={formData.commissionPercentage}
+              onChange={(commissionPercentage) =>
+                setFormData((prev) => ({ ...prev, commissionPercentage }))
+              }
+            />
+
+            <ClientFiscalFields
+              variant="step"
+              values={formData.fiscal}
+              onChange={(fiscal) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  fiscal,
+                  // O endereço livre do passo anterior acompanha o fiscal
+                  // enquanto ninguém o tiver escrito à mão, para não digitar o
+                  // mesmo endereço duas vezes. Texto próprio ("Rua tal, portão
+                  // azul") nunca é sobrescrito por uma busca de CEP.
+                  address: isDerivedFreeAddress(prev.address, prev.fiscal)
+                    ? formatEnderecoFiscal(fiscal)
+                    : prev.address,
+                }))
+              }
+              disabled={!isEditable}
+            />
           </div>
           <StepNavigation />
         </FormStepCard>

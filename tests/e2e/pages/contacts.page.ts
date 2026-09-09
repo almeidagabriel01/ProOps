@@ -5,9 +5,11 @@ import type { Page, Locator } from "@playwright/test";
  *
  * Contacts (clients) use a StepWizard. Criação (/contacts/new) e edição
  * (/contacts/[id]) têm os MESMOS 3 passos:
- *   Step 1 — Informações: type toggles, name (#name), email (#email), phone (#phone)
- *   Step 2 — Endereço:    address (#address) + endereço fiscal (#cliente-cep…)
- *   Step 3 — Finalizar:   notes (#notes) + summary + submit
+ *   Step 1 — Informações:   type toggles, name (#name), email (#email),
+ *                           phone (#phone), document, address (#address)
+ *   Step 2 — Dados Fiscais: comissão (#commissionPercentage, só vendedor e
+ *                           arquiteto) + endereço fiscal (#cliente-cep…)
+ *   Step 3 — Finalizar:     notes (#notes) + summary + submit
  *
  * Mesmo assim o helper de edição salta pelo indicador ("Finalizar"), e não por N
  * cliques em "Próximo": a contagem de passos deixa de importar.

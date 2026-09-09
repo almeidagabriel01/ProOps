@@ -31,7 +31,8 @@ Não há sub-rota de API aqui — todas as mutações passam por `/api/backend/`
 | `page.tsx` | Página de listagem — Client Component. Orquestra estado via `useContactsCtrl` |
 | `_hooks/use-contacts-ctrl.ts` | Hook de controle central: paginação, busca, filtro de tipo, exclusão |
 | `_components/contacts-toolbar.tsx` | Barra de busca + filtros "Todos / Clientes / Fornecedores / Vendedores / Arquitetos" |
-| `_components/contact-type-selector.tsx` | Seleção múltipla do tipo + comissão padrão. **Compartilhado** pelo cadastro e pela edição |
+| `_components/contact-type-selector.tsx` | Seleção múltipla do tipo. **Compartilhado** pelo cadastro e pela edição |
+| `_components/contact-commission-field.tsx` | Comissão padrão do parceiro, no passo dos dados fiscais. **Compartilhado** |
 | `_components/contacts-columns.tsx` | Definição das colunas do `DataTable` (função `createColumns`) |
 | `_components/contacts-empty-states.tsx` | `ContactsEmptyState` (zero clientes) e `ContactsNoResults` (busca sem resultado) |
 | `_components/contacts-skeleton.tsx` | Skeleton do cabeçalho da página durante loading inicial |
@@ -122,12 +123,14 @@ recebem comissão, definida na proposta (ver `Proposal.commissions[]`).
 arquivo importa o SDK do Firebase, e quem precisa só da lista passaria a
 inicializar auth, firestore e storage junto.
 
-A **comissão padrão** aparece num painel colado à grade de tipos, porque é
-consequência dela: solta entre o seletor e o campo de nome, lia-se como mais um
-dado de contato. O campo é o `Input` comum com sufixo de porcentagem, o mesmo
-padrão dos demais percentuais do produto; era um `DecimalInput` (32px de altura,
-centralizado, semibold), desenhado para linha de tabela e destoando de todos os
-outros campos do formulário. Em branco continua sendo `null`, nunca 0.
+A **comissão padrão** vive em `_components/contact-commission-field.tsx`, fora
+deste seletor e no passo seguinte: é consequência do tipo, mas não é dado de
+contato nem dado fiscal, e no meio do cadastro lia-se como se fosse. O campo é o
+`Input` comum com sufixo de porcentagem, o mesmo padrão dos demais percentuais do
+produto; era um `DecimalInput` (32px de altura, centralizado, semibold),
+desenhado para linha de tabela e destoando de todos os outros campos do
+formulário. Em branco continua sendo `null`, nunca 0. Guard:
+`_components/__tests__/contact-commission-field.test.tsx`.
 
 ---
 
@@ -212,10 +215,13 @@ esconde sozinho — não reimplementar isso na coluna. Guard:
 **As duas telas têm os MESMOS 3 passos.** A criação e a edição divergirem é o
 defeito clássico daqui:
 
+O passo 1 responde "quem é este contato". O passo 2 junta o que quase todo
+cadastro pula.
+
 | Passo | Conteúdo | Validação |
 |-------|----------|-----------|
-| 1 — Informações | Tipo (um ou mais dos quatro) + comissão padrão, Nome, Email, Telefone, CPF/CNPJ | `name` e `phone` obrigatórios (validação em `validateStep1`) |
-| 2 — Endereço | Endereço livre + `ClientFiscalFields` com `variant="step"` (endereço fiscal estruturado + indicador de IE) | Opcional |
+| 1 — Informações | Tipo (um ou mais dos quatro), Nome, Email, Telefone, CPF/CNPJ, endereço livre | `name` e `phone` obrigatórios (validação em `validateStep1`) |
+| 2 — Dados Fiscais | `ContactCommissionField` (só para vendedor/arquiteto) + `ClientFiscalFields` com `variant="step"` | Opcional |
 | 3 — Finalizar | Observações + resumo dos dados | Submissão |
 
 O botão "Próximo" do passo 1 é bloqueado até que `validateStep1()` retorne `true`.
@@ -227,10 +233,17 @@ Duas correções trouxeram a trilha até aqui, e nenhuma das duas falhas dava er
   que é justamente o que a NF-e exige do destinatário. Viraram passo, e por isso
   o bloco não recolhe.
 - Até 2026-09-09 esse passo existia **só na edição**: quem cadastrava um cliente
-  para faturar salvava e reabria o contato para achar o campo. O passo virou
-  parte do de endereço (são o mesmo endereço em dois níveis de estrutura, e
-  juntos a busca de CEP completa o campo livre à vista de quem digita) e passou
-  a existir nas duas telas. Guard: `new/__tests__/page.test.tsx`.
+  para faturar salvava e reabria o contato para achar o campo. Guard:
+  `new/__tests__/page.test.tsx`.
+
+**A comissão divide o passo com o bloco fiscal, mas com cabeçalho próprio**
+(`_components/contact-commission-field.tsx`). Ela **não é dado fiscal**: não
+entra em campo nenhum da NF-e, alimenta `Proposal.commissions[]` e vira despesa
+no financeiro. Sem a separação visual seria lida como campo da nota. O custo
+conhecido dessa arrumação: no celular a trilha mostra só o TÍTULO do passo, então
+um vendedor pode passar por "Dados Fiscais" sem ver a comissão. É recuperável
+(o percentual é opcional e pode ser digitado na proposta), diferente de um
+endereço fiscal ausente, que só aparece como lacuna na hora de emitir.
 
 O endereço livre acompanha o fiscal enquanto ninguém escreveu nele à mão
 (`isDerivedFreeAddress`, em `lib/fiscal/format-address.ts`). A condição era só
@@ -245,7 +258,7 @@ o cadastro terminava com "R" de endereço. Texto próprio nunca é sobrescrito.
 
 ### Visualização somente leitura
 
-Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) no lugar dos inputs, inclusive o bloco fiscal dentro do passo de endereço, que mostra o endereço montado por `formatEnderecoFiscal`. O botão de submit vira "Voltar".
+Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) no lugar dos inputs, inclusive o passo de dados fiscais, que mostra a comissão do parceiro e o endereço montado por `formatEnderecoFiscal`. O botão de submit vira "Voltar".
 
 ### Detecção de alterações
 

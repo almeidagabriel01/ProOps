@@ -128,11 +128,11 @@ describe("ClientFiscalFields", () => {
     ).toBeInTheDocument();
   });
 
-  it('aponta para o endereço livre "acima", nos dois variants', () => {
-    // A instrução tem que apontar para onde o campo livre REALMENTE está. Ela
-    // já disse "passo anterior" enquanto o bloco fiscal era um passo separado;
-    // agora ele mora dentro do passo de endereço, logo abaixo do campo livre,
-    // e "passo anterior" mandaria o usuário para o lugar errado.
+  it("não diz ONDE fica o endereço livre, nos dois variants", () => {
+    // O bloco já mudou de lugar duas vezes (seção recolhida no resumo, passo
+    // próprio, passo dos dados fiscais) e a cada mudança uma referência de
+    // posição passou a apontar para o lugar errado, sem quebrar nada. A
+    // instrução diz o QUE acontece, não onde.
     for (const variant of ["section", "step"] as const) {
       const { unmount } = render(
         <ClientFiscalFields
@@ -142,8 +142,11 @@ describe("ClientFiscalFields", () => {
         />,
       );
 
-      expect(screen.getByText(/o endereço acima é completado/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/o endereço do cadastro é completado/),
+      ).toBeInTheDocument();
       expect(screen.queryByText(/passo anterior/)).toBeNull();
+      expect(screen.queryByText(/endereço acima/)).toBeNull();
       unmount();
     }
   });

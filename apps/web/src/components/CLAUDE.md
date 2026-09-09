@@ -111,10 +111,10 @@ Guard: `src/__tests__/step-wizard-children-parity.test.ts`.
 
 Bloco promovido a conteúdo de passo **não pode ser recolhível**: no caso do
 `CatalogFiscalFields` recolher esconde o único conteúdo do passo; no do
-`ClientFiscalFields`, que hoje divide o passo de endereço do contato com o campo
-livre, recolher recriaria o problema que a promoção resolveu (fechado, ninguém
-achava o endereço que a NF-e exige). Daí o `variant="step"` dos dois, ao lado do
-`"section"` recolhível.
+`ClientFiscalFields`, que divide o passo "Dados Fiscais" do contato com o bloco
+de comissão, recolher recriaria o problema que a promoção resolveu (fechado,
+ninguém achava o endereço que a NF-e exige). Daí o `variant="step"` dos dois, ao
+lado do `"section"` recolhível.
 
 ## Navegação
 

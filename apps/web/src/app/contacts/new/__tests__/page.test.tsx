@@ -76,18 +76,22 @@ describe("/contacts/new", () => {
     createClient.mockClear();
   });
 
-  it("tem a mesma trilha da edição: Informações, Endereço e Finalizar", () => {
+  it("tem a mesma trilha da edição: Informações, Dados Fiscais e Finalizar", () => {
     render(<NewCustomerPage />);
 
-    for (const passo of ["Informações", "Endereço", "Finalizar"]) {
+    for (const passo of ["Informações", "Dados Fiscais", "Finalizar"]) {
       expect(screen.getByRole("button", { name: new RegExp(passo) })).toBeInTheDocument();
     }
-    // "Dados Fiscais" deixou de ser passo nas DUAS telas: os campos moram
-    // dentro do passo de endereço.
-    expect(screen.queryByRole("button", { name: /Dados Fiscais/ })).toBeNull();
   });
 
-  it("pede o endereço fiscal no passo de endereço", async () => {
+  it("pede endereço e documento junto do contato, no passo 1", () => {
+    render(<NewCustomerPage />);
+
+    expect(screen.getByLabelText("Endereço Completo")).toBeInTheDocument();
+    expect(screen.getByLabelText(/CPF ou CNPJ/)).toBeInTheDocument();
+  });
+
+  it("pede o endereço fiscal no passo de dados fiscais", async () => {
     render(<NewCustomerPage />);
     await preencherObrigatoriosEAvancar();
 
@@ -96,7 +100,30 @@ describe("/contacts/new", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("CEP")).toBeInTheDocument();
     expect(screen.getByLabelText("Código IBGE do município")).toBeInTheDocument();
-    expect(screen.getByLabelText("Endereço Completo")).toBeInTheDocument();
+  });
+
+  it("mostra a comissão do parceiro no mesmo passo, em bloco separado", async () => {
+    render(<NewCustomerPage />);
+    const user = userEvent.setup();
+
+    // Cliente não recebe comissão, e "Cliente" é o tipo pré-selecionado.
+    expect(screen.queryByLabelText(/Comissão padrão/)).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /Vendedor/ }));
+    expect(screen.getByLabelText(/Comissão padrão/)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/Nome Completo/), "Parceiro");
+    await user.type(screen.getByLabelText(/Telefone/), "11999999999");
+    await avancar(user);
+
+    // Dois cabeçalhos no mesmo passo: comissão NÃO é dado fiscal, e sem
+    // separação seria lida como campo da nota.
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Comissão" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Dados fiscais" }),
+    ).toBeInTheDocument();
   });
 
   it("envia o endereço fiscal no cadastro", async () => {
@@ -150,6 +177,27 @@ describe("/contacts/new", () => {
 
     const livre = screen.getByLabelText("Endereço Completo") as HTMLInputElement;
     expect(livre.value).toBe("Rua das Flores, 100");
+  });
+
+  it("envia a comissão do parceiro", async () => {
+    render(<NewCustomerPage />);
+    const user = userEvent.setup();
+
+    // O tipo é escolhido no passo 1: depois de avançar, o passo anterior fica
+    // `aria-hidden` e a grade some das queries por role, como some da tela.
+    await user.click(screen.getByRole("button", { name: /Arquiteto/ }));
+    await user.type(screen.getByLabelText(/Nome Completo/), "Cliente Teste");
+    await user.type(screen.getByLabelText(/Telefone/), "11999999999");
+    await avancar(user);
+
+    await user.type(screen.getByLabelText(/Comissão padrão/), "7.5");
+    await avancar(user);
+    await user.click(screen.getByRole("button", { name: /cadastrar cliente/i }));
+
+    expect(createClient.mock.calls[0][0]).toMatchObject({
+      types: ["cliente", "arquiteto"],
+      commissionPercentage: 7.5,
+    });
   });
 
   it("não sobrescreve o endereço escrito à mão", async () => {

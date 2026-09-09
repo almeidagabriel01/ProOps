@@ -73,13 +73,13 @@ interface ClientFiscalFieldsProps {
 }
 
 /**
- * Uma descrição só, porque nos dois layouts o endereço livre está logo ACIMA:
- * na seção, no formulário que a contém; no passo, no mesmo card, logo antes
- * destes campos. Enquanto o bloco fiscal era um passo separado do de endereço,
- * a instrução precisava dizer "passo anterior" para não apontar para o vazio.
+ * A descrição NÃO diz ONDE fica o endereço livre ("acima", "no passo anterior").
+ * Este bloco já mudou de lugar duas vezes — seção recolhida no resumo, passo
+ * próprio, agora passo dos dados fiscais — e a cada mudança a referência de
+ * posição apontava para o lugar errado, sem que nada quebrasse.
  */
 const DESCRIPTION =
-  "Necessários apenas para emitir nota de produto (NF-e). Preenchendo aqui, o endereço acima é completado sozinho.";
+  "Necessários apenas para emitir nota de produto (NF-e). Preenchendo aqui, o endereço do cadastro é completado sozinho.";
 
 export function ClientFiscalFields({
   values,
