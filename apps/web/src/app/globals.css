@@ -171,15 +171,33 @@ body {
 }
 
 @keyframes luma-spin {
-  0%    { inset: 0 var(--ls-off) var(--ls-off) 0; }
-  12.5% { inset: 0 var(--ls-off) 0 0; }
-  25%   { inset: var(--ls-off) var(--ls-off) 0 0; }
-  37.5% { inset: var(--ls-off) 0 0 0; }
-  50%   { inset: var(--ls-off) 0 0 var(--ls-off); }
-  62.5% { inset: 0 0 0 var(--ls-off); }
-  75%   { inset: 0 0 var(--ls-off) var(--ls-off); }
-  87.5% { inset: 0 0 var(--ls-off) 0; }
-  100%  { inset: 0 var(--ls-off) var(--ls-off) 0; }
+  0% {
+    inset: 0 var(--ls-off) var(--ls-off) 0;
+  }
+  12.5% {
+    inset: 0 var(--ls-off) 0 0;
+  }
+  25% {
+    inset: var(--ls-off) var(--ls-off) 0 0;
+  }
+  37.5% {
+    inset: var(--ls-off) 0 0 0;
+  }
+  50% {
+    inset: var(--ls-off) 0 0 var(--ls-off);
+  }
+  62.5% {
+    inset: 0 0 0 var(--ls-off);
+  }
+  75% {
+    inset: 0 0 var(--ls-off) var(--ls-off);
+  }
+  87.5% {
+    inset: 0 0 var(--ls-off) 0;
+  }
+  100% {
+    inset: 0 var(--ls-off) var(--ls-off) 0;
+  }
 }
 
 .luma-spin-seg {
@@ -313,8 +331,12 @@ body {
 
 /* Card shine on hover */
 @keyframes card-shine {
-  0% { transform: translateX(-120%) skewX(-20deg); }
-  100% { transform: translateX(220%) skewX(-20deg); }
+  0% {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-20deg);
+  }
 }
 .card-shine-on-hover {
   position: relative;
@@ -324,7 +346,12 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(115deg, transparent 0%, rgba(0,0,0,0.06) 50%, transparent 100%);
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.06) 50%,
+    transparent 100%
+  );
   transform: translateX(-120%) skewX(-20deg);
   pointer-events: none;
   z-index: 1;
@@ -333,7 +360,12 @@ body {
   animation: card-shine 0.9s ease-out forwards;
 }
 .dark .card-shine-on-hover::before {
-  background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
 }
 
 /* Button sweep on hover */
@@ -346,7 +378,12 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 100%
+  );
   transform: translateX(-110%);
   transition: transform 0.55s ease;
   pointer-events: none;
@@ -356,7 +393,12 @@ body {
   transform: translateX(110%);
 }
 .dark .btn-sweep::before {
-  background: linear-gradient(120deg, transparent 0%, rgba(0,0,0,0.18) 50%, transparent 100%);
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.18) 50%,
+    transparent 100%
+  );
 }
 
 /* Landing button — assinatura "draw + invert".
@@ -414,13 +456,15 @@ body {
 
 /* Border beam for idle card animation */
 @property --card-beam-angle {
-  syntax: '<angle>';
+  syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
 }
 
 @keyframes card-beam-spin {
-  to { --card-beam-angle: 360deg; }
+  to {
+    --card-beam-angle: 360deg;
+  }
 }
 
 .card-border-beam {
@@ -436,8 +480,12 @@ body {
     transparent 120deg,
     transparent 360deg
   );
-  mask: linear-gradient(white 0 0) content-box, linear-gradient(white 0 0);
-  -webkit-mask: linear-gradient(white 0 0) content-box, linear-gradient(white 0 0);
+  mask:
+    linear-gradient(white 0 0) content-box,
+    linear-gradient(white 0 0);
+  -webkit-mask:
+    linear-gradient(white 0 0) content-box,
+    linear-gradient(white 0 0);
   mask-composite: exclude;
   -webkit-mask-composite: destination-out;
   animation: card-beam-spin 5s linear infinite;
@@ -653,7 +701,6 @@ html.theme-transitioning * {
 .landing-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #333;
 }
-
 
 .img-overlay {
   mask-image: linear-gradient(to top, transparent 5%, black 50%);
@@ -1052,6 +1099,103 @@ html[data-shell="locked"] body {
   }
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Chrome type — the signature of the company page.
+
+   Two stacked backgrounds clipped to the glyphs. The bottom layer is the metal
+   itself: a vertical ramp that fakes an environment, light "sky" at the top,
+   a hard specular break at the horizon, dark "ground" below. That hard stop at
+   50% is what reads as polished metal rather than as a grey gradient; softening
+   it loses the effect entirely. The top layer is a narrow diagonal highlight
+   that travels across the word.
+
+   Deliberately NOT WebGL. A shader would render this better, but a hero canvas
+   costs ~150KB and enough main-thread time to breach the CI's 800ms TBT ceiling
+   on a throttled mid-range phone, and this reads as metal at a fraction of it.
+
+   Only `background-position` animates, and only on the sweep layer. It is paint
+   work rather than composited work, so it is kept slow, paused off-screen by
+   `usePauseOffscreen` (`.anim-paused`), and switched off entirely under
+   reduced motion, where the static metal remains. */
+.chrome-text {
+  background-image:
+    linear-gradient(
+      100deg,
+      transparent 42%,
+      rgba(255, 255, 255, 0.9) 49%,
+      rgba(255, 255, 255, 0.55) 52%,
+      transparent 60%
+    ),
+    linear-gradient(
+      to bottom,
+      #ffffff 0%,
+      #e6e6e6 18%,
+      #9a9a9a 38%,
+      #f7f7f7 49%,
+      #ffffff 50%,
+      #57585c 53%,
+      #7e8084 62%,
+      #c3c5c8 80%,
+      #f2f3f4 100%
+    );
+  background-size:
+    260% 100%,
+    100% 100%;
+  background-position:
+    210% 0,
+    0 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: chrome-sweep var(--chrome-dur, 7s) ease-in-out
+    var(--chrome-delay, 1.2s) infinite;
+  will-change: background-position;
+}
+
+@keyframes chrome-sweep {
+  0%,
+  100% {
+    background-position:
+      210% 0,
+      0 0;
+  }
+  55% {
+    background-position:
+      -80% 0,
+      0 0;
+  }
+}
+
+/* On a light ground the same ramp needs a darker floor, otherwise the lower
+   half of every glyph dissolves into the page. */
+.chrome-text--on-light {
+  background-image:
+    linear-gradient(
+      100deg,
+      transparent 42%,
+      rgba(255, 255, 255, 0.75) 49%,
+      transparent 60%
+    ),
+    linear-gradient(
+      to bottom,
+      #8d8f93 0%,
+      #56585c 20%,
+      #24252a 40%,
+      #6f7175 49%,
+      #0e0f12 51%,
+      #303237 60%,
+      #6b6d72 80%,
+      #a9abaf 100%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome-text {
+    animation: none;
+  }
+}
+
 /* Cookie-consent banner: DOM is always server-rendered but hidden; visibility is
    gated by the html attribute that public/cookie-consent-init.js sets at first
    paint (before hydration). This keeps the banner off the LCP critical path —
@@ -1104,7 +1248,17 @@ html[data-cookie-consent="pending"] .cookie-banner {
 [data-demo-readonly] [inert] * {
   cursor: not-allowed !important;
 }
-[data-demo-readonly] [inert] :is(input, textarea, select, button,
-  [role="combobox"], [role="switch"], [role="checkbox"], [role="radio"]) {
+[data-demo-readonly]
+  [inert]
+  :is(
+    input,
+    textarea,
+    select,
+    button,
+    [role="combobox"],
+    [role="switch"],
+    [role="checkbox"],
+    [role="radio"]
+  ) {
   opacity: 0.65;
 }

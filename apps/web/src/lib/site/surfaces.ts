@@ -14,6 +14,19 @@
 
 export type Surface = "institucional" | "erp" | "app";
 
+/**
+ * Absolute origin of each surface, in one place.
+ *
+ * Cross-surface links have to be absolute: a relative `/erp` would stay on
+ * whatever host is being served. Keeping them here means the cutover (phase 9)
+ * has one file to touch instead of every call site.
+ */
+export const SITE_URLS: Record<Surface, string> = {
+  institucional: "https://proops.com.br",
+  erp: "https://erp.proops.com.br",
+  app: "https://app.proops.com.br",
+};
+
 /** Internal route subtree that backs each non-ERP surface. */
 export const INSTITUCIONAL_ROOT = "/institucional";
 export const APP_ROOT = "/aplicativo";

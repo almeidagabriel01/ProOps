@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
 
+import { SmoothScroll } from "@/components/marketing/_shared/smooth-scroll";
+
+import { InstitucionalFooter } from "./_components/institucional-footer";
+import { InstitucionalHero } from "./_components/institucional-hero";
+import { InstitucionalNavbar } from "./_components/institucional-navbar";
+
 /**
  * The ProOps company page.
  *
@@ -24,13 +30,11 @@ export const metadata: Metadata = {
 
 export default function InstitucionalPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <p className="[font-family:var(--font-bricolage)] text-2xl font-semibold tracking-tight text-black dark:text-white">
-        ProOps,{" "}
-        <em className="[font-family:var(--font-fraunces)] font-normal italic">
-          em construção
-        </em>
-      </p>
-    </div>
+    <>
+      <SmoothScroll />
+      <InstitucionalNavbar />
+      <InstitucionalHero />
+      <InstitucionalFooter />
+    </>
   );
 }
