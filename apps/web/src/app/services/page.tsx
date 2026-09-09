@@ -1,5 +1,6 @@
 "use client";
 
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -344,6 +345,7 @@ export default function ServicesPage() {
                 <p className="text-muted-foreground mt-1">
                   {"Gerencie o catálogo de serviços e seus valores de venda."}
                 </p>
+                <PageViewSwitcher className="mt-3" />
               </div>
               {canCreate && (
                 <div className="flex gap-2 w-full sm:w-auto">

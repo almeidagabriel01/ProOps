@@ -1,5 +1,6 @@
 "use client";
 
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -485,6 +486,7 @@ export default function ProductsPage() {
                 <p className="text-muted-foreground mt-1">
                   Gerencie o catálogo de produtos, estoque e preços.
                 </p>
+                <PageViewSwitcher className="mt-3" />
               </div>
               {canCreate && (
                 <div className="flex gap-2 w-full sm:w-auto">

@@ -1,5 +1,6 @@
 "use client";
 
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import * as React from "react";
 import { m as motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -216,6 +217,7 @@ export default function AmbientesPage() {
             Gerencie os ambientes e configure os produtos padrões de cada
             espaço.
           </p>
+          <PageViewSwitcher className="mt-3" />
         </div>
       </motion.div>
 

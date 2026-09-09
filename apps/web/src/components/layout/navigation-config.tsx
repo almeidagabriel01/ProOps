@@ -1,4 +1,5 @@
 import {
+  Blocks,
   LayoutDashboard,
   Package2,
   Wrench,
@@ -153,31 +154,47 @@ export const menuItems: MenuItem[] = [
     href: "/calendar",
     pageId: "calendar",
   },
-  { icon: Package2, label: "Produtos", href: "/products", pageId: "products" },
-  { icon: Wrench, label: "Serviços", href: "/services", pageId: "services" },
+  {
+    icon: Blocks,
+    label: "Catálogo",
+    // As peças de que uma proposta é montada. São cadastros que alimentam a
+    // proposta, não telas de uso diário, e ocupavam três ícones da dock.
+    children: [
+      {
+        icon: Package2,
+        label: "Produtos",
+        href: "/products",
+        pageId: "products",
+      },
+      { icon: Wrench, label: "Serviços", href: "/services", pageId: "services" },
+      {
+        icon: Bot,
+        label: "Soluções",
+        href: "/solutions",
+        pageId: "solutions",
+        // Explícito, embora seja o default, porque só lado a lado com o de
+        // Ambientes fica claro por que os dois existem.
+        availabilityPageId: "solutions",
+      },
+      {
+        icon: Home,
+        label: "Ambientes",
+        href: "/ambientes",
+        // Mesmo pageId de Soluções: é o mesmo escopo funcional, e um documento
+        // de permissão gravado para "solutions" tem que gatear os dois.
+        pageId: "solutions",
+        // Mas porta de nicho própria: cortinas vê Ambientes, automação vê
+        // Soluções, e nunca os dois. Sem isto os DOIS sumiriam em cortinas,
+        // onde pageAvailability.solutions é false.
+        availabilityPageId: "ambientes",
+      },
+    ],
+  },
   {
     icon: FileSpreadsheet,
     label: "Planilhas",
     href: "/spreadsheets",
     pageId: "spreadsheets",
-  },
-  {
-    icon: Bot,
-    label: "Soluções",
-    href: "/solutions",
-    pageId: "solutions",
-  },
-  {
-    icon: Home,
-    label: "Ambientes",
-    href: "/ambientes",
-    // Use "solutions" as the pageId so MEMBER permission documents created for
-    // "solutions" also gate the /ambientes page (same functional scope).
-    // The niche availability in niches/config.ts controls which item is shown.
-    pageId: "solutions",
-    // But use "ambientes" for niche availability so cortinas sees this item
-    // while automacao sees the /solutions item (which has solutions:true).
-    availabilityPageId: "ambientes",
   },
   {
     icon: MessageCircle,
