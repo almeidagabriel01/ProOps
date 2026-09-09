@@ -125,6 +125,94 @@ export function shouldNoIndexHost(host: string | null | undefined): boolean {
 }
 
 /**
+ * Paths the APEX keeps serving after the cutover, besides its own root.
+ *
+ * The legal pages belong to the company, not to a product, so they stay on
+ * proops.com.br and their canonical already anchors there (see `./host-seo`).
+ * Everything else on the apex is ERP and moves.
+ *
+ * They live here, and not in `host-seo`, only to keep the import graph
+ * one-directional: `host-seo` imports this module, so the reverse would be a
+ * cycle.
+ */
+export const APEX_OWNED_PATHS = [
+  "/privacy",
+  "/terms",
+  "/cookies",
+  "/data-deletion",
+] as const;
+
+/**
+ * Where the ERP landing lives, as something you can redirect to.
+ *
+ * `/` while the apex still serves the ERP, and the absolute subdomain after the
+ * cutover. It exists because of one line in the proxy: a free-tier account that
+ * touches an ERP route is bounced to the public landing, and that bounce was
+ * written as `new URL("/", request.url)`. After the flip that lands the user on
+ * the company page, which is not a landing for the product they were trying to
+ * use, with no error and nothing to click. `new URL()` accepts an absolute URL
+ * as the first argument and ignores the base, so the call site does not change
+ * shape.
+ */
+export function erpHomeUrl(): string {
+  return erpHomeUrlPara(APEX_STILL_SERVES_ERP);
+}
+
+/** @internal A mesma decisão, com o estado da virada explícito, para o teste. */
+export function erpHomeUrlPara(apexServeErp: boolean): string {
+  return apexServeErp ? "/" : `${SITE_URLS.erp}/`;
+}
+
+/**
+ * The 301 target for an ERP path still being requested on the apex, or `null`
+ * when the apex should serve it.
+ *
+ * Inert until the cutover: while `APEX_SURFACE` is "erp" this always returns
+ * `null`, so the rule ships, is tested, and does nothing.
+ *
+ * After the flip the apex serves exactly two things: the company page at `/`
+ * and the legal pages. Every other path is ERP that changed address, and gets a
+ * permanent redirect — which is the ONLY migration signal Google will get for
+ * those URLs. `/` itself is deliberately absent: it keeps answering 200 with
+ * different content, and no redirect can express that. That asymmetry is the
+ * documented SEO risk of this whole plan.
+ */
+export function resolveApexRedirect(
+  surface: Surface,
+  pathname: string,
+): string | null {
+  return apexRedirectPara(pathname, {
+    apexServeErp: APEX_STILL_SERVES_ERP,
+    superficieDoApex: APEX_SURFACE,
+    superficie: surface,
+  });
+}
+
+/**
+ * @internal A mesma decisão, com o estado da virada explícito.
+ *
+ * Existe para o teste conseguir exercitar o lado de LÁ da virada. Sem isto, a
+ * regra de 301 só poderia ser testada no estado em que ela não faz nada, e a
+ * primeira execução dela seria em produção, no dia mais arriscado do plano.
+ * Mockar o módulo não resolveria: as constantes são lidas por closure, então o
+ * mock não alcançaria a função.
+ */
+export function apexRedirectPara(
+  pathname: string,
+  opts: {
+    apexServeErp: boolean;
+    superficieDoApex: Surface;
+    superficie: Surface;
+  },
+): string | null {
+  if (opts.apexServeErp) return null;
+  if (opts.superficie !== opts.superficieDoApex) return null;
+  if (pathname === "/") return null;
+  if ((APEX_OWNED_PATHS as readonly string[]).includes(pathname)) return null;
+  return `${SITE_URLS.erp}${pathname}`;
+}
+
+/**
  * The internal path that should render for `pathname` on `surface`, or `null`
  * when the request must be served as-is.
  *

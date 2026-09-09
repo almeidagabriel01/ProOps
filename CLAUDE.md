@@ -189,7 +189,9 @@ com três domínios, um sitemap construído no build publicaria o mesmo conteúd
 nos três. As páginas legais ancoram o canonical no apex, porque só a raiz é
 reescrita e elas respondem 200 nos três hosts.
 
-Detalhes em `apps/web/src/app/CLAUDE.md` e `apps/web/src/lib/CLAUDE.md`.
+Detalhes em `apps/web/src/app/CLAUDE.md` e `apps/web/src/lib/CLAUDE.md`. A
+virada do apex, com o checklist de consoles e o que ela custa em SEO e em
+sessão, está em `.claude/rules/virada-dos-dominios.md`.
 
 ### Multi-Niche Support
 Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/`. Uses `tenantNiche` on tenant documents.

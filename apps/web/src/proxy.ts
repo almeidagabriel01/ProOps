@@ -28,6 +28,8 @@ import {
   shouldSkipRoute,
 } from "@/lib/auth/route-access";
 import {
+  erpHomeUrl,
+  resolveApexRedirect,
   resolveRewritePath,
   resolveSurface,
   shouldNoIndexHost,
@@ -77,6 +79,21 @@ export async function proxy(request: NextRequest) {
   // therefore answered "not a duplicate" for the one host that is the most
   // literal duplicate there is, and left it crawlable.
   const transitionalNoIndex = shouldNoIndexHost(host);
+
+  // Cutover 301s. Inert until APEX_SURFACE flips: `resolveApexRedirect` returns
+  // null while the apex still serves the ERP.
+  //
+  // It sits above the rewrite because the two are mutually exclusive by
+  // construction (the rewrite only ever fires on `/`, which never redirects),
+  // and putting the permanent decision first keeps the reading order the same
+  // as the decision order. `search` is preserved: dropping a `?next=` or a UTM
+  // on a 301 loses the parameter for good.
+  const apexRedirect = resolveApexRedirect(surface, pathname);
+  if (apexRedirect) {
+    const destino = new URL(apexRedirect);
+    destino.search = request.nextUrl.search;
+    return NextResponse.redirect(destino, 301);
+  }
 
   const rewriteTo = resolveRewritePath(surface, pathname);
   if (rewriteTo) {
@@ -198,8 +215,12 @@ export async function proxy(request: NextRequest) {
           // Free tier trying to reach an ERP route → bounce to the public
           // landing. Not /subscription-blocked because the account isn't
           // blocked, it just doesn't have access to the ERP.
+          // The destination has to follow the ERP across the cutover. Written
+          // as "/" it lands the user on the company page once the apex changes
+          // meaning: a page with no login, no plans and nothing to click, for
+          // someone who was trying to use the product.
           if (billing.reason === "free_tier_forbidden") {
-            const homeUrl = new URL("/", request.url);
+            const homeUrl = new URL(erpHomeUrl(), request.url);
             const resp = NextResponse.redirect(homeUrl);
             resp.headers.set("Cache-Control", "no-store");
             return resp;

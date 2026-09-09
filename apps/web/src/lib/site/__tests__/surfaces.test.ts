@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  APEX_OWNED_PATHS,
   APEX_STILL_SERVES_ERP,
   APEX_SURFACE,
+  apexRedirectPara,
+  erpHomeUrlPara,
+  resolveApexRedirect,
   APP_ROOT,
   INSTITUCIONAL_ROOT,
   isNewSubdomainHost,
@@ -124,5 +128,71 @@ describe("indexabilidade por host", () => {
     expect(shouldNoIndexHost("erp.proops.com.br")).toBe(true);
     expect(shouldNoIndexHost("app.proops.com.br")).toBe(true);
     expect(shouldNoIndexHost("proops.com.br")).toBe(false);
+  });
+});
+
+/**
+ * A virada (fase 9), exercitada dos DOIS lados.
+ *
+ * O valor destes testes não é o estado de hoje, em que a regra não faz nada: é
+ * provar o comportamento de depois do flip antes de ele acontecer. Sem isso, a
+ * primeira execução da regra de 301 seria em produção, no dia mais arriscado do
+ * plano, e um erro ali é permanente por definição.
+ */
+describe("a virada do apex", () => {
+  const DEPOIS = {
+    apexServeErp: false,
+    superficieDoApex: "institucional" as const,
+    superficie: "institucional" as const,
+  };
+
+  it("hoje não redireciona nada", () => {
+    expect(APEX_STILL_SERVES_ERP).toBe(true);
+    for (const p of ["/", "/login", "/dashboard", "/privacy", "/decoracao"]) {
+      expect(resolveApexRedirect("erp", p)).toBeNull();
+    }
+  });
+
+  it("depois manda todo caminho do ERP para o subdomínio", () => {
+    expect(apexRedirectPara("/login", DEPOIS)).toBe(
+      "https://erp.proops.com.br/login",
+    );
+    expect(apexRedirectPara("/dashboard", DEPOIS)).toBe(
+      "https://erp.proops.com.br/dashboard",
+    );
+    expect(apexRedirectPara("/automacao-residencial", DEPOIS)).toBe(
+      "https://erp.proops.com.br/automacao-residencial",
+    );
+  });
+
+  /**
+   * A raiz é a exceção que não tem conserto, e é o risco declarado do plano: ela
+   * continua respondendo 200 com outro conteúdo, e nenhum 301 expressa isso. Um
+   * redirect aqui levaria a institucional inteira para o ERP.
+   */
+  it("depois NÃO redireciona a raiz", () => {
+    expect(apexRedirectPara("/", DEPOIS)).toBeNull();
+  });
+
+  it("depois mantém as páginas legais no apex, que é onde o canonical delas aponta", () => {
+    for (const p of APEX_OWNED_PATHS) {
+      expect(apexRedirectPara(p, DEPOIS)).toBeNull();
+    }
+  });
+
+  it("não mexe em quem chega pelos subdomínios", () => {
+    for (const superficie of ["erp", "app"] as const) {
+      expect(apexRedirectPara("/login", { ...DEPOIS, superficie })).toBeNull();
+    }
+  });
+
+  /**
+   * O destino do usuário free tem que acompanhar o ERP. Escrito como "/", ele
+   * larga a pessoa na página da empresa depois da virada: sem login, sem planos
+   * e sem nada para clicar.
+   */
+  it("leva o usuário free para a landing do ERP nos dois estados", () => {
+    expect(erpHomeUrlPara(true)).toBe("/");
+    expect(erpHomeUrlPara(false)).toBe("https://erp.proops.com.br/");
   });
 });

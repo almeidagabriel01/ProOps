@@ -12,6 +12,7 @@
  */
 
 import {
+  APEX_OWNED_PATHS,
   APEX_SURFACE,
   APEX_URL,
   SITE_URLS,
@@ -53,14 +54,13 @@ const ROTAS: Record<Surface, SitemapRoute[]> = {
  * that is triplicated content, so they anchor to the apex and stay there
  * through the cutover — see `canonicalFor`.
  */
-export const ROTAS_LEGAIS: SitemapRoute[] = [
-  { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
-  { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
-  { path: "/cookies", changeFrequency: "yearly", priority: 0.3 },
-  { path: "/data-deletion", changeFrequency: "yearly", priority: 0.3 },
-];
+export const ROTAS_LEGAIS: SitemapRoute[] = APEX_OWNED_PATHS.map((path) => ({
+  path,
+  changeFrequency: "yearly" as const,
+  priority: 0.3,
+}));
 
-const CAMINHOS_LEGAIS = new Set(ROTAS_LEGAIS.map((rota) => rota.path));
+const CAMINHOS_LEGAIS = new Set<string>(APEX_OWNED_PATHS);
 
 /**
  * Sitemap entries for a surface.
