@@ -267,6 +267,7 @@ a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
 
 ## Module Docs
 Detailed documentation per module lives in CLAUDE.md files within each folder:
+- Navegação (dock, tab bar, seletor de visão): `apps/web/src/components/layout/CLAUDE.md`
 - Financial module (frontend): `apps/web/src/app/transactions/CLAUDE.md`
 - Financial module (backend): `apps/functions/CLAUDE.md`
 - Backend services: `apps/functions/src/api/services/CLAUDE.md`
