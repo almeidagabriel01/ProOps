@@ -25,6 +25,24 @@ export interface CreateClientData {
   types?: ClientType[]; // Array to allow both
   /** Comissao padrao do parceiro; `null` = nao informada. */
   commissionPercentage?: number | null;
+  /**
+   * Endereco fiscal do destinatario, exigido so pela NF-e. Separado do
+   * `address` livre porque a SEFAZ valida logradouro, numero, bairro, UF e o
+   * codigo IBGE do municipio, que uma string unica nao entrega.
+   */
+  enderecoFiscal?: {
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    municipio?: string;
+    codigoIbge?: string;
+    uf?: string;
+    cep?: string;
+  };
+  inscricaoEstadual?: string;
+  /** Ausente = derivado do documento pelo backend (CPF nunca e "isento"). */
+  indicadorIe?: "contribuinte" | "isento" | "nao_contribuinte";
   source?: "manual" | "proposal" | "financial"; // default manual
   targetTenantId?: string; // For super admin to create for a specific tenant
 }

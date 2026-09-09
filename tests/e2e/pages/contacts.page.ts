@@ -3,16 +3,14 @@ import type { Page, Locator } from "@playwright/test";
 /**
  * Page Object Model for the contacts list page (/contacts).
  *
- * Contacts (clients) use a StepWizard. Criação (/contacts/new) tem 3 passos;
- * edição (/contacts/[id]) tem 4 — "Dados Fiscais" entra antes de "Finalizar",
- * e só existe na edição:
- *   Step 1 — Informações:   type toggles, name (#name), email (#email), phone (#phone)
- *   Step 2 — Endereço:      address (#address)
- *   Step 3 — Dados Fiscais: só na edição — endereço fiscal (#cliente-cep…)
- *   Step 4 — Finalizar:     notes (#notes) + summary + submit
+ * Contacts (clients) use a StepWizard. Criação (/contacts/new) e edição
+ * (/contacts/[id]) têm os MESMOS 3 passos:
+ *   Step 1 — Informações: type toggles, name (#name), email (#email), phone (#phone)
+ *   Step 2 — Endereço:    address (#address) + endereço fiscal (#cliente-cep…)
+ *   Step 3 — Finalizar:   notes (#notes) + summary + submit
  *
- * Por isso o helper de edição salta pelo indicador ("Finalizar"), e não por N
- * cliques em "Próximo" — a contagem de passos deixa de importar.
+ * Mesmo assim o helper de edição salta pelo indicador ("Finalizar"), e não por N
+ * cliques em "Próximo": a contagem de passos deixa de importar.
  *
  * Create submit label: "Cadastrar Cliente"
  * Edit submit label:   "Salvar Alterações" (disabled when no changes detected)

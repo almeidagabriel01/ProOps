@@ -6,10 +6,11 @@ import {
   Building2,
   Handshake,
   DraftingCompass,
+  Percent,
   type LucideIcon,
 } from "lucide-react";
 import { FormItem } from "@/components/ui/form-components";
-import { DecimalInput } from "@/components/ui/decimal-input";
+import { Input } from "@/components/ui/input";
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import type { ClientType } from "@/services/client-service";
 
@@ -126,23 +127,58 @@ export function ContactTypeSelector({
         </div>
       </FormItem>
 
+      {/*
+        A comissão é consequência do tipo escolhido, então mora colada à grade
+        que a fez aparecer, num painel que se lê como extensão dela. Solta entre
+        o seletor e o campo de nome, ela parecia um dado de contato como outro
+        qualquer, e o campo (um DecimalInput de 32px, centralizado) destoava de
+        todos os outros do formulário. Aqui é o mesmo `Input` do resto, com o
+        sufixo de porcentagem que os demais percentuais do produto já usam.
+      */}
       {showCommission && (
-        <FormItem
-          label="Comissão padrão (%)"
-          htmlFor="commissionPercentage"
-          hint="Pode ser alterada em cada proposta"
-        >
-          <DecimalInput
-            id="commissionPercentage"
-            name="commissionPercentage"
-            value={commissionPercentage ?? 0}
-            onChange={(value) =>
-              onCommissionPercentageChange(value > 0 ? value : null)
-            }
-            className="text-base md:text-sm"
-            aria-label="Comissão padrão em percentual"
-          />
-        </FormItem>
+        <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Percent className="w-5 h-5 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <label
+                  htmlFor="commissionPercentage"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Comissão padrão
+                </label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Sugerida ao montar a proposta deste parceiro; pode ser
+                  alterada em cada uma.
+                </p>
+              </div>
+              <div className="max-w-[220px]">
+                <Input
+                  id="commissionPercentage"
+                  name="commissionPercentage"
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  placeholder="0"
+                  value={commissionPercentage ?? ""}
+                  onChange={(e) => {
+                    // Em branco é `null`, nunca 0: zero é um percentual válido,
+                    // e deixar passar faria a proposta nascer com uma comissão
+                    // que ninguém escolheu.
+                    const raw = e.target.value;
+                    onCommissionPercentageChange(
+                      raw === "" ? null : Number(raw),
+                    );
+                  }}
+                  suffix={<span className="text-sm">%</span>}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -109,9 +109,12 @@ alcançável.
 
 Guard: `src/__tests__/step-wizard-children-parity.test.ts`.
 
-Bloco que ganha um passo próprio **não pode ser recolhível**: recolher esconde o
-único conteúdo do passo. É por isso que `CatalogFiscalFields` e
-`ClientFiscalFields` têm `variant="step"` além do `"section"` recolhível.
+Bloco promovido a conteúdo de passo **não pode ser recolhível**: no caso do
+`CatalogFiscalFields` recolher esconde o único conteúdo do passo; no do
+`ClientFiscalFields`, que hoje divide o passo de endereço do contato com o campo
+livre, recolher recriaria o problema que a promoção resolveu (fechado, ninguém
+achava o endereço que a NF-e exige). Daí o `variant="step"` dos dois, ao lado do
+`"section"` recolhível.
 
 ## Navegação
 

@@ -8,6 +8,15 @@ import { useClientActions } from "@/hooks/useClientActions";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { customerSchema } from "@/lib/validations";
+import {
+  formatEnderecoFiscal,
+  isDerivedFreeAddress,
+} from "@/lib/fiscal/format-address";
+import {
+  ClientFiscalFields,
+  EMPTY_CLIENT_FISCAL,
+  type ClientFiscalValues,
+} from "@/components/features/fiscal/client-fiscal-fields";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -30,6 +39,12 @@ import type { ClientType } from "@/services/client-service";
 import { formatDocumento } from "@/lib/format-document";
 
 
+/**
+ * A trilha é a MESMA de `/contacts/[id]`. Até 2026-09-09 o cadastro tinha três
+ * passos e a edição quatro: os dados fiscais só apareciam depois de o contato
+ * estar salvo, então quem cadastrava um cliente para faturar precisava salvar e
+ * reabrir o cadastro para achar o endereço que a NF-e exige do destinatário.
+ */
 const customerSteps = [
   {
     id: "info",
@@ -40,7 +55,7 @@ const customerSteps = [
   {
     id: "address",
     title: "Endereço",
-    description: "Localização",
+    description: "Local e dados fiscais",
     icon: MapPin,
   },
   {
@@ -85,6 +100,7 @@ export default function NewCustomerPage() {
     document: "",
     types: ["cliente"] as ClientType[],
     commissionPercentage: null as number | null,
+    fiscal: EMPTY_CLIENT_FISCAL as ClientFiscalValues,
   });
 
   const handleChange = (
@@ -92,12 +108,15 @@ export default function NewCustomerPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing. `types` e `commissionPercentage`
-    // ficam de fora: nenhum dos dois esta no schema de validacao, e ambos sao
-    // editados pelo ContactTypeSelector, nao por este handler de <input>.
+    // Clear error when user starts typing. `types`, `commissionPercentage` e
+    // `fiscal` ficam de fora: nenhum dos tres esta no schema de validacao, e os
+    // tres sao editados por componentes proprios, nao por este handler.
     if (name !== "types" && errors[name as keyof typeof errors]) {
       clearFieldError(
-        name as Exclude<keyof typeof formData, "types" | "commissionPercentage">,
+        name as Exclude<
+          keyof typeof formData,
+          "types" | "commissionPercentage" | "fiscal"
+        >,
       );
     }
   };
@@ -119,7 +138,7 @@ export default function NewCustomerPage() {
       validateField(
         name as Exclude<
           keyof typeof formData,
-          "types" | "commissionPercentage"
+          "types" | "commissionPercentage" | "fiscal"
         >,
         value,
         formData,
@@ -172,6 +191,27 @@ export default function NewCustomerPage() {
         document: formData.document ? formData.document.replace(/\D/g, "") : undefined,
         types: formData.types,
         commissionPercentage: formData.commissionPercentage,
+        enderecoFiscal: {
+          cep: formData.fiscal.cep.replace(/\D/g, ""),
+          logradouro: formData.fiscal.logradouro.trim(),
+          numero: formData.fiscal.numero.trim(),
+          complemento: formData.fiscal.complemento.trim(),
+          bairro: formData.fiscal.bairro.trim(),
+          municipio: formData.fiscal.municipio.trim(),
+          uf: formData.fiscal.uf.trim().toUpperCase(),
+          codigoIbge: formData.fiscal.codigoIbge.replace(/\D/g, ""),
+        },
+        inscricaoEstadual: formData.fiscal.inscricaoEstadual.trim(),
+        // Indicador vazio nao vai: o backend o DERIVA do documento, e uma
+        // string vazia seria recusada pelo enum do schema.
+        ...(formData.fiscal.indicadorIe
+          ? {
+              indicadorIe: formData.fiscal.indicadorIe as
+                | "contribuinte"
+                | "isento"
+                | "nao_contribuinte",
+            }
+          : {}),
         source: "manual",
         targetTenantId: tenant?.id, // Ensure correct tenant for super admin
       });
@@ -300,7 +340,10 @@ export default function NewCustomerPage() {
           <StepNavigation onBeforeNext={validateStep1} />
         </FormStepCard>
 
-        {/* Step 2: Address */}
+        {/* Step 2: endereço livre + dados fiscais. São o mesmo endereço em dois
+            níveis de estrutura, e juntos no mesmo passo a busca de CEP completa
+            o campo livre à vista de quem digita. Separados, o passo de endereço
+            tinha um campo só e o fiscal repetia a pergunta. */}
         <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -325,6 +368,26 @@ export default function NewCustomerPage() {
                 icon={<MapPin className="w-4 h-4" />}
               />
             </FormItem>
+
+            <div className="pt-6 border-t border-border/50">
+              <ClientFiscalFields
+                variant="step"
+                values={formData.fiscal}
+                onChange={(fiscal) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    fiscal,
+                    // O endereço livre acompanha o fiscal enquanto ninguém o
+                    // tiver escrito à mão, para não digitar o mesmo endereço
+                    // duas vezes. Texto próprio ("Rua tal, portão azul") nunca
+                    // é sobrescrito por uma busca de CEP.
+                    address: isDerivedFreeAddress(prev.address, prev.fiscal)
+                      ? formatEnderecoFiscal(fiscal)
+                      : prev.address,
+                  }))
+                }
+              />
+            </div>
           </div>
           <StepNavigation />
         </FormStepCard>

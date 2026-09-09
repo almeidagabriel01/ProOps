@@ -6,7 +6,10 @@ import { ClientService, Client, type ClientType } from "@/services/client-servic
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "@/lib/toast";
-import { formatEnderecoFiscal } from "@/lib/fiscal/format-address";
+import {
+  formatEnderecoFiscal,
+  isDerivedFreeAddress,
+} from "@/lib/fiscal/format-address";
 import {
   ClientFiscalFields,
   EMPTY_CLIENT_FISCAL,
@@ -47,6 +50,13 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
   },
 };
 
+/**
+ * A trilha é a MESMA de `/contacts/new`, e os dados fiscais vivem DENTRO do
+ * passo de endereço: são o mesmo endereço em dois níveis de estrutura, e no
+ * mesmo passo a busca de CEP completa o campo livre à vista de quem digita.
+ * Separados, o passo de endereço tinha um campo só e o fiscal repetia a
+ * pergunta.
+ */
 const customerSteps = [
   {
     id: "info",
@@ -57,14 +67,8 @@ const customerSteps = [
   {
     id: "address",
     title: "Endereço",
-    description: "Localização",
+    description: "Local e dados fiscais",
     icon: MapPin,
-  },
-  {
-    id: "fiscal",
-    title: "Dados Fiscais",
-    description: "Endereço da NF-e",
-    icon: Receipt,
   },
   {
     id: "notes",
@@ -399,7 +403,7 @@ export default function EditCustomerPage() {
             <StepNavigation />
           </FormStepCard>
 
-          {/* Step 2: Address */}
+          {/* Step 2: endereço livre + dados fiscais */}
           <FormStepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
@@ -415,44 +419,40 @@ export default function EditCustomerPage() {
               </div>
 
               <FormStatic label="Endereço Completo" value={formData.address} />
-            </div>
-            <StepNavigation />
-          </FormStepCard>
 
-          {/* Step 3: Dados fiscais — só leitura */}
-          <FormStepCard>
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
-                  <Receipt className="w-6 h-6 text-emerald-600" />
+              <div className="pt-6 border-t border-border/50 space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
+                    <Receipt className="w-6 h-6 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Dados fiscais</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Usados apenas para emitir nota de produto (NF-e)
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Dados fiscais</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Usados apenas para emitir nota de produto (NF-e)
-                  </p>
-                </div>
+
+                <FormStatic
+                  label="Endereço fiscal"
+                  value={formatEnderecoFiscal(formData.fiscal)}
+                />
+                <FormGroup>
+                  <FormStatic
+                    label="Código IBGE do município"
+                    value={formData.fiscal.codigoIbge}
+                  />
+                  <FormStatic
+                    label="Inscrição estadual"
+                    value={formData.fiscal.inscricaoEstadual}
+                  />
+                </FormGroup>
               </div>
-
-              <FormStatic
-                label="Endereço fiscal"
-                value={formatEnderecoFiscal(formData.fiscal)}
-              />
-              <FormGroup>
-                <FormStatic
-                  label="Código IBGE do município"
-                  value={formData.fiscal.codigoIbge}
-                />
-                <FormStatic
-                  label="Inscrição estadual"
-                  value={formData.fiscal.inscricaoEstadual}
-                />
-              </FormGroup>
             </div>
             <StepNavigation />
           </FormStepCard>
 
-          {/* Step 4: Notes */}
+          {/* Step 3: Notes */}
           <FormStepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
@@ -597,7 +597,7 @@ export default function EditCustomerPage() {
           <StepNavigation onBeforeNext={validateStep1} />
         </FormStepCard>
 
-        {/* Step 2: Address */}
+        {/* Step 2: endereço livre + dados fiscais */}
         <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -622,38 +622,35 @@ export default function EditCustomerPage() {
                 icon={<MapPin className="w-4 h-4" />}
               />
             </FormItem>
+
+            {/* Não recolhível, e não escondido no fim do Resumo: fechado
+                embaixo do resumo, ninguém achava o endereço fiscal, que é o
+                que a NF-e exige do destinatário. */}
+            <div className="pt-6 border-t border-border/50">
+              <ClientFiscalFields
+                variant="step"
+                values={formData.fiscal}
+                onChange={(fiscal) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    fiscal,
+                    // O endereço livre acompanha o fiscal enquanto ninguém o
+                    // tiver escrito à mão, para não digitar o mesmo endereço
+                    // duas vezes. Texto próprio ("Rua tal, portão azul") nunca
+                    // é sobrescrito por uma busca de CEP.
+                    address: isDerivedFreeAddress(prev.address, prev.fiscal)
+                      ? formatEnderecoFiscal(fiscal)
+                      : prev.address,
+                  }))
+                }
+                disabled={!isEditable}
+              />
+            </div>
           </div>
           <StepNavigation />
         </FormStepCard>
 
-        {/* Step 3: Dados fiscais — passo próprio, e não um bloco recolhido no
-            fim do Resumo: fechado embaixo do resumo, ninguém achava o endereço
-            fiscal, que é o que a NF-e exige do destinatário. */}
-        <FormStepCard>
-          <div className="space-y-6">
-            <ClientFiscalFields
-              variant="step"
-              values={formData.fiscal}
-              onChange={(fiscal) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  fiscal,
-                  // Preenche o endereço livre a partir do fiscal enquanto ele
-                  // estiver vazio — evita digitar o mesmo endereço duas vezes.
-                  // Só enquanto vazio: quem escreveu "Rua tal, portão azul" não
-                  // pode ver isso sumir por causa de uma busca de CEP.
-                  address: prev.address.trim()
-                    ? prev.address
-                    : formatEnderecoFiscal(fiscal),
-                }))
-              }
-              disabled={!isEditable}
-            />
-          </div>
-          <StepNavigation />
-        </FormStepCard>
-
-        {/* Step 4: Notes & Submit */}
+        {/* Step 3: Notes & Submit */}
         <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">

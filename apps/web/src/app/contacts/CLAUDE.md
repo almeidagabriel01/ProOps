@@ -17,7 +17,7 @@ Clientes podem ser criados de três formas:
 /contacts              → Listagem paginada com busca e filtro de tipo
 /contacts/new          → Formulário de criação (StepWizard em 3 passos)
 /contacts/[id]         → Formulário de edição / visualização somente leitura
-                         (StepWizard em 4 passos — inclui "Dados Fiscais")
+                         (StepWizard em 3 passos, os MESMOS da criação)
 ```
 
 Não há sub-rota de API aqui — todas as mutações passam por `/api/backend/` (proxy → Cloud Functions).
@@ -122,6 +122,13 @@ recebem comissão, definida na proposta (ver `Proposal.commissions[]`).
 arquivo importa o SDK do Firebase, e quem precisa só da lista passaria a
 inicializar auth, firestore e storage junto.
 
+A **comissão padrão** aparece num painel colado à grade de tipos, porque é
+consequência dela: solta entre o seletor e o campo de nome, lia-se como mais um
+dado de contato. O campo é o `Input` comum com sufixo de porcentagem, o mesmo
+padrão dos demais percentuais do produto; era um `DecimalInput` (32px de altura,
+centralizado, semibold), desenhado para linha de tabela e destoando de todos os
+outros campos do formulário. Em branco continua sendo `null`, nunca 0.
+
 ---
 
 ## Gerenciamento de estado
@@ -202,23 +209,33 @@ esconde sozinho — não reimplementar isso na coluna. Guard:
 
 ### Formulário em StepWizard
 
-**A criação tem 3 passos e a edição tem 4** — "Dados Fiscais" só existe em
-`/contacts/[id]`, porque só lá o cadastro fiscal do destinatário faz parte do
-formulário:
+**As duas telas têm os MESMOS 3 passos.** A criação e a edição divergirem é o
+defeito clássico daqui:
 
 | Passo | Conteúdo | Validação |
 |-------|----------|-----------|
-| 1 — Informações | Tipo (um ou mais dos quatro) + comissão padrão, Nome, Email, Telefone | `name` e `phone` obrigatórios (validação em `validateStep1`) |
-| 2 — Endereço | Campo de endereço livre | Opcional |
-| 3 — Dados Fiscais *(só na edição)* | `ClientFiscalFields` com `variant="step"` — endereço fiscal estruturado + indicador de IE | Opcional |
-| 4 — Finalizar | Observações + resumo dos dados | Submissão |
+| 1 — Informações | Tipo (um ou mais dos quatro) + comissão padrão, Nome, Email, Telefone, CPF/CNPJ | `name` e `phone` obrigatórios (validação em `validateStep1`) |
+| 2 — Endereço | Endereço livre + `ClientFiscalFields` com `variant="step"` (endereço fiscal estruturado + indicador de IE) | Opcional |
+| 3 — Finalizar | Observações + resumo dos dados | Submissão |
 
 O botão "Próximo" do passo 1 é bloqueado até que `validateStep1()` retorne `true`.
 
-Até 2026-09-08 os dados fiscais eram uma `FormSection` **recolhida** dentro do
-passo Finalizar. Fechada embaixo do resumo, ninguém achava o endereço fiscal — e
-ele é justamente o que a NF-e exige do destinatário. Em passo próprio o bloco não
-recolhe (recolher esconderia o passo inteiro).
+Duas correções trouxeram a trilha até aqui, e nenhuma das duas falhas dava erro:
+
+- Até 2026-09-08 os dados fiscais eram uma `FormSection` **recolhida** dentro do
+  passo Finalizar. Fechada embaixo do resumo, ninguém achava o endereço fiscal,
+  que é justamente o que a NF-e exige do destinatário. Viraram passo, e por isso
+  o bloco não recolhe.
+- Até 2026-09-09 esse passo existia **só na edição**: quem cadastrava um cliente
+  para faturar salvava e reabria o contato para achar o campo. O passo virou
+  parte do de endereço (são o mesmo endereço em dois níveis de estrutura, e
+  juntos a busca de CEP completa o campo livre à vista de quem digita) e passou
+  a existir nas duas telas. Guard: `new/__tests__/page.test.tsx`.
+
+O endereço livre acompanha o fiscal enquanto ninguém escreveu nele à mão
+(`isDerivedFreeAddress`, em `lib/fiscal/format-address.ts`). A condição era só
+"está vazio", e isso congelava o campo na PRIMEIRA tecla digitada no logradouro:
+o cadastro terminava com "R" de endereço. Texto próprio nunca é sobrescrito.
 
 > **O array `customerSteps` de `[id]/page.tsx` alimenta DOIS wizards** — o de
 > edição e o somente-leitura. Passo declarado sem card correspondente vira um
@@ -228,7 +245,7 @@ recolhe (recolher esconderia o passo inteiro).
 
 ### Visualização somente leitura
 
-Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) em vez de inputs — inclusive o de Dados Fiscais, que mostra o endereço fiscal montado por `formatEnderecoFiscal`. O botão de submit vira "Voltar".
+Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) no lugar dos inputs, inclusive o bloco fiscal dentro do passo de endereço, que mostra o endereço montado por `formatEnderecoFiscal`. O botão de submit vira "Voltar".
 
 ### Detecção de alterações
 
