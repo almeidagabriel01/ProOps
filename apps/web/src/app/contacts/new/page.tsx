@@ -36,6 +36,7 @@ import { User, Mail, MapPin, FileText, CheckCircle, CreditCard, Receipt } from "
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { ContactTypeSelector } from "../_components/contact-type-selector";
 import { ContactCommissionField } from "../_components/contact-commission-field";
+import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import type { ClientType } from "@/services/client-service";
 import { formatDocumento } from "@/lib/format-document";
 
@@ -46,8 +47,9 @@ import { formatDocumento } from "@/lib/format-document";
  * estar salvo, então quem cadastrava um cliente para faturar precisava salvar e
  * reabrir o cadastro para achar o endereço que a NF-e exige do destinatário.
  *
- * O passo 1 responde "quem é este contato", endereço incluído. O passo 2 junta
- * o que quase todo cadastro pula: a comissão do parceiro e os campos da nota.
+ * O passo 1 responde "quem é este contato": contato, documento, comissão do
+ * parceiro e endereço. O passo 2 fica só com o que a NF-e exige do
+ * destinatário, que quase todo cadastro pula.
  */
 const customerSteps = [
   {
@@ -59,7 +61,7 @@ const customerSteps = [
   {
     id: "fiscal",
     title: "Dados Fiscais",
-    description: "NF-e e comissão",
+    description: "Endereço da NF-e",
     icon: Receipt,
   },
   {
@@ -319,23 +321,36 @@ export default function NewCustomerPage() {
               </FormItem>
             </FormGroup>
 
-            <FormItem
-              label="CPF ou CNPJ"
-              htmlFor="document"
-              hint="Necessário para gerar boleto bancário. Pode ser preenchido depois."
-              error={errors.document}
-            >
-              <Input
-                id="document"
-                name="document"
-                value={formData.document}
-                onChange={handleDocumentChange}
-                onBlur={(e) => validateField("document", e.target.value, formData)}
-                placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                icon={<CreditCard className="w-4 h-4" />}
-                className={errors.document ? "border-destructive" : ""}
+            {/* Sem parceiro, o documento ocupa a linha inteira: metade de linha
+                vazia ao lado dele seria pior que o campo largo. */}
+            <FormGroup>
+              <FormItem
+                label="CPF ou CNPJ"
+                htmlFor="document"
+                hint="Necessário para boleto"
+                error={errors.document}
+                className={isCommissionPartner(formData) ? "" : "sm:col-span-2"}
+              >
+                <Input
+                  id="document"
+                  name="document"
+                  value={formData.document}
+                  onChange={handleDocumentChange}
+                  onBlur={(e) => validateField("document", e.target.value, formData)}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  icon={<CreditCard className="w-4 h-4" />}
+                  className={errors.document ? "border-destructive" : ""}
+                />
+              </FormItem>
+
+              <ContactCommissionField
+                types={formData.types}
+                value={formData.commissionPercentage}
+                onChange={(commissionPercentage) =>
+                  setFormData((prev) => ({ ...prev, commissionPercentage }))
+                }
               />
-            </FormItem>
+            </FormGroup>
 
             <FormItem label="Endereço Completo" htmlFor="address">
               <Input
@@ -351,19 +366,10 @@ export default function NewCustomerPage() {
           <StepNavigation onBeforeNext={validateStep1} />
         </FormStepCard>
 
-        {/* Step 2: o que quase todo cadastro pula. A comissão vem primeiro e com
-            cabeçalho próprio: ela divide o passo com o bloco fiscal mas NÃO é
-            dado fiscal, e sem separação seria lida como campo da nota. */}
+        {/* Step 2: só o que a NF-e exige do destinatário, e que quase todo
+            cadastro pula. */}
         <FormStepCard>
           <div className="space-y-6">
-            <ContactCommissionField
-              types={formData.types}
-              value={formData.commissionPercentage}
-              onChange={(commissionPercentage) =>
-                setFormData((prev) => ({ ...prev, commissionPercentage }))
-              }
-            />
-
             <ClientFiscalFields
               variant="step"
               values={formData.fiscal}

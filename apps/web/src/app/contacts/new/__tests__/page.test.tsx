@@ -102,7 +102,7 @@ describe("/contacts/new", () => {
     expect(screen.getByLabelText("Código IBGE do município")).toBeInTheDocument();
   });
 
-  it("mostra a comissão do parceiro no mesmo passo, em bloco separado", async () => {
+  it("mostra a comissão do parceiro no passo 1, junto do documento", async () => {
     render(<NewCustomerPage />);
     const user = userEvent.setup();
 
@@ -110,20 +110,33 @@ describe("/contacts/new", () => {
     expect(screen.queryByLabelText(/Comissão padrão/)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /Vendedor/ }));
-    expect(screen.getByLabelText(/Comissão padrão/)).toBeInTheDocument();
 
+    // No passo 1, ao lado do CPF/CNPJ: marcar "Vendedor" e o campo aparecer na
+    // mesma tela é o que faltava quando ele vivia no passo dos dados fiscais,
+    // onde a trilha do celular mostra só o título e ninguém o encontrava.
+    const comissao = screen.getByLabelText(/Comissão padrão/);
+    expect(comissao).toBeInTheDocument();
+    expect(screen.getByLabelText(/CPF ou CNPJ/).closest("div.grid")).toBe(
+      comissao.closest("div.grid"),
+    );
+  });
+
+  it("o passo de dados fiscais fica só com os campos da nota", async () => {
+    render(<NewCustomerPage />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: /Vendedor/ }));
     await user.type(screen.getByLabelText(/Nome Completo/), "Parceiro");
     await user.type(screen.getByLabelText(/Telefone/), "11999999999");
     await avancar(user);
 
-    // Dois cabeçalhos no mesmo passo: comissão NÃO é dado fiscal, e sem
-    // separação seria lida como campo da nota.
-    expect(
-      screen.getByRole("heading", { level: 3, name: "Comissão" }),
-    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 3, name: "Dados fiscais" }),
     ).toBeInTheDocument();
+    // A comissão não é dado fiscal: não entra em campo nenhum da NF-e.
+    expect(
+      screen.queryByRole("heading", { level: 3, name: "Comissão" }),
+    ).toBeNull();
   });
 
   it("envia o endereço fiscal no cadastro", async () => {
@@ -183,14 +196,12 @@ describe("/contacts/new", () => {
     render(<NewCustomerPage />);
     const user = userEvent.setup();
 
-    // O tipo é escolhido no passo 1: depois de avançar, o passo anterior fica
-    // `aria-hidden` e a grade some das queries por role, como some da tela.
     await user.click(screen.getByRole("button", { name: /Arquiteto/ }));
+    await user.type(screen.getByLabelText(/Comissão padrão/), "7.5");
     await user.type(screen.getByLabelText(/Nome Completo/), "Cliente Teste");
     await user.type(screen.getByLabelText(/Telefone/), "11999999999");
-    await avancar(user);
 
-    await user.type(screen.getByLabelText(/Comissão padrão/), "7.5");
+    await avancar(user);
     await avancar(user);
     await user.click(screen.getByRole("button", { name: /cadastrar cliente/i }));
 

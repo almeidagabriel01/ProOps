@@ -2,10 +2,11 @@
 /**
  * Comissao padrao do parceiro.
  *
- * Mora num bloco proprio, no passo dos dados fiscais, e nao junto do seletor de
- * tipo nem dentro do bloco fiscal: ela e consequencia do tipo escolhido, mas
- * NAO e dado fiscal (nao entra em campo nenhum da NF-e; alimenta a proposta e
- * vira despesa no financeiro).
+ * Mora ao lado do CPF/CNPJ, no passo do contato: e consequencia do tipo
+ * escolhido logo acima, e NAO e dado fiscal (nao entra em campo nenhum da
+ * NF-e; alimenta a proposta e vira despesa no financeiro). Debaixo do passo
+ * "Dados Fiscais" ela ficava invisivel no celular, onde a trilha mostra so o
+ * titulo do passo.
  *
  * Duas coisas erram em silencio aqui:
  *
@@ -59,13 +60,13 @@ describe("ContactCommissionField", () => {
 
   it("pede comissao de vendedor e de arquiteto", () => {
     setup(["arquiteto"]);
-    expect(screen.getByLabelText(/Comissão padrão/)).toBeInTheDocument();
 
-    // Cabecalho proprio: dividindo o passo com o bloco fiscal, sem ele a
-    // comissao seria lida como um campo da nota.
-    expect(
-      screen.getByRole("heading", { level: 3, name: "Comissão" }),
-    ).toBeInTheDocument();
+    const campo = screen.getByLabelText(/Comissão padrão/);
+    expect(campo).toBeInTheDocument();
+    // Campo comum do formulario, nao um primitivo de linha de tabela: e o que
+    // o alinha com o CPF/CNPJ ao lado.
+    expect(campo).toHaveAttribute("type", "number");
+    expect(campo).toHaveAttribute("max", "100");
   });
 
   it("percentual zerado vira null, nunca 0", async () => {

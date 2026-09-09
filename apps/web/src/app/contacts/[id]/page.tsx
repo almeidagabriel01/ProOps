@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/form-components";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
-import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Receipt, CreditCard, Percent } from "lucide-react";
+import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Receipt, CreditCard } from "lucide-react";
 import { ContactTypeSelector } from "../_components/contact-type-selector";
 import { ContactCommissionField } from "../_components/contact-commission-field";
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
@@ -54,8 +54,8 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
 
 /**
  * A trilha é a MESMA de `/contacts/new`: o passo 1 responde "quem é este
- * contato", endereço incluído, e o passo 2 junta o que quase todo cadastro
- * pula, a comissão do parceiro e os campos da nota.
+ * contato" (contato, documento, comissão do parceiro e endereço) e o passo 2
+ * fica só com o que a NF-e exige do destinatário.
  */
 const customerSteps = [
   {
@@ -67,7 +67,7 @@ const customerSteps = [
   {
     id: "fiscal",
     title: "Dados Fiscais",
-    description: "NF-e e comissão",
+    description: "Endereço da NF-e",
     icon: Receipt,
   },
   {
@@ -396,71 +396,57 @@ export default function EditCustomerPage() {
                 <FormStatic label="Email" value={formData.email} />
                 <FormStatic label="Telefone" value={formData.phone} />
               </FormGroup>
-              {formData.document && (
-                <FormStatic label="CPF ou CNPJ" value={formData.document} />
+              {(formData.document || isCommissionPartner(formData)) && (
+                <FormGroup>
+                  {formData.document && (
+                    <FormStatic label="CPF ou CNPJ" value={formData.document} />
+                  )}
+                  {isCommissionPartner(formData) && (
+                    <FormStatic
+                      label="Comissão padrão"
+                      value={
+                        formData.commissionPercentage === null
+                          ? ""
+                          : `${formData.commissionPercentage}%`
+                      }
+                    />
+                  )}
+                </FormGroup>
               )}
               <FormStatic label="Endereço Completo" value={formData.address} />
             </div>
             <StepNavigation />
           </FormStepCard>
 
-          {/* Step 2: comissão + dados fiscais */}
+          {/* Step 2: dados fiscais */}
           <FormStepCard>
             <div className="space-y-6">
-              {isCommissionPartner({ types: formData.types }) && (
-                <div className="space-y-5 pb-6 border-b border-border/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary/15 to-primary/5 flex items-center justify-center">
-                      <Percent className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">Comissão</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Percentual padrão deste parceiro, sugerido ao montar a
-                        proposta
-                      </p>
-                    </div>
-                  </div>
-
-                  <FormStatic
-                    label="Comissão padrão"
-                    value={
-                      formData.commissionPercentage === null
-                        ? ""
-                        : `${formData.commissionPercentage}%`
-                    }
-                  />
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
+                  <Receipt className="w-6 h-6 text-emerald-600" />
                 </div>
-              )}
-
-              <div className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
-                    <Receipt className="w-6 h-6 text-emerald-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">Dados fiscais</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Usados apenas para emitir nota de produto (NF-e)
-                    </p>
-                  </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Dados fiscais</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Usados apenas para emitir nota de produto (NF-e)
+                  </p>
                 </div>
-
-                <FormStatic
-                  label="Endereço fiscal"
-                  value={formatEnderecoFiscal(formData.fiscal)}
-                />
-                <FormGroup>
-                  <FormStatic
-                    label="Código IBGE do município"
-                    value={formData.fiscal.codigoIbge}
-                  />
-                  <FormStatic
-                    label="Inscrição estadual"
-                    value={formData.fiscal.inscricaoEstadual}
-                  />
-                </FormGroup>
               </div>
+
+              <FormStatic
+                label="Endereço fiscal"
+                value={formatEnderecoFiscal(formData.fiscal)}
+              />
+              <FormGroup>
+                <FormStatic
+                  label="Código IBGE do município"
+                  value={formData.fiscal.codigoIbge}
+                />
+                <FormStatic
+                  label="Inscrição estadual"
+                  value={formData.fiscal.inscricaoEstadual}
+                />
+              </FormGroup>
             </div>
             <StepNavigation />
           </FormStepCard>
@@ -585,23 +571,36 @@ export default function EditCustomerPage() {
               </FormItem>
             </FormGroup>
 
-            <FormItem
-              label="CPF ou CNPJ"
-              htmlFor="document"
-              hint="Necessário para gerar boleto bancário. Pode ser preenchido depois."
-              error={errors.document}
-            >
-              <Input
-                id="document"
-                name="document"
-                value={formData.document}
-                onChange={handleDocumentChange}
-                onBlur={(e) => validateField("document", e.target.value, formData)}
-                placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                icon={<CreditCard className="w-4 h-4" />}
-                className={errors.document ? "border-destructive" : ""}
+            {/* Sem parceiro, o documento ocupa a linha inteira: metade de linha
+                vazia ao lado dele seria pior que o campo largo. */}
+            <FormGroup>
+              <FormItem
+                label="CPF ou CNPJ"
+                htmlFor="document"
+                hint="Necessário para boleto"
+                error={errors.document}
+                className={isCommissionPartner(formData) ? "" : "sm:col-span-2"}
+              >
+                <Input
+                  id="document"
+                  name="document"
+                  value={formData.document}
+                  onChange={handleDocumentChange}
+                  onBlur={(e) => validateField("document", e.target.value, formData)}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  icon={<CreditCard className="w-4 h-4" />}
+                  className={errors.document ? "border-destructive" : ""}
+                />
+              </FormItem>
+
+              <ContactCommissionField
+                types={formData.types}
+                value={formData.commissionPercentage}
+                onChange={(commissionPercentage) =>
+                  setFormData((prev) => ({ ...prev, commissionPercentage }))
+                }
               />
-            </FormItem>
+            </FormGroup>
 
             <FormItem label="Endereço Completo" htmlFor="address">
               <Input
@@ -617,21 +616,10 @@ export default function EditCustomerPage() {
           <StepNavigation onBeforeNext={validateStep1} />
         </FormStepCard>
 
-        {/* Step 2: comissão + dados fiscais. A comissão vem primeiro e com
-            cabeçalho próprio: divide o passo com o bloco fiscal mas NÃO é dado
-            fiscal, e sem separação seria lida como campo da nota. O bloco
-            fiscal não recolhe: fechado, ninguém achava o endereço que a NF-e
-            exige do destinatário. */}
+        {/* Step 2: só o que a NF-e exige do destinatário. O bloco não recolhe:
+            fechado, ninguém achava o endereço fiscal. */}
         <FormStepCard>
           <div className="space-y-6">
-            <ContactCommissionField
-              types={formData.types}
-              value={formData.commissionPercentage}
-              onChange={(commissionPercentage) =>
-                setFormData((prev) => ({ ...prev, commissionPercentage }))
-              }
-            />
-
             <ClientFiscalFields
               variant="step"
               values={formData.fiscal}

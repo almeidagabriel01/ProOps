@@ -32,7 +32,7 @@ Não há sub-rota de API aqui — todas as mutações passam por `/api/backend/`
 | `_hooks/use-contacts-ctrl.ts` | Hook de controle central: paginação, busca, filtro de tipo, exclusão |
 | `_components/contacts-toolbar.tsx` | Barra de busca + filtros "Todos / Clientes / Fornecedores / Vendedores / Arquitetos" |
 | `_components/contact-type-selector.tsx` | Seleção múltipla do tipo. **Compartilhado** pelo cadastro e pela edição |
-| `_components/contact-commission-field.tsx` | Comissão padrão do parceiro, no passo dos dados fiscais. **Compartilhado** |
+| `_components/contact-commission-field.tsx` | Comissão padrão do parceiro, ao lado do CPF/CNPJ. **Compartilhado** |
 | `_components/contacts-columns.tsx` | Definição das colunas do `DataTable` (função `createColumns`) |
 | `_components/contacts-empty-states.tsx` | `ContactsEmptyState` (zero clientes) e `ContactsNoResults` (busca sem resultado) |
 | `_components/contacts-skeleton.tsx` | Skeleton do cabeçalho da página durante loading inicial |
@@ -124,12 +124,12 @@ arquivo importa o SDK do Firebase, e quem precisa só da lista passaria a
 inicializar auth, firestore e storage junto.
 
 A **comissão padrão** vive em `_components/contact-commission-field.tsx`, fora
-deste seletor e no passo seguinte: é consequência do tipo, mas não é dado de
-contato nem dado fiscal, e no meio do cadastro lia-se como se fosse. O campo é o
-`Input` comum com sufixo de porcentagem, o mesmo padrão dos demais percentuais do
-produto; era um `DecimalInput` (32px de altura, centralizado, semibold),
-desenhado para linha de tabela e destoando de todos os outros campos do
-formulário. Em branco continua sendo `null`, nunca 0. Guard:
+deste seletor: é consequência do tipo, e como `FormItem` irmão do CPF/CNPJ ela
+alinha rótulo, campo e área de erro com o vizinho. Era um `DecimalInput` (32px
+de altura, centralizado, semibold), desenhado para linha de tabela e destoando de
+todos os outros campos do formulário; hoje é o `Input` comum com sufixo de
+porcentagem, o mesmo padrão dos demais percentuais do produto. Em branco continua
+sendo `null`, nunca 0. Guard:
 `_components/__tests__/contact-commission-field.test.tsx`.
 
 ---
@@ -215,13 +215,13 @@ esconde sozinho — não reimplementar isso na coluna. Guard:
 **As duas telas têm os MESMOS 3 passos.** A criação e a edição divergirem é o
 defeito clássico daqui:
 
-O passo 1 responde "quem é este contato". O passo 2 junta o que quase todo
-cadastro pula.
+O passo 1 responde "quem é este contato". O passo 2 fica só com o que a NF-e
+exige do destinatário, que quase todo cadastro pula.
 
 | Passo | Conteúdo | Validação |
 |-------|----------|-----------|
-| 1 — Informações | Tipo (um ou mais dos quatro), Nome, Email, Telefone, CPF/CNPJ, endereço livre | `name` e `phone` obrigatórios (validação em `validateStep1`) |
-| 2 — Dados Fiscais | `ContactCommissionField` (só para vendedor/arquiteto) + `ClientFiscalFields` com `variant="step"` | Opcional |
+| 1 — Informações | Tipo (um ou mais dos quatro), Nome, Email, Telefone, CPF/CNPJ + comissão na mesma linha, endereço livre | `name` e `phone` obrigatórios (validação em `validateStep1`) |
+| 2 — Dados Fiscais | `ClientFiscalFields` com `variant="step"` | Opcional |
 | 3 — Finalizar | Observações + resumo dos dados | Submissão |
 
 O botão "Próximo" do passo 1 é bloqueado até que `validateStep1()` retorne `true`.
@@ -236,14 +236,18 @@ Duas correções trouxeram a trilha até aqui, e nenhuma das duas falhas dava er
   para faturar salvava e reabria o contato para achar o campo. Guard:
   `new/__tests__/page.test.tsx`.
 
-**A comissão divide o passo com o bloco fiscal, mas com cabeçalho próprio**
-(`_components/contact-commission-field.tsx`). Ela **não é dado fiscal**: não
-entra em campo nenhum da NF-e, alimenta `Proposal.commissions[]` e vira despesa
-no financeiro. Sem a separação visual seria lida como campo da nota. O custo
-conhecido dessa arrumação: no celular a trilha mostra só o TÍTULO do passo, então
-um vendedor pode passar por "Dados Fiscais" sem ver a comissão. É recuperável
-(o percentual é opcional e pode ser digitado na proposta), diferente de um
-endereço fiscal ausente, que só aparece como lacuna na hora de emitir.
+**A comissão do parceiro fica ao lado do CPF/CNPJ, no passo 1**
+(`_components/contact-commission-field.tsx`), e não no passo dos dados fiscais.
+Duas razões: ela **não é dado fiscal** (não entra em campo nenhum da NF-e,
+alimenta `Proposal.commissions[]` e vira despesa no financeiro), e no celular a
+trilha mostra só o TÍTULO do passo — debaixo de "Dados Fiscais" ela ficava
+invisível para quem acabou de marcar Vendedor. Ali ela aparece na mesma tela do
+toggle que a cria.
+
+Sem parceiro, o CPF/CNPJ recebe `sm:col-span-2` e ocupa a linha inteira: meia
+linha vazia ao lado dele seria pior que o campo largo. A dica do documento
+encolheu para "Necessário para boleto" porque ela vive na mesma linha do
+rótulo (`h-5` fixa no `FormItem`) e o texto antigo não cabia em meia largura.
 
 O endereço livre acompanha o fiscal enquanto ninguém escreveu nele à mão
 (`isDerivedFreeAddress`, em `lib/fiscal/format-address.ts`). A condição era só
@@ -258,7 +262,7 @@ o cadastro terminava com "R" de endereço. Texto próprio nunca é sobrescrito.
 
 ### Visualização somente leitura
 
-Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) no lugar dos inputs, inclusive o passo de dados fiscais, que mostra a comissão do parceiro e o endereço montado por `formatEnderecoFiscal`. O botão de submit vira "Voltar".
+Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) no lugar dos inputs, inclusive a comissão do parceiro no passo 1 e o endereço fiscal montado por `formatEnderecoFiscal` no passo 2. O botão de submit vira "Voltar".
 
 ### Detecção de alterações
 
