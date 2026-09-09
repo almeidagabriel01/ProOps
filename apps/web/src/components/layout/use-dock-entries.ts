@@ -25,8 +25,6 @@ export type DockEntry = {
   label: string;
   href: string;
   requiresCapability?: MenuCapability;
-  /** Link externo (wa.me): renderiza <a target="_blank"> em vez de <Link>. */
-  external?: boolean;
   /**
    * Todas as rotas que este ícone representa. Sem isto o ícone do Financeiro
    * não acenderia em /wallets, que é destino dele mas não o href dele.
@@ -99,7 +97,6 @@ export function useDockEntries(): DockEntry[] {
         icon: item.icon,
         label: item.label,
         href: item.href,
-        external: item.external,
         requiresCapability: item.requiresCapability,
       });
     }

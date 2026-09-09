@@ -14,7 +14,6 @@ import {
   FileText,
   Home,
   CalendarDays,
-  MessageCircle,
   Kanban,
 } from "lucide-react";
 
@@ -51,11 +50,7 @@ export type MenuItem = {
   /** Overrides pageId for niche availability checks (isPageEnabledForNiche). Defaults to pageId. */
   availabilityPageId?: string;
   requiresCapability?: MenuCapability;
-  /** Flag do TENANT (whatsappEnabled), não capacidade de plano — some por completo em vez de coroar. */
-  requiresWhatsApp?: boolean;
   masterOnly?: boolean;
-  /** Treat href as an external URL — render as <a target="_blank"> instead of <Link>. */
-  external?: boolean;
   children?: SubMenuItem[];
 };
 
@@ -195,15 +190,6 @@ export const menuItems: MenuItem[] = [
     label: "Planilhas",
     href: "/spreadsheets",
     pageId: "spreadsheets",
-  },
-  {
-    icon: MessageCircle,
-    label: "WhatsApp",
-    // Resolved at runtime by useNavigationItems from the bot WhatsApp number.
-    href: "",
-    pageId: "whatsapp",
-    requiresWhatsApp: true,
-    external: true,
   },
 ];
 
