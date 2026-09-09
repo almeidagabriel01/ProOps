@@ -8,6 +8,7 @@ import {
   FileSpreadsheet,
   Bot,
   ReceiptText,
+  WalletCards,
   Handshake,
   FileText,
   Home,
@@ -97,8 +98,10 @@ export const menuItems: MenuItem[] = [
   {
     icon: Wallet,
     label: "Financeiro",
-    href: "/transactions",
-    pageId: "financial",
+    // Sem href e sem pageId: o destino sai de resolveGroupTarget, e "financial"
+    // nunca foi um pageId de verdade (PERMISSION_PAGES tem transactions, wallet
+    // e invoices). Ele era gravado em cada filho pelo achatamento antigo e
+    // nenhuma superfície o lia.
     requiresCapability: "financial",
     children: [
       {
@@ -106,6 +109,14 @@ export const menuItems: MenuItem[] = [
         label: "Lançamentos",
         href: "/transactions",
         pageId: "transactions",
+      },
+      {
+        icon: WalletCards,
+        label: "Carteiras",
+        href: "/wallets",
+        // pageId "wallet" no singular, a rota é plural. Já existe em
+        // PERMISSION_PAGES e em PAGE_CONFIG: nenhuma chave nova.
+        pageId: "wallet",
       },
       {
         icon: Handshake,

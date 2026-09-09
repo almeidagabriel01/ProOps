@@ -60,22 +60,25 @@ test.describe("PERM-06: notas fiscais exigem a própria permissão", () => {
     await expect(page).toHaveURL(/\/403/, { timeout: 15000 });
   });
 
-  test("a dock não oferece Notas Fiscais", async ({
+  test("a dock mostra um Financeiro só, sem vazar filho nenhum", async ({
     memberOperador: page,
   }) => {
     await page.goto("/transactions");
     const dock = page.getByTestId("bottom-dock").first();
     await expect(dock).toBeVisible({ timeout: 15000 });
 
-    // Lançamentos e Notas Fiscais são filhos do mesmo grupo "Financeiro", e o
-    // achatamento da dock reaplicava só o gate de masterOnly — não o de
-    // permissão. O item aparecia e levava sempre a /403.
-    await expect(
-      dock.getByRole("link", { name: "Lançamentos" }),
-    ).toBeVisible();
-    await expect(
-      dock.getByRole("link", { name: "Notas Fiscais" }),
-    ).toHaveCount(0);
+    // O grupo colapsa em um ícone. Nenhum filho pode aparecer solto na dock:
+    // era assim que "Notas Fiscais" chegava a quem só tinha transactions,
+    // porque o achatamento reaplicava apenas o gate de masterOnly.
+    await expect(dock.getByRole("link", { name: "Financeiro" })).toBeVisible();
+    for (const label of [
+      "Lançamentos",
+      "Carteiras",
+      "Comissões",
+      "Notas Fiscais",
+    ]) {
+      await expect(dock.getByRole("link", { name: label })).toHaveCount(0);
+    }
   });
 });
 

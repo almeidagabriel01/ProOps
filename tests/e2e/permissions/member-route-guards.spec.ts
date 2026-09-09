@@ -97,14 +97,24 @@ test.describe("PERM-02: a dock só oferece o que o membro pode abrir", () => {
     ).toBeVisible();
 
     for (const label of [
+      // os rótulos que a dock realmente desenha hoje
+      "Dashboard",
+      "CRM",
+      "Financeiro",
       "Contatos",
+      "Calendario",
+      "Catálogo",
+      "Planilhas",
+      // e os filhos dos grupos: nenhum pode vazar para a dock como item solto,
+      // nem para este membro nem para nenhum outro
+      "Lançamentos",
+      "Carteiras",
+      "Comissões",
+      "Notas Fiscais",
       "Produtos",
       "Serviços",
-      "Planilhas",
-      "Calendario",
-      "Dashboard",
-      "Lançamentos",
-      "Notas Fiscais",
+      "Soluções",
+      "Ambientes",
     ]) {
       await expect(dock.getByRole("link", { name: label })).toHaveCount(0);
     }
