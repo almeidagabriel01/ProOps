@@ -10,7 +10,10 @@ import { PlanProvider } from "@/providers/plan-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { isAuthOnlyRoute } from "@/lib/auth/auth-only-routes";
-import { isPublicMarketingRoute } from "@/lib/auth/route-access";
+import {
+  isPublicMarketingRoute,
+  isSessionlessMarketingRoute,
+} from "@/lib/auth/route-access";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -21,6 +24,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const isPublicMarketingPage = isPublicMarketingRoute(pathname);
 
   const isAuthOnlyPage = isAuthOnlyRoute(pathname);
+
+  /**
+   * The company page and the app page render with NO session context: not just
+   * without Permissions/Tenant/Plan, but outside AuthProvider entirely, since
+   * neither page reads a user. See SESSIONLESS_MARKETING_ROUTES for the rule
+   * and for what to check before adding a route to it.
+   */
+  const isSessionlessPage = isSessionlessMarketingRoute(pathname);
+
+  if (isSessionlessPage) {
+    return (
+      <ThemeProvider>
+        <ErrorBoundary>
+          <main className="min-h-screen">{children}</main>
+        </ErrorBoundary>
+        <ToastProvider />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider>

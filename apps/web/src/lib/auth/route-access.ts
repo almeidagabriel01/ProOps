@@ -89,6 +89,35 @@ export function isPublicMarketingRoute(pathname: string): boolean {
   return matchesExactOrPrefix(pathname, PUBLIC_MARKETING_ROUTES);
 }
 
+/**
+ * Marketing pages that need NO session context at all.
+ *
+ * A strict subset of PUBLIC_MARKETING_ROUTES, and the distinction is about what
+ * the page DOES, not about who may see it. The ERP landing is public too, but
+ * it fetches live prices and swaps its buttons depending on whether the visitor
+ * is logged in, so it genuinely needs Auth, Tenant, Permissions and Plan. These
+ * two do not: the company page has no prices and no login, and the app page has
+ * fixed prices with no web checkout.
+ *
+ * `providers.tsx` gives these a branch with none of those providers, which
+ * takes their initialisation straight off the main thread. Measured on a
+ * throttled Pixel 5 (4x CPU, slow-3G, median of 3), the difference is written
+ * into `lighthouserc.json` next to the budgets it made room for.
+ *
+ * Before adding a route here, check that nothing it renders calls `useAuth`,
+ * `useTenant`, `usePlan` or `usePagePermission`, directly or through a shared
+ * component. The failure is a context read returning undefined at runtime, in
+ * the browser, which no type checks and no server-side test would catch.
+ */
+export const SESSIONLESS_MARKETING_ROUTES = [
+  "/institucional",
+  "/aplicativo",
+] as const;
+
+export function isSessionlessMarketingRoute(pathname: string): boolean {
+  return matchesExactOrPrefix(pathname, SESSIONLESS_MARKETING_ROUTES);
+}
+
 export function isPublicRoute(pathname: string): boolean {
   return matchesExactOrPrefix(pathname, PUBLIC_ROUTES);
 }

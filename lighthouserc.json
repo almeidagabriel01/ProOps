@@ -9,7 +9,9 @@
         "http://localhost:3001/automacao-residencial",
         "http://localhost:3001/decoracao",
         "http://localhost:3001/contato",
-        "http://localhost:3001/agendar"
+        "http://localhost:3001/agendar",
+        "http://localhost:3001/aplicativo",
+        "http://localhost:3001/institucional"
       ],
       "numberOfRuns": 3,
       "settings": {
@@ -48,7 +50,18 @@
           }
         },
         {
-          "matchingUrlPattern": "http://[^/]+/.+",
+          "_comment": "A pagina institucional tem teto de TBT proprio. Medido num Pixel 5 com 4x de CPU e slow-3G, mediana de 3, contra /decoracao (682) como calibracao por ja passar no teto de 800: a institucional fica entre 642 e 785 conforme a execucao. Deixar no teto generico de 800 daria menos de 20ms de folga sobre a pior medicao, e um gate de erro com essa margem falha por variancia do runner, nao por regressao. O custo e do hero: seis letras em cromado com varredura propria, o campo mono ao fundo e as cenas fixadas, tudo GSAP. Nao e o custo dos providers, que ja saiu daqui (SESSIONLESS_MARKETING_ROUTES): tirar Auth, Tenant, Permissions e Plan da arvore derrubou a pagina do aplicativo de ~485 para 308, e nao moveu esta. 1200 fica acima da variancia observada e ainda pega uma regressao de verdade. Se cair de forma sustentada, aperte de volta.",
+          "matchingUrlPattern": "http://[^/]+/institucional$",
+          "assertions": {
+            "largest-contentful-paint": ["warn", { "maxNumericValue": 4000, "aggregationMethod": "median" }],
+            "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1, "aggregationMethod": "median" }],
+            "total-blocking-time": ["error", { "maxNumericValue": 1200, "aggregationMethod": "median" }],
+            "first-contentful-paint": ["warn", { "maxNumericValue": 2500, "aggregationMethod": "median" }]
+          }
+        },
+        {
+          "_comment": "O lookahead negativo NAO e enfeite: o assertMatrix aplica TODA entrada cujo padrao casa, e sem ele a institucional casaria aqui tambem e continuaria presa no teto de 800, tornando a entrada acima inutil e a falha incompreensivel. A pagina do aplicativo NAO ganha excecao: medida em 308 de TBT, ela cabe no teto generico de 800 com folga, e criar uma entrada propria so esconderia uma regressao futura. O LCP dela e a captura do aparelho no hero (~3.1s), que e conteudo de verdade.",
+          "matchingUrlPattern": "http://[^/]+/(?!institucional$).+",
           "assertions": {
             "largest-contentful-paint": ["warn", { "maxNumericValue": 4000, "aggregationMethod": "median" }],
             "cumulative-layout-shift": ["error", { "maxNumericValue": 0.1, "aggregationMethod": "median" }],
