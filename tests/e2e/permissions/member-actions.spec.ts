@@ -80,6 +80,31 @@ test.describe("PERM-06: notas fiscais exigem a própria permissão", () => {
       await expect(dock.getByRole("link", { name: label })).toHaveCount(0);
     }
   });
+
+  test("o seletor do Financeiro é gated igual à dock", async ({
+    memberOperador: page,
+  }) => {
+    await page.goto("/transactions");
+
+    // memberOperador tem transactions e wallet, não tem invoices e não é
+    // master. O seletor tem que refletir exatamente isso: se ele oferecesse
+    // Notas Fiscais, o agrupamento teria aberto um caminho que a dock fechava.
+    const seletor = page.getByRole("group", { name: "Visões de Financeiro" });
+    await expect(seletor).toBeVisible({ timeout: 20000 });
+
+    await expect(
+      seletor.getByRole("button", { name: /Lançamentos/ }),
+    ).toBeVisible();
+    await expect(
+      seletor.getByRole("button", { name: /Carteiras/ }),
+    ).toBeVisible();
+    await expect(
+      seletor.getByRole("button", { name: /Notas Fiscais/ }),
+    ).toHaveCount(0);
+    await expect(
+      seletor.getByRole("button", { name: /Comissões/ }),
+    ).toHaveCount(0);
+  });
 });
 
 test.describe("PERM-07: CRM — ver o quadro não é mexer nas colunas", () => {
