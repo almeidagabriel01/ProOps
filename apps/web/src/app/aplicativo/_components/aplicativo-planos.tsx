@@ -3,49 +3,7 @@ import React from "react";
 import { LiquidGlass } from "@/components/marketing/_shared/liquid-glass";
 import { PauseOffscreen } from "@/components/marketing/_shared/pause-offscreen";
 
-interface Plano {
-  nome: string;
-  mensal: string;
-  anual: string;
-  para: string;
-  inclui: string[];
-  destaque?: boolean;
-}
-
-/**
- * Prices as the app itself defines them, in `src/lib/billing.ts`.
- *
- * The permanent free tier is NOT advertised. It exists in the app today, and
- * the product decision to replace it with the seven-day trial is already
- * recorded in the app's own handoff notes. Putting it on a page that goes live
- * around launch would be promising something scheduled for removal, which is
- * the one promise a pricing section must never make.
- */
-const PLANOS: Plano[] = [
-  {
-    nome: "Pro",
-    mensal: "R$ 24,90",
-    anual: "R$ 249,00 por ano",
-    para: "Para você, e mais duas pessoas",
-    inclui: [
-      "3 pessoas no mesmo financeiro",
-      "1.000 mensagens de IA por mês",
-      "Importação de extrato OFX e CSV",
-    ],
-    destaque: true,
-  },
-  {
-    nome: "Família",
-    mensal: "R$ 39,90",
-    anual: "R$ 399,00 por ano",
-    para: "Para a casa inteira",
-    inclui: [
-      "5 pessoas no mesmo financeiro",
-      "2.000 mensagens de IA por mês",
-      "Autoria por lançamento",
-    ],
-  },
-];
+import { PLANOS } from "../_content/planos";
 
 /**
  * Prices, with nothing to click. The last section of the page.

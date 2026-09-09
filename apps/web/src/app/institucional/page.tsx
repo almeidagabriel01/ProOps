@@ -9,6 +9,8 @@ import { InstitucionalHero } from "./_components/institucional-hero";
 import { InstitucionalManifesto } from "./_components/institucional-manifesto";
 import { InstitucionalNavbar } from "./_components/institucional-navbar";
 import { InstitucionalProdutos } from "./_components/institucional-produtos";
+import { InstitucionalJsonLd } from "./_components/institucional-json-ld";
+import { canonicalFor } from "@/lib/site/host-seo";
 
 /**
  * The ProOps company page.
@@ -23,18 +25,36 @@ export const metadata: Metadata = {
   title: { absolute: "ProOps: software de gestão para quem vende projeto" },
   description:
     "A ProOps constrói software de gestão para quem vende projeto: um ERP para a operação da empresa e um aplicativo para a vida financeira de cada pessoa.",
-  alternates: { canonical: "https://proops.com.br/" },
+  alternates: { canonical: canonicalFor("institucional", "/") },
   openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "ProOps",
     title: "ProOps",
     description:
       "Software de gestão para quem vende projeto: um ERP para a empresa e um aplicativo para a pessoa.",
-    url: "https://proops.com.br/",
+    url: canonicalFor("institucional", "/"),
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "ProOps",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ProOps",
+    description:
+      "Software de gestão para quem vende projeto: um ERP para a empresa e um aplicativo para a pessoa.",
   },
 };
 
 export default function InstitucionalPage() {
   return (
     <>
+      <InstitucionalJsonLd />
       <SmoothScroll />
       <InstitucionalNavbar />
       <InstitucionalHero />
