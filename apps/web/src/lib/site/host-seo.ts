@@ -15,6 +15,8 @@ import {
   APEX_OWNED_PATHS,
   APEX_SURFACE,
   APEX_URL,
+  APP_ROOT,
+  INSTITUCIONAL_ROOT,
   SITE_URLS,
   shouldNoIndexHost,
   type Surface,
@@ -128,8 +130,19 @@ export function canonicalLegal(path: string): string {
   return canonicalFor(APEX_SURFACE, path);
 }
 
-/** Paths no crawler should follow, on any host. */
+/**
+ * Paths no crawler should follow, on any host.
+ *
+ * The first two are the internal subtrees behind the host rewrite, and they
+ * belong here permanently, not just until the cutover. `app.proops.com.br/` and
+ * `/aplicativo` render the same page, so leaving the path crawlable publishes
+ * every new page at two addresses at once. The public address of these two
+ * surfaces is a HOST; the path is plumbing, and it stays reachable only so the
+ * pages can be reviewed from any host while being built.
+ */
 const NUNCA_INDEXAR = [
+  INSTITUCIONAL_ROOT,
+  APP_ROOT,
   "/api/",
   "/share/",
   "/admin/",

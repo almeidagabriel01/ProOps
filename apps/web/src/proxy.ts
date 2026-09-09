@@ -29,6 +29,7 @@ import {
 } from "@/lib/auth/route-access";
 import {
   erpHomeUrl,
+  isInternalSurfacePath,
   resolveApexRedirect,
   resolveRewritePath,
   resolveSurface,
@@ -78,7 +79,12 @@ export async function proxy(request: NextRequest) {
   // ("erp"), correctly, because they render the same thing. Comparing surfaces
   // therefore answered "not a duplicate" for the one host that is the most
   // literal duplicate there is, and left it crawlable.
-  const transitionalNoIndex = shouldNoIndexHost(host);
+  // Um caminho interno pedido diretamente (`/aplicativo`, `/institucional`)
+  // tambem nao entra no indice, em nenhum host e em nenhum momento: ele serve a
+  // MESMA pagina que o host proprio serve na raiz. O robots.txt ja o proibe, e
+  // este cabecalho cobre quem chegar por link, que o robots nao alcanca.
+  const transitionalNoIndex =
+    shouldNoIndexHost(host) || isInternalSurfacePath(pathname);
 
   // Cutover 301s. Inert until APEX_SURFACE flips: `resolveApexRedirect` returns
   // null while the apex still serves the ERP.

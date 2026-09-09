@@ -125,6 +125,23 @@ export function shouldNoIndexHost(host: string | null | undefined): boolean {
 }
 
 /**
+ * True for the internal subtrees that back the host-routed surfaces.
+ *
+ * `app.proops.com.br/` and `/aplicativo` render the same page. Both stay
+ * reachable on purpose, so the pages can be reviewed from any host, but only
+ * the HOST is a public address: indexing the path too would publish every new
+ * page at two URLs from the first day.
+ */
+export function isInternalSurfacePath(pathname: string): boolean {
+  return (
+    pathname === INSTITUCIONAL_ROOT ||
+    pathname === APP_ROOT ||
+    pathname.startsWith(`${INSTITUCIONAL_ROOT}/`) ||
+    pathname.startsWith(`${APP_ROOT}/`)
+  );
+}
+
+/**
  * Paths the APEX keeps serving after the cutover, besides its own root.
  *
  * The legal pages belong to the company, not to a product, so they stay on

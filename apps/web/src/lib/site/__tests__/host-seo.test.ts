@@ -110,3 +110,19 @@ describe("robots por host", () => {
     expect(politica.sitemap).toBe(`${SITE_URLS.app}/sitemap.xml`);
   });
 });
+
+describe("os caminhos internos ficam fora do índice", () => {
+  it("o robots proíbe /aplicativo e /institucional em todo host", () => {
+    const politica = robotsPara(APEX_SURFACE, "proops.com.br");
+    expect(politica.disallow).toContain("/aplicativo");
+    expect(politica.disallow).toContain("/institucional");
+  });
+
+  it("e eles não aparecem em sitemap nenhum", () => {
+    for (const surface of ["institucional", "erp", "app"] as const) {
+      const paths = rotasDoSitemap(surface).map((r) => r.path);
+      expect(paths).not.toContain("/aplicativo");
+      expect(paths).not.toContain("/institucional");
+    }
+  });
+});

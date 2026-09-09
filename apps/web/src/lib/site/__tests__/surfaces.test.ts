@@ -8,6 +8,7 @@ import {
   resolveApexRedirect,
   APP_ROOT,
   INSTITUCIONAL_ROOT,
+  isInternalSurfacePath,
   isNewSubdomainHost,
   normalizeHost,
   resolveRewritePath,
@@ -194,5 +195,28 @@ describe("a virada do apex", () => {
   it("leva o usuário free para a landing do ERP nos dois estados", () => {
     expect(erpHomeUrlPara(true)).toBe("/");
     expect(erpHomeUrlPara(false)).toBe("https://erp.proops.com.br/");
+  });
+});
+
+/**
+ * Os caminhos internos não são endereço público.
+ *
+ * `app.proops.com.br/` e `/aplicativo` renderizam a mesma página. Os dois
+ * continuam alcançáveis de propósito, para revisar de qualquer host, mas
+ * indexar o caminho publicaria cada página em dois endereços desde o primeiro
+ * dia. Descoberto ao mapear o que um merge para main publicaria: as duas
+ * respondiam 200 no apex, sem noindex e sem bloqueio no robots.
+ */
+describe("caminhos internos das superfícies", () => {
+  it("reconhece os dois, e a subárvore de cada um", () => {
+    expect(isInternalSurfacePath("/aplicativo")).toBe(true);
+    expect(isInternalSurfacePath("/institucional")).toBe(true);
+    expect(isInternalSurfacePath("/aplicativo/qualquer")).toBe(true);
+  });
+
+  it("não confunde com uma rota que só começa igual", () => {
+    expect(isInternalSurfacePath("/aplicativos")).toBe(false);
+    expect(isInternalSurfacePath("/")).toBe(false);
+    expect(isInternalSurfacePath("/decoracao")).toBe(false);
   });
 });
