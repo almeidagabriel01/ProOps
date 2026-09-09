@@ -25,15 +25,20 @@ test.describe("PERM-05: financeiro — o que o master concedeu vale", () => {
     ).toBeVisible({ timeout: 20000 });
   });
 
-  test("com wallet.canView, o botão Carteiras aparece", async ({
+  test("com wallet.canView, o seletor oferece Carteiras", async ({
     memberOperador: page,
   }) => {
     await page.goto("/transactions");
     await expect(page).toHaveURL(/\/transactions/, { timeout: 15000 });
 
-    // Este botão não tinha gate NENHUM — nem de plano, nem de permissão.
+    // O caminho mudou de lugar: era um botão solto dentro de /transactions, com
+    // gate próprio, e agora é uma visão do grupo Financeiro, gated pelo mesmo
+    // filterChildren que decide a dock. A afirmação continua a mesma: quem tem
+    // wallet.canView alcança carteiras a partir dos lançamentos.
     await expect(
-      page.getByRole("link", { name: /Carteiras/i }).first(),
+      page
+        .getByRole("group", { name: "Visões de Financeiro" })
+        .getByRole("button", { name: /Carteiras/ }),
     ).toBeVisible({ timeout: 20000 });
   });
 
@@ -60,21 +65,49 @@ test.describe("PERM-06: notas fiscais exigem a própria permissão", () => {
     await expect(page).toHaveURL(/\/403/, { timeout: 15000 });
   });
 
-  test("a dock não oferece Notas Fiscais", async ({
+  test("a dock mostra um Financeiro só, sem vazar filho nenhum", async ({
     memberOperador: page,
   }) => {
     await page.goto("/transactions");
     const dock = page.getByTestId("bottom-dock").first();
     await expect(dock).toBeVisible({ timeout: 15000 });
 
-    // Lançamentos e Notas Fiscais são filhos do mesmo grupo "Financeiro", e o
-    // achatamento da dock reaplicava só o gate de masterOnly — não o de
-    // permissão. O item aparecia e levava sempre a /403.
+    // O grupo colapsa em um ícone. Nenhum filho pode aparecer solto na dock:
+    // era assim que "Notas Fiscais" chegava a quem só tinha transactions,
+    // porque o achatamento reaplicava apenas o gate de masterOnly.
+    await expect(dock.getByRole("link", { name: "Financeiro" })).toBeVisible();
+    for (const label of [
+      "Lançamentos",
+      "Carteiras",
+      "Comissões",
+      "Notas Fiscais",
+    ]) {
+      await expect(dock.getByRole("link", { name: label })).toHaveCount(0);
+    }
+  });
+
+  test("o seletor do Financeiro é gated igual à dock", async ({
+    memberOperador: page,
+  }) => {
+    await page.goto("/transactions");
+
+    // memberOperador tem transactions e wallet, não tem invoices e não é
+    // master. O seletor tem que refletir exatamente isso: se ele oferecesse
+    // Notas Fiscais, o agrupamento teria aberto um caminho que a dock fechava.
+    const seletor = page.getByRole("group", { name: "Visões de Financeiro" });
+    await expect(seletor).toBeVisible({ timeout: 20000 });
+
     await expect(
-      dock.getByRole("link", { name: "Lançamentos" }),
+      seletor.getByRole("button", { name: /Lançamentos/ }),
     ).toBeVisible();
     await expect(
-      dock.getByRole("link", { name: "Notas Fiscais" }),
+      seletor.getByRole("button", { name: /Carteiras/ }),
+    ).toBeVisible();
+    await expect(
+      seletor.getByRole("button", { name: /Notas Fiscais/ }),
+    ).toHaveCount(0);
+    await expect(
+      seletor.getByRole("button", { name: /Comissões/ }),
     ).toHaveCount(0);
   });
 });

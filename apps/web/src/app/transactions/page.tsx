@@ -1,5 +1,6 @@
 "use client";
 
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import * as React from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { Transaction } from "@/services/transaction-service";
-import { Crown, Kanban, Plus, Search, Wallet, WalletCards, X } from "lucide-react";
+import { Crown, Kanban, Plus, Search, Wallet, X } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
 import { useGroupedTransactions } from "./_hooks/useGroupedTransactions";
@@ -38,7 +39,6 @@ export default function FinancialPage() {
   const { canCreate, canEdit, canDelete } = usePagePermission("transactions");
   // Carteiras e CRM não estão na dock — chega-se a elas por estes botões, então
   // é aqui que a permissão de cada uma tem que ser checada.
-  const { canView: canViewWallets } = usePagePermission("wallet");
   const { canView: canViewCrm } = usePagePermission("kanban");
   const { hasKanban } = usePlanLimits();
   const upgradeModal = useUpgradeModal();
@@ -499,6 +499,7 @@ export default function FinancialPage() {
           <p className="text-muted-foreground mt-1">
             Gerencie receitas e despesas
           </p>
+          <PageViewSwitcher className="mt-3" />
         </div>
 
         <div className="flex flex-col items-stretch gap-3 sm:items-end">
@@ -536,20 +537,6 @@ export default function FinancialPage() {
                   </span>
                 </Button>
               ))}
-
-            {canViewWallets && (
-              <Button
-                asChild
-                variant="outline"
-                size="lg"
-                className="gap-2 w-full sm:w-auto"
-              >
-                <Link href="/wallets">
-                  <WalletCards className="w-5 h-5" />
-                  Carteiras
-                </Link>
-              </Button>
-            )}
 
             {canCreate && (
               <Button asChild size="lg" className="gap-2 w-full sm:w-auto">

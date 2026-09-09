@@ -3,7 +3,10 @@
 import * as React from "react";
 
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import type { MenuCapability } from "@/components/layout/navigation-config";
+import type {
+  MenuCapability,
+  MenuCapabilityMap,
+} from "@/components/layout/navigation-config";
 
 /**
  * Traduz uma capacidade de plano ausente no que a UI precisa mostrar: se o item
@@ -16,7 +19,7 @@ import type { MenuCapability } from "@/components/layout/navigation-config";
  * quatro chances de divergirem.
  */
 
-export type MenuCapabilityMap = Record<MenuCapability, boolean>;
+export type { MenuCapabilityMap };
 
 export function useMenuCapabilities(): MenuCapabilityMap {
   const { hasFinancial, hasKanban, hasFiscal } = usePlanLimits();

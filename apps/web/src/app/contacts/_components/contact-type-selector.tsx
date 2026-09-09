@@ -9,8 +9,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { FormItem } from "@/components/ui/form-components";
-import { DecimalInput } from "@/components/ui/decimal-input";
-import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import type { ClientType } from "@/services/client-service";
 
 type TypeOption = {
@@ -54,21 +52,20 @@ const TYPE_OPTIONS: TypeOption[] = [
 interface ContactTypeSelectorProps {
   types: ClientType[];
   onTypesChange: (types: ClientType[]) => void;
-  /** `null` = sem percentual padrão; o valor é digitado na proposta. */
-  commissionPercentage: number | null;
-  onCommissionPercentageChange: (value: number | null) => void;
 }
 
 /**
  * Seleção múltipla do tipo do contato, compartilhada pelo cadastro e pela
  * edição. As duas telas mantinham cópias independentes deste bloco, e um tipo
  * novo entraria só numa delas.
+ *
+ * A comissão do parceiro saiu daqui e virou `ContactCommissionField`, no passo
+ * seguinte: ela é consequência do tipo, mas não é um dado de contato, e no meio
+ * do cadastro lia-se como se fosse.
  */
 export function ContactTypeSelector({
   types,
   onTypesChange,
-  commissionPercentage,
-  onCommissionPercentageChange,
 }: ContactTypeSelectorProps) {
   const toggle = (value: ClientType) => {
     const next = types.includes(value)
@@ -78,72 +75,49 @@ export function ContactTypeSelector({
     onTypesChange(next.length > 0 ? next : [value]);
   };
 
-  const showCommission = isCommissionPartner({ types });
-
   return (
-    <div className="flex flex-col gap-4">
-      <FormItem
-        label="Tipo de Cadastro (selecione um ou mais)"
-        htmlFor="types"
-        required
-      >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {TYPE_OPTIONS.map((option) => {
-            const selected = types.includes(option.value);
-            const Icon = option.icon;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => toggle(option.value)}
-                className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                  selected
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
+    <FormItem
+      label="Tipo de Cadastro (selecione um ou mais)"
+      htmlFor="types"
+      required
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {TYPE_OPTIONS.map((option) => {
+          const selected = types.includes(option.value);
+          const Icon = option.icon;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => toggle(option.value)}
+              className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                selected
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50"
+              }`}
+            >
+              <div
+                className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center ${
+                  selected ? "bg-primary/10" : "bg-muted"
                 }`}
               >
-                <div
-                  className={`w-10 h-10 shrink-0 rounded-lg flex items-center justify-center ${
-                    selected ? "bg-primary/10" : "bg-muted"
-                  }`}
-                >
-                  <Icon
-                    className={`w-5 h-5 ${selected ? "text-primary" : "text-muted-foreground"}`}
-                  />
-                </div>
-                <div className="min-w-0 text-left">
-                  <p className={`font-medium ${selected ? "text-primary" : ""}`}>
-                    {option.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {option.description}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </FormItem>
-
-      {showCommission && (
-        <FormItem
-          label="Comissão padrão (%)"
-          htmlFor="commissionPercentage"
-          hint="Pode ser alterada em cada proposta"
-        >
-          <DecimalInput
-            id="commissionPercentage"
-            name="commissionPercentage"
-            value={commissionPercentage ?? 0}
-            onChange={(value) =>
-              onCommissionPercentageChange(value > 0 ? value : null)
-            }
-            className="text-base md:text-sm"
-            aria-label="Comissão padrão em percentual"
-          />
-        </FormItem>
-      )}
-    </div>
+                <Icon
+                  className={`w-5 h-5 ${selected ? "text-primary" : "text-muted-foreground"}`}
+                />
+              </div>
+              <div className="min-w-0 text-left">
+                <p className={`font-medium ${selected ? "text-primary" : ""}`}>
+                  {option.label}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {option.description}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </FormItem>
   );
 }

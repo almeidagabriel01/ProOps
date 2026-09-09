@@ -44,3 +44,24 @@ export function formatEnderecoFiscal(endereco: EnderecoFiscalParts): string {
     .filter(Boolean)
     .join(", ");
 }
+
+/**
+ * Verdadeiro enquanto o campo livre puder continuar acompanhando o fiscal: ele
+ * está vazio, ou ainda é exatamente o que derivamos do endereço fiscal atual.
+ *
+ * A condição era só "está vazio", e isso congelava o campo na PRIMEIRA letra
+ * digitada: escrever "Rua das Flores" no logradouro deixava o endereço livre
+ * valendo "R" — a partir da segunda tecla ele já não estava mais vazio. Com o
+ * bloco fiscal dentro do passo de endereço, os dois campos ficam à vista ao
+ * mesmo tempo e o defeito passou a ser óbvio.
+ *
+ * O que NÃO pode acontecer é sobrescrever texto escrito à mão: quem digitou
+ * "Rua tal, portão azul" não pode ver isso sumir por uma busca de CEP.
+ */
+export function isDerivedFreeAddress(
+  address: string,
+  fiscal: EnderecoFiscalParts,
+): boolean {
+  const atual = address.trim();
+  return atual === "" || atual === formatEnderecoFiscal(fiscal);
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,7 @@ export default function CommissionsPage() {
           <p className="mt-1 text-muted-foreground">
             Quanto pagar a cada vendedor e arquiteto no mês
           </p>
+          <PageViewSwitcher className="mt-3" />
         </div>
 
         <div className="flex items-center gap-2">

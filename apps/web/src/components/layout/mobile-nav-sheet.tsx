@@ -97,21 +97,6 @@ export function MobileNavSheet({
                 : "text-foreground/85 hover:bg-muted/60",
             );
 
-            if (entry.external) {
-              return (
-                <a
-                  key={entry.href}
-                  href={entry.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={className}
-                  onClick={() => onOpenChange(false)}
-                >
-                  {content}
-                </a>
-              );
-            }
-
             return (
               <Link
                 key={entry.href}

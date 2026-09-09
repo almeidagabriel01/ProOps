@@ -8,6 +8,15 @@ import { useClientActions } from "@/hooks/useClientActions";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useFormValidation } from "@/hooks/useFormValidation";
 import { customerSchema } from "@/lib/validations";
+import {
+  formatEnderecoFiscal,
+  isDerivedFreeAddress,
+} from "@/lib/fiscal/format-address";
+import {
+  ClientFiscalFields,
+  EMPTY_CLIENT_FISCAL,
+  type ClientFiscalValues,
+} from "@/components/features/fiscal/client-fiscal-fields";
 import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -23,25 +32,37 @@ import {
   StepNavigation,
 } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
-import { User, Mail, MapPin, FileText, CheckCircle, CreditCard } from "lucide-react";
+import { User, Mail, MapPin, FileText, CheckCircle, CreditCard, Receipt } from "lucide-react";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { ContactTypeSelector } from "../_components/contact-type-selector";
+import { ContactCommissionField } from "../_components/contact-commission-field";
+import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import type { ClientType } from "@/services/client-service";
 import { formatDocumento } from "@/lib/format-document";
 
 
+/**
+ * A trilha é a MESMA de `/contacts/[id]`. Até 2026-09-09 o cadastro tinha três
+ * passos e a edição quatro: os dados fiscais só apareciam depois de o contato
+ * estar salvo, então quem cadastrava um cliente para faturar precisava salvar e
+ * reabrir o cadastro para achar o endereço que a NF-e exige do destinatário.
+ *
+ * O passo 1 responde "quem é este contato": contato, documento, comissão do
+ * parceiro e endereço. O passo 2 fica só com o que a NF-e exige do
+ * destinatário, que quase todo cadastro pula.
+ */
 const customerSteps = [
   {
     id: "info",
     title: "Informações",
-    description: "Dados e contato",
+    description: "Contato e endereço",
     icon: User,
   },
   {
-    id: "address",
-    title: "Endereço",
-    description: "Localização",
-    icon: MapPin,
+    id: "fiscal",
+    title: "Dados Fiscais",
+    description: "Endereço da NF-e",
+    icon: Receipt,
   },
   {
     id: "notes",
@@ -85,6 +106,7 @@ export default function NewCustomerPage() {
     document: "",
     types: ["cliente"] as ClientType[],
     commissionPercentage: null as number | null,
+    fiscal: EMPTY_CLIENT_FISCAL as ClientFiscalValues,
   });
 
   const handleChange = (
@@ -92,12 +114,15 @@ export default function NewCustomerPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing. `types` e `commissionPercentage`
-    // ficam de fora: nenhum dos dois esta no schema de validacao, e ambos sao
-    // editados pelo ContactTypeSelector, nao por este handler de <input>.
+    // Clear error when user starts typing. `types`, `commissionPercentage` e
+    // `fiscal` ficam de fora: nenhum dos tres esta no schema de validacao, e os
+    // tres sao editados por componentes proprios, nao por este handler.
     if (name !== "types" && errors[name as keyof typeof errors]) {
       clearFieldError(
-        name as Exclude<keyof typeof formData, "types" | "commissionPercentage">,
+        name as Exclude<
+          keyof typeof formData,
+          "types" | "commissionPercentage" | "fiscal"
+        >,
       );
     }
   };
@@ -119,7 +144,7 @@ export default function NewCustomerPage() {
       validateField(
         name as Exclude<
           keyof typeof formData,
-          "types" | "commissionPercentage"
+          "types" | "commissionPercentage" | "fiscal"
         >,
         value,
         formData,
@@ -172,6 +197,27 @@ export default function NewCustomerPage() {
         document: formData.document ? formData.document.replace(/\D/g, "") : undefined,
         types: formData.types,
         commissionPercentage: formData.commissionPercentage,
+        enderecoFiscal: {
+          cep: formData.fiscal.cep.replace(/\D/g, ""),
+          logradouro: formData.fiscal.logradouro.trim(),
+          numero: formData.fiscal.numero.trim(),
+          complemento: formData.fiscal.complemento.trim(),
+          bairro: formData.fiscal.bairro.trim(),
+          municipio: formData.fiscal.municipio.trim(),
+          uf: formData.fiscal.uf.trim().toUpperCase(),
+          codigoIbge: formData.fiscal.codigoIbge.replace(/\D/g, ""),
+        },
+        inscricaoEstadual: formData.fiscal.inscricaoEstadual.trim(),
+        // Indicador vazio nao vai: o backend o DERIVA do documento, e uma
+        // string vazia seria recusada pelo enum do schema.
+        ...(formData.fiscal.indicadorIe
+          ? {
+              indicadorIe: formData.fiscal.indicadorIe as
+                | "contribuinte"
+                | "isento"
+                | "nao_contribuinte",
+            }
+          : {}),
         source: "manual",
         targetTenantId: tenant?.id, // Ensure correct tenant for super admin
       });
@@ -220,10 +266,6 @@ export default function NewCustomerPage() {
               types={formData.types}
               onTypesChange={(types) =>
                 setFormData((prev) => ({ ...prev, types }))
-              }
-              commissionPercentage={formData.commissionPercentage}
-              onCommissionPercentageChange={(commissionPercentage) =>
-                setFormData((prev) => ({ ...prev, commissionPercentage }))
               }
             />
 
@@ -279,41 +321,36 @@ export default function NewCustomerPage() {
               </FormItem>
             </FormGroup>
 
-            <FormItem
-              label="CPF ou CNPJ"
-              htmlFor="document"
-              hint="Necessário para gerar boleto bancário. Pode ser preenchido depois."
-              error={errors.document}
-            >
-              <Input
-                id="document"
-                name="document"
-                value={formData.document}
-                onChange={handleDocumentChange}
-                onBlur={(e) => validateField("document", e.target.value, formData)}
-                placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                icon={<CreditCard className="w-4 h-4" />}
-                className={errors.document ? "border-destructive" : ""}
-              />
-            </FormItem>
-          </div>
-          <StepNavigation onBeforeNext={validateStep1} />
-        </FormStepCard>
+            {/* Sem parceiro, o documento ocupa a linha inteira: metade de linha
+                vazia ao lado dele seria pior que o campo largo. */}
+            <FormGroup>
+              <FormItem
+                label="CPF ou CNPJ"
+                htmlFor="document"
+                hint="Necessário para boleto"
+                error={errors.document}
+                className={isCommissionPartner(formData) ? "" : "sm:col-span-2"}
+              >
+                <Input
+                  id="document"
+                  name="document"
+                  value={formData.document}
+                  onChange={handleDocumentChange}
+                  onBlur={(e) => validateField("document", e.target.value, formData)}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  icon={<CreditCard className="w-4 h-4" />}
+                  className={errors.document ? "border-destructive" : ""}
+                />
+              </FormItem>
 
-        {/* Step 2: Address */}
-        <FormStepCard>
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/15 to-purple-500/5 flex items-center justify-center">
-                <MapPin className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">Endereço</h3>
-                <p className="text-sm text-muted-foreground">
-                  Localização para entregas e correspondências
-                </p>
-              </div>
-            </div>
+              <ContactCommissionField
+                types={formData.types}
+                value={formData.commissionPercentage}
+                onChange={(commissionPercentage) =>
+                  setFormData((prev) => ({ ...prev, commissionPercentage }))
+                }
+              />
+            </FormGroup>
 
             <FormItem label="Endereço Completo" htmlFor="address">
               <Input
@@ -325,6 +362,31 @@ export default function NewCustomerPage() {
                 icon={<MapPin className="w-4 h-4" />}
               />
             </FormItem>
+          </div>
+          <StepNavigation onBeforeNext={validateStep1} />
+        </FormStepCard>
+
+        {/* Step 2: só o que a NF-e exige do destinatário, e que quase todo
+            cadastro pula. */}
+        <FormStepCard>
+          <div className="space-y-6">
+            <ClientFiscalFields
+              variant="step"
+              values={formData.fiscal}
+              onChange={(fiscal) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  fiscal,
+                  // O endereço livre do passo anterior acompanha o fiscal
+                  // enquanto ninguém o tiver escrito à mão, para não digitar o
+                  // mesmo endereço duas vezes. Texto próprio ("Rua tal, portão
+                  // azul") nunca é sobrescrito por uma busca de CEP.
+                  address: isDerivedFreeAddress(prev.address, prev.fiscal)
+                    ? formatEnderecoFiscal(fiscal)
+                    : prev.address,
+                }))
+              }
+            />
           </div>
           <StepNavigation />
         </FormStepCard>

@@ -109,9 +109,20 @@ alcançável.
 
 Guard: `src/__tests__/step-wizard-children-parity.test.ts`.
 
-Bloco que ganha um passo próprio **não pode ser recolhível**: recolher esconde o
-único conteúdo do passo. É por isso que `CatalogFiscalFields` e
-`ClientFiscalFields` têm `variant="step"` além do `"section"` recolhível.
+Bloco promovido a conteúdo de passo **não pode ser recolhível**: no caso do
+`CatalogFiscalFields` recolher esconde o único conteúdo do passo; no do
+`ClientFiscalFields`, único conteúdo do passo "Dados Fiscais" do contato,
+recolher recriaria o problema que a promoção resolveu (fechado, ninguém achava o
+endereço que a NF-e exige). Daí o `variant="step"` dos dois, ao lado do
+`"section"` recolhível.
+
+## Navegação
+
+O modelo de navegação (a dock, a tab bar do celular, o sheet e o seletor de visão
+das páginas) tem contrato próprio em `layout/CLAUDE.md`. O resumo: `menuItems` é
+a fonte, `useNavigationItems` é o único gate de plano, permissão e nicho,
+`useDockEntries` colapsa um grupo em um ícone e `PageViewSwitcher` o expande de
+volta no cabeçalho. Ninguém deriva a própria lista de destinos.
 
 ## Nomenclatura
 - Arquivo: `nome-componente.tsx` (kebab-case)

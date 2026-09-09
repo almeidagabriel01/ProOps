@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LogOut, Settings, User as UserIcon } from "lucide-react";
+import { LogOut, MessageCircle, Settings, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useTenant } from "@/providers/tenant-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import {
+  BOT_WHATSAPP_DIGITS,
+  buildWhatsAppHref,
+} from "@/lib/whatsapp-contacts";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
+
+// Aponta para o BOT (assistente), não para o suporte.
+const WHATSAPP_HREF = buildWhatsAppHref(BOT_WHATSAPP_DIGITS);
 
 interface HeaderProps {
   sidebarWidth?: number;
@@ -69,6 +77,7 @@ export function Header({}: HeaderProps) {
   } =
     useHeaderPresentation();
   const router = useRouter();
+  const { hasWhatsApp } = usePlanLimits();
 
   const isHeaderBlocked =
     isAuthLoading || isPermLoading || isTenantLoading || isGlobalLoading;
@@ -182,6 +191,21 @@ export function Header({}: HeaderProps) {
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Configurações</span>
               </DropdownMenuItem>
+              {/* O bot no WhatsApp: link externo, não um módulo do ERP. Ele não
+                  tem página, permissão nem nicho, e ocupava um lugar fixo na
+                  dock para uma ação que nem é navegação. Sem a flag do tenant,
+                  o item não existe, como antes. */}
+              {hasWhatsApp && WHATSAPP_HREF && (
+                <DropdownMenuItem
+                  onClick={() =>
+                    window.open(WHATSAPP_HREF, "_blank", "noopener,noreferrer")
+                  }
+                  className="cursor-pointer"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  <span>WhatsApp</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={logout}

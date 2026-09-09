@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import * as React from "react";
 import { m as motion } from "motion/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -474,6 +475,7 @@ export default function AutomationAdminPage() {
             <p className="text-muted-foreground mt-1">
               {solutionsPageConfig.pageDescription}
             </p>
+            <PageViewSwitcher className="mt-3" />
           </div>
         </motion.div>
 
@@ -592,6 +594,7 @@ export default function AutomationAdminPage() {
           <p className="text-muted-foreground mt-1">
             {solutionsPageConfig.pageDescription}
           </p>
+          <PageViewSwitcher className="mt-3" />
         </div>
       </motion.div>
 

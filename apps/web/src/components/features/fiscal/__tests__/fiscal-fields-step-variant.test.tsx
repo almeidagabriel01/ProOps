@@ -128,18 +128,26 @@ describe("ClientFiscalFields", () => {
     ).toBeInTheDocument();
   });
 
-  it('como passo, não fala de "acima" — o endereço livre está no passo anterior', () => {
-    // A descrição da seção dizia "o endereço do cadastro acima é completado
-    // sozinho". Num passo próprio não há nada acima; a instrução apontaria para
-    // o lugar errado.
-    render(
-      <ClientFiscalFields
-        variant="step"
-        values={EMPTY_CLIENT_FISCAL}
-        onChange={vi.fn()}
-      />,
-    );
+  it("não diz ONDE fica o endereço livre, nos dois variants", () => {
+    // O bloco já mudou de lugar duas vezes (seção recolhida no resumo, passo
+    // próprio, passo dos dados fiscais) e a cada mudança uma referência de
+    // posição passou a apontar para o lugar errado, sem quebrar nada. A
+    // instrução diz o QUE acontece, não onde.
+    for (const variant of ["section", "step"] as const) {
+      const { unmount } = render(
+        <ClientFiscalFields
+          variant={variant}
+          values={EMPTY_CLIENT_FISCAL}
+          onChange={vi.fn()}
+        />,
+      );
 
-    expect(screen.getByText(/endereço do passo anterior/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/o endereço do cadastro é completado/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/passo anterior/)).toBeNull();
+      expect(screen.queryByText(/endereço acima/)).toBeNull();
+      unmount();
+    }
   });
 });

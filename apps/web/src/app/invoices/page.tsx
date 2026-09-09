@@ -1,5 +1,6 @@
 "use client";
 
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import * as React from "react";
 import Link from "next/link";
 import {
@@ -425,6 +426,10 @@ export default function InvoicesPage() {
           <p className="text-sm text-muted-foreground">
             Documentos emitidos pela sua empresa e recebidos dos fornecedores.
           </p>
+          {/* À esquerda, de qual tela do Financeiro se trata; à direita, qual
+              recorte desta tela. Dois SegmentedControl idênticos lado a lado
+              seriam ilegíveis. */}
+          <PageViewSwitcher className="mt-3" />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <SegmentedControl

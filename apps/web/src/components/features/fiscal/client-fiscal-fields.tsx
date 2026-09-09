@@ -64,19 +64,22 @@ interface ClientFiscalFieldsProps {
   onChange: (values: ClientFiscalValues) => void;
   disabled?: boolean;
   /**
-   * `section` (padrão) — card recolhível. `step` — passo próprio de um
+   * `section` (padrão) — card recolhível. `step` — conteúdo de um passo do
    * `StepWizard`: cabeçalho no padrão dos outros passos e campos sempre
-   * visíveis, porque recolher esconderia o único conteúdo do passo.
+   * visíveis. Recolher aqui recriaria o problema que o passo resolveu: fechado,
+   * ninguém achava o endereço fiscal, que é o que a NF-e exige do destinatário.
    */
   variant?: "section" | "step";
 }
 
-const DESCRIPTION_SECTION =
-  "Necessários apenas para emitir nota de produto (NF-e). Preenchendo aqui, o endereço do cadastro acima é completado sozinho.";
-
-/** No wizard o endereço livre está no passo anterior, não "acima". */
-const DESCRIPTION_STEP =
-  "Necessários apenas para emitir nota de produto (NF-e). Preenchendo aqui, o endereço do passo anterior é completado sozinho.";
+/**
+ * A descrição NÃO diz ONDE fica o endereço livre ("acima", "no passo anterior").
+ * Este bloco já mudou de lugar duas vezes — seção recolhida no resumo, passo
+ * próprio, agora passo dos dados fiscais — e a cada mudança a referência de
+ * posição apontava para o lugar errado, sem que nada quebrasse.
+ */
+const DESCRIPTION =
+  "Necessários apenas para emitir nota de produto (NF-e). Preenchendo aqui, o endereço do cadastro é completado sozinho.";
 
 export function ClientFiscalFields({
   values,
@@ -295,7 +298,7 @@ export function ClientFiscalFields({
           </div>
           <div>
             <h3 className="text-lg font-semibold">Dados fiscais</h3>
-            <p className="text-sm text-muted-foreground">{DESCRIPTION_STEP}</p>
+            <p className="text-sm text-muted-foreground">{DESCRIPTION}</p>
           </div>
         </div>
         {fields}
@@ -306,7 +309,7 @@ export function ClientFiscalFields({
   return (
     <FormSection
       title="Dados fiscais"
-      description={DESCRIPTION_SECTION}
+      description={DESCRIPTION}
       icon={Receipt}
       collapsible
       defaultOpen={false}

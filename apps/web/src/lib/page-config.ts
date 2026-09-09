@@ -184,8 +184,8 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiredPermission: "view",
     masterOnly: true,
   },
-  // Alcançada pelo botão "Carteiras" dentro de /transactions, não pela dock —
-  // o gate do botão está em transactions/page.tsx, este é o da URL direta.
+  // Visão do grupo Financeiro: alcançada pelo seletor no cabeçalho das telas
+  // irmãs. O gate da navegação vem de filterChildren, este é o da URL direta.
   "/wallets": {
     pageId: "wallet",
     slug: "/wallets",
