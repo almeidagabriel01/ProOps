@@ -7,24 +7,29 @@ import { useGSAP } from "@gsap/react";
 import { LiquidGlass } from "@/components/marketing/_shared/liquid-glass";
 import { SCENE_ANY_WIDTH } from "@/components/marketing/_shared/use-scroll-scene";
 
+import { AppTabBar } from "./app-tab-bar";
 import { DeviceFrame } from "./device-frame";
 
+const CONTADORES = [
+  { rotulo: "Vencendo", valor: "7" },
+  { rotulo: "Lembretes", valor: "3" },
+  { rotulo: "Orçamento", valor: "1" },
+];
+
 /**
- * The product's core promise, rebuilt in HTML so it can move.
+ * The app's Hoje screen, rebuilt in HTML so the capture can arrive on it.
  *
- * This is the app's Hoje screen, and the card that lands on it is a real
- * feature: the app shows the last entry the assistant created, quoting the
- * message it came from. Colours come from `.app-theme`, which is the app's own
- * `theme.ts`, and the numbers are set in the same mono the app uses.
- *
- * Rebuilt rather than screenshotted because a PNG cannot show the message
- * arriving, which is the entire point, and because at this size a screenshot
- * of a 3x phone weighs more than the markup.
+ * Traced against the real screenshots in `public/mockup-ios`, because the two
+ * sit on the same page and any drift between them reads as the mock being
+ * fake. The details that were wrong before and matter: the header carries the
+ * mark and the account avatar, the big figure in the panel is WHITE and the
+ * green belongs to the projection line under it, the chart is an area line
+ * rather than bars, the three counters sit below the panel, and the tab bar
+ * floats as a pill with icons in the app's own order.
  *
  * The screen is authored in its FINAL state and animated with `fromTo`. Under
- * reduced motion nothing is registered and the visitor simply sees the card
- * already sitting there, message and entry both readable, which still tells
- * the story.
+ * reduced motion nothing is registered and the capture card is simply already
+ * there, message and entry both readable.
  */
 export function AppCapturePhone() {
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -37,17 +42,16 @@ export function AppCapturePhone() {
           defaults: { ease: "expo.out" },
           delay: 0.9,
         });
-
         tl.fromTo(
           ".capture-card",
-          { y: 26, opacity: 0, scale: 0.97 },
-          { y: 0, opacity: 1, scale: 1, duration: 0.85 },
+          { y: 24, opacity: 0, scale: 0.97 },
+          { y: 0, opacity: 1, scale: 1, duration: 0.8 },
         )
           .fromTo(
             ".capture-quote",
             { opacity: 0, y: 8 },
             { opacity: 1, y: 0, duration: 0.5 },
-            "-=0.45",
+            "-=0.4",
           )
           .fromTo(
             ".capture-entry",
@@ -70,155 +74,151 @@ export function AppCapturePhone() {
   return (
     <div ref={rootRef} className="relative mx-auto w-full max-w-[21rem]">
       <DeviceFrame platform="ios">
-        <div className="flex h-full flex-col px-5 pb-3">
-          {/* Status bar. Sits beside the island, as on the device. */}
-          <div className="flex items-center justify-between pb-1 pt-[3.2%]">
-            <span className="[font-family:var(--font-jetbrains-mono)] text-[11px] font-medium text-[var(--app-text)]">
-              9:41
+        <div className="flex h-full flex-col px-4 pb-3">
+          <div className="flex items-center justify-between px-1 pb-1 pt-[3.4%]">
+            <span className="[font-family:var(--font-jetbrains-mono)] text-[10px] font-semibold text-[var(--app-text)]">
+              16:20
             </span>
             <span
               aria-hidden="true"
-              className="h-1.5 w-8 rounded-full bg-white/20"
+              className="h-2 w-6 rounded-[3px] border border-white/40"
             />
           </div>
 
-          <p className="mt-3 [font-family:var(--font-hanken)] text-[15px] font-semibold text-[var(--app-text)]">
-            Boa tarde
-          </p>
-
-          {/* The highlight panel: the app leads on what is LEFT, not on the
-              balance. Dark in both of the app's themes, by design. */}
-          <div className="mt-3 rounded-2xl bg-[linear-gradient(to_bottom,var(--app-hero-top),var(--app-hero-bottom))] p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--app-on-hero-muted)]">
-              Sobra até o fim do mês
-            </p>
-            <p className="mt-1.5 [font-family:var(--font-jetbrains-mono)] text-[26px] font-semibold tracking-tight text-[var(--app-tint)]">
-              R$ 1.284,90
-            </p>
-            <div
+          <div className="flex items-center justify-between border-b border-white/[0.06] px-1 pb-2.5 pt-2">
+            <span
               aria-hidden="true"
-              className="mt-3 flex h-8 items-end gap-[3px]"
+              className="grid h-6 w-6 place-items-center rounded-full bg-white/[0.06] text-[10px] font-bold text-[var(--app-text)]"
             >
-              {[38, 52, 44, 61, 49, 70, 58, 76, 66, 82, 74, 90].map(
-                (height, index) => (
-                  <span
-                    key={index}
-                    style={{ height: `${height}%` }}
-                    className="flex-1 rounded-[2px] bg-[var(--app-tint)]/25"
-                  />
-                ),
-              )}
-            </div>
+              P
+            </span>
+            <span
+              aria-hidden="true"
+              className="h-6 w-6 rounded-full bg-white/[0.08]"
+            />
           </div>
 
-          {/* The capture card, in the same glass the app is built from. */}
+          <p className="mt-3 px-1 [font-family:var(--font-hanken)] text-[15px] font-semibold text-[var(--app-text)]">
+            Boa tarde, Gabriel
+          </p>
+
+          <div className="mt-3 rounded-2xl bg-[linear-gradient(to_bottom,var(--app-hero-top),var(--app-hero-bottom))] p-3.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]">
+            <div className="flex items-start justify-between">
+              <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--app-on-hero-muted)]">
+                Sobra até o fim do mês
+              </p>
+              <span className="flex gap-1">
+                <span
+                  aria-hidden="true"
+                  className="grid h-5 w-5 place-items-center rounded-full bg-white/[0.09] text-[9px] leading-none text-[var(--app-text)]"
+                >
+                  ...
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="h-5 w-5 rounded-full bg-white/[0.09]"
+                />
+              </span>
+            </div>
+
+            <p className="mt-1 [font-family:var(--font-jetbrains-mono)] text-[24px] font-semibold tracking-tight text-[var(--app-text)]">
+              R$ 1.284,90
+            </p>
+            <p className="mt-0.5 [font-family:var(--font-jetbrains-mono)] text-[9.5px] leading-snug text-[var(--app-tint)]">
+              21 dias até virar o mês · Projeção positiva
+            </p>
+
+            <div className="mt-2.5 flex justify-between text-[8px] text-[var(--app-on-hero-muted)]">
+              <span>Hoje</span>
+              <span className="text-[var(--app-tint)]">
+                R$ 1.284,90 projetado
+              </span>
+              <span>Dia 30</span>
+            </div>
+
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 100 30"
+              preserveAspectRatio="none"
+              className="mt-1 h-10 w-full"
+            >
+              <defs>
+                <linearGradient id="sobra-area" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="0%"
+                    stopColor="var(--app-tint)"
+                    stopOpacity="0.32"
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor="var(--app-tint)"
+                    stopOpacity="0"
+                  />
+                </linearGradient>
+              </defs>
+              <path
+                d="M0,3 L7,9 L16,9 L24,14 L40,16 L62,16 L80,16 L88,22 L100,23 L100,30 L0,30 Z"
+                fill="url(#sobra-area)"
+              />
+              <path
+                d="M0,3 L7,9 L16,9 L24,14 L40,16 L62,16 L80,16 L88,22 L100,23"
+                fill="none"
+                stroke="var(--app-tint)"
+                strokeWidth="1.4"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+          </div>
+
+          <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+            {CONTADORES.map((item) => (
+              <div
+                key={item.rotulo}
+                className="rounded-xl bg-[var(--app-surface)] px-2.5 py-2"
+              >
+                <p className="text-[8.5px] text-[var(--app-text-muted)]">
+                  {item.rotulo}
+                </p>
+                <p className="[font-family:var(--font-jetbrains-mono)] text-[15px] font-semibold text-[var(--app-warning)]">
+                  {item.valor}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-3.5 px-1 text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--app-text-muted)]">
+            Capturado no WhatsApp
+          </p>
+
           <LiquidGlass
-            className="capture-card mt-4 rounded-2xl p-4"
+            className="capture-card mt-1.5 rounded-2xl p-3.5"
             delaySeconds={3.4}
           >
-            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--app-tint)]">
-              <span
-                aria-hidden="true"
-                className="h-1.5 w-1.5 rounded-full bg-[var(--app-tint)]"
-              />
-              Capturado no WhatsApp
-            </p>
-
-            <p className="capture-quote mt-2.5 [font-family:var(--font-hanken)] text-[13px] italic leading-snug text-[var(--app-text-muted)]">
+            <p className="capture-quote [font-family:var(--font-hanken)] text-[12px] italic leading-snug text-[var(--app-text-muted)]">
               &ldquo;gastei 45 no mercado&rdquo;
             </p>
-
-            <div className="capture-entry mt-3.5 flex items-center gap-3 border-t border-white/10 pt-3.5">
+            <div className="capture-entry mt-3 flex items-center gap-2.5 border-t border-white/10 pt-3">
               <span
                 aria-hidden="true"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--app-element)] text-sm"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[var(--app-element)] text-[13px]"
               >
                 🛒
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate [font-family:var(--font-hanken)] text-[13px] font-semibold text-[var(--app-text)]">
+                <span className="block truncate [font-family:var(--font-hanken)] text-[12px] font-semibold text-[var(--app-text)]">
                   Mercado
                 </span>
-                <span className="block truncate text-[11px] text-[var(--app-text-muted)]">
+                <span className="block truncate text-[10px] text-[var(--app-text-muted)]">
                   Alimentação · Cartão
                 </span>
               </span>
-              <span className="capture-amount [font-family:var(--font-jetbrains-mono)] text-[14px] font-semibold text-[var(--app-text)]">
+              <span className="capture-amount [font-family:var(--font-jetbrains-mono)] text-[12.5px] font-semibold text-[var(--app-text)]">
                 R$ 45,00
               </span>
             </div>
           </LiquidGlass>
 
-          {/* What is due, in the app's order of urgency. */}
-          <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--app-text-muted)]">
-            Vencendo hoje
-          </p>
-          <ul className="mt-2.5 space-y-2">
-            {[
-              { titulo: "Fatura Nubank", meta: "Cartão", valor: "R$ 2.140,00" },
-              { titulo: "Aluguel", meta: "Fixa", valor: "R$ 1.900,00" },
-            ].map((item) => (
-              <li
-                key={item.titulo}
-                className="flex items-center gap-3 rounded-xl bg-[var(--app-surface)] px-3 py-2.5"
-              >
-                <span
-                  aria-hidden="true"
-                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--app-warning)]"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate [font-family:var(--font-hanken)] text-[12px] font-semibold text-[var(--app-text)]">
-                    {item.titulo}
-                  </span>
-                  <span className="block text-[10px] text-[var(--app-text-muted)]">
-                    {item.meta}
-                  </span>
-                </span>
-                <span className="[font-family:var(--font-jetbrains-mono)] text-[12px] text-[var(--app-text)]">
-                  {item.valor}
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          {/* The app's five tabs. Nothing says "this is the product" faster
-              than its own navigation sitting where it always sits. */}
-          <nav
-            aria-hidden="true"
-            className="-mx-5 mt-auto flex items-center justify-around border-t border-white/[0.07] bg-[var(--app-bg)] px-3 pb-1 pt-3"
-          >
-            {[
-              { abrev: "Hoje", ativo: true },
-              { abrev: "Financeiro", ativo: false },
-              { abrev: "Notas", ativo: false },
-              { abrev: "Agente", ativo: false },
-              { abrev: "Perfil", ativo: false },
-            ].map((aba) => (
-              <span
-                key={aba.abrev}
-                className={`flex flex-col items-center gap-1 rounded-full px-2 py-1 ${
-                  aba.ativo ? "bg-[var(--app-tint)]/15" : ""
-                }`}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    aba.ativo
-                      ? "bg-[var(--app-tint)]"
-                      : "bg-[var(--app-text-muted)]/40"
-                  }`}
-                />
-                <span
-                  className={`text-[9px] ${
-                    aba.ativo
-                      ? "font-semibold text-[var(--app-tint)]"
-                      : "text-[var(--app-text-muted)]/70"
-                  }`}
-                >
-                  {aba.abrev}
-                </span>
-              </span>
-            ))}
-          </nav>
+          <AppTabBar />
         </div>
       </DeviceFrame>
     </div>
