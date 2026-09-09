@@ -30,8 +30,8 @@ export function AplicativoNavbar() {
           </span>
         </Link>
 
-        <LandingButton href="#lista-de-espera" variant="inverted" size="sm">
-          Quero ser avisado
+        <LandingButton href="#planos" variant="inverted" size="sm">
+          Ver planos
         </LandingButton>
       </nav>
     </header>

@@ -48,16 +48,49 @@ const PLANOS: Plano[] = [
 ];
 
 /**
- * Prices, with nothing to click.
+ * Prices, with nothing to click. The last section of the page.
  *
- * Informative on purpose. The app charges through in-app purchase, so the
- * transaction happens inside the store and there is no web checkout to link
- * to. A buy button here would also drag the page into App Review's scope,
- * which an informative page stays out of.
+ * Informative on purpose, and it will stay that way. The app charges through
+ * in-app purchase, so the transaction happens inside the store and there is no
+ * web checkout to link to. A buy button here would also drag the page into App
+ * Review's scope, which an informative page stays out of.
+ *
+ * ─── QUANDO O APP ESTIVER PUBLICADO ──────────────────────────────────────────
+ *
+ * O bloco `#lojas` no fim desta seção é o lugar reservado para isso, e o que
+ * entra ali é:
+ *
+ *  1. Dois botões de loja, App Store e Google Play, com os selos oficiais de
+ *     cada uma. Os selos têm regras próprias de proporção, área livre e
+ *     tradução, e usar um recorte de captura é a forma clássica de a submissão
+ *     voltar. Baixe os oficiais: Apple em developer.apple.com/app-store/
+ *     marketing/guidelines e Google em play.google.com/intl/pt-BR/badges.
+ *
+ *  2. Um QR code apontando para a página do app, ao lado dos botões. Ele é
+ *     para QUEM ESTÁ NO DESKTOP: quem já está no celular toca o botão, e
+ *     mostrar QR para essa pessoa é pedir que ela fotografe a própria tela.
+ *     Vale, portanto, esconder o QR abaixo de `md` e esconder os botões
+ *     acima dele, ou manter os dois com o QR discreto.
+ *
+ *  3. O QR deve apontar para UM link que decide a loja pelo sistema do
+ *     aparelho, não para uma das duas: um QR por loja obriga a pessoa a saber
+ *     qual é a dela antes de apontar a câmera. Um link único também dá
+ *     rastreamento de origem numa medição só.
+ *
+ * Gere o QR em build ou em SVG estático, não por script de terceiro em
+ * runtime: a CSP desta aplicação não permite script externo fora do allowlist,
+ * e um QR que depende de CDN é um QR que um dia não carrega.
+ *
+ * Nada disso é possível hoje: o app não está em nenhuma das duas lojas, e não
+ * há conta de desenvolvedor aberta em nenhuma das duas.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 export function AplicativoPlanos() {
   return (
-    <section className="border-t border-white/[0.06] bg-[var(--app-bg)] px-6 py-28 text-[var(--app-text)] md:px-10 md:py-36">
+    <section
+      id="planos"
+      className="border-t border-white/[0.06] bg-[var(--app-bg)] px-6 py-28 text-[var(--app-text)] md:px-10 md:py-36"
+    >
       <div className="mx-auto max-w-5xl">
         <p className="mb-4 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--app-tint)]">
           <span className="h-px w-7 bg-[var(--app-tint)]/50" />
@@ -141,10 +174,20 @@ export function AplicativoPlanos() {
           ))}
         </div>
 
-        <p className="mt-8 text-xs text-[var(--app-text-muted)]/70">
-          A assinatura é feita dentro do aplicativo, pela App Store ou pelo
-          Google Play.
-        </p>
+        {/* Reservado. Ver o bloco no topo deste arquivo: aqui entram os dois
+            selos de loja e o QR code quando o aplicativo for publicado. */}
+        <div
+          id="lojas"
+          className="mt-16 rounded-3xl border border-dashed border-white/12 px-8 py-10 text-center"
+        >
+          <p className="[font-family:var(--font-hanken)] text-lg font-semibold text-[var(--app-text)]">
+            Em breve na App Store e no Google Play.
+          </p>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[var(--app-text-muted)]">
+            A assinatura é feita dentro do aplicativo, pela loja do seu
+            aparelho. O teste de sete dias começa no primeiro acesso.
+          </p>
+        </div>
       </div>
     </section>
   );

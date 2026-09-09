@@ -76,8 +76,8 @@ export function AplicativoHero() {
               } as React.CSSProperties
             }
           >
-            <LandingButton href="#lista-de-espera" variant="inverted" size="lg">
-              Quero ser avisado
+            <LandingButton href="#planos" variant="inverted" size="lg">
+              Ver os planos
             </LandingButton>
             <p className="text-sm text-[var(--app-text-muted)]">
               Em breve na App Store e no Google Play.

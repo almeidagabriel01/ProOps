@@ -8,7 +8,6 @@ import { AplicativoDiaADia } from "./_components/aplicativo-dia-a-dia";
 import { AplicativoFooter } from "./_components/aplicativo-footer";
 import { AplicativoGaleria } from "./_components/aplicativo-galeria";
 import { AplicativoHero } from "./_components/aplicativo-hero";
-import { AplicativoListaEspera } from "./_components/aplicativo-lista-espera";
 import { AplicativoPlanos } from "./_components/aplicativo-planos";
 import { AplicativoNavbar } from "./_components/aplicativo-navbar";
 
@@ -42,7 +41,6 @@ export default function AplicativoPage() {
       <AplicativoDiaADia />
       <AplicativoGaleria />
       <AplicativoPlanos />
-      <AplicativoListaEspera />
       <AplicativoFooter />
     </>
   );

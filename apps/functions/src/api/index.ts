@@ -32,7 +32,6 @@ import { asaasRoutes } from "./routes/asaas.routes";
 import { fiscalRoutes } from "./routes/fiscal.routes";
 import { fiscalWebhookRoutes } from "./routes/fiscal-webhook.routes";
 import { asaasWebhookRoutes } from "./routes/asaas-webhook.routes";
-import { appWaitlistRoutes } from "./routes/app-waitlist.routes";
 import { contactRoutes } from "./routes/contact.routes";
 import { demoBookingRoutes } from "./routes/demo-booking.routes";
 import {
@@ -173,15 +172,6 @@ const publicValidationLimiter = createRateLimiter({
 
 const contactFormLimiter = createRateLimiter({
   keyPrefix: "public-contact-form",
-  maxRequests: 5,
-  windowMs: 60_000,
-});
-
-// The mobile app's pre-launch waitlist. Same shape and same ceiling as the
-// contact form: a public write with no session behind it, so the limit is what
-// stands between the collection and someone scripting it.
-const appWaitlistLimiter = createRateLimiter({
-  keyPrefix: "public-app-waitlist",
   maxRequests: 5,
   windowMs: 60_000,
 });
@@ -442,7 +432,6 @@ app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
 app.use("/v1/public", contactFormLimiter, contactRoutes);
-app.use("/v1/public", appWaitlistLimiter, appWaitlistRoutes);
 app.use("/v1/public", demoBookingLimiter, demoBookingRoutes);
 
 // Public auth routes (forgot password) — strict rate limit

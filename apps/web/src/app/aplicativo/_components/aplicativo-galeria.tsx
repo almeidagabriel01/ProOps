@@ -315,17 +315,17 @@ export function AplicativoGaleria() {
             */}
             <li className="flex w-[52%] shrink-0 snap-start items-center sm:w-[33%] md:w-[15rem] lg:w-[19rem]">
               <a
-                href="#lista-de-espera"
+                href="#planos"
                 className="flex aspect-[9/19.5] w-full flex-col justify-center rounded-[1.75rem] border border-dashed border-white/15 px-6 text-center transition-colors hover:border-[var(--app-tint)]/50 hover:bg-white/[0.02]"
               >
                 <span className="[font-family:var(--font-hanken)] text-lg font-bold leading-tight text-[var(--app-text)]">
-                  Quer ver de perto?
+                  Quanto custa?
                 </span>
                 <span className="mt-3 text-sm leading-relaxed text-[var(--app-text-muted)]">
-                  Deixe seu e-mail e avisamos quando abrir.
+                  Sete dias para testar, e dois planos.
                 </span>
                 <span className="mt-5 text-sm font-semibold text-[var(--app-tint)]">
-                  Entrar na lista
+                  Ver os planos
                 </span>
               </a>
             </li>
