@@ -15,6 +15,14 @@ import { SITE_URLS } from "@/lib/site/surfaces";
  * Static and server-rendered. It carries no scroll listener, which keeps it
  * off the hero's critical path; the page adds movement below the fold, where
  * it costs nothing.
+ *
+ * **No "Entrar" here, deliberately.** This page is the company: who ProOps is
+ * and what it builds. It has no account, no session and nothing behind a login,
+ * so a sign-in button would be a third destination competing with the two that
+ * matter, and it would hand a visitor who has never heard of the ERP a login
+ * form for a product they have not been shown yet. Whoever already has an
+ * account arrives at the ERP directly. The sign-in lives on the ERP's own
+ * navbar, which is the surface that owns the session.
  */
 export function InstitucionalNavbar() {
   return (
@@ -49,7 +57,10 @@ export function InstitucionalNavbar() {
           </span>
         </Link>
 
-        <div className="flex items-center gap-1 md:gap-3">
+        {/* Two links, and the gap widened with the third gone: at gap-1 a pair
+            of bare text links sits 4px apart, which reads as one word and is a
+            poor touch target. */}
+        <div className="flex items-center gap-5 md:gap-7">
           <LandingButton
             href={SITE_URLS.erp}
             external
@@ -67,15 +78,6 @@ export function InstitucionalNavbar() {
             tone="muted"
           >
             Aplicativo
-          </LandingButton>
-          <LandingButton
-            href={`${SITE_URLS.erp}/login`}
-            external
-            variant="inverted"
-            size="sm"
-            className="ml-2"
-          >
-            Entrar
           </LandingButton>
         </div>
       </nav>
