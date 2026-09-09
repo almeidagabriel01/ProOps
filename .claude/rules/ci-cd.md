@@ -59,8 +59,9 @@ Runs on PRs and Merge Queue events:
 ## Lighthouse Perf Budget (`lighthouse` job + `lighthouserc.json`)
 
 Builds Next.js for production, starts `next start -p 3001`, and runs Lighthouse 3x per
-URL across the **5 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
-`/contato`, `/agendar`) under **mobile + 4x CPU + slow-3G, REAL `devtools` throttling**.
+URL across the **7 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
+`/contato`, `/agendar`, `/aplicativo`, `/institucional`) under **mobile + 4x CPU + slow-3G,
+REAL `devtools` throttling**.
 
 - Config: `lighthouserc.json` at repo root (uses `@lhci/cli`, already a devDependency).
 - Server lifecycle is managed by lhci via `startServerCommand` — no manual start/stop.
@@ -87,12 +88,30 @@ URL across the **5 animated public routes** (`/`, `/automacao-residencial`, `/de
   deferred (`requestIdleCallback`, commit `550a9bbd`).
 - Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
 - Report artifact: `lighthouse-report-<run>` (from `lhci-report/`).
-- **Timing / `timeout-minutes`:** the lhci step alone is ~10 min (15 Lighthouse runs =
-  5 URLs × `numberOfRuns: 3`, each under real slow-3G + 4× CPU throttling); with
-  `npm ci` and the production build the job lands at 13–15 min. Measured across five
-  consecutive runs: 13m26, 13m43, 13m53, 14m00, 14m46. The timeout was 15 min — 14 s of
-  headroom in the worst case — so the job was starting to fail intermittently on nothing
-  but runner variance. Raised to 25 min (2026-08-11). **Do not "speed it up" by lowering
+- **`/institucional` tem teto de TBT próprio: 1200ms, não 800.** Medido num Pixel 5 com
+  4× de CPU e slow-3G, mediana de 3, usando `/decoracao` (682ms) como calibração por já
+  passar no teto genérico: a institucional fica entre **642 e 785** conforme a execução.
+  No teto de 800 sobrariam menos de 20ms sobre a pior medição, e este job tem histórico
+  de falhar por variância do runner quando a folga é curta. O custo é do hero (seis
+  letras em cromado com varredura própria, campo mono ao fundo, cenas fixadas no GSAP),
+  **não** dos providers: tirar Auth/Tenant/Permissions/Plan da árvore
+  (`SESSIONLESS_MARKETING_ROUTES`) derrubou `/aplicativo` de ~485 para **308** e não moveu
+  a institucional. `/aplicativo` por isso NÃO tem exceção, e não deve ganhar uma.
+- **O padrão genérico usa lookahead negativo** (`http://[^/]+/(?!institucional$).+`) e isso
+  é obrigatório: o `assertMatrix` aplica TODA entrada cujo padrão casa, então sem ele a
+  institucional continuaria presa nos 800 e a entrada própria seria inútil.
+- **O LCP de `/institucional` é o banner de consentimento, não o herói** (~4,5s). O
+  wordmark gigante não concorre porque está dividido em uma letra por `<span>`, e nenhuma
+  letra isolada é o maior elemento. `/decoracao` mostra o mesmo padrão (~3,9s). O teto de
+  LCP é `warn`, então não reprova o CI; mexer no banner afeta todas as rotas públicas de
+  uma vez, e por isso ficou registrado em vez de corrigido de passagem.
+- **Timing / `timeout-minutes`:** o passo do lhci sozinho é ~14 min (21 corridas do
+  Lighthouse = 7 URLs × `numberOfRuns: 3`, cada uma sob slow-3G + 4× CPU reais); com
+  `npm ci` e o build de produção o job passa a ficar por volta de 18–21 min. Com 5 URLs
+  ele media entre 13m26 e 14m46 em cinco execuções seguidas, e o timeout de 15 min deixava
+  14 s de folga no pior caso, o que fazia o job falhar de forma intermitente sem nenhuma
+  mudança de código; foi para 25 min em 2026-08-11 e para **32 min** ao entrar a sexta e a
+  sétima URL. **Do not "speed it up" by lowering
   `numberOfRuns`**: the assertions aggregate by median, and a median of 2 is just a mean
   of 2, which makes an `error`-level gate (CLS, TBT) swing on a single outlier.
 
@@ -110,6 +129,18 @@ The E2E job uses a matrix strategy with 4 shards:
 |---|---|---|
 | `chromium` | Desktop Chrome (1280x720) | tudo em `tests/e2e/**`, **exceto** `mobile/**` (`testIgnore`) |
 | `mobile-chrome` | Pixel 5 (393x851, `hasTouch`, `isMobile`) | `smoke.spec.ts` + `tests/e2e/mobile/**` |
+
+`tests/e2e/superficies/` cobre o roteamento por host das três superfícies num navegador
+de verdade, e `mobile/superficies-layout.spec.ts` cobre as duas páginas novas a 393px.
+Duas armadilhas anotadas lá dentro, porque custam tempo quando reencontradas:
+
+- **O fixture `request` não serve para `*.localhost`.** Ele resolve o nome pelo Node, que
+  no Windows não conhece esses hosts (`getaddrinfo ENOTFOUND app.localhost`); o Chromium
+  resolve internamente, então `page.goto` funciona e `request.get` para o MESMO endereço
+  falha. `robots.txt` e `sitemap.xml` são buscados por `fetch` dentro da página.
+- **A porta é sobreponível por `E2E_PORT`.** O padrão continua a 3001 do `webServer`; o
+  override permite rodar esses dois arquivos contra um `npm run dev` aberto, sem levantar
+  emulador nenhum, porque as duas páginas são públicas e não tocam em Firebase.
 
 Antes disso nenhuma tela autenticada era exercitada abaixo de 1280px — uma quebra
 de layout mobile passava pelo CI em silêncio. `mobile/no-overflow.spec.ts` afirma

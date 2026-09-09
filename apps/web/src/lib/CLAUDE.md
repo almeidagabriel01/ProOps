@@ -14,6 +14,7 @@ lib/
 ├── auth/                    # Helpers de autenticação (verificação de token, session)
 ├── niches/                  # Lógica multi-niche (automacao_residencial | cortinas)
 ├── plans/                   # Limites e permissões por plano (Free, Pro, etc.)
+├── site/                    # Política de host: qual das 3 superfícies e o SEO de cada uma
 ├── permissions/             # Fonte única dos pageIds do sistema de permissões
 ├── notifications/           # Helpers do sistema de notificações
 ├── validations/             # Funções de validação reutilizáveis
@@ -55,6 +56,25 @@ lib/
 - `getDefaultPermissions()` também vive aqui: é função pura, e mantê-la no hook
   obrigava todo consumidor (e todo teste) a arrastar o cliente HTTP e a init do
   Firebase.
+
+### Site (`site/`)
+- `surfaces.ts` é a **fonte única** de qual das três superfícies (`institucional`,
+  `erp`, `app`) responde por um host, e do que ainda é duplicata. Puro, sem
+  import de Next, no mesmo espírito de `auth/route-access.ts`: o proxy, os
+  route handlers e os testes leem daqui e não podem divergir.
+- `APEX_SURFACE` é a constante única que a virada troca. `APEX_URL` é o domínio
+  em si, com nome próprio de propósito: qual superfície o apex serve muda, o
+  apex não.
+- **Indexabilidade é pergunta de HOST, não de superfície** (`shouldNoIndexHost`).
+  Enquanto o apex serve o ERP, `resolveSurface` mapeia o apex e
+  `erp.proops.com.br` para a MESMA superfície, corretamente, já que renderizam a
+  mesma coisa; foi perguntando à superfície que a duplicata mais literal que
+  existe ficou indexável.
+- `host-seo.ts` deriva sitemap, canonical e robots por host. As páginas legais
+  ancoram no apex venham de onde vierem: só a raiz é reescrita, então elas
+  respondem 200 nos três domínios.
+- `app-brand.ts` isola `APP_NAME`, já que o nome do aplicativo ainda não está
+  decidido.
 
 ### Plans (`plans/`)
 - Limites por plano (número de propostas, usuários, produtos, etc.)

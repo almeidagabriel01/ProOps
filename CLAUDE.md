@@ -167,6 +167,30 @@ WhatsApp. Add-ons somam por cima do tier via `resolveTenantCapabilities`.
 
 Detalhes em `apps/functions/src/lib/CLAUDE.md`.
 
+### Três superfícies, um projeto Next
+
+`apps/web` serve três sites, separados por hostname:
+
+| Host | O que serve |
+|---|---|
+| `proops.com.br` | hoje o ERP; a página institucional depois da virada |
+| `erp.proops.com.br` | o ERP: landing, login e área logada |
+| `app.proops.com.br` | a landing do aplicativo mobile |
+
+A política de host é `apps/web/src/lib/site/surfaces.ts`, pura e testada, no
+mesmo espírito de `route-access.ts`. **`APEX_SURFACE` é a constante única que a
+virada troca.** O `proxy.ts` reescreve **apenas a raiz**, e essa limitação é
+load-bearing: `providers.tsx` classifica com `usePathname()`, que sob rewrite
+reporta o caminho do navegador, então reescrever uma subárvore mandaria a página
+para o login depois de hidratar.
+
+`sitemap.ts` e `robots.ts` são dinâmicos e derivam de `lib/site/host-seo.ts`:
+com três domínios, um sitemap construído no build publicaria o mesmo conteúdo
+nos três. As páginas legais ancoram o canonical no apex, porque só a raiz é
+reescrita e elas respondem 200 nos três hosts.
+
+Detalhes em `apps/web/src/app/CLAUDE.md` e `apps/web/src/lib/CLAUDE.md`.
+
 ### Multi-Niche Support
 Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/`. Uses `tenantNiche` on tenant documents.
 
