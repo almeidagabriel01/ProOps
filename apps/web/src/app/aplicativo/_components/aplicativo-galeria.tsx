@@ -19,12 +19,20 @@ interface Tela {
 }
 
 /**
- * The same six screens on both platforms.
+ * The six screens, in the order the app's own tab bar puts them: Hoje, Notas,
+ * Financeiro, Agente, Perfil. Someone who has the app reads the shelf in the
+ * order they already navigate it, and someone who does not is being taught
+ * that order before they ever open it.
+ *
+ * Financeiro appears twice because the tab has two faces worth showing, the
+ * month at the top and the cards and budgets further down. It stays in the
+ * tab's position either way.
  *
  * Deliberately one list rather than two: the shelf must be the same length
  * whichever platform is showing, otherwise switching would change the track
  * width and the pinned pan would have to be recalculated mid-scroll. Only the
- * folder changes.
+ * folder changes, and the one file whose name differs between the two capture
+ * runs is remapped below.
  */
 const TELAS: Tela[] = [
   {
@@ -33,43 +41,36 @@ const TELAS: Tela[] = [
     arquivo: "hoje.jpg",
   },
   {
-    nome: "Financeiro",
-    descricao: "O mês inteiro, com saldo projetado",
-    arquivo: "financeiro.jpg",
-  },
-  {
-    nome: "Lançamentos",
-    descricao: "Busca, filtros e a origem de cada um",
-    arquivo: "financeiro2.jpg",
-  },
-  {
     nome: "Notas",
     descricao: "Pastas, tags e checklist",
     arquivo: "notas.jpg",
+  },
+  {
+    nome: "Financeiro",
+    descricao: "O mês, com saldo projetado",
+    arquivo: "financeiro2.jpg",
+  },
+  {
+    nome: "Cartões e orçamentos",
+    descricao: "Limites, faturas e o que falta",
+    arquivo: "financeiro.jpg",
+  },
+  {
+    nome: "Agente",
+    descricao: "A assistente dentro do aplicativo",
+    // The iOS run saved this screen as agenda.jpg and the Android run as
+    // agente.jpg. Same screen, and the tab bar in both confirms it.
+    arquivo: "agenda.jpg",
   },
   {
     nome: "Perfil",
     descricao: "WhatsApp e a cota de IA por canal",
     arquivo: "perfil.jpg",
   },
-  // The sixth screen differs by platform, because the two capture sets do:
-  // the iOS run has the reminders screen and the Android run has the
-  // assistant. Showing each set what it actually has beats faking parity.
-  {
-    nome: "Agenda",
-    descricao: "Lembretes, com recorrência",
-    arquivo: "agenda.jpg",
-  },
 ];
 
 const TELAS_ANDROID: Tela[] = TELAS.map((tela) =>
-  tela.arquivo === "agenda.jpg"
-    ? {
-        nome: "Agente",
-        descricao: "A assistente dentro do aplicativo",
-        arquivo: "agente.jpg",
-      }
-    : tela,
+  tela.arquivo === "agenda.jpg" ? { ...tela, arquivo: "agente.jpg" } : tela,
 );
 
 const ROTULO: Record<Plataforma, string> = { ios: "iOS", android: "Android" };
