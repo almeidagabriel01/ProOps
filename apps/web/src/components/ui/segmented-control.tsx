@@ -4,20 +4,43 @@ import * as React from "react";
 import { m as motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
-interface SegmentOption {
+/**
+ * Alternância entre visões de uma mesma tela.
+ *
+ * Nasceu dentro do módulo financeiro (Lista / Agrupados) e subiu para cá quando
+ * as notas fiscais precisaram do mesmo controle: alternar emitidas e recebidas
+ * com o `Tabs` genérico dava àquela tela uma cara que não existe em nenhuma
+ * outra do grupo. Duas superfícies copiando o mesmo visual é o momento de o
+ * componente virar primitivo, não de duplicar as classes.
+ *
+ * Não confundir com `Tabs`: aquele é para painéis independentes dentro de um
+ * formulário ou diálogo; este é o seletor de visão de uma listagem.
+ */
+
+interface SegmentedOption {
   value: string;
   label: string;
   icon?: React.ReactNode;
+  /**
+   * Contagem ao lado do rótulo. `undefined` não desenha nada: numa lista que
+   * ainda está carregando, um `0` provisório afirma o que não se sabe.
+   */
+  count?: number;
 }
 
-interface FilterSegmentedProps {
+interface SegmentedControlProps {
   id: string;
-  options: SegmentOption[];
+  options: SegmentedOption[];
   value: string;
   onChange: (v: string) => void;
 }
 
-export function FilterSegmented({ id, options, value, onChange }: FilterSegmentedProps) {
+export function SegmentedControl({
+  id,
+  options,
+  value,
+  onChange,
+}: SegmentedControlProps) {
   const shouldReduceMotion = useReducedMotion();
 
   return (
@@ -38,7 +61,9 @@ export function FilterSegmented({ id, options, value, onChange }: FilterSegmente
             className={cn(
               "relative h-8 px-3 rounded-lg text-xs font-medium",
               "transition-colors duration-150 cursor-pointer whitespace-nowrap",
-              isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+              isActive
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground",
               isActive && shouldReduceMotion && "bg-card shadow-sm",
             )}
           >
@@ -58,6 +83,18 @@ export function FilterSegmented({ id, options, value, onChange }: FilterSegmente
             <span className="relative flex items-center gap-1.5">
               {opt.icon}
               {opt.label}
+              {typeof opt.count === "number" && (
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "bg-foreground/10 text-muted-foreground",
+                  )}
+                >
+                  {opt.count}
+                </span>
+              )}
             </span>
           </button>
         );

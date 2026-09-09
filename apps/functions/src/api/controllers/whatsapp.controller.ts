@@ -266,14 +266,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
           await tenantRef.update({ whatsappEnabled: true });
           logSecurityEvent("whatsapp_flag_drift_corrected", {
             tenantId,
-            reason: "[enable] whatsappEnabled was false but eligibility allows — auto-corrected",
+            reason: "[enable] whatsappEnabled was false but eligibility allows; auto-corrected",
             route: "/webhooks/whatsapp",
           }, "WARN");
         } else if (!eligibility.allowed && tenantData.whatsappEnabled === true) {
           await tenantRef.update({ whatsappEnabled: false });
           logSecurityEvent("whatsapp_flag_drift_corrected", {
             tenantId,
-            reason: `[disable] whatsappEnabled was true but eligibility denied (${eligibility.reason}) — auto-corrected`,
+            reason: `[disable] whatsappEnabled was true but eligibility denied (${eligibility.reason}); auto-corrected`,
             route: "/webhooks/whatsapp",
           }, "WARN");
         }

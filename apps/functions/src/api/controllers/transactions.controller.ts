@@ -5,6 +5,7 @@ import {
 } from "../helpers/transaction-validation";
 import { TransactionService } from "../services/transaction.service";
 import { getTransactionsSummary as getTransactionsSummaryService } from "../services/transaction-summary.service";
+import { getCommissionReport as getCommissionReportService } from "../services/commission-report.service";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 
@@ -377,6 +378,36 @@ export const registerPartialPayment = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     console.error("registerPartialPayment Error:", error);
     const message = error instanceof Error ? error.message : "Erro ao registrar pagamento parcial.";
+    return res.status(mapTransactionErrorStatus(message)).json({ message });
+  }
+};
+
+/**
+ * Relatorio mensal de comissoes por parceiro.
+ *
+ * Vive sob /transactions de proposito: herda o `requirePlanCapability`
+ * ("financial") ja montado no prefixo e o `/v1/transactions` que ja esta em
+ * DEMO_READABLE_PREFIXES, sem uma quarta lista para manter em dia.
+ */
+export const getCommissionReport = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.uid;
+    const month = typeof req.query.month === "string" ? req.query.month : "";
+    const requestedTenantId =
+      typeof req.query.tenantId === "string" ? req.query.tenantId : undefined;
+
+    const report = await getCommissionReportService(userId, req.user, {
+      month,
+      requestedTenantId,
+    });
+
+    return res.json({ success: true, report });
+  } catch (error: unknown) {
+    console.error("getCommissionReport Error:", error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Erro ao montar o relatorio de comissoes.";
     return res.status(mapTransactionErrorStatus(message)).json({ message });
   }
 };

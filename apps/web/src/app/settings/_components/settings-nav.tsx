@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { m as motion, useReducedMotion } from "motion/react";
-import { CreditCard, FileText, ShieldCheck, Users, type LucideIcon } from "lucide-react";
+import {
+  CreditCard,
+  FileText,
+  FolderOpen,
+  ShieldCheck,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
@@ -46,6 +53,12 @@ const NAV_GROUPS: NavGroup[] = [
         shortLabel: "Notas",
         href: "/settings/fiscal",
         icon: FileText,
+      },
+      {
+        label: "Google Drive",
+        shortLabel: "Drive",
+        href: "/settings/drive",
+        icon: FolderOpen,
       },
     ],
   },

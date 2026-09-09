@@ -71,7 +71,7 @@ export function buildPlanFeatureList(plan: UserPlan): string[] {
     f.aiMessagesPerMonth === -1
       ? "Lia (IA) sem limite de mensagens"
       : f.aiMessagesPerMonth > 0
-        ? `Lia, a assistente de IA — ${f.aiMessagesPerMonth} mensagens por mês`
+        ? `Lia, a assistente de IA: ${f.aiMessagesPerMonth} mensagens por mês`
         : null,
     f.hasCalendarSync ? "Agenda sincronizada com o Google Agenda" : null,
     f.canCustomizeTheme ? "Cores personalizadas" : null,

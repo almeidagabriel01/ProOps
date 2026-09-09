@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ClientService, Client } from "@/services/client-service";
+import { ClientService, Client, type ClientType } from "@/services/client-service";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useTenant } from "@/providers/tenant-provider";
 import { toast } from "@/lib/toast";
@@ -26,7 +26,8 @@ import {
 } from "@/components/ui/form-components";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
-import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Users, Building2, CreditCard } from "lucide-react";
+import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Receipt, CreditCard } from "lucide-react";
+import { ContactTypeSelector } from "../_components/contact-type-selector";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { formatDocumento } from "@/lib/format-document";
 
@@ -60,6 +61,12 @@ const customerSteps = [
     icon: MapPin,
   },
   {
+    id: "fiscal",
+    title: "Dados Fiscais",
+    description: "Endereço da NF-e",
+    icon: Receipt,
+  },
+  {
     id: "notes",
     title: "Finalizar",
     description: "Observações",
@@ -67,7 +74,7 @@ const customerSteps = [
   },
 ];
 
-type CustomerType = "cliente" | "fornecedor";
+type CustomerType = ClientType;
 
 interface EditCustomerFormData {
   name: string;
@@ -77,6 +84,7 @@ interface EditCustomerFormData {
   notes: string;
   document: string;
   types: CustomerType[];
+  commissionPercentage: number | null;
   fiscal: ClientFiscalValues;
 }
 
@@ -89,6 +97,7 @@ const buildCustomerFormSnapshot = (formData: EditCustomerFormData): string =>
     notes: formData.notes,
     document: formData.document,
     types: [...formData.types].sort(),
+    commissionPercentage: formData.commissionPercentage,
     // Sem isto, editar só um campo fiscal não marcaria o formulário como sujo
     // e o botão de salvar continuaria desabilitado.
     fiscal: formData.fiscal,
@@ -134,6 +143,7 @@ export default function EditCustomerPage() {
     notes: "",
     document: "",
     types: ["cliente"],
+    commissionPercentage: null,
     fiscal: EMPTY_CLIENT_FISCAL,
   });
   const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
@@ -154,6 +164,7 @@ export default function EditCustomerPage() {
             notes: data.notes || "",
             document: data.document ? formatDocumento(data.document) : "",
             types: data.types || ["cliente"],
+            commissionPercentage: data.commissionPercentage ?? null,
             fiscal: {
               cep: data.enderecoFiscal?.cep ?? "",
               logradouro: data.enderecoFiscal?.logradouro ?? "",
@@ -197,7 +208,12 @@ export default function EditCustomerPage() {
     // nenhum dos dois está no schema de validação, e ambos são editados por
     // componentes próprios, não por este handler de <input name=...>.
     if (name !== "types" && errors[name as keyof typeof errors]) {
-      clearFieldError(name as Exclude<keyof typeof formData, "types" | "fiscal">);
+      clearFieldError(
+        name as Exclude<
+          keyof typeof formData,
+          "types" | "fiscal" | "commissionPercentage"
+        >,
+      );
     }
   };
 
@@ -216,7 +232,10 @@ export default function EditCustomerPage() {
     // Exclude types since it's not in schema
     if (name !== "types") {
       validateField(
-        name as Exclude<keyof typeof formData, "types" | "fiscal">,
+        name as Exclude<
+          keyof typeof formData,
+          "types" | "fiscal" | "commissionPercentage"
+        >,
         value,
         formData,
       );
@@ -271,6 +290,7 @@ export default function EditCustomerPage() {
         notes: formData.notes || undefined,
         document: formData.document ? formData.document.replace(/\D/g, "") : undefined,
         types: formData.types,
+        commissionPercentage: formData.commissionPercentage,
         enderecoFiscal: {
           cep: formData.fiscal.cep.replace(/\D/g, ""),
           logradouro: formData.fiscal.logradouro.trim(),
@@ -300,7 +320,7 @@ export default function EditCustomerPage() {
 
   // Show loading while permissions/data loading OR while redirecting (no view permission)
   if (isLoading || permLoading || !canView) {
-    return <EntityLoadingState message="Carregando cliente..." />;
+    return <EntityLoadingState message="Carregando contato..." />;
   }
 
   if (!client) {
@@ -399,7 +419,40 @@ export default function EditCustomerPage() {
             <StepNavigation />
           </FormStepCard>
 
-          {/* Step 3: Notes */}
+          {/* Step 3: Dados fiscais — só leitura */}
+          <FormStepCard>
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-emerald-500/15 to-emerald-500/5 flex items-center justify-center">
+                  <Receipt className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Dados fiscais</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Usados apenas para emitir nota de produto (NF-e)
+                  </p>
+                </div>
+              </div>
+
+              <FormStatic
+                label="Endereço fiscal"
+                value={formatEnderecoFiscal(formData.fiscal)}
+              />
+              <FormGroup>
+                <FormStatic
+                  label="Código IBGE do município"
+                  value={formData.fiscal.codigoIbge}
+                />
+                <FormStatic
+                  label="Inscrição estadual"
+                  value={formData.fiscal.inscricaoEstadual}
+                />
+              </FormGroup>
+            </div>
+            <StepNavigation />
+          </FormStepCard>
+
+          {/* Step 4: Notes */}
           <FormStepCard>
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
@@ -429,7 +482,7 @@ export default function EditCustomerPage() {
   return (
     <FormContainer>
       <FormHeader
-        title="Editar Cliente"
+        title="Editar Contato"
         subtitle={`Atualize as informações de "${formData.name}"`}
         icon={User}
         onBack={() => router.push("/contacts")}
@@ -460,107 +513,16 @@ export default function EditCustomerPage() {
               </div>
             </div>
 
-            {/* Type selector - checkboxes for multi-selection */}
-            <FormItem
-              label="Tipo de Cadastro (selecione um ou ambos)"
-              htmlFor="types"
-              required
-            >
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData((prev) => {
-                      const hasType = prev.types.includes("cliente");
-                      const newTypes = hasType
-                        ? (prev.types.filter((t) => t !== "cliente") as (
-                            | "cliente"
-                            | "fornecedor"
-                          )[])
-                        : [...prev.types, "cliente" as const];
-                      // Ensure at least one type is always selected
-                      return {
-                        ...prev,
-                        types: newTypes.length > 0 ? newTypes : ["cliente"],
-                      };
-                    });
-                  }}
-                  className={`flex-1 flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                    formData.types.includes("cliente")
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      formData.types.includes("cliente")
-                        ? "bg-primary/10"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <Users
-                      className={`w-5 h-5 ${formData.types.includes("cliente") ? "text-primary" : "text-muted-foreground"}`}
-                    />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p
-                      className={`font-medium ${formData.types.includes("cliente") ? "text-primary" : ""}`}
-                    >
-                      Cliente
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Comprador de produtos/serviços
-                    </p>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData((prev) => {
-                      const hasType = prev.types.includes("fornecedor");
-                      const newTypes = hasType
-                        ? (prev.types.filter((t) => t !== "fornecedor") as (
-                            | "cliente"
-                            | "fornecedor"
-                          )[])
-                        : [...prev.types, "fornecedor" as const];
-                      // Ensure at least one type is always selected
-                      return {
-                        ...prev,
-                        types: newTypes.length > 0 ? newTypes : ["fornecedor"],
-                      };
-                    });
-                  }}
-                  className={`flex-1 flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                    formData.types.includes("fornecedor")
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      formData.types.includes("fornecedor")
-                        ? "bg-primary/10"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <Building2
-                      className={`w-5 h-5 ${formData.types.includes("fornecedor") ? "text-primary" : "text-muted-foreground"}`}
-                    />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p
-                      className={`font-medium ${formData.types.includes("fornecedor") ? "text-primary" : ""}`}
-                    >
-                      Fornecedor
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Vendedor de produtos/serviços
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </FormItem>
+            <ContactTypeSelector
+              types={formData.types}
+              onTypesChange={(types) =>
+                setFormData((prev) => ({ ...prev, types }))
+              }
+              commissionPercentage={formData.commissionPercentage}
+              onCommissionPercentageChange={(commissionPercentage) =>
+                setFormData((prev) => ({ ...prev, commissionPercentage }))
+              }
+            />
 
             <FormItem
               label="Nome Completo"
@@ -664,7 +626,34 @@ export default function EditCustomerPage() {
           <StepNavigation />
         </FormStepCard>
 
-        {/* Step 3: Notes & Submit */}
+        {/* Step 3: Dados fiscais — passo próprio, e não um bloco recolhido no
+            fim do Resumo: fechado embaixo do resumo, ninguém achava o endereço
+            fiscal, que é o que a NF-e exige do destinatário. */}
+        <FormStepCard>
+          <div className="space-y-6">
+            <ClientFiscalFields
+              variant="step"
+              values={formData.fiscal}
+              onChange={(fiscal) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  fiscal,
+                  // Preenche o endereço livre a partir do fiscal enquanto ele
+                  // estiver vazio — evita digitar o mesmo endereço duas vezes.
+                  // Só enquanto vazio: quem escreveu "Rua tal, portão azul" não
+                  // pode ver isso sumir por causa de uma busca de CEP.
+                  address: prev.address.trim()
+                    ? prev.address
+                    : formatEnderecoFiscal(fiscal),
+                }))
+              }
+              disabled={!isEditable}
+            />
+          </div>
+          <StepNavigation />
+        </FormStepCard>
+
+        {/* Step 4: Notes & Submit */}
         <FormStepCard>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -689,24 +678,6 @@ export default function EditCustomerPage() {
                 className="min-h-[120px]"
               />
             </FormItem>
-
-            <ClientFiscalFields
-              values={formData.fiscal}
-              onChange={(fiscal) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  fiscal,
-                  // Preenche o endereço livre a partir do fiscal enquanto ele
-                  // estiver vazio — evita digitar o mesmo endereço duas vezes.
-                  // Só enquanto vazio: quem escreveu "Rua tal, portão azul" não
-                  // pode ver isso sumir por causa de uma busca de CEP.
-                  address: prev.address.trim()
-                    ? prev.address
-                    : formatEnderecoFiscal(fiscal),
-                }))
-              }
-              disabled={!isEditable}
-            />
 
             {/* Summary card */}
             <div className="p-5 rounded-xl bg-gradient-to-br from-muted/50 to-muted/20 border border-border/50 space-y-4">

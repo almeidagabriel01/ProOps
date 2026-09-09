@@ -12,6 +12,7 @@ import {
   manifestReceivedInvoice,
   syncReceivedInvoices,
 } from "../services/fiscal/received-invoice.service";
+import { createTransactionFromReceivedInvoice } from "../services/fiscal/received-invoice-transaction.service";
 import {
   MANIFESTATION_JUSTIFICATION_MAX_LENGTH,
   MANIFESTATION_JUSTIFICATION_MIN_LENGTH,
@@ -156,6 +157,76 @@ export const manifestReceivedInvoiceHandler = async (
     res.status(detail.httpStatus && detail.httpStatus < 500 ? 422 : 502).json({
       message: detail.message,
     });
+  }
+};
+
+/**
+ * POST /v1/fiscal/received-invoices/:chave/lancamento
+ *
+ * Transforma a nota do fornecedor em despesa. Nunca automatico: quem compra
+ * costuma ja ter lancado a compra a mao quando pagou, e lancar de novo nao e um
+ * registro a mais — e o saldo da carteira errado.
+ *
+ * Tres desfechos, e nenhum deles e erro do usuario:
+ *   200 criado
+ *   200 already_launched — a nota ja tem lancamento; devolve o id para a UI ligar
+ *   409 needs_confirmation — ha despesa parecida no periodo; `force` prossegue
+ */
+export const launchReceivedInvoiceHandler = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const ctx = await requireTenant(req, res, "canEdit");
+    if (!ctx) return;
+
+    const chave = String(req.params.chave || "").replace(/\D/g, "");
+    if (chave.length !== 44) {
+      res.status(400).json({ message: "Chave de acesso inválida" });
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const result = await createTransactionFromReceivedInvoice(
+      ctx.tenantId,
+      chave,
+      req.user!.uid,
+      req.user,
+      {
+        force: body.force === true,
+        wallet: typeof body.wallet === "string" ? body.wallet : undefined,
+        category: typeof body.category === "string" ? body.category : undefined,
+      },
+    );
+
+    if (result.outcome === "needs_confirmation") {
+      res.status(409).json({
+        code: "LANCAMENTO_POSSIVEL_DUPLICADO",
+        message: "Já existe despesa de valor parecido neste período.",
+        candidates: result.candidates,
+      });
+      return;
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    const err = error as Error;
+    if (err.message === "NOTA_RECEBIDA_NAO_ENCONTRADA") {
+      res.status(404).json({ message: "Nota de entrada não encontrada" });
+      return;
+    }
+    if (err.message === "NOTA_CANCELADA_NAO_VIRA_DESPESA") {
+      res.status(422).json({
+        message: "Esta nota foi cancelada pelo fornecedor e não vira despesa.",
+        code: err.message,
+      });
+      return;
+    }
+    logger.error("Falha ao lançar nota de entrada", { error: err.message });
+    // A permissao financeira e checada dentro do TransactionService, e a
+    // mensagem dele e mais util que um 500 generico.
+    const negado = /permiss|FORBIDDEN/i.test(err.message);
+    res.status(negado ? 403 : 500).json({ message: err.message });
   }
 };
 

@@ -18,8 +18,12 @@ import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { getIssuingToken, setFiscalStatus } from "./fiscal-settings.service";
-import { archiveInvoiceDocuments } from "./invoice-archive.service";
+import {
+  archiveCorrectionDocuments,
+  archiveInvoiceDocuments,
+} from "./invoice-archive.service";
 import { describeFocusError } from "./focus-error";
+import { sanitizeFiscalText } from "./fiscal-text";
 import {
   getFiscalProvider,
   resolveFiscalEnvironment,
@@ -39,6 +43,23 @@ const COLLECTION = "invoices";
 /** Retry pacing for the polling fallback. */
 const MAX_RETRY_COUNT = 8;
 const RETRY_DELAY_MS = 15 * 60 * 1000;
+
+/**
+ * Uma carta de correcao registrada.
+ *
+ * A CC-e e CUMULATIVA — a ultima prevalece perante o fisco —, mas cada uma foi
+ * um EVENTO distinto, com protocolo e guarda legal proprios. Por isso o
+ * historico e uma lista, e nao um campo unico sobrescrito.
+ */
+export interface InvoiceCorrection {
+  texto: string;
+  registradaEm: string;
+  /** Numero sequencial do evento no provedor, quando ele o devolve. */
+  numero?: string;
+  /** Copias no NOSSO Storage — o link do provedor exige token e pode sumir. */
+  storageXmlPath?: string;
+  storagePdfPath?: string;
+}
 
 export interface InvoiceDocument {
   id: string;
@@ -77,6 +98,17 @@ export interface InvoiceDocument {
   clientName?: string;
   transactionId?: string;
   proposalId?: string;
+
+  /**
+   * Cartas de correção já registradas nesta nota.
+   *
+   * Guardadas do NOSSO lado porque a CC-e é **cumulativa**: a última sobrescreve
+   * as anteriores perante o fisco, então cada nova precisa repetir tudo o que
+   * ainda vale. Sem o texto anterior à mão, a segunda correção apagaria a
+   * primeira em silêncio — e o usuário só descobriria numa fiscalização.
+   * O limite é 20 por nota (rejeição 594 ao passar).
+   */
+  correcoes?: InvoiceCorrection[];
 
   rejectionCode?: string;
   rejectionMessage?: string;
@@ -615,13 +647,80 @@ export async function correctInvoice(
     throw new Error("CCE_NAO_SUPORTADA");
   }
 
+  /**
+   * Ultima linha de defesa contra o XSD da NF-e (U+0020 a U+00FF).
+   *
+   * E o MESMO valor que vai para o provedor e para o historico: a CC-e e
+   * cumulativa e o dialogo reabre pre-preenchido com a ultima, entao guardar o
+   * texto cru faria a proxima carta reenviar o caractere que a SEFAZ acabou de
+   * recusar.
+   */
+  const textoLimpo = sanitizeFiscalText(texto);
+
   const env = resolveFiscalEnvironment(stored.environment);
-  await provider.correct(
-    stored.ref,
-    texto,
-    env,
-    await getIssuingToken(stored.tenantId, env),
-  );
+  const token = await getIssuingToken(stored.tenantId, env);
+  const resultado = await provider.correct(stored.ref, textoLimpo, env, token);
+
+  /**
+   * Recusa do fisco NAO chega como erro HTTP.
+   *
+   * O provedor responde **200 mesmo quando o fisco recusa** — foi assim que o
+   * cancelamento passou a mostrar "cancelada" sobre uma nota que seguia
+   * valendo. Aqui o estrago seria pior: uma carta fantasma no historico, que a
+   * proxima correcao repetiria por ser cumulativa, dando por resolvido um erro
+   * que a SEFAZ nunca registrou.
+   *
+   * A checagem e por PROVA DE FALHA, e nao por prova de sucesso: exigir um
+   * status especifico recusaria toda correcao caso o provedor devolva a
+   * resposta num formato que ainda nao vimos. Status desconhecido segue adiante
+   * e vira log — a duvida fica visivel sem quebrar o caminho que funciona.
+   */
+  if (resultado.status === "rejected" || resultado.rejectionMessage) {
+    logger.warn("Carta de correção recusada pelo fisco", {
+      invoiceId,
+      codigo: resultado.rejectionCode,
+      motivo: resultado.rejectionMessage,
+    });
+    throw new Error(resultado.rejectionMessage || "CORRECAO_RECUSADA");
+  }
+  if (resultado.status !== "authorized") {
+    logger.warn("Carta de correção com status inesperado", {
+      invoiceId,
+      status: resultado.status,
+    });
+  }
+
+  // Só depois de o fisco aceitar: registrar antes deixaria no histórico uma
+  // correção que não existe perante a SEFAZ, e a próxima carta a repetiria.
+  const registradaEm = new Date().toISOString();
+  const indice = (stored.correcoes?.length ?? 0) + 1;
+
+  const arquivos = await archiveCorrectionDocuments(stored, indice, {
+    xmlUrl: resultado.correcaoXmlUrl,
+    pdfUrl: resultado.correcaoPdfUrl,
+  });
+
+  if (!resultado.correcaoXmlUrl && !resultado.correcaoPdfUrl) {
+    // Sem os caminhos nao ha o que arquivar, e a guarda legal do evento fica
+    // descoberta. Registrar as chaves recebidas e o que permite descobrir o
+    // nome certo sem adivinhar — e sem expor valor nenhum.
+    logger.warn("Carta de correção sem documento no retorno do provedor", {
+      invoiceId,
+      camposRecebidos: Object.keys(resultado),
+    });
+  }
+
+  const correcao: InvoiceCorrection = {
+    texto: textoLimpo,
+    registradaEm,
+    ...(resultado.correcaoNumero ? { numero: resultado.correcaoNumero } : {}),
+    ...arquivos,
+  };
+
+  await docRef(invoiceId).update({
+    correcoes: FieldValue.arrayUnion(correcao),
+    updatedAt: registradaEm,
+  });
 
   return (await getInvoice(invoiceId)) ?? stored;
 }

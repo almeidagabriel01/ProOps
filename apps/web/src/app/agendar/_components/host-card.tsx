@@ -94,7 +94,7 @@ export function HostCard({ duration, onDurationChange }: HostCardProps) {
         </div>
         <div className="flex items-center gap-2.5">
           <Video className="h-4 w-4 opacity-55" />
-          <span>Vídeochamada — link enviado por email</span>
+          <span>Vídeochamada: link enviado por email</span>
         </div>
         <div className="flex items-center gap-2.5">
           <Globe className="h-4 w-4 opacity-55" />

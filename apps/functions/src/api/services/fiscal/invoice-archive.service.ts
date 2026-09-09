@@ -25,14 +25,41 @@ const DOWNLOAD_TIMEOUT_MS = 30_000;
 /** DANFE e XML de nota são arquivos pequenos; acima disso algo está errado. */
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
+/** Documento da nota, ou de uma carta de correcao especifica (1-based). */
+export type ArchiveKind = "pdf" | "xml";
+
+const NOME_DA_NOTA: Record<ArchiveKind, string> = {
+  pdf: "danfe.pdf",
+  xml: "nota.xml",
+};
+
 export function buildArchivePath(
   tenantId: string,
   invoiceId: string,
-  kind: "pdf" | "xml",
+  kind: ArchiveKind,
+  /**
+   * Indice da carta de correcao (1-based). Cada CC-e e um EVENTO distinto, com
+   * protocolo proprio e guarda legal propria — a ultima prevalecer perante o
+   * fisco nao apaga a existencia das anteriores.
+   */
+  correcaoIndice?: number,
 ): string {
-  return `tenants/${tenantId}/fiscal/${invoiceId}/${kind === "pdf" ? "danfe.pdf" : "nota.xml"}`;
+  const base = `tenants/${tenantId}/fiscal/${invoiceId}`;
+  if (correcaoIndice !== undefined) {
+    return `${base}/cce-${correcaoIndice}.${kind === "pdf" ? "pdf" : "xml"}`;
+  }
+  return `${base}/${NOME_DA_NOTA[kind]}`;
 }
 
+/**
+ * Os documentos do provedor sao servidos SEM autenticacao.
+ *
+ * O caminho vem relativo a API (`/arquivos_development/...` em homologacao) e
+ * `toAbsoluteUrl` o resolve contra a base, mas o arquivo em si e publico —
+ * verificado abrindo o XML de uma NF-e autorizada direto no navegador. Por isso
+ * nao ha token aqui: mandar a credencial da empresa para uma URL que nao a pede
+ * seria expo-la sem necessidade.
+ */
 async function download(url: string): Promise<Buffer | null> {
   try {
     const response = await axios.get<ArrayBuffer>(url, {
@@ -52,9 +79,15 @@ async function download(url: string): Promise<Buffer | null> {
 async function mirror(
   invoice: InvoiceDocument,
   url: string,
-  kind: "pdf" | "xml",
+  kind: ArchiveKind,
+  options: { correcaoIndice?: number } = {},
 ): Promise<string | null> {
-  const path = buildArchivePath(invoice.tenantId, invoice.id, kind);
+  const path = buildArchivePath(
+    invoice.tenantId,
+    invoice.id,
+    kind,
+    options.correcaoIndice,
+  );
   const file = getStorage().bucket().file(path);
 
   // Idempotente: um reenvio do mesmo evento não rebaixa nem duplica o arquivo.
@@ -146,13 +179,49 @@ export async function archiveInvoiceDocuments(invoice: InvoiceDocument): Promise
 export async function readArchivedDocument(
   tenantId: string,
   invoiceId: string,
-  kind: "pdf" | "xml",
+  kind: ArchiveKind,
+  correcaoIndice?: number,
 ): Promise<Buffer | null> {
-  const file = getStorage().bucket().file(buildArchivePath(tenantId, invoiceId, kind));
+  const file = getStorage()
+    .bucket()
+    .file(buildArchivePath(tenantId, invoiceId, kind, correcaoIndice));
   const [exists] = await file.exists();
   if (!exists) {
     return null;
   }
   const [buffer] = await file.download();
   return buffer;
+}
+
+/**
+ * Espelha os documentos de UMA carta de correcao.
+ *
+ * Best-effort pelo mesmo motivo do arquivamento da nota: a correcao ja esta
+ * registrada na SEFAZ, e falhar em guardar uma copia nao pode virar erro para
+ * quem acabou de corrigir. O que se perde e a copia, nunca o evento.
+ */
+export async function archiveCorrectionDocuments(
+  invoice: InvoiceDocument,
+  correcaoIndice: number,
+  urls: { xmlUrl?: string; pdfUrl?: string },
+): Promise<{ storageXmlPath?: string; storagePdfPath?: string }> {
+  const saida: { storageXmlPath?: string; storagePdfPath?: string } = {};
+  try {
+    if (urls.xmlUrl) {
+      const path = await mirror(invoice, urls.xmlUrl, "xml", { correcaoIndice });
+      if (path) saida.storageXmlPath = path;
+    }
+    if (urls.pdfUrl) {
+      const path = await mirror(invoice, urls.pdfUrl, "pdf", { correcaoIndice });
+      if (path) saida.storagePdfPath = path;
+    }
+  } catch (error) {
+    logger.error("Arquivamento da carta de correcao falhou", {
+      tenantId: invoice.tenantId,
+      invoiceId: invoice.id,
+      correcaoIndice,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  return saida;
 }

@@ -4,4 +4,5 @@ export { RecentTransactionsList, RecentProposalsList } from "./recent-lists";
 export { QuickActionsCard, ProposalStatsCard, ClientsStatsCard } from "./stats-cards";
 export { WalletsGrid } from "./wallets-grid";
 export { MonthStats } from "./month-stats";
+export { CommissionsPanel } from "./commissions-panel";
 export { FutureBalanceChart } from "./future-balance-chart";

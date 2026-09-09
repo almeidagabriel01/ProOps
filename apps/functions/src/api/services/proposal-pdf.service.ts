@@ -90,18 +90,38 @@ function stableHash(payload: unknown): string {
   return createHash("sha256").update(serialized).digest("hex");
 }
 
+/**
+ * Campos do documento da proposta que NAO entram no PDF.
+ *
+ * Fonte unica de duas decisoes: o hash de versao (abaixo) e a decisao de
+ * reentregar no Google Drive (`proposals.controller.ts`). Se um campo daqui
+ * mudou e nada mais mudou, o PDF e byte a byte o mesmo — nao ha o que renderizar
+ * nem o que reenviar.
+ */
+export const PDF_IRRELEVANT_PROPOSAL_FIELDS = new Set([
+  "pdf",
+  "pdfGenerationLock",
+  "createdAt",
+  "updatedAt",
+  "status",
+  "driveFileId",
+  "driveSyncError",
+  "searchTokens",
+  "primarySystem",
+  "primaryEnvironment",
+  "commissions",
+]);
+
 function buildVersionHash(
   proposalId: string,
   proposalData: ProposalDocData,
   tenantData: TenantDocData,
 ): string {
-  const {
-    pdf: _pdfMetadata,
-    pdfGenerationLock: _pdfGenerationLock,
-    createdAt: _createdAt,
-    updatedAt: _updatedAt,
-    ...proposalRelevant
-  } = proposalData;
+  const proposalRelevant = Object.fromEntries(
+    Object.entries(proposalData).filter(
+      ([key]) => !PDF_IRRELEVANT_PROPOSAL_FIELDS.has(key),
+    ),
+  );
 
   return stableHash({
     templateVersion: PDF_TEMPLATE_VERSION,

@@ -27,7 +27,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
     expect(matrix).toEqual([
       ["free", []],
       ["starter", []],
-      ["pro", ["financial", "pdfEditor", "customTheme", "calendarSync"]],
+      ["pro", ["financial", "pdfEditor", "customTheme", "calendarSync", "driveSync"]],
       [
         "enterprise",
         [
@@ -38,6 +38,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "customTheme",
           "whatsapp",
           "calendarSync",
+          "driveSync",
         ],
       ],
     ]);

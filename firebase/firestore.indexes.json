@@ -1845,6 +1845,20 @@
       ]
     },
     {
+      "collectionGroup": "drive_delivery_jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nextRunAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "proposals",
       "queryScope": "COLLECTION",
       "fields": [
@@ -1993,6 +2007,24 @@
         {
           "fieldPath": "date",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isCommission",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dueDate",
+          "order": "ASCENDING"
         }
       ]
     },

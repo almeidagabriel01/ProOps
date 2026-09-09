@@ -62,7 +62,7 @@ describe("bullets de plano da landing", () => {
     const starter = buildPlanFeatureList(planFor("starter"));
     expect(starter).toContain("Até 5 carteiras");
     expect(starter).toContain("Até 25 planilhas");
-    expect(starter).toContain("Lia, a assistente de IA — 80 mensagens por mês");
+    expect(starter).toContain("Lia, a assistente de IA: 80 mensagens por mês");
   });
 
   it("não anuncia a Lia num plano sem cota", () => {

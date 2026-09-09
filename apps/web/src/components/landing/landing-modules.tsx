@@ -175,7 +175,7 @@ export function LandingModules() {
               Três módulos, uma <Accent>operação</Accent> sem atrito
             </>
           }
-          description="Financeiro, CRM e propostas compartilham a mesma base de dados — o que você lança em um já reflete nos outros, sem retrabalho."
+          description="Financeiro, CRM e propostas compartilham a mesma base de dados: o que você lança em um já reflete nos outros, sem retrabalho."
           className="gsap-fade-up mb-20"
         />
 

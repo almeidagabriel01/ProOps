@@ -143,7 +143,15 @@ O hash de versao (`versionHash`) e calculado com SHA-256 sobre:
 }
 ```
 
-Timestamps (`createdAt`, `updatedAt`) e metadados de PDF sao excluidos do hash para evitar ciclos de re-geracao.
+O que fica de FORA do hash esta em `PDF_IRRELEVANT_PROPOSAL_FIELDS`, no proprio
+arquivo: timestamps e metadados de PDF (para nao criar ciclo de re-geracao) e
+tambem os campos que nao aparecem no documento — `status`, `commissions`,
+`searchTokens`, `primarySystem`/`primaryEnvironment` e
+`driveFileId`/`driveSyncError`. Estes dois ultimos sao escritos pela PROPRIA
+entrega no Drive, entao mante-los no hash fazia o PDF recem-gerado invalidar o
+proprio cache; `status` fazia toda mudanca de coluna do kanban reabrir o
+Chromium. A mesma lista decide se vale reentregar no Drive. Guard:
+`api/services/pdf-irrelevant-fields.test.ts`.
 
 ### Storage path
 

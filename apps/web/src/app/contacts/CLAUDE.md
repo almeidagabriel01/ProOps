@@ -2,7 +2,7 @@
 
 ## Propósito e usuários
 
-Gerencia a base de **clientes e fornecedores** do tenant. Qualquer membro da equipe com permissão `clients` pode visualizar. Criação requer `canCreate`, edição requer `canEdit`, exclusão requer `canDelete`.
+Gerencia a base de **contatos** do tenant: clientes, fornecedores, vendedores e arquitetos. Qualquer membro da equipe com permissão `clients` pode visualizar. Criação requer `canCreate`, edição requer `canEdit`, exclusão requer `canDelete`.
 
 Clientes podem ser criados de três formas:
 - **Manual** — pelo formulário em `/contacts/new`
@@ -17,6 +17,7 @@ Clientes podem ser criados de três formas:
 /contacts              → Listagem paginada com busca e filtro de tipo
 /contacts/new          → Formulário de criação (StepWizard em 3 passos)
 /contacts/[id]         → Formulário de edição / visualização somente leitura
+                         (StepWizard em 4 passos — inclui "Dados Fiscais")
 ```
 
 Não há sub-rota de API aqui — todas as mutações passam por `/api/backend/` (proxy → Cloud Functions).
@@ -29,7 +30,8 @@ Não há sub-rota de API aqui — todas as mutações passam por `/api/backend/`
 |---------|-----------------|
 | `page.tsx` | Página de listagem — Client Component. Orquestra estado via `useContactsCtrl` |
 | `_hooks/use-contacts-ctrl.ts` | Hook de controle central: paginação, busca, filtro de tipo, exclusão |
-| `_components/contacts-toolbar.tsx` | Barra de busca + filtros "Todos / Clientes / Fornecedores" |
+| `_components/contacts-toolbar.tsx` | Barra de busca + filtros "Todos / Clientes / Fornecedores / Vendedores / Arquitetos" |
+| `_components/contact-type-selector.tsx` | Seleção múltipla do tipo + comissão padrão. **Compartilhado** pelo cadastro e pela edição |
 | `_components/contacts-columns.tsx` | Definição das colunas do `DataTable` (função `createColumns`) |
 | `_components/contacts-empty-states.tsx` | `ContactsEmptyState` (zero clientes) e `ContactsNoResults` (busca sem resultado) |
 | `_components/contacts-skeleton.tsx` | Skeleton do cabeçalho da página durante loading inicial |
@@ -48,7 +50,7 @@ Definido em `src/services/client-service.ts`:
 
 ```typescript
 export type ClientSource = "manual" | "proposal" | "financial";
-export type ClientType  = "cliente" | "fornecedor";
+export type ClientType  = "cliente" | "fornecedor" | "vendedor" | "arquiteto";
 
 export type Client = {
   id: string;
@@ -58,7 +60,8 @@ export type Client = {
   phone?: string;
   address?: string;
   notes?: string;
-  types: ClientType[];      // Array — permite ser cliente E fornecedor ao mesmo tempo
+  types: ClientType[];      // Array — permite ser fornecedor E arquiteto ao mesmo tempo
+  commissionPercentage?: number | null;  // Comissão padrão; só para vendedor/arquiteto
   source: ClientSource;     // Origem do cadastro
   sourceId?: string;        // ID da proposta ou lançamento que criou o cliente
   createdAt: string;        // ISO 8601
@@ -71,6 +74,11 @@ export type Client = {
 - **`types`** — array que permite múltiplos tipos. Nunca assume que será um único valor. Sempre usar `types.includes("cliente")`.
 - **`source`** — determina a badge exibida na coluna "Origem" (`manual` → azul, `proposal` → verde, `financial` → âmbar).
 - **`sourceId`** — referência bidirecional ao objeto que criou o cliente automaticamente. Não editável na UI.
+- **`commissionPercentage`** — percentual padrão do parceiro, usado só para
+  pré-preencher a proposta; o valor que vale é o gravado em
+  `Proposal.commissions[]`. Em branco é `null`, **nunca `0`**: zero é um
+  percentual válido, e deixar passar faria a proposta nascer com uma comissão
+  que ninguém escolheu.
 
 ---
 
@@ -95,12 +103,24 @@ if (isUsed) {
 
 ### Tipos múltiplos
 
-Um cadastro pode ser simultaneamente "cliente" e "fornecedor". O formulário usa botões toggle (não radio buttons), garantindo que pelo menos um tipo esteja sempre selecionado:
+Um cadastro pode ser simultaneamente "fornecedor" e "arquiteto". O formulário usa
+botões toggle (não radio buttons), garantindo que pelo menos um tipo esteja sempre
+selecionado: desmarcar o único tipo marcado o mantém, porque o backend grava
+`["cliente"]` por omissão e reverteria a escolha sem avisar.
 
-```typescript
-// Se desmarcar o único tipo selecionado, o tipo é mantido no array
-return { ...prev, types: newTypes.length > 0 ? newTypes : ["cliente"] };
-```
+O bloco vive em `_components/contact-type-selector.tsx`, **um só para as duas
+telas**. Antes eram duas cópias independentes de ~110 linhas, e um tipo novo
+entraria só numa delas. Guard: `_components/__tests__/contact-type-selector.test.tsx`.
+
+**Vendedor e arquiteto são tipos de contato, não cadastro próprio.** O contato já
+tem nome, telefone, documento, `searchTokens`, regra de Firestore e tela; e como
+`types` sempre foi array, a mesma pessoa pode ser fornecedor e arquiteto. Os dois
+recebem comissão, definida na proposta (ver `Proposal.commissions[]`).
+
+`isCommissionPartner` e a lista dos papéis ficam em
+`src/lib/contacts/commission-partner.ts`, **fora** do `client-service`: aquele
+arquivo importa o SDK do Firebase, e quem precisa só da lista passaria a
+inicializar auth, firestore e storage junto.
 
 ---
 
@@ -165,27 +185,50 @@ A `DataTable` recebe colunas criadas por `createColumns({ canEdit, canDelete, on
 | Coluna | Campo | Notas |
 |--------|-------|-------|
 | Nome | `name` | Link para `/contacts/[id]` |
-| Tipo | `types` | Badges: "Cliente" (default) / "Fornecedor" (outline) |
+| Tipo | `types` | Badges: "Cliente" (default) / "Fornecedor" (outline) / "Vendedor" (success) / "Arquiteto" (warning) |
 | Endereço | `address` | Texto truncado |
 | Contato | `email` + `phone` | Exibidos com ícones |
 | Origem | `source` | Badge colorida: manual/proposal/financial |
-| Ações | — | Botões de editar e excluir condicionais por permissão |
+| Ações | — | "Pasta no Drive", editar e excluir |
 
-### Formulário em StepWizard (3 passos)
+A ação **"Pasta no Drive"** (`OpenDriveFolderButton` com `iconOnly`) fica na
+listagem, não dentro do cadastro: chegar à pasta não deveria exigir abrir o
+formulário de um contato por vez — o caso de uso é o vendedor na casa do
+cliente, no celular. Ela **não** é gateada por `canEdit`: abrir a pasta não
+altera nada, e prendê-la à edição a esconderia justamente de quem tem só
+leitura. O gate de plano (`hasDriveSync`) vive dentro do próprio botão, que se
+esconde sozinho — não reimplementar isso na coluna. Guard:
+`_components/__tests__/contacts-columns.test.tsx`.
 
-Usado tanto em `/contacts/new` quanto em `/contacts/[id]`:
+### Formulário em StepWizard
+
+**A criação tem 3 passos e a edição tem 4** — "Dados Fiscais" só existe em
+`/contacts/[id]`, porque só lá o cadastro fiscal do destinatário faz parte do
+formulário:
 
 | Passo | Conteúdo | Validação |
 |-------|----------|-----------|
-| 1 — Informações | Tipo (cliente/fornecedor), Nome, Email, Telefone | `name` e `phone` obrigatórios (validação em `validateStep1`) |
+| 1 — Informações | Tipo (um ou mais dos quatro) + comissão padrão, Nome, Email, Telefone | `name` e `phone` obrigatórios (validação em `validateStep1`) |
 | 2 — Endereço | Campo de endereço livre | Opcional |
-| 3 — Finalizar | Observações + resumo dos dados | Submissão |
+| 3 — Dados Fiscais *(só na edição)* | `ClientFiscalFields` com `variant="step"` — endereço fiscal estruturado + indicador de IE | Opcional |
+| 4 — Finalizar | Observações + resumo dos dados | Submissão |
 
 O botão "Próximo" do passo 1 é bloqueado até que `validateStep1()` retorne `true`.
 
+Até 2026-09-08 os dados fiscais eram uma `FormSection` **recolhida** dentro do
+passo Finalizar. Fechada embaixo do resumo, ninguém achava o endereço fiscal — e
+ele é justamente o que a NF-e exige do destinatário. Em passo próprio o bloco não
+recolhe (recolher esconderia o passo inteiro).
+
+> **O array `customerSteps` de `[id]/page.tsx` alimenta DOIS wizards** — o de
+> edição e o somente-leitura. Passo declarado sem card correspondente vira um
+> passo clicável e **vazio**, sem erro nenhum: o `StepWizard` casa conteúdo por
+> posição. Ao acrescentar um passo, acrescente o card nos dois. Guard:
+> `src/__tests__/step-wizard-children-parity.test.ts`.
+
 ### Visualização somente leitura
 
-Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) em vez de inputs. O botão de submit vira "Voltar".
+Se o usuário tem `canView` mas não `canEdit`, a página `/contacts/[id]` exibe os mesmos passos com componentes `FormStatic` (leitura) em vez de inputs — inclusive o de Dados Fiscais, que mostra o endereço fiscal montado por `formatEnderecoFiscal`. O botão de submit vira "Voltar".
 
 ### Detecção de alterações
 
@@ -202,6 +245,7 @@ const buildCustomerFormSnapshot = (formData: EditCustomerFormData): string =>
 
 - **Nunca** importar Firebase SDK diretamente em `page.tsx` ou nos componentes — use `ClientService` para leituras e `useClientActions` para escritas.
 - **Nunca** assumir que `client.types` tem um único elemento — é sempre um array. Checar com `types.includes("cliente")`, não `types[0] === "cliente"`.
+- **Nunca** duplicar o seletor de tipos numa tela nova — use `ContactTypeSelector`.
 - **Nunca** renderizar `client.types` diretamente como string — mapear com `typeConfig` ou verificar individualmente.
 - **Não** excluir cliente sem verificar `ProposalService.isClientUsedInProposal()` — o backend também bloqueia, mas a verificação no frontend evita erros desnecessários.
 - **Não** exibir o `ContactsToolbar` antes de confirmar `hasAnyClients !== false` — evita flash de toolbar vazia.

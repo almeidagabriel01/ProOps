@@ -11,11 +11,11 @@ export interface MfaDisabledEmailContent {
 export function renderMfaDisabledEmail(
   data: MfaDisabledEmailData,
 ): MfaDisabledEmailContent {
-  const subject = "Sua verificação em dois fatores foi desativada — ProOps";
+  const subject = "Sua verificação em dois fatores foi desativada na ProOps";
   const greetingName = data.name ? data.name.trim() : "";
   const greeting = greetingName ? `Olá, ${greetingName}` : "Olá";
 
-  const text = `Sua verificação em dois fatores foi desativada — ProOps
+  const text = `Sua verificação em dois fatores foi desativada na ProOps
 
 ${greeting}, a verificação em dois fatores da sua conta na ProOps foi desativada.
 
@@ -23,7 +23,7 @@ Se foi você quem fez isso (por recuperação de acesso ou com ajuda do administ
 
 Se você NÃO reconhece esta alteração, sua conta pode estar comprometida. Entre em contato com o suporte imediatamente respondendo este email ou escrevendo para gestao@proops.com.br.
 
-ProOps — Sistema ERP para gestão de serviços
+ProOps: sistema ERP para gestão de serviços
 gestao@proops.com.br
 `;
 
@@ -32,7 +32,7 @@ gestao@proops.com.br
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sua verificação em dois fatores foi desativada — ProOps</title>
+  <title>Sua verificação em dois fatores foi desativada | ProOps</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">

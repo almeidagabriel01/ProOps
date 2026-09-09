@@ -13,6 +13,7 @@ import {
 import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { formatCurrency } from "@/utils/format";
 import { statusConfig } from "../_constants/config";
+import { getInstallmentLabel } from "../_lib/proposal-transaction";
 import { Wallet } from "@/types";
 import { Check, ChevronDown, Edit, Banknote, CreditCard, Split, RefreshCw, Pencil } from "lucide-react";
 import { toast } from "@/lib/toast";
@@ -521,9 +522,11 @@ export function TransactionInstallmentsList({
                                     ? `Recorrência #${tx.installmentNumber} (Parcial)`
                                     : `Recorrência #${tx.installmentNumber}`;
                                 }
-                                if (tx.isInstallment) {
-                                  const label = `Parcela ${tx.installmentNumber}/${tx.installmentCount}`;
-                                  return tx.isPartialPayment ? `${label} (Parcial)` : label;
+                                const label = getInstallmentLabel(tx);
+                                if (label) {
+                                  return tx.isPartialPayment
+                                    ? `${label} (Parcial)`
+                                    : label;
                                 }
                                 // Non-installment item (e.g. main tx of a group with only a down payment)
                                 return tx.description || "Restante";
@@ -667,9 +670,8 @@ export function TransactionInstallmentsList({
                                       <span>
                                         {subItem.isRecurring
                                           ? `Recorrência #${subItem.installmentNumber}`
-                                          : subItem.isInstallment
-                                            ? `Parcela ${subItem.installmentNumber}/${subItem.installmentCount}`
-                                            : subItem.description || "Restante"}
+                                          : (getInstallmentLabel(subItem) ??
+                                            (subItem.description || "Restante"))}
                                       </span>
                                       <Badge
                                         variant="secondary"

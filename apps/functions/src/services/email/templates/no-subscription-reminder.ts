@@ -24,9 +24,9 @@ Você criou sua conta na ProOps há alguns dias, mas ainda não escolheu um plan
 
 ${data.plansUrl}
 
-Qualquer dúvida, é só responder este email — vamos adorar ajudar.
+Qualquer dúvida, é só responder este email, vamos adorar ajudar.
 
-ProOps — Sistema ERP para gestão de serviços
+ProOps: sistema ERP para gestão de serviços
 gestao@proops.com.br
 `;
 
@@ -35,7 +35,7 @@ gestao@proops.com.br
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Escolha seu plano — ProOps</title>
+  <title>Escolha seu plano | ProOps</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">
@@ -54,7 +54,7 @@ gestao@proops.com.br
                 ${greetingName ? `Olá, ${escapeHtml(greetingName)}! ` : "Olá! "}Você criou sua conta na ProOps há alguns dias, mas ainda não escolheu um plano.
               </p>
               <p style="margin:0 0 32px;font-size:15px;color:#3f3f46;line-height:1.6;">
-                Escolha o plano ideal para o seu negócio e desbloqueie todos os recursos do sistema — propostas, CRM, financeiro e muito mais.
+                Escolha o plano ideal para o seu negócio e desbloqueie todos os recursos do sistema: propostas, CRM, financeiro e muito mais.
               </p>
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
@@ -73,7 +73,7 @@ gestao@proops.com.br
                 <a href="${escapeAttr(data.plansUrl)}" style="color:#3f3f46;text-decoration:underline;">${escapeHtml(data.plansUrl)}</a>
               </p>
               <p style="margin:0;font-size:13px;color:#71717a;line-height:1.6;">
-                Qualquer dúvida, é só responder este email — vamos adorar ajudar.
+                Qualquer dúvida, é só responder este email, vamos adorar ajudar.
               </p>
             </td>
           </tr>

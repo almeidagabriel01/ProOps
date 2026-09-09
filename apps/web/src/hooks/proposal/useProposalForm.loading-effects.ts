@@ -379,6 +379,7 @@ export function useProposalFormLoadingEffects(
             DEFAULT_PROPOSAL_PAYMENT_METHOD,
           paymentMethod:
             proposal.paymentMethod || DEFAULT_PROPOSAL_PAYMENT_METHOD,
+          commissions: proposal.commissions || [],
           pdfSettings: mergePdfDisplaySettings(proposal.pdfSettings),
         };
 

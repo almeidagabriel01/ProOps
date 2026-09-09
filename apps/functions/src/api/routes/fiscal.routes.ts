@@ -16,11 +16,13 @@ import {
   issueFromProposalHandler,
   issueFromTransactionHandler,
   correctInvoiceHandler,
+  downloadCorrectionDocumentHandler,
   replayNotificationHandler,
   listNaturezasHandler,
   disconnectFiscalHandler,
 } from "../controllers/fiscal.controller";
 import {
+  launchReceivedInvoiceHandler,
   listReceivedInvoicesHandler,
   getReceivedInvoiceHandler,
   syncReceivedInvoicesHandler,
@@ -90,6 +92,15 @@ router.post(
 );
 
 router.post("/fiscal/invoices/:id/correction", validateFirebaseIdToken, correctInvoiceHandler);
+// Serve a NOSSA copia arquivada, nao o link do provedor: o acervo do cliente
+// tem guarda legal de 5 anos e nao pode depender de um link de terceiro. E ler
+// do nosso Storage exige backend — `storage.rules` nega a pasta `fiscal/` ao
+// client, e `application/xml` nem esta na allowlist de content-type do bucket.
+router.get(
+  "/fiscal/invoices/:id/correcoes/:indice/:kind",
+  validateFirebaseIdToken,
+  downloadCorrectionDocumentHandler,
+);
 router.post(
   "/fiscal/invoices/:id/replay-notification",
   validateFirebaseIdToken,
@@ -115,6 +126,12 @@ router.post(
   "/fiscal/received-invoices/:chave/manifestacao",
   validateFirebaseIdToken,
   manifestReceivedInvoiceHandler,
+);
+// A nota do fornecedor vira despesa — sob clique, nunca sozinha.
+router.post(
+  "/fiscal/received-invoices/:chave/lancamento",
+  validateFirebaseIdToken,
+  launchReceivedInvoiceHandler,
 );
 
 export { router as fiscalRoutes };

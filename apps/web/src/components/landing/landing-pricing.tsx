@@ -591,7 +591,7 @@ export function LandingPricing({
                     )}
                     {hasTrial && (
                       <p className={cn("mt-2 text-xs font-semibold", fg)}>
-                        ✨ Comece com 7 dias grátis — só é cobrado ao fim do teste
+                        ✨ Comece com 7 dias grátis, só é cobrado ao fim do teste
                       </p>
                     )}
 

@@ -488,7 +488,7 @@ export function MySubscriptionTab({
                     className="text-sm mt-1 font-medium text-blue-600 dark:text-blue-400"
                     data-testid="subscription-trial-info"
                   >
-                    Período gratuito —{" "}
+                    Período gratuito:{" "}
                     {trialDaysRemaining === 1
                       ? "falta 1 dia"
                       : `faltam ${trialDaysRemaining} dias`}{" "}

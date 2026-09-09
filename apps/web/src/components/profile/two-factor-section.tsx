@@ -108,7 +108,7 @@ export function TwoFactorSection({ onLoadingChange }: TwoFactorSectionProps) {
         <CardTitle className="text-base">Métodos de verificação</CardTitle>
         <CardDescription>
           Adicione uma camada extra de segurança ao entrar. Ative o aplicativo
-          autenticador, o WhatsApp, ou ambos — e gere códigos de recuperação
+          autenticador, o WhatsApp, ou ambos, e gere códigos de recuperação
           para não perder o acesso à conta.
         </CardDescription>
       </CardHeader>

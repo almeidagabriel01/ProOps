@@ -8,6 +8,7 @@ import {
   Wrench,
   DollarSign,
   Image as ImageIcon,
+  Receipt,
   Tag,
   X,
   Settings,
@@ -62,6 +63,12 @@ const serviceSteps = [
     title: "Imagem",
     description: "Foto de apoio",
     icon: ImageIcon,
+  },
+  {
+    id: "fiscal",
+    title: "Dados Fiscais",
+    description: "Classificação",
+    icon: Receipt,
   },
   {
     id: "settings",
@@ -377,6 +384,23 @@ export function ServiceForm({
           <StepNavigation />
         </FormStepCard>
 
+        {/* Passo próprio, e não um bloco recolhido dentro do Resumo: fechado no
+            fim da tela, ninguém descobria que a classificação fiscal do
+            serviço estava ali. */}
+        <FormStepCard contentDisabled={demoReadOnly || undefined}>
+          <div className="space-y-6">
+            <CatalogFiscalFields
+              variant="step"
+              entityType="service"
+              values={formData}
+              onChange={setFieldValue}
+              disabled={demoReadOnly}
+            />
+          </div>
+
+          <StepNavigation />
+        </FormStepCard>
+
         <FormStepCard contentDisabled={demoReadOnly || undefined}>
           <div className="space-y-6">
             <div className="flex items-center gap-3 mb-6">
@@ -422,13 +446,6 @@ export function ServiceForm({
                 </div>
               </div>
             </div>
-
-            <CatalogFiscalFields
-              entityType="service"
-              values={formData}
-              onChange={setFieldValue}
-              disabled={demoReadOnly}
-            />
           </div>
 
           <StepNavigation

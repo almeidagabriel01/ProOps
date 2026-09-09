@@ -96,3 +96,13 @@ export function generateProposalPaymentTerms(
   }
   return lines.join("\n");
 }
+
+/**
+ * Aviso de que o PDF ainda vai para a pasta do cliente no Google Drive.
+ *
+ * A entrega saiu da request de salvar (renderizar o PDF com Chromium levava
+ * dezenas de segundos na frente do usuário) e passou a rodar num cron de um
+ * minuto. Sem este aviso, quem aprova e vai direto na pasta acha que falhou.
+ */
+export const DRIVE_DELIVERY_PENDING_HINT =
+  "O PDF será enviado para a pasta do cliente no Google Drive em instantes.";

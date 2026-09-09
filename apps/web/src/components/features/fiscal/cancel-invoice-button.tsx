@@ -110,7 +110,7 @@ export function CancelInvoiceButton({ invoice, onCancelled }: CancelInvoiceButto
             />
             <p className="text-xs text-muted-foreground">
               {trimmed.length < MIN
-                ? `Faltam ${MIN - trimmed.length} caracteres — o fisco exige no mínimo ${MIN}.`
+                ? `Faltam ${MIN - trimmed.length} caracteres, o fisco exige no mínimo ${MIN}.`
                 : `${trimmed.length} de ${MAX} caracteres.`}
             </p>
           </div>

@@ -351,6 +351,7 @@ export function useProposalFormSystemDirty(
           DEFAULT_PROPOSAL_PAYMENT_METHOD,
         paymentMethod:
           initialForm.paymentMethod || DEFAULT_PROPOSAL_PAYMENT_METHOD,
+        commissions: initialForm.commissions || [],
         pdfSettings: initialForm.pdfSettings,
       }));
 

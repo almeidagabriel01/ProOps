@@ -124,6 +124,16 @@ export interface FiscalIssuerConfig {
    * do tenant, não nosso: fica no cadastro em vez de virar pergunta a cada nota.
    */
   percentualTotalTributosSimplesNacional?: number;
+  /**
+   * `data_inicio_recebimento_nfe` — a partir de quando buscar notas recebidas.
+   *
+   * Não é detalhe técnico, é **controle de custo**: notas emitidas antes dela
+   * são descartadas e NÃO cobradas; em branco, o provedor recupera todo o
+   * histórico disponível e cobra por cada uma. E o provedor **não deixa
+   * alterar depois de definida** — por isso ela é escolha do tenant, com o
+   * custo dito na frente, e não um default silencioso nosso.
+   */
+  dataInicioRecebimento?: string;
   serieNfe?: number;
   proximoNumeroNfe?: number;
   serieNfse?: string;
@@ -214,6 +224,15 @@ export interface FiscalInvoiceResult {
   /** Provider-hosted PDF (DANFE or DANFSe). Mirrored to our Storage once authorized. */
   pdfUrl?: string;
   xmlUrl?: string;
+  /**
+   * Documentos da CARTA DE CORRECAO, quando a resposta os traz.
+   *
+   * Sao de um EVENTO, nao da nota: a NF-e nao muda com a CC-e e o DANFE nao
+   * carrega a correcao. A guarda legal de 5 anos vale para o evento tambem.
+   */
+  correcaoXmlUrl?: string;
+  correcaoPdfUrl?: string;
+  correcaoNumero?: string;
   /** Public verification page, when the municipality exposes one. */
   publicUrl?: string;
   /** Raw provider/SEFAZ code, kept for the humanized error dictionary. */

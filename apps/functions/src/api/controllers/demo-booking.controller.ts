@@ -157,7 +157,7 @@ export async function submitDemoBooking(
   // Link da videochamada: tenta Zoom (se configurado); senão cai para uma sala
   // Jitsi dedicada (sem login, funciona em qualquer navegador).
   const zoomUrl = await createZoomMeeting({
-    topic: `Demonstração ProOps — ${data.name}`,
+    topic: `Demonstração ProOps: ${data.name}`,
     date: data.date,
     startMinutes: data.startMinutes,
     durationMinutes: data.durationMinutes,

@@ -1,7 +1,13 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Search, Users, Building2 } from "lucide-react";
+import {
+  Search,
+  Users,
+  Building2,
+  Handshake,
+  DraftingCompass,
+} from "lucide-react";
 import { ContactsTypeFilter } from "../_hooks/use-contacts-ctrl";
 
 interface ContactsToolbarProps {
@@ -39,7 +45,7 @@ export function ContactsToolbar({
           }
         />
       </div>
-      <div className="flex justify-center gap-2 sm:justify-start">
+      <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
         <Button
           variant={typeFilter === "todos" ? "default" : "outline"}
           size="sm"
@@ -64,6 +70,24 @@ export function ContactsToolbar({
         >
           <Building2 className="w-4 h-4" />
           Fornecedores
+        </Button>
+        <Button
+          variant={typeFilter === "vendedor" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setTypeFilter("vendedor")}
+          className="gap-1.5"
+        >
+          <Handshake className="w-4 h-4" />
+          Vendedores
+        </Button>
+        <Button
+          variant={typeFilter === "arquiteto" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setTypeFilter("arquiteto")}
+          className="gap-1.5"
+        >
+          <DraftingCompass className="w-4 h-4" />
+          Arquitetos
         </Button>
       </div>
     </div>

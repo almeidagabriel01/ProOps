@@ -90,13 +90,14 @@ export class ProductsPage {
   }
 
   /**
-   * Creates a product through the 4-step wizard UI.
+   * Creates a product through the 5-step wizard UI.
    *
    * For tenant-alpha (niche: automacao_residencial):
    * Step 1 — Informações: name, category (DynamicSelect), manufacturer (DynamicSelect)
    * Step 2 — Preço: price (CurrencyInput), markup (Input), inventoryValue (Input)
    * Step 3 — Imagens: skipped (no upload)
-   * Step 4 — Resumo: clicks "Criar Produto"
+   * Step 4 — Dados Fiscais: skipped (NCM/origem são opcionais no cadastro)
+   * Step 5 — Resumo: clicks "Criar Produto"
    *
    * @param data.price - digits only, e.g. "15000" = R$ 150,00
    */
@@ -144,7 +145,11 @@ export class ProductsPage {
     await this.page.getByRole("button", { name: /próximo/i }).click();
     await this.page.waitForTimeout(300);
 
-    // --- Step 4: Resumo — click "Criar Produto" ---
+    // --- Step 4: Dados Fiscais — skip, click Próximo ---
+    await this.page.getByRole("button", { name: /próximo/i }).click();
+    await this.page.waitForTimeout(300);
+
+    // --- Step 5: Resumo — click "Criar Produto" ---
     const submitButton = this.page.getByRole("button", { name: /criar produto/i });
     await submitButton.waitFor({ state: "visible", timeout: 10000 });
     await submitButton.click();

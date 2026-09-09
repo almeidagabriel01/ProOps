@@ -154,6 +154,45 @@ Campos de grupo:
 
 Entrada pode ter wallet diferente das parcelas (`downPaymentWallet`).
 
+## Comissões aparecem aqui, e são despesas
+
+Aprovar uma proposta com vendedor ou arquiteto gera, além das receitas, uma
+**despesa de comissão por parceiro por parcela**, com o mesmo vencimento da
+receita que ela espelha (`isCommission: true`, `category: "Comissao"`,
+`clientId` apontando para o PARCEIRO). A regra completa vive no backend, em
+`apps/functions/src/api/controllers/proposal-commissions.ts`.
+
+Três consequências para esta pasta:
+
+- Elas têm `proposalId`, então `isProposalLinkedTransaction` as considera
+  ligadas a proposta — e isso é o certo: o valor vem do percentual da proposta,
+  e editar direto aqui seria contornar a fonte. Para mudar, muda-se o
+  percentual na proposta.
+- Elas **não** têm `proposalGroupId`. Cada parceiro tem
+  `installmentGroupId` próprio (`commission_{proposalId}_{contactId}_{role}`),
+  então na aba Agrupados viram um card por parceiro em vez de entrar no card
+  dos recebíveis do cliente — que somaria receita com despesa. Uma comissão
+  única (proposta à vista) fica **avulsa**, sem grupo.
+- A série é numerada **1..N sobre todas as receitas**, entrada inclusive. Não
+  copie o `isInstallment` da receita espelhada: o card de grupo desta pasta só
+  lista os membros marcados como parcela, então numa série mista a comissão da
+  entrada desaparecia da lista e o total do cabeçalho deixava de bater com a
+  soma das linhas.
+- `getProposalTransactionDisplayName` não mexe na descrição delas: o prefixo
+  legado que ele remove ("Entrada: ", "Parcela N/M: ", "Proposta: ") não casa
+  com "Comissão Fulano: Título".
+- A linha que espelha a entrada aparece como **"Entrada"**, não "Parcela 1/5".
+  A estrutura continua sendo série (é o que faz o card listá-la), e só o rótulo
+  diz o que ela é, espelhando o card de receita logo acima. Fonte única em
+  `_lib/proposal-transaction.ts` (`getInstallmentLabel`), usada nas duas
+  posições da lista de parcelas; guard em
+  `_lib/__tests__/proposal-transaction.test.ts`.
+
+O relatório por parceiro fica em `/commissions`, alimentado por
+`GET /v1/transactions/commissions`. Ele é `masterOnly` no menu, mas **as
+despesas de comissão continuam visíveis nesta lista** para quem tem permissão
+de Lançamentos: escondê-las daqui exigiria filtrar a lista, e é decisão à parte.
+
 ## Race conditions e guards (frontend)
 
 - `updatingIdsRef` (Set) em `useFinancialData.ts` previne cliques duplos nos handlers: `updateTransactionStatus`, `updateTransaction`, `updateGroupStatus`

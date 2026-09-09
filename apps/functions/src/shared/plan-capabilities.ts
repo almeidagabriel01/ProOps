@@ -28,6 +28,10 @@ export type PlanTierId = "free" | "starter" | "pro" | "enterprise";
  *
  * `calendarSync` cobre so a integracao com o Google Agenda; a agenda interna do
  * ERP nao tem capacidade propria porque esta disponivel em todos os planos.
+ *
+ * `driveSync` fica na MESMA faixa do `calendarSync`, e nao numa acima: as duas
+ * usam o mesmo consentimento Google e resolvem a mesma dor — nao manter duas
+ * organizacoes, uma no ERP e outra fora dele. Separa-las confundiria na venda.
  */
 export type PlanCapabilityKey =
   | "financial"
@@ -36,7 +40,8 @@ export type PlanCapabilityKey =
   | "pdfEditor"
   | "customTheme"
   | "whatsapp"
-  | "calendarSync";
+  | "calendarSync"
+  | "driveSync";
 
 export type PlanCapabilities = Record<PlanCapabilityKey, boolean>;
 
@@ -70,6 +75,7 @@ export const PLAN_CAPABILITY_KEYS: readonly PlanCapabilityKey[] = [
   "customTheme",
   "whatsapp",
   "calendarSync",
+  "driveSync",
 ] as const;
 
 const NO_CAPABILITIES: PlanCapabilities = {
@@ -80,6 +86,7 @@ const NO_CAPABILITIES: PlanCapabilities = {
   customTheme: false,
   whatsapp: false,
   calendarSync: false,
+  driveSync: false,
 };
 
 export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
@@ -131,6 +138,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       pdfEditor: true,
       customTheme: true,
       calendarSync: true,
+      driveSync: true,
     },
     limits: {
       maxProposalsPerMonth: -1,
@@ -157,6 +165,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       customTheme: true,
       whatsapp: true,
       calendarSync: true,
+      driveSync: true,
     },
     limits: {
       maxProposalsPerMonth: -1,
@@ -256,6 +265,7 @@ export interface PublicPlanFeatures {
   hasKanban: boolean;
   hasFiscal: boolean;
   hasCalendarSync: boolean;
+  hasDriveSync: boolean;
   hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
   canEditPdfSections: boolean;
@@ -278,6 +288,7 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     hasKanban: entry.capabilities.crm,
     hasFiscal: entry.capabilities.fiscal,
     hasCalendarSync: entry.capabilities.calendarSync,
+    hasDriveSync: entry.capabilities.driveSync,
     hasWhatsApp: entry.capabilities.whatsapp,
     canCustomizeTheme: entry.capabilities.customTheme,
     canEditPdfSections: entry.capabilities.pdfEditor,

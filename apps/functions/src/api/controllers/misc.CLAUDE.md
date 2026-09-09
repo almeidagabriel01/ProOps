@@ -142,6 +142,7 @@ https://www.googleapis.com/auth/userinfo.email
 | `GOOGLE_CALENDAR_CLIENT_ID` | Sim (se sync habilitado) | Client ID OAuth 2.0 |
 | `GOOGLE_CALENDAR_CLIENT_SECRET` | Sim (se sync habilitado) | Client Secret OAuth 2.0 |
 | `GOOGLE_CALENDAR_REDIRECT_URI` | Não | Override da URI de callback (padrão: derivado da request) |
+| `GOOGLE_DRIVE_REDIRECT_URI` | Não | Override da URI de callback do Drive. Mesma variável, outro caminho (`/v1/drive/google/callback`). O default vem de `APP_URL`, que em **dev é a URL de preview da Vercel, não localhost** — então testar o OAuth do Drive a partir de `localhost:3000` exige ou registrar a URL da Vercel no cliente OAuth, ou definir esta variável. Nunca apontar para localhost em produção. |
 
 ### Habilitação da Feature
 

@@ -290,7 +290,7 @@ export function useAiChat(): UseAiChatReturn {
             },
 
             onError: (error: Error) => {
-              let errorMessage = "Resposta interrompida — tente enviar novamente.";
+              let errorMessage = "Resposta interrompida, tente enviar novamente.";
               let errorType: LiaMessage["errorType"] = "generic";
               if (error instanceof AiApiError) {
                 if (error.status === 429) {

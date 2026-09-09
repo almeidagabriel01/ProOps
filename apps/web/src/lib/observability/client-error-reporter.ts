@@ -72,14 +72,49 @@ export function shouldReportConsoleArg(arg: unknown): boolean {
   );
 }
 
+function stackFrames(stack: string): string[] {
+  return stack
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("at ") || line.includes("@"));
+}
+
+/**
+ * True when the error was thrown entirely inside code that is not ours: a browser
+ * extension injected into the main world, or a third-party analytics collector.
+ * Those stacks carry no frame pointing at our own bundle, so they are not
+ * actionable and only drown real issues in the observability dashboard.
+ *
+ * Deliberately conservative: anything we cannot positively attribute to a third
+ * party is still reported.
+ */
+export function isThirdPartyError(err: unknown): boolean {
+  if (typeof err === "string") return err.replace(/\.$/, "") === "Script error";
+  if (!(err instanceof Error) || !err.stack) return false;
+  if (typeof window === "undefined") return false;
+
+  const frames = stackFrames(err.stack);
+  if (frames.length === 0) return false;
+
+  const ownHints = [window.location.origin, "/_next/", "webpack-internal:"];
+  return !frames.some((frame) => ownHints.some((hint) => frame.includes(hint)));
+}
+
 export function installClientErrorReporter(): () => void {
   if (installed || typeof window === "undefined") return () => undefined;
   installed = true;
 
   const uninstallTokenCache = installIdentityTokenCache();
 
-  const onError = (event: ErrorEvent) => reportClientError(event.error ?? event.message);
-  const onRejection = (event: PromiseRejectionEvent) => reportClientError(event.reason);
+  const onError = (event: ErrorEvent) => {
+    const err = event.error ?? event.message;
+    if (isThirdPartyError(err)) return;
+    reportClientError(err);
+  };
+  const onRejection = (event: PromiseRejectionEvent) => {
+    if (isThirdPartyError(event.reason)) return;
+    reportClientError(event.reason);
+  };
   const onHide = () => flush();
 
   const onVisibilityChange = () => {

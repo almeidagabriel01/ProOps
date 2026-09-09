@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataTableColumn } from "@/components/ui/data-table";
 import { Client } from "@/services/client-service";
 import { Mail, Phone, Edit, Trash2 } from "lucide-react";
+import { OpenDriveFolderButton } from "@/components/features/drive/open-drive-folder-button";
 
 interface CreateColumnsProps {
   canEdit: boolean;
@@ -32,6 +33,8 @@ const typeConfig: Record<
 > = {
   cliente: { label: "Cliente", variant: "default" },
   fornecedor: { label: "Fornecedor", variant: "outline" },
+  vendedor: { label: "Vendedor", variant: "success" },
+  arquiteto: { label: "Arquiteto", variant: "warning" },
 };
 
 export const createColumns = ({
@@ -130,6 +133,11 @@ export const createColumns = ({
     priority: "actions",
     render: (client) => (
       <div className="flex items-center justify-end gap-1">
+        {/* Antes só existia dentro do cadastro do contato, o que obrigava a
+            abrir o formulário para chegar à pasta. O botão se esconde sozinho
+            sem o plano, e vale para quem só VÊ o contato: o caso de uso é o
+            vendedor na casa do cliente, no celular. */}
+        <OpenDriveFolderButton clientId={client.id} iconOnly />
         {canEdit && (
           <Link href={`/contacts/${client.id}`}>
             <Button

@@ -60,7 +60,7 @@ const HERO_COPY = {
   badge: "Gestão completa para o seu negócio",
   title: "Tudo que sua operação precisa, em um só lugar",
   subtitle:
-    "Propostas, CRM, financeiro e equipe — conectados em uma plataforma que monta o quadro completo do seu negócio.",
+    "Propostas, CRM, financeiro e equipe: conectados em uma plataforma que monta o quadro completo do seu negócio.",
   primaryCta: { label: "Começar agora", href: "/register" },
   secondaryCta: { label: "Marcar demonstração", href: "/agendar" },
 };

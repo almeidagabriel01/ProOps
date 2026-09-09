@@ -2,14 +2,7 @@
 
 import * as React from "react";
 import { toast } from "@/lib/toast";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  FileText,
-  Search,
-  ShieldAlert,
-  Upload,
-} from "lucide-react";
+import { AlertTriangle, FileText, ShieldAlert } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -18,23 +11,38 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { StepWizard } from "@/components/ui/step-wizard";
+import { FormStepCard } from "@/components/ui/form-step-card";
 import {
   FiscalService,
   type FiscalAddress,
   type FiscalSettings,
-  type FiscalTaxRegime,
-  type FiscalNfsePadrao,
 } from "@/services/fiscal-service";
 import { cnpj as cnpjValidator } from "cpf-cnpj-validator";
 import { humanizeRejection } from "@/lib/fiscal/rejection-messages";
 import { maskCep } from "@/lib/fiscal/cep";
-import { validarSerieNfse } from "@/lib/fiscal/serie-dps";
 import { Loader } from "@/components/ui/loader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  buildFiscalSettingsPayload,
+  type FiscalFormState,
+} from "@/lib/fiscal/settings-payload";
+import { fiscalSteps } from "./fiscal/fiscal-steps";
+import { EmpresaStep } from "./fiscal/empresa-step";
+import { EnderecoStep } from "./fiscal/endereco-step";
+import { DocumentosStep } from "./fiscal/documentos-step";
+import { CertificadoStep } from "./fiscal/certificado-step";
+import type { FiscalErrors } from "./fiscal/types";
 
 /** ViaCEP devolve o código IBGE em `ibge` — é ele que a SEFAZ valida. */
 interface ViaCepResponse {
@@ -57,28 +65,7 @@ const EMPTY_ADDRESS: FiscalAddress = {
   cep: "",
 };
 
-interface FormState {
-  cnpj: string;
-  razaoSocial: string;
-  nomeFantasia: string;
-  inscricaoEstadual: string;
-  inscricaoMunicipal: string;
-  cnae: string;
-  regimeTributario: FiscalTaxRegime;
-  percentualSimplesNacional: string;
-  email: string;
-  telefone: string;
-  endereco: FiscalAddress;
-  habilitaNfe: boolean;
-  habilitaNfse: boolean;
-  padraoNfse: FiscalNfsePadrao;
-  serieNfe: string;
-  proximoNumeroNfe: string;
-  serieNfse: string;
-  proximoNumeroNfse: string;
-  certificadoValidade: string;
-  certificadoSenha: string;
-}
+type FormState = FiscalFormState;
 
 const INITIAL_FORM: FormState = {
   cnpj: "",
@@ -94,6 +81,8 @@ const INITIAL_FORM: FormState = {
   endereco: { ...EMPTY_ADDRESS },
   habilitaNfe: false,
   habilitaNfse: true,
+  habilitaManifestacao: false,
+  dataInicioRecebimento: "",
   padraoNfse: "nacional",
   serieNfe: "",
   proximoNumeroNfe: "",
@@ -102,6 +91,20 @@ const INITIAL_FORM: FormState = {
   certificadoValidade: "",
   certificadoSenha: "",
 };
+
+/**
+ * Hoje no fuso LOCAL, não em UTC.
+ *
+ * `toISOString().slice(0, 10)` adianta o dia toda noite depois das 21h no
+ * horário de Brasília — e aqui isso sugeriria uma data futura para um campo
+ * que o provedor não deixa corrigir depois.
+ */
+function hojeIso(): string {
+  const agora = new Date();
+  const mes = String(agora.getMonth() + 1).padStart(2, "0");
+  const dia = String(agora.getDate()).padStart(2, "0");
+  return `${agora.getFullYear()}-${mes}-${dia}`;
+}
 
 function digits(value: string): string {
   return value.replace(/\D/g, "");
@@ -136,6 +139,8 @@ function hydrate(settings: FiscalSettings): FormState {
     endereco: settings.endereco ?? { ...EMPTY_ADDRESS },
     habilitaNfe: settings.habilitaNfe ?? false,
     habilitaNfse: settings.habilitaNfse ?? true,
+    habilitaManifestacao: settings.habilitaManifestacao === true,
+    dataInicioRecebimento: settings.dataInicioRecebimento ?? "",
     padraoNfse: settings.padraoNfse ?? "nacional",
     serieNfe: settings.serieNfe != null ? String(settings.serieNfe) : "",
     proximoNumeroNfe:
@@ -157,17 +162,31 @@ const STATUS_LABEL: Record<string, { label: string; variant: "default" | "second
 
 interface FiscalSettingsCardProps {
   onLoadingChange?: (loading: boolean) => void;
+  /**
+   * Conta demo/free: navega os passos como quem já configurou, mas sem editar
+   * nem salvar. O `inert` fica no CONTEÚDO de cada passo (e nos blocos fora do
+   * wizard), NÃO num wrapper por cima de tudo — `inert` num ancestral comum
+   * mataria também os botões de navegação e prenderia a conta no passo 1.
+   */
+  demoReadOnly?: boolean;
 }
 
-export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps) {
+export function FiscalSettingsCard({
+  onLoadingChange,
+  demoReadOnly = false,
+}: FiscalSettingsCardProps) {
   const [settings, setSettings] = React.useState<FiscalSettings | null>(null);
+  const dataRecebimentoBloqueada =
+    settings?.dataInicioRecebimentoBloqueada === true;
   const [form, setForm] = React.useState<FormState>(INITIAL_FORM);
+  const [errors, setErrors] = React.useState<FiscalErrors>({});
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDisconnecting, setIsDisconnecting] = React.useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
   const [isLookingUp, setIsLookingUp] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const [isRetryingWebhooks, setIsRetryingWebhooks] = React.useState(false);
-  const certificateInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -191,11 +210,27 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
     };
   }, [onLoadingChange]);
 
-  const setField = <K extends keyof FormState>(key: K, value: FormState[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  /** Limpa o erro do próprio campo ao digitar — o passo revalida no "Próximo". */
+  const clearError = (key: string) =>
+    setErrors((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
 
-  const setAddress = <K extends keyof FiscalAddress>(key: K, value: FiscalAddress[K]) =>
+  const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    clearError(String(key));
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const setAddress = <K extends keyof FiscalAddress>(
+    key: K,
+    value: FiscalAddress[K],
+  ) => {
+    clearError(String(key));
     setForm((prev) => ({ ...prev, endereco: { ...prev.endereco, [key]: value } }));
+  };
 
   /**
    * Preenche razão social, endereço, código IBGE e CNAE a partir do CNPJ.
@@ -237,9 +272,13 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
           municipio: data.municipio || prev.endereco.municipio,
           codigoIbge: data.codigoIbge || prev.endereco.codigoIbge,
           uf: data.uf || prev.endereco.uf,
-          cep: data.cep || prev.endereco.cep,
+          // Mascarado como se tivesse sido digitado: a Receita devolve 8
+          // dígitos crus, e o campo ficava com uma cara diferente do resto do
+          // endereço só por ter vindo da busca.
+          cep: data.cep ? maskCep(data.cep) : prev.endereco.cep,
         },
       }));
+      setErrors({});
       const situacao = data.situacaoCadastral?.trim();
       if (situacao && situacao.toLowerCase() !== "ativa") {
         // Um CNPJ baixado ou suspenso passa no cadastro e só falha na emissão,
@@ -284,44 +323,63 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
   };
 
   /**
+   * Validação de cada passo — espelha, campo a campo, o que o
+   * `PUT /v1/fiscal/settings` recusa. É o mesmo conjunto de regras; a diferença
+   * é o momento: antes eram quatro cards de uma vez e um toast genérico no fim,
+   * agora o erro aparece no passo que o causou, ao lado do campo.
+   */
+  const validateEmpresa = (): boolean => {
+    const next: FiscalErrors = {};
+    const cnpjLimpo = digits(form.cnpj);
+    if (!cnpjValidator.isValid(cnpjLimpo)) {
+      next.cnpj =
+        cnpjLimpo.length === 14
+          ? "Os dígitos verificadores não batem"
+          : "Informe o CNPJ completo";
+    }
+    if (!form.razaoSocial.trim()) next.razaoSocial = "Razão social é obrigatória";
+    if (!form.email.trim().includes("@")) next.email = "Informe um e-mail válido";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const validateEndereco = (): boolean => {
+    const next: FiscalErrors = {};
+    const { logradouro, numero, bairro, municipio, uf, cep, codigoIbge } =
+      form.endereco;
+    if (!logradouro.trim()) next.logradouro = "Logradouro é obrigatório";
+    if (!numero.trim()) next.numero = "Número é obrigatório";
+    if (!bairro.trim()) next.bairro = "Bairro é obrigatório";
+    if (!municipio.trim()) next.municipio = "Município é obrigatório";
+    if (uf.trim().length !== 2) next.uf = "UF deve ter 2 letras";
+    if (digits(cep).length !== 8) next.cep = "CEP deve ter 8 dígitos";
+    // A SEFAZ valida o município pelo código, não pelo nome. Sem os 7 dígitos o
+    // provedor recusa, e o CEP é quem os traz.
+    if (digits(codigoIbge).length !== 7)
+      next.codigoIbge = "Deve ter 7 dígitos, confira o CEP";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const validateDocumentos = (): boolean => {
+    const next: FiscalErrors = {};
+    if (!form.habilitaNfe && !form.habilitaNfse)
+      next.documentos = "Habilite ao menos um tipo de nota (NF-e ou NFS-e).";
+    // Sem inscrição municipal a prefeitura não tem a quem cobrar o ISS, e toda
+    // emissão de NFS-e falha lá.
+    if (form.habilitaNfse && !form.inscricaoMunicipal.trim())
+      next.inscricaoMunicipal = "Obrigatória para emitir NFS-e";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  /**
    * Payload de configuração a partir do formulário.
    *
    * Extraído porque o envio do certificado precisa gravar os mesmos dados antes
    * de registrar a empresa — ver `handleCertificateUpload`.
    */
-  const buildSettingsPayload = () => ({
-        cnpj: digits(form.cnpj),
-        razaoSocial: form.razaoSocial.trim(),
-        nomeFantasia: form.nomeFantasia.trim(),
-        inscricaoEstadual: form.inscricaoEstadual.trim(),
-        inscricaoMunicipal: form.inscricaoMunicipal.trim(),
-        cnae: form.cnae.trim(),
-        regimeTributario: form.regimeTributario,
-        // Em branco vira undefined, nunca 0: 0% é uma alíquota válida e
-        // sairia na nota sem ninguém ter escolhido.
-        percentualTotalTributosSimplesNacional:
-          form.percentualSimplesNacional.trim() === ""
-            ? undefined
-            : Number(form.percentualSimplesNacional.replace(",", ".")),
-        email: form.email.trim(),
-        telefone: form.telefone.trim(),
-        endereco: {
-          ...form.endereco,
-          cep: digits(form.endereco.cep),
-          codigoIbge: digits(form.endereco.codigoIbge),
-          uf: form.endereco.uf.toUpperCase(),
-        },
-        habilitaNfe: form.habilitaNfe,
-        habilitaNfse: form.habilitaNfse,
-        padraoNfse: form.padraoNfse,
-        serieNfe: form.serieNfe ? Number(form.serieNfe) : undefined,
-        proximoNumeroNfe: form.proximoNumeroNfe ? Number(form.proximoNumeroNfe) : undefined,
-        serieNfse: form.serieNfse.trim(),
-        proximoNumeroNfse: form.proximoNumeroNfse
-          ? Number(form.proximoNumeroNfse)
-          : undefined,
-        certificadoSenha: form.certificadoSenha || undefined,
-  });
+  const buildSettingsPayload = () => buildFiscalSettingsPayload(form);
 
   const handleRetryWebhooks = async () => {
     setIsRetryingWebhooks(true);
@@ -337,6 +395,35 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
       toast.error(error instanceof Error ? error.message : "Não foi possível registrar.");
     } finally {
       setIsRetryingWebhooks(false);
+    }
+  };
+
+  /**
+   * Desconecta e volta o formulário ao estado inicial.
+   *
+   * Sem limpar o formulário, os campos continuariam preenchidos sobre uma
+   * configuração que já não existe — e o próximo "Salvar" recriaria tudo, menos
+   * o certificado. Um emitente meio configurado é pior que nenhum.
+   */
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      await FiscalService.disconnect();
+      setSettings(null);
+      setForm({ ...INITIAL_FORM, endereco: { ...EMPTY_ADDRESS } });
+      setErrors({});
+      setConfirmDisconnect(false);
+      toast.success("Emissão desconectada.", {
+        description: "As notas já emitidas continuam disponíveis.",
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Não foi possível desconectar.",
+      );
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -401,7 +488,6 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
       toast.error(humanized.titulo, { description: humanized.explicacao });
     } finally {
       setIsUploading(false);
-      if (certificateInputRef.current) certificateInputRef.current.value = "";
     }
   };
 
@@ -426,500 +512,248 @@ export function FiscalSettingsCard({ onLoadingChange }: FiscalSettingsCardProps)
    * só considerava `lastError` e validade do certificado, então o aviso existia
    * no código e nunca chegava à tela.
    */
-  /**
-   * A série identifica o SISTEMA emissor perante o Ambiente Nacional, e cada
-   * tipo tem faixa reservada — série fora dela é rejeição E0010. Avisar aqui
-   * evita a viagem até o fisco para descobrir.
-   */
-  const serieNfseErro = validarSerieNfse(form.serieNfse);
-
   const gatilhoPendente =
     Boolean(settings?.status) &&
     settings?.status !== "pending" &&
     settings?.webhookStatus?.state !== "registered";
 
+  const temAviso =
+    Boolean(settings?.lastError) ||
+    typeof diasParaVencer === "number" ||
+    gatilhoPendente;
+
   return (
-    <div className="flex flex-col gap-4">
-      {/* Estado atual */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Emissão de notas fiscais
-              </CardTitle>
-              <CardDescription>
-                Configure sua empresa para emitir NF-e de produto e NFS-e de serviço.
-              </CardDescription>
-            </div>
-            {status && <Badge variant={status.variant}>{status.label}</Badge>}
-          </div>
-        </CardHeader>
-
-        {(settings?.lastError || typeof diasParaVencer === "number" || gatilhoPendente) && (
-          <CardContent className="flex flex-col gap-3 pt-0">
-            {typeof diasParaVencer === "number" && diasParaVencer <= 30 && (
-              <div
-                className={`flex items-start gap-2 rounded-md border p-3 text-sm ${
-                  diasParaVencer < 0
-                    ? "border-destructive/40 bg-destructive/5"
-                    : "border-amber-500/40 bg-amber-500/5"
-                }`}
-              >
-                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>
-                  {diasParaVencer < 0
-                    ? `Seu certificado digital venceu há ${Math.abs(diasParaVencer)} dia(s). Nenhuma nota será emitida até a renovação.`
-                    : `Seu certificado digital vence em ${diasParaVencer} dia(s). Renove antes para não interromper a emissão.`}
-                </span>
-              </div>
-            )}
-            {/* Ausência de status NÃO é sinal de sucesso: o registro só acontece
-                no envio do certificado, então um emitente cadastrado antes desta
-                tela nunca teve tentativa nenhuma. Mostrar o alerta só quando há
-                falha registrada esconde exatamente o caso mais comum — foi o que
-                aconteceu aqui: nenhum gatilho no provedor e nenhum aviso. */}
-            {gatilhoPendente && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                <div className="flex-1 space-y-1">
-                  <p className="font-medium">
-                    {settings?.webhookStatus
-                      ? "Notificação automática não registrada"
-                      : "Notificação automática ainda não configurada"}
-                  </p>
-                  <p className="text-muted-foreground">
-                    As notas continuam sendo emitidas, mas o resultado só chega pela
-                    consulta periódica — pode demorar até 15 minutos para aparecer.
-                  </p>
-                  {settings?.webhookStatus?.lastError && (
-                    <p className="font-mono text-xs text-muted-foreground/80">
-                      {settings.webhookStatus?.lastError}
-                    </p>
-                  )}
+    <div className="flex flex-col gap-6">
+      {/* Situação atual — fora do wizard: é o que a pessoa precisa ver antes de
+          escolher qual passo abrir, e não é campo de formulário. */}
+      {(status || temAviso) && (
+        <div className="contents" inert={demoReadOnly || undefined}>
+          <Card>
+            <CardContent className="flex flex-col gap-3 pt-6">
+              {status && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">
+                      Situação da emissão
+                    </span>
+                  </div>
+                  <Badge variant={status.variant}>{status.label}</Badge>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isRetryingWebhooks}
-                  onClick={handleRetryWebhooks}
+              )}
+
+              {typeof diasParaVencer === "number" && diasParaVencer <= 30 && (
+                <div
+                  className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${
+                    diasParaVencer < 0
+                      ? "border-destructive/40 bg-destructive/5"
+                      : "border-amber-500/40 bg-amber-500/5"
+                  }`}
                 >
-                  {isRetryingWebhooks && (
-                    <Loader size="sm" variant="button" className="mr-2" />
-                  )}
-                  Tentar de novo
-                </Button>
-              </div>
-            )}
-            {settings?.lastError && (
-              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{humanizeRejection(undefined, settings.lastError).explicacao}</span>
-              </div>
-            )}
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Dados da empresa */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Dados da empresa</CardTitle>
-          <CardDescription>
-            Informe o CNPJ e busque, o resto é preenchido automaticamente.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label htmlFor="fiscal-cnpj">CNPJ</Label>
-            <div className="flex gap-2">
-              <Input
-                id="fiscal-cnpj"
-                value={form.cnpj}
-                onChange={(e) => setField("cnpj", maskCnpj(e.target.value))}
-                placeholder="00.000.000/0000-00"
-                inputMode="numeric"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleLookupCnpj}
-                disabled={isLookingUp}
-              >
-                {isLookingUp ? (
-                  <Loader size="sm" variant="button" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-                <span className="ml-2 hidden sm:inline">Buscar</span>
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <Label htmlFor="fiscal-razao">Razão social</Label>
-            <Input
-              id="fiscal-razao"
-              value={form.razaoSocial}
-              onChange={(e) => setField("razaoSocial", e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-fantasia">Nome fantasia</Label>
-            <Input
-              id="fiscal-fantasia"
-              value={form.nomeFantasia}
-              onChange={(e) => setField("nomeFantasia", e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-email">E-mail fiscal</Label>
-            <Input
-              id="fiscal-email"
-              type="email"
-              value={form.email}
-              onChange={(e) => setField("email", e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-regime">Regime tributário</Label>
-            <Select
-              id="fiscal-regime"
-              value={String(form.regimeTributario)}
-              onChange={(e) =>
-                setField("regimeTributario", Number(e.target.value) as FiscalTaxRegime)
-              }
-            >
-              <option value="1">Simples Nacional</option>
-              <option value="2">Simples Nacional — excesso de sublimite</option>
-              <option value="3">Regime Normal (Presumido ou Real)</option>
-              <option value="4">MEI</option>
-            </Select>
-          </div>
-
-          {/* Só para o Simples: `totTrib` é obrigatório na DPS e, para ME/EPP,
-              o indicador de "não informar" é recusado (E0712) — sobra declarar
-              a alíquota. Quem não é do Simples usa o indicador e não vê isto. */}
-          {(form.regimeTributario === 1 || form.regimeTributario === 2) && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="fiscal-percentual-sn">
-                Alíquota aproximada do Simples Nacional (%)
-              </Label>
-              <Input
-                id="fiscal-percentual-sn"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                max="100"
-                step="0.01"
-                placeholder="6"
-                value={form.percentualSimplesNacional}
-                onChange={(e) => setField("percentualSimplesNacional", e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                É a alíquota efetiva do seu DAS. Vai na nota de serviço como o
-                total aproximado de tributos (Lei 12.741/2012).
-              </p>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-cnae">CNAE principal</Label>
-            <Input
-              id="fiscal-cnae"
-              value={form.cnae}
-              onChange={(e) => setField("cnae", e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-ie">Inscrição estadual</Label>
-            <Input
-              id="fiscal-ie"
-              value={form.inscricaoEstadual}
-              onChange={(e) => setField("inscricaoEstadual", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">Obrigatória para NF-e de produto.</p>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-im">Inscrição municipal</Label>
-            <Input
-              id="fiscal-im"
-              value={form.inscricaoMunicipal}
-              onChange={(e) => setField("inscricaoMunicipal", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">Obrigatória para NFS-e de serviço.</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Endereço */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Endereço do emitente</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-cep">CEP</Label>
-            <Input
-              id="fiscal-cep"
-              value={form.endereco.cep}
-              onChange={(e) => setAddress("cep", maskCep(e.target.value))}
-              onBlur={handleCepBlur}
-              inputMode="numeric"
-              maxLength={9}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-logradouro">Logradouro</Label>
-            <Input
-              id="fiscal-logradouro"
-              value={form.endereco.logradouro}
-              onChange={(e) => setAddress("logradouro", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-numero">Número</Label>
-            <Input
-              id="fiscal-numero"
-              value={form.endereco.numero}
-              onChange={(e) => setAddress("numero", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-complemento">Complemento</Label>
-            <Input
-              id="fiscal-complemento"
-              value={form.endereco.complemento ?? ""}
-              onChange={(e) => setAddress("complemento", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-bairro">Bairro</Label>
-            <Input
-              id="fiscal-bairro"
-              value={form.endereco.bairro}
-              onChange={(e) => setAddress("bairro", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-municipio">Município</Label>
-            <Input
-              id="fiscal-municipio"
-              value={form.endereco.municipio}
-              onChange={(e) => setAddress("municipio", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-uf">UF</Label>
-            <Input
-              id="fiscal-uf"
-              value={form.endereco.uf}
-              onChange={(e) => setAddress("uf", e.target.value.toUpperCase().slice(0, 2))}
-              maxLength={2}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="fiscal-ibge">Código IBGE do município</Label>
-            <Input
-              id="fiscal-ibge"
-              value={form.endereco.codigoIbge}
-              onChange={(e) => setAddress("codigoIbge", e.target.value)}
-              inputMode="numeric"
-            />
-            <p className="text-xs text-muted-foreground">
-              Preenchido pela busca de CEP. A SEFAZ valida o município por este código.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Documentos e numeração */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Documentos e numeração</CardTitle>
-          <CardDescription>
-            A numeração precisa continuar de onde a empresa parou, senão a SEFAZ recusa por
-            duplicidade.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-4 rounded-md border p-3">
-            <div>
-              <p className="text-sm font-medium">NF-e — nota de produto</p>
-              <p className="text-xs text-muted-foreground">Mercadoria, com ICMS.</p>
-            </div>
-            <Switch
-              checked={form.habilitaNfe}
-              onCheckedChange={(checked) => setField("habilitaNfe", checked)}
-            />
-          </div>
-
-          {form.habilitaNfe && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="fiscal-serie-nfe">Série da NF-e</Label>
-                <Input
-                  id="fiscal-serie-nfe"
-                  value={form.serieNfe}
-                  onChange={(e) => setField("serieNfe", digits(e.target.value))}
-                  inputMode="numeric"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="fiscal-num-nfe">Próximo número da NF-e</Label>
-                <Input
-                  id="fiscal-num-nfe"
-                  value={form.proximoNumeroNfe}
-                  onChange={(e) => setField("proximoNumeroNfe", digits(e.target.value))}
-                  inputMode="numeric"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between gap-4 rounded-md border p-3">
-            <div>
-              <p className="text-sm font-medium">NFS-e — nota de serviço</p>
-              <p className="text-xs text-muted-foreground">Instalação e mão de obra, com ISS.</p>
-            </div>
-            <Switch
-              checked={form.habilitaNfse}
-              onCheckedChange={(checked) => setField("habilitaNfse", checked)}
-            />
-          </div>
-
-          {form.habilitaNfse && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <Label htmlFor="fiscal-padrao-nfse">Padrão da NFS-e</Label>
-                <Select
-                  id="fiscal-padrao-nfse"
-                  value={form.padraoNfse}
-                  onChange={(e) =>
-                    setField("padraoNfse", e.target.value as FiscalNfsePadrao)
-                  }
-                >
-                  <option value="nacional">Nacional — portal nfse.gov.br</option>
-                  <option value="municipal">Municipal — sistema próprio da prefeitura</option>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Na dúvida, olhe uma nota que a empresa já emitiu: se o rodapé diz
-                  &quot;DANFSe&quot; e aponta para o portal nacional, é Nacional.
-                </p>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="fiscal-serie-nfse">Série da NFS-e</Label>
-                <Input
-                  id="fiscal-serie-nfse"
-                  value={form.serieNfse}
-                  onChange={(e) => setField("serieNfse", e.target.value)}
-                />
-                {serieNfseErro && (
-                  <p className="text-xs text-amber-600">{serieNfseErro}</p>
-                )}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="fiscal-num-nfse">Próximo número da NFS-e</Label>
-                <Input
-                  id="fiscal-num-nfse"
-                  value={form.proximoNumeroNfse}
-                  onChange={(e) => setField("proximoNumeroNfse", digits(e.target.value))}
-                  inputMode="numeric"
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Certificado */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Certificado digital</CardTitle>
-          <CardDescription>
-            É preciso um e-CNPJ modelo A1 (arquivo .pfx). O arquivo não fica guardado na ProOps, 
-            é enviado ao provedor fiscal, que o custodia. Enviar o certificado também salva
-            a configuração acima.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {settings?.certificadoArmazenado && (
-            <div className="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm">
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-              <span>Certificado registrado no provedor.</span>
-            </div>
-          )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="fiscal-cert-senha">Senha do certificado</Label>
-              <Input
-                id="fiscal-cert-senha"
-                type="password"
-                value={form.certificadoSenha}
-                onChange={(e) => setField("certificadoSenha", e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>Validade do certificado</Label>
-              {/* Lida do próprio arquivo ao enviar — pedir para digitar
-                  arriscaria uma data errada, e o alerta avisaria no dia errado. */}
-              <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
-                {settings?.certificadoValidade ? (
-                  new Date(settings.certificadoValidade).toLocaleDateString("pt-BR")
-                ) : (
-                  <span className="text-muted-foreground">
-                    Detectada ao enviar o certificado
+                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    {diasParaVencer < 0
+                      ? `Seu certificado digital venceu há ${Math.abs(diasParaVencer)} dia(s). Nenhuma nota será emitida até a renovação.`
+                      : `Seu certificado digital vence em ${diasParaVencer} dia(s). Renove antes para não interromper a emissão.`}
                   </span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Avisamos com 30, 15, 7 e 1 dia de antecedência.
-              </p>
-            </div>
-          </div>
+                </div>
+              )}
 
-          <input
-            ref={certificateInputRef}
-            type="file"
-            accept=".pfx,.p12"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void handleCertificateUpload(file);
-            }}
+              {/* Ausência de status NÃO é sinal de sucesso: o registro só acontece
+                  no envio do certificado, então um emitente cadastrado antes desta
+                  tela nunca teve tentativa nenhuma. Mostrar o alerta só quando há
+                  falha registrada esconde exatamente o caso mais comum — foi o que
+                  aconteceu aqui: nenhum gatilho no provedor e nenhum aviso. */}
+              {gatilhoPendente && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <div className="flex-1 space-y-1">
+                    <p className="font-medium">
+                      {settings?.webhookStatus
+                        ? "Notificação automática não registrada"
+                        : "Notificação automática ainda não configurada"}
+                    </p>
+                    <p className="text-muted-foreground">
+                      As notas continuam sendo emitidas, mas o resultado só chega pela
+                      consulta periódica, que pode demorar até 15 minutos para aparecer.
+                    </p>
+                    {settings?.webhookStatus?.lastError && (
+                      <p className="font-mono text-xs text-muted-foreground/80">
+                        {settings.webhookStatus?.lastError}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isRetryingWebhooks}
+                    onClick={handleRetryWebhooks}
+                  >
+                    {isRetryingWebhooks && (
+                      <Loader size="sm" variant="button" className="mr-2" />
+                    )}
+                    Tentar de novo
+                  </Button>
+                </div>
+              )}
+
+              {settings?.lastError && (
+                <div className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{humanizeRejection(undefined, settings.lastError).explicacao}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Quatro passos, como todo formulário longo do ERP. `allowClickAhead` só
+          para quem já configurou (ou está no demo): aí a tela é edição de algo
+          que existe, e obrigar a sequência para trocar uma série seria custo
+          sem ganho. Numa configuração nova a ordem importa — o registro no
+          provedor depende dos passos anteriores. */}
+      <StepWizard
+        steps={fiscalSteps}
+        allowClickAhead={settings?.configured === true || demoReadOnly}
+      >
+        <FormStepCard>
+          <EmpresaStep
+            form={form}
+            errors={errors}
+            setField={setField}
+            maskCnpj={maskCnpj}
+            isLookingUp={isLookingUp}
+            onLookupCnpj={handleLookupCnpj}
+            onBeforeNext={demoReadOnly ? undefined : validateEmpresa}
+            contentDisabled={demoReadOnly}
           />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => certificateInputRef.current?.click()}
-            disabled={isUploading}
-            className="self-start"
-          >
-            {isUploading ? (
-              <Loader size="sm" variant="button" className="mr-2" />
-            ) : (
-              <Upload className="mr-2 h-4 w-4" />
-            )}
-            Enviar certificado .pfx
-          </Button>
-        </CardContent>
-      </Card>
+        </FormStepCard>
 
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving && <Loader size="sm" variant="button" className="mr-2" />}
-          Salvar configuração
-        </Button>
-      </div>
+        <FormStepCard>
+          <EnderecoStep
+            form={form}
+            errors={errors}
+            setAddress={setAddress}
+            onCepBlur={handleCepBlur}
+            onBeforeNext={demoReadOnly ? undefined : validateEndereco}
+            contentDisabled={demoReadOnly}
+          />
+        </FormStepCard>
+
+        <FormStepCard>
+          <DocumentosStep
+            form={form}
+            errors={errors}
+            setField={setField}
+            hoje={hojeIso()}
+            dataRecebimentoBloqueada={dataRecebimentoBloqueada}
+            onBeforeNext={demoReadOnly ? undefined : validateDocumentos}
+            contentDisabled={demoReadOnly}
+          />
+        </FormStepCard>
+
+        <FormStepCard>
+          <CertificadoStep
+            form={form}
+            setField={setField}
+            certificadoArmazenado={settings?.certificadoArmazenado === true}
+            certificadoValidade={settings?.certificadoValidade}
+            isUploading={isUploading}
+            onUpload={(file) => void handleCertificateUpload(file)}
+            isSaving={isSaving}
+            onSave={handleSave}
+            submitDisabled={demoReadOnly}
+            contentDisabled={demoReadOnly}
+          />
+        </FormStepCard>
+      </StepWizard>
+
+      {/* `configured`, não `settings`: o GET nunca devolve null — devolve
+          `{ configured: false }` quando nada foi configurado. Testar só o
+          objeto mostraria "Desconectar" para quem nunca configurou nada, o que
+          é ruído e assusta antes da hora. */}
+      {settings?.configured && (
+        <div className="contents" inert={demoReadOnly || undefined}>
+          <Card className="border-destructive/40">
+            <CardHeader>
+              <CardTitle className="text-base">Desconectar emissão</CardTitle>
+              <CardDescription>
+                Para parar de emitir por aqui, ou trocar o CNPJ do emitente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-xl text-sm text-muted-foreground">
+                As notas já emitidas <strong>continuam</strong> disponíveis: elas
+                têm guarda legal de 5 anos e não somem com a desconexão.
+              </p>
+              <Button
+                variant="outline"
+                className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setConfirmDisconnect(true)}
+                disabled={isDisconnecting}
+              >
+                {isDisconnecting && (
+                  <Loader size="sm" variant="button" className="mr-2" />
+                )}
+                Desconectar
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <AlertDialog
+        open={confirmDisconnect}
+        onOpenChange={(open) => !isDisconnecting && setConfirmDisconnect(open)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desconectar a emissão de notas?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  A emissão para imediatamente. As notas já emitidas continuam
+                  aqui, com guarda legal de 5 anos.
+                </p>
+                {/* Estas duas são o que dói na volta, e ninguém adivinha: a
+                    senha do certificado é cifrada em KMS e não é recuperável, e
+                    numeração errada vira rejeição por duplicidade. */}
+                <p>Para reconectar depois, será preciso:</p>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>
+                    enviar o certificado <strong>.pfx</strong> de novo, com a
+                    senha, que não fica guardada em texto e não dá para
+                    recuperar;
+                  </li>
+                  <li>
+                    reinformar <strong>série e próximo número</strong>, e eles
+                    precisam continuar de onde pararam, senão o fisco recusa por
+                    duplicidade.
+                  </li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDisconnecting}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDisconnect();
+              }}
+              disabled={isDisconnecting}
+              className="bg-destructive hover:bg-destructive/90 gap-2"
+            >
+              {isDisconnecting && <Loader size="sm" variant="button" />}
+              Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

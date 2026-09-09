@@ -122,6 +122,10 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/transactions",
   "/wallets",
   "/crm",
+  // `/commissions` fica FORA de propósito, pelo mesmo motivo do fiscal: não há
+  // dado de demonstração (comissão nasce de proposta aprovada com parceiro), e
+  // a tela é `masterOnly` — uma conta free é MEMBER, então nem veria o item no
+  // menu. Incluir aqui só entregaria um relatório vazio.
 ];
 
 export function isFreeTierAllowedPath(path: string): boolean {

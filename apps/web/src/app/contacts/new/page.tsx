@@ -23,8 +23,10 @@ import {
   StepNavigation,
 } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
-import { User, Mail, MapPin, FileText, CheckCircle, Users, Building2, CreditCard } from "lucide-react";
+import { User, Mail, MapPin, FileText, CheckCircle, CreditCard } from "lucide-react";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
+import { ContactTypeSelector } from "../_components/contact-type-selector";
+import type { ClientType } from "@/services/client-service";
 import { formatDocumento } from "@/lib/format-document";
 
 
@@ -81,7 +83,8 @@ export default function NewCustomerPage() {
     address: "",
     notes: "",
     document: "",
-    types: ["cliente"] as ("cliente" | "fornecedor")[],
+    types: ["cliente"] as ClientType[],
+    commissionPercentage: null as number | null,
   });
 
   const handleChange = (
@@ -89,9 +92,13 @@ export default function NewCustomerPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing (exclude types since it's not in schema)
+    // Clear error when user starts typing. `types` e `commissionPercentage`
+    // ficam de fora: nenhum dos dois esta no schema de validacao, e ambos sao
+    // editados pelo ContactTypeSelector, nao por este handler de <input>.
     if (name !== "types" && errors[name as keyof typeof errors]) {
-      clearFieldError(name as Exclude<keyof typeof formData, "types">);
+      clearFieldError(
+        name as Exclude<keyof typeof formData, "types" | "commissionPercentage">,
+      );
     }
   };
 
@@ -110,7 +117,10 @@ export default function NewCustomerPage() {
     // Exclude types since it's not in schema
     if (name !== "types") {
       validateField(
-        name as Exclude<keyof typeof formData, "types">,
+        name as Exclude<
+          keyof typeof formData,
+          "types" | "commissionPercentage"
+        >,
         value,
         formData,
       );
@@ -161,6 +171,7 @@ export default function NewCustomerPage() {
         notes: formData.notes || undefined,
         document: formData.document ? formData.document.replace(/\D/g, "") : undefined,
         types: formData.types,
+        commissionPercentage: formData.commissionPercentage,
         source: "manual",
         targetTenantId: tenant?.id, // Ensure correct tenant for super admin
       });
@@ -175,14 +186,14 @@ export default function NewCustomerPage() {
 
   // Show loading while checking permissions OR while redirecting (no permission)
   if (permLoading || !canCreate) {
-    return <EntityLoadingState message="Carregando cliente..." />;
+    return <EntityLoadingState message="Carregando contato..." />;
   }
 
   return (
     <FormContainer>
       <FormHeader
-        title="Novo Cliente"
-        subtitle="Adicione um novo cliente à sua base de contatos"
+        title="Novo Contato"
+        subtitle="Cliente, fornecedor, vendedor ou arquiteto"
         icon={User}
         onBack={() => router.push("/contacts")}
       />
@@ -205,107 +216,16 @@ export default function NewCustomerPage() {
               </div>
             </div>
 
-            {/* Type selector - checkboxes for multi-selection */}
-            <FormItem
-              label="Tipo de Cadastro (selecione um ou ambos)"
-              htmlFor="types"
-              required
-            >
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData((prev) => {
-                      const hasType = prev.types.includes("cliente");
-                      const newTypes = hasType
-                        ? (prev.types.filter((t) => t !== "cliente") as (
-                            | "cliente"
-                            | "fornecedor"
-                          )[])
-                        : [...prev.types, "cliente" as const];
-                      // Ensure at least one type is always selected
-                      return {
-                        ...prev,
-                        types: newTypes.length > 0 ? newTypes : ["cliente"],
-                      };
-                    });
-                  }}
-                  className={`flex-1 flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                    formData.types.includes("cliente")
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      formData.types.includes("cliente")
-                        ? "bg-primary/10"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <Users
-                      className={`w-5 h-5 ${formData.types.includes("cliente") ? "text-primary" : "text-muted-foreground"}`}
-                    />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p
-                      className={`font-medium ${formData.types.includes("cliente") ? "text-primary" : ""}`}
-                    >
-                      Cliente
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Comprador de produtos/serviços
-                    </p>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormData((prev) => {
-                      const hasType = prev.types.includes("fornecedor");
-                      const newTypes = hasType
-                        ? (prev.types.filter((t) => t !== "fornecedor") as (
-                            | "cliente"
-                            | "fornecedor"
-                          )[])
-                        : [...prev.types, "fornecedor" as const];
-                      // Ensure at least one type is always selected
-                      return {
-                        ...prev,
-                        types: newTypes.length > 0 ? newTypes : ["fornecedor"],
-                      };
-                    });
-                  }}
-                  className={`flex-1 flex items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                    formData.types.includes("fornecedor")
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      formData.types.includes("fornecedor")
-                        ? "bg-primary/10"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <Building2
-                      className={`w-5 h-5 ${formData.types.includes("fornecedor") ? "text-primary" : "text-muted-foreground"}`}
-                    />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p
-                      className={`font-medium ${formData.types.includes("fornecedor") ? "text-primary" : ""}`}
-                    >
-                      Fornecedor
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Vendedor de produtos/serviços
-                    </p>
-                  </div>
-                </button>
-              </div>
-            </FormItem>
+            <ContactTypeSelector
+              types={formData.types}
+              onTypesChange={(types) =>
+                setFormData((prev) => ({ ...prev, types }))
+              }
+              commissionPercentage={formData.commissionPercentage}
+              onCommissionPercentageChange={(commissionPercentage) =>
+                setFormData((prev) => ({ ...prev, commissionPercentage }))
+              }
+            />
 
             <FormItem
               label="Nome Completo"

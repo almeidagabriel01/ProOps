@@ -23,7 +23,7 @@ Catálogo de produtos do tenant. Permite cadastrar, editar, excluir e visualizar
 | Rota lista | `src/app/products/page.tsx` | Listagem paginada, filtro por nome, cards de saldo de estoque |
 | Rota nova | `src/app/products/new/page.tsx` | Página de criação (guarda por `canCreate`) |
 | Rota edição | `src/app/products/[id]/page.tsx` | Carrega produto por ID e exibe formulário; read-only se `!canEdit` |
-| Formulário wizard | `_components/product-form-new.tsx` | StepWizard de 4 passos: info, preço, imagens, resumo |
+| Formulário wizard | `_components/product-form-new.tsx` | StepWizard de 5 passos: info, preço, imagens, dados fiscais, resumo |
 | Etapa de preço | `_components/product-pricing-step.tsx` | UI de seleção de modo de precificação (4 modos para cortinas) |
 | Célula de estoque | `_components/stock-editable-cell.tsx` | Célula inline editável na tabela; alias de `InventoryEditableCell` |
 | Skeleton lista | `_components/products-skeleton.tsx` | Skeleton full-page enquanto dados não chegam |
@@ -227,16 +227,25 @@ O wizard usa `StepWizard` + `StepNavigation` de `src/components/ui/`. Passos:
 | 1 | `info` | nome, categoria, fabricante (produto) |
 | 2 | `pricing` | preço > 0 (ou tiers válidos se `curtain_height`) |
 | 3 | `images` | nenhuma validação — opcional |
-| 4 | `settings` | submit final |
+| 4 | `fiscal` | nenhuma validação — opcional |
+| 5 | `settings` | submit final |
 
-O passo `settings` também carrega `CatalogFiscalFields`
-(`components/features/fiscal/catalog-fiscal-fields.tsx`) — NCM e origem para
-produto, código LC 116 / tributação nacional / alíquota ISS para serviço.
-A seção é **recolhida por padrão e nenhum campo é obrigatório**: campos fiscais
-são opcionais no cadastro e exigidos só na emissão, pelo gate
-`fiscal-readiness.ts`, que lista todas as lacunas de uma vez. Forçar a
-classificação no cadastro obrigaria a classificar o catálogo inteiro antes de
-usar o ERP.
+O passo `fiscal` é o `CatalogFiscalFields`
+(`components/features/fiscal/catalog-fiscal-fields.tsx`) com `variant="step"` —
+NCM e origem para produto, código LC 116 / tributação nacional / alíquota ISS
+para serviço. **Nenhum campo é obrigatório**: campos fiscais são opcionais no
+cadastro e exigidos só na emissão, pelo gate `fiscal-readiness.ts`, que lista
+todas as lacunas de uma vez. Forçar a classificação no cadastro obrigaria a
+classificar o catálogo inteiro antes de usar o ERP.
+
+> Até 2026-09-08 esses campos eram uma `FormSection` **recolhida** dentro do
+> passo `settings`, embaixo do resumo. Opcional não quer dizer escondido: fechada
+> no fim da última tela, a seção não era descoberta, e a falta só aparecia na
+> emissão da nota. `variant="step"` existe por isso — em passo próprio o bloco
+> não recolhe, senão esconderia o único conteúdo do passo.
+
+O `variant="section"` (padrão) segue valendo para formulário de coluna única —
+é o que `_components/product-form.tsx` usa.
 
 CFOP, CST/CSOSN e unidade comercial **não** ficam no item — são derivados da
 operação no backend (`natureza-operacao.ts`), porque a mesma cortina é 5102

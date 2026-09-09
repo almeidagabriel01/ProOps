@@ -53,6 +53,7 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   hasKanban: false,
   hasFiscal: false,
   hasCalendarSync: false,
+  hasDriveSync: false,
   hasWhatsApp: false,
   canCustomizeTheme: false,
   canEditPdfSections: false,
@@ -99,6 +100,7 @@ export interface PlanContextValue {
   hasFinancial: boolean;
   hasKanban: boolean;
   hasFiscal: boolean;
+  hasDriveSync: boolean;
   /**
    * Flag de TENANT (`whatsappEnabled`), não a claim comercial do plano. São
    * coisas diferentes com o mesmo nome: `features.hasWhatsApp` diz o que o
@@ -183,6 +185,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           hasKanban: true,
           hasFiscal: true,
           hasCalendarSync: true,
+          hasDriveSync: true,
           hasWhatsApp: true,
           canCustomizeTheme: true,
           canEditPdfSections: true,
@@ -202,7 +205,9 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         // demo existe para navegar módulos premium com escrita bloqueada, e o
         // fiscal não tem dado de demonstração — a tela de configuração pede
         // CNPJ e certificado A1, que não fazem sentido só-leitura. A coroa é o
-        // desfecho honesto ali, e ainda serve de upsell.
+        // desfecho honesto ali, e ainda serve de upsell. `hasDriveSync` fica
+        // de fora pelo mesmo motivo: a tela pede conta Google e uma pasta
+        // real, e não há o que demonstrar em somente-leitura.
         setBaseFeatures({
           ...FREE_PLAN_FEATURES,
           hasFinancial: true,
@@ -619,6 +624,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       hasFinancial: mergedFeatures?.hasFinancial ?? false,
       hasKanban: mergedFeatures?.hasKanban ?? false,
       hasFiscal: mergedFeatures?.hasFiscal ?? false,
+      hasDriveSync: mergedFeatures?.hasDriveSync ?? false,
       hasWhatsApp: featureFlags.whatsapp,
       canCustomizeTheme: mergedFeatures?.canCustomizeTheme ?? false,
       canEditPdfSections: mergedFeatures?.canEditPdfSections ?? false,

@@ -143,6 +143,23 @@ export const callApi = async <T = unknown>(
       } catch {
         errorData = { raw: text };
       }
+      // Um 408 traz as etapas que o servidor concluiu antes de estourar. Sem
+      // imprimir isso, a informacao morre no corpo da resposta e descobrir
+      // onde a operacao travou volta a depender de achar a linha certa no
+      // terminal do backend.
+      if (response.status === 408) {
+        // `console.error` e a mensagem serializada na PROPRIA string: um
+        // `warn` com objeto anexo pode ficar escondido pelo filtro do console
+        // ou colapsado, e foi assim que o diagnostico se perdeu na primeira
+        // vez. Aqui o custo de exagerar e zero e o de sumir e outra rodada.
+        const phases = errorData?.phases
+          ? JSON.stringify(errorData.phases)
+          : "(nenhuma etapa concluida: travou antes ou o backend e antigo)";
+        console.error(
+          `[timeout] ${method} ${path} | teto=${errorData?.timeoutMs ?? "?"}ms | etapas=${phases}`,
+        );
+      }
+
       throw new ApiError(
         response.status,
         errorData.message ||

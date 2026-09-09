@@ -12,18 +12,18 @@ export interface PasswordResetEmailContent {
 export function renderPasswordResetEmail(
   data: PasswordResetEmailData,
 ): PasswordResetEmailContent {
-  const subject = "Redefinir sua senha — ProOps";
+  const subject = "Redefinir sua senha na ProOps";
 
-  const text = `Redefinir senha — ProOps
+  const text = `Redefinir senha na ProOps
 
 Olá, recebemos uma solicitação para redefinir a senha da sua conta na ProOps.
 
 Para criar uma nova senha, abra o link abaixo no seu navegador:
 ${data.resetUrl}
 
-Este link expira em 1 hora. Se você não solicitou esta redefinição, ignore este email — sua senha continuará a mesma.
+Este link expira em 1 hora. Se você não solicitou esta redefinição, ignore este email, sua senha continuará a mesma.
 
-ProOps — Sistema ERP para gestão de serviços
+ProOps: sistema ERP para gestão de serviços
 gestao@proops.com.br
 `;
 
@@ -32,7 +32,7 @@ gestao@proops.com.br
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Redefinir sua senha — ProOps</title>
+  <title>Redefinir sua senha | ProOps</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">
@@ -70,7 +70,7 @@ gestao@proops.com.br
                 <a href="${escapeAttr(data.resetUrl)}" style="color:#3f3f46;text-decoration:underline;">${escapeHtml(data.resetUrl)}</a>
               </p>
               <p style="margin:0;font-size:13px;color:#71717a;line-height:1.6;">
-                Se você não solicitou esta redefinição, pode ignorar este email — sua senha continuará a mesma.
+                Se você não solicitou esta redefinição, pode ignorar este email, sua senha continuará a mesma.
               </p>
             </td>
           </tr>

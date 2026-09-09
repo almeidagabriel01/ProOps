@@ -80,6 +80,20 @@ export type Transaction = {
   parentTransactionId?: string; // ID of the transaction this was split from (or related to)
   extraCosts?: ExtraCost[]; // Inline extra costs that don't need their own transaction documents
   paidAt?: string; // Timestamp set when transaction is marked as paid
+  /**
+   * Despesa de comissão gerada pela aprovação da proposta (ver
+   * apps/functions/src/api/controllers/proposal-commissions.ts). Escrita SÓ
+   * pelo backend: os campos ficam fora de `UPDATABLE_TRANSACTION_FIELDS` de
+   * propósito, então um PUT do cliente não consegue marcar um lançamento
+   * qualquer como comissão.
+   */
+  isCommission?: boolean;
+  commissionContactId?: string;
+  commissionContactName?: string;
+  commissionRole?: "vendedor" | "arquiteto";
+  commissionPercentage?: number;
+  /** Qual receita esta parcela de comissão espelha. */
+  commissionSourceKey?: string;
 };
 
 export type UpdateFinancialEntryWithInstallmentsPayload = {
@@ -111,6 +125,39 @@ export type UpdateFinancialEntryWithInstallmentsPayload = {
   expectedUpdatedAt?: string | number;
   targetTenantId?: string;
   extraTransactionIds?: string[];
+};
+
+/**
+ * Espelho de CommissionReport em
+ * apps/functions/src/api/services/commission-report.service.ts.
+ */
+export type CommissionReportEntry = {
+  transactionId: string;
+  amount: number;
+  dueDate: string;
+  status: TransactionStatus;
+  proposalId: string | null;
+  description: string;
+  installmentNumber: number | null;
+  installmentCount: number | null;
+};
+
+export type CommissionReportPartner = {
+  contactId: string;
+  contactName: string;
+  role: "vendedor" | "arquiteto" | null;
+  aPagar: number;
+  pago: number;
+  total: number;
+  entries: CommissionReportEntry[];
+};
+
+export type CommissionReport = {
+  month: string;
+  aPagar: number;
+  pago: number;
+  total: number;
+  partners: CommissionReportPartner[];
 };
 
 const COLLECTION_NAME = "transactions";
@@ -815,6 +862,31 @@ export const TransactionService = {
       return response.summary;
     } catch (error) {
       console.error("Error getting summary:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Relatório mensal de comissões por parceiro. Agregado no backend: a tela
+   * nunca varre `transactions` para montar isto.
+   *
+   * `month` no formato YYYY-MM; vazio significa o mês corrente.
+   */
+  getCommissionReport: async (
+    tenantId: string,
+    month: string,
+  ): Promise<CommissionReport> => {
+    try {
+      const response = await callApi<{
+        success: boolean;
+        report: CommissionReport;
+      }>(
+        `v1/transactions/commissions?month=${encodeURIComponent(month)}&tenantId=${encodeURIComponent(tenantId)}`,
+        "GET",
+      );
+      return response.report;
+    } catch (error) {
+      console.error("Error getting commission report:", error);
       throw error;
     }
   },

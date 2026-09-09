@@ -63,7 +63,7 @@ export function useWalletCascadeJob({ jobId, onSettled }: UseWalletCascadeJobArg
           const message =
             parts.length > 0
               ? `Sincronização concluída: ${parts.join(" e ")} atualizado${transactionsUpdated + proposalsUpdated === 1 ? "" : "s"} com o novo nome.`
-              : "Nada para sincronizar — todas as referências já estavam atualizadas.";
+              : "Nada para sincronizar: todas as referências já estavam atualizadas.";
           toast.success(message);
           onSettled?.();
           unsubscribe();

@@ -8,6 +8,7 @@ import {
   FileSpreadsheet,
   Bot,
   ReceiptText,
+  Handshake,
   FileText,
   Home,
   CalendarDays,
@@ -85,6 +86,17 @@ export const menuItems: MenuItem[] = [
         label: "Lançamentos",
         href: "/transactions",
         pageId: "transactions",
+      },
+      {
+        icon: Handshake,
+        label: "Comissões",
+        href: "/commissions",
+        // Mesmo pageId de Lançamentos: as comissões SÃO lançamentos, e uma
+        // chave nova que a tela de Equipe não grave negaria todo mundo.
+        // `masterOnly` porque o valor que cada parceiro recebe não é dado para
+        // todo membro.
+        pageId: "transactions",
+        masterOnly: true,
       },
       {
         icon: FileText,

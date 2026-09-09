@@ -231,7 +231,7 @@ export function ShareLinkModal({
               <span>
                 {selectedDays !== null
                   ? `Expira em ${formatExpiryDate(selectedDays)}`
-                  : "Sem data de expiração — link permanente"}
+                  : "Sem data de expiração: link permanente"}
               </span>
             </div>
           </div>

@@ -171,6 +171,19 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  // Relatório de comissões. `masterOnly` porque quanto cada parceiro ganha não
+  // é dado para todo membro do time. Ressalva honesta: as despesas de comissão
+  // continuam visíveis em /transactions para quem tem permissão financeira —
+  // escondê-las de lá exigiria filtrar a lista, e é decisão à parte.
+  "/commissions": {
+    pageId: "transactions",
+    slug: "/commissions",
+    name: "Comissões",
+    module: "financial",
+    requiresAuth: true,
+    requiredPermission: "view",
+    masterOnly: true,
+  },
   // Alcançada pelo botão "Carteiras" dentro de /transactions, não pela dock —
   // o gate do botão está em transactions/page.tsx, este é o da URL direta.
   "/wallets": {

@@ -67,7 +67,7 @@ export function AIFieldButton({
       if (getPreviousValue) {
         setPending(true);
       } else {
-        toast.success("Sugestão preenchida — revise antes de salvar");
+        toast.success("Sugestão preenchida, revise antes de salvar");
       }
     } catch (err) {
       if (err instanceof AiApiError) {

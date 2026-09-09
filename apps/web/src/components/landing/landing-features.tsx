@@ -143,7 +143,7 @@ export function LandingFeatures() {
                 Tudo que você precisa para <Accent>operar</Accent>
               </>
             }
-            description="Os recursos que sustentam o dia a dia — do primeiro contato ao pós-venda — em uma base única e conectada."
+            description="Os recursos que sustentam o dia a dia, do primeiro contato ao pós-venda, em uma base única e conectada."
             className="features-heading"
           />
         </div>

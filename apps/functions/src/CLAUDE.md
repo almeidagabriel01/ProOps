@@ -19,6 +19,7 @@
 | `cleanupStorageAndSharedLinks` | Scheduled | Limpeza de arquivos e links expirados |
 | `reconcileAddons` | Scheduled | Reconciliacao de add-ons |
 | `processPayoutRetries` | Scheduled | Retries de payout (Asaas) |
+| `processDriveDeliveries` | Scheduled | Entrega as propostas pendentes no Google Drive (a cada 3 min; `cpu: 1`, `concurrency: 1`) — tira o Chromium da request de salvar |
 | `processInvoiceRetries` | Scheduled | Consulta notas fiscais pendentes (a cada 15 min) — backstop do webhook do Focus |
 | `checkFiscalCertificateExpiry` | Scheduled | Avisa vencimento do certificado A1 em D-30/15/7/1 e diariamente apos vencer |
 | `syncReceivedInvoices` | Scheduled | Busca notas de ENTRADA (de hora em hora), incremental por `versao` |
@@ -266,6 +267,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `whatsappRateLimit/{phone}` | WhatsApp | Rate limit por minuto/dia |
 | `whatsappUsage/{tenantId}/months/{YYYY-MM}` | WhatsApp | Uso mensal e overage |
 | `whatsappLogs` | WhatsApp | Audit trail de acoes do bot |
+| `drive_delivery_jobs/{tenantId}_{proposalId}` | Drive | Fila de entrega da proposta no Drive. Admin SDK only |
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |
@@ -303,6 +305,28 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 - `checkDueDates` faz upsert com `isRead: false` sempre — se o usuario marcou a notificacao como lida, ela volta como nao lida no dia seguinte (comportamento intencional: e um lembrete diario)
 
 ---
+
+## Saber QUE VERSAO o emulador esta rodando
+
+`GET /api/health` devolve `{ status, build }`, onde `build` e a data de
+modificacao do modulo que o processo carregou — nao a do arquivo em disco.
+
+```bash
+curl -s http://127.0.0.1:5001/erp-softcode/southamerica-east1/api/health
+```
+
+A distincao custou horas de investigacao: `lib/` recompilado e emulador
+reiniciado NAO provam que o runtime tem o codigo novo, e sem uma forma de
+perguntar "qual versao voce esta rodando?" a analise vira comparacao de sintoma
+com codigo-fonte, que produziu diagnosticos errados seguidos. Se o `build` for
+anterior a sua ultima compilacao, o que voce esta testando nao e o que voce
+escreveu.
+
+Companheiro dele: `npx tsx src/scripts/inspect-proposal-transactions.ts
+--title="<titulo>"` (ou `--proposal=<id>`) imprime os lancamentos que a proposta
+gerou com `isInstallment`, `installmentNumber`, `installmentCount` e o grupo —
+os campos que decidem como a tela monta o card. Serve para separar "gravou
+errado" de "a tela agrupa errado", que exigem correcoes opostas.
 
 ## Comandos de deploy
 

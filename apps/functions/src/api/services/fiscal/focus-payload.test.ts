@@ -116,6 +116,37 @@ describe("buildEmpresaPayload", () => {
     expect(payload.habilita_nfsen_homologacao).toBe(false);
   });
 
+  it("liga a recepcao nos DOIS ambientes", () => {
+    // O provedor separa recepcao de producao e de homologacao. Mandar so a de
+    // producao deixa um emitente em homologacao sem receber nada — e sem erro
+    // em lugar nenhum, que e como isso passaria despercebido.
+    const payload = buildEmpresaPayload({
+      ...issuer,
+      habilitaManifestacao: true,
+    });
+
+    expect(payload.habilita_manifestacao).toBe(true);
+    expect(payload.habilita_manifestacao_homologacao).toBe(true);
+  });
+
+  it("envia a data de inicio de recebimento quando ha uma", () => {
+    const payload = buildEmpresaPayload({
+      ...issuer,
+      habilitaManifestacao: true,
+      dataInicioRecebimento: "2026-09-04",
+    });
+
+    expect(payload.data_inicio_recebimento_nfe).toBe("2026-09-04");
+  });
+
+  it("OMITE a data quando nao ha uma — em branco nao e neutro", () => {
+    // Sem o campo o provedor recupera TODO o historico disponivel e cobra por
+    // nota. Mandar uma string vazia registraria essa escolha irreversivel.
+    const payload = buildEmpresaPayload({ ...issuer, habilitaManifestacao: true });
+
+    expect(payload).not.toHaveProperty("data_inicio_recebimento_nfe");
+  });
+
   it("omits optional fields left empty rather than sending blanks", () => {
     const payload = buildEmpresaPayload({
       ...issuer,
@@ -308,6 +339,46 @@ describe("buildNfsePayload", () => {
     expect(() => buildNfsePayload(serviceInput({ service: undefined }))).toThrow(
       "NFSE_SEM_SERVICO",
     );
+  });
+});
+
+describe("texto livre passa pelo saneamento do XSD", () => {
+  const comDescricao = (descricao: string) => {
+    const base = buildInput();
+    return buildNfePayload(
+      buildInput({ products: [{ ...base.products![0]!, descricao }] }),
+    );
+  };
+
+  it("limpa a descricao do item", () => {
+    // Nao e defeito exclusivo da carta de correcao: um produto batizado com
+    // travessao derrubaria a nota inteira, com a mesma mensagem ilegivel de
+    // schema citando o codepoint.
+    const items = comDescricao("Cortina Blackout — 2,40m").items as Array<
+      Record<string, unknown>
+    >;
+
+    expect(items[0].descricao).toBe("Cortina Blackout - 2,40m");
+  });
+
+  it("limpa o nome do destinatario", () => {
+    const payload = buildNfePayload(
+      buildInput({ recipient: { ...recipient, nome: "Casa D’Oeste Ltda" } }),
+    );
+
+    expect(payload.nome_destinatario).toBe("Casa D'Oeste Ltda");
+  });
+
+  it("nao mexe em acento nem em codigo", () => {
+    // Latin-1 passa no XSD; cortar acento trocaria a rejeicao por uma nota
+    // errada. E CFOP/unidade sao ASCII — o saneamento tem que ser no-op.
+    const items = comDescricao("Persiana de tecido acústico").items as Array<
+      Record<string, unknown>
+    >;
+
+    expect(items[0].descricao).toBe("Persiana de tecido acústico");
+    expect(items[0].cfop).toBe("5102");
+    expect(items[0].unidade_comercial).toBe("UN");
   });
 });
 

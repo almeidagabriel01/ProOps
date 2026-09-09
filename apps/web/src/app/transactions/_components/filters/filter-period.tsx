@@ -48,7 +48,7 @@ export function FilterPeriod({
         />
 
         <span className="hidden text-xs text-muted-foreground/60 shrink-0 select-none sm:inline">
-          —
+          até
         </span>
 
         <DatePicker

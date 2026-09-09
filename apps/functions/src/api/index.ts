@@ -26,6 +26,7 @@ import { recoveryCodesRoutes } from "./routes/recovery-codes.routes";
 import { kanbanRoutes } from "./routes/kanban.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
+import { drivePublicRoutes, driveRoutes } from "./routes/drive.routes";
 import { paymentPublicRoutes } from "./routes/payment-public.routes";
 import { asaasRoutes } from "./routes/asaas.routes";
 import { fiscalRoutes } from "./routes/fiscal.routes";
@@ -70,8 +71,28 @@ runSecretRotationGuard({ source: "api" });
 
 const DEFAULT_PROTECTED_TIMEOUT_MS = 20_000;
 const DEFAULT_PROTECTED_PDF_TIMEOUT_MS = 120_000;
+/**
+ * Escrita de proposta rende MAIS que os 20s do teto comum: sair do rascunho
+ * dispara a entrega no Google Drive, que renderiza o PDF com Chromium e sobe o
+ * arquivo dentro da propria request.
+ *
+ * Com o teto comum o middleware respondia 408 "Request timeout" enquanto o
+ * handler seguia trabalhando: a mudanca de status DAVA CERTO, o usuario via um
+ * erro, e so descobria ao recarregar a pagina. Errar para o lado de esperar e
+ * melhor que errar para o lado de mentir.
+ *
+ * Menor que o teto do proxy (80s, `mayRenderPdfInline` em
+ * `app/api/backend/[...path]/route.ts`) de proposito: assim quem responde e
+ * SEMPRE o backend, com mensagem propria, em vez de o cliente abortar a
+ * conexao e a resposta virar um erro generico de rede.
+ *
+ * A saida definitiva e tirar a entrega da request (Cloud Tasks,
+ * `.claude/rules/scaling-roadmap.md`, 4.2). Ate la, o teto reconhece o custo
+ * real em vez de fingir que ele nao existe.
+ */
+const DEFAULT_PROPOSAL_WRITE_TIMEOUT_MS = 60_000;
 
-function resolveProtectedRouteTimeoutMs(req: express.Request): number {
+export function resolveProtectedRouteTimeoutMs(req: express.Request): number {
   const originalPath = String(req.originalUrl || req.url || req.path || "")
     .split("?")[0]
     .trim();
@@ -83,6 +104,18 @@ function resolveProtectedRouteTimeoutMs(req: express.Request): number {
     return Number(
       process.env.PROTECTED_PDF_ROUTE_TIMEOUT_MS ||
         DEFAULT_PROTECTED_PDF_TIMEOUT_MS,
+    );
+  }
+
+  const method = String(req.method || "").toUpperCase();
+  const isProposalWrite =
+    (method === "PUT" || method === "POST") &&
+    /(?:^|\/)v1\/proposals(?:\/|$)/.test(originalPath);
+
+  if (isProposalWrite) {
+    return Number(
+      process.env.PROTECTED_PROPOSAL_WRITE_TIMEOUT_MS ||
+        DEFAULT_PROPOSAL_WRITE_TIMEOUT_MS,
     );
   }
 
@@ -348,12 +381,31 @@ app.use(
   },
 );
 
+/**
+ * Carimbo do build que o PROCESSO carregou, nao o que esta em disco.
+ *
+ * A distincao custou horas: `lib/` recompilado e emulador reiniciado nao
+ * garantem que o runtime tenha o codigo novo, e sem uma forma de perguntar
+ * "qual versao voce esta rodando?" a investigacao vira comparacao de sintomas
+ * contra o codigo-fonte, que foi o que produziu diagnosticos errados seguidos.
+ *
+ * Calculado uma vez, no load: e a data de modificacao do proprio modulo.
+ */
+const BUILD_STAMP = (() => {
+  try {
+    const { statSync } = require("node:fs") as typeof import("node:fs");
+    return statSync(__filename).mtime.toISOString();
+  } catch {
+    return "unknown";
+  }
+})();
+
 // Public routes (no authentication required)
 app.get(
   "/health",
   publicGeneralLimiter,
   (_req: express.Request, res: express.Response) => {
-    res.send("OK");
+    res.json({ status: "OK", build: BUILD_STAMP });
   },
 );
 
@@ -372,6 +424,7 @@ app.use(
   validationRoutes,
 );
 app.use("/v1", publicGeneralLimiter, calendarPublicRoutes);
+app.use("/v1", publicGeneralLimiter, drivePublicRoutes);
 
 // Public shared links
 app.use("/v1", publicShareLimiter, sharedProposalsRoutes);
@@ -413,7 +466,29 @@ app.use((req, res, next) => {
         source: "timeout",
       });
       logSecurityEvent("request_timeout", context, "WARN");
-      res.status(408).json({ message: "Request timeout" });
+      // Linha separada, e nao um campo em `SecurityLogContext`: aquele tipo
+      // alimenta contadores e auditoria, e `reason` precisa ser estavel para
+      // agrupar. Sem o orcamento aplicado, porem, um 408 nao distingue "a
+      // operacao demorou demais" de "esta rota caiu no teto errado", e as duas
+      // exigem acoes opostas.
+      //
+      // `phases` sao as etapas que o handler ja tinha concluido quando o tempo
+      // acabou (ver `recordPhase`). Vao no CORPO da resposta de proposito: um
+      // timeout e o momento em que os logs do servidor sao menos acessiveis a
+      // quem esta olhando a tela, e sem isso descobrir onde travou depende de
+      // alguem achar a linha certa num terminal.
+      const phases = (res.locals?.timings ?? {}) as Record<string, number>;
+      logger.warn("protected_route_timeout", {
+        method: req.method,
+        route: sanitizeLoggedPath(req.path),
+        timeoutMs,
+        phases,
+      });
+      res.status(408).json({
+        message: "Request timeout",
+        timeoutMs,
+        phases,
+      });
     }
   }, timeoutMs);
 
@@ -442,6 +517,7 @@ app.use("/v1/auth/recovery-codes", recoveryCodesRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/v1", kanbanRoutes);
 app.use("/v1", calendarRoutes);
+app.use("/v1", driveRoutes);
 app.use("/internal", internalRoutes);
 app.use("/v1/notifications", notificationsRoutes);
 app.use("/v1", asaasRoutes);

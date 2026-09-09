@@ -141,6 +141,57 @@ describe("requirePlanCapability", () => {
         }),
       );
     });
+
+    it("diz tambem qual plano o BACKEND resolveu", async () => {
+      // Sem isto, "plano insuficiente" e "dado desatualizado" produzem a mesma
+      // resposta — e as duas exigem acoes opostas. O caso real: a tela mostrava
+      // Enterprise (lido de `users/{uid}.planId`) e o gate resolvia outro tier
+      // (de `tenants/{id}.plan`), sem nada na resposta que revelasse a
+      // divergencia.
+      givenTenant("pro");
+      const ctx = buildReqRes();
+      await run("fiscal", ctx);
+      expect(ctx.json).toHaveBeenCalledWith(
+        expect.objectContaining({ currentPlan: "pro", requiredPlan: "enterprise" }),
+      );
+    });
+  });
+
+  describe("driveSync", () => {
+    /**
+     * O Drive nasce gateado — foi a falha do fiscal, do calendario e do Asaas,
+     * que existiram meses com a capacidade vivendo so no PlanProvider do
+     * frontend enquanto qualquer chamada HTTP direta passava.
+     */
+    it("bloqueia o Starter", async () => {
+      givenTenant("starter");
+      const ctx = buildReqRes();
+
+      await run("driveSync", ctx);
+
+      expect(ctx.next).not.toHaveBeenCalled();
+      expect(ctx.res.status).toHaveBeenCalledWith(402);
+    });
+
+    it("libera Pro e Enterprise — a mesma faixa do Google Agenda", async () => {
+      for (const tier of ["pro", "enterprise"] as const) {
+        givenTenant(tier);
+        const ctx = buildReqRes();
+
+        await run("driveSync", ctx);
+
+        expect(ctx.next).toHaveBeenCalled();
+      }
+    });
+
+    it("bloqueia a conta free", async () => {
+      givenTenant("free");
+      const ctx = buildReqRes();
+
+      await run("driveSync", ctx);
+
+      expect(ctx.res.status).toHaveBeenCalledWith(402);
+    });
   });
 
   describe("escapes", () => {

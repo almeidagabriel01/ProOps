@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { tryAutoIssue } from "../services/fiscal/invoice-issue.service";
+import { isStatusDeliverableToDrive } from "../services/drive/proposal-drive-sync.service";
+import { enqueueDriveDelivery } from "../services/drive/drive-delivery-queue";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
@@ -26,12 +28,18 @@ import {
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildSearchTokens } from "../../lib/search-tokens";
+import { logger, recordPhase } from "../../lib/logger";
+import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
 import {
   normalizeProposalTransactionTitle,
   resolveDefaultWalletNameForTenant,
   buildApprovedProposalTransactionDrafts,
   getProposalLinkedTransactionKey,
 } from "./proposals.helpers";
+import {
+  MAX_COMMISSIONS_PER_PROPOSAL,
+  sanitizeProposalCommissionsInput,
+} from "./proposal-commissions";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
@@ -74,9 +82,81 @@ const CreateProposalSchema = z.object({
   installmentsPaymentMethod: z.string().max(50).optional(),
   paymentMethod: z.string().max(50).optional(),
   closedValue: z.number().nullable().optional(),
+  // Comissoes — normalizadas por sanitizeProposalCommissionsInput. Declaradas
+  // aqui mesmo com o .passthrough() ligado: e o que impede um percentual
+  // absurdo de chegar ao calculo das despesas.
+  commissions: z.array(z.unknown()).max(MAX_COMMISSIONS_PER_PROPOSAL).optional(),
 }).passthrough();
 
 const UpdateProposalSchema = CreateProposalSchema.partial();
+
+/**
+ * Campos cuja edicao numa proposta APROVADA obriga a ressincronizar os
+ * lancamentos. Um campo que afete os lancamentos gerados e nao esteja aqui
+ * falha em silencio: a proposta salva, e o financeiro fica desatualizado sem
+ * erro em lugar nenhum.
+ *
+ * Foi o que aconteceu com `commissions` quando o modulo de comissao entrou:
+ * mudar so o percentual do arquiteto nao reescrevia despesa nenhuma.
+ * Guard: `proposals.approved-sync-fields.test.ts`.
+ */
+export const APPROVED_SYNC_FIELDS = new Set([
+  "title",
+  "clientId",
+  "clientName",
+  "totalValue",
+  // `closedValue` estava so na lista estrutural, que e um SUBCONJUNTO desta e
+  // por isso nunca era alcancado por ele sozinho. Latente enquanto o formulario
+  // manda o payload inteiro (o `totalValue` junto disparava o sync), mas uma
+  // chamada parcial a API mudaria o valor fechado sem mexer nos lancamentos.
+  // Passou a importar mais com a comissao, que calcula sobre este valor.
+  "closedValue",
+  "validUntil",
+  "downPaymentEnabled",
+  "downPaymentType",
+  "downPaymentPercentage",
+  "downPaymentValue",
+  "downPaymentWallet",
+  "downPaymentDueDate",
+  "installmentsEnabled",
+  "installmentsCount",
+  "installmentValue",
+  "installmentsWallet",
+  "firstInstallmentDate",
+  "products",
+  "discount",
+  "extraExpense",
+  "status",
+  "commissions",
+]);
+
+/**
+ * Subconjunto que muda VALOR ou CRONOGRAMA, e nao so rotulo. Fora daqui o sync
+ * roda em `metadataOnly`, que diante de pagamento parcial apenas atualiza a
+ * descricao em vez de recusar a operacao. Percentual de comissao muda valor,
+ * entao entra.
+ */
+export const STRUCTURAL_APPROVED_SYNC_FIELDS = new Set([
+  "totalValue",
+  "closedValue",
+  "validUntil",
+  "downPaymentEnabled",
+  "downPaymentType",
+  "downPaymentPercentage",
+  "downPaymentValue",
+  "downPaymentWallet",
+  "downPaymentDueDate",
+  "installmentsEnabled",
+  "installmentsCount",
+  "installmentValue",
+  "installmentsWallet",
+  "firstInstallmentDate",
+  "products",
+  "discount",
+  "extraExpense",
+  "status",
+  "commissions",
+]);
 
 const PROPOSALS_COLLECTION = "proposals";
 const TENANT_USAGE_COLLECTION = "tenant_usage";
@@ -627,15 +707,16 @@ async function syncApprovedProposalTransactions(params: {
     defaultWalletName,
     initialStatus,
   });
+  // A chave sai da MESMA funcao que le os docs ja gravados. Derivar aqui de
+  // novo faria uma comissao (que tambem tem installmentNumber) colidir com a
+  // parcela de receita de mesmo numero, e uma sobrescreveria a outra.
   const desiredByKey = new Map(
-    desiredDrafts.map((draft) => [
-      draft.isDownPayment
-        ? "down_payment"
-        : draft.isInstallment
-          ? `installment_${draft.installmentNumber || 0}`
-          : "single",
-      draft,
-    ]),
+    desiredDrafts.flatMap((draft) => {
+      const key = getProposalLinkedTransactionKey(
+        draft as unknown as Record<string, unknown>,
+      );
+      return key ? [[key, draft] as const] : [];
+    }),
   );
 
   const transactionsQuery = await db
@@ -677,6 +758,10 @@ async function syncApprovedProposalTransactions(params: {
     const batch = db.batch();
 
     transactionsQuery.docs.forEach((doc) => {
+      // Comissao fica de fora: a descricao dela nomeia o parceiro e o
+      // `clientId` dela APONTA para o parceiro, nao para o comprador.
+      // Reescrever aqui trocaria o destinatario da despesa em silencio.
+      if (doc.data().isCommission) return;
       batch.update(doc.ref, {
         description: title,
         clientId,
@@ -714,6 +799,14 @@ async function syncApprovedProposalTransactions(params: {
         "Nao e possivel remover ou reduzir parcelas/entradas ja pagas de uma proposta aprovada.",
       );
     }
+    // Apagar uma DESPESA paga em lote nao devolve o valor a carteira: o saldo
+    // ficaria errado em silencio, e so apareceria numa conciliacao semanas
+    // depois. Reverta o pagamento da comissao antes de mexer no percentual.
+    if (data.status === "paid" && data.isCommission) {
+      throw new Error(
+        "Nao e possivel remover uma comissao ja paga. Reverta o pagamento dela antes de alterar as comissoes da proposta.",
+      );
+    }
 
     batch.delete(doc.ref);
   }
@@ -721,13 +814,16 @@ async function syncApprovedProposalTransactions(params: {
   desiredByKey.forEach((draft, key) => {
     const existingDoc = existingByKey.get(key);
     if (!existingDoc) {
-      const status =
-        initialStatus ||
-        (key === "down_payment"
-          ? String(
-              existingByKey.get("installment_1")?.data().status || "pending",
-            )
-          : "pending");
+      // Comissao nasce sempre pendente, inclusive quando a receita nasce paga:
+      // ter recebido do cliente nao significa ter pago o parceiro.
+      const status = draft.isCommission
+        ? draft.status
+        : initialStatus ||
+          (key === "down_payment"
+            ? String(
+                existingByKey.get("installment_1")?.data().status || "pending",
+              )
+            : "pending");
 
       batch.set(db.collection("transactions").doc(), {
         ...draft,
@@ -744,13 +840,28 @@ async function syncApprovedProposalTransactions(params: {
     const nextAmount = Number(draft.amount || 0);
     const previousAmount = Number(existingData.amount || 0);
 
+    const amountOrWalletChanged =
+      previousAmount !== nextAmount || previousWallet !== nextWallet;
+
     if (
       existingData.status === "paid" &&
       existingData.type === "income" &&
-      (previousAmount !== nextAmount || previousWallet !== nextWallet)
+      amountOrWalletChanged
     ) {
       registerAdjustment(previousWallet, -previousAmount);
       registerAdjustment(nextWallet, nextAmount);
+    }
+
+    // Mesma razao do guard de exclusao: mexer no valor de uma despesa ja paga
+    // por este caminho nao compensa o saldo da carteira.
+    if (
+      existingData.status === "paid" &&
+      existingData.isCommission &&
+      amountOrWalletChanged
+    ) {
+      throw new Error(
+        "Nao e possivel alterar uma comissao ja paga. Reverta o pagamento dela antes de alterar as comissoes da proposta.",
+      );
     }
 
     const updatePayload = {
@@ -771,6 +882,15 @@ async function syncApprovedProposalTransactions(params: {
       installmentNumber: draft.installmentNumber,
       installmentGroupId: draft.installmentGroupId,
       notes: draft.notes,
+      // Campos de comissao: sem eles, mudar o percentual reescreveria o valor
+      // e deixaria `commissionPercentage` mostrando o numero antigo.
+      category: draft.category ?? null,
+      isCommission: draft.isCommission ?? false,
+      commissionContactId: draft.commissionContactId ?? null,
+      commissionContactName: draft.commissionContactName ?? null,
+      commissionRole: draft.commissionRole ?? null,
+      commissionPercentage: draft.commissionPercentage ?? null,
+      commissionSourceKey: draft.commissionSourceKey ?? null,
       updatedAt: now,
     };
 
@@ -1115,6 +1235,8 @@ export const createProposal = async (req: Request, res: Response) => {
           firstInstallmentDate: input.firstInstallmentDate || null,
           installmentsPaymentMethod: input.installmentsPaymentMethod || null,
           paymentMethod: input.paymentMethod || null,
+          // Comissoes de vendedor/arquiteto (informacao interna, fora do PDF)
+          commissions: sanitizeProposalCommissionsInput(input.commissions),
           // PDF display settings (which elements to show/hide in PDF)
           pdfSettings: input.pdfSettings || null,
           // Attachments
@@ -1230,6 +1352,7 @@ export const createProposal = async (req: Request, res: Response) => {
 };
 
 export const updateProposal = async (req: Request, res: Response) => {
+  const requestStartedAt = Date.now();
   try {
     const userId = req.user!.uid;
     const { id } = req.params;
@@ -1321,6 +1444,40 @@ export const updateProposal = async (req: Request, res: Response) => {
           )
         : [];
 
+    // Marca a entrada no handler. Sem isto nao da para distinguir "o handler
+    // nem comecou" (auth, assinatura, rate limit) de "travou la dentro".
+    logger.info("proposal_update_start", {
+      proposalId: id,
+      untilHandlerMs: Date.now() - requestStartedAt,
+    });
+
+    // Cronometra as etapas caras, logando CADA UMA assim que termina.
+    //
+    // Logar so um resumo no fim era inutil justamente no caso que interessa: se
+    // a request estoura o timeout, o fim nunca chega e o terminal fica mudo,
+    // sem dizer onde travou. Com uma linha por etapa, o rastro que ja saiu
+    // mostra ate onde foi.
+    const timings: Record<string, number> = {};
+    const timed = async <T>(label: string, run: () => Promise<T>): Promise<T> => {
+      const startedAt = Date.now();
+      try {
+        return await run();
+      } finally {
+        timings[label] = Date.now() - startedAt;
+        // Vai para o log E para `res.locals`, que e o que sobrevive a um
+        // timeout: o resumo final nunca chega quando a request estoura.
+        recordPhase(res, "proposal_update_phase", {
+          proposalId: id,
+          phase: label,
+          ms: timings[label],
+          sinceStartMs: Date.now() - requestStartedAt,
+        });
+      }
+    };
+
+    // Contado de volta para a tela: sem isso o aviso de "vai para o Drive"
+    // apareceria tambem para quem nao usa a integracao, prometendo algo que
+    // nunca acontece.
     const safeUpdate: Record<string, unknown> = { updatedAt: Timestamp.now() };
     const fields = [
       "title",
@@ -1359,6 +1516,8 @@ export const updateProposal = async (req: Request, res: Response) => {
       "firstInstallmentDate",
       "installmentsPaymentMethod",
       "paymentMethod",
+      // Comissoes
+      "commissions",
       // Attachments
       "attachments",
     ];
@@ -1371,6 +1530,10 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
       if (f === "products") {
         safeUpdate[f] = sanitizedProducts || [];
+        return;
+      }
+      if (f === "commissions") {
+        safeUpdate[f] = sanitizeProposalCommissionsInput(updateData[f]);
         return;
       }
       safeUpdate[f] = updateData[f];
@@ -1422,7 +1585,7 @@ export const updateProposal = async (req: Request, res: Response) => {
           : Math.max(0, computedTotal);
     }
 
-    await proposalRef.update(safeUpdate);
+    await timed("proposalWriteMs", () => proposalRef.update(safeUpdate));
 
     if (removedAttachmentPaths.length > 0) {
       await deleteStorageObjectsBestEffort(removedAttachmentPaths, {
@@ -1451,57 +1614,15 @@ export const updateProposal = async (req: Request, res: Response) => {
     const isAlreadyApproved =
       isCurrentlyApproved &&
       (updateData.status === undefined || willBeApproved);
-    const approvedSyncFields = new Set([
-      "title",
-      "clientId",
-      "clientName",
-      "totalValue",
-      "validUntil",
-      "downPaymentEnabled",
-      "downPaymentType",
-      "downPaymentPercentage",
-      "downPaymentValue",
-      "downPaymentWallet",
-      "downPaymentDueDate",
-      "installmentsEnabled",
-      "installmentsCount",
-      "installmentValue",
-      "installmentsWallet",
-      "firstInstallmentDate",
-      "products",
-      "discount",
-      "extraExpense",
-      "status",
-    ]);
     const shouldSyncApprovedTransactions =
       (isAlreadyApproved || isBeingApproved) &&
       Object.keys(updateData || {}).some((field) =>
-        approvedSyncFields.has(field),
+        APPROVED_SYNC_FIELDS.has(field),
       );
-    const structuralApprovedSyncFields = new Set([
-      "totalValue",
-      "closedValue",
-      "validUntil",
-      "downPaymentEnabled",
-      "downPaymentType",
-      "downPaymentPercentage",
-      "downPaymentValue",
-      "downPaymentWallet",
-      "downPaymentDueDate",
-      "installmentsEnabled",
-      "installmentsCount",
-      "installmentValue",
-      "installmentsWallet",
-      "firstInstallmentDate",
-      "products",
-      "discount",
-      "extraExpense",
-      "status",
-    ]);
     const approvedSyncIsMetadataOnly =
       shouldSyncApprovedTransactions &&
       !Object.keys(updateData || {}).some((field) =>
-        structuralApprovedSyncFields.has(field),
+        STRUCTURAL_APPROVED_SYNC_FIELDS.has(field),
       );
 
     if (false && isAlreadyApproved) {
@@ -1827,23 +1948,94 @@ export const updateProposal = async (req: Request, res: Response) => {
       await cleanupProposalTransactions(id, proposalData?.tenantId || tenantId);
     }
 
+    // Lancamentos ANTES da entrega no Drive. Os dois sao awaited, mas o Drive
+    // pode gastar dezenas de segundos gerando o PDF (Chromium) e subindo o
+    // arquivo. Com ele na frente, uma request que estoure o timeout do cliente
+    // deixava a proposta aprovada e o financeiro vazio ate alguem recarregar a
+    // pagina; agora o dinheiro ja esta gravado quando a parte lenta comeca.
+    //
+    // O erro do sync e guardado em vez de lancado na hora: ele precisa chegar
+    // ao cliente (e o que avisa sobre comissao paga, por exemplo), mas nao
+    // pode cancelar uma entrega de PDF que nada tem a ver com ele.
+    let driveDeliveryQueued = false;
+    let approvedSyncError: unknown = null;
     if (shouldSyncApprovedTransactions) {
-      await syncApprovedProposalTransactions({
-        proposalId: id,
-        proposalTenantId,
-        proposalData: {
-          ...proposalData,
-          ...safeUpdate,
-        } as Record<string, unknown>,
-        userId,
-        initialStatus: isBeingApproved
-          ? updateData.initialPaymentStatus || "pending"
-          : undefined,
-        metadataOnly: approvedSyncIsMetadataOnly,
-      });
+      try {
+        await timed("approvedSyncMs", () =>
+          syncApprovedProposalTransactions({
+            proposalId: id,
+            proposalTenantId,
+            proposalData: {
+              ...proposalData,
+              ...safeUpdate,
+            } as Record<string, unknown>,
+            userId,
+            initialStatus: isBeingApproved
+              ? updateData.initialPaymentStatus || "pending"
+              : undefined,
+            metadataOnly: approvedSyncIsMetadataOnly,
+          }),
+        );
+      } catch (error) {
+        approvedSyncError = error;
+      }
     }
 
-    return res.json({ success: true, message: "Proposta atualizada." });
+    // Entrega no Google Drive: acontece ao a proposta SAIR do rascunho, e nao
+    // a cada geracao do PDF — o PDF e gerado sob demanda, e subir em cada
+    // geracao encheria a pasta do cliente de rascunho. `await` de proposito:
+    // no Cloud Run a CPU so fica alocada durante a request, entao dispare-e-
+    // esqueca aqui perderia o upload em silencio.
+    //
+    // "SAIR do rascunho" e uma TRANSICAO, e ate agora o codigo olhava so o
+    // destino: o formulario manda `status` em todo salvamento, entao editar uma
+    // proposta ja aprovada reentregava o arquivo — e, quando o PDF nao estava
+    // em cache, pagava um Chromium inteiro dentro da request do usuario. Agora
+    // so entrega quando ha motivo: a proposta acabou de ficar entregavel, o
+    // conteudo que vai NO PDF mudou, ou nunca houve entrega bem-sucedida.
+    if (updateData.status !== undefined) {
+      const nextStatus = String(updateData.status);
+      const [podeEntregar, jaEraEntregavel] = await Promise.all([
+        isStatusDeliverableToDrive(nextStatus, proposalTenantId),
+        isStatusDeliverableToDrive(
+          proposalData?.status as string | undefined,
+          proposalTenantId,
+        ),
+      ]);
+
+      const conteudoDoPdfMudou = Object.keys(safeUpdate).some(
+        (field) => !PDF_IRRELEVANT_PROPOSAL_FIELDS.has(field),
+      );
+      const nuncaEntregue = !proposalData?.driveFileId;
+
+      const deveEntregar =
+        podeEntregar &&
+        (!jaEraEntregavel || conteudoDoPdfMudou || nuncaEntregue);
+
+      if (deveEntregar) {
+        // Enfileira e responde. A entrega em si (Chromium + upload) roda no
+        // cron `processDriveDeliveries`; ver `drive-delivery-queue.ts`.
+        await timed("driveEnqueueMs", () =>
+          enqueueDriveDelivery({ tenantId: proposalTenantId, proposalId: id }),
+        );
+        driveDeliveryQueued = true;
+      }
+    }
+
+    logger.info("proposal_update_done", {
+      tenantId: proposalTenantId,
+      proposalId: id,
+      totalMs: Date.now() - requestStartedAt,
+      ...timings,
+    });
+
+    if (approvedSyncError) throw approvedSyncError;
+
+    return res.json({
+      success: true,
+      message: "Proposta atualizada.",
+      driveDeliveryQueued,
+    });
   } catch (error: unknown) {
     const err = error as Error;
     return res.status(500).json({ message: err.message });

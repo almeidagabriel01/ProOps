@@ -39,6 +39,7 @@ import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import { Spinner } from "@/components/ui/spinner";
+import { DRIVE_DELIVERY_PENDING_HINT } from "@/lib/proposal-payment";
 import { toast } from "@/lib/toast";
 import { isDemoReadOnlyError } from "@/lib/api-client";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
@@ -668,7 +669,9 @@ export default function ProposalsPage() {
 
       setUpdatingStatusId(proposalId);
       try {
-        await ProposalService.updateProposal(proposalId, { status: newStatus });
+        const result = await ProposalService.updateProposal(proposalId, {
+          status: newStatus,
+        });
         setProposals((prev) =>
           prev.map((p) =>
             p.id === proposalId ? { ...p, status: newStatus } : p,
@@ -678,6 +681,11 @@ export default function ProposalsPage() {
           `Status da proposta ${proposalLabel} alterado para "${getStatusLabel(newStatus).toLocaleLowerCase("pt-BR")}".`,
           { title: "Sucesso ao editar" },
         );
+        // A entrega no Drive saiu da request e roda num cron: sem o aviso,
+        // quem aprova e vai direto na pasta do cliente acha que falhou.
+        if (result?.driveDeliveryQueued) {
+          toast.info(DRIVE_DELIVERY_PENDING_HINT);
+        }
         // O convite em si só depois do sucesso: sugerir faturar uma mudança de
         // status que falhou seria pior que não sugerir.
         if (pendingPreview) {

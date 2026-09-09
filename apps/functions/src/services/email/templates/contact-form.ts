@@ -8,14 +8,14 @@ export interface ContactFormEmailData {
 }
 
 export function renderContactFormEmail(data: ContactFormEmailData): { subject: string; html: string } {
-  const subject = `[ProOps] Novo contato: ${data.name} — ${data.company}`;
+  const subject = `[ProOps] Novo contato: ${data.name} (${data.company})`;
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Novo contato via formulário — ProOps</title>
+  <title>Novo contato via formulário | ProOps</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f5;padding:40px 0;">
