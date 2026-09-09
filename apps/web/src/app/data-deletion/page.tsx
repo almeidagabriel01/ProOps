@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+
+import { canonicalLegal } from "@/lib/site/host-seo";
 import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata: Metadata = {
   title: "Exclusão de Dados | ProOps",
   description:
     "Saiba como solicitar a exclusão dos seus dados pessoais na ProOps e o que acontece após a solicitação.",
+  alternates: { canonical: canonicalLegal("/data-deletion") },
 };
 
 export default function DataDeletionPage() {

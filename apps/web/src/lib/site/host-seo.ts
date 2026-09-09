@@ -114,6 +114,20 @@ export function origemDe(surface: Surface): string {
   return surface === APEX_SURFACE ? APEX_URL : SITE_URLS[surface];
 }
 
+/**
+ * Canonical of a legal page: the apex, always.
+ *
+ * A thin name over `canonicalFor` because the call site should not have to pass
+ * a surface it does not have and that would not change the answer. These four
+ * pages had NO canonical of their own, so they inherited the root layout's
+ * `alternates: { canonical: "/" }` and each declared itself a copy of the home
+ * page — verified rendered, not inferred. That is wrong on one host already,
+ * and on three it also triplicates them.
+ */
+export function canonicalLegal(path: string): string {
+  return canonicalFor(APEX_SURFACE, path);
+}
+
 /** Paths no crawler should follow, on any host. */
 const NUNCA_INDEXAR = [
   "/api/",

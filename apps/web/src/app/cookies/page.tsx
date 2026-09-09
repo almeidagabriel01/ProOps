@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+
+import { canonicalLegal } from "@/lib/site/host-seo";
 import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata: Metadata = {
   title: "Política de Cookies | ProOps",
   description:
     "Saiba quais cookies a ProOps utiliza, para quais finalidades e como você pode gerenciá-los.",
+  alternates: { canonical: canonicalLegal("/cookies") },
 };
 
 export default function CookiesPage() {
@@ -26,9 +29,9 @@ export default function CookiesPage() {
               </p>
               <p>
                 Além de cookies, utilizamos tecnologias semelhantes de
-                armazenamento local (como <code>localStorage</code>) para guardar
-                preferências de uso. Nesta política, tratamos todas essas
-                tecnologias de forma conjunta.
+                armazenamento local (como <code>localStorage</code>) para
+                guardar preferências de uso. Nesta política, tratamos todas
+                essas tecnologias de forma conjunta.
               </p>
             </>
           ),
@@ -38,20 +41,20 @@ export default function CookiesPage() {
           content: (
             <>
               <p>
-                São essenciais para o funcionamento da plataforma e não podem ser
-                desativados em nossos sistemas. Em geral, são definidos apenas em
-                resposta a ações feitas por você, como autenticação e segurança da
-                sessão.
+                São essenciais para o funcionamento da plataforma e não podem
+                ser desativados em nossos sistemas. Em geral, são definidos
+                apenas em resposta a ações feitas por você, como autenticação e
+                segurança da sessão.
               </p>
               <p>
                 <strong>__session</strong>: cookie de autenticação do Firebase.
-                Mantém sua sessão ativa de forma segura (httpOnly), com validade de
-                até 5 dias.
+                Mantém sua sessão ativa de forma segura (httpOnly), com validade
+                de até 5 dias.
               </p>
               <p>
                 <strong>firebase-auth-token</strong>: cookie de compatibilidade
-                utilizado apenas em ambientes de desenvolvimento como fallback de
-                autenticação.
+                utilizado apenas em ambientes de desenvolvimento como fallback
+                de autenticação.
               </p>
             </>
           ),
@@ -86,8 +89,8 @@ export default function CookiesPage() {
                 Utilizamos o armazenamento local do navegador para guardar
                 preferências que tornam o uso mais conveniente, como filtros de
                 visualização, tema (claro/escuro) e o registro de que você já
-                visualizou este aviso de cookies. Esses dados permanecem apenas no
-                seu dispositivo.
+                visualizou este aviso de cookies. Esses dados permanecem apenas
+                no seu dispositivo.
               </p>
             </>
           ),
@@ -98,8 +101,8 @@ export default function CookiesPage() {
             <>
               <p>
                 Você pode controlar e excluir cookies a qualquer momento pelas
-                configurações do seu navegador. A maioria dos navegadores permite
-                bloquear cookies ou ser avisado antes de armazená-los.
+                configurações do seu navegador. A maioria dos navegadores
+                permite bloquear cookies ou ser avisado antes de armazená-los.
               </p>
               <p>
                 Observe que, ao desativar os cookies estritamente necessários,
@@ -107,9 +110,9 @@ export default function CookiesPage() {
                 podem deixar de funcionar corretamente.
               </p>
               <p>
-                Consulte as instruções do seu navegador (Chrome, Firefox, Safari,
-                Edge, entre outros) para saber como gerenciar as preferências de
-                cookies.
+                Consulte as instruções do seu navegador (Chrome, Firefox,
+                Safari, Edge, entre outros) para saber como gerenciar as
+                preferências de cookies.
               </p>
             </>
           ),
@@ -132,8 +135,8 @@ export default function CookiesPage() {
           content: (
             <>
               <p>
-                Para dúvidas sobre esta Política de Cookies ou sobre o tratamento
-                dos seus dados pessoais, entre em contato pelo e-mail{" "}
+                Para dúvidas sobre esta Política de Cookies ou sobre o
+                tratamento dos seus dados pessoais, entre em contato pelo e-mail{" "}
                 <a
                   href="mailto:gestao@proops.com.br"
                   className="text-primary hover:underline"

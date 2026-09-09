@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+
+import { canonicalLegal } from "@/lib/site/host-seo";
 import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata: Metadata = {
   title: "Termos de Serviço | ProOps",
   description:
     "Termos de Serviço da ProOps para uso da plataforma, módulos, integrações e funcionalidades operacionais.",
+  alternates: { canonical: canonicalLegal("/terms") },
 };
 
 export default function TermsPage() {
