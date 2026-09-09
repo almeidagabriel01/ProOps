@@ -21,10 +21,23 @@ import { ErrorReporterInstaller } from "@/components/observability/error-reporte
 // with a modern browser User-Agent and download the woff2 whose unicode-range
 // covers U+0000-00FF (latin).
 
+// Geist / Geist Mono: declared, but NOTHING reads these variables.
+//
+// The body applies `.variable` (not `.className`), so neither family is ever
+// set as a font-family; globals.css declares no `--font-sans`/`--font-mono`,
+// so Tailwind's `font-sans` and `font-mono` utilities resolve to Tailwind's
+// own default stacks; and `grep -r geist apps/*/src` finds nothing outside
+// this file. They were preloading 52KB on EVERY route in the product without
+// rendering a glyph.
+//
+// preload:false rather than deletion: the @font-face survives, so anything
+// that ever reads the variable still works, but no <link rel="preload"> is
+// emitted and the file is never fetched while nothing references it.
 const geistSans = localFont({
   src: "./fonts/geist-variable.woff2",
   variable: "--font-geist-sans",
   display: "swap",
+  preload: false,
   weight: "100 900",
 });
 
@@ -32,6 +45,7 @@ const geistMono = localFont({
   src: "./fonts/geist-mono-variable.woff2",
   variable: "--font-geist-mono",
   display: "swap",
+  preload: false,
   weight: "100 900",
 });
 

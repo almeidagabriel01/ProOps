@@ -25,8 +25,11 @@ export const metadata: Metadata = {
 export default function AplicativoPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
-      <p className="text-sm text-black/50 dark:text-white/50">
-        Página do {APP_NAME}, em construção.
+      <p className="[font-family:var(--font-hanken)] text-2xl font-semibold tracking-tight text-black dark:text-white">
+        {APP_NAME},{" "}
+        <span className="[font-family:var(--font-jetbrains-mono)] font-medium">
+          em construção
+        </span>
       </p>
     </div>
   );

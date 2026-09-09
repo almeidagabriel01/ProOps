@@ -25,8 +25,11 @@ export const metadata: Metadata = {
 export default function InstitucionalPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-6">
-      <p className="text-sm text-black/50 dark:text-white/50">
-        Página institucional da ProOps, em construção.
+      <p className="[font-family:var(--font-bricolage)] text-2xl font-semibold tracking-tight text-black dark:text-white">
+        ProOps,{" "}
+        <em className="[font-family:var(--font-fraunces)] font-normal italic">
+          em construção
+        </em>
       </p>
     </div>
   );
