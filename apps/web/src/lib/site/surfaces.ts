@@ -28,6 +28,26 @@ export const SITE_URLS: Record<Surface, string> = {
 };
 
 /**
+ * The host label of each subdomain surface, DERIVED from `SITE_URLS`.
+ *
+ * This is what makes renaming a subdomain a one-line change. The surface name
+ * ("app") identifies the PRODUCT inside the codebase; the label identifies the
+ * HOST out on the internet, and the two only look alike by coincidence today.
+ * Reading the label off the URL keeps them from being welded together: pointing
+ * the app landing at `personal.proops.com.br` becomes an edit to `SITE_URLS`
+ * and nothing else, with no `label === "app"` left behind in a matcher to go
+ * stale silently.
+ *
+ * The apex is deliberately absent: it is whatever is NOT one of these.
+ */
+const ROTULOS_DE_SUBDOMINIO: ReadonlyArray<readonly [string, Surface]> = (
+  ["erp", "app"] as const
+).map((surface) => [
+  new URL(SITE_URLS[surface]).hostname.split(".")[0],
+  surface,
+]);
+
+/**
  * The apex domain itself, as a domain and not as a surface.
  *
  * Same string as `SITE_URLS.institucional` today, and deliberately a separate
@@ -37,6 +57,16 @@ export const SITE_URLS: Record<Surface, string> = {
  * move hosts when `APEX_SURFACE` changes.
  */
 export const APEX_URL = "https://proops.com.br";
+
+/**
+ * Hostnames of the subdomain surfaces, for anything that needs the bare host.
+ *
+ * `next.config.ts` uses it for `allowedDevOrigins`, and the ERP landing shows
+ * one of them as text inside a browser chrome mock.
+ */
+export function hostnameDe(surface: Surface): string {
+  return new URL(SITE_URLS[surface]).hostname;
+}
 
 /** Internal route subtree that backs each non-ERP surface. */
 export const INSTITUCIONAL_ROOT = "/institucional";
@@ -73,10 +103,9 @@ export function resolveSurface(host: string | null | undefined): Surface {
   if (!host) return APEX_SURFACE;
 
   const label = normalizeHost(host).split(".")[0];
+  const casado = ROTULOS_DE_SUBDOMINIO.find(([rotulo]) => rotulo === label);
 
-  if (label === "app") return "app";
-  if (label === "erp") return "erp";
-  return APEX_SURFACE;
+  return casado ? casado[1] : APEX_SURFACE;
 }
 
 /**
@@ -109,7 +138,7 @@ export function normalizeHost(host: string): string {
 export function isNewSubdomainHost(host: string | null | undefined): boolean {
   if (!host) return false;
   const label = normalizeHost(host).split(".")[0];
-  return label === "app" || label === "erp";
+  return ROTULOS_DE_SUBDOMINIO.some(([rotulo]) => rotulo === label);
 }
 
 /**

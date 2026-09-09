@@ -1,5 +1,6 @@
 import path from "path";
 import type { NextConfig } from "next";
+import { hostnameDe } from "./src/lib/site/surfaces";
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 const scriptSrc = isDevelopment
@@ -37,10 +38,14 @@ const nextConfig: NextConfig = {
   // `*.localhost` resolves to 127.0.0.1 in Chromium with no hosts-file edit,
   // which is how the three host surfaces (apex / erp / app) are exercised in
   // dev and in Playwright. Without them listed, Next 16 rejects the origin.
+  // Derivados de SITE_URLS: renomear um subdominio nao pode deixar para tras um
+  // `*.localhost` desatualizado aqui, porque a falha e o Next recusando a
+  // origem em dev, sem relacao aparente com a renomeacao.
   allowedDevOrigins: [
     "127.0.0.1",
-    "erp.localhost",
-    "app.localhost",
+    ...(["erp", "app"] as const).map(
+      (surface) => `${hostnameDe(surface).split(".")[0]}.localhost`,
+    ),
     "institucional.localhost",
   ],
   // O servidor de teste do Playwright compila num diretório próprio para não
