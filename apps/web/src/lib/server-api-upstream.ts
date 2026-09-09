@@ -11,8 +11,22 @@ const LOCAL_UPSTREAM = `http://127.0.0.1:5001/${DEV_PROJECT_ID}/${FUNCTIONS_REGI
 const LOCAL_TEST_UPSTREAM = `http://127.0.0.1:5001/${TEST_PROJECT_ID}/${FUNCTIONS_REGION}/api`;
 const DEV_UPSTREAM = `https://${FUNCTIONS_REGION}-${DEV_PROJECT_ID}.cloudfunctions.net/api`;
 const PROD_UPSTREAM = `https://${FUNCTIONS_REGION}-${PROD_PROJECT_ID}.cloudfunctions.net/api`;
-const PRODUCTION_HOSTS = new Set(["proops.com.br", "www.proops.com.br"]);
-const ALLOWED_UPSTREAMS = new Set([LOCAL_UPSTREAM, LOCAL_TEST_UPSTREAM, DEV_UPSTREAM, PROD_UPSTREAM]);
+// Every hostname that must be served by the PRODUCTION Firebase project.
+// `erp.proops.com.br` is here because the ERP moves to that subdomain: the
+// fallback at the bottom of resolveUpstreamForHost points at the DEV project,
+// so a production host missing from this set would silently write real
+// customer data into `erp-softcode` with no error anywhere.
+const PRODUCTION_HOSTS = new Set([
+  "proops.com.br",
+  "www.proops.com.br",
+  "erp.proops.com.br",
+]);
+const ALLOWED_UPSTREAMS = new Set([
+  LOCAL_UPSTREAM,
+  LOCAL_TEST_UPSTREAM,
+  DEV_UPSTREAM,
+  PROD_UPSTREAM,
+]);
 
 export type UpstreamTarget = {
   baseUrl: string;
@@ -20,7 +34,9 @@ export type UpstreamTarget = {
 };
 
 function normalizeUrl(value: string): string {
-  return String(value || "").trim().replace(/\/+$/, "");
+  return String(value || "")
+    .trim()
+    .replace(/\/+$/, "");
 }
 
 function getValidatedOverride(
@@ -53,12 +69,30 @@ function getHostFromRequest(req: NextRequest): string {
 export function resolveUpstreamForHost(host: string | null): UpstreamTarget {
   const isLocalHost = host === "localhost" || host === "127.0.0.1";
   if (isLocalHost) {
-    return { baseUrl: getValidatedOverride(process.env.FUNCTIONS_LOCAL_API_URL, LOCAL_UPSTREAM), target: "local" };
+    return {
+      baseUrl: getValidatedOverride(
+        process.env.FUNCTIONS_LOCAL_API_URL,
+        LOCAL_UPSTREAM,
+      ),
+      target: "local",
+    };
   }
   if (host && PRODUCTION_HOSTS.has(host)) {
-    return { baseUrl: getValidatedOverride(process.env.FUNCTIONS_PROD_API_URL, PROD_UPSTREAM), target: "prod" };
+    return {
+      baseUrl: getValidatedOverride(
+        process.env.FUNCTIONS_PROD_API_URL,
+        PROD_UPSTREAM,
+      ),
+      target: "prod",
+    };
   }
-  return { baseUrl: getValidatedOverride(process.env.FUNCTIONS_DEV_API_URL, DEV_UPSTREAM), target: "dev" };
+  return {
+    baseUrl: getValidatedOverride(
+      process.env.FUNCTIONS_DEV_API_URL,
+      DEV_UPSTREAM,
+    ),
+    target: "dev",
+  };
 }
 
 export function resolveFunctionsApiUpstream(req: NextRequest): UpstreamTarget {

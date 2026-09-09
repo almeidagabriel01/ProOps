@@ -23,12 +23,16 @@ describe("derivePdfUpstream", () => {
       derivePdfUpstream(
         "https://southamerica-east1-erp-softcode-prod.cloudfunctions.net/api",
       ),
-    ).toBe("https://southamerica-east1-erp-softcode-prod.cloudfunctions.net/pdf");
+    ).toBe(
+      "https://southamerica-east1-erp-softcode-prod.cloudfunctions.net/pdf",
+    );
   });
 
   it("derives the pdf function URL from the local emulator base", () => {
     expect(
-      derivePdfUpstream("http://127.0.0.1:5001/erp-softcode/southamerica-east1/api"),
+      derivePdfUpstream(
+        "http://127.0.0.1:5001/erp-softcode/southamerica-east1/api",
+      ),
     ).toBe("http://127.0.0.1:5001/erp-softcode/southamerica-east1/pdf");
   });
 
@@ -41,5 +45,23 @@ describe("derivePdfUpstream", () => {
   it("composes with resolveUpstreamForHost for production hosts", () => {
     const { baseUrl } = resolveUpstreamForHost("proops.com.br");
     expect(derivePdfUpstream(baseUrl)).toMatch(/\/pdf$/);
+  });
+
+  // Regression guard for the multi-host split: the ERP moves to a subdomain,
+  // and an unlisted production host falls through to the DEV project instead
+  // of failing, which would point real traffic at `erp-softcode` in silence.
+  it.each(["proops.com.br", "www.proops.com.br", "erp.proops.com.br"])(
+    "resolves %s to the production upstream",
+    (host) => {
+      expect(resolveUpstreamForHost(host)).toMatchObject({ target: "prod" });
+    },
+  );
+
+  it("still sends unknown hosts to dev (previews, staging)", () => {
+    expect(
+      resolveUpstreamForHost("proops-web-git-feat.vercel.app"),
+    ).toMatchObject({
+      target: "dev",
+    });
   });
 });
