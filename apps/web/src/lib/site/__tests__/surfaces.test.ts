@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  APEX_STILL_SERVES_ERP,
   APEX_SURFACE,
   APP_ROOT,
   INSTITUCIONAL_ROOT,
+  isNewSubdomainHost,
+  normalizeHost,
   resolveRewritePath,
   resolveSurface,
+  shouldNoIndexHost,
 } from "../surfaces";
 
 describe("resolveSurface", () => {
@@ -72,5 +76,53 @@ describe("resolveRewritePath", () => {
   it("does not re-enter the subtree it just rewrote into", () => {
     expect(resolveRewritePath("app", APP_ROOT)).toBeNull();
     expect(resolveRewritePath("institucional", INSTITUCIONAL_ROOT)).toBeNull();
+  });
+});
+
+describe("indexabilidade por host", () => {
+  /**
+   * O caso que motivou `isNewSubdomainHost`.
+   *
+   * `resolveSurface` mapeia o apex E `erp.proops.com.br` para a superfície
+   * "erp", corretamente: os dois renderizam a mesma coisa hoje. Só que a
+   * pergunta "estes dois são a mesma página em dois endereços?" não pode ser
+   * feita à superfície, porque a resposta dela é "é a mesma superfície", que é
+   * justamente o contrário do que se quer saber. Enquanto ela era feita assim,
+   * a duplicata ficava indexável.
+   */
+  it("reconhece os subdomínios novos, inclusive o que compartilha superfície com o apex", () => {
+    expect(isNewSubdomainHost("erp.proops.com.br")).toBe(true);
+    expect(isNewSubdomainHost("app.proops.com.br")).toBe(true);
+    expect(isNewSubdomainHost("proops.com.br")).toBe(false);
+    expect(isNewSubdomainHost("www.proops.com.br")).toBe(false);
+    expect(isNewSubdomainHost("proops-git-branch.vercel.app")).toBe(false);
+    expect(isNewSubdomainHost(null)).toBe(false);
+  });
+
+  it("normaliza porta, cadeia encaminhada e colchetes de IPv6", () => {
+    expect(isNewSubdomainHost("erp.localhost:3000")).toBe(true);
+    expect(isNewSubdomainHost("  APP.ProOps.com.BR  ")).toBe(true);
+    expect(isNewSubdomainHost("app.proops.com.br, vercel.internal")).toBe(true);
+    expect(normalizeHost("erp.proops.com.br:8443")).toBe("erp.proops.com.br");
+  });
+
+  /**
+   * Host IPv6 não é desmontado de verdade: `\]$` só casa colchete no FIM da
+   * string, e o `split(":")` seguinte corta o endereço inteiro, então o
+   * resultado é vazio. Fica registrado porque o desfecho é o certo por acidente
+   * e alguém pode "consertar" a normalização sem perceber: label vazio não é
+   * "app" nem "erp", então a requisição cai no apex, que é o padrão seguro.
+   */
+  it("degrada um host IPv6 para o apex, em vez de adivinhar", () => {
+    expect(normalizeHost("[::1]:3000")).toBe("");
+    expect(resolveSurface("[::1]:3000")).toBe(APEX_SURFACE);
+    expect(isNewSubdomainHost("[::1]:3000")).toBe(false);
+  });
+
+  it("mantém os dois subdomínios fora do índice enquanto o apex serve o ERP", () => {
+    expect(APEX_STILL_SERVES_ERP).toBe(true);
+    expect(shouldNoIndexHost("erp.proops.com.br")).toBe(true);
+    expect(shouldNoIndexHost("app.proops.com.br")).toBe(true);
+    expect(shouldNoIndexHost("proops.com.br")).toBe(false);
   });
 });

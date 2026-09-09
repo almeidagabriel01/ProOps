@@ -27,6 +27,17 @@ export const SITE_URLS: Record<Surface, string> = {
   app: "https://app.proops.com.br",
 };
 
+/**
+ * The apex domain itself, as a domain and not as a surface.
+ *
+ * Same string as `SITE_URLS.institucional` today, and deliberately a separate
+ * name: which SURFACE the apex serves flips at the cutover, but the apex is the
+ * apex before and after. Anything that must stay put across the flip (the
+ * canonical of the legal pages, chiefly) anchors here, so it does not silently
+ * move hosts when `APEX_SURFACE` changes.
+ */
+export const APEX_URL = "https://proops.com.br";
+
 /** Internal route subtree that backs each non-ERP surface. */
 export const INSTITUCIONAL_ROOT = "/institucional";
 export const APP_ROOT = "/aplicativo";
@@ -61,20 +72,56 @@ export const APEX_STILL_SERVES_ERP = APEX_SURFACE === "erp";
 export function resolveSurface(host: string | null | undefined): Surface {
   if (!host) return APEX_SURFACE;
 
-  // `x-forwarded-host` can arrive as a comma-separated chain; the first entry
-  // is the client-facing host. Then strip IPv6 brackets and the port before
-  // looking at labels.
-  const hostname = host
+  const label = normalizeHost(host).split(".")[0];
+
+  if (label === "app") return "app";
+  if (label === "erp") return "erp";
+  return APEX_SURFACE;
+}
+
+/**
+ * A `Host` header reduced to a bare hostname.
+ *
+ * `x-forwarded-host` can arrive as a comma-separated chain, and the first entry
+ * is the client-facing host. Then IPv6 brackets and the port come off.
+ */
+export function normalizeHost(host: string): string {
+  return host
     .split(",")[0]
     .trim()
     .toLowerCase()
     .replace(/^\[|\]$/g, "")
     .split(":")[0];
-  const label = hostname.split(".")[0];
+}
 
-  if (label === "app") return "app";
-  if (label === "erp") return "erp";
-  return APEX_SURFACE;
+/**
+ * True for a request arriving on one of the NEW subdomains, as opposed to the
+ * apex, a preview URL or localhost.
+ *
+ * Separate from `resolveSurface` on purpose, and the distinction is not
+ * cosmetic. While the apex still serves the ERP, `resolveSurface` maps BOTH
+ * `proops.com.br` and `erp.proops.com.br` to the surface "erp" — correctly, as
+ * they render the same thing. But that makes surface useless for deciding
+ * indexability, which is exactly the question "are these two the same page at
+ * two addresses?". Asking it of the surface answered "no" for
+ * `erp.proops.com.br` and left the duplicate crawlable.
+ */
+export function isNewSubdomainHost(host: string | null | undefined): boolean {
+  if (!host) return false;
+  const label = normalizeHost(host).split(".")[0];
+  return label === "app" || label === "erp";
+}
+
+/**
+ * Whether a host must be kept out of the search index.
+ *
+ * Until the cutover the two subdomains duplicate content that already lives on
+ * the apex, so they answer `noindex` and their `robots.txt` disallows
+ * everything. After the flip each host has content of its own and all three are
+ * indexable.
+ */
+export function shouldNoIndexHost(host: string | null | undefined): boolean {
+  return APEX_STILL_SERVES_ERP && isNewSubdomainHost(host);
 }
 
 /**

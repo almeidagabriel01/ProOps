@@ -43,6 +43,19 @@ describe("proxy host routing", () => {
       expect(resp.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
     });
 
+    /**
+     * O guard do defeito: a decisão era tomada por SUPERFÍCIE, e
+     * `erp.proops.com.br` resolve para a mesma do apex ("erp"), então a
+     * duplicata mais literal que existe escapava do noindex. Este host não
+     * passa por rewrite (o ERP serve a árvore de rotas como ela é), então o
+     * cabeçalho tem que sair pelo caminho de rota pública.
+     */
+    it("marks erp.proops.com.br noindex too, though it shares the apex surface", async () => {
+      const resp = await proxy(request("erp.proops.com.br", "/"));
+      expect(isRewrite(resp)).toBe(false);
+      expect(resp.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    });
+
     it("leaves the apex root alone until the cutover", async () => {
       // APEX_SURFACE is still "erp", so proops.com.br must behave exactly as
       // it does today. This is the guard that the phase is additive.

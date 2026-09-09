@@ -28,9 +28,9 @@ import {
   shouldSkipRoute,
 } from "@/lib/auth/route-access";
 import {
-  APEX_STILL_SERVES_ERP,
   resolveRewritePath,
   resolveSurface,
+  shouldNoIndexHost,
 } from "@/lib/site/surfaces";
 
 // Route classification (public / billing-exempt / skip) lives in the pure,
@@ -63,14 +63,20 @@ export async function proxy(request: NextRequest) {
   }
 
   // Which of the three ProOps sites is this? See @/lib/site/surfaces.
-  const surface = resolveSurface(
-    request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
-  );
+  const host =
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const surface = resolveSurface(host);
 
-  // While the apex still serves the ERP, erp.proops.com.br is a byte-for-byte
-  // duplicate of proops.com.br. Keep the new hosts out of the index until the
+  // While the apex still serves the ERP, both new subdomains duplicate content
+  // that already lives on proops.com.br. Keep them out of the index until the
   // cutover, otherwise Google picks a canonical between them for us.
-  const transitionalNoIndex = APEX_STILL_SERVES_ERP && surface !== "erp";
+  //
+  // The question is about the HOST, not the surface, and the difference is not
+  // pedantic: `erp.proops.com.br` resolves to the same surface as the apex
+  // ("erp"), correctly, because they render the same thing. Comparing surfaces
+  // therefore answered "not a duplicate" for the one host that is the most
+  // literal duplicate there is, and left it crawlable.
+  const transitionalNoIndex = shouldNoIndexHost(host);
 
   const rewriteTo = resolveRewritePath(surface, pathname);
   if (rewriteTo) {
