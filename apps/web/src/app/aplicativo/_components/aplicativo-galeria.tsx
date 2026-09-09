@@ -40,7 +40,7 @@ interface Tela {
 const TELAS: Tela[] = [
   {
     nome: "Hoje",
-    descricao: "Sobra projetada, vencimentos e o que a IA capturou",
+    descricao: "Sobra projetada e pendências do dia",
     plataforma: "ios",
     imagem: "/mockup-ios/hoje.jpg",
   },
@@ -52,7 +52,7 @@ const TELAS: Tela[] = [
   },
   {
     nome: "Lançamentos",
-    descricao: "Busca, filtros e a origem de cada linha",
+    descricao: "Busca, filtros e a origem de cada um",
     plataforma: "ios",
     imagem: "/mockup-ios/financeiro2.jpg",
   },
@@ -70,7 +70,7 @@ const TELAS: Tela[] = [
   },
   {
     nome: "Perfil",
-    descricao: "WhatsApp conectado e a cota de IA por canal",
+    descricao: "WhatsApp e a cota de IA por canal",
     plataforma: "ios",
     imagem: "/mockup-ios/perfil.jpg",
   },
@@ -86,6 +86,13 @@ export function AplicativoGaleria() {
 
     const distance = () => Math.max(track.scrollWidth - window.innerWidth, 0);
 
+    // How much page scroll the pan is spread over. The track is only about
+    // four hundred pixels wider than a big monitor, and mapping that one to one
+    // would flick through six screens in a third of a flick of the wheel.
+    // Stretching it makes the section hold the visitor for roughly a viewport
+    // and a half, and the screens drift rather than snap.
+    const SCROLL_STRETCH = 2.4;
+
     gsap.to(track, {
       x: () => -distance(),
       ease: "none",
@@ -93,11 +100,11 @@ export function AplicativoGaleria() {
         trigger: sectionRef.current,
         start: "top top",
         // Six screens at a readable size can already fit a wide monitor.
-        // Deriving the pin length from the real distance means the section
-        // simply does not steal scroll when there is nothing to pan.
-        end: () => `+=${Math.max(distance(), 1)}`,
+        // Deriving the length from the real distance means the section still
+        // does not steal scroll when there is genuinely nothing to pan.
+        end: () => `+=${Math.max(Math.round(distance() * SCROLL_STRETCH), 1)}`,
         pin: true,
-        scrub: 0.6,
+        scrub: 0.8,
         invalidateOnRefresh: true,
       },
     });
@@ -135,7 +142,7 @@ export function AplicativoGaleria() {
 
           <ul
             ref={trackRef}
-            className="landing-scrollbar mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-8 md:mt-10 md:w-max md:snap-none md:overflow-visible md:px-10 md:pb-0"
+            className="landing-scrollbar mt-10 flex snap-x snap-mandatory gap-5 md:gap-8 overflow-x-auto px-6 pb-8 md:mt-10 md:w-max md:snap-none md:overflow-visible md:px-10 md:pb-0"
           >
             {TELAS.map((tela, index) => (
               <li

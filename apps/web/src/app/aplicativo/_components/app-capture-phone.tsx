@@ -36,10 +36,12 @@ export function AppCapturePhone() {
       const mm = gsap.matchMedia();
       mm.add(SCENE_ANY_WIDTH, () => {
         const tl = gsap.timeline({ defaults: { ease: "expo.out" }, delay: 1 });
+        // The scrim carries the same class, so it fades in with the card
+        // instead of dimming the screen before there is anything to dim.
         tl.fromTo(
           ".capture-card",
-          { yPercent: 40, opacity: 0, scale: 0.96 },
-          { yPercent: 0, opacity: 1, scale: 1, duration: 0.85 },
+          { yPercent: 18, opacity: 0 },
+          { yPercent: 0, opacity: 1, duration: 0.85 },
         )
           .fromTo(
             ".capture-quote",
@@ -75,6 +77,18 @@ export function AppCapturePhone() {
           sizes="(min-width: 1024px) 22rem, (min-width: 640px) 60vw, 80vw"
           priority
           className="object-cover"
+        />
+
+        {/* A scrim under the card, stopping just short of the tab bar.
+            Without it the card lands squarely on top of another card and reads
+            as a rendering fault; with the list dissolving underneath, the same
+            overlap reads as a sheet rising over the screen, which is what the
+            platform does and what the app itself does. It fades UP so the
+            content nearest the card disappears and the content further away
+            stays legible. */}
+        <div
+          aria-hidden="true"
+          className="capture-card pointer-events-none absolute inset-x-0 bottom-[10%] h-[34%] bg-gradient-to-t from-[var(--app-bg)] via-[var(--app-bg)]/92 to-transparent"
         />
 
         {/* Sits above the tab bar, which occupies roughly the bottom tenth of
