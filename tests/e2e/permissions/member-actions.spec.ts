@@ -25,15 +25,20 @@ test.describe("PERM-05: financeiro — o que o master concedeu vale", () => {
     ).toBeVisible({ timeout: 20000 });
   });
 
-  test("com wallet.canView, o botão Carteiras aparece", async ({
+  test("com wallet.canView, o seletor oferece Carteiras", async ({
     memberOperador: page,
   }) => {
     await page.goto("/transactions");
     await expect(page).toHaveURL(/\/transactions/, { timeout: 15000 });
 
-    // Este botão não tinha gate NENHUM — nem de plano, nem de permissão.
+    // O caminho mudou de lugar: era um botão solto dentro de /transactions, com
+    // gate próprio, e agora é uma visão do grupo Financeiro, gated pelo mesmo
+    // filterChildren que decide a dock. A afirmação continua a mesma: quem tem
+    // wallet.canView alcança carteiras a partir dos lançamentos.
     await expect(
-      page.getByRole("link", { name: /Carteiras/i }).first(),
+      page
+        .getByRole("group", { name: "Visões de Financeiro" })
+        .getByRole("button", { name: /Carteiras/ }),
     ).toBeVisible({ timeout: 20000 });
   });
 
