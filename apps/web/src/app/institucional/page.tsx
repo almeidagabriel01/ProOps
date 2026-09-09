@@ -8,7 +8,9 @@ import type { Metadata } from "next";
  * @/lib/site/surfaces for the host policy.
  */
 export const metadata: Metadata = {
-  title: "ProOps",
+  // `absolute` escapes the root layout template (`%s | ProOps`), which would
+  // otherwise render this page as "ProOps | ProOps".
+  title: { absolute: "ProOps: software de gestão para quem vende projeto" },
   description:
     "A ProOps constrói software de gestão para quem vende projeto: um ERP para a operação da empresa e um aplicativo para a vida financeira de cada pessoa.",
   alternates: { canonical: "https://proops.com.br/" },
