@@ -312,7 +312,7 @@ export function ProposalNumberingCard({
 
       <CardContent className="pt-0">
         <Button onClick={() => void salvar()} disabled={isSaving}>
-          {isSaving && <Loader className="w-4 h-4 mr-2" />}
+          {isSaving && <Loader size="sm" variant="button" className="mr-2" />}
           Salvar
         </Button>
       </CardContent>

@@ -63,7 +63,14 @@ espera é anunciada por leitor de tela em vez de ser um ícone mudo.
 herdar `currentColor`. É por isso que ele também serve ao adorno de campo, onde
 a cor vem de um `text-muted-foreground` do call site.
 
-Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer.
+**O tamanho sai só de `size`.** O `Loader` aplica largura e altura por `style`
+inline, que vence classe do Tailwind: `className="w-4 h-4"` não encolhe nada, e
+o spinner sai no `md` (32px) enquanto quem escreveu acha que ajustou. Foi assim
+que o botão "Salvar" da numeração de propostas nasceu com um spinner do dobro
+da altura do texto. `className` serve para margem e cor, não para tamanho.
+
+Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer
+ou se algum `<Loader>` tentar se dimensionar por classe.
 
 ## Data
 
