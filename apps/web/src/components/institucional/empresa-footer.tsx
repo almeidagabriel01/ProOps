@@ -8,7 +8,7 @@ import {
 } from "@/components/landing/_shared/whatsapp";
 import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
 import { Marquee } from "@/components/marketing/_shared/marquee";
-import { SITE_URLS } from "@/lib/site/surfaces";
+import { institucionalHomeUrl, SITE_URLS } from "@/lib/site/surfaces";
 
 import { EMPRESA_LINKS } from "./nav-links";
 
@@ -46,7 +46,11 @@ export function EmpresaFooter() {
           {/* O PNG da marca é 1600x1600; uma caixa não quadrada faria o
               object-contain encolher o símbolo até a altura dela. O SVG branco é
               o que serve sobre o quase-preto desta página. */}
-          <div className="flex items-center gap-2.5">
+          <CurtainLink
+            href={institucionalHomeUrl()}
+            aria-label="ProOps, página inicial"
+            className="flex items-center gap-2.5"
+          >
             <Image
               src="/logo/logo2-cropped.svg"
               alt=""
@@ -58,7 +62,7 @@ export function EmpresaFooter() {
             <span className="[font-family:var(--font-bricolage)] text-[17px] font-bold tracking-tight text-white">
               ProOps
             </span>
-          </div>
+          </CurtainLink>
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/50">
             Software de gestão para quem vende projeto, e para a pessoa por trás
             dele.

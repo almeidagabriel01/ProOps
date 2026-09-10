@@ -7,6 +7,7 @@ import {
   APEX_SURFACE,
   apexRedirectPara,
   erpHomeUrlPara,
+  institucionalHomeUrlPara,
   resolveApexRedirect,
   APP_ROOT,
   INSTITUCIONAL_ROOT,
@@ -276,6 +277,45 @@ describe("caminhos internos das superfícies", () => {
  * a que ela pertence. É a mesma decisão que `shouldNoIndexHost` já toma pelos
  * subdomínios enquanto eles são duplicata.
  */
+/**
+ * O link de "home" do site da empresa.
+ *
+ * Espelho de `erpHomeUrl`, e existe pelo mesmo motivo lido ao contrário: hoje a
+ * raiz do site da empresa é `/institucional`, e só depois da virada é `/`.
+ * Escrito como `/` cru, o wordmark da navbar leva de `/sobre` direto para a
+ * landing do ERP, que é outro site, e parece link quebrado em vez de
+ * configuração que ainda não virou.
+ */
+describe("institucionalHomeUrlPara", () => {
+  it("hoje aponta para o caminho interno, porque o apex ainda serve o ERP", () => {
+    expect(APEX_STILL_SERVES_ERP).toBe(true);
+    expect(institucionalHomeUrlPara(true)).toBe(INSTITUCIONAL_ROOT);
+  });
+
+  it("depois da virada aponta para a raiz", () => {
+    expect(institucionalHomeUrlPara(false)).toBe("/");
+  });
+
+  /**
+   * Relativo nos dois estados: o apex serve o site da empresa de qualquer jeito,
+   * e uma URL absoluta forçaria recarregamento da página, jogando fora a
+   * transição de cortina que é o ponto da navegação interna.
+   */
+  it("é relativo nos dois estados", () => {
+    for (const estado of [true, false]) {
+      expect(institucionalHomeUrlPara(estado).startsWith("/")).toBe(true);
+    }
+  });
+
+  it("é o espelho de erpHomeUrlPara, e nunca os dois ao mesmo tempo", () => {
+    // Os dois apontando para "/" significaria dois sites reivindicando a raiz.
+    for (const estado of [true, false]) {
+      const raizes = [erpHomeUrlPara(estado), institucionalHomeUrlPara(estado)];
+      expect(raizes.filter((r) => r === "/").length).toBe(1);
+    }
+  });
+});
+
 describe("shouldNoIndexPath", () => {
   it("fecha as páginas da empresa enquanto o apex serve o ERP", () => {
     expect(APEX_STILL_SERVES_ERP).toBe(true);

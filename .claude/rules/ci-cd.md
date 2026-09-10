@@ -88,29 +88,32 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   deferred (`requestIdleCallback`, commit `550a9bbd`).
 - Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
 - Report artifact: `lighthouse-report-<run>` (from `lhci-report/`).
-- **O site da empresa tem teto de TBT próprio: 1200ms, não 800.** Vale para
-  `/institucional`, `/sobre` e `/produtos`: são a mesma casca, o mesmo kit de cenas e,
-  portanto, o mesmo custo. Medido num Pixel 5 com 4× de CPU e slow-3G, mediana de 3,
-  usando `/decoracao` (682ms) como calibração por já passar no teto genérico: a
-  institucional ficava entre **642 e 785** conforme a execução. No teto de 800 sobrariam
-  menos de 20ms sobre a pior medição, e este job tem histórico de falhar por variância do
-  runner quando a folga é curta. O custo é das cenas dirigidas por scroll, **não** dos
-  providers: tirar Auth/Tenant/Permissions/Plan da árvore
-  (`SESSIONLESS_MARKETING_ROUTES`) derrubou `/aplicativo` de ~485 para **308** e não moveu
-  a institucional. `/aplicativo` por isso NÃO tem exceção, e não deve ganhar uma.
-  O WebGL do site da empresa não conta aqui: ele entra por `next/dynamic` atrás de
+- **`/institucional` tem teto de TBT próprio: 1200ms, não 800.** Medido num Pixel 5 com
+  4× de CPU e slow-3G, usando `/decoracao` como calibração por já passar no teto
+  genérico. Histórico: com as cinco cenas antigas ela ficava entre **642 e 785**; com as
+  dez cenas atuais deu **821** (medição de 2026-09-10, `/decoracao` em 637 na mesma
+  rodada). No teto de 800 sobrariam menos de 20ms sobre a pior medição, e este job tem
+  histórico de falhar por variância do runner quando a folga é curta; em 1200 sobram
+  ~380ms. O custo é das cenas dirigidas por scroll, **não** dos providers: tirar
+  Auth/Tenant/Permissions/Plan da árvore (`SESSIONLESS_MARKETING_ROUTES`) derrubou
+  `/aplicativo` de ~485 para **308** e não moveu a institucional.
+  O WebGL do site da empresa não entra nessa conta: ele vem por `next/dynamic` atrás de
   `(min-width: 1024px) and (pointer: fine)`, e o Lighthouse mede num viewport de 412px,
   então o módulo nunca é importado na corrida que decide o gate.
-- **Só duas das cinco sub-páginas entram no Lighthouse.** Cada URL custa 3 corridas reais
-  sob slow-3G com 4× de CPU, o passo do lhci já leva ~14 min e o job tem timeout de 32.
-  `/sobre` e `/produtos` são as mais pesadas (contadores scrubados, faixa de pessoas,
-  ledger e o pin horizontal), então uma regressão no kit aparece nelas primeiro.
-- **O padrão genérico usa lookahead negativo**
-  (`http://[^/]+/(?!(institucional|sobre|produtos)$).+`) e isso é obrigatório: o
-  `assertMatrix` aplica TODA entrada cujo padrão casa, então sem ele essas páginas
-  continuariam presas nos 800 e a entrada própria seria inútil. **Ao acrescentar uma
-  página ao teto de 1200, acrescente-a nos DOIS padrões**, senão o genérico vence por cima
-  e a mudança não faz nada.
+- **`/sobre` e `/produtos` entram na coleta mas NÃO ganham a exceção**, e isso foi medido
+  em vez de suposto: **298** e **605** na mesma rodada, ou seja, as duas cabem nos 800 com
+  folga. Uma exceção que a página não precisa só esconde a regressão seguinte, que é
+  exatamente o motivo de `/aplicativo` (308) também não ter uma. Elas estão lá justamente
+  para serem medidas contra o teto genérico: são as duas sub-páginas mais pesadas
+  (contadores scrubados, faixa de pessoas, ledger e o pin horizontal), então uma regressão
+  no kit de cenas aparece nelas primeiro. Duas das cinco, e não as cinco, porque cada URL
+  custa 3 corridas reais e o job já tem timeout de 32 min.
+- **O padrão genérico usa lookahead negativo** (`http://[^/]+/(?!institucional$).+`) e
+  isso é obrigatório: o `assertMatrix` aplica TODA entrada cujo padrão casa, então sem ele
+  a institucional continuaria presa nos 800 e a entrada própria seria inútil. **Ao mover
+  uma página para o teto de 1200, acrescente-a nos DOIS padrões**, senão o genérico vence
+  por cima e a mudança não faz nada. E meça antes de mover: `/sobre` e `/produtos` parecem
+  candidatas óbvias por serem o mesmo site, e não são.
 - **O LCP de `/institucional` é o banner de consentimento, não o herói** (~4,5s). O
   wordmark gigante não concorre porque está dividido em uma letra por `<span>`, e nenhuma
   letra isolada é o maior elemento. A cortina de abertura também não concorre: ela é

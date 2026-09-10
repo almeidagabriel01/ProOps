@@ -63,7 +63,17 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
     ).toBeVisible();
   });
 
-  test("o link do menu volta para a raiz da experiência", async ({ page }) => {
+  /**
+   * O wordmark tem que levar para o SITE DA EMPRESA, e hoje a raiz dele é
+   * `/institucional`: o apex ainda serve o ERP. Escrito como `/` cru, este link
+   * levava de `/carreiras` direto para a landing do ERP, que responde 200 e
+   * troca a URL, então um teste que só olhasse o endereço passaria. Daí a
+   * asserção ser sobre o TÍTULO, que é o que diz em qual dos dois sites a pessoa
+   * caiu. Depois da virada os dois viram a mesma coisa e o teste segue valendo.
+   */
+  test("o wordmark volta para a raiz do site da empresa, não para o ERP", async ({
+    page,
+  }) => {
     await page.goto(`${APEX}/carreiras`);
     await page.waitForLoadState("networkidle");
 
@@ -72,7 +82,37 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
       .getByRole("link", { name: "ProOps, página inicial" })
       .click();
 
-    await page.waitForURL(`${APEX}/`);
+    await expect(page).toHaveTitle(/software de gestão para quem vende projeto/i);
+    await expect(
+      page.getByRole("heading", { level: 1, name: /ProOps/ }),
+    ).toBeAttached();
+  });
+
+  /**
+   * A abertura toca UMA vez por carregamento de documento. Voltando para a raiz
+   * por dentro do site, a cortina da transição já cobriu a troca, e reproduzir a
+   * abertura por cima dela faz o mesmo efeito gaguejar duas vezes.
+   */
+  test("a abertura não toca de novo numa navegação interna", async ({
+    page,
+  }) => {
+    await page.goto(`${APEX}/institucional`);
+    await page.waitForLoadState("networkidle");
+    expect(await page.locator(".abertura-lamina").count()).toBeGreaterThan(0);
+
+    await page
+      .getByRole("navigation", { name: "Principal" })
+      .getByRole("link", { name: "Sobre" })
+      .click();
+    await page.waitForURL(`${APEX}/sobre`);
+
+    await page
+      .getByRole("navigation", { name: "Principal" })
+      .getByRole("link", { name: "ProOps, página inicial" })
+      .click();
+    await page.waitForURL(`${APEX}/institucional`);
+
+    await expect(page.locator(".abertura-lamina")).toHaveCount(0);
   });
 
   test("toda âncora interna aponta para um id que existe, e só um", async ({

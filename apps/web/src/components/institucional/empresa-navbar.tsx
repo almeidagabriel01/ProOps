@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
 import { Magnetic } from "@/components/marketing/_shared/magnetic";
-import { SITE_URLS } from "@/lib/site/surfaces";
+import { institucionalHomeUrl, SITE_URLS } from "@/lib/site/surfaces";
 import { cn } from "@/lib/utils";
 
 import { EMPRESA_LINKS } from "./nav-links";
@@ -66,8 +66,11 @@ export function EmpresaNavbar() {
         aria-label="Principal"
         className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5 md:px-10 md:py-6"
       >
+        {/* `institucionalHomeUrl()` e nao "/": enquanto o apex serve o ERP, a
+            raiz deste site e /institucional, e um "/" cru levaria de /sobre
+            direto para a landing do ERP. */}
         <CurtainLink
-          href="/"
+          href={institucionalHomeUrl()}
           aria-label="ProOps, página inicial"
           className="flex shrink-0 items-center gap-2.5"
         >

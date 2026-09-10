@@ -1,8 +1,24 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 
 /** 0, 25, 50, 75, 100. Five frames is enough to read as counting. */
 const QUADROS = [0, 25, 50, 75, 100];
 const LAMINAS = 6;
+
+/**
+ * Whether this document has already played the opening.
+ *
+ * Module scope, and CLIENT-only by construction: a client module is
+ * re-evaluated on every document load, so the flag is false exactly once per
+ * visit, and it survives every client-side navigation in between. That is the
+ * distinction the scene needs and that a component cannot see on its own.
+ *
+ * It must never be consulted on the SERVER: module state there is per process
+ * and shared across requests, so the first render would set it and every
+ * visitor after that would get no opening at all.
+ */
+let jaAbriu = false;
 
 /**
  * The opening: six slats lift off a black screen while a counter runs.
@@ -22,12 +38,28 @@ const LAMINAS = 6;
  *
  * The slats are the same gesture as the page transition between the company
  * site's pages, deliberately: entering the site and moving inside it should read
- * as one mechanism rather than two effects.
+ * as one mechanism rather than two effects. Which is exactly why it plays ONCE
+ * per document: coming back to the root from a sub-page already draws the
+ * curtain, and replaying the opening on top of it reads as the same effect
+ * stuttering twice.
  *
  * Under `prefers-reduced-motion` globals.css pins the slats at `scaleY(0)` and
  * the counter at its last frame, so the page simply opens.
  */
 export function InstitucionalAbertura() {
+  // On the server this is always true, so the markup is in the HTML and the CSS
+  // plays at first paint; on the client's first render `jaAbriu` is still false,
+  // so hydration matches. Only a later client-side navigation reads `true`.
+  const [mostrar] = useState(
+    () => typeof window === "undefined" || !jaAbriu,
+  );
+
+  useEffect(() => {
+    jaAbriu = true;
+  }, []);
+
+  if (!mostrar) return null;
+
   return (
     <div
       aria-hidden="true"

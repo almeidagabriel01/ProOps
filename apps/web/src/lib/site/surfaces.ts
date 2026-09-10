@@ -262,6 +262,29 @@ export function erpHomeUrlPara(apexServeErp: boolean): string {
 }
 
 /**
+ * Where the company site's own "home" link points, as something you can link to.
+ *
+ * The mirror of `erpHomeUrl`, and needed for the same reason read backwards: the
+ * root of the company site is `/institucional` while the apex still serves the
+ * ERP, and `/` only after the cutover. Written as a plain `/`, the wordmark in
+ * the company navbar takes a reader from `/sobre` straight to the ERP landing
+ * today, which is the wrong site and looks like a broken link rather than a
+ * configuration that has not flipped yet.
+ *
+ * Relative on purpose in both states: the company site is served by the apex
+ * either way, and an absolute URL here would force a full page load and throw
+ * away the curtain transition.
+ */
+export function institucionalHomeUrl(): string {
+  return institucionalHomeUrlPara(APEX_STILL_SERVES_ERP);
+}
+
+/** @internal A mesma decisão, com o estado da virada explícito, para o teste. */
+export function institucionalHomeUrlPara(apexServeErp: boolean): string {
+  return apexServeErp ? INSTITUCIONAL_ROOT : "/";
+}
+
+/**
  * The 301 target for an ERP path still being requested on the apex, or `null`
  * when the apex should serve it.
  *
