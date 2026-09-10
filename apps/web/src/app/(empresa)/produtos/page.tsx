@@ -67,7 +67,7 @@ export default function ProdutosPage() {
         dados={[
           { valor: "02", rotulo: "Produtos" },
           { valor: "07", rotulo: "Telas nesta página" },
-          { valor: "0", rotulo: "Protótipos: tudo aqui está no ar" },
+          { valor: "0", rotulo: "Protótipos" },
         ]}
       />
 

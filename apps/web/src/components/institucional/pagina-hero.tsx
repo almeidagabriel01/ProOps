@@ -25,9 +25,9 @@ interface PaginaHeroProps {
   titulo: React.ReactNode;
   descricao?: React.ReactNode;
   /**
-   * A short strip of facts under the copy: three at most, two words each.
-   * It is what turns a title card into a page that has already told you
-   * something before you scrolled.
+   * A ficha do herói: no máximo três fatos, duas palavras cada, numa linha só
+   * rente ao rodapé da tela. É o que transforma um cartão de título numa página
+   * que já contou alguma coisa antes de o leitor rolar.
    */
   dados?: DadoDoHero[];
   /**
@@ -45,8 +45,6 @@ interface PaginaHeroProps {
    * lê como uma que é um índice.
    */
   alinhamento?: "esquerda" | "centro";
-  /** `"curta"` para página utilitária, que o leitor abre para achar algo. */
-  altura?: "cheia" | "curta";
   /** Rendered under everything: a CTA row, a lead-in. */
   children?: React.ReactNode;
   className?: string;
@@ -74,8 +72,11 @@ interface PaginaHeroProps {
  *   uses, so the two surfaces are visibly one site;
  * - a **parallax** on the copy and a counter-parallax on the mark, so leaving
  *   the hero is a movement rather than a cut;
- * - an optional **strip of facts**, which is the part that makes the screen
- *   informative instead of decorative.
+ * - an optional **ficha** rente ao rodapé, que é a parte que faz a tela ser
+ *   informativa em vez de decorativa. Ela começou como uma grade de células com
+ *   borda, e uma grade de duas células numa tela cheia é dois cartões vazios com
+ *   um número dentro; virou uma linha só, número e palavra na mesma base, sobre
+ *   um filete, no lugar onde um cartão de título de filme põe os créditos.
  *
  * The entrance is still the `hero-enter` / `hero-rise-line` CSS pair, not a
  * motion component, for the reason written into globals.css: an
@@ -96,7 +97,6 @@ export function PaginaHero({
   dados,
   assinatura,
   alinhamento = "esquerda",
-  altura = "cheia",
   children,
   className,
 }: PaginaHeroProps) {
@@ -121,9 +121,20 @@ export function PaginaHero({
       ref={secao}
       aria-label={sobrancelha}
       className={cn(
-        "relative isolate flex flex-col overflow-hidden bg-neutral-950 px-6 pb-16 pt-36 text-white md:px-10 md:pb-20 md:pt-44",
-        altura === "curta" ? "min-h-[66svh]" : "min-h-[82svh]",
-        centrado ? "justify-center text-center" : "justify-end",
+        // Tela cheia, sempre. Um herói de 82svh deixa uma faixa da seção
+        // seguinte aparecendo no rodapé, e essa faixa é o que faz a abertura
+        // parecer um cabeçalho alto em vez de uma tela.
+        // O `pb` grande é o que reserva o espaço da ficha, que é posicionada
+        // por baixo e não entra no fluxo: no celular ela quebra em duas linhas,
+        // e com um `pb` apertado a descrição encostava nela. Medido a 393px.
+        "relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-neutral-950 px-6 pb-48 pt-36 text-white md:px-10 md:pb-36 md:pt-44",
+        // No celular a copia fica centrada, e não colada no rodapé: a
+        // assinatura só existe de `md` para cima, então numa tela estreita a
+        // composição ancorada embaixo deixa metade da tela vazia no topo, sem
+        // nada para ocupá-la.
+        centrado
+          ? "justify-center text-center"
+          : "justify-center md:justify-end",
         className,
       )}
     >
@@ -212,42 +223,6 @@ export function PaginaHero({
           </p>
         )}
 
-        {dados && dados.length > 0 && (
-          <dl
-            className={cn(
-              "hero-enter mt-12 flex flex-wrap gap-px border-t border-white/10 bg-white/10 md:mt-14",
-              centrado && "mx-auto max-w-2xl text-left",
-            )}
-            style={
-              {
-                "--hero-y": "14px",
-                "--hero-delay": "0.56s",
-              } as React.CSSProperties
-            }
-          >
-            {dados.map((dado) => (
-              <div
-                key={dado.rotulo}
-                className={cn(
-                  "min-w-[9rem] flex-1 bg-neutral-950 py-5 md:min-w-[11rem]",
-                  centrado ? "px-6" : "pr-6",
-                )}
-              >
-                <dt className="sr-only">{dado.rotulo}</dt>
-                <dd className="[font-family:var(--font-bricolage)] text-3xl font-extrabold leading-none tracking-[-0.04em] text-white md:text-4xl">
-                  {dado.valor}
-                </dd>
-                <p
-                  aria-hidden="true"
-                  className="mt-3 max-w-[14ch] [font-family:var(--font-geist-mono)] text-[10px] uppercase leading-relaxed tracking-[0.16em] text-white/40"
-                >
-                  {dado.rotulo}
-                </p>
-              </div>
-            ))}
-          </dl>
-        )}
-
         {children && (
           <div
             className="hero-enter mt-10"
@@ -263,6 +238,53 @@ export function PaginaHero({
           </div>
         )}
       </motion.div>
+
+      {dados && dados.length > 0 && (
+        <motion.div
+          style={animated ? { opacity: copiaOpacidade } : undefined}
+          className="absolute inset-x-6 bottom-9 z-10 md:inset-x-10 md:bottom-11"
+        >
+          <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-10 gap-y-5 border-t border-white/12 pt-5">
+            <dl
+              className="hero-enter flex flex-wrap items-baseline gap-x-14 gap-y-4"
+              style={
+                {
+                  "--hero-y": "12px",
+                  "--hero-delay": "0.6s",
+                } as React.CSSProperties
+              }
+            >
+              {dados.map((dado) => (
+                <div key={dado.rotulo} className="flex items-baseline gap-3">
+                  {/* O rótulo vem primeiro no DOM porque é isso que um `dl`
+                      quer, e depois do número na tela porque é assim que se lê
+                      uma ficha: o valor puxa o olho, a palavra explica. */}
+                  <dt className="order-2 max-w-[18ch] [font-family:var(--font-geist-mono)] text-[10px] uppercase leading-relaxed tracking-[0.16em] text-white/45">
+                    {dado.rotulo}
+                  </dt>
+                  <dd className="order-1 [font-family:var(--font-bricolage)] text-2xl font-extrabold leading-none tracking-[-0.04em] text-white md:text-[1.75rem]">
+                    {dado.valor}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            <p
+              aria-hidden="true"
+              className="hero-enter flex items-center gap-2.5 [font-family:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.22em] text-white/30"
+              style={
+                {
+                  "--hero-y": "12px",
+                  "--hero-delay": "0.78s",
+                } as React.CSSProperties
+              }
+            >
+              Role
+              <span className="dica-desce inline-block">&darr;</span>
+            </p>
+          </div>
+        </motion.div>
+      )}
     </section>
   );
 }

@@ -1458,6 +1458,25 @@ html[data-shell="locked"] body {
   animation: pulso-no 3.2s ease-in-out var(--pulso-delay, 0s) infinite;
 }
 
+/* A dica de rolagem do rodapé do herói. Ela existe porque o herói passou a
+   ocupar a tela inteira: sem nada abaixo aparecendo, uma tela cheia e parada não
+   diz que há mais página. Deslocamento pequeno e lento de propósito, para ser
+   percebida na periferia e não competir com o título. */
+@keyframes dica-desce {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(4px);
+    opacity: 1;
+  }
+}
+.dica-desce {
+  animation: dica-desce 2.4s ease-in-out infinite;
+}
+
 /* Campo mono reativo: duas manchas que respondem ao ponteiro e ao giroscópio.
    É o fallback do FlowField em WebGL, e continua visível por baixo dele: num
    celular, num navegador sem WebGL e na corrida do Lighthouse é ISTO que
@@ -1649,6 +1668,11 @@ html[data-cookie-consent="pending"] .cookie-banner {
     animation: none !important;
     opacity: 1;
     transform: none;
+  }
+  .dica-desce {
+    animation: none !important;
+    transform: none;
+    opacity: 1;
   }
   .abertura-tira {
     animation: none !important;

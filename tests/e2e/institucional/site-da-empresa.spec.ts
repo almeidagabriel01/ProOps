@@ -67,14 +67,16 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
    *
    * A primeira versão não cobria e nada denunciava: `scale-y-0` do Tailwind v4
    * compila para a propriedade CSS `scale`, que COMPÕE com `transform` em vez de
-   * ser sobrescrita por ele, então as lâminas ficavam achatadas por mais que o
+   * ser sobrescrita por ele, então o painel ficava fora da tela por mais que o
    * GSAP animasse o transform. A navegação parecia instantânea, o console ficava
    * limpo, e um teste de URL ou de título passava.
    *
-   * Por isso a asserção é sobre PIXEL: um amostrador em rAF grava a maior altura
-   * que uma lâmina alcançou durante a transição. Amostrar é o que torna o teste
-   * determinístico; tirar um screenshot no meio dependeria de acertar a janela
-   * de 500ms.
+   * Por isso a asserção é sobre PIXEL: um amostrador em rAF grava a maior faixa
+   * do viewport que o painel chegou a cobrir. É SOBREPOSIÇÃO e não altura: o
+   * painel é `inset-0`, então a altura dele é a da tela mesmo quando ele está
+   * inteiro fora dela, e medir altura passaria com a cortina desligada.
+   * Amostrar é o que torna o teste determinístico; tirar um screenshot no meio
+   * dependeria de acertar a janela da animação.
    */
   test("a cortina cobre a tela de verdade durante a transição", async ({
     page,
@@ -86,12 +88,13 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
       const w = window as unknown as { __alturaMax: number };
       w.__alturaMax = 0;
       const amostra = () => {
-        const lamina = document.querySelector("[data-lamina]");
-        if (lamina) {
-          w.__alturaMax = Math.max(
-            w.__alturaMax,
-            lamina.getBoundingClientRect().height,
-          );
+        const painel = document.querySelector("[data-painel]");
+        const palco = painel?.closest("[data-cortina]");
+        if (painel && palco && getComputedStyle(palco).visibility !== "hidden") {
+          const r = painel.getBoundingClientRect();
+          const coberto =
+            Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+          w.__alturaMax = Math.max(w.__alturaMax, coberto);
         }
         requestAnimationFrame(amostra);
       };
@@ -110,7 +113,7 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
     }));
 
     // Bem acima de zero e perto da tela cheia. O piso é 80% e não 100% porque a
-    // amostragem pega quadros durante a subida das lâminas.
+    // amostragem pega quadros durante a subida do painel.
     expect(maior).toBeGreaterThan(altura * 0.8);
   });
 

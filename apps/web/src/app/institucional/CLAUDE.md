@@ -142,6 +142,29 @@ os 800 genéricos) e **CLS ≤ 0,1 é `error`**. Daí duas escolhas estruturais:
   então o que começa fora da borda é cortado e não alarga o documento, que é
   exatamente o que o guard de overflow a 393px vigia.
 
+## O herói das sub-páginas ocupa a tela inteira
+
+`min-h-[100svh]`, sem variante curta. Um herói de 82svh deixa uma faixa da seção
+seguinte aparecendo no rodapé, e essa faixa é o que faz a abertura parecer um
+cabeçalho alto em vez de uma tela.
+
+Duas consequências que já foram medidas e não devem ser refeitas na mão:
+
+- **A ficha é posicionada por baixo, fora do fluxo**, então o `pb` da seção é
+  quem reserva o espaço dela. No celular ela quebra em duas linhas, e com um
+  `pb` apertado a descrição encostava nela: daí o `pb-48 md:pb-36`. Mudou o
+  número de fatos ou o tamanho de um rótulo? Meça a folga a 393px.
+- **No celular a copia é centrada** (`justify-center md:justify-end`). A
+  assinatura só existe de `md` para cima, então numa tela estreita a composição
+  ancorada embaixo deixaria metade da tela vazia no topo, sem nada para ocupá-la.
+
+A ficha em si começou como uma grade de células com borda, e duas células numa
+tela cheia são dois cartões vazios com um número dentro. Agora é uma linha só,
+número e palavra na mesma base, sobre um filete rente ao rodapé, no lugar onde um
+cartão de título de filme põe os créditos. **Rótulo curto**: ele fica ao lado do
+número, não embaixo, e "Protótipos: tudo aqui está no ar" quebrava a linha em
+três.
+
 ## Cada herói de sub-página tem uma assinatura própria
 
 Os quatro heróis (`components/institucional/pagina-hero.tsx`) nasceram iguais:
@@ -162,7 +185,8 @@ passa um desenho do próprio assunto, em
 
 Duas coisas ao acrescentar uma:
 
-- **A animação é CSS** (`.traco-desenha`, `.pulso-no`, `.hero-enter`), nunca
+- **A animação é CSS** (`.traco-desenha`, `.pulso-no`, `.dica-desce`,
+  `.hero-enter`), nunca
   `motion`. É a regra 1 desta página, e vale aqui inteira.
 - **Todo traço animado declara `pathLength={1}`**, senão o `stroke-dasharray`
   teria que ser o comprimento real do caminho.

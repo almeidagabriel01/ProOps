@@ -41,12 +41,7 @@ export const metadata: Metadata = {
 export default function FaleConoscoPage() {
   return (
     <main>
-      {/*
-        Herói curto: quem abre "Contato" veio buscar um endereço, e uma tela
-        inteira de abertura antes dos canais é obstáculo com boa tipografia.
-      */}
       <PaginaHero
-        altura="curta"
         assinatura={<AssinaturaCanais />}
         sobrancelha="Contato"
         titulo={
@@ -60,7 +55,7 @@ export default function FaleConoscoPage() {
         descricao="Diga o que traz você aqui e a página mostra por onde. São quatro caminhos, e todos terminam em uma pessoa."
         dados={[
           { valor: "04", rotulo: "Canais" },
-          { valor: "2d", rotulo: "Prazo de resposta, em dias úteis" },
+          { valor: "2d", rotulo: "Prazo de resposta" },
         ]}
       />
 

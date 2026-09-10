@@ -53,7 +53,7 @@ export default function ManifestoPage() {
         descricao="Não é uma lista de valores para a parede. É o critério que sobra quando duas ideias boas competem pela mesma semana, e o que cada uma delas custa quando ganha."
         dados={[
           { valor: "03", rotulo: "Princípios" },
-          { valor: "03", rotulo: "Coisas que eles custam" },
+          { valor: "03", rotulo: "Contrapartidas" },
         ]}
       />
 

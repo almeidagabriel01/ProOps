@@ -22,9 +22,6 @@ if (typeof window !== "undefined") {
   gsap.registerPlugin(DrawSVGPlugin, ScrollTrigger);
 }
 
-/** Slats the curtain is cut into. More reads as a sweep, fewer as a wipe. */
-const LAMINAS = 6;
-
 interface CurtainContextValue {
   navegar: (href: string) => void;
 }
@@ -34,11 +31,24 @@ const CurtainContext = createContext<CurtainContextValue | null>(null);
 /**
  * Animated navigation between the company site's pages, on the mark.
  *
- * The slats close, the ProOps symbol DRAWS itself in the middle of the black,
- * holds for the length of the route change, and unwinds as the slats open. The
- * point is repetition: a visitor who moves through four pages sees the mark
- * drawn four times, at the one moment when there is nothing else on screen to
- * look at. A generic wipe would cost the same and say nothing.
+ * Um painel sobe por baixo da página com a borda de cima ARQUEADA, e a curva se
+ * achata no instante em que ele assenta; o símbolo da ProOps se desenha no
+ * meio do preto, segura o tempo da troca de rota, e o painel CONTINUA subindo
+ * para fora da tela, agora com a curva na borda de baixo, arrastando atrás de
+ * si. A repetição é o ponto: quem passa por quatro páginas vê a marca desenhada
+ * quatro vezes, no único momento em que não há mais nada na tela para olhar.
+ *
+ * Duas decisões que valem a pena:
+ *
+ * - **O painel sai pelo mesmo lado por onde entrou.** A primeira versão eram
+ *   seis lâminas que fechavam de baixo para cima e abriam de cima para baixo,
+ *   ou seja, o movimento voltava atrás, e movimento que volta atrás lê como
+ *   "cancelei" em vez de "avancei". Continuar na mesma direção é o que faz a
+ *   transição parecer uma página sendo puxada e não uma cortina hesitando.
+ * - **A curva não é animada, ela é transportada.** Animar `border-radius` ou
+ *   um `path` custa um repaint de tela cheia por quadro. Aqui o arco é uma
+ *   forma fixa colada na borda do painel: o painel translada (composição pura)
+ *   e o arco só é achatado por um `scaleY`, que também é composição.
  *
  * `DrawSVGPlugin` animates the stroke of the real path from
  * `public/logo/logo2-cropped.svg`, so the thing being drawn is the asset and not
@@ -55,9 +65,9 @@ const CurtainContext = createContext<CurtainContextValue | null>(null);
  * Instead the curtain lives OUTSIDE the page, in the group layout, and
  * navigation is three beats:
  *
- *   1. slats close over the page that is still on screen, mark draws
- *   2. `router.push`, then the scroll jumps to the top while covered
- *   3. mark unwinds, slats open on the new page
+ *   1. o painel sobe e cobre a página que ainda está na tela, a marca se desenha
+ *   2. `router.push`, e o scroll salta para o topo enquanto está coberto
+ *   3. a marca se recolhe e o painel sai por cima, revelando a página nova
  *
  * Beat 3 is driven by `usePathname` changing, not by the push resolving. The
  * push is not a promise, and a timer would either uncover a page that has not
@@ -78,7 +88,9 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
   const abre = useCallback(() => {
     const el = palco.current;
     if (!el) return;
-    const laminas = el.querySelectorAll<HTMLElement>("[data-lamina]");
+    const painel = el.querySelector<HTMLElement>("[data-painel]");
+    const arcoTopo = el.querySelector<HTMLElement>("[data-arco='topo']");
+    const arcoBase = el.querySelector<HTMLElement>("[data-arco='base']");
     const simbolo = el.querySelector<HTMLElement>("[data-simbolo]");
 
     const tl = gsap.timeline({
@@ -96,22 +108,28 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
       // of erasing from the start, which reads as a rewind.
       tl.to(marca.current, {
         drawSVG: "100% 100%",
-        duration: 0.4,
+        duration: 0.55,
         ease: "power2.in",
       });
     }
     if (simbolo) {
-      tl.to(simbolo, { scale: 1.12, opacity: 0, duration: 0.35 }, "<0.05");
+      tl.to(simbolo, { scale: 1.1, opacity: 0, duration: 0.45 }, "<0.06");
+    }
+    // A curva troca de borda antes de o painel andar: subindo, quem arrasta é a
+    // borda de baixo. Sem isto o painel sairia com a aresta reta e a saída não
+    // teria nada a ver com a entrada.
+    if (arcoTopo) tl.set(arcoTopo, { scaleY: 0 }, "<");
+    if (arcoBase) {
+      tl.fromTo(
+        arcoBase,
+        { scaleY: 0 },
+        { scaleY: 1, duration: 0.4, ease: "power2.out" },
+        "<0.15",
+      );
     }
     tl.to(
-      laminas,
-      {
-        scaleY: 0,
-        transformOrigin: "top",
-        duration: 0.65,
-        ease: "expo.inOut",
-        stagger: 0.05,
-      },
+      painel,
+      { yPercent: -100, duration: 1.05, ease: "power3.inOut" },
       "<0.1",
     );
   }, []);
@@ -127,7 +145,9 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
       if (destino.current) return; // já está saindo
 
       destino.current = href;
-      const laminas = el.querySelectorAll<HTMLElement>("[data-lamina]");
+      const painel = el.querySelector<HTMLElement>("[data-painel]");
+      const arcoTopo = el.querySelector<HTMLElement>("[data-arco='topo']");
+      const arcoBase = el.querySelector<HTMLElement>("[data-arco='base']");
       const simbolo = el.querySelector<HTMLElement>("[data-simbolo]");
       gsap.set(el, { autoAlpha: 1 });
 
@@ -138,24 +158,33 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
+      // A curva entra na borda de cima e se achata quando o painel assenta: é
+      // ela que dá a sensação de peso, e uma curva que ficasse depois de o
+      // painel parar viraria um enfeite parado no meio da tela.
+      if (arcoBase) tl.set(arcoBase, { scaleY: 0 });
+      if (arcoTopo) tl.set(arcoTopo, { scaleY: 1 }, "<");
       tl.fromTo(
-        laminas,
-        { scaleY: 0, transformOrigin: "bottom" },
-        { scaleY: 1, duration: 0.5, ease: "expo.inOut", stagger: 0.04 },
+        painel,
+        { yPercent: 100 },
+        { yPercent: 0, duration: 0.95, ease: "power3.inOut" },
+        "<",
       );
+      if (arcoTopo) {
+        tl.to(arcoTopo, { scaleY: 0, duration: 0.5, ease: "power2.out" }, "-=0.5");
+      }
       if (simbolo) {
         tl.fromTo(
           simbolo,
-          { scale: 0.86, opacity: 0 },
-          { scale: 1, opacity: 1, duration: 0.4, ease: "power2.out" },
-          "<0.18",
+          { scale: 0.88, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.5, ease: "power2.out" },
+          "-=0.55",
         );
       }
       if (marca.current) {
         tl.fromTo(
           marca.current,
           { drawSVG: "0% 0%" },
-          { drawSVG: "0% 100%", duration: 0.55, ease: "power1.inOut" },
+          { drawSVG: "0% 100%", duration: 0.8, ease: "power1.inOut" },
           "<",
         );
       }
@@ -180,35 +209,34 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
         <div
           ref={palco}
           aria-hidden="true"
-          className="pointer-events-none invisible fixed inset-0 z-[90]"
+          className="pointer-events-none invisible fixed inset-0 z-[90] overflow-hidden"
+          data-cortina
         >
           {/*
-            No `scale-y-0` here, and that is not a style choice.
+            Nada de classe `scale-*` ou `translate-*` do Tailwind em nada disto,
+            e não é preferência de estilo.
 
-            Tailwind v4 compiles `scale-y-0` to the standalone CSS `scale`
-            property, not to `transform`. The two COMPOSE, so a slat carrying
-            `scale: 1 0` stays flat no matter what GSAP writes into `transform`,
-            and the curtain closes over the page without ever covering a pixel:
-            navigation looks instant, nothing errors, and the effect is simply
-            absent. Ownership of the transform belongs to GSAP alone.
+            No v4 essas classes compilam para as propriedades CSS `scale` e
+            `translate`, que COMPÕEM com `transform` em vez de serem
+            sobrescritas por ele. Um painel carregando `translate: 0 100%` fica
+            fora da tela por mais que o GSAP escreva no transform: a cortina
+            fecha sem cobrir um pixel, a navegação parece instantânea, o console
+            fica limpo e o efeito simplesmente não existe. Já aconteceu uma vez.
+            O transform é do GSAP, e de mais ninguém.
 
-            Nothing flashes at rest, because the stage above is `invisible`
-            until a navigation starts, and the `fromTo` sets `scaleY: 0`
-            synchronously in the same task as `autoAlpha: 1`, so there is no
-            paint in between.
+            Nada pisca em repouso porque o palco é `invisible` até uma navegação
+            começar, e o `fromTo` escreve `yPercent: 100` na mesma tarefa do
+            `autoAlpha: 1`, sem pintura entre as duas.
           */}
-          <div className="absolute inset-0 flex">
-            {Array.from({ length: LAMINAS }).map((_, index) => (
-              <div
-                key={index}
-                data-lamina
-                className="h-full flex-1 origin-bottom bg-neutral-950"
-              />
-            ))}
+          <div data-painel className="absolute inset-0 bg-neutral-950">
+            {/* Os dois arcos ficam FORA do painel, colados nas bordas, e são
+                transportados por ele. Só um está em `scaleY: 1` de cada vez. */}
+            <Arco lado="topo" />
+            <Arco lado="base" />
           </div>
 
-          {/* Above the slats, and centred on the viewport rather than on a slat:
-              the symbol is the subject, the slats are the ground it appears on. */}
+          {/* Acima do painel, e centrado no viewport: o símbolo é o assunto, o
+              preto é o chão em que ele aparece. */}
           <div
             data-simbolo
             className="absolute inset-0 flex items-center justify-center"
@@ -218,6 +246,42 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
         </div>
       )}
     </CurtainContext.Provider>
+  );
+}
+
+/**
+ * A borda arqueada do painel, colada por fora de uma das pontas dele.
+ *
+ * `preserveAspectRatio="none"` é o que permite que a mesma curva sirva a
+ * qualquer largura de tela: sem ele, o arco manteria a proporção do viewBox e
+ * sobraria (ou faltaria) painel nas pontas em telas largas.
+ */
+function Arco({ lado }: { lado: "topo" | "base" }) {
+  const topo = lado === "topo";
+  return (
+    <div
+      data-arco={lado}
+      aria-hidden="true"
+      className={cn(
+        "absolute inset-x-0 h-[16vh] text-neutral-950",
+        topo ? "bottom-full origin-bottom" : "top-full origin-top",
+      )}
+    >
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="block h-full w-full"
+      >
+        <path
+          d={
+            topo
+              ? "M0 100 C 26 0, 74 0, 100 100 Z"
+              : "M0 0 C 26 100, 74 100, 100 0 Z"
+          }
+          fill="currentColor"
+        />
+      </svg>
+    </div>
   );
 }
 
