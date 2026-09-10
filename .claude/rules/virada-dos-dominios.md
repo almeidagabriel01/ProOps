@@ -85,14 +85,51 @@ algo pode estar errado, porque no dia sobram só três coisas.
 - [ ] **Firebase Auth → domínios autorizados:** acrescentar `erp.proops.com.br`.
       **Mantenha `proops.com.br` na lista.** Sem o novo, o login inteiro morre
       com `auth/unauthorized-domain` no minuto da virada.
-- [ ] **Stripe → URLs de retorno** do checkout e do portal: acrescentar as do
-      subdomínio. O Stripe aceita várias; as antigas continuam válidas.
-- [ ] **Google OAuth → redirect URIs** (Agenda e Drive): acrescentar as novas,
-      sem remover as atuais. Erra com `redirect_uri_mismatch`, e **só aparece na
-      hora de alguém conectar**, que pode ser semanas depois.
-- [ ] **`NEXT_PUBLIC_*` na Vercel**, em **Preview e Production separadamente**.
-      Elas são embutidas no BUILD: cadastrar não afeta o que já está publicado,
-      precisa de redeploy.
+- [ ] **Google Cloud Console → APIs e Serviços → Credenciais → o cliente OAuth
+      da Agenda/Drive → "URIs de redirecionamento autorizados".** Acrescentar
+      **estas duas, exatamente assim**, sem remover as que já estão lá:
+
+      ```
+      https://erp.proops.com.br/api/backend/v1/calendar/google/callback
+      https://erp.proops.com.br/api/backend/v1/drive/google/callback
+      ```
+
+      É um cliente OAuth só para os dois serviços. O caminho é `/api/backend/…`
+      porque o callback entra pelo proxy do Next, não direto na function.
+
+      As URIs são derivadas de **`APP_URL`**, nunca do cabeçalho da request (o
+      host pode ser forjado para influenciar o `redirect_uri`, e isso foi tratado
+      como risco). Ou seja: elas mudam **no instante em que `APP_URL` mudar**, e
+      não quando o domínio começa a responder. Erra com
+      `redirect_uri_mismatch`, e **só aparece quando alguém tenta conectar**, que
+      pode ser semanas depois.
+
+- [ ] **Stripe: não há nada a fazer no painel.** Este item estava errado no
+      checklist original. As URLs de retorno do checkout e do portal
+      (`success_url`, `cancel_url`, `return_url`) são enviadas **em cada chamada
+      da API**, montadas a partir da origem da requisição por
+      `resolveRequestOrigin` — não existe cadastro no dashboard.
+
+      **O que governa isso é o `CORS_ALLOWED_ORIGINS`**: aquela função só aceita
+      a origem da request se ela estiver na allowlist, e cai para `APP_URL` caso
+      contrário. Com o subdomínio fora da lista, um checkout iniciado em
+      `erp.proops.com.br` devolveria o cliente para o apex depois de pagar. É o
+      mesmo item do bloco B, e não um passo separado.
+
+- [ ] **`NEXT_PUBLIC_*`: provavelmente nada a fazer.** `NEXT_PUBLIC_*` não é o
+      nome de uma variável, é o prefixo do conjunto delas (Firebase, GA,
+      Turnstile, WhatsApp…). Das 15 que o projeto usa, **só uma depende de
+      domínio: `NEXT_PUBLIC_SITE_URL`**, e ela alimenta apenas o `metadataBase`,
+      que resolve caminhos relativos de imagem. `/opengraph-image.png` existe em
+      qualquer host, então ela pode continuar apontando para o apex.
+
+      Nenhuma delas é secreta: tudo com esse prefixo é **embutido no JavaScript
+      que vai para o navegador**, e por isso nunca deve receber valor sensível.
+      Na Vercel entram como Environment Variable comum, não como Secret.
+
+      O que dependia de host e era real já foi resolvido em código: canonical,
+      sitemap, robots e o dado estruturado derivam do host servido, não de
+      variável de build.
 - [ ] **Desligar a Deployment Protection** dos subdomínios na Vercel. Enquanto
       estiver ligada eles respondem 302 para o SSO e nenhum crawler entra, o que
       hoje é proposital; desligar antes permite navegar os dois hosts de verdade

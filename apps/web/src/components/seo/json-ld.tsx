@@ -1,12 +1,26 @@
-const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://proops.com.br";
+import { APEX_URL } from "@/lib/site/surfaces";
+import { origemDe } from "@/lib/site/host-seo";
+
+/**
+ * Onde o ERP mora, para o dado estruturado dele.
+ *
+ * Era `NEXT_PUBLIC_SITE_URL`, que é lida no BUILD e não sabe qual host está
+ * sendo servido. Depois da virada isso faria a landing do ERP, servida em
+ * `erp.proops.com.br`, declarar `url: https://proops.com.br` — o endereço da
+ * página institucional. `origemDe` devolve o apex hoje e o subdomínio depois,
+ * sem depender de ninguém lembrar de trocar uma variável de ambiente.
+ */
+const BASE = origemDe("erp");
 
 export function OrganizationJsonLd() {
   const data = {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "ProOps",
-    url: BASE,
-    logo: `${BASE}/icons/icon-512.png`,
+    // A EMPRESA mora no apex, antes e depois da virada. Só os produtos se
+    // mudam de endereço.
+    url: APEX_URL,
+    logo: `${APEX_URL}/icons/icon-512.png`,
     sameAs: [],
     contactPoint: {
       "@type": "ContactPoint",
