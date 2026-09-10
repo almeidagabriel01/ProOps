@@ -11,7 +11,6 @@ import {
   MeshStandardMaterial,
   PerspectiveCamera,
   Scene,
-  TorusGeometry,
   Vector3,
   WebGLRenderer,
 } from "three";
@@ -35,10 +34,11 @@ interface Marca3dProps {
  * also means the silhouette is exactly right, including the counter of the "P"
  * and the dot, which is the part a hand-modelled approximation always gets wrong.
  *
- * Two rings orbit it on tilted axes. The mark is itself a ring, so they read as
- * the same idea seen from other angles, and they are what gives the scene depth:
- * a single object rotating in place reads as flat no matter how it is lit,
- * because there is nothing for it to rotate in FRONT of.
+ * The mark alone, with nothing orbiting it. An earlier pass added two rings on
+ * tilted axes to give the scene depth; they read as decoration around a logo
+ * rather than as part of it, and a mark that has to be dressed up is a mark that
+ * is being apologised for. The depth comes from the extrusion and the rim light
+ * instead.
  *
  * The pointer sets a target and the rotation eases toward it every frame, so a
  * flick across the screen turns the object rather than teleporting it. There is
@@ -79,25 +79,6 @@ export default function Marca3d({ className, reacao = 1 }: Marca3dProps) {
     const grupo = new Group();
     cena.add(grupo);
 
-    const anel = (raio: number, espessura: number, opacidade: number) => {
-      const geo = new TorusGeometry(raio, espessura, 8, 128);
-      const mat = new MeshStandardMaterial({
-        color: 0xffffff,
-        roughness: 0.35,
-        metalness: 0.1,
-        transparent: true,
-        opacity: opacidade,
-      });
-      descartaveis.push(geo, mat);
-      return new Mesh(geo, mat);
-    };
-
-    const anelExterno = anel(2.35, 0.012, 0.5);
-    anelExterno.rotation.set(1.15, 0.4, 0);
-    const anelInterno = anel(1.85, 0.01, 0.32);
-    anelInterno.rotation.set(-0.8, 0.9, 0.3);
-    grupo.add(anelExterno, anelInterno);
-
     let marca: Group | null = null;
 
     const alvo = { x: 0, y: 0 };
@@ -135,9 +116,6 @@ export default function Marca3d({ className, reacao = 1 }: Marca3dProps) {
       grupo.rotation.x = atual.x + Math.sin(t * 0.35) * 0.06;
       grupo.rotation.y = atual.y + t * 0.12;
       grupo.position.y = Math.sin(t * 0.5) * 0.09;
-
-      anelExterno.rotation.z = t * 0.14;
-      anelInterno.rotation.z = -t * 0.2;
 
       renderer.render(cena, camera);
     };

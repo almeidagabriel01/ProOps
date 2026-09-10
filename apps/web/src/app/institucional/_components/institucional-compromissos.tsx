@@ -3,6 +3,12 @@
 import React, { useRef } from "react";
 import { m as motion, useTransform, type MotionValue } from "motion/react";
 
+import {
+  DiagramaContinuidade,
+  DiagramaGente,
+  DiagramaIsolamento,
+  DiagramaLgpd,
+} from "@/components/institucional/diagramas";
 import { Realce, Sobrancelha } from "@/components/institucional/secao";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 import { cn } from "@/lib/utils";
@@ -12,6 +18,63 @@ import { COMPROMISSOS } from "../_content/institucional-copy";
 /** The beats occupy the middle, leaving room to enter and to leave. */
 const INICIO = 0.14;
 const FIM = 0.86;
+
+/**
+ * One drawing per commitment, matched to `COMPROMISSOS` by index.
+ *
+ * By index and not by key on purpose: the copy lives in `_content`, and a
+ * `diagrama` field there would force a text module to import React components.
+ */
+const DIAGRAMAS = [
+  DiagramaIsolamento,
+  DiagramaLgpd,
+  DiagramaGente,
+  DiagramaContinuidade,
+];
+
+/** Where a beat's slice of the travel starts and ends. */
+function fatiaDe(indice: number, total: number) {
+  const largura = (FIM - INICIO) / total;
+  const de = INICIO + indice * largura;
+  return { de, ate: de + largura, meio: largura * 0.22 };
+}
+
+/**
+ * The ramps for one beat, entering and leaving.
+ *
+ * The first and the last are exceptions, and both for the same reason: a sticky
+ * stage occupies the viewport BEFORE its trigger reaches 0 and AFTER it reaches
+ * 1, because it enters and leaves by riding with its container for its own
+ * height. A first beat that faded in on schedule left a screen of empty stage on
+ * the way in; a last beat that faded out on schedule left one on the way out. So
+ * the first is already there when the stage arrives, and the last is still there
+ * when it leaves.
+ *
+ * The handoff between beats is SEQUENTIAL, not a cross-fade: fading one out and
+ * the next in over the same window put both at half opacity in the middle, and
+ * since they share a box the two headlines were legible on top of each other.
+ */
+function rampasDe(indice: number, total: number) {
+  const { de, ate, meio } = fatiaDe(indice, total);
+  const primeiro = indice === 0;
+  const ultimo = indice === total - 1;
+
+  const entrada = primeiro ? [0] : [de, de + meio];
+  const saida = ultimo ? [1] : [ate - meio, ate];
+
+  return {
+    paradas: [...entrada, ...saida],
+    opacidade: [
+      ...(primeiro ? [1] : [0, 1]),
+      ...(ultimo ? [1] : [1, 0]),
+    ],
+    y: [...(primeiro ? [0] : [34, 0]), ...(ultimo ? [0] : [0, -34])],
+    escala: [
+      ...(primeiro ? [1] : [0.9, 1]),
+      ...(ultimo ? [1] : [1, 1.06]),
+    ],
+  };
+}
 
 function Beat({
   titulo,
@@ -28,82 +91,70 @@ function Beat({
   progresso: MotionValue<number>;
   animado: boolean;
 }) {
-  const fatia = (FIM - INICIO) / total;
-  const de = INICIO + indice * fatia;
-  const ate = de + fatia;
-  const meio = fatia * 0.22;
-  const primeiro = indice === 0;
-  const ultimo = indice === total - 1;
-
-  /**
-   * Each beat fades up, holds for its slice, and fades down, so only one is lit
-   * at a time and the ramps overlap at the edges rather than leaving a gap.
-   *
-   * The first and the last are exceptions, and both for the same reason: a
-   * sticky stage occupies the viewport BEFORE its trigger reaches 0 and AFTER it
-   * reaches 1, because it enters and leaves by riding with its container for its
-   * own height. A first beat that faded in on schedule left a screen of empty
-   * stage on the way in; a last beat that faded out on schedule left one on the
-   * way out. So the first is already there when the stage arrives, and the last
-   * is still there when it leaves; their own slide does the entering and the
-   * leaving.
-   */
-  /*
-   * The stops are assembled explicitly rather than spread from two halves. The
-   * clever version produced `[0, 1, ate - meio, ate + meio]` for the first beat,
-   * which is NOT ascending, and `useTransform` requires an ascending input: it
-   * would have silently mapped the whole scene to nonsense.
-   */
-  /*
-   * The handoff is SEQUENTIAL, not a cross-fade. Fading one out and the next in
-   * over the same window put both at half opacity in the middle, and since they
-   * occupy the same box the two headlines were legible on top of each other. So
-   * the outgoing beat finishes leaving at `ate`, and the incoming one starts
-   * arriving at `ate`, which is the same instant.
-   */
-  const entrada = primeiro ? [0] : [de, de + meio];
-  const opacidadeEntrada = primeiro ? [1] : [0, 1];
-  const yEntrada = primeiro ? [0] : [34, 0];
-
-  const saida = ultimo ? [1] : [ate - meio, ate];
-  const opacidadeSaida = ultimo ? [1] : [1, 0];
-  const ySaida = ultimo ? [0] : [0, -34];
-
-  const opacity = useTransform(
-    progresso,
-    [...entrada, ...saida],
-    [...opacidadeEntrada, ...opacidadeSaida],
-  );
-  const y = useTransform(
-    progresso,
-    [...entrada, ...saida],
-    [...yEntrada, ...ySaida],
-  );
+  const { paradas, opacidade, y } = rampasDe(indice, total);
+  const opacity = useTransform(progresso, paradas, opacidade);
+  const deslocamento = useTransform(progresso, paradas, y);
 
   return (
     <motion.div
-      style={
-        animado
-          ? { opacity, y }
-          : // Reduced motion gets the list, stacked and all visible. Absolute
-            // positioning would pile the four on top of each other, so the
-            // static path un-stacks them.
-            undefined
-      }
+      style={animado ? { opacity, y: deslocamento } : undefined}
       className={cn(
-        "w-full max-w-3xl",
+        "w-full max-w-xl",
+        // Reduced motion gets the list, stacked and all visible. Absolute
+        // positioning would pile the four on top of each other.
         animado ? "absolute inset-x-0" : "relative mb-14 last:mb-0",
       )}
     >
       <p className="[font-family:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.26em] tabular-nums text-white/40">
         {String(indice + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
       </p>
-      <h3 className="mt-6 [font-family:var(--font-bricolage)] text-[clamp(2rem,5.6vw,3.8rem)] font-semibold leading-[1.05] tracking-[-0.035em] text-white">
+      <h3 className="mt-6 [font-family:var(--font-bricolage)] text-[clamp(1.9rem,4.6vw,3.2rem)] font-semibold leading-[1.05] tracking-[-0.035em] text-white">
         {titulo}
       </h3>
-      <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/60 md:text-lg">
+      <p className="mt-6 text-base leading-relaxed text-white/60 md:text-lg">
         {texto}
       </p>
+
+      {/* On a phone the drawing rides with its own beat, under the copy: there
+          is no second column to put it in, and a diagram that only exists on
+          desktop makes the small screen the lesser version of the page. */}
+      {DIAGRAMAS[indice] && (
+        <div className="mt-10 h-24 w-24 text-white/65 md:hidden">
+          {React.createElement(DIAGRAMAS[indice])}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+/**
+ * The drawing column, desktop only.
+ *
+ * A single stage where the diagrams swap, not one per beat stacked: the frame
+ * staying put is what makes the swap read as the same subject being examined
+ * from four angles rather than as four unrelated pictures scrolling by.
+ */
+function Desenho({
+  indice,
+  total,
+  progresso,
+}: {
+  indice: number;
+  total: number;
+  progresso: MotionValue<number>;
+}) {
+  const { paradas, opacidade, escala } = rampasDe(indice, total);
+  const opacity = useTransform(progresso, paradas, opacidade);
+  const scale = useTransform(progresso, paradas, escala);
+  const Diagrama = DIAGRAMAS[indice];
+  if (!Diagrama) return null;
+
+  return (
+    <motion.div
+      style={{ opacity, scale }}
+      className="absolute inset-0 grid place-items-center text-white/70"
+    >
+      <Diagrama className="h-full w-full" />
     </motion.div>
   );
 }
@@ -111,17 +162,19 @@ function Beat({
 /**
  * What the company promises to do with the data it is handed.
  *
- * The last argument before the closing, and the one a prospect actually needs:
- * a company page can talk about craft for ten screens, and the question still
+ * The last argument before the closing, and the one a prospect actually needs: a
+ * company page can talk about craft for ten screens, and the question still
  * standing is whether their client list is safe here.
  *
  * Four beats through one stage rather than four cards side by side. A grid of
  * four commitments is skimmed and forgotten; one at a time, each holding the
  * screen for its own stretch of scroll, is read.
  *
- * The measure of the whole section is drawn as a rule along the bottom, in four
- * segments, so the reader can see how many are left. Without it a stage that
- * keeps replacing its own content reads as a page that stopped scrolling.
+ * The right half is a drawing that changes with the beat. It is not decoration:
+ * the first version of this scene was four sentences alone on a screen, with the
+ * bottom third empty, and a full viewport carrying one paragraph reads as a page
+ * that ran out of things to say. The drawings also do the arguing, which is what
+ * an icon would not have done.
  */
 export function InstitucionalCompromissos() {
   const trilha = useRef<HTMLDivElement>(null);
@@ -133,7 +186,11 @@ export function InstitucionalCompromissos() {
       aria-label="Compromissos da ProOps"
       className="relative border-t border-white/10 bg-neutral-950 text-white"
       // One screen of scroll per beat, plus one for entering and leaving.
-      style={animated ? { height: `${(COMPROMISSOS.length + 1) * 100}vh` } : undefined}
+      style={
+        animated
+          ? { height: `${(COMPROMISSOS.length + 1) * 100}vh` }
+          : undefined
+      }
     >
       <div
         className={cn(
@@ -149,42 +206,74 @@ export function InstitucionalCompromissos() {
         />
 
         <div className="relative z-10 mx-auto w-full max-w-6xl">
-          <Sobrancelha className="mb-12 md:mb-16">
+          <Sobrancelha className="mb-10 md:mb-14">
             O que a gente garante
           </Sobrancelha>
 
-          {/* The stage. Its height is reserved by the tallest beat so the four
-              can be absolutely positioned without the section collapsing; under
-              reduced motion they are in flow and this is just a wrapper. */}
-          <div
-            className={cn(
-              "relative",
-              animated && "min-h-[22rem] md:min-h-[24rem]",
+          <div className="grid items-center gap-12 md:grid-cols-[1.15fr_0.85fr] md:gap-16">
+            {/* The stage. Its height is reserved by the tallest beat so the four
+                can be absolutely positioned without the section collapsing;
+                under reduced motion they are in flow and this is a wrapper. */}
+            <div
+              className={cn(
+                "relative",
+                animated && "min-h-[20rem] md:min-h-[21rem]",
+              )}
+            >
+              {COMPROMISSOS.map((compromisso, index) => (
+                <Beat
+                  key={compromisso.titulo}
+                  titulo={compromisso.titulo}
+                  texto={compromisso.texto}
+                  indice={index}
+                  total={COMPROMISSOS.length}
+                  progresso={progress}
+                  animado={animated}
+                />
+              ))}
+            </div>
+
+            {animated && (
+              <div className="relative mx-auto hidden aspect-square w-full max-w-[19rem] md:block">
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 border border-white/10"
+                />
+                <div className="absolute inset-[14%]">
+                  {COMPROMISSOS.map((compromisso, index) => (
+                    <Desenho
+                      key={compromisso.titulo}
+                      indice={index}
+                      total={COMPROMISSOS.length}
+                      progresso={progress}
+                    />
+                  ))}
+                </div>
+                {/* Corner ticks on the frame. They make the square read as a
+                    viewport onto the drawing rather than as a border round it. */}
+                {[
+                  "left-0 top-0 border-l border-t",
+                  "right-0 top-0 border-r border-t",
+                  "bottom-0 left-0 border-b border-l",
+                  "bottom-0 right-0 border-b border-r",
+                ].map((canto) => (
+                  <span
+                    key={canto}
+                    aria-hidden="true"
+                    className={cn("absolute h-4 w-4 border-white/45", canto)}
+                  />
+                ))}
+              </div>
             )}
-          >
-            {COMPROMISSOS.map((compromisso, index) => (
-              <Beat
-                key={compromisso.titulo}
-                titulo={compromisso.titulo}
-                texto={compromisso.texto}
-                indice={index}
-                total={COMPROMISSOS.length}
-                progresso={progress}
-                animado={animated}
-              />
-            ))}
           </div>
 
-          {/* Inside the stage, under the deck. Outside it, the line would only
-              be reached after the stage had already slid away, which is exactly
-              the screen of nothing this scene is built to avoid. */}
           <Fecho progresso={progress} animado={animated} />
         </div>
 
         {animated && (
           <div
             aria-hidden="true"
-            className="absolute inset-x-6 bottom-12 flex gap-2 md:inset-x-10"
+            className="absolute inset-x-6 bottom-10 flex gap-2 md:inset-x-10"
           >
             {COMPROMISSOS.map((compromisso, index) => (
               <Segmento
@@ -197,7 +286,6 @@ export function InstitucionalCompromissos() {
           </div>
         )}
       </div>
-
     </section>
   );
 }
@@ -211,9 +299,8 @@ function Segmento({
   total: number;
   progresso: MotionValue<number>;
 }) {
-  const fatia = (FIM - INICIO) / total;
-  const de = INICIO + indice * fatia;
-  const escala = useTransform(progresso, [de, de + fatia], [0, 1]);
+  const { de, ate } = fatiaDe(indice, total);
+  const escala = useTransform(progresso, [de, ate], [0, 1]);
 
   return (
     <div className="h-px flex-1 bg-white/12">
@@ -237,9 +324,7 @@ function Fecho({
   return (
     <motion.p
       style={animado ? { opacity } : undefined}
-      className={cn(
-        "mt-14 max-w-2xl text-base leading-relaxed text-white/50 md:mt-16 md:text-lg",
-      )}
+      className="mt-12 max-w-2xl text-base leading-relaxed text-white/45 md:mt-14 md:text-lg"
     >
       Nada disso é <Realce>diferencial</Realce>. É o mínimo para alguém confiar o
       dado da própria empresa a um sistema.

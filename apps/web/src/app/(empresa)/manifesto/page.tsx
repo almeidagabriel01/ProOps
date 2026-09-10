@@ -42,7 +42,11 @@ export default function ManifestoPage() {
             <LinhaHero atraso={0.18}>o produto.</LinhaHero>
           </>
         }
-        descricao="Toda semana duas ideias boas competem pelo mesmo tempo. Estes três princípios são o desempate, e é por isso que eles são três e não doze."
+        descricao="Não é uma lista de valores para a parede. É o critério que sobra quando duas ideias boas competem pela mesma semana, e o que cada uma delas custa quando ganha."
+        dados={[
+          { valor: "03", rotulo: "Princípios" },
+          { valor: "03", rotulo: "Coisas que eles custam" },
+        ]}
       />
 
       {PRINCIPIOS.map((principio, index) => (

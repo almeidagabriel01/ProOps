@@ -19,14 +19,20 @@ import { WHATSAPP_HREF as WPP } from "@/components/landing/_shared/whatsapp";
 
 export interface Principio {
   titulo: string;
+  /** Uma linha. É o que a raiz mostra, e só ela. */
+  resumo: string;
+  /** O argumento. Vive em /manifesto. */
   texto: string;
-  /** Uma frase que aprofunda o princípio, usada só na página do manifesto. */
+  /** O que o princípio custa. Vive em /manifesto. */
   detalhe: string;
 }
 
 export interface Marco {
   ano: string;
   titulo: string;
+  /** Uma linha. É o que a linha do tempo horizontal da raiz mostra. */
+  resumo: string;
+  /** O relato. Vive em /sobre. */
   texto: string;
 }
 
@@ -81,10 +87,17 @@ export const PLANILHAS: string[] = [
   "Notas emitidas",
 ];
 
-/** Como a empresa trabalha. Três é o teto: uma quarta ninguém lê. */
+/**
+ * Como a empresa trabalha. Três é o teto: uma quarta ninguém lê.
+ *
+ * Cada campo tem UM dono, e é assim que as duas superfícies deixam de se
+ * repetir: a raiz mostra `resumo` e manda para /manifesto, que é a única que
+ * mostra `texto` e `detalhe`.
+ */
 export const PRINCIPIOS: Principio[] = [
   {
     titulo: "Software que cabe no dia",
+    resumo: "Projetado para a terça-feira à tarde, não para a demonstração.",
     texto:
       "Ferramenta boa é a que some no meio do trabalho. A gente projeta para o uso de terça-feira à tarde, não para a demonstração.",
     detalhe:
@@ -92,6 +105,7 @@ export const PRINCIPIOS: Principio[] = [
   },
   {
     titulo: "Uma base, não seis planilhas",
+    resumo: "Proposta, cliente e dinheiro são a mesma história, contada em partes.",
     texto:
       "Proposta, cliente e dinheiro são a mesma história contada em partes. Separá-los em sistemas diferentes é o que faz o mês fechar errado.",
     detalhe:
@@ -99,6 +113,7 @@ export const PRINCIPIOS: Principio[] = [
   },
   {
     titulo: "O detalhe que ninguém vê",
+    resumo: "Fuso, centavo, acento, permissão. É onde a confiança se ganha ou se perde.",
     texto:
       "Fuso, centavo, acento, permissão. É onde o software perde a confiança de quem usa, e é onde a gente gasta o tempo.",
     detalhe:
@@ -106,29 +121,38 @@ export const PRINCIPIOS: Principio[] = [
   },
 ];
 
-/** Linha do tempo. Trocar por marcos reais quando o briefing chegar. */
+/**
+ * Linha do tempo. Trocar por marcos reais quando o briefing chegar.
+ *
+ * Mesma divisão dos princípios: a raiz passa por `resumo`, e /sobre é a única
+ * que conta a história em `texto`.
+ */
 export const MARCOS: Marco[] = [
   {
     ano: "20XX",
     titulo: "O começo",
+    resumo: "A primeira linha de código, e o problema concreto que a motivou.",
     texto:
       "Substituir por como a ProOps nasceu e qual problema concreto motivou a primeira linha de código.",
   },
   {
     ano: "20XX",
     titulo: "O primeiro cliente",
+    resumo: "Alguém confiou a operação da própria empresa ao sistema.",
     texto:
       "Substituir por quem foi, o que ele precisava e o que isso mudou no produto.",
   },
   {
     ano: "20XX",
     titulo: "O ERP completo",
+    resumo: "Proposta, CRM e financeiro passaram a viver na mesma base.",
     texto:
       "Substituir pelo momento em que o sistema passou a cobrir proposta, CRM e financeiro na mesma base.",
   },
   {
     ano: "20XX",
     titulo: "O aplicativo",
+    resumo: "A mesma ideia, levada para a vida financeira de cada pessoa.",
     texto:
       "Substituir pela decisão de levar a mesma ideia para a vida financeira pessoal.",
   },

@@ -3,6 +3,11 @@
 import React, { useRef } from "react";
 import { m as motion, useTransform, type MotionValue } from "motion/react";
 
+import {
+  DiagramaBase,
+  DiagramaDetalhe,
+  DiagramaDia,
+} from "@/components/institucional/diagramas";
 import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
 import { Realce, TituloSecao } from "@/components/institucional/secao";
 import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
@@ -14,6 +19,16 @@ import { PRINCIPIOS } from "../_content/institucional-copy";
 
 const INICIO = 0.16;
 const FIM = 0.84;
+
+/**
+ * Um desenho por princípio, na ordem de `PRINCIPIOS`.
+ *
+ * Casado por índice e não por chave de propósito: o conteúdo mora em
+ * `_content`, e acrescentar um campo `diagrama` lá obrigaria o arquivo de texto
+ * a importar componente React. O `?? null` cobre um quarto princípio que entre
+ * antes de alguém desenhar o quarto quadro.
+ */
+const DIAGRAMAS = [DiagramaDia, DiagramaBase, DiagramaDetalhe];
 
 function Carta({
   titulo,
@@ -53,6 +68,7 @@ function Carta({
    * screen of empty deck on the way in, and the last never recedes, because
    * there is nothing behind it to recede into.
    */
+  const Diagrama = DIAGRAMAS[indice] ?? null;
   const atras = total - 1 - indice;
   const yRecuado = `${-atras * 5}%`;
   const escalaRecuada = 1 - atras * 0.04;
@@ -98,18 +114,38 @@ function Carta({
         animado ? "absolute inset-x-0 top-0" : "relative mb-6 last:mb-0",
       )}
     >
+      {/* O numeral gigante ao fundo, cortado pela borda do card: é o que dá
+          escala à carta sem ocupar espaço de leitura. */}
       <span
         aria-hidden="true"
-        className="[font-family:var(--font-geist-mono)] text-[11px] tabular-nums text-white/35"
+        className="pointer-events-none absolute -right-4 -top-10 select-none [font-family:var(--font-bricolage)] text-[10rem] font-extrabold leading-none tracking-[-0.06em] text-white/[0.04]"
       >
-        {String(indice + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
+        {String(indice + 1).padStart(2, "0")}
       </span>
-      <h3 className="mt-6 [font-family:var(--font-bricolage)] text-2xl font-semibold leading-tight tracking-tight text-white md:text-4xl">
-        {titulo}
-      </h3>
-      <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/60 md:text-lg">
-        {texto}
-      </p>
+
+      <div className="relative grid items-center gap-8 md:grid-cols-[1fr_auto] md:gap-12">
+        <div>
+          <span
+            aria-hidden="true"
+            className="[font-family:var(--font-geist-mono)] text-[11px] tabular-nums text-white/35"
+          >
+            {String(indice + 1).padStart(2, "0")} /{" "}
+            {String(total).padStart(2, "0")}
+          </span>
+          <h3 className="mt-6 [font-family:var(--font-bricolage)] text-2xl font-semibold leading-tight tracking-tight text-white md:text-4xl">
+            {titulo}
+          </h3>
+          <p className="mt-5 max-w-lg text-base leading-relaxed text-white/60 md:text-lg">
+            {texto}
+          </p>
+        </div>
+
+        {Diagrama && (
+          <div className="hidden h-32 w-32 shrink-0 text-white/70 md:block lg:h-40 lg:w-40">
+            <Diagrama />
+          </div>
+        )}
+      </div>
     </motion.article>
   );
 }
@@ -122,6 +158,10 @@ function Carta({
  * them means each one holds the screen alone while it is read, and the two
  * before it stay visible underneath, so by the third the reader is looking at
  * all three at once and can see that there are only three.
+ *
+ * The card shows the one-line `resumo`, never the full `texto`: the argument
+ * belongs to /manifesto, and this scene exists to say that there are exactly
+ * three of them and then hand the reader over.
  *
  * The cards are opaque and separated by their offset alone, with a shadow cast
  * UPWARD so the current card sits visibly on top of the deck. No glass and no
@@ -175,14 +215,14 @@ export function InstitucionalManifesto() {
           <div
             className={cn(
               "relative",
-              animated && "min-h-[19rem] md:min-h-[22rem]",
+              animated && "min-h-[15rem] md:min-h-[16rem]",
             )}
           >
             {PRINCIPIOS.map((principio, index) => (
               <Carta
                 key={principio.titulo}
                 titulo={principio.titulo}
-                texto={principio.texto}
+                texto={principio.resumo}
                 indice={index}
                 total={PRINCIPIOS.length}
                 progresso={progress}

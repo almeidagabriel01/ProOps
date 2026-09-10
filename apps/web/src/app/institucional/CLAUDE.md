@@ -132,11 +132,35 @@ os 800 genéricos) e **CLS ≤ 0,1 é `error`**. Daí duas escolhas estruturais:
   espaçador e reescreve a altura do documento; com várias cenas isso vira
   medição a cada refresh, e um ScrollTrigger aninhado passa a medir contra o
   espaçador em vez do viewport.
+- **Cena horizontal precisa de cartão largo.** O trilho só rola se for mais largo
+  que o viewport: encurtar o texto dos cartões da linha do tempo fez os quatro
+  caberem na tela, `distance()` foi a zero, e o pin ficou lá sem nada para fazer.
+  Mudou o texto de uma cena horizontal? Confira a largura.
 - **Deslocamento de cena é `vw`/`vh`, não `%`.** Porcentagem em `translate` é
   relativa à caixa do PRÓPRIO elemento: foi assim que as seis planilhas da cena
   do problema nasceram amontoadas no meio do palco. O palco é `overflow-hidden`,
   então o que começa fora da borda é cortado e não alarga o documento, que é
   exatamente o que o guard de overflow a 393px vigia.
+
+## Cada assunto tem UM dono
+
+A primeira versão repetia: os três princípios apareciam na raiz, em `/sobre` e em
+`/manifesto`; marcos, pessoas e números apareciam em dois lugares cada. Quem leu a
+raiz não tinha motivo para abrir uma sub-página, e quem abria encontrava o que já
+tinha lido.
+
+| Assunto | Raiz mostra | Dono |
+|---|---|---|
+| Princípios | `resumo`, uma linha por carta | `/manifesto` (`texto` + `detalhe`) |
+| Marcos | `resumo`, uma linha por marco | `/sobre` (`texto`) |
+| Pessoas | nomes, papéis e formação | `/sobre` (retratos e falas) |
+| Números | a cena inteira | a raiz; `/sobre` não os repete |
+| Telas dos produtos | os dois painéis | `/produtos` (as capturas) |
+
+O modelo de conteúdo é que sustenta isso: `Principio` e `Marco` têm um campo
+`resumo` **separado** do `texto`, e cada campo tem uma superfície só. Ao
+acrescentar assunto novo, decida o dono antes de escrever o componente, senão a
+duplicação volta pela porta dos fundos.
 
 ## Texto
 

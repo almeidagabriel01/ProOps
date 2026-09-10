@@ -16,8 +16,8 @@ import { SITE_URLS } from "@/lib/site/surfaces";
  * `DesktopOnlyWebGl` decides the machine should have it, which is what keeps the
  * module out of the phone's bundle and out of the Lighthouse run entirely.
  */
-const FlowField = dynamic(
-  () => import("@/components/marketing/_shared/webgl/flow-field"),
+const CampoDePontos = dynamic(
+  () => import("@/components/marketing/_shared/webgl/campo-de-pontos"),
   { ssr: false },
 );
 
@@ -52,10 +52,16 @@ const WORDMARK = "ProOps";
  * is a client component only because of the field below the type; the type
  * itself does not depend on that having loaded.
  *
- * The field is three layers, each a fallback for the one above it:
- *   1. a WebGL flow field, desktop with a real cursor only
- *   2. `.campo-reativo`, two CSS glows reading the same `--px`/`--py`
- *   3. a static gradient, for `prefers-reduced-motion`, where the vars stay 0
+ * The background is a dot lattice, in two layers that are the SAME idea:
+ *   1. `.grade-pontos`, a still CSS grid, always rendered
+ *   2. a WebGL lattice on top that answers the pointer, desktop with a real
+ *      cursor only
+ *
+ * That the fallback is also a dot grid is the point: a phone, a browser without
+ * WebGL and the Lighthouse run get a still version of the same background rather
+ * than a different one. The contour field that used to be here read as
+ * camouflage and competed with the type; a regular grid sits under it, and
+ * because it is regular, any disturbance in it is legible at once.
  *
  * On top of that, on the same gate, the mark itself in 3D, turning with the
  * pointer. It sits on the RIGHT half and the copy keeps the left, so it is never
@@ -74,19 +80,16 @@ export function InstitucionalHero() {
       aria-label="ProOps"
       className="relative isolate flex min-h-[100svh] flex-col justify-center overflow-hidden bg-neutral-950 px-6 py-28 text-white md:px-10"
     >
-      {/* Layer 2, always present. The WebGL canvas sits ON TOP of it rather than
-          replacing it, so a failed context or a blocked GPU degrades to this
-          without a flash. */}
-      <div aria-hidden="true" className="campo-reativo" />
+      {/* Always present. The WebGL lattice sits ON TOP of this one rather than
+          replacing it, so a failed context or a blocked GPU degrades without a
+          flash: same grid, just still. */}
       <div
         aria-hidden="true"
-        className="grade-pontos pointer-events-none absolute inset-0 opacity-60"
+        className="grade-pontos pointer-events-none absolute inset-0 opacity-70"
       />
+      <div aria-hidden="true" className="campo-reativo opacity-70" />
       <DesktopOnlyWebGl>
-        <FlowField
-          intensidade={0.28}
-          className="pointer-events-none absolute inset-0 h-full w-full"
-        />
+        <CampoDePontos className="pointer-events-none absolute inset-0 h-full w-full" />
         {/*
           Half the viewport, anchored right, and taller than the copy column so
           the rings can cross the fold. `pointer-events-none` because it is

@@ -14,6 +14,11 @@ import { MARCOS } from "../_content/institucional-copy";
 /**
  * Quanto scroll custa cada pixel de deslocamento do trilho.
  *
+ * A largura do cartão importa tanto quanto este número: com o texto curto e
+ * cartões estreitos os quatro marcos couberam na tela de uma vez, o trilho ficou
+ * menor que o viewport, `distance()` foi a zero e o pin deixou de ter o que
+ * fazer. Cartão largo é o que garante que só dois ou três apareçam por vez.
+ *
  * Em 1 a linha do tempo passava rápido demais: quatro marcos numa tela e pouco,
  * e a leitura não acompanhava o gesto. Em 2.2 os mesmos marcos levam cerca de
  * duas telas e meia.
@@ -145,7 +150,7 @@ export function InstitucionalHistoria() {
             {MARCOS.map((marco) => (
               <article
                 key={marco.titulo}
-                className="relative shrink-0 border-l border-black/15 pl-6 md:w-[26rem] md:border-l-0 md:pl-0 md:pr-8 md:pt-0"
+                className="relative shrink-0 border-l border-black/15 pl-6 md:w-[34rem] md:border-l-0 md:pl-0 md:pr-12 md:pt-0"
               >
                 <span
                   aria-hidden="true"
@@ -157,8 +162,11 @@ export function InstitucionalHistoria() {
                 <h3 className="mt-4 [font-family:var(--font-bricolage)] text-lg font-semibold tracking-tight md:text-xl">
                   {marco.titulo}
                 </h3>
+                {/* `resumo`, não `texto`: o relato é de /sobre. Aqui a linha do
+                    tempo é uma passada, e quatro parágrafos num trilho
+                    horizontal é leitura que o gesto não acompanha. */}
                 <p className="mt-3 max-w-sm text-sm leading-relaxed text-black/55 md:text-base">
-                  {marco.texto}
+                  {marco.resumo}
                 </p>
               </article>
             ))}

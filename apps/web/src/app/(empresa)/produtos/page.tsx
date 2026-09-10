@@ -61,7 +61,12 @@ export default function ProdutosPage() {
             <LinhaHero atraso={0.18}>só.</LinhaHero>
           </>
         }
-        descricao="Dado que já foi digitado uma vez não deveria ser digitado de novo. Vale para a empresa, e vale para a pessoa que sai dela às sete da noite."
+        descricao="Um roda na tela do escritório e o outro no bolso. Esta página mostra as duas por dentro, com captura do que está no ar hoje."
+        dados={[
+          { valor: "02", rotulo: "Produtos" },
+          { valor: "07", rotulo: "Telas nesta página" },
+          { valor: "0", rotulo: "Protótipos: tudo aqui está no ar" },
+        ]}
       />
 
       <Secao tom="claro" aria-label="Qual dos dois é para você">

@@ -50,7 +50,11 @@ export default function FaleConoscoPage() {
             </LinhaHero>
           </>
         }
-        descricao="Diga o que você precisa e a página mostra por onde. São quatro caminhos, e todos terminam em uma pessoa."
+        descricao="Diga o que traz você aqui e a página mostra por onde. São quatro caminhos, e todos terminam em uma pessoa."
+        dados={[
+          { valor: "04", rotulo: "Canais" },
+          { valor: "2d", rotulo: "Prazo de resposta, em dias úteis" },
+        ]}
       />
 
       <Secao aria-label="Escolha o assunto">
