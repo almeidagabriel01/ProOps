@@ -3,7 +3,6 @@
 import React from "react";
 
 import { PessoasFaixa } from "@/components/institucional/pessoas-faixa";
-import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
 import { Realce, TituloSecao } from "@/components/institucional/secao";
 import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
 import { Magnetic } from "@/components/marketing/_shared/magnetic";
@@ -26,7 +25,6 @@ export function InstitucionalTime() {
     >
       <div aria-hidden="true" className="campo-reativo pointer-events-none" />
       <div className="relative z-10 mx-auto max-w-6xl">
-        <PlaceholderBadge>nomes e falas a confirmar</PlaceholderBadge>
         <TituloSecao
           sobrancelha="Quem faz"
           titulo={

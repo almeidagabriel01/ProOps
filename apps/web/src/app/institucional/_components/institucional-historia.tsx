@@ -12,6 +12,15 @@ import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene"
 import { MARCOS } from "../_content/institucional-copy";
 
 /**
+ * Quanto scroll custa cada pixel de deslocamento do trilho.
+ *
+ * Em 1 a linha do tempo passava rápido demais: quatro marcos numa tela e pouco,
+ * e a leitura não acompanhava o gesto. Em 2.2 os mesmos marcos levam cerca de
+ * duas telas e meia.
+ */
+const RITMO = 2.2;
+
+/**
  * The company timeline, read sideways.
  *
  * A timeline is the one thing a horizontal track is genuinely better at: time
@@ -38,6 +47,10 @@ export function InstitucionalHistoria() {
     const secao = sectionRef.current;
     if (!track || !secao) return;
 
+    /**
+     * How far the track travels sideways. The SCROLL it costs is that distance
+     * times `RITMO`, below, which is what decides how slow the timeline reads.
+     */
     const distance = () => Math.max(track.scrollWidth - window.innerWidth, 0);
     const espinha = secao.querySelector<HTMLElement>(".historia-espinha");
     const regua = secao.querySelector<HTMLElement>(".historia-regua");
@@ -48,7 +61,12 @@ export function InstitucionalHistoria() {
       scrollTrigger: {
         trigger: secao,
         start: "top top",
-        end: () => `+=${distance()}`,
+        // 2.2x the travel: one pixel of scroll moves the track less than a
+        // pixel, so the four milestones take about two and a half screens to
+        // pass instead of flicking by in one. Tied to the measured distance
+        // rather than to a constant, so a fifth milestone slows it further on
+        // its own instead of speeding the others up.
+        end: () => `+=${distance() * RITMO}`,
         pin: true,
         scrub: 0.6,
         invalidateOnRefresh: true,

@@ -39,7 +39,6 @@ const ROTAS: Record<Surface, SitemapRoute[]> = {
     { path: "/sobre", changeFrequency: "monthly", priority: 0.8 },
     { path: "/manifesto", changeFrequency: "monthly", priority: 0.8 },
     { path: "/produtos", changeFrequency: "monthly", priority: 0.8 },
-    { path: "/carreiras", changeFrequency: "weekly", priority: 0.7 },
     { path: "/fale-conosco", changeFrequency: "yearly", priority: 0.5 },
   ],
   erp: [

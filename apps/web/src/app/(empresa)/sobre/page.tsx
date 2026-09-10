@@ -92,7 +92,6 @@ export default function SobrePage() {
 
       <Secao tom="claro" aria-label="Quem faz a ProOps">
         <div className="mx-auto max-w-6xl">
-          <PlaceholderBadge>nomes e falas a confirmar</PlaceholderBadge>
           <TituloSecao
             tom="claro"
             sobrancelha="Quem faz"

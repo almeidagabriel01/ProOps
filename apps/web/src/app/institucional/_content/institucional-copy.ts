@@ -43,8 +43,12 @@ export interface Numero {
 export interface Pessoa {
   nome: string;
   papel: string;
-  /** Uma frase em primeira pessoa. É o que transforma uma grade em pessoas. */
+  /** O que essa pessoa resolve, em uma frase. */
   fala: string;
+  /** Formação, quando ela explica o papel. Vazio some da tela. */
+  formacao?: string;
+  /** Caminho em `public/founders`. Retrato, recortado em 4x5. */
+  foto: string;
 }
 
 export interface Compromisso {
@@ -61,13 +65,6 @@ export interface Canal {
   href: string;
   /** `true` abre em outra aba: WhatsApp, formulário do ERP. */
   externo?: boolean;
-}
-
-export interface Vaga {
-  titulo: string;
-  area: string;
-  local: string;
-  tipo: string;
 }
 
 /** A frase que a segunda cena revela palavra por palavra. */
@@ -156,27 +153,37 @@ export const NUMEROS: Numero[] = [
   },
 ];
 
-/** Quem faz. Nomes, papéis e falas a confirmar com cada pessoa. */
+/**
+ * Os três sócios. Nomes, papéis e formação reais.
+ *
+ * Sem selo de rascunho: esta é a única seção do site que já tem informação
+ * confirmada, e é a que mais importa numa página institucional, porque é a
+ * resposta para "de quem eu estou comprando".
+ *
+ * As fotos vivem em `public/founders`, em kebab-case: o nome original tinha
+ * espaço e acento, e isso vira `%20` e `%C3%A7` numa URL, que funciona e depois
+ * quebra no primeiro lugar que monta o caminho por concatenação.
+ */
 export const PESSOAS: Pessoa[] = [
   {
-    nome: "A definir",
-    papel: "Produto e engenharia",
-    fala: "Substituir por uma frase desta pessoa sobre o que ela resolve aqui.",
+    nome: "Mauricio Krziminski",
+    papel: "Cofundador, engenharia e produto",
+    formacao: "Engenheiro de Software pela PUC-RS",
+    fala: "Constrói o produto e conversa com quem usa. As duas coisas, de propósito: o que aparece numa reunião vira decisão de código na mesma semana.",
+    foto: "/founders/mauricio-krziminski.webp",
   },
   {
-    nome: "A definir",
-    papel: "Atendimento e implantação",
-    fala: "Substituir por uma frase desta pessoa sobre o que ela resolve aqui.",
+    nome: "Gabriel Almeida",
+    papel: "Cofundador, engenharia e produto",
+    formacao: "Engenheiro de Software pelo Inatel",
+    fala: "Cuida da parte técnica e da evolução dos dois produtos, e atende cliente junto. Quem implanta é quem escreveu o que está sendo implantado.",
+    foto: "/founders/gabriel-almeida.jpeg",
   },
   {
-    nome: "A definir",
-    papel: "Comercial",
-    fala: "Substituir por uma frase desta pessoa sobre o que ela resolve aqui.",
-  },
-  {
-    nome: "A definir",
-    papel: "Financeiro e fiscal",
-    fala: "Substituir por uma frase desta pessoa sobre o que ela resolve aqui.",
+    nome: "Winicius Gonçalves",
+    papel: "Cofundador, comercial e financeiro",
+    fala: "Comercial, marketing e financeiro da ProOps. É com ele que começa a conversa de quem ainda está decidindo.",
+    foto: "/founders/winicius-goncalves.png",
   },
 ];
 
@@ -241,33 +248,4 @@ export const CANAIS: Canal[] = [
   },
 ];
 
-/**
- * Vagas abertas. Lista vazia é um estado de verdade, não um esquecimento: a
- * página de carreiras trata os dois casos, e quem chega num momento sem vaga
- * merece saber disso em vez de uma seção que não existe.
- */
-export const VAGAS: Vaga[] = [];
 
-/** Os passos do processo seletivo. */
-export const PROCESSO: Compromisso[] = [
-  {
-    titulo: "Conversa",
-    texto:
-      "Meia hora para entender o que você quer fazer e contar com honestidade o que a gente tem para oferecer.",
-  },
-  {
-    titulo: "Um problema real",
-    texto:
-      "Um exercício tirado do produto, com tempo combinado. Sem prova de algoritmo e sem pegadinha.",
-  },
-  {
-    titulo: "Conversa com o time",
-    texto:
-      "Com quem você vai trabalhar todo dia, porque é quem tem mais a perder se a escolha for errada.",
-  },
-  {
-    titulo: "Proposta",
-    texto:
-      "Número, escopo e expectativa por escrito, no mesmo dia da decisão.",
-  },
-];

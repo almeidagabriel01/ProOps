@@ -37,11 +37,6 @@ export const EMPRESA_LINKS: EmpresaLink[] = [
     resumo: "Um ERP para a empresa, um aplicativo para a pessoa.",
   },
   {
-    href: "/carreiras",
-    rotulo: "Carreiras",
-    resumo: "Como a gente trabalha, e as vagas abertas.",
-  },
-  {
     href: "/fale-conosco",
     rotulo: "Contato",
     resumo: "Comercial, suporte, imprensa e parcerias.",

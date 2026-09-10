@@ -200,7 +200,6 @@ export const APEX_COMPANY_PATHS = [
   "/sobre",
   "/manifesto",
   "/produtos",
-  "/carreiras",
   "/fale-conosco",
 ] as const;
 

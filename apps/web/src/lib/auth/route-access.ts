@@ -37,7 +37,6 @@ export const PUBLIC_MARKETING_ROUTES = [
   "/sobre",
   "/manifesto",
   "/produtos",
-  "/carreiras",
   "/fale-conosco",
 ] as const;
 
@@ -123,7 +122,6 @@ export const SESSIONLESS_MARKETING_ROUTES = [
   "/sobre",
   "/manifesto",
   "/produtos",
-  "/carreiras",
   "/fale-conosco",
 ] as const;
 

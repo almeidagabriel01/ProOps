@@ -25,6 +25,8 @@ describe("proxy matcher", () => {
     // /auth/refresh, so the image simply never appears and nothing errors.
     "/mockup-ios/hoje.jpg",
     "/mockup-android/hoje.jpg",
+    // Os retratos dos socios, na pagina /sobre e na raiz da institucional.
+    "/founders/mauricio-krziminski.webp",
     // beforeInteractive static scripts: must bypass the auth proxy, otherwise
     // they 307-redirect to /auth/refresh and never execute (the consent banner
     // would then paint ~6s late after hydration and become the LCP element).

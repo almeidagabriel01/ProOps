@@ -1,0 +1,56 @@
+import React from "react";
+
+import { cn } from "@/lib/utils";
+
+/**
+ * The mark as an inline path, taken verbatim from `public/logo/logo2-cropped.svg`.
+ *
+ * Inline and not an `<Image>` for three reasons, in order of how much they
+ * matter: it can be ANIMATED (the page transition draws it, which needs a real
+ * `<path>` in the document); it costs no request, which matters for a mark that
+ * appears in the navbar, the footer and every navigation; and it inherits
+ * `currentColor`, so the same component works on the near-black hero and on a
+ * white section without a second asset.
+ *
+ * The `viewBox` and the transform are the SVG's own, untouched: the file is
+ * potrace output at 10x with a flipped Y axis, and reproducing that here rather
+ * than normalising it keeps this a copy of the asset instead of an
+ * interpretation of it.
+ */
+const VIEW_BOX = "540 250 410 430";
+const TRANSFORMA = "translate(0,900) scale(0.1,-0.1)";
+export const MARCA_PATH =
+  "M7500 6103 c-485 -52 -935 -337 -1197 -758 -126 -202 -194 -401 -228 -660 -19 -150 -19 -197 1 -360 45 -379 180 -666 444 -947 45 -49 88 -88 96 -88 12 0 14 98 14 658 0 524 3 673 14 738 75 424 425 776 845 849 198 35 428 9 594 -67 l47 -21 0 -220 0 -220 -32 27 c-53 42 -149 94 -219 117 -52 18 -89 22 -199 23 -123 1 -142 -1 -216 -27 -153 -52 -274 -146 -359 -277 -61 -95 -92 -182 -104 -293 -12 -109 -15 -1505 -3 -1524 16 -26 205 -94 363 -131 97 -23 303 -34 438 -23 122 10 152 15 271 43 132 31 338 122 470 206 93 59 245 188 325 275 156 171 259 348 334 572 61 184 76 287 76 510 -1 254 -29 399 -120 620 -56 136 -108 228 -194 342 -62 84 -214 243 -232 243 -4 0 -10 -307 -12 -682 -3 -655 -4 -687 -25 -770 -24 -100 -73 -227 -106 -278 -81 -124 -109 -160 -188 -236 -48 -46 -116 -102 -150 -125 -298 -192 -680 -224 -985 -82 l-53 24 0 210 c0 147 3 209 11 209 6 0 32 -15 58 -34 55 -40 127 -77 201 -102 44 -15 83 -19 200 -18 139 0 148 2 225 32 265 105 435 340 446 617 1 33 1 380 1 772 l-2 712 -47 21 c-124 56 -303 104 -445 119 -92 10 -281 12 -358 4z m317 -1327 c65 -36 94 -66 132 -140 77 -146 13 -335 -139 -414 -62 -32 -69 -34 -150 -29 -102 5 -151 28 -216 100 -52 58 -78 131 -78 214 1 116 91 248 197 287 28 11 68 15 122 13 66 -3 90 -8 132 -31z";
+
+interface MarcaProps {
+  className?: string;
+  /** Traço em vez de preenchimento, para a animação de desenho. */
+  contorno?: boolean;
+  /** Comprimento do traço, para `DrawSVG` ou `stroke-dashoffset`. */
+  pathRef?: React.Ref<SVGPathElement>;
+  title?: string;
+}
+
+export function Marca({ className, contorno, pathRef, title }: MarcaProps) {
+  return (
+    <svg
+      viewBox={VIEW_BOX}
+      preserveAspectRatio="xMidYMid meet"
+      role={title ? "img" : "presentation"}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+      className={cn("block", className)}
+    >
+      <g transform={TRANSFORMA}>
+        <path
+          ref={pathRef}
+          d={MARCA_PATH}
+          fill={contorno ? "none" : "currentColor"}
+          stroke={contorno ? "currentColor" : "none"}
+          strokeWidth={contorno ? 26 : undefined}
+          strokeLinejoin={contorno ? "round" : undefined}
+        />
+      </g>
+    </svg>
+  );
+}

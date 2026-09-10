@@ -21,6 +21,17 @@ const FlowField = dynamic(
   { ssr: false },
 );
 
+/**
+ * The mark in 3D. Same gate and the same reason, and here the reason is the
+ * whole budget: three.js is a real library, and it is affordable ONLY because
+ * `DesktopOnlyWebGl` decides before the import begins, so a phone never
+ * downloads it and the Lighthouse run, at 412px, never sees it.
+ */
+const Marca3d = dynamic(
+  () => import("@/components/marketing/_shared/webgl/marca-3d"),
+  { ssr: false },
+);
+
 const WORDMARK = "ProOps";
 
 /**
@@ -45,6 +56,12 @@ const WORDMARK = "ProOps";
  *   1. a WebGL flow field, desktop with a real cursor only
  *   2. `.campo-reativo`, two CSS glows reading the same `--px`/`--py`
  *   3. a static gradient, for `prefers-reduced-motion`, where the vars stay 0
+ *
+ * On top of that, on the same gate, the mark itself in 3D, turning with the
+ * pointer. It sits on the RIGHT half and the copy keeps the left, so it is never
+ * behind the text: an object rotating under a headline is noise, and the point
+ * of putting it beside the wordmark is that the reader sees the same mark twice,
+ * flat and solid.
  */
 export function InstitucionalHero() {
   // The field itself lives on the shell, so `--px`/`--py` are inherited by every
@@ -67,9 +84,16 @@ export function InstitucionalHero() {
       />
       <DesktopOnlyWebGl>
         <FlowField
-          intensidade={0.34}
+          intensidade={0.28}
           className="pointer-events-none absolute inset-0 h-full w-full"
         />
+        {/*
+          Half the viewport, anchored right, and taller than the copy column so
+          the rings can cross the fold. `pointer-events-none` because it is
+          decoration: it reads the pointer through `--px`/`--py`, it does not
+          capture it, and the CTA underneath stays clickable.
+        */}
+        <Marca3d className="pointer-events-none absolute inset-y-0 right-[-2%] hidden w-[46%] lg:block xl:right-[2%] xl:w-[44%]" />
       </DesktopOnlyWebGl>
 
       <div className="relative z-10 mx-auto w-full max-w-6xl">

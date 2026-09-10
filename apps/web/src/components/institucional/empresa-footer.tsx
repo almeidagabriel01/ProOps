@@ -1,5 +1,4 @@
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 
 import {
@@ -10,6 +9,7 @@ import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
 import { Marquee } from "@/components/marketing/_shared/marquee";
 import { institucionalHomeUrl, SITE_URLS } from "@/lib/site/surfaces";
 
+import { Marca } from "./marca";
 import { EMPRESA_LINKS } from "./nav-links";
 
 const PRODUTOS = [
@@ -43,22 +43,12 @@ export function EmpresaFooter() {
     <footer className="relative isolate overflow-hidden border-t border-white/10 bg-neutral-950 text-white">
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-[1.5fr_1fr_1fr_1fr] md:px-10 md:py-20">
         <div>
-          {/* O PNG da marca é 1600x1600; uma caixa não quadrada faria o
-              object-contain encolher o símbolo até a altura dela. O SVG branco é
-              o que serve sobre o quase-preto desta página. */}
           <CurtainLink
             href={institucionalHomeUrl()}
             aria-label="ProOps, página inicial"
             className="flex items-center gap-2.5"
           >
-            <Image
-              src="/logo/logo2-cropped.svg"
-              alt=""
-              aria-hidden="true"
-              width={24}
-              height={24}
-              className="shrink-0"
-            />
+            <Marca className="h-6 w-6 shrink-0 text-white" />
             <span className="[font-family:var(--font-bricolage)] text-[17px] font-bold tracking-tight text-white">
               ProOps
             </span>

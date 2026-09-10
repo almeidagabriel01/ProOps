@@ -40,7 +40,6 @@ const PAGINAS = [
   { nome: "sobre", url: `http://localhost:${PORTA}/sobre` },
   { nome: "manifesto", url: `http://localhost:${PORTA}/manifesto` },
   { nome: "produtos", url: `http://localhost:${PORTA}/produtos` },
-  { nome: "carreiras", url: `http://localhost:${PORTA}/carreiras` },
   { nome: "fale-conosco", url: `http://localhost:${PORTA}/fale-conosco` },
 ];
 

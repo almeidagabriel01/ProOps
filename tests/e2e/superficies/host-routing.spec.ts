@@ -126,7 +126,6 @@ test.describe("SUPERFICIES-01: host routing", () => {
       { caminho: "/sobre", titulo: /Sobre a ProOps/ },
       { caminho: "/manifesto", titulo: /Manifesto da ProOps/ },
       { caminho: "/produtos", titulo: /Produtos da ProOps/ },
-      { caminho: "/carreiras", titulo: /Carreiras na ProOps/ },
       { caminho: "/fale-conosco", titulo: /Falar com a ProOps/ },
     ];
 

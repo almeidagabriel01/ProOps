@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
@@ -9,6 +8,7 @@ import { Magnetic } from "@/components/marketing/_shared/magnetic";
 import { institucionalHomeUrl, SITE_URLS } from "@/lib/site/surfaces";
 import { cn } from "@/lib/utils";
 
+import { Marca } from "./marca";
 import { EMPRESA_LINKS } from "./nav-links";
 
 /**
@@ -74,21 +74,7 @@ export function EmpresaNavbar() {
           aria-label="ProOps, página inicial"
           className="flex shrink-0 items-center gap-2.5"
         >
-          {/*
-            The symbol as the white SVG, with the wordmark set live in Bricolage
-            rather than baked into a bitmap. ProOpsLogo is not used here: its PNG
-            is a 1600x1600 square whose artwork is a horizontal lockup floating
-            in transparency, so object-contain shrinks the mark to the height of
-            whatever box it is given.
-          */}
-          <Image
-            src="/logo/logo2-cropped.svg"
-            alt=""
-            aria-hidden="true"
-            width={24}
-            height={24}
-            className="shrink-0"
-          />
+          <Marca className="h-6 w-6 shrink-0 text-white" />
           <span className="[font-family:var(--font-bricolage)] text-[18px] font-bold tracking-tight text-white">
             ProOps
           </span>

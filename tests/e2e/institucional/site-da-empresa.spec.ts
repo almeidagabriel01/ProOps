@@ -32,7 +32,6 @@ const PAGINAS = [
   "/sobre",
   "/manifesto",
   "/produtos",
-  "/carreiras",
   "/fale-conosco",
 ];
 
@@ -64,6 +63,58 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
   });
 
   /**
+   * A cortina tem que COBRIR, e é isso que este teste mede.
+   *
+   * A primeira versão não cobria e nada denunciava: `scale-y-0` do Tailwind v4
+   * compila para a propriedade CSS `scale`, que COMPÕE com `transform` em vez de
+   * ser sobrescrita por ele, então as lâminas ficavam achatadas por mais que o
+   * GSAP animasse o transform. A navegação parecia instantânea, o console ficava
+   * limpo, e um teste de URL ou de título passava.
+   *
+   * Por isso a asserção é sobre PIXEL: um amostrador em rAF grava a maior altura
+   * que uma lâmina alcançou durante a transição. Amostrar é o que torna o teste
+   * determinístico; tirar um screenshot no meio dependeria de acertar a janela
+   * de 500ms.
+   */
+  test("a cortina cobre a tela de verdade durante a transição", async ({
+    page,
+  }) => {
+    await page.goto(`${APEX}/sobre`);
+    await page.waitForLoadState("networkidle");
+
+    await page.evaluate(() => {
+      const w = window as unknown as { __alturaMax: number };
+      w.__alturaMax = 0;
+      const amostra = () => {
+        const lamina = document.querySelector("[data-lamina]");
+        if (lamina) {
+          w.__alturaMax = Math.max(
+            w.__alturaMax,
+            lamina.getBoundingClientRect().height,
+          );
+        }
+        requestAnimationFrame(amostra);
+      };
+      requestAnimationFrame(amostra);
+    });
+
+    await page
+      .getByRole("navigation", { name: "Principal" })
+      .getByRole("link", { name: "Manifesto" })
+      .click();
+    await page.waitForURL(`${APEX}/manifesto`);
+
+    const { maior, altura } = await page.evaluate(() => ({
+      maior: (window as unknown as { __alturaMax: number }).__alturaMax,
+      altura: window.innerHeight,
+    }));
+
+    // Bem acima de zero e perto da tela cheia. O piso é 80% e não 100% porque a
+    // amostragem pega quadros durante a subida das lâminas.
+    expect(maior).toBeGreaterThan(altura * 0.8);
+  });
+
+  /**
    * O wordmark tem que levar para o SITE DA EMPRESA, e hoje a raiz dele é
    * `/institucional`: o apex ainda serve o ERP. Escrito como `/` cru, este link
    * levava de `/carreiras` direto para a landing do ERP, que responde 200 e
@@ -74,7 +125,7 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
   test("o wordmark volta para a raiz do site da empresa, não para o ERP", async ({
     page,
   }) => {
-    await page.goto(`${APEX}/carreiras`);
+    await page.goto(`${APEX}/produtos`);
     await page.waitForLoadState("networkidle");
 
     await page
