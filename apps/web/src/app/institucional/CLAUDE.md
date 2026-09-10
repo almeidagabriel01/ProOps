@@ -222,17 +222,21 @@ duplicação volta pela porta dos fundos.
 Tudo vem de `_content/institucional-copy.ts`. `PLACEHOLDER = true` liga os selos
 âmbar; virar para `false` some com todos de uma vez.
 
-O briefing de setembro de 2026 preencheu a origem (a ProOps nasceu em novembro
-de 2025, dentro da empresa de automação residencial de um dos sócios, porque
-montar uma proposta levava horas), os quatro marcos, o exemplo concreto de cada
-princípio e o número de empresas no ERP. **Faltam duas coisas, e as duas estão
-listadas no topo do módulo de texto**: os meses dos marcos 2, 3 e 4, e o número
-de propostas já emitidas.
+O briefing de setembro de 2026 fechou o texto: a origem (a ProOps nasceu em
+novembro de 2025 dentro da empresa de automação residencial de um dos sócios,
+porque montar uma proposta levava horas), as quatro datas, o exemplo concreto de
+cada princípio e os três números. **`PLACEHOLDER` está em `false`** e não há
+selo âmbar em nenhuma seção.
 
-Sobre número: só entra o que dá para conferir. `NUMEROS` tem **dois** itens, e a
-grade da cena segue o tamanho da lista em vez de fixar três, porque uma célula
-vazia com borda parece dado que não carregou. Dois números certos numa empresa
-de dez meses valem mais do que três com um enfeitado.
+Ao acrescentar texto que seja chute, ligue `PLACEHOLDER` de volta e ponha um
+`<PlaceholderBadge>` na seção. O selo não é decoração de rascunho: uma empresa
+nova é conferida justamente pelos números, e número inventado numa página
+institucional para de ser rascunho e vira afirmação.
+
+Sobre número, duas regras que valem para sempre. Só entra o que dá para
+conferir. E a grade da cena de números segue o tamanho de `NUMEROS` em vez de
+fixar três, porque uma célula vazia com borda parece dado que não carregou:
+publicar dois números certos é melhor do que três com um enfeitado.
 
 Valem os dois guards de copy do projeto: nada de travessão como pontuação, e
 "a ProOps", sempre feminino.

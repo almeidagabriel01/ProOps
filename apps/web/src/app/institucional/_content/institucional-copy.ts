@@ -4,24 +4,16 @@
  * Num arquivo só, e não espalhado pelos componentes, para que ajustar a
  * história da ProOps seja editar este arquivo e mais nada.
  *
- * O briefing de setembro de 2026 preencheu quase tudo: a origem, os marcos, o
- * que cada princípio significa na prática e quantas empresas usam o ERP. O que
- * ainda não é real está listado abaixo, e é só isso.
+ * O briefing de setembro de 2026 fechou tudo: a origem, as quatro datas, o que
+ * cada princípio significa na prática, e os três números.
  *
- * `PLACEHOLDER` liga um selo visível em cada seção que ainda depende de você.
- * Deixe em `true` até não sobrar nenhum item da lista: é o que impede a página
- * de ir ao ar com número inventado parecendo número real.
- *
- * PENDENTE:
- *
- * 1. **Os meses dos marcos 2, 3 e 4.** Só o primeiro tem data confirmada
- *    (novembro de 2025). Os outros três estão com o ano, que é o que dá para
- *    afirmar; com o mês, a linha do tempo fica bem melhor.
- * 2. **O terceiro número.** Hoje são dois, e os dois são verdadeiros. O
- *    candidato natural é quantas propostas já saíram do ERP, que é um número
- *    que só vocês podem contar.
+ * `PLACEHOLDER` liga um selo âmbar em toda seção que ainda dependa de alguém.
+ * Está em `false` porque não sobrou nenhuma. Ao acrescentar texto que seja
+ * chute, ligue de volta e ponha um `<PlaceholderBadge>` na seção: o selo existe
+ * para impedir que a página vá ao ar com número inventado parecendo real, e uma
+ * empresa nova é conferida justamente pelos números.
  */
-export const PLACEHOLDER = true;
+export const PLACEHOLDER = false;
 
 // O número de suporte já tem dono no projeto: `lib/whatsapp-contacts` é a fonte,
 // e a landing o consome por este módulo. Repetir os dígitos aqui seria a segunda
@@ -119,7 +111,7 @@ export const PRINCIPIOS: Principio[] = [
     texto:
       "Ferramenta boa é a que some no meio do trabalho. A gente projeta para o uso de terça-feira à tarde, não para a demonstração.",
     detalhe:
-      "Em outro sistema você demora para aprender e continua demorando para emitir. Aqui o tempo fica todo no começo: cadastrar catálogo, preço e modelo dá trabalho uma vez, e depois a proposta que levava horas sai em minutos, com poucos cliques.",
+      "Em outro sistema você demora para aprender e continua demorando para emitir. Aqui o tempo fica todo no começo: cadastrar catálogo, preço e modelo dá trabalho uma vez, e depois uma proposta de 40 itens sai em 8 minutos, com poucos cliques.",
   },
   {
     titulo: "Uma base, não seis planilhas",
@@ -145,8 +137,7 @@ export const PRINCIPIOS: Principio[] = [
  * Mesma divisão dos princípios: a raiz passa por `resumo`, e /sobre é a única
  * que conta a história em `texto`.
  *
- * Só o primeiro marco tem data fechada. Os outros três estão com o ano, que é o
- * que dá para afirmar hoje; o mês entra quando vocês confirmarem.
+ * Os quatro têm mês e ano confirmados pelos sócios.
  */
 export const MARCOS: Marco[] = [
   {
@@ -158,7 +149,7 @@ export const MARCOS: Marco[] = [
       "O Winicius tem uma empresa de automação residencial, e a reclamação dele era sempre a mesma: os sistemas de gestão que existiam para esse mercado eram limitados e difíceis de manusear, e montar uma proposta inteira para um cliente consumia horas. A ProOps começou aí, em novembro de 2025, como o ERP que resolveria exatamente isso. Não havia mercado em vista. Havia um problema específico que se repetia toda semana, na mesa ao lado.",
   },
   {
-    ano: "2025",
+    ano: "Jan 2026",
     titulo: "Passou do combinado",
     resumo:
       "O sistema ficou maior e mais completo do que o problema que veio resolver.",
@@ -166,7 +157,7 @@ export const MARCOS: Marco[] = [
       "O plano era cobrir a proposta. Com o tempo o ERP foi ficando melhor e mais completo do que a gente tinha imaginado, e foi cobrindo o resto do caminho: catálogo, cliente, funil, contrato, recebimento. Em algum momento ficou claro que aquilo tinha tomado outra proporção, e que já não era a ferramenta interna de uma empresa só.",
   },
   {
-    ano: "2026",
+    ano: "Mar 2026",
     titulo: "A ProOps vira marca",
     resumo:
       "A ferramenta de dentro de casa virou produto, com nome, preço e outra empresa usando.",
@@ -174,7 +165,7 @@ export const MARCOS: Marco[] = [
       "A decisão de comercializar veio depois do sistema, e não antes dele. É a ordem menos comum e é a que a gente prefere: o produto foi provado no uso diário de uma empresa de verdade antes de ter marca, site e preço. Hoje são duas empresas no ERP, e a primeira delas continua sendo a que deu origem a ele.",
   },
   {
-    ano: "2026",
+    ano: "Ago 2026",
     titulo: "O aplicativo",
     resumo:
       "A mesma ideia de base única, levada para a vida financeira de cada pessoa.",
@@ -184,20 +175,25 @@ export const MARCOS: Marco[] = [
 ];
 
 /**
- * Números publicáveis. Só entram depois de conferidos.
+ * Números publicáveis. Só entram depois de conferidos, e os três estão.
  *
- * São DOIS, e não três, porque só dois são verdadeiros hoje. Um número
- * inventado numa página institucional para de ser rascunho e passa a ser
- * afirmação, e é a primeira coisa que um cliente confere; dois números certos
- * numa empresa de dez meses valem mais do que três com um enfeitado.
+ * Os três contam a mesma história em ordem: quem usa, quanto foi usado, e quão
+ * rápido é. O de oito minutos é o mais importante dos três, porque é o único
+ * que PROVA o primeiro princípio em vez de afirmá-lo.
  *
- * O terceiro slot está reservado para quantas propostas já saíram do ERP, que é
- * o número que esta empresa tem de mais interessante e que só ela pode contar.
- * A cena se adapta à quantidade sozinha.
+ * "Produtos no ar" saiu daqui: ele já é a ficha do herói de /produtos, e o
+ * número que ele ocupava vale mais com o tempo de emissão. A grade da cena
+ * segue o tamanho desta lista, então acrescentar ou tirar um item é seguro.
  */
 export const NUMEROS: Numero[] = [
   { valor: 2, digitos: 2, rotulo: "Empresas usando o ERP" },
-  { valor: 2, digitos: 2, rotulo: "Produtos no ar" },
+  { valor: 70, digitos: 2, rotulo: "Propostas já emitidas" },
+  {
+    valor: 8,
+    digitos: 2,
+    sufixo: " min",
+    rotulo: "Para uma proposta de 40 itens",
+  },
 ];
 
 /**

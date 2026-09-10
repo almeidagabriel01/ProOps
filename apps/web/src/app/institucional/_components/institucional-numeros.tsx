@@ -3,7 +3,6 @@
 import React from "react";
 
 import { NumerosScrubados } from "@/components/institucional/numeros-scrubados";
-import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
 import { Realce, TituloSecao } from "@/components/institucional/secao";
 
 import { NUMEROS } from "../_content/institucional-copy";
@@ -28,7 +27,6 @@ export function InstitucionalNumeros() {
         className="campo-reativo campo-reativo--claro pointer-events-none"
       />
       <div className="relative z-10 mx-auto max-w-6xl">
-        <PlaceholderBadge>falta o número de propostas emitidas</PlaceholderBadge>
         <TituloSecao
           tom="claro"
           sobrancelha="Em números"

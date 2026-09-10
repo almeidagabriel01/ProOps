@@ -4,8 +4,13 @@ import { AssinaturaRetratos } from "@/components/institucional/assinaturas-hero"
 import { LinhaDoTempo } from "@/components/institucional/linha-do-tempo";
 import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
 import { PessoasFaixa } from "@/components/institucional/pessoas-faixa";
-import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
-import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
+import {
+  Realce,
+  Secao,
+  Sobrancelha,
+  TituloSecao,
+} from "@/components/institucional/secao";
+import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
 import { Magnetic } from "@/components/marketing/_shared/magnetic";
 import { canonicalFor } from "@/lib/site/host-seo";
@@ -90,7 +95,6 @@ export default function SobrePage() {
 
       <Secao aria-label="A história da ProOps">
         <div className="mx-auto max-w-6xl">
-          <PlaceholderBadge>faltam os meses de três marcos</PlaceholderBadge>
           <TituloSecao
             sobrancelha="A história"
             titulo={
@@ -106,37 +110,69 @@ export default function SobrePage() {
       </Secao>
 
       {/*
-        Ponte para /manifesto em vez de repetir os três princípios aqui, que era
-        o que a primeira versão fazia. Eles são o assunto daquela página, e um
-        resumo deles nesta só cria uma terceira cópia para manter em dia.
+        O fecho é uma NOTA ASSINADA, e não mais um título com um link embaixo.
+
+        A primeira versão era uma sobrancelha, uma manchete e um "Ler o
+        manifesto": tecnicamente uma ponte, e na prática um sumário, porque não
+        dizia nada por conta própria. Uma página que acabou de apresentar três
+        pessoas e contar a história delas tem uma saída melhor à disposição, que
+        é essas pessoas falarem em primeira pessoa e assinarem embaixo.
+
+        O conteúdo dela é a parte que uma empresa nova costuma esconder: são
+        duas empresas usando o ERP, e está escrito. Dizer isso antes que alguém
+        pergunte é o que dá crédito ao resto da página, e a nota faz a ponte
+        para /manifesto por consequência, e não por instrução.
       */}
-      <Secao tom="claro" aria-label="Como a ProOps decide">
+      <Secao tom="claro" aria-label="Uma nota dos sócios">
         <div className="mx-auto max-w-3xl">
-          <TituloSecao
-            tom="claro"
-            sobrancelha="Como decidimos"
-            titulo={
-              <>
-                O que a gente diz <Realce>não</Realce> para.
-              </>
-            }
-            descricao="Três princípios governam o que entra no produto, e cada um deles tem um preço. Os dois estão escritos, em página própria."
-            className="mb-10"
-          />
-          <Magnetic>
-            <CurtainLink
-              href="/manifesto"
-              className="group inline-flex items-center gap-2 border-b border-black/25 pb-1.5 text-base text-black transition-colors hover:border-black"
-            >
-              Ler o manifesto
-              <span
-                aria-hidden="true"
-                className="inline-block transition-transform duration-300 group-hover:translate-x-1"
+          <Sobrancelha tom="claro" className="mb-10">
+            Uma nota
+          </Sobrancelha>
+
+          <div className="space-y-7 text-lg leading-relaxed text-black/70 md:text-xl md:leading-relaxed">
+            <SplitReveal unit="lines" stagger={0.05}>
+              A ProOps começou em novembro de 2025, e hoje são duas empresas
+              usando o ERP. Não vamos escrever que somos líderes de coisa
+              nenhuma: com esse tempo de estrada, quem escreve isso está pedindo
+              para ser conferido.
+            </SplitReveal>
+            <SplitReveal unit="lines" stagger={0.05}>
+              O que a gente tem para oferecer é outra coisa. Um sistema que
+              nasceu de um problema real, que foi usado todo dia numa empresa de
+              verdade antes de ter preço, e que é mantido pelas mesmas três
+              pessoas que atendem quem usa. Enquanto for assim, o que você pedir
+              numa reunião não vai passar por camada nenhuma antes de virar
+              decisão.
+            </SplitReveal>
+            <SplitReveal unit="lines" stagger={0.05}>
+              O critério que decide o que entra no produto, e o preço de cada uma
+              dessas escolhas, está escrito em página própria.
+            </SplitReveal>
+          </div>
+
+          {/* A assinatura. Os primeiros nomes bastam: a página inteira acabou
+              de apresentar os três, e nome completo aqui viraria rodapé de
+              contrato. */}
+          <p className="mt-12 border-t border-black/15 pt-8 [font-family:var(--font-fraunces)] text-2xl italic text-black md:text-3xl">
+            Mauricio, Gabriel e Winicius
+          </p>
+
+          <div className="mt-10">
+            <Magnetic>
+              <CurtainLink
+                href="/manifesto"
+                className="group inline-flex items-center gap-2 border-b border-black/25 pb-1.5 text-base text-black transition-colors hover:border-black"
               >
-                &rarr;
-              </span>
-            </CurtainLink>
-          </Magnetic>
+                Ler o manifesto
+                <span
+                  aria-hidden="true"
+                  className="inline-block transition-transform duration-300 group-hover:translate-x-1"
+                >
+                  &rarr;
+                </span>
+              </CurtainLink>
+            </Magnetic>
+          </div>
         </div>
       </Secao>
     </main>
