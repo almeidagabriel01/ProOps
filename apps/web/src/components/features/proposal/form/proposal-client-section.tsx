@@ -17,7 +17,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { User, FileText, Mail, MapPin, Users, Building2, CreditCard } from "lucide-react";
 import { formatDocumento, isDocumentoValido } from "@/lib/format-document";
 import { formatDateBR } from "@/utils/date-format";
-import { ProposalNumberingField } from "./proposal-numbering-field";
+import {
+  ProposalNumberingField,
+  hasProposalNumbering,
+} from "./proposal-numbering-field";
+import { useProposalNumbering } from "@/hooks/useProposalNumbering";
 
 interface ProposalClientSectionProps {
   formData: Partial<Proposal>;
@@ -62,6 +66,19 @@ export function ProposalClientSection({
   onFormChange,
   onClientChange,
 }: ProposalClientSectionProps) {
+  /**
+   * A numeração é resolvida AQUI, e não dentro do campo, porque ela decide o
+   * grid: com praça, "Email/Telefone" e "Praça/Válida até" viram duas linhas de
+   * duas colunas; sem ela, os três campos seguem numa linha de três. Foi o que
+   * faltou na primeira versão, e a praça caiu sozinha numa quarta célula, com
+   * dois terços de linha vazia ao lado.
+   */
+  const { config: numberingConfig } = useProposalNumbering();
+  const mostraNumeracao = hasProposalNumbering(
+    numberingConfig,
+    formData.proposalCode,
+  );
+
   // Handler for type checkbox changes
   const handleTypeChange = (type: ClientType, checked: boolean) => {
     if (!onClientTypesChange) return;
@@ -89,23 +106,40 @@ export function ProposalClientSection({
       >
         <FormGroup>
           <FormStatic label="Título da Proposta" value={formData.title} />
-          <ProposalNumberingField
-            proposalCode={formData.proposalCode}
-            praca={formData.proposalPraca}
-            isReadOnly
-          />
           <FormStatic label="Cliente" value={formData.clientName} />
         </FormGroup>
-        <FormGroup cols={3}>
+        <FormGroup cols={mostraNumeracao ? 2 : 3}>
           <FormStatic label="Email" value={formData.clientEmail} />
           <FormStatic label="Telefone" value={formData.clientPhone} />
-          <FormStatic
-            label="Válida até"
-            value={
-              formData.validUntil ? formatDateBR(formData.validUntil) : undefined
-            }
-          />
+          {!mostraNumeracao && (
+            <FormStatic
+              label="Válida até"
+              value={
+                formData.validUntil
+                  ? formatDateBR(formData.validUntil)
+                  : undefined
+              }
+            />
+          )}
         </FormGroup>
+        {mostraNumeracao && (
+          <FormGroup cols={2}>
+            <ProposalNumberingField
+              config={numberingConfig}
+              proposalCode={formData.proposalCode}
+              praca={formData.proposalPraca}
+              isReadOnly
+            />
+            <FormStatic
+              label="Válida até"
+              value={
+                formData.validUntil
+                  ? formatDateBR(formData.validUntil)
+                  : undefined
+              }
+            />
+          </FormGroup>
+        )}
         <FormStatic label="Endereço" value={formData.clientAddress} />
       </FormSection>
     );
@@ -208,7 +242,7 @@ export function ProposalClientSection({
         </FormItem>
       </FormGroup>
 
-      <FormGroup cols={3}>
+      <FormGroup cols={mostraNumeracao ? 2 : 3}>
         <FormItem
           label="Email"
           htmlFor="clientEmail"
@@ -240,27 +274,52 @@ export function ProposalClientSection({
             className={errors.clientPhone ? "border-destructive" : ""}
           />
         </FormItem>
-        <FormItem
-          label="Válida até"
-          htmlFor="validUntil"
-          required
-          error={errors.validUntil}
-        >
-          <DatePicker
-            id="validUntil"
-            name="validUntil"
-            value={formData.validUntil ? formData.validUntil.split("T")[0] : ""}
-            onChange={onFormChange}
-            className={errors.validUntil ? "border-destructive" : ""}
-          />
-        </FormItem>
-        {/* Some sozinho quando a empresa nao usa numeracao, ou usa sem praca. */}
-        <ProposalNumberingField
-          proposalCode={formData.proposalCode}
-          praca={formData.proposalPraca}
-          onPracaChange={onPracaChange}
-        />
+        {!mostraNumeracao && (
+          <FormItem
+            label="Válida até"
+            htmlFor="validUntil"
+            required
+            error={errors.validUntil}
+          >
+            <DatePicker
+              id="validUntil"
+              name="validUntil"
+              value={
+                formData.validUntil ? formData.validUntil.split("T")[0] : ""
+              }
+              onChange={onFormChange}
+              className={errors.validUntil ? "border-destructive" : ""}
+            />
+          </FormItem>
+        )}
       </FormGroup>
+
+      {mostraNumeracao && (
+        <FormGroup cols={2}>
+          <ProposalNumberingField
+            config={numberingConfig}
+            proposalCode={formData.proposalCode}
+            praca={formData.proposalPraca}
+            onPracaChange={onPracaChange}
+          />
+          <FormItem
+            label="Válida até"
+            htmlFor="validUntil"
+            required
+            error={errors.validUntil}
+          >
+            <DatePicker
+              id="validUntil"
+              name="validUntil"
+              value={
+                formData.validUntil ? formData.validUntil.split("T")[0] : ""
+              }
+              onChange={onFormChange}
+              className={errors.validUntil ? "border-destructive" : ""}
+            />
+          </FormItem>
+        </FormGroup>
+      )}
 
       <FormItem label="Endereço" htmlFor="clientAddress">
         <Input

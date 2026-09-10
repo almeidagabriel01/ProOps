@@ -3,14 +3,36 @@
 import * as React from "react";
 import { FormItem, FormStatic } from "@/components/ui/form-components";
 import { Select } from "@/components/ui/select";
-import { useProposalNumbering } from "@/hooks/useProposalNumbering";
+import type { ProposalNumberingConfig } from "@/services/proposal-numbering-service";
 
 interface ProposalNumberingFieldProps {
+  /**
+   * Configuração da empresa. Vem de fora, e não de um `useProposalNumbering()`
+   * aqui dentro, porque quem monta o grid precisa saber ANTES se este campo vai
+   * aparecer: escondido, ele deixaria um buraco de meia linha ao lado do
+   * vizinho. Buscar aqui também renderia duas chamadas à API por formulário.
+   */
+  config: ProposalNumberingConfig | null;
   /** Código já alocado. Presente só em proposta que já foi criada. */
   proposalCode?: string | null;
   praca?: string | null;
   isReadOnly?: boolean;
   onPracaChange?: (praca: string | null) => void;
+}
+
+/**
+ * Decide se há numeração para mostrar nesta proposta.
+ *
+ * Exportada porque a seção que monta o grid faz a MESMA pergunta para escolher
+ * o número de colunas. Duas respostas diferentes para isso é o que produz o
+ * campo órfão numa linha vazia.
+ */
+export function hasProposalNumbering(
+  config: ProposalNumberingConfig | null,
+  proposalCode?: string | null,
+): boolean {
+  if (proposalCode) return true;
+  return Boolean(config?.enabled) && (config?.pracas.length ?? 0) > 0;
 }
 
 /**
@@ -25,33 +47,40 @@ interface ProposalNumberingFieldProps {
  * mesma proposta ter dois identificadores.
  */
 export function ProposalNumberingField({
+  config,
   proposalCode,
   praca,
   isReadOnly,
   onPracaChange,
 }: ProposalNumberingFieldProps) {
-  const { config } = useProposalNumbering();
-
   if (proposalCode) {
-    return <FormStatic label="Código da Proposta" value={proposalCode} />;
+    // Na visão somente leitura os vizinhos também são `FormStatic`, então ele
+    // alinha. Na de edição o vizinho é um `FormItem` (o "Válida até"), que
+    // espaça rótulo e campo de outro jeito: usar `FormStatic` ali deixaria as
+    // duas caixas em alturas diferentes na mesma linha.
+    if (isReadOnly) {
+      return <FormStatic label="Código da Proposta" value={proposalCode} />;
+    }
+
+    return (
+      <FormItem label="Código da Proposta" hint="Gerado ao criar">
+        <div className="h-12 px-4 rounded-xl bg-muted/40 border border-border/30 flex items-center text-sm font-mono">
+          {proposalCode}
+        </div>
+      </FormItem>
+    );
   }
 
-  // Sem numeração ligada, ou com numeração sem praça nenhuma configurada, não
-  // há o que perguntar: o backend monta o código sozinho.
-  if (!config?.enabled || config.pracas.length === 0) return null;
+  if (!hasProposalNumbering(config, proposalCode)) return null;
 
   if (isReadOnly) {
     return <FormStatic label="Praça" value={praca || undefined} />;
   }
 
-  const atual = praca ?? config.defaultPraca;
+  const atual = praca ?? config?.defaultPraca;
 
   return (
-    <FormItem
-      label="Praça"
-      htmlFor="proposalPraca"
-      hint="Entra no código"
-    >
+    <FormItem label="Praça" htmlFor="proposalPraca" hint="Entra no código">
       <Select
         id="proposalPraca"
         name="proposalPraca"
@@ -60,7 +89,7 @@ export function ProposalNumberingField({
         disableSort
       >
         <option value="">Nenhuma</option>
-        {config.pracas.map((sigla) => (
+        {(config?.pracas ?? []).map((sigla) => (
           <option key={sigla} value={sigla}>
             {sigla}
           </option>
