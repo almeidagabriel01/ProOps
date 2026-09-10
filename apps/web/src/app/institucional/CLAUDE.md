@@ -153,6 +153,10 @@ antes de "consertar" o componente; a cura é `rm -rf apps/web/.next` e reiniciar
   `ScrollTrigger.update`. A página se move e as cenas congelam no progresso
   anterior, o que parece cena quebrada e é ferramenta errada. Só evento de roda
   de verdade serve.
-- Uma aba em segundo plano tem `document.visibilityState === "hidden"`, e
-  `loopVisivel` pausa o WebGL nesse caso, de propósito. Um canvas transparente
-  numa captura de automação não é prova de que o shader está errado.
+- Uma aba em segundo plano tem `document.visibilityState === "hidden"`, e ali
+  **o `requestAnimationFrame` simplesmente não roda**. Isso derruba as duas
+  coisas que dependem de quadro: o `loopVisivel` do WebGL (que além disso pausa
+  de propósito nesse estado) e a escrita coalescida de `--px`/`--py` do
+  `usePointerField`. Canvas transparente e `--px` ausente numa captura de
+  automação não são prova de nada; o listener anexa, e dá para confirmar isso
+  com um `console.log` temporário no efeito.
