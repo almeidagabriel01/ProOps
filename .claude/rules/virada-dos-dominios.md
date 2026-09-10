@@ -87,14 +87,14 @@ algo pode estar errado, porque no dia sobram só três coisas.
 > OAuth do Google distintos**. Configurar um não configura o outro, e a falha só
 > aparece no ambiente que ficou de fora. Faça os dois, e anote qual já foi.
 
-- [ ] **Firebase Auth → Authentication → Settings → Domínios autorizados:**
+- [x] **Firebase Auth → Authentication → Settings → Domínios autorizados:**
       acrescentar `erp.proops.com.br`, **nos dois projetos**. Sem ele, o login
       morre com `auth/unauthorized-domain` no minuto da virada.
 
       `www.proops.com.br` já está e deve continuar: o apex responde 307 para o
       `www`, então é ali que o login acontece hoje. **`app.proops.com.br` NÃO
       entra**: aquela página não tem login.
-- [ ] **Google Cloud Console → APIs e Serviços → Credenciais → o cliente OAuth
+- [x] **Google Cloud Console → APIs e Serviços → Credenciais → o cliente OAuth
       da Agenda/Drive → "URIs de redirecionamento autorizados".** Acrescentar
       **estas duas, exatamente assim**, sem remover as que já estão lá:
 
@@ -131,7 +131,7 @@ algo pode estar errado, porque no dia sobram só três coisas.
       `redirect_uri_mismatch`, e **só aparece quando alguém tenta conectar**, que
       pode ser semanas depois.
 
-- [ ] **Stripe: não há nada a fazer no painel.** Este item estava errado no
+- [x] **Stripe: não há nada a fazer no painel.** Este item estava errado no
       checklist original. As URLs de retorno do checkout e do portal
       (`success_url`, `cancel_url`, `return_url`) são enviadas **em cada chamada
       da API**, montadas a partir da origem da requisição por
@@ -143,7 +143,7 @@ algo pode estar errado, porque no dia sobram só três coisas.
       `erp.proops.com.br` devolveria o cliente para o apex depois de pagar. É o
       mesmo item do bloco B, e não um passo separado.
 
-- [ ] **`NEXT_PUBLIC_*`: provavelmente nada a fazer.** `NEXT_PUBLIC_*` não é o
+- [x] **`NEXT_PUBLIC_*`: provavelmente nada a fazer.** `NEXT_PUBLIC_*` não é o
       nome de uma variável, é o prefixo do conjunto delas (Firebase, GA,
       Turnstile, WhatsApp…). Das 15 que o projeto usa, **só uma depende de
       domínio: `NEXT_PUBLIC_SITE_URL`**, e ela alimenta apenas o `metadataBase`,
