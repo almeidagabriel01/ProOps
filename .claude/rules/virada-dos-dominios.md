@@ -157,11 +157,18 @@ algo pode estar errado, porque no dia sobram só três coisas.
       O que dependia de host e era real já foi resolvido em código: canonical,
       sitemap, robots e o dado estruturado derivam do host servido, não de
       variável de build.
-- [ ] **Desligar a Deployment Protection** dos subdomínios na Vercel. Enquanto
-      estiver ligada eles respondem 302 para o SSO e nenhum crawler entra, o que
-      hoje é proposital; desligar antes permite navegar os dois hosts de verdade
-      e conferir tudo com calma. Eles continuam `noindex` até a virada, então
-      não há risco de indexação precoce.
+> **NÃO desligue a Deployment Protection neste bloco.** Ela estava aqui e é o
+> lugar errado: enquanto os domínios apontam para o Preview da branch, desligar
+> publica na internet aberta um ERP com código não revisado que fala com o
+> BACKEND DE PRODUÇÃO (`erp.proops.com.br` está em `PRODUCTION_HOSTS`) enquanto
+> autentica no Firebase de dev (as `NEXT_PUBLIC_*` de Preview apontam para lá).
+> Não é uma porta para os dados, porque o token de dev não é aceito pelo backend
+> de prod, mas é uma superfície pública se comportando de forma imprevisível, com
+> tráfego de estranhos batendo em produção. E na Vercel isso é configuração do
+> PROJETO: desligar expõe todos os previews, de todas as branches.
+>
+> Para revisar os dois hosts não é preciso desligar nada: logado na conta
+> Vercel, o SSO deixa passar. É por isso que você abre e um estranho leva 302.
 
 ### B. No dia, e nesta ordem
 
@@ -177,7 +184,12 @@ algo pode estar errado, porque no dia sobram só três coisas.
 - [ ] **4. Trocar `APEX_SURFACE` para `"institucional"`** e atualizar o E2E
       `superficies/host-routing.spec.ts`, que hoje afirma que o apex ainda serve
       o ERP, no mesmo commit.
-- [ ] **5. Merge e redeploy da Vercel.**
+- [ ] **5. Merge e redeploy da Vercel**, com os domínios já apontando para
+      Production e não mais para o Preview da branch.
+- [ ] **6. Só então, desligar a Deployment Protection.** A partir daqui os três
+      hosts servem código revisado, de produção, contra o backend certo — que é
+      a condição que faltava para expô-los. Antes disso não há motivo: logado na
+      conta, você já navega os dois.
 
 ### C. Depois
 
