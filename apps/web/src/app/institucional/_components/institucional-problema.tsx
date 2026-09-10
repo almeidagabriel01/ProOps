@@ -33,6 +33,20 @@ const DISPERSAO = [
 
 const REUNE_ATE = 0.62;
 
+/**
+ * Larguras das barras de cada linha falsa, em porcentagem.
+ *
+ * Fixas e não aleatórias: `Math.random()` aqui daria seis cards com formas
+ * diferentes a cada render, e uma diferença entre servidor e cliente que o React
+ * reclamaria na hidratação.
+ */
+const LINHAS_FALSAS = [
+  [34, 22, 14],
+  [26, 30, 16],
+  [40, 16, 18],
+  [22, 26, 12],
+];
+
 function Planilha({
   nome,
   indice,
@@ -69,17 +83,45 @@ function Planilha({
           ? { x, y, rotate, scale, opacity, zIndex: DISPERSAO.length - indice }
           : { opacity: 0.12 }
       }
-      className="absolute flex w-[min(16rem,62vw)] items-center gap-3 border border-white/25 bg-neutral-900 px-4 py-3.5 shadow-[0_24px_60px_-24px_rgba(0,0,0,1)]"
+      className="absolute w-[min(17rem,66vw)] overflow-hidden border border-white/25 bg-neutral-900 shadow-[0_24px_60px_-24px_rgba(0,0,0,1)]"
     >
-      <span
-        aria-hidden="true"
-        className="grid h-6 w-6 shrink-0 place-items-center border border-white/25 [font-family:var(--font-geist-mono)] text-[9px] text-white/60"
-      >
-        {String(indice + 1).padStart(2, "0")}
-      </span>
-      <span className="truncate [font-family:var(--font-geist-mono)] text-[11px] text-white/80">
-        {nome}
-      </span>
+      {/* Title bar: the file name, and a column letter, which is the one detail
+          that says "spreadsheet" without a single icon. */}
+      <div className="flex items-center gap-2.5 border-b border-white/12 px-3.5 py-2.5">
+        <span
+          aria-hidden="true"
+          className="grid h-5 w-5 shrink-0 place-items-center border border-white/25 [font-family:var(--font-geist-mono)] text-[9px] text-white/55"
+        >
+          {String(indice + 1).padStart(2, "0")}
+        </span>
+        <span className="truncate [font-family:var(--font-geist-mono)] text-[11px] text-white/80">
+          {nome}
+        </span>
+      </div>
+
+      {/*
+        Four rows of nothing. They are `aria-hidden` bars and not text on
+        purpose: what has to read at a glance is "a grid of numbers", and real
+        words there would invite the reader to squint at content that does not
+        exist. The widths are fixed per row rather than random so the six cards
+        do not flicker into different shapes on a re-render.
+      */}
+      <div aria-hidden="true" className="space-y-px bg-white/[0.06] p-px">
+        {LINHAS_FALSAS.map((linha, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-px bg-neutral-900 px-3.5 py-[7px]"
+          >
+            {linha.map((largura, j) => (
+              <span
+                key={j}
+                style={{ width: `${largura}%` }}
+                className="mr-3 block h-1.5 rounded-[1px] bg-white/15 last:mr-0"
+              />
+            ))}
+          </div>
+        ))}
+      </div>
     </motion.div>
   );
 }

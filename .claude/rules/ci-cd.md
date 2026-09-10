@@ -97,17 +97,23 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   ~380ms. O custo é das cenas dirigidas por scroll, **não** dos providers: tirar
   Auth/Tenant/Permissions/Plan da árvore (`SESSIONLESS_MARKETING_ROUTES`) derrubou
   `/aplicativo` de ~485 para **308** e não moveu a institucional.
-  O WebGL do site da empresa não entra nessa conta: ele vem por `next/dynamic` atrás de
-  `(min-width: 1024px) and (pointer: fine)`, e o Lighthouse mede num viewport de 412px,
-  então o módulo nunca é importado na corrida que decide o gate.
-- **`/sobre` e `/produtos` entram na coleta mas NÃO ganham a exceção**, e isso foi medido
-  em vez de suposto: **298** e **605** na mesma rodada, ou seja, as duas cabem nos 800 com
-  folga. Uma exceção que a página não precisa só esconde a regressão seguinte, que é
-  exatamente o motivo de `/aplicativo` (308) também não ter uma. Elas estão lá justamente
-  para serem medidas contra o teto genérico: são as duas sub-páginas mais pesadas
-  (contadores scrubados, faixa de pessoas, ledger e o pin horizontal), então uma regressão
-  no kit de cenas aparece nelas primeiro. Duas das cinco, e não as cinco, porque cada URL
-  custa 3 corridas reais e o job já tem timeout de 32 min.
+  Nem o WebGL nem o three.js do herói entram nessa conta: os dois vêm por `next/dynamic`
+  atrás de `(min-width: 1024px) and (pointer: fine)`, e o Lighthouse mede num viewport de
+  412px, então nenhum dos dois chunks é sequer pedido na corrida que decide o gate. É esse
+  gate que torna uma biblioteca do tamanho do three pagável nesta superfície.
+- **`/sobre` e `/produtos` entram na coleta com o TBT em `warn`, não em `error`**, e isso
+  é provisório de propósito. Elas mediram **298** e **605** numa rodada limpa de
+  2026-09-10 (calibração `/decoracao` em 637), o que caberia nos 800 genéricos com folga;
+  depois disso `/produtos` ganhou uma cena fixada com quatro capturas de tela cheia e
+  `/sobre` ganhou três retratos, e a máquina de desenvolvimento passou a dar leitura
+  inútil: numa mediana de 3, a própria `/decoracao` oscilou entre **1146 e 1781** contra
+  682 documentado, e a institucional entre **260 e 2312**. Gate de erro não calibrado é
+  como o CI começa a falhar por motivo que ninguém entende. Em `warn` o número aparece no
+  relatório sem reprovar. **Assim que houver três execuções do CI, aperte para `error`** no
+  teto que os números pedirem. O CLS delas continua `error`: esse foi medido e deu 0.
+- Duas das sub-páginas, e não todas, porque cada URL custa 3 corridas reais e o job já tem
+  timeout de 32 min. São as duas mais pesadas (contadores scrubados, faixa de retratos,
+  ledger e a cena fixada), então uma regressão no kit de cenas aparece nelas primeiro.
 - **O padrão genérico usa lookahead negativo** (`http://[^/]+/(?!institucional$).+`) e
   isso é obrigatório: o `assertMatrix` aplica TODA entrada cujo padrão casa, então sem ele
   a institucional continuaria presa nos 800 e a entrada própria seria inútil. **Ao mover

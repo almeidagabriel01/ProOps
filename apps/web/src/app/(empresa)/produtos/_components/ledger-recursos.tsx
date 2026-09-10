@@ -3,8 +3,10 @@
 import React, { useRef } from "react";
 import { m as motion, useTransform } from "motion/react";
 
+import { useHolofote } from "@/components/marketing/_shared/use-holofote";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 import { APP_NAME } from "@/lib/site/app-brand";
+import { cn } from "@/lib/utils";
 
 interface Linha {
   pergunta: string;
@@ -56,6 +58,7 @@ const LINHAS: Linha[] = [
  */
 export function LedgerRecursos() {
   const trilha = useRef<HTMLDivElement>(null);
+  const holofote = useHolofote<HTMLDivElement>();
   const { progress, animated } = useScrollProgress(trilha, {
     start: "top 80%",
     end: "bottom 70%",
@@ -63,10 +66,11 @@ export function LedgerRecursos() {
   });
 
   return (
+    <div ref={holofote}>
     <div ref={trilha} className="border-t border-white/10">
       {/* Column headers, desktop only: on a phone the row stacks and each cell
           carries its own label, so a header row would be a third copy. */}
-      <div className="hidden grid-cols-[1.2fr_1fr_1fr] gap-8 border-b border-white/10 pb-5 md:grid">
+      <div className="hidden grid-cols-[1.2fr_1fr_1fr] gap-8 border-b border-white/10 px-6 pb-5 md:grid">
         <span className="[font-family:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.2em] text-white/35">
           A pergunta
         </span>
@@ -88,6 +92,7 @@ export function LedgerRecursos() {
           animado={animated}
         />
       ))}
+    </div>
     </div>
   );
 }
@@ -115,25 +120,45 @@ function LinhaLedger({
 
   return (
     <motion.div
+      data-holofote
       style={animado ? { opacity, y } : undefined}
-      className="group relative grid gap-4 py-10 md:grid-cols-[1.2fr_1fr_1fr] md:gap-8"
+      className="holofote group relative isolate grid gap-4 px-4 py-10 transition-colors duration-500 md:grid-cols-[1.2fr_1fr_1fr] md:gap-8 md:px-6"
     >
-      <h3 className="[font-family:var(--font-bricolage)] text-xl font-semibold leading-snug tracking-tight text-white md:text-2xl">
+      {/* The index is the only thing that moves on hover, and it moves the row
+          with it: a marker sliding in from the gutter is what tells the reader
+          which line they are on in a block of four that are all prose. */}
+      <span
+        aria-hidden="true"
+        className="absolute left-0 top-10 hidden -translate-x-4 [font-family:var(--font-geist-mono)] text-[11px] tabular-nums text-white/25 opacity-0 transition-[transform,opacity] duration-500 ease-out group-hover:translate-x-0 group-hover:opacity-100 md:block"
+      >
+        {String(indice + 1).padStart(2, "0")}
+      </span>
+
+      <h3
+        className={cn(
+          "relative [font-family:var(--font-bricolage)] text-xl font-semibold leading-snug tracking-tight text-white transition-transform duration-500 ease-out md:text-2xl",
+          "md:group-hover:translate-x-2",
+        )}
+      >
         {linha.pergunta}
       </h3>
 
-      <div>
+      <div className="relative">
         <p className="mb-2 [font-family:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.2em] text-white/35 md:hidden">
           ProOps ERP
         </p>
-        <p className="text-sm leading-relaxed text-white/60">{linha.erp}</p>
+        <p className="text-sm leading-relaxed text-white/60 transition-colors duration-500 group-hover:text-white/80">
+          {linha.erp}
+        </p>
       </div>
 
-      <div>
+      <div className="relative">
         <p className="mb-2 [font-family:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.2em] text-white/35 md:hidden">
           {APP_NAME}
         </p>
-        <p className="text-sm leading-relaxed text-white/60">{linha.app}</p>
+        <p className="text-sm leading-relaxed text-white/60 transition-colors duration-500 group-hover:text-white/80">
+          {linha.app}
+        </p>
       </div>
 
       {/* The rule draws with the row instead of being there before it, so the

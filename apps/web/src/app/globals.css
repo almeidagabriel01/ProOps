@@ -1487,6 +1487,71 @@ html[data-shell="locked"] body {
   padding-bottom: 0.08em;
 }
 
+/* Holofote de card: a luz que segue o cursor, lida de `--mx`/`--my` escritos
+   pelo `useHolofote` no card sob o ponteiro. Radial e não gradiente linear
+   porque o que se quer é uma fonte de luz, não um brilho passando.
+
+   `opacity` na transição e não `background`: interpolar gradiente é trabalho de
+   pintura a cada frame, e opacidade é composição. */
+.holofote::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+  background: radial-gradient(
+    26rem 26rem at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.09),
+    transparent 62%
+  );
+}
+.holofote[data-aceso]::before {
+  opacity: 1;
+}
+.holofote--claro::before {
+  background: radial-gradient(
+    26rem 26rem at var(--mx, 50%) var(--my, 50%),
+    rgba(0, 0, 0, 0.055),
+    transparent 62%
+  );
+}
+
+/* Cantoneira que se desenha no hover. Duas linhas e não uma borda: borda inteira
+   num card mono vira caixa, e o canto sugere a caixa sem fechá-la. */
+.cantoneira::after,
+.cantoneira::before {
+  content: "";
+  position: absolute;
+  background: currentColor;
+  opacity: 0.45;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cantoneira::before {
+  top: 0;
+  left: 0;
+  height: 1px;
+  width: 3.5rem;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.cantoneira::after {
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 3.5rem;
+  transform: scaleY(0);
+  transform-origin: top;
+}
+.cantoneira[data-aceso]::before,
+.group:hover .cantoneira::before {
+  transform: scaleX(1);
+}
+.cantoneira[data-aceso]::after,
+.group:hover .cantoneira::after {
+  transform: scaleY(1);
+}
+
 /* Cookie-consent banner: DOM is always server-rendered but hidden; visibility is
    gated by the html attribute that public/cookie-consent-init.js sets at first
    paint (before hydration). This keeps the banner off the LCP critical path —
@@ -1540,8 +1605,19 @@ html[data-cookie-consent="pending"] .cookie-banner {
     opacity: 0;
   }
   .campo-reativo,
-  .inclina-ponteiro {
+  .inclina-ponteiro,
+  .holofote::before,
+  .cantoneira::before,
+  .cantoneira::after {
     transition: none !important;
+  }
+  /* A cantoneira é decoração de hover, e sob movimento reduzido ela fica
+     desenhada em vez de invisível: o estado final é o que vale. */
+  .cantoneira::before {
+    transform: scaleX(1);
+  }
+  .cantoneira::after {
+    transform: scaleY(1);
   }
   .inclina-ponteiro {
     transform: none;
