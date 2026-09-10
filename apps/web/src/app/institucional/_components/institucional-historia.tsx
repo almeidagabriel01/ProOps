@@ -119,7 +119,7 @@ export function InstitucionalHistoria() {
       <div className="relative z-10 md:flex md:h-[100svh] md:flex-col md:justify-center">
         <div className="md:px-16 lg:px-24">
           <div className="mx-auto max-w-6xl md:mx-0">
-            <PlaceholderBadge>marcos e datas a definir</PlaceholderBadge>
+            <PlaceholderBadge>faltam os meses de três marcos</PlaceholderBadge>
 
             <Sobrancelha tom="claro" className="mb-5">
               Nossa história

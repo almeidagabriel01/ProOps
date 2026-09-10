@@ -28,7 +28,7 @@ export function InstitucionalNumeros() {
         className="campo-reativo campo-reativo--claro pointer-events-none"
       />
       <div className="relative z-10 mx-auto max-w-6xl">
-        <PlaceholderBadge>números a confirmar</PlaceholderBadge>
+        <PlaceholderBadge>falta o número de propostas emitidas</PlaceholderBadge>
         <TituloSecao
           tom="claro"
           sobrancelha="Em números"

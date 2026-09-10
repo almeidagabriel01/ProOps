@@ -8,7 +8,6 @@ import {
   DiagramaDetalhe,
   DiagramaDia,
 } from "@/components/institucional/diagramas";
-import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
 import { Realce, TituloSecao } from "@/components/institucional/secao";
 import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
 import { Magnetic } from "@/components/marketing/_shared/magnetic";
@@ -205,7 +204,6 @@ export function InstitucionalManifesto() {
         />
 
         <div className="relative z-10 mx-auto w-full max-w-4xl">
-          <PlaceholderBadge>revisar com o briefing</PlaceholderBadge>
           <TituloSecao
             sobrancelha="Como pensamos"
             titulo={

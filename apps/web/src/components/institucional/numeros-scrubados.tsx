@@ -47,7 +47,12 @@ export function NumerosScrubados({
     <div
       ref={trilha}
       className={cn(
-        "grid gap-px sm:grid-cols-3",
+        // A quantidade sai da lista, e não de um número escrito na classe: os
+        // números publicáveis mudam conforme forem confirmados, e uma grade de
+        // três com dois itens deixa uma célula vazia com borda, que parece um
+        // dado que não carregou.
+        "grid gap-px",
+        numeros.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3",
         tom === "escuro" ? "bg-white/10" : "bg-black/10",
         className,
       )}

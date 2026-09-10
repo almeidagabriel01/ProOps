@@ -220,9 +220,19 @@ duplicação volta pela porta dos fundos.
 ## Texto
 
 Tudo vem de `_content/institucional-copy.ts`. `PLACEHOLDER = true` liga os selos
-âmbar; virar para `false` some com todos de uma vez. Os números são **zero** de
-propósito: número inventado numa página institucional para de ser rascunho e
-vira afirmação.
+âmbar; virar para `false` some com todos de uma vez.
+
+O briefing de setembro de 2026 preencheu a origem (a ProOps nasceu em novembro
+de 2025, dentro da empresa de automação residencial de um dos sócios, porque
+montar uma proposta levava horas), os quatro marcos, o exemplo concreto de cada
+princípio e o número de empresas no ERP. **Faltam duas coisas, e as duas estão
+listadas no topo do módulo de texto**: os meses dos marcos 2, 3 e 4, e o número
+de propostas já emitidas.
+
+Sobre número: só entra o que dá para conferir. `NUMEROS` tem **dois** itens, e a
+grade da cena segue o tamanho da lista em vez de fixar três, porque uma célula
+vazia com borda parece dado que não carregou. Dois números certos numa empresa
+de dez meses valem mais do que três com um enfeitado.
 
 Valem os dois guards de copy do projeto: nada de travessão como pontuação, e
 "a ProOps", sempre feminino.

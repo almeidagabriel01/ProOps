@@ -153,10 +153,11 @@ export default function ProdutosPage() {
                   {APP_NAME}
                 </h3>
                 <p className="mt-5 max-w-md text-base leading-relaxed text-white/60">
-                  Você manda uma mensagem e a IA organiza. Nota, lembrete e
-                  controle financeiro pessoal em linguagem natural, no WhatsApp
-                  ou dentro do aplicativo, sem planilha e sem categoria para
-                  preencher.
+                  Você manda uma mensagem e a IA organiza. Nota, lembrete e um
+                  financeiro completo no mesmo aplicativo, em linguagem natural,
+                  pelo WhatsApp ou por dentro dele. São os dois lados que
+                  costumam viver em aplicativos separados, sem a metade que
+                  falta em cada um.
                 </p>
                 <div className="mt-8">
                   <Magnetic>
@@ -185,6 +186,38 @@ export default function ProdutosPage() {
                 </div>
               </div>
             </article>
+          </div>
+        </div>
+      </Secao>
+
+      <Secao aria-label="De onde vem o ERP">
+        <div className="mx-auto max-w-3xl">
+          <TituloSecao
+            sobrancelha="De onde ele vem"
+            titulo={
+              <>
+                Feito dentro de uma empresa de automação residencial.{" "}
+                <Realce>Não preso</Realce> a ela.
+              </>
+            }
+            className="mb-10"
+          />
+          <div className="space-y-6 text-base leading-relaxed text-white/60 md:text-lg">
+            <p>
+              O ERP nasceu para automação residencial porque foi ali que o
+              problema apareceu na frente da gente: proposta com muitos itens,
+              muitos ambientes, e um orçamento que consumia horas para ficar de
+              pé. É um mercado que a ProOps conhece por dentro, e isso aparece
+              no produto.
+            </p>
+            <p>
+              Nada no sistema, porém, está preso a esse nicho. Catálogo,
+              ambientes, campos da proposta e etapas do funil são configurados
+              por empresa, e a ProOps altera o que for preciso para o sistema
+              caber na rotina de quem está do outro lado. Se o seu negócio vende
+              projeto, a conversa começa por aí, e não por uma lista de nichos
+              atendidos.
+            </p>
           </div>
         </div>
       </Secao>

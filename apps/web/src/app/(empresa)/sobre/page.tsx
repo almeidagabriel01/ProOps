@@ -67,7 +67,7 @@ export default function SobrePage() {
         dados={[
           { valor: "03", rotulo: "Sócios" },
           { valor: "02", rotulo: "Engenheiros de software" },
-          { valor: "02", rotulo: "Produtos no ar" },
+          { valor: "Nov 2025", rotulo: "Quando começou" },
         ]}
       />
 
@@ -90,7 +90,7 @@ export default function SobrePage() {
 
       <Secao aria-label="A história da ProOps">
         <div className="mx-auto max-w-6xl">
-          <PlaceholderBadge>marcos e datas a definir</PlaceholderBadge>
+          <PlaceholderBadge>faltam os meses de três marcos</PlaceholderBadge>
           <TituloSecao
             sobrancelha="A história"
             titulo={
@@ -98,7 +98,7 @@ export default function SobrePage() {
                 Como a empresa <Realce>chegou aqui</Realce>.
               </>
             }
-            descricao="A raiz do site conta esta linha do tempo de passagem. Aqui ela vem com o relato de cada marco."
+            descricao="A raiz do site passa por esta linha do tempo. Aqui cada marco vem com o relato inteiro, começando pela reclamação que deu origem a tudo."
             className="mb-16"
           />
           <LinhaDoTempo tom="escuro" marcos={MARCOS} />

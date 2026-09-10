@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { AssinaturaSelo } from "@/components/institucional/assinaturas-hero";
 import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
 import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
-import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { canonicalFor } from "@/lib/site/host-seo";
 
@@ -68,7 +67,6 @@ export default function ManifestoPage() {
 
       <Secao tom="claro" aria-label="A contrapartida">
         <div className="mx-auto max-w-3xl">
-          <PlaceholderBadge>revisar com o briefing</PlaceholderBadge>
           <TituloSecao
             tom="claro"
             sobrancelha="A contrapartida"
