@@ -2,7 +2,7 @@ import Image from "next/image";
 
 import { APP_NAME } from "@/lib/site/app-brand";
 
-import { DeviceFrame } from "./device-frame";
+import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
 
 /**
  * The app's home screen in the hero, untouched.

@@ -133,10 +133,14 @@ interface SecaoProps {
 /**
  * A plain, non-pinned section of the company site.
  *
- * Pinned scenes do not use this: they need their own height and a sticky stage,
- * and wrapping that in a padded box is how a pin ends up measuring the wrong
- * element. This is for the sections between them, which is what keeps the page
- * from being an unbroken sequence of full-viewport pins.
+ * **Uma cena com palco `sticky` NÃO pode usar isto**, e o motivo é o
+ * `overflow-hidden` daqui: overflow em QUALQUER ancestral desliga
+ * `position: sticky` nos descendentes. O palco desgruda, a cena vira uma pilha
+ * de conteúdo passando reto, e nada falha: sem erro, sem aviso, e o layout
+ * continua parecendo quase certo. Cena pinada monta a própria `<section>`.
+ *
+ * Isto é para as seções ENTRE elas, que é o que impede a página de ser uma
+ * sequência ininterrupta de telas fixadas.
  */
 export function Secao({
   children,

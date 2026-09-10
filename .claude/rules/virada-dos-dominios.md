@@ -24,7 +24,7 @@ dois lados:
 | A raiz do apex passa a renderizar a institucional | `resolveRewritePath` | rewrite de `/` |
 | Todo caminho do ERP no apex passa a fazer 301 | `resolveApexRedirect` | `proops.com.br/login` → `erp.proops.com.br/login` |
 | O `noindex` transitório dos subdomínios some | `shouldNoIndexHost` | os três hosts passam a ser indexáveis |
-| O `noindex` transitório das páginas da empresa some | `shouldNoIndexPath` | `/sobre`, `/manifesto`, `/produtos`, `/carreiras` e `/fale-conosco` entram no índice |
+| O `noindex` transitório das páginas da empresa some | `shouldNoIndexPath` | `/sobre`, `/manifesto`, `/produtos` e `/fale-conosco` entram no índice |
 | Canonical, sitemap e robots trocam de origem | `host-seo.ts` | cada host publica o seu |
 
 O usuário free também deixa de ser mandado para a raiz e passa a ir para a
@@ -35,9 +35,9 @@ sem planos e sem nada para clicar.
 apex ainda serve o ERP". Ele é o guard de que a fase foi aditiva, e tem que
 mudar no mesmo commit que a torna falsa.
 
-## As cinco páginas da empresa
+## As páginas da empresa
 
-`/sobre`, `/manifesto`, `/produtos`, `/carreiras` e `/fale-conosco` já respondem
+`/sobre`, `/manifesto`, `/produtos` e `/fale-conosco` já respondem
 200 no apex e estão em `APEX_COMPANY_PATHS`, ou seja: elas **não** levam 301 para
 o ERP na virada, e entram no sitemap e no índice no mesmo instante. Hoje elas
 são navegáveis e `noindex`, de propósito, porque uma `/sobre` indexada antes da

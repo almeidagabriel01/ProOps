@@ -22,7 +22,7 @@ Há ~38 segmentos de rota: proposals, contacts, products, transactions, calendar
 ## Rotas existentes
 ```
 403, actions, addon-success, admin, agendar, ambientes, aplicativo, api, auth,
-automacao-residencial, automation, calendar, carreiras, checkout-success,
+automacao-residencial, automation, calendar, checkout-success,
 commissions, contacts, contato, cookies, crm, dashboard, data-deletion,
 decoracao, fale-conosco, forgot-password, institucional, invoices, login,
 manifesto, privacy, products, produtos, profile, proposals, register, reset,
@@ -30,7 +30,7 @@ services, settings, share, sobre, solutions, spreadsheets, subscribe,
 subscription-blocked, team, terms, transactions, verify, wallets
 ```
 
-`sobre`, `manifesto`, `produtos`, `carreiras` e `fale-conosco` são as páginas do
+`sobre`, `manifesto`, `produtos` e `fale-conosco` são as páginas do
 **site da empresa** e vivem no route group `(empresa)/`, que não entra na URL.
 `produtos` (português) é a página institucional; `products` (inglês) é a tela
 autenticada de catálogo. São coisas diferentes.

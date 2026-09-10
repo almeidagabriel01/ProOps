@@ -2,7 +2,7 @@
 
 ## O que é
 
-`proops.com.br`: a empresa, não o produto. São seis páginas, servidas por dois
+`proops.com.br`: a empresa, não o produto. São cinco páginas, servidas por dois
 layouts que montam a mesma casca:
 
 | URL | Arquivo | O que é |
@@ -11,7 +11,6 @@ layouts que montam a mesma casca:
 | `/sobre` | `app/(empresa)/sobre/` | quem faz, a história, os números |
 | `/manifesto` | `app/(empresa)/manifesto/` | um princípio por cena |
 | `/produtos` | `app/(empresa)/produtos/` | ERP e aplicativo lado a lado |
-| `/carreiras` | `app/(empresa)/carreiras/` | como se trabalha aqui, e as vagas |
 | `/fale-conosco` | `app/(empresa)/fale-conosco/` | o canal certo por assunto |
 
 As cinco de baixo ficam **no nível do apex** e não debaixo de `/institucional`.
@@ -119,6 +118,16 @@ custa exatamente zero TBT na métrica que reprova o build.
 `/institucional` tem teto próprio de TBT no `lighthouserc.json` (1200ms contra
 os 800 genéricos) e **CLS ≤ 0,1 é `error`**. Daí duas escolhas estruturais:
 
+- **Palco `sticky` não pode ter ancestral com `overflow`.** Overflow em qualquer
+  ancestral desliga `position: sticky` nos descendentes, e o sintoma é a cena
+  passando reto, sem erro e com o layout ainda parecendo quase certo. É por isso
+  que `Secao` (que traz `overflow-hidden`) está proibido para cena pinada, e a
+  cena monta a própria `<section>`. Já custou uma vez, em `/produtos`.
+- **Nunca combine uma classe `scale-*` do Tailwind com transform de JS no mesmo
+  elemento.** No v4 o `scale-y-0` compila para a propriedade CSS `scale`, que
+  COMPÕE com `transform` em vez de ser sobrescrita por ele: o elemento fica
+  achatado por mais que o GSAP anime, sem erro nenhum. Foi assim que a cortina de
+  transição rodou sem cobrir um pixel. Ou o transform é do CSS, ou é do JS.
 - **Cena longa é `sticky`, não `pin` do ScrollTrigger.** Um pin insere um
   espaçador e reescreve a altura do documento; com várias cenas isso vira
   medição a cada refresh, e um ScrollTrigger aninhado passa a medir contra o

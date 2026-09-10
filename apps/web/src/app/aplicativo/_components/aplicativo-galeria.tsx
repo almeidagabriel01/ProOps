@@ -8,7 +8,7 @@ import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene";
 import { APP_NAME } from "@/lib/site/app-brand";
 
-import { DeviceFrame } from "./device-frame";
+import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
 
 type Plataforma = "ios" | "android";
 

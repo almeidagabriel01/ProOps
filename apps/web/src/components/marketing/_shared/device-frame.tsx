@@ -2,6 +2,12 @@ import React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Shared rather than route-local: the phone was drawn for `/aplicativo` and the
+ * company site's products page needs the same one. Two copies of a device frame
+ * drift, and the drift is visible, because the two would sit two scrolls apart
+ * on the same site.
+ */
 interface DeviceFrameProps {
   children: React.ReactNode;
   platform?: "ios" | "android";
@@ -90,7 +96,11 @@ export function DeviceFrame({
           {/* Screen */}
           <div
             style={{ borderRadius: "11% / 5.2%" }}
-            className="relative aspect-[9/19.5] overflow-hidden bg-[var(--app-bg)]"
+            // `--app-bg` only exists under `.app-theme`, which is the mobile
+            // app's own palette and only wraps /aplicativo. The fallback keeps
+            // the screen from being transparent anywhere else; every caller
+            // fills it with an image anyway, so it is only ever a frame.
+            className="relative aspect-[9/19.5] overflow-hidden bg-[var(--app-bg,#131315)]"
           >
             {children}
 
