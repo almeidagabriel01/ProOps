@@ -55,6 +55,13 @@ describe("hasProposalNumbering", () => {
     expect(hasProposalNumbering(LIGADA)).toBe(true);
   });
 
+  it("e falso numa proposta que ja existe e nao tem codigo", () => {
+    // Proposta criada antes de a numeracao ser ligada. Oferecer a praca ali
+    // seria pior que nao oferecer nada: `proposalPraca` esta fora da allowlist
+    // do PUT, entao a escolha seria aceita na tela e descartada no servidor.
+    expect(hasProposalNumbering(LIGADA, null, false)).toBe(false);
+  });
+
   it("e verdadeiro para proposta que ja tem codigo, mesmo sem config", () => {
     // Desligar a numeração não pode esconder o identificador de uma proposta
     // que já saiu com ele.
@@ -127,6 +134,33 @@ describe("ProposalNumberingField", () => {
     );
 
     expect(screen.getByText("0018526SP")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Praça/)).toBeNull();
+  });
+
+  it("nao oferece praca em proposta que ja existe sem codigo", () => {
+    const { container } = render(
+      <ProposalNumberingField
+        config={LIGADA}
+        canChoosePraca={false}
+        onPracaChange={vi.fn()}
+      />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("mostra o codigo em proposta que ja existe, sem virar campo", () => {
+    // O caso do dia a dia: abrir para editar uma proposta ja numerada.
+    render(
+      <ProposalNumberingField
+        config={LIGADA}
+        proposalCode="0000126SP"
+        praca="SP"
+        canChoosePraca={false}
+        onPracaChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("0000126SP")).toBeInTheDocument();
     expect(screen.queryByLabelText(/Praça/)).toBeNull();
   });
 

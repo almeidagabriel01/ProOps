@@ -38,6 +38,11 @@ interface ProposalClientSectionProps {
   onNewClientDocumentChange?: (document: string) => void;
   /** Praca da numeracao. So e usada quando a empresa configurou pracas. */
   onPracaChange?: (praca: string | null) => void;
+  /**
+   * Proposta que ja existe. A praca some: ela entra no codigo, que e alocado
+   * na criacao e nao muda depois.
+   */
+  isExistingProposal?: boolean;
   onFormChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
@@ -63,6 +68,7 @@ export function ProposalClientSection({
   newClientDocument = "",
   onNewClientDocumentChange,
   onPracaChange,
+  isExistingProposal = false,
   onFormChange,
   onClientChange,
 }: ProposalClientSectionProps) {
@@ -77,6 +83,7 @@ export function ProposalClientSection({
   const mostraNumeracao = hasProposalNumbering(
     numberingConfig,
     formData.proposalCode,
+    !isExistingProposal,
   );
 
   // Handler for type checkbox changes
@@ -128,6 +135,7 @@ export function ProposalClientSection({
               config={numberingConfig}
               proposalCode={formData.proposalCode}
               praca={formData.proposalPraca}
+              canChoosePraca={!isExistingProposal}
               isReadOnly
             />
             <FormStatic
@@ -300,6 +308,7 @@ export function ProposalClientSection({
             config={numberingConfig}
             proposalCode={formData.proposalCode}
             praca={formData.proposalPraca}
+            canChoosePraca={!isExistingProposal}
             onPracaChange={onPracaChange}
           />
           <FormItem

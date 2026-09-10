@@ -17,6 +17,13 @@ interface ProposalNumberingFieldProps {
   proposalCode?: string | null;
   praca?: string | null;
   isReadOnly?: boolean;
+  /**
+   * A praca so e escolhida na CRIACAO: ela entra no codigo, e o codigo e
+   * imutavel depois de alocado. Numa proposta que ja existe, oferecer o
+   * seletor seria pior que nao oferecer nada — `proposalPraca` esta fora da
+   * allowlist do `PUT`, entao a escolha seria aceita na tela e descartada.
+   */
+  canChoosePraca?: boolean;
   onPracaChange?: (praca: string | null) => void;
 }
 
@@ -30,8 +37,10 @@ interface ProposalNumberingFieldProps {
 export function hasProposalNumbering(
   config: ProposalNumberingConfig | null,
   proposalCode?: string | null,
+  canChoosePraca = true,
 ): boolean {
   if (proposalCode) return true;
+  if (!canChoosePraca) return false;
   return Boolean(config?.enabled) && (config?.pracas.length ?? 0) > 0;
 }
 
@@ -51,6 +60,7 @@ export function ProposalNumberingField({
   proposalCode,
   praca,
   isReadOnly,
+  canChoosePraca = true,
   onPracaChange,
 }: ProposalNumberingFieldProps) {
   if (proposalCode) {
@@ -71,7 +81,7 @@ export function ProposalNumberingField({
     );
   }
 
-  if (!hasProposalNumbering(config, proposalCode)) return null;
+  if (!hasProposalNumbering(config, proposalCode, canChoosePraca)) return null;
 
   if (isReadOnly) {
     return <FormStatic label="Praça" value={praca || undefined} />;
