@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 
+import { AssinaturaAparelhos } from "@/components/institucional/assinaturas-hero";
 import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
@@ -51,6 +52,7 @@ export default function ProdutosPage() {
   return (
     <main>
       <PaginaHero
+        assinatura={<AssinaturaAparelhos />}
         sobrancelha="Produtos"
         titulo={
           <>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AssinaturaSelo } from "@/components/institucional/assinaturas-hero";
 import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
 import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
@@ -31,7 +32,14 @@ export const metadata: Metadata = {
 export default function ManifestoPage() {
   return (
     <main>
+      {/*
+        O único dos quatro heróis centrado, e de propósito: manifesto é
+        declaração, não índice, e declaração se lê no meio da página. O selo que
+        se desenha atrás do título é a mesma ideia por outro meio.
+      */}
       <PaginaHero
+        alinhamento="centro"
+        assinatura={<AssinaturaSelo />}
         sobrancelha="Manifesto"
         titulo={
           <>

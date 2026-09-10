@@ -30,6 +30,23 @@ interface PaginaHeroProps {
    * something before you scrolled.
    */
   dados?: DadoDoHero[];
+  /**
+   * O desenho do assunto da página, sangrando pela borda (à direita no
+   * alinhamento padrão, atrás do título no centrado). Ver
+   * `components/institucional/assinaturas-hero.tsx`: é ele que impede que as
+   * quatro sub-páginas abram com o mesmo cartão. Sem ele, cai na marca, que é
+   * o que a raiz usa.
+   */
+  assinatura?: React.ReactNode;
+  /**
+   * `"centro"` reorganiza o herói inteiro: a copia centrada, mais estreita, e
+   * a assinatura atrás dela em vez de ao lado. É composição, não alinhamento de
+   * texto, e existe porque uma página que é uma declaração (o manifesto) não se
+   * lê como uma que é um índice.
+   */
+  alinhamento?: "esquerda" | "centro";
+  /** `"curta"` para página utilitária, que o leitor abre para achar algo. */
+  altura?: "cheia" | "curta";
   /** Rendered under everything: a CTA row, a lead-in. */
   children?: React.ReactNode;
   className?: string;
@@ -48,9 +65,11 @@ interface PaginaHeroProps {
  * make a site feel like a template. Four things carry it now, and each is doing
  * something the others are not:
  *
- * - the **mark, oversized and bled off the right edge**, as texture. It is the
- *   only ornament, it is the brand, and cropping it is what keeps it from
- *   reading as a watermark stamped in a corner;
+ * - the **signature**, oversized and bled off the edge, as texture. It used to
+ *   be the ProOps mark on all four pages, which solved the blank corner and
+ *   created a worse problem: four pages opening with the same picture read as
+ *   one template filled in four times. Now each page passes a drawing of its
+ *   own subject, and the mark is only the fallback;
  * - the **dot lattice** that answers the pointer, the same one the root hero
  *   uses, so the two surfaces are visibly one site;
  * - a **parallax** on the copy and a counter-parallax on the mark, so leaving
@@ -75,9 +94,13 @@ export function PaginaHero({
   titulo,
   descricao,
   dados,
+  assinatura,
+  alinhamento = "esquerda",
+  altura = "cheia",
   children,
   className,
 }: PaginaHeroProps) {
+  const centrado = alinhamento === "centro";
   const secao = useRef<HTMLElement>(null);
   // `start: "top top"` and not the default: the hero is the first thing on the
   // page, so its progress has to be measured from the moment it starts LEAVING,
@@ -98,7 +121,9 @@ export function PaginaHero({
       ref={secao}
       aria-label={sobrancelha}
       className={cn(
-        "relative isolate flex min-h-[82svh] flex-col justify-end overflow-hidden bg-neutral-950 px-6 pb-16 pt-36 text-white md:px-10 md:pb-20 md:pt-44",
+        "relative isolate flex flex-col overflow-hidden bg-neutral-950 px-6 pb-16 pt-36 text-white md:px-10 md:pb-20 md:pt-44",
+        altura === "curta" ? "min-h-[66svh]" : "min-h-[82svh]",
+        centrado ? "justify-center text-center" : "justify-end",
         className,
       )}
     >
@@ -114,23 +139,47 @@ export function PaginaHero({
         />
       </DesktopOnlyWebGl>
 
-      {/* Bled off the right edge and clipped by the section. A mark that fits
-          inside the frame reads as a watermark; one that runs off it reads as
-          the page being cut out of something bigger. */}
+      {/* Sangrando pela borda e cortada pela seção. Desenho que cabe inteiro
+          dentro do quadro lê como marca d'água; um que corre para fora dele lê
+          como a página tendo sido recortada de algo maior. */}
       <motion.div
         aria-hidden="true"
         style={animated ? { y: marcaY, scale: marcaEscala } : undefined}
-        className="pointer-events-none absolute -right-[14%] top-[6%] hidden w-[46%] md:block lg:-right-[8%] lg:w-[38%]"
+        className={cn(
+          "pointer-events-none absolute hidden md:block",
+          centrado
+            ? // Atrás da copia, e por isso mais apagada: aqui ela divide o
+              // espaço com o texto em vez de ocupar a metade vazia.
+              // O `pt` afasta o selo da navbar: centrado na seção inteira, a
+              // marca de cima dele caía atrás do menu.
+              "inset-0 grid place-items-center pt-16 text-white/[0.07] md:pt-24"
+            : "-right-[8%] top-[8%] w-[44%] text-white/[0.13] lg:-right-[3%] lg:w-[35%]",
+        )}
       >
-        <Marca className="w-full text-white/[0.045]" />
+        {centrado ? (
+          // Caixa quadrada e limitada por `vw`: sem ela o desenho herdaria a
+          // altura da seção inteira, que num monitor largo é um selo do tamanho
+          // da tela por cima do título.
+          <div className="aspect-square w-[min(78vw,34rem)]">
+            {assinatura ?? <Marca className="w-full" />}
+          </div>
+        ) : (
+          (assinatura ?? <Marca className="w-full text-white/[0.045]" />)
+        )}
       </motion.div>
 
       <motion.div
         style={animated ? { y: copiaY, opacity: copiaOpacidade } : undefined}
-        className="relative z-10 mx-auto w-full max-w-6xl"
+        className={cn(
+          "relative z-10 mx-auto w-full",
+          centrado ? "max-w-4xl" : "max-w-6xl",
+        )}
       >
         <p
-          className="hero-enter mb-8 inline-flex items-center gap-2.5 [font-family:var(--font-geist-mono)] text-[11px] font-medium uppercase tracking-[0.28em] text-white/50 md:text-xs"
+          className={cn(
+            "hero-enter mb-8 inline-flex items-center gap-2.5 [font-family:var(--font-geist-mono)] text-[11px] font-medium uppercase tracking-[0.28em] text-white/50 md:text-xs",
+            centrado && "flex-row-reverse",
+          )}
           style={
             {
               "--hero-y": "-8px",
@@ -148,7 +197,10 @@ export function PaginaHero({
 
         {descricao && (
           <p
-            className="hero-enter mt-8 max-w-2xl text-base leading-relaxed text-white/60 md:text-lg"
+            className={cn(
+              "hero-enter mt-8 max-w-2xl text-base leading-relaxed text-white/60 md:text-lg",
+              centrado && "mx-auto",
+            )}
             style={
               {
                 "--hero-y": "16px",
@@ -162,7 +214,10 @@ export function PaginaHero({
 
         {dados && dados.length > 0 && (
           <dl
-            className="hero-enter mt-12 flex flex-wrap gap-px border-t border-white/10 bg-white/10 md:mt-14"
+            className={cn(
+              "hero-enter mt-12 flex flex-wrap gap-px border-t border-white/10 bg-white/10 md:mt-14",
+              centrado && "mx-auto max-w-2xl text-left",
+            )}
             style={
               {
                 "--hero-y": "14px",
@@ -173,7 +228,10 @@ export function PaginaHero({
             {dados.map((dado) => (
               <div
                 key={dado.rotulo}
-                className="min-w-[9rem] flex-1 bg-neutral-950 py-5 pr-6 md:min-w-[11rem]"
+                className={cn(
+                  "min-w-[9rem] flex-1 bg-neutral-950 py-5 md:min-w-[11rem]",
+                  centrado ? "px-6" : "pr-6",
+                )}
               >
                 <dt className="sr-only">{dado.rotulo}</dt>
                 <dd className="[font-family:var(--font-bricolage)] text-3xl font-extrabold leading-none tracking-[-0.04em] text-white md:text-4xl">

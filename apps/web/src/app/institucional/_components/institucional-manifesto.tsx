@@ -110,15 +110,22 @@ function Carta({
         // Opaque, and it has to stay that way at every point of the scrub: the
         // cards overlap almost exactly, so anything less lets the headline
         // behind read through the one in front.
-        "w-full origin-top border border-white/12 bg-neutral-900 p-8 shadow-[0_-20px_50px_-30px_rgba(0,0,0,0.9)] md:p-12",
+        //
+        // `overflow-hidden` is what CROPS the ghost numeral at the card edge.
+        // Without it the numeral simply hangs outside the card, over the card
+        // behind it, which reads as a layout bug and not as a device. The
+        // upward shadow survives the clip: box-shadow is painted outside the
+        // border box and `overflow` does not touch it.
+        "relative w-full origin-top overflow-hidden border border-white/12 bg-neutral-900 p-8 shadow-[0_-20px_50px_-30px_rgba(0,0,0,0.9)] md:p-12",
         animado ? "absolute inset-x-0 top-0" : "relative mb-6 last:mb-0",
       )}
     >
       {/* O numeral gigante ao fundo, cortado pela borda do card: é o que dá
-          escala à carta sem ocupar espaço de leitura. */}
+          escala à carta sem ocupar espaço de leitura. Ele é grande DE MAIS para
+          a carta de propósito, e quem faz o corte é o `overflow-hidden` acima. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -right-4 -top-10 select-none [font-family:var(--font-bricolage)] text-[10rem] font-extrabold leading-none tracking-[-0.06em] text-white/[0.04]"
+        className="pointer-events-none absolute -right-5 -top-12 select-none [font-family:var(--font-bricolage)] text-[11rem] font-extrabold leading-none tracking-[-0.06em] text-white/[0.045]"
       >
         {String(indice + 1).padStart(2, "0")}
       </span>

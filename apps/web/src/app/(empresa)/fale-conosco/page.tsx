@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AssinaturaCanais } from "@/components/institucional/assinaturas-hero";
 import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { canonicalFor } from "@/lib/site/host-seo";
@@ -40,7 +41,13 @@ export const metadata: Metadata = {
 export default function FaleConoscoPage() {
   return (
     <main>
+      {/*
+        Herói curto: quem abre "Contato" veio buscar um endereço, e uma tela
+        inteira de abertura antes dos canais é obstáculo com boa tipografia.
+      */}
       <PaginaHero
+        altura="curta"
+        assinatura={<AssinaturaCanais />}
         sobrancelha="Contato"
         titulo={
           <>

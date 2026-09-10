@@ -1415,6 +1415,49 @@ html[data-shell="locked"] body {
     var(--regua-delay, 0s) both;
 }
 
+/* Traço que se desenha, para as assinaturas dos heróis das sub-páginas.
+
+   Todo elemento que use isto tem que declarar `pathLength="1"`: sem ele o
+   dasharray teria que ser o comprimento real do caminho, que só o navegador
+   conhece e que muda quando alguém mexe num ponto do desenho. Com `pathLength`
+   o comprimento é sempre 1, e a mesma classe serve para qualquer traço.
+
+   É CSS e não biblioteca porque isto vive ACIMA DA DOBRA: uma animação de JS
+   ali segura o desenho até o bundle hidratar. */
+@keyframes traco-desenha {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.traco-desenha {
+  stroke-dasharray: 1;
+  animation: traco-desenha var(--traco-dur, 1.2s) cubic-bezier(0.16, 1, 0.3, 1)
+    var(--traco-delay, 0s) both;
+}
+
+/* O ponto para onde as quatro linhas do /fale-conosco convergem. Pulso lento e
+   discreto: é o único elemento em movimento contínuo em qualquer um dos quatro
+   heróis, e existe para dizer que do outro lado tem alguém. */
+@keyframes pulso-no {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+.pulso-no {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: pulso-no 3.2s ease-in-out var(--pulso-delay, 0s) infinite;
+}
+
 /* Campo mono reativo: duas manchas que respondem ao ponteiro e ao giroscópio.
    É o fallback do FlowField em WebGL, e continua visível por baixo dele: num
    celular, num navegador sem WebGL e na corrida do Lighthouse é ISTO que
@@ -1595,6 +1638,17 @@ html[data-cookie-consent="pending"] .cookie-banner {
   .regua-desenha {
     animation: none !important;
     transform: scaleX(1);
+  }
+  /* As assinaturas dos heróis também declaram o estado FINAL, e não só param:
+     um traço parado em `stroke-dashoffset: 1` é um desenho invisível. */
+  .traco-desenha {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+  .pulso-no {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
   }
   .abertura-tira {
     animation: none !important;

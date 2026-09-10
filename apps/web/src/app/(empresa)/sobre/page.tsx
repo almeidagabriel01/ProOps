@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AssinaturaRetratos } from "@/components/institucional/assinaturas-hero";
 import { LinhaDoTempo } from "@/components/institucional/linha-do-tempo";
 import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
 import { PessoasFaixa } from "@/components/institucional/pessoas-faixa";
@@ -60,6 +61,9 @@ export default function SobrePage() {
           </>
         }
         descricao="Não há camada entre quem atende e quem constrói. O que você conta numa reunião chega, na mesma semana, em quem tem a mão no produto."
+        // Os rostos, antes de qualquer palavra sobre eles. É o assunto desta
+        // página, e a faixa de pessoas logo abaixo é que os nomeia.
+        assinatura={<AssinaturaRetratos fotos={PESSOAS.map((p) => p.foto)} />}
         dados={[
           { valor: "03", rotulo: "Sócios" },
           { valor: "02", rotulo: "Engenheiros de software" },

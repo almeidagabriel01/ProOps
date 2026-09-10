@@ -142,6 +142,37 @@ os 800 genéricos) e **CLS ≤ 0,1 é `error`**. Daí duas escolhas estruturais:
   então o que começa fora da borda é cortado e não alarga o documento, que é
   exatamente o que o guard de overflow a 393px vigia.
 
+## Cada herói de sub-página tem uma assinatura própria
+
+Os quatro heróis (`components/institucional/pagina-hero.tsx`) nasceram iguais:
+sobrancelha, título em linhas, parágrafo e a mesma marca gigante sangrando pela
+direita. Página a página funcionava; como conjunto, não: quem navega as quatro
+em sequência vê o mesmo cartão quatro vezes com as palavras trocadas.
+
+A marca saiu do herói das sub-páginas (ela continua sendo da raiz) e cada página
+passa um desenho do próprio assunto, em
+`components/institucional/assinaturas-hero.tsx`:
+
+| Página | Assinatura | Composição |
+|---|---|---|
+| `/sobre` | os três retratos, dessaturados e dissolvendo | padrão |
+| `/manifesto` | um selo que se desenha | `alinhamento="centro"` |
+| `/produtos` | uma janela e um telefone em wireframe | padrão |
+| `/fale-conosco` | quatro linhas num ponto que pulsa | `altura="curta"` |
+
+Duas coisas ao acrescentar uma:
+
+- **A animação é CSS** (`.traco-desenha`, `.pulso-no`, `.hero-enter`), nunca
+  `motion`. É a regra 1 desta página, e vale aqui inteira.
+- **Todo traço animado declara `pathLength={1}`**, senão o `stroke-dasharray`
+  teria que ser o comprimento real do caminho.
+
+E uma armadilha que não dá erro nenhum: **`.hero-enter` anima a propriedade
+`filter` com `animation-fill-mode: both`**, então ela fica escrita no elemento
+para sempre e apaga qualquer `filter` que uma classe do Tailwind tenha posto ali.
+Foi assim que os retratos do `/sobre` saíram coloridos com um `grayscale` bem
+visível no markup. Filtro vai num elemento FILHO do que carrega o `.hero-enter`.
+
 ## Cada assunto tem UM dono
 
 A primeira versão repetia: os três princípios apareciam na raiz, em `/sobre` e em
