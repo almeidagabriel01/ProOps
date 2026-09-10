@@ -171,22 +171,74 @@ export function isInternalSurfacePath(pathname: string): boolean {
 }
 
 /**
+ * The legal pages: company documents, not product pages.
+ *
+ * They stay on proops.com.br through the cutover and their canonical already
+ * anchors there (see `./host-seo`). Named separately from the company site's
+ * own pages because the two have different sitemap weights: a privacy policy is
+ * `yearly`/0.3 boilerplate, an "about" page is real content.
+ */
+export const APEX_LEGAL_PATHS = [
+  "/privacy",
+  "/terms",
+  "/cookies",
+  "/data-deletion",
+] as const;
+
+/**
+ * The company site's pages, at apex level.
+ *
+ * `proops.com.br/sobre` and not `proops.com.br/institucional/sobre`: the
+ * rewrite only ever touches `/`, so a subtree under INSTITUCIONAL_ROOT would
+ * carry an internal name in a public URL, and that subtree is permanently
+ * `noindex` (it is the rewrite target, hence a duplicate of the root).
+ *
+ * These are siblings of the legal pages: the company owns them, so after the
+ * cutover the apex keeps serving them instead of 301-ing them to the ERP.
+ */
+export const APEX_COMPANY_PATHS = [
+  "/sobre",
+  "/manifesto",
+  "/produtos",
+  "/carreiras",
+  "/fale-conosco",
+] as const;
+
+/**
  * Paths the APEX keeps serving after the cutover, besides its own root.
  *
- * The legal pages belong to the company, not to a product, so they stay on
- * proops.com.br and their canonical already anchors there (see `./host-seo`).
- * Everything else on the apex is ERP and moves.
+ * Everything else on the apex is ERP and moves. This is the list
+ * `apexRedirectPara` consults, and the list `host-seo` anchors canonicals with.
  *
  * They live here, and not in `host-seo`, only to keep the import graph
  * one-directional: `host-seo` imports this module, so the reverse would be a
  * cycle.
  */
 export const APEX_OWNED_PATHS = [
-  "/privacy",
-  "/terms",
-  "/cookies",
-  "/data-deletion",
+  ...APEX_LEGAL_PATHS,
+  ...APEX_COMPANY_PATHS,
 ] as const;
+
+/**
+ * True while a company-site page must stay out of the index.
+ *
+ * The company pages answer 200 on the apex from the day they ship, so they can
+ * be reviewed and shared internally, but until `APEX_SURFACE` flips the apex is
+ * still the ERP and an indexed `/sobre` would be a page Google found before the
+ * site it belongs to exists. Symmetric to `shouldNoIndexHost`, which does the
+ * same for the subdomains while they are duplicates.
+ *
+ * The internal surface subtrees are `noindex` FOREVER, not transitionally: the
+ * public address of those surfaces is a host, so indexing the path too would
+ * publish every page at two URLs.
+ */
+export function shouldNoIndexPath(pathname: string): boolean {
+  if (isInternalSurfacePath(pathname)) return true;
+  return (
+    APEX_STILL_SERVES_ERP &&
+    (APEX_COMPANY_PATHS as readonly string[]).includes(pathname)
+  );
+}
 
 /**
  * Where the ERP landing lives, as something you can redirect to.
@@ -255,6 +307,11 @@ export function apexRedirectPara(
   if (opts.superficie !== opts.superficieDoApex) return null;
   if (pathname === "/") return null;
   if ((APEX_OWNED_PATHS as readonly string[]).includes(pathname)) return null;
+  // `/institucional` is the rewrite TARGET of the apex root. Redirecting it to
+  // the ERP subdomain would move the company page to the one host that does not
+  // serve it, and the apex root would rewrite onto a 301. Inert today only
+  // because `apexServeErp` returns above.
+  if (isInternalSurfacePath(pathname)) return null;
   return `${SITE_URLS.erp}${pathname}`;
 }
 

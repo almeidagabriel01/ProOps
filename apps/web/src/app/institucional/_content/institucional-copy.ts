@@ -1,5 +1,5 @@
 /**
- * TEXTO PENDENTE DA PÁGINA INSTITUCIONAL.
+ * TEXTO PENDENTE DO SITE INSTITUCIONAL.
  *
  * Tudo aqui é rascunho, à espera do briefing da empresa. Está num arquivo só,
  * e não espalhado pelos componentes, para que ajustar a história da ProOps seja
@@ -11,9 +11,17 @@
  */
 export const PLACEHOLDER = true;
 
+// O número de suporte já tem dono no projeto: `lib/whatsapp-contacts` é a fonte,
+// e a landing o consome por este módulo. Repetir os dígitos aqui seria a segunda
+// cópia, e a que ninguém lembraria de trocar.
+export { WHATSAPP_HREF } from "@/components/landing/_shared/whatsapp";
+import { WHATSAPP_HREF as WPP } from "@/components/landing/_shared/whatsapp";
+
 export interface Principio {
   titulo: string;
   texto: string;
+  /** Uma frase que aprofunda o princípio, usada só na página do manifesto. */
+  detalhe: string;
 }
 
 export interface Marco {
@@ -23,9 +31,58 @@ export interface Marco {
 }
 
 export interface Numero {
-  valor: string;
+  /** Só o dígito: o contador scrubado precisa de número, não de string. */
+  valor: number;
+  prefixo?: string;
+  sufixo?: string;
+  /** Preenche com zero à esquerda, para a caixa não mudar de largura contando. */
+  digitos?: number;
   rotulo: string;
 }
+
+export interface Pessoa {
+  nome: string;
+  papel: string;
+  /** Uma frase em primeira pessoa. É o que transforma uma grade em pessoas. */
+  fala: string;
+}
+
+export interface Compromisso {
+  titulo: string;
+  texto: string;
+}
+
+export interface Canal {
+  /** O motivo, como quem está escrevendo pensaria nele. */
+  motivo: string;
+  titulo: string;
+  texto: string;
+  acao: string;
+  href: string;
+  /** `true` abre em outra aba: WhatsApp, formulário do ERP. */
+  externo?: boolean;
+}
+
+export interface Vaga {
+  titulo: string;
+  area: string;
+  local: string;
+  tipo: string;
+}
+
+/** A frase que a segunda cena revela palavra por palavra. */
+export const FRASE_MANIFESTO =
+  "A ProOps existe para que uma empresa que vende projeto pare de administrar o próprio sistema e volte a administrar o próprio negócio.";
+
+/** As seis planilhas que a cena do problema junta numa base só. */
+export const PLANILHAS: string[] = [
+  "Orçamento_v7_FINAL.xlsx",
+  "Clientes 2026",
+  "Contas a receber",
+  "Controle de obra",
+  "Comissões",
+  "Notas emitidas",
+];
 
 /** Como a empresa trabalha. Três é o teto: uma quarta ninguém lê. */
 export const PRINCIPIOS: Principio[] = [
@@ -33,16 +90,22 @@ export const PRINCIPIOS: Principio[] = [
     titulo: "Software que cabe no dia",
     texto:
       "Ferramenta boa é a que some no meio do trabalho. A gente projeta para o uso de terça-feira à tarde, não para a demonstração.",
+    detalhe:
+      "Substituir por um exemplo concreto: uma tela que foi refeita porque alguém levava seis cliques para fazer o que faz vinte vezes por dia.",
   },
   {
     titulo: "Uma base, não seis planilhas",
     texto:
       "Proposta, cliente e dinheiro são a mesma história contada em partes. Separá-los em sistemas diferentes é o que faz o mês fechar errado.",
+    detalhe:
+      "Substituir por como essa decisão aparece no produto: o que acontece com o financeiro quando uma proposta é aprovada, sem ninguém digitar de novo.",
   },
   {
     titulo: "O detalhe que ninguém vê",
     texto:
       "Fuso, centavo, acento, permissão. É onde o software perde a confiança de quem usa, e é onde a gente gasta o tempo.",
+    detalhe:
+      "Substituir por um detalhe real que custou uma semana e que nenhum cliente vai notar, porque notar seria o sintoma.",
   },
 ];
 
@@ -74,9 +137,137 @@ export const MARCOS: Marco[] = [
   },
 ];
 
-/** Números publicáveis. Só entram depois de conferidos. */
+/**
+ * Números publicáveis. Só entram depois de conferidos.
+ *
+ * Zerados de propósito: um número inventado numa página institucional para de
+ * ser rascunho e passa a ser afirmação, e é a primeira coisa que um cliente
+ * confere. O contador é dirigido por scroll, então ele anima de 0 a 0 enquanto
+ * estes valores forem zero, o que é exatamente o aviso que se quer.
+ */
 export const NUMEROS: Numero[] = [
-  { valor: "00", rotulo: "Empresas usando o ERP" },
-  { valor: "00 mil", rotulo: "Propostas emitidas" },
-  { valor: "00%", rotulo: "Substituir por um número que importe" },
+  { valor: 0, digitos: 2, rotulo: "Empresas usando o ERP" },
+  { valor: 0, digitos: 2, sufixo: " mil", rotulo: "Propostas emitidas" },
+  {
+    valor: 0,
+    digitos: 2,
+    sufixo: "%",
+    rotulo: "Substituir por um número que importe",
+  },
+];
+
+/** Quem faz. Nomes, papéis e falas a confirmar com cada pessoa. */
+export const PESSOAS: Pessoa[] = [
+  {
+    nome: "A definir",
+    papel: "Produto e engenharia",
+    fala: "Substituir por uma frase desta pessoa sobre o que ela resolve aqui.",
+  },
+  {
+    nome: "A definir",
+    papel: "Atendimento e implantação",
+    fala: "Substituir por uma frase desta pessoa sobre o que ela resolve aqui.",
+  },
+  {
+    nome: "A definir",
+    papel: "Comercial",
+    fala: "Substituir por uma frase desta pessoa sobre o que ela resolve aqui.",
+  },
+  {
+    nome: "A definir",
+    papel: "Financeiro e fiscal",
+    fala: "Substituir por uma frase desta pessoa sobre o que ela resolve aqui.",
+  },
+];
+
+/** O que a ProOps se compromete a fazer com o dado de quem usa. */
+export const COMPROMISSOS: Compromisso[] = [
+  {
+    titulo: "O dado é de quem digitou",
+    texto:
+      "Cada empresa acessa apenas os próprios dados, e a separação é aplicada em toda requisição, não só na tela.",
+  },
+  {
+    titulo: "Conformidade com a LGPD",
+    texto:
+      "Tratamento de dado pessoal conforme a Lei Geral de Proteção de Dados, com exclusão sob demanda e registro de quem acessou o quê.",
+  },
+  {
+    titulo: "Gente responde",
+    texto:
+      "Suporte com pessoa do outro lado, que conhece o produto e o negócio de quem está perguntando.",
+  },
+  {
+    titulo: "Continuidade",
+    texto:
+      "Infraestrutura gerenciada, com redundância e rotina de backup, para que nada se perca enquanto a empresa cresce.",
+  },
+];
+
+/** Canais de contato institucional. O formulário comercial é o do ERP. */
+export const CANAIS: Canal[] = [
+  {
+    motivo: "Quero conhecer o produto",
+    titulo: "Comercial",
+    texto:
+      "Uma conversa sobre o que a sua empresa faz hoje e onde o sistema entra. Sem compromisso e sem script.",
+    acao: "Falar com o comercial",
+    href: "/contato",
+  },
+  {
+    motivo: "Já uso e preciso de ajuda",
+    titulo: "Suporte",
+    texto:
+      "Atendimento de quem já é cliente, pelo canal mais rápido: mensagem, com a pessoa que conhece a sua conta.",
+    acao: "Abrir o WhatsApp",
+    href: WPP,
+    externo: true,
+  },
+  {
+    motivo: "Sou jornalista",
+    titulo: "Imprensa",
+    texto:
+      "Dados da empresa, material de marca e entrevista. Respondemos em até dois dias úteis.",
+    acao: "Escrever para a imprensa",
+    href: "mailto:gestao@proops.com.br?subject=Imprensa",
+  },
+  {
+    motivo: "Quero propor uma parceria",
+    titulo: "Parcerias",
+    texto:
+      "Integração, indicação e revenda. Conte o que você faz e onde acha que os dois produtos se encontram.",
+    acao: "Propor uma parceria",
+    href: "mailto:gestao@proops.com.br?subject=Parceria",
+  },
+];
+
+/**
+ * Vagas abertas. Lista vazia é um estado de verdade, não um esquecimento: a
+ * página de carreiras trata os dois casos, e quem chega num momento sem vaga
+ * merece saber disso em vez de uma seção que não existe.
+ */
+export const VAGAS: Vaga[] = [];
+
+/** Os passos do processo seletivo. */
+export const PROCESSO: Compromisso[] = [
+  {
+    titulo: "Conversa",
+    texto:
+      "Meia hora para entender o que você quer fazer e contar com honestidade o que a gente tem para oferecer.",
+  },
+  {
+    titulo: "Um problema real",
+    texto:
+      "Um exercício tirado do produto, com tempo combinado. Sem prova de algoritmo e sem pegadinha.",
+  },
+  {
+    titulo: "Conversa com o time",
+    texto:
+      "Com quem você vai trabalhar todo dia, porque é quem tem mais a perder se a escolha for errada.",
+  },
+  {
+    titulo: "Proposta",
+    texto:
+      "Número, escopo e expectativa por escrito, no mesmo dia da decisão.",
+  },
 ];

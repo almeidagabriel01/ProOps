@@ -1,16 +1,47 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 
-import { SmoothScroll } from "@/components/marketing/_shared/smooth-scroll";
-
-import { InstitucionalCta } from "./_components/institucional-cta";
-import { InstitucionalFooter } from "./_components/institucional-footer";
-import { InstitucionalHistoria } from "./_components/institucional-historia";
+import { InstitucionalAbertura } from "./_components/institucional-abertura";
 import { InstitucionalHero } from "./_components/institucional-hero";
-import { InstitucionalManifesto } from "./_components/institucional-manifesto";
-import { InstitucionalNavbar } from "./_components/institucional-navbar";
-import { InstitucionalProdutos } from "./_components/institucional-produtos";
+import { InstitucionalFrase } from "./_components/institucional-frase";
 import { InstitucionalJsonLd } from "./_components/institucional-json-ld";
 import { canonicalFor } from "@/lib/site/host-seo";
+
+/**
+ * Everything below the second scene is code-split, imported BY DIRECT PATH and
+ * never through a barrel, which is what makes webpack actually split it. The ERP
+ * landing records the same rule next to its own dynamic imports: a barrel import
+ * pulls the whole module graph into the first chunk and the split silently does
+ * nothing.
+ *
+ * `ssr` is left at its default (true), so every scene is server-rendered and
+ * present in the HTML. The split is about when the JAVASCRIPT arrives, not about
+ * when the content does: these sections are authored in their final state, so
+ * the markup is complete and readable before a single scene has hydrated.
+ */
+const InstitucionalProblema = dynamic(() =>
+  import("./_components/institucional-problema").then(
+    (m) => m.InstitucionalProblema,
+  ),
+);
+const InstitucionalProdutos = dynamic(() =>
+  import("./_components/institucional-produtos").then(
+    (m) => m.InstitucionalProdutos,
+  ),
+);
+const InstitucionalManifesto = dynamic(() =>
+  import("./_components/institucional-manifesto").then(
+    (m) => m.InstitucionalManifesto,
+  ),
+);
+const InstitucionalHistoria = dynamic(() =>
+  import("./_components/institucional-historia").then(
+    (m) => m.InstitucionalHistoria,
+  ),
+);
+const InstitucionalCta = dynamic(() =>
+  import("./_components/institucional-cta").then((m) => m.InstitucionalCta),
+);
 
 /**
  * The ProOps company page.
@@ -55,14 +86,16 @@ export default function InstitucionalPage() {
   return (
     <>
       <InstitucionalJsonLd />
-      <SmoothScroll />
-      <InstitucionalNavbar />
-      <InstitucionalHero />
-      <InstitucionalProdutos />
-      <InstitucionalManifesto />
-      <InstitucionalHistoria />
-      <InstitucionalCta />
-      <InstitucionalFooter />
+      <InstitucionalAbertura />
+      <main>
+        <InstitucionalHero />
+        <InstitucionalFrase />
+        <InstitucionalProblema />
+        <InstitucionalProdutos />
+        <InstitucionalManifesto />
+        <InstitucionalHistoria />
+        <InstitucionalCta />
+      </main>
     </>
   );
 }

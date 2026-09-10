@@ -29,11 +29,11 @@ import {
 } from "@/lib/auth/route-access";
 import {
   erpHomeUrl,
-  isInternalSurfacePath,
   resolveApexRedirect,
   resolveRewritePath,
   resolveSurface,
   shouldNoIndexHost,
+  shouldNoIndexPath,
 } from "@/lib/site/surfaces";
 
 // Route classification (public / billing-exempt / skip) lives in the pure,
@@ -83,8 +83,12 @@ export async function proxy(request: NextRequest) {
   // tambem nao entra no indice, em nenhum host e em nenhum momento: ele serve a
   // MESMA pagina que o host proprio serve na raiz. O robots.txt ja o proibe, e
   // este cabecalho cobre quem chegar por link, que o robots nao alcanca.
+  // As paginas do site da empresa (`/sobre`, `/manifesto`...) entram na mesma
+  // regra, por `shouldNoIndexPath`: elas respondem 200 no apex desde o dia em
+  // que sobem, para poderem ser revisadas, mas enquanto o apex ainda serve o
+  // ERP uma `/sobre` indexada seria pagina achada antes do site a que pertence.
   const transitionalNoIndex =
-    shouldNoIndexHost(host) || isInternalSurfacePath(pathname);
+    shouldNoIndexHost(host) || shouldNoIndexPath(pathname);
 
   // Cutover 301s. Inert until APEX_SURFACE flips: `resolveApexRedirect` returns
   // null while the apex still serves the ERP.

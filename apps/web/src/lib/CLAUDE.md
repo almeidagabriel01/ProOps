@@ -73,6 +73,15 @@ lib/
 - `host-seo.ts` deriva sitemap, canonical e robots por host. As páginas legais
   ancoram no apex venham de onde vierem: só a raiz é reescrita, então elas
   respondem 200 nos três domínios.
+- `APEX_OWNED_PATHS` é o que o apex continua servindo depois da virada, e são
+  duas metades: `APEX_LEGAL_PATHS` (privacidade, termos, cookies, exclusão) e
+  `APEX_COMPANY_PATHS` (as cinco páginas do site da empresa). Separadas porque
+  têm peso diferente no sitemap, e somadas porque `apexRedirectPara` e o
+  canonical tratam as duas igual. **Página da empresa fora dessa lista morre no
+  dia da virada**, com 301 para um subdomínio que não a serve.
+- `shouldNoIndexPath` fecha as páginas da empresa enquanto o apex ainda serve o
+  ERP, simétrico ao que `shouldNoIndexHost` já faz pelos subdomínios: elas sobem
+  navegáveis e fora do índice, e entram no índice no dia da virada.
 - `app-brand.ts` isola `APP_NAME`, já que o nome do aplicativo ainda não está
   decidido.
 

@@ -6,7 +6,7 @@ import { PauseOffscreen } from "@/components/marketing/_shared/pause-offscreen";
 import { SITE_URLS } from "@/lib/site/surfaces";
 
 import { NUMEROS } from "../_content/institucional-copy";
-import { PlaceholderBadge } from "./placeholder-badge";
+import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
 
 /**
  * The numbers, then the way out.

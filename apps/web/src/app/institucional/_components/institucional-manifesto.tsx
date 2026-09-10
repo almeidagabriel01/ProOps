@@ -7,7 +7,7 @@ import { Accent } from "@/components/landing/_shared/section-heading";
 import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene";
 
 import { PRINCIPIOS } from "../_content/institucional-copy";
-import { PlaceholderBadge } from "./placeholder-badge";
+import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
 
 /**
  * How the company works, in three principles.

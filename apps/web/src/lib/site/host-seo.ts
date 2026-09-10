@@ -12,6 +12,7 @@
  */
 
 import {
+  APEX_LEGAL_PATHS,
   APEX_OWNED_PATHS,
   APEX_SURFACE,
   APEX_URL,
@@ -33,7 +34,14 @@ export interface SitemapRoute {
 
 /** Indexable content of each surface, and nothing else. */
 const ROTAS: Record<Surface, SitemapRoute[]> = {
-  institucional: [{ path: "/", changeFrequency: "monthly", priority: 1 }],
+  institucional: [
+    { path: "/", changeFrequency: "monthly", priority: 1 },
+    { path: "/sobre", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/manifesto", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/produtos", changeFrequency: "monthly", priority: 0.8 },
+    { path: "/carreiras", changeFrequency: "weekly", priority: 0.7 },
+    { path: "/fale-conosco", changeFrequency: "yearly", priority: 0.5 },
+  ],
   erp: [
     { path: "/", changeFrequency: "weekly", priority: 1 },
     {
@@ -56,13 +64,20 @@ const ROTAS: Record<Surface, SitemapRoute[]> = {
  * that is triplicated content, so they anchor to the apex and stay there
  * through the cutover — see `canonicalFor`.
  */
-export const ROTAS_LEGAIS: SitemapRoute[] = APEX_OWNED_PATHS.map((path) => ({
+export const ROTAS_LEGAIS: SitemapRoute[] = APEX_LEGAL_PATHS.map((path) => ({
   path,
   changeFrequency: "yearly" as const,
   priority: 0.3,
 }));
 
-const CAMINHOS_LEGAIS = new Set<string>(APEX_OWNED_PATHS);
+/**
+ * Every path whose canonical is the apex, whatever host served it.
+ *
+ * Wider than the legal pages: the company site's own pages are at apex level
+ * too, so `erp.proops.com.br/sobre` also answers 200 (only `/` is rewritten).
+ * Without this they would be the most literal duplicate the project has.
+ */
+const CAMINHOS_ANCORADOS_NO_APEX = new Set<string>(APEX_OWNED_PATHS);
 
 /**
  * Sitemap entries for a surface.
@@ -93,12 +108,13 @@ export function sitemapAbsoluto(
 /**
  * Where a path declares itself canonical.
  *
- * Legal pages always point at the apex, regardless of the host that served
- * them. Everything else is canonical on the surface that owns it.
+ * The pages the company owns, legal documents and company site alike, always
+ * point at the apex regardless of the host that served them. Everything else is
+ * canonical on the surface that owns it.
  */
 export function canonicalFor(surface: Surface, pathname: string): string {
   const path = pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
-  if (CAMINHOS_LEGAIS.has(path)) return `${APEX_URL}${path}`;
+  if (CAMINHOS_ANCORADOS_NO_APEX.has(path)) return `${APEX_URL}${path}`;
   const origem = origemDe(surface);
   return path === "/" ? `${origem}/` : `${origem}${path}`;
 }

@@ -1327,6 +1327,166 @@ html[data-shell="locked"] body {
   --app-on-hero-muted: rgba(229, 225, 228, 0.6);
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Site institucional (proops.com.br) — primitivas próprias.
+
+   Mono, como a landing do ERP, mas sem vidro e sem metal: a profundidade aqui
+   vem de contraste, de régua fina e de movimento dirigido pelo scroll. Os dois
+   campos reativos leem `--px`/`--py`, escritos uma vez por frame pelo
+   `usePointerField` no elemento de escopo, então a reatividade inteira é CSS
+   herdando duas variáveis em vez de React re-renderizando uma subárvore.
+
+   TODO loop daqui embaixo está no bloco de prefers-reduced-motion no fim do
+   arquivo e é pausável por `.anim-paused`. */
+
+/* Cortina de abertura: sobe sozinha no primeiro paint, sem JS, para não
+   empurrar o LCP. Seis lâminas escalando de baixo para cima, mesma gramática
+   da transição entre páginas (ver curtain-transition.tsx), e é de propósito:
+   entrar no site e navegar dentro dele têm que parecer o mesmo gesto. */
+@keyframes abertura-lamina {
+  0% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(0);
+  }
+}
+.abertura-lamina {
+  transform-origin: top;
+  animation: abertura-lamina 0.85s cubic-bezier(0.76, 0, 0.24, 1)
+    var(--lamina-delay, 0s) both;
+  will-change: transform;
+}
+
+/* O contador da abertura, como odômetro.
+
+   Os números estão no DOM, empilhados, e a tira sobe em `steps()`. A via óbvia
+   seria `@property --n { syntax: "<integer>" }` animado com `counter()`, e ela
+   foi descartada: onde @property não é suportado o `var()` fica inválido, o
+   counter-reset cai e o contador congela em "0" — ou seja, a falha aparece
+   justamente como um site que não carregou. Com a tira, um navegador que ignore
+   a animação mostra o último quadro, que é o 100. */
+@keyframes abertura-tira {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(var(--abertura-passos, 4) * -1em));
+  }
+}
+.abertura-tira {
+  animation: abertura-tira 0.9s steps(var(--abertura-passos, 4), end)
+    var(--abertura-delay, 0.1s) both;
+}
+
+/* O rótulo da abertura aparece e SAI com as lâminas. `.hero-enter` não serve
+   aqui: ele só entra, e um rótulo de carregamento ainda na tela depois de a
+   página abrir parece algo que não terminou. */
+@keyframes abertura-rotulo {
+  0% {
+    opacity: 0;
+  }
+  12%,
+  74% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.abertura-rotulo {
+  animation: abertura-rotulo 1.35s ease-in-out both;
+}
+
+/* Régua que se desenha. Usada pelos títulos de seção e pela linha do tempo.
+   `scaleX` e não `width` de propósito: largura é layout, e layout animado num
+   pin é jitter garantido. */
+@keyframes regua-desenha {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.regua-desenha {
+  transform-origin: left;
+  animation: regua-desenha 0.9s cubic-bezier(0.16, 1, 0.3, 1)
+    var(--regua-delay, 0s) both;
+}
+
+/* Campo mono reativo: duas manchas que respondem ao ponteiro e ao giroscópio.
+   É o fallback do FlowField em WebGL, e continua visível por baixo dele: num
+   celular, num navegador sem WebGL e na corrida do Lighthouse é ISTO que
+   aparece, então ele tem que ficar bom sozinho. */
+.campo-reativo {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      42rem 42rem at calc(50% + var(--px, 0) * 9%) calc(38% + var(--py, 0) * 7%),
+      rgba(255, 255, 255, 0.1),
+      transparent 62%
+    ),
+    radial-gradient(
+      30rem 30rem at calc(22% - var(--px, 0) * 6%) calc(74% - var(--py, 0) * 5%),
+      rgba(255, 255, 255, 0.06),
+      transparent 66%
+    );
+  transition: background-position 0.2s linear;
+}
+
+/* A mesma ideia sobre fundo claro. */
+.campo-reativo--claro {
+  background:
+    radial-gradient(
+      42rem 42rem at calc(50% + var(--px, 0) * 9%) calc(38% + var(--py, 0) * 7%),
+      rgba(0, 0, 0, 0.07),
+      transparent 62%
+    ),
+    radial-gradient(
+      30rem 30rem at calc(22% - var(--px, 0) * 6%) calc(74% - var(--py, 0) * 5%),
+      rgba(0, 0, 0, 0.05),
+      transparent 66%
+    );
+}
+
+/* Grade de pontos com máscara radial. Repetida à mão em cinco seções da
+   landing do ERP; aqui é uma classe. */
+.grade-pontos {
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.07) 1px,
+    transparent 1px
+  );
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse at center, black, transparent 82%);
+}
+.grade-pontos--claro {
+  background-image: radial-gradient(
+    circle,
+    rgba(0, 0, 0, 0.06) 1px,
+    transparent 1px
+  );
+}
+
+/* Inclinação de card por ponteiro, sem JS por card: o escopo escreve as duas
+   variáveis e cada card as lê com o próprio peso. */
+.inclina-ponteiro {
+  transform: perspective(900px)
+    rotateY(calc(var(--px, 0) * var(--inclina, 3deg)))
+    rotateX(calc(var(--py, 0) * var(--inclina, 3deg) * -1));
+  transition: transform 0.25s ease-out;
+}
+
+/* SplitText escreve estas três classes. O `overflow: clip` do wrapper de
+   máscara é o que deixa a linha subir de baixo sem a caixa crescer; sem
+   `padding-bottom` ele decapita descendente de "p" e "g". */
+.split-line {
+  padding-bottom: 0.08em;
+}
+
 /* Cookie-consent banner: DOM is always server-rendered but hidden; visibility is
    gated by the html attribute that public/cookie-consent-init.js sets at first
    paint (before hydration). This keeps the banner off the LCP critical path —
@@ -1357,6 +1517,34 @@ html[data-cookie-consent="pending"] .cookie-banner {
   .landing-btn__ink,
   .landing-link__bar {
     transition: none;
+  }
+
+  /* Site institucional. A cortina de abertura tem que ir para `scaleY(0)`, e
+     nao so parar de animar: `animation: none` com `both` a deixaria em
+     `scaleY(1)`, ou seja, a tela preta cobrindo a pagina para sempre. Mesma
+     coisa para a regua, que sem isto ficaria invisivel. */
+  .abertura-lamina {
+    animation: none !important;
+    transform: scaleY(0);
+  }
+  .regua-desenha {
+    animation: none !important;
+    transform: scaleX(1);
+  }
+  .abertura-tira {
+    animation: none !important;
+    transform: translateY(calc(var(--abertura-passos, 4) * -1em));
+  }
+  .abertura-rotulo {
+    animation: none !important;
+    opacity: 0;
+  }
+  .campo-reativo,
+  .inclina-ponteiro {
+    transition: none !important;
+  }
+  .inclina-ponteiro {
+    transform: none;
   }
 }
 

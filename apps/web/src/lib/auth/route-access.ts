@@ -31,6 +31,14 @@ export const PUBLIC_MARKETING_ROUTES = [
   // reachable so they can be reviewed on any host while being built.
   "/institucional",
   "/aplicativo",
+  // The company site's own pages, at apex level. They are siblings of the legal
+  // pages: `APEX_COMPANY_PATHS` in `@/lib/site/surfaces` keeps the apex serving
+  // them after the cutover instead of 301-ing them to the ERP.
+  "/sobre",
+  "/manifesto",
+  "/produtos",
+  "/carreiras",
+  "/fale-conosco",
 ] as const;
 
 /**
@@ -96,7 +104,7 @@ export function isPublicMarketingRoute(pathname: string): boolean {
  * the page DOES, not about who may see it. The ERP landing is public too, but
  * it fetches live prices and swaps its buttons depending on whether the visitor
  * is logged in, so it genuinely needs Auth, Tenant, Permissions and Plan. These
- * two do not: the company page has no prices and no login, and the app page has
+ * do not: the company site has no prices and no login, and the app page has
  * fixed prices with no web checkout.
  *
  * `providers.tsx` gives these a branch with none of those providers, which
@@ -112,6 +120,11 @@ export function isPublicMarketingRoute(pathname: string): boolean {
 export const SESSIONLESS_MARKETING_ROUTES = [
   "/institucional",
   "/aplicativo",
+  "/sobre",
+  "/manifesto",
+  "/produtos",
+  "/carreiras",
+  "/fale-conosco",
 ] as const;
 
 export function isSessionlessMarketingRoute(pathname: string): boolean {

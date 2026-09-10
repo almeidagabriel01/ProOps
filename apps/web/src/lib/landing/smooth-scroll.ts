@@ -23,3 +23,20 @@ export function scrollToOffset(top: number): void {
   }
   window.scrollTo({ top: target, behavior: "smooth" });
 }
+
+/**
+ * Jumps to the top with no animation, for a route change.
+ *
+ * The App Router resets the scroll position itself, but Lenis keeps its own
+ * internal position and reasserts it on the next frame, so the new page opens
+ * wherever the old one was left. `immediate` is what skips the easing: a
+ * smooth-scrolled reset is visible, and it competes with the curtain covering
+ * the transition.
+ */
+export function jumpToTop(): void {
+  if (instance) {
+    instance.scrollTo(0, { immediate: true });
+    return;
+  }
+  window.scrollTo(0, 0);
+}

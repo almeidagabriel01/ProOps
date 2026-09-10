@@ -1,4 +1,4 @@
-import { PLACEHOLDER } from "../_content/institucional-copy";
+import { PLACEHOLDER } from "@/app/institucional/_content/institucional-copy";
 
 /**
  * Marks a section whose copy is still a draft.
@@ -9,6 +9,10 @@ import { PLACEHOLDER } from "../_content/institucional-copy";
  * inline-flex so it hugs its text, and without it the badge would flow onto the
  * same line as the eyebrow below it. Flip `PLACEHOLDER` in the copy module and
  * every badge disappears at once.
+ *
+ * Shared rather than route-local: the draft copy is spread across the root
+ * experience and five sub-pages now, and a second copy of this component is how
+ * one of those surfaces ends up publishing a placeholder without the badge.
  */
 export function PlaceholderBadge({ children }: { children: string }) {
   if (!PLACEHOLDER) return null;

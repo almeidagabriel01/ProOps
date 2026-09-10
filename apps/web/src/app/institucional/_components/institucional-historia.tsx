@@ -6,7 +6,7 @@ import gsap from "gsap";
 import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene";
 
 import { MARCOS } from "../_content/institucional-copy";
-import { PlaceholderBadge } from "./placeholder-badge";
+import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
 
 /**
  * The company timeline, read sideways.

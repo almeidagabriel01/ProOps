@@ -29,6 +29,21 @@ import {
 
 const APP_DIR = path.resolve(__dirname, "..", "app");
 
+/**
+ * Os route groups de primeiro nível, `(nome)`, que não entram na URL.
+ *
+ * Sem isto o resolvedor procura `app/sobre/page.tsx` e não acha
+ * `app/(empresa)/sobre/page.tsx`. Lido do disco em vez de escrito à mão para
+ * que um grupo novo não precise ser cadastrado aqui: a falha seria um
+ * `ENOENT` num teste de canonical, que não parece o que é.
+ */
+function gruposDeRota(): string[] {
+  return fs
+    .readdirSync(APP_DIR, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name.startsWith("("))
+    .map((e) => e.name);
+}
+
 /** Onde mora o `page.tsx` que responde por um caminho de uma superfície. */
 function arquivoDaRota(surface: Surface, rota: string): string {
   if (rota === "/") {
@@ -38,7 +53,18 @@ function arquivoDaRota(surface: Surface, rota: string): string {
     }
     return path.join(APP_DIR, "page.tsx");
   }
-  return path.join(APP_DIR, rota, "page.tsx");
+
+  const direto = path.join(APP_DIR, rota, "page.tsx");
+  if (fs.existsSync(direto)) return direto;
+
+  for (const grupo of gruposDeRota()) {
+    const agrupado = path.join(APP_DIR, grupo, rota, "page.tsx");
+    if (fs.existsSync(agrupado)) return agrupado;
+  }
+
+  // Devolve o caminho direto para o erro nomear o arquivo que FALTA, em vez de
+  // o último grupo que por acaso foi tentado.
+  return direto;
 }
 
 const SUPERFICIES: Surface[] = ["institucional", "erp", "app"];
@@ -50,6 +76,12 @@ describe("canonical", () => {
     for (const surface of SUPERFICIES) {
       for (const rota of rotasDoSitemap(surface)) {
         const arquivo = arquivoDaRota(surface, rota.path);
+        if (!fs.existsSync(arquivo)) {
+          semCanonical.push(
+            `${surface} ${rota.path} (sem page.tsx em ${path.relative(APP_DIR, arquivo)})`,
+          );
+          continue;
+        }
         const fonte = fs.readFileSync(arquivo, "utf8");
         if (!fonte.includes("alternates")) {
           semCanonical.push(

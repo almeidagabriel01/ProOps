@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  APEX_COMPANY_PATHS,
+  APEX_LEGAL_PATHS,
   APEX_OWNED_PATHS,
   APEX_STILL_SERVES_ERP,
   APEX_SURFACE,
@@ -14,6 +16,7 @@ import {
   resolveRewritePath,
   resolveSurface,
   shouldNoIndexHost,
+  shouldNoIndexPath,
 } from "../surfaces";
 
 describe("resolveSurface", () => {
@@ -198,9 +201,30 @@ describe("a virada do apex", () => {
   });
 
   it("depois mantém as páginas legais no apex, que é onde o canonical delas aponta", () => {
-    for (const p of APEX_OWNED_PATHS) {
+    for (const p of APEX_LEGAL_PATHS) {
       expect(apexRedirectPara(p, DEPOIS)).toBeNull();
     }
+  });
+
+  /**
+   * As páginas do site da empresa são irmãs das legais: o apex é quem as serve
+   * depois da virada, não o ERP. Sem elas em `APEX_OWNED_PATHS`, `/sobre` sai do
+   * ar no instante do flip, levando 301 para um subdomínio que não tem a página.
+   */
+  it("depois mantém as páginas da empresa no apex", () => {
+    for (const p of APEX_COMPANY_PATHS) {
+      expect(apexRedirectPara(p, DEPOIS)).toBeNull();
+    }
+  });
+
+  /**
+   * `/institucional` é o ALVO do rewrite da raiz do apex. Redirecioná-lo mandaria
+   * a página da empresa para o único host que não a serve, e a raiz do apex
+   * passaria a reescrever para cima de um 301.
+   */
+  it("depois NÃO redireciona o alvo interno do rewrite", () => {
+    expect(apexRedirectPara("/institucional", DEPOIS)).toBeNull();
+    expect(apexRedirectPara("/aplicativo", DEPOIS)).toBeNull();
   });
 
   it("não mexe em quem chega pelos subdomínios", () => {
@@ -240,5 +264,62 @@ describe("caminhos internos das superfícies", () => {
     expect(isInternalSurfacePath("/aplicativos")).toBe(false);
     expect(isInternalSurfacePath("/")).toBe(false);
     expect(isInternalSurfacePath("/decoracao")).toBe(false);
+  });
+});
+
+/**
+ * O site da empresa sobe navegável e fora do índice.
+ *
+ * As páginas respondem 200 no apex desde o dia em que sobem, para poderem ser
+ * revisadas e compartilhadas, e enquanto o apex ainda serve o ERP elas ficam
+ * `noindex`: uma `/sobre` indexada antes da virada é página achada antes do site
+ * a que ela pertence. É a mesma decisão que `shouldNoIndexHost` já toma pelos
+ * subdomínios enquanto eles são duplicata.
+ */
+describe("shouldNoIndexPath", () => {
+  it("fecha as páginas da empresa enquanto o apex serve o ERP", () => {
+    expect(APEX_STILL_SERVES_ERP).toBe(true);
+    for (const p of APEX_COMPANY_PATHS) {
+      expect(shouldNoIndexPath(p)).toBe(true);
+    }
+  });
+
+  it("fecha os caminhos internos, hoje e depois da virada", () => {
+    expect(shouldNoIndexPath(INSTITUCIONAL_ROOT)).toBe(true);
+    expect(shouldNoIndexPath(APP_ROOT)).toBe(true);
+    expect(shouldNoIndexPath(`${INSTITUCIONAL_ROOT}/qualquer`)).toBe(true);
+  });
+
+  it("não fecha a raiz nem as páginas legais", () => {
+    expect(shouldNoIndexPath("/")).toBe(false);
+    for (const p of APEX_LEGAL_PATHS) {
+      expect(shouldNoIndexPath(p)).toBe(false);
+    }
+  });
+
+  /**
+   * O casamento é exato, não por prefixo: `/sobre` é a página da empresa, e uma
+   * `/sobre-nos` futura seria outra coisa, que não herda o noindex sem querer.
+   */
+  it("casa o caminho exato, não o prefixo", () => {
+    expect(shouldNoIndexPath("/sobre-nos")).toBe(false);
+    expect(shouldNoIndexPath("/produtos-novos")).toBe(false);
+  });
+});
+
+/**
+ * As duas listas não podem divergir: `APEX_OWNED_PATHS` é a que o 301 consulta e
+ * a que ancora canonical, e ela tem que ser exatamente a soma das duas metades.
+ */
+describe("APEX_OWNED_PATHS", () => {
+  it("é a soma das legais e das da empresa", () => {
+    expect([...APEX_OWNED_PATHS]).toEqual([
+      ...APEX_LEGAL_PATHS,
+      ...APEX_COMPANY_PATHS,
+    ]);
+  });
+
+  it("não tem caminho repetido", () => {
+    expect(new Set(APEX_OWNED_PATHS).size).toBe(APEX_OWNED_PATHS.length);
   });
 });
