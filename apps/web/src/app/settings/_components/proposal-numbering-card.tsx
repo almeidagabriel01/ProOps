@@ -201,8 +201,13 @@ export function ProposalNumberingCard({
                   })
                 }
               />
+              {/* A dica anterior dizia "quantos zeros à esquerda", que é
+                  falso: com 3 dígitos, o número 2 leva DOIS zeros, e o 185 não
+                  leva nenhum. O campo é a largura, e o zero só preenche o que
+                  sobra. */}
               <p className="text-xs text-muted-foreground">
-                Quantos zeros à esquerda o número ocupa.
+                Quantas casas o número ocupa, completadas com zero à esquerda.
+                Com 5, a proposta 185 vira 00185; com 1, fica 185.
               </p>
             </div>
           </div>
