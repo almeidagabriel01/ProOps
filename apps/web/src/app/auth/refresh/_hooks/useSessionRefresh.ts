@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/providers/auth-provider";
 import { decideRefreshOutcome } from "@/lib/auth/decide-refresh-outcome";
+import { hardRedirect } from "@/lib/auth/hard-redirect";
 import {
   clearRefreshVisits,
   recordRefreshRedirect,
@@ -111,7 +112,14 @@ export function useSessionRefresh(): void {
         router.replace(LOGIN_FALLBACK);
         return;
       }
-      router.replace(next);
+      // Navegação DURA, e não `router.replace`. O router do Next guarda a
+      // resposta da rota que acabou de ser negada: a ida a `/proposals` voltou
+      // `307` para cá, e um `replace` de volta reproduz esse mesmo `307` do
+      // cache, sem requisição nenhuma ao servidor. O cookie recém-emitido nunca
+      // era testado, o interstitial voltava para si mesmo e só o watchdog de
+      // 10s saía do laço, jogando o usuário no `/login` e, de lá, na home do
+      // papel dele. Detalhes em `lib/auth/hard-redirect.ts`.
+      hardRedirect(next);
       return;
     }
     if (outcome === "redirect-login") {

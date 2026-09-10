@@ -786,9 +786,23 @@ pelo ERP chegar la sem baixar e subir a mao.
     e render que pode passar disso, dois ciclos simultaneos pegariam o mesmo
     job e renderizariam o mesmo PDF duas vezes. Lote de 20 por ciclo, para
     caber nos 540s.
-  - A resposta de `PUT /v1/proposals/:id` devolve `driveDeliveryQueued`, e a
-    tela so avisa "vai para o Drive" quando isso e verdade: deduzir no frontend
-    prometeria a entrega para quem nem conectou a integracao.
+  - **O job so nasce quando ha Drive conectado** (`isDriveConnected`, mesma
+    condicao do `skipped: "sem_integracao"`). Sem isso o cron criava e
+    descartava um documento a cada aprovacao, e o usuario nao ficava sabendo de
+    nada: `skipped` e TERMINAL, entao conectar o Drive depois nao entrega a
+    proposta ja aprovada entao, so a proxima ou um novo salvamento dela.
+  - A resposta de `PUT /v1/proposals/:id` devolve `driveDeliveryQueued` **e**
+    `driveNotConnected`, e a tela so avisa "vai para o Drive" quando o primeiro
+    e verdade: deduzir no frontend prometeria a entrega para quem nem conectou a
+    integracao. O segundo vira o convite para conectar, e sai **so para quem tem
+    a capacidade `driveSync` no plano** (`shouldSuggestDriveConnection`) — sem
+    esse filtro, todo tenant de plano sem a integracao levaria upsell a cada
+    aprovacao de proposta.
+  - **O prazo prometido na tela e o do cron.** `DRIVE_DELIVERY_PENDING_HINT`
+    diz "em ate 3 minutos", que e o intervalo do agendamento; o render e o
+    upload somam segundos por cima disso, entao ponta a ponta o pior caso fica
+    perto de 5 min. Guard: `apps/web/src/__tests__/drive-delivery-hint.test.ts`
+    le o `schedule` real e falha se a cadencia mudar sem o texto mudar junto.
   - Indice `(status, nextRunAt ASC)`, com `orderBy` explicito — mesmo par de
     `payout_attempts`.
   - **Cron agendado nao dispara no emulador**, entao existe
@@ -963,6 +977,56 @@ Quando o status do pai muda, custos extras **alinhados** com o status antigo do 
 Quando a transação muda de carteira, o campo correspondente na proposta é atualizado de volta (`installmentsWallet` ou `downPaymentWallet`).
 
 **Guard crítico:** transações pagas vinculadas a propostas aprovadas NÃO podem ser revertidas para pendente. Para reverter: primeiro reverter a proposta para rascunho.
+
+### Numeração da proposta
+
+Dá a cada proposta um código sequencial no formato `0018926SP`: cinco dígitos,
+dois do ano e a praça. Nasceu do mesmo cliente da comissão, que já mantém um
+acervo em `0018526SP_casa_do_mauricio` e queria saber quantas propostas saem
+por ano e por cidade.
+
+- **Nasce DESLIGADA, e é configuração por empresa.** Dígitos, reinício anual e a
+  lista de praças ficam em `proposal_counters/{tenantId}` (`allow read, write:
+  if false`, Admin SDK only), editáveis em `/settings/proposals` pelo master.
+  O formato de um cliente não pode virar regra do produto: quem não liga não
+  ganha campo nenhum na proposta nem no nome do arquivo. **Sem gate de plano** —
+  numerar documento não é módulo premium.
+- **Coleção própria, não um map em `tenants/{id}`.** Aquele doc é lido por
+  qualquer membro e está no caminho de autenticação; uma escrita quente a cada
+  proposta criada não tem o que fazer ali.
+- **O número é alocado DENTRO da transação de criação da proposta**
+  (`allocateProposalNumberInTransaction`), com a leitura do contador no bloco
+  `=== ALL READS FIRST ===`. Duas criações simultâneas não podem receber o mesmo
+  código, e é a transação do Firestore que garante isso.
+- **O número é QUEIMADO.** Apagar a proposta não o devolve para a fila, e
+  renumerar as seguintes mudaria o identificador de um documento que o cliente
+  já recebeu. Buraco na sequência é melhor que código repetido.
+- **`nextNumber` é editável de propósito** (quem já numerava fora do ERP
+  continua de onde parou) e por isso `saveNumberingConfig` **mescla sobre o
+  gravado, dentro de uma transação**: um payload parcial cairia no default
+  `nextNumber: 1` e rebobinaria a sequência, fazendo a próxima proposta nascer
+  com um código já entregue.
+- **O código NÃO inclui o título.** `proposalCode` guarda só `0018926SP`; o nome
+  do arquivo é derivado na hora por `buildProposalFileName`, que devolve
+  `0018926SP_casa_do_mauricio.pdf`. Guardar o título dentro do código faria uma
+  correção de digitação trocar o identificador de uma proposta já enviada.
+- **Os campos ficam FORA da allowlist de `updateProposal`.** São escritos só na
+  criação; um PUT do cliente não renumera proposta nenhuma.
+- **A praça pedida só vale se estiver na lista da empresa**, senão cai na
+  padrão. Sigla livre produziria um código que a própria empresa não reconhece.
+- `GET /v1/proposals/numbering` é liberado a quem enxerga propostas (o
+  formulário precisa da lista de praças); `PUT` é só do master. As duas são
+  montadas **antes** de `/proposals/:id` em `core.routes.ts` — o Express casa
+  por ordem, e `PUT /proposals/numbering` cairia no update com id "numbering".
+- **Não aparece no PDF.** O que o cliente descreveu é uma convenção de NOME DE
+  ARQUIVO; a capa do PDF é uma superfície com elementos posicionáveis e temas
+  próprios, e levar o código para lá é decisão à parte.
+
+Guards: `proposal-numbering.test.ts`, `proposal-numbering.service.test.ts`,
+`core.routes.numbering.test.ts`, `tests/firestore-rules/proposal-counters.test.ts`
+e `apps/web/src/__tests__/proposal-code-preview.test.ts` (a tela tem uma cópia da
+montagem do código para a prévia, e uma divergência prometeria um código
+diferente do que a proposta receberia).
 
 ### Comissão de vendedor e arquiteto
 

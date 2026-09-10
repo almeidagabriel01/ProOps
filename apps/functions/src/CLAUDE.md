@@ -269,6 +269,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `whatsappLogs` | WhatsApp | Audit trail de acoes do bot |
 | `drive_delivery_jobs/{tenantId}_{proposalId}` | Drive | Fila de entrega da proposta no Drive. Admin SDK only |
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
+| `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |
 | `wallets/{walletId}` | Financeiro | Carteiras com saldo desnormalizado |

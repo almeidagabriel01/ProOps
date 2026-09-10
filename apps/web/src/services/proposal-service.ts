@@ -183,6 +183,12 @@ export type UpdateProposalResult = {
   success?: boolean;
   message?: string;
   driveDeliveryQueued?: boolean;
+  /**
+   * A proposta ficou entregável mas não há Drive conectado. Vem do backend
+   * porque a decisão depende do plano do tenant e da existência da integração,
+   * duas coisas que a tela não tem em mãos no momento do salvamento.
+   */
+  driveNotConnected?: boolean;
 };
 
 export const ProposalService = {

@@ -381,12 +381,23 @@ describe("nomes", () => {
     expect(buildClientFolderName("   ")).toBe("Cliente sem nome");
   });
 
-  it("prefixa o numero da proposta quando existe", () => {
-    expect(buildProposalFileName(12, "Automação da sala")).toBe(
-      "12 - Automação da sala.pdf",
+  it("usa o formato codigo_slug quando a proposta tem codigo", () => {
+    expect(buildProposalFileName("0018926SP", "Casa do Mauricio")).toBe(
+      "0018926SP_casa_do_mauricio.pdf",
     );
+  });
+
+  it("mantem so o titulo para quem nao usa numeracao", () => {
+    // Formato de um cliente nao pode virar nome de arquivo de todo mundo.
     expect(buildProposalFileName(undefined, "Automação da sala")).toBe(
       "Automação da sala.pdf",
     );
+    expect(buildProposalFileName(null, "Automação da sala")).toBe(
+      "Automação da sala.pdf",
+    );
+  });
+
+  it("sobrevive a proposta com codigo e sem titulo", () => {
+    expect(buildProposalFileName("0018926SP", "   ")).toBe("0018926SP.pdf");
   });
 });

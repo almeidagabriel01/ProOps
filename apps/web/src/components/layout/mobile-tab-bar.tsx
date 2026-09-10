@@ -173,21 +173,6 @@ export function MobileTabBar() {
               active ? "text-foreground" : "text-muted-foreground",
             );
 
-            if (entry.external) {
-              return (
-                <a
-                  key={entry.href}
-                  href={entry.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={className}
-                  aria-label={entry.label}
-                >
-                  {inner}
-                </a>
-              );
-            }
-
             return (
               <Link
                 key={entry.href}

@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { tryAutoIssue } from "../services/fiscal/invoice-issue.service";
-import { isStatusDeliverableToDrive } from "../services/drive/proposal-drive-sync.service";
+import {
+  isDriveConnected,
+  isStatusDeliverableToDrive,
+  shouldSuggestDriveConnection,
+} from "../services/drive/proposal-drive-sync.service";
 import { enqueueDriveDelivery } from "../services/drive/drive-delivery-queue";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -40,6 +44,10 @@ import {
   MAX_COMMISSIONS_PER_PROPOSAL,
   sanitizeProposalCommissionsInput,
 } from "./proposal-commissions";
+import {
+  allocateProposalNumberInTransaction,
+  readNumberingStateInTransaction,
+} from "../services/proposal-numbering.service";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
@@ -86,6 +94,9 @@ const CreateProposalSchema = z.object({
   // aqui mesmo com o .passthrough() ligado: e o que impede um percentual
   // absurdo de chegar ao calculo das despesas.
   commissions: z.array(z.unknown()).max(MAX_COMMISSIONS_PER_PROPOSAL).optional(),
+  // Praca da numeracao (ex. "SP"). O codigo em si nao vem do cliente: e o
+  // backend que aloca o sequencial, dentro da transacao de criacao.
+  proposalPraca: z.string().max(20).nullable().optional(),
 }).passthrough();
 
 const UpdateProposalSchema = CreateProposalSchema.partial();
@@ -1069,6 +1080,10 @@ export const createProposal = async (req: Request, res: Response) => {
 
         const companyRef = db.collection("companies").doc(userCompanyId);
         const companySnap = await t.get(companyRef);
+        const numberingConfig = await readNumberingStateInTransaction(
+          t,
+          userCompanyId,
+        );
         const now = Timestamp.now();
 
         // Monthly proposals quota policy:
@@ -1192,7 +1207,21 @@ export const createProposal = async (req: Request, res: Response) => {
         // === ALL WRITES AFTER READS ===
         const newRef = db.collection(PROPOSALS_COLLECTION).doc();
 
+        // `null` quando a empresa nao ligou a numeracao, que e o padrao: a
+        // proposta e gravada sem campo nenhum de codigo, como sempre foi.
+        const numbering = allocateProposalNumberInTransaction({
+          t,
+          tenantId: userCompanyId,
+          config: numberingConfig,
+          praca: input.proposalPraca,
+          now,
+        });
+
         t.set(newRef, {
+          proposalNumber: numbering?.proposalNumber ?? null,
+          proposalYear: numbering?.proposalYear ?? null,
+          proposalPraca: numbering?.proposalPraca ?? null,
+          proposalCode: numbering?.proposalCode ?? null,
           title: input.title.trim(),
           status: input.status || "draft",
           totalValue: input.totalValue,
@@ -1264,6 +1293,10 @@ export const createProposal = async (req: Request, res: Response) => {
         return {
           id: newRef.id,
           data: {
+            proposalNumber: numbering?.proposalNumber ?? null,
+            proposalYear: numbering?.proposalYear ?? null,
+            proposalPraca: numbering?.proposalPraca ?? null,
+            proposalCode: numbering?.proposalCode ?? null,
             title: input.title.trim(),
             status: input.status || "draft",
             totalValue: input.totalValue,
@@ -1958,6 +1991,7 @@ export const updateProposal = async (req: Request, res: Response) => {
     // ao cliente (e o que avisa sobre comissao paga, por exemplo), mas nao
     // pode cancelar uma entrega de PDF que nada tem a ver com ele.
     let driveDeliveryQueued = false;
+    let driveNotConnected = false;
     let approvedSyncError: unknown = null;
     if (shouldSyncApprovedTransactions) {
       try {
@@ -2013,12 +2047,22 @@ export const updateProposal = async (req: Request, res: Response) => {
         (!jaEraEntregavel || conteudoDoPdfMudou || nuncaEntregue);
 
       if (deveEntregar) {
-        // Enfileira e responde. A entrega em si (Chromium + upload) roda no
-        // cron `processDriveDeliveries`; ver `drive-delivery-queue.ts`.
-        await timed("driveEnqueueMs", () =>
-          enqueueDriveDelivery({ tenantId: proposalTenantId, proposalId: id }),
-        );
-        driveDeliveryQueued = true;
+        // Sem Drive conectado nao ha o que enfileirar: o cron descartaria o
+        // job com `skipped: "sem_integracao"`, que e TERMINAL e nao retenta.
+        // Em vez de criar um documento para ser jogado fora, respondemos o
+        // convite para conectar, que e a unica acao que resolve.
+        if (await timed("driveCheckMs", () => isDriveConnected(proposalTenantId))) {
+          // Enfileira e responde. A entrega em si (Chromium + upload) roda no
+          // cron `processDriveDeliveries`; ver `drive-delivery-queue.ts`.
+          await timed("driveEnqueueMs", () =>
+            enqueueDriveDelivery({ tenantId: proposalTenantId, proposalId: id }),
+          );
+          driveDeliveryQueued = true;
+        } else {
+          driveNotConnected = await shouldSuggestDriveConnection(
+            proposalTenantId,
+          );
+        }
       }
     }
 
@@ -2035,6 +2079,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       success: true,
       message: "Proposta atualizada.",
       driveDeliveryQueued,
+      driveNotConnected,
     });
   } catch (error: unknown) {
     const err = error as Error;

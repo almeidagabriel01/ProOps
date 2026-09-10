@@ -15,6 +15,13 @@ vi.mock("@/components/features/client-select", () => ({
   ClientSelect: () => <input aria-label="Contato" />,
 }));
 
+// A numeração não tem nada a ver com este teste, e o hook de verdade puxa o
+// cliente HTTP, que inicializa o SDK do Firebase e derruba a suíte inteira com
+// "auth/invalid-api-key" antes de renderizar qualquer coisa.
+vi.mock("@/hooks/useProposalNumbering", () => ({
+  useProposalNumbering: () => ({ config: null, isLoading: false }),
+}));
+
 function renderSection(props: Record<string, unknown> = {}) {
   return render(
     <ProposalClientSection

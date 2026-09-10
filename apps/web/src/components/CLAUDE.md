@@ -63,7 +63,14 @@ espera é anunciada por leitor de tela em vez de ser um ícone mudo.
 herdar `currentColor`. É por isso que ele também serve ao adorno de campo, onde
 a cor vem de um `text-muted-foreground` do call site.
 
-Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer.
+**O tamanho sai só de `size`.** O `Loader` aplica largura e altura por `style`
+inline, que vence classe do Tailwind: `className="w-4 h-4"` não encolhe nada, e
+o spinner sai no `md` (32px) enquanto quem escreveu acha que ajustou. Foi assim
+que o botão "Salvar" da numeração de propostas nasceu com um spinner do dobro
+da altura do texto. `className` serve para margem e cor, não para tamanho.
+
+Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer
+ou se algum `<Loader>` tentar se dimensionar por classe.
 
 ## Data
 
@@ -109,9 +116,20 @@ alcançável.
 
 Guard: `src/__tests__/step-wizard-children-parity.test.ts`.
 
-Bloco que ganha um passo próprio **não pode ser recolhível**: recolher esconde o
-único conteúdo do passo. É por isso que `CatalogFiscalFields` e
-`ClientFiscalFields` têm `variant="step"` além do `"section"` recolhível.
+Bloco promovido a conteúdo de passo **não pode ser recolhível**: no caso do
+`CatalogFiscalFields` recolher esconde o único conteúdo do passo; no do
+`ClientFiscalFields`, único conteúdo do passo "Dados Fiscais" do contato,
+recolher recriaria o problema que a promoção resolveu (fechado, ninguém achava o
+endereço que a NF-e exige). Daí o `variant="step"` dos dois, ao lado do
+`"section"` recolhível.
+
+## Navegação
+
+O modelo de navegação (a dock, a tab bar do celular, o sheet e o seletor de visão
+das páginas) tem contrato próprio em `layout/CLAUDE.md`. O resumo: `menuItems` é
+a fonte, `useNavigationItems` é o único gate de plano, permissão e nicho,
+`useDockEntries` colapsa um grupo em um ícone e `PageViewSwitcher` o expande de
+volta no cabeçalho. Ninguém deriva a própria lista de destinos.
 
 ## Nomenclatura
 - Arquivo: `nome-componente.tsx` (kebab-case)

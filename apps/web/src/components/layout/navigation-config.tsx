@@ -1,4 +1,5 @@
 import {
+  Blocks,
   LayoutDashboard,
   Package2,
   Wrench,
@@ -8,11 +9,11 @@ import {
   FileSpreadsheet,
   Bot,
   ReceiptText,
+  WalletCards,
   Handshake,
   FileText,
   Home,
   CalendarDays,
-  MessageCircle,
   Kanban,
 } from "lucide-react";
 
@@ -28,19 +29,28 @@ import {
  */
 export type MenuCapability = "financial" | "crm" | "fiscal";
 
+/**
+ * Quais capacidades o plano do tenant abre. Mora aqui, e não em
+ * `capability-gate.ts`, porque as funções puras deste arquivo precisam dele e o
+ * caminho contrário seria import circular: capability-gate já importa
+ * MenuCapability daqui.
+ */
+export type MenuCapabilityMap = Record<MenuCapability, boolean>;
+
 export type MenuItem = {
   icon: typeof LayoutDashboard;
   label: string;
-  href: string;
+  /**
+   * Ausente num GRUPO: o destino depende de quem está olhando, porque um membro
+   * pode ter permissão só para o segundo filho. Quem resolve é
+   * `resolveGroupTarget`.
+   */
+  href?: string;
   pageId?: string;
   /** Overrides pageId for niche availability checks (isPageEnabledForNiche). Defaults to pageId. */
   availabilityPageId?: string;
   requiresCapability?: MenuCapability;
-  /** Flag do TENANT (whatsappEnabled), não capacidade de plano — some por completo em vez de coroar. */
-  requiresWhatsApp?: boolean;
   masterOnly?: boolean;
-  /** Treat href as an external URL — render as <a target="_blank"> instead of <Link>. */
-  external?: boolean;
   children?: SubMenuItem[];
 };
 
@@ -50,6 +60,13 @@ export type SubMenuItem = {
   href: string;
   masterOnly?: boolean;
   pageId?: string;
+  /**
+   * Sobrepõe pageId na checagem de nicho, como em MenuItem. Ambientes divide o
+   * pageId "solutions" com Soluções para a permissão, mas tem porta de nicho
+   * própria: sem isto os dois sumiriam no nicho cortinas, onde
+   * pageAvailability.solutions é false.
+   */
+  availabilityPageId?: string;
   /** Sobrepõe a capacidade do pai. Notas Fiscais é Enterprise; Lançamentos é Pro. */
   requiresCapability?: MenuCapability;
 };
@@ -77,8 +94,10 @@ export const menuItems: MenuItem[] = [
   {
     icon: Wallet,
     label: "Financeiro",
-    href: "/transactions",
-    pageId: "financial",
+    // Sem href e sem pageId: o destino sai de resolveGroupTarget, e "financial"
+    // nunca foi um pageId de verdade (PERMISSION_PAGES tem transactions, wallet
+    // e invoices). Ele era gravado em cada filho pelo achatamento antigo e
+    // nenhuma superfície o lia.
     requiresCapability: "financial",
     children: [
       {
@@ -86,6 +105,14 @@ export const menuItems: MenuItem[] = [
         label: "Lançamentos",
         href: "/transactions",
         pageId: "transactions",
+      },
+      {
+        icon: WalletCards,
+        label: "Carteiras",
+        href: "/wallets",
+        // pageId "wallet" no singular, a rota é plural. Já existe em
+        // PERMISSION_PAGES e em PAGE_CONFIG: nenhuma chave nova.
+        pageId: "wallet",
       },
       {
         icon: Handshake,
@@ -122,40 +149,47 @@ export const menuItems: MenuItem[] = [
     href: "/calendar",
     pageId: "calendar",
   },
-  { icon: Package2, label: "Produtos", href: "/products", pageId: "products" },
-  { icon: Wrench, label: "Serviços", href: "/services", pageId: "services" },
+  {
+    icon: Blocks,
+    label: "Catálogo",
+    // As peças de que uma proposta é montada. São cadastros que alimentam a
+    // proposta, não telas de uso diário, e ocupavam três ícones da dock.
+    children: [
+      {
+        icon: Package2,
+        label: "Produtos",
+        href: "/products",
+        pageId: "products",
+      },
+      { icon: Wrench, label: "Serviços", href: "/services", pageId: "services" },
+      {
+        icon: Bot,
+        label: "Soluções",
+        href: "/solutions",
+        pageId: "solutions",
+        // Explícito, embora seja o default, porque só lado a lado com o de
+        // Ambientes fica claro por que os dois existem.
+        availabilityPageId: "solutions",
+      },
+      {
+        icon: Home,
+        label: "Ambientes",
+        href: "/ambientes",
+        // Mesmo pageId de Soluções: é o mesmo escopo funcional, e um documento
+        // de permissão gravado para "solutions" tem que gatear os dois.
+        pageId: "solutions",
+        // Mas porta de nicho própria: cortinas vê Ambientes, automação vê
+        // Soluções, e nunca os dois. Sem isto os DOIS sumiriam em cortinas,
+        // onde pageAvailability.solutions é false.
+        availabilityPageId: "ambientes",
+      },
+    ],
+  },
   {
     icon: FileSpreadsheet,
     label: "Planilhas",
     href: "/spreadsheets",
     pageId: "spreadsheets",
-  },
-  {
-    icon: Bot,
-    label: "Soluções",
-    href: "/solutions",
-    pageId: "solutions",
-  },
-  {
-    icon: Home,
-    label: "Ambientes",
-    href: "/ambientes",
-    // Use "solutions" as the pageId so MEMBER permission documents created for
-    // "solutions" also gate the /ambientes page (same functional scope).
-    // The niche availability in niches/config.ts controls which item is shown.
-    pageId: "solutions",
-    // But use "ambientes" for niche availability so cortinas sees this item
-    // while automacao sees the /solutions item (which has solutions:true).
-    availabilityPageId: "ambientes",
-  },
-  {
-    icon: MessageCircle,
-    label: "WhatsApp",
-    // Resolved at runtime by useNavigationItems from the bot WhatsApp number.
-    href: "",
-    pageId: "whatsapp",
-    requiresWhatsApp: true,
-    external: true,
   },
 ];
 
@@ -177,4 +211,115 @@ export function getVisibleChildren(
     if (child.masterOnly) return isMaster;
     return true;
   });
+}
+
+/** O que o gate precisa saber de quem está olhando. */
+export type NavigationViewer = {
+  isMaster: boolean;
+  isDemo: boolean;
+  hasPermission: (pageId: string, action: "view") => boolean;
+  /** `isPageEnabledForNiche` já ligado ao nicho do tenant. */
+  isPageEnabled: (pageId?: string | null) => boolean;
+};
+
+/**
+ * Os filhos de um grupo que esta pessoa pode ver.
+ *
+ * PERMISSÃO ANTES DE PLANO. A ordem inversa fazia o mesmo membro sem permissão
+ * de `invoices` NÃO ver Notas Fiscais num tenant Enterprise, onde a capacidade
+ * estava satisfeita e a checagem caía na permissão, e VER, coroada, num tenant
+ * Pro, onde a capacidade faltava e a função devolvia cedo. Visibilidade oposta
+ * conforme o tier, para a mesma pessoa, com o upsell aparecendo para quem não
+ * poderia usar o módulo nem depois do upgrade.
+ *
+ * Plano NÃO filtra: item sem a capacidade permanece e quem o coroa é
+ * `resolveCapabilityRestriction`, na dock e no seletor. Some por permissão,
+ * nicho ou masterOnly, nunca por plano.
+ */
+export function filterVisibleChildren(
+  item: MenuItem,
+  viewer: NavigationViewer,
+): SubMenuItem[] {
+  return (item.children ?? []).filter((child) => {
+    // availabilityPageId, não pageId: Ambientes divide "solutions" com Soluções
+    // para a permissão, mas tem porta de nicho própria. Checando por pageId, os
+    // dois sumiriam no nicho cortinas.
+    const availKey = child.availabilityPageId ?? child.pageId;
+    if (!viewer.isPageEnabled(availKey)) return false;
+    if (child.masterOnly && !viewer.isMaster) return false;
+    if (child.pageId && !viewer.isMaster && !viewer.isDemo) {
+      if (!viewer.hasPermission(child.pageId, "view")) return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Colapsa um grupo em UM destino, para a dock desenhar um ícone só.
+ *
+ * `children` já chega filtrado por permissão, nicho e masterOnly: quem filtra é
+ * `useNavigationItems`, em um lugar só. Refiltrar aqui recriaria os dois
+ * critérios divergentes que já causaram "Notas Fiscais" visível para quem tinha
+ * apenas `transactions.canView`.
+ *
+ * Devolve null quando não sobrou filho nenhum: o grupo some da dock.
+ */
+export function resolveGroupTarget(
+  item: MenuItem,
+  children: SubMenuItem[],
+  capabilities: MenuCapabilityMap,
+): { href: string; requiresCapability?: MenuCapability } | null {
+  if (children.length === 0) return null;
+
+  const effectiveCapability = (child: SubMenuItem) =>
+    child.requiresCapability ?? item.requiresCapability;
+
+  // O primeiro filho que o plano REALMENTE abre; se nenhum abre, o primeiro
+  // visível. É o que faz um assinante Pro ver "Financeiro" sem coroa (ele tem
+  // Lançamentos) enquanto "Notas Fiscais" segue coroada lá dentro, e o que
+  // impede o upsell de empurrar Enterprise quando Pro já resolveria.
+  const primary =
+    children.find((child) => {
+      const capability = effectiveCapability(child);
+      return !capability || capabilities[capability];
+    }) ?? children[0];
+
+  return {
+    href: primary.href,
+    requiresCapability: effectiveCapability(primary),
+  };
+}
+
+/**
+ * Um item por DESTINO, grupo desmontado. É o que o onboarding quer: ele monta um
+ * passo por rota (`ROUTE_STEP_TEMPLATES`), não por ícone da dock.
+ */
+export function flattenMenuItems(items: MenuItem[]): SubMenuItem[] {
+  const leaves: SubMenuItem[] = [];
+
+  for (const item of items) {
+    if (item.children) {
+      for (const child of item.children) {
+        leaves.push({
+          ...child,
+          requiresCapability: child.requiresCapability ?? item.requiresCapability,
+        });
+      }
+      continue;
+    }
+    // Item sem href e sem filhos não é destino nem grupo: não existe hoje, e se
+    // passar a existir é erro de declaração, não algo para o onboarding montar.
+    if (!item.href) continue;
+    leaves.push({
+      icon: item.icon,
+      label: item.label,
+      href: item.href,
+      pageId: item.pageId,
+      availabilityPageId: item.availabilityPageId,
+      requiresCapability: item.requiresCapability,
+      masterOnly: item.masterOnly,
+    });
+  }
+
+  return leaves;
 }

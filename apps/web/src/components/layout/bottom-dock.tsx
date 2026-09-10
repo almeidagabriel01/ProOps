@@ -271,30 +271,18 @@ export function BottomDock() {
         data-active={active ? "true" : undefined}
       >
         <DockItemContent label={entry.label}>
-          {entry.external ? (
-            <a
-              href={entry.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="absolute inset-0 flex items-center justify-center text-foreground/85 hover:text-foreground"
-              aria-label={entry.label}
-            >
-              <entry.icon className="w-6 h-6" />
-            </a>
-          ) : (
-            <Link
-              href={entry.href}
-              className={cn(
-                "absolute inset-0 flex items-center justify-center",
-                active
-                  ? "text-foreground"
-                  : "text-foreground/85 hover:text-foreground",
-              )}
-              aria-label={entry.label}
-            >
-              <entry.icon className="w-6 h-6" />
-            </Link>
-          )}
+          <Link
+            href={entry.href}
+            className={cn(
+              "absolute inset-0 flex items-center justify-center",
+              active
+                ? "text-foreground"
+                : "text-foreground/85 hover:text-foreground",
+            )}
+            aria-label={entry.label}
+          >
+            <entry.icon className="w-6 h-6" />
+          </Link>
         </DockItemContent>
       </DockIcon>
     );

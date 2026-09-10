@@ -1078,6 +1078,10 @@ export function SimpleProposalForm({
               onClientTypesChange={setClientTypes}
               newClientDocument={newClientDocument}
               onNewClientDocumentChange={setNewClientDocument}
+              isExistingProposal={!!proposalId}
+              onPracaChange={(proposalPraca) =>
+                setFormData((prev) => ({ ...prev, proposalPraca }))
+              }
             />
           </div>
           <StepNavigation onBeforeNext={isDemo ? undefined : validateStep1} />

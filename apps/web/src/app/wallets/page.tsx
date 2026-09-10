@@ -1,5 +1,6 @@
 "use client";
 
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
@@ -97,6 +98,7 @@ export default function WalletsPage() {
             <p className="text-muted-foreground mt-1">
               Gerencie suas contas e carteiras financeiras
             </p>
+            <PageViewSwitcher className="mt-3" />
           </div>
 
           {/* Abaixo de sm o saldo fica em cima e o botão ocupa a linha inteira,

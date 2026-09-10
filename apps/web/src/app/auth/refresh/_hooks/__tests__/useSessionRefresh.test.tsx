@@ -41,6 +41,17 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("next=%2Fproposals"),
 }));
 
+/**
+ * A saída BEM-SUCEDIDA do interstitial é uma navegação dura, não o router do
+ * Next: ele reproduz do cache o `307` que mandou o usuário para cá, e o cookie
+ * recém-emitido nunca chega a ser testado. Ver `lib/auth/hard-redirect.ts`.
+ */
+const mockHardRedirect = vi.fn();
+
+vi.mock("@/lib/auth/hard-redirect", () => ({
+  hardRedirect: (url: string) => mockHardRedirect(url),
+}));
+
 import { useSessionRefresh } from "../useSessionRefresh";
 
 const LOGIN_FALLBACK = "/login?redirect_reason=session_expired";
@@ -50,6 +61,7 @@ describe("useSessionRefresh", () => {
     vi.useFakeTimers();
     window.sessionStorage.clear();
     mockReplace.mockClear();
+    mockHardRedirect.mockClear();
     mockForceSyncSession.mockReset().mockResolvedValue(true);
     currentUser = { uid: "u1" };
     authState = {
@@ -74,17 +86,20 @@ describe("useSessionRefresh", () => {
     // Without the fix: replace("/proposals") fired immediately with ZERO
     // forceSyncSession calls (stale isSessionSynced short-cut).
     expect(mockForceSyncSession).toHaveBeenCalledWith({ force: true });
-    expect(mockReplace).toHaveBeenCalledTimes(1);
-    expect(mockReplace).toHaveBeenCalledWith("/proposals");
+    expect(mockHardRedirect).toHaveBeenCalledTimes(1);
+    expect(mockHardRedirect).toHaveBeenCalledWith("/proposals");
+    // E NUNCA pelo router: era isso que fazia a volta a /proposals ser servida
+    // do cache de rota, sem o cookie novo ser testado.
+    expect(mockReplace).not.toHaveBeenCalled();
     const syncOrder = mockForceSyncSession.mock.invocationCallOrder[0];
-    const replaceOrder = mockReplace.mock.invocationCallOrder[0];
+    const replaceOrder = mockHardRedirect.mock.invocationCallOrder[0];
     expect(syncOrder).toBeLessThan(replaceOrder);
   });
 
   it("watchdog still terminates to /login after a redirect-next whose navigation bounced back (dead-effect freeze)", async () => {
     renderHook(() => useSessionRefresh());
     await act(async () => {});
-    expect(mockReplace).toHaveBeenCalledWith("/proposals");
+    expect(mockHardRedirect).toHaveBeenCalledWith("/proposals");
 
     // The proxy bounced back to the same URL: component stays mounted, doneRef
     // is set. Without the fix the watchdog was swallowed by the doneRef guard
@@ -92,14 +107,15 @@ describe("useSessionRefresh", () => {
     await act(async () => {
       vi.advanceTimersByTime(10_000);
     });
-    expect(mockReplace).toHaveBeenCalledTimes(2);
+    expect(mockReplace).toHaveBeenCalledTimes(1);
     expect(mockReplace).toHaveBeenLastCalledWith(LOGIN_FALLBACK);
 
     // And only once — later re-renders must not spam navigation.
     await act(async () => {
       vi.advanceTimersByTime(10_000);
     });
-    expect(mockReplace).toHaveBeenCalledTimes(2);
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    expect(mockHardRedirect).toHaveBeenCalledTimes(1);
   });
 
   it("breaks a cross-navigation redirect loop (3rd redirect within 30s goes to /login and clears the counter)", async () => {

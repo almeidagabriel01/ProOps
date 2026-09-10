@@ -42,4 +42,28 @@ describe("spinner padronizado", () => {
 
     expect(infratores).toEqual([]);
   });
+
+  /**
+   * O `Loader` dimensiona por `style` INLINE (`width: 32px` no `md` padrão),
+   * e estilo inline vence classe do Tailwind. Então `className="w-4 h-4"` não
+   * encolhe nada: é código morto que convence quem escreveu de que o tamanho
+   * foi ajustado, enquanto o spinner sai no tamanho padrão.
+   *
+   * Foi assim que o botão "Salvar" da numeração de propostas nasceu com um
+   * spinner do dobro da altura do texto. O único controle é `size`.
+   */
+  it("ninguem tenta redimensionar o Loader por classe", () => {
+    const infratores: string[] = [];
+
+    for (const file of walk(SRC)) {
+      const source = fs.readFileSync(file, "utf8");
+      for (const tag of source.match(/<Loader\b[^>]*>/g) ?? []) {
+        if (/\b[wh]-\d/.test(tag)) {
+          infratores.push(`${path.relative(SRC, file)}: ${tag.trim()}`);
+        }
+      }
+    }
+
+    expect(infratores).toEqual([]);
+  });
 });
