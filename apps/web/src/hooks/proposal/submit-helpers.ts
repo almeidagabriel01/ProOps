@@ -5,7 +5,10 @@ import {
 } from "@/services/proposal-service";
 import { ProposalSistema } from "@/types/automation";
 import { ProposalStatus, ProposalSystemInstance } from "@/types/proposal";
-import { DRIVE_DELIVERY_PENDING_HINT } from "@/lib/proposal-payment";
+import {
+  DRIVE_DELIVERY_PENDING_HINT,
+  DRIVE_NOT_CONNECTED_HINT,
+} from "@/lib/proposal-payment";
 import { toast } from '@/lib/toast';
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
@@ -288,6 +291,8 @@ export async function updateProposal(
 
   if (result?.driveDeliveryQueued) {
     toast.info(DRIVE_DELIVERY_PENDING_HINT);
+  } else if (result?.driveNotConnected) {
+    toast.info(DRIVE_NOT_CONNECTED_HINT);
   }
 }
 

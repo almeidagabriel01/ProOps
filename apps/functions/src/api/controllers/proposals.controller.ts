@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { tryAutoIssue } from "../services/fiscal/invoice-issue.service";
-import { isStatusDeliverableToDrive } from "../services/drive/proposal-drive-sync.service";
+import {
+  isDriveConnected,
+  isStatusDeliverableToDrive,
+  shouldSuggestDriveConnection,
+} from "../services/drive/proposal-drive-sync.service";
 import { enqueueDriveDelivery } from "../services/drive/drive-delivery-queue";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
@@ -1987,6 +1991,7 @@ export const updateProposal = async (req: Request, res: Response) => {
     // ao cliente (e o que avisa sobre comissao paga, por exemplo), mas nao
     // pode cancelar uma entrega de PDF que nada tem a ver com ele.
     let driveDeliveryQueued = false;
+    let driveNotConnected = false;
     let approvedSyncError: unknown = null;
     if (shouldSyncApprovedTransactions) {
       try {
@@ -2042,12 +2047,22 @@ export const updateProposal = async (req: Request, res: Response) => {
         (!jaEraEntregavel || conteudoDoPdfMudou || nuncaEntregue);
 
       if (deveEntregar) {
-        // Enfileira e responde. A entrega em si (Chromium + upload) roda no
-        // cron `processDriveDeliveries`; ver `drive-delivery-queue.ts`.
-        await timed("driveEnqueueMs", () =>
-          enqueueDriveDelivery({ tenantId: proposalTenantId, proposalId: id }),
-        );
-        driveDeliveryQueued = true;
+        // Sem Drive conectado nao ha o que enfileirar: o cron descartaria o
+        // job com `skipped: "sem_integracao"`, que e TERMINAL e nao retenta.
+        // Em vez de criar um documento para ser jogado fora, respondemos o
+        // convite para conectar, que e a unica acao que resolve.
+        if (await timed("driveCheckMs", () => isDriveConnected(proposalTenantId))) {
+          // Enfileira e responde. A entrega em si (Chromium + upload) roda no
+          // cron `processDriveDeliveries`; ver `drive-delivery-queue.ts`.
+          await timed("driveEnqueueMs", () =>
+            enqueueDriveDelivery({ tenantId: proposalTenantId, proposalId: id }),
+          );
+          driveDeliveryQueued = true;
+        } else {
+          driveNotConnected = await shouldSuggestDriveConnection(
+            proposalTenantId,
+          );
+        }
       }
     }
 
@@ -2064,6 +2079,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       success: true,
       message: "Proposta atualizada.",
       driveDeliveryQueued,
+      driveNotConnected,
     });
   } catch (error: unknown) {
     const err = error as Error;

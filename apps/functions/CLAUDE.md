@@ -786,9 +786,23 @@ pelo ERP chegar la sem baixar e subir a mao.
     e render que pode passar disso, dois ciclos simultaneos pegariam o mesmo
     job e renderizariam o mesmo PDF duas vezes. Lote de 20 por ciclo, para
     caber nos 540s.
-  - A resposta de `PUT /v1/proposals/:id` devolve `driveDeliveryQueued`, e a
-    tela so avisa "vai para o Drive" quando isso e verdade: deduzir no frontend
-    prometeria a entrega para quem nem conectou a integracao.
+  - **O job so nasce quando ha Drive conectado** (`isDriveConnected`, mesma
+    condicao do `skipped: "sem_integracao"`). Sem isso o cron criava e
+    descartava um documento a cada aprovacao, e o usuario nao ficava sabendo de
+    nada: `skipped` e TERMINAL, entao conectar o Drive depois nao entrega a
+    proposta ja aprovada entao, so a proxima ou um novo salvamento dela.
+  - A resposta de `PUT /v1/proposals/:id` devolve `driveDeliveryQueued` **e**
+    `driveNotConnected`, e a tela so avisa "vai para o Drive" quando o primeiro
+    e verdade: deduzir no frontend prometeria a entrega para quem nem conectou a
+    integracao. O segundo vira o convite para conectar, e sai **so para quem tem
+    a capacidade `driveSync` no plano** (`shouldSuggestDriveConnection`) — sem
+    esse filtro, todo tenant de plano sem a integracao levaria upsell a cada
+    aprovacao de proposta.
+  - **O prazo prometido na tela e o do cron.** `DRIVE_DELIVERY_PENDING_HINT`
+    diz "em ate 3 minutos", que e o intervalo do agendamento; o render e o
+    upload somam segundos por cima disso, entao ponta a ponta o pior caso fica
+    perto de 5 min. Guard: `apps/web/src/__tests__/drive-delivery-hint.test.ts`
+    le o `schedule` real e falha se a cadencia mudar sem o texto mudar junto.
   - Indice `(status, nextRunAt ASC)`, com `orderBy` explicito — mesmo par de
     `payout_attempts`.
   - **Cron agendado nao dispara no emulador**, entao existe
