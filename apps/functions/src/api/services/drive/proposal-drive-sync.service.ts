@@ -22,6 +22,7 @@ import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { getOrGenerateProposalPdfBuffer } from "../proposal-pdf.service";
 import { getDriveIntegration } from "./drive-oauth.service";
+import { tenantHasCapability } from "../../../lib/tenant-capabilities";
 import { buildProposalFileName, uploadProposalPdf } from "./drive.service";
 
 const PROPOSALS_COLLECTION = "proposals";
@@ -109,6 +110,54 @@ export type DriveDeliveryResult =
   | { status: "skipped"; reason: "sem_integracao" | "sem_cliente" }
   | { status: "failed"; error: string };
 
+/**
+ * Ha Drive conectado a ponto de valer enfileirar uma entrega?
+ *
+ * A condicao e a MESMA do `skipped: "sem_integracao"` logo abaixo, e as duas
+ * precisam continuar iguais: se esta afrouxar, o job nasce para ser descartado
+ * pelo cron; se apertar, uma entrega legitima deixa de ser enfileirada.
+ *
+ * Erro de leitura responde `true` de proposito. Entre criar um job que talvez
+ * seja descartado e perder a entrega de uma proposta aprovada, o primeiro custa
+ * um documento e o segundo custa a promessa da integracao.
+ */
+export async function isDriveConnected(tenantId: string): Promise<boolean> {
+  try {
+    const integration = await getDriveIntegration(tenantId);
+    return Boolean(integration?.refreshTokenEnc && integration.rootFolderId);
+  } catch (error) {
+    logger.warn("Nao foi possivel checar a conexao com o Drive", {
+      tenantId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return true;
+  }
+}
+
+/**
+ * Vale sugerir que o usuario conecte o Drive?
+ *
+ * So para quem PODE conectar. Sem o gate de plano, todo tenant de um plano sem
+ * a integracao levaria um convite a cada aprovacao de proposta, o que e upsell
+ * no meio do trabalho, nao aviso util.
+ */
+export async function shouldSuggestDriveConnection(
+  tenantId: string,
+): Promise<boolean> {
+  try {
+    // A capacidade vem de cache em memoria; a integracao e leitura no
+    // Firestore. Perguntar o plano primeiro evita a leitura para quem nem
+    // poderia conectar.
+    if (!(await tenantHasCapability(tenantId, "driveSync"))) return false;
+    const integration = await getDriveIntegration(tenantId);
+    return !integration?.refreshTokenEnc || !integration.rootFolderId;
+  } catch {
+    // Um aviso a menos nao quebra nada; uma excecao aqui derrubaria o
+    // salvamento da proposta.
+    return false;
+  }
+}
+
 export async function syncProposalToDrive(params: {
   tenantId: string;
   proposalId: string;
@@ -143,7 +192,7 @@ export async function syncProposalToDrive(params: {
       proposalId: params.proposalId,
       clientId,
       fileName: buildProposalFileName(
-        params.proposalData.proposalNumber as string | number | undefined,
+        params.proposalData.proposalCode as string | undefined,
         String(params.proposalData.title || ""),
       ),
       pdf,

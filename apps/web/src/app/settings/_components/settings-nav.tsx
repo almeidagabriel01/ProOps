@@ -7,6 +7,7 @@ import {
   CreditCard,
   FileText,
   FolderOpen,
+  Hash,
   ShieldCheck,
   Users,
   type LucideIcon,
@@ -42,6 +43,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Organização",
     items: [
       { label: "Equipe", href: "/settings/team", icon: Users },
+      { label: "Propostas", href: "/settings/proposals", icon: Hash },
       {
         label: "Pagamento Online",
         shortLabel: "Pagamento",

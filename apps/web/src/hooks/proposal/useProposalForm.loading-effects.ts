@@ -380,6 +380,12 @@ export function useProposalFormLoadingEffects(
           paymentMethod:
             proposal.paymentMethod || DEFAULT_PROPOSAL_PAYMENT_METHOD,
           commissions: proposal.commissions || [],
+          // Numeracao: so leitura, e por isso mesmo precisa estar aqui. Sem
+          // estes dois campos o formulario achava que a proposta nao tinha
+          // codigo e oferecia o seletor de praca de novo — um campo que o
+          // update descarta em silencio, porque a praca so vale na criacao.
+          proposalCode: proposal.proposalCode ?? null,
+          proposalPraca: proposal.proposalPraca ?? null,
           pdfSettings: mergePdfDisplaySettings(proposal.pdfSettings),
         };
 

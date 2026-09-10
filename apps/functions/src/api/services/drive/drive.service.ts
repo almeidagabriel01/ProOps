@@ -25,6 +25,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { db } from "../../../init";
 import { logger } from "../../../lib/logger";
 import { getDriveClient } from "./drive-oauth.service";
+import { slugifyProposalTitle } from "../../controllers/proposal-numbering";
 
 const CLIENTS_COLLECTION = "clients";
 const PROPOSALS_COLLECTION = "proposals";
@@ -46,13 +47,26 @@ export function buildClientFolderName(clientName: string): string {
   return sanitizeName(clientName) || "Cliente sem nome";
 }
 
+/**
+ * Nome do arquivo entregue na pasta do cliente.
+ *
+ * Com numeracao ligada sai no formato do acervo de quem pediu a
+ * funcionalidade: `0018926SP_casa_do_mauricio.pdf`, ou seja, o identificador
+ * seguido do titulo em slug. Ordena por codigo dentro da pasta, e o codigo
+ * vem primeiro justamente porque e ele que nao muda.
+ *
+ * Sem numeracao continua sendo so o titulo, como sempre foi: o formato de um
+ * cliente nao pode virar o nome de arquivo de todo mundo.
+ */
 export function buildProposalFileName(
-  proposalNumber: string | number | undefined,
+  proposalCode: string | number | undefined | null,
   title: string | undefined,
 ): string {
-  const numero = String(proposalNumber ?? "").trim();
-  const nome = sanitizeName(title || "Proposta");
-  return numero ? `${numero} - ${nome}.pdf` : `${nome}.pdf`;
+  const codigo = sanitizeName(String(proposalCode ?? ""));
+  if (!codigo) return `${sanitizeName(title || "Proposta")}.pdf`;
+
+  const slug = slugifyProposalTitle(title);
+  return slug ? `${codigo}_${slug}.pdf` : `${codigo}.pdf`;
 }
 
 /**

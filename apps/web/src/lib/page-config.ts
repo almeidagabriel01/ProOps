@@ -226,6 +226,13 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     module: "settings",
     requiresAuth: true,
   },
+  "/settings/proposals": {
+    pageId: "settings-proposals",
+    slug: "/settings/proposals",
+    name: "Propostas",
+    module: "settings",
+    requiresAuth: true,
+  },
   "/settings/fiscal": {
     pageId: "settings-fiscal",
     slug: "/settings/fiscal",

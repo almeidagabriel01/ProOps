@@ -39,7 +39,10 @@ import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import { Spinner } from "@/components/ui/spinner";
-import { DRIVE_DELIVERY_PENDING_HINT } from "@/lib/proposal-payment";
+import {
+  DRIVE_DELIVERY_PENDING_HINT,
+  DRIVE_NOT_CONNECTED_HINT,
+} from "@/lib/proposal-payment";
 import { toast } from "@/lib/toast";
 import { isDemoReadOnlyError } from "@/lib/api-client";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
@@ -685,6 +688,8 @@ export default function ProposalsPage() {
         // quem aprova e vai direto na pasta do cliente acha que falhou.
         if (result?.driveDeliveryQueued) {
           toast.info(DRIVE_DELIVERY_PENDING_HINT);
+        } else if (result?.driveNotConnected) {
+          toast.info(DRIVE_NOT_CONNECTED_HINT);
         }
         // O convite em si só depois do sucesso: sugerir faturar uma mudança de
         // status que falhou seria pior que não sugerir.
@@ -736,6 +741,15 @@ export default function ProposalsPage() {
             ) || 0;
           return (
             <div>
+              {/* O código vai ACIMA do título, não numa coluna própria: a
+                  tabela tem sete colunas contadas na mão (`grid-cols-7`), e
+                  uma oitava empurraria a coluna de ações para a linha de
+                  baixo. Some sozinho em quem não usa numeração. */}
+              {proposal.proposalCode && (
+                <div className="text-xs font-mono text-muted-foreground">
+                  {proposal.proposalCode}
+                </div>
+              )}
               {/* Clamp no título, não no wrapper: o subtítulo abaixo precisa
                   continuar visível. */}
               <Link

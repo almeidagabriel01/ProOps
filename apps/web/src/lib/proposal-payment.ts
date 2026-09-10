@@ -104,5 +104,23 @@ export function generateProposalPaymentTerms(
  * dezenas de segundos na frente do usuário) e passou a rodar num cron de um
  * minuto. Sem este aviso, quem aprova e vai direto na pasta acha que falhou.
  */
+/**
+ * "Em instantes" era vago o bastante para a pessoa abrir a pasta, não achar
+ * nada e concluir que falhou. O prazo real é o intervalo do cron
+ * `processDriveDeliveries` ("every 3 minutes"), então é ele que a mensagem
+ * diz. O guard `src/__tests__/drive-delivery-hint.test.ts` compara este texto
+ * com o agendamento de verdade: mudar a cadência do cron sem mexer aqui
+ * deixaria a tela prometendo um prazo que não existe mais.
+ */
 export const DRIVE_DELIVERY_PENDING_HINT =
-  "O PDF será enviado para a pasta do cliente no Google Drive em instantes.";
+  "O PDF será enviado para a pasta do cliente no Google Drive em até 3 minutos.";
+
+/**
+ * Mostrado quando a proposta saiu do rascunho e não há Drive conectado.
+ *
+ * Só chega aqui quem PODE conectar: o backend já filtra por capacidade de
+ * plano, senão todo tenant sem a integração levaria um convite a cada
+ * aprovação, o que é upsell no meio do trabalho e não aviso.
+ */
+export const DRIVE_NOT_CONNECTED_HINT =
+  "Conecte o Google Drive em Configurações para que a proposta vá sozinha para a pasta do cliente.";

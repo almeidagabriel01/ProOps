@@ -146,6 +146,21 @@ export interface Proposal {
    */
   commissions?: ProposalCommission[];
 
+  /**
+   * Numeracao da proposta, quando a empresa liga a funcionalidade em
+   * /settings/proposals. `proposalCode` e o identificador montado
+   * (ex. "0018926SP"); os tres campos ao lado ficam guardados a parte porque
+   * relatorio e filtro perguntam por ano e por praca, nao pela string inteira.
+   *
+   * Alocados pelo backend na CRIACAO e imutaveis depois: e um numero de
+   * documento, e uma proposta ja enviada ao cliente nao pode trocar de
+   * identificador porque alguem corrigiu o titulo.
+   */
+  proposalNumber?: number | null;
+  proposalYear?: number | null;
+  proposalPraca?: string | null;
+  proposalCode?: string | null;
+
   // Flattened fields for sorting
   primarySystem?: string;
   primaryEnvironment?: string;

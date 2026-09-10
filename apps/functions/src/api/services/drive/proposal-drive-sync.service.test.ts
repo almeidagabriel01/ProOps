@@ -38,12 +38,20 @@ jest.mock("./drive.service", () => ({
 }));
 jest.mock("../proposal-pdf.service", () => ({ getOrGenerateProposalPdfBuffer }));
 
+const tenantHasCapability = jest.fn();
+jest.mock("../../../lib/tenant-capabilities", () => ({
+  tenantHasCapability: (...args: unknown[]) =>
+    tenantHasCapability(...(args as [])),
+}));
+
 import {
+  isDriveConnected,
   isStatusDeliverableToDrive,
+  shouldSuggestDriveConnection,
   syncProposalToDrive,
 } from "./proposal-drive-sync.service";
 
-const PROPOSTA = { clientId: "c1", title: "Automação", proposalNumber: 12 };
+const PROPOSTA = { clientId: "c1", title: "Automação", proposalCode: "0018926SP" };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -55,6 +63,73 @@ beforeEach(() => {
   getOrGenerateProposalPdfBuffer.mockResolvedValue(Buffer.from("%PDF"));
   uploadProposalPdf.mockResolvedValue({ fileId: "arq-1" });
   statusGet.mockResolvedValue({ exists: false });
+  tenantHasCapability.mockResolvedValue(true);
+});
+
+/**
+ * Estas duas decidem, no salvamento da proposta, entre enfileirar uma entrega e
+ * convidar o usuario a conectar o Drive.
+ *
+ * A armadilha e a condicao DIVERGIR da que o `syncProposalToDrive` usa para
+ * devolver `skipped: "sem_integracao"`: mais frouxa aqui cria job para ser
+ * descartado; mais rigida deixa de entregar proposta aprovada.
+ */
+describe("isDriveConnected", () => {
+  it("e verdadeiro com token e pasta raiz", async () => {
+    await expect(isDriveConnected("t1")).resolves.toBe(true);
+  });
+
+  it("e falso sem integracao nenhuma", async () => {
+    getDriveIntegration.mockResolvedValue(null);
+    await expect(isDriveConnected("t1")).resolves.toBe(false);
+  });
+
+  it("e falso com token e sem pasta raiz", async () => {
+    // Desconectar preserva a pasta e apaga o token; o documento sobrevive.
+    getDriveIntegration.mockResolvedValue({ refreshTokenEnc: "enc:token" });
+    await expect(isDriveConnected("t1")).resolves.toBe(false);
+  });
+
+  it("e falso com pasta raiz e sem token", async () => {
+    getDriveIntegration.mockResolvedValue({ rootFolderId: "raiz-1" });
+    await expect(isDriveConnected("t1")).resolves.toBe(false);
+  });
+
+  it("falha de leitura responde verdadeiro, para nao perder a entrega", async () => {
+    getDriveIntegration.mockRejectedValue(new Error("firestore fora do ar"));
+    await expect(isDriveConnected("t1")).resolves.toBe(true);
+  });
+});
+
+describe("shouldSuggestDriveConnection", () => {
+  it("convida quem tem o plano e nao conectou", async () => {
+    getDriveIntegration.mockResolvedValue(null);
+    await expect(shouldSuggestDriveConnection("t1")).resolves.toBe(true);
+  });
+
+  it("nao convida quem ja conectou", async () => {
+    await expect(shouldSuggestDriveConnection("t1")).resolves.toBe(false);
+  });
+
+  it("nao convida plano sem a integracao, e nem le a integracao", async () => {
+    // Convite a cada aprovacao para quem nao pode conectar e upsell no meio do
+    // trabalho, nao aviso.
+    tenantHasCapability.mockResolvedValue(false);
+    await expect(shouldSuggestDriveConnection("t1")).resolves.toBe(false);
+    expect(getDriveIntegration).not.toHaveBeenCalled();
+  });
+
+  it("nao convida quando a checagem falha", async () => {
+    // Um aviso a menos nao quebra nada; uma excecao derrubaria o salvamento.
+    tenantHasCapability.mockRejectedValue(new Error("cache fora do ar"));
+    await expect(shouldSuggestDriveConnection("t1")).resolves.toBe(false);
+  });
+
+  it("pergunta pela capacidade certa", async () => {
+    getDriveIntegration.mockResolvedValue(null);
+    await shouldSuggestDriveConnection("t1");
+    expect(tenantHasCapability).toHaveBeenCalledWith("t1", "driveSync");
+  });
 });
 
 describe("isStatusDeliverableToDrive", () => {
@@ -118,7 +193,7 @@ describe("syncProposalToDrive", () => {
         tenantId: "t1",
         proposalId: "p1",
         clientId: "c1",
-        fileName: "12 - Automação.pdf",
+        fileName: "0018926SP - Automação.pdf",
       }),
     );
   });
