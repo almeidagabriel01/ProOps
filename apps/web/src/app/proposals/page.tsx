@@ -736,6 +736,15 @@ export default function ProposalsPage() {
             ) || 0;
           return (
             <div>
+              {/* O código vai ACIMA do título, não numa coluna própria: a
+                  tabela tem sete colunas contadas na mão (`grid-cols-7`), e
+                  uma oitava empurraria a coluna de ações para a linha de
+                  baixo. Some sozinho em quem não usa numeração. */}
+              {proposal.proposalCode && (
+                <div className="text-xs font-mono text-muted-foreground">
+                  {proposal.proposalCode}
+                </div>
+              )}
               {/* Clamp no título, não no wrapper: o subtítulo abaixo precisa
                   continuar visível. */}
               <Link

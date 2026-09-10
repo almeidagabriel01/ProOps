@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { User, FileText, Mail, MapPin, Users, Building2, CreditCard } from "lucide-react";
 import { formatDocumento, isDocumentoValido } from "@/lib/format-document";
 import { formatDateBR } from "@/utils/date-format";
+import { ProposalNumberingField } from "./proposal-numbering-field";
 
 interface ProposalClientSectionProps {
   formData: Partial<Proposal>;
@@ -31,6 +32,8 @@ interface ProposalClientSectionProps {
   /** CPF/CNPJ do contato que será criado junto com a proposta. */
   newClientDocument?: string;
   onNewClientDocumentChange?: (document: string) => void;
+  /** Praca da numeracao. So e usada quando a empresa configurou pracas. */
+  onPracaChange?: (praca: string | null) => void;
   onFormChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
@@ -55,6 +58,7 @@ export function ProposalClientSection({
   onClientTypesChange,
   newClientDocument = "",
   onNewClientDocumentChange,
+  onPracaChange,
   onFormChange,
   onClientChange,
 }: ProposalClientSectionProps) {
@@ -85,6 +89,11 @@ export function ProposalClientSection({
       >
         <FormGroup>
           <FormStatic label="Título da Proposta" value={formData.title} />
+          <ProposalNumberingField
+            proposalCode={formData.proposalCode}
+            praca={formData.proposalPraca}
+            isReadOnly
+          />
           <FormStatic label="Cliente" value={formData.clientName} />
         </FormGroup>
         <FormGroup cols={3}>
@@ -245,6 +254,12 @@ export function ProposalClientSection({
             className={errors.validUntil ? "border-destructive" : ""}
           />
         </FormItem>
+        {/* Some sozinho quando a empresa nao usa numeracao, ou usa sem praca. */}
+        <ProposalNumberingField
+          proposalCode={formData.proposalCode}
+          praca={formData.proposalPraca}
+          onPracaChange={onPracaChange}
+        />
       </FormGroup>
 
       <FormItem label="Endereço" htmlFor="clientAddress">

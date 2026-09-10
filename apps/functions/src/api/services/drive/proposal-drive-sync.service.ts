@@ -143,7 +143,7 @@ export async function syncProposalToDrive(params: {
       proposalId: params.proposalId,
       clientId,
       fileName: buildProposalFileName(
-        params.proposalData.proposalNumber as string | number | undefined,
+        params.proposalData.proposalCode as string | undefined,
         String(params.proposalData.title || ""),
       ),
       pdf,

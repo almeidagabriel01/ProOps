@@ -630,6 +630,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Configuracao e CONTADOR da numeracao de proposta (o codigo tipo
+    // 0018926SP). Escrita so pelo Admin SDK: um contador que o client
+    // pudesse gravar deixaria duas propostas nascerem com o mesmo
+    // identificador. A leitura passa pelo backend
+    // (GET /v1/proposals/numbering), que e quem decide quem pode ver.
+    match /proposal_counters/{tenantId} {
+      allow read, write: if false;
+    }
+
     // Configuracao fiscal do emitente (CNPJ, IE/IM, regime, serie/numeracao e a
     // senha do certificado A1 cifrada em KMS). Colecao propria, e nao um map em
     // tenants/{id}, porque aquele doc e legivel por qualquer membro do tenant e

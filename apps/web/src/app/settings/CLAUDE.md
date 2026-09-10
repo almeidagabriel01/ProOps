@@ -18,6 +18,7 @@ src/app/settings/
 ├── security/page.tsx         # <TwoFactorSection/> (Verificação em dois fatores)
 ├── payments/page.tsx         # Asaas (master) ou "Acesso Restrito" (não-master)
 ├── fiscal/page.tsx           # Nota fiscal (master) ou "Acesso Restrito"
+├── proposals/page.tsx        # Numeracao das propostas (master) ou "Acesso Restrito"
 ├── _components/
 │   ├── settings-nav.tsx      # Client — sidebar vertical agrupada (usePathname + <Link>)
 │   ├── asaas-connect-card.tsx
@@ -43,6 +44,7 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Conta | `/settings/security` | Verificação em dois fatores | Todos |
 | Organização | `/settings/team` | Equipe | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/proposals` | Propostas (numeração) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
 
 > Os itens master-only permanecem visíveis na sidebar para todos os usuários (cada página gateia o conteúdo); não esconder por permissão sem reavaliar os testes de acesso a `/settings/*`.
@@ -235,6 +237,24 @@ eram quatro cards abertos numa coluna só, com um "Salvar" no fim.
   o passo (`userEvent.click` no botão da trilha). `getByLabelText` e
   `getElementById` encontram de qualquer jeito — e um teste que use só esses passa
   sem provar que o campo é alcançável.
+
+## Numeração das propostas (`/settings/proposals`)
+
+Liga o código sequencial da proposta (`0018926SP`), que vira o nome do arquivo
+entregue no Drive (`0018926SP_casa_do_mauricio.pdf`). Detalhes da regra em
+`apps/functions/CLAUDE.md`. O que importa nesta pasta:
+
+- **Nasce desligada e não tem gate de plano.** O formato é de uma empresa; quem
+  não liga não vê campo novo em lugar nenhum do formulário de proposta.
+- **A configuração NÃO vem do doc do tenant** — vive em
+  `proposal_counters/{tenantId}`, fechada nas rules, então a tela lê e escreve
+  por `GET/PUT /v1/proposals/numbering`, nunca por `TenantService`.
+- **"Próximo número" é o campo perigoso.** É editável para quem já numerava
+  fora do ERP continuar a sequência, e a tela diz com todas as letras que
+  voltar atrás repete um código já entregue a um cliente.
+- A prévia do código é montada no cliente (`lib/proposal-numbering.ts`) para
+  não pedir o servidor a cada tecla; a paridade com o backend tem guard em
+  `src/__tests__/proposal-code-preview.test.ts`.
 
 ## Padrões de componente para settings
 

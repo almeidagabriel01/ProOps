@@ -40,6 +40,10 @@ import {
   MAX_COMMISSIONS_PER_PROPOSAL,
   sanitizeProposalCommissionsInput,
 } from "./proposal-commissions";
+import {
+  allocateProposalNumberInTransaction,
+  readNumberingStateInTransaction,
+} from "../services/proposal-numbering.service";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
@@ -86,6 +90,9 @@ const CreateProposalSchema = z.object({
   // aqui mesmo com o .passthrough() ligado: e o que impede um percentual
   // absurdo de chegar ao calculo das despesas.
   commissions: z.array(z.unknown()).max(MAX_COMMISSIONS_PER_PROPOSAL).optional(),
+  // Praca da numeracao (ex. "SP"). O codigo em si nao vem do cliente: e o
+  // backend que aloca o sequencial, dentro da transacao de criacao.
+  proposalPraca: z.string().max(20).nullable().optional(),
 }).passthrough();
 
 const UpdateProposalSchema = CreateProposalSchema.partial();
@@ -1069,6 +1076,10 @@ export const createProposal = async (req: Request, res: Response) => {
 
         const companyRef = db.collection("companies").doc(userCompanyId);
         const companySnap = await t.get(companyRef);
+        const numberingConfig = await readNumberingStateInTransaction(
+          t,
+          userCompanyId,
+        );
         const now = Timestamp.now();
 
         // Monthly proposals quota policy:
@@ -1192,7 +1203,21 @@ export const createProposal = async (req: Request, res: Response) => {
         // === ALL WRITES AFTER READS ===
         const newRef = db.collection(PROPOSALS_COLLECTION).doc();
 
+        // `null` quando a empresa nao ligou a numeracao, que e o padrao: a
+        // proposta e gravada sem campo nenhum de codigo, como sempre foi.
+        const numbering = allocateProposalNumberInTransaction({
+          t,
+          tenantId: userCompanyId,
+          config: numberingConfig,
+          praca: input.proposalPraca,
+          now,
+        });
+
         t.set(newRef, {
+          proposalNumber: numbering?.proposalNumber ?? null,
+          proposalYear: numbering?.proposalYear ?? null,
+          proposalPraca: numbering?.proposalPraca ?? null,
+          proposalCode: numbering?.proposalCode ?? null,
           title: input.title.trim(),
           status: input.status || "draft",
           totalValue: input.totalValue,
@@ -1264,6 +1289,10 @@ export const createProposal = async (req: Request, res: Response) => {
         return {
           id: newRef.id,
           data: {
+            proposalNumber: numbering?.proposalNumber ?? null,
+            proposalYear: numbering?.proposalYear ?? null,
+            proposalPraca: numbering?.proposalPraca ?? null,
+            proposalCode: numbering?.proposalCode ?? null,
             title: input.title.trim(),
             status: input.status || "draft",
             totalValue: input.totalValue,

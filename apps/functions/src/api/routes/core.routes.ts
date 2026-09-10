@@ -19,6 +19,10 @@ import {
   updateProposal,
   deleteProposal,
 } from "../controllers/proposals.controller";
+import {
+  getProposalNumbering,
+  updateProposalNumbering,
+} from "../controllers/proposal-numbering.controller";
 import { downloadProposalPdf } from "../controllers/proposal-pdf.controller";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 import {
@@ -47,6 +51,10 @@ router.put("/clients/:id", updateClient);
 router.delete("/clients/:id", deleteClient);
 
 // Proposals
+// A numeracao vem ANTES de `/proposals/:id`: o Express casa por ordem, e
+// `PUT /proposals/numbering` cairia no update de proposta com id "numbering".
+router.get("/proposals/numbering", getProposalNumbering);
+router.put("/proposals/numbering", updateProposalNumbering);
 router.post("/proposals", createProposal);
 router.put("/proposals/:id", updateProposal);
 router.delete("/proposals/:id", deleteProposal);

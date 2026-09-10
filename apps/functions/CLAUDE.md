@@ -964,6 +964,56 @@ Quando a transação muda de carteira, o campo correspondente na proposta é atu
 
 **Guard crítico:** transações pagas vinculadas a propostas aprovadas NÃO podem ser revertidas para pendente. Para reverter: primeiro reverter a proposta para rascunho.
 
+### Numeração da proposta
+
+Dá a cada proposta um código sequencial no formato `0018926SP`: cinco dígitos,
+dois do ano e a praça. Nasceu do mesmo cliente da comissão, que já mantém um
+acervo em `0018526SP_casa_do_mauricio` e queria saber quantas propostas saem
+por ano e por cidade.
+
+- **Nasce DESLIGADA, e é configuração por empresa.** Dígitos, reinício anual e a
+  lista de praças ficam em `proposal_counters/{tenantId}` (`allow read, write:
+  if false`, Admin SDK only), editáveis em `/settings/proposals` pelo master.
+  O formato de um cliente não pode virar regra do produto: quem não liga não
+  ganha campo nenhum na proposta nem no nome do arquivo. **Sem gate de plano** —
+  numerar documento não é módulo premium.
+- **Coleção própria, não um map em `tenants/{id}`.** Aquele doc é lido por
+  qualquer membro e está no caminho de autenticação; uma escrita quente a cada
+  proposta criada não tem o que fazer ali.
+- **O número é alocado DENTRO da transação de criação da proposta**
+  (`allocateProposalNumberInTransaction`), com a leitura do contador no bloco
+  `=== ALL READS FIRST ===`. Duas criações simultâneas não podem receber o mesmo
+  código, e é a transação do Firestore que garante isso.
+- **O número é QUEIMADO.** Apagar a proposta não o devolve para a fila, e
+  renumerar as seguintes mudaria o identificador de um documento que o cliente
+  já recebeu. Buraco na sequência é melhor que código repetido.
+- **`nextNumber` é editável de propósito** (quem já numerava fora do ERP
+  continua de onde parou) e por isso `saveNumberingConfig` **mescla sobre o
+  gravado, dentro de uma transação**: um payload parcial cairia no default
+  `nextNumber: 1` e rebobinaria a sequência, fazendo a próxima proposta nascer
+  com um código já entregue.
+- **O código NÃO inclui o título.** `proposalCode` guarda só `0018926SP`; o nome
+  do arquivo é derivado na hora por `buildProposalFileName`, que devolve
+  `0018926SP_casa_do_mauricio.pdf`. Guardar o título dentro do código faria uma
+  correção de digitação trocar o identificador de uma proposta já enviada.
+- **Os campos ficam FORA da allowlist de `updateProposal`.** São escritos só na
+  criação; um PUT do cliente não renumera proposta nenhuma.
+- **A praça pedida só vale se estiver na lista da empresa**, senão cai na
+  padrão. Sigla livre produziria um código que a própria empresa não reconhece.
+- `GET /v1/proposals/numbering` é liberado a quem enxerga propostas (o
+  formulário precisa da lista de praças); `PUT` é só do master. As duas são
+  montadas **antes** de `/proposals/:id` em `core.routes.ts` — o Express casa
+  por ordem, e `PUT /proposals/numbering` cairia no update com id "numbering".
+- **Não aparece no PDF.** O que o cliente descreveu é uma convenção de NOME DE
+  ARQUIVO; a capa do PDF é uma superfície com elementos posicionáveis e temas
+  próprios, e levar o código para lá é decisão à parte.
+
+Guards: `proposal-numbering.test.ts`, `proposal-numbering.service.test.ts`,
+`core.routes.numbering.test.ts`, `tests/firestore-rules/proposal-counters.test.ts`
+e `apps/web/src/__tests__/proposal-code-preview.test.ts` (a tela tem uma cópia da
+montagem do código para a prévia, e uma divergência prometeria um código
+diferente do que a proposta receberia).
+
 ### Comissão de vendedor e arquiteto
 
 Comissão **espelha o cronograma de pagamento do cliente**: se ele paga 60% de

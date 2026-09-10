@@ -43,7 +43,7 @@ import {
   syncProposalToDrive,
 } from "./proposal-drive-sync.service";
 
-const PROPOSTA = { clientId: "c1", title: "Automação", proposalNumber: 12 };
+const PROPOSTA = { clientId: "c1", title: "Automação", proposalCode: "0018926SP" };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -118,7 +118,7 @@ describe("syncProposalToDrive", () => {
         tenantId: "t1",
         proposalId: "p1",
         clientId: "c1",
-        fileName: "12 - Automação.pdf",
+        fileName: "0018926SP - Automação.pdf",
       }),
     );
   });
