@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
+import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { PlaceholderBadge } from "@/components/institucional/placeholder-badge";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { canonicalFor } from "@/lib/site/host-seo";
@@ -66,24 +67,34 @@ export default function ManifestoPage() {
             }
             className="mb-10"
           />
+          {/*
+            Line by line, and not word by word: these are three admissions read
+            in sequence, and a per-word reveal on a paragraph turns reading into
+            waiting. `SplitReveal` splits on `lines`, which also keeps text
+            selection working within a sentence.
+          */}
           <div className="space-y-6 text-base leading-relaxed text-black/65 md:text-lg">
-            <p>
+            <SplitReveal unit="lines" stagger={0.06}>
               Escolher o uso de terça-feira em vez da demonstração significa que
               a ProOps perde alguma venda para um produto mais vistoso na
               primeira reunião.
-            </p>
-            <p>
+            </SplitReveal>
+            <SplitReveal unit="lines" stagger={0.06}>
               Manter uma base só significa dizer não a integrações que fariam o
               mesmo dado voltar a morar em dois lugares.
-            </p>
-            <p>
+            </SplitReveal>
+            <SplitReveal unit="lines" stagger={0.06}>
               Gastar tempo no detalhe que ninguém vê significa entregar menos
               coisas por trimestre do que quem não gasta.
-            </p>
-            <p className="[font-family:var(--font-bricolage)] text-xl font-semibold text-black md:text-2xl">
+            </SplitReveal>
+            <SplitReveal
+              unit="lines"
+              stagger={0.06}
+              className="[font-family:var(--font-bricolage)] text-xl font-semibold text-black md:text-2xl"
+            >
               A gente aceita os três, e prefere dizer isso aqui do que descobrir
               junto depois.
-            </p>
+            </SplitReveal>
           </div>
         </div>
       </Secao>

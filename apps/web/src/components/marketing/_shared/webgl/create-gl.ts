@@ -63,6 +63,15 @@ function compila(
 export function criaQuad(
   canvas: HTMLCanvasElement,
   fragmento: string,
+  /**
+   * Extensions the fragment shader needs, enabled BEFORE it is compiled.
+   *
+   * In WebGL 1 an `#extension` directive in the source is not enough on its own:
+   * the context has to have been asked for the extension, or the directive
+   * compiles to nothing and the builtin it unlocks is simply undefined. The
+   * failure then looks like a syntax error in a line that is obviously valid.
+   */
+  extensoes: string[] = [],
 ): GlQuad | null {
   const gl =
     canvas.getContext("webgl", {
@@ -76,6 +85,14 @@ export function criaQuad(
       powerPreference: "low-power",
     }) ?? null;
   if (!gl) return null;
+
+  for (const nome of extensoes) {
+    if (!gl.getExtension(nome)) {
+      // Not an error worth shouting about: the caller renders a CSS version
+      // underneath and that one stays.
+      return null;
+    }
+  }
 
   const vs = compila(gl, gl.VERTEX_SHADER, VERTEX_PADRAO);
   const fs = compila(gl, gl.FRAGMENT_SHADER, fragmento);

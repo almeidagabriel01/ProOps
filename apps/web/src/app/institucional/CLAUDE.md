@@ -65,6 +65,13 @@ nenhum type check pega.
 | `CurtainProvider` / `CurtainLink` | transição entre páginas |
 | `webgl/` | WebGL cru, sem dependência, só desktop |
 
+**Hoje o WebGL tem um consumidor só**: o campo de contorno atrás do herói da
+raiz. A distorção de imagem por velocidade de scroll, prevista para a faixa de
+pessoas, está de fora de propósito: ainda não há fotografia, e um shader de
+distorção sobre um monograma placeholder é construir a coisa errada. O ponto de
+extensão está pronto (`criaQuad` aceita a lista de extensões, `loopVisivel`
+pausa sozinho), e a hora é quando as fotos chegarem.
+
 ### `useScrollProgress`: por que ele existe
 
 Duas decisões vieram de bugs reais, documentadas no arquivo:
@@ -76,6 +83,23 @@ Duas decisões vieram de bugs reais, documentadas no arquivo:
 - **O ScrollTrigger é criado tarde, por IntersectionObserver** (`rootMargin:
   "150% 0px"`). `ScrollTrigger.create` faz medição de layout síncrona; criar um
   por seção no load custou ~1,7s de TBT na home do ERP, medido.
+
+### Duas armadilhas do shader, ambas silenciosas
+
+Nenhuma das duas dá erro em lugar nenhum: o shader compila, o programa linka, o
+loop roda e a tela fica transparente.
+
+1. **`smoothstep` com `edge0 > edge1` é indefinido em GLSL.** Aresta descendente
+   se escreve `1.0 - smoothstep(a, b)` com `a < b`, nunca `smoothstep(b, a)`.
+2. **`#extension` no fonte não basta em WebGL 1.** A extensão precisa ter sido
+   pedida no contexto antes de compilar, senão a diretiva não faz nada e o
+   builtin que ela libera fica indefinido. É por isso que `criaQuad` recebe a
+   lista de extensões e devolve `null` se alguma faltar.
+
+E uma armadilha da largura de linha: `fract(campo * n)` comparado com constante
+dá linha cuja espessura é inversamente proporcional ao gradiente local, ou seja,
+manchas onde o campo é liso. Dividir a distância até a dobra por `fwidth`
+converte para espaço de tela e todas as linhas saem com o mesmo peso.
 
 ### O campo reativo, em três camadas
 
@@ -122,3 +146,13 @@ no `globals.css` ou um utilitário novo do Tailwind num arquivo recém-criado po
 simplesmente não aparecer, sem erro nenhum. O sintoma é um layout que ignora a
 classe que está claramente no arquivo. Confirme buscando a regra no CSS servido
 antes de "consertar" o componente; a cura é `rm -rf apps/web/.next` e reiniciar.
+
+**Ao inspecionar por automação de navegador**, lembre de duas coisas:
+
+- `window.scrollTo` **não** aciona o Lenis, e o Lenis é quem chama
+  `ScrollTrigger.update`. A página se move e as cenas congelam no progresso
+  anterior, o que parece cena quebrada e é ferramenta errada. Só evento de roda
+  de verdade serve.
+- Uma aba em segundo plano tem `document.visibilityState === "hidden"`, e
+  `loopVisivel` pausa o WebGL nesse caso, de propósito. Um canvas transparente
+  numa captura de automação não é prova de que o shader está errado.

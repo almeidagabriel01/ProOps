@@ -5,18 +5,22 @@ import React, { useEffect, useRef } from "react";
 import { criaQuad, loopVisivel } from "./create-gl";
 
 /**
- * Monochrome flow field: layered curl noise, contoured into bands.
+ * Monochrome flow field: layered value noise, drawn as topographic contours.
  *
- * The bands are the whole point. Smooth noise reads as fog, which is what every
- * generative background looks like; running it through `fract` and thresholding
- * turns it into topographic lines that drift, which reads as a surface with
- * structure. One accent colour is available but unused by default: this site is
- * black and white, and depth comes from contrast and movement.
+ * The contours are the whole point. Smooth noise on its own reads as fog, which
+ * is what every generative background looks like; folding it and drawing the
+ * folds as hairlines turns it into a surface with structure that drifts.
  *
  * `uPointer` is the same -1..1 pair the DOM layer reads as `--px`/`--py`, so the
  * canvas and the CSS fallback respond to the reader identically.
+ *
+ * The shader needs `OES_standard_derivatives` (WebGL 1) for `fwidth`. It is
+ * enabled below before the program is built; on the vanishingly rare context
+ * without it the shader fails to compile, `criaQuad` returns null, and the CSS
+ * field underneath simply stays. That is the same fallback a phone gets.
  */
 const FRAGMENTO = `
+#extension GL_OES_standard_derivatives : enable
 precision mediump float;
 
 varying vec2 vUv;
@@ -26,7 +30,7 @@ uniform vec2  uPointer;
 uniform float uIntensity;
 
 // Classic value-noise hash. Cheap and good enough: the output is immediately
-// folded into bands, which hides the lattice a gradient noise would avoid.
+// folded into contour lines, which hides the lattice a gradient noise avoids.
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
@@ -53,7 +57,7 @@ float fbm(vec2 p) {
 }
 
 void main() {
-  // Aspect-correct so the bands keep their shape on a wide monitor.
+  // Aspect-correct so the contours keep their shape on a wide monitor.
   vec2 uv = vUv;
   uv.x *= uResolution.x / max(uResolution.y, 1.0);
 
@@ -65,22 +69,33 @@ void main() {
   float campo = fbm(alvo * 2.1 + vec2(t, -t * 0.6));
   campo += 0.5 * fbm(alvo * 4.3 - vec2(t * 1.4, t));
 
-  // Contour lines: fold the field, then keep a thin ribbon near each fold.
-  float bandas = fract(campo * 4.0);
-  float linha = smoothstep(0.0, 0.06, bandas) * smoothstep(0.5, 0.12, bandas);
+  // Contour lines, at a width measured in PIXELS.
+  //
+  // The obvious version, thresholding fract(campo * n) against a constant, gives
+  // a line whose thickness is inversely proportional to the local gradient: on a
+  // smooth noise field that means blotches wherever the field is flat, which is
+  // what the first pass looked like. Dividing the distance-to-fold by fwidth
+  // converts it to screen space, so every line is the same weight no matter how
+  // slowly the field is changing there. It is also the standard way to get an
+  // antialiased line without multisampling.
+  float f = campo * 7.0;
+  float distancia = abs(fract(f - 0.5) - 0.5);
+  float largura = max(fwidth(f), 0.0001);
+  float linha = 1.0 - smoothstep(0.0, 1.4, distancia / largura);
 
-  // Vignette on the ORIGINAL uv, so it stays centred on the element and does
-  // not slide with the aspect correction above.
+  // Vignette on the ORIGINAL uv, so it stays centred on the element and does not
+  // slide with the aspect correction above. Ascending edges, inverted by
+  // subtraction: GLSL leaves smoothstep undefined when edge0 is greater than
+  // edge1, and a driver that returns zero paints nothing, with no error at all.
   vec2 c = vUv - 0.5;
-  float vinheta = smoothstep(0.75, 0.12, length(c));
+  float vinheta = 1.0 - smoothstep(0.1, 0.62, length(c));
 
-  float alpha = linha * vinheta * uIntensity;
-  gl_FragColor = vec4(vec3(1.0), alpha);
+  gl_FragColor = vec4(vec3(1.0), linha * vinheta * uIntensity);
 }
 `;
 
 interface FlowFieldProps {
-  /** 0 to 1. The field is a background; above ~0.35 it competes with the text. */
+  /** 0 to 1. The field is a background; above ~0.25 it competes with the text. */
   intensidade?: number;
   className?: string;
 }
@@ -99,7 +114,7 @@ interface FlowFieldProps {
  * sources of truth drifting by a frame.
  */
 export default function FlowField({
-  intensidade = 0.3,
+  intensidade = 0.22,
   className,
 }: FlowFieldProps) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -108,7 +123,7 @@ export default function FlowField({
     const canvas = ref.current;
     if (!canvas) return;
 
-    const quad = criaQuad(canvas, FRAGMENTO);
+    const quad = criaQuad(canvas, FRAGMENTO, ["OES_standard_derivatives"]);
     if (!quad) return;
 
     const { gl, uniform } = quad;
