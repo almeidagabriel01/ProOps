@@ -77,7 +77,12 @@ export const updateProposalNumbering = async (req: Request, res: Response) => {
     }
 
     const config = await saveNumberingConfig(tenantId, parsed.data);
-    return res.json({ success: true, ...config });
+    // Responde EXATAMENTE o que o GET responde, sem envelope nem flag de
+    // sucesso. A tela guarda a resposta no estado e a reenvia no salvamento
+    // seguinte; um `success: true` a mais voltava como chave desconhecida e o
+    // `.strict()` recusava com 400. O primeiro salvamento passava e o segundo
+    // quebrava, que e a forma mais cara de descobrir isso.
+    return res.json(config);
   } catch (error: unknown) {
     console.error("updateProposalNumbering Error:", error);
     const message =
