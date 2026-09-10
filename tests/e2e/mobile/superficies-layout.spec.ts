@@ -1,5 +1,5 @@
 /**
- * MOBILE-SUPERFICIES-01: the two new landings must fit a phone.
+ * MOBILE-SUPERFICIES-01: the marketing surfaces must fit a phone.
  *
  * `mobile/no-overflow.spec.ts` covers the authenticated routes and asserts on
  * `<main>`, because the app shell has `overflow-hidden` on its outer container
@@ -7,10 +7,16 @@
  * they are full-bleed marketing pages, so the assertion is on the DOCUMENT, and
  * horizontal overflow here is visible as a page that slides sideways.
  *
- * They are the pages most likely to leak, and not by accident: both are built
- * out of pinned scroll scenes, a horizontally scrolling gallery, and lead-in
- * padding computed from the viewport (`50vw - 7.5rem`). Every one of those is a
- * width computed in a unit that a 393px phone resolves differently.
+ * They are the pages most likely to leak, and not by accident: they are built
+ * out of pinned scroll scenes, a horizontally scrolling gallery, lead-in padding
+ * computed from the viewport (`50vw - 7.5rem`) and, on the company site, scenes
+ * whose elements START off-screen in `vw` and are only kept in by the stage's
+ * `overflow-hidden`. Every one of those is a width computed in a unit that a
+ * 393px phone resolves differently.
+ *
+ * The five company pages are here for the same reason as the root: they share a
+ * shell and a scene kit, so a leak introduced in the kit shows up on whichever
+ * page happens to use that piece, not on the one that was edited.
  *
  * Runs in the `mobile-chrome` project (Pixel 5, 393x851, hasTouch).
  */
@@ -31,6 +37,11 @@ const PORTA = process.env.E2E_PORT ?? 3001;
 const PAGINAS = [
   { nome: "aplicativo", url: `http://app.localhost:${PORTA}/` },
   { nome: "institucional", url: `http://localhost:${PORTA}/institucional` },
+  { nome: "sobre", url: `http://localhost:${PORTA}/sobre` },
+  { nome: "manifesto", url: `http://localhost:${PORTA}/manifesto` },
+  { nome: "produtos", url: `http://localhost:${PORTA}/produtos` },
+  { nome: "carreiras", url: `http://localhost:${PORTA}/carreiras` },
+  { nome: "fale-conosco", url: `http://localhost:${PORTA}/fale-conosco` },
 ];
 
 for (const pagina of PAGINAS) {

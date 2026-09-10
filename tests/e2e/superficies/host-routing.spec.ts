@@ -107,6 +107,40 @@ test.describe("SUPERFICIES-01: host routing", () => {
     expect(page.url()).not.toContain("/login");
   });
 
+  /**
+   * As páginas da empresa vivem no NÍVEL do apex, e não debaixo de
+   * `/institucional`. Isso é o que faz `proops.com.br/sobre` ser o endereço, e
+   * é o que exige que elas estejam em `APEX_COMPANY_PATHS`: sem isso o 301 da
+   * virada as manda para um subdomínio que não as serve.
+   *
+   * O teste que importa aqui é o de HIDRATAÇÃO. As cinco estão em
+   * `SESSIONLESS_MARKETING_ROUTES`, ou seja, renderizam fora do `AuthProvider`.
+   * Um `useAuth` que entre por um componente compartilhado não é erro de tipo
+   * nem falha no servidor: a página responde 200, e só depois de hidratar ela
+   * volta para o login. Só um navegador de verdade pega isso.
+   */
+  test("as páginas da empresa respondem no apex e sobrevivem à hidratação", async ({
+    page,
+  }) => {
+    const paginas = [
+      { caminho: "/sobre", titulo: /Sobre a ProOps/ },
+      { caminho: "/manifesto", titulo: /Manifesto da ProOps/ },
+      { caminho: "/produtos", titulo: /Produtos da ProOps/ },
+      { caminho: "/carreiras", titulo: /Carreiras na ProOps/ },
+      { caminho: "/fale-conosco", titulo: /Falar com a ProOps/ },
+    ];
+
+    for (const pagina of paginas) {
+      await page.goto(`${APEX}${pagina.caminho}`);
+      await expect(page).toHaveTitle(pagina.titulo);
+      // networkidle, e não load: a volta para o login acontece DEPOIS de hidratar.
+      await page.waitForLoadState("networkidle");
+      expect(new URL(page.url()).pathname).toBe(pagina.caminho);
+      expect(page.url()).not.toContain("/login");
+      expect(page.url()).not.toContain("/auth/refresh");
+    }
+  });
+
   test("robots.txt closes the duplicate hosts and opens the apex", async ({
     page,
   }) => {

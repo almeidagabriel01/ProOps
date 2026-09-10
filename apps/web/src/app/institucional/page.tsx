@@ -34,9 +34,22 @@ const InstitucionalManifesto = dynamic(() =>
     (m) => m.InstitucionalManifesto,
   ),
 );
+const InstitucionalNumeros = dynamic(() =>
+  import("./_components/institucional-numeros").then(
+    (m) => m.InstitucionalNumeros,
+  ),
+);
 const InstitucionalHistoria = dynamic(() =>
   import("./_components/institucional-historia").then(
     (m) => m.InstitucionalHistoria,
+  ),
+);
+const InstitucionalTime = dynamic(() =>
+  import("./_components/institucional-time").then((m) => m.InstitucionalTime),
+);
+const InstitucionalCompromissos = dynamic(() =>
+  import("./_components/institucional-compromissos").then(
+    (m) => m.InstitucionalCompromissos,
   ),
 );
 const InstitucionalCta = dynamic(() =>
@@ -87,13 +100,23 @@ export default function InstitucionalPage() {
     <>
       <InstitucionalJsonLd />
       <InstitucionalAbertura />
+      {/*
+        Ten scenes, and the order is an argument rather than a menu: what the
+        company says (frase), the problem it exists for (problema), what it
+        built (produtos), how it decides (manifesto), what it can count
+        (numeros), where it came from (historia), who does it (time), what it
+        promises (compromissos), and only then the way out (cta).
+      */}
       <main>
         <InstitucionalHero />
         <InstitucionalFrase />
         <InstitucionalProblema />
         <InstitucionalProdutos />
         <InstitucionalManifesto />
+        <InstitucionalNumeros />
         <InstitucionalHistoria />
+        <InstitucionalTime />
+        <InstitucionalCompromissos />
         <InstitucionalCta />
       </main>
     </>

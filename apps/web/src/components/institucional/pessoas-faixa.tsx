@@ -65,19 +65,22 @@ export function PessoasFaixa({
 /**
  * Initials of a name, for the placeholder tile.
  *
- * Falls back to the first two letters of the role when the name is still "A
- * definir", so the tile never renders as "AD" for four different people.
+ * Falls back to the role when the name is still "A definir", so the tile never
+ * renders as "AD" for four different people.
  */
 function iniciais(pessoa: Pessoa): string {
   const fonte = pessoa.nome.trim().toLowerCase().startsWith("a definir")
     ? pessoa.papel
     : pessoa.nome;
   const partes = fonte.split(/\s+/).filter(Boolean);
-  const letras = partes.length > 1 ? [partes[0], partes[1]] : [fonte];
-  return letras
-    .map((p) => p[0] ?? "")
-    .join("")
-    .toUpperCase();
+  // Two glyphs either way. A one-word role ("Comercial") would otherwise render
+  // a single letter next to three two-letter tiles, and the row stops looking
+  // like a set.
+  const duas =
+    partes.length > 1
+      ? `${partes[0][0] ?? ""}${partes[1][0] ?? ""}`
+      : (partes[0] ?? "").slice(0, 2);
+  return duas.toUpperCase();
 }
 
 function Cartao({

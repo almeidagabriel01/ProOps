@@ -59,9 +59,9 @@ Runs on PRs and Merge Queue events:
 ## Lighthouse Perf Budget (`lighthouse` job + `lighthouserc.json`)
 
 Builds Next.js for production, starts `next start -p 3001`, and runs Lighthouse 3x per
-URL across the **7 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
-`/contato`, `/agendar`, `/aplicativo`, `/institucional`) under **mobile + 4x CPU + slow-3G,
-REAL `devtools` throttling**.
+URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
+`/contato`, `/agendar`, `/aplicativo`, `/institucional`, `/sobre`, `/produtos`) under
+**mobile + 4x CPU + slow-3G, REAL `devtools` throttling**.
 
 - Config: `lighthouserc.json` at repo root (uses `@lhci/cli`, already a devDependency).
 - Server lifecycle is managed by lhci via `startServerCommand` — no manual start/stop.
@@ -88,21 +88,33 @@ REAL `devtools` throttling**.
   deferred (`requestIdleCallback`, commit `550a9bbd`).
 - Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
 - Report artifact: `lighthouse-report-<run>` (from `lhci-report/`).
-- **`/institucional` tem teto de TBT próprio: 1200ms, não 800.** Medido num Pixel 5 com
-  4× de CPU e slow-3G, mediana de 3, usando `/decoracao` (682ms) como calibração por já
-  passar no teto genérico: a institucional fica entre **642 e 785** conforme a execução.
-  No teto de 800 sobrariam menos de 20ms sobre a pior medição, e este job tem histórico
-  de falhar por variância do runner quando a folga é curta. O custo é do hero (seis
-  letras em cromado com varredura própria, campo mono ao fundo, cenas fixadas no GSAP),
-  **não** dos providers: tirar Auth/Tenant/Permissions/Plan da árvore
+- **O site da empresa tem teto de TBT próprio: 1200ms, não 800.** Vale para
+  `/institucional`, `/sobre` e `/produtos`: são a mesma casca, o mesmo kit de cenas e,
+  portanto, o mesmo custo. Medido num Pixel 5 com 4× de CPU e slow-3G, mediana de 3,
+  usando `/decoracao` (682ms) como calibração por já passar no teto genérico: a
+  institucional ficava entre **642 e 785** conforme a execução. No teto de 800 sobrariam
+  menos de 20ms sobre a pior medição, e este job tem histórico de falhar por variância do
+  runner quando a folga é curta. O custo é das cenas dirigidas por scroll, **não** dos
+  providers: tirar Auth/Tenant/Permissions/Plan da árvore
   (`SESSIONLESS_MARKETING_ROUTES`) derrubou `/aplicativo` de ~485 para **308** e não moveu
   a institucional. `/aplicativo` por isso NÃO tem exceção, e não deve ganhar uma.
-- **O padrão genérico usa lookahead negativo** (`http://[^/]+/(?!institucional$).+`) e isso
-  é obrigatório: o `assertMatrix` aplica TODA entrada cujo padrão casa, então sem ele a
-  institucional continuaria presa nos 800 e a entrada própria seria inútil.
+  O WebGL do site da empresa não conta aqui: ele entra por `next/dynamic` atrás de
+  `(min-width: 1024px) and (pointer: fine)`, e o Lighthouse mede num viewport de 412px,
+  então o módulo nunca é importado na corrida que decide o gate.
+- **Só duas das cinco sub-páginas entram no Lighthouse.** Cada URL custa 3 corridas reais
+  sob slow-3G com 4× de CPU, o passo do lhci já leva ~14 min e o job tem timeout de 32.
+  `/sobre` e `/produtos` são as mais pesadas (contadores scrubados, faixa de pessoas,
+  ledger e o pin horizontal), então uma regressão no kit aparece nelas primeiro.
+- **O padrão genérico usa lookahead negativo**
+  (`http://[^/]+/(?!(institucional|sobre|produtos)$).+`) e isso é obrigatório: o
+  `assertMatrix` aplica TODA entrada cujo padrão casa, então sem ele essas páginas
+  continuariam presas nos 800 e a entrada própria seria inútil. **Ao acrescentar uma
+  página ao teto de 1200, acrescente-a nos DOIS padrões**, senão o genérico vence por cima
+  e a mudança não faz nada.
 - **O LCP de `/institucional` é o banner de consentimento, não o herói** (~4,5s). O
   wordmark gigante não concorre porque está dividido em uma letra por `<span>`, e nenhuma
-  letra isolada é o maior elemento. `/decoracao` mostra o mesmo padrão (~3,9s). O teto de
+  letra isolada é o maior elemento. A cortina de abertura também não concorre: ela é
+  `background-color`, e cor de fundo não é candidata a LCP. `/decoracao` mostra o mesmo padrão (~3,9s). O teto de
   LCP é `warn`, então não reprova o CI; mexer no banner afeta todas as rotas públicas de
   uma vez, e por isso ficou registrado em vez de corrigido de passagem.
 - **Timing / `timeout-minutes`:** o passo do lhci sozinho é ~14 min (21 corridas do
@@ -131,7 +143,9 @@ The E2E job uses a matrix strategy with 4 shards:
 | `mobile-chrome` | Pixel 5 (393x851, `hasTouch`, `isMobile`) | `smoke.spec.ts` + `tests/e2e/mobile/**` |
 
 `tests/e2e/superficies/` cobre o roteamento por host das três superfícies num navegador
-de verdade, e `mobile/superficies-layout.spec.ts` cobre as duas páginas novas a 393px.
+de verdade, `tests/e2e/institucional/` cobre a navegação do site da empresa (cortina,
+âncoras e o caminho de `prefers-reduced-motion`), e `mobile/superficies-layout.spec.ts`
+cobre as sete páginas de marketing a 393px.
 Duas armadilhas anotadas lá dentro, porque custam tempo quando reencontradas:
 
 - **O fixture `request` não serve para `*.localhost`.** Ele resolve o nome pelo Node, que

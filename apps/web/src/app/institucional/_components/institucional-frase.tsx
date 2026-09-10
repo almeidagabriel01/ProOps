@@ -87,13 +87,23 @@ export function InstitucionalFrase() {
   const opacidadeDica = useTransform(progress, [0, 0.08], [1, 0]);
   const regua = useTransform(progress, [INICIO, FIM], [0, 1]);
 
-  // The exit. Without it the sentence simply scrolls off the top while the next
-  // section slides under it, and the page reads as a list of blocks: every scene
-  // here leaves the way it arrived. It starts after the last word is lit, so the
-  // reader never loses a word they are still reading.
-  const saidaOpacidade = useTransform(progress, [0.88, 1], [1, 0]);
-  const saidaEscala = useTransform(progress, [0.88, 1], [1, 0.94]);
-  const saidaY = useTransform(progress, [0.88, 1], ["0%", "-8%"]);
+  /**
+   * The exit: the sentence recedes, it does not vanish.
+   *
+   * The distinction is load-bearing, and the first version got it wrong. A
+   * sticky stage keeps holding the viewport AFTER its trigger reaches progress
+   * 1: from that point the stage rides up with its container for its own height,
+   * which is one whole screen of scrolling. Fading the sentence to zero by
+   * progress 1 therefore left a full screen of black between this scene and the
+   * next, with the stage still on and nothing on it.
+   *
+   * So the ramp ends at 0.35, not at 0, and the stage's own slide is what
+   * actually takes the sentence off screen. It starts after the last word is
+   * lit, so nobody loses a word they are still reading.
+   */
+  const saidaOpacidade = useTransform(progress, [0.86, 1], [1, 0.35]);
+  const saidaEscala = useTransform(progress, [0.86, 1], [1, 0.94]);
+  const saidaY = useTransform(progress, [0.86, 1], ["0%", "-4%"]);
 
   return (
     <section
