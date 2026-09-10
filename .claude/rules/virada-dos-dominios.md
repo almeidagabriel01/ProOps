@@ -82,9 +82,18 @@ algo pode estar errado, porque no dia sobram só três coisas.
 
 ### A. Dias antes (aditivo, não muda nada)
 
-- [ ] **Firebase Auth → domínios autorizados:** acrescentar `erp.proops.com.br`.
-      **Mantenha `proops.com.br` na lista.** Sem o novo, o login inteiro morre
-      com `auth/unauthorized-domain` no minuto da virada.
+> **Tudo neste bloco é por AMBIENTE, e são dois.** `erp-softcode` (dev) e
+> `erp-softcode-prod` (produção) são projetos Firebase distintos **e clientes
+> OAuth do Google distintos**. Configurar um não configura o outro, e a falha só
+> aparece no ambiente que ficou de fora. Faça os dois, e anote qual já foi.
+
+- [ ] **Firebase Auth → Authentication → Settings → Domínios autorizados:**
+      acrescentar `erp.proops.com.br`, **nos dois projetos**. Sem ele, o login
+      morre com `auth/unauthorized-domain` no minuto da virada.
+
+      `www.proops.com.br` já está e deve continuar: o apex responde 307 para o
+      `www`, então é ali que o login acontece hoje. **`app.proops.com.br` NÃO
+      entra**: aquela página não tem login.
 - [ ] **Google Cloud Console → APIs e Serviços → Credenciais → o cliente OAuth
       da Agenda/Drive → "URIs de redirecionamento autorizados".** Acrescentar
       **estas duas, exatamente assim**, sem remover as que já estão lá:
@@ -94,8 +103,17 @@ algo pode estar errado, porque no dia sobram só três coisas.
       https://erp.proops.com.br/api/backend/v1/drive/google/callback
       ```
 
-      É um cliente OAuth só para os dois serviços. O caminho é `/api/backend/…`
-      porque o callback entra pelo proxy do Next, não direto na function.
+      Um cliente OAuth atende Agenda e Drive, mas **dev e produção usam clientes
+      DIFERENTES**: faça nos dois. O caminho é `/api/backend/…` porque o callback
+      entra pelo proxy do Next, não direto na function.
+
+      **Acrescente, não substitua.** Nenhum dos dois ambientes define
+      `GOOGLE_CALENDAR_REDIRECT_URI` nem `GOOGLE_DRIVE_REDIRECT_URI`, então os
+      dois derivam a URI do `APP_URL` daquele ambiente — e essa URI precisa
+      CONTINUAR na lista até o `APP_URL` mudar. Em dev o `APP_URL` é a URL de
+      preview da Vercel, não localhost, então a linha da Vercel tem que ficar.
+      Removê-la quebra Agenda e Drive imediatamente, com `redirect_uri_mismatch`
+      que só aparece quando alguém tenta conectar.
 
       As URIs são derivadas de **`APP_URL`**, nunca do cabeçalho da request (o
       host pode ser forjado para influenciar o `redirect_uri`, e isso foi tratado
