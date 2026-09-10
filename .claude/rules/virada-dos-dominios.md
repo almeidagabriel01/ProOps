@@ -115,6 +115,15 @@ algo pode estar errado, porque no dia sobram só três coisas.
       Removê-la quebra Agenda e Drive imediatamente, com `redirect_uri_mismatch`
       que só aparece quando alguém tenta conectar.
 
+      **Por que o cliente de dev só tem `localhost`:** rodando no emulador,
+      `resolveFrontendAppOrigin` ignora o `APP_URL` e devolve `localhost:3000`,
+      então é essa a URI que o fluxo local usa. O efeito colateral é que
+      conectar Agenda ou Drive contra o backend de dev PUBLICADO não funciona,
+      porque ali vale o `APP_URL` (a URL de preview da Vercel), que não está
+      registrada. Isso é anterior a esta migração. Para ensaiar a virada em dev
+      com as integrações Google ligadas, registre a URL de preview ou defina
+      `GOOGLE_CALENDAR_REDIRECT_URI` / `GOOGLE_DRIVE_REDIRECT_URI`.
+
       As URIs são derivadas de **`APP_URL`**, nunca do cabeçalho da request (o
       host pode ser forjado para influenciar o `redirect_uri`, e isso foi tratado
       como risco). Ou seja: elas mudam **no instante em que `APP_URL` mudar**, e
