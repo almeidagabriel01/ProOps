@@ -58,11 +58,12 @@ componente compartilhado.
 
 ## O site da empresa
 
-A raiz do apex (`app/institucional/page.tsx`, alvo do rewrite) é a experiência
-longa; as outras cinco páginas ficam em `app/(empresa)/`, **no nível do apex**.
-Elas não moram debaixo de `/institucional` por dois motivos: `proops.com.br/sobre`
-é o endereço que um site de empresa tem, e a subárvore `/institucional` é
-`noindex` permanente por ser o alvo do rewrite, logo duplicata da raiz.
+As cinco páginas ficam em `app/(empresa)/`, um route group que não entra na
+URL. A raiz do apex (`app/(empresa)/institucional/page.tsx`, alvo do rewrite) é
+a experiência longa; as outras quatro respondem **no nível do apex**. Elas não
+moram debaixo de `/institucional` por dois motivos: `proops.com.br/sobre` é o
+endereço que um site de empresa tem, e a subárvore `/institucional` é `noindex`
+permanente por ser o alvo do rewrite, logo duplicata da raiz.
 
 Isso torna `APEX_COMPANY_PATHS` (`lib/site/surfaces.ts`) load-bearing: é a lista
 que mantém o apex servindo esses caminhos depois da virada, em vez de mandá-los
@@ -71,9 +72,18 @@ precisa entrar **nas três listas**: `APEX_COMPANY_PATHS`, `EMPRESA_LINKS`
 (`components/institucional/nav-links.ts`, que valida a primeira no import) e
 `ROTAS.institucional` em `host-seo.ts`.
 
-Os dois layouts (`institucional/layout.tsx` e `(empresa)/layout.tsx`) montam o
-mesmo `EmpresaShell`: Lenis, cortina de transição, campo de ponteiro, navbar e
-rodapé. O shell é que escreve `--px`/`--py`, herdados pela página inteira.
+**Um layout só**, `(empresa)/layout.tsx`, monta o `EmpresaShell`: Lenis, cortina
+de transição, campo de ponteiro, navbar e rodapé. O shell é que escreve
+`--px`/`--py`, herdados pela página inteira.
+
+Ser um só é load-bearing, e era dois. Dois layouts irmãos são duas subárvores do
+React: cruzar entre a raiz e uma sub-página desmontava a casca e construía
+outra, então o `CurtainProvider` morria com o painel em pé (a transição sumia em
+vez de subir), o Lenis era recriado atrás de um `requestIdleCallback` (a rolagem
+inercial ficava fora do ar por até dois segundos) e o campo de ponteiro
+recomeçava. Nada falhava: a URL trocava e o conteúdo estava certo. **Não dê
+`layout.tsx` a nenhuma página daqui**; o guard é
+`src/__tests__/site-da-empresa-uma-casca.test.ts`.
 
 ## Rotas de API (`src/app/api/`)
 Subdivisões: `admin/`, `auth/`, `backend/`, `dev/`, `internal/`, `members/`, `proposals/`

@@ -75,12 +75,15 @@ export interface Compromisso {
 export interface Canal {
   /** O motivo, como quem está escrevendo pensaria nele. */
   motivo: string;
+  /** A fila que responde. Viaja junto com a mensagem, como assunto. */
   titulo: string;
   texto: string;
-  acao: string;
-  href: string;
-  /** `true` abre em outra aba: WhatsApp, formulário do ERP. */
-  externo?: boolean;
+  /** O que o campo de mensagem pede, no lugar de um rótulo genérico. */
+  convite: string;
+  /** O prazo declarado para este assunto, em duas palavras. */
+  prazo: string;
+  /** O caminho direto, para quem não quer preencher formulário nenhum. */
+  atalho: { rotulo: string; href: string; externo?: boolean };
 }
 
 /** A frase que a segunda cena revela palavra por palavra. */
@@ -254,40 +257,56 @@ export const COMPROMISSOS: Compromisso[] = [
   },
 ];
 
-/** Canais de contato institucional. O formulário comercial é o do ERP. */
+/**
+ * Os três assuntos que chegam aqui, e a fila que responde cada um.
+ *
+ * Eram quatro. "Sou jornalista" saiu: uma empresa com um ano de estrada não
+ * recebe pedido de imprensa, e um canal que nunca toca ocupa um quarto da
+ * escolha mais importante da página. O e-mail geral continua no rodapé e na
+ * ficha desta página, que é por onde esse caso raro entra.
+ *
+ * O `titulo` não é decoração: ele viaja como `segment` para
+ * `/v1/public/contact-form` e é o que diz, no e-mail que chega, qual fila tem
+ * que responder. Mudar o texto muda o assunto do e-mail.
+ */
 export const CANAIS: Canal[] = [
   {
     motivo: "Quero conhecer o produto",
     titulo: "Comercial",
     texto:
       "Uma conversa sobre o que a sua empresa faz hoje e onde o sistema entra. Sem compromisso e sem script.",
-    acao: "Falar com o comercial",
-    href: "/contato",
+    convite: "O que a sua empresa vende, e o que hoje toma mais tempo do que devia?",
+    prazo: "Resposta em até dois dias úteis",
+    atalho: {
+      rotulo: "Prefere agendar uma demonstração?",
+      href: "/agendar",
+    },
   },
   {
     motivo: "Já uso e preciso de ajuda",
     titulo: "Suporte",
     texto:
       "Atendimento de quem já é cliente, pelo canal mais rápido: mensagem, com a pessoa que conhece a sua conta.",
-    acao: "Abrir o WhatsApp",
-    href: WPP,
-    externo: true,
-  },
-  {
-    motivo: "Sou jornalista",
-    titulo: "Imprensa",
-    texto:
-      "Dados da empresa, material de marca e entrevista. Respondemos em até dois dias úteis.",
-    acao: "Escrever para a imprensa",
-    href: "mailto:gestao@proops.com.br?subject=Imprensa",
+    convite: "O que aconteceu, e em qual tela?",
+    prazo: "No mesmo dia útil",
+    atalho: {
+      rotulo: "Prefere o WhatsApp? É mais rápido.",
+      href: WPP,
+      externo: true,
+    },
   },
   {
     motivo: "Quero propor uma parceria",
     titulo: "Parcerias",
     texto:
       "Integração, indicação e revenda. Conte o que você faz e onde acha que os dois produtos se encontram.",
-    acao: "Propor uma parceria",
-    href: "mailto:gestao@proops.com.br?subject=Parceria",
+    convite: "O que você faz, e onde acha que os dois produtos se encontram?",
+    prazo: "Resposta em até dois dias úteis",
+    atalho: {
+      rotulo: "Prefere escrever direto?",
+      href: "mailto:gestao@proops.com.br?subject=Parceria",
+      externo: true,
+    },
   },
 ];
 

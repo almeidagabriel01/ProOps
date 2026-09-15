@@ -1,29 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
+
+import { useAberturaVaiTocar } from "./abertura-estado";
 
 /** 0, 25, 50, 75, 100. Five frames is enough to read as counting. */
 const QUADROS = [0, 25, 50, 75, 100];
 const LAMINAS = 6;
 
 /**
- * Whether this document has already played the opening.
- *
- * Module scope, and CLIENT-only by construction: a client module is
- * re-evaluated on every document load, so the flag is false exactly once per
- * visit, and it survives every client-side navigation in between. That is the
- * distinction the scene needs and that a component cannot see on its own.
- *
- * It must never be consulted on the SERVER: module state there is per process
- * and shared across requests, so the first render would set it and every
- * visitor after that would get no opening at all.
- */
-let jaAbriu = false;
-
-/**
  * The opening: six slats lift off a black screen while a counter runs.
  *
- * A Server Component, and entirely CSS. That is the whole design constraint of
+ * Server-rendered, and entirely CSS. That is the whole design constraint of
  * this scene: an opening sequence is the one thing on the page that must not
  * wait for JavaScript, because it plays during the exact window in which the
  * bundle is still arriving. A React-driven curtain would hold the screen black
@@ -41,22 +29,17 @@ let jaAbriu = false;
  * as one mechanism rather than two effects. Which is exactly why it plays ONCE
  * per document: coming back to the root from a sub-page already draws the
  * curtain, and replaying the opening on top of it reads as the same effect
- * stuttering twice.
+ * stuttering twice. `useAberturaVaiTocar` is where that once-per-document
+ * decision lives, and the hero reads it too: its entrance waits for these slats,
+ * so on a return where they do not play it must not wait for them either.
  *
  * Under `prefers-reduced-motion` globals.css pins the slats at `scaleY(0)` and
  * the counter at its last frame, so the page simply opens.
  */
 export function InstitucionalAbertura() {
-  // On the server this is always true, so the markup is in the HTML and the CSS
-  // plays at first paint; on the client's first render `jaAbriu` is still false,
-  // so hydration matches. Only a later client-side navigation reads `true`.
-  const [mostrar] = useState(
-    () => typeof window === "undefined" || !jaAbriu,
-  );
-
-  useEffect(() => {
-    jaAbriu = true;
-  }, []);
+  // The decision itself lives in `abertura-estado`, because the hero needs the
+  // same answer to size its own entrance and the two must never disagree.
+  const mostrar = useAberturaVaiTocar();
 
   if (!mostrar) return null;
 

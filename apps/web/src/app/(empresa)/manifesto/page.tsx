@@ -8,7 +8,7 @@ import { canonicalFor } from "@/lib/site/host-seo";
 
 import { PrincipioCena } from "./_components/principio-cena";
 
-import { PRINCIPIOS } from "@/app/institucional/_content/institucional-copy";
+import { PRINCIPIOS } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 export const metadata: Metadata = {
   title: "Manifesto da ProOps",

@@ -118,6 +118,86 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
   });
 
   /**
+   * O MESMO teste, agora de uma sub-página para a RAIZ, que é a direção em que
+   * a cortina não cobria coisa nenhuma.
+   *
+   * Até a fusão dos layouts, `/institucional` tinha um `layout.tsx` próprio e as
+   * outras quatro páginas tinham o do route group. Cruzar entre os dois
+   * desmontava o `CurtainProvider` com o painel ainda em pé e montava um novo,
+   * cujo guarda de primeiro render manda ele não fazer nada: o painel não subia,
+   * ele simplesmente deixava de existir, e a página aparecia num corte. A URL
+   * trocava, o conteúdo estava certo, e só a animação faltava, numa direção de
+   * duas. O teste acima passava, porque ele vai de sub-página para sub-página.
+   *
+   * O amostrador mede a subida também, e não só a descida: `__depois` guarda a
+   * MENOR cobertura vista depois do pico, que é o que prova que o painel saiu
+   * andando em vez de sumir. Sem essa metade, um painel que desaparecesse de uma
+   * vez continuaria passando.
+   */
+  test("a cortina cobre e depois SOBE também indo para a raiz", async ({
+    page,
+  }) => {
+    await page.goto(`${APEX}/sobre`);
+    await page.waitForLoadState("networkidle");
+
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __maior: number;
+        __depois: number;
+        __atributo: boolean;
+      };
+      w.__maior = 0;
+      w.__depois = Number.POSITIVE_INFINITY;
+      w.__atributo = false;
+      const amostra = () => {
+        if (document.documentElement.getAttribute("data-heroi") === "espera") {
+          w.__atributo = true;
+        }
+        const painel = document.querySelector("[data-painel]");
+        const palco = painel?.closest("[data-cortina]");
+        if (painel && palco && getComputedStyle(palco).visibility !== "hidden") {
+          const r = painel.getBoundingClientRect();
+          const coberto =
+            Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+          w.__maior = Math.max(w.__maior, coberto);
+          if (w.__maior > window.innerHeight * 0.8) {
+            w.__depois = Math.min(w.__depois, coberto);
+          }
+        }
+        requestAnimationFrame(amostra);
+      };
+      requestAnimationFrame(amostra);
+    });
+
+    await page
+      .getByRole("navigation", { name: "Principal" })
+      .getByRole("link", { name: "ProOps, página inicial" })
+      .click();
+    await page.waitForURL(`${APEX}/institucional`);
+    // A revelação leva pouco mais de um segundo e meio depois do push, e o
+    // `waitForURL` volta antes dela terminar.
+    await page.waitForTimeout(2500);
+
+    const medida = await page.evaluate(() => ({
+      maior: (window as unknown as { __maior: number }).__maior,
+      depois: (window as unknown as { __depois: number }).__depois,
+      atributo: (window as unknown as { __atributo: boolean }).__atributo,
+      altura: window.innerHeight,
+      preso: document.documentElement.getAttribute("data-heroi"),
+    }));
+
+    expect(medida.maior).toBeGreaterThan(medida.altura * 0.8);
+    // Saiu andando: em algum quadro depois do pico o painel cobria menos de um
+    // quinto da tela.
+    expect(medida.depois).toBeLessThan(medida.altura * 0.2);
+    // E a entrada do herói foi segurada enquanto isso, senão ela toca inteira
+    // atrás do preto e o leitor chega numa página já parada.
+    expect(medida.atributo).toBe(true);
+    // ...e destravada depois. Preso aqui congela o herói de toda página do site.
+    expect(medida.preso).toBeNull();
+  });
+
+  /**
    * O wordmark tem que levar para o SITE DA EMPRESA, e hoje a raiz dele é
    * `/institucional`: o apex ainda serve o ERP. Escrito como `/` cru, este link
    * levava de `/carreiras` direto para a landing do ERP, que responde 200 e
@@ -167,6 +247,54 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
     await page.waitForURL(`${APEX}/institucional`);
 
     await expect(page.locator(".abertura-lamina")).toHaveCount(0);
+  });
+
+  /**
+   * O fecho de cada página revela linha a linha, e TODA linha tem que começar
+   * escondida.
+   *
+   * Com `stagger`, o render imediato de um `fromTo` do GSAP só alcança a
+   * primeira unidade: as outras ficavam visíveis e no lugar até a sub-tween
+   * delas começar, e nesse instante saltavam para invisível antes de subir. O
+   * que se via era um PISCA, e como cada parágrafo desses fechos tem duas
+   * linhas, metade delas piscava. Nada falhava: o texto estava lá, legível, e a
+   * animação acontecia.
+   *
+   * A asserção é com a página no TOPO, longe do gatilho: o estado correto ali é
+   * toda linha em `opacity: 0`. Uma linha em 1 é uma que nunca recebeu o estado
+   * inicial.
+   */
+  test("nenhuma linha do fecho fica visível antes da revelação", async ({
+    page,
+  }) => {
+    const FECHOS = [
+      { url: "/manifesto", secao: "A contrapartida" },
+      { url: "/sobre", secao: "Uma nota dos sócios" },
+      { url: "/produtos", secao: "Por que a mesma empresa faz os dois" },
+      { url: "/fale-conosco", secao: "Quem responde" },
+    ];
+
+    for (const fecho of FECHOS) {
+      await page.goto(`${APEX}${fecho.url}`);
+      await page.waitForLoadState("networkidle");
+
+      const linhas = page.locator(
+        `[aria-label="${fecho.secao}"] .split-line`,
+      );
+      // O split existe: sem isto, uma seção que perdesse o `SplitReveal`
+      // passaria com zero linhas e zero falhas.
+      await expect
+        .poll(async () => linhas.count(), { timeout: 10_000 })
+        .toBeGreaterThan(1);
+
+      const opacidades = await linhas.evaluateAll((els) =>
+        els.map((el) => Number(getComputedStyle(el).opacity)),
+      );
+      expect(
+        opacidades.filter((o) => o > 0.01),
+        `${fecho.url}: linha visível antes de a revelação começar`,
+      ).toHaveLength(0);
+    }
   });
 
   test("toda âncora interna aponta para um id que existe, e só um", async ({

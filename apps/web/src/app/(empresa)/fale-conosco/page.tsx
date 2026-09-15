@@ -3,23 +3,24 @@ import type { Metadata } from "next";
 import { AssinaturaCanais } from "@/components/institucional/assinaturas-hero";
 import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
+import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { canonicalFor } from "@/lib/site/host-seo";
 
-import { SeletorDeCanal } from "./_components/seletor-de-canal";
+import { FormularioDaConversa } from "./_components/formulario-da-conversa";
 
-import { CANAIS } from "@/app/institucional/_content/institucional-copy";
+import { CANAIS } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 export const metadata: Metadata = {
   title: "Falar com a ProOps",
   description:
-    "Comercial, suporte, imprensa e parcerias: o canal certo para cada assunto, com quem responde de verdade.",
+    "Comercial, suporte e parcerias: diga o assunto e escreva na mesma tela, para quem responde de verdade.",
   alternates: { canonical: canonicalFor("institucional", "/fale-conosco") },
   openGraph: {
     type: "website",
     locale: "pt_BR",
     siteName: "ProOps",
     title: "Falar com a ProOps",
-    description: "O canal certo para cada assunto.",
+    description: "O canal certo para cada assunto, e um formulário só.",
     url: canonicalFor("institucional", "/fale-conosco"),
     images: [
       { url: "/opengraph-image.png", width: 1200, height: 630, alt: "ProOps" },
@@ -28,15 +29,22 @@ export const metadata: Metadata = {
 };
 
 /**
- * Contact, as a router rather than as a form.
+ * Contact, as a conversation rather than as a directory.
  *
- * There is no text field on this page on purpose. The commercial form already
- * exists on the ERP's `/contato` and is wired to the pipeline that answers it;
- * a second form here would either duplicate that plumbing or drop messages into
- * an inbox nobody watches, which is worse than no form.
+ * Esta página era um roteador: três ou quatro motivos, e cada um entregava um
+ * link para outro lugar. A justificativa era boa no papel, "o formulário
+ * comercial já existe na landing do ERP e um segundo formulário duplicaria a
+ * canalização", e o resultado prático era ruim: quem chegava aqui dizendo o que
+ * queria era mandado para uma segunda página, para dizer de novo.
  *
- * What the company site can do better is routing: four reasons someone writes
- * in, and the right destination for each, chosen by the reader in one click.
+ * Agora o motivo escolhido configura um formulário que está na mesma tela, e
+ * a canalização continua sendo UMA, porque o envio usa o mesmo endpoint público
+ * que a landing do ERP usa. O que muda é o `segment`, que é o que diz qual fila
+ * responde. Ver `_components/formulario-da-conversa.tsx`.
+ *
+ * Os atalhos diretos continuam à vista para quem prefere não escrever num
+ * formulário: WhatsApp para suporte, agendamento para comercial, e-mail para
+ * parcerias.
  */
 export default function FaleConoscoPage() {
   return (
@@ -52,14 +60,14 @@ export default function FaleConoscoPage() {
             </LinhaHero>
           </>
         }
-        descricao="Diga o que traz você aqui e a página mostra por onde. São quatro caminhos, e todos terminam em uma pessoa."
+        descricao="Diga o que traz você aqui e escreva na mesma tela. São três assuntos, e todos terminam em uma pessoa."
         dados={[
-          { valor: "04", rotulo: "Canais" },
+          { valor: "03", rotulo: "Assuntos" },
           { valor: "2d", rotulo: "Prazo de resposta" },
         ]}
       />
 
-      <Secao aria-label="Escolha o assunto">
+      <Secao aria-label="Escreva para a ProOps">
         <div className="mx-auto max-w-6xl">
           <TituloSecao
             sobrancelha="Por onde"
@@ -70,7 +78,7 @@ export default function FaleConoscoPage() {
             }
             className="mb-14"
           />
-          <SeletorDeCanal canais={CANAIS} />
+          <FormularioDaConversa canais={CANAIS} />
         </div>
       </Secao>
 
@@ -123,6 +131,39 @@ export default function FaleConoscoPage() {
               </dd>
             </div>
           </dl>
+        </div>
+      </Secao>
+
+      {/*
+        O fecho, revelado linha a linha como o das outras páginas do site. Uma
+        página de contato termina explicando quem está do outro lado, que é a
+        única coisa que ela pode dizer e que um endereço de e-mail não diz.
+      */}
+      <Secao aria-label="Quem responde">
+        <div className="mx-auto max-w-3xl">
+          <TituloSecao
+            sobrancelha="Quem responde"
+            titulo={
+              <>
+                Não existe <Realce>fila</Realce> entre você e quem constrói.
+              </>
+            }
+            className="mb-10"
+          />
+          <div className="space-y-6 text-base leading-relaxed text-white/60 md:text-lg">
+            <SplitReveal unit="lines" stagger={0.06}>
+              A ProOps é feita por três pessoas, e duas delas escrevem o código.
+              O que você contar aqui não passa por um atendimento de primeiro
+              nível antes de chegar em quem tem a mão no produto.
+            </SplitReveal>
+            <SplitReveal
+              unit="lines"
+              stagger={0.06}
+              className="[font-family:var(--font-bricolage)] text-xl font-semibold text-white md:text-2xl"
+            >
+              É por isso que o prazo aqui é de dois dias e não de duas semanas.
+            </SplitReveal>
+          </div>
         </div>
       </Secao>
     </main>

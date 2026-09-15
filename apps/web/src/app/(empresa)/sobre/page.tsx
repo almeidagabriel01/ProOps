@@ -15,7 +15,7 @@ import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
 import { Magnetic } from "@/components/marketing/_shared/magnetic";
 import { canonicalFor } from "@/lib/site/host-seo";
 
-import { MARCOS, PESSOAS } from "@/app/institucional/_content/institucional-copy";
+import { MARCOS, PESSOAS } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 export const metadata: Metadata = {
   title: "Sobre a ProOps",

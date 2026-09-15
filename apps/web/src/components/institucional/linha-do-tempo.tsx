@@ -6,7 +6,7 @@ import { m as motion, useTransform } from "motion/react";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 import { cn } from "@/lib/utils";
 
-import type { Marco } from "@/app/institucional/_content/institucional-copy";
+import type { Marco } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 /**
  * The company's milestones, on a rule that draws itself as the reader descends.

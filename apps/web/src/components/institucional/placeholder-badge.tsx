@@ -1,4 +1,4 @@
-import { PLACEHOLDER } from "@/app/institucional/_content/institucional-copy";
+import { PLACEHOLDER } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 /**
  * Marks a section whose copy is still a draft.

@@ -1099,6 +1099,33 @@ html[data-shell="locked"] body {
   }
 }
 
+/* A entrada do herói ESPERA a cortina de transição sair da frente.
+
+   Entre duas páginas do site da empresa a página nova monta ATRÁS do painel
+   preto, e os keyframes acima tocam ali, escondidos: quando o painel sobe, o
+   herói já está parado no estado final. A animação acontece, ninguém a vê, e o
+   resultado prático é o mesmo de ela não existir.
+
+   `animation-play-state: paused` num elemento criado enquanto a regra casa
+   segura a animação no tempo ZERO, e o `both` dos keyframes mantém o quadro
+   inicial na tela; soltar o atributo faz a entrada começar do princípio, com o
+   escalonamento inteiro. É por isso que isto é uma pausa e não um
+   `animation-delay` a mais: atraso teria que ser calculado elemento a elemento
+   e adivinhar quanto ainda falta da cortina.
+
+   O atributo é escrito pelo `CurtainProvider` e existe SÓ durante uma navegação
+   por cortina, nunca no primeiro paint de um carregamento de documento: o
+   contrato de LCP desta superfície é que o texto acima da dobra pinte e anime
+   sem JavaScript nenhum. Ele se chama `data-heroi` e não `data-cortina` porque
+   o palco do painel já usa esse nome, e um `[data-cortina]` procurando o palco
+   passaria a casar com o `<html>` no meio da transição. */
+html[data-heroi="espera"] .hero-enter,
+html[data-heroi="espera"] .hero-rise-line,
+html[data-heroi="espera"] .traco-desenha,
+html[data-heroi="espera"] .regua-desenha {
+  animation-play-state: paused;
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    Chrome type — the signature of the company page.
 

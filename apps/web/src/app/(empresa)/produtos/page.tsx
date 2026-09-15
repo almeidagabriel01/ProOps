@@ -8,6 +8,7 @@ import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
 import { Magnetic } from "@/components/marketing/_shared/magnetic";
 import { MolduraNavegador } from "@/components/marketing/_shared/moldura-navegador";
+import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { canonicalFor } from "@/lib/site/host-seo";
 import { APP_NAME } from "@/lib/site/app-brand";
 import { SITE_URLS, hostnameDe } from "@/lib/site/surfaces";
@@ -297,18 +298,29 @@ export default function ProdutosPage() {
             }
             className="mb-10"
           />
+          {/*
+            O fecho das outras duas páginas do site revela linha a linha, e este
+            não revelava: eram dois `<p>` parados, e uma página que passou por
+            quatro cenas com movimento termina num bloco inerte. Linha e não
+            palavra, pelo mesmo motivo do fecho do manifesto: são duas frases
+            para ler, não para esperar.
+          */}
           <div className="space-y-6 text-base leading-relaxed text-black/65 md:text-lg">
-            <p>
+            <SplitReveal unit="lines" stagger={0.06}>
               Uma empresa perde dinheiro quando a proposta, o contrato e o
               recebimento moram em lugares diferentes. Uma pessoa perde o
               controle quando o gasto, a fatura e a meta moram em lugares
               diferentes.
-            </p>
-            <p>
+            </SplitReveal>
+            <SplitReveal
+              unit="lines"
+              stagger={0.06}
+              className="[font-family:var(--font-bricolage)] text-xl font-semibold text-black md:text-2xl"
+            >
               É a mesma falha, e a resposta que a ProOps dá é a mesma: uma base
               só, alimentada no momento em que a coisa acontece, em vez de
               reconstruída no fim do mês.
-            </p>
+            </SplitReveal>
           </div>
         </div>
       </Secao>

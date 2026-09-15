@@ -39,7 +39,7 @@ export const EMPRESA_LINKS: EmpresaLink[] = [
   {
     href: "/fale-conosco",
     rotulo: "Contato",
-    resumo: "Comercial, suporte, imprensa e parcerias.",
+    resumo: "Comercial, suporte e parcerias, com formulário na mesma tela.",
   },
 ];
 

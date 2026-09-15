@@ -7,7 +7,7 @@ import { m as motion, useTransform } from "motion/react";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 import { cn } from "@/lib/utils";
 
-import type { Pessoa } from "@/app/institucional/_content/institucional-copy";
+import type { Pessoa } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 /**
  * Who does the work, with their faces.

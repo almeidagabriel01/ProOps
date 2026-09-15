@@ -22,6 +22,35 @@ if (typeof window !== "undefined") {
   gsap.registerPlugin(DrawSVGPlugin, ScrollTrigger);
 }
 
+/**
+ * Enquanto o painel cobre a tela, a entrada do herói da página que está
+ * chegando fica parada no primeiro quadro.
+ *
+ * A página nova monta ATRÁS do painel, e `.hero-enter` / `.hero-rise-line` são
+ * keyframes que tocam sozinhos no primeiro paint (é o contrato de LCP desta
+ * superfície: o texto acima da dobra não pode esperar JavaScript). Sem esta
+ * pausa a entrada inteira, que dura pouco mais de um segundo, acontecia no
+ * escuro: quando o painel subia, o herói já estava parado no estado final.
+ *
+ * A regra CSS vive em `globals.css`. Aqui só se liga e desliga o atributo, e
+ * ele é escrito no `<html>` de propósito: a página que vai animar ainda não
+ * existe no momento em que a cortina fecha, então o sinal precisa morar acima
+ * de qualquer subárvore que a navegação troque.
+ *
+ * `data-heroi`, e não `data-cortina`: o palco do painel já carrega
+ * `data-cortina`, e um seletor `[data-cortina]` procurando o palco passaria a
+ * casar também com o `<html>` enquanto a transição corre.
+ */
+const ATRIBUTO_ESPERA = "data-heroi";
+
+function seguraHeroi() {
+  document.documentElement.setAttribute(ATRIBUTO_ESPERA, "espera");
+}
+
+function liberaHeroi() {
+  document.documentElement.removeAttribute(ATRIBUTO_ESPERA);
+}
+
 interface CurtainContextValue {
   navegar: (href: string) => void;
 }
@@ -73,6 +102,16 @@ const CurtainContext = createContext<CurtainContextValue | null>(null);
  * push is not a promise, and a timer would either uncover a page that has not
  * rendered or hold the curtain on one that has.
  *
+ * **Which is why every page it serves has to share ONE layout.** Beat 3 runs in
+ * the same provider instance that ran beat 1; if the navigation crosses a layout
+ * boundary, React unmounts this component with the panel still down and mounts a
+ * fresh one, whose `primeiroRender` guard makes it do nothing. The panel does not
+ * lift, it simply ceases to exist, and the page appears in a cut. The company
+ * site had exactly that between its root and its sub-pages until the two layouts
+ * were merged into `app/(empresa)/layout.tsx`, and nothing failed: the URL
+ * changed, the content was right, and only the animation was missing, in one
+ * direction out of two.
+ *
  * Under `prefers-reduced-motion` the curtain never renders and links are plain
  * `<Link>`s, which is also what a visitor with no JavaScript gets.
  */
@@ -83,6 +122,8 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
   const palco = useRef<HTMLDivElement>(null);
   const marca = useRef<SVGPathElement>(null);
   const destino = useRef<string | null>(null);
+  const destravamento = useRef<number | undefined>(undefined);
+  const revelacao = useRef<gsap.core.Timeline | null>(null);
   const primeiroRender = useRef(true);
 
   const abre = useCallback(() => {
@@ -93,9 +134,15 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
     const arcoBase = el.querySelector<HTMLElement>("[data-arco='base']");
     const simbolo = el.querySelector<HTMLElement>("[data-simbolo]");
 
+    revelacao.current?.kill();
     const tl = gsap.timeline({
       onComplete: () => {
+        revelacao.current = null;
         gsap.set(el, { autoAlpha: 0 });
+        // Piso, não o gatilho normal: a liberação de verdade acontece meio
+        // segundo antes, ainda dentro da subida. Aqui é só a garantia de que
+        // nada fica preso se a timeline for cortada no meio.
+        liberaHeroi();
         // The incoming page's pinned sections measured their height while the
         // curtain was up. Without this, every ScrollTrigger on the new page is
         // off by the amount the layout settled.
@@ -132,6 +179,13 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
       { yPercent: -100, duration: 1.05, ease: "power3.inOut" },
       "<0.1",
     );
+    // A entrada do herói COMEÇA antes de o painel terminar de sair, e não
+    // depois: solta no fim da subida, a página aparece inteira e só então se
+    // mexe, que é uma pausa morta no meio da transição. Meio segundo de
+    // sobreposição faz a coisa parecer uma página sendo destapada enquanto
+    // acorda.
+    tl.call(liberaHeroi, undefined, "-=0.5");
+    revelacao.current = tl;
   }, []);
 
   const navegar = useCallback(
@@ -144,6 +198,14 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
       }
       if (destino.current) return; // já está saindo
 
+      // Clicar num segundo link enquanto o painel ainda está SAINDO é o caso em
+      // que a cortina se cancelava sozinha: a revelação continuava escrevendo
+      // `yPercent: -100` e, no fim, `autoAlpha: 0` por cima do painel que a
+      // navegação nova acabara de trazer de volta. A tela ficava destapada, a
+      // rota trocava sem transição nenhuma, e o console ficava limpo.
+      revelacao.current?.kill();
+      revelacao.current = null;
+
       destino.current = href;
       const painel = el.querySelector<HTMLElement>("[data-painel]");
       const arcoTopo = el.querySelector<HTMLElement>("[data-arco='topo']");
@@ -153,8 +215,22 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
 
       const tl = gsap.timeline({
         onComplete: () => {
+          // A ordem importa: segurar ANTES do push, senão a página nova monta
+          // com os keyframes já correndo e a pausa chega tarde demais para o
+          // primeiro quadro.
+          seguraHeroi();
           router.push(href);
           jumpToTop();
+          // Rede de segurança. `router.push` não é promessa e não garante uma
+          // troca de rota: se ela não vier (rota inexistente, navegação
+          // cancelada), sem isto os heróis do site inteiro ficariam congelados
+          // no primeiro quadro, para sempre e sem erro nenhum.
+          if (destravamento.current) window.clearTimeout(destravamento.current);
+          destravamento.current = window.setTimeout(() => {
+            destino.current = null;
+            liberaHeroi();
+            gsap.set(el, { autoAlpha: 0 });
+          }, 6000);
         },
       });
 
@@ -199,8 +275,19 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
     }
     if (!destino.current) return;
     destino.current = null;
+    if (destravamento.current) window.clearTimeout(destravamento.current);
     abre();
   }, [pathname, abre]);
+
+  // Sair desta superfície com a cortina no ar deixaria o atributo escrito num
+  // documento que ninguém mais vai destravar.
+  useEffect(
+    () => () => {
+      if (destravamento.current) window.clearTimeout(destravamento.current);
+      liberaHeroi();
+    },
+    [],
+  );
 
   return (
     <CurtainContext.Provider value={{ navegar }}>

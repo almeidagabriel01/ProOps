@@ -2,21 +2,30 @@
 
 ## O que é
 
-`proops.com.br`: a empresa, não o produto. São cinco páginas, servidas por dois
-layouts que montam a mesma casca:
+`proops.com.br`: a empresa, não o produto. São cinco páginas dentro do route
+group `(empresa)`, servidas por **um layout só**:
 
 | URL | Arquivo | O que é |
 |---|---|---|
-| `/` (via rewrite do apex) | `app/institucional/page.tsx` | a experiência longa, dez cenas |
+| `/` (via rewrite do apex) | `app/(empresa)/institucional/page.tsx` | a experiência longa, dez cenas |
 | `/sobre` | `app/(empresa)/sobre/` | quem faz, a história, os números |
 | `/manifesto` | `app/(empresa)/manifesto/` | um princípio por cena |
 | `/produtos` | `app/(empresa)/produtos/` | ERP e aplicativo lado a lado |
-| `/fale-conosco` | `app/(empresa)/fale-conosco/` | o canal certo por assunto |
+| `/fale-conosco` | `app/(empresa)/fale-conosco/` | o assunto, e o formulário dele |
 
-As cinco de baixo ficam **no nível do apex** e não debaixo de `/institucional`.
+As quatro de baixo ficam **no nível do apex** e não debaixo de `/institucional`.
 O porquê, e as três listas que uma página nova precisa atravessar, estão em
 `app/CLAUDE.md`, seção "O site da empresa". Errar isso não quebra nada hoje: a
 página some no dia da virada dos domínios.
+
+**Uma casca só, e isso não é arrumação.** A raiz morava em `app/institucional/`
+com layout próprio, ao lado do grupo. Dois layouts irmãos são duas subárvores do
+React, então ir da raiz para uma sub-página desmontava o `EmpresaShell` inteiro:
+a cortina sumia em vez de subir (o provider morria com o painel em pé), o Lenis
+era recriado atrás de um `requestIdleCallback` e a rolagem inercial ficava fora
+do ar por até dois segundos, e o campo de ponteiro recomeçava. Nada falhava, e
+metade das navegações do site não tinha transição. Não dê `layout.tsx` a nenhuma
+página daqui; guard em `src/__tests__/site-da-empresa-uma-casca.test.ts`.
 
 ## As quatro regras que não se negociam
 
@@ -28,6 +37,21 @@ Cada uma existe porque o projeto já pagou por ela.
 paint. Um `initial={{ opacity: 0 }}` do `motion` segura o texto do LCP invisível
 até o bundle hidratar, que num celular estrangulado é vários segundos. Vale para
 o herói da raiz e para o `PaginaHero` das sub-páginas.
+
+Tocar sozinha tem um preço, e ele é pago em dois lugares:
+
+- **Numa navegação por cortina a página nova monta ATRÁS do painel preto**, e a
+  entrada inteira tocava ali, escondida: quando o painel subia, o herói já
+  estava parado no estado final. O `CurtainProvider` escreve
+  `data-heroi="espera"` no `<html>` antes do `router.push` e apaga meio
+  segundo antes de o painel terminar de sair; a regra em globals.css pausa as
+  duas classes enquanto o atributo existe. O atributo mora no `<html>` porque a
+  página que vai animar ainda não existe quando a cortina fecha.
+- **Os atrasos do herói da RAIZ são relativos à abertura**, via
+  `esperaDaAbertura(useAberturaVaiTocar())`. Eles existem para deixar as seis
+  lâminas saírem primeiro; escritos como `1,08s` fixos, viravam mais de um
+  segundo de tela preta numa volta por dentro do site, onde a abertura não toca.
+  Se acrescentar um elemento ao herói da raiz, some `espera` ao atraso dele.
 
 ### 2. A cena é escrita no estado FINAL e animada com `fromTo`
 
@@ -58,7 +82,7 @@ nenhum type check pega.
 |---|---|
 | `useScrollProgress` | progresso 0..1 de uma seção, como `MotionValue`. **É a base de quase toda cena.** |
 | `useScrollScene` | cena GSAP com matchMedia e reduced-motion embutidos |
-| `SplitReveal` | tipografia cinética com `SplitText` (reverte o split no cleanup) |
+| `SplitReveal` | tipografia cinética com `SplitText` (reverte o split no cleanup, e escreve o estado inicial em TODAS as unidades) |
 | `usePointerField` / `PointerFieldProvider` | escreve `--px`/`--py` no escopo |
 | `Magnetic`, `Marquee`, `ScrubCounter` | primitivas de interação |
 | `CurtainProvider` / `CurtainLink` | transição entre páginas |
@@ -181,7 +205,7 @@ passa um desenho do próprio assunto, em
 | `/sobre` | os três retratos, dessaturados e dissolvendo | padrão |
 | `/manifesto` | um selo que se desenha | `alinhamento="centro"` |
 | `/produtos` | uma janela e um telefone em wireframe | padrão |
-| `/fale-conosco` | quatro linhas num ponto que pulsa | `altura="curta"` |
+| `/fale-conosco` | uma linha por canal, num ponto que pulsa | `altura="curta"` |
 
 Duas coisas ao acrescentar uma:
 
@@ -216,6 +240,22 @@ O modelo de conteúdo é que sustenta isso: `Principio` e `Marco` têm um campo
 `resumo` **separado** do `texto`, e cada campo tem uma superfície só. Ao
 acrescentar assunto novo, decida o dono antes de escrever o componente, senão a
 duplicação volta pela porta dos fundos.
+
+## O fecho de cada página revela linha a linha
+
+`/sobre` ("Uma nota"), `/manifesto` ("A contrapartida"), `/produtos` ("Por que
+os dois") e `/fale-conosco` ("Quem responde") terminam com `SplitReveal` em
+`unit="lines"`. Uma página que passou por quatro cenas com movimento não pode
+terminar num bloco de `<p>` inerte, que foi como `/produtos` ficou por um tempo.
+
+**`SplitReveal` escreve o estado inicial com um `gsap.set` em todas as unidades,
+antes do `fromTo`, e isso não é redundância.** Com `stagger`, o render imediato
+do `fromTo` alcança só a PRIMEIRA unidade: as outras ficam visíveis e no lugar
+até a sub-tween delas começar, e nesse instante saltam para invisível antes de
+subir. O que se vê é um pisca, e como esses parágrafos têm duas linhas cada,
+metade delas piscava. Nada falha: o texto está lá, legível, e a animação
+acontece. O guard é o E2E `institucional/site-da-empresa.spec.ts`, que afirma
+que com a página no topo toda `.split-line` do fecho está em `opacity: 0`.
 
 ## Texto
 

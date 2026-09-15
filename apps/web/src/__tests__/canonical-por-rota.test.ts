@@ -44,21 +44,32 @@ function gruposDeRota(): string[] {
     .map((e) => e.name);
 }
 
-/** Onde mora o `page.tsx` que responde por um caminho de uma superfície. */
+/**
+ * Onde mora o `page.tsx` que responde por um caminho de uma superfície.
+ *
+ * A raiz de cada superfície passa pela MESMA busca em route group que o resto:
+ * a raiz da institucional é servida de `app/(empresa)/institucional/page.tsx`
+ * desde que as cinco páginas do site da empresa passaram a dividir uma casca
+ * só, e um resolvedor que só olhasse `app/institucional/` diria que a rota não
+ * existe.
+ */
 function arquivoDaRota(surface: Surface, rota: string): string {
-  if (rota === "/") {
-    if (surface === "app") return path.join(APP_DIR, APP_ROOT, "page.tsx");
-    if (surface === "institucional") {
-      return path.join(APP_DIR, INSTITUCIONAL_ROOT, "page.tsx");
-    }
-    return path.join(APP_DIR, "page.tsx");
-  }
+  const caminho =
+    rota === "/"
+      ? surface === "app"
+        ? APP_ROOT
+        : surface === "institucional"
+          ? INSTITUCIONAL_ROOT
+          : "/"
+      : rota;
 
-  const direto = path.join(APP_DIR, rota, "page.tsx");
+  if (caminho === "/") return path.join(APP_DIR, "page.tsx");
+
+  const direto = path.join(APP_DIR, caminho, "page.tsx");
   if (fs.existsSync(direto)) return direto;
 
   for (const grupo of gruposDeRota()) {
-    const agrupado = path.join(APP_DIR, grupo, rota, "page.tsx");
+    const agrupado = path.join(APP_DIR, grupo, caminho, "page.tsx");
     if (fs.existsSync(agrupado)) return agrupado;
   }
 

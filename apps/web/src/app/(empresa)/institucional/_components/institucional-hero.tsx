@@ -10,6 +10,8 @@ import { DesktopOnlyWebGl } from "@/components/marketing/_shared/webgl/desktop-o
 import { Realce } from "@/components/institucional/secao";
 import { SITE_URLS } from "@/lib/site/surfaces";
 
+import { esperaDaAbertura, useAberturaVaiTocar } from "./abertura-estado";
+
 /**
  * The shader layer. `ssr: false` because it is a canvas and there is nothing to
  * render on the server; the import itself does not begin until
@@ -74,6 +76,17 @@ export function InstitucionalHero() {
   // section of the site. Only the iOS permission affordance is local, because
   // this is the one screen with room to offer it.
   const { precisaDePermissao, pedirPermissao } = useCampoPonteiro();
+  /*
+    A entrada inteira é escrita a partir daqui, e não em números absolutos.
+
+    Os atrasos existiam para deixar as lâminas da abertura saírem primeiro, e
+    ficaram escritos como 1,08s, 1,25s, 1,5s. Voltando para a raiz por dentro do
+    site a abertura NÃO toca, e aqueles mesmos números viravam mais de um
+    segundo de tela preta depois de a cortina da transição já ter subido: a
+    entrada acontecia, tarde, num quadro em que ninguém estava mais esperando
+    por ela, e lida como entrada que não aconteceu.
+  */
+  const espera = esperaDaAbertura(useAberturaVaiTocar());
 
   return (
     <section
@@ -107,7 +120,7 @@ export function InstitucionalHero() {
               "--hero-y": "-10px",
               "--hero-blur": "6px",
               "--hero-dur": "0.5s",
-              "--hero-delay": "1.25s",
+              "--hero-delay": `${espera + 0.25}s`,
             } as React.CSSProperties
           }
         >
@@ -145,7 +158,7 @@ export function InstitucionalHero() {
                   className="hero-rise-line"
                   style={
                     {
-                      "--hero-delay": `${1.08 + index * 0.055}s`,
+                      "--hero-delay": `${espera + 0.08 + index * 0.055}s`,
                       "--hero-dur": "1s",
                     } as React.CSSProperties
                   }
@@ -179,7 +192,7 @@ export function InstitucionalHero() {
           style={
             {
               "--hero-y": "20px",
-              "--hero-delay": "1.5s",
+              "--hero-delay": `${espera + 0.5}s`,
             } as React.CSSProperties
           }
         >
@@ -193,7 +206,7 @@ export function InstitucionalHero() {
           style={
             {
               "--hero-y": "16px",
-              "--hero-delay": "1.62s",
+              "--hero-delay": `${espera + 0.62}s`,
             } as React.CSSProperties
           }
         >
@@ -207,7 +220,7 @@ export function InstitucionalHero() {
           style={
             {
               "--hero-y": "12px",
-              "--hero-delay": "1.74s",
+              "--hero-delay": `${espera + 0.74}s`,
               "--hero-dur": "0.5s",
             } as React.CSSProperties
           }
@@ -240,7 +253,7 @@ export function InstitucionalHero() {
             type="button"
             onClick={() => void pedirPermissao()}
             className="hero-enter mt-10 inline-flex items-center gap-2 border-b border-white/25 pb-1 [font-family:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.2em] text-white/55 transition-colors hover:text-white"
-            style={{ "--hero-delay": "2s" } as React.CSSProperties}
+            style={{ "--hero-delay": `${espera + 1}s` } as React.CSSProperties}
           >
             Ativar movimento
           </button>
@@ -252,7 +265,7 @@ export function InstitucionalHero() {
         className="hero-enter absolute inset-x-0 bottom-8 flex justify-center"
         style={
           {
-            "--hero-delay": "2.1s",
+            "--hero-delay": `${espera + 1.1}s`,
             "--hero-y": "-8px",
           } as React.CSSProperties
         }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AplicativoJsonLd } from "../_components/aplicativo-json-ld";
-import { InstitucionalJsonLd } from "../../institucional/_components/institucional-json-ld";
+import { InstitucionalJsonLd } from "@/app/(empresa)/institucional/_components/institucional-json-ld";
 import { PLANOS } from "../_content/planos";
 import { SITE_URLS } from "@/lib/site/surfaces";
 

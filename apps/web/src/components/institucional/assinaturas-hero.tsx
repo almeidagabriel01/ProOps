@@ -295,15 +295,20 @@ export function AssinaturaAparelhos({ className }: AssinaturaProps) {
 }
 
 /**
- * `/fale-conosco`: quatro linhas chegando num ponto só.
+ * `/fale-conosco`: três linhas chegando num ponto só.
  *
- * A página é um roteador, não um formulário: quatro assuntos, quatro destinos,
- * e a promessa de que todos terminam em uma pessoa. O ponto é o único elemento
- * em movimento contínuo em qualquer um dos quatro heróis, e é ele que carrega
- * essa última parte.
+ * Uma linha por assunto de `CANAIS`, e a promessa de que todos terminam na mesma
+ * pessoa. O ponto é o único elemento em movimento contínuo em qualquer um dos
+ * quatro heróis, e é ele que carrega essa última parte.
+ *
+ * Mexeu no número de canais? Mexa aqui: um desenho com mais linhas do que a
+ * página tem assuntos promete um destino que não existe.
  */
 export function AssinaturaCanais({ className }: AssinaturaProps) {
-  const entradas = [18, 74, 126, 182];
+  // Uma linha por assunto de `CANAIS`, e é por isso que são três: o desenho
+  // conta a mesma coisa que a página, e quatro linhas para três assuntos é uma
+  // promessa a mais do que a lista cumpre.
+  const entradas = [26, 100, 174];
   return (
     <svg
       viewBox="0 0 200 200"

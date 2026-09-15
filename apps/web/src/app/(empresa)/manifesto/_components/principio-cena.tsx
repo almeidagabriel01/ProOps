@@ -7,7 +7,7 @@ import { Realce } from "@/components/institucional/secao";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 import { cn } from "@/lib/utils";
 
-import type { Principio } from "@/app/institucional/_content/institucional-copy";
+import type { Principio } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 /**
  * One principle, given a whole screen.

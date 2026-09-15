@@ -7,7 +7,7 @@ import { ScrubCounter } from "@/components/marketing/_shared/scrub-counter";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 import { cn } from "@/lib/utils";
 
-import type { Numero } from "@/app/institucional/_content/institucional-copy";
+import type { Numero } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 /**
  * The publishable numbers, counted by the reader's own scroll.

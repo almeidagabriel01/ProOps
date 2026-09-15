@@ -92,11 +92,33 @@ export function SplitReveal({
         return;
       }
 
+      /*
+        O estado inicial é escrito AQUI, em todas as unidades, e não deixado por
+        conta do `fromTo`.
+
+        Com `stagger`, o render imediato do `fromTo` só alcança a primeira
+        unidade: as outras ficam com o valor que já tinham, ou seja, visíveis e
+        no lugar. Elas continuam lá, legíveis, até a sub-tween delas começar, e
+        nesse instante saltam para `opacity: 0` deslocadas 110% para baixo antes
+        de subir. O efeito na tela é um PISCA, a linha apaga e volta, que é o
+        oposto exato do que a cena quer dizer, e é o que se via nas seções de
+        fecho de /sobre e /manifesto, onde cada parágrafo tem duas linhas e
+        portanto metade delas piscava.
+
+        Medido no navegador: sem isto, com a página no topo e sem rolar, as
+        linhas alternavam `opacity` 0 e 1 dentro do mesmo parágrafo.
+      */
+      const inicio =
+        mode === "rise"
+          ? { yPercent: 110, opacity: 0 }
+          : { opacity: dim };
+      gsap.set(parts, inicio);
+
       const tween =
         mode === "rise"
           ? gsap.fromTo(
               parts,
-              { yPercent: 110, opacity: 0 },
+              inicio,
               {
                 yPercent: 0,
                 opacity: 1,
@@ -113,7 +135,7 @@ export function SplitReveal({
             )
           : gsap.fromTo(
               parts,
-              { opacity: dim },
+              inicio,
               {
                 opacity: 1,
                 ease: "none",
