@@ -582,6 +582,44 @@ body {
     @apply bg-background text-foreground;
   }
 
+  /*
+    Cursor de mão em tudo que se clica.
+
+    O Tailwind v4 deixou de normalizar o cursor de `<button>`: o preflight passou
+    a seguir o padrão do navegador, que é a seta. Isso não falha em lugar nenhum
+    e some com a única pista de que um controle é acionável, e o projeto vinha
+    remendando um call site por vez (havia quase trezentos `cursor-pointer`
+    espalhados quando isto entrou). Uma regra na base resolve a classe inteira do
+    problema, inclusive nos componentes do Radix, que renderizam `<button>` com
+    papéis de radio, tab, switch e menuitem.
+
+    Fica em `@layer base` de propósito: utilitário vence base na cascata, então um
+    call site que peça `cursor-default` ou `cursor-not-allowed` continua mandando.
+    As regras de modo demonstração, mais abaixo, usam `!important` e também
+    continuam ganhando.
+
+    `label` NÃO entra. O rótulo de um campo de texto é clicável (foca o campo) e
+    mesmo assim a convenção é a seta: mão ali sugere um botão onde há um texto, e
+    na prática muitos desses rótulos flutuam por cima do próprio campo.
+  */
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  input:is([type="checkbox"], [type="radio"], [type="submit"], [type="reset"], [type="button"], [type="file"]):not(:disabled),
+  :is(
+      [role="button"],
+      [role="radio"],
+      [role="tab"],
+      [role="option"],
+      [role="menuitem"],
+      [role="menuitemcheckbox"],
+      [role="menuitemradio"],
+      [role="switch"],
+      [role="checkbox"]
+    ):not([aria-disabled="true"]):not([data-disabled]) {
+    cursor: pointer;
+  }
+
   /* Autofill fix - Match background color */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
