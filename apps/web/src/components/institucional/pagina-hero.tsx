@@ -310,7 +310,10 @@ export function LinhaHero({
         className="hero-rise-line"
         style={
           {
-            "--hero-delay": `${0.08 + atraso}s`,
+            // A primeira linha começa em ZERO. Chegando por cortina, a entrada
+            // é destravada no instante em que o painel sai, e qualquer atraso
+            // aqui vira página parada antes de a primeira coisa se mexer.
+            "--hero-delay": `${atraso}s`,
             "--hero-dur": "0.95s",
           } as React.CSSProperties
         }

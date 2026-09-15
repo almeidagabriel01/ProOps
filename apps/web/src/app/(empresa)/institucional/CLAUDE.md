@@ -50,6 +50,18 @@ Tocar sozinha tem um preço, e ele é pago em dois lugares:
   sobreposição ali, para a página parecer acordar enquanto era destapada, e na
   tela isso vira o herói se mexendo atrás da aresta do painel: parte da entrada
   perdida de novo, só que menos.
+
+  **"Depois" só fica fluido com três coisas juntas**, e faltando qualquer uma
+  volta a parecer travamento:
+
+  1. A saída do painel ACELERA (`power2.in`). Com uma ease que desacelera, os
+     últimos milímetros levavam mais de 100ms: para o olho o painel já tinha
+     saído, e a entrada, que espera o fim da timeline, só vinha bem depois.
+  2. `ScrollTrigger.refresh()` roda no INÍCIO de `abre()`, atrás do preto. Ele é
+     medição de layout síncrona da página inteira; no `onComplete` caía no mesmo
+     quadro em que a entrada era destravada, e a animação começava engasgando.
+  3. O primeiro elemento da escada tem atraso ZERO. Qualquer atraso ali é página
+     parada depois de o painel sair.
 - **Os atrasos do herói da RAIZ são relativos à abertura**, via
   `esperaDaAbertura(useAberturaVaiTocar())`. Eles existem para deixar as seis
   lâminas saírem primeiro; escritos como `1,08s` fixos, viravam mais de um
@@ -155,6 +167,14 @@ os 800 genéricos) e **CLS ≤ 0,1 é `error`**. Daí duas escolhas estruturais:
   COMPÕE com `transform` em vez de ser sobrescrita por ele: o elemento fica
   achatado por mais que o GSAP anime, sem erro nenhum. Foi assim que a cortina de
   transição rodou sem cobrir um pixel. Ou o transform é do CSS, ou é do JS.
+- **`translate-*` do Tailwind cria bloco de contenção para `fixed`.** Mesma raiz
+  que o item acima: no v4 a classe vira a propriedade `translate`, e `translate`
+  (como `transform`) faz o elemento virar o referencial de qualquer descendente
+  `fixed`. Um painel `fixed inset-0` dentro de um cabeçalho que se esconde com
+  `-translate-y-full` não cobre a tela, cobre a CAIXA DO CABEÇALHO. O sintoma é
+  um menu de tela cheia recortado numa faixa de uns cento e cinquenta pixels, com
+  a página aparecendo por baixo, sem erro nenhum. Painel de tela cheia é IRMÃO do
+  cabeçalho, nunca filho. Guard: `tests/e2e/mobile/indice-empresa.spec.ts`.
 - **Cena longa é `sticky`, não `pin` do ScrollTrigger.** Um pin insere um
   espaçador e reescreve a altura do documento; com várias cenas isso vira
   medição a cada refresh, e um ScrollTrigger aninhado passa a medir contra o
@@ -168,6 +188,29 @@ os 800 genéricos) e **CLS ≤ 0,1 é `error`**. Daí duas escolhas estruturais:
   do problema nasceram amontoadas no meio do palco. O palco é `overflow-hidden`,
   então o que começa fora da borda é cortado e não alarga o documento, que é
   exatamente o que o guard de overflow a 393px vigia.
+
+## A barra é uma cápsula que reage ao scroll
+
+`components/institucional/empresa-navbar.tsx`. Quatro comportamentos, e cada um
+existe por um motivo desta superfície:
+
+| O quê | Por quê |
+|---|---|
+| Vira **cápsula** passados 24px | o resto do site é editorial; uma barra chapada de ponta a ponta é a única peça que ninguém desenhou |
+| **Pílula** com `layoutId` segue o ponteiro e volta para a página atual | um elemento só DESLIZA entre destinos; sublinhado por link seriam quatro animações independentes |
+| **Sai da frente** ao descer, volta ao subir | as páginas são cenas de tela cheia presas ao scroll, e a barra parada por cima é ruído. Perto do topo (abaixo de 1,2 tela) ela nunca some |
+| **Filete de progresso** rente à borda de baixo | páginas longas, e a cápsula tem espaço para dar essa informação de graça |
+
+Três regras ao mexer nela:
+
+- **Um `<nav aria-label="Principal">` só, que muda de forma.** Duas barras que se
+  revezassem seriam dois conjuntos do mesmo menu no DOM: "Manifesto" existindo em
+  dois lugares para um leitor de tela e para qualquer seletor por papel.
+- **O índice do celular é irmão do `<header>`.** Ver a armadilha do `translate`
+  na seção de orçamento; dentro dele o painel não cobre a tela.
+- **O progresso é `MotionValue`, não estado.** Escrever progresso de scroll em
+  `useState` é um render por quadro. Um listener passivo só, com o trabalho
+  coalescido em `requestAnimationFrame`, resolve as três reações ao scroll.
 
 ## O herói das sub-páginas ocupa a tela inteira
 

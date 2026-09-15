@@ -149,45 +149,59 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
         __maior: number;
         __depois: number;
         __atributo: boolean;
-        __painelForaEm: number;
-        __entradaEm: number;
+        __moveuAntes: boolean;
+        __cobertoNaSoltura: number | null;
       };
       w.__maior = 0;
       w.__depois = Number.POSITIVE_INFINITY;
       w.__atributo = false;
-      w.__painelForaEm = Number.POSITIVE_INFINITY;
-      w.__entradaEm = Number.POSITIVE_INFINITY;
+      w.__moveuAntes = false;
+      w.__cobertoNaSoltura = null;
 
-      document.addEventListener(
-        "animationstart",
-        (evento) => {
-          const alvo = evento.target as HTMLElement;
-          if (
-            alvo.classList?.contains("hero-enter") ||
-            alvo.classList?.contains("hero-rise-line")
-          ) {
-            w.__entradaEm = Math.min(w.__entradaEm, performance.now());
-          }
-        },
-        true,
-      );
+      const partida = location.pathname;
+      let ultimoCoberto = 0;
+      let tinhaAtributo = false;
+
+      /**
+       * `true` enquanto a primeira linha do herói ainda está no quadro inicial.
+       *
+       * Medir o TRANSFORM e não o `animationstart`: uma animação CSS pausada no
+       * tempo zero com atraso zero já disparou `animationstart`, então o evento
+       * não distingue "começou a se mexer" de "foi criada pausada". O
+       * deslocamento na tela distingue.
+       */
+      const heroiParado = () => {
+        const linha = document.querySelector("h1 .hero-rise-line");
+        if (!linha) return true;
+        const m = new DOMMatrixReadOnly(getComputedStyle(linha).transform);
+        return Math.abs(m.f) > 1;
+      };
 
       const amostra = () => {
-        if (document.documentElement.getAttribute("data-heroi") === "espera") {
-          w.__atributo = true;
+        const cobrindo =
+          document.documentElement.getAttribute("data-heroi") === "espera";
+        if (cobrindo) w.__atributo = true;
+
+        // Só depois da troca de rota: antes dela o `h1` na tela é o da página
+        // que está SAINDO, e a entrada dele terminou há muito tempo.
+        if (cobrindo && location.pathname !== partida && !heroiParado()) {
+          w.__moveuAntes = true;
         }
+        if (tinhaAtributo && !cobrindo && w.__cobertoNaSoltura === null) {
+          w.__cobertoNaSoltura = ultimoCoberto;
+        }
+        tinhaAtributo = tinhaAtributo || cobrindo;
+
         const painel = document.querySelector("[data-painel]");
         const palco = painel?.closest("[data-cortina]");
         if (painel && palco && getComputedStyle(palco).visibility !== "hidden") {
           const r = painel.getBoundingClientRect();
           const coberto =
             Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+          ultimoCoberto = coberto;
           w.__maior = Math.max(w.__maior, coberto);
           if (w.__maior > window.innerHeight * 0.8) {
             w.__depois = Math.min(w.__depois, coberto);
-            if (coberto <= 1 && w.__painelForaEm === Number.POSITIVE_INFINITY) {
-              w.__painelForaEm = performance.now();
-            }
           }
         }
         requestAnimationFrame(amostra);
@@ -200,17 +214,15 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
       .getByRole("link", { name: "ProOps, página inicial" })
       .click();
     await page.waitForURL(`${APEX}/institucional`);
-    // Espera pela ENTRADA e não por um relógio: a revelação leva pouco mais de
-    // um segundo e meio depois do push, e a entrada do herói vem depois dela.
-    // Um `waitForTimeout` fixo aqui e o teste vira flaky na primeira máquina
-    // lenta, medindo Infinity e reprovando por motivo nenhum.
+    // Espera pela SOLTURA e não por um relógio: um `waitForTimeout` fixo vira
+    // flaky na primeira máquina lenta, medindo nada e reprovando sem motivo.
     await expect
       .poll(
         () =>
           page.evaluate(
             () =>
-              (window as unknown as { __entradaEm: number }).__entradaEm <
-              Number.POSITIVE_INFINITY,
+              (window as unknown as { __cobertoNaSoltura: number | null })
+                .__cobertoNaSoltura !== null,
           ),
         { timeout: 15_000 },
       )
@@ -221,15 +233,15 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
         __maior: number;
         __depois: number;
         __atributo: boolean;
-        __painelForaEm: number;
-        __entradaEm: number;
+        __moveuAntes: boolean;
+        __cobertoNaSoltura: number | null;
       };
       return {
         maior: w.__maior,
         depois: w.__depois,
         atributo: w.__atributo,
-        painelForaEm: w.__painelForaEm,
-        entradaEm: w.__entradaEm,
+        moveuAntes: w.__moveuAntes,
+        cobertoNaSoltura: w.__cobertoNaSoltura ?? Number.POSITIVE_INFINITY,
         altura: window.innerHeight,
         preso: document.documentElement.getAttribute("data-heroi"),
       };
@@ -246,12 +258,25 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
     expect(medida.preso).toBeNull();
 
     // A ordem, que é o ponto: primeiro o painel sai, depois o herói entra.
-    // Os dois instantes existem, senão a comparação abaixo passa com Infinity
-    // dos dois lados e não afirma nada.
-    expect(medida.painelForaEm).toBeLessThan(Number.POSITIVE_INFINITY);
-    expect(medida.entradaEm).toBeLessThan(Number.POSITIVE_INFINITY);
-    // Uma folga de um quadro para a amostragem em rAF.
-    expect(medida.entradaEm).toBeGreaterThan(medida.painelForaEm - 20);
+    // Medido por PIXEL e não por relógio, então isto continua valendo se a
+    // duração ou a ease da saída mudarem.
+    expect(
+      medida.moveuAntes,
+      "o herói se mexeu enquanto o painel ainda cobria a tela",
+    ).toBe(false);
+    /*
+      12% da tela, e não zero, porque a amostra é de um quadro ANTES.
+
+      A saída acelera, então nos últimos 16ms o painel percorre umas dezenas de
+      pixels: o último quadro medido antes de o atributo sumir ainda o pega com
+      uma faixa na tela, e isso é amostragem, não atraso. A folga continua
+      afirmando o que importa: soltando meio segundo antes do fim, como já foi
+      medido, o painel ainda cobre quase 90% da tela.
+    */
+    expect(
+      medida.cobertoNaSoltura,
+      "a entrada foi destravada com o painel ainda na frente",
+    ).toBeLessThan(medida.altura * 0.12);
   });
 
   /**

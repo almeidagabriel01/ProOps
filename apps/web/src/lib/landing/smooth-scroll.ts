@@ -15,6 +15,26 @@ export function setLandingLenis(lenis: Lenis | null): void {
   instance = lenis;
 }
 
+/**
+ * Trava e destrava a rolagem da página, para um painel que cobre a tela.
+ *
+ * Duas metades porque há dois donos possíveis do scroll. Com Lenis no ar é ele
+ * quem manda, e `overflow: hidden` sozinho não o impede de continuar aplicando
+ * a própria posição; sem Lenis (movimento reduzido, ou antes do
+ * `requestIdleCallback` que o cria) quem manda é o navegador, e aí o
+ * `overflow` é o único freio. Aplicar os dois cobre as duas situações sem
+ * precisar saber em qual delas a página está.
+ */
+export function setScrollLocked(locked: boolean): void {
+  if (locked) {
+    instance?.stop();
+    document.documentElement.style.overflow = "hidden";
+    return;
+  }
+  instance?.start();
+  document.documentElement.style.removeProperty("overflow");
+}
+
 export function scrollToOffset(top: number): void {
   const target = Math.max(top, 0);
   if (instance) {

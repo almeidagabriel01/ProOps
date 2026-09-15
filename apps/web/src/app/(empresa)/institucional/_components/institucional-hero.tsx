@@ -173,7 +173,7 @@ export function InstitucionalHero() {
                   className="hero-rise-line"
                   style={
                     {
-                      "--hero-delay": `${espera + 0.08 + index * 0.055}s`,
+                      "--hero-delay": `${espera + index * 0.055}s`,
                       "--hero-dur": "1s",
                     } as React.CSSProperties
                   }

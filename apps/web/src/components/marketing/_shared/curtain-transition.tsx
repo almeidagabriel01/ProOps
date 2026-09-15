@@ -150,17 +150,29 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
     const simbolo = el.querySelector<HTMLElement>("[data-simbolo]");
 
     revelacao.current?.kill();
+
+    /*
+      O refresh acontece AGORA, com o painel ainda cobrindo tudo, e não no fim.
+
+      `ScrollTrigger.refresh()` é medição de layout síncrona da página inteira,
+      e ela estava no `onComplete`, ou seja, no mesmo quadro em que a entrada do
+      herói era destravada. O resultado era um quadro longo bem no primeiro
+      movimento da entrada: a animação começava travando. Aqui a mesma medição
+      cai atrás do preto, onde um quadro perdido não é visível por ninguém.
+
+      A página que chega já montou quando `abre` roda (é o efeito do `pathname`
+      que chama isto), então o que se mede aqui é o layout final dela.
+    */
+    ScrollTrigger.refresh();
+
     const tl = gsap.timeline({
       onComplete: () => {
         revelacao.current = null;
         gsap.set(el, { autoAlpha: 0 });
         // O painel saiu da frente: agora a entrada do herói pode tocar, com o
-        // escalonamento inteiro e ninguém na frente dela.
+        // escalonamento inteiro e ninguém na frente dela. Nada mais roda neste
+        // quadro, de propósito.
         liberaHeroi();
-        // The incoming page's pinned sections measured their height while the
-        // curtain was up. Without this, every ScrollTrigger on the new page is
-        // off by the amount the layout settled.
-        ScrollTrigger.refresh();
       },
     });
 
@@ -169,12 +181,12 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
       // of erasing from the start, which reads as a rewind.
       tl.to(marca.current, {
         drawSVG: "100% 100%",
-        duration: 0.55,
+        duration: 0.42,
         ease: "power2.in",
       });
     }
     if (simbolo) {
-      tl.to(simbolo, { scale: 1.1, opacity: 0, duration: 0.45 }, "<0.06");
+      tl.to(simbolo, { scale: 1.1, opacity: 0, duration: 0.36 }, "<0.05");
     }
     // A curva troca de borda antes de o painel andar: subindo, quem arrasta é a
     // borda de baixo. Sem isto o painel sairia com a aresta reta e a saída não
@@ -184,15 +196,21 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
       tl.fromTo(
         arcoBase,
         { scaleY: 0 },
-        { scaleY: 1, duration: 0.4, ease: "power2.out" },
-        "<0.15",
+        { scaleY: 1, duration: 0.3, ease: "power2.out" },
+        "<0.1",
       );
     }
-    tl.to(
-      painel,
-      { yPercent: -100, duration: 1.05, ease: "power3.inOut" },
-      "<0.1",
-    );
+    /*
+      A saída ACELERA, e a entrada é que desacelera. Não é simetria mal feita.
+
+      Com `power3.inOut` os últimos milímetros do painel levavam mais de cem
+      milissegundos: para o olho ele já tinha saído, e a entrada do herói, que
+      espera o fim da timeline, só começava bem depois. Eram 120ms de página
+      parada que ninguém sabia explicar. Com uma ease que acelera, "sumiu da
+      tela" e "a tween acabou" viram o mesmo instante, e o gesto passa a ler
+      como um pano sendo puxado em vez de um painel deslizando com freio.
+    */
+    tl.to(painel, { yPercent: -100, duration: 0.78, ease: "power2.in" }, "<0.05");
     // A entrada do herói só começa quando a transição ACABA, e o `onComplete`
     // acima é quem solta. Houve meio segundo de sobreposição aqui, para a
     // página parecer acordar enquanto era destapada; na tela isso vira o herói
@@ -390,6 +408,9 @@ interface CurtainLinkProps {
   children: React.ReactNode;
   className?: string;
   "aria-label"?: string;
+  /** `"page"` no link da rota atual, que é o que um menu deve anunciar. */
+  "aria-current"?: "page";
+  onClick?: () => void;
 }
 
 /**
@@ -406,6 +427,8 @@ export function CurtainLink({
   children,
   className,
   "aria-label": ariaLabel,
+  "aria-current": ariaCurrent,
+  onClick,
 }: CurtainLinkProps) {
   const ctx = useContext(CurtainContext);
 
@@ -413,8 +436,13 @@ export function CurtainLink({
     <Link
       href={href}
       aria-label={ariaLabel}
+      aria-current={ariaCurrent}
       className={cn(className)}
       onClick={(event) => {
+        // Roda sempre, inclusive no clique modificado que é deixado passar:
+        // quem usa isto está fechando um painel, e um painel que fica aberto
+        // depois de um ctrl-clique é pior do que um que fecha cedo demais.
+        onClick?.();
         if (!ctx) return;
         if (
           event.defaultPrevented ||
