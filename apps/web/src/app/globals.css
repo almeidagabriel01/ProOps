@@ -1392,6 +1392,25 @@ html[data-heroi="espera"] .regua-desenha {
   --app-on-hero-muted: rgba(229, 225, 228, 0.6);
 }
 
+/* A réplica de uma tela do aplicativo é um CONTAINER DE CONSULTA, e é só isso
+   que esta classe faz.
+
+   Tudo dentro dela é dimensionado em `cqw`, ou seja, em porcentagem da largura
+   do aparelho. É o que faz a MESMA tela sair correta no herói (22rem de largura)
+   e na prateleira (11rem) sem nenhuma conta no call site e sem um `transform:
+   scale()` por cima, que borraria o texto.
+
+   `em` não resolveria: ele compõe. Um filho com `text-[0.8em]` passaria a medir
+   o próprio espaçamento contra 0,8em, e a tela sairia com proporções diferentes
+   a cada nível de aninhamento. `cqw` é sempre relativo ao container.
+
+   A contenção de tamanho que `container-type` liga também estabelece bloco de
+   contenção para os descendentes absolutos, que é exatamente o que a tab bar
+   flutuante quer. */
+.tela-app {
+  container-type: inline-size;
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    Site institucional (proops.com.br) — primitivas próprias.
 
@@ -1575,6 +1594,47 @@ html[data-heroi="espera"] .regua-desenha {
     radial-gradient(
       30rem 30rem at calc(22% - var(--px, 0) * 6%) calc(74% - var(--py, 0) * 5%),
       rgba(0, 0, 0, 0.05),
+      transparent 66%
+    );
+}
+
+/* A mesma ideia na landing do aplicativo, e no acento dele.
+
+   Ela não herda `.campo-reativo` porque aquele é branco sobre preto, e aqui a
+   única cor da página é o verde do produto: um campo neutro por trás do aparelho
+   competiria com a própria tela que se quer olhar. As porcentagens são menores
+   que as do site da empresa de propósito, porque este campo fica ATRÁS de um
+   objeto (o telefone) e não atrás de tipografia: movimento largo aqui lê como o
+   fundo escorregando por baixo do aparelho.
+
+   ⚠️ As duas cores passam por uma custom property, e isso NÃO é estilo: um
+   `color-mix()` escrito direto dentro do `radial-gradient` faz o Lightning CSS
+   (o compilador do Tailwind v4) DESCARTAR A REGRA INTEIRA no build, selector
+   incluído. Não há erro, nem aviso: a classe simplesmente não existe no CSS
+   servido, e o elemento fica transparente. Custei uma sessão para achar isso
+   porque o sintoma é idêntico ao do cache defasado do dev server, que é o
+   suspeito óbvio e estava inocente.
+
+   O valor de uma custom property não é interpretado no build, então o
+   `color-mix` chega intacto ao navegador e o verde continua saindo de
+   `--app-tint`, que é a cópia literal do tema do aplicativo. Sem blur: o
+   gradiente radial já é a mancha, e um `filter` num elemento do tamanho da
+   viewport é repintura cara por nada. */
+.campo-app {
+  --campo-app-perto: color-mix(in srgb, var(--app-tint) 13%, transparent);
+  --campo-app-longe: color-mix(in srgb, var(--app-tint) 6%, transparent);
+  position: absolute;
+  inset: -25%;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      34rem 34rem at calc(68% + var(--px, 0) * 8%) calc(24% + var(--py, 0) * 7%),
+      var(--campo-app-perto),
+      transparent 62%
+    ),
+    radial-gradient(
+      24rem 24rem at calc(22% - var(--px, 0) * 6%) calc(80% - var(--py, 0) * 5%),
+      var(--campo-app-longe),
       transparent 66%
     );
 }
