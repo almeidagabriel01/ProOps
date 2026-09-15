@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AplicativoJsonLd } from "../_components/aplicativo-json-ld";
 import { InstitucionalJsonLd } from "@/app/(empresa)/institucional/_components/institucional-json-ld";
+import { PERGUNTAS } from "../_content/faq";
 import { PLANOS } from "../_content/planos";
 import { SITE_URLS } from "@/lib/site/surfaces";
 
@@ -15,14 +16,29 @@ import { SITE_URLS } from "@/lib/site/surfaces";
  * ships, not what a renderer might do with it.
  */
 
-function payload(elemento: {
+interface ElementoScript {
   props: { dangerouslySetInnerHTML: { __html: string } };
-}): Record<string, unknown> {
+}
+
+function payload(elemento: ElementoScript): Record<string, unknown> {
   return JSON.parse(elemento.props.dangerouslySetInnerHTML.__html);
 }
 
+/**
+ * Os scripts de um componente que devolve mais de um.
+ *
+ * O do aplicativo publica DUAS entidades sem relação entre si, em `<script>`
+ * separados de propósito: num `@graph` único, um erro de sintaxe numa derrubaria
+ * a outra junto.
+ */
+function payloads(elemento: {
+  props: { children: ElementoScript[] };
+}): Record<string, unknown>[] {
+  return elemento.props.children.map(payload);
+}
+
 describe("JSON-LD do aplicativo", () => {
-  const data = payload(AplicativoJsonLd() as never);
+  const [data, faq] = payloads(AplicativoJsonLd() as never);
 
   it("declara um MobileApplication no host do app", () => {
     expect(data["@type"]).toBe("MobileApplication");
@@ -66,6 +82,44 @@ describe("JSON-LD do aplicativo", () => {
   it("não promete download enquanto não há loja", () => {
     expect(data.downloadUrl).toBeUndefined();
     expect(data.installUrl).toBeUndefined();
+  });
+
+  /**
+   * A política do Google exige que a resposta do rich result esteja VISÍVEL na
+   * página. As duas superfícies leem o mesmo `_content/faq`, então o que este
+   * teste prende é que ninguém escreva um FAQ paralelo aqui dentro: tela e
+   * schema divergindo não é inconsistência, é perder o rich result.
+   */
+  it("publica o FAQ, com as mesmas perguntas que a seção renderiza", () => {
+    expect(faq["@type"]).toBe("FAQPage");
+
+    const questoes = faq.mainEntity as Array<{
+      "@type": string;
+      name: string;
+      acceptedAnswer: { "@type": string; text: string };
+    }>;
+
+    expect(questoes).toHaveLength(PERGUNTAS.length);
+    expect(questoes.map((q) => q.name)).toEqual(
+      PERGUNTAS.map((p) => p.pergunta),
+    );
+    questoes.forEach((questao, i) => {
+      expect(questao["@type"]).toBe("Question");
+      expect(questao.acceptedAnswer["@type"]).toBe("Answer");
+      expect(questao.acceptedAnswer.text).toBe(PERGUNTAS[i].resposta);
+      expect(questao.acceptedAnswer.text.length).toBeGreaterThan(0);
+    });
+  });
+
+  /**
+   * `featureList` é descrição pública. Um recurso listado aqui que a página não
+   * mostra é a mesma classe de erro que o preço formatado: o cliente encontra
+   * antes da gente.
+   */
+  it("descreve recursos sem prometer o que ainda não existe", () => {
+    const features = data.featureList as string[];
+    expect(features.length).toBeGreaterThan(0);
+    expect(features.join(" ")).not.toMatch(/open finance|conex(ã|a)o banc/i);
   });
 });
 
