@@ -152,7 +152,22 @@ export function InstitucionalHero() {
             {WORDMARK.split("").map((letter, index) => (
               <span
                 key={index}
-                className="-mb-[0.2em] block overflow-hidden pb-[0.24em]"
+                /*
+                  O corte é `clip-path` e não `overflow-hidden`, e a diferença é
+                  o eixo. O recorte aqui existe para a subida, que é VERTICAL,
+                  mas `overflow` corta nos quatro lados, e a caixa de uma letra
+                  tem exatamente a largura de avanço do glifo. Com a cisalha
+                  empurrando a letra até 9,6px para o lado, a ponta dela saía da
+                  caixa e era decepada: um corte reto e limpo, que na tela parece
+                  defeito da fonte.
+
+                  `inset(0 -14px)` corta em cima e embaixo exatamente onde o
+                  overflow cortava, e deixa 14px de folga de cada lado, com
+                  sobra sobre a cisalha máxima (`--px` em 1, vezes 1,6px pela
+                  última letra). Não dá para pedir isso com `overflow`: mexer
+                  num eixo só faz o outro virar `auto`.
+                */
+                className="-mb-[0.2em] block pb-[0.24em] [clip-path:inset(0_-14px)]"
               >
                 <span
                   className="hero-rise-line"

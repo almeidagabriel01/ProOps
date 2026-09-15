@@ -94,10 +94,10 @@ describe("a entrada do herói espera a cortina", () => {
     expect(escreve).toBeGreaterThan(-1);
     expect(empurra).toBeGreaterThan(escreve);
 
-    // E solta em mais de um lugar: durante a subida do painel, no fim da
-    // timeline, no destravamento de segurança e ao desmontar. Preso, ele
-    // congela o herói de toda página do site, para sempre e sem erro nenhum.
-    const soltas = cortina.match(/liberaHeroi/g) ?? [];
-    expect(soltas.length).toBeGreaterThanOrEqual(5);
+    // E solta em mais de um lugar: no fim da revelação, no destravamento de
+    // segurança e ao desmontar. Preso, ele congela o herói de toda página do
+    // site, para sempre e sem erro nenhum.
+    const chamadas = cortina.match(/liberaHeroi\(\)/g) ?? [];
+    expect(chamadas.length).toBeGreaterThanOrEqual(3);
   });
 });

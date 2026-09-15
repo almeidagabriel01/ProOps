@@ -14,6 +14,24 @@ export const SCENE_DESKTOP =
 /** Any width, still respecting the motion preference. */
 export const SCENE_ANY_WIDTH = "(prefers-reduced-motion: no-preference)";
 
+/**
+ * `toggleActions` de uma revelação que acontece TODA vez que o leitor chega.
+ *
+ * A ordem é onEnter, onLeave, onEnterBack, onLeaveBack. `restart` na entrada e
+ * `reset` ao sair por cima: descer revela, subir de volta devolve a cena ao
+ * estado inicial, e descer de novo revela de novo.
+ *
+ * Isto substituiu `once: true` em toda cena de revelação do site da empresa.
+ * O argumento a favor do `once` era que texto que volta a apagar quando alguém
+ * sobe para reler é hostil; o argumento contra, que ganhou, é que numa página
+ * inteira construída sobre movimento uma seção que não responde mais parece
+ * quebrada, e o leitor não sabe que ela "já tocou". Uma cena só toca enquanto
+ * está FORA de vista na volta, então ninguém vê texto apagar debaixo do olho.
+ *
+ * Cena com `scrub` não usa isto: ela já é reversível por construção.
+ */
+export const CENA_REPETE = "restart none none reset";
+
 interface ScrollSceneOptions {
   /** Media query the scene is built under. Defaults to desktop only. */
   query?: string;

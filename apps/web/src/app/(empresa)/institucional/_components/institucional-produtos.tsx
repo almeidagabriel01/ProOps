@@ -6,7 +6,10 @@ import gsap from "gsap";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { Realce } from "@/components/institucional/secao";
 import { Magnetic } from "@/components/marketing/_shared/magnetic";
-import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene";
+import {
+  CENA_REPETE,
+  useScrollScene,
+} from "@/components/marketing/_shared/use-scroll-scene";
 import { APP_NAME } from "@/lib/site/app-brand";
 import { SITE_URLS } from "@/lib/site/surfaces";
 
@@ -143,7 +146,7 @@ export function InstitucionalProdutos() {
             scrollTrigger: {
               trigger: copia,
               start: "top 80%",
-              once: true,
+              toggleActions: CENA_REPETE,
             },
           },
         ),

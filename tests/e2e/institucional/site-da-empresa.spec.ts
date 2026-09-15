@@ -133,6 +133,10 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
    * MENOR cobertura vista depois do pico, que é o que prova que o painel saiu
    * andando em vez de sumir. Sem essa metade, um painel que desaparecesse de uma
    * vez continuaria passando.
+   *
+   * E mede a ORDEM: a entrada do herói tem que começar depois de o painel sair
+   * da frente, nunca atrás dele. É o `animationstart` das classes de entrada
+   * contra o instante em que o painel deixou de cobrir a tela.
    */
   test("a cortina cobre e depois SOBE também indo para a raiz", async ({
     page,
@@ -145,10 +149,29 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
         __maior: number;
         __depois: number;
         __atributo: boolean;
+        __painelForaEm: number;
+        __entradaEm: number;
       };
       w.__maior = 0;
       w.__depois = Number.POSITIVE_INFINITY;
       w.__atributo = false;
+      w.__painelForaEm = Number.POSITIVE_INFINITY;
+      w.__entradaEm = Number.POSITIVE_INFINITY;
+
+      document.addEventListener(
+        "animationstart",
+        (evento) => {
+          const alvo = evento.target as HTMLElement;
+          if (
+            alvo.classList?.contains("hero-enter") ||
+            alvo.classList?.contains("hero-rise-line")
+          ) {
+            w.__entradaEm = Math.min(w.__entradaEm, performance.now());
+          }
+        },
+        true,
+      );
+
       const amostra = () => {
         if (document.documentElement.getAttribute("data-heroi") === "espera") {
           w.__atributo = true;
@@ -162,6 +185,9 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
           w.__maior = Math.max(w.__maior, coberto);
           if (w.__maior > window.innerHeight * 0.8) {
             w.__depois = Math.min(w.__depois, coberto);
+            if (coberto <= 1 && w.__painelForaEm === Number.POSITIVE_INFINITY) {
+              w.__painelForaEm = performance.now();
+            }
           }
         }
         requestAnimationFrame(amostra);
@@ -174,17 +200,40 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
       .getByRole("link", { name: "ProOps, página inicial" })
       .click();
     await page.waitForURL(`${APEX}/institucional`);
-    // A revelação leva pouco mais de um segundo e meio depois do push, e o
-    // `waitForURL` volta antes dela terminar.
-    await page.waitForTimeout(2500);
+    // Espera pela ENTRADA e não por um relógio: a revelação leva pouco mais de
+    // um segundo e meio depois do push, e a entrada do herói vem depois dela.
+    // Um `waitForTimeout` fixo aqui e o teste vira flaky na primeira máquina
+    // lenta, medindo Infinity e reprovando por motivo nenhum.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () =>
+              (window as unknown as { __entradaEm: number }).__entradaEm <
+              Number.POSITIVE_INFINITY,
+          ),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
-    const medida = await page.evaluate(() => ({
-      maior: (window as unknown as { __maior: number }).__maior,
-      depois: (window as unknown as { __depois: number }).__depois,
-      atributo: (window as unknown as { __atributo: boolean }).__atributo,
-      altura: window.innerHeight,
-      preso: document.documentElement.getAttribute("data-heroi"),
-    }));
+    const medida = await page.evaluate(() => {
+      const w = window as unknown as {
+        __maior: number;
+        __depois: number;
+        __atributo: boolean;
+        __painelForaEm: number;
+        __entradaEm: number;
+      };
+      return {
+        maior: w.__maior,
+        depois: w.__depois,
+        atributo: w.__atributo,
+        painelForaEm: w.__painelForaEm,
+        entradaEm: w.__entradaEm,
+        altura: window.innerHeight,
+        preso: document.documentElement.getAttribute("data-heroi"),
+      };
+    });
 
     expect(medida.maior).toBeGreaterThan(medida.altura * 0.8);
     // Saiu andando: em algum quadro depois do pico o painel cobria menos de um
@@ -195,6 +244,14 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
     expect(medida.atributo).toBe(true);
     // ...e destravada depois. Preso aqui congela o herói de toda página do site.
     expect(medida.preso).toBeNull();
+
+    // A ordem, que é o ponto: primeiro o painel sai, depois o herói entra.
+    // Os dois instantes existem, senão a comparação abaixo passa com Infinity
+    // dos dois lados e não afirma nada.
+    expect(medida.painelForaEm).toBeLessThan(Number.POSITIVE_INFINITY);
+    expect(medida.entradaEm).toBeLessThan(Number.POSITIVE_INFINITY);
+    // Uma folga de um quadro para a amostragem em rAF.
+    expect(medida.entradaEm).toBeGreaterThan(medida.painelForaEm - 20);
   });
 
   /**
@@ -294,6 +351,102 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
         opacidades.filter((o) => o > 0.01),
         `${fecho.url}: linha visível antes de a revelação começar`,
       ).toHaveLength(0);
+    }
+  });
+
+  /**
+   * A revelação toca DE NOVO quando o leitor volta.
+   *
+   * As cenas de revelação eram `once: true`, e numa página inteira construída
+   * sobre movimento uma seção que não responde mais na segunda passada parece
+   * quebrada: o leitor não tem como saber que ela "já tocou". Agora elas usam
+   * `CENA_REPETE`, e o ciclo tem que fechar: escondido no topo, revelado embaixo,
+   * escondido de novo na volta, revelado de novo na segunda descida.
+   *
+   * A roda de verdade e não `window.scrollTo`: a página roda Lenis, e é o Lenis
+   * que chama `ScrollTrigger.update`. Com `scrollTo` a página anda e as cenas
+   * congelam no progresso anterior, o que parece cena quebrada e é ferramenta
+   * errada.
+   */
+  test("a revelação do fecho toca de novo na segunda descida", async ({
+    page,
+  }) => {
+    await page.goto(`${APEX}/manifesto`);
+    await page.waitForLoadState("networkidle");
+
+    const linhas = page.locator('[aria-label="A contrapartida"] .split-line');
+    const opacidades = () =>
+      linhas.evaluateAll((els) =>
+        els.map((el) => Number(getComputedStyle(el).opacity)),
+      );
+
+    const rolar = async (delta: number, vezes: number) => {
+      for (let i = 0; i < vezes; i++) {
+        await page.mouse.wheel(0, delta);
+        await page.waitForTimeout(220);
+      }
+      await page.waitForTimeout(1800);
+    };
+
+    const todas = (valores: number[], alvo: number) =>
+      valores.length > 1 && valores.every((v) => Math.abs(v - alvo) < 0.05);
+
+    expect(todas(await opacidades(), 0)).toBe(true);
+    await rolar(900, 9);
+    expect(todas(await opacidades(), 1)).toBe(true);
+
+    await page.mouse.wheel(0, -20000);
+    await page.waitForTimeout(2500);
+    expect(
+      todas(await opacidades(), 0),
+      "voltando ao topo a cena tem que voltar ao estado inicial",
+    ).toBe(true);
+
+    await rolar(900, 9);
+    expect(
+      todas(await opacidades(), 1),
+      "na segunda descida a revelação tem que acontecer de novo",
+    ).toBe(true);
+  });
+
+  /**
+   * A cisalha do wordmark não pode decepar a letra.
+   *
+   * Cada letra da raiz mora numa caixa recortada, que existe para o corte
+   * VERTICAL da subida. `overflow-hidden` corta nos quatro lados, e a caixa tem
+   * exatamente a largura de avanço do glifo: com o ponteiro no extremo, a última
+   * letra é empurrada 9,6px para o lado e a ponta dela era cortada reto, o que na
+   * tela parece defeito da fonte. O recorte é `clip-path` com folga lateral
+   * agora, e o teste mede a folga contra o deslocamento real.
+   */
+  test("o wordmark não é cortado quando a cisalha vai ao extremo", async ({
+    page,
+  }) => {
+    await page.goto(`${APEX}/institucional`);
+    await page.waitForLoadState("networkidle");
+
+    const largura = page.viewportSize()?.width ?? 1280;
+    await page.mouse.move(largura - 1, 400);
+    await page.waitForTimeout(1200);
+
+    const letras = await page.evaluate(() => {
+      const riscos = [...document.querySelectorAll("h1 .hero-rise-line")];
+      return riscos.map((risco) => {
+        const caixa = (risco.parentElement as HTMLElement).getBoundingClientRect();
+        const glifo = (risco.firstElementChild as HTMLElement).getBoundingClientRect();
+        const clip = getComputedStyle(risco.parentElement as HTMLElement).clipPath;
+        const folga = Number(/-(\d+(?:\.\d+)?)px/.exec(clip)?.[1] ?? 0);
+        return {
+          saliencia: Math.max(glifo.right - caixa.right, caixa.left - glifo.left),
+          folga,
+        };
+      });
+    });
+
+    expect(letras.length).toBeGreaterThan(1);
+    for (const letra of letras) {
+      // A folga do recorte tem que cobrir o quanto o glifo saiu da caixa.
+      expect(letra.folga).toBeGreaterThan(letra.saliencia);
     }
   });
 

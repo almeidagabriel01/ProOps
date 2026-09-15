@@ -29,9 +29,11 @@ const LAMINAS = 6;
  * as one mechanism rather than two effects. Which is exactly why it plays ONCE
  * per document: coming back to the root from a sub-page already draws the
  * curtain, and replaying the opening on top of it reads as the same effect
- * stuttering twice. `useAberturaVaiTocar` is where that once-per-document
- * decision lives, and the hero reads it too: its entrance waits for these slats,
- * so on a return where they do not play it must not wait for them either.
+ * stuttering twice. The same is true of the FIRST visit to the root when it
+ * happens from inside the site, which `jaAbriu` alone cannot see, so
+ * `useAberturaVaiTocar` also asks whether this page mounted under the curtain.
+ * The hero reads that same decision: its entrance waits for these slats, so on
+ * an arrival where they do not play it must not wait for them either.
  *
  * Under `prefers-reduced-motion` globals.css pins the slats at `scaleY(0)` and
  * the counter at its last frame, so the page simply opens.

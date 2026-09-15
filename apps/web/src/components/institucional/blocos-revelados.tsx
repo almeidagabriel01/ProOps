@@ -5,6 +5,7 @@ import gsap from "gsap";
 
 import { useHolofote } from "@/components/marketing/_shared/use-holofote";
 import {
+  CENA_REPETE,
   SCENE_ANY_WIDTH,
   useScrollScene,
 } from "@/components/marketing/_shared/use-scroll-scene";
@@ -44,9 +45,11 @@ interface BlocosReveladosProps {
  *   closing one: a full border on a monochrome card just makes it a box.
  *
  * The reveal is `fromTo` from the FINAL state, so the markup on screen without
- * JavaScript, and under `prefers-reduced-motion`, is the finished grid. It is a
- * one-shot (`once: true`) rather than a scrub: these are read, not watched, and
- * text that re-dims when the reader scrolls back up to re-read it is hostile.
+ * JavaScript, and under `prefers-reduced-motion`, is the finished grid. Not a
+ * scrub: these are read, not watched, and type that dims under the eye of
+ * someone re-reading it is hostile. But it does replay (`CENA_REPETE`), because
+ * numa página construída sobre movimento uma seção que só toca uma vez parece
+ * quebrada na segunda passada.
  */
 export function BlocosRevelados({
   blocos,
@@ -76,7 +79,7 @@ export function BlocosRevelados({
           scrollTrigger: {
             trigger: escopo.current,
             start: "top 85%",
-            once: true,
+            toggleActions: CENA_REPETE,
             invalidateOnRefresh: true,
           },
         },

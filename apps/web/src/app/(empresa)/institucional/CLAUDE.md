@@ -43,10 +43,13 @@ Tocar sozinha tem um preço, e ele é pago em dois lugares:
 - **Numa navegação por cortina a página nova monta ATRÁS do painel preto**, e a
   entrada inteira tocava ali, escondida: quando o painel subia, o herói já
   estava parado no estado final. O `CurtainProvider` escreve
-  `data-heroi="espera"` no `<html>` antes do `router.push` e apaga meio
-  segundo antes de o painel terminar de sair; a regra em globals.css pausa as
-  duas classes enquanto o atributo existe. O atributo mora no `<html>` porque a
-  página que vai animar ainda não existe quando a cortina fecha.
+  `data-heroi="espera"` no `<html>` antes do `router.push` e apaga **quando a
+  revelação termina**, não antes; a regra em globals.css pausa as duas classes
+  enquanto o atributo existe. O atributo mora no `<html>` porque a página que vai
+  animar ainda não existe quando a cortina fecha. Houve meio segundo de
+  sobreposição ali, para a página parecer acordar enquanto era destapada, e na
+  tela isso vira o herói se mexendo atrás da aresta do painel: parte da entrada
+  perdida de novo, só que menos.
 - **Os atrasos do herói da RAIZ são relativos à abertura**, via
   `esperaDaAbertura(useAberturaVaiTocar())`. Eles existem para deixar as seis
   lâminas saírem primeiro; escritos como `1,08s` fixos, viravam mais de um
@@ -240,6 +243,23 @@ O modelo de conteúdo é que sustenta isso: `Principio` e `Marco` têm um campo
 `resumo` **separado** do `texto`, e cada campo tem uma superfície só. Ao
 acrescentar assunto novo, decida o dono antes de escrever o componente, senão a
 duplicação volta pela porta dos fundos.
+
+## Toda revelação toca DE NOVO quando o leitor volta
+
+`SplitReveal` (modo `rise`), `BlocosRevelados` e a chegada das cópias de
+`/produtos` no celular usam `toggleActions: CENA_REPETE`
+(`"restart none none reset"`), e não `once: true`. Descer revela, subir de volta
+devolve a cena ao estado inicial, descer de novo revela de novo.
+
+O argumento a favor do `once` está escrito no histórico e era razoável: texto
+que volta a apagar enquanto alguém sobe para reler é hostil. O que o derrubou é
+que numa página inteira construída sobre movimento uma seção que não responde
+mais na segunda passada parece quebrada, e o leitor não tem como saber que ela
+"já tocou". Como o `reset` acontece ao sair pelo topo, a cena está fora de vista
+quando volta ao estado inicial: ninguém vê texto apagar debaixo do olho.
+
+Cena com `scrub` (tudo que usa `useScrollProgress`) já era reversível por
+construção e não precisa disto.
 
 ## O fecho de cada página revela linha a linha
 

@@ -65,6 +65,16 @@ export default function ManifestoPage() {
         />
       ))}
 
+      {/*
+        A contrapartida era três frases no espelho do princípio: gerúndio no
+        começo, custo no fim, três vezes seguidas. Lia como exercício de retórica
+        e não dizia nada que alguém pudesse conferir antes de assinar.
+
+        Agora é uma lista do que a ProOps NÃO entrega, com o motivo de cada
+        ausência. É a mesma honestidade, escrita de um jeito que serve para
+        decidir: quem precisa de uma das três sabe, na leitura, que tem que
+        procurar em outro lugar.
+      */}
       <Secao tom="claro" aria-label="A contrapartida">
         <div className="mx-auto max-w-3xl">
           <TituloSecao
@@ -72,10 +82,10 @@ export default function ManifestoPage() {
             sobrancelha="A contrapartida"
             titulo={
               <>
-                Todo princípio <Realce>custa</Realce> alguma coisa.
+                Três coisas que a ProOps <Realce>não</Realce> vai te dar.
               </>
             }
-            className="mb-10"
+            className="mb-12"
           />
           {/*
             Line by line, and not word by word: these are three admissions read
@@ -83,27 +93,59 @@ export default function ManifestoPage() {
             waiting. `SplitReveal` splits on `lines`, which also keeps text
             selection working within a sentence.
           */}
-          <div className="space-y-6 text-base leading-relaxed text-black/65 md:text-lg">
-            <SplitReveal unit="lines" stagger={0.06}>
-              Escolher o uso de terça-feira em vez da demonstração significa que
-              a ProOps perde alguma venda para um produto mais vistoso na
-              primeira reunião.
-            </SplitReveal>
-            <SplitReveal unit="lines" stagger={0.06}>
-              Manter uma base só significa dizer não a integrações que fariam o
-              mesmo dado voltar a morar em dois lugares.
-            </SplitReveal>
-            <SplitReveal unit="lines" stagger={0.06}>
-              Gastar tempo no detalhe que ninguém vê significa entregar menos
-              coisas por trimestre do que quem não gasta.
-            </SplitReveal>
+          <ol className="space-y-10">
+            {[
+              {
+                falta: "Uma primeira reunião mais bonita que a do concorrente.",
+                porque:
+                  "O que a gente abre na tela é o sistema em que você vai trabalhar na terça à tarde, com o seu catálogo e os seus números dentro. Isso perde de um vídeo bem editado, e perde toda vez.",
+              },
+              {
+                falta: "Integração com tudo.",
+                porque:
+                  "Cada conexão nova é mais um lugar onde o mesmo dado pode divergir. Elas entram uma de cada vez, e só quando dá para dizer sem hesitar quem manda naquele dado.",
+              },
+              {
+                falta: "Novidade toda semana.",
+                porque:
+                  "O tempo que vai para o fuso horário, para o centavo do arredondamento e para a permissão de quem vê o quê é tempo que não aparece em lista de lançamento nenhuma.",
+              },
+            ].map((item, indice) => (
+              <li key={item.falta} className="flex gap-6 md:gap-8">
+                <span
+                  aria-hidden="true"
+                  className="mt-1 shrink-0 [font-family:var(--font-geist-mono)] text-[11px] tabular-nums tracking-[0.2em] text-black/30"
+                >
+                  {String(indice + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <SplitReveal
+                    unit="lines"
+                    stagger={0.06}
+                    className="[font-family:var(--font-bricolage)] text-xl font-semibold leading-snug tracking-tight text-black md:text-2xl"
+                  >
+                    {item.falta}
+                  </SplitReveal>
+                  <SplitReveal
+                    unit="lines"
+                    stagger={0.06}
+                    className="mt-4 text-base leading-relaxed text-black/60 md:text-lg"
+                  >
+                    {item.porque}
+                  </SplitReveal>
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-14 border-t border-black/15 pt-10">
             <SplitReveal
               unit="lines"
               stagger={0.06}
-              className="[font-family:var(--font-bricolage)] text-xl font-semibold text-black md:text-2xl"
+              className="[font-family:var(--font-fraunces)] text-2xl italic leading-snug text-black md:text-3xl"
             >
-              A gente aceita os três, e prefere dizer isso aqui do que descobrir
-              junto depois.
+              A gente aceita as três, e prefere dizer isso aqui do que você
+              descobrir junto, depois de assinar.
             </SplitReveal>
           </div>
         </div>

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { chegouSobACortina } from "@/components/marketing/_shared/curtain-transition";
+
 /**
  * Whether this document has already played the opening.
  *
@@ -34,7 +36,15 @@ export function useAberturaVaiTocar(): boolean {
   // On the server this is always true, so the markup is in the HTML and the CSS
   // plays at first paint; on the client's first render `jaAbriu` is still false,
   // so hydration matches. Only a later client-side navigation reads `true`.
-  const [vaiTocar] = useState(() => typeof window === "undefined" || !jaAbriu);
+  //
+  // `chegouSobACortina` cobre o caso que o `jaAbriu` sozinho não vê: a PRIMEIRA
+  // visita à raiz pode acontecer por dentro do site, vindo de /sobre. Ali o
+  // painel da transição acabou de cobrir a troca, e as lâminas entrariam logo
+  // por cima dele. Além de ser o mesmo gesto duas vezes, isso empurra a entrada
+  // do herói mais um segundo para a frente, atrás de uma segunda tela preta.
+  const [vaiTocar] = useState(
+    () => typeof window === "undefined" || (!jaAbriu && !chegouSobACortina()),
+  );
 
   useEffect(() => {
     jaAbriu = true;

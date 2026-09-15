@@ -6,7 +6,7 @@ import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { SplitText } from "gsap/dist/SplitText";
 
 import { cn } from "@/lib/utils";
-import { SCENE_ANY_WIDTH, useScrollScene } from "./use-scroll-scene";
+import { CENA_REPETE, SCENE_ANY_WIDTH, useScrollScene } from "./use-scroll-scene";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, SplitText);
@@ -128,7 +128,7 @@ export function SplitReveal({
                 scrollTrigger: {
                   trigger: el,
                   start: start ?? "top 85%",
-                  once: true,
+                  toggleActions: CENA_REPETE,
                   invalidateOnRefresh: true,
                 },
               },

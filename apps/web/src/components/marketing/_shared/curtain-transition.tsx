@@ -51,6 +51,21 @@ function liberaHeroi() {
   document.documentElement.removeAttribute(ATRIBUTO_ESPERA);
 }
 
+/**
+ * `true` quando a página que está montando agora veio de uma navegação por
+ * cortina, e portanto está nascendo debaixo do painel preto.
+ *
+ * Existe para a abertura da raiz: ela toca uma vez por documento, e se a
+ * primeira visita à raiz acontecer por dentro do site, a cortina acabou de
+ * cobrir a troca e as seis lâminas entrariam logo por cima dela. É o mesmo
+ * gesto duas vezes seguidas, que é exatamente o que a abertura tocar só uma vez
+ * existia para evitar.
+ */
+export function chegouSobACortina(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.documentElement.getAttribute(ATRIBUTO_ESPERA) === "espera";
+}
+
 interface CurtainContextValue {
   navegar: (href: string) => void;
 }
@@ -139,9 +154,8 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
       onComplete: () => {
         revelacao.current = null;
         gsap.set(el, { autoAlpha: 0 });
-        // Piso, não o gatilho normal: a liberação de verdade acontece meio
-        // segundo antes, ainda dentro da subida. Aqui é só a garantia de que
-        // nada fica preso se a timeline for cortada no meio.
+        // O painel saiu da frente: agora a entrada do herói pode tocar, com o
+        // escalonamento inteiro e ninguém na frente dela.
         liberaHeroi();
         // The incoming page's pinned sections measured their height while the
         // curtain was up. Without this, every ScrollTrigger on the new page is
@@ -179,12 +193,11 @@ export function CurtainProvider({ children }: { children: React.ReactNode }) {
       { yPercent: -100, duration: 1.05, ease: "power3.inOut" },
       "<0.1",
     );
-    // A entrada do herói COMEÇA antes de o painel terminar de sair, e não
-    // depois: solta no fim da subida, a página aparece inteira e só então se
-    // mexe, que é uma pausa morta no meio da transição. Meio segundo de
-    // sobreposição faz a coisa parecer uma página sendo destapada enquanto
-    // acorda.
-    tl.call(liberaHeroi, undefined, "-=0.5");
+    // A entrada do herói só começa quando a transição ACABA, e o `onComplete`
+    // acima é quem solta. Houve meio segundo de sobreposição aqui, para a
+    // página parecer acordar enquanto era destapada; na tela isso vira o herói
+    // se mexendo atrás da aresta do painel, ou seja, parte da entrada perdida
+    // de novo, só que menos.
     revelacao.current = tl;
   }, []);
 

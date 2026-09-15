@@ -126,11 +126,12 @@ export const PRINCIPIOS: Principio[] = [
   },
   {
     titulo: "O detalhe que ninguém vê",
-    resumo: "Fuso, centavo, acento, permissão. É onde a confiança se ganha ou se perde.",
+    resumo:
+      "O erro que custa caro nunca está na tela principal. Está no centavo e na data.",
     texto:
-      "Fuso, centavo, acento, permissão. É onde o software perde a confiança de quem usa, e é onde a gente gasta o tempo.",
+      "O erro que custa caro nunca está na tela principal. É um centavo que não fecha, uma data que cai no mês errado, um número que um funcionário não devia estar vendo.",
     detalhe:
-      "Um exemplo: todo campo de formulário tem 16 pixels no celular, porque com menos que isso o iPhone dá zoom sozinho quando alguém toca nele. Ninguém vai reparar nisso. Reparar seria o sintoma.",
+      "Um recebimento do dia primeiro tem que entrar no fechamento do mês certo, e não no anterior porque o servidor está num fuso diferente do seu. Ninguém elogia isso. Mas basta acontecer uma vez para a pessoa voltar a conferir tudo na mão, e a partir daí o sistema já perdeu, por mais bonito que seja o resto.",
   },
 ];
 
