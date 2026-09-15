@@ -475,6 +475,54 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
     }
   });
 
+  /**
+   * A barra RECUA ao descer, e não sai da tela.
+   *
+   * A primeira versão saía inteira (`-translate-y-full`). Resolvia o ruído sobre
+   * as cenas de tela cheia e criava outro problema: o menu deixava de estar onde
+   * a pessoa o procura, e voltar a ele passava a exigir um gesto. Agora ela sobe
+   * oito pixels e fica mais translúcida, o que é o oposto de sumir.
+   *
+   * As duas metades importam. "Recuou" sozinho passaria com a barra fora da
+   * tela; "continua na tela" sozinho passaria com ela imóvel.
+   */
+  test("a barra recua ao descer e continua alcançável", async ({ page }) => {
+    await page.goto(`${APEX}/institucional`);
+    await page.waitForLoadState("networkidle");
+
+    // Longe da faixa de cima: o ponteiro parado lá traz a barra de volta
+    // inteira, de propósito, e isso faria a medida abaixo ler o estado errado.
+    await page.mouse.move(700, 600);
+
+    const topoDaBarra = () =>
+      page.evaluate(
+        () => document.querySelector("header")!.getBoundingClientRect().top,
+      );
+
+    expect(await topoDaBarra()).toBeCloseTo(0, 0);
+
+    for (let i = 0; i < 8; i += 1) {
+      await page.mouse.wheel(0, 700);
+      await page.waitForTimeout(140);
+    }
+    await page.waitForTimeout(1200);
+
+    const recuado = await topoDaBarra();
+    expect(recuado, "a barra não recuou ao descer").toBeLessThan(-2);
+    expect(recuado, "a barra saiu da tela em vez de recuar").toBeGreaterThan(-28);
+
+    // E continua sendo um menu: o destino segue clicável de onde está.
+    await expect(
+      page
+        .getByRole("navigation", { name: "Principal" })
+        .getByRole("link", { name: "Manifesto" }),
+    ).toBeVisible();
+
+    await page.mouse.wheel(0, -500);
+    await page.waitForTimeout(1200);
+    expect(await topoDaBarra(), "a barra não voltou ao subir").toBeCloseTo(0, 0);
+  });
+
   test("toda âncora interna aponta para um id que existe, e só um", async ({
     page,
   }) => {

@@ -19,8 +19,8 @@ const SAIDA: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 /** Quanto se rola antes de a barra virar cápsula. */
 const CONDENSA_EM = 24;
-/** Só depois disto a barra some ao descer: perto do topo ela fica sempre. */
-const ESCONDE_DEPOIS_DE = 1.2;
+/** Só depois disto a barra recua ao descer: perto do topo ela fica inteira. */
+const RECUA_DEPOIS_DE = 1.2;
 
 /**
  * Chrome for the company site, on every one of its pages.
@@ -53,10 +53,13 @@ const ESCONDE_DEPOIS_DE = 1.2;
  *   lugar novo. Sublinhado por link não conseguiria isso: cada um seria uma
  *   animação independente, e o que dá a sensação de um controle só é o objeto
  *   ser um só.
- * - **Ela sai da frente enquanto se desce e volta ao subir.** As páginas daqui
+ * - **Ela RECUA enquanto se desce, e volta inteira ao subir.** As páginas daqui
  *   são cenas de tela cheia presas ao scroll, e uma barra parada por cima delas
- *   é ruído sobre a única coisa que a página está tentando mostrar. Perto do
- *   topo ela nunca some, para não sumir bem quando alguém a procura.
+ *   é ruído sobre a única coisa que a página está tentando mostrar. Recuar é
+ *   oito pixels para cima e um pouco mais de transparência: ela sai do primeiro
+ *   plano e continua clicável, ali onde a pessoa a procura. Sair inteira da tela
+ *   foi a primeira versão e trocava um problema por outro, porque voltar ao menu
+ *   passava a exigir um gesto. Perto do topo ela nunca recua.
  * - **Um filete mede o quanto falta.** São páginas longas, e a barra de
  *   progresso é a informação que a cápsula tem espaço para dar de graça. É
  *   `scaleX` num `MotionValue` escrito fora do React: escrever progresso em
@@ -75,7 +78,7 @@ export function EmpresaNavbar() {
   const pathname = usePathname();
   const reduce = useReducedMotion();
   const [condensada, setCondensada] = useState(false);
-  const [escondida, setEscondida] = useState(false);
+  const [recuada, setRecuada] = useState(false);
   const [pairado, setPairado] = useState<number | null>(null);
   // The sheet remembers WHICH page it was opened on, not merely that it is open.
   // Comparing that to the current path closes it on navigation for free: an
@@ -92,7 +95,7 @@ export function EmpresaNavbar() {
   useEffect(() => {
     let ultimo = window.scrollY;
     let agendado = false;
-    let escondidoAgora = false;
+    let recuadoAgora = false;
 
     const medir = () => {
       agendado = false;
@@ -103,25 +106,25 @@ export function EmpresaNavbar() {
       setCondensada(y > CONDENSA_EM);
 
       /*
-        O estado é PEGAJOSO: escondida continua escondida até alguém subir.
+        O estado é PEGAJOSO: recuada continua recuada até alguém subir.
 
         A primeira versão derivava direto do delta do quadro ("está descendo?"),
         e com isso a barra voltava sozinha no instante em que o scroll parava,
         que é toda vez que alguém para para ler. Ela piscava de volta no meio de
-        cada cena, que é pior do que nunca ter saído.
+        cada cena, que é pior do que nunca ter recuado.
 
         Zona morta de 4px porque o Lenis desacelera em frações de pixel: sem ela
         o fim de cada rolagem conta como subida.
       */
-      const piso = window.innerHeight * ESCONDE_DEPOIS_DE;
-      let proximo = escondidoAgora;
+      const piso = window.innerHeight * RECUA_DEPOIS_DE;
+      let proximo = recuadoAgora;
       if (y <= piso) proximo = false;
       else if (y > ultimo + 4) proximo = true;
       else if (y < ultimo - 4) proximo = false;
 
-      if (proximo !== escondidoAgora) {
-        escondidoAgora = proximo;
-        setEscondida(proximo);
+      if (proximo !== recuadoAgora) {
+        recuadoAgora = proximo;
+        setRecuada(proximo);
       }
       ultimo = y;
     };
@@ -160,20 +163,29 @@ export function EmpresaNavbar() {
       {/*
         O índice é IRMÃO do `<header>`, e não filho dele, e isso é obrigatório.
 
-        O header carrega `translate-y-0` / `-translate-y-full` para sair da
-        frente ao descer. No Tailwind v4 essas classes compilam para a
-        propriedade CSS `translate`, que, como `transform`, torna o elemento um
-        bloco de contenção para descendentes `fixed`. Um painel `fixed inset-0`
-        dentro dele não cobre a tela: cobre a CAIXA DO HEADER, que tem a altura
-        da cápsula. O sintoma é um menu de tela cheia recortado numa faixa de uns
+        O header carrega `translate-y-0` / `-translate-y-2` para recuar ao
+        descer. No Tailwind v4 essas classes compilam para a propriedade CSS
+        `translate`, que, como `transform`, torna o elemento um bloco de
+        contenção para descendentes `fixed`. Um painel `fixed inset-0` dentro
+        dele não cobre a tela: cobre a CAIXA DO HEADER, que tem a altura da
+        cápsula. Vale para qualquer valor, inclusive o `translate-y-0` do estado
+        em repouso. O sintoma é um menu de tela cheia recortado numa faixa de uns
         cento e cinquenta pixels, com a página aparecendo por baixo, e nada falha
         em lugar nenhum. É a mesma armadilha que já custou uma vez na cortina de
         transição, por outro caminho.
       */}
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-[80] transition-transform duration-500 ease-out",
-          escondida && !aberta ? "-translate-y-full" : "translate-y-0",
+          "fixed inset-x-0 top-0 z-[80] transition-[transform,opacity] duration-500 ease-out",
+          recuada && !aberta
+            ? // Recua, e não some. Sair inteira da tela resolvia o ruído sobre
+              // as cenas e criava outro problema: o menu deixava de estar onde
+              // a pessoa o procura, e voltar a ele virava um gesto. Oito pixels
+              // para cima e um pouco mais translúcida bastam para ele sair do
+              // primeiro plano sem sair do alcance. Passar o ponteiro pela
+              // faixa de cima o traz de volta inteiro, sem precisar rolar.
+              "-translate-y-2 opacity-55 hover:translate-y-0 hover:opacity-100"
+            : "translate-y-0 opacity-100",
         )}
       >
         <div className="px-3 pt-3 md:px-6 md:pt-4">

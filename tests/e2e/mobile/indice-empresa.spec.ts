@@ -3,8 +3,8 @@
  *
  * Ele é um índice de tela cheia, e "de tela cheia" é a parte que precisa de
  * teste. O painel é `fixed inset-0`, o que normalmente resolve contra o
- * viewport; mas o `<header>` carrega `translate-y-0` / `-translate-y-full` para
- * sair da frente ao descer, e no Tailwind v4 essas classes compilam para a
+ * viewport; mas o `<header>` carrega `translate-y-0` / `-translate-y-2` para
+ * recuar ao descer, e no Tailwind v4 essas classes compilam para a
  * propriedade CSS `translate`, que torna o elemento um bloco de contenção para
  * descendentes `fixed`. Com o painel dentro do header ele cobria a CAIXA DO
  * HEADER, ou seja, uma faixa de uns cento e cinquenta pixels, com a página

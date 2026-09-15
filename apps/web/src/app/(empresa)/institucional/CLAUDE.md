@@ -171,7 +171,7 @@ os 800 genéricos) e **CLS ≤ 0,1 é `error`**. Daí duas escolhas estruturais:
   que o item acima: no v4 a classe vira a propriedade `translate`, e `translate`
   (como `transform`) faz o elemento virar o referencial de qualquer descendente
   `fixed`. Um painel `fixed inset-0` dentro de um cabeçalho que se esconde com
-  `-translate-y-full` não cobre a tela, cobre a CAIXA DO CABEÇALHO. O sintoma é
+  `-translate-y-2` não cobre a tela, cobre a CAIXA DO CABEÇALHO. O sintoma é
   um menu de tela cheia recortado numa faixa de uns cento e cinquenta pixels, com
   a página aparecendo por baixo, sem erro nenhum. Painel de tela cheia é IRMÃO do
   cabeçalho, nunca filho. Guard: `tests/e2e/mobile/indice-empresa.spec.ts`.
@@ -198,7 +198,7 @@ existe por um motivo desta superfície:
 |---|---|
 | Vira **cápsula** passados 24px | o resto do site é editorial; uma barra chapada de ponta a ponta é a única peça que ninguém desenhou |
 | **Pílula** com `layoutId` segue o ponteiro e volta para a página atual | um elemento só DESLIZA entre destinos; sublinhado por link seriam quatro animações independentes |
-| **Sai da frente** ao descer, volta ao subir | as páginas são cenas de tela cheia presas ao scroll, e a barra parada por cima é ruído. Perto do topo (abaixo de 1,2 tela) ela nunca some |
+| **Recua** ao descer, volta inteira ao subir | as páginas são cenas de tela cheia presas ao scroll, e a barra parada por cima é ruído. Recuar é 8px para cima e mais transparência: sai do primeiro plano e continua clicável. Sair inteira da tela foi a primeira versão, e trocava um problema por outro. Perto do topo (abaixo de 1,2 tela) ela nunca recua |
 | **Filete de progresso** rente à borda de baixo | páginas longas, e a cápsula tem espaço para dar essa informação de graça |
 
 Três regras ao mexer nela:
