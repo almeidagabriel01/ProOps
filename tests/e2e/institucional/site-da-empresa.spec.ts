@@ -476,22 +476,25 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
   });
 
   /**
-   * A barra RECUA ao descer, e não sai da tela.
+   * A barra RECUA oito pixels ao descer, e não sai da tela nem esmaece.
    *
-   * A primeira versão saía inteira (`-translate-y-full`). Resolvia o ruído sobre
-   * as cenas de tela cheia e criava outro problema: o menu deixava de estar onde
-   * a pessoa o procura, e voltar a ele passava a exigir um gesto. Agora ela sobe
-   * oito pixels e fica mais translúcida, o que é o oposto de sumir.
+   * Duas versões anteriores erraram a dose e estão registradas aqui porque a
+   * medida deste teste é o que separa as três: a primeira saía inteira
+   * (`-translate-y-full`), o que tirava o menu de onde a pessoa o procura; a
+   * segunda somava opacidade, o que custava a legibilidade do único elemento
+   * sempre presente. Sobrou o deslocamento.
    *
    * As duas metades importam. "Recuou" sozinho passaria com a barra fora da
-   * tela; "continua na tela" sozinho passaria com ela imóvel.
+   * tela; "continua na tela" sozinho passaria com ela imóvel. O teto de -28px é
+   * o que impede a primeira versão de voltar sem ninguém perceber.
    */
   test("a barra recua ao descer e continua alcançável", async ({ page }) => {
     await page.goto(`${APEX}/institucional`);
     await page.waitForLoadState("networkidle");
 
-    // Longe da faixa de cima: o ponteiro parado lá traz a barra de volta
-    // inteira, de propósito, e isso faria a medida abaixo ler o estado errado.
+    // O ponteiro precisa estar em algum lugar para a roda rolar, e o meio da
+    // página é o lugar neutro: sobre a própria barra ele acertaria um elemento
+    // com estado de hover no meio da medição.
     await page.mouse.move(700, 600);
 
     const topoDaBarra = () =>
@@ -511,12 +514,16 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
     expect(recuado, "a barra não recuou ao descer").toBeLessThan(-2);
     expect(recuado, "a barra saiu da tela em vez de recuar").toBeGreaterThan(-28);
 
-    // E continua sendo um menu: o destino segue clicável de onde está.
+    // E continua sendo um menu: o destino segue clicável de onde está, e opaco.
     await expect(
       page
         .getByRole("navigation", { name: "Principal" })
         .getByRole("link", { name: "Manifesto" }),
     ).toBeVisible();
+    const opacidade = await page.evaluate(() =>
+      Number(getComputedStyle(document.querySelector("header")!).opacity),
+    );
+    expect(opacidade, "a barra esmaeceu ao recuar").toBeGreaterThan(0.95);
 
     await page.mouse.wheel(0, -500);
     await page.waitForTimeout(1200);

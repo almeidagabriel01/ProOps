@@ -3,13 +3,13 @@
  *
  * Ele é um índice de tela cheia, e "de tela cheia" é a parte que precisa de
  * teste. O painel é `fixed inset-0`, o que normalmente resolve contra o
- * viewport; mas o `<header>` carrega `translate-y-0` / `-translate-y-2` para
- * recuar ao descer, e no Tailwind v4 essas classes compilam para a
- * propriedade CSS `translate`, que torna o elemento um bloco de contenção para
- * descendentes `fixed`. Com o painel dentro do header ele cobria a CAIXA DO
- * HEADER, ou seja, uma faixa de uns cento e cinquenta pixels, com a página
- * aparecendo por baixo. Nada falhava: sem erro no console, sem erro de tipo, e
- * o menu abria.
+ * viewport; mas o `<header>` é animado em `y` para recuar ao descer, e um
+ * elemento com transform vira bloco de contenção para descendentes `fixed`
+ * (inclusive com o valor em zero, e inclusive quando o transform vem da
+ * propriedade `translate` que as classes do Tailwind v4 geram). Com o painel
+ * dentro do header ele cobria a CAIXA DO HEADER, ou seja, uma faixa de uns cento
+ * e cinquenta pixels, com a página aparecendo por baixo. Nada falhava: sem erro
+ * no console, sem erro de tipo, e o menu abria.
  *
  * É a mesma família de armadilha que já custou uma vez na cortina de transição,
  * onde `scale-y-0` compunha com o transform do GSAP em vez de ser sobrescrito

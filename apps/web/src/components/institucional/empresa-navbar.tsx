@@ -53,13 +53,13 @@ const RECUA_DEPOIS_DE = 1.2;
  *   lugar novo. Sublinhado por link não conseguiria isso: cada um seria uma
  *   animação independente, e o que dá a sensação de um controle só é o objeto
  *   ser um só.
- * - **Ela RECUA enquanto se desce, e volta inteira ao subir.** As páginas daqui
- *   são cenas de tela cheia presas ao scroll, e uma barra parada por cima delas
- *   é ruído sobre a única coisa que a página está tentando mostrar. Recuar é
- *   oito pixels para cima e um pouco mais de transparência: ela sai do primeiro
- *   plano e continua clicável, ali onde a pessoa a procura. Sair inteira da tela
- *   foi a primeira versão e trocava um problema por outro, porque voltar ao menu
- *   passava a exigir um gesto. Perto do topo ela nunca recua.
+ * - **Ela RECUA oito pixels enquanto se desce, e volta ao subir.** As páginas
+ *   daqui são cenas de tela cheia presas ao scroll, e uma barra parada por cima
+ *   delas é ruído sobre a única coisa que a página está tentando mostrar. Duas
+ *   versões anteriores erraram a dose: sair inteira da tela trocava um problema
+ *   por outro (voltar ao menu passava a exigir um gesto), e esmaecer custava a
+ *   legibilidade do único elemento sempre presente. Sobrou o deslocamento, numa
+ *   mola. Perto do topo ela nunca recua.
  * - **Um filete mede o quanto falta.** São páginas longas, e a barra de
  *   progresso é a informação que a cápsula tem espaço para dar de graça. É
  *   `scaleX` num `MotionValue` escrito fora do React: escrever progresso em
@@ -163,30 +163,42 @@ export function EmpresaNavbar() {
       {/*
         O índice é IRMÃO do `<header>`, e não filho dele, e isso é obrigatório.
 
-        O header carrega `translate-y-0` / `-translate-y-2` para recuar ao
-        descer. No Tailwind v4 essas classes compilam para a propriedade CSS
-        `translate`, que, como `transform`, torna o elemento um bloco de
-        contenção para descendentes `fixed`. Um painel `fixed inset-0` dentro
-        dele não cobre a tela: cobre a CAIXA DO HEADER, que tem a altura da
-        cápsula. Vale para qualquer valor, inclusive o `translate-y-0` do estado
-        em repouso. O sintoma é um menu de tela cheia recortado numa faixa de uns
+        O header é animado em `y` para recuar ao descer, e um elemento com
+        `transform` (venha ele do `motion` ou da propriedade `translate` que as
+        classes do Tailwind v4 geram) vira bloco de contenção para descendentes
+        `fixed`. Um painel `fixed inset-0` dentro dele não cobre a tela: cobre a
+        CAIXA DO HEADER, que tem a altura da cápsula. Vale inclusive no repouso,
+        porque `y: 0` também escreve um transform. O sintoma é um menu de tela cheia recortado numa faixa de uns
         cento e cinquenta pixels, com a página aparecendo por baixo, e nada falha
         em lugar nenhum. É a mesma armadilha que já custou uma vez na cortina de
         transição, por outro caminho.
       */}
-      <header
-        className={cn(
-          "fixed inset-x-0 top-0 z-[80] transition-[transform,opacity] duration-500 ease-out",
-          recuada && !aberta
-            ? // Recua, e não some. Sair inteira da tela resolvia o ruído sobre
-              // as cenas e criava outro problema: o menu deixava de estar onde
-              // a pessoa o procura, e voltar a ele virava um gesto. Oito pixels
-              // para cima e um pouco mais translúcida bastam para ele sair do
-              // primeiro plano sem sair do alcance. Passar o ponteiro pela
-              // faixa de cima o traz de volta inteiro, sem precisar rolar.
-              "-translate-y-2 opacity-55 hover:translate-y-0 hover:opacity-100"
-            : "translate-y-0 opacity-100",
-        )}
+      {/*
+        Oito pixels, numa mola, e mais nada.
+
+        A barra não muda de opacidade: esmaecer marca o estado com clareza e o
+        preço é a legibilidade da única coisa que sempre está na tela. O
+        deslocamento sozinho já diz "recuei" sem tirar nada de ninguém.
+
+        O movimento é do `motion`, e não de uma classe do Tailwind com
+        `transition`. Uma transição CSS de 8px é curta demais para ter curva: o
+        olho lê o começo e o fim, e o meio não existe, o que dá aquela sensação
+        seca. A mola tem aceleração e um assentamento de verdade, que é o que
+        faz oito pixels parecerem movimento em vez de um salto.
+
+        Uma vez que o transform é do JS, NENHUMA classe `translate-*` pode
+        voltar para cá: no Tailwind v4 ela vira a propriedade `translate`, que
+        compõe com `transform` em vez de ser sobrescrita, e as duas passam a
+        somar.
+      */}
+      <motion.header
+        animate={{ y: recuada && !aberta ? -8 : 0 }}
+        transition={
+          reduce
+            ? { duration: 0 }
+            : { type: "spring", stiffness: 160, damping: 18, mass: 0.7 }
+        }
+        className="fixed inset-x-0 top-0 z-[80]"
       >
         <div className="px-3 pt-3 md:px-6 md:pt-4">
           <nav
@@ -339,7 +351,7 @@ export function EmpresaNavbar() {
             </span>
           </nav>
         </div>
-      </header>
+      </motion.header>
 
       {/*
         O índice, no celular. Fora do `<nav>` de propósito: os mesmos quatro
