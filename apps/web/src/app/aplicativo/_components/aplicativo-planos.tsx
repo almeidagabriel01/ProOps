@@ -55,6 +55,14 @@ export function AplicativoPlanos() {
           Planos
         </p>
 
+        {/* Sem `SplitReveal` aqui, de propósito, e isso é orçamento e não
+            gosto: cada `SplitReveal` é um `SplitText` (que retalha o DOM em
+            spans por linha, medindo layout) mais um ScrollTrigger, criados na
+            hidratação. Esta página tem doze cenas, e a medição mostrou que o
+            custo dela é hidratação, não DOM. O fecho é o único lugar que guarda
+            tipografia cinética, que é a convenção das sub-páginas do site da
+            empresa; aqui os cartões já se movem pelo brilho do `LiquidGlass`,
+            que é CSS puro e custa zero. A seção continua Server Component. */}
         <h2 className="max-w-2xl [font-family:var(--font-hanken)] text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-5xl">
           Sete dias para testar. Depois você decide.
         </h2>

@@ -36,27 +36,41 @@ export function AplicativoComandos() {
   const secao = React.useRef<HTMLElement>(null);
   const grade = useHolofote<HTMLDivElement>();
 
+  /**
+   * UM ScrollTrigger para a grade inteira, com `stagger`, e não um por cartão.
+   *
+   * Eram sete, um por elemento com `.comando-card`. `ScrollTrigger.create` faz
+   * medição de layout SÍNCRONA, e todos eles nascem na hidratação: é a mesma
+   * conta que custou ~1,7s de TBT na home do ERP e que fez o `useScrollProgress`
+   * passar a criar o trigger tarde, por IntersectionObserver. Sete viraram um, e
+   * o efeito na tela é o mesmo, porque `stagger` escalona melhor do que um
+   * `delay` calculado por índice.
+   */
   useScrollScene(
     secao,
     () => {
-      gsap.utils.toArray<HTMLElement>(".comando-card").forEach((card, i) => {
-        gsap.fromTo(
-          card,
-          { y: 26, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.7,
-            delay: (i % 3) * 0.08,
-            ease: "expo.out",
-            scrollTrigger: {
-              trigger: card,
-              start: "top 90%",
-              toggleActions: CENA_REPETE,
-            },
+      const cartoes = gsap.utils.toArray<HTMLElement>(".comando-card");
+      if (!cartoes.length) return;
+      const tween = gsap.fromTo(
+        cartoes,
+        { y: 26, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.7,
+          ease: "expo.out",
+          stagger: 0.07,
+          scrollTrigger: {
+            trigger: cartoes[0],
+            start: "top 90%",
+            toggleActions: CENA_REPETE,
           },
-        );
-      });
+        },
+      );
+      return () => {
+        tween.scrollTrigger?.kill();
+        tween.kill();
+      };
     },
     { query: SCENE_ANY_WIDTH },
   );

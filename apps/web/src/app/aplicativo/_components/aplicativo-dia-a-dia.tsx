@@ -4,6 +4,7 @@ import React from "react";
 import gsap from "gsap";
 
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
+import { useMediaQuery } from "@/components/marketing/_shared/use-media-query";
 import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene";
 import { APP_NAME } from "@/lib/site/app-brand";
 
@@ -204,6 +205,11 @@ const ROLAGEM_POR_UNIDADE = 0.8;
  */
 export function AplicativoDiaADia() {
   const sectionRef = React.useRef<HTMLElement>(null);
+  // `false` no servidor e no primeiro render do cliente, então não há
+  // desencontro de hidratação: no celular a coluna do aparelho simplesmente
+  // nunca existe, e no desktop ela entra depois da hidratação, numa cena que
+  // está bem abaixo da dobra.
+  const mostraAparelho = useMediaQuery("(min-width: 1024px)");
   const total = MOMENTOS.length;
   const unidades = total - 1 + CAUDA;
 
@@ -369,12 +375,23 @@ export function AplicativoDiaADia() {
 
                     A largura é o teto da altura da fileira: a moldura é 9/19,5,
                     então 12,5rem dão 433px e a fileira tem 448px de `lg`. Subir
-                    a largura sem subir a fileira junto corta o aparelho. */}
-                <div className="hidden w-[12.5rem] shrink-0 self-center lg:block">
-                  <DeviceFrame platform="ios">
-                    <TelaDoAplicativo tela={momento.tela} />
-                  </DeviceFrame>
-                </div>
+                    a largura sem subir a fileira junto corta o aparelho.
+
+                    ⚠️ O portão é de ESTADO, não de CSS, e isto é orçamento. Com
+                    `hidden lg:block` os seis aparelhos continuam existindo no
+                    celular: seis réplicas completas montadas, hidratadas e
+                    mantidas na árvore só para ficarem em `display: none`. É o
+                    mesmo motivo pelo qual `DesktopOnlyWebGl` gata por estado, e
+                    vale em dobro aqui porque a corrida do Lighthouse mede num
+                    viewport de 412px, exatamente onde essas seis telas não
+                    aparecem. */}
+                {mostraAparelho ? (
+                  <div className="w-[12.5rem] shrink-0 self-center">
+                    <DeviceFrame platform="ios">
+                      <TelaDoAplicativo tela={momento.tela} />
+                    </DeviceFrame>
+                  </div>
+                ) : null}
               </div>
 
               <div className="md:col-start-3">

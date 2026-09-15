@@ -33,11 +33,28 @@ const AplicativoComandos = dynamic(() =>
 const AplicativoDiaADia = dynamic(() =>
   import("./_components/aplicativo-dia-a-dia").then((m) => m.AplicativoDiaADia),
 );
+const AplicativoConversa = dynamic(() =>
+  import("./_components/aplicativo-conversa").then((m) => m.AplicativoConversa),
+);
 const AplicativoGaleria = dynamic(() =>
   import("./_components/aplicativo-galeria").then((m) => m.AplicativoGaleria),
 );
+const AplicativoPrivacidade = dynamic(() =>
+  import("./_components/aplicativo-privacidade").then(
+    (m) => m.AplicativoPrivacidade,
+  ),
+);
+const AplicativoCasa = dynamic(() =>
+  import("./_components/aplicativo-casa").then((m) => m.AplicativoCasa),
+);
 const AplicativoPlanos = dynamic(() =>
   import("./_components/aplicativo-planos").then((m) => m.AplicativoPlanos),
+);
+const AplicativoFaq = dynamic(() =>
+  import("./_components/aplicativo-faq").then((m) => m.AplicativoFaq),
+);
+const AplicativoFecho = dynamic(() =>
+  import("./_components/aplicativo-fecho").then((m) => m.AplicativoFecho),
 );
 const AplicativoFooter = dynamic(() =>
   import("./_components/aplicativo-footer").then((m) => m.AplicativoFooter),
@@ -104,8 +121,13 @@ export default function AplicativoPage() {
         <AplicativoDiferenca />
         <AplicativoComandos />
         <AplicativoDiaADia />
+        <AplicativoConversa />
         <AplicativoGaleria />
+        <AplicativoPrivacidade />
+        <AplicativoCasa />
         <AplicativoPlanos />
+        <AplicativoFaq />
+        <AplicativoFecho />
         <AplicativoFooter />
       </PointerFieldProvider>
     </>
