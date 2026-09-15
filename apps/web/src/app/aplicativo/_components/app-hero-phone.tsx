@@ -1,31 +1,30 @@
-import Image from "next/image";
-
-import { APP_NAME } from "@/lib/site/app-brand";
-
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
 
+import { TelaHoje } from "./telas/tela-hoje";
+
 /**
- * The app's home screen in the hero, untouched.
+ * A tela inicial do aplicativo no herói, viva.
  *
- * This carried an animated capture card overlaid on the screenshot for a
- * while. The animation was the point, but the card landed on top of a card
- * that was already in the capture, and no amount of scrim made that read as
- * anything other than something rendering over something else. The screen is
- * strong enough on its own, and a Server Component with one image is also the
- * cheapest thing this page could put above the fold.
+ * Era um `<Image>` com `/mockup-ios/hoje.jpg`. Antes disso, foi essa mesma
+ * captura com um cartão animado por cima, removido porque o cartão caía em cima
+ * de um cartão que já existia na imagem e lia como algo renderizado sobre algo.
+ * A réplica resolve os dois: a tela inteira é DOM, então ela anima por dentro e
+ * não há captura por baixo para atrapalhar.
+ *
+ * Continua sendo Server Component, e continua sendo a coisa mais barata que esta
+ * página poderia pôr acima da dobra: nenhum JavaScript, e agora nem a imagem.
+ * A entrada é `.hero-enter` e `.traco-desenha`, que tocam sozinhas no primeiro
+ * paint e já declaram o estado final sob `prefers-reduced-motion`.
+ *
+ * Trocar a imagem por DOM também tira o antigo elemento de LCP do caminho
+ * crítico. O `lighthouserc.json` registra a captura como o LCP desta página
+ * (~3,1s); o número novo precisa ser MEDIDO, não presumido.
  */
 export function AppHeroPhone() {
   return (
     <div className="relative mx-auto w-full max-w-[22rem]">
       <DeviceFrame platform="ios">
-        <Image
-          src="/mockup-ios/hoje.jpg"
-          alt={`Tela inicial da ${APP_NAME}, com a sobra projetada do mês e as pendências do dia`}
-          fill
-          sizes="(min-width: 1024px) 22rem, (min-width: 640px) 60vw, 80vw"
-          priority
-          className="object-cover"
-        />
+        <TelaHoje animada />
       </DeviceFrame>
     </div>
   );

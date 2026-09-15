@@ -1,26 +1,34 @@
 import React from "react";
 
 import { LandingButton } from "@/components/landing/_shared/landing-button";
+import { Magnetic } from "@/components/marketing/_shared/magnetic";
 
 import { AppHeroPhone } from "./app-hero-phone";
 
 /**
- * The app landing opens on the promise itself, not on a description of it.
+ * O herói abre na diferença, não na descrição.
  *
- * The copy sits left and the phone right, so the headline is the LCP element
- * and paints through `hero-enter` at first paint with no JavaScript. The phone
- * is the only client island above the fold, and it animates from a final state
- * that is already in the HTML.
+ * A copy anterior era "Você manda uma mensagem. A IA organiza." Ela é verdadeira
+ * e é, quase palavra por palavra, o que os cinco concorrentes diretos dizem no
+ * próprio herói. Numa página cujo objetivo declarado é se separar da categoria,
+ * a primeira linha não pode ser a frase da categoria.
+ *
+ * A copy fica à esquerda e o telefone à direita, então o título é o elemento de
+ * LCP e pinta por `.hero-enter` no primeiro paint, sem JavaScript. O telefone
+ * deixou de ser uma captura e passou a ser a tela reconstruída em DOM, que anima
+ * por dentro pelas mesmas classes CSS: acima da dobra nada aqui depende de
+ * biblioteca de animação.
+ *
+ * O `Magnetic` do CTA é a única ilha de cliente acima da dobra, e ele não anexa
+ * listener nenhum em touch nem sob `prefers-reduced-motion`.
  */
 export function AplicativoHero() {
   return (
     <section className="relative overflow-hidden bg-[var(--app-bg)] px-6 pb-24 pt-32 text-[var(--app-text)] md:px-10 md:pb-32 md:pt-40">
-      {/* A single soft light from behind the phone. The app's accent is the only
-          colour on this page, so it is what glows. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute right-[-10%] top-[-10%] h-[70vh] w-[70vh] rounded-full bg-[var(--app-tint)] opacity-[0.07] blur-[120px]"
-      />
+      {/* O campo lê `--px`/`--py` do `PointerFieldProvider` da página, então a
+          reatividade inteira é CSS herdando duas variáveis, sem um render do
+          React por movimento do mouse. Parado, ele é a luz que já existia. */}
+      <div aria-hidden="true" className="campo-app" />
 
       <div className="relative mx-auto grid max-w-6xl items-center gap-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
         <div>
@@ -47,9 +55,9 @@ export function AplicativoHero() {
               } as React.CSSProperties
             }
           >
-            Você manda uma mensagem.
+            Todo app anota o seu gasto.
             <br />
-            <span className="text-[var(--app-tint)]">A IA organiza.</span>
+            <span className="text-[var(--app-tint)]">Este resolve o resto.</span>
           </h1>
 
           <p
@@ -61,9 +69,8 @@ export function AplicativoHero() {
               } as React.CSSProperties
             }
           >
-            Notas, lembretes e controle financeiro pessoal por linguagem
-            natural. No WhatsApp ou dentro do aplicativo, por texto ou por
-            áudio.
+            Transferência, parcela, fatura e a projeção do mês. Por mensagem no
+            WhatsApp ou dentro do aplicativo, por texto ou por áudio.
           </p>
 
           <div
@@ -76,9 +83,11 @@ export function AplicativoHero() {
               } as React.CSSProperties
             }
           >
-            <LandingButton href="#planos" variant="inverted" size="lg">
-              Ver os planos
-            </LandingButton>
+            <Magnetic>
+              <LandingButton href="#planos" variant="inverted" size="lg">
+                Ver os planos
+              </LandingButton>
+            </Magnetic>
             <p className="text-sm text-[var(--app-text-muted)]">
               Em breve na App Store e no Google Play.
             </p>
