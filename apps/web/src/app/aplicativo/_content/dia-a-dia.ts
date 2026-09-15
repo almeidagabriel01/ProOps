@@ -1,11 +1,32 @@
+import type { DadosFinanceiro } from "../_components/telas/tela-financeiro";
+import type { DadosHoje } from "../_components/telas/tela-hoje";
+
 /**
- * The five moments of a day with the app.
+ * Os seis momentos de um dia com o aplicativo.
  *
- * Every one of them is something the product actually does, taken from its own
- * repository: alerts that are opt-in per channel, audio transcribed into a
- * recurring reminder, an expense written in plain Portuguese, a confirmation
- * gate before anything hard to undo, and a home screen anchored on what is
- * left rather than on the balance. Nothing here is aspirational.
+ * Todos são coisas que o produto de fato faz, tiradas do repositório dele:
+ * alertas opt-in por canal, áudio transcrito virando lembrete recorrente, um
+ * gasto escrito em português corrente, a simulação de uma compra ANTES de ela
+ * acontecer, o portão de confirmação para o que é difícil de desfazer, e uma
+ * tela inicial ancorada no que sobra em vez de no saldo. Nada aqui é aspiração.
+ *
+ * ── O que mudou, e por que ──────────────────────────────────────────────────
+ *
+ * Cada momento agora carrega a TELA do aplicativo que aquela mensagem produziu.
+ * A pesquisa dos cinco concorrentes diretos encontrou uma coisa que nenhum deles
+ * faz: mostrar a conversa e o aplicativo no MESMO quadro, ao mesmo tempo. Todos
+ * põem o chat numa seção e as telas em outra, e com isso nenhum chega a
+ * demonstrar a promessa que todos fazem. É a única coisa que prova, em vez de
+ * afirmar, que o que você jogou no WhatsApp aparece organizado do outro lado.
+ *
+ * Entrou também um momento de OPERAÇÃO, e não de captura: a simulação de compra
+ * às 15h40. Anotar o gasto é o que a categoria inteira faz; responder "dá para
+ * comprar?" com a projeção do mês é o que ela não faz.
+ *
+ * `tela` descreve só o que MUDA em relação ao padrão daquela aba. O resto vem de
+ * `HOJE_PADRAO` e `FINANCEIRO_PADRAO`, então os números da página inteira
+ * continuam contando uma história só: a mesma sobra, as mesmas duas contas, o
+ * mesmo cartão.
  */
 
 export interface Bolha {
@@ -20,6 +41,11 @@ export interface Bolha {
   alerta?: boolean;
 }
 
+/** Qual aba do aplicativo o momento mostra, e o que nela mudou. */
+export type TelaDoMomento =
+  | { aba: "hoje"; dados?: Partial<DadosHoje> }
+  | { aba: "financeiro"; dados?: Partial<DadosFinanceiro> };
+
 export interface Momento {
   /** Shown on the rail. Short, because the rail is narrow. */
   horaCurta: string;
@@ -30,6 +56,8 @@ export interface Momento {
   destaque: string;
   texto: string;
   bolhas: Bolha[];
+  /** O aplicativo, no instante seguinte à mensagem. */
+  tela: TelaDoMomento;
   /**
    * The light of that hour, as a CSS gradient behind the conversation.
    *
@@ -39,12 +67,6 @@ export interface Momento {
    * photo would have done that a chat panel cannot do on its own.
    */
   luz: string;
-  /**
-   * Optional photograph, under public/. When present it replaces the
-   * conversation mock, and the frame is already the right shape so dropping
-   * one in moves nothing else on the page.
-   */
-  imagem?: string;
 }
 
 export const MOMENTOS: Momento[] = [
@@ -65,6 +87,7 @@ export const MOMENTOS: Momento[] = [
         hora: "07:40",
       },
     ],
+    tela: { aba: "hoje" },
   },
   {
     horaCurta: "09:15",
@@ -87,6 +110,17 @@ export const MOMENTOS: Momento[] = [
         hora: "09:15",
       },
     ],
+    tela: {
+      aba: "hoje",
+      dados: {
+        hora: "09:16",
+        atalhos: [
+          { rotulo: "Vencendo", contagem: 2 },
+          { rotulo: "Lembretes", contagem: 4 },
+          { rotulo: "Orçamento", contagem: 1 },
+        ],
+      },
+    },
   },
   {
     horaCurta: "12:30",
@@ -109,6 +143,37 @@ export const MOMENTOS: Momento[] = [
         },
       },
     ],
+    tela: { aba: "financeiro" },
+  },
+  {
+    horaCurta: "15:40",
+    luz: "radial-gradient(125% 95% at 88% 12%, rgba(138,226,178,0.18) 0%, rgba(96,190,148,0.06) 40%, transparent 74%)",
+    hora: "15h40",
+    titulo: "A compra é simulada",
+    destaque: "antes de existir.",
+    texto:
+      "Aqui é onde a categoria para. Ele não responde quanto você já gastou: responde quanto sobraria se você gastasse, contando o que ainda entra e o que ainda sai do mês.",
+    bolhas: [
+      {
+        de: "voce",
+        texto: "posso comprar um celular de 3 mil?",
+        hora: "15:40",
+      },
+      {
+        de: "ia",
+        texto:
+          "Dá, mas aperta. Sobrariam R$ 284,90 até o dia 30, contra R$ 1.284,90 sem a compra. Parcelado em 10x, sobram R$ 1.044,90 e a fatura de outubro vai a R$ 1.890,00.",
+        hora: "15:40",
+      },
+    ],
+    tela: {
+      aba: "hoje",
+      dados: {
+        hora: "15:41",
+        saudacao: "Boa tarde, Gabriel",
+        linhaSecundaria: "15 dias até virar o mês · Projeção positiva",
+      },
+    },
   },
   {
     horaCurta: "18:20",
@@ -117,16 +182,56 @@ export const MOMENTOS: Momento[] = [
     titulo: "Gasto grande pede",
     destaque: "um sim.",
     texto:
-      "O que é difícil de desfazer nunca é executado sozinho. Vira uma pendência que espera sua confirmação, e some se você não responder.",
+      "O parcelamento vira dez lançamentos futuros, no cartão certo, com a primeira na fatura que ainda está aberta. E nada disso acontece sozinho: o que é difícil de desfazer espera a sua confirmação.",
     bolhas: [
-      { de: "voce", texto: "paguei 2.400 na geladeira nova", hora: "18:20" },
+      {
+        de: "voce",
+        texto: "parcela a geladeira em 10x, 2.400 no total",
+        hora: "18:20",
+      },
       {
         de: "ia",
         texto:
-          "R$ 2.400,00 em Casa, no cartão. Confirma que lanço? Responda sim ou não.",
+          "R$ 2.400,00 em Casa, 10x de R$ 240,00 no Cartão da casa, a primeira nesta fatura. Confirma que lanço? Responda sim ou não.",
         hora: "18:20",
       },
+      { de: "voce", texto: "sim", hora: "18:21" },
     ],
+    tela: {
+      aba: "financeiro",
+      dados: {
+        hora: "18:21",
+        sobra: "R$ 1.044,90",
+        linhaSecundaria:
+          "entrou R$ 6.400,00 · saiu R$ 3.455,10 · ainda sai R$ 1.900,00",
+        cartao: {
+          nome: "Cartão da casa",
+          fatura: "R$ 1.590,00",
+          fechaEm: "20/09",
+          venceEm: "27/09",
+          disponivel: "R$ 4.337,00",
+          usoDoLimite: 0.27,
+        },
+        lancamentos: [
+          {
+            titulo: "Geladeira",
+            meta: "Casa · 1/10 · Cartão da casa",
+            valor: "R$ 240,00",
+            novo: true,
+          },
+          {
+            titulo: "Mercado",
+            meta: "Alimentação · Cartão da casa",
+            valor: "R$ 45,00",
+          },
+          {
+            titulo: "Marcenaria",
+            meta: "Casa · lançado no app",
+            valor: "R$ 320,00",
+          },
+        ],
+      },
+    },
   },
   {
     horaCurta: "22:00",
@@ -141,9 +246,18 @@ export const MOMENTOS: Momento[] = [
       {
         de: "ia",
         texto:
-          "R$ 1.284,90 até o dia 30, já contando as fixas. Projeção positiva.",
+          "R$ 1.044,90 até o dia 30, já contando as fixas e a parcela da geladeira. Projeção positiva.",
         hora: "22:00",
       },
     ],
+    tela: {
+      aba: "hoje",
+      dados: {
+        hora: "22:01",
+        saudacao: "Boa noite, Gabriel",
+        sobra: "R$ 1.044,90",
+        linhaSecundaria: "8 dias até virar o mês · Projeção positiva",
+      },
+    },
   },
 ];

@@ -1,13 +1,63 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import gsap from "gsap";
 
+import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
 import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene";
 import { APP_NAME } from "@/lib/site/app-brand";
 
-import { MOMENTOS, type Bolha } from "../_content/dia-a-dia";
+import { MOMENTOS, type Bolha, type TelaDoMomento } from "../_content/dia-a-dia";
+import {
+  FINANCEIRO_PADRAO,
+  TelaFinanceiro,
+} from "./telas/tela-financeiro";
+import { HOJE_PADRAO, TelaHoje } from "./telas/tela-hoje";
+
+/**
+ * O aplicativo no instante seguinte à mensagem.
+ *
+ * O momento descreve só o que MUDOU; o resto vem do padrão de cada aba, e é
+ * isso que mantém os números da página inteira contando uma história só em vez
+ * de seis telas com dados que não se encaixam.
+ */
+function TelaDoAplicativo({ tela }: { tela: TelaDoMomento }) {
+  if (tela.aba === "financeiro") {
+    return <TelaFinanceiro dados={{ ...FINANCEIRO_PADRAO, ...tela.dados }} />;
+  }
+  return <TelaHoje dados={{ ...HOJE_PADRAO, ...tela.dados }} />;
+}
+
+/**
+ * O fio de contato no topo do painel, com o separador de data.
+ *
+ * `aria-hidden`: é cenário, ele se repete nos seis momentos, e o nome do
+ * aplicativo já é lido dentro da própria bolha de alerta.
+ */
+function CabecalhoDaConversa() {
+  return (
+    <div aria-hidden="true" className="relative shrink-0 p-6 pb-0 md:p-7 md:pb-0">
+      <div className="flex items-center gap-2.5 border-b border-white/[0.07] pb-4">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--app-tint)]/15 text-[11px] font-bold text-[var(--app-tint)]">
+          P
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate [font-family:var(--font-hanken)] text-[13px] font-semibold text-[var(--app-text)]">
+            {APP_NAME}
+          </span>
+          <span className="block text-[11px] text-[var(--app-text-muted)]">
+            online
+          </span>
+        </span>
+      </div>
+      <p className="mt-4 text-center">
+        <span className="rounded-full bg-[var(--app-bg)]/60 px-3 py-1 [font-family:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--app-text-muted)]">
+          hoje
+        </span>
+      </p>
+    </div>
+  );
+}
 
 /** One turn of the conversation, in the shape the app itself produces. */
 function BolhaChat({ bolha }: { bolha: Bolha }) {
@@ -252,12 +302,12 @@ export function AplicativoDiaADia() {
           </h2>
         </header>
 
-        <div className="relative mt-12 md:mt-12 md:max-h-[30rem] md:min-h-[24rem] md:flex-1">
+        <div className="relative mt-12 md:mt-12 md:max-h-[32rem] md:min-h-[24rem] md:flex-1">
           {/* The rail. Desktop only: on a phone the hours live inside each
               block, where they do not need a column of their own. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-[46%] hidden w-px bg-white/[0.09] md:block"
+            className="pointer-events-none absolute inset-y-0 left-[54%] hidden w-px bg-white/[0.09] md:block"
           >
             <span className="rail-ponto absolute left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--app-tint)] shadow-[0_0_0_4px_rgba(109,220,158,0.15)]" />
             {MOMENTOS.map((momento, i) => (
@@ -278,38 +328,53 @@ export function AplicativoDiaADia() {
           {MOMENTOS.map((momento, i) => (
             <article
               key={momento.hora}
-              className={`momento-${i} mb-16 last:mb-0 md:absolute md:inset-0 md:mb-0 md:grid md:grid-cols-[46%_8%_46%] md:items-center`}
+              className={`momento-${i} mb-16 last:mb-0 md:absolute md:inset-0 md:mb-0 md:grid md:grid-cols-[54%_6%_40%] md:items-center`}
             >
-              <div className="relative overflow-hidden rounded-3xl border border-white/[0.07] bg-[linear-gradient(150deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
-                {/* The light of the hour. This is what carries the day passing,
-                    in the absence of a photograph. */}
-                <span
-                  aria-hidden="true"
-                  style={{ backgroundImage: momento.luz }}
-                  className="pointer-events-none absolute inset-0"
-                />
-                <span
-                  aria-hidden="true"
-                  className="grain-overlay pointer-events-none absolute inset-0 opacity-[0.35]"
-                />
+              {/* A conversa e o aplicativo no MESMO quadro. Foi a única coisa
+                  que nenhum dos cinco concorrentes diretos faz: todos põem o
+                  chat numa seção e as telas em outra, e com isso nenhum chega a
+                  demonstrar a promessa que todos fazem. */}
+              <div className="flex items-stretch gap-4 md:h-[24rem] lg:h-[28rem] lg:gap-5">
+                <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/[0.07] bg-[linear-gradient(150deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
+                  {/* The light of the hour. This is what carries the day passing,
+                      in the absence of a photograph. */}
+                  <span
+                    aria-hidden="true"
+                    style={{ backgroundImage: momento.luz }}
+                    className="pointer-events-none absolute inset-0"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="grain-overlay pointer-events-none absolute inset-0 opacity-[0.35]"
+                  />
 
-                {momento.imagem ? (
-                  <div className="relative aspect-[4/3]">
-                    <Image
-                      src={momento.imagem}
-                      alt=""
-                      fill
-                      sizes="(min-width: 768px) 46vw, 100vw"
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="relative flex aspect-[4/3] flex-col justify-end gap-3 p-6 md:p-8">
+                  {/* O cabeçalho da conversa. Ele existe por composição, não por
+                      informação: com as bolhas ancoradas embaixo, um painel de
+                      28rem com uma mensagem só lia como cartão vazio. Um fio de
+                      contato no topo e o separador de data resolvem isso do jeito
+                      que uma conversa de verdade resolve. */}
+                  <CabecalhoDaConversa />
+
+                  <div className="relative flex aspect-[4/3] flex-1 flex-col justify-end gap-3 p-6 pt-0 md:aspect-auto md:p-7 md:pt-0">
                     {momento.bolhas.map((bolha, b) => (
                       <BolhaChat key={b} bolha={bolha} />
                     ))}
                   </div>
-                )}
+                </div>
+
+                {/* O aparelho só entra de `lg` para cima. Abaixo disso a coluna
+                    visual inteira tem menos de 400px: o telefone roubaria a
+                    conversa sem caber, e no celular seriam SEIS aparelhos
+                    empilhados num scroll que já é longo.
+
+                    A largura é o teto da altura da fileira: a moldura é 9/19,5,
+                    então 12,5rem dão 433px e a fileira tem 448px de `lg`. Subir
+                    a largura sem subir a fileira junto corta o aparelho. */}
+                <div className="hidden w-[12.5rem] shrink-0 self-center lg:block">
+                  <DeviceFrame platform="ios">
+                    <TelaDoAplicativo tela={momento.tela} />
+                  </DeviceFrame>
+                </div>
               </div>
 
               <div className="md:col-start-3">

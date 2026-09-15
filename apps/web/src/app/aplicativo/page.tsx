@@ -1,17 +1,47 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 
+import { PointerFieldProvider } from "@/components/marketing/_shared/pointer-field-provider";
 import { SmoothScroll } from "@/components/marketing/_shared/smooth-scroll";
 import { APP_NAME } from "@/lib/site/app-brand";
 import { canonicalFor } from "@/lib/site/host-seo";
 
-import { AplicativoAgente } from "./_components/aplicativo-agente";
-import { AplicativoDiaADia } from "./_components/aplicativo-dia-a-dia";
-import { AplicativoFooter } from "./_components/aplicativo-footer";
-import { AplicativoGaleria } from "./_components/aplicativo-galeria";
+import { AplicativoDiferenca } from "./_components/aplicativo-diferenca";
 import { AplicativoHero } from "./_components/aplicativo-hero";
-import { AplicativoPlanos } from "./_components/aplicativo-planos";
-import { AplicativoNavbar } from "./_components/aplicativo-navbar";
 import { AplicativoJsonLd } from "./_components/aplicativo-json-ld";
+import { AplicativoNavbar } from "./_components/aplicativo-navbar";
+
+/**
+ * Tudo a partir da quarta cena é code-split, importado POR CAMINHO DIRETO e
+ * nunca por um barrel. A regra está registrada em `institucional/page.tsx` e o
+ * motivo é que um import de barrel puxa o grafo inteiro do módulo para o
+ * primeiro chunk: o split não falha, ele simplesmente não acontece, e nada
+ * avisa.
+ *
+ * `ssr` fica no padrão (`true`), então toda cena é renderizada no servidor e
+ * está no HTML. O split é sobre QUANDO o JavaScript chega, não sobre quando o
+ * conteúdo chega: as cenas são escritas no estado final, então o markup está
+ * completo e legível antes de qualquer uma hidratar.
+ *
+ * Isso é orçamento, não higiene. Esta página mede 308ms de TBT e está no teto
+ * GENÉRICO do `lighthouserc.json` (800ms como `error`), sem exceção própria, de
+ * propósito.
+ */
+const AplicativoComandos = dynamic(() =>
+  import("./_components/aplicativo-comandos").then((m) => m.AplicativoComandos),
+);
+const AplicativoDiaADia = dynamic(() =>
+  import("./_components/aplicativo-dia-a-dia").then((m) => m.AplicativoDiaADia),
+);
+const AplicativoGaleria = dynamic(() =>
+  import("./_components/aplicativo-galeria").then((m) => m.AplicativoGaleria),
+);
+const AplicativoPlanos = dynamic(() =>
+  import("./_components/aplicativo-planos").then((m) => m.AplicativoPlanos),
+);
+const AplicativoFooter = dynamic(() =>
+  import("./_components/aplicativo-footer").then((m) => m.AplicativoFooter),
+);
 
 /**
  * The mobile app landing page.
@@ -21,7 +51,7 @@ import { AplicativoJsonLd } from "./_components/aplicativo-json-ld";
  * @/lib/site/surfaces for the host policy.
  */
 const DESCRICAO =
-  "Notas, lembretes e controle financeiro pessoal por mensagem. Você escreve ou fala, a IA organiza.";
+  "Lançamento, transferência, parcela, fatura e a projeção do mês por mensagem. No WhatsApp ou dentro do aplicativo, com um financeiro completo por trás.";
 
 export const metadata: Metadata = {
   // `absolute` escapes the root layout template (`%s | ProOps`): the app is
@@ -37,7 +67,7 @@ export const metadata: Metadata = {
     description: DESCRICAO,
     url: canonicalFor("app", "/"),
     // PENDÊNCIA: imagem própria. Herda a do layout raiz, que diz "ProOps, ERP
-    // para gestão de serviços" — errado para esta página. Trocar quando houver
+    // para gestão de serviços", errado para esta página. Trocar quando houver
     // arte; até lá o alt não mente sobre o que a imagem mostra.
     images: [
       {
@@ -60,13 +90,24 @@ export default function AplicativoPage() {
     <>
       <AplicativoJsonLd />
       <SmoothScroll />
-      <AplicativoNavbar />
-      <AplicativoHero />
-      <AplicativoAgente />
-      <AplicativoDiaADia />
-      <AplicativoGaleria />
-      <AplicativoPlanos />
-      <AplicativoFooter />
+      {/* Um campo de ponteiro para a superfície inteira: `--px` e `--py` são
+          escritos UMA vez por quadro aqui e herdados por toda a página, então
+          qualquer cena reage lendo duas variáveis em CSS. Um hook por seção
+          seria um listener e uma escrita por seção, todos calculando os mesmos
+          dois números.
+
+          Ele não pode ganhar `transform`: um ancestral transformado vira bloco
+          de contenção para `position: fixed`, e a navbar desta página é fixa. */}
+      <PointerFieldProvider>
+        <AplicativoNavbar />
+        <AplicativoHero />
+        <AplicativoDiferenca />
+        <AplicativoComandos />
+        <AplicativoDiaADia />
+        <AplicativoGaleria />
+        <AplicativoPlanos />
+        <AplicativoFooter />
+      </PointerFieldProvider>
     </>
   );
 }
