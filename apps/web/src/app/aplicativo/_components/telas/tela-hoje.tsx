@@ -31,6 +31,13 @@ import {
  *
  * Nenhum nome de banco real aparece. A captura interna traz um, e numa página
  * pública o nome de um emissor sugere integração que não existe.
+ *
+ * ⚠️ **A fatura que VENCE hoje não é a fatura ATUAL.** São duas: a que fechou no
+ * mês passado e vence hoje (R$ 1.120,00, aqui) e a que ainda está aberta e fecha
+ * no dia 20 (R$ 1.350,00, em `tela-financeiro`). Elas nasceram com o mesmo valor
+ * e isso fazia uma contradizer a outra na mesma página, porque uma fatura que
+ * fecha no dia 20 não pode vencer hoje. Ao mexer num dos dois números, confira o
+ * outro.
  */
 
 /** A projeção do mês, já normalizada em 0..1 (1 é o topo do gráfico). */
@@ -70,7 +77,7 @@ export const HOJE_PADRAO: DadosHoje = {
     {
       titulo: "Fatura do cartão",
       venceu: "vence hoje",
-      valor: "R$ 1.350,00",
+      valor: "R$ 1.120,00",
       acao: "Pagar",
     },
     {

@@ -83,7 +83,7 @@ export const MOMENTOS: Momento[] = [
         de: "ia",
         alerta: true,
         texto:
-          "Bom dia. Hoje vencem 2 contas: fatura do cartão, R$ 1.350,00, e aluguel, R$ 1.900,00.",
+          "Bom dia. Hoje vencem 2 contas: fatura do cartão, R$ 1.120,00, e aluguel, R$ 1.900,00.",
         hora: "07:40",
       },
     ],
@@ -203,7 +203,7 @@ export const MOMENTOS: Momento[] = [
         hora: "18:21",
         sobra: "R$ 1.044,90",
         linhaSecundaria:
-          "entrou R$ 6.400,00 · saiu R$ 3.455,10 · ainda sai R$ 1.900,00",
+          "entrou R$ 6.400,00 · saiu R$ 2.335,10 · ainda sai R$ 3.020,00",
         cartao: {
           nome: "Cartão da casa",
           fatura: "R$ 1.590,00",

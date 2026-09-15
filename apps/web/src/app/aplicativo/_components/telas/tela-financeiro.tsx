@@ -61,7 +61,7 @@ export const FINANCEIRO_PADRAO: DadosFinanceiro = {
   hora: "12:31",
   mes: "Setembro de 2026",
   sobra: "R$ 1.284,90",
-  linhaSecundaria: "entrou R$ 6.400,00 · saiu R$ 3.215,10 · ainda sai R$ 1.900,00",
+  linhaSecundaria: "entrou R$ 6.400,00 · saiu R$ 2.095,10 · ainda sai R$ 3.020,00",
   cartao: {
     nome: "Cartão da casa",
     fatura: "R$ 1.350,00",
