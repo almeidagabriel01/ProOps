@@ -310,10 +310,14 @@ export function AplicativoDiaADia() {
 
         <div className="relative mt-12 md:mt-12 md:max-h-[32rem] md:min-h-[24rem] md:flex-1">
           {/* The rail. Desktop only: on a phone the hours live inside each
-              block, where they do not need a column of their own. */}
+              block, where they do not need a column of their own.
+
+              `z-10` porque os momentos vêm DEPOIS no DOM e são `absolute`:
+              sem ele o aparelho era pintado por cima do ponto e o escondia
+              justamente quando ele passava na altura do telefone. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-[54%] hidden w-px bg-white/[0.09] md:block"
+            className="pointer-events-none absolute inset-y-0 left-[54%] z-10 hidden w-px bg-white/[0.09] md:block"
           >
             <span className="rail-ponto absolute left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--app-tint)] shadow-[0_0_0_4px_rgba(109,220,158,0.15)]" />
             {MOMENTOS.map((momento, i) => (
@@ -340,7 +344,10 @@ export function AplicativoDiaADia() {
                   que nenhum dos cinco concorrentes diretos faz: todos põem o
                   chat numa seção e as telas em outra, e com isso nenhum chega a
                   demonstrar a promessa que todos fazem. */}
-              <div className="flex items-stretch gap-4 md:h-[24rem] lg:h-[28rem] lg:gap-5">
+              {/* `md:pr-8` afasta o aparelho da linha do tempo, que corre
+                  exatamente na borda direita desta coluna. Colado nela, o anel
+                  do ponto sobrepunha a moldura. */}
+              <div className="flex items-stretch gap-4 md:h-[24rem] md:pr-8 lg:h-[28rem] lg:gap-5">
                 <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/[0.07] bg-[linear-gradient(150deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
                   {/* The light of the hour. This is what carries the day passing,
                       in the absence of a photograph. */}

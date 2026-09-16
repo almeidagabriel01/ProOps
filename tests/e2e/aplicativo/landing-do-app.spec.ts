@@ -81,27 +81,79 @@ test.describe("APP-01: as cenas da landing do aplicativo", () => {
   });
 
   /**
-   * O aparelho do herói é DOM, não uma captura, e é isso que permite a tela
-   * animar por dentro. Se alguém trocar a réplica de volta por um `<img>`, a
-   * página continua bonita e a cena "Um dia" para de poder mudar de tela.
+   * O herói mostra a CAPTURA do aplicativo. Ele já foi a réplica em DOM, e a
+   * comparação direta com o produto, logo acima da dobra, deixava visível cada
+   * diferença de fonte e de espaçamento. As réplicas continuam nas cenas de
+   * baixo, e é delas que o `@container` é cobrado.
    */
-  test("a tela do herói é texto de verdade, não uma imagem", async ({
+  test("o herói mostra a captura, e as réplicas medem pelo aparelho", async ({
     page,
   }) => {
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
 
+    const heroi = page.locator("section").first();
+    await expect(heroi.locator('img[src*="hoje.jpg"]')).toHaveCount(1);
+    await expect(heroi.locator(".tela-app")).toHaveCount(0);
+
     const tela = page.locator(".tela-app").first();
     await expect(tela).toHaveCount(1);
-    await expect(tela).toContainText("Sobra até o fim do mês");
 
     // `container-type: inline-size` é o que faz o dimensionamento em `cqw`
-    // funcionar. Sem ele todo `text-[4cqw]` vira zero e a tela renderiza vazia,
-    // com a moldura no lugar e nada dentro.
+    // funcionar. Sem ele todo `cqw` cai para a viewport e a tela estoura a
+    // moldura, que foi exatamente o que chegou a um deploy.
     const containerType = await tela.evaluate(
       (el) => getComputedStyle(el).containerType,
     );
     expect(containerType).toBe("inline-size");
+  });
+
+  /**
+   * O ponto da linha do tempo de "Um dia qualquer" corre por cima dos momentos.
+   * Os momentos vêm depois no DOM e são `absolute`, então sem `z-index` no
+   * trilho o aparelho pintava por cima do ponto. O teste leva o ponto até a
+   * altura do aparelho e pergunta ao navegador o que está no topo ali.
+   */
+  test("o ponto da linha do tempo fica por cima do aparelho", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${APP}/`);
+    await page.waitForLoadState("networkidle");
+
+    const ponto = page.locator(".rail-ponto");
+    await ponto.scrollIntoViewIfNeeded();
+    const aparelho = page.locator(".momento-0 .tela-app");
+    await expect(aparelho).toHaveCount(1);
+
+    const resultado = await page.evaluate(() => {
+      const dot = document.querySelector<HTMLElement>(".rail-ponto")!;
+      const trilho = dot.parentElement!;
+      const tela = document.querySelector(".momento-0 .tela-app")!;
+      const caixaTela = tela.getBoundingClientRect();
+      const caixaTrilho = trilho.getBoundingClientRect();
+      // Põe o ponto na altura do meio do aparelho, onde o defeito aparecia.
+      dot.style.top = `${caixaTela.top + caixaTela.height / 2 - caixaTrilho.top}px`;
+      // O trilho é `pointer-events-none`, e `elementFromPoint` pula quem não
+      // recebe ponteiro. Ligado só no ponto, a pergunta volta a ser de camada.
+      dot.style.pointerEvents = "auto";
+      const caixa = dot.getBoundingClientRect();
+      const topo = document.elementFromPoint(
+        caixa.left + caixa.width / 2,
+        caixa.top + caixa.height / 2,
+      );
+      return {
+        pontoNoTopo: topo === dot,
+        // Medido pela MOLDURA, não pela tela: o bezel sozinho já dá uns 10px.
+        folga:
+          caixaTrilho.left -
+          tela.closest(".self-center")!.getBoundingClientRect().right,
+      };
+    });
+
+    expect(resultado.pontoNoTopo).toBe(true);
+    // E a moldura não encosta na linha, onde o anel do ponto a sobreporia.
+    expect(resultado.folga).toBeGreaterThan(16);
   });
 
   /**
