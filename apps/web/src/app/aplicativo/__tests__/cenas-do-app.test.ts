@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -28,6 +28,32 @@ describe("a marca dentro das réplicas", () => {
     expect(tracado(svg)).toBeTruthy();
     expect(tracado(pecas)).toBe(tracado(svg));
     expect(pecas).toContain('viewBox="540 250 410 430"');
+  });
+});
+
+describe("a tab bar das réplicas", () => {
+  /**
+   * A barra é a própria captura recortada (`scripts/generate-app-tabbars.mjs`).
+   * Uma réplica que peça uma aba ativa sem imagem gerada renderiza um buraco no
+   * rodapé do aparelho, sem erro nenhum.
+   */
+  it("toda aba ativa usada numa réplica tem a sua imagem", () => {
+    const telas = ["tela-hoje", "tela-financeiro", "tela-conversa"].map((n) =>
+      readFileSync(
+        path.join(RAIZ_WEB, `src/app/aplicativo/_components/telas/${n}.tsx`),
+        "utf8",
+      ),
+    );
+    const ativas = telas.flatMap((fonte) =>
+      [...fonte.matchAll(/<TabBar ativa="([a-z]+)"/g)].map((m) => m[1]),
+    );
+    expect(ativas.sort()).toEqual(["agente", "financeiro", "hoje"]);
+    for (const aba of ativas) {
+      expect(
+        existsSync(path.join(RAIZ_WEB, `public/mockup-ios/tabbar-${aba}.png`)),
+        aba,
+      ).toBe(true);
+    }
   });
 });
 
