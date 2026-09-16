@@ -1392,25 +1392,6 @@ html[data-heroi="espera"] .regua-desenha {
   --app-on-hero-muted: rgba(229, 225, 228, 0.6);
 }
 
-/* A réplica de uma tela do aplicativo é um CONTAINER DE CONSULTA, e é só isso
-   que esta classe faz.
-
-   Tudo dentro dela é dimensionado em `cqw`, ou seja, em porcentagem da largura
-   do aparelho. É o que faz a MESMA tela sair correta no herói (22rem de largura)
-   e na prateleira (11rem) sem nenhuma conta no call site e sem um `transform:
-   scale()` por cima, que borraria o texto.
-
-   `em` não resolveria: ele compõe. Um filho com `text-[0.8em]` passaria a medir
-   o próprio espaçamento contra 0,8em, e a tela sairia com proporções diferentes
-   a cada nível de aninhamento. `cqw` é sempre relativo ao container.
-
-   A contenção de tamanho que `container-type` liga também estabelece bloco de
-   contenção para os descendentes absolutos, que é exatamente o que a tab bar
-   flutuante quer. */
-.tela-app {
-  container-type: inline-size;
-}
-
 /* ────────────────────────────────────────────────────────────────────────────
    Site institucional (proops.com.br) — primitivas próprias.
 

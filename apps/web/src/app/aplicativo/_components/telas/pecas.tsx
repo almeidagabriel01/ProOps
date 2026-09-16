@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  *
  * ── Tudo aqui é dimensionado em `cqw`, e isso é obrigatório ──────────────────
  *
- * `.tela-app` é um container de consulta (`container-type: inline-size`), então
+ * `TelaApp` é um container de consulta (`@container`), então
  * `1cqw` é 1% da LARGURA DO APARELHO. O mesmo componente sai correto no herói
  * (22rem) e na prateleira (11rem) sem nenhuma conta no call site.
  *
@@ -49,8 +49,13 @@ export function TelaApp({
 }) {
   return (
     <div
+      // `@container` e não uma regra avulsa em globals.css: um deploy chegou
+      // com os `cqw` e sem a regra `.tela-app`, e sem container todo `cqw`
+      // cai para a viewport e a tela estoura a moldura. O utilitário sai da
+      // mesma varredura que gera os `cqw`, então os dois chegam juntos.
+      // `tela-app` fica como gancho do E2E.
       className={cn(
-        "tela-app absolute inset-0 flex flex-col overflow-hidden bg-[var(--app-bg)] [font-family:var(--font-hanken)] text-[var(--app-text)]",
+        "tela-app @container absolute inset-0 flex flex-col overflow-hidden bg-[var(--app-bg)] [font-family:var(--font-hanken)] text-[var(--app-text)]",
         className,
       )}
     >
