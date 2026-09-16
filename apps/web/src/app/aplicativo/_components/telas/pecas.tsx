@@ -396,62 +396,125 @@ export function LinhaLancamento({
 
 export type Aba = "hoje" | "notas" | "financeiro" | "agente" | "perfil";
 
-const ABAS: ReadonlyArray<{ id: Aba; rotulo: string; icone: React.ReactNode }> =
-  [
-    {
-      id: "hoje",
-      rotulo: "Hoje",
-      icone: (
-        <>
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2.5v2M12 19.5v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2.5 12h2M19.5 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-        </>
-      ),
-    },
-    {
-      id: "notas",
-      rotulo: "Notas",
-      icone: (
-        <>
-          <rect x="4" y="3.5" width="16" height="17" rx="2.4" />
-          <path d="M8 9h8M8 13h8M8 17h5" />
-        </>
-      ),
-    },
-    {
-      id: "financeiro",
-      rotulo: "Financeiro",
-      icone: (
-        <>
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 3.5v8.5h8.5" />
-        </>
-      ),
-    },
-    {
-      id: "agente",
-      rotulo: "Agente",
-      icone: (
-        <>
-          <rect x="2.5" y="5" width="13" height="10" rx="2.2" />
-          <path d="M8.5 19h10a2 2 0 002-2v-6" />
-        </>
-      ),
-    },
-    {
-      id: "perfil",
-      rotulo: "Perfil",
-      icone: (
-        <>
-          <circle cx="12" cy="8.5" r="3.4" />
-          <path d="M5.5 19.5a6.8 6.8 0 0113 0" />
-        </>
-      ),
-    },
-  ];
+/**
+ * A cor da cápsula. Os ícones cheios da aba ativa "recortam" os próprios
+ * detalhes com ela (as linhas da nota, a fatia do gráfico), como no app.
+ */
+const FUNDO_DA_BARRA = "#1f1f21";
+
+interface IconeDaAba {
+  /** Traço branco, para as abas paradas. */
+  contorno: React.ReactNode;
+  /** Preenchido na cor de destaque, para a aba ativa. */
+  cheio: React.ReactNode;
+}
 
 /**
- * A tab bar do aplicativo, em cápsula flutuante.
+ * Os ícones, redesenhados a partir de `public/mockup-ios/*.jpg`.
+ *
+ * Tudo aqui é cópia das capturas, e é por isso que o traço é grosso e branco e a
+ * aba ativa é CHEIA, não só colorida: a primeira versão tinha ícones finos e
+ * cinza e lia como outro aplicativo ao lado das capturas verdadeiras.
+ */
+const ICONES: Record<Aba, IconeDaAba> = {
+  hoje: {
+    contorno: (
+      <>
+        <circle cx="12" cy="12" r="3.9" />
+        <path d="M12 2.4v2.3M12 19.3v2.3M2.4 12h2.3M19.3 12h2.3M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M5.2 18.8l1.6-1.6M17.2 6.8l1.6-1.6" />
+      </>
+    ),
+    cheio: (
+      <>
+        <circle cx="12" cy="12" r="4.4" fill="currentColor" />
+        <path d="M12 2.4v2.3M12 19.3v2.3M2.4 12h2.3M19.3 12h2.3M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M5.2 18.8l1.6-1.6M17.2 6.8l1.6-1.6" />
+      </>
+    ),
+  },
+  notas: {
+    contorno: (
+      <>
+        <rect x="3.5" y="4" width="17" height="16" rx="2.4" />
+        <path d="M3.5 8h17M7.5 11.8h9M7.5 15h9M7.5 18h5.5" />
+      </>
+    ),
+    cheio: (
+      <>
+        <rect x="3.5" y="4" width="17" height="16" rx="2.4" fill="currentColor" />
+        <path
+          d="M7.5 11.8h9M7.5 15h9"
+          stroke={FUNDO_DA_BARRA}
+        />
+      </>
+    ),
+  },
+  financeiro: {
+    contorno: (
+      <>
+        <circle cx="12" cy="12" r="8.6" />
+        <path d="M12 3.4V12l6.1 6.1" />
+      </>
+    ),
+    cheio: (
+      <>
+        <circle cx="12" cy="12" r="9.2" fill="currentColor" stroke="none" />
+        <path d="M12 2.8V12l6.5 6.5" stroke={FUNDO_DA_BARRA} strokeWidth={1.8} />
+      </>
+    ),
+  },
+  agente: {
+    contorno: (
+      <>
+        <path d="M8.4 8V5.8a2.3 2.3 0 012.3-2.3h9.5a2.3 2.3 0 012.3 2.3v6.4a2.3 2.3 0 01-2.3 2.3h-.3v2.9l-3-2.9" />
+        <path d="M1.5 10.3A2.3 2.3 0 013.8 8h10.5a2.3 2.3 0 012.3 2.3v6.4a2.3 2.3 0 01-2.3 2.3H8.3l-3.7 3.1V19h-.8a2.3 2.3 0 01-2.3-2.3z" />
+      </>
+    ),
+    cheio: (
+      <>
+        <path
+          d="M8.4 8V5.8a2.3 2.3 0 012.3-2.3h9.5a2.3 2.3 0 012.3 2.3v6.4a2.3 2.3 0 01-2.3 2.3h-.3v2.9l-3-2.9z"
+          fill="currentColor"
+        />
+        <path
+          d="M1.5 10.3A2.3 2.3 0 013.8 8h10.5a2.3 2.3 0 012.3 2.3v6.4a2.3 2.3 0 01-2.3 2.3H8.3l-3.7 3.1V19h-.8a2.3 2.3 0 01-2.3-2.3z"
+          fill="currentColor"
+          stroke={FUNDO_DA_BARRA}
+          strokeWidth={1.4}
+        />
+      </>
+    ),
+  },
+  perfil: {
+    contorno: (
+      <>
+        <circle cx="12" cy="8" r="3.8" />
+        <path d="M4.6 20.4a7.4 7.4 0 0114.8 0z" />
+      </>
+    ),
+    cheio: (
+      <>
+        <circle cx="12" cy="8" r="3.8" fill="currentColor" />
+        <path d="M4.6 20.4a7.4 7.4 0 0114.8 0z" fill="currentColor" />
+      </>
+    ),
+  },
+};
+
+const ABAS: ReadonlyArray<{ id: Aba; rotulo: string }> = [
+  { id: "hoje", rotulo: "Hoje" },
+  { id: "notas", rotulo: "Notas" },
+  { id: "financeiro", rotulo: "Financeiro" },
+  { id: "agente", rotulo: "Agente" },
+  { id: "perfil", rotulo: "Perfil" },
+];
+
+/**
+ * A tab bar do aplicativo no iOS, em cápsula flutuante.
+ *
+ * Medida sobre `mockup-ios/hoje.jpg` e `financeiro.jpg`: a cápsula ocupa a
+ * largura menos ~5cqw de cada lado, a aba ativa ganha uma pílula clara da altura
+ * inteira, as paradas são BRANCAS (não cinza) e a Hoje leva o selo "9+". As
+ * réplicas só existem em moldura de iPhone, por isso não há variante Android.
  *
  * Cenário, logo `aria-hidden`: ela não navega nada aqui, e os cinco rótulos
  * lidos em voz alta antes do conteúdo de cada tela seriam ruído repetido em
@@ -461,39 +524,43 @@ export function TabBar({ ativa }: { ativa: Aba }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-[4cqw] bottom-[3cqw] flex items-center justify-between rounded-full border border-white/10 bg-[#1e1e20]/85 px-[2.6cqw] py-[2.4cqw] backdrop-blur-[2cqw]"
+      style={{ backgroundColor: FUNDO_DA_BARRA }}
+      className="pointer-events-none absolute inset-x-[5.4cqw] bottom-[4.6cqw] flex items-center rounded-full border border-white/[0.09] p-[1.2cqw] shadow-[0_2cqw_6cqw_rgba(0,0,0,0.5)]"
     >
       {ABAS.map((aba) => {
         const acesa = aba.id === ativa;
+        const icone = ICONES[aba.id];
         return (
           <span
             key={aba.id}
             className={cn(
-              "flex flex-col items-center gap-[1.2cqw] rounded-full px-[2cqw] py-[1.2cqw]",
-              acesa && "bg-white/[0.07]",
+              "relative flex flex-1 flex-col items-center gap-[1cqw] rounded-full py-[2.3cqw]",
+              acesa ? "text-[var(--app-tint)]" : "text-[var(--app-text)]",
+              acesa && "bg-white/[0.12]",
             )}
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              strokeWidth={1.7}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={cn(
-                "h-[5cqw] w-[5cqw]",
-                acesa
-                  ? "stroke-[var(--app-tint)]"
-                  : "stroke-[var(--app-text-muted)]",
-              )}
-            >
-              {aba.icone}
-            </svg>
+            <span className="relative">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.7}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-[7.2cqw] w-[7.2cqw]"
+              >
+                {acesa ? icone.cheio : icone.contorno}
+              </svg>
+              {aba.id === "hoje" ? (
+                <span className="absolute -right-[4.4cqw] -top-[1.6cqw] rounded-full bg-[var(--app-danger)] px-[1.2cqw] text-[2.9cqw] font-semibold leading-[4cqw] text-[#690005]">
+                  9+
+                </span>
+              ) : null}
+            </span>
             <span
               className={cn(
-                "text-[2.6cqw] leading-none",
-                acesa
-                  ? "text-[var(--app-tint)]"
-                  : "text-[var(--app-text-muted)]",
+                "text-[2.9cqw] leading-none",
+                acesa ? "font-semibold" : "font-normal",
               )}
             >
               {aba.rotulo}

@@ -213,7 +213,7 @@ function BarraDeDigitacao() {
   return (
     <div
       aria-hidden="true"
-      className="mx-[4.4cqw] mb-[16cqw] flex items-center gap-[2.6cqw] rounded-full border border-[var(--app-card-border)] bg-[var(--app-surface)] px-[4cqw] py-[2.8cqw]"
+      className="mx-[4.4cqw] mb-[24cqw] flex items-center gap-[2.6cqw] rounded-full border border-[var(--app-card-border)] bg-[var(--app-surface)] px-[4cqw] py-[2.8cqw]"
     >
       <span className="flex-1 text-[3.2cqw] text-[var(--app-text-muted)]">
         Pergunte ou peça alguma coisa

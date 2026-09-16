@@ -9,56 +9,19 @@ import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene"
 import { APP_NAME } from "@/lib/site/app-brand";
 
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
-import {
-  TelaConversa,
-  type MensagemApp,
-} from "./telas/tela-conversa";
-
-/**
- * A conversa que aparece na prateleira.
- *
- * Curta de propósito, e diferente da cena "Sem sair da conversa": ali ela é
- * dirigida por scroll e vai até o fim de uma operação; aqui é uma vitrine de
- * 19rem de largura, onde o que precisa ficar legível é o formato, não o
- * enredo.
- */
-const CONVERSA_DA_PRATELEIRA: MensagemApp[] = [
-  { de: "voce", texto: "quanto eu gastei com comida esse mês?", hora: "21:02" },
-  {
-    de: "ia",
-    texto:
-      "R$ 684,00 em Alimentação, 18% acima de agosto. O maior item foi delivery, R$ 312,00.",
-    hora: "21:02",
-  },
-  { de: "voce", texto: "põe um teto de 600 nisso", hora: "21:03" },
-  {
-    de: "ia",
-    texto: "Orçamento criado.",
-    hora: "21:03",
-    cartao: {
-      titulo: "Alimentação",
-      meta: "Teto mensal · avisa em 80%",
-      valor: "R$ 600,00",
-    },
-  },
-];
 
 type Plataforma = "ios" | "android";
 
+/**
+ * Uma tela da prateleira. Aqui é SEMPRE a captura original: a aba Agente já foi
+ * uma réplica em DOM, e a tab bar redesenhada à mão saía diferente da do
+ * aplicativo, bem ao lado de cinco capturas verdadeiras.
+ */
 interface Tela {
   nome: string;
   descricao: string;
   /** A captura, dentro de `public/mockup-<plataforma>/`. */
-  arquivo?: string;
-  /**
-   * Renderiza a réplica em DOM no lugar de uma captura.
-   *
-   * Existe por causa de UMA tela. `mockup-ios/agenda.jpg` e
-   * `mockup-android/agente.jpg` são a mesma aba, e as duas estão praticamente
-   * vazias: uma conversa antiga sobre fundo preto. Era a pior imagem da página,
-   * e justamente na aba que sustenta o argumento do produto.
-   */
-  replica?: "conversa";
+  arquivo: string | Record<Plataforma, string>;
 }
 
 /**
@@ -101,7 +64,8 @@ const TELAS: Tela[] = [
   {
     nome: "Agente",
     descricao: "A assistente dentro do aplicativo",
-    replica: "conversa",
+    // As duas rodadas de captura deram nomes diferentes à mesma aba.
+    arquivo: { ios: "agenda.jpg", android: "agente.jpg" },
   },
   {
     nome: "Perfil",
@@ -109,6 +73,12 @@ const TELAS: Tela[] = [
     arquivo: "perfil.jpg",
   },
 ];
+
+function arquivoDa(tela: Tela, plataforma: Plataforma): string {
+  return typeof tela.arquivo === "string"
+    ? tela.arquivo
+    : tela.arquivo[plataforma];
+}
 
 const ROTULO: Record<Plataforma, string> = { ios: "iOS", android: "Android" };
 
@@ -130,9 +100,8 @@ export function AplicativoGaleria() {
   const trackRef = React.useRef<HTMLUListElement>(null);
   const [plataforma, setPlataforma] = React.useState<Plataforma>("ios");
 
-  // Uma lista só: as duas plataformas têm as mesmas telas, e só a PASTA muda.
-  // Havia um remapeamento aqui porque as duas capturas da aba Agente tinham
-  // nomes diferentes; ela virou réplica em DOM e o remapeamento saiu junto.
+  // Uma lista só: as duas plataformas têm as mesmas telas, e só a PASTA muda
+  // (mais o nome da captura da aba Agente, resolvido em `arquivoDa`).
   const telas = TELAS;
 
   useScrollScene(sectionRef, () => {
@@ -328,22 +297,18 @@ export function AplicativoGaleria() {
                 className="tela-item w-[52%] shrink-0 snap-start sm:w-[33%] md:w-[15rem] lg:w-[19rem]"
               >
                 <DeviceFrame platform={plataforma}>
-                  {tela.replica === "conversa" ? (
-                    <TelaConversa mensagens={CONVERSA_DA_PRATELEIRA} />
-                  ) : (
-                    <Image
-                      // Keyed by platform so React swaps the element instead of
-                      // mutating src on the same node, which leaves the previous
-                      // capture on screen until the new one decodes.
-                      key={plataforma}
-                      src={`/mockup-${plataforma}/${tela.arquivo}`}
-                      alt={`Tela ${tela.nome} da ${APP_NAME} no ${ROTULO[plataforma]}: ${tela.descricao}`}
-                      fill
-                      sizes="(min-width: 1024px) 19rem, (min-width: 768px) 15rem, 52vw"
-                      loading={index < 2 ? "eager" : "lazy"}
-                      className="object-cover"
-                    />
-                  )}
+                  <Image
+                    // Keyed by platform so React swaps the element instead of
+                    // mutating src on the same node, which leaves the previous
+                    // capture on screen until the new one decodes.
+                    key={plataforma}
+                    src={`/mockup-${plataforma}/${arquivoDa(tela, plataforma)}`}
+                    alt={`Tela ${tela.nome} da ${APP_NAME} no ${ROTULO[plataforma]}: ${tela.descricao}`}
+                    fill
+                    sizes="(min-width: 1024px) 19rem, (min-width: 768px) 15rem, 52vw"
+                    loading={index < 2 ? "eager" : "lazy"}
+                    className="object-cover"
+                  />
                 </DeviceFrame>
                 <p className="mt-3.5 flex items-baseline gap-1.5">
                   <span className="[font-family:var(--font-hanken)] text-sm font-semibold text-[var(--app-text)]">

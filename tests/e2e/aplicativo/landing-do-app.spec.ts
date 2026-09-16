@@ -109,6 +109,39 @@ test.describe("APP-01: as cenas da landing do aplicativo", () => {
   });
 
   /**
+   * A prateleira mostra só capturas. A aba Agente já foi uma réplica em DOM, e a
+   * tab bar redesenhada à mão saía diferente da do aplicativo ao lado de cinco
+   * capturas verdadeiras. Vale nas duas plataformas, porque o nome do arquivo
+   * dessa aba muda entre elas.
+   */
+  test("a prateleira de telas usa só as capturas originais", async ({
+    page,
+  }) => {
+    // Sem o Lenis, pelo mesmo motivo do teste do FAQ: o clique no seletor de
+    // plataforma precisa cair onde o botão está.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`${APP}/`);
+    await page.waitForLoadState("networkidle");
+
+    const itens = page.locator(".tela-item");
+    await expect(itens).toHaveCount(6);
+    await expect(itens.locator(".tela-app")).toHaveCount(0);
+
+    for (const [plataforma, arquivo] of [
+      ["iOS", "/mockup-ios/agenda.jpg"],
+      ["Android", "/mockup-android/agente.jpg"],
+    ] as const) {
+      await page.getByRole("radio", { name: plataforma }).click();
+      const agente = itens.nth(4).locator("img");
+      await expect(agente).toHaveAttribute(
+        "src",
+        new RegExp(encodeURIComponent(arquivo)),
+      );
+      await expect(itens.locator("img")).toHaveCount(6);
+    }
+  });
+
+  /**
    * O ponto da linha do tempo de "Um dia qualquer" corre por cima dos momentos.
    * Os momentos vêm depois no DOM e são `absolute`, então sem `z-index` no
    * trilho o aparelho pintava por cima do ponto. O teste leva o ponto até a
