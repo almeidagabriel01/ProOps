@@ -110,15 +110,23 @@ export function CabecalhoApp({ acao }: { acao?: React.ReactNode }) {
   );
 }
 
-/** A espiral da ProOps, no tamanho do aplicativo. */
+/**
+ * A marca da ProOps, no tamanho do aplicativo.
+ *
+ * O traçado é o de `public/logo/logo2-cropped.svg`, copiado inline para herdar
+ * a cor do tema do aplicativo e escalar em `cqw` junto com o resto da tela. Um
+ * desenho aproximado aqui lia como outra marca; ao trocar a logo, troque os dois.
+ */
 function MarcaApp() {
   return (
     <svg
-      viewBox="0 0 32 32"
+      viewBox="540 250 410 430"
       className="h-[6.6cqw] w-[6.6cqw] fill-[var(--app-text)]"
       aria-hidden="true"
     >
-      <path d="M16 2a14 14 0 100 28 14 14 0 000-28zm0 3.2a10.8 10.8 0 015.9 19.9V11.4a5.9 5.9 0 10-5.9 5.9v3.2a9.1 9.1 0 119.1-9.1h-3.2A5.9 5.9 0 1016 5.2z" />
+      <g transform="translate(0 900) scale(0.1 -0.1)">
+        <path d="M7500 6103 c-485 -52 -935 -337 -1197 -758 -126 -202 -194 -401 -228 -660 -19 -150 -19 -197 1 -360 45 -379 180 -666 444 -947 45 -49 88 -88 96 -88 12 0 14 98 14 658 0 524 3 673 14 738 75 424 425 776 845 849 198 35 428 9 594 -67 l47 -21 0 -220 0 -220 -32 27 c-53 42 -149 94 -219 117 -52 18 -89 22 -199 23 -123 1 -142 -1 -216 -27 -153 -52 -274 -146 -359 -277 -61 -95 -92 -182 -104 -293 -12 -109 -15 -1505 -3 -1524 16 -26 205 -94 363 -131 97 -23 303 -34 438 -23 122 10 152 15 271 43 132 31 338 122 470 206 93 59 245 188 325 275 156 171 259 348 334 572 61 184 76 287 76 510 -1 254 -29 399 -120 620 -56 136 -108 228 -194 342 -62 84 -214 243 -232 243 -4 0 -10 -307 -12 -682 -3 -655 -4 -687 -25 -770 -24 -100 -73 -227 -106 -278 -81 -124 -109 -160 -188 -236 -48 -46 -116 -102 -150 -125 -298 -192 -680 -224 -985 -82 l-53 24 0 210 c0 147 3 209 11 209 6 0 32 -15 58 -34 55 -40 127 -77 201 -102 44 -15 83 -19 200 -18 139 0 148 2 225 32 265 105 435 340 446 617 1 33 1 380 1 772 l-2 712 -47 21 c-124 56 -303 104 -445 119 -92 10 -281 12 -358 4z m317 -1327 c65 -36 94 -66 132 -140 77 -146 13 -335 -139 -414 -62 -32 -69 -34 -150 -29 -102 5 -151 28 -216 100 -52 58 -78 131 -78 214 1 116 91 248 197 287 28 11 68 15 122 13 66 -3 90 -8 132 -31z" />
+      </g>
     </svg>
   );
 }
@@ -186,26 +194,15 @@ export function Dinheiro({
 /**
  * A projeção do mês.
  *
- * `pathLength={1}` é convenção do projeto e não enfeite: sem ele o
- * `stroke-dasharray: 1` de `.traco-desenha` teria que ser o comprimento real do
- * caminho, que muda com a série. A classe já declara o estado FINAL sob
- * `prefers-reduced-motion`, então o traço aparece inteiro para quem pediu menos
- * movimento, em vez de invisível.
- *
  * Detalhe copiado do produto: a área preenchida por baixo existe porque uma
  * linha de 2px na largura de um card lê como régua, não como gráfico.
  */
 export function Sparkline({
   pontos,
-  desenha = false,
-  atrasoSegundos = 0.6,
   className,
 }: {
   /** Série já normalizada em 0..1, do começo ao fim do mês. */
   pontos: number[];
-  /** Liga a animação de desenho. Desligada, a linha já nasce inteira. */
-  desenha?: boolean;
-  atrasoSegundos?: number;
   className?: string;
 }) {
   const largura = 100;
@@ -242,16 +239,6 @@ export function Sparkline({
         strokeLinejoin="round"
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
-        pathLength={1}
-        className={desenha ? "traco-desenha" : undefined}
-        style={
-          desenha
-            ? ({
-                "--traco-dur": "1.5s",
-                "--traco-delay": `${atrasoSegundos}s`,
-              } as React.CSSProperties)
-            : undefined
-        }
       />
       <circle
         cx={ultimo[0]}

@@ -1,7 +1,5 @@
 import React from "react";
 
-import { cn } from "@/lib/utils";
-
 import {
   Atalho,
   BarraDeStatus,
@@ -89,104 +87,50 @@ export const HOJE_PADRAO: DadosHoje = {
   ],
 };
 
-/**
- * A entrada em CSS puro de um elemento da tela.
- *
- * Devolve `className` e `style` juntos porque os dois são a mesma decisão, e
- * separá-los é como se escreve um elemento que anima sem atraso nenhum por
- * engano. `undefined` quando a tela está parada, para o `cn` simplesmente
- * ignorar.
- *
- * Só o herói liga isto. Acima da dobra a animação não pode depender de
- * biblioteca: um `initial={{ opacity: 0 }}` seguraria o conteúdo invisível até o
- * bundle hidratar, que num celular estrangulado é vários segundos. `.hero-enter`
- * e `.traco-desenha` tocam sozinhas no primeiro paint e já declaram o estado
- * final sob `prefers-reduced-motion`.
- */
-function entrada(
-  ligada: boolean,
-  atraso: number,
-  y = "10px",
-): { className?: string; style?: React.CSSProperties } {
-  if (!ligada) return {};
-  return {
-    className: "hero-enter",
-    style: {
-      "--hero-y": y,
-      "--hero-delay": `${atraso}s`,
-      "--hero-dur": "0.55s",
-    } as React.CSSProperties,
-  };
-}
-
 interface TelaHojeProps {
   dados?: DadosHoje;
-  /** Liga a entrada em CSS. Só o herói usa; ver `entrada` acima. */
-  animada?: boolean;
 }
 
-export function TelaHoje({
-  dados = HOJE_PADRAO,
-  animada = false,
-}: TelaHojeProps) {
-  const saudacao = entrada(animada, 0.45);
-  const painel = entrada(animada, 0.55, "14px");
-  const atalhos = entrada(animada, 0.68);
-  const pendencias = entrada(animada, 0.8);
-
+export function TelaHoje({ dados = HOJE_PADRAO }: TelaHojeProps) {
   return (
     <TelaApp>
       <BarraDeStatus hora={dados.hora} />
       <CabecalhoApp />
 
       <div className="min-h-0 flex-1 overflow-hidden px-[5cqw] pt-[4cqw]">
-        <h3
-          className={cn(
-            saudacao.className,
-            "text-[5.6cqw] font-bold leading-tight tracking-[-0.02em]",
-          )}
-          style={saudacao.style}
-        >
+        <h3 className="text-[5.6cqw] font-bold leading-tight tracking-[-0.02em]">
           {dados.saudacao}
         </h3>
 
-        <div className={painel.className} style={painel.style}>
-          <PainelDestaque className="mt-[3.4cqw]">
-            <p className="text-[2.9cqw] font-semibold uppercase tracking-[0.2em] text-[var(--app-on-hero-muted)]">
-              {dados.rotuloDestaque}
-            </p>
-            <Dinheiro className="mt-[2cqw] block text-[9cqw] font-bold leading-none">
-              {dados.sobra}
-            </Dinheiro>
-            <p className="mt-[2.4cqw] text-[3.1cqw] leading-snug text-[var(--app-tint)]">
-              {dados.linhaSecundaria}
-            </p>
-            <div className="mt-[3cqw]">
-              <Sparkline pontos={PROJECAO} desenha={animada} atrasoSegundos={1} />
-            </div>
-            <div
-              aria-hidden="true"
-              className="mt-[1.4cqw] flex items-center justify-between text-[2.7cqw] text-[var(--app-on-hero-muted)]"
-            >
-              <span>Hoje</span>
-              <span>Dia 30</span>
-            </div>
-          </PainelDestaque>
-        </div>
+        <PainelDestaque className="mt-[3.4cqw]">
+          <p className="text-[2.9cqw] font-semibold uppercase tracking-[0.2em] text-[var(--app-on-hero-muted)]">
+            {dados.rotuloDestaque}
+          </p>
+          <Dinheiro className="mt-[2cqw] block text-[9cqw] font-bold leading-none">
+            {dados.sobra}
+          </Dinheiro>
+          <p className="mt-[2.4cqw] text-[3.1cqw] leading-snug text-[var(--app-tint)]">
+            {dados.linhaSecundaria}
+          </p>
+          <div className="mt-[3cqw]">
+            <Sparkline pontos={PROJECAO} />
+          </div>
+          <div
+            aria-hidden="true"
+            className="mt-[1.4cqw] flex items-center justify-between text-[2.7cqw] text-[var(--app-on-hero-muted)]"
+          >
+            <span>Hoje</span>
+            <span>Dia 30</span>
+          </div>
+        </PainelDestaque>
 
-        <div
-          className={cn(atalhos.className, "mt-[3cqw] flex gap-[2.6cqw]")}
-          style={atalhos.style}
-        >
+        <div className="mt-[3cqw] flex gap-[2.6cqw]">
           {dados.atalhos.map((atalho) => (
             <Atalho key={atalho.rotulo} {...atalho} />
           ))}
         </div>
 
-        <div
-          className={cn(pendencias.className, "mt-[4.4cqw]")}
-          style={pendencias.style}
-        >
+        <div className="mt-[4.4cqw]">
           <RotuloSecao direita={dados.totalPendencias}>
             {dados.rotuloPendencias}
           </RotuloSecao>

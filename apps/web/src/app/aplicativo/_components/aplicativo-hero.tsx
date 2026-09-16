@@ -15,9 +15,8 @@ import { AppHeroPhone } from "./app-hero-phone";
  *
  * A copy fica à esquerda e o telefone à direita, então o título é o elemento de
  * LCP e pinta por `.hero-enter` no primeiro paint, sem JavaScript. O telefone
- * deixou de ser uma captura e passou a ser a tela reconstruída em DOM, que anima
- * por dentro pelas mesmas classes CSS: acima da dobra nada aqui depende de
- * biblioteca de animação.
+ * mostra a captura real da aba Hoje (ver `app-hero-phone.tsx`): acima da dobra
+ * nada aqui depende de biblioteca de animação.
  *
  * O `Magnetic` do CTA é a única ilha de cliente acima da dobra, e ele não anexa
  * listener nenhum em touch nem sob `prefers-reduced-motion`.
