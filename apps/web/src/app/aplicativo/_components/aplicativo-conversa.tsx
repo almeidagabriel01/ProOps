@@ -1,7 +1,13 @@
 "use client";
 
 import React from "react";
-import { m as motion, useTransform } from "motion/react";
+import {
+  cubicBezier,
+  m as motion,
+  useSpring,
+  useTransform,
+  type MotionValue,
+} from "motion/react";
 
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
@@ -73,7 +79,7 @@ const CONVERSA: MensagemApp[] = [
 ];
 
 /** Os três beats, ancorados nas mesmas fatias que revelam as mensagens. */
-const BEATS = [
+export const BEATS = [
   {
     em: 0.1,
     titulo: "Ele responde",
@@ -104,6 +110,10 @@ export function AplicativoConversa() {
     end: "bottom bottom",
     fallback: 1,
   });
+  // O progresso cru segue a roda pixel a pixel, e é isso que deixava a cena
+  // seca: cada tique de scroll era um degrau na tela. A mola dá inércia sem
+  // atrasar o suficiente para descolar do que o leitor está fazendo.
+  const suave = useSpring(progress, MOLA);
 
   return (
     <section
@@ -137,7 +147,7 @@ export function AplicativoConversa() {
               <DeviceFrame platform="ios">
                 <TelaConversa
                   mensagens={CONVERSA}
-                  progresso={animated ? progress : undefined}
+                  progresso={animated ? suave : undefined}
                   janela={[0.04, 0.92]}
                 />
               </DeviceFrame>
@@ -152,8 +162,7 @@ export function AplicativoConversa() {
                   key={beat.titulo}
                   beat={beat}
                   indice={i}
-                  total={BEATS.length}
-                  progresso={progress}
+                  progresso={suave}
                   animado={animated}
                 />
               ))}
@@ -165,33 +174,81 @@ export function AplicativoConversa() {
   );
 }
 
+/** Mola do progresso: firme o bastante para não flutuar depois que a roda para. */
+const MOLA = { stiffness: 140, damping: 28, mass: 0.5 };
+
+/** Chegada que desacelera até parar, e saída que acelera para fora. */
+const CHEGA = cubicBezier(0.22, 1, 0.36, 1);
+const SAI = cubicBezier(0.55, 0, 0.75, 0.2);
+const PARADO = (v: number) => v;
+
+/**
+ * As fatias do progresso em que um beat entra e sai.
+ *
+ * A entrada termina em `em`. A saída termina ANTES de o próximo terminar de
+ * chegar: antes as duas janelas se cruzavam por quase um décimo da cena, e o que
+ * se via ali eram dois textos meio transparentes empilhados. O último beat nunca
+ * sai, então a saída dele fica além de 1.
+ */
+export function janelasDoBeat(
+  ems: readonly number[],
+  indice: number,
+): { entra: [number, number]; sai: [number, number] } {
+  const em = ems[indice];
+  const proximo = ems[indice + 1];
+  return {
+    entra: [em - 0.09, em],
+    sai: proximo === undefined ? [1.5, 1.6] : [proximo - 0.12, proximo - 0.06],
+  };
+}
+
+/**
+ * Entrada e saída de um bloco num revezamento: sobe de baixo desfocando para
+ * nítido, fica parado, e sai por cima desfocando de novo. Os quatro pontos são
+ * sempre passados, inclusive para quem nunca sai (a saída fica além de 1), para
+ * que a contagem de hooks não dependa do índice.
+ */
+function useRevezamento(
+  progresso: MotionValue<number>,
+  [a, b, c, d]: [number, number, number, number],
+) {
+  const pontos = [a, b, c, d];
+  const ease = [CHEGA, PARADO, SAI];
+  const opacity = useTransform(progresso, pontos, [0, 1, 1, 0], { ease });
+  const y = useTransform(progresso, pontos, [36, 0, 0, -28], { ease });
+  const desfoque = useTransform(progresso, pontos, [10, 0, 0, 8], { ease });
+  const filter = useTransform(desfoque, (v) => `blur(${v.toFixed(2)}px)`);
+  return { opacity, y, filter };
+}
+
 function Beat({
   beat,
   indice,
-  total,
   progresso,
   animado,
 }: {
   beat: (typeof BEATS)[number];
   indice: number;
-  total: number;
-  progresso: ReturnType<typeof useScrollProgress>["progress"];
+  progresso: MotionValue<number>;
   animado: boolean;
 }) {
-  const proximo = indice + 1 < total ? BEATS[indice + 1].em : 1.2;
-  const entra = beat.em;
-  const sai = proximo - 0.06;
-
-  const opacity = useTransform(
-    progresso,
-    [entra - 0.1, entra, sai, sai + 0.1],
-    [0, 1, 1, 0],
+  const { entra, sai } = janelasDoBeat(
+    BEATS.map((b) => b.em),
+    indice,
   );
-  const y = useTransform(progresso, [entra - 0.1, entra], [18, 0]);
+
+  const titulo = useRevezamento(progresso, [...entra, ...sai]);
+  // O parágrafo vem um pouco depois do título e sai um pouco antes, o que lê
+  // como uma frase sendo dita em vez de um bloco trocando de lugar.
+  const corpo = useRevezamento(progresso, [
+    entra[0] + 0.025,
+    entra[1] + 0.025,
+    sai[0] - 0.015,
+    sai[1] - 0.015,
+  ]);
 
   return (
-    <motion.div
-      style={animado ? { opacity, y } : undefined}
+    <div
       // Só o primeiro fica no fluxo: ele dá altura à caixa, e os outros se
       // sobrepõem a ele. Sem isso a coluna teria a altura de um beat só quando
       // o segundo entrasse, e o telefone pularia de lugar no meio da cena.
@@ -201,13 +258,19 @@ function Beat({
           : "relative mt-10 md:absolute md:inset-x-0 md:top-0 md:mt-0"
       }
     >
-      <h3 className="[font-family:var(--font-hanken)] text-2xl font-bold leading-[1.15] tracking-[-0.02em] md:text-[2rem]">
+      <motion.h3
+        style={animado ? titulo : undefined}
+        className="[font-family:var(--font-hanken)] text-2xl font-bold leading-[1.15] tracking-[-0.02em] will-change-transform md:text-[2rem]"
+      >
         {beat.titulo}{" "}
         <span className="text-[var(--app-tint)]">{beat.destaque}</span>
-      </h3>
-      <p className="mt-4 max-w-md text-base leading-relaxed text-[var(--app-text-muted)]">
+      </motion.h3>
+      <motion.p
+        style={animado ? corpo : undefined}
+        className="mt-4 max-w-md text-base leading-relaxed text-[var(--app-text-muted)] will-change-transform"
+      >
         {beat.texto}
-      </p>
-    </motion.div>
+      </motion.p>
+    </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  cubicBezier,
   m as motion,
   useMotionValue,
   useTransform,
@@ -116,14 +117,30 @@ function Bolha({
   // se ele existe. Chamar condicionalmente quebraria a ordem dos hooks assim que
   // a cena trocasse de modo no meio da vida do componente.
   const alvo = useMotionValueSeguro(progresso);
-  const opacity = useTransform(alvo, [de, ate], [0, 1]);
-  const y = useTransform(alvo, [de, ate], [14, 0]);
+  // A opacidade chega antes do movimento terminar: a bolha já está legível
+  // enquanto ainda assenta, que é como uma mensagem de verdade aparece.
+  const opacity = useTransform(alvo, [de, de + (ate - de) * 0.6], [0, 1], {
+    ease: BOLHA_CHEGA,
+  });
+  const y = useTransform(alvo, [de, ate], [22, 0], { ease: BOLHA_CHEGA });
+  const scale = useTransform(alvo, [de, ate], [0.86, 1], { ease: BOLHA_CHEGA });
 
   const meu = mensagem.de === "voce";
 
   return (
     <motion.div
-      style={progresso ? { opacity, y } : undefined}
+      style={
+        progresso
+          ? {
+              opacity,
+              y,
+              scale,
+              // Cresce a partir do canto de quem falou, onde fica o rabo da
+              // bolha num aplicativo de conversa.
+              transformOrigin: meu ? "100% 100%" : "0% 100%",
+            }
+          : undefined
+      }
       className={cn("flex", meu ? "justify-end" : "justify-start")}
     >
       <div
@@ -174,6 +191,9 @@ function Bolha({
     </motion.div>
   );
 }
+
+/** Desacelera até assentar, com um leve passo além do ponto final. */
+const BOLHA_CHEGA = cubicBezier(0.34, 1.36, 0.64, 1);
 
 /**
  * Um `MotionValue` sempre, mesmo sem cena por trás.
