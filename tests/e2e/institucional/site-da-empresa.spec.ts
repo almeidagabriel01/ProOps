@@ -597,3 +597,36 @@ test.describe("INSTITUCIONAL-02: movimento reduzido", () => {
     }
   });
 });
+
+/**
+ * O `LandingButton` na variante `link` segue o TEMA do site (`text-black
+ * dark:text-white`), e o site é claro por padrão. A raiz da empresa tem fundo
+ * preto fixo, então sem a cor forçada no call site o "Conhecer o aplicativo"
+ * saía preto no preto, no herói e no fecho, e nada falhava.
+ */
+test.describe("INSTITUCIONAL-03: contraste dos links sobre fundo fixo", () => {
+  test("os dois 'Conhecer o aplicativo' da raiz saem brancos", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`${APEX}/institucional`);
+    await page.waitForLoadState("networkidle");
+
+    // Confirma o cenário do defeito: o tema claro, que é o padrão.
+    expect(
+      await page.evaluate(() =>
+        document.documentElement.classList.contains("dark"),
+      ),
+    ).toBe(false);
+
+    // `.landing-link` separa a variante link do botão branco da cena de
+    // produtos, que tem o mesmo rótulo e texto preto de propósito.
+    const links = page
+      .locator("a.landing-link")
+      .filter({ hasText: "Conhecer o aplicativo" });
+    await expect(links).toHaveCount(2);
+    for (const link of await links.all()) {
+      await expect(link).toHaveCSS("color", "rgb(255, 255, 255)");
+    }
+  });
+});

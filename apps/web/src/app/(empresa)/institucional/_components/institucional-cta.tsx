@@ -73,7 +73,13 @@ export function InstitucionalCta() {
               Conhecer o ERP
             </LandingButton>
           </Magnetic>
-          <LandingButton href={SITE_URLS.app} external variant="link" size="lg">
+          <LandingButton
+            href={SITE_URLS.app}
+            external
+            variant="link"
+            size="lg"
+            className="text-white"
+          >
             Conhecer o aplicativo
           </LandingButton>
         </div>
