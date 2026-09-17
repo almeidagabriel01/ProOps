@@ -333,20 +333,27 @@ test.describe("APP-03: o que você pode pedir", () => {
   });
 
   /**
-   * Com movimento. Os campos que vieram da frase nascem invisíveis e só
-   * aparecem quando o token pousa neles; um seletor de entidade errado deixa
-   * o campo apagado para sempre.
+   * Com movimento: a seção é dirigida pela rolagem. Os testes rolam pela roda
+   * do mouse, que é o caminho real (o Lenis desfaz um `window.scrollTo`), e
+   * esperam a posição assentar antes de afirmar.
    */
-  test("a leitura termina com todos os campos da ficha visíveis", async ({
+  test("rolar escreve a frase e monta a ficha, e subir a devolve", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
-    await page
-      .getByRole("listbox", { name: "Pedidos de exemplo" })
-      .scrollIntoViewIfNeeded();
+    const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
 
+    await rolarAteFatia(page, roda, 4, 16);
+    await expect(leitura(page)).toHaveText(
+      "parcela a geladeira de 3.200 em 10x",
+    );
+    await expect(roda.getByRole("option", { selected: true })).toHaveText(
+      "parcela a geladeira de 3.200 em 10x",
+    );
+    // Os campos que vieram da frase nascem invisíveis e só aparecem quando o
+    // token pousa neles; um seletor de entidade errado os deixa apagados.
     const valores = page
       .locator("#comandos .ficha")
       .first()
@@ -357,30 +364,83 @@ test.describe("APP-03: o que você pode pedir", () => {
           valores.evaluateAll((els) =>
             els.every((el) => Number(getComputedStyle(el).opacity) > 0.99),
           ),
-        { timeout: 12_000 },
+        { timeout: 10_000 },
       )
       .toBe(true);
-    // E nenhum fantasma ficou no meio do caminho.
     await expect(page.locator(".leitura-fantasma:visible")).toHaveCount(0);
+
+    await rolarAteFatia(page, roda, 1, 16);
+    await expect(leitura(page)).toHaveText(
+      "me lembra de pagar o aluguel todo dia 5",
+    );
   });
 
-  test("a roda anda sozinha, e o botão a pausa", async ({ page }) => {
+  test("tocar numa frase da roda leva a página até ela", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
     const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
-    await roda.scrollIntoViewIfNeeded();
-
+    await rolarAteFatia(page, roda, 0, 16);
     await expect(leitura(page)).toHaveText("gastei 45 no mercado");
-    await expect(leitura(page)).not.toHaveText("gastei 45 no mercado", {
-      timeout: 12_000,
-    });
 
-    await page.getByRole("button", { name: "Pausar os pedidos" }).click();
-    const parada = await leitura(page).textContent();
-    await page.waitForTimeout(9_000);
-    await expect(leitura(page)).toHaveText(parada ?? "");
+    const antes = await page.evaluate(() => window.scrollY);
+    await roda.getByRole("option", { name: "recebi 1.200 de freela" }).click();
+    await expect(leitura(page)).toHaveText("recebi 1.200 de freela", {
+      timeout: 10_000,
+    });
+    expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(antes);
+  });
+
+  test("escolher uma operação leva a página até o diagrama dela", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${APP}/`);
+    await page.waitForLoadState("networkidle");
+    const abas = page.getByRole("tablist", { name: "Operações de exemplo" });
+    await rolarAteFatia(page, abas, 0, 6);
+
+    const meta = abas.getByRole("tab", {
+      name: "guarda 200 na meta da viagem",
+    });
+    await meta.click();
+    await expect(meta).toHaveAttribute("aria-selected", "true", {
+      timeout: 10_000,
+    });
+    await expect(page.getByRole("tabpanel")).toContainText("R$ 2.300,00", {
+      timeout: 10_000,
+    });
   });
 });
+
+/**
+ * Leva a página até o meio da fatia `indice` do trilho que contém `ancora`,
+ * pela roda do mouse. O Lenis tem inércia, então o movimento é corrigido em
+ * alguns passos até assentar perto do alvo.
+ */
+async function rolarAteFatia(
+  page: import("@playwright/test").Page,
+  ancora: import("@playwright/test").Locator,
+  indice: number,
+  total: number,
+) {
+  const alvo = await ancora.evaluate(
+    (el, [i, n]) => {
+      const trilho = el.closest<HTMLElement>("div[style*='svh']")!;
+      const topo = trilho.getBoundingClientRect().top + window.scrollY;
+      const alcance = trilho.offsetHeight - window.innerHeight;
+      return topo + ((i + 0.8) / n) * alcance;
+    },
+    [indice, total] as const,
+  );
+  for (let tentativa = 0; tentativa < 10; tentativa += 1) {
+    const falta = alvo - (await page.evaluate(() => window.scrollY));
+    if (Math.abs(falta) < 40) break;
+    await page.mouse.move(700, 450);
+    await page.mouse.wheel(0, falta);
+    await page.waitForTimeout(900);
+  }
+}
 
 test.describe("APP-02: movimento reduzido", () => {
   // `reducedMotion` fica em `contextOptions`. Escrito direto no `use` ele é
@@ -426,10 +486,8 @@ test.describe("APP-02: movimento reduzido", () => {
       }),
     ).toBeVisible();
 
-    // A seção de comandos não troca nada sozinha e já mostra a ficha inteira.
-    await expect(
-      page.getByRole("button", { name: "Pausar os pedidos" }),
-    ).toHaveCount(0);
+    // A seção de comandos não gruda nem rola: sem trilho, a ficha já inteira.
+    await expect(page.locator("#comandos div[style*='svh']")).toHaveCount(0);
     const valores = page.locator("#comandos .ficha-valor");
     await expect(valores.first()).toBeVisible();
     const apagados = await valores.evaluateAll(

@@ -35,13 +35,21 @@ export function setScrollLocked(locked: boolean): void {
   document.documentElement.style.removeProperty("overflow");
 }
 
-export function scrollToOffset(top: number): void {
+/**
+ * `immediate` pula a suavização: é o caso de um controle arrastado que move a
+ * página junto com o dedo, onde qualquer atraso descola a página do gesto.
+ */
+export function scrollToOffset(
+  top: number,
+  { immediate = false }: { immediate?: boolean } = {},
+): void {
   const target = Math.max(top, 0);
   if (instance) {
-    instance.scrollTo(target);
+    if (immediate) instance.scrollTo(target, { immediate: true });
+    else instance.scrollTo(target);
     return;
   }
-  window.scrollTo({ top: target, behavior: "smooth" });
+  window.scrollTo({ top: target, behavior: immediate ? "instant" : "smooth" });
 }
 
 /**

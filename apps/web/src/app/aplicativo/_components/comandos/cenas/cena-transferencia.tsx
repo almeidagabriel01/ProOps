@@ -39,7 +39,7 @@ const FATURA = { antes: 1590, depois: 1090 };
  * traço fino num SVG esticado) o Chrome calcula o tracejado em outra escala, e
  * o arco aparecia partido ao meio mesmo no estado final.
  */
-export function CenaTransferencia({ armado, tocando }: PropsDaCena) {
+export function CenaTransferencia({ armado, progresso }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({
     conta: CONTA.depois,
@@ -48,12 +48,11 @@ export function CenaTransferencia({ armado, tocando }: PropsDaCena) {
 
   useCena(
     raiz,
-    (tl) => {
+    (tl, { acompanhar }) => {
       const q = gsap.utils.selector(raiz);
       const arco = q<SVGPathElement>(".transferencia-arco")[0];
       const pulso = q<HTMLElement>(".transferencia-pulso")[0];
       if (!arco || !pulso) return;
-      definir({ conta: CONTA.antes, fatura: FATURA.antes });
 
       tl.fromTo(
         q(".transferencia-ponta"),
@@ -92,8 +91,6 @@ export function CenaTransferencia({ armado, tocando }: PropsDaCena) {
           },
           1.25,
         )
-        .call(() => definir({ conta: CONTA.depois }), [], 1.3)
-        .call(() => definir({ fatura: FATURA.depois }), [], 2.2)
         .to(
           pulso,
           { autoAlpha: 0, scale: 2.4, duration: 0.45, ease: "power2.out" },
@@ -118,9 +115,16 @@ export function CenaTransferencia({ armado, tocando }: PropsDaCena) {
           3.1,
         );
 
+      acompanhar((tempo) =>
+        definir({
+          conta: tempo >= 1.3 ? CONTA.depois : CONTA.antes,
+          fatura: tempo >= 2.2 ? FATURA.depois : FATURA.antes,
+        }),
+      );
+
       return () => definir({ conta: CONTA.depois, fatura: FATURA.depois });
     },
-    { armado, tocando },
+    { armado, progresso },
   );
 
   return (

@@ -24,15 +24,22 @@ import { MesaDeOperacoes } from "./comandos/mesa-de-operacoes";
  * grade de seis cartões com texto: as duas mostravam que existiam pedidos, e
  * nenhuma mostrava o que acontecia com eles.
  *
+ * ── A rolagem conduz ───────────────────────────────────────────────────────
+ *
+ * As duas metades são palcos grudados em trilhos altos, e cada frase ou
+ * operação ocupa uma fatia da rolagem: a animação avança e volta com a página,
+ * em vez de tocar sozinha num relógio. Uma versão com revezamento automático
+ * existiu e foi trocada por esta, porque quem lê não controlava o ritmo.
+ *
  * ── Custo ──────────────────────────────────────────────────────────────────
  *
- * Nenhum ScrollTrigger. Toda timeline nasce por IntersectionObserver, quando a
- * região chega a meia tela (`useVisibilidade`), e só a frase e a cena ativas
- * têm uma. A página está no limite de TBT, e o que custava ali era trigger
- * criado na hidratação.
+ * Três ScrollTriggers (os dois trilhos e a faixa de cota), todos criados por
+ * IntersectionObserver via `useScrollProgress`, fora da hidratação. As
+ * timelines só nascem quando a região chega perto (`useVisibilidade`), e só a
+ * frase e a cena atuais têm uma.
  *
- * A seção NÃO leva `overflow-hidden`: a roda é `sticky` ao lado da leitura, e
- * overflow em qualquer ancestral desliga o `sticky` sem erro nenhum.
+ * A seção NÃO leva `overflow-hidden`: overflow em qualquer ancestral desliga o
+ * `sticky` dos palcos sem erro nenhum.
  */
 export function AplicativoComandos() {
   return (

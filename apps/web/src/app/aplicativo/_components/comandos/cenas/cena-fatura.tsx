@@ -31,18 +31,17 @@ const DEPOIS = 5927;
  * barra chegam ao fim ao mesmo tempo que o último check, porque é uma operação
  * só, não sete.
  */
-export function CenaFatura({ armado, tocando }: PropsDaCena) {
+export function CenaFatura({ armado, progresso }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({ disponivel: DEPOIS });
 
   useCena(
     raiz,
-    (tl) => {
+    (tl, { acompanhar }) => {
       const q = gsap.utils.selector(raiz);
       const linhas = q<HTMLElement>(".fatura-linha");
       const passo = 0.28;
       const inicio = 0.7;
-      definir({ disponivel: ANTES });
 
       tl.fromTo(
         q(".fatura-cabeca, .fatura-limite"),
@@ -71,8 +70,7 @@ export function CenaFatura({ armado, tocando }: PropsDaCena) {
             ease: "power1.inOut",
           },
           inicio,
-        )
-        .call(() => definir({ disponivel: DEPOIS }), [], inicio + 0.2);
+        );
 
       linhas.forEach((linha, i) => {
         const em = inicio + i * passo;
@@ -103,9 +101,13 @@ export function CenaFatura({ armado, tocando }: PropsDaCena) {
         inicio + linhas.length * passo + 0.1,
       );
 
+      acompanhar((tempo) =>
+        definir({ disponivel: tempo >= inicio + 0.2 ? DEPOIS : ANTES }),
+      );
+
       return () => definir({ disponivel: DEPOIS });
     },
-    { armado, tocando },
+    { armado, progresso },
   );
 
   return (
@@ -129,7 +131,7 @@ export function CenaFatura({ armado, tocando }: PropsDaCena) {
           {ITENS.map((item) => (
             <li
               key={item.titulo}
-              className="fatura-linha flex items-center gap-3 py-2"
+              className="fatura-linha flex items-center gap-3 py-1.5 md:py-2"
             >
               <Check />
               <span className="fatura-texto min-w-0 flex-1 truncate text-sm text-[var(--app-text)]">

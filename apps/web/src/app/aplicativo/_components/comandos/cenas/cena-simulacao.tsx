@@ -40,15 +40,14 @@ const pct = (x: number, y: number) => ({
  * rótulos são HTML posicionados na mesma caixa de proporção fixa, em
  * porcentagem das coordenadas do desenho.
  */
-export function CenaSimulacao({ armado, tocando }: PropsDaCena) {
+export function CenaSimulacao({ armado, progresso }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({ sem: 1284.9, com: -1715.1 });
 
   useCena(
     raiz,
-    (tl) => {
+    (tl, { acompanhar }) => {
       const q = gsap.utils.selector(raiz);
-      definir({ sem: 0, com: 0 });
 
       tl.fromTo(
         q(".simulacao-zero, .simulacao-hoje"),
@@ -103,8 +102,6 @@ export function CenaSimulacao({ armado, tocando }: PropsDaCena) {
           },
           2.5,
         )
-        .call(() => definir({ sem: 1284.9 }), [], 2.6)
-        .call(() => definir({ com: -1715.1 }), [], 2.75)
         .fromTo(
           q(".simulacao-legenda"),
           { autoAlpha: 0 },
@@ -112,9 +109,16 @@ export function CenaSimulacao({ armado, tocando }: PropsDaCena) {
           3.2,
         );
 
+      acompanhar((tempo) =>
+        definir({
+          sem: tempo >= 2.6 ? 1284.9 : 0,
+          com: tempo >= 2.75 ? -1715.1 : 0,
+        }),
+      );
+
       return () => definir({ sem: 1284.9, com: -1715.1 });
     },
-    { armado, tocando },
+    { armado, progresso },
   );
 
   return (

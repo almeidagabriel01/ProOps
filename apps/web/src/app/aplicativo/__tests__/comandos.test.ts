@@ -20,9 +20,14 @@ import {
   raioParaAltura,
 } from "../_components/comandos/roda-math";
 import {
-  estadoInicial,
-  revezamento,
-} from "../_components/comandos/use-revezamento";
+  ANIMA_ATE,
+  GIRO,
+  indiceDaFatia,
+  posicaoDaRoda,
+  progressoDaParada,
+  progressoDaPosicao,
+  progressoNaFatia,
+} from "../_components/comandos/fatias";
 
 const entidadesDaFrase = (partes: (typeof PEDIDOS)[number]["partes"]) =>
   partes.flatMap((parte) =>
@@ -178,45 +183,75 @@ describe("a geometria da roda", () => {
   });
 });
 
-describe("o revezamento", () => {
-  it("avança em círculo enquanto ninguém mexe", () => {
-    let estado = estadoInicial();
-    for (let i = 0; i < 3; i += 1) {
-      estado = revezamento(estado, { tipo: "avancar", total: 3 });
+describe("as fatias da rolagem", () => {
+  const total = 16;
+
+  it("divide o progresso em fatias iguais, e o fim pertence à última", () => {
+    expect(indiceDaFatia(0, total)).toBe(0);
+    expect(indiceDaFatia(1 / total - 0.0001, total)).toBe(0);
+    expect(indiceDaFatia(1 / total, total)).toBe(1);
+    expect(indiceDaFatia(1, total)).toBe(total - 1);
+    expect(indiceDaFatia(-0.2, total)).toBe(0);
+  });
+
+  it("anima só a primeira parte da fatia, e segura o resto", () => {
+    const inicio = 3 / total;
+    expect(progressoNaFatia(inicio, 3, total)).toBe(0);
+    expect(
+      progressoNaFatia(inicio + ANIMA_ATE / 2 / total, 3, total),
+    ).toBeCloseTo(0.5);
+    expect(progressoNaFatia(inicio + ANIMA_ATE / total, 3, total)).toBe(1);
+    expect(progressoNaFatia(inicio + 0.95 / total, 3, total)).toBe(1);
+    // Fatias vizinhas não vazam: a anterior está completa, a seguinte zerada.
+    expect(progressoNaFatia(inicio, 2, total)).toBe(1);
+    expect(progressoNaFatia(inicio, 4, total)).toBe(0);
+  });
+
+  /**
+   * O clique leva a página a um ponto em que a fatia escolhida já está
+   * montada. Uma parada antes do fim da animação deixaria a ficha pela metade
+   * justamente para quem pediu aquela frase.
+   */
+  it("a parada de um clique cai na fatia certa, com a animação completa", () => {
+    for (let i = 0; i < total; i += 1) {
+      const alvo = progressoDaParada(i, total);
+      expect(indiceDaFatia(alvo, total)).toBe(i);
+      expect(progressoNaFatia(alvo, i, total)).toBe(1);
     }
-    expect(estado.indice).toBe(0);
-    expect(estado.volta).toBe(3);
   });
 
-  it("a escolha da pessoa desliga o automático, e o avanço para", () => {
-    let estado = revezamento(estadoInicial(), { tipo: "escolher", indice: 4 });
-    expect(estado).toMatchObject({ indice: 4, automatico: false });
-    estado = revezamento(estado, { tipo: "avancar", total: 16 });
-    expect(estado.indice).toBe(4);
+  it("a roda cruza a lente no instante em que a fatia troca", () => {
+    // Na fronteira entre as fatias 4 e 5, a roda está a meia linha das duas.
+    expect(posicaoDaRoda(5 / total, total)).toBeCloseTo(4.5);
+    expect(posicaoDaRoda(5 / total - 1e-9, total)).toBeCloseTo(4.5);
   });
 
-  it("pausar segura o índice, e o mesmo botão retoma", () => {
-    let estado = revezamento(estadoInicial(), { tipo: "alternar" });
-    expect(estado.pausado).toBe(true);
-    expect(revezamento(estado, { tipo: "avancar", total: 5 }).indice).toBe(0);
-    estado = revezamento(estado, { tipo: "alternar" });
-    expect(estado).toMatchObject({ pausado: false, automatico: true });
+  it("começa e termina com uma frase na lente, sem meia linha vazia", () => {
+    expect(posicaoDaRoda(0, total)).toBe(0);
+    expect(posicaoDaRoda(1, total)).toBe(total - 1);
   });
 
-  it("o botão devolve o automático depois que a pessoa assumiu", () => {
-    let estado = revezamento(estadoInicial(), { tipo: "escolher", indice: 2 });
-    estado = revezamento(estado, { tipo: "alternar" });
-    expect(estado).toMatchObject({ automatico: true, pausado: false });
-    expect(revezamento(estado, { tipo: "avancar", total: 5 }).indice).toBe(3);
+  it("a roda fica parada e centrada enquanto a frase é lida", () => {
+    for (const local of [GIRO, 0.3, ANIMA_ATE, 0.85]) {
+      expect(posicaoDaRoda((7 + local) / total, total)).toBe(7);
+    }
   });
 
-  it("cada troca recomeça a barra de tempo", () => {
-    const antes = estadoInicial();
-    const depois = revezamento(antes, {
-      tipo: "escolher",
-      indice: antes.indice,
-    });
-    expect(depois.volta).toBe(antes.volta + 1);
+  it("a roda nunca anda para trás enquanto a página desce", () => {
+    let anterior = -Infinity;
+    for (let i = 0; i <= 2000; i += 1) {
+      const atual = posicaoDaRoda(i / 2000, total);
+      expect(atual).toBeGreaterThanOrEqual(anterior - 1e-9);
+      anterior = atual;
+    }
+  });
+
+  it("arrastar a roda até uma frase ou fronteira leva a página a ela", () => {
+    for (const x of [3, 3.5, 9, 14.5]) {
+      expect(posicaoDaRoda(progressoDaPosicao(x, total), total)).toBeCloseTo(x);
+    }
+    expect(progressoDaPosicao(-5, total)).toBe(0);
+    expect(progressoDaPosicao(99, total)).toBe(1);
   });
 });
 

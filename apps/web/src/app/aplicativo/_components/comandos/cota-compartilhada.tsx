@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { DrawSVGPlugin } from "gsap/dist/DrawSVGPlugin";
 import NumberFlow from "@number-flow/react";
 
+import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 import { APP_NAME } from "@/lib/site/app-brand";
 
 import { useCena } from "./use-cena";
@@ -30,17 +31,20 @@ const USO = { whatsapp: 2, app: 4 };
  * fios desembocam no começo dela, onde os dois segmentos estão.
  */
 export function CotaCompartilhada() {
-  const { ref, armado, emVista } = useVisibilidade<HTMLDivElement>({
-    limiar: 0.5,
+  const { ref, armado } = useVisibilidade<HTMLDivElement>();
+  // Curta de propósito: a faixa se monta enquanto entra na tela, e está
+  // completa antes de chegar ao meio dela.
+  const { progress } = useScrollProgress(ref, {
+    start: "top 92%",
+    end: "top 48%",
   });
   const [valores, definir] = useValores({ ...USO });
   const total = valores.whatsapp + valores.app;
 
   useCena(
     ref,
-    (tl) => {
+    (tl, { acompanhar }) => {
       const q = gsap.utils.selector(ref);
-      definir({ whatsapp: 0, app: 0 });
 
       tl.fromTo(
         q(".cota-fio"),
@@ -52,19 +56,23 @@ export function CotaCompartilhada() {
           stagger: 0.12,
         },
         0.1,
-      )
-        .fromTo(
-          q(".cota-segmento"),
-          { scaleX: 0 },
-          { scaleX: 1, duration: 0.7, ease: "expo.out", stagger: 0.15 },
-          0.9,
-        )
-        .call(() => definir({ whatsapp: USO.whatsapp }), [], 0.9)
-        .call(() => definir({ app: USO.app }), [], 1.05);
+      ).fromTo(
+        q(".cota-segmento"),
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.7, ease: "expo.out", stagger: 0.15 },
+        0.9,
+      );
+
+      acompanhar((tempo) =>
+        definir({
+          whatsapp: tempo >= 0.9 ? USO.whatsapp : 0,
+          app: tempo >= 1.05 ? USO.app : 0,
+        }),
+      );
 
       return () => definir({ ...USO });
     },
-    { armado, tocando: emVista },
+    { armado, progresso: progress },
   );
 
   return (

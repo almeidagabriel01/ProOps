@@ -119,7 +119,7 @@ export function FichaDaLeitura({ pedido, numero }: FichaDaLeituraProps) {
         {pedido.campos.map((campo) => (
           <div
             key={campo.rotulo}
-            className="ficha-campo flex items-baseline justify-between gap-4 py-3"
+            className="ficha-campo flex items-baseline justify-between gap-4 py-2.5 md:py-3"
           >
             <dt className="shrink-0 text-sm text-[var(--app-on-hero-muted)]">
               {campo.rotulo}

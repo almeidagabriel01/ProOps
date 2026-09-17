@@ -60,12 +60,22 @@ export function Moeda({
 
 /**
  * Os números de uma cena: começam no valor FINAL (o que o servidor manda) e a
- * timeline os leva ao inicial ao montar e de volta ao final quando toca.
+ * timeline os recalcula a partir do tempo dela, a cada quadro da rolagem.
+ *
+ * Por isso `definir` devolve o MESMO objeto quando nada mudou: o React
+ * descarta a atualização, e rolar não re-renderiza a cena. Só a travessia de um
+ * limiar custa um render.
  */
 export function useValores<T extends Record<string, number>>(finais: T) {
   const [valores, setValores] = React.useState<T>(finais);
   const definir = React.useCallback(
-    (parcial: Partial<T>) => setValores((atual) => ({ ...atual, ...parcial })),
+    (parcial: Partial<T>) =>
+      setValores((atual) => {
+        const mudou = (Object.keys(parcial) as (keyof T)[]).some(
+          (chave) => parcial[chave] !== atual[chave],
+        );
+        return mudou ? { ...atual, ...parcial } : atual;
+      }),
     [],
   );
   return [valores, definir] as const;

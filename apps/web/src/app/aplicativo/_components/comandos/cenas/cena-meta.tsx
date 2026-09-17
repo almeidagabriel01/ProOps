@@ -26,7 +26,7 @@ const RAIO = 52;
  * O arco usa `pathLength={100}`, então o progresso é escrito em porcentagem
  * direto no `strokeDasharray`, sem conta de circunferência.
  */
-export function CenaMeta({ armado, tocando }: PropsDaCena) {
+export function CenaMeta({ armado, progresso }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({
     guardado: GUARDADO.depois,
@@ -37,7 +37,7 @@ export function CenaMeta({ armado, tocando }: PropsDaCena) {
 
   useCena(
     raiz,
-    (tl) => {
+    (tl, { acompanhar }) => {
       const q = gsap.utils.selector(raiz);
       const deposito = q<HTMLElement>(".meta-deposito")[0];
       const anel = q<HTMLElement>(".meta-anel")[0];
@@ -49,7 +49,6 @@ export function CenaMeta({ armado, tocando }: PropsDaCena) {
         anel.getBoundingClientRect().height / 2 -
         (deposito.getBoundingClientRect().top +
           deposito.getBoundingClientRect().height / 2);
-      definir({ guardado: GUARDADO.antes, faltam: FALTAM.antes });
 
       tl.fromTo(
         q(".meta-anel"),
@@ -121,14 +120,19 @@ export function CenaMeta({ armado, tocando }: PropsDaCena) {
             immediateRender: false,
           },
           2.35,
-        )
-        .call(() => definir({ guardado: GUARDADO.depois }), [], 2.35)
-        .call(() => definir({ faltam: FALTAM.depois }), [], 2.5);
+        );
+
+      acompanhar((tempo) =>
+        definir({
+          guardado: tempo >= 2.35 ? GUARDADO.depois : GUARDADO.antes,
+          faltam: tempo >= 2.5 ? FALTAM.depois : FALTAM.antes,
+        }),
+      );
 
       return () =>
         definir({ guardado: GUARDADO.depois, faltam: FALTAM.depois });
     },
-    { armado, tocando },
+    { armado, progresso },
   );
 
   return (

@@ -1394,26 +1394,7 @@ html[data-heroi="espera"] .regua-desenha {
 
 /* Landing do aplicativo: a seção de comandos.
 
-   `revezamento-enche` é o relógio do revezamento (barra-de-tempo.tsx): a
-   troca acontece no `animationend` dela, então esta animação É o timer. Está
-   na lista de movimento reduzido no fim do arquivo, e isso desliga a troca
-   automática para quem pediu menos movimento.
-
    `leitura-cursor` pisca o cursor da frase sendo digitada. */
-@keyframes revezamento-enche {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-.revezamento-enche {
-  transform: scaleX(0);
-  animation-name: revezamento-enche;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
-}
 @keyframes leitura-cursor {
   0%,
   45% {
@@ -1853,8 +1834,7 @@ html[data-cookie-consent="pending"] .cookie-banner {
   .inclina-ponteiro {
     transform: none;
   }
-  /* Sem relógio, sem troca automática; e o cursor fica aceso, parado. */
-  .revezamento-enche,
+  /* O cursor da leitura fica aceso, parado. */
   .leitura-cursor::after {
     animation: none !important;
   }

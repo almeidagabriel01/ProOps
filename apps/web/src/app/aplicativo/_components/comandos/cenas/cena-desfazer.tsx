@@ -27,13 +27,13 @@ const ANTERIORES = [
  * marcada. Quem não vê a animação ainda lê a história inteira, porque o
  * lançamento desfeito continua ali, com o motivo escrito.
  */
-export function CenaDesfazer({ armado, tocando }: PropsDaCena) {
+export function CenaDesfazer({ armado, progresso }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({ sobra: SOBRA.antes });
 
   useCena(
     raiz,
-    (tl) => {
+    (tl, { acompanhar }) => {
       const q = gsap.utils.selector(raiz);
       const linha = q<HTMLElement>(".desfazer-linha")[0];
       if (!linha) return;
@@ -67,7 +67,6 @@ export function CenaDesfazer({ armado, tocando }: PropsDaCena) {
           { autoAlpha: 1, y: 0, scale: 1, duration: 0.7, ease: "expo.out" },
           0.55,
         )
-        .call(() => definir({ sobra: SOBRA.errada }), [], 0.9)
         // O rebobinar.
         .fromTo(
           q(".desfazer-glifo"),
@@ -99,12 +98,18 @@ export function CenaDesfazer({ armado, tocando }: PropsDaCena) {
           q(".desfazer-marca"),
           { autoAlpha: 1, x: 0, duration: 0.45, ease: "back.out(2)" },
           3.05,
-        )
-        .call(() => definir({ sobra: SOBRA.antes }), [], 2.9);
+        );
+
+      // A sobra cai quando o engano entra e volta quando ele é desfeito.
+      acompanhar((tempo) =>
+        definir({
+          sobra: tempo >= 0.9 && tempo < 2.9 ? SOBRA.errada : SOBRA.antes,
+        }),
+      );
 
       return () => definir({ sobra: SOBRA.antes });
     },
-    { armado, tocando },
+    { armado, progresso },
   );
 
   return (

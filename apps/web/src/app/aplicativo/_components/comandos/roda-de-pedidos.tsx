@@ -6,6 +6,7 @@ import {
   useMotionValue,
   useMotionValueEvent,
   type AnimationPlaybackControls,
+  type MotionValue,
 } from "motion/react";
 
 import { useReducedMotion } from "@/components/landing/_shared/use-reduced-motion";
@@ -25,19 +26,29 @@ export interface ItemDaRoda {
   rotulo: string;
 }
 
+/**
+ * A roda dirigida pela página: a posição vem da rolagem, e arrastar a roda
+ * rola a página. Ausente, a roda é um controle comum, com mola própria.
+ */
+export interface RodaNaRolagem {
+  posicao: MotionValue<number>;
+  /** Pede à página a posição da roda sob o dedo, sem suavização. */
+  aoArrastar: (posicao: number) => void;
+}
+
 interface RodaDePedidosProps {
   itens: ItemDaRoda[];
   indice: number;
   aoEscolher: (indice: number) => void;
   /** Nome acessível da lista. */
   rotulo: string;
+  rolagem?: RodaNaRolagem;
+  /** Inclui a altura: a geometria funciona com qualquer uma. */
   className?: string;
 }
 
 /** Altura de uma linha, em px. A geometria inteira deriva dela. */
 const ALTURA = 44;
-/** Linhas acima e abaixo da lente que cabem na caixa. */
-const LINHAS_NA_CAIXA = 7;
 const RAIO = raioParaAltura(ALTURA);
 /** Menos que isto de movimento entre apertar e soltar é um toque, não arrasto. */
 const LIMIAR_DE_ARRASTO = 4;
@@ -61,33 +72,46 @@ const MOLA = {
  * exatamente ao cruzar a borda da lente, sem nenhuma transição de cor. É o que
  * o UIPickerView faz, e é o detalhe que separa uma roda de uma lista rolando.
  *
+ * ── Dois modos ─────────────────────────────────────────────────────────────
+ *
+ * Na página, a roda é o próprio indicador da rolagem (`rolagem`): ela gira
+ * junto com a página, e um arrasto nela move a página, então a roda e a leitura
+ * ao lado nunca discordam. Nesse modo ela NÃO é circular, porque a rolagem tem
+ * começo e fim, e mostrar a última frase acima da primeira prometeria uma
+ * rolagem para cima que não existe.
+ *
+ * Sem `rolagem` (movimento reduzido), ela é um controle comum e circular, com
+ * mola própria até o índice escolhido.
+ *
  * ── Nenhum re-render por quadro ────────────────────────────────────────────
  *
  * A posição é um `MotionValue`. Um único ouvinte escreve `transform` e
- * `opacity` direto nos elementos, então arrastar não passa pelo React. O
- * `style` do JSX só carrega a posição inicial, calculada a partir do índice com
- * que a roda NASCEU: se ele acompanhasse o índice atual, o React reescreveria
- * as linhas a cada troca e brigaria com a animação.
+ * `opacity` direto nos elementos, então girar não passa pelo React. O `style`
+ * do JSX só carrega a posição inicial: se ele acompanhasse o índice atual, o
+ * React reescreveria as linhas a cada troca e brigaria com a animação.
  *
  * ── A roda do mouse fica livre de propósito ───────────────────────────────
  *
- * A página inteira rola com Lenis. Capturar `wheel` aqui prenderia a rolagem da
- * página sempre que o cursor passasse sobre a roda, que é justamente o caminho
- * de quem só está descendo. Arrasto, toque e teclado bastam.
+ * Capturar `wheel` aqui prenderia a rolagem da página sempre que o cursor
+ * passasse sobre a roda. No modo rolado isso nem faz falta: a roda do mouse já
+ * gira a roda, porque rola a página.
  */
 export function RodaDePedidos({
   itens,
   indice,
   aoEscolher,
   rotulo,
+  rolagem,
   className,
 }: RodaDePedidosProps) {
   const total = itens.length;
   const idBase = React.useId();
   const reduzido = useReducedMotion();
+  const circular = !rolagem;
   const [indiceInicial] = React.useState(indice);
 
-  const posicao = useMotionValue(indiceInicial);
+  const interna = useMotionValue(indiceInicial);
+  const fonte = rolagem?.posicao ?? interna;
   const alvo = React.useRef(indiceInicial);
   const linhas = React.useRef<(HTMLDivElement | null)[]>([]);
   const nitidas = React.useRef<(HTMLSpanElement | null)[]>([]);
@@ -96,6 +120,7 @@ export function RodaDePedidos({
     id: number;
     inicioY: number;
     inicioPosicao: number;
+    posicao: number;
     ultimoY: number;
     ultimoT: number;
     velocidade: number;
@@ -104,10 +129,15 @@ export function RodaDePedidos({
     tocado: number | null;
   } | null>(null);
 
+  const distancia = React.useCallback(
+    (i: number, p: number) => (circular ? deslocamento(i, p, total) : i - p),
+    [circular, total],
+  );
+
   const pintar = React.useCallback(
     (p: number) => {
       for (let i = 0; i < total; i += 1) {
-        const d = deslocamento(i, p, total);
+        const d = distancia(i, p);
         const linha = linhas.current[i];
         if (linha) {
           const estilo = estiloDaLinha(d, RAIO);
@@ -122,30 +152,36 @@ export function RodaDePedidos({
         }
       }
     },
-    [total],
+    [distancia, total],
   );
 
-  useMotionValueEvent(posicao, "change", pintar);
+  useMotionValueEvent(fonte, "change", pintar);
+
+  // A fonte pode trocar depois da hidratação (o modo rolado só se decide no
+  // cliente), e o `change` só dispara na PRÓXIMA mudança: pinta já.
+  React.useLayoutEffect(() => {
+    pintar(fonte.get());
+  }, [fonte, pintar]);
 
   const irPara = React.useCallback(
     (destino: number, velocidade = 0) => {
       alvo.current = destino;
       animacao.current?.stop();
       animacao.current = reduzido
-        ? animate(posicao, destino, { duration: 0 })
-        : animate(posicao, destino, { ...MOLA, velocity: velocidade });
+        ? animate(interna, destino, { duration: 0 })
+        : animate(interna, destino, { ...MOLA, velocity: velocidade });
     },
-    [posicao, reduzido],
+    [interna, reduzido],
   );
 
-  // O índice vem de fora (revezamento, teclado, toque). Se a roda já está a
-  // caminho dele, não há o que fazer: recomeçar a mola do zero aqui mataria a
-  // velocidade de um arremesso que acabou de ser solto.
+  // Só no modo controle: o índice vem de fora (teclado, toque), e a mola leva
+  // a roda até ele. Se ela já está a caminho, recomeçar mataria a velocidade de
+  // um arremesso que acabou de ser solto.
   React.useEffect(() => {
-    if (arrasto.current) return;
+    if (rolagem || arrasto.current) return;
     if (indiceNaPosicao(alvo.current, total) === indice) return;
-    irPara(posicaoMaisProxima(posicao.get(), indice, total));
-  }, [indice, total, irPara, posicao]);
+    irPara(posicaoMaisProxima(interna.get(), indice, total));
+  }, [indice, total, irPara, interna, rolagem]);
 
   React.useEffect(() => () => animacao.current?.stop(), []);
 
@@ -159,7 +195,8 @@ export function RodaDePedidos({
     arrasto.current = {
       id: evento.pointerId,
       inicioY: evento.clientY,
-      inicioPosicao: posicao.get(),
+      inicioPosicao: fonte.get(),
+      posicao: fonte.get(),
       ultimoY: evento.clientY,
       ultimoT: evento.timeStamp,
       velocidade: 0,
@@ -174,7 +211,9 @@ export function RodaDePedidos({
     const dy = evento.clientY - a.inicioY;
     if (Math.abs(dy) > LIMIAR_DE_ARRASTO) a.moveu = true;
     if (!a.moveu) return;
-    posicao.set(a.inicioPosicao - dy / ALTURA);
+    a.posicao = a.inicioPosicao - dy / ALTURA;
+    if (rolagem) rolagem.aoArrastar(a.posicao);
+    else interna.set(a.posicao);
 
     const dt = evento.timeStamp - a.ultimoT;
     if (dt > 0) {
@@ -195,37 +234,40 @@ export function RodaDePedidos({
 
     if (!a.moveu) {
       const tocado = a.tocado ?? indice;
-      irPara(posicaoMaisProxima(posicao.get(), tocado, total));
+      if (!rolagem) irPara(posicaoMaisProxima(interna.get(), tocado, total));
       aoEscolher(tocado);
       return;
     }
 
     // Um arremesso parado no ar há mais de 80ms não tem velocidade nenhuma.
     const velocidade = evento.timeStamp - a.ultimoT > 80 ? 0 : a.velocidade;
-    const parada = posicaoDeParada(posicao.get(), velocidade);
+    const parada = posicaoDeParada(a.posicao, velocidade);
+    if (rolagem) {
+      // A página faz o resto: ela leva a roda até a frase e a leitura junto.
+      aoEscolher(Math.min(Math.max(parada, 0), total - 1));
+      return;
+    }
     irPara(parada, velocidade);
     aoEscolher(indiceNaPosicao(parada, total));
   }
 
   function aoTeclar(evento: React.KeyboardEvent<HTMLDivElement>) {
+    const ultimo = total - 1;
     const destinos: Record<string, number> = {
-      ArrowDown: (indice + 1) % total,
-      ArrowUp: (indice - 1 + total) % total,
+      ArrowDown: circular ? (indice + 1) % total : Math.min(indice + 1, ultimo),
+      ArrowUp: circular
+        ? (indice - 1 + total) % total
+        : Math.max(indice - 1, 0),
       Home: 0,
-      End: total - 1,
+      End: ultimo,
     };
     if (!(evento.key in destinos)) return;
     evento.preventDefault();
     aoEscolher(destinos[evento.key]);
   }
 
-  const altura = ALTURA * LINHAS_NA_CAIXA;
-
   return (
-    <div
-      className={cn("relative select-none", className)}
-      style={{ height: altura }}
-    >
+    <div className={cn("relative h-[308px] select-none", className)}>
       <div
         role="listbox"
         tabIndex={0}
@@ -249,7 +291,7 @@ export function RodaDePedidos({
         >
           <div className="absolute inset-x-0 top-1/2 h-0 [transform-style:preserve-3d]">
             {itens.map((item, i) => {
-              const inicial = estiloDaLinha(
+              const estilo = estiloDaLinha(
                 deslocamento(i, indiceInicial, total),
                 RAIO,
               );
@@ -266,9 +308,9 @@ export function RodaDePedidos({
                   style={{
                     height: ALTURA,
                     marginTop: -ALTURA / 2,
-                    transform: inicial.transform,
-                    opacity: inicial.opacity,
-                    pointerEvents: inicial.visivel ? undefined : "none",
+                    transform: estilo.transform,
+                    opacity: estilo.opacity,
+                    pointerEvents: estilo.visivel ? undefined : "none",
                   }}
                   className="absolute inset-x-0 flex items-center justify-center px-6 text-[15px] text-[var(--app-text-muted)] [backface-visibility:hidden] will-change-transform"
                 >

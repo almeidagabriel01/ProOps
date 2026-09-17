@@ -10,12 +10,15 @@ import {
   type Pedido,
 } from "../../_content/comandos";
 import { FichaDaLeitura } from "./ficha-da-leitura";
+import type { MotionValue } from "motion/react";
+
 import { useCena } from "./use-cena";
 
 interface LeituraDoPedidoProps {
   pedido: Pedido;
   armado: boolean;
-  tocando: boolean;
+  /** 0..1 da animação desta frase, vindo da rolagem. */
+  progresso: MotionValue<number>;
 }
 
 /**
@@ -27,7 +30,9 @@ interface LeituraDoPedidoProps {
  * que ela preencheu. O leitor não precisa acreditar que o agente entendeu,
  * ele vê para onde cada palavra foi.
  *
- * Quatro tempos, numa timeline só (`useCena`):
+ * Quatro tempos, numa timeline só (`useCena`), com a posição dada pela
+ * rolagem: descer escreve a frase e monta a ficha, subir desfaz na ordem
+ * inversa, com os tokens voltando para a frase.
  *
  * 1. **Digitação.** Um caractere por vez, em ritmo humano: pausa maior depois
  *    de espaço e de pontuação, e um jitter determinístico por posição, para a
@@ -47,7 +52,7 @@ interface LeituraDoPedidoProps {
 export function LeituraDoPedido({
   pedido,
   armado,
-  tocando,
+  progresso,
 }: LeituraDoPedidoProps) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const final =
@@ -58,7 +63,7 @@ export function LeituraDoPedido({
 
   useCena(
     raiz,
-    (tl) => {
+    (tl, { marco, acompanhar }) => {
       const el = raiz.current;
       if (!el) return;
       const q = gsap.utils.selector(el);
@@ -137,20 +142,12 @@ export function LeituraDoPedido({
         { autoAlpha: 0 },
       );
       gsap.set(q(".ficha-deduzido"), { autoAlpha: 0, scale: 0.8 });
-      if (final !== undefined) setNumero(0);
 
       // 1. Digitação.
       let t = 0.3;
+      const aparece: number[] = [];
       caracteres.forEach((caractere, i) => {
-        const anterior = caracteres[i - 1];
-        tl.call(
-          () => {
-            anterior?.classList.remove("leitura-cursor");
-            caractere.classList.add("leitura-cursor");
-          },
-          [],
-          t,
-        );
+        aparece.push(t);
         tl.set(caractere, { opacity: 1 }, t);
         t += ritmo(caractere.textContent ?? "", i);
       });
@@ -206,13 +203,18 @@ export function LeituraDoPedido({
           { autoAlpha: 1, y: 0, duration: 0.55, ease: "power3.out" },
           t + 0.25,
         );
-      if (final !== undefined) tl.call(() => setNumero(final), [], t + 0.45);
+      if (final !== undefined) {
+        marco(t + 0.45, (depois) => setNumero(depois ? final : 0));
+      }
 
       t += 0.4;
       voos.forEach((voo, i) => {
         const fantasma = fantasmas[i];
         const em = t + i * 0.16;
         const duracao = 0.85;
+        marco(em + duracao * 0.5, (depois) => {
+          fantasma.textContent = depois ? voo.textoPara : voo.textoDe;
+        });
         tl.fromTo(
           fantasma,
           { x: voo.de.x, y: voo.de.y, scale: voo.escala, autoAlpha: 0 },
@@ -248,13 +250,6 @@ export function LeituraDoPedido({
             { opacity: 1, duration: 0.5, ease: "power2.out" },
             em + duracao * 0.7,
           )
-          .call(
-            () => {
-              fantasma.textContent = voo.textoPara;
-            },
-            [],
-            em + duracao * 0.5,
-          )
           .to(fantasma, { autoAlpha: 0, duration: 0.2 }, em + duracao)
           .fromTo(
             voo.alvo,
@@ -282,11 +277,28 @@ export function LeituraDoPedido({
           stagger: 0.1,
         },
         t,
-      ).call(
-        () => caracteres.at(-1)?.classList.remove("leitura-cursor"),
-        [],
-        t + 0.6,
       );
+      // O cursor fica na frase até a ficha terminar; o espaçador estende a
+      // timeline até esse ponto.
+      const fimDoCursor = t + 0.6;
+      tl.to({}, { duration: 0.6 }, t);
+
+      // O cursor mora no último caractere já escrito. Com a rolagem indo e
+      // voltando, ele é recalculado a cada quadro em vez de trocado por
+      // evento, que só saberia andar para a frente.
+      let comCursor: HTMLElement | undefined;
+      acompanhar((tempo) => {
+        let ultimo = -1;
+        while (ultimo + 1 < aparece.length && aparece[ultimo + 1] <= tempo) {
+          ultimo += 1;
+        }
+        const alvo =
+          tempo < fimDoCursor && ultimo >= 0 ? caracteres[ultimo] : undefined;
+        if (alvo === comCursor) return;
+        comCursor?.classList.remove("leitura-cursor");
+        alvo?.classList.add("leitura-cursor");
+        comCursor = alvo;
+      });
 
       return () => {
         fantasmas.forEach((f) => f.remove());
@@ -294,7 +306,7 @@ export function LeituraDoPedido({
         setNumero(final);
       };
     },
-    { armado, tocando, chave: pedido.id },
+    { armado, progresso, chave: pedido.id },
   );
 
   return (
