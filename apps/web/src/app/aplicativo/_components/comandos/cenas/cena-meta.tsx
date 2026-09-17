@@ -140,7 +140,7 @@ export function CenaMeta({ armado, tocando }: PropsDaCena) {
         <svg
           viewBox="0 0 120 120"
           aria-hidden="true"
-          className="meta-anel absolute inset-0 h-full w-full"
+          className="meta-anel absolute inset-0 h-full w-full overflow-visible"
         >
           <circle
             cx="60"
