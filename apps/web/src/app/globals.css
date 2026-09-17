@@ -1392,6 +1392,53 @@ html[data-heroi="espera"] .regua-desenha {
   --app-on-hero-muted: rgba(229, 225, 228, 0.6);
 }
 
+/* Landing do aplicativo: a seção de comandos.
+
+   `revezamento-enche` é o relógio do revezamento (barra-de-tempo.tsx): a
+   troca acontece no `animationend` dela, então esta animação É o timer. Está
+   na lista de movimento reduzido no fim do arquivo, e isso desliga a troca
+   automática para quem pediu menos movimento.
+
+   `leitura-cursor` pisca o cursor da frase sendo digitada. */
+@keyframes revezamento-enche {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.revezamento-enche {
+  transform: scaleX(0);
+  animation-name: revezamento-enche;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes leitura-cursor {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+/* O cursor mora no caractere que acabou de ser digitado, e não num elemento
+   próprio: assim ele acompanha a quebra de linha sem medir nada. */
+.leitura-cursor::after {
+  content: "";
+  position: absolute;
+  top: 0.14em;
+  bottom: 0.1em;
+  right: -0.07em;
+  width: 0.07em;
+  min-width: 2px;
+  border-radius: 1px;
+  background: var(--app-tint);
+  animation: leitura-cursor 1.05s steps(1, end) infinite;
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    Site institucional (proops.com.br) — primitivas próprias.
 
@@ -1805,6 +1852,11 @@ html[data-cookie-consent="pending"] .cookie-banner {
   }
   .inclina-ponteiro {
     transform: none;
+  }
+  /* Sem relógio, sem troca automática; e o cursor fica aceso, parado. */
+  .revezamento-enche,
+  .leitura-cursor::after {
+    animation: none !important;
   }
 }
 
