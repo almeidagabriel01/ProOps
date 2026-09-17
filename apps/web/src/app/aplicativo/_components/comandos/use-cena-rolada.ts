@@ -126,7 +126,7 @@ export function alturaDoTrilho(total: number, fatiaSvh: number): string {
  * A mola do progresso: firme o bastante para não flutuar depois que a roda
  * para, e lenta o bastante para um giro rápido não atravessar frases inteiras.
  */
-const MOLA = { stiffness: 70, damping: 22, mass: 0.9, restDelta: 0.0001 };
+const MOLA = { stiffness: 45, damping: 20, mass: 1, restDelta: 0.0001 };
 
 /**
  * O progresso da animação de UMA fatia, já sem a pausa de leitura.

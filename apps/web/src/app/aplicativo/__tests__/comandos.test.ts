@@ -8,7 +8,7 @@ import {
   type Entidade,
 } from "../_content/comandos";
 import { CENAS } from "../_components/comandos/cenas";
-import { ritmo } from "../_components/comandos/leitura-do-pedido";
+import { RITMO, ritmo } from "../_components/comandos/leitura-do-pedido";
 import {
   ANGULO_POR_LINHA,
   LINHAS_VISIVEIS,
@@ -201,7 +201,10 @@ describe("as fatias da rolagem", () => {
     expect(
       progressoNaFatia(inicio + ANIMA_ATE / 2 / total, 3, total),
     ).toBeCloseTo(0.5);
-    expect(progressoNaFatia(inicio + ANIMA_ATE / total, 3, total)).toBe(1);
+    expect(progressoNaFatia(inicio + ANIMA_ATE / total, 3, total)).toBeCloseTo(
+      1,
+      10,
+    );
     expect(progressoNaFatia(inicio + 0.95 / total, 3, total)).toBe(1);
     // Fatias vizinhas não vazam: a anterior está completa, a seguinte zerada.
     expect(progressoNaFatia(inicio, 2, total)).toBe(1);
@@ -219,7 +222,9 @@ describe("as fatias da rolagem", () => {
     // Já no trilho, a primeira fatia fica pronta, parada.
     expect(progressoComEntrada(0.9 / total, 1, 0, total)).toBe(1);
     expect(progressoComEntrada(0, 1, 1, total)).toBe(0);
-    expect(progressoComEntrada(1.35 / total, 1, 1, total)).toBeCloseTo(0.5);
+    expect(
+      progressoComEntrada((1 + ANIMA_ATE / 2) / total, 1, 1, total),
+    ).toBeCloseTo(0.5);
   });
 
   /**
@@ -276,8 +281,8 @@ describe("o ritmo da digitação", () => {
     expect(ritmo(" ", 7)).toBeGreaterThan(ritmo("a", 7));
     expect(ritmo("?", 7)).toBeGreaterThan(ritmo(" ", 7));
     for (let i = 0; i < 60; i += 1) {
-      expect(ritmo("a", i)).toBeGreaterThanOrEqual(0.032);
-      expect(ritmo("a", i)).toBeLessThanOrEqual(0.062);
+      expect(ritmo("a", i)).toBeGreaterThanOrEqual(RITMO.base);
+      expect(ritmo("a", i)).toBeLessThanOrEqual(RITMO.base + RITMO.variacao);
     }
   });
 });

@@ -153,9 +153,9 @@ export function LeituraDoPedido({
       });
 
       // 2. Reconhecimento.
-      t += 0.35;
+      t += 0.5;
       tokens.forEach((token, i) => {
-        const em = t + i * 0.2;
+        const em = t + i * PASSO_DO_TOKEN;
         tl.to(
           token.querySelector(".leitura-marca"),
           { scaleX: 1, duration: 0.55, ease: "expo.out" },
@@ -168,7 +168,7 @@ export function LeituraDoPedido({
             em + 0.08,
           );
       });
-      t += tokens.length * 0.2 + 0.25;
+      t += tokens.length * PASSO_DO_TOKEN + 0.35;
 
       // 3. Ficha e voos.
       tl.to(
@@ -210,8 +210,8 @@ export function LeituraDoPedido({
       t += 0.4;
       voos.forEach((voo, i) => {
         const fantasma = fantasmas[i];
-        const em = t + i * 0.16;
-        const duracao = 0.85;
+        const em = t + i * PASSO_DO_VOO;
+        const duracao = DURACAO_DO_VOO;
         marco(em + duracao * 0.5, (depois) => {
           fantasma.textContent = depois ? voo.textoPara : voo.textoDe;
         });
@@ -264,7 +264,7 @@ export function LeituraDoPedido({
             em + duracao - 0.04,
           );
       });
-      t += voos.length * 0.16 + 0.85;
+      t += voos.length * PASSO_DO_VOO + DURACAO_DO_VOO;
 
       // 4. Dedução, e o cursor sai de cena.
       tl.to(
@@ -376,8 +376,24 @@ function Caracteres({ texto }: { texto: string }) {
  */
 export function ritmo(caractere: string, posicao: number): number {
   const jitter = (((Math.sin(posicao * 12.9898) * 43758.5453) % 1) + 1) % 1;
-  const base = 0.032 + jitter * 0.03;
-  if (caractere === " ") return base + 0.045;
-  if (/[,.:?!]/.test(caractere)) return base + 0.14;
+  const base = RITMO.base + jitter * RITMO.variacao;
+  if (caractere === " ") return base + RITMO.espaco;
+  if (/[,.:?!]/.test(caractere)) return base + RITMO.pontuacao;
   return base;
 }
+
+/**
+ * Os tempos da leitura, em segundos de timeline. Como a timeline inteira é
+ * esticada sobre a fatia de rolagem, o que conta é a PROPORÇÃO entre eles: a
+ * digitação e os voos ganharam peso para não passarem num piscar enquanto a
+ * pessoa rola.
+ */
+export const RITMO = {
+  base: 0.05,
+  variacao: 0.045,
+  espaco: 0.07,
+  pontuacao: 0.2,
+};
+const PASSO_DO_TOKEN = 0.3;
+const PASSO_DO_VOO = 0.35;
+const DURACAO_DO_VOO = 1.3;

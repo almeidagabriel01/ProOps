@@ -431,7 +431,7 @@ async function rolarAteFatia(
       // trilho começa a contar.
       const inicio = trilho.getBoundingClientRect().top + window.scrollY - 96;
       const alcance = trilho.offsetHeight - (window.innerHeight - 96);
-      return inicio + ((i + 0.8) / n) * alcance;
+      return inicio + ((i + 0.82) / n) * alcance;
     },
     [indice, total] as const,
   );

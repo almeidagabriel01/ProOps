@@ -23,7 +23,7 @@ const TOTAL = OPERACOES.length;
  * que as frases (distribuir, bifurcar, baixar, devolver), e cada uma precisa
  * de rolagem própria para ser vista.
  */
-const FATIA_SVH = 110;
+const FATIA_SVH = 170;
 
 /**
  * A segunda metade da seção: as operações que a categoria não faz, cada uma

@@ -10,13 +10,13 @@
  */
 
 /** Fração de cada fatia em que a animação acontece. */
-export const ANIMA_ATE = 0.7;
+export const ANIMA_ATE = 0.8;
 
 /**
  * Onde, dentro da fatia, um clique leva a página: logo depois de a animação
  * terminar, com a cena inteira na tela e ainda longe da troca.
  */
-export const PARADA_NA_FATIA = 0.78;
+export const PARADA_NA_FATIA = 0.82;
 
 const limitar = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), max);
