@@ -260,8 +260,133 @@ test.describe("APP-01: as cenas da landing do aplicativo", () => {
   });
 });
 
+/**
+ * A seção de comandos: a roda de pedidos, a leitura da frase e a mesa de
+ * operações. As três são JavaScript de ponta a ponta, e as três falham caladas:
+ * uma roda que não troca a leitura, uma aba que não troca a cena e um campo da
+ * ficha que nunca recebe o seu token continuam renderizando sem erro nenhum.
+ */
+test.describe("APP-03: o que você pode pedir", () => {
+  const leitura = (page: import("@playwright/test").Page) =>
+    page.locator("#comandos p .sr-only").first();
+
+  test("a roda troca a leitura, por toque e por teclado", async ({ page }) => {
+    // Sem o Lenis, para o clique cair onde a linha está (ver o teste do FAQ).
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`${APP}/`);
+    await page.waitForLoadState("networkidle");
+
+    const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
+    await expect(roda.getByRole("option")).toHaveCount(16);
+    await expect(leitura(page)).toHaveText("gastei 45 no mercado");
+
+    await roda.scrollIntoViewIfNeeded();
+    await roda
+      .getByRole("option", { name: "me lembra de pagar o aluguel todo dia 5" })
+      .click();
+    await expect(leitura(page)).toHaveText(
+      "me lembra de pagar o aluguel todo dia 5",
+    );
+    const ficha = page.locator("#comandos .ficha").first();
+    await expect(ficha).toContainText("Lembrete");
+    await expect(ficha).toContainText("Todo mês, dia 5");
+
+    await roda.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(roda.getByRole("option", { selected: true })).toHaveText(
+      "quanto sobra esse mês?",
+    );
+    await expect(leitura(page)).toHaveText("quanto sobra esse mês?");
+    await expect(ficha).toContainText("R$ 1.284,90");
+
+    // A roda é circular: antes da primeira vem a última.
+    await page.keyboard.press("Home");
+    await page.keyboard.press("ArrowUp");
+    await expect(leitura(page)).toHaveText("quando vence a fatura?");
+  });
+
+  test("as abas da mesa trocam a cena, com setas e foco", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`${APP}/`);
+    await page.waitForLoadState("networkidle");
+
+    const abas = page.getByRole("tablist", { name: "Operações de exemplo" });
+    await expect(abas.getByRole("tab")).toHaveCount(6);
+    const painel = page.getByRole("tabpanel");
+
+    await abas.getByRole("tab", { name: "desfaz o último" }).click();
+    await expect(
+      abas.getByRole("tab", { name: "desfaz o último" }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(painel).toContainText("desfeito");
+
+    await page.keyboard.press("ArrowUp");
+    const meta = abas.getByRole("tab", {
+      name: "guarda 200 na meta da viagem",
+    });
+    await expect(meta).toBeFocused();
+    await expect(meta).toHaveAttribute("aria-selected", "true");
+    await expect(painel).toContainText("R$ 2.300,00");
+
+    await page.keyboard.press("Home");
+    await expect(painel).toContainText("em 10x");
+  });
+
+  /**
+   * Com movimento. Os campos que vieram da frase nascem invisíveis e só
+   * aparecem quando o token pousa neles; um seletor de entidade errado deixa
+   * o campo apagado para sempre.
+   */
+  test("a leitura termina com todos os campos da ficha visíveis", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${APP}/`);
+    await page.waitForLoadState("networkidle");
+    await page
+      .getByRole("listbox", { name: "Pedidos de exemplo" })
+      .scrollIntoViewIfNeeded();
+
+    const valores = page
+      .locator("#comandos .ficha")
+      .first()
+      .locator(".ficha-valor");
+    await expect
+      .poll(
+        () =>
+          valores.evaluateAll((els) =>
+            els.every((el) => Number(getComputedStyle(el).opacity) > 0.99),
+          ),
+        { timeout: 12_000 },
+      )
+      .toBe(true);
+    // E nenhum fantasma ficou no meio do caminho.
+    await expect(page.locator(".leitura-fantasma:visible")).toHaveCount(0);
+  });
+
+  test("a roda anda sozinha, e o botão a pausa", async ({ page }) => {
+    await page.goto(`${APP}/`);
+    await page.waitForLoadState("networkidle");
+    const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
+    await roda.scrollIntoViewIfNeeded();
+
+    await expect(leitura(page)).toHaveText("gastei 45 no mercado");
+    await expect(leitura(page)).not.toHaveText("gastei 45 no mercado", {
+      timeout: 12_000,
+    });
+
+    await page.getByRole("button", { name: "Pausar os pedidos" }).click();
+    const parada = await leitura(page).textContent();
+    await page.waitForTimeout(9_000);
+    await expect(leitura(page)).toHaveText(parada ?? "");
+  });
+});
+
 test.describe("APP-02: movimento reduzido", () => {
-  test.use({ reducedMotion: "reduce" });
+  // `reducedMotion` fica em `contextOptions`. Escrito direto no `use` ele é
+  // ignorado sem erro: este teste passou meses rodando COM movimento, e só
+  // pegou isso quando ganhou uma asserção que muda entre os dois modos.
+  test.use({ contextOptions: { reducedMotion: "reduce" } });
 
   test("a página rende no estado final, sem nada invisível", async ({
     page,
@@ -300,5 +425,17 @@ test.describe("APP-02: movimento reduzido", () => {
         exact: false,
       }),
     ).toBeVisible();
+
+    // A seção de comandos não troca nada sozinha e já mostra a ficha inteira.
+    await expect(
+      page.getByRole("button", { name: "Pausar os pedidos" }),
+    ).toHaveCount(0);
+    const valores = page.locator("#comandos .ficha-valor");
+    await expect(valores.first()).toBeVisible();
+    const apagados = await valores.evaluateAll(
+      (els) =>
+        els.filter((el) => Number(getComputedStyle(el).opacity) < 0.99).length,
+    );
+    expect(apagados).toBe(0);
   });
 });
