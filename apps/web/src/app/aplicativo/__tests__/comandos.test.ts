@@ -24,6 +24,7 @@ import {
   GIRO,
   indiceDaFatia,
   posicaoDaRoda,
+  progressoComEntrada,
   progressoDaParada,
   progressoDaPosicao,
   progressoNaFatia,
@@ -205,6 +206,20 @@ describe("as fatias da rolagem", () => {
     // Fatias vizinhas não vazam: a anterior está completa, a seguinte zerada.
     expect(progressoNaFatia(inicio, 2, total)).toBe(1);
     expect(progressoNaFatia(inicio, 4, total)).toBe(0);
+  });
+
+  /**
+   * A primeira fatia se monta na aproximação, antes de o palco grudar: sem
+   * isso a seção chegava com um cartão vazio. As outras seguem a rolagem.
+   */
+  it("a primeira fatia segue a entrada do palco, as outras o trilho", () => {
+    expect(progressoComEntrada(0, 0, 0, total)).toBe(0);
+    expect(progressoComEntrada(0, 0.5, 0, total)).toBe(0.5);
+    expect(progressoComEntrada(0, 1, 0, total)).toBe(1);
+    // Já no trilho, a primeira fatia fica pronta, parada.
+    expect(progressoComEntrada(0.9 / total, 1, 0, total)).toBe(1);
+    expect(progressoComEntrada(0, 1, 1, total)).toBe(0);
+    expect(progressoComEntrada(1.35 / total, 1, 1, total)).toBeCloseTo(0.5);
   });
 
   /**

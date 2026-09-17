@@ -63,11 +63,11 @@ export function AplicativoComandos() {
           cada frase.
         </p>
 
-        <div className="mt-14 md:mt-20">
+        <div className="mt-8 md:mt-12">
           <LeituraAoVivo />
         </div>
 
-        <div className="mt-28 md:mt-40">
+        <div className="mt-24 md:mt-32">
           <h3 className="max-w-2xl [font-family:var(--font-hanken)] text-2xl font-bold leading-[1.15] tracking-[-0.02em] md:text-4xl">
             E ele não para em anotar.
           </h3>
@@ -76,11 +76,11 @@ export function AplicativoComandos() {
             inteiras, feitas pela conversa.
           </p>
 
-          <div className="mt-10 md:mt-14">
+          <div className="mt-8 md:mt-10">
             <MesaDeOperacoes />
           </div>
 
-          <div className="mt-6 md:mt-10">
+          <div className="mt-12 md:mt-16">
             <CotaCompartilhada />
           </div>
         </div>

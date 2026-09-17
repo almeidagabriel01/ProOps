@@ -427,9 +427,11 @@ async function rolarAteFatia(
   const alvo = await ancora.evaluate(
     (el, [i, n]) => {
       const trilho = el.closest<HTMLElement>("div[style*='svh']")!;
-      const topo = trilho.getBoundingClientRect().top + window.scrollY;
-      const alcance = trilho.offsetHeight - window.innerHeight;
-      return topo + ((i + 0.8) / n) * alcance;
+      // O palco gruda a 96px do topo (sob a barra fixa), e é daí que o
+      // trilho começa a contar.
+      const inicio = trilho.getBoundingClientRect().top + window.scrollY - 96;
+      const alcance = trilho.offsetHeight - (window.innerHeight - 96);
+      return inicio + ((i + 0.8) / n) * alcance;
     },
     [indice, total] as const,
   );

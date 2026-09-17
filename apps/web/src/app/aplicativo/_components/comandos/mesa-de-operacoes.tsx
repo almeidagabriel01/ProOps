@@ -8,13 +8,22 @@ import { cn } from "@/lib/utils";
 import { OPERACOES, type Operacao } from "../../_content/comandos";
 import { CENAS } from "./cenas";
 import { TrocaComSaida } from "./troca-com-saida";
-import { useCenaRolada, useProgressoDaFatia } from "./use-cena-rolada";
+import {
+  alturaDoTrilho,
+  CLASSE_DO_PALCO,
+  useCenaRolada,
+  useProgressoDaFatia,
+} from "./use-cena-rolada";
 import { useVisibilidade } from "./use-visibilidade";
 
 const TOTAL = OPERACOES.length;
 
-/** Rolagem de cada operação, em alturas de tela. Os diagramas pedem mais que as frases. */
-const FATIA_SVH = 70;
+/**
+ * Rolagem de cada operação, em alturas de tela. Os diagramas têm mais etapas
+ * que as frases (distribuir, bifurcar, baixar, devolver), e cada uma precisa
+ * de rolagem própria para ser vista.
+ */
+const FATIA_SVH = 110;
 
 /**
  * A segunda metade da seção: as operações que a categoria não faz, cada uma
@@ -35,7 +44,8 @@ const FATIA_SVH = 70;
  */
 export function MesaDeOperacoes() {
   const { ref: palco, armado } = useVisibilidade<HTMLDivElement>();
-  const { trilho, indice, escolher, animado, progresso } = useCenaRolada(TOTAL);
+  const { trilho, indice, escolher, animado, progresso, entrada } =
+    useCenaRolada(TOTAL);
   const idBase = React.useId();
   const abas = React.useRef<(HTMLButtonElement | null)[]>([]);
   const operacao = OPERACOES[indice];
@@ -59,19 +69,14 @@ export function MesaDeOperacoes() {
   return (
     <div
       ref={trilho}
-      style={
-        animado
-          ? { height: `calc(100svh + ${TOTAL * FATIA_SVH}svh)` }
-          : undefined
-      }
+      style={animado ? { height: alturaDoTrilho(TOTAL, FATIA_SVH) } : undefined}
       className="relative"
     >
       <div
         ref={palco}
         className={cn(
-          "grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] md:items-center md:gap-10 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] lg:gap-14",
-          animado &&
-            "sticky top-0 h-[100svh] content-start pt-24 md:content-center",
+          "grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] md:items-start md:gap-10 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] lg:gap-14",
+          animado && CLASSE_DO_PALCO,
         )}
       >
         <div
@@ -126,6 +131,7 @@ export function MesaDeOperacoes() {
                   <CenaNaFatia
                     indice={exibida}
                     progresso={progresso}
+                    entrada={entrada}
                     animado={animado}
                     armado={armado}
                   />
@@ -146,15 +152,23 @@ export function MesaDeOperacoes() {
 function CenaNaFatia({
   indice,
   progresso,
+  entrada,
   animado,
   armado,
 }: {
   indice: number;
   progresso: MotionValue<number>;
+  entrada: MotionValue<number>;
   animado: boolean;
   armado: boolean;
 }) {
-  const daFatia = useProgressoDaFatia(progresso, indice, TOTAL, animado);
+  const daFatia = useProgressoDaFatia(
+    progresso,
+    entrada,
+    indice,
+    TOTAL,
+    animado,
+  );
   const Cena = CENAS[OPERACOES[indice].cena];
   return <Cena armado={armado} progresso={daFatia} />;
 }

@@ -36,6 +36,25 @@ export function progressoNaFatia(
   return limitar((progresso * total - indice) / animaAte, 0, 1);
 }
 
+/**
+ * A animação de uma fatia, considerando a ENTRADA do palco.
+ *
+ * A primeira fatia não espera o palco grudar: ela se monta durante a
+ * aproximação (`entrada`, 0..1, que vai de o trilho aparecer na tela até ele
+ * chegar ao topo). Sem isso o palco chegava vazio, e a primeira coisa que a
+ * pessoa via da seção era um cartão em branco. Dentro do trilho, a primeira
+ * fatia é só pausa de leitura.
+ */
+export function progressoComEntrada(
+  progresso: number,
+  entrada: number,
+  indice: number,
+  total: number,
+): number {
+  if (indice === 0) return limitar(entrada, 0, 1);
+  return progressoNaFatia(progresso, indice, total);
+}
+
 /** O progresso da cena inteira que deixa a fatia `indice` pronta na tela. */
 export function progressoDaParada(
   indice: number,

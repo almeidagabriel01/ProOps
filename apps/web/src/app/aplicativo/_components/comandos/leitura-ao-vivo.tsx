@@ -10,17 +10,25 @@ import { posicaoDaRoda, progressoDaPosicao } from "./fatias";
 import { LeituraDoPedido } from "./leitura-do-pedido";
 import { RodaDePedidos, type RodaNaRolagem } from "./roda-de-pedidos";
 import { TrocaComSaida } from "./troca-com-saida";
-import { useCenaRolada, useProgressoDaFatia } from "./use-cena-rolada";
+import {
+  alturaDoTrilho,
+  CLASSE_DO_PALCO,
+  useCenaRolada,
+  useProgressoDaFatia,
+} from "./use-cena-rolada";
 import { useVisibilidade } from "./use-visibilidade";
 
 const TOTAL = PEDIDOS.length;
 
 /**
- * Rolagem de cada frase, em alturas de tela. Curta o bastante para as 16
- * caberem em uma sessão de leitura, longa o bastante para a digitação não
- * passar num piscar.
+ * Rolagem de cada frase, em alturas de tela.
+ *
+ * Com 42 a frase inteira (digitação, reconhecimento, voos) cabia num giro de
+ * roda do mouse, e a pessoa via as frases passando sem ler nenhuma. Em 70 a
+ * animação ocupa meia tela de rolagem e a ficha pronta fica parada por mais um
+ * quinto de tela antes da próxima.
  */
-const FATIA_SVH = 42;
+const FATIA_SVH = 70;
 
 const ITENS = PEDIDOS.map((pedido) => ({
   id: pedido.id,
@@ -46,7 +54,7 @@ const ITENS = PEDIDOS.map((pedido) => ({
  */
 export function LeituraAoVivo() {
   const { ref: palco, armado } = useVisibilidade<HTMLDivElement>();
-  const { trilho, indice, escolher, rolarPara, animado, progresso } =
+  const { trilho, indice, escolher, rolarPara, animado, progresso, entrada } =
     useCenaRolada(TOTAL);
   const posicao = useTransform(progresso, (v) => posicaoDaRoda(v, TOTAL));
 
@@ -65,21 +73,14 @@ export function LeituraAoVivo() {
   return (
     <div
       ref={trilho}
-      style={
-        animado
-          ? { height: `calc(100svh + ${TOTAL * FATIA_SVH}svh)` }
-          : undefined
-      }
+      style={animado ? { height: alturaDoTrilho(TOTAL, FATIA_SVH) } : undefined}
       className="relative"
     >
       <div
         ref={palco}
         className={cn(
-          "grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] md:items-center md:gap-12 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:gap-16",
-          // `pt-24`: a barra é fixa e cobre o topo da tela, então
-          // sem o recuo o começo do palco fica atrás dela a cena inteira.
-          animado &&
-            "sticky top-0 h-[100svh] content-start pt-24 md:content-center",
+          "grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] md:items-start md:gap-12 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:gap-16",
+          animado && CLASSE_DO_PALCO,
         )}
       >
         <div>
@@ -110,6 +111,7 @@ export function LeituraAoVivo() {
                 pedido={PEDIDOS[exibido]}
                 indice={exibido}
                 progresso={progresso}
+                entrada={entrada}
                 animado={animado}
                 armado={armado}
               />
@@ -125,16 +127,24 @@ function LeituraNaFatia({
   pedido,
   indice,
   progresso,
+  entrada,
   animado,
   armado,
 }: {
   pedido: Pedido;
   indice: number;
   progresso: MotionValue<number>;
+  entrada: MotionValue<number>;
   animado: boolean;
   armado: boolean;
 }) {
-  const daFatia = useProgressoDaFatia(progresso, indice, TOTAL, animado);
+  const daFatia = useProgressoDaFatia(
+    progresso,
+    entrada,
+    indice,
+    TOTAL,
+    animado,
+  );
   return (
     <LeituraDoPedido pedido={pedido} armado={armado} progresso={daFatia} />
   );
