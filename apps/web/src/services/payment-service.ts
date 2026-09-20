@@ -59,6 +59,13 @@ export interface AsaasWebhookStatus {
 
 export interface AsaasConnectionStatus {
   connected: boolean;
+  /**
+   * O servidor consegue criar subconta no Asaas. Ausente em resposta de um
+   * backend antigo, e nesse caso a tela assume que SIM: o campo sinaliza saude
+   * do servidor, nao contratacao, entao fechar por omissao esconderia um modulo
+   * que funciona (o dev de hoje) durante a janela entre os dois deploys.
+   */
+  platformAvailable?: boolean;
   environment?: "sandbox" | "production";
   connectedAt?: string;
   accountStatus?: AsaasAccountStatus;

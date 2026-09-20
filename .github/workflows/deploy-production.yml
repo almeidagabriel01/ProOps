@@ -114,6 +114,15 @@ jobs:
             echo "::error::secret $SECRET_NAME desatualizado — faltam:$missing. Veja .claude/rules/ci-cd.md"
             exit 1
           fi
+          # PENDENTES: integracao ja publicada cuja credencial ainda nao existe.
+          # Avisa em vez de abortar, senao um cadastro externo em andamento
+          # bloquearia todo deploy de producao, inclusive os que nada tem a ver
+          # com ela. Ao obter a chave, mover para a lista obrigatoria acima.
+          # Guard: apps/functions/src/__tests__/deploy-required-env.test.ts
+          for key in             ASAAS_MASTER_API_KEY_PROD
+          do
+            grep -qE "^${key}=." "$ENV_FILE" || echo "::warning::$key ausente em $SECRET_NAME: pagamento online segue desativado em producao."
+          done
 
       - name: Deploy to production
         run: firebase deploy --project prod --only functions,firestore:rules,firestore:indexes

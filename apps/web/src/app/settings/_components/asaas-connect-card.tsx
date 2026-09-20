@@ -167,6 +167,13 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
     }
   }, [isDemo]);
 
+  // O backend diz se CONSEGUE criar subconta. A comparacao e com `=== false` e
+  // nao com falsy de proposito: campo ausente significa backend antigo, que
+  // pode estar perfeitamente funcional, e fechar por omissao esconderia o
+  // modulo de quem usa hoje durante a janela entre os dois deploys.
+  const isPlatformUnavailable =
+    !status?.connected && status?.platformAvailable === false;
+
   const handleRetryWebhook = async () => {
     try {
       const result = await AsaasService.retryWebhook();
@@ -750,6 +757,12 @@ export function AsaasConnectCard({ onLoadingChange }: AsaasConnectCardProps) {
                 Desativar
               </Button>
             </>
+          ) : isPlatformUnavailable ? (
+            <div className="rounded-md border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">
+              Os pagamentos online estão temporariamente indisponíveis: a
+              integração com o Asaas ainda não foi liberada neste ambiente. O
+              botão para habilitar aparece aqui assim que ela estiver pronta.
+            </div>
           ) : (
             <>
               <p className="text-sm text-muted-foreground">

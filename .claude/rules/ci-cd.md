@@ -248,7 +248,19 @@ gh secret set FUNCTIONS_ENV_STAGING --env staging --repo almeidagabriel01/ProOps
 O step falha o deploy se faltar qualquer uma destas: `RESEND_API_KEY`,
 `STRIPE_SECRET_KEY`, `FOCUS_NFE_MASTER_TOKEN`, `FISCAL_SECRET_KMS_KEY`,
 `CALENDAR_TOKEN_KMS_KEY`, `GOOGLE_CALENDAR_CLIENT_ID`,
-`GOOGLE_CALENDAR_CLIENT_SECRET`.
+`GOOGLE_CALENDAR_CLIENT_SECRET`. O staging cobra também `ASAAS_MASTER_API_KEY`
+(a de sandbox, que é a que dev usa).
+
+O deploy de produção tem uma **segunda lista, de pendentes, que avisa sem
+abortar**: hoje só `ASAAS_MASTER_API_KEY_PROD`. A chave de produção do Asaas
+ainda não existe, porque a conta raiz precisa de CNPJ (Resolução Conjunta
+16/2025) e o cadastro está em andamento; tratá-la como obrigatória travaria
+todo deploy de produção, inclusive os que nada têm a ver com pagamento. Ao
+obter a chave, mova a linha para a lista obrigatória. São variáveis distintas
+porque é a presença da `_PROD` que faz o backend falar com `api.asaas.com` em
+vez de `api-sandbox.asaas.com`, então produção nunca deve cobrar a de sandbox.
+O guard `apps/functions/src/__tests__/deploy-required-env.test.ts` aceita a
+chave nas duas listas, mas falha se ela sumir do workflow.
 
 Antes a checagem era só do `RESEND_API_KEY` — e uma
 variável só não prova nada: ela existe desde sempre, então o teste passava com um
@@ -256,6 +268,14 @@ secret congelado meses atrás. Ao adicionar uma integração que dependa de env 
 nova, **acrescente a chave nessa lista nos dois workflows**; sem isso a função
 sobe sem ela e falha em silêncio (emissão fiscal morre com
 `FOCUS_NFE_TOKEN_NAO_CONFIGURADO`, senha de certificado não decifra).
+
+> A do Asaas entrou em 2026-09-20, depois de um cliente tentar habilitar pagamentos
+> online em produção e receber "Integração Asaas não configurada no servidor". A
+> chave nunca tinha sido posta lá: `ASAAS_MASTER_API_KEY` existia no
+> `.env.erp-softcode-prod` com **valor vazio** e a `_PROD` não existia, então o
+> módulo estava publicado e inutilizável desde sempre, sem nada no deploy
+> denunciando. O `grep -qE "^${key}=."` já reprovava valor vazio; o que faltava
+> era a chave estar na lista.
 
 > As duas do Google entraram em 2026-09-04, depois de um secret defasado em dev
 > quebrar Drive **e** Agenda ao mesmo tempo com `invalid_client` — erro que só

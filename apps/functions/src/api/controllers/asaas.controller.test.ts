@@ -24,6 +24,7 @@ jest.mock("../services/asaas.service", () => ({
     refreshAccountStatus: jest.fn(),
     registerWebhookForTenant: jest.fn(),
   },
+  isPlatformConfigured: jest.fn(() => true),
 }));
 jest.mock("../../lib/logger", () => ({
   logger: {
@@ -42,7 +43,7 @@ import {
   updateAsaasPayout,
 } from "./asaas.controller";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
-import { AsaasService } from "../services/asaas.service";
+import { AsaasService, isPlatformConfigured } from "../services/asaas.service";
 
 const mockResolveUserAndTenant = resolveUserAndTenant as jest.Mock;
 const mockOnboardTenant = AsaasService.onboardTenant as jest.Mock;
@@ -50,6 +51,7 @@ const mockDisconnectTenant = AsaasService.disconnectTenant as jest.Mock;
 const mockGetAsaasData = AsaasService.getAsaasData as jest.Mock;
 const mockRefreshAccountStatus = AsaasService.refreshAccountStatus as jest.Mock;
 const mockRegisterWebhookForTenant = AsaasService.registerWebhookForTenant as jest.Mock;
+const mockIsPlatformConfigured = isPlatformConfigured as jest.Mock;
 
 const VALID_BODY = {
   name: "Empresa Teste Ltda",
@@ -193,6 +195,35 @@ describe("connectAsaas", () => {
     );
   });
 
+  // As duas mensagens abaixo pedem acoes OPOSTAS de quem atende: uma e credencial
+  // faltando, a outra e credencial errada. Se uma refatoracao as fundir, o suporte
+  // perde a unica pista que o cliente consegue relatar.
+  it("returns 500 with the not-configured message when ASAAS_MASTER_KEY_NOT_CONFIGURED", async () => {
+    mockOnboardTenant.mockRejectedValue(new Error("ASAAS_MASTER_KEY_NOT_CONFIGURED"));
+    const req = makeReq({ body: VALID_BODY });
+    const { res, status, json } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      message: "Integração Asaas não configurada no servidor. Contate o suporte.",
+    });
+  });
+
+  it("returns 500 with the test-mode message when ASAAS_SANDBOX_IN_PRODUCTION", async () => {
+    mockOnboardTenant.mockRejectedValue(new Error("ASAAS_SANDBOX_IN_PRODUCTION"));
+    const req = makeReq({ body: VALID_BODY });
+    const { res, status, json } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      message: "Integração Asaas em modo de teste no ambiente de produção. Contate o suporte.",
+    });
+  });
+
   it("returns 401 when user is not authenticated", async () => {
     const req = makeReq({ user: undefined });
     const { res, status } = makeRes();
@@ -297,6 +328,39 @@ describe("getAsaasStatus", () => {
     expect(status).toHaveBeenCalledWith(200);
   });
 
+  // platformAvailable e sobre o SERVIDOR, nao sobre o tenant: e o que faz a tela
+  // parar de oferecer o formulario quando o onboarding nao tem como dar certo.
+  it("reports platformAvailable: false when the server has no usable master key", async () => {
+    mockIsPlatformConfigured.mockReturnValueOnce(false);
+    mockResolveUserAndTenant.mockResolvedValue({ tenantId: "t1" });
+    mockGetAsaasData.mockResolvedValue(null);
+    const req = makeReq({});
+    const { res, status, json } = makeRes();
+
+    await getAsaasStatus(req, res);
+
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith({
+      connected: false,
+      platformAvailable: false,
+    });
+  });
+
+  it("reports platformAvailable: true when the server can create subaccounts", async () => {
+    mockIsPlatformConfigured.mockReturnValueOnce(true);
+    mockResolveUserAndTenant.mockResolvedValue({ tenantId: "t1" });
+    mockGetAsaasData.mockResolvedValue(null);
+    const req = makeReq({});
+    const { res, json } = makeRes();
+
+    await getAsaasStatus(req, res);
+
+    expect(json).toHaveBeenCalledWith({
+      connected: false,
+      platformAvailable: true,
+    });
+  });
+
   it("returns 200 with { connected: false } when Asaas not configured", async () => {
     mockGetAsaasData.mockResolvedValue(null);
     const req = makeReq();
@@ -305,7 +369,9 @@ describe("getAsaasStatus", () => {
     await getAsaasStatus(req, res);
 
     expect(status).toHaveBeenCalledWith(200);
-    expect(json).toHaveBeenCalledWith({ connected: false });
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ connected: false }),
+    );
   });
 
   it("returns 401 when user is not authenticated", async () => {
