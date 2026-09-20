@@ -248,11 +248,19 @@ gh secret set FUNCTIONS_ENV_STAGING --env staging --repo almeidagabriel01/ProOps
 O step falha o deploy se faltar qualquer uma destas: `RESEND_API_KEY`,
 `STRIPE_SECRET_KEY`, `FOCUS_NFE_MASTER_TOKEN`, `FISCAL_SECRET_KMS_KEY`,
 `CALENDAR_TOKEN_KMS_KEY`, `GOOGLE_CALENDAR_CLIENT_ID`,
-`GOOGLE_CALENDAR_CLIENT_SECRET`. Mais uma chave do Asaas, **diferente em cada
-workflow**: staging cobra `ASAAS_MASTER_API_KEY` (a de sandbox, que é a que dev
-usa) e produção cobra `ASAAS_MASTER_API_KEY_PROD`. São variáveis distintas
+`GOOGLE_CALENDAR_CLIENT_SECRET`. O staging cobra também `ASAAS_MASTER_API_KEY`
+(a de sandbox, que é a que dev usa).
+
+O deploy de produção tem uma **segunda lista, de pendentes, que avisa sem
+abortar**: hoje só `ASAAS_MASTER_API_KEY_PROD`. A chave de produção do Asaas
+ainda não existe, porque a conta raiz precisa de CNPJ (Resolução Conjunta
+16/2025) e o cadastro está em andamento; tratá-la como obrigatória travaria
+todo deploy de produção, inclusive os que nada têm a ver com pagamento. Ao
+obter a chave, mova a linha para a lista obrigatória. São variáveis distintas
 porque é a presença da `_PROD` que faz o backend falar com `api.asaas.com` em
-vez de `api-sandbox.asaas.com`.
+vez de `api-sandbox.asaas.com`, então produção nunca deve cobrar a de sandbox.
+O guard `apps/functions/src/__tests__/deploy-required-env.test.ts` aceita a
+chave nas duas listas, mas falha se ela sumir do workflow.
 
 Antes a checagem era só do `RESEND_API_KEY` — e uma
 variável só não prova nada: ela existe desde sempre, então o teste passava com um

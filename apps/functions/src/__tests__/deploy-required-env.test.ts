@@ -30,50 +30,61 @@ const SHARED_KEYS = [
 ];
 
 const WORKFLOWS: Array<{ file: string; keys: string[] }> = [
-  {
-    file: "deploy-functions.yml",
-    keys: [...SHARED_KEYS, "ASAAS_MASTER_API_KEY"],
-  },
-  {
-    file: "deploy-production.yml",
-    keys: [...SHARED_KEYS, "ASAAS_MASTER_API_KEY_PROD"],
-  },
+  { file: "deploy-functions.yml", keys: [...SHARED_KEYS, "ASAAS_MASTER_API_KEY"] },
+  { file: "deploy-production.yml", keys: SHARED_KEYS },
 ];
 
-function readRequiredKeyList(file: string): string[] {
-  const contents = fs.readFileSync(
-    path.join(REPO_ROOT, ".github", "workflows", file),
-    "utf8",
-  );
-  const line = contents.split(/\r?\n/).find((l) => l.includes("for key in"));
-  if (!line) throw new Error(`${file}: loop "for key in" nao encontrado`);
-  return line.replace(/^.*for key in/, "").trim().split(/\s+/).filter(Boolean);
+function readWorkflow(file: string): string {
+  return fs.readFileSync(path.join(REPO_ROOT, ".github", "workflows", file), "utf8");
+}
+
+/**
+ * Cada `for key in ...` do step de env vira uma lista. A primeira e a
+ * obrigatoria (falha o deploy); as seguintes sao as pendentes (so avisam).
+ */
+function readKeyLists(file: string): string[][] {
+  const lists = readWorkflow(file)
+    .split(/\r?\n/)
+    .filter((line) => line.includes("for key in"))
+    .map((line) =>
+      line.replace(/^.*for key in/, "").trim().split(/\s+/).filter(Boolean),
+    );
+  if (!lists.length) throw new Error(`${file}: loop "for key in" nao encontrado`);
+  return lists;
 }
 
 describe("deploy workflows: lista de env vars obrigatorias", () => {
   it.each(WORKFLOWS)("$file cobra todas as chaves esperadas", ({ file, keys }) => {
-    const declared = readRequiredKeyList(file);
+    const [required] = readKeyLists(file);
     for (const key of keys) {
-      expect(declared).toContain(key);
+      expect(required).toContain(key);
     }
+  });
+
+  // A chave de producao do Asaas ainda NAO existe: a conta raiz precisa de CNPJ
+  // (Resolucao Conjunta 16/2025) e o cadastro esta em andamento. Ela fica na
+  // lista de PENDENTES, que avisa sem abortar, para um cadastro externo nao
+  // travar deploy de producao que nada tem a ver com pagamento. O teste aceita
+  // as duas listas de proposito: promover a chave nao pode quebrar o guard,
+  // mas faze-la sumir do workflow, sim.
+  it("nao perde a chave de producao do Asaas de vista", () => {
+    expect(readKeyLists("deploy-production.yml").flat()).toContain(
+      "ASAAS_MASTER_API_KEY_PROD",
+    );
   });
 
   it("nao cobra a chave de sandbox no deploy de producao", () => {
     // Exigir ASAAS_MASTER_API_KEY em producao faria o deploy falhar por uma
-    // variavel que produção nao deve usar, e preenche-la abriria a porta para
+    // variavel que producao nao deve usar, e preenche-la abriria a porta para
     // onboardar cliente real contra o Asaas de teste.
-    expect(readRequiredKeyList("deploy-production.yml")).not.toContain(
+    expect(readKeyLists("deploy-production.yml").flat()).not.toContain(
       "ASAAS_MASTER_API_KEY",
     );
   });
 
   it("a checagem reprova valor vazio, nao so chave ausente", () => {
     for (const { file } of WORKFLOWS) {
-      const contents = fs.readFileSync(
-        path.join(REPO_ROOT, ".github", "workflows", file),
-        "utf8",
-      );
-      expect(contents).toContain('grep -qE "^${key}=."');
+      expect(readWorkflow(file)).toContain('grep -qE "^${key}=."');
     }
   });
 });

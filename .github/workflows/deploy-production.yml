@@ -106,7 +106,7 @@ jobs:
           # FOCUS_NFE_TOKEN_NAO_CONFIGURADO, sem chave KMS a senha do
           # certificado nao decifra, e nenhum dos dois aparece no deploy.
           missing=""
-          for key in             RESEND_API_KEY             STRIPE_SECRET_KEY             FOCUS_NFE_MASTER_TOKEN             FISCAL_SECRET_KMS_KEY             CALENDAR_TOKEN_KMS_KEY             GOOGLE_CALENDAR_CLIENT_ID             GOOGLE_CALENDAR_CLIENT_SECRET             ASAAS_MASTER_API_KEY_PROD
+          for key in             RESEND_API_KEY             STRIPE_SECRET_KEY             FOCUS_NFE_MASTER_TOKEN             FISCAL_SECRET_KMS_KEY             CALENDAR_TOKEN_KMS_KEY             GOOGLE_CALENDAR_CLIENT_ID             GOOGLE_CALENDAR_CLIENT_SECRET
           do
             grep -qE "^${key}=." "$ENV_FILE" || missing="$missing $key"
           done
@@ -114,6 +114,15 @@ jobs:
             echo "::error::secret $SECRET_NAME desatualizado — faltam:$missing. Veja .claude/rules/ci-cd.md"
             exit 1
           fi
+          # PENDENTES: integracao ja publicada cuja credencial ainda nao existe.
+          # Avisa em vez de abortar, senao um cadastro externo em andamento
+          # bloquearia todo deploy de producao, inclusive os que nada tem a ver
+          # com ela. Ao obter a chave, mover para a lista obrigatoria acima.
+          # Guard: apps/functions/src/__tests__/deploy-required-env.test.ts
+          for key in             ASAAS_MASTER_API_KEY_PROD
+          do
+            grep -qE "^${key}=." "$ENV_FILE" || echo "::warning::$key ausente em $SECRET_NAME: pagamento online segue desativado em producao."
+          done
 
       - name: Deploy to production
         run: firebase deploy --project prod --only functions,firestore:rules,firestore:indexes
