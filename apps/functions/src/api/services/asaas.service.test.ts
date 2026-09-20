@@ -49,7 +49,7 @@ jest.mock("../../lib/frontend-app-url", () => ({
 }));
 
 import axios from "axios";
-import { AsaasService } from "./asaas.service";
+import { AsaasService, isPlatformConfigured } from "./asaas.service";
 import { db } from "../../init";
 import { getCurrentProjectId } from "../../lib/frontend-app-url";
 
@@ -109,6 +109,43 @@ describe("AsaasService.getBaseUrl", () => {
 
   it("returns production URL for production environment", () => {
     expect(AsaasService.getBaseUrl("production")).toBe("https://api.asaas.com");
+  });
+});
+
+// A tela de configuracoes usa isto para nao oferecer o formulario quando o
+// onboarding nao tem como dar certo. Tem que concordar com onboardTenant em
+// todos os casos, senao volta o 500 depois do formulario preenchido.
+describe("isPlatformConfigured", () => {
+  it("is false when neither key is set", () => {
+    delete process.env.ASAAS_MASTER_API_KEY;
+    delete process.env.ASAAS_MASTER_API_KEY_PROD;
+    expect(isPlatformConfigured()).toBe(false);
+  });
+
+  it("is false when the key is present but empty (o caso de producao)", () => {
+    process.env.ASAAS_MASTER_API_KEY = "   ";
+    delete process.env.ASAAS_MASTER_API_KEY_PROD;
+    expect(isPlatformConfigured()).toBe(false);
+  });
+
+  it("is false for a sandbox-only key in the production project", () => {
+    process.env.ASAAS_MASTER_API_KEY = "$aact_master_sandbox_key";
+    delete process.env.ASAAS_MASTER_API_KEY_PROD;
+    mockedGetCurrentProjectId.mockReturnValue("erp-softcode-prod");
+    expect(isPlatformConfigured()).toBe(false);
+  });
+
+  it("is true for a sandbox key in the dev project", () => {
+    process.env.ASAAS_MASTER_API_KEY = "$aact_master_sandbox_key";
+    delete process.env.ASAAS_MASTER_API_KEY_PROD;
+    mockedGetCurrentProjectId.mockReturnValue("erp-softcode");
+    expect(isPlatformConfigured()).toBe(true);
+  });
+
+  it("is true for a production key in the production project", () => {
+    process.env.ASAAS_MASTER_API_KEY_PROD = "$aact_master_prod_key";
+    mockedGetCurrentProjectId.mockReturnValue("erp-softcode-prod");
+    expect(isPlatformConfigured()).toBe(true);
   });
 });
 

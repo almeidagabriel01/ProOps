@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
-import { AsaasService, AsaasOnboardingData } from "../services/asaas.service";
+import {
+  AsaasService,
+  AsaasOnboardingData,
+  isPlatformConfigured,
+} from "../services/asaas.service";
 import { logger } from "../../lib/logger";
 import { db } from "../../init";
 
@@ -190,8 +194,12 @@ export const getAsaasStatus = async (req: Request, res: Response): Promise<void>
     const { tenantId } = await resolveUserAndTenant(userId, req.user);
 
     const asaasData = await AsaasService.getAsaasData(tenantId);
+    // platformAvailable diz se o SERVIDOR consegue criar subconta. Sem isso a
+    // tela oferece o formulario inteiro para terminar em 500, que foi o que o
+    // cliente viu quando a chave mestre de producao nunca chegou a ser posta.
+    const platformAvailable = isPlatformConfigured();
     if (!asaasData) {
-      res.status(200).json({ connected: false });
+      res.status(200).json({ connected: false, platformAvailable });
       return;
     }
 
@@ -206,6 +214,7 @@ export const getAsaasStatus = async (req: Request, res: Response): Promise<void>
 
     res.status(200).json({
       connected: true,
+      platformAvailable,
       environment: asaasData.environment,
       connectedAt: asaasData.connectedAt,
       ...(accountStatus ? { accountStatus } : {}),

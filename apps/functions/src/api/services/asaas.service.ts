@@ -96,6 +96,23 @@ export function assertEnvironmentAllowedForProject(environment: AsaasEnvironment
   }
 }
 
+/**
+ * O servidor consegue criar subconta? Deriva das MESMAS duas checagens que
+ * onboardTenant faz, de proposito: uma segunda copia da regra deixaria a tela
+ * oferecer o formulario para o usuario preencher CNPJ, faturamento e endereco
+ * e so entao levar 500, que e exatamente o defeito que isto existe para evitar.
+ */
+export function isPlatformConfigured(): boolean {
+  const environment = resolveEnvironmentFromConfig();
+  if (!getMasterApiKey(environment)) return false;
+  try {
+    assertEnvironmentAllowedForProject(environment);
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 async function findExistingSubaccount(
   masterKey: string,
   baseUrl: string,
