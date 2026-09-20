@@ -193,6 +193,35 @@ describe("connectAsaas", () => {
     );
   });
 
+  // As duas mensagens abaixo pedem acoes OPOSTAS de quem atende: uma e credencial
+  // faltando, a outra e credencial errada. Se uma refatoracao as fundir, o suporte
+  // perde a unica pista que o cliente consegue relatar.
+  it("returns 500 with the not-configured message when ASAAS_MASTER_KEY_NOT_CONFIGURED", async () => {
+    mockOnboardTenant.mockRejectedValue(new Error("ASAAS_MASTER_KEY_NOT_CONFIGURED"));
+    const req = makeReq({ body: VALID_BODY });
+    const { res, status, json } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      message: "Integração Asaas não configurada no servidor. Contate o suporte.",
+    });
+  });
+
+  it("returns 500 with the test-mode message when ASAAS_SANDBOX_IN_PRODUCTION", async () => {
+    mockOnboardTenant.mockRejectedValue(new Error("ASAAS_SANDBOX_IN_PRODUCTION"));
+    const req = makeReq({ body: VALID_BODY });
+    const { res, status, json } = makeRes();
+
+    await connectAsaas(req, res);
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      message: "Integração Asaas em modo de teste no ambiente de produção. Contate o suporte.",
+    });
+  });
+
   it("returns 401 when user is not authenticated", async () => {
     const req = makeReq({ user: undefined });
     const { res, status } = makeRes();

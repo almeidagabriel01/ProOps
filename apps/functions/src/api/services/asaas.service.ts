@@ -3,10 +3,12 @@ import crypto from "node:crypto";
 import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "../../lib/logger";
-import { resolveAsaasWebhookUrl } from "../../lib/frontend-app-url";
+import { getCurrentProjectId, resolveAsaasWebhookUrl } from "../../lib/frontend-app-url";
 import { describeAsaasError } from "./asaas-error";
 
 export type AsaasEnvironment = "sandbox" | "production";
+
+const PRODUCTION_PROJECT_ID = "erp-softcode-prod";
 
 export interface AsaasOnboardingData {
   name: string;
@@ -80,6 +82,18 @@ function getMasterApiKey(environment: AsaasEnvironment): string {
 export function resolveEnvironmentFromConfig(): AsaasEnvironment {
   const prodKey = String(process.env.ASAAS_MASTER_API_KEY_PROD || "").trim();
   return prodKey ? "production" : "sandbox";
+}
+
+/**
+ * O projeto de producao nunca pode cair no sandbox. A chave de sandbox e aceita
+ * por api-sandbox.asaas.com e o ambiente resolvido fica GRAVADO no tenant, entao
+ * um cliente real seria onboardado contra um Asaas de teste sem erro nenhum e
+ * ficaria preso la mesmo depois de a chave certa chegar.
+ */
+export function assertEnvironmentAllowedForProject(environment: AsaasEnvironment): void {
+  if (environment === "sandbox" && getCurrentProjectId() === PRODUCTION_PROJECT_ID) {
+    throw new Error("ASAAS_SANDBOX_IN_PRODUCTION");
+  }
 }
 
 async function findExistingSubaccount(
@@ -323,6 +337,7 @@ export class AsaasService {
     if (!masterApiKey) {
       throw new Error("ASAAS_MASTER_KEY_NOT_CONFIGURED");
     }
+    assertEnvironmentAllowedForProject(environment);
 
     const tenantRef = db.collection("tenants").doc(tenantId);
     const tenantSnap = await tenantRef.get();

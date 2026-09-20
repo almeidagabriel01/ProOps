@@ -45,14 +45,19 @@ jest.mock("../../lib/frontend-app-url", () => ({
     (tenantId: string) =>
       `https://southamerica-east1-erp-softcode.cloudfunctions.net/api/webhooks/asaas/${tenantId}`,
   ),
+  getCurrentProjectId: jest.fn(() => "erp-softcode"),
 }));
 
 import axios from "axios";
 import { AsaasService } from "./asaas.service";
 import { db } from "../../init";
+import { getCurrentProjectId } from "../../lib/frontend-app-url";
 
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockedDb = db as jest.Mocked<typeof db>;
+const mockedGetCurrentProjectId = getCurrentProjectId as jest.MockedFunction<
+  typeof getCurrentProjectId
+>;
 
 function makeDocRef(data: Record<string, unknown> | null, exists = true) {
   const snap = { exists, data: () => data };
@@ -87,6 +92,9 @@ beforeEach(() => {
   // Default: only sandbox key set → resolveEnvironmentFromConfig() returns "sandbox"
   process.env.ASAAS_MASTER_API_KEY = "$aact_master_sandbox_key";
   delete process.env.ASAAS_MASTER_API_KEY_PROD;
+
+  // Default: projeto de DEV. O sandbox so e recusado em erp-softcode-prod.
+  mockedGetCurrentProjectId.mockReturnValue("erp-softcode");
 });
 
 afterEach(() => {
@@ -192,6 +200,92 @@ describe("AsaasService.onboardTenant", () => {
     ).rejects.toThrow("ASAAS_MASTER_KEY_NOT_CONFIGURED");
 
     expect(docRef.update).not.toHaveBeenCalled();
+  });
+
+  // Cenario exato reportado em 2026-09-20: em producao ASAAS_MASTER_API_KEY
+  // existia no .env com valor VAZIO e a _PROD nem existia, entao o onboarding
+  // morria com "Integracao Asaas nao configurada no servidor".
+  it("throws ASAAS_MASTER_KEY_NOT_CONFIGURED when the key is present but empty", async () => {
+    process.env.ASAAS_MASTER_API_KEY = "   ";
+    delete process.env.ASAAS_MASTER_API_KEY_PROD;
+    mockedGetCurrentProjectId.mockReturnValue("erp-softcode-prod");
+    const { ref: docRef } = makeDocRef({ name: "Tenant" });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    await expect(
+      AsaasService.onboardTenant("tenant1", VALID_ONBOARDING_DATA),
+    ).rejects.toThrow("ASAAS_MASTER_KEY_NOT_CONFIGURED");
+
+    expect(docRef.update).not.toHaveBeenCalled();
+  });
+
+  // Chave ausente e chave de sandbox em producao sao diagnosticos OPOSTOS, e a
+  // ordem das checagens e o que os mantem distintos no suporte.
+  it("throws ASAAS_SANDBOX_IN_PRODUCTION when only the sandbox key is set in the prod project", async () => {
+    process.env.ASAAS_MASTER_API_KEY = "$aact_master_sandbox_key";
+    delete process.env.ASAAS_MASTER_API_KEY_PROD;
+    mockedGetCurrentProjectId.mockReturnValue("erp-softcode-prod");
+    const { ref: docRef } = makeDocRef({ name: "Tenant Prod" });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    await expect(
+      AsaasService.onboardTenant("tenant_prod", VALID_ONBOARDING_DATA),
+    ).rejects.toThrow("ASAAS_SANDBOX_IN_PRODUCTION");
+
+    // Nada e criado no Asaas de teste, e nada fica gravado no tenant: o
+    // environment persistido prenderia a conta no sandbox para sempre.
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+    expect(docRef.update).not.toHaveBeenCalled();
+  });
+
+  it("allows the sandbox key in the dev project", async () => {
+    process.env.ASAAS_MASTER_API_KEY = "$aact_master_sandbox_key";
+    delete process.env.ASAAS_MASTER_API_KEY_PROD;
+    mockedGetCurrentProjectId.mockReturnValue("erp-softcode");
+    const { ref: docRef } = makeDocRef({ name: "Tenant Dev" });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    mockedAxios.get = jest.fn().mockResolvedValue({ data: { data: [] } });
+    mockedAxios.post = jest.fn().mockResolvedValue({
+      data: { id: "acc_dev", apiKey: "$aact_dev_sub", walletId: "wlt_dev" },
+    });
+
+    await AsaasService.onboardTenant("tenant_dev", VALID_ONBOARDING_DATA);
+
+    expect(mockedAxios.post).toHaveBeenNthCalledWith(
+      1,
+      "https://api-sandbox.asaas.com/v3/accounts",
+      expect.any(Object),
+      expect.any(Object),
+    );
+  });
+
+  it("allows the production key in the prod project", async () => {
+    process.env.ASAAS_MASTER_API_KEY_PROD = "$aact_master_prod_key";
+    mockedGetCurrentProjectId.mockReturnValue("erp-softcode-prod");
+    const { ref: docRef } = makeDocRef({ name: "Tenant Prod" });
+    (mockedDb.collection as jest.Mock).mockReturnValue(makeCollection(docRef));
+
+    mockedAxios.get = jest.fn().mockResolvedValue({ data: { data: [] } });
+    mockedAxios.post = jest.fn().mockResolvedValue({
+      data: { id: "acc_prod", apiKey: "$aact_prod_sub", walletId: "wlt_prod" },
+    });
+
+    await AsaasService.onboardTenant("tenant_prod", VALID_ONBOARDING_DATA);
+
+    expect(mockedAxios.post).toHaveBeenNthCalledWith(
+      1,
+      "https://api.asaas.com/v3/accounts",
+      expect.any(Object),
+      expect.objectContaining({
+        headers: { access_token: "$aact_master_prod_key" },
+      }),
+    );
+    expect(docRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        asaas: expect.objectContaining({ environment: "production" }),
+      }),
+    );
   });
 
   it("throws TENANT_NOT_FOUND when tenant document does not exist", async () => {

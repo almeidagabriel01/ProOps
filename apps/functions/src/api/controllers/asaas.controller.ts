@@ -12,6 +12,7 @@ function mapAsaasErrorStatus(error: Error): number {
   if (error.message === "ASAAS_EMAIL_IN_USE") return 422;
   if (error.message === "ASAAS_ACCOUNT_IN_USE_BY_ANOTHER_TENANT") return 409;
   if (error.message === "ASAAS_MASTER_KEY_NOT_CONFIGURED") return 500;
+  if (error.message === "ASAAS_SANDBOX_IN_PRODUCTION") return 500;
   if (error.message === "ASAAS_NOT_CONNECTED") return 422;
   if (
     error.message.startsWith("FORBIDDEN_") ||
@@ -160,6 +161,12 @@ export const connectAsaas = async (req: Request, res: Response): Promise<void> =
     if (err.message === "ASAAS_MASTER_KEY_NOT_CONFIGURED") {
       res.status(500).json({
         message: "Integração Asaas não configurada no servidor. Contate o suporte.",
+      });
+      return;
+    }
+    if (err.message === "ASAAS_SANDBOX_IN_PRODUCTION") {
+      res.status(500).json({
+        message: "Integração Asaas em modo de teste no ambiente de produção. Contate o suporte.",
       });
       return;
     }
