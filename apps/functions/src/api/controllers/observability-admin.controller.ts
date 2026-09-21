@@ -203,18 +203,28 @@ export async function searchIssues(req: Request, res: Response): Promise<Respons
     const snap = await query.get();
     const matched: Array<Record<string, unknown>> = [];
     let lastScanned: { v: string; id: string } | null = null;
+    let stoppedAtLimit = false;
 
-    for (const doc of snap.docs) {
+    for (let i = 0; i < snap.docs.length; i++) {
+      const doc = snap.docs[i];
       const data = doc.data() as IssueRecord & Record<string, unknown>;
       lastScanned = { v: String((data as Record<string, unknown>)[orderField] ?? ""), id: doc.id };
       if (matchesFilters(data, criteria)) {
         matched.push({ ...data, fingerprint: doc.id });
-        if (matched.length >= limit) break;
+        if (matched.length >= limit) {
+          stoppedAtLimit = i < snap.docs.length - 1;
+          break;
+        }
       }
     }
 
-    // More pages may exist if we consumed the full scan window.
-    const nextCursor = snap.docs.length === SCAN_LIMIT && lastScanned ? encodeCursor(lastScanned) : null;
+    // Ha mais pagina quando a janela de varredura veio cheia OU quando a pagina
+    // encheu antes de o scan acabar. Sem o segundo caso, os resultados depois
+    // do ponto de parada ficavam inalcancaveis (nextCursor nulo).
+    const nextCursor =
+      (snap.docs.length === SCAN_LIMIT || stoppedAtLimit) && lastScanned
+        ? encodeCursor(lastScanned)
+        : null;
     return res.status(200).json({ issues: matched, nextCursor });
   } catch (error) {
     const message = error instanceof Error ? error.message : "unexpected";
