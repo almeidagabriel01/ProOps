@@ -101,6 +101,7 @@ export interface SyncTenantPlanBillingSnapshotParams {
     | "helpers.upsertTenantStripeBillingData"
     | "on_demand"
     | "admin.updateUserPlan"
+    | "admin.createTenant"
     | "admin.forceSetTenantPlan"
     | "cron.checkPriceChanges"
     | "admin.migrateTenantPrice";

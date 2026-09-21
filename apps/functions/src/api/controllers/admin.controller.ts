@@ -26,6 +26,7 @@ import {
 import { assertTenantExists } from "../../lib/tenant-resolution";
 import {
   buildManualSubscriptionUpdate,
+  deriveManualStatusFromPeriodEnd,
   isStripeManagedBilling,
 } from "../../lib/admin-billing-guards";
 import { auditAdminAction } from "../../lib/admin-audit";
@@ -1563,12 +1564,28 @@ export const createTenant = async (req: Request, res: Response) => {
     const now = Timestamp.now();
     const nowIso = now.toDate().toISOString();
     const normalizedPlanId = planId || "free";
-    const isManualSubscription = normalizedPlanId !== "free";
-    const subscriptionStatus = String(
-      body.subscriptionStatus || (isManualSubscription ? "active" : "active"),
-    )
-      .trim()
-      .toLowerCase();
+    const isFreePlan = normalizedPlanId === "free";
+    const planTier = normalizePlanTier(normalizedPlanId);
+    if (!planTier) {
+      return res.status(400).json({ message: "Plano inválido." });
+    }
+    const isManualSubscription = !isFreePlan;
+    // Plano pago criado pelo painel e sempre contrato manual, e a data de fim e o
+    // que o cron de assinaturas manuais vigia. Sem ela o tenant nasceria ativo
+    // para sempre.
+    const periodEndRaw = String(body.currentPeriodEnd || "").trim();
+    const periodEnd = periodEndRaw ? new Date(periodEndRaw) : null;
+    if (!isFreePlan && (!periodEnd || Number.isNaN(periodEnd.getTime()))) {
+      return res.status(400).json({
+        message: "Informe a data de vencimento do plano pago.",
+      });
+    }
+    const subscriptionStatus = isFreePlan
+      ? "free"
+      : deriveManualStatusFromPeriodEnd(periodEnd as Date, new Date());
+    // Conta free criada pelo painel tem que cair no mesmo gate de uma conta free
+    // do cadastro (role "free"): com "admin" ela ganhava o ERP inteiro de graca.
+    const userRole = isFreePlan ? "free" : "admin";
 
     const adminAuth = await auth.createUser({
       email: adminEmailValidation.normalizedEmail,
@@ -1579,7 +1596,7 @@ export const createTenant = async (req: Request, res: Response) => {
     createdAuthUid = adminAuth.uid;
 
     await auth.setCustomUserClaims(adminAuth.uid, {
-      role: "ADMIN",
+      role: isFreePlan ? "free" : "ADMIN",
       tenantId,
     });
 
@@ -1595,6 +1612,7 @@ export const createTenant = async (req: Request, res: Response) => {
         // tenantPlanAllowsWhatsApp() after the transaction to ensure eligibility
         // rules are enforced rather than accepting an arbitrary caller value.
         whatsappEnabled: false,
+        isManualSubscription,
         createdAt: nowIso,
         updatedAt: nowIso,
       });
@@ -1628,12 +1646,12 @@ export const createTenant = async (req: Request, res: Response) => {
         name: adminName,
         email: adminEmailValidation.normalizedEmail,
         phoneNumber: normalizePhoneNumber(body.adminPhoneNumber) || null,
-        role: "admin",
+        role: userRole,
         tenantId,
         companyId: tenantId,
         planId: normalizedPlanId,
         subscriptionStatus,
-        currentPeriodEnd: body.currentPeriodEnd || null,
+        currentPeriodEnd: isFreePlan ? null : periodEndRaw,
         isManualSubscription,
         onboarding: {
           version: "core-v1",
@@ -1659,6 +1677,23 @@ export const createTenant = async (req: Request, res: Response) => {
         newPhoneNumber: body.adminPhoneNumber,
         now,
       });
+    });
+
+    // Plano e status do tenant pelo writer unico, o mesmo do Stripe: e de la que
+    // o enforcement e o `forceSetTenantPlan` leem. Antes so o doc do usuario
+    // recebia esses campos e o tenant caia no fallback pelo dono.
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus,
+      plan: planTier,
+      ...(periodEnd && !isFreePlan ? { currentPeriodEnd: periodEnd } : {}),
+      source: "admin.createTenant",
+    });
+
+    await auditAdminAction(req, "super_admin_tenant_created", {
+      tenantId,
+      targetId: adminAuth.uid,
+      reason: `plan:${planTier}`,
     });
 
     // Recompute whatsappEnabled after the transaction using the canonical
