@@ -14,11 +14,6 @@ import { clearUserMfaFactors } from "../../lib/mfa-reset";
 import { logger } from "../../lib/logger";
 import { fetchAuditEvents } from "../../lib/audit-events-query";
 import {
-  deleteAllTenantUsers,
-  MAX_TENANT_USERS_BATCH,
-  type TenantUserSnap,
-} from "../../lib/tenant-users-deletion";
-import {
   incrementSecurityCounter,
   resolveSecurityAuditCollection,
   writeSecurityAuditEvent,
@@ -30,6 +25,10 @@ import {
   isStripeManagedBilling,
 } from "../../lib/admin-billing-guards";
 import { auditAdminAction } from "../../lib/admin-audit";
+import {
+  buildPurgeStages,
+  TENANT_PURGE_JOBS_COLLECTION,
+} from "../services/tenant-purge.service";
 import { enqueueTenantSync, isStale } from "../../billing";
 import { deriveSubscriptionDisplayStatus } from "../../shared/subscription-status";
 import {
@@ -829,6 +828,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
     interface TenantData {
       name?: string;
+      accountStatus?: string;
       slug?: string;
       createdAt?: string;
       logoUrl?: string;
@@ -1106,6 +1106,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             primaryColor: tenantData.primaryColor,
             niche: tenantData.niche,
             whatsappEnabled: tenantData.whatsappEnabled,
+            accountStatus: tenantData.accountStatus || "active",
           },
           admin: {
             id: userDoc.id,
@@ -1549,33 +1550,6 @@ function sanitizeSlug(input: string): string {
   return normalized || `tenant-${Date.now()}`;
 }
 
-async function deleteQueryInBatches(
-  query: FirebaseFirestore.Query,
-): Promise<number> {
-  let totalDeleted = 0;
-  let snapshot = await query.limit(400).get();
-
-  while (!snapshot.empty) {
-    const batch = db.batch();
-    snapshot.docs.forEach((docSnap) => {
-      batch.delete(docSnap.ref);
-    });
-    await batch.commit();
-    totalDeleted += snapshot.size;
-    snapshot = await query.limit(400).get();
-  }
-
-  return totalDeleted;
-}
-
-async function deleteSubcollectionInBatches(
-  parentRef: FirebaseFirestore.DocumentReference,
-  subcollectionName: string,
-): Promise<void> {
-  const subQuery = parentRef.collection(subcollectionName);
-  await deleteQueryInBatches(subQuery);
-}
-
 export const createTenant = async (req: Request, res: Response) => {
   let createdAuthUid: string | null = null;
 
@@ -1815,126 +1789,230 @@ export const createTenant = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteTenant = async (req: Request, res: Response) => {
+function ownTenantIdOf(req: Request): string {
+  return String(
+    req.user?.impersonation?.originalTenantId || req.user?.tenantId || "",
+  ).trim();
+}
+
+async function listTenantUserIds(tenantId: string): Promise<string[]> {
+  const [byTenant, byCompany] = await Promise.all([
+    db.collection("users").where("tenantId", "==", tenantId).select().limit(500).get(),
+    db.collection("users").where("companyId", "==", tenantId).select().limit(500).get(),
+  ]);
+  return [...new Set([...byTenant.docs, ...byCompany.docs].map((d) => d.id))];
+}
+
+async function setTenantUsersDisabled(uids: string[], disabled: boolean): Promise<number> {
+  let changed = 0;
+  for (const uid of uids) {
+    try {
+      await auth.updateUser(uid, { disabled });
+      if (disabled) await auth.revokeRefreshTokens(uid);
+      changed += 1;
+    } catch (err) {
+      if ((err as { code?: string })?.code !== "auth/user-not-found") throw err;
+    }
+  }
+  return changed;
+}
+
+/**
+ * Cancela a assinatura Stripe da empresa e as dos add-ons. Sem isso, apagar a
+ * empresa deixava o cliente sendo cobrado todo mes, e o webhook seguinte
+ * recriava o doc do tenant.
+ */
+async function cancelTenantStripeSubscriptions(
+  tenantId: string,
+  tenantData: Record<string, unknown>,
+): Promise<string[]> {
+  const subscriptionIds = new Set<string>();
+  const main = String(tenantData.stripeSubscriptionId || "").trim();
+  if (main) subscriptionIds.add(main);
+  const addonSnap = await db
+    .collection("addons")
+    .where("tenantId", "==", tenantId)
+    .limit(50)
+    .get();
+  addonSnap.docs.forEach((d) => {
+    const subId = String(d.get("stripeSubscriptionId") || "").trim();
+    if (subId && String(d.get("status") || "") !== "cancelled") subscriptionIds.add(subId);
+  });
+  if (subscriptionIds.size === 0) return [];
+
+  const stripe = getStripe();
+  const cancelled: string[] = [];
+  for (const subId of subscriptionIds) {
+    try {
+      await stripe.subscriptions.cancel(subId);
+      cancelled.push(subId);
+    } catch (err) {
+      const e = err as { code?: string; statusCode?: number };
+      // Ja cancelada ou inexistente: o objetivo (parar de cobrar) ja esta cumprido.
+      if (e?.code === "resource_missing" || e?.statusCode === 404) continue;
+      throw err;
+    }
+  }
+  return cancelled;
+}
+
+/**
+ * "Desativar" empresa: primeiro passo, reversivel. Para a cobranca no Stripe,
+ * bloqueia o login de todos os usuarios (Auth desativado + tokens revogados) e
+ * marca o tenant. Nenhum dado e apagado; isso so acontece em "Excluir
+ * definitivamente", que exige a empresa desativada antes.
+ */
+export const deactivateTenant = async (req: Request, res: Response) => {
   try {
     if (!isSuperAdminClaim(req)) {
-      return res.status(403).json({
-        message:
-          "Permissão negada. Apenas super admins podem remover empresas.",
-      });
+      return res.status(403).json({ message: "Permissão negada." });
     }
-
     const tenantId = String(req.params.tenantId || "").trim();
-    if (!tenantId) {
-      return res.status(400).json({ message: "tenantId é obrigatório." });
+    if (!tenantId) return res.status(400).json({ message: "tenantId é obrigatório." });
+    if (tenantId === ownTenantIdOf(req)) {
+      return res.status(400).json({ message: "Você não pode desativar a própria empresa." });
     }
 
-    await writeSecurityAuditEvent({
-      eventType: "super_admin_destructive_op",
-      uid: req.user!.uid,
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnap = await tenantRef.get();
+    if (!tenantSnap.exists) return res.status(404).json({ message: "Empresa não encontrada." });
+    const tenantData = (tenantSnap.data() || {}) as Record<string, unknown>;
+    if (tenantData.accountStatus === "purged" || tenantData.accountStatus === "purging") {
+      return res.status(409).json({ message: "Esta empresa já está sendo excluída." });
+    }
+
+    const cancelledSubscriptions = await cancelTenantStripeSubscriptions(tenantId, tenantData);
+    const userIds = await listTenantUserIds(tenantId);
+    const disabledUsers = await setTenantUsersDisabled(userIds, true);
+
+    const nowIso = new Date().toISOString();
+    await tenantRef.update({
+      accountStatus: "deactivated",
+      deactivatedAt: nowIso,
+      deactivatedBy: req.user?.uid || null,
+      // Sai do radar do cron de assinatura manual: nao ha mais contrato a vigiar.
+      isManualSubscription: false,
+      updatedAt: nowIso,
+    });
+    clearTenantPlanCache(tenantId);
+
+    await auditAdminAction(req, "super_admin_tenant_deactivated", {
       tenantId,
-      route: req.originalUrl || req.path,
-      requestId: req.requestId,
-      reason: "deleteTenant",
-      source: "admin_controller",
+      reason: `users:${disabledUsers};stripe:${cancelledSubscriptions.length}`,
     });
-
-    const fetchNextUserBatch = async (): Promise<TenantUserSnap[]> => {
-      const userSnaps = await Promise.all([
-        db
-          .collection("users")
-          .where("tenantId", "==", tenantId)
-          .limit(MAX_TENANT_USERS_BATCH)
-          .get(),
-        db
-          .collection("users")
-          .where("companyId", "==", tenantId)
-          .limit(MAX_TENANT_USERS_BATCH)
-          .get(),
-      ]);
-
-      const uniqueUsers = new Map<string, TenantUserSnap>();
-      userSnaps.forEach((snap) => {
-        snap.docs.forEach((docSnap) => uniqueUsers.set(docSnap.id, docSnap));
-      });
-      return Array.from(uniqueUsers.values());
-    };
-
-    const deleteTenantUser = async (userSnap: TenantUserSnap): Promise<void> => {
-      const uid = userSnap.id;
-      const userRef = db.collection("users").doc(uid);
-      await deleteSubcollectionInBatches(userRef, "permissions");
-
-      const userData = userSnap.data() as { phoneNumber?: string } | undefined;
-      const normalizedPhone = normalizePhoneNumber(userData?.phoneNumber);
-      if (normalizedPhone) {
-        const phoneRef = db.collection("phoneNumberIndex").doc(normalizedPhone);
-        const phoneSnap = await phoneRef.get();
-        const phoneData = phoneSnap.data() as { userId?: string } | undefined;
-        if (phoneSnap.exists && phoneData?.userId === uid) {
-          await phoneRef.delete();
-        }
-      }
-
-      try {
-        await auth.deleteUser(uid);
-      } catch (err: unknown) {
-        if (
-          !err ||
-          typeof err !== "object" ||
-          !("code" in err) ||
-          (err as { code: string }).code !== "auth/user-not-found"
-        ) {
-          throw err;
-        }
-      }
-
-      await userRef.delete();
-    };
-
-    await deleteAllTenantUsers({
-      fetchNextBatch: fetchNextUserBatch,
-      deleteUser: deleteTenantUser,
-    });
-
-    const tenantCollections = [
-      "products",
-      "services",
-      "proposals",
-      "custom_options",
-      "custom_fields",
-      "options",
-      "clients",
-      "transactions",
-      "wallets",
-      "wallet_transactions",
-      "notifications",
-      "addons",
-      "purchased_addons",
-      "spreadsheets",
-      "proposal_templates",
-      "sistemas",
-      "ambientes",
-    ];
-
-    for (const collectionName of tenantCollections) {
-      await deleteQueryInBatches(
-        db.collection(collectionName).where("tenantId", "==", tenantId),
-      );
-    }
-
-    await db.collection("companies").doc(tenantId).delete();
-    await db.collection("tenants").doc(tenantId).delete();
 
     return res.json({
       success: true,
-      message: "Empresa removida com sucesso.",
+      disabledUsers,
+      cancelledSubscriptions: cancelledSubscriptions.length,
+      message: "Empresa desativada. O login foi bloqueado e a cobrança cancelada.",
     });
   } catch (error: unknown) {
-    console.error("[deleteTenant] error:", error);
-    const message =
-      error instanceof Error ? error.message : "Erro ao remover empresa.";
-    return res.status(500).json({ message });
+    logger.error("[deactivateTenant] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Erro ao desativar empresa." });
+  }
+};
+
+/**
+ * Desfaz a desativacao: libera o login de novo. A assinatura Stripe cancelada
+ * NAO volta sozinha; o cliente assina de novo ou o plano e ajustado no painel.
+ */
+export const reactivateTenant = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Permissão negada." });
+    }
+    const tenantId = String(req.params.tenantId || "").trim();
+    if (!tenantId) return res.status(404).json({ message: "Empresa não encontrada." });
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnap = await tenantRef.get();
+    if (!tenantSnap.exists) {
+      return res.status(404).json({ message: "Empresa não encontrada." });
+    }
+    if (tenantSnap.get("accountStatus") !== "deactivated") {
+      return res.status(409).json({ message: "Só é possível reativar uma empresa desativada." });
+    }
+
+    const enabledUsers = await setTenantUsersDisabled(await listTenantUserIds(tenantId), false);
+    const nowIso = new Date().toISOString();
+    await tenantRef.update({
+      accountStatus: "active",
+      reactivatedAt: nowIso,
+      reactivatedBy: req.user?.uid || null,
+      updatedAt: nowIso,
+    });
+    clearTenantPlanCache(tenantId);
+
+    await auditAdminAction(req, "super_admin_tenant_reactivated", {
+      tenantId,
+      reason: `users:${enabledUsers}`,
+    });
+
+    return res.json({ success: true, enabledUsers, message: "Empresa reativada." });
+  } catch (error: unknown) {
+    logger.error("[reactivateTenant] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Erro ao reativar empresa." });
+  }
+};
+
+/**
+ * "Excluir definitivamente": so para empresa ja desativada, e exige o nome da
+ * empresa digitado. Cria o job; o trigger `onTenantPurgeJob` apaga em etapas.
+ * Notas fiscais e o arquivo fiscal ficam (guarda legal de 5 anos).
+ */
+export const purgeTenant = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Permissão negada." });
+    }
+    const tenantId = String(req.params.tenantId || "").trim();
+    if (!tenantId) return res.status(400).json({ message: "tenantId é obrigatório." });
+    if (tenantId === ownTenantIdOf(req)) {
+      return res.status(400).json({ message: "Você não pode excluir a própria empresa." });
+    }
+
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnap = await tenantRef.get();
+    if (!tenantSnap.exists) return res.status(404).json({ message: "Empresa não encontrada." });
+    if (tenantSnap.get("accountStatus") !== "deactivated") {
+      return res.status(409).json({
+        message: "Desative a empresa antes de excluir definitivamente.",
+      });
+    }
+
+    const expected = String(tenantSnap.get("name") || "").trim().toLowerCase();
+    const typed = String(req.body?.confirmName || "").trim().toLowerCase();
+    if (!expected || typed !== expected) {
+      return res.status(400).json({ message: "O nome digitado não confere com o da empresa." });
+    }
+
+    const nowIso = new Date().toISOString();
+    await tenantRef.update({ accountStatus: "purging", updatedAt: nowIso });
+    await db.collection(TENANT_PURGE_JOBS_COLLECTION).doc(tenantId).set({
+      tenantId,
+      tenantName: tenantSnap.get("name") || null,
+      status: "pending",
+      stageIndex: 0,
+      totalStages: buildPurgeStages().length,
+      requestedBy: req.user?.uid || null,
+      createdAt: nowIso,
+    });
+
+    await auditAdminAction(req, "super_admin_tenant_purge_requested", { tenantId });
+
+    return res.status(202).json({
+      success: true,
+      message: "Exclusão iniciada. Os dados são apagados em segundo plano.",
+    });
+  } catch (error: unknown) {
+    logger.error("[purgeTenant] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Erro ao iniciar a exclusão." });
   }
 };
 

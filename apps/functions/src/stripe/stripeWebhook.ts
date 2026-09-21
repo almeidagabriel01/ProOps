@@ -199,6 +199,13 @@ export function buildTenantSubscriptionLifecyclePatch(input: {
   };
 }
 
+export function isTenantBeingPurged(
+  tenantData: Record<string, unknown> | undefined,
+): boolean {
+  const status = String(tenantData?.accountStatus || "");
+  return status === "purged" || status === "purging";
+}
+
 export async function syncTenantPlanBillingSnapshot(
   params: SyncTenantPlanBillingSnapshotParams,
 ): Promise<void> {
@@ -238,11 +245,22 @@ export async function syncTenantPlanBillingSnapshot(
     }
   }
 
-  await db.runTransaction(async (transaction) => {
+  const skippedPurged = await db.runTransaction(async (transaction) => {
     const tenantSnap = await transaction.get(tenantRef);
     const tenantData = tenantSnap.exists
       ? (tenantSnap.data() as Record<string, unknown> | undefined)
       : undefined;
+
+    // Empresa excluida (ou sendo excluida) pelo painel: um evento atrasado do
+    // Stripe nao pode reescrever plano e status no doc residual, que era como a
+    // exclusao antiga ganhava um tenant "zumbi" depois de apagado.
+    if (isTenantBeingPurged(tenantData)) {
+      logger.warn("[syncTenantPlanBillingSnapshot] tenant purged, skipping write", {
+        tenantId,
+        source: params.source,
+      });
+      return true;
+    }
 
     const lifecyclePatch = buildTenantSubscriptionLifecyclePatch({
       subscriptionStatus: params.subscriptionStatus,
@@ -316,7 +334,9 @@ export async function syncTenantPlanBillingSnapshot(
     // by cleanup-billing-redundant-fields.
 
     transaction.set(tenantRef, patch, { merge: true });
+    return false;
   });
+  if (skippedPurged) return;
 
   // Re-evaluate WhatsApp eligibility against the freshly-written plan.
   // CRITICAL (Pitfall 2): tenantPlanAllowsWhatsApp reads addon docs and the plan

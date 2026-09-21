@@ -10,7 +10,9 @@ import {
   updateUserPlan,
   updateUserSubscription,
   createTenant,
-  deleteTenant,
+  deactivateTenant,
+  reactivateTenant,
+  purgeTenant,
   copyTenantData,
   recomputeTenantFeatures,
   forceSetTenantPlan,
@@ -41,7 +43,9 @@ router.put("/users/:userId/subscription", updateUserSubscription);
 router.post("/tenants", createTenant);
 router.post("/tenants/copy-data", copyTenantData);
 router.post("/tenants/migrate-prices", migrateTenantPrices);
-router.delete("/tenants/:tenantId", deleteTenant);
+router.post("/tenants/:tenantId/deactivate", deactivateTenant);
+router.post("/tenants/:tenantId/reactivate", reactivateTenant);
+router.post("/tenants/:tenantId/purge", purgeTenant);
 router.post("/tenants/:tenantId/recompute-features", recomputeTenantFeatures);
 router.post("/tenants/:tenantId/force-set-plan", forceSetTenantPlan);
 router.post("/tenants/:tenantId/sync-billing", syncTenantBilling);
