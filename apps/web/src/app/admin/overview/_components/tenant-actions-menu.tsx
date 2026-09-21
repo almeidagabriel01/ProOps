@@ -10,18 +10,16 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Copy, Settings2, ArrowRightLeft, ShieldOff } from "lucide-react";
+import { MoreHorizontal, Copy, ArrowRightLeft, ShieldOff } from "lucide-react";
 import { TenantBillingInfo, AdminService } from "@/services/admin-service";
 import { toast } from '@/lib/toast';
 
 interface TenantActionsMenuProps {
     item: TenantBillingInfo;
-    onEditLimits: (item: TenantBillingInfo) => void;
 }
 
 export function TenantActionsMenu({
     item,
-    onEditLimits,
 }: TenantActionsMenuProps) {
     const [isMigrating, setIsMigrating] = useState(false);
     const [isResettingMfa, setIsResettingMfa] = useState(false);
@@ -110,13 +108,6 @@ export function TenantActionsMenu({
                     Copiar ID Empresa
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                    onClick={() => onEditLimits(item)}
-                    className="flex items-center gap-2 cursor-pointer"
-                >
-                    <Settings2 className="h-3.5 w-3.5" />
-                    Editar Limites
-                </DropdownMenuItem>
                 <DropdownMenuItem
                     onClick={handleResetMfa}
                     disabled={isResettingMfa}

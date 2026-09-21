@@ -9,7 +9,6 @@ import {
   updateCredentials,
   updateUserPlan,
   updateUserSubscription,
-  testWhatsAppBilling,
   createTenant,
   deleteTenant,
   copyTenantData,
@@ -45,6 +44,5 @@ router.post("/tenants/:tenantId/recompute-features", recomputeTenantFeatures);
 router.post("/tenants/:tenantId/force-set-plan", forceSetTenantPlan);
 router.post("/tenants/:tenantId/sync-billing", syncTenantBilling);
 
-router.post("/test-whatsapp-billing", testWhatsAppBilling);
 
 export const adminRoutes = router;

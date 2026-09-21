@@ -23,7 +23,6 @@ Prefixo montado em `/admin` pelo Express principal.
 | `POST` | `/admin/tenants` | `createTenant` | SUPERADMIN |
 | `POST` | `/admin/tenants/copy-data` | `copyTenantData` | SUPERADMIN |
 | `DELETE` | `/admin/tenants/:tenantId` | `deleteTenant` | SUPERADMIN |
-| `POST` | `/admin/test-whatsapp-billing` | `testWhatsAppBilling` | SUPERADMIN |
 
 > **Atencao de rota:** `PUT /admin/members/permissions` deve vir ANTES de `PUT /admin/members/:id` no arquivo de rotas para evitar que "permissions" seja interpretado como `:id`.
 
@@ -338,16 +337,6 @@ Copia dados de catalogo (produtos, servicos, ambientes, sistemas) de um tenant p
   "imageCloneStats": { "copied": 5, "reused": 3, "failed": 0 }
 }
 ```
-
----
-
-### `testWhatsAppBilling` — POST /admin/test-whatsapp-billing
-
-Dispara manualmente o billing de overage de WhatsApp para um tenant especifico. Para debugging e testes. Somente SUPERADMIN.
-
-**Body:** `{ "tenantId": "string", "month": "string" }`
-
-Delega para `reportWhatsAppOverage(tenantId, month)` de `services/whatsappBilling`.
 
 ---
 

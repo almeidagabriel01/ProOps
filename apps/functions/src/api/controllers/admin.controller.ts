@@ -1947,37 +1947,6 @@ export const getAuditEvents = async (req: Request, res: Response) => {
   }
 };
 
-import { reportWhatsAppOverage } from "../../services/whatsappBilling";
-
-export const testWhatsAppBilling = async (req: Request, res: Response) => {
-  try {
-    const { tenantId, month } = req.body;
-
-    if (!isSuperAdminClaim(req)) {
-      return res.status(403).json({
-        message: "Permissão negada. Apenas super admins podem testar billing.",
-      });
-    }
-
-    if (!tenantId || !month) {
-      return res
-        .status(400)
-        .json({ message: "tenantId e month são obrigatórios" });
-    }
-
-    const result = await reportWhatsAppOverage(tenantId, month);
-
-    if (result.success) {
-      return res.json(result);
-    } else {
-      return res.status(400).json(result);
-    }
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Erro desconhecido";
-    return res.status(500).json({ message });
-  }
-};
 
 type CloneImageStats = {
   copied: number;

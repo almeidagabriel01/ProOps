@@ -157,12 +157,6 @@ export const AdminService = {
     await callApi(`/v1/admin/users/${userId}/subscription`, "PUT", data);
   },
 
-  updateTenantLimits: async (
-    tenantId: string,
-    limits: Record<string, unknown>,
-  ): Promise<void> => {
-    await callApi(`/v1/admin/tenants/${tenantId}/limits`, "PUT", limits);
-  },
 
   createTenant: async (
     data: CreateTenantInput,

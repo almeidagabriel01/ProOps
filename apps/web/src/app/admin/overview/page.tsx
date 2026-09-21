@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BarChart2, Download, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EditLimitsDialog } from "@/components/admin/edit-limits-dialog";
 import { useTenantsData } from "./_hooks/useTenantsData";
 import {
   TenantsMetricsCards,
@@ -23,10 +22,6 @@ export default function AdminOverviewPage() {
     setFilterStatus,
     filteredData,
     metrics,
-    editDialog,
-    setEditDialog,
-    handleEditLimits,
-    loadData,
   } = useTenantsData();
 
   if (isLoading) {
@@ -99,17 +94,8 @@ export default function AdminOverviewPage() {
         onSearchChange={setSearchTerm}
         filterStatus={filterStatus}
         onFilterChange={setFilterStatus}
-        onEditLimits={handleEditLimits}
       />
 
-      <EditLimitsDialog
-        open={editDialog.open}
-        onClose={() => setEditDialog((prev) => ({ ...prev, open: false }))}
-        tenantId={editDialog.tenantId}
-        tenantName={editDialog.tenantName}
-        currentFeatures={editDialog.features}
-        onSaved={loadData}
-      />
     </div>
   );
 }

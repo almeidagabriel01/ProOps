@@ -164,7 +164,7 @@ O `tenantOwner` (usuário admin do tenant) também é exposto pelo provider e us
 | `updateTenant(id, data)` | API (`callApi`) | `PUT /v1/tenants/:id` |
 | `deleteTenant(id)` | Firestore direto (cascata) | Deleta produtos, serviços, propostas, clientes, usuários e o tenant |
 
-> **Atenção:** `TenantService.deleteTenant()` faz uma exclusão em cascata diretamente via Firestore client SDK, deletando todos os documentos relacionados ao tenant. Esta operação não é revertível. Use apenas via painel `/admin`, nunca expor ao usuário comum.
+> Exclusão de empresa é feita só pelo painel `/admin`, no backend (`/v1/admin/tenants/*`). Não existe caminho de exclusão pelo client SDK.
 
 ---
 
