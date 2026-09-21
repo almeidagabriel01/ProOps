@@ -106,7 +106,7 @@ export function useCenaRolada(total: number) {
 
 /**
  * Onde o palco gruda, em px: a altura da barra fixa mais um respiro. Precisa
- * bater com `top-24` em `CLASSE_DO_PALCO`.
+ * bater com o `6rem` do `top` em `CLASSE_DO_PALCO`.
  */
 export const TOPO_DO_PALCO = 96;
 
@@ -122,8 +122,55 @@ export const TOPO_DO_PALCO = 96;
  * que a tela: centralizado, a sobra vira corte dos dois lados, e o primeiro a
  * sumir é o título.
  */
+/**
+ * ── Por que ALTURA MÍNIMA, e o topo que se ajusta ───────────────────────────
+ *
+ * O palco já teve altura fixa (`100svh - 6rem`), e isso não sobrevive fora da
+ * máquina em que foi medido. No iPhone SE a fatia mais alta sobrava com 22px;
+ * no Linux do CI a mesma frase quebrou diferente e transbordou 28. Um celular
+ * com a fonte do sistema aumentada, que é ajuste de acessibilidade comum,
+ * transborda mais ainda. Palco de altura fixa com texto dentro é uma aposta na
+ * métrica de fonte de quem lê, e a ficha, que é a resposta da cena, era o
+ * primeiro a ficar cortada embaixo.
+ *
+ * Então a altura é MÍNIMA: quando o conteúdo cabe, o palco ocupa a tela como
+ * antes e nada muda. Quando não cabe, ele cresce, e o topo da cola sobe na
+ * medida exata para a borda de baixo continuar na borda da tela:
+ * `min(6rem, 100svh - altura)`. Quem sai de vista, nesse caso, é o começo do
+ * título, atrás da barra, e nunca a ficha. A altura vem de
+ * `useAlturaDoPalco`; antes dela ser medida (servidor, primeiro quadro), o
+ * padrão `0px` faz o `min` valer `6rem`, que é o comportamento antigo.
+ */
 export const CLASSE_DO_PALCO =
-  "sticky top-24 flex h-[calc(100svh-6rem)] flex-col justify-start gap-4 md:justify-center md:gap-7";
+  "sticky top-[min(6rem,calc(100svh_-_var(--altura-do-palco,0px)))] flex min-h-[calc(100svh-6rem)] flex-col justify-start gap-4 md:justify-center md:gap-7";
+
+/**
+ * Escreve a altura real do palco em `--altura-do-palco`, que é de onde o `top`
+ * de `CLASSE_DO_PALCO` tira o quanto precisa subir.
+ *
+ * `ResizeObserver`, e não uma medida só: a altura muda a cada frase (a ficha
+ * tem de dois a quatro campos) e com a fonte carregando depois do primeiro
+ * quadro. `offsetHeight` ignora transformações, então as animações de dentro
+ * não mexem na conta.
+ */
+export function useAlturaDoPalco(
+  palco: React.RefObject<HTMLElement | null>,
+  ativo: boolean,
+): void {
+  React.useLayoutEffect(() => {
+    const el = palco.current;
+    if (!el || !ativo) return;
+    const escrever = () =>
+      el.style.setProperty("--altura-do-palco", `${el.offsetHeight}px`);
+    escrever();
+    const observador = new ResizeObserver(escrever);
+    observador.observe(el);
+    return () => {
+      observador.disconnect();
+      el.style.removeProperty("--altura-do-palco");
+    };
+  }, [palco, ativo]);
+}
 
 /**
  * A altura do trilho: a do palco, mais a rolagem de todas as fatias. É o que o

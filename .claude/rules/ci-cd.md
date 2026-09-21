@@ -169,7 +169,16 @@ Duas medições dali valem para qualquer cena desta página:
 - **`scrollWidth` não pega número cortado.** O NumberFlow desenha os dígitos
   numa caixa própria com recorte, então um valor largo demais é truncado sem
   transbordar nada. A régua é a largura NATURAL do texto, medida numa régua
-  temporária com a fonte real, contra o `clientWidth` da caixa.
+  temporária com a fonte real, contra o `clientWidth` da caixa. **Copie a fonte
+  propriedade por propriedade:** `getComputedStyle(el).font` volta VAZIO quando
+  o elemento tem `font-variant-numeric`, e a régua passa a medir na fonte
+  padrão. No Windows ela é estreita e o teste passou por sorte; no Linux do CI
+  reprovou um número que cabia.
+- **Folga medida numa máquina não é garantia.** Um palco de altura fixa sobrava
+  com 22px no Windows e transbordou 28 no Linux do CI. O teste da leitura roda
+  também com a fonte da página 25% maior, que é o que um celular faz com o ajuste
+  de acessibilidade, e mede no ponto de repouso da fatia (`progressoDaParada`,
+  importado do produto), não no meio dela, em que a ficha ainda está entrando.
 
 Duas armadilhas anotadas lá dentro, porque custam tempo quando reencontradas:
 

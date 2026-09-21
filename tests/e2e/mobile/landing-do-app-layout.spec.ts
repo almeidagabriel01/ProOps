@@ -8,12 +8,13 @@
  *
  * Os três defeitos reais que motivaram cada teste daqui:
  *
- * 1. **O palco grudado transbordava.** O palco da leitura tem a altura do que
- *    sobra da tela (`100svh - 6rem`) e não corta nada: com a roda e a ficha nos
- *    tamanhos de desktop, a ficha terminava de 14 a 53px abaixo da borda num
- *    360x740, e de 24 a 42px num iPhone SE. Nada dava erro, nada vazava na
- *    horizontal, e a resposta que a cena inteira existe para mostrar ficava
- *    fora da tela.
+ * 1. **O palco grudado transbordava.** Com a altura fixa do que sobra da
+ *    tela (`100svh - 6rem`), a ficha terminava de 14 a 53px abaixo da borda
+ *    num 360x740, e de 24 a 42px num iPhone SE. Compactar a leitura deixou o
+ *    SE com 22px de folga no Windows, e o Linux do CI transbordou 28 na mesma
+ *    fatia: folga medida numa máquina não é garantia. Hoje o palco tem altura
+ *    MÍNIMA e o topo da cola se ajusta, e o teste com a fonte 25% maior é o
+ *    que prova isso.
  * 2. **A conversa nunca aparecia.** `#conversa` é dirigida pela rolagem, mas o
  *    palco dela só gruda de `md` para cima. No celular o intervalo do
  *    ScrollTrigger era quase zero, o progresso saltava de 0 a 1 em poucos
@@ -43,6 +44,12 @@
 
 import { test, expect, type Page } from "@playwright/test";
 
+// Importado do produto, e não copiado: `fatias.ts` é puro e sem import nenhum,
+// e o ponto em que a cena para para a leitura é exatamente o que este teste
+// precisa acertar. Uma cópia da constante mediria o lugar errado em silêncio
+// no dia em que alguém recalibrar a fatia.
+import { progressoDaParada } from "../../../apps/web/src/app/aplicativo/_components/comandos/fatias";
+
 /** A porta do servidor de teste, sobreponível (ver `superficies-layout.spec.ts`). */
 const PORTA = process.env.E2E_PORT ?? 3001;
 
@@ -66,20 +73,63 @@ const APARELHOS = [
 const FATIAS = 7;
 
 /**
- * O palco grudado da leitura, e o quanto o conteúdo dele transborda.
+ * Quanto da leitura fica ABAIXO da borda da tela, em px (zero ou menos: cabe).
  *
- * O palco gruda em `top: 96px` com `height: 100svh - 6rem`, então a borda de
- * baixo dele É a borda de baixo da tela. Logo, conteúdo que passa do palco é
- * conteúdo fora da tela, e `scrollHeight - clientHeight` é exatamente quanto.
+ * A régua é o sintoma, e não a caixa do palco. Uma versão anterior media
+ * `scrollHeight - clientHeight` do palco, que só valia enquanto ele tinha
+ * altura fixa. Hoje ele tem altura MÍNIMA e cresce com o conteúdo (ver
+ * `CLASSE_DO_PALCO`), então aquela conta daria zero sempre, sem provar nada. O
+ * que importa para quem lê é se a ficha, que é a resposta da cena, termina
+ * dentro da tela.
  */
-async function transbordoDoPalco(page: Page): Promise<number> {
+async function leituraAbaixoDaTela(page: Page): Promise<number> {
   return page.evaluate(() => {
     const palco = [
       ...document.querySelectorAll<HTMLElement>("#comandos div"),
     ].find((el) => getComputedStyle(el).position === "sticky");
     if (!palco) throw new Error("o palco grudado da leitura não foi encontrado");
-    return palco.scrollHeight - palco.clientHeight;
+    const bordas = [palco, palco.lastElementChild, palco.querySelector(".ficha")]
+      .filter((el): el is Element => el !== null)
+      .map((el) => el.getBoundingClientRect().bottom);
+    return Math.max(...bordas) - window.innerHeight;
   });
+}
+
+/**
+ * Leva a página ao ponto de repouso de cada uma das sete fatias e devolve,
+ * para cada uma, quanto da leitura ficou abaixo da tela.
+ *
+ * O ponto de repouso (`progressoDaParada`), e não o meio da fatia. No meio a
+ * ficha ainda está ENTRANDO, subindo de ~30px abaixo do lugar dela, e o teste
+ * media essa passagem como se fosse corte. O repouso é o quadro que a pessoa
+ * lê: a frase escrita, a ficha montada, e é onde a altura varia (a ficha tem de
+ * dois a quatro campos conforme o pedido).
+ */
+async function percorrerAsFatias(page: Page): Promise<number[]> {
+  await page.locator("#comandos").scrollIntoViewIfNeeded();
+
+  const { topo, alcance } = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>("#comandos div[style]");
+    if (!el) throw new Error("o trilho da leitura não foi encontrado");
+    return {
+      topo: el.getBoundingClientRect().top + window.scrollY - 96,
+      alcance: el.offsetHeight - (window.innerHeight - 96),
+    };
+  });
+
+  const medidas: number[] = [];
+  for (let fatia = 0; fatia < FATIAS; fatia += 1) {
+    const em = progressoDaParada(fatia, FATIAS);
+    await page.evaluate(
+      (y) => window.scrollTo({ top: y, behavior: "instant" }),
+      topo + em * alcance,
+    );
+    // A cena é dirigida por uma mola: sem esperar, mede-se um quadro em que
+    // ela ainda não chegou ao ponto pedido.
+    await page.waitForTimeout(800);
+    medidas.push(await leituraAbaixoDaTela(page));
+  }
+  return medidas;
 }
 
 /**
@@ -116,35 +166,36 @@ for (const aparelho of APARELHOS) {
       await page.goto(`${APP}/`);
       await page.waitForLoadState("networkidle");
 
-      // O trilho tem `100svh - 96px + 7 * 130svh`. Percorrer o meio de cada
-      // fatia é ver as sete frases, que é onde a altura varia: a ficha tem de
-      // dois a quatro campos conforme o pedido.
-      await page.locator("#comandos").scrollIntoViewIfNeeded();
+      const medidas = await percorrerAsFatias(page);
+      medidas.forEach((abaixo, fatia) =>
+        expect(
+          abaixo,
+          `fatia ${fatia + 1}: a ficha termina ${abaixo}px abaixo da tela`,
+        ).toBeLessThanOrEqual(1),
+      );
+    });
 
-      const { topo, alcance } = await page.evaluate(() => {
-        const el = document.querySelector<HTMLElement>("#comandos div[style]");
-        if (!el) throw new Error("o trilho da leitura não foi encontrado");
-        return {
-          topo: el.getBoundingClientRect().top + window.scrollY - 96,
-          alcance: el.offsetHeight - (window.innerHeight - 96),
-        };
+    // O caso que derrubou a versão de altura fixa. No iPhone SE a fatia mais
+    // alta sobrava com 22px no Windows, e no Linux do CI a mesma frase quebrou
+    // diferente e transbordou 28. Folga medida numa máquina não é garantia:
+    // aqui a fonte da página cresce 25%, como faz o ajuste de acessibilidade
+    // do celular, e a ficha tem que continuar inteira na tela.
+    test("a leitura cabe na tela com a fonte do sistema 25% maior", async ({
+      page,
+    }) => {
+      await page.goto(`${APP}/`);
+      await page.waitForLoadState("networkidle");
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = "125%";
       });
 
-      for (let fatia = 0; fatia < FATIAS; fatia += 1) {
-        const em = (fatia + 0.5) / FATIAS;
-        await page.evaluate(
-          (y) => window.scrollTo({ top: y, behavior: "instant" }),
-          topo + em * alcance,
-        );
-        // A cena é dirigida por uma mola: sem esperar, mede-se o quadro em que
-        // a frase anterior ainda está saindo.
-        await page.waitForTimeout(500);
-
+      const medidas = await percorrerAsFatias(page);
+      medidas.forEach((abaixo, fatia) =>
         expect(
-          await transbordoDoPalco(page),
-          `fatia ${fatia + 1} transborda o palco`,
-        ).toBeLessThanOrEqual(1);
-      }
+          abaixo,
+          `fatia ${fatia + 1}: a ficha termina ${abaixo}px abaixo da tela`,
+        ).toBeLessThanOrEqual(1),
+      );
     });
 
     test("a conversa fica legível, sem depender do palco grudar", async ({
@@ -266,35 +317,68 @@ for (const aparelho of APARELHOS) {
       // A cena escreve os valores no fim da própria linha do tempo.
       await page.waitForTimeout(6000);
 
-      // A régua é a largura NATURAL do número contra a caixa que ele tem, e
-      // não `scrollWidth`: o NumberFlow desenha os dígitos numa caixa própria
-      // com recorte, então um valor que não cabe é CORTADO em silêncio, sem
-      // gerar transbordo nenhum para medir. Era exatamente esse o sintoma.
+      // Duas réguas, porque são dois jeitos de o número não caber.
+      //
+      // 1. RECORTE: a largura natural do texto contra a caixa que ele tem. Não
+      //    dá para usar `scrollWidth`: o NumberFlow desenha os dígitos numa
+      //    caixa própria com recorte, então um valor largo demais é cortado em
+      //    silêncio, sem transbordo nenhum para medir. Era esse o sintoma.
+      // 2. VAZAMENTO: a borda direita da caixa contra a do cartão, que é o
+      //    jeito de falhar da grade atual, em que a coluna do valor cresce com
+      //    o conteúdo.
+      //
+      // A régua copia a fonte PROPRIEDADE POR PROPRIEDADE. O atalho
+      // `getComputedStyle(el).font` volta VAZIO quando o elemento tem
+      // `font-variant-numeric: tabular-nums`, que não cabe no atalho; com ele a
+      // régua media na fonte padrão da página. No Windows essa fonte é estreita
+      // e o teste passava por sorte, no Linux do CI é larga e ele reprovava
+      // um número que cabia.
       const medidas = await page.evaluate(() =>
         [...document.querySelectorAll<HTMLElement>(".sim-cenario")].map((c) => {
           const moeda = c.querySelector<HTMLElement>("[class*='jetbrains']")!;
           const texto = c.querySelector<HTMLElement>(".sr-only")!.textContent!;
-          const regua = document.createElement("span");
           const estilo = getComputedStyle(moeda);
-          regua.style.cssText = `position:fixed;visibility:hidden;white-space:pre;font:${estilo.font};letter-spacing:${estilo.letterSpacing};font-variant-numeric:${estilo.fontVariantNumeric}`;
+          const regua = document.createElement("span");
+          Object.assign(regua.style, {
+            position: "fixed",
+            visibility: "hidden",
+            whiteSpace: "pre",
+            fontFamily: estilo.fontFamily,
+            fontSize: estilo.fontSize,
+            fontWeight: estilo.fontWeight,
+            fontStyle: estilo.fontStyle,
+            letterSpacing: estilo.letterSpacing,
+            fontVariantNumeric: estilo.fontVariantNumeric,
+          });
           regua.textContent = texto;
           document.body.appendChild(regua);
           const natural = regua.getBoundingClientRect().width;
           regua.remove();
+          const cartao = c.getBoundingClientRect();
+          const paddingDireito = parseFloat(getComputedStyle(c).paddingRight);
           return {
             texto,
             natural: Math.round(natural),
             cabe: Math.round(moeda.clientWidth),
+            vaza: Math.round(
+              moeda.getBoundingClientRect().right -
+                (cartao.right - paddingDireito),
+            ),
           };
         }),
       );
 
       expect(medidas).toHaveLength(3);
       for (const medida of medidas) {
+        // 1px de tolerância: o NumberFlow posiciona cada dígito em subpixel.
         expect(
           medida.natural,
           `"${medida.texto}" pede ${medida.natural}px e tem ${medida.cabe}px`,
-        ).toBeLessThanOrEqual(medida.cabe);
+        ).toBeLessThanOrEqual(medida.cabe + 1);
+        expect(
+          medida.vaza,
+          `"${medida.texto}" passa ${medida.vaza}px da borda do cartão`,
+        ).toBeLessThanOrEqual(1);
       }
       // O pior deles é o negativo: doze caracteres, que em três colunas num
       // aparelho de 360 tinham 63px para caber em ~88.

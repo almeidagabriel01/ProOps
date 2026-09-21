@@ -13,6 +13,7 @@ import { TrocaComSaida } from "./troca-com-saida";
 import {
   alturaDoTrilho,
   CLASSE_DO_PALCO,
+  useAlturaDoPalco,
   useCenaRolada,
   useProgressoDaFatia,
 } from "./use-cena-rolada";
@@ -64,6 +65,7 @@ export function LeituraAoVivo({
   const { trilho, indice, escolher, rolarPara, animado, progresso, entrada } =
     useCenaRolada(TOTAL);
   const posicao = useTransform(progresso, (v) => posicaoDaRoda(v, TOTAL));
+  useAlturaDoPalco(palco, animado);
 
   const rolagem = React.useMemo<RodaNaRolagem | undefined>(
     () =>
