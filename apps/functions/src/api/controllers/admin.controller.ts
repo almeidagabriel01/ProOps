@@ -321,6 +321,13 @@ export const createMember = async (req: Request, res: Response) => {
         );
       }
 
+      if (isSuperAdmin) {
+        await auditAdminAction(req, "super_admin_member_created", {
+          tenantId,
+          targetId: memberId,
+        });
+      }
+
       return res.status(201).json({
         success: true,
         memberId,
@@ -474,6 +481,13 @@ export const updateMember = async (req: Request, res: Response) => {
       );
     }
 
+    if (isSuperAdmin) {
+      await auditAdminAction(req, "super_admin_member_updated", {
+        tenantId: String(memberData?.tenantId || ""),
+        targetId: id,
+      });
+    }
+
     return res.json({
       success: true,
       message: "Membro atualizado com sucesso.",
@@ -565,7 +579,7 @@ export const deleteMember = async (req: Request, res: Response) => {
     });
 
     if (isSuperAdmin) {
-      void writeSecurityAuditEvent({
+      await writeSecurityAuditEvent({
         eventType: "super_admin_destructive_op",
         uid: loggedUserId,
         tenantId,
@@ -660,6 +674,13 @@ export const updatePermissions = async (req: Request, res: Response) => {
         { merge: true },
       );
 
+      if (isSuperAdmin) {
+        await auditAdminAction(req, "super_admin_permissions_updated", {
+          tenantId: String(memberData?.tenantId || ""),
+          targetId: actualMemberId,
+          reason: `single:${pageId}.${key}=${value}`,
+        });
+      }
       return res.json({ success: true, message: "Permissão atualizada." });
     }
 
@@ -684,6 +705,13 @@ export const updatePermissions = async (req: Request, res: Response) => {
     }
 
     await batch.commit();
+    if (isSuperAdmin) {
+      await auditAdminAction(req, "super_admin_permissions_updated", {
+        tenantId: String(memberData?.tenantId || ""),
+        targetId: actualMemberId,
+        reason: "bulk",
+      });
+    }
     return res.json({ success: true, message: "Permissões atualizadas." });
   } catch (error: unknown) {
     const message =
@@ -737,7 +765,7 @@ export const resetMemberMfa = async (req: Request, res: Response) => {
 
     await clearUserMfaFactors(targetUid);
 
-    void writeSecurityAuditEvent({
+    await writeSecurityAuditEvent({
       eventType: "mfa_reset_by_admin",
       uid: requesterUid,
       tenantId: targetData?.tenantId,
@@ -1801,7 +1829,7 @@ export const deleteTenant = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "tenantId é obrigatório." });
     }
 
-    void writeSecurityAuditEvent({
+    await writeSecurityAuditEvent({
       eventType: "super_admin_destructive_op",
       uid: req.user!.uid,
       tenantId,
@@ -1937,7 +1965,7 @@ export const startImpersonation = async (req: Request, res: Response) => {
     const uid = req.user!.uid;
     const route = req.originalUrl || req.path;
 
-    void writeSecurityAuditEvent({
+    await writeSecurityAuditEvent({
       eventType: "super_admin_impersonation_started",
       uid,
       tenantId,
@@ -2499,6 +2527,11 @@ export const forceSetTenantPlan = async (req: Request, res: Response) => {
       });
     }
 
+    await auditAdminAction(req, "super_admin_plan_forced", {
+      tenantId,
+      reason: `plan:${tier}`,
+    });
+
     logger.info("[forceSetTenantPlan] plan forced", {
       tenantId,
       tier,
@@ -2652,6 +2685,10 @@ export const migrateTenantPrices = async (
   const migrated = results.filter((r) => r.status === "migrated").length;
   const skipped = results.filter((r) => r.status === "skipped").length;
   const failed = results.filter((r) => r.status === "failed").length;
+
+  await auditAdminAction(req, "super_admin_prices_migrated", {
+    reason: `migrated:${migrated};skipped:${skipped};failed:${failed}`,
+  });
 
   res.json({ migrated, skipped, failed, results });
 };

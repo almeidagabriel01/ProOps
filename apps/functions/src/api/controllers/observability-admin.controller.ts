@@ -44,7 +44,7 @@ export async function triageIssue(req: Request, res: Response): Promise<Response
     });
 
     const uid = (req.user as { uid?: string })?.uid || null;
-    void writeSecurityAuditEvent({
+    await writeSecurityAuditEvent({
       eventType: "observability_issue_triaged",
       uid: uid || undefined,
       reason: status,
