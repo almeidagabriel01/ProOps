@@ -162,7 +162,6 @@ O `tenantOwner` (usuário admin do tenant) também é exposto pelo provider e us
 | `getTenantById(id)` | Firestore direto | `doc("tenants", id)` |
 | `createTenant(data)` | Firestore direto | `addDoc("tenants")` |
 | `updateTenant(id, data)` | API (`callApi`) | `PUT /v1/tenants/:id` |
-| `deleteTenant(id)` | Firestore direto (cascata) | Deleta produtos, serviços, propostas, clientes, usuários e o tenant |
 
 > Exclusão de empresa é feita só pelo painel `/admin`, no backend (`/v1/admin/tenants/*`). Não existe caminho de exclusão pelo client SDK.
 
