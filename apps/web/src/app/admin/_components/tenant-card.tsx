@@ -35,6 +35,7 @@ import {
   Power,
   RotateCcw,
   Ban,
+  LayoutGrid,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatDateBR } from "@/utils/date-format";
@@ -49,6 +50,7 @@ interface TenantCardProps {
   onPurge: (id: string, confirmName: string) => Promise<void>;
   onLoginAs: (item: TenantBillingInfo) => void;
   onCopy?: (data: TenantBillingInfo) => void;
+  onManageModules?: (data: TenantBillingInfo) => void;
 }
 
 export function TenantCard({
@@ -59,6 +61,7 @@ export function TenantCard({
   onPurge,
   onLoginAs,
   onCopy,
+  onManageModules,
 }: TenantCardProps) {
   const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
@@ -211,6 +214,18 @@ export function TenantCard({
             >
               <Pencil className="w-4 h-4" />
             </Button>
+            {onManageModules && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => onManageModules(item)}
+                disabled={isDeleting}
+                title="Plano e módulos"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </Button>
+            )}
             {onCopy && (
               <Button
                 variant="ghost"

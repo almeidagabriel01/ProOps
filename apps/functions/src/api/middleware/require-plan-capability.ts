@@ -7,6 +7,7 @@ import {
 } from "../../lib/security-observability";
 import {
   PLAN_TIER_LABELS,
+  CAPABILITY_LABELS,
   minimumTierForCapability,
   type PlanCapabilityKey,
 } from "../../shared/plan-capabilities";
@@ -24,16 +25,6 @@ import {
 
 export type PlanCapabilityEnforcementMode = "off" | "monitor" | "enforce";
 
-const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
-  financial: "Financeiro",
-  crm: "CRM",
-  fiscal: "Notas Fiscais",
-  pdfEditor: "Editor de PDF",
-  customTheme: "Cores personalizadas",
-  whatsapp: "WhatsApp",
-  calendarSync: "Google Agenda",
-  driveSync: "Google Drive",
-};
 
 /**
  * Modo proprio, separado de TENANT_PLAN_ENFORCEMENT_MODE.

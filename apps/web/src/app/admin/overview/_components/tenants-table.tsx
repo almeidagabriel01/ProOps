@@ -39,6 +39,7 @@ interface TenantsTableProps {
   onSearchChange: (term: string) => void;
   filterStatus: string;
   onFilterChange: (status: string) => void;
+  onManageModules?: (item: TenantBillingInfo) => void;
 }
 
 function TableEmptyState() {
@@ -57,9 +58,10 @@ function TableEmptyState() {
 interface TenantRowProps {
   item: TenantBillingInfo;
   index: number;
+  onManageModules?: (item: TenantBillingInfo) => void;
 }
 
-function TenantRow({ item, index }: TenantRowProps) {
+function TenantRow({ item, index, onManageModules }: TenantRowProps) {
   return (
     <motion.tr
       key={item.tenant.id}
@@ -113,7 +115,7 @@ function TenantRow({ item, index }: TenantRowProps) {
         <StatusBadge status={item.subscriptionStatus || "active"} />
       </TableCell>
       <TableCell className="pr-6 py-4 text-right">
-        <TenantActionsMenu item={item} />
+        <TenantActionsMenu item={item} onManageModules={onManageModules} />
       </TableCell>
     </motion.tr>
   );
@@ -125,6 +127,7 @@ export function TenantsTable({
   onSearchChange,
   filterStatus,
   onFilterChange,
+  onManageModules,
 }: TenantsTableProps) {
   return (
     <motion.div
@@ -220,6 +223,7 @@ export function TenantsTable({
                       key={item.tenant.id}
                       item={item}
                       index={index}
+                      onManageModules={onManageModules}
                     />
                   ))
                 )}

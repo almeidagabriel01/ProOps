@@ -10,16 +10,18 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Copy, ArrowRightLeft, ShieldOff } from "lucide-react";
+import { MoreHorizontal, Copy, ArrowRightLeft, LayoutGrid, ShieldOff } from "lucide-react";
 import { TenantBillingInfo, AdminService } from "@/services/admin-service";
 import { toast } from '@/lib/toast';
 
 interface TenantActionsMenuProps {
     item: TenantBillingInfo;
+    onManageModules?: (item: TenantBillingInfo) => void;
 }
 
 export function TenantActionsMenu({
     item,
+    onManageModules,
 }: TenantActionsMenuProps) {
     const [isMigrating, setIsMigrating] = useState(false);
     const [isResettingMfa, setIsResettingMfa] = useState(false);
@@ -82,7 +84,7 @@ export function TenantActionsMenu({
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
-                    className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
+                    className="h-8 w-8 p-0 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-muted"
                 >
                     <span className="sr-only">Abrir menu</span>
                     <MoreHorizontal className="h-4 w-4" />
@@ -108,6 +110,15 @@ export function TenantActionsMenu({
                     Copiar ID Empresa
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                {onManageModules && (
+                    <DropdownMenuItem
+                        onClick={() => onManageModules(item)}
+                        className="flex items-center gap-2 cursor-pointer"
+                    >
+                        <LayoutGrid className="h-3.5 w-3.5" />
+                        Plano e módulos
+                    </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                     onClick={handleResetMfa}
                     disabled={isResettingMfa}

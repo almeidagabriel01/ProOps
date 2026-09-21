@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Building2, CreditCard, ShieldCheck, Activity } from "lucide-react";
 import { TenantDialog } from "@/components/admin/tenant-dialog";
+import { TenantModulesDialog } from "@/components/admin/tenant-modules-dialog";
 import { useTenantManagement } from "./_hooks/useTenantManagement";
 import { TenantCard, CopyDataDialog } from "./_components";
 import { AdminSkeleton } from "./_components/admin-skeleton";
@@ -42,6 +43,7 @@ export default function AdminPage() {
   const [isCopyDialogOpen, setIsCopyDialogOpen] = React.useState(false);
   const [copySourceTenant, setCopySourceTenant] = React.useState<TenantBillingInfo | null>(null);
   const [isCopying, setIsCopying] = React.useState(false);
+  const [modulesTarget, setModulesTarget] = React.useState<TenantBillingInfo | null>(null);
 
   const handleOpenCopyModal = (tenant: TenantBillingInfo) => {
     setCopySourceTenant(tenant);
@@ -138,6 +140,7 @@ export default function AdminPage() {
             onPurge={handlePurge}
             onLoginAs={handleLoginAs}
             onCopy={handleOpenCopyModal}
+            onManageModules={setModulesTarget}
           />
         ))}
 
@@ -182,6 +185,12 @@ export default function AdminPage() {
         onRecompute={editingData ? () => handleRecompute(editingData.tenant.id) : undefined}
         isSaving={isSaving}
         isRecomputing={isRecomputing}
+      />
+
+      <TenantModulesDialog
+        tenantId={modulesTarget?.tenant.id ?? null}
+        tenantName={modulesTarget?.tenant.name ?? ""}
+        onClose={() => setModulesTarget(null)}
       />
 
       <CopyDataDialog

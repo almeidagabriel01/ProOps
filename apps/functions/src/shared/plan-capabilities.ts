@@ -230,6 +230,31 @@ export function minimumTierForCapability(
   return null;
 }
 
+/** Nome de cada modulo como o cliente o conhece (mensagem de 402, painel do superadmin). */
+export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
+  financial: "Financeiro",
+  crm: "CRM",
+  fiscal: "Notas Fiscais",
+  pdfEditor: "Editor de PDF",
+  customTheme: "Cores personalizadas",
+  whatsapp: "WhatsApp",
+  calendarSync: "Google Agenda",
+  driveSync: "Google Drive",
+};
+
+export const LIMIT_LABELS: Record<keyof PlanNumericLimits, string> = {
+  maxProposalsPerMonth: "Propostas por mês",
+  maxClients: "Contatos",
+  maxProducts: "Produtos",
+  maxUsers: "Usuários da equipe",
+  maxWallets: "Carteiras",
+  maxSpreadsheets: "Planilhas",
+  maxPdfTemplates: "Modelos de PDF",
+  maxImagesPerProduct: "Imagens por produto",
+  storageQuotaMB: "Armazenamento (MB)",
+  aiMessagesPerMonth: "Mensagens da Lia por mês",
+};
+
 export const PLAN_TIER_LABELS: Record<PlanTierId, string> = {
   free: "Gratuito",
   starter: "Starter",

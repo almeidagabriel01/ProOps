@@ -594,7 +594,8 @@ export function TenantDialog({
                       <Label className="text-base">WhatsApp Ativo</Label>
                       <p className="text-sm text-muted-foreground">
                         Habilita os menus de automações e a integração do WhatsApp
-                        Bot para essa empresa.
+                        Bot para essa empresa. Só vale em plano que inclui WhatsApp:
+                        nos demais, a próxima sincronização do plano desliga.
                       </p>
                     </div>
                     <Switch

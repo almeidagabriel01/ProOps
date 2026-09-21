@@ -10,6 +10,12 @@ import {
   ADDON_DEFINITIONS_BACKEND,
   isKnownAddonId,
 } from "../../shared/addon-definitions";
+import {
+  CAPABILITY_LABELS,
+  LIMIT_LABELS,
+  PLAN_TIER_LABELS,
+  resolvePlanCapabilities,
+} from "../../shared/plan-capabilities";
 
 /**
  * "Plano e modulos" no painel do superadmin: o que a empresa tem liberado e
@@ -57,7 +63,12 @@ export const getTenantModules = async (req: Request, res: Response) => {
     return res.json({
       tenantId,
       tier: profile.tier,
+      tierLabel: PLAN_TIER_LABELS[profile.tier] ?? profile.tier,
+      capabilityLabels: CAPABILITY_LABELS,
+      limitLabels: LIMIT_LABELS,
       capabilities: profile.capabilities,
+      // So o que o plano da; a diferenca para `capabilities` e o que veio de add-on.
+      tierCapabilities: resolvePlanCapabilities(profile.tier),
       limits: profile.limits,
       activeAddons: profile.activeAddons,
       addons,

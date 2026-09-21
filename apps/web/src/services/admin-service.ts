@@ -27,6 +27,26 @@ interface CreateTenantInput {
   currentPeriodEnd?: string;
 }
 
+/** Resposta de GET /v1/admin/tenants/:id/modules (rotulos vem do catalogo do backend). */
+export interface TenantModulesInfo {
+  tenantId: string;
+  tier: string;
+  tierLabel: string;
+  capabilities: Record<string, boolean>;
+  tierCapabilities: Record<string, boolean>;
+  capabilityLabels: Record<string, string>;
+  limits: Record<string, number>;
+  limitLabels: Record<string, string>;
+  activeAddons: string[];
+  addons: Array<{
+    addonId: string;
+    status: string;
+    source: "stripe" | "courtesy" | "manual" | string;
+    currentPeriodEnd: string | null;
+  }>;
+  availableAddons: Array<{ id: string; availableForTiers: string[] }>;
+}
+
 export interface TenantBillingInfo {
   tenant: {
     id: string;
@@ -202,6 +222,18 @@ export const AdminService = {
       "POST",
       { sourceTenantId, targetTenantId, replace },
     );
+  },
+
+  getTenantModules: async (tenantId: string): Promise<TenantModulesInfo> => {
+    return await callApi<TenantModulesInfo>(`/v1/admin/tenants/${tenantId}/modules`);
+  },
+
+  grantCourtesyAddon: async (tenantId: string, addonId: string): Promise<void> => {
+    await callApi(`/v1/admin/tenants/${tenantId}/addons/${addonId}`, "POST", {});
+  },
+
+  revokeCourtesyAddon: async (tenantId: string, addonId: string): Promise<void> => {
+    await callApi(`/v1/admin/tenants/${tenantId}/addons/${addonId}`, "DELETE");
   },
 
   recomputeFeatures: async (tenantId: string): Promise<{ whatsappEnabled: boolean }> => {
