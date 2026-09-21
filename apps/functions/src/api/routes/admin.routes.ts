@@ -22,10 +22,18 @@ import {
   getAuditEvents,
   resetMemberMfa,
 } from "../controllers/admin.controller";
+import {
+  getTenantModules,
+  grantCourtesyAddon,
+  revokeCourtesyAddon,
+} from "../controllers/admin-tenant-modules.controller";
 
 const router = Router();
 
 router.get("/tenants/billing", getAllTenantsBilling);
+router.get("/tenants/:tenantId/modules", getTenantModules);
+router.post("/tenants/:tenantId/addons/:addonId", grantCourtesyAddon);
+router.delete("/tenants/:tenantId/addons/:addonId", revokeCourtesyAddon);
 router.get("/audit-events", getAuditEvents);
 router.post("/impersonation/start", startImpersonation);
 router.post("/impersonation/stop", stopImpersonation);
