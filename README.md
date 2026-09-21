@@ -6,7 +6,7 @@ O sistema de gestão empresarial moderno e intuitivo para transformar a forma co
 
 ---
 
-## ✨ O que é o ProOps?
+## ✨ O que é a ProOps?
 
 Uma plataforma completa de gestão empresarial desenvolvida para simplificar suas operações diárias. Centralize propostas, clientes, produtos e finanças em um único lugar, aumentando sua produtividade e profissionalizando sua operação.
 
@@ -14,7 +14,7 @@ Uma plataforma completa de gestão empresarial desenvolvida para simplificar sua
 
 ## 🎯 Arquitetura de Integração (WhatsApp e Stripe)
 
-O ProOps possui um backend unificado no **Firebase Functions (Cloud Run)** para garantir máxima segurança e centralização de credenciais, incluindo fluxos de Webhooks e Cron Jobs:
+A ProOps possui um backend unificado no **Firebase Functions (Cloud Run)** para garantir máxima segurança e centralização de credenciais, incluindo fluxos de Webhooks e Cron Jobs:
 
 ### WhatsApp Webhook
 

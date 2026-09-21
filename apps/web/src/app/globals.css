@@ -171,15 +171,33 @@ body {
 }
 
 @keyframes luma-spin {
-  0%    { inset: 0 var(--ls-off) var(--ls-off) 0; }
-  12.5% { inset: 0 var(--ls-off) 0 0; }
-  25%   { inset: var(--ls-off) var(--ls-off) 0 0; }
-  37.5% { inset: var(--ls-off) 0 0 0; }
-  50%   { inset: var(--ls-off) 0 0 var(--ls-off); }
-  62.5% { inset: 0 0 0 var(--ls-off); }
-  75%   { inset: 0 0 var(--ls-off) var(--ls-off); }
-  87.5% { inset: 0 0 var(--ls-off) 0; }
-  100%  { inset: 0 var(--ls-off) var(--ls-off) 0; }
+  0% {
+    inset: 0 var(--ls-off) var(--ls-off) 0;
+  }
+  12.5% {
+    inset: 0 var(--ls-off) 0 0;
+  }
+  25% {
+    inset: var(--ls-off) var(--ls-off) 0 0;
+  }
+  37.5% {
+    inset: var(--ls-off) 0 0 0;
+  }
+  50% {
+    inset: var(--ls-off) 0 0 var(--ls-off);
+  }
+  62.5% {
+    inset: 0 0 0 var(--ls-off);
+  }
+  75% {
+    inset: 0 0 var(--ls-off) var(--ls-off);
+  }
+  87.5% {
+    inset: 0 0 var(--ls-off) 0;
+  }
+  100% {
+    inset: 0 var(--ls-off) var(--ls-off) 0;
+  }
 }
 
 .luma-spin-seg {
@@ -313,8 +331,12 @@ body {
 
 /* Card shine on hover */
 @keyframes card-shine {
-  0% { transform: translateX(-120%) skewX(-20deg); }
-  100% { transform: translateX(220%) skewX(-20deg); }
+  0% {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-20deg);
+  }
 }
 .card-shine-on-hover {
   position: relative;
@@ -324,7 +346,12 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(115deg, transparent 0%, rgba(0,0,0,0.06) 50%, transparent 100%);
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.06) 50%,
+    transparent 100%
+  );
   transform: translateX(-120%) skewX(-20deg);
   pointer-events: none;
   z-index: 1;
@@ -333,7 +360,12 @@ body {
   animation: card-shine 0.9s ease-out forwards;
 }
 .dark .card-shine-on-hover::before {
-  background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
 }
 
 /* Button sweep on hover */
@@ -346,7 +378,12 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 100%
+  );
   transform: translateX(-110%);
   transition: transform 0.55s ease;
   pointer-events: none;
@@ -356,7 +393,12 @@ body {
   transform: translateX(110%);
 }
 .dark .btn-sweep::before {
-  background: linear-gradient(120deg, transparent 0%, rgba(0,0,0,0.18) 50%, transparent 100%);
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.18) 50%,
+    transparent 100%
+  );
 }
 
 /* Landing button — assinatura "draw + invert".
@@ -414,13 +456,15 @@ body {
 
 /* Border beam for idle card animation */
 @property --card-beam-angle {
-  syntax: '<angle>';
+  syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
 }
 
 @keyframes card-beam-spin {
-  to { --card-beam-angle: 360deg; }
+  to {
+    --card-beam-angle: 360deg;
+  }
 }
 
 .card-border-beam {
@@ -436,8 +480,12 @@ body {
     transparent 120deg,
     transparent 360deg
   );
-  mask: linear-gradient(white 0 0) content-box, linear-gradient(white 0 0);
-  -webkit-mask: linear-gradient(white 0 0) content-box, linear-gradient(white 0 0);
+  mask:
+    linear-gradient(white 0 0) content-box,
+    linear-gradient(white 0 0);
+  -webkit-mask:
+    linear-gradient(white 0 0) content-box,
+    linear-gradient(white 0 0);
   mask-composite: exclude;
   -webkit-mask-composite: destination-out;
   animation: card-beam-spin 5s linear infinite;
@@ -532,6 +580,44 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /*
+    Cursor de mão em tudo que se clica.
+
+    O Tailwind v4 deixou de normalizar o cursor de `<button>`: o preflight passou
+    a seguir o padrão do navegador, que é a seta. Isso não falha em lugar nenhum
+    e some com a única pista de que um controle é acionável, e o projeto vinha
+    remendando um call site por vez (havia quase trezentos `cursor-pointer`
+    espalhados quando isto entrou). Uma regra na base resolve a classe inteira do
+    problema, inclusive nos componentes do Radix, que renderizam `<button>` com
+    papéis de radio, tab, switch e menuitem.
+
+    Fica em `@layer base` de propósito: utilitário vence base na cascata, então um
+    call site que peça `cursor-default` ou `cursor-not-allowed` continua mandando.
+    As regras de modo demonstração, mais abaixo, usam `!important` e também
+    continuam ganhando.
+
+    `label` NÃO entra. O rótulo de um campo de texto é clicável (foca o campo) e
+    mesmo assim a convenção é a seta: mão ali sugere um botão onde há um texto, e
+    na prática muitos desses rótulos flutuam por cima do próprio campo.
+  */
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  input:is([type="checkbox"], [type="radio"], [type="submit"], [type="reset"], [type="button"], [type="file"]):not(:disabled),
+  :is(
+      [role="button"],
+      [role="radio"],
+      [role="tab"],
+      [role="option"],
+      [role="menuitem"],
+      [role="menuitemcheckbox"],
+      [role="menuitemradio"],
+      [role="switch"],
+      [role="checkbox"]
+    ):not([aria-disabled="true"]):not([data-disabled]) {
+    cursor: pointer;
   }
 
   /* Autofill fix - Match background color */
@@ -653,7 +739,6 @@ html.theme-transitioning * {
 .landing-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #333;
 }
-
 
 .img-overlay {
   mask-image: linear-gradient(to top, transparent 5%, black 50%);
@@ -1052,6 +1137,661 @@ html[data-shell="locked"] body {
   }
 }
 
+/* A entrada do herói ESPERA a cortina de transição sair da frente.
+
+   Entre duas páginas do site da empresa a página nova monta ATRÁS do painel
+   preto, e os keyframes acima tocam ali, escondidos: quando o painel sobe, o
+   herói já está parado no estado final. A animação acontece, ninguém a vê, e o
+   resultado prático é o mesmo de ela não existir.
+
+   `animation-play-state: paused` num elemento criado enquanto a regra casa
+   segura a animação no tempo ZERO, e o `both` dos keyframes mantém o quadro
+   inicial na tela; soltar o atributo faz a entrada começar do princípio, com o
+   escalonamento inteiro. É por isso que isto é uma pausa e não um
+   `animation-delay` a mais: atraso teria que ser calculado elemento a elemento
+   e adivinhar quanto ainda falta da cortina.
+
+   O atributo é escrito pelo `CurtainProvider` e existe SÓ durante uma navegação
+   por cortina, nunca no primeiro paint de um carregamento de documento: o
+   contrato de LCP desta superfície é que o texto acima da dobra pinte e anime
+   sem JavaScript nenhum. Ele se chama `data-heroi` e não `data-cortina` porque
+   o palco do painel já usa esse nome, e um `[data-cortina]` procurando o palco
+   passaria a casar com o `<html>` no meio da transição. */
+html[data-heroi="espera"] .hero-enter,
+html[data-heroi="espera"] .hero-rise-line,
+html[data-heroi="espera"] .traco-desenha,
+html[data-heroi="espera"] .regua-desenha {
+  animation-play-state: paused;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Chrome type — the signature of the company page.
+
+   Two stacked backgrounds clipped to the glyphs. The bottom layer is the metal
+   itself: a vertical ramp that fakes an environment, light "sky" at the top,
+   a hard specular break at the horizon, dark "ground" below. That hard stop at
+   50% is what reads as polished metal rather than as a grey gradient; softening
+   it loses the effect entirely. The top layer is a narrow diagonal highlight
+   that travels across the word.
+
+   Deliberately NOT WebGL. A shader would render this better, but a hero canvas
+   costs ~150KB and enough main-thread time to breach the CI's 800ms TBT ceiling
+   on a throttled mid-range phone, and this reads as metal at a fraction of it.
+
+   Only `background-position` animates, and only on the sweep layer. It is paint
+   work rather than composited work, so it is kept slow, paused off-screen by
+   `usePauseOffscreen` (`.anim-paused`), and switched off entirely under
+   reduced motion, where the static metal remains. */
+.chrome-text {
+  background-image:
+    linear-gradient(
+      100deg,
+      transparent 42%,
+      rgba(255, 255, 255, 0.9) 49%,
+      rgba(255, 255, 255, 0.55) 52%,
+      transparent 60%
+    ),
+    linear-gradient(
+      to bottom,
+      #ffffff 0%,
+      #e6e6e6 18%,
+      #9a9a9a 38%,
+      #f7f7f7 49%,
+      #ffffff 50%,
+      #57585c 53%,
+      #7e8084 62%,
+      #c3c5c8 80%,
+      #f2f3f4 100%
+    );
+  background-size:
+    260% 100%,
+    100% 100%;
+  background-position:
+    210% 0,
+    0 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: chrome-sweep var(--chrome-dur, 7s) ease-in-out
+    var(--chrome-delay, 1.2s) infinite;
+  will-change: background-position;
+}
+
+@keyframes chrome-sweep {
+  0%,
+  100% {
+    background-position:
+      210% 0,
+      0 0;
+  }
+  55% {
+    background-position:
+      -80% 0,
+      0 0;
+  }
+}
+
+/* On a light ground the same ramp needs a darker floor, otherwise the lower
+   half of every glyph dissolves into the page. */
+.chrome-text--on-light {
+  background-image:
+    linear-gradient(
+      100deg,
+      transparent 42%,
+      rgba(255, 255, 255, 0.75) 49%,
+      transparent 60%
+    ),
+    linear-gradient(
+      to bottom,
+      #8d8f93 0%,
+      #56585c 20%,
+      #24252a 40%,
+      #6f7175 49%,
+      #0e0f12 51%,
+      #303237 60%,
+      #6b6d72 80%,
+      #a9abaf 100%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome-text {
+    animation: none;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Liquid glass — the signature of the app page.
+
+   The app itself is built on `expo-glass-effect` (iOS 26 Liquid Glass), so the
+   landing is set in the same material as the product it sells, not in an
+   imitation of it.
+
+   What actually sells the effect is not the blur, which every glassmorphism
+   card since 2020 already has. It is the EDGE: a bright specular line along the
+   top inner rim and a dim one along the bottom, which is what a real bevel does
+   to light. Remove those two inset shadows and the card immediately reads as a
+   translucent rectangle again.
+
+   Note on what is NOT here: true refraction, where the backdrop bends through
+   the surface, needs an SVG `feDisplacementMap` fed into `backdrop-filter`.
+   Chromium is the only engine that accepts an SVG filter there, so it would be
+   an effect most visitors never see, and it costs a second full-surface
+   rasterisation of everything behind the element on every frame. On a page
+   whose CI budget is measured on a throttled mid-range phone, that is a bad
+   trade for a one-browser flourish.
+
+   `backdrop-filter` is expensive on its own, so this belongs on small surfaces
+   over a busy backdrop, never on a full-bleed band. */
+.liquid-glass {
+  position: relative;
+  /* NO `isolation: isolate` here. It creates a stacking context on this very
+     element, which makes the element its own backdrop root, and then
+     `backdrop-filter` has nothing behind it left to sample: the blur silently
+     does nothing and the pane turns into a transparent rectangle with the
+     content behind it showing through, sharp and unreadable. */
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.13),
+    rgba(255, 255, 255, 0.04) 55%,
+    rgba(255, 255, 255, 0.07)
+  );
+  /* The blur alone does not guarantee legibility over dense content; a tint
+     under it does, and it is what the platform's own glass does too. */
+  background-color: rgba(20, 20, 23, 0.62);
+  /* The blur is NOT declared here.
+     A raw `backdrop-filter` in this file is stripped before it reaches the
+     browser: everything else in this rule survives and that one declaration
+     arrives as `none`, so the pane renders as a transparent rectangle with the
+     content behind it sharp and unreadable, and nothing errors. Tailwind's own
+     `backdrop-blur-*` utilities go through a different path and do work, and
+     are already used elsewhere in this app, so LiquidGlass applies them as
+     classes instead. Do not "restore" it here. */
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    0 24px 60px -18px rgba(0, 0, 0, 0.75);
+}
+
+/* The highlight that travels across the surface, the "liquid" half of the
+   name. Paint-only work, so it is slow, pausable and off under reduced
+   motion, exactly like the chrome sweep. */
+.liquid-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: linear-gradient(
+    100deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.1) 48%,
+    rgba(255, 255, 255, 0.03) 54%,
+    transparent 64%
+  );
+  background-size: 250% 100%;
+  background-position: 190% 0;
+  background-repeat: no-repeat;
+  animation: glass-sheen var(--glass-dur, 9s) ease-in-out var(--glass-delay, 2s)
+    infinite;
+}
+
+@keyframes glass-sheen {
+  0%,
+  100% {
+    background-position: 190% 0;
+  }
+  55% {
+    background-position: -70% 0;
+  }
+}
+
+/* Where the backdrop cannot be blurred the card would be a nearly transparent
+   rectangle with unreadable text on top, so it falls back to an opaque tint. */
+@supports not (backdrop-filter: blur(1px)) {
+  .liquid-glass {
+    background-color: rgba(32, 31, 33, 0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass::after {
+    animation: none;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   The app's own palette, lifted verbatim from its `src/constants/theme.ts`
+   (dark scheme). The landing rebuilds a few of the product's screens in HTML so
+   they can be animated, and the only thing that keeps those rebuilds honest is
+   reading the same values the app ships.
+
+   Scoped to a class rather than :root so nothing here can leak into the ERP.
+   The names mirror the app's roles, not their colours, for the same reason the
+   app names them that way. */
+.app-theme {
+  --app-bg: #131315;
+  --app-surface: #1b1b1d;
+  --app-element: #201f21;
+  --app-selected: #2a2a2c;
+  --app-raised: #39393b;
+  --app-text: #e5e1e4;
+  --app-text-muted: #a9aeaf;
+  --app-tint: #6ddc9e;
+  --app-on-tint: #003920;
+  --app-danger: #ffb4ab;
+  --app-warning: #ffb95f;
+  --app-separator: #444748;
+  --app-card-border: rgba(255, 255, 255, 0.07);
+  /* The highlight panel is dark in BOTH of the app's themes, on purpose: it is
+     the block that has to dominate the screen. */
+  --app-hero-top: #2a2a2c;
+  --app-hero-bottom: #1b1b1d;
+  --app-on-hero-muted: rgba(229, 225, 228, 0.6);
+}
+
+/* Landing do aplicativo: as peças que flutuam ao lado do aparelho do herói.
+
+   Anima `translate`, e não `transform`: elas também levam `hero-enter`, que já
+   usa `transform` para a entrada, e duas animações na mesma propriedade no
+   mesmo elemento se anulam (vale a última declarada). Como propriedades
+   separadas, a entrada e o flutuar convivem. */
+@keyframes app-flutua {
+  from {
+    translate: 0 -5px;
+  }
+  to {
+    translate: 0 7px;
+  }
+}
+.app-flutua {
+  animation: app-flutua var(--flutua-dur, 7s) ease-in-out
+    var(--flutua-atraso, 0s) infinite alternate;
+}
+
+/* Landing do aplicativo: a troca de momento de "Um dia qualquer", no celular.
+
+   Só abaixo de `md`: de `md` para cima a seção é um palco fixado e quem troca
+   os momentos é o GSAP, que anima os mesmos elementos. Duas animações no mesmo
+   `transform` se anulam, e vale a última declarada.
+
+   Não precisa de reinício por JavaScript: o momento que sai vai para
+   `display: none` e o que entra sai dele, e um elemento que volta a ser
+   exibido recomeça as próprias animações de CSS. */
+@media (max-width: 767px) {
+  .dia-entra {
+    animation: dia-entra 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes dia-entra {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Landing do aplicativo: a seção de comandos.
+
+   `leitura-cursor` pisca o cursor da frase sendo digitada. */
+@keyframes leitura-cursor {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+/* O cursor mora no caractere que acabou de ser digitado, e não num elemento
+   próprio: assim ele acompanha a quebra de linha sem medir nada. */
+.leitura-cursor::after {
+  content: "";
+  position: absolute;
+  top: 0.14em;
+  bottom: 0.1em;
+  right: -0.07em;
+  width: 0.07em;
+  min-width: 2px;
+  border-radius: 1px;
+  background: var(--app-tint);
+  animation: leitura-cursor 1.05s steps(1, end) infinite;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Site institucional (proops.com.br) — primitivas próprias.
+
+   Mono, como a landing do ERP, mas sem vidro e sem metal: a profundidade aqui
+   vem de contraste, de régua fina e de movimento dirigido pelo scroll. Os dois
+   campos reativos leem `--px`/`--py`, escritos uma vez por frame pelo
+   `usePointerField` no elemento de escopo, então a reatividade inteira é CSS
+   herdando duas variáveis em vez de React re-renderizando uma subárvore.
+
+   TODO loop daqui embaixo está no bloco de prefers-reduced-motion no fim do
+   arquivo e é pausável por `.anim-paused`. */
+
+/* Cortina de abertura: sobe sozinha no primeiro paint, sem JS, para não
+   empurrar o LCP. Seis lâminas escalando de baixo para cima, mesma gramática
+   da transição entre páginas (ver curtain-transition.tsx), e é de propósito:
+   entrar no site e navegar dentro dele têm que parecer o mesmo gesto. */
+@keyframes abertura-lamina {
+  0% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(0);
+  }
+}
+.abertura-lamina {
+  transform-origin: top;
+  animation: abertura-lamina 0.85s cubic-bezier(0.76, 0, 0.24, 1)
+    var(--lamina-delay, 0s) both;
+  will-change: transform;
+}
+
+/* O contador da abertura, como odômetro.
+
+   Os números estão no DOM, empilhados, e a tira sobe em `steps()`. A via óbvia
+   seria `@property --n { syntax: "<integer>" }` animado com `counter()`, e ela
+   foi descartada: onde @property não é suportado o `var()` fica inválido, o
+   counter-reset cai e o contador congela em "0" — ou seja, a falha aparece
+   justamente como um site que não carregou. Com a tira, um navegador que ignore
+   a animação mostra o último quadro, que é o 100. */
+@keyframes abertura-tira {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(var(--abertura-passos, 4) * -1em));
+  }
+}
+.abertura-tira {
+  animation: abertura-tira 0.9s steps(var(--abertura-passos, 4), end)
+    var(--abertura-delay, 0.1s) both;
+}
+
+/* O rótulo da abertura aparece e SAI com as lâminas. `.hero-enter` não serve
+   aqui: ele só entra, e um rótulo de carregamento ainda na tela depois de a
+   página abrir parece algo que não terminou. */
+@keyframes abertura-rotulo {
+  0% {
+    opacity: 0;
+  }
+  12%,
+  74% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.abertura-rotulo {
+  animation: abertura-rotulo 1.35s ease-in-out both;
+}
+
+/* Régua que se desenha. Usada pelos títulos de seção e pela linha do tempo.
+   `scaleX` e não `width` de propósito: largura é layout, e layout animado num
+   pin é jitter garantido. */
+@keyframes regua-desenha {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.regua-desenha {
+  transform-origin: left;
+  animation: regua-desenha 0.9s cubic-bezier(0.16, 1, 0.3, 1)
+    var(--regua-delay, 0s) both;
+}
+
+/* Traço que se desenha, para as assinaturas dos heróis das sub-páginas.
+
+   Todo elemento que use isto tem que declarar `pathLength="1"`: sem ele o
+   dasharray teria que ser o comprimento real do caminho, que só o navegador
+   conhece e que muda quando alguém mexe num ponto do desenho. Com `pathLength`
+   o comprimento é sempre 1, e a mesma classe serve para qualquer traço.
+
+   É CSS e não biblioteca porque isto vive ACIMA DA DOBRA: uma animação de JS
+   ali segura o desenho até o bundle hidratar. */
+@keyframes traco-desenha {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.traco-desenha {
+  stroke-dasharray: 1;
+  animation: traco-desenha var(--traco-dur, 1.2s) cubic-bezier(0.16, 1, 0.3, 1)
+    var(--traco-delay, 0s) both;
+}
+
+/* O ponto para onde as quatro linhas do /fale-conosco convergem. Pulso lento e
+   discreto: é o único elemento em movimento contínuo em qualquer um dos quatro
+   heróis, e existe para dizer que do outro lado tem alguém. */
+@keyframes pulso-no {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+.pulso-no {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: pulso-no 3.2s ease-in-out var(--pulso-delay, 0s) infinite;
+}
+
+/* A dica de rolagem do rodapé do herói. Ela existe porque o herói passou a
+   ocupar a tela inteira: sem nada abaixo aparecendo, uma tela cheia e parada não
+   diz que há mais página. Deslocamento pequeno e lento de propósito, para ser
+   percebida na periferia e não competir com o título. */
+@keyframes dica-desce {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(4px);
+    opacity: 1;
+  }
+}
+.dica-desce {
+  animation: dica-desce 2.4s ease-in-out infinite;
+}
+
+/* Campo mono reativo: duas manchas que respondem ao ponteiro e ao giroscópio.
+   É o fallback do FlowField em WebGL, e continua visível por baixo dele: num
+   celular, num navegador sem WebGL e na corrida do Lighthouse é ISTO que
+   aparece, então ele tem que ficar bom sozinho. */
+.campo-reativo {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      42rem 42rem at calc(50% + var(--px, 0) * 9%) calc(38% + var(--py, 0) * 7%),
+      rgba(255, 255, 255, 0.1),
+      transparent 62%
+    ),
+    radial-gradient(
+      30rem 30rem at calc(22% - var(--px, 0) * 6%) calc(74% - var(--py, 0) * 5%),
+      rgba(255, 255, 255, 0.06),
+      transparent 66%
+    );
+  transition: background-position 0.2s linear;
+}
+
+/* A mesma ideia sobre fundo claro. */
+.campo-reativo--claro {
+  background:
+    radial-gradient(
+      42rem 42rem at calc(50% + var(--px, 0) * 9%) calc(38% + var(--py, 0) * 7%),
+      rgba(0, 0, 0, 0.07),
+      transparent 62%
+    ),
+    radial-gradient(
+      30rem 30rem at calc(22% - var(--px, 0) * 6%) calc(74% - var(--py, 0) * 5%),
+      rgba(0, 0, 0, 0.05),
+      transparent 66%
+    );
+}
+
+/* A mesma ideia na landing do aplicativo, e no acento dele.
+
+   Ela não herda `.campo-reativo` porque aquele é branco sobre preto, e aqui a
+   única cor da página é o verde do produto: um campo neutro por trás do aparelho
+   competiria com a própria tela que se quer olhar. As porcentagens são menores
+   que as do site da empresa de propósito, porque este campo fica ATRÁS de um
+   objeto (o telefone) e não atrás de tipografia: movimento largo aqui lê como o
+   fundo escorregando por baixo do aparelho.
+
+   ⚠️ As duas cores passam por uma custom property, e isso NÃO é estilo: um
+   `color-mix()` escrito direto dentro do `radial-gradient` faz o Lightning CSS
+   (o compilador do Tailwind v4) DESCARTAR A REGRA INTEIRA no build, selector
+   incluído. Não há erro, nem aviso: a classe simplesmente não existe no CSS
+   servido, e o elemento fica transparente. Custei uma sessão para achar isso
+   porque o sintoma é idêntico ao do cache defasado do dev server, que é o
+   suspeito óbvio e estava inocente.
+
+   O valor de uma custom property não é interpretado no build, então o
+   `color-mix` chega intacto ao navegador e o verde continua saindo de
+   `--app-tint`, que é a cópia literal do tema do aplicativo. Sem blur: o
+   gradiente radial já é a mancha, e um `filter` num elemento do tamanho da
+   viewport é repintura cara por nada. */
+.campo-app {
+  --campo-app-perto: color-mix(in srgb, var(--app-tint) 13%, transparent);
+  --campo-app-longe: color-mix(in srgb, var(--app-tint) 6%, transparent);
+  position: absolute;
+  inset: -25%;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      34rem 34rem at calc(68% + var(--px, 0) * 8%) calc(24% + var(--py, 0) * 7%),
+      var(--campo-app-perto),
+      transparent 62%
+    ),
+    radial-gradient(
+      24rem 24rem at calc(22% - var(--px, 0) * 6%) calc(80% - var(--py, 0) * 5%),
+      var(--campo-app-longe),
+      transparent 66%
+    );
+}
+
+/* Grade de pontos com máscara radial. Repetida à mão em cinco seções da
+   landing do ERP; aqui é uma classe. */
+.grade-pontos {
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.07) 1px,
+    transparent 1px
+  );
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse at center, black, transparent 82%);
+}
+.grade-pontos--claro {
+  background-image: radial-gradient(
+    circle,
+    rgba(0, 0, 0, 0.06) 1px,
+    transparent 1px
+  );
+}
+
+/* Inclinação de card por ponteiro, sem JS por card: o escopo escreve as duas
+   variáveis e cada card as lê com o próprio peso. */
+.inclina-ponteiro {
+  transform: perspective(900px)
+    rotateY(calc(var(--px, 0) * var(--inclina, 3deg)))
+    rotateX(calc(var(--py, 0) * var(--inclina, 3deg) * -1));
+  transition: transform 0.25s ease-out;
+}
+
+/* SplitText escreve estas três classes. O `overflow: clip` do wrapper de
+   máscara é o que deixa a linha subir de baixo sem a caixa crescer; sem
+   `padding-bottom` ele decapita descendente de "p" e "g". */
+.split-line {
+  padding-bottom: 0.08em;
+}
+
+/* Holofote de card: a luz que segue o cursor, lida de `--mx`/`--my` escritos
+   pelo `useHolofote` no card sob o ponteiro. Radial e não gradiente linear
+   porque o que se quer é uma fonte de luz, não um brilho passando.
+
+   `opacity` na transição e não `background`: interpolar gradiente é trabalho de
+   pintura a cada frame, e opacidade é composição. */
+.holofote::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+  background: radial-gradient(
+    26rem 26rem at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.09),
+    transparent 62%
+  );
+}
+.holofote[data-aceso]::before {
+  opacity: 1;
+}
+.holofote--claro::before {
+  background: radial-gradient(
+    26rem 26rem at var(--mx, 50%) var(--my, 50%),
+    rgba(0, 0, 0, 0.055),
+    transparent 62%
+  );
+}
+
+/* Cantoneira que se desenha no hover. Duas linhas e não uma borda: borda inteira
+   num card mono vira caixa, e o canto sugere a caixa sem fechá-la. */
+.cantoneira::after,
+.cantoneira::before {
+  content: "";
+  position: absolute;
+  background: currentColor;
+  opacity: 0.45;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cantoneira::before {
+  top: 0;
+  left: 0;
+  height: 1px;
+  width: 3.5rem;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.cantoneira::after {
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 3.5rem;
+  transform: scaleY(0);
+  transform-origin: top;
+}
+.cantoneira[data-aceso]::before,
+.group:hover .cantoneira::before {
+  transform: scaleX(1);
+}
+.cantoneira[data-aceso]::after,
+.group:hover .cantoneira::after {
+  transform: scaleY(1);
+}
+
 /* Cookie-consent banner: DOM is always server-rendered but hidden; visibility is
    gated by the html attribute that public/cookie-consent-init.js sets at first
    paint (before hydration). This keeps the banner off the LCP critical path —
@@ -1083,6 +1823,74 @@ html[data-cookie-consent="pending"] .cookie-banner {
   .landing-link__bar {
     transition: none;
   }
+
+  /* Site institucional. A cortina de abertura tem que ir para `scaleY(0)`, e
+     nao so parar de animar: `animation: none` com `both` a deixaria em
+     `scaleY(1)`, ou seja, a tela preta cobrindo a pagina para sempre. Mesma
+     coisa para a regua, que sem isto ficaria invisivel. */
+  .abertura-lamina {
+    animation: none !important;
+    transform: scaleY(0);
+  }
+  .regua-desenha {
+    animation: none !important;
+    transform: scaleX(1);
+  }
+  /* As assinaturas dos heróis também declaram o estado FINAL, e não só param:
+     um traço parado em `stroke-dashoffset: 1` é um desenho invisível. */
+  .traco-desenha {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+  .pulso-no {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+  .dica-desce {
+    animation: none !important;
+    transform: none;
+    opacity: 1;
+  }
+  .abertura-tira {
+    animation: none !important;
+    transform: translateY(calc(var(--abertura-passos, 4) * -1em));
+  }
+  .abertura-rotulo {
+    animation: none !important;
+    opacity: 0;
+  }
+  .campo-reativo,
+  .inclina-ponteiro,
+  .holofote::before,
+  .cantoneira::before,
+  .cantoneira::after {
+    transition: none !important;
+  }
+  /* A cantoneira é decoração de hover, e sob movimento reduzido ela fica
+     desenhada em vez de invisível: o estado final é o que vale. */
+  .cantoneira::before {
+    transform: scaleX(1);
+  }
+  .cantoneira::after {
+    transform: scaleY(1);
+  }
+  .inclina-ponteiro {
+    transform: none;
+  }
+  /* O cursor da leitura fica aceso, parado. */
+  .leitura-cursor::after {
+    animation: none !important;
+  }
+  /* As peças do herói ficam onde pousaram. */
+  .app-flutua {
+    animation: none !important;
+    translate: none;
+  }
+  /* O momento do dia entra parado. */
+  .dia-entra {
+    animation: none !important;
+  }
 }
 
 /* Read-only/demo mode: content marked `inert` is non-interactive at the
@@ -1104,7 +1912,17 @@ html[data-cookie-consent="pending"] .cookie-banner {
 [data-demo-readonly] [inert] * {
   cursor: not-allowed !important;
 }
-[data-demo-readonly] [inert] :is(input, textarea, select, button,
-  [role="combobox"], [role="switch"], [role="checkbox"], [role="radio"]) {
+[data-demo-readonly]
+  [inert]
+  :is(
+    input,
+    textarea,
+    select,
+    button,
+    [role="combobox"],
+    [role="switch"],
+    [role="checkbox"],
+    [role="radio"]
+  ) {
   opacity: 0.65;
 }

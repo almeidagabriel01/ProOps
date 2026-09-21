@@ -1,0 +1,531 @@
+"use client";
+
+import React from "react";
+import gsap from "gsap";
+
+import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
+import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
+import { useMediaQuery } from "@/components/marketing/_shared/use-media-query";
+import { useScrollScene, OUTSIDE_SCENE_DESKTOP } from "@/components/marketing/_shared/use-scroll-scene";
+import { APP_NAME } from "@/lib/site/app-brand";
+import { cn } from "@/lib/utils";
+
+import { MOMENTOS, type Bolha, type TelaDoMomento } from "../_content/dia-a-dia";
+import {
+  FINANCEIRO_PADRAO,
+  TelaFinanceiro,
+} from "./telas/tela-financeiro";
+import { HOJE_PADRAO, TelaHoje } from "./telas/tela-hoje";
+
+/**
+ * O aplicativo no instante seguinte à mensagem.
+ *
+ * O momento descreve só o que MUDOU; o resto vem do padrão de cada aba, e é
+ * isso que mantém os números da página inteira contando uma história só em vez
+ * de seis telas com dados que não se encaixam.
+ */
+function TelaDoAplicativo({ tela }: { tela: TelaDoMomento }) {
+  if (tela.aba === "financeiro") {
+    return <TelaFinanceiro dados={{ ...FINANCEIRO_PADRAO, ...tela.dados }} />;
+  }
+  return <TelaHoje dados={{ ...HOJE_PADRAO, ...tela.dados }} />;
+}
+
+/**
+ * O fio de contato no topo do painel, com o separador de data.
+ *
+ * `aria-hidden`: é cenário, ele se repete nos seis momentos, e o nome do
+ * aplicativo já é lido dentro da própria bolha de alerta.
+ */
+function CabecalhoDaConversa() {
+  return (
+    <div aria-hidden="true" className="relative shrink-0 p-6 pb-0 md:p-7 md:pb-0">
+      <div className="flex items-center gap-2.5 border-b border-white/[0.07] pb-4">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--app-tint)]/15 text-[11px] font-bold text-[var(--app-tint)]">
+          P
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate [font-family:var(--font-hanken)] text-[13px] font-semibold text-[var(--app-text)]">
+            {APP_NAME}
+          </span>
+          <span className="block text-[11px] text-[var(--app-text-muted)]">
+            online
+          </span>
+        </span>
+      </div>
+      <p className="mt-4 text-center">
+        <span className="rounded-full bg-[var(--app-bg)]/60 px-3 py-1 [font-family:var(--font-jetbrains-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--app-text-muted)]">
+          hoje
+        </span>
+      </p>
+    </div>
+  );
+}
+
+/** One turn of the conversation, in the shape the app itself produces. */
+function BolhaChat({ bolha }: { bolha: Bolha }) {
+  if (bolha.alerta) {
+    return (
+      <div className="max-w-[88%] rounded-2xl border border-white/[0.08] bg-[var(--app-surface)]/90 p-4 shadow-[0_20px_44px_-22px_rgba(0,0,0,0.9)] backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-[var(--app-tint)]/15 text-[10px] font-bold text-[var(--app-tint)]"
+          >
+            P
+          </span>
+          <span className="[font-family:var(--font-hanken)] text-[12px] font-semibold text-[var(--app-text)]">
+            {APP_NAME}
+          </span>
+          <span className="ml-auto [font-family:var(--font-jetbrains-mono)] text-[10px] text-[var(--app-text-muted)]">
+            {bolha.hora}
+          </span>
+        </div>
+        <p className="mt-2 text-[13px] leading-relaxed text-[var(--app-text-muted)]">
+          {bolha.texto}
+        </p>
+      </div>
+    );
+  }
+
+  const meu = bolha.de === "voce";
+
+  return (
+    <div className={meu ? "flex justify-end" : "flex justify-start"}>
+      <div
+        className={`max-w-[86%] rounded-2xl px-3.5 py-2.5 shadow-[0_14px_34px_-20px_rgba(0,0,0,0.8)] ${
+          meu
+            ? "bg-[var(--app-tint)]/18 text-[var(--app-text)]"
+            : "border border-white/[0.07] bg-[var(--app-surface)]/90 text-[var(--app-text)] backdrop-blur-sm"
+        }`}
+      >
+        {bolha.audio ? (
+          <div className="flex items-center gap-2.5">
+            <span
+              aria-hidden="true"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--app-tint)] text-[10px] text-[var(--app-on-tint)]"
+            >
+              ▶
+            </span>
+            <span
+              aria-hidden="true"
+              className="flex h-6 items-center gap-[2px]"
+            >
+              {[
+                7, 12, 18, 10, 22, 15, 9, 20, 13, 24, 11, 17, 8, 14, 19, 10,
+              ].map((altura, i) => (
+                <span
+                  key={i}
+                  style={{ height: `${altura}px` }}
+                  className="w-[2px] rounded-full bg-[var(--app-text)]/45"
+                />
+              ))}
+            </span>
+            <span className="[font-family:var(--font-jetbrains-mono)] text-[10px] text-[var(--app-text-muted)]">
+              0:04
+            </span>
+          </div>
+        ) : null}
+
+        <p
+          className={`text-[13px] leading-relaxed ${
+            bolha.audio
+              ? "mt-2 italic text-[var(--app-text-muted)]"
+              : "[font-family:var(--font-hanken)]"
+          }`}
+        >
+          {bolha.audio ? `“${bolha.texto}”` : bolha.texto}
+        </p>
+
+        {bolha.cartao ? (
+          <div className="mt-2.5 flex items-center gap-2.5 rounded-xl bg-[var(--app-bg)]/70 p-2.5">
+            <span
+              aria-hidden="true"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--app-element)] text-[13px]"
+            >
+              🛒
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate [font-family:var(--font-hanken)] text-[12px] font-semibold">
+                {bolha.cartao.titulo}
+              </span>
+              <span className="block truncate text-[10px] text-[var(--app-text-muted)]">
+                {bolha.cartao.meta}
+              </span>
+            </span>
+            <span className="[font-family:var(--font-jetbrains-mono)] text-[12px] font-semibold">
+              {bolha.cartao.valor}
+            </span>
+          </div>
+        ) : null}
+
+        <p className="mt-1.5 text-right [font-family:var(--font-jetbrains-mono)] text-[9.5px] text-[var(--app-text-muted)]">
+          {bolha.hora}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One unit is the gap between two marks on the rail, so the dot advances
+ * exactly one unit per hour and its position IS the timeline's progress.
+ */
+/**
+ * How much of a unit the crossing between two moments takes.
+ *
+ * Kept to the last third or so of the approach. Half a unit meant the outgoing
+ * and incoming text overlapped for most of the way between two hours, which
+ * reads as mush; a third leaves the moment visibly still while the dot closes
+ * in, and the change lands on the hour.
+ */
+const TRAVESSIA = 0.4;
+/** Extra units at the end, so the last moment is readable before the unpin. */
+const CAUDA = 0.7;
+/** Screens of scroll per unit. */
+const ROLAGEM_POR_UNIDADE = 0.8;
+
+/**
+ * A day with the app, told as five moments.
+ *
+ * The dot never stops. It runs the whole rail at a constant rate, so one unit
+ * of the timeline is exactly the gap between two hours and the dot's position
+ * is the progress itself.
+ *
+ * The content, though, does NOT follow it continuously. Each swap is packed
+ * into the last half-unit before a mark and finishes on the mark, so a moment
+ * sits completely still while the dot approaches, and changes as the dot lands
+ * on the hour. Cross-fading in step with the dot instead would start dissolving
+ * the text the instant you scroll, and the rail would stop meaning anything.
+ *
+ * The outgoing moment leaves upward and the incoming one arrives from below, so
+ * the section reads as time moving forward rather than as two slides swapping.
+ *
+ * Above `md` the section pins. Below it, and for anyone who asked for less
+ * movement, nothing is pinned and the same five moments are five blocks that
+ * scroll normally, each carrying its own hour, with the rail collapsed away.
+ */
+export function AplicativoDiaADia() {
+  // Adiada só onde a cena de desktop não monta: ali ela cria um `pin`, e o
+  // espaçador dele, inserido tarde, empurraria a página (ver HidratarPerto).
+  return (
+    <HidratarPerto apenasEm={OUTSIDE_SCENE_DESKTOP}>
+      <CorpoDoDiaADia />
+    </HidratarPerto>
+  );
+}
+
+function CorpoDoDiaADia() {
+  const sectionRef = React.useRef<HTMLElement>(null);
+  // `false` no servidor e no primeiro render do cliente, então não há
+  // desencontro de hidratação: no celular a coluna do aparelho simplesmente
+  // nunca existe, e no desktop ela entra depois da hidratação, numa cena que
+  // está bem abaixo da dobra.
+  const mostraAparelho = useMediaQuery("(min-width: 1024px)");
+  const total = MOMENTOS.length;
+  const unidades = total - 1 + CAUDA;
+  /**
+   * As horas existem só no celular, e a SEMÂNTICA de abas acompanha o layout.
+   *
+   * `md:hidden` tira a fileira da tela e da árvore de acessibilidade, mas o
+   * painel continua visível: com `role="tabpanel"` fixo, o desktop ficaria com
+   * um painel de abas órfão, sem nenhuma lista de abas e sem nome acessível
+   * (o `aria-labelledby` aponta para um elemento em `display: none`).
+   *
+   * Falso no servidor, então os papéis entram um quadro depois da hidratação.
+   * Isso não move nada: o que muda é atributo, não layout.
+   */
+  const horasVisiveis = useMediaQuery("(max-width: 767px)");
+  const idBase = React.useId();
+  const horas = React.useRef<(HTMLButtonElement | null)[]>([]);
+  /**
+   * Qual momento está visível NO CELULAR. De `md` para cima ele nunca sai de
+   * zero: as horas são `display: none`, e o que troca os momentos ali é a
+   * linha do tempo do GSAP.
+   */
+  const [horaAtiva, setHoraAtiva] = React.useState(0);
+
+  function aoTeclarHora(evento: React.KeyboardEvent<HTMLDivElement>) {
+    const destinos: Record<string, number> = {
+      ArrowRight: Math.min(horaAtiva + 1, total - 1),
+      ArrowDown: Math.min(horaAtiva + 1, total - 1),
+      ArrowLeft: Math.max(horaAtiva - 1, 0),
+      ArrowUp: Math.max(horaAtiva - 1, 0),
+      Home: 0,
+      End: total - 1,
+    };
+    if (!(evento.key in destinos)) return;
+    evento.preventDefault();
+    const destino = destinos[evento.key];
+    setHoraAtiva(destino);
+    horas.current[destino]?.focus({ preventScroll: true });
+  }
+
+  /** Where a mark sits on the rail, as a percentage of its height. */
+  const marca = (i: number) => `${(i / (total - 1)) * 100}%`;
+
+  useScrollScene(sectionRef, () => {
+    // Authored VISIBLE, because that is what mobile and reduced motion get.
+    // Only this scene, which is the desktop one, hides what has not arrived.
+    for (let i = 1; i < total; i += 1) {
+      gsap.set(`.momento-${i}`, { autoAlpha: 0 });
+      gsap.set(`.rail-marca-${i}`, { opacity: 0.32 });
+    }
+    gsap.set(".rail-ponto", { top: marca(0) });
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: sectionRef.current,
+        start: "top top",
+        end: () =>
+          `+=${Math.round(window.innerHeight * ROLAGEM_POR_UNIDADE * unidades)}`,
+        pin: true,
+        scrub: 1,
+        invalidateOnRefresh: true,
+      },
+    });
+
+    // The dot runs the rail once, at a constant rate, over the hours. It then
+    // rests at the end while the tail keeps the last moment on screen.
+    tl.fromTo(
+      ".rail-ponto",
+      { top: marca(0) },
+      { top: marca(total - 1), ease: "none", duration: total - 1 },
+      0,
+    );
+
+    for (let i = 1; i < total; i += 1) {
+      // Everything is timed backwards from the mark: the swap ENDS at `i`,
+      // which is the instant the dot lands on that hour.
+      const chegada = i;
+      const inicio = chegada - TRAVESSIA;
+
+      tl.to(
+        `.momento-${i - 1}`,
+        {
+          autoAlpha: 0,
+          y: -64,
+          duration: TRAVESSIA * 0.5,
+          ease: "power2.in",
+        },
+        inicio,
+      )
+        .fromTo(
+          `.momento-${i}`,
+          { autoAlpha: 0, y: 72 },
+          {
+            autoAlpha: 1,
+            y: 0,
+            duration: TRAVESSIA * 0.55,
+            ease: "power3.out",
+          },
+          // Starts a hair before the outgoing one is gone, so there is never a
+          // frame with nothing on screen, and lands exactly on the hour.
+          chegada - TRAVESSIA * 0.55,
+        )
+        .to(
+          `.rail-marca-${i - 1}`,
+          { opacity: 0.32, duration: TRAVESSIA * 0.5 },
+          inicio,
+        )
+        .to(
+          `.rail-marca-${i}`,
+          { opacity: 1, duration: TRAVESSIA * 0.5 },
+          chegada - TRAVESSIA * 0.5,
+        );
+    }
+
+    // The tail. Without it the section would unpin the instant the last moment
+    // arrives, giving it no time to be read at all.
+    tl.to({}, { duration: CAUDA }, total - 1);
+  });
+
+  return (
+    <section
+      ref={sectionRef}
+      className="border-t border-white/[0.06] bg-[var(--app-bg)] px-6 py-28 text-[var(--app-text)] md:h-[100svh] md:overflow-hidden md:px-10 md:py-0"
+    >
+      <div className="mx-auto flex h-full max-w-6xl flex-col md:justify-center">
+        <header>
+          <p className="mb-4 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--app-tint)]">
+            <span className="h-px w-7 bg-[var(--app-tint)]/50" />
+            Um dia qualquer
+          </p>
+          <h2 className="max-w-2xl [font-family:var(--font-hanken)] text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-4xl">
+            Seu dia a dia com a {APP_NAME}.
+          </h2>
+        </header>
+
+        {/* As horas, só no celular.
+
+            Aqui a seção não é um palco fixado: empilhados, os seis momentos
+            davam 4.289px num aparelho de 740, quase seis telas de rolagem para
+            uma seção só, e a linha do tempo (que é o que dá sentido à
+            sequência) nem existe abaixo de `md`. Escolher a hora devolve as
+            duas coisas: a seção passa a caber numa tela e a régua de horas
+            volta a ser visível, agora como controle.
+
+            No desktop esta fileira é `display: none`, então ela sai também da
+            árvore de acessibilidade e `horaAtiva` nunca sai de zero. */}
+        <div
+          role={horasVisiveis ? "tablist" : undefined}
+          aria-label={horasVisiveis ? "As horas do dia" : undefined}
+          onKeyDown={aoTeclarHora}
+          className="-mx-6 mt-8 flex snap-x gap-2 overflow-x-auto px-6 [mask-image:linear-gradient(90deg,transparent,#000_1.5rem,#000_calc(100%-1.5rem),transparent)] [scrollbar-width:none] md:hidden"
+        >
+          {MOMENTOS.map((item, i) => (
+            <button
+              key={item.horaCurta}
+              ref={(el) => {
+                horas.current[i] = el;
+              }}
+              type="button"
+              role={horasVisiveis ? "tab" : undefined}
+              id={`${idBase}-hora-${i}`}
+              aria-selected={horasVisiveis ? i === horaAtiva : undefined}
+              aria-controls={horasVisiveis ? `${idBase}-momento` : undefined}
+              tabIndex={i === horaAtiva ? 0 : -1}
+              onClick={() => setHoraAtiva(i)}
+              className={cn(
+                "min-h-9 shrink-0 snap-start whitespace-nowrap rounded-full border px-3.5 [font-family:var(--font-jetbrains-mono)] text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-tint)]/60",
+                i === horaAtiva
+                  ? "border-[var(--app-tint)]/50 bg-[var(--app-tint)]/[0.08] text-[var(--app-text)]"
+                  : "border-white/10 text-[var(--app-text-muted)]",
+              )}
+            >
+              {item.horaCurta}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative mt-6 md:mt-12 md:max-h-[32rem] md:min-h-[24rem] md:flex-1">
+          {/* The rail. Desktop only: on a phone the hours live inside each
+              block, where they do not need a column of their own.
+
+              `z-10` porque os momentos vêm DEPOIS no DOM e são `absolute`:
+              sem ele o aparelho era pintado por cima do ponto e o escondia
+              justamente quando ele passava na altura do telefone. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-[54%] z-10 hidden w-px bg-white/[0.09] md:block"
+          >
+            <span className="rail-ponto absolute left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--app-tint)] shadow-[0_0_0_4px_rgba(109,220,158,0.15)]" />
+            {MOMENTOS.map((momento, i) => (
+              <span
+                key={momento.horaCurta}
+                style={{ top: marca(i) }}
+                className={`rail-marca-${i} absolute left-4 -translate-y-1/2 whitespace-nowrap [font-family:var(--font-jetbrains-mono)] text-[11px] text-[var(--app-text-muted)]`}
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute -left-[1.05rem] top-1/2 h-px w-2 -translate-y-1/2 bg-white/20"
+                />
+                {momento.horaCurta}
+              </span>
+            ))}
+          </div>
+
+          {/* Um painel só, com o momento escolhido dentro. No desktop este
+              `div` é estático e os momentos continuam absolutos contra o
+              contêiner `relative` de fora, então o palco fixado não muda. */}
+          <div
+            role={horasVisiveis ? "tabpanel" : undefined}
+            id={`${idBase}-momento`}
+            aria-labelledby={
+              horasVisiveis ? `${idBase}-hora-${horaAtiva}` : undefined
+            }
+          >
+          {MOMENTOS.map((momento, i) => (
+            <article
+              key={momento.hora}
+              className={cn(
+                `momento-${i} md:absolute md:inset-0 md:grid md:grid-cols-[54%_6%_40%] md:items-center`,
+                // Só o momento da hora escolhida existe no celular. As classes
+                // são `max-md:`, então de `md` para cima elas não existem e o
+                // palco fixado segue mostrando os seis, como sempre.
+                i === horaAtiva ? "dia-entra" : "max-md:hidden",
+              )}
+            >
+              {/* A conversa e o aplicativo no MESMO quadro. Foi a única coisa
+                  que nenhum dos cinco concorrentes diretos faz: todos põem o
+                  chat numa seção e as telas em outra, e com isso nenhum chega a
+                  demonstrar a promessa que todos fazem. */}
+              {/* `md:pr-8` afasta o aparelho da linha do tempo, que corre
+                  exatamente na borda direita desta coluna. Colado nela, o anel
+                  do ponto sobrepunha a moldura. */}
+              <div className="flex items-stretch gap-4 md:h-[24rem] md:pr-8 lg:h-[28rem] lg:gap-5">
+                <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/[0.07] bg-[linear-gradient(150deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
+                  {/* The light of the hour. This is what carries the day passing,
+                      in the absence of a photograph. */}
+                  <span
+                    aria-hidden="true"
+                    style={{ backgroundImage: momento.luz }}
+                    className="pointer-events-none absolute inset-0"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="grain-overlay pointer-events-none absolute inset-0 opacity-[0.35]"
+                  />
+
+                  {/* O cabeçalho da conversa. Ele existe por composição, não por
+                      informação: com as bolhas ancoradas embaixo, um painel de
+                      28rem com uma mensagem só lia como cartão vazio. Um fio de
+                      contato no topo e o separador de data resolvem isso do jeito
+                      que uma conversa de verdade resolve. */}
+                  <CabecalhoDaConversa />
+
+                  <div className="relative flex aspect-[4/3] flex-1 flex-col justify-end gap-3 p-6 pt-0 md:aspect-auto md:p-7 md:pt-0">
+                    {momento.bolhas.map((bolha, b) => (
+                      <BolhaChat key={b} bolha={bolha} />
+                    ))}
+                  </div>
+                </div>
+
+                {/* O aparelho só entra de `lg` para cima. Abaixo disso a coluna
+                    visual inteira tem menos de 400px: o telefone roubaria a
+                    conversa sem caber, e no celular seriam SEIS aparelhos
+                    empilhados num scroll que já é longo.
+
+                    A largura é o teto da altura da fileira: a moldura é 9/19,5,
+                    então 12,5rem dão 433px e a fileira tem 448px de `lg`. Subir
+                    a largura sem subir a fileira junto corta o aparelho.
+
+                    ⚠️ O portão é de ESTADO, não de CSS, e isto é orçamento. Com
+                    `hidden lg:block` os seis aparelhos continuam existindo no
+                    celular: seis réplicas completas montadas, hidratadas e
+                    mantidas na árvore só para ficarem em `display: none`. É o
+                    mesmo motivo pelo qual `DesktopOnlyWebGl` gata por estado, e
+                    vale em dobro aqui porque a corrida do Lighthouse mede num
+                    viewport de 412px, exatamente onde essas seis telas não
+                    aparecem. */}
+                {mostraAparelho ? (
+                  <div className="w-[12.5rem] shrink-0 self-center">
+                    <DeviceFrame platform="ios">
+                      <TelaDoAplicativo tela={momento.tela} />
+                    </DeviceFrame>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="md:col-start-3">
+                <p className="mt-6 [font-family:var(--font-jetbrains-mono)] text-sm text-[var(--app-text-muted)] md:mt-0">
+                  {momento.hora}
+                </p>
+                <h3 className="mt-3 [font-family:var(--font-hanken)] text-2xl font-bold leading-[1.15] tracking-[-0.02em] md:text-[2rem]">
+                  {momento.titulo}{" "}
+                  <span className="text-[var(--app-tint)]">
+                    {momento.destaque}
+                  </span>
+                </h3>
+                <p className="mt-4 max-w-md text-base leading-relaxed text-[var(--app-text-muted)]">
+                  {momento.texto}
+                </p>
+              </div>
+            </article>
+          ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

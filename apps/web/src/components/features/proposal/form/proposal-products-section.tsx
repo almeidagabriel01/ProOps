@@ -175,7 +175,7 @@ function ProductCard({
       {/* Status Toggle */}
       {onToggleStatus && (
         <div
-          className="absolute top-2 right-2 flex items-center gap-2 z-10"
+          className="absolute top-2 right-2 z-10 flex cursor-pointer items-center gap-2"
           onClick={handleStatusToggle}
         >
           <span className="text-[10px] text-muted-foreground">

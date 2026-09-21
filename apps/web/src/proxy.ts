@@ -27,6 +27,14 @@ import {
   isPublicRoute,
   shouldSkipRoute,
 } from "@/lib/auth/route-access";
+import {
+  erpHomeUrl,
+  resolveApexRedirect,
+  resolveRewritePath,
+  resolveSurface,
+  shouldNoIndexHost,
+  shouldNoIndexPath,
+} from "@/lib/site/surfaces";
 
 // Route classification (public / billing-exempt / skip) lives in the pure,
 // unit-tested @/lib/auth/route-access module so the proxy and providers.tsx
@@ -45,6 +53,69 @@ interface BillingStatusResponse {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Skip static assets and API routes FIRST.
+  //
+  // Order matters more than it looks: `config.matcher` below does NOT exclude
+  // `/api`, and Next invokes the proxy for `/_next/data/*` even when the
+  // matcher excludes it. SKIP_PATTERNS is what actually spares them, so any
+  // rule that rewrites or redirects broadly has to sit below this line —
+  // above it, a host rule would catch `/api/webhooks/stripe` and turn a signed
+  // webhook POST into a redirect.
+  if (shouldSkipRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Which of the three ProOps sites is this? See @/lib/site/surfaces.
+  const host =
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const surface = resolveSurface(host);
+
+  // While the apex still serves the ERP, both new subdomains duplicate content
+  // that already lives on proops.com.br. Keep them out of the index until the
+  // cutover, otherwise Google picks a canonical between them for us.
+  //
+  // The question is about the HOST, not the surface, and the difference is not
+  // pedantic: `erp.proops.com.br` resolves to the same surface as the apex
+  // ("erp"), correctly, because they render the same thing. Comparing surfaces
+  // therefore answered "not a duplicate" for the one host that is the most
+  // literal duplicate there is, and left it crawlable.
+  // Um caminho interno pedido diretamente (`/aplicativo`, `/institucional`)
+  // tambem nao entra no indice, em nenhum host e em nenhum momento: ele serve a
+  // MESMA pagina que o host proprio serve na raiz. O robots.txt ja o proibe, e
+  // este cabecalho cobre quem chegar por link, que o robots nao alcanca.
+  // As paginas do site da empresa (`/sobre`, `/manifesto`...) entram na mesma
+  // regra, por `shouldNoIndexPath`: elas respondem 200 no apex desde o dia em
+  // que sobem, para poderem ser revisadas, mas enquanto o apex ainda serve o
+  // ERP uma `/sobre` indexada seria pagina achada antes do site a que pertence.
+  const transitionalNoIndex =
+    shouldNoIndexHost(host) || shouldNoIndexPath(pathname);
+
+  // Cutover 301s. Inert until APEX_SURFACE flips: `resolveApexRedirect` returns
+  // null while the apex still serves the ERP.
+  //
+  // It sits above the rewrite because the two are mutually exclusive by
+  // construction (the rewrite only ever fires on `/`, which never redirects),
+  // and putting the permanent decision first keeps the reading order the same
+  // as the decision order. `search` is preserved: dropping a `?next=` or a UTM
+  // on a 301 loses the parameter for good.
+  const apexRedirect = resolveApexRedirect(surface, pathname);
+  if (apexRedirect) {
+    const destino = new URL(apexRedirect);
+    destino.search = request.nextUrl.search;
+    return NextResponse.redirect(destino, 301);
+  }
+
+  const rewriteTo = resolveRewritePath(surface, pathname);
+  if (rewriteTo) {
+    const url = request.nextUrl.clone();
+    url.pathname = rewriteTo;
+    const resp = NextResponse.rewrite(url);
+    if (transitionalNoIndex) {
+      resp.headers.set("X-Robots-Tag", "noindex, nofollow");
+    }
+    return resp;
+  }
+
   // Legacy route redirect: /automation -> /solutions
   if (pathname === "/automation" || pathname.startsWith("/automation/")) {
     const redirectUrl = request.nextUrl.clone();
@@ -52,11 +123,6 @@ export async function proxy(request: NextRequest) {
     const resp = NextResponse.redirect(redirectUrl);
     resp.headers.set("Content-Type", "text/plain");
     return resp;
-  }
-
-  // Skip static assets and API routes
-  if (shouldSkipRoute(pathname)) {
-    return NextResponse.next();
   }
 
   // Billing-allowed routes (e.g., /subscription-blocked) are accessible to everyone, including
@@ -70,7 +136,11 @@ export async function proxy(request: NextRequest) {
 
   // Allow public routes
   if (isPublicRoute(pathname)) {
-    return NextResponse.next();
+    const resp = NextResponse.next();
+    if (transitionalNoIndex) {
+      resp.headers.set("X-Robots-Tag", "noindex, nofollow");
+    }
+    return resp;
   }
 
   // Check for auth session
@@ -155,8 +225,12 @@ export async function proxy(request: NextRequest) {
           // Free tier trying to reach an ERP route → bounce to the public
           // landing. Not /subscription-blocked because the account isn't
           // blocked, it just doesn't have access to the ERP.
+          // The destination has to follow the ERP across the cutover. Written
+          // as "/" it lands the user on the company page once the apex changes
+          // meaning: a page with no login, no plans and nothing to click, for
+          // someone who was trying to use the product.
           if (billing.reason === "free_tier_forbidden") {
-            const homeUrl = new URL("/", request.url);
+            const homeUrl = new URL(erpHomeUrl(), request.url);
             const resp = NextResponse.redirect(homeUrl);
             resp.headers.set("Cache-Control", "no-store");
             return resp;
@@ -202,9 +276,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - icons/ (favicon PNGs), apple-icon.png, opengraph-image.png (icon/OG assets)
-     * - public folder assets (hero/, etc.)
+     * - public folder assets: hero, logo, features, mockups, founders
      * - robots.txt, sitemap.xml, manifest.webmanifest (must be publicly accessible for crawlers)
      */
-    "/((?!_next/static|_next/image|favicon.ico|icons/|apple-icon.png|opengraph-image.png|hero/|logo/|features/|robots.txt|sitemap.xml|manifest.webmanifest|bfcache-recovery.js|cookie-consent-init.js).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons/|apple-icon.png|opengraph-image.png|hero/|logo/|features/|mockup-ios/|mockup-android/|founders/|robots.txt|sitemap.xml|manifest.webmanifest|bfcache-recovery.js|cookie-consent-init.js).*)",
   ],
 };

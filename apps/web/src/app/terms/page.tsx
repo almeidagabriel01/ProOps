@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+
+import { canonicalLegal } from "@/lib/site/host-seo";
 import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata: Metadata = {
   title: "Termos de Serviço | ProOps",
   description:
     "Termos de Serviço da ProOps para uso da plataforma, módulos, integrações e funcionalidades operacionais.",
+  alternates: { canonical: canonicalLegal("/terms") },
 };
 
 export default function TermsPage() {
@@ -19,7 +22,7 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                Ao acessar ou utilizar o ProOps, a empresa usuária e seus
+                Ao acessar ou utilizar a ProOps, a empresa usuária e seus
                 usuários autorizados concordam com estes Termos de Serviço e com
                 a Política de Privacidade disponível em `proops.com.br/privacy`.
               </p>
@@ -31,7 +34,7 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                O ProOps oferece uma plataforma de gestão com recursos de
+                A ProOps oferece uma plataforma de gestão com recursos de
                 agenda, CRM, propostas, financeiro, equipe, catálogo, automações
                 e outras rotinas operacionais disponibilizadas conforme o plano
                 e os módulos ativos da conta.
@@ -60,7 +63,7 @@ export default function TermsPage() {
           title: "4. Uso aceitável",
           content: (
             <>
-              <p>Não é permitido utilizar o ProOps para:</p>
+              <p>Não é permitido utilizar a ProOps para:</p>
               <p>
                 violar leis, regulamentos ou direitos de terceiros; enviar
                 conteúdo ilícito, ofensivo ou fraudulento; tentar acessar áreas
@@ -76,12 +79,12 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                O ProOps pode disponibilizar integrações com serviços de
+                A ProOps pode disponibilizar integrações com serviços de
                 terceiros, como Google Agenda, para sincronização de dados e
                 automação de rotinas.
               </p>
               <p>
-                Ao ativar uma integração, a empresa autoriza o ProOps a utilizar
+                Ao ativar uma integração, a empresa autoriza a ProOps a utilizar
                 os acessos necessários para executar a funcionalidade escolhida,
                 dentro dos limites concedidos pelo próprio usuário
                 administrador.
@@ -98,7 +101,7 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                O ProOps busca manter a plataforma disponível e funcional, mas
+                A ProOps busca manter a plataforma disponível e funcional, mas
                 não garante operação ininterrupta ou isenta de falhas.
                 Melhorias, correções, mudanças de interface e evoluções de
                 produto podem ser implementadas a qualquer momento.
@@ -136,7 +139,7 @@ export default function TermsPage() {
           content: (
             <>
               <p>
-                Na máxima extensão permitida pela lei, o ProOps não se
+                Na máxima extensão permitida pela lei, a ProOps não se
                 responsabiliza por danos indiretos, perda de lucro, perda de
                 oportunidade ou indisponibilidades causadas por falhas externas,
                 integrações de terceiros, provedores de infraestrutura ou uso

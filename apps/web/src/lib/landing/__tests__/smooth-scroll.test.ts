@@ -62,6 +62,16 @@ describe("scrollToOffset", () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 800, behavior: "smooth" });
   });
 
+  it("com immediate, salta sem suavizar nos dois caminhos", () => {
+    scrollToOffset(900, { immediate: true });
+    expect(scrollTo).toHaveBeenCalledWith({ top: 900, behavior: "instant" });
+
+    const lenis = makeLenis();
+    setLandingLenis(lenis as never);
+    scrollToOffset(900, { immediate: true });
+    expect(lenis.scrollTo).toHaveBeenCalledWith(900, { immediate: true });
+  });
+
   it("nunca rola para posição negativa (âncora acima do topo com o offset da navbar)", () => {
     scrollToOffset(-120);
     expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });

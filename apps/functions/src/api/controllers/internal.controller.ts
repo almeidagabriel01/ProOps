@@ -281,7 +281,9 @@ export const checkPriceChangesManual = async (
     }
 
     const stripe = getStripe();
-    const APP_URL = process.env.APP_URL ?? "https://app.proops.com.br";
+    // NOT app.proops.com.br: that host is the mobile app landing page.
+    // These links deep-link into the ERP, which lives on erp.proops.com.br.
+    const APP_URL = process.env.APP_URL ?? "https://erp.proops.com.br";
 
     const tenantsSnap = await db
       .collection("tenants")

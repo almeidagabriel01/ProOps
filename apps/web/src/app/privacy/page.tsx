@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
+
+import { canonicalLegal } from "@/lib/site/host-seo";
 import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata: Metadata = {
   title: "Política de Privacidade | ProOps",
   description:
     "Política de Privacidade da ProOps, incluindo o tratamento de dados pessoais e o uso da integração com Google Agenda.",
+  alternates: { canonical: canonicalLegal("/privacy") },
 };
 
 export default function PrivacyPage() {
   return (
     <LegalPage
       title="Política de Privacidade"
-      description="Esta Política de Privacidade explica como o ProOps coleta, utiliza, armazena e protege dados pessoais de usuários, clientes e contatos cadastrados na plataforma."
+      description="Esta Política de Privacidade explica como a ProOps coleta, utiliza, armazena e protege dados pessoais de usuários, clientes e contatos cadastrados na plataforma."
       updatedAt="19 de março de 2026"
       sections={[
         {
@@ -19,7 +22,7 @@ export default function PrivacyPage() {
           content: (
             <>
               <p>
-                O ProOps é uma plataforma de gestão empresarial voltada para
+                A ProOps é uma plataforma de gestão empresarial voltada para
                 operação comercial, propostas, financeiro, CRM, agenda e rotinas
                 administrativas. Esta política se aplica ao uso do site e da
                 aplicação disponibilizados em `proops.com.br`.
@@ -74,7 +77,7 @@ export default function PrivacyPage() {
           content: (
             <>
               <p>
-                Quando a empresa ativa a integração com Google Agenda, o ProOps
+                Quando a empresa ativa a integração com Google Agenda, a ProOps
                 solicita acesso para criar, editar, atualizar e excluir eventos
                 da agenda conectada, exclusivamente para suportar a
                 sincronização dos compromissos da empresa entre o ERP e o Google
@@ -116,7 +119,7 @@ export default function PrivacyPage() {
           content: (
             <>
               <p>
-                O ProOps não vende dados pessoais. O compartilhamento pode
+                A ProOps não vende dados pessoais. O compartilhamento pode
                 ocorrer apenas nas seguintes hipóteses: com prestadores de
                 serviço essenciais para infraestrutura e operação da plataforma;
                 com provedores de autenticação e integração, como Google e
