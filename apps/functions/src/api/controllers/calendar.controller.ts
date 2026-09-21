@@ -11,10 +11,6 @@ import {
   buildRefreshTokenStorageFields,
 } from "../../lib/token-source";
 import { encryptToken, decryptToken } from "../../lib/token-encryption";
-import {
-  assertTenantExists,
-  auditSuperAdminCrossTenantWrite,
-} from "../../lib/tenant-resolution";
 
 // Pacotes scoped (@googleapis/calendar + @googleapis/oauth2) substituem o
 // metapackage `googleapis` (~60MB instalado, ~0.9s de require — carregava a
@@ -1053,41 +1049,10 @@ async function deleteEventFromGoogleIfNeeded(eventData: CalendarEventDocument) {
   }
 }
 
-// For super admins viewing a tenant's panel, the tenantId comes from the
-// x-tenant-id header (set by the frontend when sessionStorage has viewingAsTenant).
-// Regular users always use their own tenantId from auth claims.
+// Superadmin vendo outra empresa ja chega aqui com o tenant alvo em
+// req.user.tenantId (middleware de impersonacao), auditado la.
 function resolveCalendarTenantId(req: Request): string {
-  if (req.user?.tenantId) {
-    return req.user.tenantId;
-  }
-  if (req.user?.isSuperAdmin) {
-    const headerTenantId = String(req.headers["x-tenant-id"] || "").trim();
-    if (headerTenantId) {
-      return headerTenantId;
-    }
-  }
-  return "";
-}
-
-// Validates + audits a super admin write performed against another tenant's
-// calendar (via the x-tenant-id header). No-op for regular users. Throws when
-// the target tenant does not exist (caller maps to HTTP 400).
-async function validateSuperAdminCalendarTarget(
-  req: Request,
-  tenantId: string,
-): Promise<void> {
-  if (!req.user?.isSuperAdmin) return;
-  const headerTenantId = String(req.headers["x-tenant-id"] || "").trim();
-  if (!headerTenantId || headerTenantId !== tenantId) return;
-  if (headerTenantId === req.user.tenantId) return;
-
-  await assertTenantExists(headerTenantId);
-  auditSuperAdminCrossTenantWrite({
-    uid: req.user.uid,
-    tenantId: headerTenantId,
-    route: req.originalUrl || req.path,
-    requestId: req.requestId,
-  });
+  return req.user?.tenantId || "";
 }
 
 async function canViewCalendarEvents(req: Request): Promise<boolean> {
@@ -1757,7 +1722,6 @@ export async function createCalendarEvent(req: Request, res: Response) {
         .json({ message: "Sem permissao para criar compromissos." });
     }
     try {
-      await validateSuperAdminCalendarTarget(req, tenantId);
     } catch {
       return res
         .status(400)
@@ -1818,7 +1782,6 @@ export async function updateCalendarEvent(req: Request, res: Response) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
     try {
-      await validateSuperAdminCalendarTarget(req, tenantId);
     } catch {
       return res
         .status(400)
@@ -1900,7 +1863,6 @@ export async function deleteCalendarEvent(req: Request, res: Response) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
     try {
-      await validateSuperAdminCalendarTarget(req, tenantId);
     } catch {
       return res
         .status(400)

@@ -19,7 +19,7 @@ Firestore. Checklist completo em `.claude/rules/access-control.md` — nenhuma
 das quatro tem default seguro, e o projeto já teve um incidente de cada.
 
 ## Authentication & Middleware
-- Route order matters: public routes → `validateFirebaseIdToken` → `requireActiveSubscription` (free vs pagante) → rate limiters → `requirePlanCapability` (gate de módulo) → protected routes
+- Route order matters: public routes → `validateFirebaseIdToken` → `resolveImpersonation` (superadmin vendo outra empresa) → `requireActiveSubscription` (free vs pagante) → rate limiters → `requirePlanCapability` (gate de módulo) → protected routes
 - `req.user` is typed as `AuthContext` with: `uid`, `tenantId`, `role`, `masterId`, `isSuperAdmin`, `hasRequiredClaims`
 - Never trust `tenantId` from the request body — always use `req.user.tenantId`
 - Custom claims: `tenantId`, `role`, `masterId`, `isSuperAdmin`

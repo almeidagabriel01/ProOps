@@ -39,7 +39,7 @@ interface TenantsTableProps {
   onSearchChange: (term: string) => void;
   filterStatus: string;
   onFilterChange: (status: string) => void;
-  onEditLimits: (item: TenantBillingInfo) => void;
+  onManageModules?: (item: TenantBillingInfo) => void;
 }
 
 function TableEmptyState() {
@@ -58,10 +58,10 @@ function TableEmptyState() {
 interface TenantRowProps {
   item: TenantBillingInfo;
   index: number;
-  onEditLimits: (item: TenantBillingInfo) => void;
+  onManageModules?: (item: TenantBillingInfo) => void;
 }
 
-function TenantRow({ item, index, onEditLimits }: TenantRowProps) {
+function TenantRow({ item, index, onManageModules }: TenantRowProps) {
   return (
     <motion.tr
       key={item.tenant.id}
@@ -115,7 +115,7 @@ function TenantRow({ item, index, onEditLimits }: TenantRowProps) {
         <StatusBadge status={item.subscriptionStatus || "active"} />
       </TableCell>
       <TableCell className="pr-6 py-4 text-right">
-        <TenantActionsMenu item={item} onEditLimits={onEditLimits} />
+        <TenantActionsMenu item={item} onManageModules={onManageModules} />
       </TableCell>
     </motion.tr>
   );
@@ -127,7 +127,7 @@ export function TenantsTable({
   onSearchChange,
   filterStatus,
   onFilterChange,
-  onEditLimits,
+  onManageModules,
 }: TenantsTableProps) {
   return (
     <motion.div
@@ -167,6 +167,7 @@ export function TenantsTable({
               >
                 <option value="all">Todos</option>
                 <option value="active">Ativos</option>
+                <option value="trialing">Em teste</option>
                 <option value="canceling">Encerrando</option>
                 <option value="past_due">Atrasados</option>
                 <option value="canceled">Cancelados</option>
@@ -223,7 +224,7 @@ export function TenantsTable({
                       key={item.tenant.id}
                       item={item}
                       index={index}
-                      onEditLimits={onEditLimits}
+                      onManageModules={onManageModules}
                     />
                   ))
                 )}
@@ -240,9 +241,8 @@ export function TenantsTable({
             </span>{" "}
             empresas
           </span>
-          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Atualizado em tempo real
+          <span className="text-xs text-muted-foreground">
+            Dados de quando a página foi aberta
           </span>
         </CardFooter>
       </Card>

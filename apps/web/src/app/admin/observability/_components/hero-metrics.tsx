@@ -32,7 +32,7 @@ export function HeroMetrics({
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <Stat label="Issues abertas" value={openIssues} />
       <Stat label="Eventos / 24h" value={events24h} />
-      <Stat label="Tenants afetados" value={affectedTenants} />
+      <Stat label="Empresas afetadas (pior erro)" value={affectedTenants} />
     </div>
   );
 }

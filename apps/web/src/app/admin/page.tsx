@@ -1,19 +1,19 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Building2, CreditCard, ShieldCheck, Activity } from "lucide-react";
+import { Plus, Search, Building2 } from "lucide-react";
 import { TenantDialog } from "@/components/admin/tenant-dialog";
+import { TenantModulesDialog } from "@/components/admin/tenant-modules-dialog";
 import { useTenantManagement } from "./_hooks/useTenantManagement";
 import { TenantCard, CopyDataDialog } from "./_components";
 import { AdminSkeleton } from "./_components/admin-skeleton";
 import { TenantBillingInfo, AdminService } from "@/services/admin-service";
 import * as React from "react";
 import { toast } from "@/lib/toast";
+import { Loader } from "@/components/ui/loader";
 
 export default function AdminPage() {
-  const router = useRouter();
   const {
     search,
     setSearch,
@@ -24,13 +24,16 @@ export default function AdminPage() {
     openCreate,
     openEdit,
     handleSave,
-    handleDelete,
+    handleDeactivate,
+    handleReactivate,
+    handlePurge,
     handleLoginAs,
     handleRecompute,
     isLoading,
     isSaving,
     isRecomputing,
-    tenantsData,
+    tenantIndex,
+    isSearching,
     hasMore,
     cursorStack,
     goNext,
@@ -40,17 +43,18 @@ export default function AdminPage() {
   const [isCopyDialogOpen, setIsCopyDialogOpen] = React.useState(false);
   const [copySourceTenant, setCopySourceTenant] = React.useState<TenantBillingInfo | null>(null);
   const [isCopying, setIsCopying] = React.useState(false);
+  const [modulesTarget, setModulesTarget] = React.useState<TenantBillingInfo | null>(null);
 
   const handleOpenCopyModal = (tenant: TenantBillingInfo) => {
     setCopySourceTenant(tenant);
     setIsCopyDialogOpen(true);
   };
 
-  const handleConfirmCopy = async (sourceId: string, targetId: string) => {
+  const handleConfirmCopy = async (sourceId: string, targetId: string, replace: boolean) => {
     if (!sourceId || !targetId) return;
     setIsCopying(true);
     try {
-      const response = await AdminService.copyTenantData(sourceId, targetId);
+      const response = await AdminService.copyTenantData(sourceId, targetId, replace);
       toast.success(response.message || `Cópia concluída com sucesso!`);
       setIsCopyDialogOpen(false);
     } catch (error: unknown) {
@@ -75,34 +79,10 @@ export default function AdminPage() {
             Painel Super Admin
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie múltiplos inquilinos (Tenants) em um só lugar.
+            Empresas cadastradas, planos, acesso e ciclo de vida.
           </p>
         </div>
-        <div className="flex gap-2 items-center">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => router.push("/admin/setup-mfa")}
-            className="shadow-sm hover:shadow transition-all cursor-pointer"
-          >
-            <ShieldCheck className="w-5 h-5 mr-2" /> Segurança (MFA)
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => router.push("/admin/overview")}
-            className="shadow-sm hover:shadow transition-all"
-          >
-            <CreditCard className="w-5 h-5 mr-2" /> Visão Geral
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => router.push("/admin/observability")}
-            className="shadow-sm hover:shadow transition-all"
-          >
-            <Activity className="w-5 h-5 mr-2" /> Observabilidade
-          </Button>
+        <div className="flex flex-wrap gap-2 items-center">
           <Button
             onClick={openCreate}
             size="lg"
@@ -122,6 +102,9 @@ export default function AdminPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {isSearching && (
+          <Loader size="sm" className="absolute right-3 top-3" />
+        )}
       </div>
 
       {/* Grid List */}
@@ -131,9 +114,12 @@ export default function AdminPage() {
             key={item.tenant.id}
             item={item}
             onEdit={openEdit}
-            onDelete={handleDelete}
+            onDeactivate={handleDeactivate}
+            onReactivate={handleReactivate}
+            onPurge={handlePurge}
             onLoginAs={handleLoginAs}
             onCopy={handleOpenCopyModal}
+            onManageModules={setModulesTarget}
           />
         ))}
 
@@ -149,7 +135,7 @@ export default function AdminPage() {
       </div>
 
       {/* Pagination */}
-      {(cursorStack.length > 0 || hasMore) && (
+      {!search && (cursorStack.length > 0 || hasMore) && (
         <div className="flex items-center gap-2 justify-end">
           <Button
             variant="outline"
@@ -180,11 +166,19 @@ export default function AdminPage() {
         isRecomputing={isRecomputing}
       />
 
+      <TenantModulesDialog
+        tenantId={modulesTarget?.tenant.id ?? null}
+        tenantName={modulesTarget?.tenant.name ?? ""}
+        onClose={() => setModulesTarget(null)}
+      />
+
       <CopyDataDialog
         isOpen={isCopyDialogOpen}
         onClose={() => setIsCopyDialogOpen(false)}
         sourceTenant={copySourceTenant}
-        allTenants={tenantsData}
+        targets={tenantIndex
+          .filter((t) => t.accountStatus === "active")
+          .map((t) => ({ id: t.id, name: t.name }))}
         onConfirm={handleConfirmCopy}
         isCopying={isCopying}
       />

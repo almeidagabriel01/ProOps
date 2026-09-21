@@ -95,3 +95,37 @@ describe("fetchAuditEvents — tenant filter at DB level", () => {
     expect(events).toHaveLength(1);
   });
 });
+
+describe("fetchAuditEvents: tamanho da janela lida", () => {
+  function limitSpy() {
+    const limits: number[] = [];
+    const q: AuditQuerySource = {
+      where: () => q,
+      orderBy: () => q,
+      limit(n: number) {
+        limits.push(n);
+        return q;
+      },
+      get: async () => ({ docs: [] }),
+    };
+    return { q, limits };
+  }
+
+  it("sem filtro em memoria le so o que vai devolver", async () => {
+    const { q, limits } = limitSpy();
+    await fetchAuditEvents(q, { limit: 50 });
+    expect(limits).toEqual([50]);
+  });
+
+  it("filtrando por empresa no banco tambem le so o limite", async () => {
+    const { q, limits } = limitSpy();
+    await fetchAuditEvents(q, { tenantId: "t1", limit: 50 });
+    expect(limits).toEqual([50]);
+  });
+
+  it("com filtro por tipo ou usuario usa a janela larga", async () => {
+    const { q, limits } = limitSpy();
+    await fetchAuditEvents(q, { eventType: "super_admin_tenant_write", limit: 50 });
+    expect(limits).toEqual([500]);
+  });
+});

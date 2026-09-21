@@ -42,4 +42,38 @@ export function clearViewingTenantId() {
 
   cleanupLegacyViewingTenantStorage();
   sessionStorage.removeItem(VIEWING_TENANT_KEY);
+  sessionStorage.removeItem("viewingAsTenantWrite");
+}
+
+// Edicao habilitada no "Acessar Painel". Guarda o tenant junto para nunca
+// vazar de uma empresa para a proxima: trocar de empresa volta a somente leitura.
+const IMPERSONATION_WRITE_KEY = "viewingAsTenantWrite";
+
+export function readImpersonationWriteEnabled(): boolean {
+  if (!canUseSessionStorage()) return false;
+  const tenantId = sessionStorage.getItem(VIEWING_TENANT_KEY);
+  return Boolean(tenantId) && sessionStorage.getItem(IMPERSONATION_WRITE_KEY) === tenantId;
+}
+
+export function writeImpersonationWriteEnabled(enabled: boolean) {
+  if (!canUseSessionStorage()) return;
+  const tenantId = sessionStorage.getItem(VIEWING_TENANT_KEY);
+  if (enabled && tenantId) {
+    sessionStorage.setItem(IMPERSONATION_WRITE_KEY, tenantId);
+  } else {
+    sessionStorage.removeItem(IMPERSONATION_WRITE_KEY);
+  }
+}
+
+/**
+ * Cabecalhos que dizem ao backend qual empresa o superadmin esta vendo e se a
+ * edicao esta habilitada (`api/middleware/impersonation.ts`). Vazio fora do
+ * "Acessar Painel". Unico lugar que monta esses cabecalhos.
+ */
+export function buildImpersonationHeaders(): Record<string, string> {
+  const tenantId = readViewingTenantId();
+  if (!tenantId) return {};
+  const headers: Record<string, string> = { "x-tenant-id": tenantId };
+  if (readImpersonationWriteEnabled()) headers["x-impersonation-write"] = "1";
+  return headers;
 }

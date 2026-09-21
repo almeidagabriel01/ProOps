@@ -51,7 +51,9 @@ function renderCard(item: TenantBillingInfo) {
     <TenantCard
       item={item}
       onEdit={vi.fn()}
-      onDelete={noopAsync}
+      onDeactivate={noopAsync}
+      onReactivate={noopAsync}
+      onPurge={noopAsync}
       onLoginAs={onLoginAs}
     />,
   );

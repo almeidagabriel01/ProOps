@@ -3,9 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AdminService, TenantBillingInfo } from "@/services/admin-service";
-import { PlanService } from "@/services/plan-service";
 import { useAuth } from "@/providers/auth-provider";
-import { UserPlan, PlanFeatures } from "@/types";
+import { toast } from "@/lib/toast";
 
 interface TenantsMetrics {
   totalTenants: number;
@@ -16,26 +15,15 @@ interface TenantsMetrics {
   activeTenants: number;
 }
 
-interface EditDialogState {
-  open: boolean;
-  tenantId: string;
-  tenantName: string;
-  features: PlanFeatures;
-}
-
 interface UseTenantsDataReturn {
   isLoading: boolean;
   tenantsData: TenantBillingInfo[];
-  plans: UserPlan[];
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   filterStatus: string;
   setFilterStatus: (status: string) => void;
   filteredData: TenantBillingInfo[];
   metrics: TenantsMetrics;
-  editDialog: EditDialogState;
-  setEditDialog: React.Dispatch<React.SetStateAction<EditDialogState>>;
-  handleEditLimits: (item: TenantBillingInfo) => void;
   loadData: () => Promise<void>;
 }
 
@@ -44,16 +32,8 @@ export function useTenantsData(): UseTenantsDataReturn {
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(true);
   const [tenantsData, setTenantsData] = React.useState<TenantBillingInfo[]>([]);
-  const [plans, setPlans] = React.useState<UserPlan[]>([]);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
-
-  const [editDialog, setEditDialog] = React.useState<EditDialogState>({
-    open: false,
-    tenantId: "",
-    tenantName: "",
-    features: {} as PlanFeatures,
-  });
 
   const loadData = React.useCallback(async () => {
     if (!user) return;
@@ -63,14 +43,12 @@ export function useTenantsData(): UseTenantsDataReturn {
     }
 
     try {
-      const [data, plansList] = await Promise.all([
-        AdminService.getAllTenantsBilling(),
-        PlanService.getPlans(),
-      ]);
+      const data = await AdminService.getAllTenantsBilling();
       setTenantsData(data);
-      setPlans(plansList);
     } catch (error) {
       console.error("Failed to load admin data:", error);
+      // Sem aviso, a tela seguia com zeros e parecia uma base vazia.
+      toast.error("Erro ao carregar as empresas. Recarregue a página.");
     } finally {
       setIsLoading(false);
     }
@@ -129,29 +107,15 @@ export function useTenantsData(): UseTenantsDataReturn {
     });
   }, [tenantsData, searchTerm, filterStatus]);
 
-  const handleEditLimits = React.useCallback((item: TenantBillingInfo) => {
-    if (!item.planFeatures) return;
-    setEditDialog({
-      open: true,
-      tenantId: item.tenant.id,
-      tenantName: item.tenant.name,
-      features: item.planFeatures as PlanFeatures,
-    });
-  }, []);
-
   return {
     isLoading,
     tenantsData,
-    plans,
     searchTerm,
     setSearchTerm,
     filterStatus,
     setFilterStatus,
     filteredData,
     metrics,
-    editDialog,
-    setEditDialog,
-    handleEditLimits,
     loadData,
   };
 }

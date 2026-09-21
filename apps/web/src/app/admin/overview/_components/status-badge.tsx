@@ -19,6 +19,15 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     );
   }
 
+  if (status === "trialing") {
+    return (
+      <Badge className="bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800 hover:bg-sky-500/20 shadow-none font-medium">
+        <Clock className="w-3 h-3 mr-1" />
+        Em teste
+      </Badge>
+    );
+  }
+
   if (status === "canceling") {
     return (
       <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 hover:bg-amber-500/20 shadow-none font-medium">

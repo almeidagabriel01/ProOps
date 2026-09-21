@@ -228,6 +228,9 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
     confirmed: isConfirmed,
     sessionId: sessionId || undefined,
     permissions: pagePermissions,
+    impersonationReadOnly: Boolean(
+      user.impersonation && !user.impersonation.writeEnabled,
+    ),
   };
 
   // Rastro do turno — nome de ferramenta, latência e desfecho. Nunca args

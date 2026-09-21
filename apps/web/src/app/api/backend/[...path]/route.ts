@@ -86,6 +86,17 @@ function mayRenderPdfInline(req: NextRequest, path: string[]): boolean {
   return path[0] === "v1" && path[1] === "proposals";
 }
 
+/**
+ * Operacoes em massa do superadmin (copiar catalogo, desativar, reativar e
+ * purgar empresa) varrem colecoes inteiras de um tenant. O backend da 70s a
+ * elas (`resolveProtectedRouteTimeoutMs`); o proxy precisa esperar mais que
+ * isso para a resposta util chegar em vez de um erro de rede.
+ */
+function isAdminBulkOperation(req: NextRequest, path: string[]): boolean {
+  if (req.method !== "POST") return false;
+  return path[0] === "v1" && path[1] === "admin" && path[2] === "tenants";
+}
+
 function buildUpstreamUrl(req: NextRequest, path: string[]): string {
   const { baseUrl } = resolveFunctionsApiUpstream(req);
   // Paths de PDF vão para a função Cloud dedicada `pdf` (Chromium isolado).
@@ -104,6 +115,7 @@ function buildForwardHeaders(req: NextRequest, requestId: string): Headers {
   const authorization = req.headers.get("authorization");
   const pdfGenerator = req.headers.get("x-pdf-generator");
   const tenantId = req.headers.get("x-tenant-id");
+  const impersonationWrite = req.headers.get("x-impersonation-write");
   const forwardedHost =
     req.headers.get("x-forwarded-host") || req.headers.get("host") || req.nextUrl.host;
   const forwardedProto =
@@ -115,6 +127,7 @@ function buildForwardHeaders(req: NextRequest, requestId: string): Headers {
   if (authorization) headers.set("authorization", authorization);
   if (pdfGenerator) headers.set("x-pdf-generator", pdfGenerator);
   if (tenantId) headers.set("x-tenant-id", tenantId);
+  if (impersonationWrite) headers.set("x-impersonation-write", impersonationWrite);
   if (forwardedHost) headers.set("x-forwarded-host", forwardedHost);
   if (forwardedProto) headers.set("x-forwarded-proto", forwardedProto);
   headers.set("x-request-id", requestId);
@@ -151,7 +164,8 @@ async function proxyRequest(
   const acceptHeader = req.headers.get("accept") ?? "";
   const isSSE = acceptHeader.includes("text/event-stream");
   const isPdfRequest = isPdfPath(path);
-  const isSlowInlineRender = mayRenderPdfInline(req, path);
+  const isSlowInlineRender =
+    mayRenderPdfInline(req, path) || isAdminBulkOperation(req, path);
   const timeoutMs = isSSE
     ? SSE_TIMEOUT_MS
     : isPdfRequest || isSlowInlineRender

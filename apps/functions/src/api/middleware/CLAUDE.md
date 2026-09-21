@@ -8,6 +8,7 @@ Documentação da infraestrutura de middleware do Express monolith.
 |---------|-----------------|
 | `auth.ts` | Middleware de autenticação Firebase ID Token |
 | `pdf-rate-limiter.ts` | Rate limiting específico para geração de PDF |
+| `impersonation.ts` | "Acessar Painel" do superadmin: tenant da empresa vista + modo somente leitura |
 
 ---
 
@@ -120,6 +121,37 @@ Os eventos com contador também geram audit events no Firestore (`security_audit
 - Nunca mover a posição de `app.use(validateFirebaseIdToken)` para antes das rotas públicas sem garantir que as rotas públicas estejam explicitamente no bypass ou registradas antes
 - Se adicionar nova rota pública que passe pelo middleware (ex: nova rota `/v1/public/*`), adicionar o path no bypass dentro do middleware OU registrar a rota antes de `validateFirebaseIdToken` no `api/index.ts`
 - O tipo `AuthContext` é definido em `../../lib/auth-context` — modificações lá afetam todo o pipeline de autenticação
+
+---
+
+## impersonation.ts — "Acessar Painel" do superadmin
+
+`resolveImpersonation` roda logo depois de `validateFirebaseIdToken`. Para
+superadmin com `x-tenant-id` diferente do próprio tenant:
+
+- confere que a empresa existe (`assertTenantExists`, 400
+  `IMPERSONATION_TENANT_NOT_FOUND` se não);
+- troca `req.user.tenantId` pela empresa vista e `req.user.masterId` pelo dono
+  dela (cache de 60s), e grava `req.user.impersonation`;
+- método de escrita sem `x-impersonation-write: 1` leva 403
+  `IMPERSONATION_READ_ONLY`; com ele, grava `super_admin_tenant_write` (com
+  `await`) antes de seguir. Ficam fora do bloqueio `/v1/admin`, `/v1/auth`,
+  `/v1/profile`, `/v1/notifications` e `/v1/ai` (a Lia barra as ferramentas de
+  escrita no executor).
+
+Para qualquer outro usuário os dois cabeçalhos são descartados.
+
+Consequências para quem escreve controller:
+
+- `resolveUserAndTenant` reconhece `claims.impersonation`: não acusa
+  `FORBIDDEN_TENANT_MISMATCH` e devolve o dono da empresa vista como `masterRef`.
+- `requirePlanCapability` avalia o plano da empresa vista (em `enforce`), sem o
+  bypass de superadmin: o superadmin vê o que o cliente vê.
+- **Pegue o tenant de `req.user.tenantId`.** Ler `x-tenant-id` ou `targetTenantId`
+  por conta própria é o padrão antigo que deixava metade dos módulos gravando no
+  tenant do superadmin.
+
+Guard: `__tests__/impersonation.test.ts`.
 
 ---
 

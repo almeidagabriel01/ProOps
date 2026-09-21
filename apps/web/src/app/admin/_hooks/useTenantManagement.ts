@@ -6,12 +6,17 @@ import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { toast } from '@/lib/toast';
 import { TenantService } from "@/services/tenant-service";
-import { AdminService, TenantBillingInfo } from "@/services/admin-service";
+import {
+  AdminService,
+  TenantBillingInfo,
+  type TenantIndexItem,
+} from "@/services/admin-service";
 import { deriveSubscriptionDisplayStatus } from "@/lib/subscription-status";
 import { canAccessTenantPanel } from "@/lib/tenant-panel-access";
 import { Tenant } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { TenantFormData } from "@/components/admin/tenant-dialog";
+import { buildTenantSavePlan } from "../_utils/tenant-save-plan";
 
 const PAGE_SIZE = 25;
 
@@ -23,10 +28,15 @@ interface UseTenantManagementReturn {
   setIsDialogOpen: (value: boolean) => void;
   editingData: TenantBillingInfo | null;
   filteredTenants: TenantBillingInfo[];
+  /** Todas as empresas (nome e id), para busca e seletores. */
+  tenantIndex: TenantIndexItem[];
+  isSearching: boolean;
   openCreate: () => void;
   openEdit: (data: TenantBillingInfo) => void;
   handleSave: (data: TenantFormData) => Promise<void>;
-  handleDelete: (id: string) => Promise<void>;
+  handleDeactivate: (id: string) => Promise<void>;
+  handleReactivate: (id: string) => Promise<void>;
+  handlePurge: (id: string, confirmName: string) => Promise<void>;
   handleLoginAs: (item: TenantBillingInfo) => void;
   handleRecompute: (tenantId: string) => Promise<void>;
   isLoading: boolean;
@@ -55,7 +65,53 @@ export function useTenantManagement(): UseTenantManagementReturn {
   const [hasMore, setHasMore] = React.useState(false);
   const [cursorStack, setCursorStack] = React.useState<string[]>([]);
 
+  const [tenantIndex, setTenantIndex] = React.useState<TenantIndexItem[]>([]);
+  const [searchResults, setSearchResults] = React.useState<TenantBillingInfo[] | null>(null);
+  const [isSearching, setIsSearching] = React.useState(false);
+
   const { setViewingTenant } = useTenant();
+
+  // Indice leve de todas as empresas: a busca antes so filtrava os 25 da
+  // pagina carregada, entao empresa da pagina 2 "nao existia".
+  const loadIndex = React.useCallback(async () => {
+    try {
+      setTenantIndex(await AdminService.getTenantsIndex());
+    } catch {
+      // Sem indice a busca cai no filtro local da pagina.
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadIndex();
+  }, [loadIndex]);
+
+  React.useEffect(() => {
+    const term = search.trim().toLowerCase();
+    if (!term || tenantIndex.length === 0) {
+      setSearchResults(null);
+      return;
+    }
+    const ids = tenantIndex
+      .filter((t) => t.name.toLowerCase().includes(term) || t.id.toLowerCase() === term)
+      .slice(0, 30)
+      .map((t) => t.id);
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const rows = await AdminService.getTenantsBillingByIds(ids);
+        if (!cancelled) setSearchResults(rows);
+      } catch {
+        if (!cancelled) setSearchResults(null);
+      } finally {
+        if (!cancelled) setIsSearching(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search, tenantIndex]);
   const router = useRouter();
 
   const loadTenants = React.useCallback(async (cursor: string | null) => {
@@ -231,18 +287,14 @@ export function useTenantManagement(): UseTenantManagementReturn {
     setIsSaving(true);
     try {
       if (editingData) {
-        // Update tenant
-        await TenantService.updateTenant(editingData.tenant.id, {
-          name: data.name,
-          primaryColor: data.color,
-          logoUrl: data.logoUrl,
-          niche: data.niche,
-          whatsappEnabled: data.whatsappEnabled,
-        });
+        const plan = buildTenantSavePlan(editingData, data);
 
-        // Update admin user plan if changed, then recompute plan-gated features.
-        if (data.planId && data.planId !== editingData.planId) {
-          await AdminService.updateUserPlan(editingData.admin.id, data.planId);
+        if (plan.tenantUpdate) {
+          await TenantService.updateTenant(editingData.tenant.id, plan.tenantUpdate);
+        }
+
+        if (plan.planChange) {
+          await AdminService.updateUserPlan(editingData.admin.id, plan.planChange);
           // Recompute ensures the plan-computed whatsappEnabled value wins over
           // whatever the toggle wrote — important for enterprise → WhatsApp grant.
           try {
@@ -252,31 +304,19 @@ export function useTenantManagement(): UseTenantManagementReturn {
           }
         }
 
-        // Update admin credentials if provided
-        if (data.email || data.password || data.phoneNumber !== undefined) {
+        if (plan.credentials) {
           await AdminService.updateAdminCredentials({
             userId: editingData.admin.id,
             tenantId: editingData.tenant.id,
-            email: data.email || undefined,
-            password: data.password || undefined,
-            phoneNumber: data.phoneNumber || undefined,
+            ...plan.credentials,
           });
         }
 
-        if (data.planId !== "free") {
-          await AdminService.updateUserSubscription(editingData.admin.id, {
-            subscriptionStatus: data.subscriptionStatus,
-            currentPeriodEnd: data.currentPeriodEnd,
-            isManualSubscription: true,
-          });
-        } else {
-          // If switching to free, clear subscription? user might want to keep history.
-          // But usually free = no sub.
-          await AdminService.updateUserSubscription(editingData.admin.id, {
-            subscriptionStatus: "active", // Free is always active
-            // currentPeriodEnd: null, // Firestore update doesn't support null directly often without FieldValue.delete()
-            isManualSubscription: false,
-          });
+        if (plan.subscription) {
+          await AdminService.updateUserSubscription(
+            editingData.admin.id,
+            plan.subscription,
+          );
         }
 
         toast.success("Empresa atualizada com sucesso!");
@@ -311,6 +351,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
 
       setIsDialogOpen(false);
       loadTenants(currentCursor);
+      void loadIndex();
     } catch (error) {
       console.error(error);
       toast.error("Erro ao salvar empresa");
@@ -319,17 +360,43 @@ export function useTenantManagement(): UseTenantManagementReturn {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  // As tres re-lancam o erro para o card manter o dialogo aberto.
+  const runLifecycle = async (
+    action: () => Promise<{ message?: string }>,
+    fallbackSuccess: string,
+    fallbackError: string,
+  ) => {
     try {
-      await AdminService.deleteTenant(id);
-      toast.success("Empresa removida com sucesso!");
+      const result = await action();
+      toast.success(result?.message || fallbackSuccess);
       loadTenants(currentCursor);
+      void loadIndex();
     } catch (error) {
-      console.error(error);
-      toast.error("Erro ao remover empresa");
-      throw error; // Re-throw para o componente saber que falhou
+      toast.error(error instanceof Error && error.message ? error.message : fallbackError);
+      throw error;
     }
   };
+
+  const handleDeactivate = (id: string) =>
+    runLifecycle(
+      () => AdminService.deactivateTenant(id),
+      "Empresa desativada.",
+      "Erro ao desativar empresa",
+    );
+
+  const handleReactivate = (id: string) =>
+    runLifecycle(
+      () => AdminService.reactivateTenant(id),
+      "Empresa reativada.",
+      "Erro ao reativar empresa",
+    );
+
+  const handlePurge = (id: string, confirmName: string) =>
+    runLifecycle(
+      () => AdminService.purgeTenant(id, confirmName),
+      "Exclusão iniciada.",
+      "Erro ao iniciar a exclusão",
+    );
 
   const openCreate = () => {
     setEditingData(null);
@@ -370,9 +437,11 @@ export function useTenantManagement(): UseTenantManagementReturn {
     });
   };
 
-  const filteredTenants = tenantsData.filter((item) =>
-    item.tenant.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredTenants =
+    searchResults ??
+    tenantsData.filter((item) =>
+      item.tenant.name.toLowerCase().includes(search.toLowerCase()),
+    );
 
   return {
     tenantsData,
@@ -382,10 +451,14 @@ export function useTenantManagement(): UseTenantManagementReturn {
     setIsDialogOpen,
     editingData,
     filteredTenants,
+    tenantIndex,
+    isSearching,
     openCreate,
     openEdit,
     handleSave,
-    handleDelete,
+    handleDeactivate,
+    handleReactivate,
+    handlePurge,
     handleLoginAs,
     handleRecompute,
     isLoading,

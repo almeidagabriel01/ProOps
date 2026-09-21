@@ -22,8 +22,20 @@ Prefixo montado em `/admin` pelo Express principal.
 | `PUT` | `/admin/users/:userId/subscription` | `updateUserSubscription` | SUPERADMIN |
 | `POST` | `/admin/tenants` | `createTenant` | SUPERADMIN |
 | `POST` | `/admin/tenants/copy-data` | `copyTenantData` | SUPERADMIN |
-| `DELETE` | `/admin/tenants/:tenantId` | `deleteTenant` | SUPERADMIN |
-| `POST` | `/admin/test-whatsapp-billing` | `testWhatsAppBilling` | SUPERADMIN |
+| `GET` | `/admin/tenants/index` | `getTenantsIndex` | SUPERADMIN |
+| `POST` | `/admin/tenants/:tenantId/deactivate` | `deactivateTenant` | SUPERADMIN |
+| `POST` | `/admin/tenants/:tenantId/reactivate` | `reactivateTenant` | SUPERADMIN |
+| `POST` | `/admin/tenants/:tenantId/purge` | `purgeTenant` | SUPERADMIN |
+| `GET` | `/admin/tenants/:tenantId/modules` | `getTenantModules` | SUPERADMIN |
+| `POST` | `/admin/tenants/:tenantId/addons/:addonId` | `grantCourtesyAddon` | SUPERADMIN |
+| `DELETE` | `/admin/tenants/:tenantId/addons/:addonId` | `revokeCourtesyAddon` | SUPERADMIN |
+| `POST` | `/admin/impersonation/start` | `startImpersonation` | SUPERADMIN |
+| `POST` | `/admin/impersonation/stop` | `stopImpersonation` | SUPERADMIN |
+| `GET` | `/admin/audit-events` | `getAuditEvents` | SUPERADMIN |
+
+`getTenantsIndex`, `getTenantModules` e as rotas de add-on vivem em
+`admin-tenant-modules.controller.ts`. Toda mutacao do superadmin grava evento em
+`security_audit_events` com `await` (`lib/admin-audit.ts`).
 
 > **Atencao de rota:** `PUT /admin/members/permissions` deve vir ANTES de `PUT /admin/members/:id` no arquivo de rotas para evitar que "permissions" seja interpretado como `:id`.
 
@@ -291,22 +303,24 @@ Cria uma nova empresa com usuario administrador. Somente SUPERADMIN.
 
 ---
 
-### `deleteTenant` — DELETE /admin/tenants/:tenantId
+### Ciclo de vida: `deactivateTenant`, `reactivateTenant`, `purgeTenant`
 
-Remove uma empresa e TODOS os seus dados. Operacao irreversivel. Somente SUPERADMIN.
+A exclusao antiga (`DELETE /admin/tenants/:tenantId`) foi removida: apagava so
+parte das colecoes numa request, nao cancelava a assinatura Stripe e o webhook
+seguinte recriava o tenant.
 
-**Sequencia de delecao:**
-1. Busca todos os users com `tenantId` ou `companyId` igual ao tenantId
-2. Para cada user:
-   - Deleta subcollection `users/{uid}/permissions` em batches de 400
-   - Remove entrada de `phoneNumberIndex`
-   - Deleta do Firebase Auth (tolerante a `auth/user-not-found`)
-   - Deleta doc `users/{uid}`
-3. Deleta todas as colecoes tenant-scoped em batches:
-   `products`, `services`, `proposals`, `custom_options`, `custom_fields`, `options`, `clients`, `transactions`, `wallets`, `wallet_transactions`, `notifications`, `addons`, `purchased_addons`, `spreadsheets`, `proposal_templates`, `sistemas`, `ambientes`
-4. Deleta `companies/{tenantId}` e `tenants/{tenantId}`
-
-> **Aviso:** Nao deleta arquivos do Firebase Storage. Use `cleanupStorageAndSharedLinks` para isso.
+- **Desativar** (`POST /admin/tenants/:tenantId/deactivate`): cancela a
+  assinatura e os add-ons no Stripe, desativa o Auth de todos os usuarios e
+  revoga os tokens, grava `accountStatus: "deactivated"`. Nada e apagado.
+  Recusa a propria empresa do superadmin.
+- **Reativar** (`POST .../reactivate`): reabilita os usuarios. A assinatura
+  cancelada nao volta.
+- **Excluir definitivamente** (`POST .../purge`, body `{ confirmName }`): so
+  empresa desativada e com o nome igual. Grava `accountStatus: "purging"` e cria
+  `tenant_purge_jobs/{tenantId}`; o trigger `onTenantPurgeJob` apaga em etapas
+  resumiveis (`api/services/tenant-purge.service.ts`). O que e apagado e o que
+  fica esta em `shared/tenant-collections.ts`; notas fiscais e o arquivo fiscal
+  no Storage sao preservados.
 
 ---
 
@@ -314,12 +328,15 @@ Remove uma empresa e TODOS os seus dados. Operacao irreversivel. Somente SUPERAD
 
 Copia dados de catalogo (produtos, servicos, ambientes, sistemas) de um tenant para outro. Somente SUPERADMIN. Usado para onboarding de novos clientes com template de outro tenant.
 
-**Body:** `{ "sourceTenantId": "string", "targetTenantId": "string" }`
+**Body:** `{ "sourceTenantId": "string", "targetTenantId": "string", "replace": boolean }`
+
+Recusa origem igual ao destino e empresa inexistente (400). Sem `replace` os
+itens se somam ao destino.
 
 **Colecoes copiadas:** `products`, `services`, `ambientes`, `sistemas`
 
 **Fluxo:**
-1. Limpa dados pre-existentes no `targetTenantId` (idempotente)
+1. Com `replace`, le os ids do catalogo ATUAL do destino (so os ids)
 2. Copia `products`, `services`, `ambientes` em batches de 500
    - Mantem dicionario `oldId -> newId` para remapeamento
    - Clona imagens do Storage: copia de `tenants/{sourceTenantId}/{folder}/` para `tenants/{targetTenantId}/{folder}/{newEntityId}/`
@@ -329,6 +346,8 @@ Copia dados de catalogo (produtos, servicos, ambientes, sistemas) de um tenant p
    - `availableAmbienteIds[]` → novos IDs
    - `ambienteIds[]` (legacy) → novos IDs
    - `defaultProducts[].productId` → novos IDs
+4. Com `replace`, apaga os itens antigos lidos no passo 1, so depois da copia
+   (uma falha no meio nunca deixa o destino vazio)
 
 **Resposta:**
 ```json
@@ -338,16 +357,6 @@ Copia dados de catalogo (produtos, servicos, ambientes, sistemas) de um tenant p
   "imageCloneStats": { "copied": 5, "reused": 3, "failed": 0 }
 }
 ```
-
----
-
-### `testWhatsAppBilling` — POST /admin/test-whatsapp-billing
-
-Dispara manualmente o billing de overage de WhatsApp para um tenant especifico. Para debugging e testes. Somente SUPERADMIN.
-
-**Body:** `{ "tenantId": "string", "month": "string" }`
-
-Delega para `reportWhatsAppOverage(tenantId, month)` de `services/whatsappBilling`.
 
 ---
 

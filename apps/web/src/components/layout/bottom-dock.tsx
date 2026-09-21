@@ -3,12 +3,13 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Crown, LogOut, LayoutDashboard, BarChart3, UserCircle } from "lucide-react";
+import { Crown, LogOut, UserCircle } from "lucide-react";
 
 import { Dock, DockIcon } from "@/components/ui/dock";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 
 import { cn } from "@/lib/utils";
+import { ADMIN_SECTIONS } from "@/lib/admin-sections";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   useActiveEntryHref,
@@ -292,8 +293,11 @@ export function BottomDock() {
 
   if (isSuperAdminMode) {
     const superAdminItems = [
-      { icon: LayoutDashboard, label: "Painel", href: "/admin" },
-      { icon: BarChart3, label: "Visão Geral", href: "/admin/overview" },
+      ...ADMIN_SECTIONS.filter((s) => s.inDock).map(({ icon, label, href }) => ({
+        icon,
+        label,
+        href,
+      })),
       { icon: UserCircle, label: "Perfil", href: "/profile" },
     ];
 
