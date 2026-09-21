@@ -1078,7 +1078,11 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
         }
         const tenantData = (tenantId && tenantDataMap.get(tenantId)) || {} as TenantData;
 
-        const rawPlanId = String(userData.planId || "free");
+        // O plano exibido e o que o backend usa para liberar modulo
+        // (`tenants.plan`, escrito pelo writer unico). O `users.planId` fica de
+        // fallback para empresa legada: os dois podem divergir, e mostrar o do
+        // usuario fazia o painel dizer Enterprise para quem levava 402.
+        const rawPlanId = String(tenantData.plan || userData.planId || "free");
         // Normalize planId to tier name: if it's a document ID, resolve to tier; otherwise use as-is
         const planId = tierToName[rawPlanId.toLowerCase()]
           ? rawPlanId.toLowerCase()
