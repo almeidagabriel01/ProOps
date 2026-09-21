@@ -203,7 +203,8 @@ test.describe("APP-01: as cenas da landing do aplicativo", () => {
   }) => {
     const erros: string[] = [];
     page.on("console", (m) => {
-      if (m.type() === "error" && /hydrat/i.test(m.text())) erros.push(m.text());
+      if (m.type() === "error" && /hydrat/i.test(m.text()))
+        erros.push(m.text());
     });
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
@@ -420,22 +421,36 @@ test.describe("APP-03: o que você pode pedir", () => {
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(antes);
   });
 
-  test("escolher uma operação leva a página até o diagrama dela", async ({
+  /**
+   * A mesa de operações NÃO prende a rolagem: ela responde ao clique. Duas
+   * seções seguidas dirigidas por scroll era uma a mais, e o teste de que ela
+   * não voltou a ser um trilho é a ausência do contêiner alto.
+   */
+  test("a mesa troca a cena no clique, sem prender a rolagem", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
     const abas = page.getByRole("tablist", { name: "Operações de exemplo" });
-    await rolarAteFatia(page, abas, 0, 6);
+    await abas.scrollIntoViewIfNeeded();
+
+    // A mesa vive fora de qualquer trilho: nenhum ancestral dela é alto.
+    expect(
+      await abas.evaluate((el) => el.closest("div[style*='svh']") === null),
+    ).toBe(true);
 
     const meta = abas.getByRole("tab", {
       name: "guarda 200 na meta da viagem",
     });
     await meta.click();
-    await expect(meta).toHaveAttribute("aria-selected", "true", {
+    await expect(meta).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tabpanel")).toContainText("R$ 2.300,00", {
       timeout: 10_000,
     });
+
+    // E a cena toca de novo sem sair da operação.
+    await page.getByRole("button", { name: "Repetir" }).click();
     await expect(page.getByRole("tabpanel")).toContainText("R$ 2.300,00", {
       timeout: 10_000,
     });

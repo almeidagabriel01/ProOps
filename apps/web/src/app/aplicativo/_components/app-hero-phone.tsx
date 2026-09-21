@@ -17,7 +17,8 @@ import { APP_NAME } from "@/lib/site/app-brand";
  * aparelho está no meio de uma cena que conta a história da página em uma
  * imagem, e que é toda CSS, sem JavaScript nenhum acima da dobra:
  *
- * - a luz e o anel atrás separam o aparelho do fundo preto;
+ * - a luz atrás separa o aparelho do fundo preto (os dois anéis que já
+ *   estiveram aqui saíram: viravam dois ovais frouxos em volta da moldura);
  * - a mensagem do WhatsApp entra pela esquerda e o lançamento confirmado pela
  *   direita, nos dois lados da moldura, com um flutuar lento e defasado;
  * - `inclina-ponteiro` inclina o conjunto seguindo `--px`/`--py`, que o
@@ -35,15 +36,6 @@ export function AppHeroPhone() {
         aria-hidden="true"
         className="pointer-events-none absolute -inset-x-16 -inset-y-12 rounded-[999px] bg-[radial-gradient(60%_50%_at_50%_45%,var(--app-tint)_0%,transparent_70%)] opacity-[0.14] blur-3xl"
       />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-6 rounded-[3.4rem] border border-white/[0.06]"
-      />
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-12 rounded-[4.2rem] border border-white/[0.03]"
-      />
-
       <div
         className="inclina-ponteiro relative"
         style={{ "--inclina": "4deg" } as React.CSSProperties}

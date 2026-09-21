@@ -39,7 +39,7 @@ const FATURA = { antes: 1590, depois: 1090 };
  * traço fino num SVG esticado) o Chrome calcula o tracejado em outra escala, e
  * o arco aparecia partido ao meio mesmo no estado final.
  */
-export function CenaTransferencia({ armado, progresso }: PropsDaCena) {
+export function CenaTransferencia({ armado, progresso, tocar }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({
     conta: CONTA.depois,
@@ -124,7 +124,7 @@ export function CenaTransferencia({ armado, progresso }: PropsDaCena) {
 
       return () => definir({ conta: CONTA.depois, fatura: FATURA.depois });
     },
-    { armado, progresso },
+    { armado, progresso, tocar },
   );
 
   return (

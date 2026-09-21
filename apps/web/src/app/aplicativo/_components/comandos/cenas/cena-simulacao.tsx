@@ -70,7 +70,7 @@ const pct = (x: number, y: number) => ({
  * HTML posicionado em porcentagem das mesmas coordenadas, porque texto dentro
  * do SVG não herda a tipografia da página.
  */
-export function CenaSimulacao({ armado, progresso }: PropsDaCena) {
+export function CenaSimulacao({ armado, progresso, tocar }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({
     sem: SOBRA_SEM,
@@ -190,7 +190,7 @@ export function CenaSimulacao({ armado, progresso }: PropsDaCena) {
           dezVezes: SOBRA_EM_10X,
         });
     },
-    { armado, progresso },
+    { armado, progresso, tocar },
   );
 
   const xHoje = eixoX(HOJE);

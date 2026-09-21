@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import type { MotionValue } from "motion/react";
@@ -30,18 +31,31 @@ interface OpcoesDaCena {
   /** Montar a timeline. Normalmente o `armado` de `useVisibilidade`. */
   armado: boolean;
   /** 0..1, de onde a timeline lê a posição. Normalmente o scroll. */
-  progresso: MotionValue<number>;
+  progresso?: MotionValue<number>;
+  /**
+   * Sem `progresso`: a cena toca sozinha, do começo ao fim, quando isto vira
+   * `true`. É o modo das cenas que respondem a um clique em vez de prender a
+   * rolagem.
+   */
+  tocar?: boolean;
   /** Troca de conteúdo que exige uma timeline nova. */
   chave?: string | number;
 }
 
 /**
- * Uma timeline GSAP por cena, com a posição dada pela rolagem.
+ * Uma timeline GSAP por cena, em dois modos.
  *
- * A timeline nunca toca sozinha: ela nasce pausada e cada mudança de
- * `progresso` a leva para aquele ponto (`tl.progress`). Descer a página avança a
- * cena; subir, volta. Por isso tudo aqui é construído com `fromTo` e `set`, que
- * o GSAP sabe desfazer quando a agulha anda para trás.
+ * **Com `progresso`**, a posição é a rolagem: a timeline nasce pausada e cada
+ * mudança do valor a leva para aquele ponto (`tl.progress`). Descer a página
+ * avança a cena; subir, volta.
+ *
+ * **Com `tocar`**, ela toca do começo ao fim quando o sinal vira `true`, e
+ * recomeça a cada montagem. É o modo de uma cena que responde ao clique de
+ * quem lê: a página rola normalmente, e o movimento acontece quando a pessoa
+ * pede. Duas seções seguidas prendendo a rolagem é uma a mais.
+ *
+ * Nos dois, tudo é construído com `fromTo` e `set`, que o GSAP sabe desfazer
+ * quando a agulha anda para trás.
  *
  * ── Por que não `tl.call` ──────────────────────────────────────────────────
  *
@@ -66,10 +80,11 @@ export function useCena(
     tl: gsap.core.Timeline,
     ferramentas: FerramentasDaCena,
   ) => void | (() => void),
-  { armado, progresso, chave }: OpcoesDaCena,
+  { armado, progresso, tocar = false, chave }: OpcoesDaCena,
 ) {
   const reduzido = useReducedMotion();
   const ligado = armado && !reduzido;
+  const timeline = useRef<gsap.core.Timeline | null>(null);
 
   useGSAP(
     () => {
@@ -82,14 +97,13 @@ export function useCena(
       }[] = [];
       const acompanhantes: ((tempo: number) => void)[] = [];
 
+      timeline.current = tl;
       const limpar = construir(tl, {
         marco: (tempo, aoCruzar) => marcos.push({ tempo, aoCruzar }),
         acompanhar: (aoAtualizar) => acompanhantes.push(aoAtualizar),
       });
 
-      const aplicar = (valor: number) => {
-        tl.progress(Math.min(Math.max(valor, 0), 1));
-        const tempo = tl.time();
+      const avaliar = (tempo: number) => {
         for (const m of marcos) {
           const depois = tempo >= m.tempo;
           if (m.lado === depois) continue;
@@ -99,10 +113,26 @@ export function useCena(
         for (const a of acompanhantes) a(tempo);
       };
 
-      aplicar(progresso.get());
-      const desligar = progresso.on("change", aplicar);
+      const aplicar = (valor: number) => {
+        tl.progress(Math.min(Math.max(valor, 0), 1));
+        avaliar(tl.time());
+      };
+
+      aplicar(0);
+
+      // Na rolagem, a posição vem de fora. Tocando, o `onUpdate` da própria
+      // timeline é que avisa os marcos a cada quadro: o `progress()` do outro
+      // modo suprime callbacks, então os dois caminhos não se misturam.
+      let desligar = () => {};
+      if (progresso) {
+        aplicar(progresso.get());
+        desligar = progresso.on("change", aplicar);
+      } else {
+        tl.eventCallback("onUpdate", () => avaliar(tl.time()));
+      }
 
       return () => {
+        timeline.current = null;
         desligar();
         tl.kill();
         limpar?.();
@@ -110,6 +140,15 @@ export function useCena(
     },
     { scope: escopo, dependencies: [ligado, chave], revertOnUpdate: true },
   );
+
+  // Modo tocado: recomeça do zero a cada vez que o sinal liga. Uma cena que
+  // toca pela metade, porque a anterior parou no meio, não demonstra nada.
+  useEffect(() => {
+    const tl = timeline.current;
+    if (!tl || progresso) return;
+    if (tocar) tl.restart();
+    else tl.pause(0);
+  }, [tocar, progresso, ligado, chave]);
 
   return { reduzido, ligado };
 }

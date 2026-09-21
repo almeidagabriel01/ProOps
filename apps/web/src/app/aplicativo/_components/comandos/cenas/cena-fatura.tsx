@@ -31,7 +31,7 @@ const DEPOIS = 5927;
  * barra chegam ao fim ao mesmo tempo que o último check, porque é uma operação
  * só, não sete.
  */
-export function CenaFatura({ armado, progresso }: PropsDaCena) {
+export function CenaFatura({ armado, progresso, tocar }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({ disponivel: DEPOIS });
 
@@ -107,7 +107,7 @@ export function CenaFatura({ armado, progresso }: PropsDaCena) {
 
       return () => definir({ disponivel: DEPOIS });
     },
-    { armado, progresso },
+    { armado, progresso, tocar },
   );
 
   return (

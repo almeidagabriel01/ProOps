@@ -34,7 +34,7 @@ const MESES = [
  * As distâncias são medidas uma vez, na montagem, com a cena no estado final.
  * Em celular a régua quebra em duas linhas de cinco, e a mesma conta serve.
  */
-export function CenaParcelas({ armado, progresso }: PropsDaCena) {
+export function CenaParcelas({ armado, progresso, tocar }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
 
   useCena(
@@ -131,7 +131,7 @@ export function CenaParcelas({ armado, progresso }: PropsDaCena) {
         pouso + 0.6,
       );
     },
-    { armado, progresso },
+    { armado, progresso, tocar },
   );
 
   return (

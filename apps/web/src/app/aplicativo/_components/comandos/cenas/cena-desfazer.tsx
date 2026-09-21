@@ -27,7 +27,7 @@ const ANTERIORES = [
  * marcada. Quem não vê a animação ainda lê a história inteira, porque o
  * lançamento desfeito continua ali, com o motivo escrito.
  */
-export function CenaDesfazer({ armado, progresso }: PropsDaCena) {
+export function CenaDesfazer({ armado, progresso, tocar }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({ sobra: SOBRA.antes });
 
@@ -109,7 +109,7 @@ export function CenaDesfazer({ armado, progresso }: PropsDaCena) {
 
       return () => definir({ sobra: SOBRA.antes });
     },
-    { armado, progresso },
+    { armado, progresso, tocar },
   );
 
   return (

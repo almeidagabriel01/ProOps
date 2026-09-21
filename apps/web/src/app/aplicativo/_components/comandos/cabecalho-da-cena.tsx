@@ -1,5 +1,7 @@
 import React from "react";
 
+import { cn } from "@/lib/utils";
+
 interface CabecalhoDaCenaProps {
   /** Só a primeira metade da seção tem sobrancelha. */
   sobrancelha?: string;
@@ -7,6 +9,11 @@ interface CabecalhoDaCenaProps {
   texto: string;
   /** A seção tem um `h2`; a segunda metade dela é um `h3`. */
   nivel?: "h2" | "h3";
+  /**
+   * Dentro de um palco grudado, onde a altura é a da tela, o parágrafo some no
+   * celular. Fora dele não há essa disputa, e ele fica.
+   */
+  compacto?: boolean;
 }
 
 /**
@@ -18,14 +25,16 @@ interface CabecalhoDaCenaProps {
  * ela era. Aqui o título gruda junto e some junto, que é como uma seção se
  * comporta.
  *
- * Compacto de propósito: no palco ele divide a altura da tela com a cena, e o
- * parágrafo some no celular, onde não sobra altura para ele.
+ * No palco grudado ele divide a altura da tela com a cena, e por isso o
+ * parágrafo some no celular (`compacto`). Numa seção que rola normalmente,
+ * não há essa disputa.
  */
 export function CabecalhoDaCena({
   sobrancelha,
   titulo,
   texto,
   nivel = "h2",
+  compacto = true,
 }: CabecalhoDaCenaProps) {
   const Titulo = nivel;
   return (
@@ -39,7 +48,12 @@ export function CabecalhoDaCena({
       <Titulo className="max-w-2xl [font-family:var(--font-hanken)] text-2xl font-bold leading-[1.1] tracking-[-0.02em] md:text-4xl">
         {titulo}
       </Titulo>
-      <p className="mt-3 hidden max-w-xl text-base leading-relaxed text-[var(--app-text-muted)] md:block">
+      <p
+        className={cn(
+          "mt-3 max-w-xl text-sm leading-relaxed text-[var(--app-text-muted)] md:text-base",
+          compacto && "hidden md:block",
+        )}
+      >
         {texto}
       </p>
     </header>

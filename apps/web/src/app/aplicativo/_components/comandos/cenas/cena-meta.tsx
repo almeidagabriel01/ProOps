@@ -26,7 +26,7 @@ const RAIO = 52;
  * O arco usa `pathLength={100}`, então o progresso é escrito em porcentagem
  * direto no `strokeDasharray`, sem conta de circunferência.
  */
-export function CenaMeta({ armado, progresso }: PropsDaCena) {
+export function CenaMeta({ armado, progresso, tocar }: PropsDaCena) {
   const raiz = React.useRef<HTMLDivElement>(null);
   const [valores, definir] = useValores({
     guardado: GUARDADO.depois,
@@ -132,7 +132,7 @@ export function CenaMeta({ armado, progresso }: PropsDaCena) {
       return () =>
         definir({ guardado: GUARDADO.depois, faltam: FALTAM.depois });
     },
-    { armado, progresso },
+    { armado, progresso, tocar },
   );
 
   return (

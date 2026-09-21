@@ -68,6 +68,7 @@ export function AplicativoComandos() {
             cabecalho={
               <CabecalhoDaCena
                 nivel="h3"
+                compacto={false}
                 titulo="E ele não para em anotar."
                 texto="Registrar o gasto é onde os outros terminam. Estas são operações inteiras, feitas pela conversa."
               />
