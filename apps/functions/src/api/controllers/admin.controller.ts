@@ -24,6 +24,11 @@ import {
   writeSecurityAuditEvent,
 } from "../../lib/security-observability";
 import { assertTenantExists } from "../../lib/tenant-resolution";
+import {
+  buildManualSubscriptionUpdate,
+  isStripeManagedBilling,
+} from "../../lib/admin-billing-guards";
+import { auditAdminAction } from "../../lib/admin-audit";
 import { enqueueTenantSync, isStale } from "../../billing";
 import { deriveSubscriptionDisplayStatus } from "../../shared/subscription-status";
 import {
@@ -1090,6 +1095,12 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           unitAmount: tenantData?.unitAmount ?? tenantData?.subscription?.unitAmount ?? null,
           currency: tenantData?.currency ?? tenantData?.subscription?.currency ?? "brl",
           stripeSubscriptionId: tenantData?.stripeSubscriptionId ?? null,
+          billingManagedBy: isStripeManagedBilling(
+            tenantData as Record<string, unknown>,
+            userData as Record<string, unknown>,
+          )
+            ? "stripe"
+            : "manual",
           priceChangeNotifiedFor: tenantData?.priceChangeNotifiedFor ?? null,
           isBillingStale,
           usage: {
@@ -1236,6 +1247,19 @@ export const updateUserPlan = async (req: Request, res: Response) => {
     }
 
     const userData = userSnap.data() as Record<string, unknown>;
+    const planTenantId = String(userData?.tenantId || userData?.companyId || "").trim();
+    const planTenantData = planTenantId
+      ? ((await db.collection("tenants").doc(planTenantId).get()).data() ?? null)
+      : null;
+    // O webhook do Stripe reescreveria o plano no proximo evento: a troca pelo
+    // painel so duraria ate la, com tela, enforcement e fatura discordando.
+    if (isStripeManagedBilling(planTenantData, userData)) {
+      return res.status(409).json({
+        code: "STRIPE_MANAGED_SUBSCRIPTION",
+        message:
+          "Esta empresa paga pelo Stripe: troque o plano pelo portal de assinatura do cliente.",
+      });
+    }
     const currentRole = String(userData?.role || "").trim().toLowerCase();
     const hasMasterId = Boolean(String(userData?.masterId || "").trim());
     const tenantId = String(
@@ -1335,6 +1359,12 @@ export const updateUserPlan = async (req: Request, res: Response) => {
       }
     }
 
+    await auditAdminAction(req, "super_admin_plan_updated", {
+      tenantId,
+      targetId: userId,
+      reason: `plan:${planId}`,
+    });
+
     return res.json({
       success: true,
       message: "Plano atualizado com sucesso.",
@@ -1349,7 +1379,6 @@ export const updateUserPlan = async (req: Request, res: Response) => {
 export const updateUserSubscription = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const updates = req.body;
 
     if (!userId) {
       return res.status(400).json({ message: "ID do usuário é obrigatório" });
@@ -1362,70 +1391,47 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
       });
     }
 
-    // Allowed fields to update
-    const allowedFields = [
-      "subscriptionStatus",
-      "currentPeriodEnd",
-      "isManualSubscription",
-    ];
-    const safeUpdates: Record<string, any> = {};
-
-    for (const field of allowedFields) {
-      if (updates[field] !== undefined) {
-        safeUpdates[field] = updates[field];
-      }
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      return res.status(404).json({ message: "Usuário não encontrado." });
     }
+    const userData = (userSnap.data() || {}) as Record<string, unknown>;
+    const tenantId = String(userData.tenantId || userData.companyId || "").trim();
+    const tenantRef = tenantId ? db.collection("tenants").doc(tenantId) : null;
+    const tenantSnap = tenantRef ? await tenantRef.get() : null;
+    const tenantData = (tenantSnap?.data() || null) as Record<string, unknown> | null;
 
-    if (Object.keys(safeUpdates).length === 0) {
+    const decision = buildManualSubscriptionUpdate(req.body || {}, {
+      stripeManaged: isStripeManagedBilling(tenantData, userData),
+    });
+    if (!decision.ok) {
       return res
-        .status(400)
-        .json({ message: "Nenhum campo válido para atualização" });
+        .status(decision.status)
+        .json({ message: decision.message, code: decision.code });
     }
+    const safeUpdates = decision.updates;
 
-    // When currentPeriodEnd is provided, derive subscriptionStatus from it
-    // to match the same logic used by the checkManualSubscriptions cron.
-    if (safeUpdates.currentPeriodEnd) {
-      const periodEnd = new Date(safeUpdates.currentPeriodEnd);
-      if (!isNaN(periodEnd.getTime())) {
-        const now = new Date();
-        const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
-        if (periodEnd > now) {
-          safeUpdates.subscriptionStatus = "active";
-        } else if (now.getTime() - periodEnd.getTime() <= GRACE_PERIOD_MS) {
-          safeUpdates.subscriptionStatus = "past_due";
-        } else {
-          safeUpdates.subscriptionStatus = "canceled";
-        }
-      }
-    }
+    await userRef.update({
+      ...safeUpdates,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
-    safeUpdates.updatedAt = FieldValue.serverTimestamp();
-
-    // Update Subscription
-    await db.collection("users").doc(userId).update(safeUpdates);
-
-    // Mirror billing fields to tenant doc so the admin card reads the updated value.
-    // getAllTenantsBilling prefers tenants.currentPeriodEnd over users.currentPeriodEnd,
-    // so without this mirror, manual edits are silently shadowed by the stale tenant value.
-    const userSnap = await db.collection("users").doc(userId).get();
-    const tenantId = userSnap.get("tenantId") as string | undefined;
-    if (tenantId) {
-      const tenantUpdates: Record<string, unknown> = {
+    // Espelha no doc do tenant: a listagem do painel e o enforcement leem de la.
+    // `update` so quando o doc existe; tenant legado sem doc nao ganha um parcial.
+    if (tenantRef && tenantSnap?.exists) {
+      await tenantRef.update({
+        ...safeUpdates,
         billingSyncedAt: new Date().toISOString(),
-      };
-      if ("currentPeriodEnd" in safeUpdates)
-        tenantUpdates.currentPeriodEnd = safeUpdates.currentPeriodEnd;
-      if ("subscriptionStatus" in safeUpdates)
-        tenantUpdates.subscriptionStatus = safeUpdates.subscriptionStatus;
-      if ("isManualSubscription" in safeUpdates)
-        tenantUpdates.isManualSubscription = safeUpdates.isManualSubscription;
-      await db.collection("tenants").doc(tenantId).update(tenantUpdates);
-      logger.info("[admin] Manual subscription mirrored to tenant doc", {
-        userId,
-        tenantId,
-        fields: Object.keys(tenantUpdates),
       });
+      clearTenantPlanCache(tenantId);
     }
+
+    await auditAdminAction(req, "super_admin_subscription_updated", {
+      tenantId,
+      targetId: userId,
+      reason: Object.keys(safeUpdates).join(","),
+    });
 
     return res.json({
       success: true,

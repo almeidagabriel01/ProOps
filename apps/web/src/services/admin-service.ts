@@ -71,6 +71,8 @@ export interface TenantBillingInfo {
   unitAmount?: number | null;
   currency?: string | null;
   stripeSubscriptionId?: string | null;
+  /** Quem manda no plano/status: o webhook do Stripe ou o superadmin (contrato manual). */
+  billingManagedBy?: "stripe" | "manual";
   priceChangeNotifiedFor?: string | null;
 }
 

@@ -12,6 +12,7 @@ import { canAccessTenantPanel } from "@/lib/tenant-panel-access";
 import { Tenant } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { TenantFormData } from "@/components/admin/tenant-dialog";
+import { buildTenantSavePlan } from "../_utils/tenant-save-plan";
 
 const PAGE_SIZE = 25;
 
@@ -231,18 +232,14 @@ export function useTenantManagement(): UseTenantManagementReturn {
     setIsSaving(true);
     try {
       if (editingData) {
-        // Update tenant
-        await TenantService.updateTenant(editingData.tenant.id, {
-          name: data.name,
-          primaryColor: data.color,
-          logoUrl: data.logoUrl,
-          niche: data.niche,
-          whatsappEnabled: data.whatsappEnabled,
-        });
+        const plan = buildTenantSavePlan(editingData, data);
 
-        // Update admin user plan if changed, then recompute plan-gated features.
-        if (data.planId && data.planId !== editingData.planId) {
-          await AdminService.updateUserPlan(editingData.admin.id, data.planId);
+        if (plan.tenantUpdate) {
+          await TenantService.updateTenant(editingData.tenant.id, plan.tenantUpdate);
+        }
+
+        if (plan.planChange) {
+          await AdminService.updateUserPlan(editingData.admin.id, plan.planChange);
           // Recompute ensures the plan-computed whatsappEnabled value wins over
           // whatever the toggle wrote — important for enterprise → WhatsApp grant.
           try {
@@ -252,31 +249,19 @@ export function useTenantManagement(): UseTenantManagementReturn {
           }
         }
 
-        // Update admin credentials if provided
-        if (data.email || data.password || data.phoneNumber !== undefined) {
+        if (plan.credentials) {
           await AdminService.updateAdminCredentials({
             userId: editingData.admin.id,
             tenantId: editingData.tenant.id,
-            email: data.email || undefined,
-            password: data.password || undefined,
-            phoneNumber: data.phoneNumber || undefined,
+            ...plan.credentials,
           });
         }
 
-        if (data.planId !== "free") {
-          await AdminService.updateUserSubscription(editingData.admin.id, {
-            subscriptionStatus: data.subscriptionStatus,
-            currentPeriodEnd: data.currentPeriodEnd,
-            isManualSubscription: true,
-          });
-        } else {
-          // If switching to free, clear subscription? user might want to keep history.
-          // But usually free = no sub.
-          await AdminService.updateUserSubscription(editingData.admin.id, {
-            subscriptionStatus: "active", // Free is always active
-            // currentPeriodEnd: null, // Firestore update doesn't support null directly often without FieldValue.delete()
-            isManualSubscription: false,
-          });
+        if (plan.subscription) {
+          await AdminService.updateUserSubscription(
+            editingData.admin.id,
+            plan.subscription,
+          );
         }
 
         toast.success("Empresa atualizada com sucesso!");
