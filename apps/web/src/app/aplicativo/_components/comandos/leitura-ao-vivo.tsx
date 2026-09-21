@@ -190,8 +190,11 @@ function Posicao({
           />
         ) : null}
       </span>
+      {/* A dica vale nos dois aparelhos, e por isso não fala em arrastar: no
+          celular o dedo ROLA a página (a roda acompanha), e arrastar a roda é
+          gesto de mouse. Tocar numa frase funciona nos dois. */}
       <p className="shrink-0 text-[11px] text-[var(--app-text-muted)] md:text-xs">
-        {progresso ? "Arraste a roda" : "Escolha um pedido"}
+        {progresso ? "Role ou toque numa frase" : "Escolha um pedido"}
       </p>
     </div>
   );

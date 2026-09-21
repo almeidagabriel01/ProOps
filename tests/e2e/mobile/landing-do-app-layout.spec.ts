@@ -21,6 +21,19 @@
  *    rolagem. A seção respondia 200, tinha o texto no DOM e era invisível.
  * 3. **Alvos de toque menores que o dedo.** O botão "Repetir" tinha 26px de
  *    altura.
+ * 4. **A roda engolia a rolagem.** Com `touch-action: none`, todo toque que
+ *    começasse em cima dela (metade do palco, num celular) deixava de rolar a
+ *    página e passava a dirigi-la por saltos: um deslize de 96px movia 2707px.
+ *    É o que se via como tremor.
+ * 5. **Número cortado dentro do cartão.** Os três desfechos da simulação em
+ *    três colunas davam 63px a um valor que pede 88, e o NumberFlow recorta os
+ *    dígitos na própria caixa: nada transborda, o número só aparece pela
+ *    metade.
+ * 6. **A prateleira parecia ter duas telas.** `snap-mandatory` sem
+ *    `scroll-padding` encostava a primeira moldura na borda, e com molduras de
+ *    52% cabiam duas e nada mais.
+ * 7. **"Um dia qualquer" media 4.289px.** Os seis momentos empilhados eram
+ *    quase seis telas de rolagem para uma seção só.
  *
  * Roda no projeto `mobile-chrome` (Pixel 5, `hasTouch`), com o viewport
  * sobreposto por teste: os dois tamanhos que pegaram os defeitos foram o
@@ -187,6 +200,178 @@ for (const aparelho of APARELHOS) {
         expect(caixa, "o alvo não está no layout").not.toBeNull();
         expect(caixa!.height).toBeGreaterThanOrEqual(36);
       }
+    });
+
+    test("um deslize em cima da roda rola a página, e nada mais", async ({
+      page,
+    }) => {
+      await page.goto(`${APP}/`);
+      await page.waitForLoadState("networkidle");
+
+      const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
+      await roda.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(600);
+
+      // `touch-action` é a metade declarativa da correção: sem ela o navegador
+      // devolve o gesto à roda mesmo que o JavaScript não o use.
+      expect(await roda.evaluate((el) => getComputedStyle(el).touchAction)).toBe(
+        "pan-y",
+      );
+
+      const caixa = (await roda.boundingBox())!;
+      const x = caixa.x + caixa.width / 2;
+      const y = caixa.y + caixa.height / 2;
+      const antes = await page.evaluate(() => window.scrollY);
+
+      // `page.touchscreen` só sabe tocar, então o deslize vai por CDP. É
+      // Chromium, que é o único navegador desta suíte.
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchStart",
+        touchPoints: [{ x, y: y + 60 }],
+      });
+      const PASSO = 8;
+      const PASSOS = 12;
+      for (let i = 1; i <= PASSOS; i += 1) {
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{ x, y: y + 60 - i * PASSO }],
+        });
+        await page.waitForTimeout(16);
+      }
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchEnd",
+        touchPoints: [],
+      });
+      await page.waitForTimeout(400);
+
+      const andou = (await page.evaluate(() => window.scrollY)) - antes;
+      const dedo = PASSO * PASSOS;
+
+      // A régua é a DESPROPORÇÃO, não a precisão: a rolagem inercial acrescenta
+      // um resto, e é por isso que o teto é generoso. Sem a correção, a roda
+      // capturava o gesto e dirigia a página por saltos de ~175px por evento:
+      // o mesmo deslize de 96px movia 2707, vinte e oito vezes o dedo.
+      expect(andou, "o dedo não rolou a página").toBeGreaterThan(dedo * 0.4);
+      expect(andou, "a roda sequestrou a rolagem").toBeLessThan(dedo * 3);
+    });
+
+    test("os três desfechos da simulação cabem no cartão", async ({ page }) => {
+      await page.goto(`${APP}/`);
+      await page.waitForLoadState("networkidle");
+
+      const abas = page.getByRole("tablist", { name: "Operações de exemplo" });
+      await abas.scrollIntoViewIfNeeded();
+      await abas.getByRole("tab", { name: /posso comprar/ }).click();
+      // A cena escreve os valores no fim da própria linha do tempo.
+      await page.waitForTimeout(6000);
+
+      // A régua é a largura NATURAL do número contra a caixa que ele tem, e
+      // não `scrollWidth`: o NumberFlow desenha os dígitos numa caixa própria
+      // com recorte, então um valor que não cabe é CORTADO em silêncio, sem
+      // gerar transbordo nenhum para medir. Era exatamente esse o sintoma.
+      const medidas = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>(".sim-cenario")].map((c) => {
+          const moeda = c.querySelector<HTMLElement>("[class*='jetbrains']")!;
+          const texto = c.querySelector<HTMLElement>(".sr-only")!.textContent!;
+          const regua = document.createElement("span");
+          const estilo = getComputedStyle(moeda);
+          regua.style.cssText = `position:fixed;visibility:hidden;white-space:pre;font:${estilo.font};letter-spacing:${estilo.letterSpacing};font-variant-numeric:${estilo.fontVariantNumeric}`;
+          regua.textContent = texto;
+          document.body.appendChild(regua);
+          const natural = regua.getBoundingClientRect().width;
+          regua.remove();
+          return {
+            texto,
+            natural: Math.round(natural),
+            cabe: Math.round(moeda.clientWidth),
+          };
+        }),
+      );
+
+      expect(medidas).toHaveLength(3);
+      for (const medida of medidas) {
+        expect(
+          medida.natural,
+          `"${medida.texto}" pede ${medida.natural}px e tem ${medida.cabe}px`,
+        ).toBeLessThanOrEqual(medida.cabe);
+      }
+      // O pior deles é o negativo: doze caracteres, que em três colunas num
+      // aparelho de 360 tinham 63px para caber em ~88.
+      expect(
+        medidas.some((m) => m.texto.replace(/\s+/g, " ") === "-R$ 1.715,10"),
+      ).toBe(true);
+    });
+
+    test("a prateleira de telas se anuncia como fileira", async ({ page }) => {
+      await page.goto(`${APP}/`);
+      await page.waitForLoadState("networkidle");
+
+      const trilho = page.locator("ul.landing-scrollbar").first();
+      await trilho.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(400);
+
+      const medida = await trilho.evaluate((el) => {
+        const caixa = el.getBoundingClientRect();
+        const filhos = [...el.children].map((f) =>
+          Math.round(f.getBoundingClientRect().left - caixa.left),
+        );
+        return {
+          rolavel: el.scrollWidth - el.clientWidth,
+          deslocada: el.scrollLeft,
+          primeira: filhos[0],
+          terceira: filhos[2],
+          janela: window.innerWidth,
+        };
+      });
+
+      expect(medida.rolavel, "a fileira não rola").toBeGreaterThan(200);
+      // Com `snap-mandatory` e sem `scroll-padding` o navegador encosta a
+      // primeira moldura na borda, e a fileira nasce rolada.
+      expect(medida.deslocada, "a fileira nasce rolada").toBe(0);
+      expect(medida.primeira, "a primeira moldura ignora a margem").toBe(24);
+      // A terceira precisa ESPIAR: é ela que diz que existe mais coisa. Sem
+      // isso cabiam duas inteiras e a seção lia como "o aplicativo tem duas
+      // telas", que foi o relato.
+      expect(medida.terceira).toBeLessThan(medida.janela - 16);
+
+      await expect(
+        page.getByText(/telas\. Arraste para o lado\./),
+      ).toBeVisible();
+    });
+
+    test("um dia qualquer cabe em duas telas, e as horas trocam o momento", async ({
+      page,
+    }) => {
+      await page.goto(`${APP}/`);
+      await page.waitForLoadState("networkidle");
+
+      const horas = page.getByRole("tablist", { name: "As horas do dia" });
+      await horas.scrollIntoViewIfNeeded();
+      const secao = page.locator("section:has([aria-label='As horas do dia'])");
+
+      // Empilhados, os seis momentos davam 4.289px num aparelho de 740: seis
+      // telas de rolagem para uma seção. O teto é generoso de propósito, para
+      // medir a ABORDAGEM e não o conteúdo.
+      const altura = await secao.evaluate((el) => el.getBoundingClientRect().height);
+      expect(altura).toBeLessThan(page.viewportSize()!.height * 2);
+
+      await expect(horas.getByRole("tab")).toHaveCount(6);
+      await expect(secao.getByText("O que vence hoje chega")).toBeVisible();
+
+      await horas.getByRole("tab").nth(3).click();
+      await page.waitForTimeout(600);
+      await expect(secao.getByText("O que vence hoje chega")).toBeHidden();
+      await expect(secao.getByRole("tabpanel")).toBeVisible();
+
+      // Só um momento por vez: empilhados de novo, a seção volta ao problema.
+      const visiveis = await secao.evaluate(
+        (el) =>
+          [...el.querySelectorAll("article")].filter(
+            (a) => a.getBoundingClientRect().height > 0,
+          ).length,
+      );
+      expect(visiveis).toBe(1);
     });
   });
 }

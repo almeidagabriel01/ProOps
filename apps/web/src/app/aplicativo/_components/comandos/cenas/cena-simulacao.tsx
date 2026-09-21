@@ -436,8 +436,16 @@ export function CenaSimulacao({ armado, progresso, tocar }: PropsDaCena) {
         </span>
       </div>
 
-      {/* Os três desfechos, comparáveis lado a lado. */}
-      <div className="grid grid-cols-3 gap-2 md:gap-3">
+      {/* Os três desfechos, comparáveis.
+
+          Lado a lado só de `sm` para cima. Num celular a coluna do palco tem
+          ~270px, então cada cartão ficava com 63px úteis, e "-R$ 1.715,10" em
+          mono a 13px pede ~94: o valor saía cortado pela borda, que é o
+          sintoma que se via. Encolher a fonte não resolve (a 11px ainda são
+          ~79px), então abaixo de `sm` os três viram linhas de largura inteira,
+          com o rótulo à esquerda e o valor à direita. A comparação continua
+          existindo, lida de cima para baixo em vez de lado a lado. */}
+      <div className="grid gap-1.5 sm:grid-cols-3 sm:gap-2 md:gap-3">
         <Cenario
           rotulo="Não comprar"
           valor={valores.sem}
@@ -478,23 +486,28 @@ function Cenario({
   return (
     <div
       className={cn(
-        "sim-cenario rounded-2xl border px-2.5 py-2 md:px-3 md:py-2.5",
+        "sim-cenario grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 rounded-2xl border px-3 py-2 sm:block sm:px-2.5 md:px-3 md:py-2.5",
         destacado
           ? "border-[var(--app-tint)]/45 bg-[var(--app-tint)]/[0.07]"
           : "border-[var(--app-card-border)] bg-[var(--app-surface)]",
       )}
     >
-      <Rotulo className="truncate text-[10px] md:text-[11px]">{rotulo}</Rotulo>
+      {/* A ordem no DOM é a do desktop (rótulo, valor, nota) e não muda: quem
+          reposiciona no celular é a grade, e `sm:block` a desliga inteira,
+          tornando as classes de linha e coluna inertes. */}
+      <Rotulo className="col-start-1 row-start-1 truncate text-[11px] sm:text-[10px] md:text-[11px]">
+        {rotulo}
+      </Rotulo>
       <Moeda
         valor={valor}
         className={cn(
-          "mt-0.5 block text-[13px] font-semibold md:text-base",
+          "col-start-2 row-span-2 row-start-1 whitespace-nowrap text-sm font-semibold sm:mt-0.5 sm:block sm:text-[13px] md:text-base",
           tom === "danger"
             ? "text-[var(--app-danger)]"
             : "text-[var(--app-text)]",
         )}
       />
-      <p className="mt-0.5 truncate text-[10px] text-[var(--app-text-muted)]">
+      <p className="col-start-1 row-start-2 truncate text-[10px] text-[var(--app-text-muted)] sm:mt-0.5">
         {nota}
       </p>
     </div>

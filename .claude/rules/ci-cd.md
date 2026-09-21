@@ -156,11 +156,20 @@ de verdade, `tests/e2e/institucional/` cobre a navegação do site da empresa (c
 âncoras e o caminho de `prefers-reduced-motion`), e `mobile/superficies-layout.spec.ts`
 cobre as sete páginas de marketing a 393px.
 
-`mobile/landing-do-app-layout.spec.ts` cobre a landing do app na ALTURA, que é a
-dimensão que o resto da pasta não olha: ele **sobrepõe o viewport do projeto** e
-roda a 375x667, 360x740 e 393x851, porque os defeitos reais (o palco grudado
-transbordando, a conversa em `opacity: 0`) só aparecem nos dois primeiros. O
-Pixel 5 sozinho passava.
+`mobile/landing-do-app-layout.spec.ts` cobre a landing do app no que o resto da
+pasta não olha: a ALTURA, o gesto de toque e texto que é RECORTADO em vez de
+transbordar. Ele **sobrepõe o viewport do projeto** e roda a 375x667, 360x740 e
+393x851, porque parte dos defeitos (o palco grudado transbordando, a conversa em
+`opacity: 0`) só aparece nos dois primeiros: o Pixel 5 sozinho passava.
+
+Duas medições dali valem para qualquer cena desta página:
+
+- **`toBeVisible` não olha opacidade**, e quem anima aqui é sempre um ancestral.
+  O helper multiplica a opacidade pela cadeia até a raiz.
+- **`scrollWidth` não pega número cortado.** O NumberFlow desenha os dígitos
+  numa caixa própria com recorte, então um valor largo demais é truncado sem
+  transbordar nada. A régua é a largura NATURAL do texto, medida numa régua
+  temporária com a fonte real, contra o `clientWidth` da caixa.
 
 Duas armadilhas anotadas lá dentro, porque custam tempo quando reencontradas:
 

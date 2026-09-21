@@ -7,6 +7,7 @@ import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
 import { useMediaQuery } from "@/components/marketing/_shared/use-media-query";
 import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene";
 import { APP_NAME } from "@/lib/site/app-brand";
+import { cn } from "@/lib/utils";
 
 import { MOMENTOS, type Bolha, type TelaDoMomento } from "../_content/dia-a-dia";
 import {
@@ -212,6 +213,42 @@ export function AplicativoDiaADia() {
   const mostraAparelho = useMediaQuery("(min-width: 1024px)");
   const total = MOMENTOS.length;
   const unidades = total - 1 + CAUDA;
+  /**
+   * As horas existem só no celular, e a SEMÂNTICA de abas acompanha o layout.
+   *
+   * `md:hidden` tira a fileira da tela e da árvore de acessibilidade, mas o
+   * painel continua visível: com `role="tabpanel"` fixo, o desktop ficaria com
+   * um painel de abas órfão, sem nenhuma lista de abas e sem nome acessível
+   * (o `aria-labelledby` aponta para um elemento em `display: none`).
+   *
+   * Falso no servidor, então os papéis entram um quadro depois da hidratação.
+   * Isso não move nada: o que muda é atributo, não layout.
+   */
+  const horasVisiveis = useMediaQuery("(max-width: 767px)");
+  const idBase = React.useId();
+  const horas = React.useRef<(HTMLButtonElement | null)[]>([]);
+  /**
+   * Qual momento está visível NO CELULAR. De `md` para cima ele nunca sai de
+   * zero: as horas são `display: none`, e o que troca os momentos ali é a
+   * linha do tempo do GSAP.
+   */
+  const [horaAtiva, setHoraAtiva] = React.useState(0);
+
+  function aoTeclarHora(evento: React.KeyboardEvent<HTMLDivElement>) {
+    const destinos: Record<string, number> = {
+      ArrowRight: Math.min(horaAtiva + 1, total - 1),
+      ArrowDown: Math.min(horaAtiva + 1, total - 1),
+      ArrowLeft: Math.max(horaAtiva - 1, 0),
+      ArrowUp: Math.max(horaAtiva - 1, 0),
+      Home: 0,
+      End: total - 1,
+    };
+    if (!(evento.key in destinos)) return;
+    evento.preventDefault();
+    const destino = destinos[evento.key];
+    setHoraAtiva(destino);
+    horas.current[destino]?.focus({ preventScroll: true });
+  }
 
   /** Where a mark sits on the rail, as a percentage of its height. */
   const marca = (i: number) => `${(i / (total - 1)) * 100}%`;
@@ -308,7 +345,49 @@ export function AplicativoDiaADia() {
           </h2>
         </header>
 
-        <div className="relative mt-12 md:mt-12 md:max-h-[32rem] md:min-h-[24rem] md:flex-1">
+        {/* As horas, só no celular.
+
+            Aqui a seção não é um palco fixado: empilhados, os seis momentos
+            davam 4.289px num aparelho de 740, quase seis telas de rolagem para
+            uma seção só, e a linha do tempo (que é o que dá sentido à
+            sequência) nem existe abaixo de `md`. Escolher a hora devolve as
+            duas coisas: a seção passa a caber numa tela e a régua de horas
+            volta a ser visível, agora como controle.
+
+            No desktop esta fileira é `display: none`, então ela sai também da
+            árvore de acessibilidade e `horaAtiva` nunca sai de zero. */}
+        <div
+          role={horasVisiveis ? "tablist" : undefined}
+          aria-label={horasVisiveis ? "As horas do dia" : undefined}
+          onKeyDown={aoTeclarHora}
+          className="-mx-6 mt-8 flex snap-x gap-2 overflow-x-auto px-6 [mask-image:linear-gradient(90deg,transparent,#000_1.5rem,#000_calc(100%-1.5rem),transparent)] [scrollbar-width:none] md:hidden"
+        >
+          {MOMENTOS.map((item, i) => (
+            <button
+              key={item.horaCurta}
+              ref={(el) => {
+                horas.current[i] = el;
+              }}
+              type="button"
+              role={horasVisiveis ? "tab" : undefined}
+              id={`${idBase}-hora-${i}`}
+              aria-selected={horasVisiveis ? i === horaAtiva : undefined}
+              aria-controls={horasVisiveis ? `${idBase}-momento` : undefined}
+              tabIndex={i === horaAtiva ? 0 : -1}
+              onClick={() => setHoraAtiva(i)}
+              className={cn(
+                "min-h-9 shrink-0 snap-start whitespace-nowrap rounded-full border px-3.5 [font-family:var(--font-jetbrains-mono)] text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-tint)]/60",
+                i === horaAtiva
+                  ? "border-[var(--app-tint)]/50 bg-[var(--app-tint)]/[0.08] text-[var(--app-text)]"
+                  : "border-white/10 text-[var(--app-text-muted)]",
+              )}
+            >
+              {item.horaCurta}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative mt-6 md:mt-12 md:max-h-[32rem] md:min-h-[24rem] md:flex-1">
           {/* The rail. Desktop only: on a phone the hours live inside each
               block, where they do not need a column of their own.
 
@@ -335,10 +414,26 @@ export function AplicativoDiaADia() {
             ))}
           </div>
 
+          {/* Um painel só, com o momento escolhido dentro. No desktop este
+              `div` é estático e os momentos continuam absolutos contra o
+              contêiner `relative` de fora, então o palco fixado não muda. */}
+          <div
+            role={horasVisiveis ? "tabpanel" : undefined}
+            id={`${idBase}-momento`}
+            aria-labelledby={
+              horasVisiveis ? `${idBase}-hora-${horaAtiva}` : undefined
+            }
+          >
           {MOMENTOS.map((momento, i) => (
             <article
               key={momento.hora}
-              className={`momento-${i} mb-16 last:mb-0 md:absolute md:inset-0 md:mb-0 md:grid md:grid-cols-[54%_6%_40%] md:items-center`}
+              className={cn(
+                `momento-${i} md:absolute md:inset-0 md:grid md:grid-cols-[54%_6%_40%] md:items-center`,
+                // Só o momento da hora escolhida existe no celular. As classes
+                // são `max-md:`, então de `md` para cima elas não existem e o
+                // palco fixado segue mostrando os seis, como sempre.
+                i === horaAtiva ? "dia-entra" : "max-md:hidden",
+              )}
             >
               {/* A conversa e o aplicativo no MESMO quadro. Foi a única coisa
                   que nenhum dos cinco concorrentes diretos faz: todos põem o
@@ -417,6 +512,7 @@ export function AplicativoDiaADia() {
               </div>
             </article>
           ))}
+          </div>
         </div>
       </div>
     </section>

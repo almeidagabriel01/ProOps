@@ -287,14 +287,28 @@ export function AplicativoGaleria() {
             first and last are dim and small for the whole pan and then the
             section is gone.
           */}
+          {/* No celular a prateleira é uma fileira que se arrasta, e ela
+              precisa PARECER uma. Com molduras de 52% cabiam duas inteiras e
+              nada mais: a segunda encostava na borda, não havia barra de
+              rolagem à vista e a seção lia como "o aplicativo tem duas telas".
+              Três coisas dizem o contrário, e nenhuma é um texto pedindo
+              desculpas: as molduras encolhem até a terceira espiar, a máscara
+              apaga a fileira contra a borda direita em vez de cortá-la, e a
+              legenda abaixo diz quantas são.
+
+              `scroll-px-6` não é enfeite: com `snap-mandatory` o navegador
+              alinha a borda da primeira moldura ao início da área de rolagem,
+              que ignora o `padding`. Sem ele a fileira nascia rolada em 24px e
+              a primeira moldura encostava na borda esquerda da tela, enquanto
+              o título ao lado respeitava a margem. */}
           <ul
             ref={trackRef}
-            className="landing-scrollbar mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto px-6 pb-8 md:mt-10 md:w-max md:snap-none md:gap-8 md:overflow-visible md:px-[calc(50vw_-_7.5rem)] md:pb-0 lg:px-[calc(50vw_-_9.5rem)]"
+            className="landing-scrollbar mt-10 flex snap-x snap-mandatory scroll-px-6 gap-5 overflow-x-auto px-6 pb-8 [mask-image:linear-gradient(90deg,#000_calc(100%-2.5rem),transparent)] md:mt-10 md:w-max md:snap-none md:gap-8 md:overflow-visible md:px-[calc(50vw_-_7.5rem)] md:pb-0 md:[mask-image:none] lg:px-[calc(50vw_-_9.5rem)]"
           >
             {telas.map((tela, index) => (
               <li
                 key={tela.nome}
-                className="tela-item w-[52%] shrink-0 snap-start sm:w-[33%] md:w-[15rem] lg:w-[19rem]"
+                className="tela-item w-[43%] shrink-0 snap-start sm:w-[33%] md:w-[15rem] lg:w-[19rem]"
               >
                 <DeviceFrame platform={plataforma}>
                   <Image
@@ -305,7 +319,7 @@ export function AplicativoGaleria() {
                     src={`/mockup-${plataforma}/${arquivoDa(tela, plataforma)}`}
                     alt={`Tela ${tela.nome} da ${APP_NAME} no ${ROTULO[plataforma]}: ${tela.descricao}`}
                     fill
-                    sizes="(min-width: 1024px) 19rem, (min-width: 768px) 15rem, 52vw"
+                    sizes="(min-width: 1024px) 19rem, (min-width: 768px) 15rem, 43vw"
                     loading={index < 2 ? "eager" : "lazy"}
                     className="object-cover"
                   />
@@ -327,7 +341,7 @@ export function AplicativoGaleria() {
               already fit a wide monitor, and padding the track with empty
               space to force movement would be moving nothing.
             */}
-            <li className="flex w-[52%] shrink-0 snap-start items-center sm:w-[33%] md:w-[15rem] lg:w-[19rem]">
+            <li className="flex w-[43%] shrink-0 snap-start items-center sm:w-[33%] md:w-[15rem] lg:w-[19rem]">
               <a
                 href="#planos"
                 className="flex aspect-[9/19.5] w-full flex-col justify-center rounded-[1.75rem] border border-dashed border-white/15 px-6 text-center transition-colors hover:border-[var(--app-tint)]/50 hover:bg-white/[0.02]"
@@ -344,6 +358,13 @@ export function AplicativoGaleria() {
               </a>
             </li>
           </ul>
+
+          {/* Só no celular: no desktop a prateleira anda sozinha com a rolagem
+              e não há gesto a ensinar. O número vem da lista, então ele não
+              mente se uma tela entrar ou sair. */}
+          <p className="-mt-4 px-6 text-xs text-[var(--app-text-muted)] md:hidden">
+            {telas.length} telas. Arraste para o lado.
+          </p>
         </div>
       </div>
     </section>

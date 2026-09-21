@@ -127,6 +127,8 @@ export function RodaDePedidos({
     moveu: boolean;
     /** A linha sob o dedo no começo. Com captura, o `pointerup` não a traz. */
     tocado: number | null;
+    /** Falso no dedo dentro da página: ali quem rola é o navegador. */
+    arrastavel: boolean;
   } | null>(null);
 
   const distancia = React.useCallback(
@@ -190,7 +192,11 @@ export function RodaDePedidos({
     const linha = (evento.target as HTMLElement).closest<HTMLElement>(
       "[data-indice]",
     );
-    evento.currentTarget.setPointerCapture(evento.pointerId);
+    // No modo rolado, o DEDO não arrasta a roda: ele rola a página, e a página
+    // gira a roda. Capturar o ponteiro aqui era o que fazia o palco tremer num
+    // celular (ver o comentário do `touch-action` no JSX).
+    const arrastavel = !(rolagem && evento.pointerType === "touch");
+    if (arrastavel) evento.currentTarget.setPointerCapture(evento.pointerId);
     animacao.current?.stop();
     arrasto.current = {
       id: evento.pointerId,
@@ -202,6 +208,7 @@ export function RodaDePedidos({
       velocidade: 0,
       moveu: false,
       tocado: linha ? Number(linha.dataset.indice) : null,
+      arrastavel,
     };
   }
 
@@ -211,6 +218,9 @@ export function RodaDePedidos({
     const dy = evento.clientY - a.inicioY;
     if (Math.abs(dy) > LIMIAR_DE_ARRASTO) a.moveu = true;
     if (!a.moveu) return;
+    // O `moveu` acima continua valendo mesmo sem arrasto: é ele que impede um
+    // deslize de virar escolha ao soltar.
+    if (!a.arrastavel) return;
     a.posicao = a.inicioPosicao - dy / ALTURA;
     if (rolagem) rolagem.aoArrastar(a.posicao);
     else interna.set(a.posicao);
@@ -238,6 +248,10 @@ export function RodaDePedidos({
       aoEscolher(tocado);
       return;
     }
+
+    // Deslize de dedo no modo rolado: quem moveu a página foi o navegador, e a
+    // roda já acompanhou. Não há arremesso a completar nem parada a calcular.
+    if (!a.arrastavel) return;
 
     // Um arremesso parado no ar há mais de 80ms não tem velocidade nenhuma.
     const velocidade = evento.timeStamp - a.ultimoT > 80 ? 0 : a.velocidade;
@@ -268,6 +282,17 @@ export function RodaDePedidos({
 
   return (
     <div className={cn("relative h-[308px] select-none", className)}>
+      {/* `touch-pan-y` no modo rolado, e isto é a correção de um defeito
+          concreto: com `touch-action: none` a roda engolia todo toque que
+          começasse em cima dela, que num celular é metade do palco. O dedo
+          deixava de rolar a página e passava a dirigi-la por saltos, um por
+          `pointermove`; e como `posicaoDaRoda` tem encaixe, a volta pela
+          inversa não cai no mesmo ponto, então o primeiro movimento
+          teleportava a página ~1000px e os seguintes andavam aos trancos de 4,
+          8 e 16px, repetindo posição. Era isso que se via como tremor.
+
+          No modo controle (movimento reduzido) o arrasto é o único jeito de
+          girar a roda, então ali ele continua capturando o gesto. */}
       <div
         role="listbox"
         tabIndex={0}
@@ -278,7 +303,10 @@ export function RodaDePedidos({
         onPointerMove={aoMover}
         onPointerUp={aoSoltar}
         onPointerCancel={aoSoltar}
-        className="absolute inset-0 cursor-grab touch-none overflow-hidden rounded-[1.75rem] outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-tint)]/60 active:cursor-grabbing"
+        className={cn(
+          "absolute inset-0 cursor-grab overflow-hidden rounded-[1.75rem] outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-tint)]/60 active:cursor-grabbing",
+          rolagem ? "touch-pan-y" : "touch-none",
+        )}
       >
         {/* A faixa da lente é recortada do cilindro. Sem o recorte, a linha
             apagada aparecia por trás do vidro translúcido, um pixel fora da

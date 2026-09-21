@@ -1411,6 +1411,31 @@ html[data-heroi="espera"] .regua-desenha {
     var(--flutua-atraso, 0s) infinite alternate;
 }
 
+/* Landing do aplicativo: a troca de momento de "Um dia qualquer", no celular.
+
+   Só abaixo de `md`: de `md` para cima a seção é um palco fixado e quem troca
+   os momentos é o GSAP, que anima os mesmos elementos. Duas animações no mesmo
+   `transform` se anulam, e vale a última declarada.
+
+   Não precisa de reinício por JavaScript: o momento que sai vai para
+   `display: none` e o que entra sai dele, e um elemento que volta a ser
+   exibido recomeça as próprias animações de CSS. */
+@media (max-width: 767px) {
+  .dia-entra {
+    animation: dia-entra 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes dia-entra {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Landing do aplicativo: a seção de comandos.
 
    `leitura-cursor` pisca o cursor da frase sendo digitada. */
@@ -1861,6 +1886,10 @@ html[data-cookie-consent="pending"] .cookie-banner {
   .app-flutua {
     animation: none !important;
     translate: none;
+  }
+  /* O momento do dia entra parado. */
+  .dia-entra {
+    animation: none !important;
   }
 }
 
