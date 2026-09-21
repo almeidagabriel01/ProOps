@@ -85,7 +85,8 @@ lados:
   e a página do app nunca recebem o cookie.
 - **A conta:** na virada, **toda a base é deslogada, e `/auth/refresh` não
   salva ninguém.** O refresh token do Firebase mora no IndexedDB da origem
-  `proops.com.br`, que `erp.proops.com.br` não enxerga. A interstitial vai
+  `www.proops.com.br` (o apex responde 307 para o `www`, então é ali que o
+  login acontece), e `erp.proops.com.br` não enxerga essa origem. A interstitial vai
   esgotar as tentativas e cair em `/login`.
 
 É o comportamento correto do ponto de vista de isolamento de origem, e não tem
@@ -177,48 +178,85 @@ algo pode estar errado, porque no dia sobram só três coisas.
       O que dependia de host e era real já foi resolvido em código: canonical,
       sitemap, robots e o dado estruturado derivam do host servido, não de
       variável de build.
-> **NÃO desligue a Deployment Protection neste bloco.** Ela estava aqui e é o
-> lugar errado: enquanto os domínios apontam para o Preview da branch, desligar
-> publica na internet aberta um ERP com código não revisado que fala com o
-> BACKEND DE PRODUÇÃO (`erp.proops.com.br` está em `PRODUCTION_HOSTS`) enquanto
-> autentica no Firebase de dev (as `NEXT_PUBLIC_*` de Preview apontam para lá).
-> Não é uma porta para os dados, porque o token de dev não é aceito pelo backend
-> de prod, mas é uma superfície pública se comportando de forma imprevisível, com
-> tráfego de estranhos batendo em produção. E na Vercel isso é configuração do
-> PROJETO: desligar expõe todos os previews, de todas as branches.
->
-> Para revisar os dois hosts não é preciso desligar nada: logado na conta
-> Vercel, o SSO deixa passar. É por isso que você abre e um estranho leva 302.
 
-### B. No dia, e nesta ordem
+- [ ] **Google Cloud Console → tela de consentimento OAuth → página inicial:**
+      trocar para `https://erp.proops.com.br`, **nos dois projetos**. Na virada
+      o apex passa a mostrar a página da empresa, que não descreve o uso da
+      Agenda nem do Drive, e a verificação do Google exige que a página inicial
+      cadastrada descreva o aplicativo. A política de privacidade não muda:
+      `/privacy` fica no apex (`APEX_LEGAL_PATHS`).
+- [ ] **Vercel → Domains: tornar `proops.com.br` o domínio principal**, com
+      `www.proops.com.br` redirecionando para ele em **308**. Hoje é o contrário
+      (o apex responde **307** para o `www`), enquanto todo canonical, sitemap e
+      dado estruturado do código usa `https://proops.com.br` (`APEX_URL`). Ou
+      seja, o canonical aponta para um redirect TEMPORÁRIO, que é o sinal mais
+      confuso que se pode dar ao Google justamente na semana em que ele precisa
+      entender que a raiz mudou de conteúdo. Conferido com `curl -sI` em
+      2026-09-21.
 
-- [ ] **1. `CORS_ALLOWED_ORIGINS`** em `apps/functions/.env.erp-softcode-prod`,
-      acrescentando o subdomínio, **e `APP_URL` → `https://erp.proops.com.br`**.
-- [ ] **2. Atualizar o secret `FUNCTIONS_ENV_PRODUCTION` no GitHub**, senão a
-      próxima função nova nasce sem as variáveis (ver `ci-cd.md`).
-- [ ] **3. `npm run deploy:prod`.** Sem ele nada dos dois itens acima alcança as
-      funções publicadas: o Cloud Run preserva as variáveis que já estão lá.
-      **Este passo vem ANTES do flip**, e é o único que toca produção sozinho.
-      Feito nesta ordem, ele é inofensivo: o backend passa a aceitar os dois
-      domínios enquanto só um está em uso.
-- [ ] **4. Trocar `APEX_SURFACE` para `"institucional"`** e atualizar o E2E
+> **A Deployment Protection NÃO se desliga, em momento nenhum.** Uma versão
+> anterior deste checklist mandava desligá-la depois da virada, e estava
+> errada. A proteção deste projeto é a Standard: ela fecha os previews e as URLs
+> `*.vercel.app`, e NÃO fecha domínio próprio de Production. A prova está no ar:
+> `www.proops.com.br` responde 200 para qualquer um, enquanto `erp` e `app`
+> (presos ao preview da branch) respondem 302 para o SSO da Vercel. Então `erp`
+> e `app` ficam públicos sozinhos no instante em que forem movidos para
+> Production, e desligar a proteção só serviria para expor todos os previews,
+> de todas as branches, que falam com o backend de dev.
+
+### B. Os subdomínios entram em Production (antes da virada, sem mudar nada)
+
+Depende do código multi-superfície já estar em `main`. Com `APEX_SURFACE` ainda
+em `"erp"`, isto não muda nada para quem usa: os clientes continuam em
+`www.proops.com.br`, `erp` é uma cópia `noindex` do ERP e `app` é a landing do
+aplicativo, também `noindex`.
+
+- [ ] **1. Vercel → Domains: mover `erp.proops.com.br` e `app.proops.com.br`**
+      do preview da branch para **Production**. É este passo, e não desligar
+      proteção nenhuma, que os torna públicos.
+- [ ] **2. Conferir de fora** (`curl -sI`): os dois respondem 200 com
+      `X-Robots-Tag: noindex`.
+- [ ] **3. `CORS_ALLOWED_ORIGINS`** em `apps/functions/.env.erp-softcode-prod`:
+      **acrescentar** `https://erp.proops.com.br`, sem tirar o `www`. Atualizar o
+      secret `FUNCTIONS_ENV_PRODUCTION` e rodar `npm run deploy:prod`. É
+      aditivo: o backend passa a aceitar os dois domínios enquanto só um está em
+      uso.
+
+### C. No dia, e nesta ordem
+
+- [ ] **1. Trocar `APEX_SURFACE` para `"institucional"`** e atualizar o E2E
       `superficies/host-routing.spec.ts`, que hoje afirma que o apex ainda serve
-      o ERP, no mesmo commit.
-- [ ] **5. Merge e redeploy da Vercel**, com os domínios já apontando para
-      Production e não mais para o Preview da branch.
-- [ ] **6. Só então, desligar a Deployment Protection.** A partir daqui os três
-      hosts servem código revisado, de produção, contra o backend certo — que é
-      a condição que faltava para expô-los. Antes disso não há motivo: logado na
-      conta, você já navega os dois.
+      o ERP, no mesmo commit. O commit segue o caminho de qualquer outro: PR para
+      `develop` e, de lá, para `main`.
+- [ ] **2. Esperar o deploy de Production da Vercel terminar** e conferir que
+      `www.proops.com.br/` mostra a página da empresa.
+- [ ] **3. Só agora: `APP_URL` → `https://erp.proops.com.br`** em
+      `apps/functions/.env.erp-softcode-prod`, atualizar o secret
+      `FUNCTIONS_ENV_PRODUCTION` e rodar `npm run deploy:prod`. Sem o deploy a
+      troca não alcança as funções publicadas: o Cloud Run preserva as
+      variáveis que já estão lá.
 
-### C. Depois
+> **Por que o `APP_URL` vem por último, e não junto com o CORS.** Uma versão
+> anterior deste checklist publicava o `APP_URL` novo ANTES de o domínio servir
+> Production, e chamava isso de inofensivo. Não é: tudo que o backend monta a
+> partir do `APP_URL` passa a apontar para `erp.proops.com.br`, e enquanto ele
+> for preview protegido o destino é a tela de login da Vercel. Isso inclui o
+> retorno do Stripe depois do pagamento, o callback do Google ao conectar Agenda
+> ou Drive e os links dos e-mails. A regra é uma só: **o `APP_URL` só aponta
+> para um domínio que já serve Production.** Depois do bloco B isso já vale,
+> mas trocá-lo antes da virada espalharia o re-login pela base aos poucos, em
+> vez de concentrá-lo no dia avisado.
+
+### D. Depois
 
 - [ ] **Avisar a base do re-login.** Todo mundo é deslogado, e isso não é
       configuração, é consequência (ver acima).
 - [ ] **Conferir os 301** na mão: `proops.com.br/login`, `/dashboard`,
-      `/decoracao` e um `/share/<token>` real devem chegar ao subdomínio.
-- [ ] **Search Console:** propriedade nova para `erp.proops.com.br`, com o
-      sitemap submetido. A ferramenta de "mudança de endereço" **não se aplica**:
+      `/decoracao` e um `/share/<token>` real devem chegar ao subdomínio. Se o
+      `www` ainda for o domínio principal, cada um faz dois saltos (307 para o
+      `www`, depois 301 para o `erp`); com o item do apex no bloco A, um só.
+- [ ] **Search Console:** propriedades novas para `erp.proops.com.br` e
+      `app.proops.com.br`, cada uma com o próprio sitemap submetido. A ferramenta de "mudança de endereço" **não se aplica**:
       ela é para migração de domínio inteiro, e isto é uma divisão.
 
 ## Rollback

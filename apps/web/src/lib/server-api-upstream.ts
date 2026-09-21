@@ -16,10 +16,15 @@ const PROD_UPSTREAM = `https://${FUNCTIONS_REGION}-${PROD_PROJECT_ID}.cloudfunct
 // fallback at the bottom of resolveUpstreamForHost points at the DEV project,
 // so a production host missing from this set would silently write real
 // customer data into `erp-softcode` with no error anywhere.
+//
+// `app.proops.com.br` is here even though the app landing never calls the API
+// itself: the root layout installs the client error reporter on every page, so
+// without it the landing's browser errors were reported to the DEV project.
 const PRODUCTION_HOSTS = new Set([
   "proops.com.br",
   "www.proops.com.br",
   "erp.proops.com.br",
+  "app.proops.com.br",
 ]);
 const ALLOWED_UPSTREAMS = new Set([
   LOCAL_UPSTREAM,
