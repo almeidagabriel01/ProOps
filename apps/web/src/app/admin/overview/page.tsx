@@ -80,7 +80,7 @@ export default function AdminOverviewPage() {
             className="shadow-sm hover:shadow transition-all"
           >
             <Download className="w-4 h-4 mr-2" />
-            Exportar Relatório
+            Imprimir
           </Button>
         </div>
       </motion.div>

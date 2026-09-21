@@ -4,13 +4,12 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3,
   Crown,
-  LayoutDashboard,
   LogOut,
   MoreHorizontal,
   UserCircle,
 } from "lucide-react";
+import { ADMIN_SECTIONS } from "@/lib/admin-sections";
 
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { MobileNavSheet } from "@/components/layout/mobile-nav-sheet";
@@ -32,8 +31,11 @@ import { useTenant } from "@/providers/tenant-provider";
 const VISIBLE_TABS = 4;
 
 const SUPERADMIN_ENTRIES: DockEntry[] = [
-  { icon: LayoutDashboard, label: "Painel", href: "/admin" },
-  { icon: BarChart3, label: "Visão Geral", href: "/admin/overview" },
+  ...ADMIN_SECTIONS.filter((s) => s.inDock).map(({ icon, label, href }) => ({
+    icon,
+    label,
+    href,
+  })),
   { icon: UserCircle, label: "Perfil", href: "/profile" },
 ];
 

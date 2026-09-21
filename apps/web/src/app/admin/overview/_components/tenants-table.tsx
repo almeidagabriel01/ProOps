@@ -241,9 +241,8 @@ export function TenantsTable({
             </span>{" "}
             empresas
           </span>
-          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Atualizado em tempo real
+          <span className="text-xs text-muted-foreground">
+            Dados de quando a página foi aberta
           </span>
         </CardFooter>
       </Card>

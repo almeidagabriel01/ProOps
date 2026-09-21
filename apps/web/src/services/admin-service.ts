@@ -27,6 +27,18 @@ interface CreateTenantInput {
   currentPeriodEnd?: string;
 }
 
+export interface AdminAuditEvent {
+  id: string;
+  eventType: string;
+  uid?: string | null;
+  tenantId?: string | null;
+  route?: string | null;
+  reason?: string | null;
+  eventId?: string | null;
+  source?: string | null;
+  createdAt: string;
+}
+
 export interface TenantIndexItem {
   id: string;
   name: string;
@@ -185,6 +197,22 @@ export const AdminService = {
   },
 
   // Records a super admin "view as tenant" session start for the audit trail.
+  getAuditEvents: async (params: {
+    tenantId?: string;
+    eventType?: string;
+    limit?: number;
+  }): Promise<AdminAuditEvent[]> => {
+    const search = new URLSearchParams();
+    if (params.tenantId) search.set("tenantId", params.tenantId);
+    if (params.eventType) search.set("eventType", params.eventType);
+    search.set("limit", String(params.limit ?? 50));
+    const result = await callApi<{ events: AdminAuditEvent[] }>(
+      `/v1/admin/audit-events?${search}`,
+      "GET",
+    );
+    return result.events ?? [];
+  },
+
   startImpersonation: async (tenantId: string): Promise<void> => {
     await callApi("/v1/admin/impersonation/start", "POST", { tenantId });
   },

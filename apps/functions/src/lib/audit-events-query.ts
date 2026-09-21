@@ -39,9 +39,12 @@ export async function fetchAuditEvents(
   input: AuditEventsQueryInput,
 ): Promise<Array<Record<string, unknown>>> {
   const { tenantId, uid, eventType, limit } = input;
+  // A janela larga so e necessaria quando ha filtro em memoria (uid/tipo); sem
+  // ele, ler 500 eventos para devolver 50 e so leitura cobrada a toa.
+  const windowSize = uid || eventType ? WINDOW_LIMIT : Math.min(limit, WINDOW_LIMIT);
 
   const globalWindow = (): Promise<AuditSnap> =>
-    source.orderBy("createdAt", "desc").limit(WINDOW_LIMIT).get();
+    source.orderBy("createdAt", "desc").limit(tenantId ? WINDOW_LIMIT : windowSize).get();
 
   let snap: AuditSnap;
   if (tenantId) {
@@ -49,7 +52,7 @@ export async function fetchAuditEvents(
       snap = await source
         .where("tenantId", "==", tenantId)
         .orderBy("createdAt", "desc")
-        .limit(WINDOW_LIMIT)
+        .limit(windowSize)
         .get();
     } catch (error) {
       // Composite index likely still building right after a deploy — fall back
