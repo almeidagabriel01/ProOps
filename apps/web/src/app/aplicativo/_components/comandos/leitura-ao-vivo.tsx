@@ -23,13 +23,14 @@ const TOTAL = PEDIDOS.length;
 /**
  * Rolagem de cada frase, em alturas de tela.
  *
- * Calibrado duas vezes pelo retorno de quem usa: com 42 a frase inteira
- * (digitação, reconhecimento, voos) cabia num giro de roda do mouse, e com 70
- * a digitação e os voos ainda passavam rápido demais para acompanhar. Em 115
- * a animação ocupa quase uma tela de rolagem, e a ficha pronta fica parada
- * por mais um quinto de tela antes da próxima.
+ * Calibrado pelo retorno de quem usa: com 42 a frase inteira (digitação,
+ * reconhecimento, voos) cabia num giro de roda do mouse, e com 70 a digitação
+ * e os voos ainda passavam rápido demais. Em 130, com a animação ocupando 88%
+ * da fatia, ela se estende por mais de uma tela de rolagem; a troca para a
+ * frase seguinte leva os 12% restantes. Com sete frases, a seção inteira são
+ * nove telas.
  */
-const FATIA_SVH = 115;
+const FATIA_SVH = 130;
 
 const ITENS = PEDIDOS.map((pedido) => ({
   id: pedido.id,

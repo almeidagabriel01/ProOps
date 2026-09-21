@@ -23,7 +23,7 @@ import { AppHeroPhone } from "./app-hero-phone";
  */
 export function AplicativoHero() {
   return (
-    <section className="relative overflow-hidden bg-[var(--app-bg)] px-6 pb-24 pt-32 text-[var(--app-text)] md:px-10 md:pb-32 md:pt-40">
+    <section className="relative overflow-hidden bg-[var(--app-bg)] px-6 pb-24 pt-32 text-[var(--app-text)] md:px-10 md:pb-28 md:pt-36">
       {/* O campo lê `--px`/`--py` do `PointerFieldProvider` da página, então a
           reatividade inteira é CSS herdando duas variáveis, sem um render do
           React por movimento do mouse. Parado, ele é a luz que já existia. */}
@@ -93,8 +93,10 @@ export function AplicativoHero() {
           </div>
         </div>
 
+        {/* `lg:-mt-10`: com as colunas centradas, a coluna do texto é mais
+            alta e empurrava o aparelho para baixo da dobra. */}
         <div
-          className="hero-enter"
+          className="hero-enter lg:-mt-10"
           style={
             {
               "--hero-y": "26px",

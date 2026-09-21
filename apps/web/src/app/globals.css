@@ -1392,6 +1392,25 @@ html[data-heroi="espera"] .regua-desenha {
   --app-on-hero-muted: rgba(229, 225, 228, 0.6);
 }
 
+/* Landing do aplicativo: as peças que flutuam ao lado do aparelho do herói.
+
+   Anima `translate`, e não `transform`: elas também levam `hero-enter`, que já
+   usa `transform` para a entrada, e duas animações na mesma propriedade no
+   mesmo elemento se anulam (vale a última declarada). Como propriedades
+   separadas, a entrada e o flutuar convivem. */
+@keyframes app-flutua {
+  from {
+    translate: 0 -5px;
+  }
+  to {
+    translate: 0 7px;
+  }
+}
+.app-flutua {
+  animation: app-flutua var(--flutua-dur, 7s) ease-in-out
+    var(--flutua-atraso, 0s) infinite alternate;
+}
+
 /* Landing do aplicativo: a seção de comandos.
 
    `leitura-cursor` pisca o cursor da frase sendo digitada. */
@@ -1837,6 +1856,11 @@ html[data-cookie-consent="pending"] .cookie-banner {
   /* O cursor da leitura fica aceso, parado. */
   .leitura-cursor::after {
     animation: none !important;
+  }
+  /* As peças do herói ficam onde pousaram. */
+  .app-flutua {
+    animation: none !important;
+    translate: none;
   }
 }
 

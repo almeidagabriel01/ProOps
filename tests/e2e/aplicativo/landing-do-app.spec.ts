@@ -277,7 +277,7 @@ test.describe("APP-03: o que você pode pedir", () => {
     await page.waitForLoadState("networkidle");
 
     const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
-    await expect(roda.getByRole("option")).toHaveCount(16);
+    await expect(roda.getByRole("option")).toHaveCount(7);
     await expect(leitura(page)).toHaveText("gastei 45 no mercado");
 
     await roda.scrollIntoViewIfNeeded();
@@ -294,15 +294,17 @@ test.describe("APP-03: o que você pode pedir", () => {
     await roda.focus();
     await page.keyboard.press("ArrowDown");
     await expect(roda.getByRole("option", { selected: true })).toHaveText(
-      "quanto sobra esse mês?",
+      "parcela a geladeira de 3.200 em 10x",
     );
-    await expect(leitura(page)).toHaveText("quanto sobra esse mês?");
-    await expect(ficha).toContainText("R$ 1.284,90");
+    await expect(leitura(page)).toHaveText(
+      "parcela a geladeira de 3.200 em 10x",
+    );
+    await expect(ficha).toContainText("10x de R$ 320,00");
 
     // A roda é circular: antes da primeira vem a última.
     await page.keyboard.press("Home");
     await page.keyboard.press("ArrowUp");
-    await expect(leitura(page)).toHaveText("quando vence a fatura?");
+    await expect(leitura(page)).toHaveText("desfaz o último");
   });
 
   test("as abas da mesa trocam a cena, com setas e foco", async ({ page }) => {
@@ -345,7 +347,7 @@ test.describe("APP-03: o que você pode pedir", () => {
     await page.waitForLoadState("networkidle");
     const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
 
-    await rolarAteFatia(page, roda, 4, 16);
+    await rolarAteFatia(page, roda, 3, 7);
     await expect(leitura(page)).toHaveText(
       "parcela a geladeira de 3.200 em 10x",
     );
@@ -369,10 +371,8 @@ test.describe("APP-03: o que você pode pedir", () => {
       .toBe(true);
     await expect(page.locator(".leitura-fantasma:visible")).toHaveCount(0);
 
-    await rolarAteFatia(page, roda, 1, 16);
-    await expect(leitura(page)).toHaveText(
-      "me lembra de pagar o aluguel todo dia 5",
-    );
+    await rolarAteFatia(page, roda, 1, 7);
+    await expect(leitura(page)).toHaveText("quanto sobra esse mês?");
   });
 
   test("tocar numa frase da roda leva a página até ela", async ({ page }) => {
@@ -380,14 +380,19 @@ test.describe("APP-03: o que você pode pedir", () => {
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
     const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
-    await rolarAteFatia(page, roda, 0, 16);
+    await rolarAteFatia(page, roda, 0, 7);
     await expect(leitura(page)).toHaveText("gastei 45 no mercado");
 
     const antes = await page.evaluate(() => window.scrollY);
-    await roda.getByRole("option", { name: "recebi 1.200 de freela" }).click();
-    await expect(leitura(page)).toHaveText("recebi 1.200 de freela", {
-      timeout: 10_000,
-    });
+    await roda
+      .getByRole("option", { name: "transfere 500 da conta pro cartão" })
+      .click();
+    await expect(leitura(page)).toHaveText(
+      "transfere 500 da conta pro cartão",
+      {
+        timeout: 10_000,
+      },
+    );
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(antes);
   });
 

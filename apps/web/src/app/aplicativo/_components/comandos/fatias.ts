@@ -9,14 +9,21 @@
  * termina de se montar, e ninguém chegaria a lê-la.
  */
 
-/** Fração de cada fatia em que a animação acontece. */
-export const ANIMA_ATE = 0.8;
+/**
+ * Fração de cada fatia em que a animação acontece.
+ *
+ * Alta de propósito: o que tem que ser lento é a animação do conteúdo, não a
+ * troca de tópico. Com 0,7 sobrava quase um terço da fatia de pausa, e a
+ * passagem de uma frase para a outra parecia arrastada mesmo depois de a ficha
+ * estar pronta.
+ */
+export const ANIMA_ATE = 0.88;
 
 /**
  * Onde, dentro da fatia, um clique leva a página: logo depois de a animação
  * terminar, com a cena inteira na tela e ainda longe da troca.
  */
-export const PARADA_NA_FATIA = 0.82;
+export const PARADA_NA_FATIA = 0.92;
 
 const limitar = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), max);
@@ -64,8 +71,14 @@ export function progressoDaParada(
   return limitar((indice + local) / total, 0, 1);
 }
 
-/** Fração da fatia, em cada ponta, em que a roda gira. No meio ela fica parada. */
-export const GIRO = 0.15;
+/**
+ * Fração da fatia, em cada ponta, em que a roda gira. No meio ela fica parada.
+ *
+ * Curta: a troca em si é o gesto rápido da cena. Em 0,15 a roda levava um
+ * terço de tela girando entre uma frase e outra, o que lia como peso no lugar
+ * errado.
+ */
+export const GIRO = 0.06;
 
 const suave = (t: number) => t * t * (3 - 2 * t);
 

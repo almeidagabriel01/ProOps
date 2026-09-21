@@ -123,10 +123,14 @@ export function alturaDoTrilho(total: number, fatiaSvh: number): string {
 }
 
 /**
- * A mola do progresso: firme o bastante para não flutuar depois que a roda
- * para, e lenta o bastante para um giro rápido não atravessar frases inteiras.
+ * A mola do progresso.
+ *
+ * Responsiva: quem dá lentidão à cena é o tamanho da fatia, não o atraso da
+ * mola. Com 45 de rigidez a cena inteira respondia com atraso visível, e a
+ * troca de tópico parecia pesada; aqui ela só tira o degrau de cada tique da
+ * roda do mouse.
  */
-const MOLA = { stiffness: 45, damping: 20, mass: 1, restDelta: 0.0001 };
+const MOLA = { stiffness: 110, damping: 26, mass: 0.7, restDelta: 0.0001 };
 
 /**
  * O progresso da animação de UMA fatia, já sem a pausa de leitura.

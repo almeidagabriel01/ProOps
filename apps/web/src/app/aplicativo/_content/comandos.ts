@@ -3,8 +3,12 @@
  *
  * Duas listas, com papéis diferentes.
  *
- * `PEDIDOS` é a leitura: pedidos crus, em minúsculas, do jeito que alguém
- * escreve no WhatsApp, cada um com o que o agente entende dele. Ela responde a
+ * `PEDIDOS` é a leitura: SETE pedidos crus, em minúsculas, do jeito que alguém
+ * escreve no WhatsApp, cada um com o que o agente entende dele. Sete, e não os
+ * dezesseis que a lista já teve: cada um custa uma tela de rolagem, e a seção
+ * virava uma travessia. Eles cobrem sete intenções diferentes (registrar,
+ * perguntar, agendar, parcelar, transferir, guardar e corrigir), que é o que
+ * prova a amplitude; mais exemplos da mesma intenção só repetem o argumento. Ela responde a
  * dúvida real de quem chega numa página destas, que não é "quais são os
  * recursos" e sim **"será que ele entende do meu jeito?"**. Por isso as frases
  * são propositalmente desleixadas: uma lista de comandos bem formatados
@@ -127,21 +131,6 @@ export const PEDIDOS: Pedido[] = [
     ],
   },
   {
-    id: "aluguel",
-    partes: [
-      "me lembra de ",
-      { texto: "pagar o aluguel", entidade: "descricao" },
-      " ",
-      { texto: "todo dia 5", entidade: "repete" },
-    ],
-    intencao: "Lembrete",
-    campos: [
-      { rotulo: "O quê", valor: "Pagar o aluguel", entidade: "descricao" },
-      { rotulo: "Repete", valor: "Todo mês, dia 5", entidade: "repete" },
-      { rotulo: "Próximo", valor: "05/10" },
-    ],
-  },
-  {
     id: "sobra",
     partes: ["quanto sobra ", { texto: "esse mês", entidade: "periodo" }, "?"],
     intencao: "Pergunta",
@@ -155,19 +144,18 @@ export const PEDIDOS: Pedido[] = [
     },
   },
   {
-    id: "freela",
+    id: "aluguel",
     partes: [
-      "recebi ",
-      { texto: "1.200", entidade: "valor" },
-      " de ",
-      { texto: "freela", entidade: "categoria" },
+      "me lembra de ",
+      { texto: "pagar o aluguel", entidade: "descricao" },
+      " ",
+      { texto: "todo dia 5", entidade: "repete" },
     ],
-    intencao: "Receita",
+    intencao: "Lembrete",
     campos: [
-      { rotulo: "Valor", valor: "R$ 1.200,00", entidade: "valor" },
-      { rotulo: "Categoria", valor: "Trabalho extra", entidade: "categoria" },
-      { rotulo: "Conta", valor: "Conta principal" },
-      { rotulo: "Quando", valor: "Hoje" },
+      { rotulo: "O quê", valor: "Pagar o aluguel", entidade: "descricao" },
+      { rotulo: "Repete", valor: "Todo mês, dia 5", entidade: "repete" },
+      { rotulo: "Próximo", valor: "05/10" },
     ],
   },
   {
@@ -189,26 +177,6 @@ export const PEDIDOS: Pedido[] = [
     ],
   },
   {
-    id: "comida",
-    partes: [
-      "quanto gastei com ",
-      { texto: "comida", entidade: "categoria" },
-      " em ",
-      { texto: "agosto", entidade: "periodo" },
-      "?",
-    ],
-    intencao: "Pergunta",
-    campos: [
-      { rotulo: "Categoria", valor: "Alimentação", entidade: "categoria" },
-      { rotulo: "Período", valor: "Agosto de 2026", entidade: "periodo" },
-    ],
-    resposta: {
-      rotulo: "Alimentação em agosto",
-      valor: { tipo: "moeda", numero: 1126.4 },
-      nota: "Em 23 lançamentos, R$ 94,20 a menos que em julho.",
-    },
-  },
-  {
     id: "transferencia",
     partes: [
       "transfere ",
@@ -227,77 +195,6 @@ export const PEDIDOS: Pedido[] = [
     ],
   },
   {
-    id: "contador",
-    partes: [
-      "anota: ",
-      { texto: "levar as notas fiscais pro contador", entidade: "descricao" },
-    ],
-    intencao: "Anotação",
-    campos: [
-      {
-        rotulo: "Texto",
-        valor: "Levar as notas fiscais pro contador",
-        entidade: "descricao",
-      },
-      { rotulo: "Onde fica", valor: "Anotações" },
-    ],
-  },
-  {
-    id: "fatura-paga",
-    partes: ["paguei a ", { texto: "fatura do cartão", entidade: "conta" }],
-    intencao: "Pagamento",
-    campos: [
-      {
-        rotulo: "Fatura",
-        valor: "Cartão da casa, setembro",
-        entidade: "conta",
-      },
-      { rotulo: "Valor", valor: "R$ 1.590,00" },
-      { rotulo: "Parcelas baixadas", valor: "6" },
-      { rotulo: "Disponível agora", valor: "R$ 5.927,00" },
-    ],
-  },
-  {
-    id: "patrimonio",
-    partes: [
-      "qual é o meu ",
-      { texto: "patrimônio", entidade: "consulta" },
-      " ",
-      { texto: "hoje", entidade: "periodo" },
-      "?",
-    ],
-    intencao: "Pergunta",
-    campos: [
-      { rotulo: "Consulta", valor: "Patrimônio", entidade: "consulta" },
-      { rotulo: "Data", valor: "17/09/2026", entidade: "periodo" },
-    ],
-    resposta: {
-      rotulo: "Patrimônio hoje",
-      valor: { tipo: "moeda", numero: 48230 },
-      nota: "Contas, investimentos e metas, menos o que já está na fatura.",
-    },
-  },
-  {
-    id: "celular",
-    partes: [
-      "posso comprar ",
-      { texto: "um celular", entidade: "descricao" },
-      " de ",
-      { texto: "3 mil", entidade: "valor" },
-      "?",
-    ],
-    intencao: "Simulação",
-    campos: [
-      { rotulo: "O quê", valor: "Celular", entidade: "descricao" },
-      { rotulo: "Preço", valor: "R$ 3.000,00", entidade: "valor" },
-    ],
-    resposta: {
-      rotulo: "Sobra do mês se comprar à vista",
-      valor: { tipo: "moeda", numero: -1715.1 },
-      nota: "Sem comprar, sobram R$ 1.284,90. Em 10x, sobram R$ 984,90.",
-    },
-  },
-  {
     id: "viagem",
     partes: [
       "guarda ",
@@ -314,38 +211,6 @@ export const PEDIDOS: Pedido[] = [
     ],
   },
   {
-    id: "ifood",
-    partes: [
-      "toda vez que eu falar ",
-      { texto: "ifood", entidade: "termo" },
-      ", joga em ",
-      { texto: "alimentação", entidade: "categoria" },
-    ],
-    intencao: "Regra",
-    campos: [
-      { rotulo: "Quando aparecer", valor: "ifood", entidade: "termo" },
-      { rotulo: "Categoria", valor: "Alimentação", entidade: "categoria" },
-      { rotulo: "Vale para", valor: "Os próximos lançamentos" },
-    ],
-  },
-  {
-    id: "orcamento",
-    partes: [
-      "quanto falta pra fechar o ",
-      { texto: "orçamento da casa", entidade: "meta" },
-      "?",
-    ],
-    intencao: "Pergunta",
-    campos: [
-      { rotulo: "Orçamento", valor: "Casa, setembro", entidade: "meta" },
-    ],
-    resposta: {
-      rotulo: "Ainda cabe no orçamento",
-      valor: { tipo: "moeda", numero: 680 },
-      nota: "De R$ 2.400,00 planejados, R$ 1.720,00 já saíram.",
-    },
-  },
-  {
     id: "desfazer",
     partes: ["desfaz ", { texto: "o último", entidade: "alvo" }],
     intencao: "Desfazer",
@@ -354,17 +219,6 @@ export const PEDIDOS: Pedido[] = [
       { rotulo: "Removido", valor: "Mercado, R$ 45,00" },
       { rotulo: "Sobra do mês", valor: "Volta a R$ 1.329,90" },
     ],
-  },
-  {
-    id: "vencimento",
-    partes: ["quando vence a ", { texto: "fatura", entidade: "conta" }, "?"],
-    intencao: "Pergunta",
-    campos: [{ rotulo: "Cartão", valor: "Cartão da casa", entidade: "conta" }],
-    resposta: {
-      rotulo: "Vence em",
-      valor: { tipo: "texto", texto: "27/09" },
-      nota: "Fecha dia 20. Hoje ela está em R$ 1.590,00.",
-    },
   },
 ];
 
