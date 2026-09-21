@@ -1165,18 +1165,56 @@ export const updateCredentials = async (req: Request, res: Response) => {
       });
     }
 
-    // Update Auth
+    const targetSnap = await db.collection("users").doc(String(userId)).get();
+    if (!targetSnap.exists) {
+      return res.status(404).json({ message: "Usuário não encontrado." });
+    }
+    const targetRole = String(targetSnap.get("role") || "").trim().toUpperCase();
+    // Trocar a senha de outro superadmin daria acesso ao painel inteiro com a
+    // conta dele, sem o segundo fator ter sido quebrado.
+    if (targetRole === "SUPERADMIN") {
+      return res.status(403).json({
+        message: "Credenciais de super admin não podem ser alteradas pelo painel.",
+      });
+    }
+
+    let normalizedEmail: string | undefined;
+    if (email) {
+      const emailValidation = await validateEmailForSignup(String(email));
+      if (!emailValidation.valid) {
+        return res
+          .status(400)
+          .json({ message: emailValidation.reason || "Email inválido." });
+      }
+      normalizedEmail = emailValidation.normalizedEmail;
+    }
+
+    if (password && String(password).length < 6) {
+      return res
+        .status(400)
+        .json({ message: "A senha deve ter no mínimo 6 caracteres." });
+    }
+
     const updateData: { email?: string; password?: string } = {};
-    if (email) updateData.email = email;
-    if (password && password.length >= 6) updateData.password = password;
+    if (normalizedEmail) updateData.email = normalizedEmail;
+    if (password) updateData.password = String(password);
 
     if (Object.keys(updateData).length > 0) {
-      await auth.updateUser(userId, updateData);
+      try {
+        await auth.updateUser(userId, updateData);
+      } catch (err: unknown) {
+        if ((err as { code?: string })?.code === "auth/email-already-exists") {
+          return res.status(409).json({ message: "Este email já está em uso." });
+        }
+        throw err;
+      }
+      // Sessoes abertas com a credencial antiga caem na proxima request.
+      await auth.revokeRefreshTokens(userId);
     }
 
     // Update Firestore User
-    const firestoreUpdate: any = {};
-    if (email) firestoreUpdate.email = email;
+    const firestoreUpdate: Record<string, unknown> = {};
+    if (normalizedEmail) firestoreUpdate.email = normalizedEmail;
     if (phoneNumber !== undefined) {
       firestoreUpdate.phoneNumber = normalizePhoneNumber(phoneNumber) || null;
     }
@@ -1211,6 +1249,18 @@ export const updateCredentials = async (req: Request, res: Response) => {
         await db.collection("users").doc(userId).update(firestoreUpdate);
       }
     }
+
+    await auditAdminAction(req, "super_admin_credentials_updated", {
+      tenantId: String(targetSnap.get("tenantId") || ""),
+      targetId: String(userId),
+      reason: [
+        normalizedEmail ? "email" : "",
+        password ? "password" : "",
+        phoneNumber !== undefined ? "phone" : "",
+      ]
+        .filter(Boolean)
+        .join(","),
+    });
 
     return res.json({
       success: true,
