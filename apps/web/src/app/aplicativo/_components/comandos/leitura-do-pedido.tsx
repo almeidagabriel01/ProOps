@@ -311,7 +311,7 @@ export function LeituraDoPedido({
 
   return (
     <div ref={raiz} className="relative">
-      <p className="[font-family:var(--font-hanken)] text-[1.7rem] font-semibold leading-[1.7] tracking-[-0.025em] text-[var(--app-text-muted)] md:text-[2.4rem] md:leading-[1.65]">
+      <p className="[font-family:var(--font-hanken)] text-[1.45rem] font-semibold leading-[1.55] tracking-[-0.025em] text-[var(--app-text-muted)] md:text-[2.4rem] md:leading-[1.65]">
         <span className="sr-only">{textoDoPedido(pedido)}</span>
         <span aria-hidden="true">
           {pedido.partes.map((parte, i) => (
@@ -320,7 +320,7 @@ export function LeituraDoPedido({
         </span>
       </p>
 
-      <div className="mt-6 md:mt-8">
+      <div className="mt-4 md:mt-8">
         <FichaDaLeitura pedido={pedido} numero={numero} />
       </div>
     </div>

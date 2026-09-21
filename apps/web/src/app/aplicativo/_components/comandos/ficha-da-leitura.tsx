@@ -69,7 +69,7 @@ export function FichaDaLeitura({ pedido, numero }: FichaDaLeituraProps) {
       />
 
       <div className="relative flex flex-wrap items-center justify-between gap-3">
-        <span className="ficha-selo inline-flex items-center gap-2 rounded-full bg-[var(--app-tint)]/[0.13] py-1.5 pl-2 pr-3.5 text-sm font-semibold text-[var(--app-tint)]">
+        <span className="ficha-selo inline-flex items-center gap-2 rounded-full bg-[var(--app-tint)]/[0.13] py-1 pl-2 pr-3.5 text-[13px] font-semibold text-[var(--app-tint)] md:py-1.5 md:text-sm">
           <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--app-tint)]/15">
             <svg
               viewBox="0 0 24 24"
@@ -115,11 +115,11 @@ export function FichaDaLeitura({ pedido, numero }: FichaDaLeituraProps) {
         </div>
       ) : null}
 
-      <dl className="relative mt-5 divide-y divide-white/[0.06] border-t border-white/[0.06]">
+      <dl className="relative mt-4 divide-y divide-white/[0.06] border-t border-white/[0.06] md:mt-5">
         {pedido.campos.map((campo) => (
           <div
             key={campo.rotulo}
-            className="ficha-campo flex items-baseline justify-between gap-4 py-2 md:py-3"
+            className="ficha-campo flex items-baseline justify-between gap-4 py-1.5 md:py-3"
           >
             <dt className="shrink-0 text-sm text-[var(--app-on-hero-muted)]">
               {campo.rotulo}

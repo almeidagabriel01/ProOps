@@ -96,8 +96,8 @@ export function AplicativoPrivacidade() {
     >
       <div className="mx-auto max-w-5xl">
         <p className="mb-4 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--app-tint)]">
-          <span className="h-px w-7 bg-[var(--app-tint)]/50" />
-          O que a gente não pede
+          <span className="h-px w-7 bg-[var(--app-tint)]/50" />O que a gente não
+          pede
         </p>
 
         <div className="grid gap-12 md:grid-cols-[1.05fr_0.95fr] md:items-center md:gap-16">
@@ -109,13 +109,13 @@ export function AplicativoPrivacidade() {
             </h2>
 
             <p className="mt-7 max-w-xl text-base leading-relaxed text-[var(--app-text-muted)] md:text-lg">
-              Porque a gente não entra nele. O que a {APP_NAME} sabe é o que você
-              contou, e nada além disso.
+              Porque a gente não entra nele. O que a {APP_NAME} sabe é o que
+              você contou, e nada além disso.
             </p>
 
             <p className="mt-5 max-w-xl text-base leading-relaxed text-[var(--app-text-muted)]">
-              Quando quiser trazer o mês inteiro de uma vez, importe o extrato em
-              OFX ou CSV. O arquivo é seu, e é você que entrega.
+              Quando quiser trazer o mês inteiro de uma vez, importe o extrato
+              em OFX ou CSV. O arquivo é seu, e é você que entrega.
             </p>
           </div>
 
@@ -156,6 +156,12 @@ export function AplicativoPrivacidade() {
  *
  * Todo traço animado declara `pathLength={1}`, senão o `stroke-dasharray: 1` da
  * classe teria que ser o comprimento real do caminho.
+ *
+ * O texto tem tamanho MAIOR abaixo de `md`, e isso não é um descuido
+ * invertido: o desenho tem 460 de largura e encolhe junto com a coluna, então
+ * num celular de 360 ele é desenhado a 0,68. Os 11px do rodapé viravam 7,5px
+ * na tela, e os 15px das caixas, 10px. Nos tamanhos daqui, o que a pessoa lê
+ * fica perto dos 11 e dos 14 reais nas duas pontas.
  */
 function DiagramaSemBanco() {
   return (
@@ -228,7 +234,7 @@ function DiagramaSemBanco() {
       <text
         x={10}
         y={222}
-        className="[font-family:var(--font-jetbrains-mono)] text-[11px]"
+        className="[font-family:var(--font-jetbrains-mono)] text-[16px] md:text-[11px]"
         fill="var(--app-text-muted)"
       >
         sem credencial,
@@ -236,7 +242,7 @@ function DiagramaSemBanco() {
       <text
         x={10}
         y={240}
-        className="[font-family:var(--font-jetbrains-mono)] text-[11px]"
+        className="[font-family:var(--font-jetbrains-mono)] text-[16px] md:text-[11px]"
         fill="var(--app-text-muted)"
       >
         sem leitura de conta,
@@ -244,7 +250,7 @@ function DiagramaSemBanco() {
       <text
         x={10}
         y={258}
-        className="[font-family:var(--font-jetbrains-mono)] text-[11px]"
+        className="[font-family:var(--font-jetbrains-mono)] text-[16px] md:text-[11px]"
         fill="var(--app-text-muted)"
       >
         sem Open Finance.
@@ -292,7 +298,7 @@ function Caixa({
         x={x + largura / 2}
         y={y + altura / 2 + 5}
         textAnchor="middle"
-        className="[font-family:var(--font-hanken)] text-[15px] font-semibold"
+        className="[font-family:var(--font-hanken)] text-[21px] font-semibold md:text-[15px]"
         fill={acesa ? "var(--app-tint)" : "var(--app-text)"}
         opacity={apagada ? 0.45 : 1}
       >

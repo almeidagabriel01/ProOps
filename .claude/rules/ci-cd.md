@@ -155,6 +155,13 @@ The E2E job uses a matrix strategy with 4 shards:
 de verdade, `tests/e2e/institucional/` cobre a navegação do site da empresa (cortina,
 âncoras e o caminho de `prefers-reduced-motion`), e `mobile/superficies-layout.spec.ts`
 cobre as sete páginas de marketing a 393px.
+
+`mobile/landing-do-app-layout.spec.ts` cobre a landing do app na ALTURA, que é a
+dimensão que o resto da pasta não olha: ele **sobrepõe o viewport do projeto** e
+roda a 375x667, 360x740 e 393x851, porque os defeitos reais (o palco grudado
+transbordando, a conversa em `opacity: 0`) só aparecem nos dois primeiros. O
+Pixel 5 sozinho passava.
+
 Duas armadilhas anotadas lá dentro, porque custam tempo quando reencontradas:
 
 - **O fixture `request` não serve para `*.localhost`.** Ele resolve o nome pelo Node, que

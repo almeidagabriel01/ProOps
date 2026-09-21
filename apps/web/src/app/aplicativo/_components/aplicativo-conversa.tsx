@@ -10,12 +10,10 @@ import {
 } from "motion/react";
 
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
+import { useMediaQuery } from "@/components/marketing/_shared/use-media-query";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 
-import {
-  TelaConversa,
-  type MensagemApp,
-} from "./telas/tela-conversa";
+import { TelaConversa, type MensagemApp } from "./telas/tela-conversa";
 
 /**
  * Uma conversa só, indo até o fim, sem sair do aplicativo.
@@ -115,6 +113,19 @@ export function AplicativoConversa() {
   // atrasar o suficiente para descolar do que o leitor está fazendo.
   const suave = useSpring(progress, MOLA);
 
+  /**
+   * A cena só é dirigida pelo scroll ONDE O PALCO GRUDA, que é de `md` para
+   * cima: a altura extra (`md:h-[260vh]`) e o `sticky` são os dois `md:`.
+   *
+   * No celular o palco tem a altura do próprio conteúdo, então o intervalo do
+   * ScrollTrigger é quase zero e o progresso saltava de 0 a 1 em poucos
+   * pixels: as seis mensagens ficavam invisíveis quase o tempo todo e os três
+   * beats se revezavam num piscar. Sem o progresso, a conversa inteira já está
+   * escrita, que é o estado final e o que o servidor manda.
+   */
+  const palcoGruda = useMediaQuery("(min-width: 768px)");
+  const dirigido = animated && palcoGruda;
+
   return (
     <section
       id="conversa"
@@ -147,7 +158,7 @@ export function AplicativoConversa() {
               <DeviceFrame platform="ios">
                 <TelaConversa
                   mensagens={CONVERSA}
-                  progresso={animated ? suave : undefined}
+                  progresso={dirigido ? suave : undefined}
                   janela={[0.04, 0.92]}
                 />
               </DeviceFrame>
@@ -163,7 +174,7 @@ export function AplicativoConversa() {
                   beat={beat}
                   indice={i}
                   progresso={suave}
-                  animado={animated}
+                  animado={dirigido}
                 />
               ))}
             </div>

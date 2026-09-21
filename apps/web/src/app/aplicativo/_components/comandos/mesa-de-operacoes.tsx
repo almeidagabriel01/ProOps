@@ -120,7 +120,7 @@ export function MesaDeOperacoes({ cabecalho }: { cabecalho: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => escolher(escolha.indice)}
-                  className="shrink-0 rounded-full border border-white/10 px-3 py-1 text-xs text-[var(--app-text-muted)] transition-[color,border-color,transform] duration-150 hover:border-white/20 hover:text-[var(--app-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-tint)]/60 active:scale-[0.97]"
+                  className="inline-flex min-h-9 shrink-0 items-center rounded-full border border-white/10 px-3.5 text-xs text-[var(--app-text-muted)] transition-[color,border-color,transform] duration-150 hover:border-white/20 hover:text-[var(--app-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-tint)]/60 active:scale-[0.97]"
                 >
                   Repetir
                 </button>

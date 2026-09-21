@@ -95,7 +95,11 @@ export function LeituraAoVivo({
                 aoEscolher={escolher}
                 rotulo="Pedidos de exemplo"
                 rolagem={rolagem}
-                className="h-[132px] md:h-[308px]"
+                // A altura da roda é a única peça folgada num palco que tem a
+                // altura da tela: num celular baixo (um iPhone SE tem 667), três
+                // linhas empurravam a ficha para fora. A consulta é por ALTURA,
+                // que é a dimensão que falta, e vale só abaixo de `md`.
+                className="h-[132px] max-md:[@media(max-height:720px)]:h-[88px] md:h-[308px]"
               />
             </div>
             <Posicao
@@ -107,7 +111,7 @@ export function LeituraAoVivo({
           {/* A altura mínima é a da maior leitura, medida com as sete frases:
               a de duas linhas com quatro campos. Sem ela o palco pularia a
               cada troca de frase. Frase nova mais longa: meça de novo. */}
-          <div className="min-h-[25rem] md:min-h-[31rem]">
+          <div className="min-h-[21rem] max-md:[@media(max-height:720px)]:min-h-[17rem] md:min-h-[31rem]">
             <TrocaComSaida valor={indice} chave={String}>
               {(exibido) => (
                 <LeituraNaFatia
@@ -186,8 +190,8 @@ function Posicao({
           />
         ) : null}
       </span>
-      <p className="hidden shrink-0 text-xs text-[var(--app-text-muted)] md:block">
-        {progresso ? "Role ou arraste a roda" : "Escolha um pedido"}
+      <p className="shrink-0 text-[11px] text-[var(--app-text-muted)] md:text-xs">
+        {progresso ? "Arraste a roda" : "Escolha um pedido"}
       </p>
     </div>
   );
