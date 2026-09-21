@@ -3,6 +3,7 @@
 import React from "react";
 import gsap from "gsap";
 
+import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
 import { useHolofote } from "@/components/marketing/_shared/use-holofote";
 import {
   CENA_REPETE,
@@ -56,6 +57,14 @@ const GARANTIAS = [
 ];
 
 export function AplicativoPrivacidade() {
+  return (
+    <HidratarPerto>
+      <CorpoDaPrivacidade />
+    </HidratarPerto>
+  );
+}
+
+function CorpoDaPrivacidade() {
   const secao = React.useRef<HTMLElement>(null);
   const grade = useHolofote<HTMLDivElement>();
 

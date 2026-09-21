@@ -4,8 +4,9 @@ import React from "react";
 import gsap from "gsap";
 
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
+import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
 import { useMediaQuery } from "@/components/marketing/_shared/use-media-query";
-import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene";
+import { useScrollScene, OUTSIDE_SCENE_DESKTOP } from "@/components/marketing/_shared/use-scroll-scene";
 import { APP_NAME } from "@/lib/site/app-brand";
 import { cn } from "@/lib/utils";
 
@@ -205,6 +206,16 @@ const ROLAGEM_POR_UNIDADE = 0.8;
  * scroll normally, each carrying its own hour, with the rail collapsed away.
  */
 export function AplicativoDiaADia() {
+  // Adiada só onde a cena de desktop não monta: ali ela cria um `pin`, e o
+  // espaçador dele, inserido tarde, empurraria a página (ver HidratarPerto).
+  return (
+    <HidratarPerto apenasEm={OUTSIDE_SCENE_DESKTOP}>
+      <CorpoDoDiaADia />
+    </HidratarPerto>
+  );
+}
+
+function CorpoDoDiaADia() {
   const sectionRef = React.useRef<HTMLElement>(null);
   // `false` no servidor e no primeiro render do cliente, então não há
   // desencontro de hidratação: no celular a coluna do aparelho simplesmente

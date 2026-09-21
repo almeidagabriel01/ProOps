@@ -23,9 +23,18 @@ import { AplicativoNavbar } from "./_components/aplicativo-navbar";
  * conteúdo chega: as cenas são escritas no estado final, então o markup está
  * completo e legível antes de qualquer uma hidratar.
  *
- * Isso é orçamento, não higiene. Esta página mede 308ms de TBT e está no teto
- * GENÉRICO do `lighthouserc.json` (800ms como `error`), sem exceção própria, de
+ * Isso é orçamento, não higiene. Esta página está no teto GENÉRICO do
+ * `lighthouserc.json` (800ms de TBT como `error`), sem exceção própria, de
  * propósito.
+ *
+ * O split sozinho não bastou, e o motivo é o que ele NÃO faz: ele adia o
+ * download, não a hidratação. As dez seções abaixo da dobra hidratavam todas
+ * no carregamento, e a página foi de 308ms de TBT para 969 no CI conforme
+ * ganhavam animação. Por isso cada seção de CLIENTE envolve o próprio corpo em
+ * `HidratarPerto`, que mantém o HTML do servidor e só liga o JavaScript dela
+ * perto da tela (uma tela e meia antes; a "diferença", logo abaixo do herói,
+ * com margem menor, explicada no módulo dela). O portão mora dentro de cada
+ * módulo, e não aqui, pelo motivo registrado no próprio componente.
  */
 const AplicativoComandos = dynamic(() =>
   import("./_components/aplicativo-comandos").then((m) => m.AplicativoComandos),

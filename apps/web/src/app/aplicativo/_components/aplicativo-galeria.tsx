@@ -5,7 +5,8 @@ import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 
-import { useScrollScene } from "@/components/marketing/_shared/use-scroll-scene";
+import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
+import { useScrollScene, OUTSIDE_SCENE_DESKTOP } from "@/components/marketing/_shared/use-scroll-scene";
 import { APP_NAME } from "@/lib/site/app-brand";
 
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
@@ -96,6 +97,16 @@ const ROTULO: Record<Plataforma, string> = { ios: "iOS", android: "Android" };
  * sideways is already natural, would be hijacking the scroll to make it worse.
  */
 export function AplicativoGaleria() {
+  // Adiada só onde a cena de desktop não monta: ali ela cria um `pin`, e o
+  // espaçador dele, inserido tarde, empurraria a página (ver HidratarPerto).
+  return (
+    <HidratarPerto apenasEm={OUTSIDE_SCENE_DESKTOP}>
+      <CorpoDaGaleria />
+    </HidratarPerto>
+  );
+}
+
+function CorpoDaGaleria() {
   const sectionRef = React.useRef<HTMLElement>(null);
   const trackRef = React.useRef<HTMLUListElement>(null);
   const [plataforma, setPlataforma] = React.useState<Plataforma>("ios");

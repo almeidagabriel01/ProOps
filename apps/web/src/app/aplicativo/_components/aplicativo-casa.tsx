@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import gsap from "gsap";
 
+import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
 import { ScrubCounter } from "@/components/marketing/_shared/scrub-counter";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 import {
@@ -60,6 +61,14 @@ const PESSOAS = [
 ];
 
 export function AplicativoCasa() {
+  return (
+    <HidratarPerto>
+      <CorpoDaCasa />
+    </HidratarPerto>
+  );
+}
+
+function CorpoDaCasa() {
   const secao = React.useRef<HTMLElement>(null);
   const trilha = React.useRef<HTMLDivElement>(null);
   const { progress } = useScrollProgress(trilha, {

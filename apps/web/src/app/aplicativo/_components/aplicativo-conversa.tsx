@@ -10,6 +10,7 @@ import {
 } from "motion/react";
 
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
+import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
 import { useMediaQuery } from "@/components/marketing/_shared/use-media-query";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 
@@ -102,6 +103,14 @@ export const BEATS = [
 ];
 
 export function AplicativoConversa() {
+  return (
+    <HidratarPerto>
+      <CorpoDaConversa />
+    </HidratarPerto>
+  );
+}
+
+function CorpoDaConversa() {
   const palco = React.useRef<HTMLDivElement>(null);
   const { progress, animated } = useScrollProgress(palco, {
     start: "top top",

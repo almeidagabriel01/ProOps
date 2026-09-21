@@ -25,6 +25,8 @@
 
 import { test, expect } from "@playwright/test";
 
+import { secaoViva } from "../helpers/secao-viva";
+
 /**
  * A porta do servidor de teste, sobreponível.
  *
@@ -300,6 +302,8 @@ test.describe("APP-03: o que você pode pedir", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
+    // A seção só liga o JavaScript ao chegar perto (`HidratarPerto`).
+    await secaoViva(page, "#comandos");
 
     const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
     await expect(roda.getByRole("option")).toHaveCount(7);
@@ -336,6 +340,8 @@ test.describe("APP-03: o que você pode pedir", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
+    // A seção só liga o JavaScript ao chegar perto (`HidratarPerto`).
+    await secaoViva(page, "#comandos");
 
     const abas = page.getByRole("tablist", { name: "Operações de exemplo" });
     await expect(abas.getByRole("tab")).toHaveCount(6);
@@ -370,6 +376,8 @@ test.describe("APP-03: o que você pode pedir", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
+    // A seção só liga o JavaScript ao chegar perto (`HidratarPerto`).
+    await secaoViva(page, "#comandos");
     const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
 
     await rolarAteFatia(page, roda, 3, 7);
@@ -404,6 +412,8 @@ test.describe("APP-03: o que você pode pedir", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
+    // A seção só liga o JavaScript ao chegar perto (`HidratarPerto`).
+    await secaoViva(page, "#comandos");
     const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
     await rolarAteFatia(page, roda, 0, 7);
     await expect(leitura(page)).toHaveText("gastei 45 no mercado");
@@ -432,6 +442,8 @@ test.describe("APP-03: o que você pode pedir", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${APP}/`);
     await page.waitForLoadState("networkidle");
+    // A seção só liga o JavaScript ao chegar perto (`HidratarPerto`).
+    await secaoViva(page, "#comandos");
     const abas = page.getByRole("tablist", { name: "Operações de exemplo" });
     await abas.scrollIntoViewIfNeeded();
 
@@ -533,6 +545,10 @@ test.describe("APP-02: movimento reduzido", () => {
     ).toBeVisible();
 
     // A seção de comandos não gruda nem rola: sem trilho, a ficha já inteira.
+    // O estado reduzido é decidido no cliente, então a seção precisa estar
+    // viva: antes disso ela mostra o HTML do servidor, que não sabe da
+    // preferência de quem lê.
+    await secaoViva(page, "#comandos");
     await expect(page.locator("#comandos div[style*='svh']")).toHaveCount(0);
     const valores = page.locator("#comandos .ficha-valor");
     await expect(valores.first()).toBeVisible();

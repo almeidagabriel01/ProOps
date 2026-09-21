@@ -2,6 +2,7 @@
 
 import React from "react";
 
+import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
 import { CabecalhoDaCena } from "./comandos/cabecalho-da-cena";
 import { CotaCompartilhada } from "./comandos/cota-compartilhada";
 import { LeituraAoVivo } from "./comandos/leitura-ao-vivo";
@@ -47,6 +48,14 @@ import { MesaDeOperacoes } from "./comandos/mesa-de-operacoes";
  * `sticky` dos palcos sem erro nenhum.
  */
 export function AplicativoComandos() {
+  return (
+    <HidratarPerto>
+      <CorpoDosComandos />
+    </HidratarPerto>
+  );
+}
+
+function CorpoDosComandos() {
   return (
     <section
       id="comandos"

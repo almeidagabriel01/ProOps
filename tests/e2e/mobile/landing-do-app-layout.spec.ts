@@ -50,6 +50,8 @@ import { test, expect, type Page } from "@playwright/test";
 // no dia em que alguém recalibrar a fatia.
 import { progressoDaParada } from "../../../apps/web/src/app/aplicativo/_components/comandos/fatias";
 
+import { secaoViva } from "../helpers/secao-viva";
+
 /** A porta do servidor de teste, sobreponível (ver `superficies-layout.spec.ts`). */
 const PORTA = process.env.E2E_PORT ?? 3001;
 
@@ -106,7 +108,8 @@ async function leituraAbaixoDaTela(page: Page): Promise<number> {
  * dois a quatro campos conforme o pedido).
  */
 async function percorrerAsFatias(page: Page): Promise<number[]> {
-  await page.locator("#comandos").scrollIntoViewIfNeeded();
+  // A seção só liga o JavaScript ao chegar perto (`HidratarPerto`).
+  await secaoViva(page, "#comandos");
 
   const { topo, alcance } = await page.evaluate(() => {
     const el = document.querySelector<HTMLElement>("#comandos div[style]");
@@ -205,7 +208,7 @@ for (const aparelho of APARELHOS) {
       await page.waitForLoadState("networkidle");
 
       const conversa = page.locator("#conversa");
-      await conversa.scrollIntoViewIfNeeded();
+      await secaoViva(page, "#conversa");
       await page.waitForTimeout(500);
 
       // A última mensagem é a que fecha a história (o limite voltando). Se o
@@ -237,6 +240,7 @@ for (const aparelho of APARELHOS) {
       await page.waitForLoadState("networkidle");
 
       const abas = page.getByRole("tablist", { name: "Operações de exemplo" });
+      await secaoViva(page, "#comandos");
       await abas.scrollIntoViewIfNeeded();
 
       // 36px é o piso que este projeto adota (`min-h-9`), abaixo do ideal de
@@ -260,6 +264,7 @@ for (const aparelho of APARELHOS) {
       await page.waitForLoadState("networkidle");
 
       const roda = page.getByRole("listbox", { name: "Pedidos de exemplo" });
+      await secaoViva(page, "#comandos");
       await roda.scrollIntoViewIfNeeded();
       await page.waitForTimeout(600);
 
@@ -312,6 +317,7 @@ for (const aparelho of APARELHOS) {
       await page.waitForLoadState("networkidle");
 
       const abas = page.getByRole("tablist", { name: "Operações de exemplo" });
+      await secaoViva(page, "#comandos");
       await abas.scrollIntoViewIfNeeded();
       await abas.getByRole("tab", { name: /posso comprar/ }).click();
       // A cena escreve os valores no fim da própria linha do tempo.
@@ -392,7 +398,7 @@ for (const aparelho of APARELHOS) {
       await page.waitForLoadState("networkidle");
 
       const trilho = page.locator("ul.landing-scrollbar").first();
-      await trilho.scrollIntoViewIfNeeded();
+      await secaoViva(page, trilho);
       await page.waitForTimeout(400);
 
       const medida = await trilho.evaluate((el) => {
@@ -430,6 +436,13 @@ for (const aparelho of APARELHOS) {
       await page.goto(`${APP}/`);
       await page.waitForLoadState("networkidle");
 
+      // A âncora é o título, que já vem no HTML do servidor. O papel
+      // `tablist` das horas só existe depois de a seção montar, então
+      // procurá-lo antes de rolar não acharia nada (ver `secaoViva`).
+      const titulo = page.getByRole("heading", {
+        name: "Seu dia a dia com a ProOps Pessoal.",
+      });
+      await secaoViva(page, titulo);
       const horas = page.getByRole("tablist", { name: "As horas do dia" });
       await horas.scrollIntoViewIfNeeded();
       const secao = page.locator("section:has([aria-label='As horas do dia'])");

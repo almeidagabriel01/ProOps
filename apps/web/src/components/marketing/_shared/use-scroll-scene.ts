@@ -15,6 +15,16 @@ export const SCENE_DESKTOP =
 export const SCENE_ANY_WIDTH = "(prefers-reduced-motion: no-preference)";
 
 /**
+ * O complemento exato de `SCENE_DESKTOP`: onde uma cena de desktop NÃO é
+ * montada (abaixo de `md`, ou com movimento reduzido).
+ *
+ * Derivado, e não reescrito à mão, porque é usado para decidir onde é seguro
+ * adiar a hidratação de uma seção com `pin` (ver `HidratarPerto`). Uma cópia
+ * que andasse sozinha adiaria justamente onde o pin existe.
+ */
+export const OUTSIDE_SCENE_DESKTOP = `not all and ${SCENE_DESKTOP}`;
+
+/**
  * `toggleActions` de uma revelação que acontece TODA vez que o leitor chega.
  *
  * A ordem é onEnter, onLeave, onEnterBack, onLeaveBack. `restart` na entrada e

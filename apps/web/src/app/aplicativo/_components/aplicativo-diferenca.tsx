@@ -3,6 +3,7 @@
 import React from "react";
 import { m as motion, useTransform } from "motion/react";
 
+import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 
 import { COLUNAS, PARES, type ParDeDiferenca } from "../_content/diferenca";
@@ -28,6 +29,19 @@ import { COLUNAS, PARES, type ParDeDiferenca } from "../_content/diferenca";
  * é `scaleX(1)`, que é exatamente o final que se quer.
  */
 export function AplicativoDiferenca() {
+  // Margem curta de propósito. Esta é a seção logo abaixo do herói, a 1.368px
+  // do topo num celular de 823: com a antecedência padrão (150% da tela) ela
+  // já estaria dentro da margem no carregamento e montaria na hora, sem tirar
+  // nada da janela que o Lighthouse mede. Com 25% ela monta no primeiro
+  // gesto de rolagem, ainda uns 200px antes de aparecer.
+  return (
+    <HidratarPerto margem="25% 0px">
+      <CorpoDaDiferenca />
+    </HidratarPerto>
+  );
+}
+
+function CorpoDaDiferenca() {
   const secao = React.useRef<HTMLDivElement>(null);
   const { progress, animated } = useScrollProgress(secao, {
     start: "top 72%",
