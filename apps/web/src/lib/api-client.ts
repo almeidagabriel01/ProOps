@@ -3,6 +3,7 @@ import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { reportClientError } from "@/lib/observability/client-error-reporter";
 import { isDemoBlockedMutation } from "@/lib/demo-mode";
 import { toast } from "@/lib/toast";
+import { buildImpersonationHeaders } from "@/lib/viewing-tenant-session";
 
 const OBSERVABILITY_PREFIX = "/v1/observability";
 
@@ -101,12 +102,8 @@ export const callApi = async <T = unknown>(
     });
   }
 
-  // When a super admin is viewing a specific tenant's panel, pass the tenant ID
-  // so the backend can scope queries correctly (super admin has no tenantId in claims).
-  const viewingTenantId =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("viewingAsTenant")
-      : null;
+  // Superadmin no "Acessar Painel": a empresa vista e o modo de edicao.
+  const impersonationHeaders = buildImpersonationHeaders();
 
   const sendOnce = async (forceRefresh: boolean): Promise<Response> => {
     const token = await user.getIdToken(forceRefresh);
@@ -114,9 +111,7 @@ export const callApi = async <T = unknown>(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
-    if (viewingTenantId) {
-      (headers as Record<string, string>)["x-tenant-id"] = viewingTenantId;
-    }
+    Object.assign(headers, impersonationHeaders);
     const config: RequestInit = { method, headers };
     if (body) {
       config.body = JSON.stringify(body);
@@ -157,6 +152,12 @@ export const callApi = async <T = unknown>(
           : "(nenhuma etapa concluida: travou antes ou o backend e antigo)";
         console.error(
           `[timeout] ${method} ${path} | teto=${errorData?.timeoutMs ?? "?"}ms | etapas=${phases}`,
+        );
+      }
+
+      if (errorData?.code === "IMPERSONATION_READ_ONLY") {
+        toast.info(
+          "Modo somente leitura: habilite a edição na faixa do topo para alterar dados desta empresa.",
         );
       }
 

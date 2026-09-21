@@ -21,7 +21,23 @@ import {
 import { TenantBillingInfo, AdminService } from "@/services/admin-service";
 import { canAccessTenantPanel } from "@/lib/tenant-panel-access";
 import { toast } from "@/lib/toast";
-import { LogIn, Trash2, Pencil, ShieldOff, Calendar, CheckCircle2, Clock, XCircle, MinusCircle } from "lucide-react";
+import {
+  LogIn,
+  Trash2,
+  Pencil,
+  ShieldOff,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  MinusCircle,
+  Copy,
+  Power,
+  RotateCcw,
+  Ban,
+  LayoutGrid,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,21 +45,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface TenantCardProps {
   item: TenantBillingInfo;
   onEdit: (data: TenantBillingInfo) => void;
-  onDelete: (id: string) => Promise<void>;
+  onDeactivate: (id: string) => Promise<void>;
+  onReactivate: (id: string) => Promise<void>;
+  onPurge: (id: string, confirmName: string) => Promise<void>;
   onLoginAs: (item: TenantBillingInfo) => void;
   onCopy?: (data: TenantBillingInfo) => void;
+  onManageModules?: (data: TenantBillingInfo) => void;
 }
 
 export function TenantCard({
   item,
   onEdit,
-  onDelete,
+  onDeactivate,
+  onReactivate,
+  onPurge,
   onLoginAs,
   onCopy,
+  onManageModules,
 }: TenantCardProps) {
   const { tenant, planName, subscriptionStatus, billingInterval, admin, isBillingStale } = item;
   const isFreePlan = item.planId === "free";
-  const canAccessPanel = canAccessTenantPanel(item);
+  const accountStatus = tenant.accountStatus || "active";
+  const isDeactivated = accountStatus === "deactivated";
+  const isPurging = accountStatus === "purging" || accountStatus === "purged";
+  const canAccessPanel = canAccessTenantPanel(item) && accountStatus === "active";
   const currentPeriodEnd = admin.currentPeriodEnd;
   const isStaleWithNoDate = isBillingStale && !currentPeriodEnd;
 
@@ -64,6 +89,7 @@ export function TenantCard({
   // "active"). The card just maps the enum to UI.
   const displayStatus = subscriptionStatus;
   const isActive = displayStatus === "active";
+  const isTrialing = displayStatus === "trialing";
   const isPastDue = displayStatus === "past_due";
   const isCanceled = displayStatus === "canceled";
   const isInactive = displayStatus === "inactive";
@@ -84,23 +110,27 @@ export function TenantCard({
   }
 
   // Controlled dialog state
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [openDialog, setOpenDialog] = useState<"deactivate" | "purge" | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
   const [isResetMfaDialogOpen, setIsResetMfaDialogOpen] = useState(false);
   const [isResettingMfa, setIsResettingMfa] = useState(false);
 
-  const handleDelete = async () => {
+  const runLifecycle = async (action: () => Promise<void>) => {
     setIsDeleting(true);
     try {
-      await onDelete(tenant.id);
-      setIsDeleteDialogOpen(false);
-    } catch (error) {
-      console.error("Delete failed:", error);
-      // Keep dialog open on error so user can see the error toast
+      await action();
+      setOpenDialog(null);
+      setConfirmName("");
+    } catch {
+      // O toast de erro sai do hook; o dialogo fica aberto para tentar de novo.
     } finally {
       setIsDeleting(false);
     }
   };
+
+  const nameMatches =
+    confirmName.trim().toLowerCase() === tenant.name.trim().toLowerCase();
 
   const handleResetMfa = async () => {
     setIsResettingMfa(true);
@@ -121,7 +151,13 @@ export function TenantCard({
       style={{ borderTopColor: cardBorderTopColor() }}
     >
       {/* Banner de estado crítico — visível sem hover */}
-      {(isCancelingAtPeriodEnd || isCanceled || isInactive) && (
+      {(isDeactivated || isPurging) && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          <Ban className="w-3 h-3 shrink-0" />
+          {isPurging ? "Exclusão em andamento" : "Empresa desativada"}
+        </div>
+      )}
+      {!isDeactivated && !isPurging && (isCancelingAtPeriodEnd || isCanceled || isInactive) && (
         <div
           className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider ${
             isCancelingAtPeriodEnd
@@ -168,7 +204,7 @@ export function TenantCard({
               </span>
             )}
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
             <Button
               variant="ghost"
               size="icon"
@@ -179,6 +215,18 @@ export function TenantCard({
             >
               <Pencil className="w-4 h-4" />
             </Button>
+            {onManageModules && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => onManageModules(item)}
+                disabled={isDeleting}
+                title="Plano e módulos"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </Button>
+            )}
             {onCopy && (
               <Button
                 variant="ghost"
@@ -188,21 +236,7 @@ export function TenantCard({
                 disabled={isDeleting}
                 title="Clonar Dados (Produtos, Serviços, etc)"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-4 h-4"
-                >
-                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                </svg>
+                <Copy className="w-4 h-4" />
               </Button>
             )}
             <Button
@@ -215,20 +249,43 @@ export function TenantCard({
             >
               <ShieldOff className="w-4 h-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:bg-destructive/10"
-              onClick={() => setIsDeleteDialogOpen(true)}
-              disabled={isDeleting}
-              title="Excluir"
-            >
-              {isDeleting ? (
-                <Loader size="sm" />
-              ) : (
-                <Trash2 className="w-4 h-4" />
-              )}
-            </Button>
+            {isDeactivated ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
+                  onClick={() => runLifecycle(() => onReactivate(tenant.id))}
+                  disabled={isDeleting}
+                  title="Reativar empresa"
+                >
+                  {isDeleting ? <Loader size="sm" /> : <RotateCcw className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  onClick={() => setOpenDialog("purge")}
+                  disabled={isDeleting}
+                  title="Excluir definitivamente"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </>
+            ) : (
+              !isPurging && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  onClick={() => setOpenDialog("deactivate")}
+                  disabled={isDeleting}
+                  title="Desativar empresa"
+                >
+                  <Power className="w-4 h-4" />
+                </Button>
+              )
+            )}
           </div>
         </div>
         <div className="mt-4">
@@ -278,7 +335,9 @@ export function TenantCard({
                       ? "text-red-600"
                       : isActive
                         ? "text-emerald-600"
-                        : "text-muted-foreground"
+                        : isTrialing
+                          ? "text-sky-600"
+                          : "text-muted-foreground"
             }`}
           >
             {isCanceled
@@ -291,7 +350,9 @@ export function TenantCard({
                     ? "Atrasado"
                     : isActive
                       ? "Ativo"
-                      : displayStatus === "free"
+                      : isTrialing
+                        ? "Em teste"
+                        : displayStatus === "free"
                         ? "Gratuito"
                         : "—"}
           </span>
@@ -349,7 +410,9 @@ export function TenantCard({
           title={
             canAccessPanel
               ? undefined
-              : "Conta no plano gratuito não possui acesso ao painel ERP"
+              : accountStatus !== "active"
+                ? "Empresa desativada: reative para acessar o painel"
+                : "Conta no plano gratuito não possui acesso ao painel ERP"
           }
         >
           <Button
@@ -363,31 +426,86 @@ export function TenantCard({
         </span>
       </CardFooter>
 
-      {/* Delete Confirmation Dialog - Controlled */}
       <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
+        open={openDialog === "deactivate"}
+        onOpenChange={(open) => !isDeleting && setOpenDialog(open ? "deactivate" : null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover Empresa</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover <strong>{tenant.name}</strong>?
-              Esta ação irá excluir permanentemente a empresa e todos os seus
-              dados (usuários, produtos, propostas, etc).
+            <AlertDialogTitle>Desativar {tenant.name}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>Nenhum dado é apagado. Ao desativar:</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>a assinatura e os add-ons no Stripe são cancelados e a cobrança para;</li>
+                  <li>todos os usuários da empresa perdem o acesso na hora.</li>
+                </ul>
+                <p>
+                  Dá para reativar depois; a assinatura cancelada não volta
+                  sozinha. Para apagar os dados, use &quot;Excluir definitivamente&quot;
+                  com a empresa já desativada.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>
-              Cancelar
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
             <Button
-              onClick={handleDelete}
+              onClick={() => runLifecycle(() => onDeactivate(tenant.id))}
               disabled={isDeleting}
               variant="destructive"
             >
               {isDeleting && <Loader size="sm" className="mr-2" />}
-              {isDeleting ? "Removendo..." : "Remover"}
+              {isDeleting ? "Desativando..." : "Desativar"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={openDialog === "purge"}
+        onOpenChange={(open) => {
+          if (isDeleting) return;
+          setOpenDialog(open ? "purge" : null);
+          if (!open) setConfirmName("");
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {tenant.name} definitivamente?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Usuários, propostas, contatos, lançamentos, carteiras, CRM,
+                  agenda, integrações e arquivos da empresa serão apagados. Não
+                  dá para desfazer.
+                </p>
+                <p>
+                  As notas fiscais e o arquivo fiscal ficam guardados pelo prazo
+                  legal de 5 anos.
+                </p>
+                <p>
+                  Para confirmar, digite o nome da empresa: <strong>{tenant.name}</strong>
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={confirmName}
+            onChange={(e) => setConfirmName(e.target.value)}
+            placeholder={tenant.name}
+            aria-label="Nome da empresa para confirmar a exclusão"
+            disabled={isDeleting}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <Button
+              onClick={() => runLifecycle(() => onPurge(tenant.id, confirmName))}
+              disabled={isDeleting || !nameMatches}
+              variant="destructive"
+            >
+              {isDeleting && <Loader size="sm" className="mr-2" />}
+              {isDeleting ? "Iniciando..." : "Excluir definitivamente"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

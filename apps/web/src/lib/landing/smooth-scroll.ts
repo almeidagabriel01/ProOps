@@ -15,11 +15,56 @@ export function setLandingLenis(lenis: Lenis | null): void {
   instance = lenis;
 }
 
-export function scrollToOffset(top: number): void {
-  const target = Math.max(top, 0);
-  if (instance) {
-    instance.scrollTo(target);
+/**
+ * Trava e destrava a rolagem da página, para um painel que cobre a tela.
+ *
+ * Duas metades porque há dois donos possíveis do scroll. Com Lenis no ar é ele
+ * quem manda, e `overflow: hidden` sozinho não o impede de continuar aplicando
+ * a própria posição; sem Lenis (movimento reduzido, ou antes do
+ * `requestIdleCallback` que o cria) quem manda é o navegador, e aí o
+ * `overflow` é o único freio. Aplicar os dois cobre as duas situações sem
+ * precisar saber em qual delas a página está.
+ */
+export function setScrollLocked(locked: boolean): void {
+  if (locked) {
+    instance?.stop();
+    document.documentElement.style.overflow = "hidden";
     return;
   }
-  window.scrollTo({ top: target, behavior: "smooth" });
+  instance?.start();
+  document.documentElement.style.removeProperty("overflow");
+}
+
+/**
+ * `immediate` pula a suavização: é o caso de um controle arrastado que move a
+ * página junto com o dedo, onde qualquer atraso descola a página do gesto.
+ */
+export function scrollToOffset(
+  top: number,
+  { immediate = false }: { immediate?: boolean } = {},
+): void {
+  const target = Math.max(top, 0);
+  if (instance) {
+    if (immediate) instance.scrollTo(target, { immediate: true });
+    else instance.scrollTo(target);
+    return;
+  }
+  window.scrollTo({ top: target, behavior: immediate ? "instant" : "smooth" });
+}
+
+/**
+ * Jumps to the top with no animation, for a route change.
+ *
+ * The App Router resets the scroll position itself, but Lenis keeps its own
+ * internal position and reasserts it on the next frame, so the new page opens
+ * wherever the old one was left. `immediate` is what skips the easing: a
+ * smooth-scrolled reset is visible, and it competes with the curtain covering
+ * the transition.
+ */
+export function jumpToTop(): void {
+  if (instance) {
+    instance.scrollTo(0, { immediate: true });
+    return;
+  }
+  window.scrollTo(0, 0);
 }

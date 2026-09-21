@@ -8,6 +8,7 @@ import { useGSAP } from "@gsap/react";
 import { Check, FileText, Kanban, Wallet } from "lucide-react";
 import { MonoGlassCard } from "./_shared/mono-glass-card";
 import { Accent, SectionHeading } from "./_shared/section-heading";
+import { origemDe } from "@/lib/site/host-seo";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -63,10 +64,13 @@ const MODULES: ModuleHighlight[] = [
       "Compartilhamento por link e rastreio do documento",
     ],
     imageSrc: "/hero/editPDF-module.jpeg",
-    imageAlt: "Editor de PDF para propostas comerciais com preview em tempo real",
+    imageAlt:
+      "Editor de PDF para propostas comerciais com preview em tempo real",
     icon: FileText,
   },
 ];
+
+const hostnameDoErp = new URL(origemDe("erp")).hostname;
 
 function DeviceFrame({ src, alt }: { src: string; alt: string }) {
   return (
@@ -81,7 +85,14 @@ function DeviceFrame({ src, alt }: { src: string; alt: string }) {
         <span className="h-2.5 w-2.5 rounded-full bg-black/15 dark:bg-white/20" />
         <span className="h-2.5 w-2.5 rounded-full bg-black/15 dark:bg-white/20" />
         <div className="ml-3 flex-1 truncate rounded-md border border-black/10 bg-black/[0.03] px-3 py-1 text-[11px] font-medium text-black/45 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/45">
-          app.proops.com.br
+          {/*
+            Derivado, e nao escrito a mao. Esta barra dizia
+            "app.proops.com.br", que hoje e a landing do APLICATIVO MOBILE: a
+            moldura do ERP exibia o endereco de outro produto. `origemDe`
+            devolve onde o ERP e canonico agora (o apex) e passa a devolver o
+            subdominio sozinha depois da virada.
+          */}
+          {hostnameDoErp}
         </div>
       </div>
       <div className="module-media overflow-hidden">
@@ -229,7 +240,9 @@ export function LandingModules() {
                   </div>
                 </div>
 
-                <div className={`gsap-fade-up ${isReversed ? "lg:order-1" : ""}`}>
+                <div
+                  className={`gsap-fade-up ${isReversed ? "lg:order-1" : ""}`}
+                >
                   <DeviceFrame src={module.imageSrc} alt={module.imageAlt} />
                 </div>
               </div>

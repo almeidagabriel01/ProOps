@@ -57,14 +57,10 @@ const CallbackQuerySchema = z
     message: "code_or_error_required",
   });
 
+// Superadmin vendo outra empresa ja chega com o tenant alvo em
+// req.user.tenantId (middleware de impersonacao).
 function resolveTenantId(req: Request): string {
-  if (req.user?.tenantId) {
-    return req.user.tenantId;
-  }
-  if (req.user?.isSuperAdmin) {
-    return String(req.headers["x-tenant-id"] || "").trim();
-  }
-  return "";
+  return req.user?.tenantId || "";
 }
 
 function canManageIntegration(req: Request): boolean {

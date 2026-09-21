@@ -325,7 +325,12 @@ jobs:
     # Observado entre 13m26 e 14m46 (15 corridas do Lighthouse sob throttling real
     # de slow-3G). Com timeout de 15min sobravam 14s no pior caso, o que fazia o
     # job falhar por timeout de forma intermitente sem nenhuma mudanca de codigo.
-    timeout-minutes: 25
+    # 25 min cobria 5 URLs (medido: 13m26 a 14m46). A institucional e a do
+    # aplicativo levam a 7, ou seja 21 execucoes do Lighthouse em vez de 15,
+    # sob throttling real de rede e CPU. Regra de tres sobre a pior medicao da
+    # de 20 min, e o historico deste job e de falhar por variancia do runner
+    # quando a folga e curta.
+    timeout-minutes: 32
     # Sem `needs`: este job sobe o proprio `next start` a partir de um build de
     # producao e nao depende de nada do E2E. Encadear atras dele so somava ~8min
     # de relogio ao pipeline — e o repo e publico, entao minuto de runner e de graca.

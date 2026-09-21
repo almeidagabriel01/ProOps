@@ -26,6 +26,7 @@
 | `cleanupSecurityAuditEvents` | Scheduled | Expurga eventos de auditoria antigos |
 | `remindNoSubscriptionSignups` | Scheduled | Lembra signups sem assinatura |
 | `onWalletCascadeJob` | Firestore trigger | Cascata de exclusao de carteira |
+| `onTenantPurgeJob` | Firestore trigger | Exclusao definitiva de empresa pelo painel do superadmin, em etapas resumiveis (`api/services/tenant-purge.service.ts`) |
 | `onTransactionTotals` | Firestore trigger | Mantem `paidTotal`/`pendingTotal` + `grouped` em transactions/{id} E os doc-resumos em `transaction_groups/{groupDocId}` (fonte da aba Agrupados) |
 | `onUserSignupNotify` | Firestore trigger | Email interno para a ProOps em todo create de users/{uid} (cadastro novo ou membro de equipe); idempotente via `internal_notify_claims` |
 
@@ -268,6 +269,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `whatsappUsage/{tenantId}/months/{YYYY-MM}` | WhatsApp | Uso mensal e overage |
 | `whatsappLogs` | WhatsApp | Audit trail de acoes do bot |
 | `drive_delivery_jobs/{tenantId}_{proposalId}` | Drive | Fila de entrega da proposta no Drive. Admin SDK only |
+| `tenant_purge_jobs/{tenantId}` | Admin | Job de exclusao definitiva de empresa. Escrita so pelo backend; superadmin com MFA le o progresso |
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |

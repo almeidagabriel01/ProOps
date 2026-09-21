@@ -22,6 +22,7 @@
 export type SubscriptionDisplayStatus =
   | "free"
   | "active"
+  | "trialing"
   | "canceling"
   | "past_due"
   | "inactive"
@@ -69,7 +70,8 @@ function isPeriodLapsed(currentPeriodEnd?: string | null, nowMs?: number): boole
  *  5. explicit `free` status OR plan tier `free` -> `free` (genuine free tier;
  *        reached only when the status above is benign)
  *  6. empty status + period lapsed -> `inactive`
- *  7. otherwise (active / trialing / unknown-non-blocking) -> `active`
+ *  7. `trialing` -> `trialing` (teste de 7 dias: ainda nao pagou, nao e receita)
+ *  8. otherwise (active / unknown-non-blocking) -> `active`
  */
 export function deriveSubscriptionDisplayStatus(
   input: DeriveSubscriptionStatusInput,
@@ -92,6 +94,8 @@ export function deriveSubscriptionDisplayStatus(
   if (status === "free" || planId === "free") return "free";
 
   if (status === "" && lapsed) return "inactive";
+
+  if (status === "trialing") return "trialing";
 
   return "active";
 }

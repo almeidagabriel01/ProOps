@@ -26,6 +26,18 @@ export const PUBLIC_MARKETING_ROUTES = [
   "/decoracao",
   "/contato",
   "/agendar",
+  // The two host-routed sites. `proops.com.br/` and `app.proops.com.br/` are
+  // rewritten onto these paths by the proxy, and both remain directly
+  // reachable so they can be reviewed on any host while being built.
+  "/institucional",
+  "/aplicativo",
+  // The company site's own pages, at apex level. They are siblings of the legal
+  // pages: `APEX_COMPANY_PATHS` in `@/lib/site/surfaces` keeps the apex serving
+  // them after the cutover instead of 301-ing them to the ERP.
+  "/sobre",
+  "/manifesto",
+  "/produtos",
+  "/fale-conosco",
 ] as const;
 
 /**
@@ -82,6 +94,39 @@ function matchesExactOrPrefix(
 
 export function isPublicMarketingRoute(pathname: string): boolean {
   return matchesExactOrPrefix(pathname, PUBLIC_MARKETING_ROUTES);
+}
+
+/**
+ * Marketing pages that need NO session context at all.
+ *
+ * A strict subset of PUBLIC_MARKETING_ROUTES, and the distinction is about what
+ * the page DOES, not about who may see it. The ERP landing is public too, but
+ * it fetches live prices and swaps its buttons depending on whether the visitor
+ * is logged in, so it genuinely needs Auth, Tenant, Permissions and Plan. These
+ * do not: the company site has no prices and no login, and the app page has
+ * fixed prices with no web checkout.
+ *
+ * `providers.tsx` gives these a branch with none of those providers, which
+ * takes their initialisation straight off the main thread. Measured on a
+ * throttled Pixel 5 (4x CPU, slow-3G, median of 3), the difference is written
+ * into `lighthouserc.json` next to the budgets it made room for.
+ *
+ * Before adding a route here, check that nothing it renders calls `useAuth`,
+ * `useTenant`, `usePlan` or `usePagePermission`, directly or through a shared
+ * component. The failure is a context read returning undefined at runtime, in
+ * the browser, which no type checks and no server-side test would catch.
+ */
+export const SESSIONLESS_MARKETING_ROUTES = [
+  "/institucional",
+  "/aplicativo",
+  "/sobre",
+  "/manifesto",
+  "/produtos",
+  "/fale-conosco",
+] as const;
+
+export function isSessionlessMarketingRoute(pathname: string): boolean {
+  return matchesExactOrPrefix(pathname, SESSIONLESS_MARKETING_ROUTES);
 }
 
 export function isPublicRoute(pathname: string): boolean {

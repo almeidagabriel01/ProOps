@@ -3,6 +3,7 @@
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import type { AiChatRequest, AiChatChunk } from "@/types/ai";
+import { buildImpersonationHeaders } from "@/lib/viewing-tenant-session";
 
 const AI_CHAT_URL = "/api/backend/v1/ai/chat";
 
@@ -93,11 +94,7 @@ export async function generateField(
     Authorization: `Bearer ${token}`,
   };
 
-  const viewingTenantId =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("viewingAsTenant")
-      : null;
-  if (viewingTenantId) headers["x-tenant-id"] = viewingTenantId;
+  Object.assign(headers, buildImpersonationHeaders());
 
   const response = await fetch(AI_FIELD_GEN_URL, {
     method: "POST",
@@ -131,13 +128,7 @@ export async function sendChatMessage(
     Authorization: `Bearer ${token}`,
   };
 
-  const viewingTenantId =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("viewingAsTenant")
-      : null;
-  if (viewingTenantId) {
-    headers["x-tenant-id"] = viewingTenantId;
-  }
+  Object.assign(headers, buildImpersonationHeaders());
 
   // Fire the fetch in a microtask so we can return the controller immediately
   (async () => {

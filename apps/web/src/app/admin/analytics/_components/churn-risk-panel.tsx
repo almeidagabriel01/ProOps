@@ -3,7 +3,7 @@
 import { AlertTriangle, CheckCircle, Copy, Flame, AlertCircle, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import type { ChurnRisk, ChurnRiskTenant } from "../_hooks/useAnalyticsData";
 
 interface ChurnRiskPanelProps {

@@ -28,6 +28,7 @@ import {
   toISODateString,
 } from "@/utils/date-utils";
 import { Loader } from "@/components/ui/loader";
+import { downscaleLogo } from "@/lib/image-downscale";
 
 export interface TenantFormData {
   name: string;
@@ -40,14 +41,8 @@ export interface TenantFormData {
   phoneNumber?: string;
   whatsappEnabled?: boolean;
   planId?: string;
-  subscriptionStatus?:
-    | "active"
-    | "past_due"
-    | "canceled"
-    | "unpaid"
-    | "trialing"
-    | "free"
-    | "inactive";
+  /** Derivado da data pelo backend; o formulario so exibe. */
+  subscriptionStatus?: "active" | "past_due" | "canceled";
   currentPeriodEnd?: string;
 }
 
@@ -71,6 +66,24 @@ interface TenantDialogProps {
   onRecompute?: () => Promise<void>;
   isSaving?: boolean;
   isRecomputing?: boolean;
+}
+
+function toFormStatus(status?: string): TenantFormData["subscriptionStatus"] {
+  if (status === "past_due" || status === "canceled") return status;
+  return "active";
+}
+
+const STATUS_LABELS: Record<NonNullable<TenantFormData["subscriptionStatus"]>, string> = {
+  active: "Ativa",
+  past_due: "Em atraso",
+  canceled: "Cancelada",
+};
+
+/** Contrato Enterprise e vendido por 12 meses; os demais planos, por mes. */
+function defaultPeriodEndFor(planId: string): string {
+  const date = parseLocalDate(getTodayISO());
+  date.setMonth(date.getMonth() + (planId === "enterprise" ? 12 : 1));
+  return toISODateString(date);
 }
 
 const buildTenantSnapshot = (data: TenantFormData): string =>
@@ -120,12 +133,6 @@ export function TenantDialog({
   // Reset or Load data when dialog opens
   React.useEffect(() => {
     if (isOpen) {
-      console.log("TenantDialog Open. InitialData:", initialData);
-      console.log(
-        "Admin Subscription Status:",
-        initialData?.admin?.subscriptionStatus,
-      );
-
       if (initialData) {
         const initialFormData: TenantFormData = {
           name: initialData.tenant.name,
@@ -140,11 +147,7 @@ export function TenantDialog({
           phoneNumber: initialData.admin?.phoneNumber || "",
           whatsappEnabled: initialData.tenant?.whatsappEnabled || false,
           planId: initialData.planId || "free",
-          subscriptionStatus:
-            (initialData.admin?.subscription?.status?.toLowerCase() as TenantFormData["subscriptionStatus"]) ||
-            (initialData.admin
-              ?.subscriptionStatus as TenantFormData["subscriptionStatus"]) ||
-            "active",
+          subscriptionStatus: toFormStatus(initialData.subscriptionStatus),
           currentPeriodEnd: initialData.admin?.currentPeriodEnd || "",
         };
         setFormData(initialFormData);
@@ -169,24 +172,19 @@ export function TenantDialog({
     }
   }, [isOpen, initialData]);
 
-  // Auto-fill date upon creating paid plan
+  // Ao criar, a data acompanha o plano escolhido enquanto ninguem a editar.
+  const periodEditedRef = React.useRef(false);
   React.useEffect(() => {
-    // Only if creating (no initialData) and plan became paid and date is empty
-    if (
-      !initialData &&
-      formData.planId !== "free" &&
-      !formData.currentPeriodEnd
-    ) {
-      // Calculate next month safely
-      const today = parseLocalDate(getTodayISO());
-      const nextMonth = new Date(today);
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      setFormData((prev) => ({
-        ...prev,
-        currentPeriodEnd: toISODateString(nextMonth),
-      }));
+    if (initialData || periodEditedRef.current) return;
+    if (formData.planId === "free") return;
+    const next = defaultPeriodEndFor(formData.planId || "starter");
+    if (formData.currentPeriodEnd !== next) {
+      setFormData((prev) => ({ ...prev, currentPeriodEnd: next }));
     }
   }, [formData.planId, initialData, formData.currentPeriodEnd]);
+  React.useEffect(() => {
+    if (isOpen) periodEditedRef.current = false;
+  }, [isOpen]);
 
   // Auto-calculate status based on date (Manual Subscription)
   React.useEffect(() => {
@@ -219,6 +217,7 @@ export function TenantDialog({
   }, [formData.currentPeriodEnd, formData.planId, formData.subscriptionStatus]);
 
   const isEditing = !!initialData;
+  const stripeManaged = initialData?.billingManagedBy === "stripe";
   const hasChanges = React.useMemo(() => {
     if (!isEditing || !initialSnapshot) return true;
 
@@ -392,23 +391,25 @@ export function TenantDialog({
                               toast.error("Formato inválido (apenas imagens).");
                               return;
                             }
-                            if (file.size > 2 * 1024 * 1024) {
-                              toast.error("Máximo 2MB.");
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error("Máximo 5MB.");
                               return;
                             }
-                            const reader = new FileReader();
-                            reader.onload = (ev) =>
-                              setFormData({
-                                ...formData,
-                                logoUrl: ev.target?.result as string,
-                              });
-                            reader.readAsDataURL(file);
+                            downscaleLogo(file)
+                              .then((logoUrl) =>
+                                setFormData((prev) => ({ ...prev, logoUrl })),
+                              )
+                              .catch(() =>
+                                toast.error(
+                                  "Não foi possível usar esta imagem. Tente um PNG ou JPG menor.",
+                                ),
+                              );
                           }
                         }}
                         className="cursor-pointer"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        PNG, JPG, SVG (Max 2MB)
+                        PNG, JPG ou SVG. A imagem é reduzida para 256 px.
                       </p>
                     </div>
                   </div>
@@ -427,6 +428,7 @@ export function TenantDialog({
                     onChange={(e) =>
                       setFormData({ ...formData, planId: e.target.value })
                     }
+                    disabled={stripeManaged}
                     disableSort
                   >
                     {PLAN_OPTIONS.map((plan) => (
@@ -437,7 +439,15 @@ export function TenantDialog({
                   </Select>
                 </div>
 
-                {formData.planId !== "free" && (
+                {stripeManaged && (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                    Plano gerenciado pelo Stripe. Plano, status e vencimento vêm da
+                    assinatura do cliente; mudanças são feitas pelo portal de
+                    assinatura dele, não por aqui.
+                  </div>
+                )}
+
+                {formData.planId !== "free" && !stripeManaged && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <Label
@@ -448,21 +458,7 @@ export function TenantDialog({
                       </Label>
                       <Input
                         id="subscriptionStatus"
-                        value={
-                          formData.subscriptionStatus === "active"
-                            ? "Ativa"
-                            : formData.subscriptionStatus === "past_due"
-                              ? "Em Atraso (Past Due)"
-                              : formData.subscriptionStatus === "canceled"
-                                ? "Cancelada"
-                                : formData.subscriptionStatus === "trialing"
-                                  ? "Em Teste"
-                                  : formData.subscriptionStatus === "free"
-                                    ? "Gratuita"
-                                    : formData.subscriptionStatus === "inactive"
-                                      ? "Inativa"
-                                      : "Não Paga"
-                        }
+                        value={STATUS_LABELS[formData.subscriptionStatus || "active"]}
                         disabled
                         className="bg-muted opacity-100 text-foreground"
                       />
@@ -472,7 +468,7 @@ export function TenantDialog({
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="currentPeriodEnd" className="mb-3 block">
-                        Próximo Pagamento
+                        Vencimento
                       </Label>
                       <DatePicker
                         id="currentPeriodEnd"
@@ -483,6 +479,7 @@ export function TenantDialog({
                             : ""
                         }
                         onChange={(e) => {
+                          periodEditedRef.current = true;
                           setFormData({
                             ...formData,
                             currentPeriodEnd: e.target.value,
@@ -490,7 +487,9 @@ export function TenantDialog({
                         }}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Define vencimento/expiração.
+                        {formData.planId === "enterprise"
+                          ? "Fim do contrato (12 meses). Ao passar, a empresa entra em atraso."
+                          : "Define vencimento/expiração."}
                       </p>
                     </div>
                   </div>
@@ -598,7 +597,8 @@ export function TenantDialog({
                       <Label className="text-base">WhatsApp Ativo</Label>
                       <p className="text-sm text-muted-foreground">
                         Habilita os menus de automações e a integração do WhatsApp
-                        Bot para essa empresa.
+                        Bot para essa empresa. Só vale em plano que inclui WhatsApp:
+                        nos demais, a próxima sincronização do plano desliga.
                       </p>
                     </div>
                     <Switch

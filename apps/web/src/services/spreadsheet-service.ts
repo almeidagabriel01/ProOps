@@ -22,7 +22,7 @@ import {
   UniverWorkbookData,
 } from "@/types";
 import { PaginatedResult } from "./client-service";
-import { callApi } from "@/lib/api-client";
+import { ApiError, callApi } from "@/lib/api-client";
 import { DEFAULT_SPREADSHEET_LOCALE } from "@/lib/univer-pt-br";
 
 export type Spreadsheet = {
@@ -243,7 +243,12 @@ export const SpreadsheetService = {
         return createdId;
       } catch (apiError) {
         // Non-production fallback keeps local preview/dev productive.
-        if (process.env.NODE_ENV === "production") {
+        // Recusa de permissao (inclusive o modo somente leitura do "Acessar
+        // Painel") nao e falha de infraestrutura: gravar direto contornaria a regra.
+        if (
+          process.env.NODE_ENV === "production" ||
+          (apiError instanceof ApiError && apiError.status < 500)
+        ) {
           throw apiError;
         }
         console.warn(
@@ -299,7 +304,12 @@ export const SpreadsheetService = {
         await callApi(`/v1/spreadsheets/${id}`, "PUT", updateData);
         return;
       } catch (apiError) {
-        if (process.env.NODE_ENV === "production") {
+        // Recusa de permissao (inclusive o modo somente leitura do "Acessar
+        // Painel") nao e falha de infraestrutura: gravar direto contornaria a regra.
+        if (
+          process.env.NODE_ENV === "production" ||
+          (apiError instanceof ApiError && apiError.status < 500)
+        ) {
           throw apiError;
         }
         console.warn(
@@ -325,7 +335,12 @@ export const SpreadsheetService = {
         await callApi(`/v1/spreadsheets/${id}`, "DELETE");
         return;
       } catch (apiError) {
-        if (process.env.NODE_ENV === "production") {
+        // Recusa de permissao (inclusive o modo somente leitura do "Acessar
+        // Painel") nao e falha de infraestrutura: gravar direto contornaria a regra.
+        if (
+          process.env.NODE_ENV === "production" ||
+          (apiError instanceof ApiError && apiError.status < 500)
+        ) {
           throw apiError;
         }
         console.warn(

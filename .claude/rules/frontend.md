@@ -29,6 +29,16 @@
 - Tailwind v4 — configured via CSS, no `tailwind.config.ts`
 - Use `cn()` utility to merge class names with Shadcn/ui components
 - Theme (dark/light) is managed by ThemeContext — not CSS `prefers-color-scheme`
+- **Não acrescente `cursor-pointer` em botão.** O v4 deixou de normalizar o
+  cursor de `<button>` (o preflight segue o padrão do navegador, que é a seta), e
+  o projeto passou a remendar isso um call site por vez. Hoje existe uma regra em
+  `@layer base` no `globals.css` cobrindo `button`, `summary`, `select`, os
+  `input` de clique e os papéis ARIA que o Radix usa. Por estar na base, um
+  `cursor-default` ou `cursor-not-allowed` no call site continua vencendo.
+  `label` fica de fora de propósito: rótulo de campo de texto usa seta, e vários
+  deles aqui flutuam por cima do próprio campo. Superfície clicável que NÃO é um
+  desses elementos (um `<div>` com `onClick` que seja de fato acionável) continua
+  precisando da classe. Guard: `tests/e2e/cursor-de-clique.spec.ts`.
 
 ## Multi-Niche
 - Never hardcode niche-specific logic in generic components

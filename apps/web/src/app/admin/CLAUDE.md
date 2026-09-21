@@ -2,7 +2,10 @@
 
 ## Propósito
 
-A rota `/admin` é o painel de super-administrador da plataforma ProOps. Permite gerenciar todos os tenants (empresas clientes) cadastrados no sistema: criação, edição, exclusão, acesso impersonado e monitoramento de métricas agregadas.
+A rota `/admin` é o painel de super-administrador da plataforma ProOps: empresas
+(tenants), planos e módulos, acesso ao painel de cada empresa ("Acessar Painel"),
+ciclo de vida (desativar, reativar, excluir), métricas, faturamento,
+observabilidade e auditoria.
 
 **Esta rota é exclusiva para usuários com `role === "superadmin"`.**
 
@@ -12,346 +15,177 @@ A rota `/admin` é o painel de super-administrador da plataforma ProOps. Permite
 
 ```
 src/app/admin/
-├── page.tsx                         # Lista de tenants (cards) — rota /admin
-├── layout.tsx                       # Guard de acesso — bloqueia não-superadmins
+├── layout.tsx                       # AdminGuard + abas das seções (AdminSectionTabs)
+├── page.tsx                         # Empresas (cards) — rota /admin
 ├── _components/
-│   ├── index.ts                     # Re-exports
-│   ├── admin-skeleton.tsx           # Skeleton de carregamento
-│   ├── tenant-card.tsx              # Card de um tenant (lista principal)
-│   └── copy-data-dialog.tsx         # Dialog para clonar dados entre tenants
-├── _hooks/
-│   └── useTenantManagement.ts       # Hook principal da página /admin
-├── _utils/
-│   └── billing-date.ts             # Utilitário: calcular próxima data de cobrança
-├── overview/                       # rota /admin/overview — métricas agregadas
-│   ├── page.tsx
-│   ├── _hooks/
-│   │   └── useTenantsData.ts        # Hook de dados para a visão geral
-│   └── _components/
-│       ├── index.ts
-│       ├── admin-overview-skeleton.tsx
-│       ├── metrics-cards.tsx        # Cards de métricas agregadas
-│       ├── tenants-table.tsx        # Tabela detalhada de tenants
-│       ├── tenant-actions-menu.tsx  # Dropdown de ações por linha da tabela
-│       ├── company-avatar.tsx       # Avatar da empresa na tabela
-│       ├── plan-badge.tsx           # Badge do plano (ex: "Pro · Mensal")
-│       ├── status-badge.tsx         # Badge de status de assinatura
-│       ├── usage-indicator.tsx      # Barra de progresso de uso de recursos
-│       └── subscription-sync-card.tsx # Ferramenta de sincronização Stripe
-├── analytics/                      # rota /admin/analytics — KPIs e gráficos de crescimento
-├── billing/                        # rota /admin/billing — gestão de faturamento
-├── observability/                  # rota /admin/observability — dashboard de erros/observabilidade
-└── setup-mfa/                      # rota /admin/setup-mfa — configuração de MFA do superadmin
+│   ├── admin-guard.tsx              # Bloqueia não-superadmin
+│   ├── admin-section-tabs.tsx       # Abas do topo (lê lib/admin-sections.ts)
+│   ├── admin-skeleton.tsx
+│   ├── tenant-card.tsx              # Card da empresa: editar, módulos, copiar, MFA, ciclo de vida
+│   └── copy-data-dialog.tsx         # Copiar catálogo entre empresas
+├── _hooks/useTenantManagement.ts    # Estado da página /admin (lista, busca, save, ciclo de vida)
+├── _utils/tenant-save-plan.ts       # O que salvar ao editar (função pura)
+├── overview/                        # /admin/overview — métricas + tabela
+├── analytics/                       # /admin/analytics — KPIs e gráficos
+├── billing/                         # /admin/billing — faturamento
+├── observability/                   # /admin/observability — erros agrupados
+├── audit/                           # /admin/audit — eventos de security_audit_events
+└── setup-mfa/                       # /admin/setup-mfa — MFA do superadmin
 
-src/components/admin/                # Componentes admin reutilizáveis
-├── admin-guard.tsx                  # Guard client-side de acesso
-├── tenant-dialog.tsx                # Dialog de criação/edição de tenant
-└── edit-limits-dialog.tsx           # Dialog para editar limites de features
+src/components/admin/
+├── tenant-dialog.tsx                # Criar/editar empresa
+└── tenant-modules-dialog.tsx        # "Plano e módulos" (substitui o antigo Editar Limites)
+
+src/lib/admin-sections.ts            # Seções do painel: abas do topo, dock e tab bar
+src/components/layout/impersonation-bar.tsx  # Faixa do "Acessar Painel"
 ```
-
-> Nota: `billing-date.ts` fica em `_utils/` (não em `overview/_components/`).
 
 ---
 
 ## Controle de acesso
 
-### Layout Guard (`layout.tsx`)
-
-```typescript
-// Verificação executada em todo acesso às rotas /admin/*
-if (!isLoading && (!user || user.role !== "superadmin")) {
-  router.push("/403");
-}
-```
-
-O `layout.tsx` é um Client Component que:
-1. Observa `user` e `isLoading` do `useAuth()`
-2. Redireciona para `/403` se o usuário não for `superadmin`
-3. Exibe `AdminSkeleton` enquanto a sessão está carregando
-
-### Verificação dupla no hook de visão geral
-
-`useTenantsData.ts` verifica novamente `user.role !== "superadmin"` e redireciona para `/dashboard` se necessário. Esta é uma camada de defesa extra no cliente.
-
-### Segurança server-side
-
-O backend (`functions/src/api/middleware/`) valida o `role === "superadmin"` no token Firebase Auth em todas as rotas `/v1/admin/*`. O controle de acesso no frontend é apenas UX — a fonte de verdade é o backend.
+- `layout.tsx` usa `AdminGuard` (client): quem não é superadmin vai para `/403`.
+- O backend valida `isSuperAdminClaim` em toda rota `/v1/admin/*`. O controle no
+  front é só UX.
+- Firestore rules: `isSuperAdmin()` exige MFA. Superadmin sem MFA vê listas vazias
+  (permission-denied) nas leituras diretas do client.
 
 ---
 
-## Rota `/admin` — Lista de Tenants
+## Rota `/admin` — Empresas
 
-### Funcionalidades
+- **Busca global:** o hook carrega `GET /v1/admin/tenants/index` (id, nome, plano,
+  situação; 1 leitura por empresa) e, ao digitar, busca as linhas de billing das
+  empresas que casam (`GET /v1/admin/tenants/billing?tenantIds=...`, até 30). Antes
+  a busca filtrava só os 25 da página carregada.
+- **Paginação** por cursor quando não há busca.
+- **Nova empresa / editar:** `TenantDialog`.
+- **Plano e módulos:** `TenantModulesDialog`.
+- **Copiar dados:** `CopyDataDialog`.
+- **Ciclo de vida:** desativar, reativar, excluir definitivamente (ver abaixo).
+- **Acessar Painel:** impersonação (ver abaixo).
 
-- **Busca** por nome da empresa (input com debounce local)
-- **Criar empresa:** abre `TenantDialog` em modo criação
-- **Editar empresa:** clique no ícone de lápis no card
-- **Excluir empresa:** clique no ícone de lixeira → `AlertDialog` de confirmação → exclusão em cascata
-- **Acessar painel:** botão "Acessar Painel" → impersonação do tenant via `setViewingTenant()` + redirect para `/dashboard`. Desabilitado para tenants no plano free (sem acesso ao ERP) — ver seção "Impersonação de tenant"
-- **Clonar dados:** ícone de cópia → `CopyDataDialog` para copiar produtos, serviços, sistemas e ambientes entre tenants
+### Editar empresa (`handleSave` + `buildTenantSavePlan`)
 
-### `TenantCard`
+O save compara o formulário com o que foi carregado e manda **só o que mudou**:
 
-Cada card exibe:
+1. `TenantService.updateTenant()` com os campos alterados da empresa.
+2. `AdminService.updateUserPlan()` se o plano mudou (e recompute de features).
+3. `AdminService.updateAdminCredentials()` se e-mail, senha ou telefone mudaram.
+4. `AdminService.updateUserSubscription()` só para contrato manual, quando a data
+   ou o plano mudaram.
 
-| Campo | Fonte |
-|---|---|
-| Nome da empresa | `item.tenant.name` |
-| Logo (ou inicial) | `item.tenant.logoUrl` |
-| Cor de destaque (borda superior) | `item.tenant.primaryColor` |
-| Plano | `item.planName` |
-| Intervalo de cobrança | `item.billingInterval` (Mensal/Anual) |
-| Status da assinatura | `item.subscriptionStatus` |
-| Data de vencimento | `item.admin.currentPeriodEnd` ou calculada via `calculateNextBillingDate()` |
-| Data de criação | `item.tenant.createdAt` |
+**Empresa que paga pelo Stripe** (`billingManagedBy === "stripe"`): plano, status
+e vencimento ficam travados no formulário, e o backend recusa com 409
+`STRIPE_MANAGED_SUBSCRIPTION`. Antes todo save de plano pago mandava
+`isManualSubscription: true`, e o cron de assinaturas manuais rebaixava para free
+quem pagava pelo Stripe.
 
-Tenants com `subscriptionStatus === "past_due"` têm borda vermelha e badge de "Atrasado".
+Contrato manual: a data de vencimento é o interruptor (o cron move para
+`past_due` e depois `canceled` + free). Enterprise nasce com 12 meses.
 
-### Hook `useTenantManagement`
+### Criar empresa
 
-Gerencia todo o estado da página `/admin`:
+`POST /v1/admin/tenants`. Plano pago exige data de vencimento e vira contrato
+manual gravado pelo writer único (`syncTenantPlanBillingSnapshot`), então o doc do
+tenant nasce com `plan`, `subscriptionStatus` e `isManualSubscription`. Conta free
+nasce com role/claim `free` e cai no modo demonstração como uma conta do cadastro.
 
-```typescript
-// Carrega via AdminService.getAllTenantsBilling()
-// Retorna TenantBillingInfo[] — estrutura que une tenant + admin + billing
+### Copiar dados
 
-interface TenantBillingInfo {
-  tenant: {
-    id: string; name: string; slug?: string; createdAt: string;
-    logoUrl?: string; primaryColor?: string; niche?: string;
-    whatsappEnabled?: boolean;
-  };
-  admin: {
-    id: string; name?: string; email: string; phoneNumber?: string;
-    subscriptionStatus?: string; currentPeriodEnd?: string;
-    subscription?: { status: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean };
-  };
-  planName: string;
-  planId?: string;
-  subscriptionStatus?: string;
-  billingInterval?: string;
-  usage: { users: number; proposals: number; clients: number; products: number };
-  planFeatures?: Partial<PlanFeatures>;
-}
-```
+`POST /v1/admin/tenants/copy-data` com `{ sourceTenantId, targetTenantId, replace }`.
+Copia produtos, serviços, ambientes e sistemas (reescrevendo as referências).
+Recusa origem igual ao destino e empresa inexistente. Sem `replace` os itens
+**se somam** ao destino; com `replace` o catálogo antigo do destino é apagado
+**depois** da cópia. O seletor de destino usa o índice completo, não a página.
 
----
+### Plano e módulos (`TenantModulesDialog`)
 
-## Rota `/admin/overview` — Visão Geral
+`GET /v1/admin/tenants/:id/modules` devolve tier, capacidades (e as que vêm só do
+plano), limites e add-ons com a origem (`stripe` | `courtesy`). Rótulos vêm do
+catálogo (`CAPABILITY_LABELS`, `LIMIT_LABELS` em `plan-capabilities.ts`).
+`POST|DELETE /v1/admin/tenants/:id/addons/:addonId` concede ou retira **cortesia**,
+gravada no mesmo doc da compra (`addons/{tenantId}_{addonId}`, `source: "courtesy"`,
+sem `stripeSubscriptionId`, então o `reconcileAddons` não a cancela). Add-on pago
+não é alterado por aqui. Não existe override de limite por empresa, de propósito.
 
-Dashboard com métricas agregadas de todos os tenants.
+### Ciclo de vida da empresa
 
-### Cards de métricas
-
-| Métrica | Descrição |
-|---|---|
-| Total de Empresas | `tenantsData.length` com percentual de empresas ativas |
-| Usuários Ativos | Soma de `usage.users` em todos os tenants |
-| Produtos | Soma de `usage.products` em todos os tenants |
-| Propostas | Soma de `usage.proposals` em todos os tenants |
-
-### Tabela de tenants
-
-Colunas: Empresa, Plano, Usuários (com barra de progresso), Produtos, Propostas, Status, Ações.
-
-Filtros:
-- Busca por nome da empresa ou email do admin
-- Filtro por status: Todos / Ativos / Inativos / Gratuito
-
-### Menu de ações por linha
-
-Disponível via dropdown `TenantActionsMenu`:
-
-| Ação | Função |
-|---|---|
-| Copiar ID Admin | `navigator.clipboard.writeText(item.admin.id)` |
-| Copiar ID Empresa | `navigator.clipboard.writeText(item.tenant.id)` |
-| Editar Limites | Abre `EditLimitsDialog` |
-
-### `EditLimitsDialog`
-
-Permite sobrescrever os limites do plano de um tenant específico via `AdminService.updateTenantLimits()`. Os campos editáveis são todos os campos numéricos e booleanos de `PlanFeatures`:
-
-| Campo | Tipo | Descrição |
+| Ação | Endpoint | Efeito |
 |---|---|---|
-| `maxUsers` | number | -1 = ilimitado |
-| `maxProducts` | number | -1 = ilimitado |
-| `maxClients` | number | -1 = ilimitado |
-| `maxProposals` | number | -1 = ilimitado (por mês) |
-| `maxPdfTemplates` | number | -1 = todos |
-| `hasFinancial` | boolean | Acesso ao módulo financeiro |
-| `canCustomizeTheme` | boolean | Personalização de cores |
-| `canEditPdfSections` | boolean | Editor PDF avançado |
+| Desativar | `POST /v1/admin/tenants/:id/deactivate` | Cancela assinatura e add-ons no Stripe, desativa o Auth de todos os usuários e revoga os tokens, `accountStatus: "deactivated"`. Nada é apagado. |
+| Reativar | `POST /v1/admin/tenants/:id/reactivate` | Reabilita os usuários. A assinatura cancelada não volta sozinha. |
+| Excluir definitivamente | `POST /v1/admin/tenants/:id/purge` | Só empresa desativada, com o nome digitado. Cria `tenant_purge_jobs/{id}`; o trigger `onTenantPurgeJob` apaga em etapas. |
 
-### `SubscriptionSyncCard`
-
-Ferramenta administrativa para corrigir inconsistências entre Stripe e Firestore. Duas operações:
-
-- **Simular (dry run):** analisa sem gravar nada — mostra preview de impacto
-- **Sincronizar Agora:** grava alterações no Firestore com base no estado atual do Stripe
-
-Configurável: tamanho do lote por requisição (1-500). Exibe contadores de: lotes, scanned, elegíveis, sincronizados, falhas.
-
-Usa paginação via cursor (`startAfterId`) para processar todos os usuários em múltiplas requisições.
+O que a exclusão apaga e o que preserva está em
+`apps/functions/src/shared/tenant-collections.ts` (guard contra as rules). Notas
+fiscais e `tenants/{id}/fiscal/` no Storage ficam pela guarda legal de 5 anos; o
+doc residual do tenant fica com `accountStatus: "purged"` e `fiscalRetainUntil`,
+e o writer único não reescreve empresa excluída (sem tenant "zumbi").
 
 ---
 
-## Operações de criação/edição de tenant
+## "Acessar Painel" (impersonação)
 
-### `TenantDialog` — campos editáveis
+`handleLoginAs` → `setViewingTenant(tenant)` → `/dashboard`. Bloqueado para conta
+free (`canAccessTenantPanel`) e para empresa desativada.
 
-O dialog é compartilhado entre criação e edição. Organizado em abas:
-
-**Aba "Empresa":**
-
-| Campo | Criação | Edição | Obrigatório |
-|---|---|---|---|
-| Nome da empresa | Sim | Sim | Sim |
-| Nicho (`niche`) | Sim | Sim | Sim |
-| Cor primária | Sim | Sim | Não |
-| URL do logo | Sim | Sim | Não |
-| WhatsApp ativado | Sim | Sim | Não |
-
-**Aba "Administrador":**
-
-| Campo | Criação | Edição | Obrigatório |
-|---|---|---|---|
-| Nome do usuário admin | Sim | Não | Criação: Sim |
-| Email | Sim | Sim (opcional) | Criação: Sim |
-| Senha | Sim | Sim (opcional) | Criação: Sim (min 6 chars) |
-| Telefone | Sim | Sim (opcional) | Não |
-
-**Aba "Plano e Cobrança":**
-
-| Campo | Criação | Edição | Observação |
-|---|---|---|---|
-| Plano (`planId`) | Sim | Sim | free / starter / pro / enterprise |
-| Status da assinatura | Sim | Sim | active / past_due / canceled / trialing / free / inactive |
-| Data de vencimento | Sim | Sim | `currentPeriodEnd` (ISO date) |
-
-### Sequência de operações no `handleSave` (edição)
-
-1. `TenantService.updateTenant()` — atualiza campos do tenant
-2. `AdminService.updateUserPlan()` — atualiza `planId` do usuário admin (se mudou)
-3. `AdminService.updateAdminCredentials()` — atualiza email/senha/telefone (se fornecidos)
-4. `AdminService.updateUserSubscription()` — atualiza `subscriptionStatus`, `currentPeriodEnd`, `isManualSubscription`
-
-### Sequência de operações no `handleSave` (criação)
-
-1. `AdminService.createTenant()` → `POST /v1/admin/tenants`
-   - Cria o documento do tenant no Firestore
-   - Cria o usuário admin no Firebase Auth
-   - Cria o documento do usuário no Firestore
-   - Retorna `{ tenantId, adminUserId }`
+- O front guarda a empresa em `sessionStorage` e manda `x-tenant-id` em toda
+  chamada (`buildImpersonationHeaders` em `lib/viewing-tenant-session.ts`, usado
+  pelo api-client, pela Lia e repassado pelo proxy).
+- O backend (`api/middleware/impersonation.ts`) troca `req.user.tenantId` pela
+  empresa vista e `masterId` pelo dono dela. **Todos** os módulos passam a agir
+  na empresa vista, inclusive aux, planilhas, CRM, numeração, fiscal, Asaas e Lia.
+- **Abre em somente leitura.** Escrita exige "Habilitar edição" na faixa do topo
+  (`ImpersonationBar`), que manda `x-impersonation-write: 1`. Sem ele o backend
+  responde 403 `IMPERSONATION_READ_ONLY` e a Lia recusa ferramentas que escrevem.
+  `isReadOnly` do `TenantProvider` também fica true, e as telas escondem as ações.
+  A edição vale só para aquela empresa e volta a leitura ao trocar ou sair.
+- **Vê como o cliente:** o `PlanProvider` usa o plano (`tenant.plan`) e os
+  add-ons da empresa vista, e o `requirePlanCapability` avalia o plano dela em
+  modo `enforce`. Limites numéricos continuam com o bypass de superadmin.
+- **Auditoria:** entrada (`super_admin_impersonation_started`), cada escrita
+  (`super_admin_tenant_write`) e saída (`super_admin_impersonation_stopped`,
+  inclusive a implícita ao entrar em `/admin`).
+- Sair: botão "Sair" da faixa, ou abrir qualquer rota `/admin`.
 
 ---
 
-## Operação de clonagem de dados
+## Custo
 
-`AdminService.copyTenantData(sourceTenantId, targetTenantId)` → `POST /v1/admin/tenants/copy-data`
-
-Copia para o tenant de destino:
-- Produtos (`products`)
-- Serviços (`services`)
-- Sistemas (`sistemas`)
-- Ambientes (`ambientes`)
-
-Retorna `{ totalCopied: number, message?: string }`.
+- A lista de empresas **não** dispara sync com o Stripe (o cron diário
+  `checkStripeSubscriptions` e o botão de sincronizar cobrem isso).
+- Overview, analytics e billing ainda percorrem todas as páginas de billing
+  (5 leituras por empresa). Com poucas empresas é barato; revisar se crescer.
 
 ---
 
-## Operação de exclusão de tenant
+## Services usados no módulo admin (`AdminService`)
 
-`AdminService.deleteTenant(tenantId)` → `DELETE /v1/admin/tenants/:tenantId`
+| Método | Endpoint |
+|---|---|
+| `getTenantsBillingPage` / `getAllTenantsBilling` | `GET /v1/admin/tenants/billing` |
+| `getTenantsBillingByIds` | `GET /v1/admin/tenants/billing?tenantIds=` |
+| `getTenantsIndex` | `GET /v1/admin/tenants/index` |
+| `createTenant` | `POST /v1/admin/tenants` |
+| `deactivateTenant` / `reactivateTenant` / `purgeTenant` | `POST /v1/admin/tenants/:id/{deactivate,reactivate,purge}` |
+| `copyTenantData` | `POST /v1/admin/tenants/copy-data` |
+| `getTenantModules` | `GET /v1/admin/tenants/:id/modules` |
+| `grantCourtesyAddon` / `revokeCourtesyAddon` | `POST/DELETE /v1/admin/tenants/:id/addons/:addonId` |
+| `updateUserPlan` | `PUT /v1/admin/users/:id/plan` |
+| `updateUserSubscription` | `PUT /v1/admin/users/:id/subscription` |
+| `updateAdminCredentials` | `POST /v1/admin/credentials` |
+| `startImpersonation` / `stopImpersonation` | `POST /v1/admin/impersonation/{start,stop}` |
+| `getAuditEvents` | `GET /v1/admin/audit-events` |
 
-Internamente (`TenantService.deleteTenant`), a exclusão é feita em cascata pelo Firestore client SDK:
-
-1. Deleta todos os documentos de `products` com `tenantId`
-2. Deleta todos os documentos de `services` com `tenantId`
-3. Deleta todos os documentos de `proposals` com `tenantId`
-4. Deleta todos os documentos de `custom_options` com `tenantId`
-5. Deleta todos os documentos de `clients` com `tenantId`
-6. Para cada usuário do tenant: tenta deletar do Firebase Auth, depois deleta do Firestore
-7. Deleta o documento do tenant
-
-**Esta operação é irreversível.** O `TenantCard` exige confirmação via `AlertDialog` antes de executar.
-
----
-
-## Impersonação de tenant (`handleLoginAs`)
-
-O superadmin pode acessar o painel de qualquer tenant **pago** sem fazer login com as credenciais desse tenant:
-
-```typescript
-const handleLoginAs = (item: TenantBillingInfo) => {
-  if (!canAccessTenantPanel(item)) { // Plano free NÃO tem acesso ao ERP
-    toast.error(`"${item.tenant.name}" está no plano gratuito...`);
-    return;
-  }
-  setViewingTenant(item.tenant);     // Armazena o tenant no TenantProvider
-  toast.info(`Acessando painel de "${item.tenant.name}"...`);
-  router.push("/dashboard");         // Navega para o dashboard do tenant
-};
-```
-
-**Regra free-tier:** contas no plano gratuito não têm acesso ao ERP, então a impersonação é bloqueada em duas camadas: o botão "Acessar Painel" renderiza desabilitado no `TenantCard` (com tooltip explicativo) e o `handleLoginAs` recusa a ação mesmo se o estado da UI for contornado. A regra vive em `src/lib/tenant-panel-access.ts` (`canAccessTenantPanel`): `planId === "free"` é autoritativo; sem `planId`, caem os fallbacks `subscriptionStatus === "free"` e o label do plano ("Gratuito"/"grátis"). Um tenant cancelado e rebaixado para `plan=free` também é bloqueado.
-
-O `TenantProvider` mantém o estado de `viewingTenant` separado do tenant "real" do superadmin. Enquanto impersonando, o superadmin vê os dados daquele tenant em todos os módulos.
-
-Para voltar ao painel admin, o superadmin navega manualmente para `/admin`.
-
----
-
-## Services usados no módulo admin
-
-### `AdminService` (`src/services/admin-service.ts`)
-
-Todas as chamadas passam pelo proxy `/api/backend/*` → Cloud Functions.
-
-| Método | Endpoint | Descrição |
-|---|---|---|
-| `getAllTenantsBilling()` | `GET /v1/admin/tenants/billing` | Lista todos os tenants com billing info |
-| `createTenant(data)` | `POST /v1/admin/tenants` | Cria tenant + usuário admin |
-| `deleteTenant(id)` | `DELETE /v1/admin/tenants/:id` | Remove tenant (backend valida) |
-| `copyTenantData(src, tgt)` | `POST /v1/admin/tenants/copy-data` | Clona dados entre tenants |
-| `updateUserPlan(userId, planId)` | `PUT /v1/admin/users/:id/plan` | Muda plano do admin |
-| `updateUserSubscription(userId, data)` | `PUT /v1/admin/users/:id/subscription` | Atualiza status de assinatura |
-| `updateAdminCredentials(data)` | `POST /v1/admin/credentials` | Muda email/senha/telefone |
-| `updateTenantLimits(tenantId, limits)` | `PUT /v1/admin/tenants/:id/limits` | Sobrescreve limites do plano |
-
-### `TenantService` (`src/services/tenant-service.ts`)
-
-Usado para leitura de tenants (Firestore direto) e `updateTenant()` (via API).
-
----
-
-## Considerações de segurança
-
-1. **Dupla verificação de role:** o `layout.tsx` bloqueia no cliente; o middleware do backend rejeita requisições sem `role === "superadmin"` no token.
-
-2. **Custom claims no Firebase Auth:** o `role` é armazenado como custom claim no token JWT. É a fonte autoritativa para autorizações no backend. O campo `role` no Firestore é secundário.
-
-3. **Impersonação sem troca de token:** a impersonação via `setViewingTenant` é apenas visual no frontend — o token JWT do superadmin continua sendo usado. O backend valida o `tenantId` nas requisições via custom claims, não via parâmetro de URL. Isso significa que dados de outros tenants retornados via API podem não corresponder ao tenant visualmente selecionado se o backend não tratar o superadmin como caso especial.
-
-4. **Operações destrutivas requerem confirmação:** exclusão de tenants e clonagem de dados têm dialogs de confirmação obrigatórios antes de executar.
-
-5. **Logs de auditoria:** o backend registra operações sensíveis em `security_audit_events` via `functions/src/lib/security-observability.ts`.
-
-6. **Nunca expor este painel para roles não-superadmin:** não adicionar links para `/admin` no menu de navegação padrão. A rota já é protegida pelo layout, mas não deve ser visível para usuários comuns.
+Toda mutação do superadmin grava um evento em `security_audit_events`, com
+`await` (no Cloud Run, write sem await se perde).
 
 ---
 
 ## Padrão para novos componentes admin
 
-```typescript
-interface MeuComponenteAdminProps {
-  item: TenantBillingInfo;
-  // outras props
-}
-
-export function MeuComponenteAdmin({ item }: MeuComponenteAdminProps) {
-  // Não verificar role aqui — o layout.tsx já garante que só superadmin chega
-  // Usar AdminService para chamadas de API
-  // Sempre confirmar operações destrutivas com AlertDialog
-}
-```
+- Não verificar role no componente: o layout já garante superadmin.
+- Chamadas via `AdminService`.
+- Operação destrutiva sempre com `AlertDialog` explicando o efeito.
+- Página nova do painel entra em `ADMIN_SECTIONS` (`lib/admin-sections.ts`).

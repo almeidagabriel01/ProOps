@@ -169,5 +169,14 @@ sem provar nada.
 ```
 
 Ordem em que uma request atravessa: `validateFirebaseIdToken` →
-`requireActiveSubscription` (free vs pagante) → rate limiter →
-`requirePlanCapability` (módulo) → controller (`checkPermission`).
+`resolveImpersonation` (superadmin no "Acessar Painel": troca o tenant pelo da
+empresa vista e barra escrita em modo leitura) → `requireActiveSubscription`
+(free vs pagante) → rate limiter → `requirePlanCapability` (módulo) → controller
+(`checkPermission`).
+
+> **Controller novo pega o tenant de `req.user.tenantId`** (ou de
+> `resolveUserAndTenant`), nunca de cabeçalho ou body. É isso que faz o
+> "Acessar Painel" funcionar no módulo novo sem código extra: o middleware de
+> impersonação já trocou o tenant. Ler `x-tenant-id` ou `targetTenantId` por
+> conta própria recria o problema antigo, em que cada módulo decidia sozinho e
+> metade deles gravava no tenant do superadmin.

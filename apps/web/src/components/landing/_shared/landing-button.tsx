@@ -17,7 +17,15 @@ import { cn } from "@/lib/utils";
 /*  @media em globals.css).                                                    */
 /* -------------------------------------------------------------------------- */
 
-type LandingVariant = "solid" | "inverted" | "link";
+/**
+ * `solid` segue o tema (preto no claro, branco no escuro). `inverted` e
+ * `onLight` NAO seguem: sao para superficies de fundo fixo, que existem nas
+ * paginas de marketing novas (um painel branco continua branco mesmo com o
+ * site em tema escuro, e ali um `solid` viraria branco no branco).
+ * `inverted` = sempre branco, para fundo escuro. `onLight` = sempre preto,
+ * para fundo claro.
+ */
+type LandingVariant = "solid" | "inverted" | "onLight" | "link";
 type LandingSize = "sm" | "md" | "lg";
 /** Só afeta a variante link: "strong" = cor cheia · "muted" = tom suave (menu/rodapé). */
 type LandingTone = "strong" | "muted";
@@ -53,6 +61,10 @@ const VARIANT: Record<Exclude<LandingVariant, "link">, VariantConfig> = {
   inverted: {
     root: "landing-btn rounded-full bg-white text-black hover:text-white shadow-[0_8px_30px_rgba(0,0,0,0.20)]",
     ink: "bg-black text-black",
+  },
+  onLight: {
+    root: "landing-btn rounded-full bg-black text-white hover:text-black shadow-[0_8px_30px_rgba(0,0,0,0.16)]",
+    ink: "bg-white text-white",
   },
 };
 
@@ -91,7 +103,9 @@ export function LandingButton({
         <span
           className={cn(
             "inline-flex transition-transform duration-300 ease-out",
-            isLink ? "group-hover:translate-x-1.5" : "group-hover:translate-x-1",
+            isLink
+              ? "group-hover:translate-x-1.5"
+              : "group-hover:translate-x-1",
           )}
         >
           {trailingIcon}

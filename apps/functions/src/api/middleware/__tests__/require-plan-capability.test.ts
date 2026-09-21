@@ -202,6 +202,44 @@ describe("requirePlanCapability", () => {
       expect(resolveMock).not.toHaveBeenCalled();
     });
 
+    it("superadmin vendo uma empresa Starter leva o 402 que o cliente levaria", async () => {
+      givenTenant("starter");
+      const ctx = buildReqRes({
+        tenantId: "t1",
+        uid: "root",
+        isSuperAdmin: true,
+        impersonation: { targetTenantId: "t1", originalTenantId: "own", ownerUid: "o1", writeEnabled: false },
+      });
+      await run("crm", ctx);
+      expect(ctx.res.status).toHaveBeenCalledWith(402);
+      expect(resolveMock).toHaveBeenCalledWith("t1");
+    });
+
+    it("superadmin vendo uma empresa Enterprise passa pelo plano dela", async () => {
+      givenTenant("enterprise");
+      const ctx = buildReqRes({
+        tenantId: "t1",
+        uid: "root",
+        isSuperAdmin: true,
+        impersonation: { targetTenantId: "t1", originalTenantId: "own", ownerUid: "o1", writeEnabled: true },
+      });
+      await run("fiscal", ctx);
+      expect(ctx.next).toHaveBeenCalled();
+    });
+
+    it("impersonacao em modo monitor nao consulta plano nem gera telemetria", async () => {
+      process.env.TENANT_PLAN_CAPABILITY_MODE = "monitor";
+      const ctx = buildReqRes({
+        tenantId: "t1",
+        uid: "root",
+        isSuperAdmin: true,
+        impersonation: { targetTenantId: "t1", originalTenantId: "own", ownerUid: null, writeEnabled: false },
+      });
+      await run("crm", ctx);
+      expect(ctx.next).toHaveBeenCalled();
+      expect(resolveMock).not.toHaveBeenCalled();
+    });
+
     it("respeita TENANT_PLAN_SUPERADMIN_BYPASS=false", async () => {
       process.env.TENANT_PLAN_SUPERADMIN_BYPASS = "false";
       givenTenant("starter");

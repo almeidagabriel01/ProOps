@@ -14,17 +14,22 @@ import { clearUserMfaFactors } from "../../lib/mfa-reset";
 import { logger } from "../../lib/logger";
 import { fetchAuditEvents } from "../../lib/audit-events-query";
 import {
-  deleteAllTenantUsers,
-  MAX_TENANT_USERS_BATCH,
-  type TenantUserSnap,
-} from "../../lib/tenant-users-deletion";
-import {
   incrementSecurityCounter,
   resolveSecurityAuditCollection,
   writeSecurityAuditEvent,
 } from "../../lib/security-observability";
 import { assertTenantExists } from "../../lib/tenant-resolution";
-import { enqueueTenantSync, isStale } from "../../billing";
+import {
+  buildManualSubscriptionUpdate,
+  deriveManualStatusFromPeriodEnd,
+  isStripeManagedBilling,
+} from "../../lib/admin-billing-guards";
+import { auditAdminAction } from "../../lib/admin-audit";
+import {
+  buildPurgeStages,
+  TENANT_PURGE_JOBS_COLLECTION,
+} from "../services/tenant-purge.service";
+import { enqueueTenantSync } from "../../billing";
 import { deriveSubscriptionDisplayStatus } from "../../shared/subscription-status";
 import {
   buildPublicPlanFeatures,
@@ -315,6 +320,13 @@ export const createMember = async (req: Request, res: Response) => {
         );
       }
 
+      if (isSuperAdmin) {
+        await auditAdminAction(req, "super_admin_member_created", {
+          tenantId,
+          targetId: memberId,
+        });
+      }
+
       return res.status(201).json({
         success: true,
         memberId,
@@ -468,6 +480,13 @@ export const updateMember = async (req: Request, res: Response) => {
       );
     }
 
+    if (isSuperAdmin) {
+      await auditAdminAction(req, "super_admin_member_updated", {
+        tenantId: String(memberData?.tenantId || ""),
+        targetId: id,
+      });
+    }
+
     return res.json({
       success: true,
       message: "Membro atualizado com sucesso.",
@@ -559,7 +578,7 @@ export const deleteMember = async (req: Request, res: Response) => {
     });
 
     if (isSuperAdmin) {
-      void writeSecurityAuditEvent({
+      await writeSecurityAuditEvent({
         eventType: "super_admin_destructive_op",
         uid: loggedUserId,
         tenantId,
@@ -654,6 +673,13 @@ export const updatePermissions = async (req: Request, res: Response) => {
         { merge: true },
       );
 
+      if (isSuperAdmin) {
+        await auditAdminAction(req, "super_admin_permissions_updated", {
+          tenantId: String(memberData?.tenantId || ""),
+          targetId: actualMemberId,
+          reason: `single:${pageId}.${key}=${value}`,
+        });
+      }
       return res.json({ success: true, message: "Permissão atualizada." });
     }
 
@@ -678,6 +704,13 @@ export const updatePermissions = async (req: Request, res: Response) => {
     }
 
     await batch.commit();
+    if (isSuperAdmin) {
+      await auditAdminAction(req, "super_admin_permissions_updated", {
+        tenantId: String(memberData?.tenantId || ""),
+        targetId: actualMemberId,
+        reason: "bulk",
+      });
+    }
     return res.json({ success: true, message: "Permissões atualizadas." });
   } catch (error: unknown) {
     const message =
@@ -731,7 +764,7 @@ export const resetMemberMfa = async (req: Request, res: Response) => {
 
     await clearUserMfaFactors(targetUid);
 
-    void writeSecurityAuditEvent({
+    await writeSecurityAuditEvent({
       eventType: "mfa_reset_by_admin",
       uid: requesterUid,
       tenantId: targetData?.tenantId,
@@ -795,6 +828,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
     interface TenantData {
       name?: string;
+      accountStatus?: string;
       slug?: string;
       createdAt?: string;
       logoUrl?: string;
@@ -819,25 +853,50 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
     const cursor = String(req.query.cursor || "").trim() || null;
     const pageSize = Math.min(Number(req.query.pageSize) || 25, 100);
+    // Busca por empresas especificas (busca global do painel, fallback do
+    // TenantProvider). Ate 30 ids: o limite do operador `in` do Firestore.
+    const requestedTenantIds = String(req.query.tenantIds || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, 30);
 
-    // Busca usuários MASTER/admin/free (donos de empresa ou contas gratuitas)
-    let usersQuery: FirebaseFirestore.Query = db
-      .collection("users")
-      .where("role", "in", ["MASTER", "admin", "ADMIN", "master", "free"])
-      .orderBy("createdAt", "desc")
-      .limit(pageSize + 1);
+    let docs: FirebaseFirestore.QueryDocumentSnapshot[];
+    let hasMore = false;
+    let nextCursor: string | null = null;
 
-    if (cursor) {
-      const cursorSnap = await db.collection("users").doc(cursor).get();
-      if (cursorSnap.exists) {
-        usersQuery = usersQuery.startAfter(cursorSnap);
+    if (requestedTenantIds.length > 0) {
+      const byTenant = await db
+        .collection("users")
+        .where("tenantId", "in", requestedTenantIds)
+        .limit(300)
+        .get();
+      const ownerRoles = new Set(["master", "admin", "free"]);
+      docs = byTenant.docs.filter(
+        (d) =>
+          !String(d.get("masterId") || "").trim() &&
+          ownerRoles.has(String(d.get("role") || "").toLowerCase()),
+      );
+    } else {
+      // Busca usuários MASTER/admin/free (donos de empresa ou contas gratuitas)
+      let usersQuery: FirebaseFirestore.Query = db
+        .collection("users")
+        .where("role", "in", ["MASTER", "admin", "ADMIN", "master", "free"])
+        .orderBy("createdAt", "desc")
+        .limit(pageSize + 1);
+
+      if (cursor) {
+        const cursorSnap = await db.collection("users").doc(cursor).get();
+        if (cursorSnap.exists) {
+          usersQuery = usersQuery.startAfter(cursorSnap);
+        }
       }
-    }
 
-    const usersSnapshot = await usersQuery.get();
-    const hasMore = usersSnapshot.docs.length > pageSize;
-    const docs = hasMore ? usersSnapshot.docs.slice(0, pageSize) : usersSnapshot.docs;
-    const nextCursor = hasMore ? docs[docs.length - 1].id : null;
+      const usersSnapshot = await usersQuery.get();
+      hasMore = usersSnapshot.docs.length > pageSize;
+      docs = hasMore ? usersSnapshot.docs.slice(0, pageSize) : usersSnapshot.docs;
+      nextCursor = hasMore ? docs[docs.length - 1].id : null;
+    }
 
     logger.info("[getAllTenantsBilling] found users", {
       count: docs.length,
@@ -1007,13 +1066,23 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
     // Process all users synchronously using pre-fetched data
     const tenantsData = [];
+    // Uma linha por empresa: empresa com dois admins sem masterId aparecia duas vezes.
+    const seenTenantIds = new Set<string>();
     for (const userDoc of docs) {
       try {
         const userData = userDoc.data() as BillingUserData;
         const tenantId = userData.tenantId || userData.companyId;
+        if (tenantId) {
+          if (seenTenantIds.has(tenantId)) continue;
+          seenTenantIds.add(tenantId);
+        }
         const tenantData = (tenantId && tenantDataMap.get(tenantId)) || {} as TenantData;
 
-        const rawPlanId = String(userData.planId || "free");
+        // O plano exibido e o que o backend usa para liberar modulo
+        // (`tenants.plan`, escrito pelo writer unico). O `users.planId` fica de
+        // fallback para empresa legada: os dois podem divergir, e mostrar o do
+        // usuario fazia o painel dizer Enterprise para quem levava 402.
+        const rawPlanId = String(tenantData.plan || userData.planId || "free");
         // Normalize planId to tier name: if it's a document ID, resolve to tier; otherwise use as-is
         const planId = tierToName[rawPlanId.toLowerCase()]
           ? rawPlanId.toLowerCase()
@@ -1053,14 +1122,12 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           tenantData.subscriptionStatus || userData.subscriptionStatus || "";
         const tenantCurrentPeriodEnd = tenantData.currentPeriodEnd || userData.currentPeriodEnd;
 
-        // Detect staleness and fire background sync if needed
-        const isBillingStale = isStale({
-          billingSyncedAt: tenantData.billingSyncedAt,
-          subscriptionStatus: tenantData.subscriptionStatus,
-        });
-        if (isBillingStale && tenantId) {
-          enqueueTenantSync(tenantId, "on_demand").catch(() => {});
-        }
+        // Listar nao dispara mais sync com o Stripe. Antes, todo tenant pago
+        // sincronizado ha mais de 5 min contava como desatualizado, entao cada
+        // visita ao painel chamava a API do Stripe para quase todas as empresas,
+        // sem await (o Cloud Run congela e o sync se perde). O cron diario
+        // `checkStripeSubscriptions` e o botao "Sincronizar" cobrem isso.
+        const isBillingStale = false;
 
         tenantsData.push({
           tenant: {
@@ -1072,6 +1139,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             primaryColor: tenantData.primaryColor,
             niche: tenantData.niche,
             whatsappEnabled: tenantData.whatsappEnabled,
+            accountStatus: tenantData.accountStatus || "active",
           },
           admin: {
             id: userDoc.id,
@@ -1090,6 +1158,12 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           unitAmount: tenantData?.unitAmount ?? tenantData?.subscription?.unitAmount ?? null,
           currency: tenantData?.currency ?? tenantData?.subscription?.currency ?? "brl",
           stripeSubscriptionId: tenantData?.stripeSubscriptionId ?? null,
+          billingManagedBy: isStripeManagedBilling(
+            tenantData as Record<string, unknown>,
+            userData as Record<string, unknown>,
+          )
+            ? "stripe"
+            : "manual",
           priceChangeNotifiedFor: tenantData?.priceChangeNotifiedFor ?? null,
           isBillingStale,
           usage: {
@@ -1153,18 +1227,56 @@ export const updateCredentials = async (req: Request, res: Response) => {
       });
     }
 
-    // Update Auth
+    const targetSnap = await db.collection("users").doc(String(userId)).get();
+    if (!targetSnap.exists) {
+      return res.status(404).json({ message: "Usuário não encontrado." });
+    }
+    const targetRole = String(targetSnap.get("role") || "").trim().toUpperCase();
+    // Trocar a senha de outro superadmin daria acesso ao painel inteiro com a
+    // conta dele, sem o segundo fator ter sido quebrado.
+    if (targetRole === "SUPERADMIN") {
+      return res.status(403).json({
+        message: "Credenciais de super admin não podem ser alteradas pelo painel.",
+      });
+    }
+
+    let normalizedEmail: string | undefined;
+    if (email) {
+      const emailValidation = await validateEmailForSignup(String(email));
+      if (!emailValidation.valid) {
+        return res
+          .status(400)
+          .json({ message: emailValidation.reason || "Email inválido." });
+      }
+      normalizedEmail = emailValidation.normalizedEmail;
+    }
+
+    if (password && String(password).length < 6) {
+      return res
+        .status(400)
+        .json({ message: "A senha deve ter no mínimo 6 caracteres." });
+    }
+
     const updateData: { email?: string; password?: string } = {};
-    if (email) updateData.email = email;
-    if (password && password.length >= 6) updateData.password = password;
+    if (normalizedEmail) updateData.email = normalizedEmail;
+    if (password) updateData.password = String(password);
 
     if (Object.keys(updateData).length > 0) {
-      await auth.updateUser(userId, updateData);
+      try {
+        await auth.updateUser(userId, updateData);
+      } catch (err: unknown) {
+        if ((err as { code?: string })?.code === "auth/email-already-exists") {
+          return res.status(409).json({ message: "Este email já está em uso." });
+        }
+        throw err;
+      }
+      // Sessoes abertas com a credencial antiga caem na proxima request.
+      await auth.revokeRefreshTokens(userId);
     }
 
     // Update Firestore User
-    const firestoreUpdate: any = {};
-    if (email) firestoreUpdate.email = email;
+    const firestoreUpdate: Record<string, unknown> = {};
+    if (normalizedEmail) firestoreUpdate.email = normalizedEmail;
     if (phoneNumber !== undefined) {
       firestoreUpdate.phoneNumber = normalizePhoneNumber(phoneNumber) || null;
     }
@@ -1199,6 +1311,18 @@ export const updateCredentials = async (req: Request, res: Response) => {
         await db.collection("users").doc(userId).update(firestoreUpdate);
       }
     }
+
+    await auditAdminAction(req, "super_admin_credentials_updated", {
+      tenantId: String(targetSnap.get("tenantId") || ""),
+      targetId: String(userId),
+      reason: [
+        normalizedEmail ? "email" : "",
+        password ? "password" : "",
+        phoneNumber !== undefined ? "phone" : "",
+      ]
+        .filter(Boolean)
+        .join(","),
+    });
 
     return res.json({
       success: true,
@@ -1236,6 +1360,19 @@ export const updateUserPlan = async (req: Request, res: Response) => {
     }
 
     const userData = userSnap.data() as Record<string, unknown>;
+    const planTenantId = String(userData?.tenantId || userData?.companyId || "").trim();
+    const planTenantData = planTenantId
+      ? ((await db.collection("tenants").doc(planTenantId).get()).data() ?? null)
+      : null;
+    // O webhook do Stripe reescreveria o plano no proximo evento: a troca pelo
+    // painel so duraria ate la, com tela, enforcement e fatura discordando.
+    if (isStripeManagedBilling(planTenantData, userData)) {
+      return res.status(409).json({
+        code: "STRIPE_MANAGED_SUBSCRIPTION",
+        message:
+          "Esta empresa paga pelo Stripe: troque o plano pelo portal de assinatura do cliente.",
+      });
+    }
     const currentRole = String(userData?.role || "").trim().toLowerCase();
     const hasMasterId = Boolean(String(userData?.masterId || "").trim());
     const tenantId = String(
@@ -1335,6 +1472,12 @@ export const updateUserPlan = async (req: Request, res: Response) => {
       }
     }
 
+    await auditAdminAction(req, "super_admin_plan_updated", {
+      tenantId,
+      targetId: userId,
+      reason: `plan:${planId}`,
+    });
+
     return res.json({
       success: true,
       message: "Plano atualizado com sucesso.",
@@ -1349,7 +1492,6 @@ export const updateUserPlan = async (req: Request, res: Response) => {
 export const updateUserSubscription = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const updates = req.body;
 
     if (!userId) {
       return res.status(400).json({ message: "ID do usuário é obrigatório" });
@@ -1362,70 +1504,47 @@ export const updateUserSubscription = async (req: Request, res: Response) => {
       });
     }
 
-    // Allowed fields to update
-    const allowedFields = [
-      "subscriptionStatus",
-      "currentPeriodEnd",
-      "isManualSubscription",
-    ];
-    const safeUpdates: Record<string, any> = {};
-
-    for (const field of allowedFields) {
-      if (updates[field] !== undefined) {
-        safeUpdates[field] = updates[field];
-      }
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      return res.status(404).json({ message: "Usuário não encontrado." });
     }
+    const userData = (userSnap.data() || {}) as Record<string, unknown>;
+    const tenantId = String(userData.tenantId || userData.companyId || "").trim();
+    const tenantRef = tenantId ? db.collection("tenants").doc(tenantId) : null;
+    const tenantSnap = tenantRef ? await tenantRef.get() : null;
+    const tenantData = (tenantSnap?.data() || null) as Record<string, unknown> | null;
 
-    if (Object.keys(safeUpdates).length === 0) {
+    const decision = buildManualSubscriptionUpdate(req.body || {}, {
+      stripeManaged: isStripeManagedBilling(tenantData, userData),
+    });
+    if (!decision.ok) {
       return res
-        .status(400)
-        .json({ message: "Nenhum campo válido para atualização" });
+        .status(decision.status)
+        .json({ message: decision.message, code: decision.code });
     }
+    const safeUpdates = decision.updates;
 
-    // When currentPeriodEnd is provided, derive subscriptionStatus from it
-    // to match the same logic used by the checkManualSubscriptions cron.
-    if (safeUpdates.currentPeriodEnd) {
-      const periodEnd = new Date(safeUpdates.currentPeriodEnd);
-      if (!isNaN(periodEnd.getTime())) {
-        const now = new Date();
-        const GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000;
-        if (periodEnd > now) {
-          safeUpdates.subscriptionStatus = "active";
-        } else if (now.getTime() - periodEnd.getTime() <= GRACE_PERIOD_MS) {
-          safeUpdates.subscriptionStatus = "past_due";
-        } else {
-          safeUpdates.subscriptionStatus = "canceled";
-        }
-      }
-    }
+    await userRef.update({
+      ...safeUpdates,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
-    safeUpdates.updatedAt = FieldValue.serverTimestamp();
-
-    // Update Subscription
-    await db.collection("users").doc(userId).update(safeUpdates);
-
-    // Mirror billing fields to tenant doc so the admin card reads the updated value.
-    // getAllTenantsBilling prefers tenants.currentPeriodEnd over users.currentPeriodEnd,
-    // so without this mirror, manual edits are silently shadowed by the stale tenant value.
-    const userSnap = await db.collection("users").doc(userId).get();
-    const tenantId = userSnap.get("tenantId") as string | undefined;
-    if (tenantId) {
-      const tenantUpdates: Record<string, unknown> = {
+    // Espelha no doc do tenant: a listagem do painel e o enforcement leem de la.
+    // `update` so quando o doc existe; tenant legado sem doc nao ganha um parcial.
+    if (tenantRef && tenantSnap?.exists) {
+      await tenantRef.update({
+        ...safeUpdates,
         billingSyncedAt: new Date().toISOString(),
-      };
-      if ("currentPeriodEnd" in safeUpdates)
-        tenantUpdates.currentPeriodEnd = safeUpdates.currentPeriodEnd;
-      if ("subscriptionStatus" in safeUpdates)
-        tenantUpdates.subscriptionStatus = safeUpdates.subscriptionStatus;
-      if ("isManualSubscription" in safeUpdates)
-        tenantUpdates.isManualSubscription = safeUpdates.isManualSubscription;
-      await db.collection("tenants").doc(tenantId).update(tenantUpdates);
-      logger.info("[admin] Manual subscription mirrored to tenant doc", {
-        userId,
-        tenantId,
-        fields: Object.keys(tenantUpdates),
       });
+      clearTenantPlanCache(tenantId);
     }
+
+    await auditAdminAction(req, "super_admin_subscription_updated", {
+      tenantId,
+      targetId: userId,
+      reason: Object.keys(safeUpdates).join(","),
+    });
 
     return res.json({
       success: true,
@@ -1462,33 +1581,6 @@ function sanitizeSlug(input: string): string {
     .replace(/[^\w-]+/g, "")
     .replace(/-+/g, "-");
   return normalized || `tenant-${Date.now()}`;
-}
-
-async function deleteQueryInBatches(
-  query: FirebaseFirestore.Query,
-): Promise<number> {
-  let totalDeleted = 0;
-  let snapshot = await query.limit(400).get();
-
-  while (!snapshot.empty) {
-    const batch = db.batch();
-    snapshot.docs.forEach((docSnap) => {
-      batch.delete(docSnap.ref);
-    });
-    await batch.commit();
-    totalDeleted += snapshot.size;
-    snapshot = await query.limit(400).get();
-  }
-
-  return totalDeleted;
-}
-
-async function deleteSubcollectionInBatches(
-  parentRef: FirebaseFirestore.DocumentReference,
-  subcollectionName: string,
-): Promise<void> {
-  const subQuery = parentRef.collection(subcollectionName);
-  await deleteQueryInBatches(subQuery);
 }
 
 export const createTenant = async (req: Request, res: Response) => {
@@ -1557,12 +1649,28 @@ export const createTenant = async (req: Request, res: Response) => {
     const now = Timestamp.now();
     const nowIso = now.toDate().toISOString();
     const normalizedPlanId = planId || "free";
-    const isManualSubscription = normalizedPlanId !== "free";
-    const subscriptionStatus = String(
-      body.subscriptionStatus || (isManualSubscription ? "active" : "active"),
-    )
-      .trim()
-      .toLowerCase();
+    const isFreePlan = normalizedPlanId === "free";
+    const planTier = normalizePlanTier(normalizedPlanId);
+    if (!planTier) {
+      return res.status(400).json({ message: "Plano inválido." });
+    }
+    const isManualSubscription = !isFreePlan;
+    // Plano pago criado pelo painel e sempre contrato manual, e a data de fim e o
+    // que o cron de assinaturas manuais vigia. Sem ela o tenant nasceria ativo
+    // para sempre.
+    const periodEndRaw = String(body.currentPeriodEnd || "").trim();
+    const periodEnd = periodEndRaw ? new Date(periodEndRaw) : null;
+    if (!isFreePlan && (!periodEnd || Number.isNaN(periodEnd.getTime()))) {
+      return res.status(400).json({
+        message: "Informe a data de vencimento do plano pago.",
+      });
+    }
+    const subscriptionStatus = isFreePlan
+      ? "free"
+      : deriveManualStatusFromPeriodEnd(periodEnd as Date, new Date());
+    // Conta free criada pelo painel tem que cair no mesmo gate de uma conta free
+    // do cadastro (role "free"): com "admin" ela ganhava o ERP inteiro de graca.
+    const userRole = isFreePlan ? "free" : "admin";
 
     const adminAuth = await auth.createUser({
       email: adminEmailValidation.normalizedEmail,
@@ -1573,7 +1681,7 @@ export const createTenant = async (req: Request, res: Response) => {
     createdAuthUid = adminAuth.uid;
 
     await auth.setCustomUserClaims(adminAuth.uid, {
-      role: "ADMIN",
+      role: isFreePlan ? "free" : "ADMIN",
       tenantId,
     });
 
@@ -1589,6 +1697,7 @@ export const createTenant = async (req: Request, res: Response) => {
         // tenantPlanAllowsWhatsApp() after the transaction to ensure eligibility
         // rules are enforced rather than accepting an arbitrary caller value.
         whatsappEnabled: false,
+        isManualSubscription,
         createdAt: nowIso,
         updatedAt: nowIso,
       });
@@ -1622,12 +1731,12 @@ export const createTenant = async (req: Request, res: Response) => {
         name: adminName,
         email: adminEmailValidation.normalizedEmail,
         phoneNumber: normalizePhoneNumber(body.adminPhoneNumber) || null,
-        role: "admin",
+        role: userRole,
         tenantId,
         companyId: tenantId,
         planId: normalizedPlanId,
         subscriptionStatus,
-        currentPeriodEnd: body.currentPeriodEnd || null,
+        currentPeriodEnd: isFreePlan ? null : periodEndRaw,
         isManualSubscription,
         onboarding: {
           version: "core-v1",
@@ -1653,6 +1762,23 @@ export const createTenant = async (req: Request, res: Response) => {
         newPhoneNumber: body.adminPhoneNumber,
         now,
       });
+    });
+
+    // Plano e status do tenant pelo writer unico, o mesmo do Stripe: e de la que
+    // o enforcement e o `forceSetTenantPlan` leem. Antes so o doc do usuario
+    // recebia esses campos e o tenant caia no fallback pelo dono.
+    await syncTenantPlanBillingSnapshot({
+      tenantId,
+      subscriptionStatus,
+      plan: planTier,
+      ...(periodEnd && !isFreePlan ? { currentPeriodEnd: periodEnd } : {}),
+      source: "admin.createTenant",
+    });
+
+    await auditAdminAction(req, "super_admin_tenant_created", {
+      tenantId,
+      targetId: adminAuth.uid,
+      reason: `plan:${planTier}`,
     });
 
     // Recompute whatsappEnabled after the transaction using the canonical
@@ -1696,126 +1822,230 @@ export const createTenant = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteTenant = async (req: Request, res: Response) => {
+function ownTenantIdOf(req: Request): string {
+  return String(
+    req.user?.impersonation?.originalTenantId || req.user?.tenantId || "",
+  ).trim();
+}
+
+async function listTenantUserIds(tenantId: string): Promise<string[]> {
+  const [byTenant, byCompany] = await Promise.all([
+    db.collection("users").where("tenantId", "==", tenantId).select().limit(500).get(),
+    db.collection("users").where("companyId", "==", tenantId).select().limit(500).get(),
+  ]);
+  return [...new Set([...byTenant.docs, ...byCompany.docs].map((d) => d.id))];
+}
+
+async function setTenantUsersDisabled(uids: string[], disabled: boolean): Promise<number> {
+  let changed = 0;
+  for (const uid of uids) {
+    try {
+      await auth.updateUser(uid, { disabled });
+      if (disabled) await auth.revokeRefreshTokens(uid);
+      changed += 1;
+    } catch (err) {
+      if ((err as { code?: string })?.code !== "auth/user-not-found") throw err;
+    }
+  }
+  return changed;
+}
+
+/**
+ * Cancela a assinatura Stripe da empresa e as dos add-ons. Sem isso, apagar a
+ * empresa deixava o cliente sendo cobrado todo mes, e o webhook seguinte
+ * recriava o doc do tenant.
+ */
+async function cancelTenantStripeSubscriptions(
+  tenantId: string,
+  tenantData: Record<string, unknown>,
+): Promise<string[]> {
+  const subscriptionIds = new Set<string>();
+  const main = String(tenantData.stripeSubscriptionId || "").trim();
+  if (main) subscriptionIds.add(main);
+  const addonSnap = await db
+    .collection("addons")
+    .where("tenantId", "==", tenantId)
+    .limit(50)
+    .get();
+  addonSnap.docs.forEach((d) => {
+    const subId = String(d.get("stripeSubscriptionId") || "").trim();
+    if (subId && String(d.get("status") || "") !== "cancelled") subscriptionIds.add(subId);
+  });
+  if (subscriptionIds.size === 0) return [];
+
+  const stripe = getStripe();
+  const cancelled: string[] = [];
+  for (const subId of subscriptionIds) {
+    try {
+      await stripe.subscriptions.cancel(subId);
+      cancelled.push(subId);
+    } catch (err) {
+      const e = err as { code?: string; statusCode?: number };
+      // Ja cancelada ou inexistente: o objetivo (parar de cobrar) ja esta cumprido.
+      if (e?.code === "resource_missing" || e?.statusCode === 404) continue;
+      throw err;
+    }
+  }
+  return cancelled;
+}
+
+/**
+ * "Desativar" empresa: primeiro passo, reversivel. Para a cobranca no Stripe,
+ * bloqueia o login de todos os usuarios (Auth desativado + tokens revogados) e
+ * marca o tenant. Nenhum dado e apagado; isso so acontece em "Excluir
+ * definitivamente", que exige a empresa desativada antes.
+ */
+export const deactivateTenant = async (req: Request, res: Response) => {
   try {
     if (!isSuperAdminClaim(req)) {
-      return res.status(403).json({
-        message:
-          "Permissão negada. Apenas super admins podem remover empresas.",
-      });
+      return res.status(403).json({ message: "Permissão negada." });
     }
-
     const tenantId = String(req.params.tenantId || "").trim();
-    if (!tenantId) {
-      return res.status(400).json({ message: "tenantId é obrigatório." });
+    if (!tenantId) return res.status(400).json({ message: "tenantId é obrigatório." });
+    if (tenantId === ownTenantIdOf(req)) {
+      return res.status(400).json({ message: "Você não pode desativar a própria empresa." });
     }
 
-    void writeSecurityAuditEvent({
-      eventType: "super_admin_destructive_op",
-      uid: req.user!.uid,
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnap = await tenantRef.get();
+    if (!tenantSnap.exists) return res.status(404).json({ message: "Empresa não encontrada." });
+    const tenantData = (tenantSnap.data() || {}) as Record<string, unknown>;
+    if (tenantData.accountStatus === "purged" || tenantData.accountStatus === "purging") {
+      return res.status(409).json({ message: "Esta empresa já está sendo excluída." });
+    }
+
+    const cancelledSubscriptions = await cancelTenantStripeSubscriptions(tenantId, tenantData);
+    const userIds = await listTenantUserIds(tenantId);
+    const disabledUsers = await setTenantUsersDisabled(userIds, true);
+
+    const nowIso = new Date().toISOString();
+    await tenantRef.update({
+      accountStatus: "deactivated",
+      deactivatedAt: nowIso,
+      deactivatedBy: req.user?.uid || null,
+      // Sai do radar do cron de assinatura manual: nao ha mais contrato a vigiar.
+      isManualSubscription: false,
+      updatedAt: nowIso,
+    });
+    clearTenantPlanCache(tenantId);
+
+    await auditAdminAction(req, "super_admin_tenant_deactivated", {
       tenantId,
-      route: req.originalUrl || req.path,
-      requestId: req.requestId,
-      reason: "deleteTenant",
-      source: "admin_controller",
+      reason: `users:${disabledUsers};stripe:${cancelledSubscriptions.length}`,
     });
-
-    const fetchNextUserBatch = async (): Promise<TenantUserSnap[]> => {
-      const userSnaps = await Promise.all([
-        db
-          .collection("users")
-          .where("tenantId", "==", tenantId)
-          .limit(MAX_TENANT_USERS_BATCH)
-          .get(),
-        db
-          .collection("users")
-          .where("companyId", "==", tenantId)
-          .limit(MAX_TENANT_USERS_BATCH)
-          .get(),
-      ]);
-
-      const uniqueUsers = new Map<string, TenantUserSnap>();
-      userSnaps.forEach((snap) => {
-        snap.docs.forEach((docSnap) => uniqueUsers.set(docSnap.id, docSnap));
-      });
-      return Array.from(uniqueUsers.values());
-    };
-
-    const deleteTenantUser = async (userSnap: TenantUserSnap): Promise<void> => {
-      const uid = userSnap.id;
-      const userRef = db.collection("users").doc(uid);
-      await deleteSubcollectionInBatches(userRef, "permissions");
-
-      const userData = userSnap.data() as { phoneNumber?: string } | undefined;
-      const normalizedPhone = normalizePhoneNumber(userData?.phoneNumber);
-      if (normalizedPhone) {
-        const phoneRef = db.collection("phoneNumberIndex").doc(normalizedPhone);
-        const phoneSnap = await phoneRef.get();
-        const phoneData = phoneSnap.data() as { userId?: string } | undefined;
-        if (phoneSnap.exists && phoneData?.userId === uid) {
-          await phoneRef.delete();
-        }
-      }
-
-      try {
-        await auth.deleteUser(uid);
-      } catch (err: unknown) {
-        if (
-          !err ||
-          typeof err !== "object" ||
-          !("code" in err) ||
-          (err as { code: string }).code !== "auth/user-not-found"
-        ) {
-          throw err;
-        }
-      }
-
-      await userRef.delete();
-    };
-
-    await deleteAllTenantUsers({
-      fetchNextBatch: fetchNextUserBatch,
-      deleteUser: deleteTenantUser,
-    });
-
-    const tenantCollections = [
-      "products",
-      "services",
-      "proposals",
-      "custom_options",
-      "custom_fields",
-      "options",
-      "clients",
-      "transactions",
-      "wallets",
-      "wallet_transactions",
-      "notifications",
-      "addons",
-      "purchased_addons",
-      "spreadsheets",
-      "proposal_templates",
-      "sistemas",
-      "ambientes",
-    ];
-
-    for (const collectionName of tenantCollections) {
-      await deleteQueryInBatches(
-        db.collection(collectionName).where("tenantId", "==", tenantId),
-      );
-    }
-
-    await db.collection("companies").doc(tenantId).delete();
-    await db.collection("tenants").doc(tenantId).delete();
 
     return res.json({
       success: true,
-      message: "Empresa removida com sucesso.",
+      disabledUsers,
+      cancelledSubscriptions: cancelledSubscriptions.length,
+      message: "Empresa desativada. O login foi bloqueado e a cobrança cancelada.",
     });
   } catch (error: unknown) {
-    console.error("[deleteTenant] error:", error);
-    const message =
-      error instanceof Error ? error.message : "Erro ao remover empresa.";
-    return res.status(500).json({ message });
+    logger.error("[deactivateTenant] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Erro ao desativar empresa." });
+  }
+};
+
+/**
+ * Desfaz a desativacao: libera o login de novo. A assinatura Stripe cancelada
+ * NAO volta sozinha; o cliente assina de novo ou o plano e ajustado no painel.
+ */
+export const reactivateTenant = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Permissão negada." });
+    }
+    const tenantId = String(req.params.tenantId || "").trim();
+    if (!tenantId) return res.status(404).json({ message: "Empresa não encontrada." });
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnap = await tenantRef.get();
+    if (!tenantSnap.exists) {
+      return res.status(404).json({ message: "Empresa não encontrada." });
+    }
+    if (tenantSnap.get("accountStatus") !== "deactivated") {
+      return res.status(409).json({ message: "Só é possível reativar uma empresa desativada." });
+    }
+
+    const enabledUsers = await setTenantUsersDisabled(await listTenantUserIds(tenantId), false);
+    const nowIso = new Date().toISOString();
+    await tenantRef.update({
+      accountStatus: "active",
+      reactivatedAt: nowIso,
+      reactivatedBy: req.user?.uid || null,
+      updatedAt: nowIso,
+    });
+    clearTenantPlanCache(tenantId);
+
+    await auditAdminAction(req, "super_admin_tenant_reactivated", {
+      tenantId,
+      reason: `users:${enabledUsers}`,
+    });
+
+    return res.json({ success: true, enabledUsers, message: "Empresa reativada." });
+  } catch (error: unknown) {
+    logger.error("[reactivateTenant] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Erro ao reativar empresa." });
+  }
+};
+
+/**
+ * "Excluir definitivamente": so para empresa ja desativada, e exige o nome da
+ * empresa digitado. Cria o job; o trigger `onTenantPurgeJob` apaga em etapas.
+ * Notas fiscais e o arquivo fiscal ficam (guarda legal de 5 anos).
+ */
+export const purgeTenant = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Permissão negada." });
+    }
+    const tenantId = String(req.params.tenantId || "").trim();
+    if (!tenantId) return res.status(400).json({ message: "tenantId é obrigatório." });
+    if (tenantId === ownTenantIdOf(req)) {
+      return res.status(400).json({ message: "Você não pode excluir a própria empresa." });
+    }
+
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnap = await tenantRef.get();
+    if (!tenantSnap.exists) return res.status(404).json({ message: "Empresa não encontrada." });
+    if (tenantSnap.get("accountStatus") !== "deactivated") {
+      return res.status(409).json({
+        message: "Desative a empresa antes de excluir definitivamente.",
+      });
+    }
+
+    const expected = String(tenantSnap.get("name") || "").trim().toLowerCase();
+    const typed = String(req.body?.confirmName || "").trim().toLowerCase();
+    if (!expected || typed !== expected) {
+      return res.status(400).json({ message: "O nome digitado não confere com o da empresa." });
+    }
+
+    const nowIso = new Date().toISOString();
+    await tenantRef.update({ accountStatus: "purging", updatedAt: nowIso });
+    await db.collection(TENANT_PURGE_JOBS_COLLECTION).doc(tenantId).set({
+      tenantId,
+      tenantName: tenantSnap.get("name") || null,
+      status: "pending",
+      stageIndex: 0,
+      totalStages: buildPurgeStages().length,
+      requestedBy: req.user?.uid || null,
+      createdAt: nowIso,
+    });
+
+    await auditAdminAction(req, "super_admin_tenant_purge_requested", { tenantId });
+
+    return res.status(202).json({
+      success: true,
+      message: "Exclusão iniciada. Os dados são apagados em segundo plano.",
+    });
+  } catch (error: unknown) {
+    logger.error("[purgeTenant] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Erro ao iniciar a exclusão." });
   }
 };
 
@@ -1846,7 +2076,7 @@ export const startImpersonation = async (req: Request, res: Response) => {
     const uid = req.user!.uid;
     const route = req.originalUrl || req.path;
 
-    void writeSecurityAuditEvent({
+    await writeSecurityAuditEvent({
       eventType: "super_admin_impersonation_started",
       uid,
       tenantId,
@@ -1854,11 +2084,43 @@ export const startImpersonation = async (req: Request, res: Response) => {
       requestId: req.requestId,
       source: "admin_controller",
     });
-    void incrementSecurityCounter("super_admin_impersonation_started", {
+    await incrementSecurityCounter("super_admin_impersonation_started", {
       uid,
       tenantId,
       route,
       requestId: req.requestId,
+    });
+
+    return res.json({ success: true });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
+  }
+};
+
+/**
+ * Fim de uma sessao "Acessar Painel". Sem ele a auditoria so tinha a entrada:
+ * nao dava para saber quanto tempo o superadmin ficou dentro da empresa nem se
+ * as escritas seguintes ainda eram daquela sessao.
+ *
+ * Melhor esforco por natureza (fechar a aba nao chama nada), por isso aceita
+ * `reason` para distinguir saida pelo botao de saida implicita.
+ */
+export const stopImpersonation = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Permissão negada." });
+    }
+    const tenantId = String(req.body?.tenantId || "").trim();
+    if (!tenantId) {
+      return res.status(400).json({ message: "tenantId é obrigatório." });
+    }
+    const reason = String(req.body?.reason || "exit_button").trim().slice(0, 40);
+
+    await auditAdminAction(req, "super_admin_impersonation_stopped", {
+      tenantId,
+      reason,
     });
 
     return res.json({ success: true });
@@ -1906,37 +2168,6 @@ export const getAuditEvents = async (req: Request, res: Response) => {
   }
 };
 
-import { reportWhatsAppOverage } from "../../services/whatsappBilling";
-
-export const testWhatsAppBilling = async (req: Request, res: Response) => {
-  try {
-    const { tenantId, month } = req.body;
-
-    if (!isSuperAdminClaim(req)) {
-      return res.status(403).json({
-        message: "Permissão negada. Apenas super admins podem testar billing.",
-      });
-    }
-
-    if (!tenantId || !month) {
-      return res
-        .status(400)
-        .json({ message: "tenantId e month são obrigatórios" });
-    }
-
-    const result = await reportWhatsAppOverage(tenantId, month);
-
-    if (result.success) {
-      return res.json(result);
-    } else {
-      return res.status(400).json(result);
-    }
-  } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Erro desconhecido";
-    return res.status(500).json({ message });
-  }
-};
 
 type CloneImageStats = {
   copied: number;
@@ -2076,20 +2307,43 @@ export const copyTenantData = async (req: Request, res: Response) => {
       });
     }
 
-    const { sourceTenantId, targetTenantId } = req.body;
+    const sourceTenantId = String(req.body?.sourceTenantId || "").trim();
+    const targetTenantId = String(req.body?.targetTenantId || "").trim();
+    const replace = req.body?.replace === true;
 
     if (!sourceTenantId || !targetTenantId) {
       return res.status(400).json({ message: "sourceTenantId e targetTenantId são obrigatórios." });
+    }
+    // Com os dois ids iguais, o "limpar destino" antigo apagava o catalogo da
+    // propria origem e depois nao tinha nada para copiar.
+    if (sourceTenantId === targetTenantId) {
+      return res.status(400).json({ message: "Origem e destino precisam ser empresas diferentes." });
+    }
+    try {
+      await assertTenantExists(sourceTenantId);
+      await assertTenantExists(targetTenantId);
+    } catch {
+      return res.status(400).json({ message: "Empresa de origem ou destino inexistente." });
     }
 
     const allCollections = ["products", "services", "ambientes", "sistemas"];
     const now = Timestamp.now();
     const nowTimestampStr = now.toDate().toISOString();
 
-    // 0. Clean up any existing data in the target tenant first (idempotent)
-    for (const col of allCollections) {
-      const existingQuery = db.collection(col).where("tenantId", "==", targetTenantId);
-      await deleteQueryInBatches(existingQuery);
+    // Substituir apaga o catalogo ANTIGO do destino, e so depois de a copia
+    // terminar: se ela falhar no meio, o destino fica com o que tinha mais uma
+    // copia parcial, nunca vazio. Os ids sao lidos antes para nao apagar o que
+    // acabou de ser copiado.
+    const previousTargetRefs: FirebaseFirestore.DocumentReference[] = [];
+    if (replace) {
+      for (const col of allCollections) {
+        const existing = await db
+          .collection(col)
+          .where("tenantId", "==", targetTenantId)
+          .select()
+          .get();
+        existing.docs.forEach((d) => previousTargetRefs.push(d.ref));
+      }
     }
 
     const baseCollections = ["products", "services", "ambientes"];
@@ -2258,10 +2512,25 @@ export const copyTenantData = async (req: Request, res: Response) => {
       for (const batch of batches) await batch.commit();
     }
 
+    for (let i = 0; i < previousTargetRefs.length; i += 500) {
+      const batch = db.batch();
+      previousTargetRefs.slice(i, i + 500).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+
+    await auditAdminAction(req, "super_admin_copy_data", {
+      tenantId: targetTenantId,
+      targetId: sourceTenantId,
+      reason: `copied:${totalCopied};replaced:${previousTargetRefs.length}`,
+    });
+
     return res.json({
       success: true,
-      message: `Cópia concluída. ${totalCopied} registros copiados com sucesso.`,
+      message: replace
+        ? `Cópia concluída. ${totalCopied} registros copiados e ${previousTargetRefs.length} antigos removidos.`
+        : `Cópia concluída. ${totalCopied} registros copiados com sucesso.`,
       totalCopied,
+      removed: previousTargetRefs.length,
       imageCloneStats,
     });
   } catch (error: unknown) {
@@ -2400,6 +2669,11 @@ export const forceSetTenantPlan = async (req: Request, res: Response) => {
         featuresRecomputedAt: new Date().toISOString(),
       });
     }
+
+    await auditAdminAction(req, "super_admin_plan_forced", {
+      tenantId,
+      reason: `plan:${tier}`,
+    });
 
     logger.info("[forceSetTenantPlan] plan forced", {
       tenantId,
@@ -2554,6 +2828,10 @@ export const migrateTenantPrices = async (
   const migrated = results.filter((r) => r.status === "migrated").length;
   const skipped = results.filter((r) => r.status === "skipped").length;
   const failed = results.filter((r) => r.status === "failed").length;
+
+  await auditAdminAction(req, "super_admin_prices_migrated", {
+    reason: `migrated:${migrated};skipped:${skipped};failed:${failed}`,
+  });
 
   res.json({ migrated, skipped, failed, results });
 };

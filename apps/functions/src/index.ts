@@ -43,6 +43,7 @@ export { remindNoSubscriptionSignups } from "./checkInactiveSignups";
 
 // 2b. Firestore triggers
 export { onWalletCascadeJob } from "./onWalletCascadeJob";
+export { onTenantPurgeJob } from "./onTenantPurgeJob";
 export { onTransactionTotals } from "./onTransactionTotals";
 export { onUserSignupNotify } from "./onUserSignupNotify";
 

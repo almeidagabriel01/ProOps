@@ -4,6 +4,7 @@ import cors from "cors";
 import { logger } from "../lib/logger";
 import { validateFirebaseIdToken } from "./middleware/auth";
 import { requireActiveSubscription } from "./middleware/require-active-subscription";
+import { resolveImpersonation } from "./middleware/impersonation";
 import { verifyTurnstileToken } from "./middleware/verify-captcha";
 import { CORS_OPTIONS } from "../deploymentConfig";
 
@@ -91,6 +92,9 @@ const DEFAULT_PROTECTED_PDF_TIMEOUT_MS = 120_000;
  * real em vez de fingir que ele nao existe.
  */
 const DEFAULT_PROPOSAL_WRITE_TIMEOUT_MS = 60_000;
+// Operacoes em massa do superadmin (copiar catalogo, desativar empresa): varrem
+// colecoes inteiras de um tenant e passam facil dos 20s de uma rota comum.
+const DEFAULT_ADMIN_BULK_TIMEOUT_MS = 70_000;
 
 export function resolveProtectedRouteTimeoutMs(req: express.Request): number {
   const originalPath = String(req.originalUrl || req.url || req.path || "")
@@ -116,6 +120,18 @@ export function resolveProtectedRouteTimeoutMs(req: express.Request): number {
     return Number(
       process.env.PROTECTED_PROPOSAL_WRITE_TIMEOUT_MS ||
         DEFAULT_PROPOSAL_WRITE_TIMEOUT_MS,
+    );
+  }
+
+  const isAdminBulkOp =
+    method === "POST" &&
+    /(?:^|\/)v1\/admin\/tenants\/(?:copy-data|[^/]+\/(?:deactivate|reactivate|purge))$/.test(
+      originalPath,
+    );
+
+  if (isAdminBulkOp) {
+    return Number(
+      process.env.PROTECTED_ADMIN_BULK_TIMEOUT_MS || DEFAULT_ADMIN_BULK_TIMEOUT_MS,
     );
   }
 
@@ -452,6 +468,7 @@ app.use(
 
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
+app.use(resolveImpersonation);
 app.use(requireActiveSubscription);
 app.use(protectedLimiter);
 
@@ -500,8 +517,10 @@ app.use((req, res, next) => {
 // Routes
 app.use("/v1", coreRoutes);
 app.use("/v1", financeRoutes);
-app.use("/v1/admin", privilegedLimiter, adminRoutes);
+// Observabilidade ANTES do /v1/admin: o mount generico casa o prefixo, conta
+// no privilegedLimiter e so entao repassa, e a request era contada duas vezes.
 app.use("/v1/admin/observability", privilegedLimiter, observabilityAdminRoutes);
+app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
 // Apply the tight OTP limiter ONLY to the OTP cost / brute-force surfaces

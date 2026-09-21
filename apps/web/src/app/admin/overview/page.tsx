@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BarChart2, Download, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EditLimitsDialog } from "@/components/admin/edit-limits-dialog";
 import { useTenantsData } from "./_hooks/useTenantsData";
+import { TenantModulesDialog } from "@/components/admin/tenant-modules-dialog";
+import type { TenantBillingInfo } from "@/services/admin-service";
+import * as React from "react";
 import {
   TenantsMetricsCards,
   TenantsTable,
@@ -23,11 +25,8 @@ export default function AdminOverviewPage() {
     setFilterStatus,
     filteredData,
     metrics,
-    editDialog,
-    setEditDialog,
-    handleEditLimits,
-    loadData,
   } = useTenantsData();
+  const [modulesTarget, setModulesTarget] = React.useState<TenantBillingInfo | null>(null);
 
   if (isLoading) {
     return <AdminOverviewSkeleton />;
@@ -81,7 +80,7 @@ export default function AdminOverviewPage() {
             className="shadow-sm hover:shadow transition-all"
           >
             <Download className="w-4 h-4 mr-2" />
-            Exportar Relatório
+            Imprimir
           </Button>
         </div>
       </motion.div>
@@ -99,17 +98,15 @@ export default function AdminOverviewPage() {
         onSearchChange={setSearchTerm}
         filterStatus={filterStatus}
         onFilterChange={setFilterStatus}
-        onEditLimits={handleEditLimits}
+        onManageModules={setModulesTarget}
       />
 
-      <EditLimitsDialog
-        open={editDialog.open}
-        onClose={() => setEditDialog((prev) => ({ ...prev, open: false }))}
-        tenantId={editDialog.tenantId}
-        tenantName={editDialog.tenantName}
-        currentFeatures={editDialog.features}
-        onSaved={loadData}
+      <TenantModulesDialog
+        tenantId={modulesTarget?.tenant.id ?? null}
+        tenantName={modulesTarget?.tenant.name ?? ""}
+        onClose={() => setModulesTarget(null)}
       />
+
     </div>
   );
 }

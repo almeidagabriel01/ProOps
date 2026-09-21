@@ -18,7 +18,9 @@ import { db } from "@/lib/firebase";
 import { usePathname } from "next/navigation";
 import {
   clearViewingTenantId,
+  readImpersonationWriteEnabled,
   readViewingTenantId,
+  writeImpersonationWriteEnabled,
   writeViewingTenantId,
 } from "@/lib/viewing-tenant-session";
 import { AdminService, type TenantBillingInfo } from "@/services/admin-service";
@@ -50,8 +52,16 @@ interface TenantContextType {
   isLoading: boolean;
   /** True for free/demo accounts: `tenant` points at the shared demo data. */
   isDemo: boolean;
-  /** True when the account may only read (free/demo). Drives read-only UX. */
+  /**
+   * True when the account may only read: free/demo, or a superadmin viewing a
+   * company ("Acessar Painel") without having enabled editing. Drives read-only UX.
+   */
   isReadOnly: boolean;
+  /** Superadmin is viewing another company's panel. */
+  isImpersonating: boolean;
+  /** Editing was explicitly enabled for the company being viewed. */
+  impersonationWriteEnabled: boolean;
+  setImpersonationWriteEnabled: (enabled: boolean) => void;
   /** The real account/billing tenant (tenant_${uid}); differs from `tenant` in demo mode. */
   accountTenantId: string | null;
   /** The real account tenant doc (identity/billing). Equals `tenant` unless in demo mode. */
@@ -72,6 +82,9 @@ const TenantContext = React.createContext<TenantContextType>({
   isLoading: true,
   isDemo: false,
   isReadOnly: false,
+  isImpersonating: false,
+  impersonationWriteEnabled: false,
+  setImpersonationWriteEnabled: () => {},
   accountTenantId: null,
   accountTenant: null,
   refreshTenant: () => {},
@@ -141,6 +154,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const lastRefreshTriggerRef = React.useRef(0);
   // Track explicit tenant setting to avoid clearing during router transitions
   const bypassAdminClearRef = React.useRef(false);
+  // Tenant cujo dono ja foi resolvido para o superadmin. Antes a condicao era
+  // "sem tenantOwnerPlanName", que fica nulo quando o dono vem da consulta de
+  // usuarios: o tenant e o dono eram recarregados a cada troca de rota.
+  const superAdminHydratedTenantRef = React.useRef<string | null>(null);
   const isGlobalLoading = React.useMemo(
     () =>
       Object.keys(globalLoadingReasons).some((reason) =>
@@ -205,6 +222,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       pathname.startsWith("/admin") &&
       !bypassAdminClearRef.current
     ) {
+      if (viewingAsId) {
+        // Saida implicita (entrou no /admin sem usar o botao): registra o fim
+        // da sessao do mesmo jeito.
+        void AdminService.stopImpersonation(viewingAsId, "admin_route").catch(() => {});
+      }
       viewingAsId = null;
       clearViewingTenantId();
     }
@@ -237,7 +259,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     const needsSuperAdminHydration =
       user?.role?.toLowerCase() === "superadmin" &&
       !!tenantIdToLoad &&
-      !tenantOwnerPlanName;
+      superAdminHydratedTenantRef.current !== tenantIdToLoad;
 
     // Skip if we already have the correct tenant loaded AND this is not a forced refresh
     if (
@@ -276,11 +298,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             return superAdminTenantBillingMatch;
           }
 
-          const { AdminService } = await import("@/services/admin-service");
-          const allTenants = await AdminService.getAllTenantsBilling();
+          // Busca so a empresa pedida. Antes varria TODAS as paginas de billing
+          // (ate 200) para achar uma, com contagens e Stripe por empresa.
+          const rows = await AdminService.getTenantsBillingByIds([tenantIdToLoad]);
           superAdminTenantBillingMatch =
-            allTenants.find((item) => item.tenant.id === tenantIdToLoad) ||
-            null;
+            rows.find((item) => item.tenant.id === tenantIdToLoad) || null;
 
           return superAdminTenantBillingMatch;
         };
@@ -441,6 +463,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             console.error("Error fetching tenant owner", ownerErr);
             setTenantOwner(null);
             setTenantOwnerPlanName(null);
+          }
+          if (user?.role?.toLowerCase() === "superadmin") {
+            superAdminHydratedTenantRef.current = fetchedTenant.id;
           }
           lastResolvedContextKeyRef.current = contextKey;
         } else {
@@ -625,18 +650,33 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setRefreshTrigger((prev) => prev + 1);
   };
 
+  const [impersonationWriteEnabled, setImpersonationWriteState] = React.useState(false);
+
   const clearViewingTenant = React.useCallback(() => {
+    const viewingId = readViewingTenantId();
+    if (viewingId) {
+      void AdminService.stopImpersonation(viewingId, "exit_button").catch(() => {});
+    }
     routeTransitionTargetsRef.current["return-admin"] = "/admin";
     beginGlobalLoading("return-admin");
     clearViewingTenantId();
+    setImpersonationWriteState(false);
     setRefreshTrigger((prev) => prev + 1);
   }, [beginGlobalLoading]);
+
+  const setImpersonationWriteEnabled = React.useCallback((enabled: boolean) => {
+    writeImpersonationWriteEnabled(enabled);
+    setImpersonationWriteState(readImpersonationWriteEnabled());
+  }, []);
 
   const setViewingTenant = (newTenant: Tenant) => {
     bypassAdminClearRef.current = true;
     routeTransitionTargetsRef.current["tenant-switch"] = "/dashboard";
     beginGlobalLoading("tenant-switch");
     writeViewingTenantId(newTenant.id);
+    // Toda empresa aberta comeca em somente leitura.
+    writeImpersonationWriteEnabled(false);
+    setImpersonationWriteState(false);
     // Record the impersonation session start for the audit trail (best-effort —
     // never block entering the tenant if the audit call fails).
     void AdminService.startImpersonation(newTenant.id).catch(() => {});
@@ -644,6 +684,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isDemo = String(user?.role || "").toLowerCase() === "free";
+  const isImpersonating =
+    String(user?.role || "").toLowerCase() === "superadmin" && Boolean(tenant?.id);
+
+  // Reidrata o modo de edicao apos recarregar a aba (fica no sessionStorage).
+  React.useEffect(() => {
+    setImpersonationWriteState(isImpersonating && readImpersonationWriteEnabled());
+  }, [isImpersonating, tenant?.id]);
   const accountTenantId = user?.tenantId ?? null;
 
   // Keep the plain-module demo flag (consumed by api-client) in sync.
@@ -683,7 +730,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         tenantOwnerPlanName,
         isLoading,
         isDemo,
-        isReadOnly: isDemo,
+        isReadOnly: isDemo || (isImpersonating && !impersonationWriteEnabled),
+        isImpersonating,
+        impersonationWriteEnabled: isImpersonating && impersonationWriteEnabled,
+        setImpersonationWriteEnabled,
         accountTenantId,
         accountTenant,
         refreshTenant,

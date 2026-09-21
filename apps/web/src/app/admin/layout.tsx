@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AdminGuard } from "./_components/admin-guard";
+import { AdminSectionTabs } from "./_components/admin-section-tabs";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -8,5 +9,10 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <AdminGuard>{children}</AdminGuard>;
+  return (
+    <AdminGuard>
+      <AdminSectionTabs />
+      {children}
+    </AdminGuard>
+  );
 }

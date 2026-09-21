@@ -155,7 +155,20 @@ export interface AuthContext {
    * Consumido por resolveUserAndTenant para evitar segunda leitura Firestore.
    */
   userDoc?: Record<string, unknown> | null;
+  /**
+   * Presente quando um superadmin esta vendo outra empresa ("Acessar Painel").
+   * Nesse caso `tenantId` e `masterId` ja apontam para a empresa alvo; ver
+   * `api/middleware/impersonation.ts`.
+   */
+  impersonation?: ImpersonationContext;
   [key: string]: unknown;
+}
+
+export interface ImpersonationContext {
+  originalTenantId: string;
+  targetTenantId: string;
+  ownerUid: string | null;
+  writeEnabled: boolean;
 }
 
 type ResolveAuthContextOptions = {

@@ -59,10 +59,11 @@ function buildFakeDb() {
     }),
     runTransaction: jest
       .fn()
-      .mockImplementation(async (cb: (tx: typeof fakeTransaction) => Promise<void>) => {
+      .mockImplementation(async (cb: (tx: typeof fakeTransaction) => Promise<unknown>) => {
         callSequence.push("runTransaction.start");
-        await cb(fakeTransaction);
+        const result = await cb(fakeTransaction);
         callSequence.push("runTransaction.end");
+        return result;
       }),
   };
 
@@ -414,5 +415,33 @@ describe("Phase 19 Plan 03 — phase-gate audit", () => {
       );
       expect(syncCallBody).not.toMatch(/plan:\s*profile\.tier/);
     }
+  });
+
+  it.each(["purged", "purging"])(
+    "empresa %s pelo painel: evento do Stripe nao reescreve o doc residual (tenant zumbi)",
+    async (accountStatus) => {
+      resetCaptures();
+      await resetDb({ name: "Empresa", accountStatus });
+      await syncTenantPlanBillingSnapshot({
+        tenantId: "tenant-abc",
+        subscriptionStatus: "canceled",
+        stripePriceId: "price_pro_monthly",
+        source: "webhook.subscription.deleted",
+      });
+      expect(callSequence).not.toContain("transaction.set");
+      expect(postTxCalls).toHaveLength(0);
+    },
+  );
+
+  it("empresa apenas desativada continua recebendo o status do Stripe", async () => {
+    resetCaptures();
+    await resetDb({ name: "Empresa", accountStatus: "deactivated" });
+    await syncTenantPlanBillingSnapshot({
+      tenantId: "tenant-abc",
+      subscriptionStatus: "canceled",
+      stripePriceId: "price_pro_monthly",
+      source: "webhook.subscription.deleted",
+    });
+    expect(callSequence).toContain("transaction.set");
   });
 });

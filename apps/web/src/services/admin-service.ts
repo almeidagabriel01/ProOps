@@ -27,6 +27,45 @@ interface CreateTenantInput {
   currentPeriodEnd?: string;
 }
 
+export interface AdminAuditEvent {
+  id: string;
+  eventType: string;
+  uid?: string | null;
+  tenantId?: string | null;
+  route?: string | null;
+  reason?: string | null;
+  eventId?: string | null;
+  source?: string | null;
+  createdAt: string;
+}
+
+export interface TenantIndexItem {
+  id: string;
+  name: string;
+  plan: string;
+  accountStatus: string;
+}
+
+/** Resposta de GET /v1/admin/tenants/:id/modules (rotulos vem do catalogo do backend). */
+export interface TenantModulesInfo {
+  tenantId: string;
+  tier: string;
+  tierLabel: string;
+  capabilities: Record<string, boolean>;
+  tierCapabilities: Record<string, boolean>;
+  capabilityLabels: Record<string, string>;
+  limits: Record<string, number>;
+  limitLabels: Record<string, string>;
+  activeAddons: string[];
+  addons: Array<{
+    addonId: string;
+    status: string;
+    source: "stripe" | "courtesy" | "manual" | string;
+    currentPeriodEnd: string | null;
+  }>;
+  availableAddons: Array<{ id: string; availableForTiers: string[] }>;
+}
+
 export interface TenantBillingInfo {
   tenant: {
     id: string;
@@ -37,6 +76,8 @@ export interface TenantBillingInfo {
     primaryColor?: string;
     niche?: string;
     whatsappEnabled?: boolean;
+    /** active | deactivated | purging | purged */
+    accountStatus?: string;
   };
   admin: {
     id: string;
@@ -71,6 +112,8 @@ export interface TenantBillingInfo {
   unitAmount?: number | null;
   currency?: string | null;
   stripeSubscriptionId?: string | null;
+  /** Quem manda no plano/status: o webhook do Stripe ou o superadmin (contrato manual). */
+  billingManagedBy?: "stripe" | "manual";
   priceChangeNotifiedFor?: string | null;
 }
 
@@ -135,13 +178,50 @@ export const AdminService = {
     );
   },
 
+  /** Linhas de billing de empresas especificas (ate 30 por chamada). */
+  getTenantsBillingByIds: async (tenantIds: string[]): Promise<TenantBillingInfo[]> => {
+    if (tenantIds.length === 0) return [];
+    const params = new URLSearchParams({ tenantIds: tenantIds.slice(0, 30).join(",") });
+    const result = await callApi<TenantBillingPage>(`/v1/admin/tenants/billing?${params}`, "GET");
+    return Array.isArray(result) ? result : result.items ?? [];
+  },
+
+  /** Indice leve de todas as empresas (id, nome, plano, situacao). */
+  getTenantsIndex: async (): Promise<TenantIndexItem[]> => {
+    const result = await callApi<{ items: TenantIndexItem[] }>("/v1/admin/tenants/index", "GET");
+    return result.items ?? [];
+  },
+
   forceTenantBillingSync: async (tenantId: string): Promise<void> => {
     await callApi(`/v1/admin/tenants/${tenantId}/sync-billing`, "POST");
   },
 
   // Records a super admin "view as tenant" session start for the audit trail.
+  getAuditEvents: async (params: {
+    tenantId?: string;
+    eventType?: string;
+    limit?: number;
+  }): Promise<AdminAuditEvent[]> => {
+    const search = new URLSearchParams();
+    if (params.tenantId) search.set("tenantId", params.tenantId);
+    if (params.eventType) search.set("eventType", params.eventType);
+    search.set("limit", String(params.limit ?? 50));
+    const result = await callApi<{ events: AdminAuditEvent[] }>(
+      `/v1/admin/audit-events?${search}`,
+      "GET",
+    );
+    return result.events ?? [];
+  },
+
   startImpersonation: async (tenantId: string): Promise<void> => {
     await callApi("/v1/admin/impersonation/start", "POST", { tenantId });
+  },
+
+  stopImpersonation: async (
+    tenantId: string,
+    reason: "exit_button" | "admin_route" | "logout",
+  ): Promise<void> => {
+    await callApi("/v1/admin/impersonation/stop", "POST", { tenantId, reason });
   },
 
   updateUserPlan: async (userId: string, planId: string): Promise<void> => {
@@ -155,12 +235,6 @@ export const AdminService = {
     await callApi(`/v1/admin/users/${userId}/subscription`, "PUT", data);
   },
 
-  updateTenantLimits: async (
-    tenantId: string,
-    limits: Record<string, unknown>,
-  ): Promise<void> => {
-    await callApi(`/v1/admin/tenants/${tenantId}/limits`, "PUT", limits);
-  },
 
   createTenant: async (
     data: CreateTenantInput,
@@ -172,16 +246,43 @@ export const AdminService = {
     );
   },
 
-  deleteTenant: async (tenantId: string): Promise<void> => {
-    await callApi(`/v1/admin/tenants/${tenantId}`, "DELETE");
+  deactivateTenant: async (tenantId: string): Promise<{ message?: string }> => {
+    return await callApi(`/v1/admin/tenants/${tenantId}/deactivate`, "POST", {});
   },
 
-  copyTenantData: async (sourceTenantId: string, targetTenantId: string): Promise<{ totalCopied: number, message?: string }> => {
-    return await callApi<{ totalCopied: number, message?: string }>(
+  reactivateTenant: async (tenantId: string): Promise<{ message?: string }> => {
+    return await callApi(`/v1/admin/tenants/${tenantId}/reactivate`, "POST", {});
+  },
+
+  purgeTenant: async (
+    tenantId: string,
+    confirmName: string,
+  ): Promise<{ message?: string }> => {
+    return await callApi(`/v1/admin/tenants/${tenantId}/purge`, "POST", { confirmName });
+  },
+
+  copyTenantData: async (
+    sourceTenantId: string,
+    targetTenantId: string,
+    replace = false,
+  ): Promise<{ totalCopied: number; removed?: number; message?: string }> => {
+    return await callApi<{ totalCopied: number; removed?: number; message?: string }>(
       "/v1/admin/tenants/copy-data",
       "POST",
-      { sourceTenantId, targetTenantId }
+      { sourceTenantId, targetTenantId, replace },
     );
+  },
+
+  getTenantModules: async (tenantId: string): Promise<TenantModulesInfo> => {
+    return await callApi<TenantModulesInfo>(`/v1/admin/tenants/${tenantId}/modules`);
+  },
+
+  grantCourtesyAddon: async (tenantId: string, addonId: string): Promise<void> => {
+    await callApi(`/v1/admin/tenants/${tenantId}/addons/${addonId}`, "POST", {});
+  },
+
+  revokeCourtesyAddon: async (tenantId: string, addonId: string): Promise<void> => {
+    await callApi(`/v1/admin/tenants/${tenantId}/addons/${addonId}`, "DELETE");
   },
 
   recomputeFeatures: async (tenantId: string): Promise<{ whatsappEnabled: boolean }> => {

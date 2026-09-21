@@ -21,13 +21,69 @@ Há ~38 segmentos de rota: proposals, contacts, products, transactions, calendar
 
 ## Rotas existentes
 ```
-403, actions, addon-success, admin, agendar, ambientes, api, auth,
-automacao-residencial, automation, calendar, checkout-success, contacts,
-contato, cookies, crm, dashboard, data-deletion, decoracao, forgot-password,
-login, privacy, products, profile, proposals, register, reset, services,
-settings, share, solutions, spreadsheets, subscribe, subscription-blocked,
-team, terms, transactions, verify, wallets
+403, actions, addon-success, admin, agendar, ambientes, aplicativo, api, auth,
+automacao-residencial, automation, calendar, checkout-success,
+commissions, contacts, contato, cookies, crm, dashboard, data-deletion,
+decoracao, fale-conosco, forgot-password, institucional, invoices, login,
+manifesto, privacy, products, produtos, profile, proposals, register, reset,
+services, settings, share, sobre, solutions, spreadsheets, subscribe,
+subscription-blocked, team, terms, transactions, verify, wallets
 ```
+
+`sobre`, `manifesto`, `produtos` e `fale-conosco` são as páginas do
+**site da empresa** e vivem no route group `(empresa)/`, que não entra na URL.
+`produtos` (português) é a página institucional; `products` (inglês) é a tela
+autenticada de catálogo. São coisas diferentes.
+
+## Três superfícies num projeto só
+
+`proops.com.br`, `erp.proops.com.br` e `app.proops.com.br` são servidos por este
+mesmo App Router. O `proxy.ts` lê o `Host` e reescreve **apenas a raiz** para
+`/institucional` ou `/aplicativo`; todo o resto da árvore é servido como está.
+
+A limitação a `/` é load-bearing, não cautela: `providers.tsx` classifica a
+página com `usePathname()`, que sob rewrite reporta o caminho do NAVEGADOR e não
+o alvo. Reescrever uma subárvore faria o proxy liberar a página enquanto o
+cliente a embrulharia em `<ProtectedRoute>` e a mandaria para o login.
+
+A política vive em `@/lib/site/surfaces` e `@/lib/site/host-seo`. `sitemap.ts` e
+`robots.ts` são dinâmicos por causa disso: lidos do `Host`, senão os três
+domínios publicariam o mesmo sitemap.
+
+`/institucional`, `/aplicativo` e as cinco páginas da empresa renderizam **fora
+do `AuthProvider`** (`SESSIONLESS_MARKETING_ROUTES`), porque não leem usuário
+nenhum. Antes de pôr uma rota nessa lista, confira que nada que ela renderiza
+chama `useAuth`, `useTenant`, `usePlan` ou `usePagePermission`, nem via
+componente compartilhado.
+
+## O site da empresa
+
+As cinco páginas ficam em `app/(empresa)/`, um route group que não entra na
+URL. A raiz do apex (`app/(empresa)/institucional/page.tsx`, alvo do rewrite) é
+a experiência longa; as outras quatro respondem **no nível do apex**. Elas não
+moram debaixo de `/institucional` por dois motivos: `proops.com.br/sobre` é o
+endereço que um site de empresa tem, e a subárvore `/institucional` é `noindex`
+permanente por ser o alvo do rewrite, logo duplicata da raiz.
+
+Isso torna `APEX_COMPANY_PATHS` (`lib/site/surfaces.ts`) load-bearing: é a lista
+que mantém o apex servindo esses caminhos depois da virada, em vez de mandá-los
+com 301 para `erp.proops.com.br`, que não os tem. Página nova do site da empresa
+precisa entrar **nas três listas**: `APEX_COMPANY_PATHS`, `EMPRESA_LINKS`
+(`components/institucional/nav-links.ts`, que valida a primeira no import) e
+`ROTAS.institucional` em `host-seo.ts`.
+
+**Um layout só**, `(empresa)/layout.tsx`, monta o `EmpresaShell`: Lenis, cortina
+de transição, campo de ponteiro, navbar e rodapé. O shell é que escreve
+`--px`/`--py`, herdados pela página inteira.
+
+Ser um só é load-bearing, e era dois. Dois layouts irmãos são duas subárvores do
+React: cruzar entre a raiz e uma sub-página desmontava a casca e construía
+outra, então o `CurtainProvider` morria com o painel em pé (a transição sumia em
+vez de subir), o Lenis era recriado atrás de um `requestIdleCallback` (a rolagem
+inercial ficava fora do ar por até dois segundos) e o campo de ponteiro
+recomeçava. Nada falhava: a URL trocava e o conteúdo estava certo. **Não dê
+`layout.tsx` a nenhuma página daqui**; o guard é
+`src/__tests__/site-da-empresa-uma-casca.test.ts`.
 
 ## Rotas de API (`src/app/api/`)
 Subdivisões: `admin/`, `auth/`, `backend/`, `dev/`, `internal/`, `members/`, `proposals/`

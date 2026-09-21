@@ -1,46 +1,32 @@
+import { headers } from "next/headers";
 import type { MetadataRoute } from "next";
 
-const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://proops.com.br";
+import { robotsPara } from "@/lib/site/host-seo";
+import { resolveSurface } from "@/lib/site/surfaces";
 
-export default function robots(): MetadataRoute.Robots {
+/**
+ * One robots.txt per host. See `./sitemap.ts` for why this must be dynamic.
+ *
+ * A host that still duplicates the apex answers `Disallow: /`. That decision
+ * cannot come from the proxy: `robots.txt` is excluded from its matcher, by
+ * design, so the `X-Robots-Tag` it sets never reaches this file.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const cabecalhos = await headers();
+  const host = cabecalhos.get("x-forwarded-host") ?? cabecalhos.get("host");
+  const politica = robotsPara(resolveSurface(host), host);
+
   return {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
-        disallow: [
-          "/api/",
-          "/share/",
-          "/admin/",
-          "/dashboard/",
-          "/proposals/",
-          "/transactions/",
-          "/settings/",
-          "/profile/",
-          "/products/",
-          "/contacts/",
-          "/crm/",
-          "/team/",
-          "/wallets/",
-          "/spreadsheets/",
-          "/services/",
-          "/automation/",
-          "/calendar/",
-          "/notifications/",
-          "/login",
-          "/register",
-          "/forgot-password",
-          "/subscribe",
-          "/checkout",
-          "/checkout-success",
-          "/addon-success",
-          "/auth/",
-          "/403",
-          "/subscription-blocked",
-        ],
+        ...(politica.allow ? { allow: politica.allow } : {}),
+        disallow: politica.disallow,
       },
     ],
-    sitemap: `${BASE}/sitemap.xml`,
-    host: BASE,
+    sitemap: politica.sitemap,
+    host: politica.host,
   };
 }

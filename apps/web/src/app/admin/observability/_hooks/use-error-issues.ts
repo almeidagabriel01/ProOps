@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "@/lib/toast";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ObservabilityService } from "@/services/observability-service";
@@ -39,6 +40,9 @@ export function useErrorIssues(filters: IssueFilters) {
         const res = await ObservabilityService.searchIssues({ ...filters, from, cursor, limit: 50 });
         setQueryIssues((prev) => (append ? [...prev, ...res.issues] : res.issues));
         setNextCursor(res.nextCursor);
+      } catch {
+        // Sem isto a busca falhava em silencio e a lista parecia vazia.
+        toast.error("Erro ao buscar erros. Tente de novo.");
       } finally {
         setIsLoading(false);
       }
@@ -56,9 +60,25 @@ export function useErrorIssues(filters: IssueFilters) {
   }, [queryMode, runSearch]);
 
   const triage = React.useCallback(async (fp: string, status: ErrorIssueStatus) => {
-    setLiveIssues((prev) => prev.map((i) => (i.fingerprint === fp ? { ...i, status } : i)));
-    setQueryIssues((prev) => prev.map((i) => (i.fingerprint === fp ? { ...i, status } : i)));
-    await ObservabilityService.triageIssue(fp, status);
+    let previous: ErrorIssueStatus | undefined;
+    const apply = (next: ErrorIssueStatus) => (list: typeof liveIssues) =>
+      list.map((i) => {
+        if (i.fingerprint !== fp) return i;
+        previous = previous ?? i.status;
+        return { ...i, status: next };
+      });
+    setLiveIssues(apply(status));
+    setQueryIssues(apply(status));
+    try {
+      await ObservabilityService.triageIssue(fp, status);
+    } catch (err) {
+      // Desfaz a mudanca otimista: a tela nao pode mostrar um status que nao gravou.
+      if (previous) {
+        setLiveIssues(apply(previous));
+        setQueryIssues(apply(previous));
+      }
+      throw err;
+    }
   }, []);
 
   const issues = queryMode ? queryIssues : applyClientFilters(liveIssues, filters);

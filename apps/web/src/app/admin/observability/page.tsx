@@ -5,7 +5,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Activity } from "lucide-react";
 import { m as motion } from "motion/react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { useErrorIssues } from "./_hooks/use-error-issues";
 import { useErrorMetrics } from "./_hooks/use-error-metrics";
