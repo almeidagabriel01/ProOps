@@ -2082,20 +2082,43 @@ export const copyTenantData = async (req: Request, res: Response) => {
       });
     }
 
-    const { sourceTenantId, targetTenantId } = req.body;
+    const sourceTenantId = String(req.body?.sourceTenantId || "").trim();
+    const targetTenantId = String(req.body?.targetTenantId || "").trim();
+    const replace = req.body?.replace === true;
 
     if (!sourceTenantId || !targetTenantId) {
       return res.status(400).json({ message: "sourceTenantId e targetTenantId são obrigatórios." });
+    }
+    // Com os dois ids iguais, o "limpar destino" antigo apagava o catalogo da
+    // propria origem e depois nao tinha nada para copiar.
+    if (sourceTenantId === targetTenantId) {
+      return res.status(400).json({ message: "Origem e destino precisam ser empresas diferentes." });
+    }
+    try {
+      await assertTenantExists(sourceTenantId);
+      await assertTenantExists(targetTenantId);
+    } catch {
+      return res.status(400).json({ message: "Empresa de origem ou destino inexistente." });
     }
 
     const allCollections = ["products", "services", "ambientes", "sistemas"];
     const now = Timestamp.now();
     const nowTimestampStr = now.toDate().toISOString();
 
-    // 0. Clean up any existing data in the target tenant first (idempotent)
-    for (const col of allCollections) {
-      const existingQuery = db.collection(col).where("tenantId", "==", targetTenantId);
-      await deleteQueryInBatches(existingQuery);
+    // Substituir apaga o catalogo ANTIGO do destino, e so depois de a copia
+    // terminar: se ela falhar no meio, o destino fica com o que tinha mais uma
+    // copia parcial, nunca vazio. Os ids sao lidos antes para nao apagar o que
+    // acabou de ser copiado.
+    const previousTargetRefs: FirebaseFirestore.DocumentReference[] = [];
+    if (replace) {
+      for (const col of allCollections) {
+        const existing = await db
+          .collection(col)
+          .where("tenantId", "==", targetTenantId)
+          .select()
+          .get();
+        existing.docs.forEach((d) => previousTargetRefs.push(d.ref));
+      }
     }
 
     const baseCollections = ["products", "services", "ambientes"];
@@ -2264,10 +2287,25 @@ export const copyTenantData = async (req: Request, res: Response) => {
       for (const batch of batches) await batch.commit();
     }
 
+    for (let i = 0; i < previousTargetRefs.length; i += 500) {
+      const batch = db.batch();
+      previousTargetRefs.slice(i, i + 500).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
+
+    await auditAdminAction(req, "super_admin_copy_data", {
+      tenantId: targetTenantId,
+      targetId: sourceTenantId,
+      reason: `copied:${totalCopied};replaced:${previousTargetRefs.length}`,
+    });
+
     return res.json({
       success: true,
-      message: `Cópia concluída. ${totalCopied} registros copiados com sucesso.`,
+      message: replace
+        ? `Cópia concluída. ${totalCopied} registros copiados e ${previousTargetRefs.length} antigos removidos.`
+        : `Cópia concluída. ${totalCopied} registros copiados com sucesso.`,
       totalCopied,
+      removed: previousTargetRefs.length,
       imageCloneStats,
     });
   } catch (error: unknown) {

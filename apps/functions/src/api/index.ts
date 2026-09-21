@@ -91,6 +91,9 @@ const DEFAULT_PROTECTED_PDF_TIMEOUT_MS = 120_000;
  * real em vez de fingir que ele nao existe.
  */
 const DEFAULT_PROPOSAL_WRITE_TIMEOUT_MS = 60_000;
+// Operacoes em massa do superadmin (copiar catalogo, desativar empresa): varrem
+// colecoes inteiras de um tenant e passam facil dos 20s de uma rota comum.
+const DEFAULT_ADMIN_BULK_TIMEOUT_MS = 70_000;
 
 export function resolveProtectedRouteTimeoutMs(req: express.Request): number {
   const originalPath = String(req.originalUrl || req.url || req.path || "")
@@ -116,6 +119,18 @@ export function resolveProtectedRouteTimeoutMs(req: express.Request): number {
     return Number(
       process.env.PROTECTED_PROPOSAL_WRITE_TIMEOUT_MS ||
         DEFAULT_PROPOSAL_WRITE_TIMEOUT_MS,
+    );
+  }
+
+  const isAdminBulkOp =
+    method === "POST" &&
+    /(?:^|\/)v1\/admin\/tenants\/(?:copy-data|[^/]+\/(?:deactivate|reactivate|purge))$/.test(
+      originalPath,
+    );
+
+  if (isAdminBulkOp) {
+    return Number(
+      process.env.PROTECTED_ADMIN_BULK_TIMEOUT_MS || DEFAULT_ADMIN_BULK_TIMEOUT_MS,
     );
   }
 

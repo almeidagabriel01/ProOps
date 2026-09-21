@@ -178,11 +178,15 @@ export const AdminService = {
     await callApi(`/v1/admin/tenants/${tenantId}`, "DELETE");
   },
 
-  copyTenantData: async (sourceTenantId: string, targetTenantId: string): Promise<{ totalCopied: number, message?: string }> => {
-    return await callApi<{ totalCopied: number, message?: string }>(
+  copyTenantData: async (
+    sourceTenantId: string,
+    targetTenantId: string,
+    replace = false,
+  ): Promise<{ totalCopied: number; removed?: number; message?: string }> => {
+    return await callApi<{ totalCopied: number; removed?: number; message?: string }>(
       "/v1/admin/tenants/copy-data",
       "POST",
-      { sourceTenantId, targetTenantId }
+      { sourceTenantId, targetTenantId, replace },
     );
   },
 

@@ -46,11 +46,11 @@ export default function AdminPage() {
     setIsCopyDialogOpen(true);
   };
 
-  const handleConfirmCopy = async (sourceId: string, targetId: string) => {
+  const handleConfirmCopy = async (sourceId: string, targetId: string, replace: boolean) => {
     if (!sourceId || !targetId) return;
     setIsCopying(true);
     try {
-      const response = await AdminService.copyTenantData(sourceId, targetId);
+      const response = await AdminService.copyTenantData(sourceId, targetId, replace);
       toast.success(response.message || `Cópia concluída com sucesso!`);
       setIsCopyDialogOpen(false);
     } catch (error: unknown) {
@@ -184,7 +184,7 @@ export default function AdminPage() {
         isOpen={isCopyDialogOpen}
         onClose={() => setIsCopyDialogOpen(false)}
         sourceTenant={copySourceTenant}
-        allTenants={tenantsData}
+        targets={tenantsData.map((t) => ({ id: t.tenant.id, name: t.tenant.name }))}
         onConfirm={handleConfirmCopy}
         isCopying={isCopying}
       />

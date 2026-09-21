@@ -86,6 +86,17 @@ function mayRenderPdfInline(req: NextRequest, path: string[]): boolean {
   return path[0] === "v1" && path[1] === "proposals";
 }
 
+/**
+ * Operacoes em massa do superadmin (copiar catalogo, desativar, reativar e
+ * purgar empresa) varrem colecoes inteiras de um tenant. O backend da 70s a
+ * elas (`resolveProtectedRouteTimeoutMs`); o proxy precisa esperar mais que
+ * isso para a resposta util chegar em vez de um erro de rede.
+ */
+function isAdminBulkOperation(req: NextRequest, path: string[]): boolean {
+  if (req.method !== "POST") return false;
+  return path[0] === "v1" && path[1] === "admin" && path[2] === "tenants";
+}
+
 function buildUpstreamUrl(req: NextRequest, path: string[]): string {
   const { baseUrl } = resolveFunctionsApiUpstream(req);
   // Paths de PDF vão para a função Cloud dedicada `pdf` (Chromium isolado).
@@ -151,7 +162,8 @@ async function proxyRequest(
   const acceptHeader = req.headers.get("accept") ?? "";
   const isSSE = acceptHeader.includes("text/event-stream");
   const isPdfRequest = isPdfPath(path);
-  const isSlowInlineRender = mayRenderPdfInline(req, path);
+  const isSlowInlineRender =
+    mayRenderPdfInline(req, path) || isAdminBulkOperation(req, path);
   const timeoutMs = isSSE
     ? SSE_TIMEOUT_MS
     : isPdfRequest || isSlowInlineRender

@@ -84,4 +84,22 @@ describe("resolveProtectedRouteTimeoutMs", () => {
       45_000,
     );
   });
+
+  it("operacao em massa do superadmin tem orcamento proprio, abaixo do proxy", () => {
+    for (const path of [
+      "/v1/admin/tenants/copy-data",
+      "/v1/admin/tenants/t1/deactivate",
+      "/v1/admin/tenants/t1/reactivate",
+      "/v1/admin/tenants/t1/purge",
+    ]) {
+      const ms = resolveProtectedRouteTimeoutMs(req("POST", path));
+      expect(ms).toBe(70_000);
+      expect(ms).toBeLessThan(80_000);
+    }
+  });
+
+  it("leitura e outras rotas admin seguem no teto curto", () => {
+    expect(resolveProtectedRouteTimeoutMs(req("GET", "/v1/admin/tenants/copy-data"))).toBe(20_000);
+    expect(resolveProtectedRouteTimeoutMs(req("POST", "/v1/admin/credentials"))).toBe(20_000);
+  });
 });
