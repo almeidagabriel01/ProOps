@@ -27,7 +27,9 @@ interface UseTenantManagementReturn {
   openCreate: () => void;
   openEdit: (data: TenantBillingInfo) => void;
   handleSave: (data: TenantFormData) => Promise<void>;
-  handleDelete: (id: string) => Promise<void>;
+  handleDeactivate: (id: string) => Promise<void>;
+  handleReactivate: (id: string) => Promise<void>;
+  handlePurge: (id: string, confirmName: string) => Promise<void>;
   handleLoginAs: (item: TenantBillingInfo) => void;
   handleRecompute: (tenantId: string) => Promise<void>;
   isLoading: boolean;
@@ -304,17 +306,42 @@ export function useTenantManagement(): UseTenantManagementReturn {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  // As tres re-lancam o erro para o card manter o dialogo aberto.
+  const runLifecycle = async (
+    action: () => Promise<{ message?: string }>,
+    fallbackSuccess: string,
+    fallbackError: string,
+  ) => {
     try {
-      await AdminService.deleteTenant(id);
-      toast.success("Empresa removida com sucesso!");
+      const result = await action();
+      toast.success(result?.message || fallbackSuccess);
       loadTenants(currentCursor);
     } catch (error) {
-      console.error(error);
-      toast.error("Erro ao remover empresa");
-      throw error; // Re-throw para o componente saber que falhou
+      toast.error(error instanceof Error && error.message ? error.message : fallbackError);
+      throw error;
     }
   };
+
+  const handleDeactivate = (id: string) =>
+    runLifecycle(
+      () => AdminService.deactivateTenant(id),
+      "Empresa desativada.",
+      "Erro ao desativar empresa",
+    );
+
+  const handleReactivate = (id: string) =>
+    runLifecycle(
+      () => AdminService.reactivateTenant(id),
+      "Empresa reativada.",
+      "Erro ao reativar empresa",
+    );
+
+  const handlePurge = (id: string, confirmName: string) =>
+    runLifecycle(
+      () => AdminService.purgeTenant(id, confirmName),
+      "Exclusão iniciada.",
+      "Erro ao iniciar a exclusão",
+    );
 
   const openCreate = () => {
     setEditingData(null);
@@ -370,7 +397,9 @@ export function useTenantManagement(): UseTenantManagementReturn {
     openCreate,
     openEdit,
     handleSave,
-    handleDelete,
+    handleDeactivate,
+    handleReactivate,
+    handlePurge,
     handleLoginAs,
     handleRecompute,
     isLoading,

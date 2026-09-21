@@ -24,7 +24,9 @@ export default function AdminPage() {
     openCreate,
     openEdit,
     handleSave,
-    handleDelete,
+    handleDeactivate,
+    handleReactivate,
+    handlePurge,
     handleLoginAs,
     handleRecompute,
     isLoading,
@@ -131,7 +133,9 @@ export default function AdminPage() {
             key={item.tenant.id}
             item={item}
             onEdit={openEdit}
-            onDelete={handleDelete}
+            onDeactivate={handleDeactivate}
+            onReactivate={handleReactivate}
+            onPurge={handlePurge}
             onLoginAs={handleLoginAs}
             onCopy={handleOpenCopyModal}
           />

@@ -37,6 +37,8 @@ export interface TenantBillingInfo {
     primaryColor?: string;
     niche?: string;
     whatsappEnabled?: boolean;
+    /** active | deactivated | purging | purged */
+    accountStatus?: string;
   };
   admin: {
     id: string;
@@ -175,8 +177,19 @@ export const AdminService = {
     );
   },
 
-  deleteTenant: async (tenantId: string): Promise<void> => {
-    await callApi(`/v1/admin/tenants/${tenantId}`, "DELETE");
+  deactivateTenant: async (tenantId: string): Promise<{ message?: string }> => {
+    return await callApi(`/v1/admin/tenants/${tenantId}/deactivate`, "POST", {});
+  },
+
+  reactivateTenant: async (tenantId: string): Promise<{ message?: string }> => {
+    return await callApi(`/v1/admin/tenants/${tenantId}/reactivate`, "POST", {});
+  },
+
+  purgeTenant: async (
+    tenantId: string,
+    confirmName: string,
+  ): Promise<{ message?: string }> => {
+    return await callApi(`/v1/admin/tenants/${tenantId}/purge`, "POST", { confirmName });
   },
 
   copyTenantData: async (
