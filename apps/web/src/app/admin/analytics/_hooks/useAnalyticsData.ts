@@ -523,7 +523,8 @@ export function useAnalyticsData(): UseAnalyticsDataReturn {
 
     // "canceling" subscriptions are still paying through period end, so they
     // count as paid revenue and toward the active headline (matches useTenantsData).
-    const paidStatuses = new Set(["active", "trialing", "past_due", "canceling"]);
+    // "trialing" is the 7-day trial: nothing was charged yet, so it is not revenue.
+    const paidStatuses = new Set(["active", "past_due", "canceling"]);
     const activeTenants = tenants.filter(
       (t) => t.subscriptionStatus === "active" || t.subscriptionStatus === "canceling",
     ).length;
@@ -536,9 +537,16 @@ export function useAnalyticsData(): UseAnalyticsDataReturn {
     let totalMRR = 0;
     for (const t of tenants) {
       if (!paidStatuses.has(t.subscriptionStatus ?? "")) continue;
+      const interval = (t as TenantBillingInfo & { billingInterval?: string }).billingInterval ?? "monthly";
+      // O preco que o cliente de fato paga (preco antigo mantido, contrato
+      // negociado) vem do tenant; o de tabela e so o fallback.
+      if (typeof t.unitAmount === "number" && t.unitAmount > 0) {
+        const amount = t.unitAmount / 100;
+        totalMRR += interval === "yearly" ? amount / 12 : amount;
+        continue;
+      }
       const pricing = planPriceMap.get(t.planId ?? "");
       if (!pricing) continue;
-      const interval = (t as TenantBillingInfo & { billingInterval?: string }).billingInterval ?? "monthly";
       totalMRR += interval === "yearly" ? pricing.yearly / 12 : pricing.monthly;
     }
     const totalARR = Math.round(totalMRR * 12);

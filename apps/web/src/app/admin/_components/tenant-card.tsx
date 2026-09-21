@@ -89,6 +89,7 @@ export function TenantCard({
   // "active"). The card just maps the enum to UI.
   const displayStatus = subscriptionStatus;
   const isActive = displayStatus === "active";
+  const isTrialing = displayStatus === "trialing";
   const isPastDue = displayStatus === "past_due";
   const isCanceled = displayStatus === "canceled";
   const isInactive = displayStatus === "inactive";
@@ -334,7 +335,9 @@ export function TenantCard({
                       ? "text-red-600"
                       : isActive
                         ? "text-emerald-600"
-                        : "text-muted-foreground"
+                        : isTrialing
+                          ? "text-sky-600"
+                          : "text-muted-foreground"
             }`}
           >
             {isCanceled
@@ -347,7 +350,9 @@ export function TenantCard({
                     ? "Atrasado"
                     : isActive
                       ? "Ativo"
-                      : displayStatus === "free"
+                      : isTrialing
+                        ? "Em teste"
+                        : displayStatus === "free"
                         ? "Gratuito"
                         : "—"}
           </span>

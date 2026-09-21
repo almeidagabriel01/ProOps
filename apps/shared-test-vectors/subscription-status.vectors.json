@@ -10,7 +10,7 @@
     { "name": "inactive wins over free plan tier", "input": { "planId": "free", "storedStatus": "inactive" }, "expected": "inactive" },
     { "name": "cancel-at-period-end future wins over free plan tier", "input": { "planId": "free", "storedStatus": "active", "cancelAtPeriodEnd": true, "currentPeriodEnd": "2026-12-01T00:00:00.000Z" }, "expected": "canceling" },
     { "name": "active no flags", "input": { "planId": "pro", "storedStatus": "active", "currentPeriodEnd": "2026-07-09T00:00:00.000Z" }, "expected": "active" },
-    { "name": "trialing maps to active", "input": { "planId": "pro", "storedStatus": "trialing", "currentPeriodEnd": "2026-07-09T00:00:00.000Z" }, "expected": "active" },
+    { "name": "trialing stays trialing (not revenue yet)", "input": { "planId": "pro", "storedStatus": "trialing", "currentPeriodEnd": "2026-07-09T00:00:00.000Z" }, "expected": "trialing" },
     { "name": "past_due", "input": { "planId": "pro", "storedStatus": "past_due" }, "expected": "past_due" },
     { "name": "unpaid -> inactive", "input": { "planId": "pro", "storedStatus": "unpaid" }, "expected": "inactive" },
     { "name": "inactive stays inactive", "input": { "planId": "pro", "storedStatus": "inactive" }, "expected": "inactive" },

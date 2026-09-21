@@ -167,6 +167,7 @@ export function TenantsTable({
               >
                 <option value="all">Todos</option>
                 <option value="active">Ativos</option>
+                <option value="trialing">Em teste</option>
                 <option value="canceling">Encerrando</option>
                 <option value="past_due">Atrasados</option>
                 <option value="canceled">Cancelados</option>
