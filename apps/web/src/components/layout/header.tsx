@@ -27,6 +27,7 @@ import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
+import { ImpersonationBar } from "@/components/layout/impersonation-bar";
 
 // Aponta para o BOT (assistente), não para o suporte.
 const WHATSAPP_HREF = buildWhatsAppHref(BOT_WHATSAPP_DIGITS);
@@ -66,6 +67,8 @@ export function Header({}: HeaderProps) {
     clearViewingTenant,
     isLoading: isTenantLoading,
     isGlobalLoading,
+    impersonationWriteEnabled,
+    setImpersonationWriteEnabled,
   } = useTenant();
   const {
     companyName,
@@ -100,29 +103,13 @@ export function Header({}: HeaderProps) {
       <div className="flex min-w-0 items-center gap-4">
         <CommandPalette />
         {isViewingAsTenant && user?.role === "superadmin" && (
-          <div className="flex items-center gap-3 px-4 py-1.5 bg-background/50 backdrop-blur-sm border border-border/60 rounded-full shadow-sm animate-in fade-in slide-in-from-top-1 duration-300">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-500" />
-              </span>
-              <span className="text-xs font-medium text-foreground/80 whitespace-nowrap">
-                Modo Super Admin
-              </span>
-            </div>
-
-            <div className="w-px h-3 bg-border mx-0.5" />
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBackToAdmin}
-              className="h-auto p-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-transparent transition-colors"
-            >
-              Voltar ao painel
-              <LogOut className="w-3 h-3 ml-1.5" />
-            </Button>
-          </div>
+          <ImpersonationBar
+            companyName={companyName || tenant?.name || "Empresa"}
+            planLabel={isPlanLabelLoading ? null : planLabel}
+            writeEnabled={impersonationWriteEnabled}
+            onToggleWrite={setImpersonationWriteEnabled}
+            onExit={handleBackToAdmin}
+          />
         )}
       </div>
 

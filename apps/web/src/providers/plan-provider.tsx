@@ -169,7 +169,15 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
       setIsPlanLoading(true);
 
-      if (user?.role === "superadmin") {
+      // Superadmin vendo uma empresa ("Acessar Painel") ve o plano DELA, com as
+      // mesmas coroas e bloqueios que o cliente ve. `tenant.plan` e o tier que
+      // o backend usa para decidir acesso; o plano do dono e o fallback legado.
+      const isSuperAdmin = user?.role === "superadmin";
+      const viewedTenantPlan = isSuperAdmin && tenant?.id
+        ? tenant.plan || tenantOwner?.planId || null
+        : null;
+
+      if (isSuperAdmin && !viewedTenantPlan) {
         setBaseFeatures({
           maxProposals: -1,
           maxClients: -1,
@@ -221,7 +229,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      let effectivePlanId = user?.planId;
+      let effectivePlanId = viewedTenantPlan || user?.planId;
       const currentUser = user as { masterId?: string; planId?: string };
 
       if (
@@ -292,7 +300,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     };
 
     loadFeatures();
-  }, [user, user?.role, user?.planId, masterId, tenantOwner]);
+  }, [user, user?.role, user?.planId, masterId, tenantOwner, tenant?.id, tenant?.plan]);
 
   // -------------------------------------------------------------------------
   // Effect: load add-ons
@@ -308,11 +316,12 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Superadmins and free/demo accounts have no addons. For free/demo,
-      // `tenant.id` is the shared "demo" tenant, which the account's claims
-      // don't own — querying its addons would 403 (permission denied).
+      // Free/demo accounts have no addons: `tenant.id` is the shared "demo"
+      // tenant, which the account's claims don't own (querying would 403).
+      // Superadmin outside "Acessar Painel" has no tenant either; viewing a
+      // company, it loads that company's add-ons (rules allow the read).
       if (
-        user?.role === "superadmin" ||
+        (user?.role === "superadmin" && !tenant?.id) ||
         String(user?.role || "").toLowerCase() === "free"
       ) {
         setPurchasedAddons([]);
@@ -389,7 +398,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
   const refreshAddons = useCallback(async () => {
     if (
-      user?.role === "superadmin" ||
+      (user?.role === "superadmin" && !tenant?.id) ||
       String(user?.role || "").toLowerCase() === "free"
     ) {
       setPurchasedAddons([]);

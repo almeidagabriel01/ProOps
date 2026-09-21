@@ -27,6 +27,8 @@ export type Tenant = {
   transactionStatusOrder?: string[];
   mercadoPagoEnabled?: boolean;
   asaasEnabled?: boolean;
+  /** Tier do plano gravado pelo writer unico; e o que o backend usa para decidir acesso. */
+  plan?: string;
   // Billing fields (synced from Stripe via BillingSnapshot)
   subscriptionStatus?: "active" | "trialing" | "past_due" | "canceled" | "unpaid" | "inactive" | "free";
   currentPeriodEnd?: string | null; // ISO

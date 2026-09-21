@@ -146,6 +146,13 @@ export const AdminService = {
     await callApi("/v1/admin/impersonation/start", "POST", { tenantId });
   },
 
+  stopImpersonation: async (
+    tenantId: string,
+    reason: "exit_button" | "admin_route" | "logout",
+  ): Promise<void> => {
+    await callApi("/v1/admin/impersonation/stop", "POST", { tenantId, reason });
+  },
+
   updateUserPlan: async (userId: string, planId: string): Promise<void> => {
     await callApi(`/v1/admin/users/${userId}/plan`, "PUT", { planId });
   },
