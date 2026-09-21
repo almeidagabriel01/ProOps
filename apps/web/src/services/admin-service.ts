@@ -27,6 +27,13 @@ interface CreateTenantInput {
   currentPeriodEnd?: string;
 }
 
+export interface TenantIndexItem {
+  id: string;
+  name: string;
+  plan: string;
+  accountStatus: string;
+}
+
 /** Resposta de GET /v1/admin/tenants/:id/modules (rotulos vem do catalogo do backend). */
 export interface TenantModulesInfo {
   tenantId: string;
@@ -157,6 +164,20 @@ export const AdminService = {
       `/v1/admin/tenants/billing${query}`,
       "GET",
     );
+  },
+
+  /** Linhas de billing de empresas especificas (ate 30 por chamada). */
+  getTenantsBillingByIds: async (tenantIds: string[]): Promise<TenantBillingInfo[]> => {
+    if (tenantIds.length === 0) return [];
+    const params = new URLSearchParams({ tenantIds: tenantIds.slice(0, 30).join(",") });
+    const result = await callApi<TenantBillingPage>(`/v1/admin/tenants/billing?${params}`, "GET");
+    return Array.isArray(result) ? result : result.items ?? [];
+  },
+
+  /** Indice leve de todas as empresas (id, nome, plano, situacao). */
+  getTenantsIndex: async (): Promise<TenantIndexItem[]> => {
+    const result = await callApi<{ items: TenantIndexItem[] }>("/v1/admin/tenants/index", "GET");
+    return result.items ?? [];
   },
 
   forceTenantBillingSync: async (tenantId: string): Promise<void> => {

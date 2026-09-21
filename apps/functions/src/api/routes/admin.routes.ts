@@ -26,11 +26,13 @@ import {
   getTenantModules,
   grantCourtesyAddon,
   revokeCourtesyAddon,
+  getTenantsIndex,
 } from "../controllers/admin-tenant-modules.controller";
 
 const router = Router();
 
 router.get("/tenants/billing", getAllTenantsBilling);
+router.get("/tenants/index", getTenantsIndex);
 router.get("/tenants/:tenantId/modules", getTenantModules);
 router.post("/tenants/:tenantId/addons/:addonId", grantCourtesyAddon);
 router.delete("/tenants/:tenantId/addons/:addonId", revokeCourtesyAddon);

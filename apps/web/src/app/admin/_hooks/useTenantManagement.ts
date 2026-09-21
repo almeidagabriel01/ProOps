@@ -6,7 +6,11 @@ import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { toast } from '@/lib/toast';
 import { TenantService } from "@/services/tenant-service";
-import { AdminService, TenantBillingInfo } from "@/services/admin-service";
+import {
+  AdminService,
+  TenantBillingInfo,
+  type TenantIndexItem,
+} from "@/services/admin-service";
 import { deriveSubscriptionDisplayStatus } from "@/lib/subscription-status";
 import { canAccessTenantPanel } from "@/lib/tenant-panel-access";
 import { Tenant } from "@/types";
@@ -24,6 +28,9 @@ interface UseTenantManagementReturn {
   setIsDialogOpen: (value: boolean) => void;
   editingData: TenantBillingInfo | null;
   filteredTenants: TenantBillingInfo[];
+  /** Todas as empresas (nome e id), para busca e seletores. */
+  tenantIndex: TenantIndexItem[];
+  isSearching: boolean;
   openCreate: () => void;
   openEdit: (data: TenantBillingInfo) => void;
   handleSave: (data: TenantFormData) => Promise<void>;
@@ -58,7 +65,53 @@ export function useTenantManagement(): UseTenantManagementReturn {
   const [hasMore, setHasMore] = React.useState(false);
   const [cursorStack, setCursorStack] = React.useState<string[]>([]);
 
+  const [tenantIndex, setTenantIndex] = React.useState<TenantIndexItem[]>([]);
+  const [searchResults, setSearchResults] = React.useState<TenantBillingInfo[] | null>(null);
+  const [isSearching, setIsSearching] = React.useState(false);
+
   const { setViewingTenant } = useTenant();
+
+  // Indice leve de todas as empresas: a busca antes so filtrava os 25 da
+  // pagina carregada, entao empresa da pagina 2 "nao existia".
+  const loadIndex = React.useCallback(async () => {
+    try {
+      setTenantIndex(await AdminService.getTenantsIndex());
+    } catch {
+      // Sem indice a busca cai no filtro local da pagina.
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadIndex();
+  }, [loadIndex]);
+
+  React.useEffect(() => {
+    const term = search.trim().toLowerCase();
+    if (!term || tenantIndex.length === 0) {
+      setSearchResults(null);
+      return;
+    }
+    const ids = tenantIndex
+      .filter((t) => t.name.toLowerCase().includes(term) || t.id.toLowerCase() === term)
+      .slice(0, 30)
+      .map((t) => t.id);
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const rows = await AdminService.getTenantsBillingByIds(ids);
+        if (!cancelled) setSearchResults(rows);
+      } catch {
+        if (!cancelled) setSearchResults(null);
+      } finally {
+        if (!cancelled) setIsSearching(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search, tenantIndex]);
   const router = useRouter();
 
   const loadTenants = React.useCallback(async (cursor: string | null) => {
@@ -298,6 +351,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
 
       setIsDialogOpen(false);
       loadTenants(currentCursor);
+      void loadIndex();
     } catch (error) {
       console.error(error);
       toast.error("Erro ao salvar empresa");
@@ -316,6 +370,7 @@ export function useTenantManagement(): UseTenantManagementReturn {
       const result = await action();
       toast.success(result?.message || fallbackSuccess);
       loadTenants(currentCursor);
+      void loadIndex();
     } catch (error) {
       toast.error(error instanceof Error && error.message ? error.message : fallbackError);
       throw error;
@@ -382,9 +437,11 @@ export function useTenantManagement(): UseTenantManagementReturn {
     });
   };
 
-  const filteredTenants = tenantsData.filter((item) =>
-    item.tenant.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredTenants =
+    searchResults ??
+    tenantsData.filter((item) =>
+      item.tenant.name.toLowerCase().includes(search.toLowerCase()),
+    );
 
   return {
     tenantsData,
@@ -394,6 +451,8 @@ export function useTenantManagement(): UseTenantManagementReturn {
     setIsDialogOpen,
     editingData,
     filteredTenants,
+    tenantIndex,
+    isSearching,
     openCreate,
     openEdit,
     handleSave,

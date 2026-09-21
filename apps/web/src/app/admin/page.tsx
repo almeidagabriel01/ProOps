@@ -12,6 +12,7 @@ import { AdminSkeleton } from "./_components/admin-skeleton";
 import { TenantBillingInfo, AdminService } from "@/services/admin-service";
 import * as React from "react";
 import { toast } from "@/lib/toast";
+import { Loader } from "@/components/ui/loader";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -33,7 +34,8 @@ export default function AdminPage() {
     isLoading,
     isSaving,
     isRecomputing,
-    tenantsData,
+    tenantIndex,
+    isSearching,
     hasMore,
     cursorStack,
     goNext,
@@ -126,6 +128,9 @@ export default function AdminPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {isSearching && (
+          <Loader size="sm" className="absolute right-3 top-3" />
+        )}
       </div>
 
       {/* Grid List */}
@@ -156,7 +161,7 @@ export default function AdminPage() {
       </div>
 
       {/* Pagination */}
-      {(cursorStack.length > 0 || hasMore) && (
+      {!search && (cursorStack.length > 0 || hasMore) && (
         <div className="flex items-center gap-2 justify-end">
           <Button
             variant="outline"
@@ -197,7 +202,9 @@ export default function AdminPage() {
         isOpen={isCopyDialogOpen}
         onClose={() => setIsCopyDialogOpen(false)}
         sourceTenant={copySourceTenant}
-        targets={tenantsData.map((t) => ({ id: t.tenant.id, name: t.tenant.name }))}
+        targets={tenantIndex
+          .filter((t) => t.accountStatus === "active")
+          .map((t) => ({ id: t.id, name: t.name }))}
         onConfirm={handleConfirmCopy}
         isCopying={isCopying}
       />

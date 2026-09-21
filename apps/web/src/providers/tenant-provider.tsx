@@ -298,11 +298,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
             return superAdminTenantBillingMatch;
           }
 
-          const { AdminService } = await import("@/services/admin-service");
-          const allTenants = await AdminService.getAllTenantsBilling();
+          // Busca so a empresa pedida. Antes varria TODAS as paginas de billing
+          // (ate 200) para achar uma, com contagens e Stripe por empresa.
+          const rows = await AdminService.getTenantsBillingByIds([tenantIdToLoad]);
           superAdminTenantBillingMatch =
-            allTenants.find((item) => item.tenant.id === tenantIdToLoad) ||
-            null;
+            rows.find((item) => item.tenant.id === tenantIdToLoad) || null;
 
           return superAdminTenantBillingMatch;
         };

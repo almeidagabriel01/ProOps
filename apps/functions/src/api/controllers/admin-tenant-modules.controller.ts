@@ -155,3 +155,34 @@ export const revokeCourtesyAddon = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Erro ao remover o add-on." });
   }
 };
+
+/**
+ * Indice leve de empresas: id, nome, plano e situacao. Uma leitura por empresa,
+ * sem contagens nem Stripe. Alimenta a busca global do painel e o seletor de
+ * destino do "copiar dados", que antes so enxergavam a pagina carregada (25).
+ */
+export const getTenantsIndex = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) return res.status(403).json({ message: "Permissão negada." });
+    const snap = await db
+      .collection("tenants")
+      .select("name", "plan", "accountStatus")
+      .limit(2000)
+      .get();
+    const items = snap.docs
+      .filter((d) => d.get("accountStatus") !== "purged")
+      .map((d) => ({
+        id: d.id,
+        name: String(d.get("name") || "Sem nome"),
+        plan: String(d.get("plan") || ""),
+        accountStatus: String(d.get("accountStatus") || "active"),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    return res.json({ items });
+  } catch (error: unknown) {
+    logger.error("[getTenantsIndex] failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(500).json({ message: "Erro ao listar empresas." });
+  }
+};

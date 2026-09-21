@@ -29,7 +29,7 @@ import {
   buildPurgeStages,
   TENANT_PURGE_JOBS_COLLECTION,
 } from "../services/tenant-purge.service";
-import { enqueueTenantSync, isStale } from "../../billing";
+import { enqueueTenantSync } from "../../billing";
 import { deriveSubscriptionDisplayStatus } from "../../shared/subscription-status";
 import {
   buildPublicPlanFeatures,
@@ -853,25 +853,50 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
     const cursor = String(req.query.cursor || "").trim() || null;
     const pageSize = Math.min(Number(req.query.pageSize) || 25, 100);
+    // Busca por empresas especificas (busca global do painel, fallback do
+    // TenantProvider). Ate 30 ids: o limite do operador `in` do Firestore.
+    const requestedTenantIds = String(req.query.tenantIds || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, 30);
 
-    // Busca usuários MASTER/admin/free (donos de empresa ou contas gratuitas)
-    let usersQuery: FirebaseFirestore.Query = db
-      .collection("users")
-      .where("role", "in", ["MASTER", "admin", "ADMIN", "master", "free"])
-      .orderBy("createdAt", "desc")
-      .limit(pageSize + 1);
+    let docs: FirebaseFirestore.QueryDocumentSnapshot[];
+    let hasMore = false;
+    let nextCursor: string | null = null;
 
-    if (cursor) {
-      const cursorSnap = await db.collection("users").doc(cursor).get();
-      if (cursorSnap.exists) {
-        usersQuery = usersQuery.startAfter(cursorSnap);
+    if (requestedTenantIds.length > 0) {
+      const byTenant = await db
+        .collection("users")
+        .where("tenantId", "in", requestedTenantIds)
+        .limit(300)
+        .get();
+      const ownerRoles = new Set(["master", "admin", "free"]);
+      docs = byTenant.docs.filter(
+        (d) =>
+          !String(d.get("masterId") || "").trim() &&
+          ownerRoles.has(String(d.get("role") || "").toLowerCase()),
+      );
+    } else {
+      // Busca usuários MASTER/admin/free (donos de empresa ou contas gratuitas)
+      let usersQuery: FirebaseFirestore.Query = db
+        .collection("users")
+        .where("role", "in", ["MASTER", "admin", "ADMIN", "master", "free"])
+        .orderBy("createdAt", "desc")
+        .limit(pageSize + 1);
+
+      if (cursor) {
+        const cursorSnap = await db.collection("users").doc(cursor).get();
+        if (cursorSnap.exists) {
+          usersQuery = usersQuery.startAfter(cursorSnap);
+        }
       }
-    }
 
-    const usersSnapshot = await usersQuery.get();
-    const hasMore = usersSnapshot.docs.length > pageSize;
-    const docs = hasMore ? usersSnapshot.docs.slice(0, pageSize) : usersSnapshot.docs;
-    const nextCursor = hasMore ? docs[docs.length - 1].id : null;
+      const usersSnapshot = await usersQuery.get();
+      hasMore = usersSnapshot.docs.length > pageSize;
+      docs = hasMore ? usersSnapshot.docs.slice(0, pageSize) : usersSnapshot.docs;
+      nextCursor = hasMore ? docs[docs.length - 1].id : null;
+    }
 
     logger.info("[getAllTenantsBilling] found users", {
       count: docs.length,
@@ -1041,10 +1066,16 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
 
     // Process all users synchronously using pre-fetched data
     const tenantsData = [];
+    // Uma linha por empresa: empresa com dois admins sem masterId aparecia duas vezes.
+    const seenTenantIds = new Set<string>();
     for (const userDoc of docs) {
       try {
         const userData = userDoc.data() as BillingUserData;
         const tenantId = userData.tenantId || userData.companyId;
+        if (tenantId) {
+          if (seenTenantIds.has(tenantId)) continue;
+          seenTenantIds.add(tenantId);
+        }
         const tenantData = (tenantId && tenantDataMap.get(tenantId)) || {} as TenantData;
 
         const rawPlanId = String(userData.planId || "free");
@@ -1087,14 +1118,12 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
           tenantData.subscriptionStatus || userData.subscriptionStatus || "";
         const tenantCurrentPeriodEnd = tenantData.currentPeriodEnd || userData.currentPeriodEnd;
 
-        // Detect staleness and fire background sync if needed
-        const isBillingStale = isStale({
-          billingSyncedAt: tenantData.billingSyncedAt,
-          subscriptionStatus: tenantData.subscriptionStatus,
-        });
-        if (isBillingStale && tenantId) {
-          enqueueTenantSync(tenantId, "on_demand").catch(() => {});
-        }
+        // Listar nao dispara mais sync com o Stripe. Antes, todo tenant pago
+        // sincronizado ha mais de 5 min contava como desatualizado, entao cada
+        // visita ao painel chamava a API do Stripe para quase todas as empresas,
+        // sem await (o Cloud Run congela e o sync se perde). O cron diario
+        // `checkStripeSubscriptions` e o botao "Sincronizar" cobrem isso.
+        const isBillingStale = false;
 
         tenantsData.push({
           tenant: {
