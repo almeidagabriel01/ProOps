@@ -28,6 +28,7 @@ import {
   toISODateString,
 } from "@/utils/date-utils";
 import { Loader } from "@/components/ui/loader";
+import { downscaleLogo } from "@/lib/image-downscale";
 
 export interface TenantFormData {
   name: string;
@@ -390,23 +391,25 @@ export function TenantDialog({
                               toast.error("Formato inválido (apenas imagens).");
                               return;
                             }
-                            if (file.size > 2 * 1024 * 1024) {
-                              toast.error("Máximo 2MB.");
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error("Máximo 5MB.");
                               return;
                             }
-                            const reader = new FileReader();
-                            reader.onload = (ev) =>
-                              setFormData({
-                                ...formData,
-                                logoUrl: ev.target?.result as string,
-                              });
-                            reader.readAsDataURL(file);
+                            downscaleLogo(file)
+                              .then((logoUrl) =>
+                                setFormData((prev) => ({ ...prev, logoUrl })),
+                              )
+                              .catch(() =>
+                                toast.error(
+                                  "Não foi possível usar esta imagem. Tente um PNG ou JPG menor.",
+                                ),
+                              );
                           }
                         }}
                         className="cursor-pointer"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        PNG, JPG, SVG (Max 2MB)
+                        PNG, JPG ou SVG. A imagem é reduzida para 256 px.
                       </p>
                     </div>
                   </div>
