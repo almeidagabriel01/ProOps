@@ -464,6 +464,14 @@ dele. Em `monitor` emite `plan_capability_would_block`.
 Falha de resolucao **libera** a request (`plan_capability_resolution_failed`):
 nao pode tirar de um cliente pagante um modulo que ele contratou.
 
+Superadmin tem bypass, **exceto** no "Acessar Painel" (`req.user.impersonation`):
+ali o gate avalia o plano da empresa vista em `enforce`, para o suporte ver o que
+o cliente ve. Em `monitor` a request passa sem consultar o plano, para a
+navegacao de suporte nao poluir `plan_capability_would_block`.
+
+Os rotulos de modulo e de limite (`CAPABILITY_LABELS`, `LIMIT_LABELS`) moram em
+`shared/plan-capabilities.ts`, junto do catalogo.
+
 ### lib/tenant-capabilities.ts
 
 `resolveTenantCapabilities(tenantId)` = capacidades do tier **+ add-ons
