@@ -517,8 +517,10 @@ app.use((req, res, next) => {
 // Routes
 app.use("/v1", coreRoutes);
 app.use("/v1", financeRoutes);
-app.use("/v1/admin", privilegedLimiter, adminRoutes);
+// Observabilidade ANTES do /v1/admin: o mount generico casa o prefixo, conta
+// no privilegedLimiter e so entao repassa, e a request era contada duas vezes.
 app.use("/v1/admin/observability", privilegedLimiter, observabilityAdminRoutes);
+app.use("/v1/admin", privilegedLimiter, adminRoutes);
 app.use("/v1/stripe", privilegedLimiter, stripeRoutes);
 app.use("/v1/auth", privilegedLimiter, protectedAuthRoutes);
 // Apply the tight OTP limiter ONLY to the OTP cost / brute-force surfaces
