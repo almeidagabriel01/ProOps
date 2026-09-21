@@ -10,6 +10,20 @@ import {
 import { CENAS } from "../_components/comandos/cenas";
 import { RITMO, ritmo } from "../_components/comandos/leitura-do-pedido";
 import {
+  ATE_HOJE,
+  A_VISTA,
+  DIAS_DO_MES,
+  HOJE,
+  PRECO,
+  SEM_COMPRAR,
+  SOBRA_EM_10X,
+  area,
+  caminho,
+  diasNoVermelho,
+  eixoX,
+  eixoY,
+} from "../_components/comandos/cenas/simulacao-serie";
+import {
   ANGULO_POR_LINHA,
   LINHAS_VISIVEIS,
   deslocamento,
@@ -276,6 +290,47 @@ describe("as fatias da rolagem", () => {
     }
     expect(progressoDaPosicao(-5, total)).toBe(0);
     expect(progressoDaPosicao(99, total)).toBe(1);
+  });
+});
+
+/**
+ * A cena da simulação desenha uma projeção do mês, e o que ela afirma tem que
+ * sair da série: a queda no dia da compra valendo o preço, a sobra final igual
+ * à da ficha, e a contagem de dias no vermelho contada, não digitada.
+ */
+describe("a série da simulação de compra", () => {
+  it("a queda do dia da compra vale exatamente o preço", () => {
+    expect(SEM_COMPRAR[0] - A_VISTA[0]).toBe(PRECO);
+    expect(A_VISTA).toHaveLength(SEM_COMPRAR.length);
+  });
+
+  it("termina nos valores que a cena mostra", () => {
+    expect(SEM_COMPRAR.at(-1)).toBeCloseTo(1284.9, 2);
+    expect(A_VISTA.at(-1)).toBeCloseTo(-1715.1, 2);
+    // Em 10x só a primeira parcela pesa neste mês.
+    expect(SOBRA_EM_10X).toBeCloseTo(984.9, 2);
+  });
+
+  it("o histórico chega até hoje e o futuro começa nele", () => {
+    expect(ATE_HOJE).toHaveLength(HOJE);
+    expect(SEM_COMPRAR[0]).toBe(ATE_HOJE.at(-1));
+    expect(HOJE + SEM_COMPRAR.length - 1).toBe(DIAS_DO_MES);
+  });
+
+  it("conta os dias no vermelho a partir da própria série", () => {
+    expect(diasNoVermelho(A_VISTA)).toBe(A_VISTA.filter((v) => v < 0).length);
+    expect(diasNoVermelho(SEM_COMPRAR)).toBe(0);
+  });
+
+  it("o eixo cresce para a direita e para baixo, e a área fecha", () => {
+    expect(eixoX(1)).toBeLessThan(eixoX(DIAS_DO_MES));
+    // Mais dinheiro é mais alto na tela, ou seja, y menor.
+    expect(eixoY(3000)).toBeLessThan(eixoY(0));
+    expect(caminho(SEM_COMPRAR, HOJE).startsWith("M")).toBe(true);
+    expect(caminho(SEM_COMPRAR, HOJE).split("L")).toHaveLength(
+      SEM_COMPRAR.length,
+    );
+    expect(area(SEM_COMPRAR, HOJE, 0).endsWith("Z")).toBe(true);
   });
 });
 
