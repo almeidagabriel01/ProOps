@@ -2,6 +2,7 @@
 
 import React from "react";
 
+import { CabecalhoDaCena } from "./comandos/cabecalho-da-cena";
 import { CotaCompartilhada } from "./comandos/cota-compartilhada";
 import { LeituraAoVivo } from "./comandos/leitura-ao-vivo";
 import { MesaDeOperacoes } from "./comandos/mesa-de-operacoes";
@@ -24,6 +25,10 @@ import { MesaDeOperacoes } from "./comandos/mesa-de-operacoes";
  * grade de seis cartões com texto: as duas mostravam que existiam pedidos, e
  * nenhuma mostrava o que acontecia com eles.
  *
+ * O título de cada metade é passado PARA a cena, que o põe dentro do palco
+ * grudado: fora dele, ele saía da tela no primeiro rolar e a cena ficava
+ * órfã. A cópia continua morando aqui, que é onde se lê a seção inteira.
+ *
  * ── A rolagem conduz ───────────────────────────────────────────────────────
  *
  * As duas metades são palcos grudados em trilhos altos, e cada frase ou
@@ -45,44 +50,33 @@ export function AplicativoComandos() {
   return (
     <section
       id="comandos"
-      className="border-t border-white/[0.06] bg-[var(--app-bg)] py-28 text-[var(--app-text)] md:py-36"
+      className="border-t border-white/[0.06] bg-[var(--app-bg)] py-24 text-[var(--app-text)] md:py-28"
     >
       <div className="mx-auto max-w-6xl px-6 md:px-10">
-        <p className="mb-4 inline-flex items-center gap-2.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--app-tint)]">
-          <span className="h-px w-7 bg-[var(--app-tint)]/50" />O que você pode
-          pedir
-        </p>
+        <LeituraAoVivo
+          cabecalho={
+            <CabecalhoDaCena
+              sobrancelha="O que você pode pedir"
+              titulo="Escreva como você falaria."
+              texto="Sem comando, sem formato, sem palavra reservada. Por texto ou por áudio, no WhatsApp ou dentro do aplicativo. Veja o que ele entende de cada frase."
+            />
+          }
+        />
 
-        <h2 className="max-w-2xl [font-family:var(--font-hanken)] text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-5xl">
-          Escreva como você falaria.
-        </h2>
-
-        <p className="mt-6 max-w-xl text-base leading-relaxed text-[var(--app-text-muted)]">
-          Sem comando, sem formato, sem palavra reservada. Por texto ou por
-          áudio, no WhatsApp ou dentro do aplicativo. Veja o que ele entende de
-          cada frase.
-        </p>
-
-        <div className="mt-8 md:mt-12">
-          <LeituraAoVivo />
+        <div className="mt-20 md:mt-24">
+          <MesaDeOperacoes
+            cabecalho={
+              <CabecalhoDaCena
+                nivel="h3"
+                titulo="E ele não para em anotar."
+                texto="Registrar o gasto é onde os outros terminam. Estas são operações inteiras, feitas pela conversa."
+              />
+            }
+          />
         </div>
 
-        <div className="mt-24 md:mt-32">
-          <h3 className="max-w-2xl [font-family:var(--font-hanken)] text-2xl font-bold leading-[1.15] tracking-[-0.02em] md:text-4xl">
-            E ele não para em anotar.
-          </h3>
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-[var(--app-text-muted)]">
-            Registrar o gasto é onde os outros terminam. Estas são operações
-            inteiras, feitas pela conversa.
-          </p>
-
-          <div className="mt-8 md:mt-10">
-            <MesaDeOperacoes />
-          </div>
-
-          <div className="mt-12 md:mt-16">
-            <CotaCompartilhada />
-          </div>
+        <div className="mt-16 md:mt-20">
+          <CotaCompartilhada />
         </div>
       </div>
     </section>

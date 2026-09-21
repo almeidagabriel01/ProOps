@@ -110,9 +110,20 @@ export function useCenaRolada(total: number) {
  */
 export const TOPO_DO_PALCO = 96;
 
-/** O palco grudado, colado sob a barra e com a altura do que sobra da tela. */
+/**
+ * O palco grudado: colado sob a barra, com a altura do que sobra da tela e o
+ * conteúdo centralizado nela.
+ *
+ * Centralizado de `md` para cima, e não no topo: com o cabeçalho dentro do
+ * palco o conjunto ficou mais alto, e alinhado ao topo sobrava um vão de meia
+ * tela embaixo, que é o que a cena tinha antes em cima.
+ *
+ * No celular ele volta a alinhar pelo topo, porque ali o conjunto é MAIS alto
+ * que a tela: centralizado, a sobra vira corte dos dois lados, e o primeiro a
+ * sumir é o título.
+ */
 export const CLASSE_DO_PALCO =
-  "sticky top-24 h-[calc(100svh-6rem)] content-start";
+  "sticky top-24 flex h-[calc(100svh-6rem)] flex-col justify-start gap-4 md:justify-center md:gap-7";
 
 /**
  * A altura do trilho: a do palco, mais a rolagem de todas as fatias. É o que o

@@ -26,6 +26,11 @@ interface TrocaComSaidaProps<T> {
  * - quando a saída termina, monta o valor MAIS RECENTE, porque o efeito que a
  *   agendou é descartado a cada troca, e só o último sobrevive.
  *
+ * A saída é curta (0,16s) porque a rolagem não para durante ela: o conteúdo
+ * novo monta com o progresso que a página já tem, e cada centésimo de saída é
+ * animação que ninguém vê do conteúdo novo. Quem usa isso numa cena rolada
+ * ainda reserva um trecho de espera no começo da fatia (`ESPERA`).
+ *
  * O novo conteúdo entra sem animação própria de invólucro: as cenas e a
  * leitura já escrevem o próprio estado inicial ao montar, e animar o
  * invólucro por cima disso atrasaria a primeira coisa que elas mostram.
@@ -64,7 +69,7 @@ export function TrocaComSaida<T>({
         ? animate(
             el,
             { opacity: 0, filter: "blur(10px)", y: -10 },
-            { duration: 0.28, ease: [0.4, 0, 1, 1] },
+            { duration: 0.16, ease: [0.4, 0, 1, 1] },
           )
         : null;
     Promise.resolve(saida?.finished).then(() => {

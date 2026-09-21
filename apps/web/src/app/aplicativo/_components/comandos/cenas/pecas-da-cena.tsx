@@ -14,6 +14,28 @@ const REAIS = new Intl.NumberFormat("pt-BR", {
 });
 
 /**
+ * `true` só depois de hidratar.
+ *
+ * O NumberFlow é um elemento customizado: no servidor ele sai VAZIO e só se
+ * preenche quando o navegador o registra. Renderizá-lo direto deixava o número
+ * fora do HTML e ainda acusava desencontro de hidratação (o "1 Issue" do
+ * overlay do Next). Com isto, o servidor manda o número escrito e a troca pelo
+ * componente animado acontece depois, sem o React comparar os dois.
+ */
+function useMontado(): boolean {
+  return React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
+
+/** O número parado, como ele sai do servidor e para quem lê a tela. */
+function Estatico({ texto }: { texto: string }) {
+  return <span aria-hidden="true">{texto}</span>;
+}
+
+/**
  * Um valor em reais que troca dígito a dígito.
  *
  * NumberFlow e não um contador interpolado: um contador passa por todos os
@@ -38,6 +60,8 @@ export function Moeda({
   duracao?: number;
 }) {
   const tempo = { duration: duracao, easing: CURVA };
+  const montado = useMontado();
+  const texto = REAIS.format(valor);
   return (
     <span
       className={cn(
@@ -45,15 +69,54 @@ export function Moeda({
         className,
       )}
     >
-      <span className="sr-only">{REAIS.format(valor)}</span>
-      <NumberFlow
-        aria-hidden="true"
-        value={valor}
-        locales="pt-BR"
-        format={{ style: "currency", currency: "BRL" }}
-        transformTiming={tempo}
-        spinTiming={tempo}
-      />
+      <span className="sr-only">{texto}</span>
+      {montado ? (
+        <NumberFlow
+          aria-hidden="true"
+          value={valor}
+          locales="pt-BR"
+          format={{ style: "currency", currency: "BRL" }}
+          transformTiming={tempo}
+          spinTiming={tempo}
+        />
+      ) : (
+        <Estatico texto={texto} />
+      )}
+    </span>
+  );
+}
+
+/**
+ * Uma contagem simples que troca dígito a dígito, na mesma curva do `Moeda`.
+ *
+ * Mesmo cuidado de acessibilidade: a animação é `aria-hidden` e o número vai
+ * ao leitor de tela num texto à parte, senão a árvore recebe um nó por dígito.
+ */
+export function Contagem({
+  valor,
+  className,
+  duracao = 700,
+}: {
+  valor: number;
+  className?: string;
+  duracao?: number;
+}) {
+  const tempo = { duration: duracao, easing: CURVA };
+  const montado = useMontado();
+  return (
+    <span className={cn("[font-variant-numeric:tabular-nums]", className)}>
+      <span className="sr-only">{valor}</span>
+      {montado ? (
+        <NumberFlow
+          aria-hidden="true"
+          value={valor}
+          locales="pt-BR"
+          transformTiming={tempo}
+          spinTiming={tempo}
+        />
+      ) : (
+        <Estatico texto={String(valor)} />
+      )}
     </span>
   );
 }

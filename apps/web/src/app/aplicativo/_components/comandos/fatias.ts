@@ -28,19 +28,39 @@ export const PARADA_NA_FATIA = 0.92;
 const limitar = (v: number, min: number, max: number) =>
   Math.min(Math.max(v, min), max);
 
+/**
+ * Fração da fatia, em cada ponta, em que a roda gira. No meio ela fica parada.
+ *
+ * Curta: a troca em si é o gesto rápido da cena. Em 0,15 a roda levava um
+ * terço de tela girando entre uma frase e outra, o que lia como peso no lugar
+ * errado.
+ */
+export const GIRO = 0.06;
+
 /** A fatia em que o progresso está. O fim exato (1) pertence à última. */
 export function indiceDaFatia(progresso: number, total: number): number {
   return limitar(Math.floor(progresso * total), 0, total - 1);
 }
 
-/** 0..1 da fatia, sem a pausa: 1 assim que a animação dela termina. */
+/**
+ * Quanto da fatia a troca de conteúdo leva antes de a animação nova começar.
+ *
+ * A frase que sai leva um instante desfocando, e só então a nova monta. Sem
+ * esta espera, a rolagem que aconteceu durante a saída já contava como
+ * progresso da frase nova, e ela nascia com metade das letras escritas. Vale o
+ * mesmo trecho em que a roda gira, então a espera cai exatamente na troca.
+ */
+export const ESPERA = GIRO;
+
+/** 0..1 da fatia, sem a espera da troca nem a pausa de leitura. */
 export function progressoNaFatia(
   progresso: number,
   indice: number,
   total: number,
   animaAte = ANIMA_ATE,
 ): number {
-  return limitar((progresso * total - indice) / animaAte, 0, 1);
+  const local = progresso * total - indice;
+  return limitar((local - ESPERA) / (animaAte - ESPERA), 0, 1);
 }
 
 /**
@@ -70,15 +90,6 @@ export function progressoDaParada(
 ): number {
   return limitar((indice + local) / total, 0, 1);
 }
-
-/**
- * Fração da fatia, em cada ponta, em que a roda gira. No meio ela fica parada.
- *
- * Curta: a troca em si é o gesto rápido da cena. Em 0,15 a roda levava um
- * terço de tela girando entre uma frase e outra, o que lia como peso no lugar
- * errado.
- */
-export const GIRO = 0.06;
 
 const suave = (t: number) => t * t * (3 - 2 * t);
 

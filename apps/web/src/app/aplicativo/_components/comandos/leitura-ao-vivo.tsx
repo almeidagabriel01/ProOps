@@ -54,7 +54,12 @@ const ITENS = PEDIDOS.map((pedido) => ({
  * Sob movimento reduzido não há trilho: a roda vira um controle comum, a
  * leitura aparece pronta e a seção tem a altura do próprio conteúdo.
  */
-export function LeituraAoVivo() {
+export function LeituraAoVivo({
+  cabecalho,
+}: {
+  /** O título da metade, que gruda junto com o palco. */
+  cabecalho: React.ReactNode;
+}) {
   const { ref: palco, armado } = useVisibilidade<HTMLDivElement>();
   const { trilho, indice, escolher, rolarPara, animado, progresso, entrada } =
     useCenaRolada(TOTAL);
@@ -78,47 +83,44 @@ export function LeituraAoVivo() {
       style={animado ? { height: alturaDoTrilho(TOTAL, FATIA_SVH) } : undefined}
       className="relative"
     >
-      <div
-        ref={palco}
-        className={cn(
-          "grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] md:items-start md:gap-12 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:gap-16",
-          animado && CLASSE_DO_PALCO,
-        )}
-      >
-        <div>
-          <div className="rounded-[1.75rem] border border-[var(--app-card-border)] bg-[var(--app-surface)]">
-            <RodaDePedidos
-              itens={ITENS}
+      <div ref={palco} className={cn(animado && CLASSE_DO_PALCO)}>
+        {cabecalho}
+
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] md:items-start md:gap-12 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] lg:gap-16">
+          <div>
+            <div className="rounded-[1.75rem] border border-[var(--app-card-border)] bg-[var(--app-surface)]">
+              <RodaDePedidos
+                itens={ITENS}
+                indice={indice}
+                aoEscolher={escolher}
+                rotulo="Pedidos de exemplo"
+                rolagem={rolagem}
+                className="h-[132px] md:h-[308px]"
+              />
+            </div>
+            <Posicao
               indice={indice}
-              aoEscolher={escolher}
-              rotulo="Pedidos de exemplo"
-              rolagem={rolagem}
-              className="h-[132px] md:h-[308px]"
+              progresso={animado ? progresso : undefined}
             />
           </div>
-          <Posicao
-            indice={indice}
-            progresso={animado ? progresso : undefined}
-          />
-        </div>
 
-        {/* A altura mínima é a da maior leitura, medida com as 16 frases:
-            506px em 1024 (a frase de duas linhas com quatro campos) e 459px a
-            360 e 393. Sem ela o palco pularia a cada troca de frase. Frase nova
-            mais longa: meça de novo. */}
-        <div className="min-h-[29rem] md:min-h-[32rem]">
-          <TrocaComSaida valor={indice} chave={String}>
-            {(exibido) => (
-              <LeituraNaFatia
-                pedido={PEDIDOS[exibido]}
-                indice={exibido}
-                progresso={progresso}
-                entrada={entrada}
-                animado={animado}
-                armado={armado}
-              />
-            )}
-          </TrocaComSaida>
+          {/* A altura mínima é a da maior leitura, medida com as sete frases:
+              a de duas linhas com quatro campos. Sem ela o palco pularia a
+              cada troca de frase. Frase nova mais longa: meça de novo. */}
+          <div className="min-h-[25rem] md:min-h-[31rem]">
+            <TrocaComSaida valor={indice} chave={String}>
+              {(exibido) => (
+                <LeituraNaFatia
+                  pedido={PEDIDOS[exibido]}
+                  indice={exibido}
+                  progresso={progresso}
+                  entrada={entrada}
+                  animado={animado}
+                  armado={armado}
+                />
+              )}
+            </TrocaComSaida>
+          </div>
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ import {
 } from "../_content/comandos";
 import { CENAS } from "../_components/comandos/cenas";
 import { RITMO, ritmo } from "../_components/comandos/leitura-do-pedido";
+import { marcasDoMostrador } from "../_components/comandos/cota-compartilhada";
 import {
   ATE_HOJE,
   A_VISTA,
@@ -35,6 +36,7 @@ import {
 } from "../_components/comandos/roda-math";
 import {
   ANIMA_ATE,
+  ESPERA,
   GIRO,
   indiceDaFatia,
   posicaoDaRoda,
@@ -216,8 +218,21 @@ describe("as fatias da rolagem", () => {
   it("anima só a primeira parte da fatia, e segura o resto", () => {
     const inicio = 3 / total;
     expect(progressoNaFatia(inicio, 3, total)).toBe(0);
+    /**
+     * A espera da troca: a frase nova monta depois de a anterior sair, e nesse
+     * tempo a página já rolou. Sem este trecho morto no começo da fatia, ela
+     * nascia com parte das letras já escritas.
+     */
+    expect(progressoNaFatia(inicio + (ESPERA * 0.9) / total, 3, total)).toBe(0);
     expect(
-      progressoNaFatia(inicio + ANIMA_ATE / 2 / total, 3, total),
+      progressoNaFatia(inicio + (ESPERA + 0.01) / total, 3, total),
+    ).toBeGreaterThan(0);
+    expect(
+      progressoNaFatia(
+        inicio + (ESPERA + (ANIMA_ATE - ESPERA) / 2) / total,
+        3,
+        total,
+      ),
     ).toBeCloseTo(0.5);
     expect(progressoNaFatia(inicio + ANIMA_ATE / total, 3, total)).toBeCloseTo(
       1,
@@ -241,7 +256,12 @@ describe("as fatias da rolagem", () => {
     expect(progressoComEntrada(0.9 / total, 1, 0, total)).toBe(1);
     expect(progressoComEntrada(0, 1, 1, total)).toBe(0);
     expect(
-      progressoComEntrada((1 + ANIMA_ATE / 2) / total, 1, 1, total),
+      progressoComEntrada(
+        (1 + ESPERA + (ANIMA_ATE - ESPERA) / 2) / total,
+        1,
+        1,
+        total,
+      ),
     ).toBeCloseTo(0.5);
   });
 
@@ -331,6 +351,38 @@ describe("a série da simulação de compra", () => {
       SEM_COMPRAR.length,
     );
     expect(area(SEM_COMPRAR, HOJE, 0).endsWith("Z")).toBe(true);
+  });
+});
+
+describe("o mostrador da cota", () => {
+  const marcas = marcasDoMostrador();
+
+  it("tem uma marca por pedido do mês, e seis acesas", () => {
+    expect(marcas).toHaveLength(100);
+    expect(marcas.filter((m) => m.canal)).toHaveLength(6);
+    // Acesas no começo, e intercalando os canais: em dois blocos elas
+    // pareceriam duas cotas.
+    expect(marcas.slice(0, 6).map((m) => m.canal)).toEqual([
+      "whatsapp",
+      "app",
+      "app",
+      "whatsapp",
+      "app",
+      "app",
+    ]);
+  });
+
+  /**
+   * `Math.cos`/`Math.sin` podem diferir na última casa entre implementações, e
+   * o V8 do servidor e o do navegador diferiam: sem o arredondamento, cada
+   * marca virava um aviso de hidratação.
+   */
+  it("arredonda as coordenadas, que atravessam a hidratação", () => {
+    for (const marca of marcas) {
+      for (const valor of [marca.x1, marca.y1, marca.x2, marca.y2]) {
+        expect(Number(valor.toFixed(2))).toBe(valor);
+      }
+    }
   });
 });
 

@@ -190,6 +190,30 @@ test.describe("APP-01: as cenas da landing do aplicativo", () => {
   });
 
   /**
+   * Hidratação: a página inteira é renderizada no servidor e "acordada" no
+   * cliente. Um desencontro entre os dois não quebra nada visível, mas deixa a
+   * subárvore sem os atributos que o servidor mandou.
+   *
+   * Já aconteceu por um motivo que ninguém procuraria: `Math.cos` devolvia a
+   * 15ª casa decimal diferente no Node e no Chrome, e cada marca do mostrador
+   * da cota virava um aviso.
+   */
+  test("a página hidrata sem desencontro entre servidor e cliente", async ({
+    page,
+  }) => {
+    const erros: string[] = [];
+    page.on("console", (m) => {
+      if (m.type() === "error" && /hydrat/i.test(m.text())) erros.push(m.text());
+    });
+    await page.goto(`${APP}/`);
+    await page.waitForLoadState("networkidle");
+    // A seção de comandos só hidrata quando o chunk dela chega.
+    await page.locator("#comandos").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1500);
+    expect(erros, erros.join(" / ")).toHaveLength(0);
+  });
+
+  /**
    * O campo que segue o ponteiro é CSS lendo duas variáveis herdadas. Ele já
    * sumiu inteiro uma vez sem erro nenhum: um `color-mix()` escrito direto
    * dentro do `radial-gradient` faz o Lightning CSS descartar a regra no build,

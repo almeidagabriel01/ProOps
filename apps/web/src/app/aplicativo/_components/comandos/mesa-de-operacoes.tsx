@@ -42,7 +42,12 @@ const FATIA_SVH = 170;
  * Só a cena ativa existe no DOM. As seis montadas ao mesmo tempo seriam seis
  * árvores com NumberFlow, SVG e timeline para uma ficar visível.
  */
-export function MesaDeOperacoes() {
+export function MesaDeOperacoes({
+  cabecalho,
+}: {
+  /** O título da metade, que gruda junto com o palco. */
+  cabecalho: React.ReactNode;
+}) {
   const { ref: palco, armado } = useVisibilidade<HTMLDivElement>();
   const { trilho, indice, escolher, animado, progresso, entrada } =
     useCenaRolada(TOTAL);
@@ -72,77 +77,75 @@ export function MesaDeOperacoes() {
       style={animado ? { height: alturaDoTrilho(TOTAL, FATIA_SVH) } : undefined}
       className="relative"
     >
-      <div
-        ref={palco}
-        className={cn(
-          "grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] md:items-start md:gap-10 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] lg:gap-14",
-          animado && CLASSE_DO_PALCO,
-        )}
-      >
-        <div
-          role="tablist"
-          aria-label="Operações de exemplo"
-          aria-orientation="vertical"
-          onKeyDown={aoTeclar}
-          className="order-1 grid grid-cols-6 gap-1.5 md:flex md:flex-col md:gap-0"
-        >
-          {OPERACOES.map((item, i) => (
-            <Aba
-              key={item.cena}
-              ref={(el) => {
-                abas.current[i] = el;
-              }}
-              item={item}
-              indice={i}
-              ativa={i === indice}
-              idBase={idBase}
-              progresso={animado ? progresso : undefined}
-              aoEscolher={() => escolher(i)}
-            />
-          ))}
-        </div>
+      <div ref={palco} className={cn(animado && CLASSE_DO_PALCO)}>
+        {cabecalho}
 
-        <div
-          role="tabpanel"
-          id={`${idBase}-painel`}
-          aria-labelledby={`${idBase}-aba-${indice}`}
-          className="order-2"
-        >
-          <div className="relative overflow-hidden rounded-[2rem] border border-[var(--app-card-border)] bg-[linear-gradient(180deg,var(--app-hero-top),var(--app-bg))] p-5 shadow-[0_50px_100px_-60px_rgba(0,0,0,0.95)] md:p-8">
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-24 -top-32 h-72 w-72 rounded-full bg-[var(--app-tint)] opacity-[0.08] blur-[80px]"
-            />
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)]"
-            />
-
-            <p className="relative [font-family:var(--font-jetbrains-mono)] text-sm text-[var(--app-tint)]">
-              {operacao.pedido}
-            </p>
-
-            {/* Altura fixa, para o palco não pular entre cenas: a da cena mais
-                alta em cada largura, que no celular é a fatia da fatura, com
-                a lista e o limite empilhados. */}
-            <div className="relative mt-5 h-[27rem] md:mt-8 md:h-[22rem] lg:h-[24rem]">
-              <TrocaComSaida valor={indice} chave={String} className="h-full">
-                {(exibida) => (
-                  <CenaNaFatia
-                    indice={exibida}
-                    progresso={progresso}
-                    entrada={entrada}
-                    animado={animado}
-                    armado={armado}
-                  />
-                )}
-              </TrocaComSaida>
-            </div>
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] md:items-start md:gap-10 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] lg:gap-14">
+          <div
+            role="tablist"
+            aria-label="Operações de exemplo"
+            aria-orientation="vertical"
+            onKeyDown={aoTeclar}
+            className="order-1 grid grid-cols-6 gap-1.5 md:flex md:flex-col md:gap-0"
+          >
+            {OPERACOES.map((item, i) => (
+              <Aba
+                key={item.cena}
+                ref={(el) => {
+                  abas.current[i] = el;
+                }}
+                item={item}
+                indice={i}
+                ativa={i === indice}
+                idBase={idBase}
+                progresso={animado ? progresso : undefined}
+                aoEscolher={() => escolher(i)}
+              />
+            ))}
           </div>
 
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-[var(--app-text-muted)] md:text-base">
-            {operacao.efeito}
-          </p>
+          <div
+            role="tabpanel"
+            id={`${idBase}-painel`}
+            aria-labelledby={`${idBase}-aba-${indice}`}
+            className="order-2"
+          >
+            <div className="relative overflow-hidden rounded-[2rem] border border-[var(--app-card-border)] bg-[linear-gradient(180deg,var(--app-hero-top),var(--app-bg))] p-5 shadow-[0_50px_100px_-60px_rgba(0,0,0,0.95)] md:p-8">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -right-24 -top-32 h-72 w-72 rounded-full bg-[var(--app-tint)] opacity-[0.08] blur-[80px]"
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)]"
+              />
+
+              <p className="relative [font-family:var(--font-jetbrains-mono)] text-sm text-[var(--app-tint)]">
+                {operacao.pedido}
+              </p>
+
+              {/* Altura fixa, para o palco não pular entre cenas: a da cena mais
+                alta em cada largura, que no celular é a fatia da fatura, com
+                a lista e o limite empilhados. */}
+              <div className="relative mt-4 h-[22rem] md:mt-8 md:h-[22rem] lg:h-[24rem]">
+                <TrocaComSaida valor={indice} chave={String} className="h-full">
+                  {(exibida) => (
+                    <CenaNaFatia
+                      indice={exibida}
+                      progresso={progresso}
+                      entrada={entrada}
+                      animado={animado}
+                      armado={armado}
+                    />
+                  )}
+                </TrocaComSaida>
+              </div>
+            </div>
+
+            <p className="mt-3 max-w-xl text-xs leading-relaxed text-[var(--app-text-muted)] md:mt-4 md:text-base">
+              {operacao.efeito}
+            </p>
+          </div>
         </div>
       </div>
     </div>

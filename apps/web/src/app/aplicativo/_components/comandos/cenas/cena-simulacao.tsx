@@ -430,7 +430,7 @@ export function CenaSimulacao({ armado, progresso }: PropsDaCena) {
             ...pct(eixoX(HOJE + 3), eixoY(-500)),
             transform: "translateY(-50%)",
           }}
-          className="sim-vermelho-rotulo absolute whitespace-nowrap rounded-full bg-[var(--app-danger)]/[0.16] px-2.5 py-1 text-[11px] font-medium text-[var(--app-danger)]"
+          className="sim-vermelho-rotulo absolute hidden whitespace-nowrap rounded-full bg-[var(--app-danger)]/[0.16] px-2.5 py-1 text-[11px] font-medium text-[var(--app-danger)] sm:block"
         >
           {DIAS_VERMELHOS} dias no vermelho
         </span>
@@ -478,17 +478,17 @@ function Cenario({
   return (
     <div
       className={cn(
-        "sim-cenario rounded-2xl border px-3 py-2.5",
+        "sim-cenario rounded-2xl border px-2.5 py-2 md:px-3 md:py-2.5",
         destacado
           ? "border-[var(--app-tint)]/45 bg-[var(--app-tint)]/[0.07]"
           : "border-[var(--app-card-border)] bg-[var(--app-surface)]",
       )}
     >
-      <Rotulo className="text-[11px]">{rotulo}</Rotulo>
+      <Rotulo className="truncate text-[10px] md:text-[11px]">{rotulo}</Rotulo>
       <Moeda
         valor={valor}
         className={cn(
-          "mt-0.5 block text-sm font-semibold md:text-base",
+          "mt-0.5 block text-[13px] font-semibold md:text-base",
           tom === "danger"
             ? "text-[var(--app-danger)]"
             : "text-[var(--app-text)]",
