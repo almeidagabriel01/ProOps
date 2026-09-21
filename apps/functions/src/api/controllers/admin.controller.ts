@@ -1973,11 +1973,43 @@ export const startImpersonation = async (req: Request, res: Response) => {
       requestId: req.requestId,
       source: "admin_controller",
     });
-    void incrementSecurityCounter("super_admin_impersonation_started", {
+    await incrementSecurityCounter("super_admin_impersonation_started", {
       uid,
       tenantId,
       route,
       requestId: req.requestId,
+    });
+
+    return res.json({ success: true });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Erro desconhecido";
+    return res.status(500).json({ message });
+  }
+};
+
+/**
+ * Fim de uma sessao "Acessar Painel". Sem ele a auditoria so tinha a entrada:
+ * nao dava para saber quanto tempo o superadmin ficou dentro da empresa nem se
+ * as escritas seguintes ainda eram daquela sessao.
+ *
+ * Melhor esforco por natureza (fechar a aba nao chama nada), por isso aceita
+ * `reason` para distinguir saida pelo botao de saida implicita.
+ */
+export const stopImpersonation = async (req: Request, res: Response) => {
+  try {
+    if (!isSuperAdminClaim(req)) {
+      return res.status(403).json({ message: "Permissão negada." });
+    }
+    const tenantId = String(req.body?.tenantId || "").trim();
+    if (!tenantId) {
+      return res.status(400).json({ message: "tenantId é obrigatório." });
+    }
+    const reason = String(req.body?.reason || "exit_button").trim().slice(0, 40);
+
+    await auditAdminAction(req, "super_admin_impersonation_stopped", {
+      tenantId,
+      reason,
     });
 
     return res.json({ success: true });

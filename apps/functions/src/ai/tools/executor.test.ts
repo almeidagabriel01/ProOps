@@ -75,7 +75,8 @@ jest.mock("firebase-admin/firestore", () => ({
   FieldValue: { increment: jest.fn() },
 }));
 
-import { executeToolCall } from "./executor";
+import { executeToolCall, isMutatingTool } from "./executor";
+import { TOOL_REGISTRY } from "./index";
 import type { ToolCallContext } from "./executor";
 import { logSecurityEvent } from "../../lib/security-observability";
 import { resolvePlanCapabilities } from "../../shared/plan-capabilities";
@@ -239,5 +240,37 @@ describe("executeToolCall — argument validation", () => {
     }, { ...adminCtx, confirmed: true });
     // Either schema rejects (success: false) or call succeeds — no crash either way
     expect(result).toBeDefined();
+  });
+});
+
+// ── Acessar Painel em modo somente leitura ─────────────────────────────────────
+
+describe("executeToolCall — superadmin em modo somente leitura", () => {
+  const readOnlyCtx: ToolCallContext = {
+    ...adminCtx,
+    role: "SUPERADMIN",
+    confirmed: true,
+    impersonationReadOnly: true,
+  };
+
+  test.each(["create_proposal", "create_contact", "delete_proposal", "update_proposal_status"])(
+    "%s e recusada antes de qualquer service",
+    async (tool) => {
+      const result = await executeToolCall(tool, {}, readOnlyCtx);
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/somente leitura/i);
+    },
+  );
+
+  test("leitura continua liberada", async () => {
+    const result = await executeToolCall("list_proposals", {}, readOnlyCtx);
+    expect(result.error ?? "").not.toMatch(/somente leitura/i);
+  });
+
+  test("toda ferramenta de escrita do registro e classificada como escrita", () => {
+    const writes = TOOL_REGISTRY.filter((e) => isMutatingTool(e)).map((e) => e.declaration.name);
+    expect(writes).toEqual(expect.arrayContaining(["send_whatsapp_message", "delete_proposal"]));
+    expect(writes).not.toContain("list_proposals");
+    expect(writes).not.toContain("request_confirmation");
   });
 });

@@ -70,6 +70,12 @@ export interface ToolCallContext {
    * administradores do tenant, que passam pelo bypass.
    */
   permissions?: PagePermissionMap;
+  /**
+   * Superadmin vendo uma empresa sem ter habilitado a edicao. As rotas HTTP ja
+   * recusam escrita nesse modo; a Lia chama os services direto, entao a mesma
+   * regra precisa valer aqui.
+   */
+  impersonationReadOnly?: boolean;
 }
 
 export interface ToolCallResult {
@@ -592,6 +598,17 @@ const HANDLERS: Record<string, ToolHandler> = {
  * All handlers call extracted service functions — never Firestore directly
  * (except get_tenant_summary which reads the tenant document).
  */
+/**
+ * Ferramenta que altera dados. Deriva da permissao que ela exige (tudo que nao
+ * e `canView`), para uma ferramenta nova nao precisar lembrar de uma lista a
+ * parte; as que nao tem permissao de pagina sao so leitura, exceto o envio de
+ * WhatsApp.
+ */
+export function isMutatingTool(entry: (typeof TOOL_REGISTRY)[number]): boolean {
+  if (entry.permission) return entry.permission.action !== "canView";
+  return entry.declaration.name === "send_whatsapp_message";
+}
+
 export async function executeToolCall(
   toolName: string,
   args: Record<string, unknown>,
@@ -601,6 +618,15 @@ export async function executeToolCall(
   const entry = TOOL_REGISTRY.find((e) => e.declaration.name === toolName);
   if (!entry) {
     return { success: false, error: `Tool desconhecida: ${toolName}` };
+  }
+
+  // 1b. Modo somente leitura do "Acessar Painel": nada que escreva.
+  if (ctx.impersonationReadOnly && isMutatingTool(entry)) {
+    return {
+      success: false,
+      error:
+        "Modo somente leitura: habilite a edição na faixa do topo para a Lia alterar dados desta empresa.",
+    };
   }
 
   // 2. Double-validate plan capability

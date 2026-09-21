@@ -88,7 +88,16 @@ export function requirePlanCapability(capability: PlanCapabilityKey) {
       return;
     }
 
-    if (user?.isSuperAdmin && shouldAllowSuperAdminBypass()) {
+    // Superadmin vendo uma empresa ve o que o CLIENTE ve: o gate avalia o plano
+    // da empresa alvo. Em modo monitor nao ha o que ver (nada e barrado), e a
+    // telemetria de would_block seria poluida por navegacao de suporte.
+    const impersonating = Boolean(user?.impersonation);
+    if (impersonating && mode !== "enforce") {
+      next();
+      return;
+    }
+
+    if (user?.isSuperAdmin && !impersonating && shouldAllowSuperAdminBypass()) {
       next();
       return;
     }

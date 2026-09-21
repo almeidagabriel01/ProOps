@@ -4,6 +4,7 @@ import cors from "cors";
 import { logger } from "../lib/logger";
 import { validateFirebaseIdToken } from "./middleware/auth";
 import { requireActiveSubscription } from "./middleware/require-active-subscription";
+import { resolveImpersonation } from "./middleware/impersonation";
 import { verifyTurnstileToken } from "./middleware/verify-captcha";
 import { CORS_OPTIONS } from "../deploymentConfig";
 
@@ -467,6 +468,7 @@ app.use(
 
 // Protected routes - everything below requires authentication
 app.use(validateFirebaseIdToken);
+app.use(resolveImpersonation);
 app.use(requireActiveSubscription);
 app.use(protectedLimiter);
 

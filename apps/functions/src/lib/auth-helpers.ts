@@ -90,6 +90,42 @@ export const resolveUserAndTenant = async (
     userData = userSnap.data() as UserDoc;
   }
 
+  // Superadmin vendo outra empresa: o middleware de impersonacao ja trocou o
+  // tenant das claims pelo alvo, entao ele nao casa com o doc do superadmin por
+  // construcao. O "dono" passa a ser o dono da empresa alvo, que e onde os
+  // controllers legados leem limites e gravam contadores.
+  const impersonation = isSuperAdmin
+    ? (claims.impersonation as { targetTenantId?: string; ownerUid?: string | null } | undefined)
+    : undefined;
+  if (impersonation?.targetTenantId) {
+    const targetTenantId = normalizeTenantId(impersonation.targetTenantId);
+    const ownerUid = String(impersonation.ownerUid || "").trim();
+    if (ownerUid) {
+      const ownerRef = db.collection("users").doc(ownerUid);
+      const ownerSnap = await ownerRef.get();
+      if (ownerSnap.exists) {
+        return {
+          userRef,
+          userData,
+          masterRef: ownerRef,
+          masterData: ownerSnap.data() as UserDoc,
+          tenantId: targetTenantId,
+          isMaster,
+          isSuperAdmin,
+        };
+      }
+    }
+    return {
+      userRef,
+      userData,
+      masterRef: userRef,
+      masterData: userData,
+      tenantId: targetTenantId,
+      isMaster,
+      isSuperAdmin,
+    };
+  }
+
   const docTenantId = normalizeTenantId(userData.tenantId || userData.companyId);
   if (claimTenantId && docTenantId && claimTenantId !== docTenantId) {
     throw new Error("FORBIDDEN_TENANT_MISMATCH");

@@ -16,6 +16,7 @@ import {
   forceSetTenantPlan,
   migrateTenantPrices,
   startImpersonation,
+  stopImpersonation,
   getAuditEvents,
   resetMemberMfa,
 } from "../controllers/admin.controller";
@@ -25,6 +26,7 @@ const router = Router();
 router.get("/tenants/billing", getAllTenantsBilling);
 router.get("/audit-events", getAuditEvents);
 router.post("/impersonation/start", startImpersonation);
+router.post("/impersonation/stop", stopImpersonation);
 router.post("/members", createMember);
 // IMPORTANT: Specific routes must come BEFORE parameterized routes
 router.put("/members/permissions", updatePermissions);

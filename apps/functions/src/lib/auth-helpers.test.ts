@@ -126,3 +126,50 @@ describe("resolveUserAndTenant without preloaded userDoc (fallback)", () => {
     ).rejects.toThrow("User not found");
   });
 });
+
+describe("resolveUserAndTenant durante o Acessar Painel", () => {
+  const impersonating = (ownerUid: string | null) => ({
+    uid: "root",
+    role: "SUPERADMIN",
+    tenantId: "alvo",
+    userDoc: { role: "superadmin", tenantId: "proprio" },
+    impersonation: {
+      originalTenantId: "proprio",
+      targetTenantId: "alvo",
+      ownerUid,
+      writeEnabled: false,
+    },
+  });
+
+  it("nao acusa mismatch e usa o dono da empresa alvo como master", async () => {
+    docGetMock.mockImplementation((id: string) => {
+      if (id === "dono") {
+        return { exists: true, data: () => ({ role: "MASTER", tenantId: "alvo", planId: "pro" }) };
+      }
+      throw new Error(`unexpected:${id}`);
+    });
+    const result = await resolveUserAndTenant("root", impersonating("dono"));
+    expect(result.tenantId).toBe("alvo");
+    expect(result.isSuperAdmin).toBe(true);
+    expect(result.masterRef.id).toBe("dono");
+    expect(result.masterData.planId).toBe("pro");
+  });
+
+  it("empresa sem dono encontrado cai no proprio superadmin, ainda no tenant alvo", async () => {
+    const result = await resolveUserAndTenant("root", impersonating(null));
+    expect(result.tenantId).toBe("alvo");
+    expect(result.masterRef.id).toBe("root");
+  });
+
+  it("claim de impersonacao em usuario comum e ignorada (mismatch continua valendo)", async () => {
+    await expect(
+      resolveUserAndTenant("uid-1", {
+        uid: "uid-1",
+        role: "MASTER",
+        tenantId: "alvo",
+        userDoc: { role: "MASTER", tenantId: "tenant-1" },
+        impersonation: { targetTenantId: "alvo", ownerUid: "x" },
+      }),
+    ).rejects.toThrow("FORBIDDEN_TENANT_MISMATCH");
+  });
+});
