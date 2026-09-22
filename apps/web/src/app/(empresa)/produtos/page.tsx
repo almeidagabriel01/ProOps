@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { AssinaturaAparelhos } from "@/components/institucional/assinaturas-hero";
-import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
+import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
+import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
@@ -52,20 +53,24 @@ export const metadata: Metadata = {
 export default function ProdutosPage() {
   return (
     <main>
-      <PaginaHero
-        assinatura={<AssinaturaAparelhos />}
-        sobrancelha="Produtos"
+      <HeroiPalco
+        cena={
+          <div className="hidden text-white/20 md:block">
+            <AssinaturaAparelhos />
+          </div>
+        }
+        rotulo="Produtos"
         titulo={
           <>
             <LinhaHero>Dois produtos,</LinhaHero>
             <LinhaHero atraso={0.09}>
-              uma <Realce className="font-extrabold">ideia</Realce>
+              uma ideia
             </LinhaHero>
             <LinhaHero atraso={0.18}>só.</LinhaHero>
           </>
         }
         descricao="Um roda na tela do escritório e o outro no bolso. Esta página mostra as duas por dentro, com captura do que está no ar hoje."
-        dados={[
+        ficha={[
           { valor: "02", rotulo: "Produtos" },
           { valor: "07", rotulo: "Telas nesta página" },
           { valor: "0", rotulo: "Protótipos" },

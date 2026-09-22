@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { AssinaturaSelo } from "@/components/institucional/assinaturas-hero";
-import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
+import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
+import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { canonicalFor } from "@/lib/site/host-seo";
@@ -36,21 +37,25 @@ export default function ManifestoPage() {
         declaração, não índice, e declaração se lê no meio da página. O selo que
         se desenha atrás do título é a mesma ideia por outro meio.
       */}
-      <PaginaHero
-        alinhamento="centro"
-        assinatura={<AssinaturaSelo />}
-        sobrancelha="Manifesto"
+      <HeroiPalco
+        composicao="centro"
+        cena={
+          <div className="mx-auto hidden aspect-square w-72 text-white/20 md:block">
+            <AssinaturaSelo />
+          </div>
+        }
+        rotulo="Manifesto"
         titulo={
           <>
             <LinhaHero>O que</LinhaHero>
             <LinhaHero atraso={0.09}>
-              <Realce className="font-extrabold">decide</Realce>
+              decide
             </LinhaHero>
             <LinhaHero atraso={0.18}>o produto.</LinhaHero>
           </>
         }
         descricao="Não é uma lista de valores para a parede. É o critério que sobra quando duas ideias boas competem pela mesma semana, e o que cada uma delas custa quando ganha."
-        dados={[
+        ficha={[
           { valor: "03", rotulo: "Princípios" },
           { valor: "03", rotulo: "Contrapartidas" },
         ]}

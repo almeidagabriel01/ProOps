@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { AssinaturaCanais } from "@/components/institucional/assinaturas-hero";
-import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
+import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
+import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { canonicalFor } from "@/lib/site/host-seo";
@@ -49,19 +50,23 @@ export const metadata: Metadata = {
 export default function FaleConoscoPage() {
   return (
     <main>
-      <PaginaHero
-        assinatura={<AssinaturaCanais />}
-        sobrancelha="Contato"
+      <HeroiPalco
+        cena={
+          <div className="hidden text-white/20 md:block">
+            <AssinaturaCanais />
+          </div>
+        }
+        rotulo="Contato"
         titulo={
           <>
             <LinhaHero>Falar com</LinhaHero>
             <LinhaHero atraso={0.09}>
-              a <Realce className="font-extrabold">ProOps</Realce>.
+              a ProOps.
             </LinhaHero>
           </>
         }
         descricao="Diga o que traz você aqui e escreva na mesma tela. São três assuntos, e todos terminam em uma pessoa."
-        dados={[
+        ficha={[
           { valor: "03", rotulo: "Assuntos" },
           { valor: "2d", rotulo: "Prazo de resposta" },
         ]}

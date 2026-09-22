@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 import { AssinaturaRetratos } from "@/components/institucional/assinaturas-hero";
 import { LinhaDoTempo } from "@/components/institucional/linha-do-tempo";
-import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
+import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
+import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { PessoasFaixa } from "@/components/institucional/pessoas-faixa";
 import {
   Realce,
@@ -53,13 +54,13 @@ export const metadata: Metadata = {
 export default function SobrePage() {
   return (
     <main>
-      <PaginaHero
-        sobrancelha="Sobre"
+      <HeroiPalco
+        rotulo="Sobre"
         titulo={
           <>
             <LinhaHero>Três sócios,</LinhaHero>
             <LinhaHero atraso={0.09}>
-              <Realce className="font-extrabold">dois</Realce> deles
+              dois deles
             </LinhaHero>
             <LinhaHero atraso={0.18}>escrevendo</LinhaHero>
             <LinhaHero atraso={0.27}>o código.</LinhaHero>
@@ -68,8 +69,12 @@ export default function SobrePage() {
         descricao="Não há camada entre quem atende e quem constrói. O que você conta numa reunião chega, na mesma semana, em quem tem a mão no produto."
         // Os rostos, antes de qualquer palavra sobre eles. É o assunto desta
         // página, e a faixa de pessoas logo abaixo é que os nomeia.
-        assinatura={<AssinaturaRetratos fotos={PESSOAS.map((p) => p.foto)} />}
-        dados={[
+        cena={
+          <div className="hidden md:block">
+            <AssinaturaRetratos fotos={PESSOAS.map((p) => p.foto)} />
+          </div>
+        }
+        ficha={[
           { valor: "03", rotulo: "Sócios" },
           { valor: "02", rotulo: "Engenheiros de software" },
           { valor: "Nov 2025", rotulo: "Quando começou" },

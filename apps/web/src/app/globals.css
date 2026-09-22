@@ -1725,6 +1725,49 @@ html[data-heroi="espera"] .regua-desenha {
   );
 }
 
+/* O material dos heróis do site da empresa: uma casa à noite.
+
+   O resto do site continua preto e branco; os heróis ganham luz própria, e ela
+   vem do assunto e não de um enfeite. A cena da raiz é uma casa em que as luzes
+   se acendem, então a paleta é a de uma planta vista à noite: ardósia fria no
+   fundo, traço de desenho técnico, papel frio para a proposta, e TUNGSTÊNIO
+   (2700K, a cor de uma lâmpada quente) apenas onde há uma luz acesa. Uma cor
+   quente espalhada como acento viraria decoração; restrita à luz, ela é
+   informação: aceso quer dizer especificado.
+
+   Os tokens são custom properties no escopo, e as cores com transparência são
+   escritas como `rgb(var(--x) / a)`. Não troque por `color-mix()` dentro de um
+   gradiente: o Lightning CSS descarta a regra inteira no build (ver
+   `.campo-app`, mais acima). */
+.heroi-noite {
+  --noite: #0a0e14;
+  --noite-alta: #121a26;
+  --linha: 148 163 184;
+  --tungstenio: 255 176 102;
+  --papel: #eef1f5;
+  --tinta: #0f172a;
+  background-color: var(--noite);
+  color: #f1f5f9;
+}
+
+/* A luz ambiente do herói: um céu um pouco mais claro no alto e o chão
+   afundando nos cantos. Estática de propósito, sem granulação animada: o
+   movimento do herói é da cena, e qualquer coisa se mexendo no fundo competiria
+   com ela. */
+.heroi-noite__luz {
+  background:
+    radial-gradient(
+      70rem 38rem at 62% -6%,
+      rgb(var(--linha) / 0.09),
+      transparent 70%
+    ),
+    radial-gradient(
+      120% 90% at 50% 40%,
+      transparent 55%,
+      rgb(0 0 0 / 0.5)
+    );
+}
+
 /* Inclinação de card por ponteiro, sem JS por card: o escopo escreve as duas
    variáveis e cada card as lê com o próprio peso. */
 .inclina-ponteiro {
