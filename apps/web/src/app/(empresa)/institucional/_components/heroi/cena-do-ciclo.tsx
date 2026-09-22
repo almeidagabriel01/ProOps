@@ -27,7 +27,13 @@ const USAM = PESSOAS.filter((p) => !p.formacao?.includes("Software"));
 /** O caminho do anel, em coordenadas do viewBox de 320x320. */
 const ANEL = "M160 34a126 126 0 1 1 0 252 126 126 0 1 1 0-252";
 
-function Retratos({ pessoas, classe }: { pessoas: typeof PESSOAS; classe: string }) {
+function Retratos({
+  pessoas,
+  classe,
+}: {
+  pessoas: typeof PESSOAS;
+  classe: string;
+}) {
   return (
     <span className={classe}>
       {pessoas.map((pessoa) => (
@@ -35,7 +41,13 @@ function Retratos({ pessoas, classe }: { pessoas: typeof PESSOAS; classe: string
           key={pessoa.nome}
           className="relative -ml-2 block size-9 overflow-hidden rounded-full ring-2 ring-[var(--noite)] first:ml-0 md:size-11"
         >
-          <Image src={pessoa.foto} alt="" fill sizes="44px" className="object-cover" />
+          <Image
+            src={pessoa.foto}
+            alt=""
+            fill
+            sizes="44px"
+            className="object-cover"
+          />
         </span>
       ))}
     </span>
@@ -46,51 +58,65 @@ export function CenaDoCiclo() {
   const { usa, constroi, meio } = HEROI_RAIZ.ciclo;
 
   return (
+    // A inclinação por ponteiro vai num elemento de FORA, e o anel fica no de
+    // dentro: `.inclina-ponteiro` escreve `transform`, e as entradas em CSS dos
+    // filhos escrevem o delas. Um elemento, um transform.
     <div
       aria-hidden="true"
-      className="ciclo relative mx-auto aspect-square w-full max-w-[24rem] md:max-w-[27rem]"
+      className="inclina-ponteiro mx-auto w-full max-w-[24rem] md:max-w-[27rem]"
+      style={{ "--inclina": "4deg" } as React.CSSProperties}
     >
-      <svg viewBox="0 0 320 320" fill="none" className="absolute inset-0 h-full w-full">
-        <path
-          className="traco-desenha"
-          pathLength={1}
-          d={ANEL}
-          stroke="rgb(var(--linha) / 0.45)"
-          strokeWidth="1.25"
-          style={
-            {
-              "--traco-delay": "calc(var(--espera, 0s) + 0.45s)",
-              "--traco-dur": "1.6s",
-            } as React.CSSProperties
-          }
-        />
-        <path
-          className="ciclo-gota"
-          pathLength={1}
-          d={ANEL}
-          stroke="rgb(var(--tungstenio))"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        />
-      </svg>
+      <div className="ciclo relative aspect-square w-full">
+        <svg
+          viewBox="0 0 320 320"
+          fill="none"
+          className="absolute inset-0 h-full w-full"
+        >
+          <path
+            className="traco-desenha"
+            pathLength={1}
+            d={ANEL}
+            stroke="rgb(var(--linha) / 0.45)"
+            strokeWidth="1.25"
+            style={
+              {
+                "--traco-delay": "calc(var(--espera, 0s) + 0.45s)",
+                "--traco-dur": "1.6s",
+              } as React.CSSProperties
+            }
+          />
+          <path
+            className="ciclo-gota"
+            pathLength={1}
+            d={ANEL}
+            stroke="rgb(var(--tungstenio))"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+        </svg>
 
-      {/* Os dois nós, um em cada ponta do anel. */}
-      <div className="absolute left-1/2 top-[6%] w-[74%] -translate-x-1/2 text-center">
-        <Retratos pessoas={USAM} classe="mb-3 flex justify-center" />
-        <p className="text-sm font-semibold text-white">{usa.titulo}</p>
-        <p className="mt-1 text-[13px] leading-snug text-white/50">{usa.texto}</p>
+        {/* Os dois nós, um em cada ponta do anel. */}
+        <div className="absolute left-1/2 top-[6%] w-[74%] -translate-x-1/2 text-center">
+          <Retratos pessoas={USAM} classe="mb-3 flex justify-center" />
+          <p className="text-sm font-semibold text-white">{usa.titulo}</p>
+          <p className="mt-1 text-[13px] leading-snug text-white/50">
+            {usa.texto}
+          </p>
+        </div>
+
+        <div className="absolute bottom-[6%] left-1/2 w-[78%] -translate-x-1/2 text-center">
+          <Retratos pessoas={CONSTROEM} classe="mb-3 flex justify-center" />
+          <p className="text-sm font-semibold text-white">{constroi.titulo}</p>
+          <p className="mt-1 text-[13px] leading-snug text-white/50">
+            {constroi.texto}
+          </p>
+        </div>
+
+        {/* O meio do anel: o que o ciclo curto significa, em três palavras. */}
+        <p className="absolute left-1/2 top-1/2 w-[58%] -translate-x-1/2 -translate-y-1/2 text-center [font-family:var(--font-bricolage)] text-lg font-semibold leading-tight tracking-tight text-white/85 md:text-xl">
+          {meio}
+        </p>
       </div>
-
-      <div className="absolute bottom-[6%] left-1/2 w-[78%] -translate-x-1/2 text-center">
-        <Retratos pessoas={CONSTROEM} classe="mb-3 flex justify-center" />
-        <p className="text-sm font-semibold text-white">{constroi.titulo}</p>
-        <p className="mt-1 text-[13px] leading-snug text-white/50">{constroi.texto}</p>
-      </div>
-
-      {/* O meio do anel: o que o ciclo curto significa, em três palavras. */}
-      <p className="absolute left-1/2 top-1/2 w-[58%] -translate-x-1/2 -translate-y-1/2 text-center [font-family:var(--font-bricolage)] text-lg font-semibold leading-tight tracking-tight text-white/85 md:text-xl">
-        {meio}
-      </p>
     </div>
   );
 }
