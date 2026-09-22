@@ -1720,12 +1720,20 @@ html[data-heroi="espera"] .regua-desenha {
    Os tokens são custom properties no escopo, e as cores com transparência são
    escritas como `rgb(var(--x) / a)`. Não troque por `color-mix()` dentro de um
    gradiente: o Lightning CSS descarta a regra inteira no build (ver
-   `.campo-app`, mais acima). */
+   `.campo-app`, mais acima).
+
+   **A cor da luz chama-se `--realce`, e não `--luz`, de propósito.** `--luz` já
+   é o nome da variável NUMÉRICA que a cena da planta escreve por cômodo (0 a 1,
+   "o quanto este cômodo está aceso"), e ela é redeclarada em grupos lá dentro.
+   Um token de cor com o mesmo nome é sombreado ali sem erro nenhum: `rgb(0.7)`
+   e `calc(255 255 255 * 26%)` são inválidos em tempo de cálculo, então a
+   declaração some e o que se vê é a face preta, ou a lâmpada sem cor, sem nada
+   no console. */
 .superficie-noite {
   --noite: #070707;
   --noite-alta: #141414;
   --linha: 212 212 212;
-  --luz: 255 255 255;
+  --realce: 255 255 255;
   --papel: #f5f5f5;
   --tinta: #0a0a0a;
   background-color: var(--noite);
@@ -1825,7 +1833,7 @@ html[data-heroi="espera"] .regua-desenha {
 [data-ato="proposta"] [data-trilho="proposta"] .cena-trilho__barra,
 [data-ato="aprovada"] [data-trilho="aprovada"] .cena-trilho__barra,
 [data-ato="financeiro"] [data-trilho="financeiro"] .cena-trilho__barra {
-  background-color: rgb(var(--luz));
+  background-color: rgb(var(--realce));
 }
 [data-ato="projeto"] [data-trilho="projeto"] span:last-child,
 [data-ato="proposta"] [data-trilho="proposta"] span:last-child,
@@ -1868,12 +1876,12 @@ html[data-heroi="espera"] .regua-desenha {
   background: var(--papel);
   box-shadow:
     0 14px 34px -12px rgb(0 0 0 / 0.75),
-    0 0 0 1px rgb(var(--luz) / 0.45);
+    0 0 0 1px rgb(var(--realce) / 0.45);
   opacity: calc(1 - var(--voo));
 }
 .cena-chip__luz {
-  background: rgb(var(--luz));
-  box-shadow: 0 0 12px 2px rgb(var(--luz) / 0.8);
+  background: rgb(var(--realce));
+  box-shadow: 0 0 12px 2px rgb(var(--realce) / 0.8);
   opacity: calc(1 - var(--voo));
 }
 .cena-chip__valor {
@@ -1937,15 +1945,15 @@ html[data-heroi="espera"] .regua-desenha {
   --calor: calc(var(--luz, 0) * 26%);
 }
 .planta-face--frente {
-  --cor: color-mix(in srgb, rgb(var(--luz)) var(--calor), #171717);
+  --cor: color-mix(in srgb, rgb(var(--realce)) var(--calor), #171717);
   fill: var(--cor);
 }
 .planta-face--lado {
-  --cor: color-mix(in srgb, rgb(var(--luz)) var(--calor), #202020);
+  --cor: color-mix(in srgb, rgb(var(--realce)) var(--calor), #202020);
   fill: var(--cor);
 }
 .planta-face--tampo {
-  --cor: color-mix(in srgb, rgb(var(--luz)) var(--calor), #2b2b2b);
+  --cor: color-mix(in srgb, rgb(var(--realce)) var(--calor), #2b2b2b);
   fill: var(--cor);
 }
 .planta-caixa--parede .planta-face--frente {
@@ -1973,7 +1981,7 @@ html[data-heroi="espera"] .regua-desenha {
   transform-origin: 50% 100%;
 }
 .planta-cortina__calor {
-  fill: rgb(var(--luz));
+  fill: rgb(var(--realce));
   opacity: calc(var(--luz) * 0.32);
 }
 .planta-trilho {
@@ -1989,7 +1997,7 @@ html[data-heroi="espera"] .regua-desenha {
   vector-effect: non-scaling-stroke;
 }
 .planta-lampada {
-  fill: rgb(var(--luz));
+  fill: rgb(var(--realce));
   opacity: calc(0.16 + var(--luz) * 0.84);
 }
 .planta-halo {
@@ -2220,12 +2228,12 @@ html[data-heroi="espera"] :is(.aparelhos-placa, .aparelhos-janela, .aparelhos-te
 @keyframes mural-acende {
   0%,
   100% {
-    box-shadow: inset 0 0 0 0 rgb(var(--luz) / 0);
+    box-shadow: inset 0 0 0 0 rgb(var(--realce) / 0);
     color: rgb(255 255 255 / 0.7);
   }
   3%,
   9% {
-    box-shadow: inset 0 0 0 999px rgb(var(--luz) / 0.1);
+    box-shadow: inset 0 0 0 999px rgb(var(--realce) / 0.1);
     color: rgb(255 255 255 / 1);
   }
   /* A volta ao apagado tem que ser CURTA. Sem esta parada a interpolação
@@ -2233,7 +2241,7 @@ html[data-heroi="espera"] :is(.aparelhos-placa, .aparelhos-janela, .aparelhos-te
      meio aceso o tempo todo: não se lê como uma luz passando, e sim como
      células de brilho diferente. */
   13% {
-    box-shadow: inset 0 0 0 999px rgb(var(--luz) / 0);
+    box-shadow: inset 0 0 0 999px rgb(var(--realce) / 0);
     color: rgb(255 255 255 / 0.7);
   }
 }
@@ -2242,13 +2250,13 @@ html[data-heroi="espera"] :is(.aparelhos-placa, .aparelhos-janela, .aparelhos-te
 }
 .mural-celula:hover {
   animation-play-state: paused;
-  box-shadow: inset 0 0 0 999px rgb(var(--luz) / 0.12);
+  box-shadow: inset 0 0 0 999px rgb(var(--realce) / 0.12);
   color: rgb(255 255 255 / 1);
 }
 /* A célula do convite é a única com moldura, e ela não some quando a luz
    passa. */
 .mural-celula--seu {
-  outline: 1px dashed rgb(var(--luz) / 0.45);
+  outline: 1px dashed rgb(var(--realce) / 0.45);
   outline-offset: -1px;
 }
 html[data-heroi="espera"] .mural-celula {

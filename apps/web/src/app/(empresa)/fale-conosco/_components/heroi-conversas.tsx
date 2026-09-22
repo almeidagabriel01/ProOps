@@ -35,7 +35,7 @@ export function HeroiConversas() {
           >
             <FioDaConversa
               titulo={canal.titulo}
-              className="conversa group block rounded-2xl border border-white/10 bg-[var(--noite-alta)]/80 p-4 transition-colors duration-300 hover:border-[rgb(var(--luz)/0.45)] hover:bg-[var(--noite-alta)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--luz)/0.7)]"
+              className="conversa group block rounded-2xl border border-white/10 bg-[var(--noite-alta)]/80 p-4 transition-colors duration-300 hover:border-[rgb(var(--realce)/0.45)] hover:bg-[var(--noite-alta)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--realce)/0.7)]"
             >
               <span className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-white">{canal.titulo}</span>
@@ -80,7 +80,7 @@ export function HeroiConversas() {
                 </span>
               </span>
 
-              <span className="mt-3 block text-right text-xs text-white/40 transition-colors duration-300 group-hover:text-[rgb(var(--luz))]">
+              <span className="mt-3 block text-right text-xs text-white/40 transition-colors duration-300 group-hover:text-[rgb(var(--realce))]">
                 Escrever sobre {canal.titulo.toLowerCase()}
               </span>
             </FioDaConversa>

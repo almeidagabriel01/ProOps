@@ -84,8 +84,8 @@ export function HeroiBifurcacao() {
                 cy={meio(i)}
                 r={4.5}
                 className="hero-enter"
-                fill={noGalho ? "rgb(var(--luz))" : "var(--noite-alta)"}
-                stroke={noGalho ? "rgb(var(--luz))" : "rgb(var(--linha) / 0.9)"}
+                fill={noGalho ? "rgb(var(--realce))" : "var(--noite-alta)"}
+                stroke={noGalho ? "rgb(var(--realce))" : "rgb(var(--linha) / 0.9)"}
                 strokeWidth="1.5"
                 style={{ "--hero-delay": `${0.45 + i * 0.26}s`, "--hero-y": "0px" } as React.CSSProperties}
               />

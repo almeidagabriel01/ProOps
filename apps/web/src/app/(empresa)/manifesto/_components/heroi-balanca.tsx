@@ -104,8 +104,8 @@ export function HeroiBalanca() {
                   lado === "principio"
                     ? "border-white/15 bg-white/[0.06] text-white"
                     : "border-dashed border-white/15 text-white/60",
-                  aceso && lado === "principio" && "border-[rgb(var(--luz)/0.7)] bg-[rgb(var(--luz)/0.14)]",
-                  aceso && lado === "custo" && "border-[rgb(var(--luz)/0.55)] text-white",
+                  aceso && lado === "principio" && "border-[rgb(var(--realce)/0.7)] bg-[rgb(var(--realce)/0.14)]",
+                  aceso && lado === "custo" && "border-[rgb(var(--realce)/0.55)] text-white",
                 )}
                 style={
                   {

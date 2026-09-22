@@ -38,7 +38,7 @@ export function SeletorDeNicho({ className }: { className?: string }) {
             className={cn(
               "cursor-pointer rounded-full border px-3 py-1.5 text-xs transition-colors duration-300 md:text-[13px]",
               ativo === nicho.id
-                ? "border-[rgb(var(--luz)/0.6)] bg-[rgb(var(--luz)/0.12)] text-white"
+                ? "border-[rgb(var(--realce)/0.6)] bg-[rgb(var(--realce)/0.12)] text-white"
                 : "border-white/15 text-white/55 hover:border-white/30 hover:text-white/80",
             )}
           >
