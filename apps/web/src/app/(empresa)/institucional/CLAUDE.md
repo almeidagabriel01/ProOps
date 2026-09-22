@@ -102,12 +102,13 @@ nenhum type check pega.
 | `Magnetic`, `Marquee`, `ScrubCounter` | primitivas de interação |
 | `CurtainProvider` / `CurtainLink` | transição entre páginas |
 | `webgl/` | `DesktopOnlyWebGl`, `loopVisivel` e `criaQuad`: WebGL só no desktop |
-| `SemHidratar` | mantém o HTML do servidor sem hidratá-lo (o desenho da casa da raiz) |
+| `SemHidratar` | mantém o HTML do servidor sem hidratá-lo (o desenho da casa, hoje na landing do ERP) |
 
-**Hoje o WebGL tem um consumidor só**: a casa do herói da raiz, em three.js
-(`_components/heroi/three/`). O `criaQuad` ficou sem uso quando o campo de pontos
-saiu do herói, e continua ali como o ponto de extensão para um shader de tela
-cheia; o `loopVisivel` é usado pela casa.
+**Hoje o site da empresa não usa WebGL.** A casa em three.js foi embora com a
+cena da planta, para a landing do ERP
+(`components/marketing/cena-planta/`, que tem CLAUDE.md próprio). O que fica
+aqui do kit é o `DesktopOnlyWebGl` e o `loopVisivel`, para a próxima cena que
+precisar deles.
 
 ### `useScrollProgress`: por que ele existe
 
@@ -138,27 +139,16 @@ dá linha cuja espessura é inversamente proporcional ao gradiente local, ou sej
 manchas onde o campo é liso. Dividir a distância até a dobra por `fwidth`
 converte para espaço de tela e todas as linhas saem com o mesmo peso.
 
-### A casa da raiz, em três camadas
+### O que sobrou de WebGL por aqui
 
-1. **three.js** (`planta-3d.tsx`), só desktop com ponteiro fino, via
-   `DesktopOnlyWebGl`, por cima de
-2. **o SVG isométrico** (`planta-svg.tsx`), servido pronto e nunca hidratado,
-   que é o que o celular, um navegador sem WebGL e a corrida do Lighthouse veem;
-3. **o quadro final**, sob movimento reduzido: o mesmo SVG, com as variáveis do
-   fim da história e sem trilha de rolagem.
-
-A camada 2 é renderizada SEMPRE e a 1 vem por cima. Quando o primeiro quadro do
-3D sai, a caixa ganha `data-webgl="pronto"` e o CSS apaga o desenho; se o
-contexto cair, o atributo sai e o desenho volta. As duas desenham a MESMA planta
-pela MESMA projeção, então a troca não se vê (ver "O herói da raiz", abaixo).
-
-**O gate `(min-width: 1024px) and (pointer: fine)` não é estética, é orçamento:**
-o Lighthouse mede num viewport de 412px, então o módulo nunca é importado ali e
-custa exatamente zero TBT na métrica que reprova o build. O E2E
-`heroi-da-planta.spec.ts` confere isso a 412px (`window.__THREE__` indefinido).
+Nada, hoje. Se voltar a entrar, vale a regra que a cena da planta pagou: o
+módulo entra por `next/dynamic` atrás de `DesktopOnlyWebGl`
+(`(min-width: 1024px) and (pointer: fine)`), e a versão SEM WebGL é renderizada
+sempre, por baixo. Não é estética, é orçamento: o Lighthouse mede num viewport
+de 412px, e ali o chunk não pode nem ser pedido.
 
 `.campo-reativo` e `.grade-pontos` continuam no globals.css: outras seções do
-site ainda os usam, só o herói deixou de usar.
+site ainda os usam.
 
 ## Orçamento
 
@@ -220,69 +210,34 @@ Três regras ao mexer nela:
   `useState` é um render por quadro. Um listener passivo só, com o trabalho
   coalescido em `requestAnimationFrame`, resolve as três reações ao scroll.
 
-## O herói da raiz é uma cena de 300vh
+## O herói da raiz fala da EMPRESA
 
-"Da planta ao dinheiro na conta": uma casa em axonometria, em que cômodos são
-especificados, viram itens, montam uma proposta, a proposta é aprovada e o
-aplicativo avisa que a entrada caiu. Os dois produtos numa história só. Tudo em
-`_components/heroi/`, e três ideias sustentam o arquivo inteiro.
+"Começou dentro de uma empresa de verdade": a origem (a ProOps nasceu em
+novembro de 2025 dentro de uma operação que vende projeto) e o ciclo curto que
+é a consequência dela, desenhado como um anel entre quem usa e quem constrói,
+com os retratos dos sócios nas duas pontas
+(`_components/heroi/cena-do-ciclo.tsx`, servidor, sem JavaScript).
 
-**Um dado, uma função pura, dois renderizadores.**
+**A raiz já abriu com a cena da planta, do ambiente ao dinheiro no financeiro, e
+isso foi um erro de superfície.** A cena ficou boa e continua viva, na landing
+do ERP (`components/marketing/cena-planta/`). Aqui ela custava duas coisas:
 
-| Peça | O que é |
-|---|---|
-| `_content/cena-planta.ts` | a casa como dado: cômodos, paredes, móveis, janelas, itens em centavos, a proposta de exemplo |
-| `projecao.ts` | a isometria, pura: `projeta`, `desprojetaNoPiso`, a câmera e o frustum do three |
-| `desenho.ts` | a ordem de desenho do SVG, por ordenação topológica (o SVG não tem z-buffer) |
-| `roteiro.ts` | `estadoDaCena(p, realce)`: o que está na tela em cada ponto da rolagem, e `paraVariaveis`, o ÚNICO serializador para CSS |
-| `planta-svg.tsx` / `three/cena-3d.ts` | os dois renderizadores da mesma casa |
-| `camadas-da-cena.tsx` | a proposta, o pagamento e a mensagem, em HTML por cima dos dois |
-| `diretor.tsx` | liga rolagem e ponteiro ao roteiro, escrevendo variáveis na seção |
+1. respondia "como o sistema funciona", que é a pergunta de quem já está
+   avaliando o produto, e não de quem abriu o site da empresa;
+2. mostrava a ProOps pelo exemplo de UM nicho. Quem vende outro tipo de projeto
+   batia o olho e se excluía sozinho, que é a pior perda possível: não é
+   objeção, é mal-entendido.
 
-- **A câmera só faz zoom e pan.** Numa projeção ortográfica os dois são afins
-  em 2D, então o `transform` do SVG e o `OrthographicCamera` do three dão o
-  mesmo quadro por construção (`projecao.test.ts` confere contra o three).
-  Girar a câmera exigiria reprojetar o SVG por quadro, e ele existe justamente
-  para não ter JavaScript por quadro no celular.
-- **O código da proposta vem do produto** (`buildProposalCodePreview`), e todo
-  valor passa por um formatador só (`formataReais`): a bolha da mensagem não
-  tem como discordar da proposta.
+Daí também a seção "O seu segmento" (`institucional-segmento.tsx`), que separa
+o que já vem pronto do que é configurado. Ver "Cada assunto tem UM dono".
 
-**As regras 1 e 2 ficam de pé juntas pelo `<style>` gerado.**
-`estilo-da-cena.tsx` escreve, no servidor, `estadoDaCena(1)` como regra BASE e
-`estadoDaCena(0)` só dentro de `prefers-reduced-motion: no-preference`. Quem
-chega vê o começo da história no primeiro paint, sem JavaScript; quem pede menos
-movimento vê o quadro final composto (casa acesa, proposta aprovada, mensagem),
-e o bloco de movimento reduzido do globals.css tira a trilha de 300vh e empilha
-as camadas no fluxo. O diretor escreve as mesmas variáveis como estilo inline,
-que vence a regra, e as duas pontas saem da mesma função.
+Duas regras de quem mexer no herói da raiz:
 
-**O diretor começa tarde e não usa estado React.** O ScrollTrigger nasce no
-primeiro `idle` ou no primeiro gesto: o herói está na tela no load, e criá-lo
-ali cairia na janela que o Lighthouse mede. A rolagem passa por uma mola que
-para sozinha; a cada quadro só as variáveis que mudaram são escritas. O item da
-proposta É o chip que voa: o `<li>` repousa na linha dele e o diretor o desloca
-até o cômodo, medindo a posição de repouso por `offsetTop`/`offsetLeft` (que
-ignoram transform) no resize, nunca na rolagem. Por isso a folha não tem
-`opacity` própria: ela apagaria os chips junto.
-
-Armadilhas que custaram tempo aqui, todas silenciosas:
-
-- **`vector-effect: non-scaling-stroke` quebra o `pathLength`.** O tracejado
-  passa a ser medido na tela, e o traço que se desenha vira pontilhado para
-  sempre. As arestas da casa usam espessura em unidade do desenho.
-- **Faces do SVG são opacas.** A ordem de desenho é o z-buffer; uma face
-  translúcida mostra o que deveria esconder.
-- **O canvas do 3D é opaco e soma por `screen`**, porque o bloom não preserva
-  alfa. A mistura vai na CAIXA (`[data-casa]`), e não no canvas: o `translate`
-  da caixa a isola, e o palco (`sticky`, outro grupo isolado) precisa de fundo
-  sólido para ter com o que somar. Sem as duas coisas, retângulo preto.
-- **Número de luzes fixo no three.** Uma `PointLight` por cômodo, sempre, com
-  intensidade zero quando apagada; mudar a contagem recompila os programas e dá
-  tranco no meio da rolagem.
-- **A aba em segundo plano não roda `requestAnimationFrame`**, e o
-  `loopVisivel` pausa de propósito ali: numa automação de navegador com a aba
-  escondida, o 3D nunca fica "pronto". Use o Playwright para conferir o 3D.
+- **Todo atraso soma `--espera`**, que a `EsperaDaAbertura` escreve: a escada só
+  começa depois de as lâminas da abertura saírem, e numa volta por dentro do
+  site, onde a abertura não toca, ela começa na hora.
+- **O `<h1>` começa por "ProOps"** (num `sr-only`), e o E2E confere: é o que o
+  título da página diz primeiro para quem não vê a cena.
 
 ## O herói das sub-páginas: `HeroiPalco` e uma cena por página
 
@@ -341,6 +296,7 @@ tinha lido.
 | Números | a cena inteira | a raiz; `/sobre` não os repete |
 | Telas dos produtos | os dois painéis | `/produtos` (as capturas) |
 | Contrapartidas | nada | `/manifesto` (`CONTRAPARTIDAS`: `curto` na balança, `falta` e `porque` na seção) |
+| Segmento e nicho | a seção "O seu segmento" | a raiz; `/produtos` conta a origem e o que não está preso a ela |
 
 O modelo de conteúdo é que sustenta isso: `Principio` e `Marco` têm um campo
 `resumo` **separado** do `texto`, e cada campo tem uma superfície só. Ao
@@ -403,6 +359,14 @@ publicar dois números certos é melhor do que três com um enfeitado.
 
 Valem os dois guards de copy do projeto: nada de travessão como pontuação, e
 "a ProOps", sempre feminino.
+
+**A promessa de nicho aparece em quatro superfícies, e as quatro precisam
+concordar**: a seção "O seu segmento" aqui, a galeria de nichos da landing do
+ERP (`landing-niches.tsx`, com o terceiro cartão "O seu segmento"), a FAQ da
+landing (`_shared/faq-data.ts`) e a seção "De onde vem o ERP" de `/produtos`. O
+que pode ser dito como PRONTO é o que existe em `lib/niches/config.ts`, que hoje
+são dois; o resto é "configurado", e a diferença entre as duas palavras é o que
+separa promessa de mentira.
 
 ## Ao rodar localmente
 
