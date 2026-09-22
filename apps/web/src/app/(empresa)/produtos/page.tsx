@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 
-import { AssinaturaAparelhos } from "@/components/institucional/assinaturas-hero";
 import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
 import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
@@ -14,6 +13,7 @@ import { canonicalFor } from "@/lib/site/host-seo";
 import { APP_NAME } from "@/lib/site/app-brand";
 import { SITE_URLS, hostnameDe } from "@/lib/site/surfaces";
 
+import { HeroiAparelhos } from "./_components/heroi-aparelhos";
 import { LedgerRecursos } from "./_components/ledger-recursos";
 import { TelasDoAplicativo } from "./_components/telas-do-aplicativo";
 import { TelasDoErp } from "./_components/telas-do-erp";
@@ -54,11 +54,7 @@ export default function ProdutosPage() {
   return (
     <main>
       <HeroiPalco
-        cena={
-          <div className="hidden text-white/20 md:block">
-            <AssinaturaAparelhos />
-          </div>
-        }
+        cena={<HeroiAparelhos />}
         rotulo="Produtos"
         titulo={
           <>

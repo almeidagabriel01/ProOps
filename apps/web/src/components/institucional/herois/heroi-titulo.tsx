@@ -21,7 +21,7 @@ export function HeroiTitulo({
   return (
     <h1
       className={cn(
-        "[font-family:var(--font-bricolage)] text-[clamp(2.7rem,7.4vw,5.75rem)] font-extrabold leading-[0.94] tracking-[-0.045em] text-white",
+        "[font-family:var(--font-bricolage)] text-[clamp(2.6rem,5.6vw,4.75rem)] font-extrabold leading-[0.95] tracking-[-0.045em] text-white",
         className,
       )}
     >
