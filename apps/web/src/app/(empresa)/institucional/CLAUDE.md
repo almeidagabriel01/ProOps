@@ -36,7 +36,7 @@ Cada uma existe porque o projeto já pagou por ela.
 `.hero-enter` e `.hero-rise-line` (globals.css) tocam sozinhas no primeiro
 paint. Um `initial={{ opacity: 0 }}` do `motion` segura o texto do LCP invisível
 até o bundle hidratar, que num celular estrangulado é vários segundos. Vale para
-o herói da raiz e para o `PaginaHero` das sub-páginas.
+o herói da raiz e para o `HeroiPalco` das sub-páginas.
 
 Tocar sozinha tem um preço, e ele é pago em dois lugares:
 
@@ -101,14 +101,13 @@ nenhum type check pega.
 | `usePointerField` / `PointerFieldProvider` | escreve `--px`/`--py` no escopo |
 | `Magnetic`, `Marquee`, `ScrubCounter` | primitivas de interação |
 | `CurtainProvider` / `CurtainLink` | transição entre páginas |
-| `webgl/` | WebGL cru, sem dependência, só desktop |
+| `webgl/` | `DesktopOnlyWebGl`, `loopVisivel` e `criaQuad`: WebGL só no desktop |
+| `SemHidratar` | mantém o HTML do servidor sem hidratá-lo (o desenho da casa da raiz) |
 
-**Hoje o WebGL tem um consumidor só**: o campo de contorno atrás do herói da
-raiz. A distorção de imagem por velocidade de scroll, prevista para a faixa de
-pessoas, está de fora de propósito: ainda não há fotografia, e um shader de
-distorção sobre um monograma placeholder é construir a coisa errada. O ponto de
-extensão está pronto (`criaQuad` aceita a lista de extensões, `loopVisivel`
-pausa sozinho), e a hora é quando as fotos chegarem.
+**Hoje o WebGL tem um consumidor só**: a casa do herói da raiz, em three.js
+(`_components/heroi/three/`). O `criaQuad` ficou sem uso quando o campo de pontos
+saiu do herói, e continua ali como o ponto de extensão para um shader de tela
+cheia; o `loopVisivel` é usado pela casa.
 
 ### `useScrollProgress`: por que ele existe
 
@@ -139,18 +138,27 @@ dá linha cuja espessura é inversamente proporcional ao gradiente local, ou sej
 manchas onde o campo é liso. Dividir a distância até a dobra por `fwidth`
 converte para espaço de tela e todas as linhas saem com o mesmo peso.
 
-### O campo reativo, em três camadas
+### A casa da raiz, em três camadas
 
-1. `webgl/flow-field` — desktop com ponteiro fino, via `DesktopOnlyWebGl`
-2. `.campo-reativo` — dois glows em CSS lendo os mesmos `--px`/`--py`
-3. o estado parado, quando as variáveis ficam em 0 (reduced motion)
+1. **three.js** (`planta-3d.tsx`), só desktop com ponteiro fino, via
+   `DesktopOnlyWebGl`, por cima de
+2. **o SVG isométrico** (`planta-svg.tsx`), servido pronto e nunca hidratado,
+   que é o que o celular, um navegador sem WebGL e a corrida do Lighthouse veem;
+3. **o quadro final**, sob movimento reduzido: o mesmo SVG, com as variáveis do
+   fim da história e sem trilha de rolagem.
 
-A camada 2 é renderizada SEMPRE e a 1 vem por cima. Isso é o que faz um
-navegador sem WebGL, um celular e a corrida do Lighthouse degradarem sem flash.
+A camada 2 é renderizada SEMPRE e a 1 vem por cima. Quando o primeiro quadro do
+3D sai, a caixa ganha `data-webgl="pronto"` e o CSS apaga o desenho; se o
+contexto cair, o atributo sai e o desenho volta. As duas desenham a MESMA planta
+pela MESMA projeção, então a troca não se vê (ver "O herói da raiz", abaixo).
 
 **O gate `(min-width: 1024px) and (pointer: fine)` não é estética, é orçamento:**
 o Lighthouse mede num viewport de 412px, então o módulo nunca é importado ali e
-custa exatamente zero TBT na métrica que reprova o build.
+custa exatamente zero TBT na métrica que reprova o build. O E2E
+`heroi-da-planta.spec.ts` confere isso a 412px (`window.__THREE__` indefinido).
+
+`.campo-reativo` e `.grade-pontos` continuam no globals.css: outras seções do
+site ainda os usam, só o herói deixou de usar.
 
 ## Orçamento
 
@@ -212,60 +220,111 @@ Três regras ao mexer nela:
   `useState` é um render por quadro. Um listener passivo só, com o trabalho
   coalescido em `requestAnimationFrame`, resolve as três reações ao scroll.
 
-## O herói das sub-páginas ocupa a tela inteira
+## O herói da raiz é uma cena de 300vh
 
-`min-h-[100svh]`, sem variante curta. Um herói de 82svh deixa uma faixa da seção
-seguinte aparecendo no rodapé, e essa faixa é o que faz a abertura parecer um
-cabeçalho alto em vez de uma tela.
+"Da planta ao dinheiro na conta": uma casa em axonometria, em que cômodos são
+especificados, viram itens, montam uma proposta, a proposta é aprovada e o
+aplicativo avisa que a entrada caiu. Os dois produtos numa história só. Tudo em
+`_components/heroi/`, e três ideias sustentam o arquivo inteiro.
 
-Duas consequências que já foram medidas e não devem ser refeitas na mão:
+**Um dado, uma função pura, dois renderizadores.**
 
-- **A ficha é posicionada por baixo, fora do fluxo**, então o `pb` da seção é
-  quem reserva o espaço dela. No celular ela quebra em duas linhas, e com um
-  `pb` apertado a descrição encostava nela: daí o `pb-48 md:pb-36`. Mudou o
-  número de fatos ou o tamanho de um rótulo? Meça a folga a 393px.
-- **No celular a copia é centrada** (`justify-center md:justify-end`). A
-  assinatura só existe de `md` para cima, então numa tela estreita a composição
-  ancorada embaixo deixaria metade da tela vazia no topo, sem nada para ocupá-la.
+| Peça | O que é |
+|---|---|
+| `_content/cena-planta.ts` | a casa como dado: cômodos, paredes, móveis, janelas, itens em centavos, a proposta de exemplo |
+| `projecao.ts` | a isometria, pura: `projeta`, `desprojetaNoPiso`, a câmera e o frustum do three |
+| `desenho.ts` | a ordem de desenho do SVG, por ordenação topológica (o SVG não tem z-buffer) |
+| `roteiro.ts` | `estadoDaCena(p, realce)`: o que está na tela em cada ponto da rolagem, e `paraVariaveis`, o ÚNICO serializador para CSS |
+| `planta-svg.tsx` / `three/cena-3d.ts` | os dois renderizadores da mesma casa |
+| `camadas-da-cena.tsx` | a proposta, o pagamento e a mensagem, em HTML por cima dos dois |
+| `diretor.tsx` | liga rolagem e ponteiro ao roteiro, escrevendo variáveis na seção |
 
-A ficha em si começou como uma grade de células com borda, e duas células numa
-tela cheia são dois cartões vazios com um número dentro. Agora é uma linha só,
-número e palavra na mesma base, sobre um filete rente ao rodapé, no lugar onde um
-cartão de título de filme põe os créditos. **Rótulo curto**: ele fica ao lado do
-número, não embaixo, e "Protótipos: tudo aqui está no ar" quebrava a linha em
-três.
+- **A câmera só faz zoom e pan.** Numa projeção ortográfica os dois são afins
+  em 2D, então o `transform` do SVG e o `OrthographicCamera` do three dão o
+  mesmo quadro por construção (`projecao.test.ts` confere contra o three).
+  Girar a câmera exigiria reprojetar o SVG por quadro, e ele existe justamente
+  para não ter JavaScript por quadro no celular.
+- **O código da proposta vem do produto** (`buildProposalCodePreview`), e todo
+  valor passa por um formatador só (`formataReais`): a bolha da mensagem não
+  tem como discordar da proposta.
 
-## Cada herói de sub-página tem uma assinatura própria
+**As regras 1 e 2 ficam de pé juntas pelo `<style>` gerado.**
+`estilo-da-cena.tsx` escreve, no servidor, `estadoDaCena(1)` como regra BASE e
+`estadoDaCena(0)` só dentro de `prefers-reduced-motion: no-preference`. Quem
+chega vê o começo da história no primeiro paint, sem JavaScript; quem pede menos
+movimento vê o quadro final composto (casa acesa, proposta aprovada, mensagem),
+e o bloco de movimento reduzido do globals.css tira a trilha de 300vh e empilha
+as camadas no fluxo. O diretor escreve as mesmas variáveis como estilo inline,
+que vence a regra, e as duas pontas saem da mesma função.
 
-Os quatro heróis (`components/institucional/pagina-hero.tsx`) nasceram iguais:
-sobrancelha, título em linhas, parágrafo e a mesma marca gigante sangrando pela
-direita. Página a página funcionava; como conjunto, não: quem navega as quatro
-em sequência vê o mesmo cartão quatro vezes com as palavras trocadas.
+**O diretor começa tarde e não usa estado React.** O ScrollTrigger nasce no
+primeiro `idle` ou no primeiro gesto: o herói está na tela no load, e criá-lo
+ali cairia na janela que o Lighthouse mede. A rolagem passa por uma mola que
+para sozinha; a cada quadro só as variáveis que mudaram são escritas. O item da
+proposta É o chip que voa: o `<li>` repousa na linha dele e o diretor o desloca
+até o cômodo, medindo a posição de repouso por `offsetTop`/`offsetLeft` (que
+ignoram transform) no resize, nunca na rolagem. Por isso a folha não tem
+`opacity` própria: ela apagaria os chips junto.
 
-A marca saiu do herói das sub-páginas (ela continua sendo da raiz) e cada página
-passa um desenho do próprio assunto, em
-`components/institucional/assinaturas-hero.tsx`:
+Armadilhas que custaram tempo aqui, todas silenciosas:
 
-| Página | Assinatura | Composição |
+- **`vector-effect: non-scaling-stroke` quebra o `pathLength`.** O tracejado
+  passa a ser medido na tela, e o traço que se desenha vira pontilhado para
+  sempre. As arestas da casa usam espessura em unidade do desenho.
+- **Faces do SVG são opacas.** A ordem de desenho é o z-buffer; uma face
+  translúcida mostra o que deveria esconder.
+- **O canvas do 3D é opaco e soma por `screen`**, porque o bloom não preserva
+  alfa. A mistura vai na CAIXA (`[data-casa]`), e não no canvas: o `translate`
+  da caixa a isola, e o palco (`sticky`, outro grupo isolado) precisa de fundo
+  sólido para ter com o que somar. Sem as duas coisas, retângulo preto.
+- **Número de luzes fixo no three.** Uma `PointLight` por cômodo, sempre, com
+  intensidade zero quando apagada; mudar a contagem recompila os programas e dá
+  tranco no meio da rolagem.
+- **A aba em segundo plano não roda `requestAnimationFrame`**, e o
+  `loopVisivel` pausa de propósito ali: numa automação de navegador com a aba
+  escondida, o 3D nunca fica "pronto". Use o Playwright para conferir o 3D.
+
+## O herói das sub-páginas: `HeroiPalco` e uma cena por página
+
+`components/institucional/herois/`: `HeroiPalco` (a seção), `HeroiTitulo` e
+`LinhaHero` (o `<h1>` em linhas explícitas), `HeroiFicha` (a linha de créditos)
+e `SaidaDoHeroi` (o parallax de saída, a única parte com JavaScript). Os quatro
+heróis nasceram iguais, com uma "assinatura" trocada, e quem navegava as quatro
+em sequência via o mesmo cartão quatro vezes. Agora cada página passa uma CENA
+do próprio assunto, que ocupa espaço de verdade na composição, no celular
+inclusive:
+
+| Página | Cena | Onde |
 |---|---|---|
-| `/sobre` | os três retratos, dessaturados e dissolvendo | padrão |
-| `/manifesto` | um selo que se desenha | `alinhamento="centro"` |
-| `/produtos` | uma janela e um telefone em wireframe | padrão |
-| `/fale-conosco` | uma linha por canal, num ponto que pulsa | `altura="curta"` |
+| `/produtos` | uma placa que se divide na janela do ERP e no telefone do aplicativo, ligados por um fio | `produtos/_components/heroi-aparelhos.tsx`, CSS puro |
+| `/manifesto` | uma balança: os princípios num prato, as contrapartidas no outro, pendendo numa mola | `manifesto/_components/heroi-balanca.tsx` (`composicao="centro"`) |
+| `/sobre` | o histórico da empresa como `git log`, com o aplicativo num ramo que sai do ERP | `sobre/_components/heroi-git-log.tsx`, zero JS |
+| `/fale-conosco` | as três conversas já começadas; clicar numa escolhe o assunto do formulário | `fale-conosco/_components/heroi-conversas.tsx` + `canal-escolhido.ts` |
 
-Duas coisas ao acrescentar uma:
+Regras ao mexer:
 
-- **A animação é CSS** (`.traco-desenha`, `.pulso-no`, `.dica-desce`,
-  `.hero-enter`), nunca
-  `motion`. É a regra 1 desta página, e vale aqui inteira.
-- **Todo traço animado declara `pathLength={1}`**, senão o `stroke-dasharray`
-  teria que ser o comprimento real do caminho.
-
-E uma armadilha que não dá erro nenhum: **`.hero-enter` anima a propriedade
-`filter` com `animation-fill-mode: both`**, então ela fica escrita no elemento
-para sempre e apaga qualquer `filter` que uma classe do Tailwind tenha posto ali.
-Foi assim que os retratos do `/sobre` saíram coloridos com um `grayscale` bem
-visível no markup. Filtro vai num elemento FILHO do que carrega o `.hero-enter`.
+- **Tela cheia, sempre** (`min-h-[100svh]`). Um herói de 82svh deixa uma faixa
+  da seção seguinte no rodapé, e a abertura passa a parecer um cabeçalho alto.
+- **A ficha fica NO FLUXO**, empurrada para o rodapé por `mt-auto`. Ela já foi
+  posicionada por baixo com um `pb` grande reservando o espaço, e isso só
+  funcionava enquanto a altura do conteúdo era previsível; com uma cena de
+  verdade no herói, ela encostava na cena no celular. **Rótulo curto**: fica ao
+  lado do número, não embaixo.
+- **A entrada da cena é CSS**, com o estado final declarado no bloco de
+  movimento reduzido, e toda classe de entrada nova entra na regra de pausa
+  `html[data-heroi="espera"]` (guard: `site-da-empresa-uma-casca.test.ts`).
+  Keyframe que move um elemento que também inclina por ponteiro anima as
+  propriedades INDIVIDUAIS (`translate`, `rotate`, `scale`), e a inclinação
+  fica num filho, em `transform`: as duas compõem em vez de uma apagar a outra.
+- **Todo traço animado declara `pathLength={1}`.**
+- **A mola do JavaScript nunca vai no elemento da entrada CSS.** Uma animação
+  CSS vence o transform inline; a balança tem a entrada no wrapper e a mola na
+  viga, de dentro.
+- **`/sobre` não atribui marco a sócio.** Autoria de marco é fato que a página
+  não tem; o log mostra os três como contribuidores, com o papel tirado de
+  `PESSOAS`. Se um dia houver atribuição confirmada, ela entra em `Marco`.
+- **`.hero-enter` escreve `filter` no elemento** (`fill-mode: both`) e apaga
+  qualquer `filter` do Tailwind ali. Filtro vai num FILHO do que entra.
 
 ## Cada assunto tem UM dono
 
@@ -281,6 +340,7 @@ tinha lido.
 | Pessoas | nomes, papéis e formação | `/sobre` (retratos e falas) |
 | Números | a cena inteira | a raiz; `/sobre` não os repete |
 | Telas dos produtos | os dois painéis | `/produtos` (as capturas) |
+| Contrapartidas | nada | `/manifesto` (`CONTRAPARTIDAS`: `curto` na balança, `falta` e `porque` na seção) |
 
 O modelo de conteúdo é que sustenta isso: `Principio` e `Marco` têm um campo
 `resumo` **separado** do `texto`, e cada campo tem uma superfície só. Ao

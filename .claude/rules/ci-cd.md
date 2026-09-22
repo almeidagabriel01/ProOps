@@ -97,6 +97,9 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   ~380ms. O custo é das cenas dirigidas por scroll, **não** dos providers: tirar
   Auth/Tenant/Permissions/Plan da árvore (`SESSIONLESS_MARKETING_ROUTES`) derrubou
   `/aplicativo` de ~485 para **308** e não moveu a institucional.
+  Em 2026-09-22, com o herói novo da raiz (a casa em SVG servida sem hidratar,
+  o diretor da rolagem criado só no `idle`), ela mediu **287** contra **263** da
+  `/decoracao` na mesma rodada: de 1,29× para 1,09× a calibração.
   Nem o WebGL nem o three.js do herói entram nessa conta: os dois vêm por `next/dynamic`
   atrás de `(min-width: 1024px) and (pointer: fine)`, e o Lighthouse mede num viewport de
   412px, então nenhum dos dois chunks é sequer pedido na corrida que decide o gate. É esse
