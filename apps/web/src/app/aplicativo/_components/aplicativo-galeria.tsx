@@ -314,7 +314,7 @@ function CorpoDaGaleria() {
               o título ao lado respeitava a margem. */}
           <ul
             ref={trackRef}
-            className="landing-scrollbar mt-10 flex snap-x snap-mandatory scroll-px-6 gap-5 overflow-x-auto px-6 pb-8 [mask-image:linear-gradient(90deg,#000_calc(100%-2.5rem),transparent)] md:mt-10 md:w-max md:snap-none md:gap-8 md:overflow-visible md:px-[calc(50vw_-_7.5rem)] md:pb-0 md:[mask-image:none] lg:px-[calc(50vw_-_9.5rem)]"
+            className="landing-scrollbar mt-10 flex snap-x snap-mandatory scroll-px-6 gap-5 overflow-x-auto px-6 pb-5 [mask-image:linear-gradient(90deg,#000_calc(100%-2.5rem),transparent)] md:mt-10 md:w-max md:snap-none md:gap-8 md:overflow-visible md:px-[calc(50vw_-_7.5rem)] md:pb-0 md:[mask-image:none] lg:px-[calc(50vw_-_9.5rem)]"
           >
             {telas.map((tela, index) => (
               <li
@@ -372,8 +372,14 @@ function CorpoDaGaleria() {
 
           {/* Só no celular: no desktop a prateleira anda sozinha com a rolagem
               e não há gesto a ensinar. O número vem da lista, então ele não
-              mente se uma tela entrar ou sair. */}
-          <p className="-mt-4 px-6 text-xs text-[var(--app-text-muted)] md:hidden">
+              mente se uma tela entrar ou sair.
+
+              Fica INTEIRA abaixo da fileira, sem margem negativa. A barra de
+              rolagem do iOS e do Android é sobreposta: ela é desenhada dentro
+              da caixa que rola, colada à borda de baixo, por cima do padding.
+              Com a legenda puxada para dentro desse padding, a barra passava
+              por cima do texto sempre que o leitor arrastava. */}
+          <p className="mt-2 px-6 text-xs text-[var(--app-text-muted)] md:hidden">
             {telas.length} telas. Arraste para o lado.
           </p>
         </div>

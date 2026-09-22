@@ -425,9 +425,16 @@ for (const aparelho of APARELHOS) {
       // telas", que foi o relato.
       expect(medida.terceira).toBeLessThan(medida.janela - 16);
 
-      await expect(
-        page.getByText(/telas\. Arraste para o lado\./),
-      ).toBeVisible();
+      const legenda = page.getByText(/telas\. Arraste para o lado\./);
+      await expect(legenda).toBeVisible();
+      // A barra de rolagem do celular é sobreposta e desenhada dentro da caixa
+      // que rola, colada à borda de baixo. Com a legenda puxada para dentro
+      // dela por margem negativa, a barra passava por cima do texto.
+      const baseDoTrilho = (await trilho.boundingBox())!;
+      const caixaDaLegenda = (await legenda.boundingBox())!;
+      expect(caixaDaLegenda.y).toBeGreaterThanOrEqual(
+        baseDoTrilho.y + baseDoTrilho.height,
+      );
     });
 
     test("um dia qualquer cabe em duas telas, e as horas trocam o momento", async ({
