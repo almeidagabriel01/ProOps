@@ -97,9 +97,16 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   ~380ms. O custo é das cenas dirigidas por scroll, **não** dos providers: tirar
   Auth/Tenant/Permissions/Plan da árvore (`SESSIONLESS_MARKETING_ROUTES`) derrubou
   `/aplicativo` de ~485 para **308** e não moveu a institucional.
-  Em 2026-09-22, com o herói novo da raiz (a casa em SVG servida sem hidratar,
-  o diretor da rolagem criado só no `idle`), ela mediu **287** contra **263** da
-  `/decoracao` na mesma rodada: de 1,29× para 1,09× a calibração.
+  Em 2026-09-22 a institucional chegou a medir **287** contra **263** da
+  `/decoracao` na mesma rodada (1,09× a calibração), com a cena da casa como
+  herói. **Essa cena mudou de superfície no mesmo dia**: ela é a seção
+  "Conheça a plataforma" da landing do ERP, e a raiz da institucional abre com
+  uma cena leve (um anel em SVG com três retratos). Ou seja, o número acima já
+  não descreve nenhuma das duas páginas, e as medições seguintes na máquina de
+  desenvolvimento foram inúteis: a calibração oscilou entre 637 e 2273 na mesma
+  tarde, e metade das corridas do Chrome morreu sem métrica. **O CI é quem tem
+  que dar o número.** O que dá para afirmar da rodada local: o CLS da landing
+  com a cena é 0, que é o único portão de ERRO dessas duas rotas.
   Nem o WebGL nem o three.js do herói entram nessa conta: os dois vêm por `next/dynamic`
   atrás de `(min-width: 1024px) and (pointer: fine)`, e o Lighthouse mede num viewport de
   412px, então nenhum dos dois chunks é sequer pedido na corrida que decide o gate. É esse
