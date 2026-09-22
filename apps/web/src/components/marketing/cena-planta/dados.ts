@@ -1,18 +1,18 @@
 import { buildProposalCodePreview } from "@/lib/proposal-numbering";
 
 /**
- * A casa da cena de abertura da raiz, como DADO.
+ * A casa da cena da landing do ERP, como DADO.
  *
- * O herói conta a história dos dois produtos numa casa só: a equipe especifica
- * os cômodos, os cômodos viram itens, os itens montam a proposta, a proposta é
- * aprovada e o dinheiro entra. Três coisas leem este arquivo, e é por isso que
- * ele é dado e não markup:
+ * A cena conta o caminho do produto numa casa só: a equipe especifica os
+ * cômodos, os cômodos viram itens, os itens montam a proposta, o cliente
+ * assina e o pagamento nasce no financeiro. Três coisas leem este arquivo, e é
+ * por isso que ele é dado e não markup:
  *
- * - o renderizador SVG (`_components/heroi/planta-svg.tsx`), que é o que o
- *   celular, a corrida do Lighthouse e quem pede menos movimento veem;
- * - o renderizador three.js (`_components/heroi/planta-3d.tsx`), só desktop;
- * - o roteiro puro (`_components/heroi/roteiro.ts`), que diz o que cada um
- *   deles mostra em cada ponto da rolagem.
+ * - o renderizador SVG (`planta-svg.tsx`), que é o que o celular, a corrida do
+ *   Lighthouse e quem pede menos movimento veem;
+ * - o renderizador three.js (`planta-3d.tsx`), só desktop;
+ * - o roteiro puro (`roteiro.ts`), que diz o que cada um deles mostra em cada
+ *   ponto da rolagem.
  *
  * Com a mesma planta alimentando os dois renderizadores, o 3D pousa exatamente
  * em cima do SVG, e a troca de um pelo outro não se vê.
@@ -98,8 +98,6 @@ export const MOVEIS: readonly Movel[] = [
 
 export interface Item {
   id: string;
-  /** O que aparece no chip e na linha da proposta. */
-  rotulo: string;
   comodo: ComodoId;
   /** Inteiro, em centavos. Dinheiro nunca é número de ponto flutuante aqui. */
   centavos: number;
@@ -178,14 +176,88 @@ export const PAREDES: readonly Parede[] = [
  * redondos que se leem de relance numa cena que passa rolando.
  */
 export const ITENS: readonly Item[] = [
-  { id: "cortina-suite", rotulo: "Cortina blackout motorizada", comodo: "suite", centavos: 685_000, cortina: true },
-  { id: "persiana-quarto", rotulo: "Persiana rolô automatizada", comodo: "quarto", centavos: 342_000, cortina: true },
-  { id: "cena-sala", rotulo: "Cena de iluminação", comodo: "sala", centavos: 798_000, cortina: false },
-  { id: "cortina-sala", rotulo: "Cortina de linho motorizada", comodo: "sala", centavos: 589_000, cortina: true },
-  { id: "embutida-cozinha", rotulo: "Iluminação embutida", comodo: "cozinha", centavos: 276_000, cortina: false },
-  { id: "som-varanda", rotulo: "Som ambiente", comodo: "varanda", centavos: 410_000, cortina: false },
+  { id: "cortina-suite", comodo: "suite", centavos: 685_000, cortina: true },
+  { id: "persiana-quarto", comodo: "quarto", centavos: 342_000, cortina: true },
+  { id: "cena-sala", comodo: "sala", centavos: 798_000, cortina: false },
+  { id: "cortina-sala", comodo: "sala", centavos: 589_000, cortina: true },
+  { id: "embutida-cozinha", comodo: "cozinha", centavos: 276_000, cortina: false },
+  { id: "som-varanda", comodo: "varanda", centavos: 410_000, cortina: false },
 ];
 
+/**
+ * O MESMO projeto, escrito no vocabulário de três negócios diferentes.
+ *
+ * É a tese da página em forma de cena: o que muda de um nicho para o outro é o
+ * catálogo e as palavras, e não a base. Por isso o nicho troca só os RÓTULOS:
+ * os cômodos, os preços e as cortinas que descem são os mesmos, e a cena não
+ * precisa ser remontada quando alguém troca de aba.
+ *
+ * `marcenaria` está aqui de propósito, e é o ponto todo: ela não é um dos dois
+ * nichos configurados hoje (`lib/niches/config.ts`), é o exemplo de um nicho
+ * NOVO, adaptado para a operação de quem chega. Quem vende projeto e não vende
+ * automação nem cortina precisa se ver na página antes de acreditar na frase.
+ */
+export type NichoDaCena = "automacao" | "cortinas" | "marcenaria";
+
+export interface Nicho {
+  id: NichoDaCena;
+  /** O que a aba mostra. */
+  rotulo: string;
+  /** Uma linha, debaixo da cena. */
+  nota: string;
+  /** Um rótulo por item de `ITENS`, na mesma ordem. */
+  rotulos: readonly string[];
+}
+
+export const NICHOS: readonly Nicho[] = [
+  {
+    id: "automacao",
+    rotulo: "Automação residencial",
+    nota: "Catálogo, ambientes e proposta técnica: o pacote que já vem pronto.",
+    rotulos: [
+      "Cortina blackout motorizada",
+      "Persiana rolô automatizada",
+      "Cena de iluminação",
+      "Cortina de linho motorizada",
+      "Iluminação embutida",
+      "Som ambiente",
+    ],
+  },
+  {
+    id: "cortinas",
+    rotulo: "Cortinas e decoração",
+    nota: "Cálculo por medida, catálogo de tecidos: o outro pacote pronto.",
+    rotulos: [
+      "Cortina blackout, trilho motorizado",
+      "Persiana rolô dupla visão",
+      "Papel de parede",
+      "Cortina de linho, trilho suíço",
+      "Persiana romana",
+      "Tapete e almofadas sob medida",
+    ],
+  },
+  {
+    id: "marcenaria",
+    rotulo: "Marcenaria",
+    nota: "Um nicho novo: a ProOps configura catálogo, campos e etapas para ele.",
+    rotulos: [
+      "Armário planejado",
+      "Cabeceira ripada",
+      "Painel de TV",
+      "Estante sob medida",
+      "Bancada e torre quente",
+      "Deck e banco",
+    ],
+  },
+];
+
+export const NICHO_PADRAO: NichoDaCena = "automacao";
+
+export function nichoPorId(id: NichoDaCena): Nicho {
+  const nicho = NICHOS.find((n) => n.id === id);
+  if (!nicho) throw new Error(`Nicho desconhecido na cena: ${id}`);
+  return nicho;
+}
 /**
  * A proposta de exemplo. O código sai da MESMA função que a tela de
  * configuração da numeração usa (`lib/proposal-numbering.ts`), então o herói
@@ -207,9 +279,9 @@ const REAIS = new Intl.NumberFormat("pt-BR", {
 });
 
 /**
- * O único formatador de dinheiro da cena. A bolha da mensagem, as linhas da
- * proposta e a divisão em parcelas passam todas por aqui, e é isso que impede
- * que uma delas diga um valor que a outra não diz.
+ * O único formatador de dinheiro da cena. As linhas da proposta, o total e a
+ * divisão em parcelas passam todos por aqui, e é isso que impede que um deles
+ * diga um valor que o outro não diz.
  */
 export function formataReais(centavos: number): string {
   return REAIS.format(centavos / 100);
@@ -270,21 +342,13 @@ export type LayoutId = "largo" | "retrato";
  * têm tamanhos diferentes.
  */
 export interface Layout {
-  /**
-   * De onde a casa SOBE enquanto o texto sai. No retrato ela começa espiando
-   * por baixo do texto, e não atrás dele: numa tela estreita não há lado para
-   * ela ficar, e desenho passando por baixo de um parágrafo é ruído.
-   */
-  entrada: readonly [number, number];
   /** A casa se afasta para dar lugar à proposta. */
   casa: readonly [number, number];
   /** De onde a folha da proposta entra, relativo a onde ela repousa. */
   folha: readonly [number, number];
-  /** De onde a bolha da mensagem entra. */
-  mensagem: readonly [number, number];
 }
 
 export const LAYOUTS: Record<LayoutId, Layout> = {
-  largo: { entrada: [0, 0], casa: [-30, 0], folha: [48, 0], mensagem: [0, -16] },
-  retrato: { entrada: [0, 26], casa: [0, -24], folha: [0, 80], mensagem: [0, -14] },
+  largo: { casa: [-26, 0], folha: [48, 0] },
+  retrato: { casa: [0, -20], folha: [0, 80] },
 };

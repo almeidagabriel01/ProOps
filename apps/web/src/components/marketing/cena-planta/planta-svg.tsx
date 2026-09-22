@@ -7,7 +7,7 @@ import {
   type ComodoId,
   type Janela,
   type Retangulo,
-} from "../../_content/cena-planta";
+} from "./dados";
 import { OBJETOS, type Objeto } from "./desenho";
 import { matrizCss, matrizDaParede, matrizDoPiso, arredonda as r } from "./projecao";
 import { CAIXA } from "./roteiro";

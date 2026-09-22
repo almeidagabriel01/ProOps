@@ -16,7 +16,7 @@ import {
   formataReais,
   type ComodoId,
   type LayoutId,
-} from "../../_content/cena-planta";
+} from "./dados";
 import { comodoEm, daCaixaAoPiso, naCaixa } from "./projecao";
 import {
   CAIXA,

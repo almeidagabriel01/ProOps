@@ -1,21 +1,20 @@
 import React from "react";
 
-import { APP_NAME } from "@/lib/site/app-brand";
 import { cn } from "@/lib/utils";
 
 import {
   ITENS,
+  NICHOS,
   PAGAMENTO,
   PROPOSTA,
   TOTAL_CENTAVOS,
   comodoPorId,
   formataReais,
-} from "../../_content/cena-planta";
-import { HEROI_RAIZ } from "../../_content/institucional-copy";
+} from "./dados";
+import { LEGENDAS, TRILHO } from "./copy";
 
 /**
- * O que a cena escreve por cima da casa: a proposta, a divisão do pagamento e a
- * mensagem do aplicativo.
+ * O que a cena escreve por cima da casa: a proposta e a divisão do pagamento.
  *
  * HTML e não SVG nem three.js, de propósito. É texto de verdade, na fonte da
  * página, legível em qualquer escala e selecionável; e é o MESMO texto por
@@ -79,7 +78,19 @@ export function FolhaDaProposta() {
             <span data-rotulo="" className="cena-chip__rotulo relative w-fit">
               <span aria-hidden="true" className="cena-chip__pilula absolute -inset-x-2.5 -inset-y-1.5 rounded-full" />
               <span aria-hidden="true" className="cena-chip__luz absolute -left-[18px] top-1/2 size-1.5 -mt-[3px] rounded-full" />
-              <span className="relative block text-[12.5px] font-medium leading-tight">{item.rotulo}</span>
+              {/* Um rótulo por nicho, e o CSS mostra o do nicho ativo
+                  (`[data-nicho]` na seção). Trocar de nicho não remonta a cena
+                  nem mexe no DOM: é uma regra de CSS, e o chip que está voando
+                  continua voando. */}
+              {NICHOS.map((nicho) => (
+                <span
+                  key={nicho.id}
+                  data-rotulo-de={nicho.id}
+                  className="cena-chip__nome relative block text-[12.5px] font-medium leading-tight"
+                >
+                  {nicho.rotulos[i]}
+                </span>
+              ))}
               {/* No retrato a folha divide a tela com a casa, e o nome do
                   cômodo é a linha que sobra: o chip ainda aponta para ele. */}
               <span className="relative hidden text-[11px] leading-tight text-slate-500 min-[400px]:block lg:block">
@@ -153,31 +164,9 @@ export function DivisaoDoPagamento() {
   );
 }
 
-/**
- * A mensagem do aplicativo, no material DELE (`.app-theme`, o mesmo escopo da
- * landing do app): é o outro produto entrando na história, e ele tem cara
- * própria.
- */
-export function MensagemDoAplicativo() {
-  return (
-    <div className="app-theme cena-mensagem w-full max-w-[21rem] rounded-2xl border border-white/10 bg-[var(--app-surface)] p-4 text-[var(--app-text)] shadow-[0_30px_70px_-24px_rgb(0_0_0/0.9)]">
-      <div className="mb-2 flex items-center gap-2 text-[11.5px] text-[var(--app-text-muted)]">
-        <span aria-hidden="true" className="size-2 rounded-full bg-[var(--app-tint)]" />
-        <span className="font-semibold text-[var(--app-text)]">{APP_NAME}</span>
-        <span className="ml-auto">agora</span>
-      </div>
-      <p className="text-[14px] leading-snug">
-        Entrou{" "}
-        <span className="font-semibold text-[var(--app-tint)]">{formataReais(PAGAMENTO.entrada)}</span>, a
-        entrada da {PROPOSTA.cliente}. Registrei como receita de hoje.
-      </p>
-    </div>
-  );
-}
-
 /** Uma legenda por ato, e o trilho dos quatro atos embaixo delas. */
 export function LegendasDaCena() {
-  const atos = ["projeto", "proposta", "aprovada", "dinheiro"] as const;
+  const atos = ["projeto", "proposta", "aprovada", "financeiro"] as const;
   return (
     <div className="cena-legendas w-full max-w-[26rem]">
       <div className="relative min-h-[5.5rem] md:min-h-[6.75rem]">
@@ -188,7 +177,7 @@ export function LegendasDaCena() {
             className="cena-legenda absolute inset-x-0 top-0 [font-family:var(--font-bricolage)] text-xl font-semibold leading-snug tracking-tight text-white md:text-[1.6rem]"
             style={{ "--legenda": `var(--legenda-${ato})` } as React.CSSProperties}
           >
-            {HEROI_RAIZ.legendas[ato]}
+            {LEGENDAS[ato]}
           </p>
         ))}
       </div>
@@ -196,7 +185,7 @@ export function LegendasDaCena() {
         {atos.map((ato) => (
           <li key={ato} data-trilho={ato} className="cena-trilho flex flex-col gap-1.5">
             <span aria-hidden="true" className="cena-trilho__barra block h-px w-12 bg-white/15" />
-            <span className="text-white/40">{HEROI_RAIZ.trilho[ato]}</span>
+            <span className="text-white/40">{TRILHO[ato]}</span>
           </li>
         ))}
       </ol>

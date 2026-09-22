@@ -6,7 +6,7 @@ import {
   LARGURA_DA_CASA,
   PE_DIREITO,
   PROFUNDIDADE_DA_CASA,
-} from "../../../_content/cena-planta";
+} from "../dados";
 import {
   alvoDoQuadro,
   caixaDaCasa,

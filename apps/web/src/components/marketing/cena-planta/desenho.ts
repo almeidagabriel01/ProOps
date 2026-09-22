@@ -8,7 +8,7 @@ import {
   type Janela,
   type Parede,
   type Retangulo,
-} from "../../_content/cena-planta";
+} from "./dados";
 
 /**
  * O que a casa tem de volume, pronto para desenhar, NA ORDEM de desenho.

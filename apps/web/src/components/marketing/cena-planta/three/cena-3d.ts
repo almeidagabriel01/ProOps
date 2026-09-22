@@ -40,7 +40,7 @@ import {
   type ComodoId,
   type Janela,
   type Retangulo,
-} from "../../../_content/cena-planta";
+} from "../dados";
 import { caixaDaParede } from "../desenho";
 import { frustoOrtografico } from "../projecao";
 import { CAIXA, type EstadoDaCena } from "../roteiro";
@@ -291,7 +291,7 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
   const alvo = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4 });
   const composer = new EffectComposer(renderer, alvo);
   composer.addPass(new RenderPass(cena, camera));
-  const bloom = new UnrealBloomPass(new Vector2(1, 1), 0.85, 0.55, 0.9);
+  const bloom = new UnrealBloomPass(new Vector2(1, 1), 0.7, 0.38, 0.9);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 

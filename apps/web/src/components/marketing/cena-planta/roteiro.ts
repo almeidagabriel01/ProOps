@@ -9,7 +9,7 @@ import {
   centroDoComodo,
   type ComodoId,
   type LayoutId,
-} from "../../_content/cena-planta";
+} from "./dados";
 import {
   alvoDoQuadro,
   arredonda,
@@ -39,19 +39,23 @@ import {
  * testes em `__tests__/roteiro.test.ts` guardam essas três propriedades.
  */
 
-export type Ato = "repouso" | "projeto" | "proposta" | "aprovada" | "dinheiro";
+export type Ato = "repouso" | "projeto" | "proposta" | "aprovada" | "financeiro";
 
 /**
- * Os cinco atos, contíguos. O primeiro é curto de propósito: é a primeira dobra
- * parada, e quem chega já está nela. A história começa no primeiro gesto de
- * rolagem, e não depois de meia tela de nada acontecendo.
+ * Os cinco atos, contíguos. O primeiro é curto de propósito: a cena entra na
+ * tela parada, e a história começa no primeiro gesto de rolagem, não depois de
+ * meia tela de nada acontecendo.
+ *
+ * O último é o financeiro, e é onde a história TERMINA: esta cena vende o ERP,
+ * e o que ela precisa provar é que a proposta aprovada vira entrada e parcelas
+ * lançadas sozinhas. O aplicativo é outro produto, com página própria.
  */
 export const ATOS: readonly { id: Ato; de: number; ate: number }[] = [
   { id: "repouso", de: 0, ate: 0.08 },
   { id: "projeto", de: 0.08, ate: 0.42 },
-  { id: "proposta", de: 0.42, ate: 0.64 },
-  { id: "aprovada", de: 0.64, ate: 0.82 },
-  { id: "dinheiro", de: 0.82, ate: 1 },
+  { id: "proposta", de: 0.42, ate: 0.66 },
+  { id: "aprovada", de: 0.66, ate: 0.84 },
+  { id: "financeiro", de: 0.84, ate: 1 },
 ];
 
 /** A folga do quadro em volta da casa, em metros isométricos. */
@@ -72,8 +76,6 @@ export type Realce = Partial<Record<ComodoId, number>>;
 
 export interface EstadoDaCena {
   ato: Ato;
-  /** O quanto o texto do herói já saiu da frente. */
-  saidaDoTexto: number;
   /** Cada legenda, por ato. Só uma fica inteira de cada vez. */
   legendas: Record<Exclude<Ato, "repouso">, number>;
   luzes: Record<ComodoId, number>;
@@ -85,7 +87,6 @@ export interface EstadoDaCena {
   chips: { surge: number; voo: number; linha: number }[];
   proposta: { entrada: number; codigo: number; totalCentavos: number };
   pagamento: { assinatura: number; selo: number; divisao: number; partes: number[] };
-  mensagem: number;
 }
 
 const limita = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
@@ -107,7 +108,7 @@ const lerp2 = (a: Ponto2, b: Ponto2, t: number): Ponto2 => [
 export function atoEm(p: number): Ato {
   const q = limita(p);
   for (const ato of ATOS) if (q < ato.ate) return ato.id;
-  return "dinheiro";
+  return "financeiro";
 }
 
 /** Quando cada item é especificado, dentro do ato do projeto. */
@@ -186,12 +187,11 @@ export function estadoDaCena(p: number, realce: Realce = {}): EstadoDaCena {
 
   return {
     ato: atoEm(q),
-    saidaDoTexto: suave(trecho(q, 0.03, 0.12)),
     legendas: {
       projeto: Math.min(entra(0.1, 0.15), sai(0.39, 0.43)),
-      proposta: Math.min(entra(0.45, 0.49), sai(0.62, 0.66)),
-      aprovada: Math.min(entra(0.67, 0.71), sai(0.8, 0.84)),
-      dinheiro: entra(0.85, 0.89),
+      proposta: Math.min(entra(0.45, 0.49), sai(0.63, 0.67)),
+      aprovada: Math.min(entra(0.68, 0.72), sai(0.82, 0.86)),
+      financeiro: entra(0.86, 0.9),
     },
     luzes,
     cortinas,
@@ -204,14 +204,13 @@ export function estadoDaCena(p: number, realce: Realce = {}): EstadoDaCena {
       totalCentavos,
     },
     pagamento: {
-      assinatura: trecho(q, 0.66, 0.74),
-      selo: suave(trecho(q, 0.73, 0.76)),
-      divisao: suave(trecho(q, 0.74, 0.79)),
+      assinatura: trecho(q, 0.68, 0.76),
+      selo: suave(trecho(q, 0.75, 0.78)),
+      divisao: suave(trecho(q, 0.85, 0.9)),
       partes: [PAGAMENTO.entrada, ...PAGAMENTO.parcelas].map((_, i) =>
-        suave(trecho(q, 0.755 + i * 0.014, 0.79 + i * 0.014)),
+        suave(trecho(q, 0.87 + i * 0.016, 0.91 + i * 0.016)),
       ),
     },
-    mensagem: suave(trecho(q, 0.84, 0.91)),
   };
 }
 
@@ -229,11 +228,7 @@ const n = (valor: number) => String(arredonda(valor));
  */
 export function deslocamentoDaCasa(estado: EstadoDaCena, layout: LayoutId): [number, number] {
   const l = LAYOUTS[layout];
-  const fora = 1 - estado.saidaDoTexto;
-  return [
-    l.casa[0] * estado.recuoDaCasa + l.entrada[0] * fora,
-    l.casa[1] * estado.recuoDaCasa + l.entrada[1] * fora,
-  ];
+  return [l.casa[0] * estado.recuoDaCasa, l.casa[1] * estado.recuoDaCasa];
 }
 
 /** Quanto a coluna da proposta está fora do lugar dela, em `[cqw, cqh]`. */
@@ -259,12 +254,10 @@ export function paraVariaveis(
   estado: EstadoDaCena,
   layout: LayoutId,
 ): Record<string, string> {
-  const l = LAYOUTS[layout];
   const { tx, ty, escala } = transformaCamera(estado.camera, CAIXA);
   const casa = deslocamentoDaCasa(estado, layout);
   const folha = deslocamentoDaFolha(estado, layout);
   const v: Record<string, string> = {
-    "--texto-saida": n(estado.saidaDoTexto),
     "--cam-tx": n(tx),
     "--cam-ty": n(ty),
     "--cam-z": n(escala),
@@ -278,9 +271,6 @@ export function paraVariaveis(
     "--assinatura": n(estado.pagamento.assinatura),
     "--selo": n(estado.pagamento.selo),
     "--divisao": n(estado.pagamento.divisao),
-    "--mensagem": n(estado.mensagem),
-    "--mensagem-x": `${n(l.mensagem[0] * (1 - estado.mensagem))}cqw`,
-    "--mensagem-y": `${n(l.mensagem[1] * (1 - estado.mensagem))}cqh`,
   };
   for (const [ato, valor] of Object.entries(estado.legendas)) v[`--legenda-${ato}`] = n(valor);
   for (const comodo of COMODOS) {

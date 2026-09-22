@@ -1707,7 +1707,8 @@ html[data-heroi="espera"] .regua-desenha {
   );
 }
 
-/* O material dos heróis do site da empresa: uma casa à noite.
+/* O material de noite: os heróis do site da empresa e a cena da planta na
+   landing do ERP.
 
    O resto do site continua preto e branco; os heróis ganham luz própria, e ela
    vem do assunto e não de um enfeite. A cena da raiz é uma casa em que as luzes
@@ -1721,7 +1722,7 @@ html[data-heroi="espera"] .regua-desenha {
    escritas como `rgb(var(--x) / a)`. Não troque por `color-mix()` dentro de um
    gradiente: o Lightning CSS descarta a regra inteira no build (ver
    `.campo-app`, mais acima). */
-.heroi-noite {
+.superficie-noite {
   --noite: #0a0e14;
   --noite-alta: #121a26;
   --linha: 148 163 184;
@@ -1736,7 +1737,7 @@ html[data-heroi="espera"] .regua-desenha {
    afundando nos cantos. Estática de propósito, sem granulação animada: o
    movimento do herói é da cena, e qualquer coisa se mexendo no fundo competiria
    com ela. */
-.heroi-noite__luz {
+.superficie-noite__luz {
   background:
     radial-gradient(
       70rem 38rem at 62% -6%,
@@ -1776,36 +1777,40 @@ html[data-heroi="espera"] .regua-desenha {
 /* A casa: à direita no desktop, embaixo no retrato. */
 .cena-lugar-casa {
   align-items: center;
-  justify-content: flex-end;
-  padding-right: 2cqw;
+  justify-content: center;
+  padding-left: 6cqw;
 }
 .cena-casa {
   aspect-ratio: var(--aspecto);
-  width: min(60cqw, calc(80cqh * var(--aspecto)));
+  width: min(62cqw, calc(74cqh * var(--aspecto)));
   translate: var(--casa-x) var(--casa-y);
 }
 
-/* O texto da primeira dobra sai para cima quando a história começa. O
-   `visibility` evita que um link já invisível continue recebendo o Tab. */
-.cena-texto {
-  align-items: center;
-  pointer-events: none;
-  opacity: calc(1 - var(--texto-saida));
-  translate: 0 calc(var(--texto-saida) * -6cqh);
-}
-.cena-texto :is(a, button) {
-  pointer-events: auto;
-}
-[data-cena-planta]:is([data-ato="proposta"], [data-ato="aprovada"], [data-ato="dinheiro"])
-  .cena-texto {
-  visibility: hidden;
+/* As abas de nicho ficam no alto do palco, e continuam lá a cena inteira: dá
+   para trocar de negócio no meio da rolagem e ver a mesma proposta se
+   reescrever. */
+/* As abas ficam abaixo da barra fixa da landing: 5rem é a altura dela, e o
+   resto é respiro. */
+.cena-lugar-nichos {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: calc(5rem + 3cqh);
 }
 
 .cena-lugar-legendas {
   display: flex;
   align-items: flex-end;
   padding-bottom: 9cqh;
-  opacity: var(--texto-saida);
+}
+
+/* Um rótulo por nicho no HTML, e só o do nicho ativo na tela. */
+.cena-chip__nome {
+  display: none;
+}
+[data-nicho="automacao"] [data-rotulo-de="automacao"],
+[data-nicho="cortinas"] [data-rotulo-de="cortinas"],
+[data-nicho="marcenaria"] [data-rotulo-de="marcenaria"] {
+  display: block;
 }
 .cena-legenda {
   opacity: var(--legenda);
@@ -1820,13 +1825,13 @@ html[data-heroi="espera"] .regua-desenha {
 [data-ato="projeto"] [data-trilho="projeto"] .cena-trilho__barra,
 [data-ato="proposta"] [data-trilho="proposta"] .cena-trilho__barra,
 [data-ato="aprovada"] [data-trilho="aprovada"] .cena-trilho__barra,
-[data-ato="dinheiro"] [data-trilho="dinheiro"] .cena-trilho__barra {
+[data-ato="financeiro"] [data-trilho="financeiro"] .cena-trilho__barra {
   background-color: rgb(var(--tungstenio));
 }
 [data-ato="projeto"] [data-trilho="projeto"] span:last-child,
 [data-ato="proposta"] [data-trilho="proposta"] span:last-child,
 [data-ato="aprovada"] [data-trilho="aprovada"] span:last-child,
-[data-ato="dinheiro"] [data-trilho="dinheiro"] span:last-child {
+[data-ato="financeiro"] [data-trilho="financeiro"] span:last-child {
   color: rgb(255 255 255 / 0.9);
 }
 
@@ -1892,28 +1897,6 @@ html[data-heroi="espera"] .regua-desenha {
 .cena-parte {
   opacity: var(--parte);
   translate: calc((1 - var(--parte)) * 8px) 0;
-}
-
-/* A notificação do aplicativo desce do alto, por cima do canto da proposta. */
-.cena-lugar-mensagem {
-  top: 12cqh;
-  right: 3cqw;
-  width: min(21rem, 40cqw);
-  opacity: var(--mensagem);
-  translate: var(--mensagem-x) var(--mensagem-y);
-}
-
-/* A gota da dica de rolagem: o único loop da primeira dobra. */
-@keyframes cena-gota {
-  from {
-    transform: translateY(-100%);
-  }
-  to {
-    transform: translateY(270%);
-  }
-}
-.cena-dica__gota {
-  animation: cena-gota 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 /* O desenho da casa. Faces opacas, e não translúcidas: num SVG a ordem de
@@ -2015,6 +1998,16 @@ html[data-heroi="espera"] .regua-desenha {
   mix-blend-mode: screen;
 }
 
+/* A borda do canvas some numa máscara. O bloom espalha luz até a beirada do
+   quadro, e um canvas que termina em linha reta desenha um retângulo mais claro
+   por cima do palco: o que se vê não é a casa, é a moldura dela. */
+.cena-canvas {
+  mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent),
+    linear-gradient(to bottom, transparent, black 7%, black 93%, transparent);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
+}
+
 /* O desktop troca o desenho pelo three.js quando o canvas fica pronto. */
 [data-casa][data-webgl="pronto"] [data-planta] {
   opacity: 0;
@@ -2040,15 +2033,14 @@ html[data-heroi="espera"] .regua-desenha {
     width: min(94cqw, calc(44cqh * var(--aspecto)));
     opacity: calc(1 - var(--recuo) * 0.7);
   }
-  .cena-texto {
-    align-items: flex-start;
-    padding-top: 7.5rem;
-  }
   /* No retrato a proposta ocupa a tela, e a legenda por baixo dela seria
      texto atrás de texto: ela narra o projeto e sai quando a folha entra. */
   .cena-lugar-legendas {
     padding-bottom: 5cqh;
-    opacity: calc(var(--texto-saida) * (1 - var(--folha)));
+    opacity: calc(1 - var(--folha));
+  }
+  .cena-lugar-nichos {
+    padding-top: calc(4.5rem + 2cqh);
   }
   .cena-lugar-folha {
     top: 13cqh;
@@ -2059,14 +2051,6 @@ html[data-heroi="espera"] .regua-desenha {
     max-width: 24rem;
     margin-inline: auto;
     justify-content: flex-start;
-  }
-  .cena-lugar-mensagem {
-    top: calc(4.75rem + 1cqh);
-    left: 1.25rem;
-    right: 1.25rem;
-    width: auto;
-    max-width: 21rem;
-    margin-inline: auto;
   }
 }
 
@@ -2089,17 +2073,16 @@ html[data-heroi="espera"] .regua-desenha {
     padding: 8rem 0 5rem;
   }
   .cena-lugar-casa,
-  .cena-texto,
-  .cena-lugar-folha,
-  .cena-lugar-mensagem {
+  .cena-lugar-nichos,
+  .cena-lugar-folha {
     position: static;
     translate: none;
     opacity: 1;
     visibility: visible;
   }
-  .cena-texto {
+  .cena-lugar-nichos {
     order: 1;
-    padding-top: 0;
+    padding: 0 1.25rem;
   }
   .cena-lugar-casa {
     order: 2;
@@ -2116,17 +2099,8 @@ html[data-heroi="espera"] .regua-desenha {
     width: min(24rem, calc(100% - 2.5rem));
     margin-inline: auto;
   }
-  .cena-lugar-mensagem {
-    order: 4;
-    width: min(21rem, calc(100% - 2.5rem));
-    margin-inline: auto;
-  }
   .cena-lugar-legendas {
     display: none;
-  }
-  .cena-dica__gota {
-    animation: none;
-    transform: translateY(90%);
   }
 }
 
@@ -2229,6 +2203,31 @@ html[data-heroi="espera"] :is(.aparelhos-placa, .aparelhos-janela, .aparelhos-te
     scale: none;
   }
   .aparelhos-gota {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* A raiz do site da empresa: o anel do ciclo curto, com uma gota correndo nele.
+   Devagar de propósito: é o único movimento contínuo da primeira dobra, e ele
+   existe para o desenho se ler como ciclo, não para chamar atenção. */
+@keyframes ciclo-gota {
+  from {
+    stroke-dashoffset: 0.08;
+  }
+  to {
+    stroke-dashoffset: -0.92;
+  }
+}
+.ciclo-gota {
+  stroke-dasharray: 0.08 1;
+  animation: ciclo-gota 7s linear calc(var(--espera, 0s) + 2s) infinite;
+}
+html[data-heroi="espera"] .ciclo-gota {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ciclo-gota {
     animation: none;
     opacity: 0;
   }

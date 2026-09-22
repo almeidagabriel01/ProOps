@@ -1,6 +1,6 @@
 import React from "react";
 
-import { LARGO_QUERY } from "../../_content/cena-planta";
+import { LARGO_QUERY } from "./dados";
 import {
   ESTADO_FINAL,
   declaracoes,

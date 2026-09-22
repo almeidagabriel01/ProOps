@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { COMODOS, ITENS, TOTAL_CENTAVOS } from "../../../_content/cena-planta";
+import { COMODOS, ITENS, TOTAL_CENTAVOS } from "../dados";
 import {
   ATOS,
   CAMERA_DE_REPOUSO,
@@ -16,14 +16,12 @@ const AMOSTRAS = Array.from({ length: 1001 }, (_, i) => i / 1000);
 /** Todo número que é uma revelação, com um nome legível para a mensagem de erro. */
 function revelacoes(e: EstadoDaCena): [string, number][] {
   const lista: [string, number][] = [
-    ["saidaDoTexto", e.saidaDoTexto],
     ["recuoDaCasa", e.recuoDaCasa],
     ["proposta.entrada", e.proposta.entrada],
     ["proposta.codigo", e.proposta.codigo],
     ["assinatura", e.pagamento.assinatura],
     ["selo", e.pagamento.selo],
     ["divisao", e.pagamento.divisao],
-    ["mensagem", e.mensagem],
   ];
   for (const c of COMODOS) {
     lista.push([`luz.${c.id}`, e.luzes[c.id]], [`cortina.${c.id}`, e.cortinas[c.id]]);
@@ -83,7 +81,7 @@ describe("roteiro da cena", () => {
       expect(atoEm((ato.de + ato.ate) / 2)).toBe(ato.id);
       expect(atoEm(ato.de)).toBe(ato.id);
     }
-    expect(atoEm(1)).toBe("dinheiro");
+    expect(atoEm(1)).toBe("financeiro");
   });
 
   it("cada coisa acontece no ato que a nomeia", () => {
@@ -108,8 +106,8 @@ describe("roteiro da cena", () => {
     expect(inicio((e) => e.pagamento.assinatura)).toBeGreaterThan(totalFechado);
     expect(inicio((e) => e.pagamento.assinatura)).toBeGreaterThanOrEqual(ato("aprovada").de);
     expect(fim((e) => e.pagamento.assinatura)).toBeLessThanOrEqual(inicio((e) => e.pagamento.divisao));
-    // A mensagem só depois da aprovação.
-    expect(inicio((e) => e.mensagem)).toBeGreaterThanOrEqual(ato("dinheiro").de);
+    // A divisão do pagamento é o último ato, e só depois da assinatura.
+    expect(inicio((e) => e.pagamento.divisao)).toBeGreaterThanOrEqual(ato("financeiro").de);
   });
 
   it("o total cresce linha a linha até R$ 31.000,00", () => {
@@ -169,11 +167,9 @@ describe("roteiro da cena", () => {
     }
   });
 
-  it("no fim, nada fica fora do lugar: folha e mensagem em repouso", () => {
+  it("no fim, nada fica fora do lugar: a folha em repouso", () => {
     const v = paraVariaveis(ESTADO_FINAL, "largo");
     expect(v["--folha-x"]).toBe("0cqw");
     expect(v["--folha-y"]).toBe("0cqh");
-    expect(v["--mensagem-x"]).toBe("0cqw");
-    expect(v["--mensagem-y"]).toBe("0cqh");
   });
 });

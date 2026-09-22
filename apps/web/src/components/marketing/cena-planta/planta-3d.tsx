@@ -90,7 +90,7 @@ export default function Planta3d({ aoVivo }: Planta3dProps) {
       aria-hidden="true"
       width={0}
       height={0}
-      className="pointer-events-none absolute inset-0 h-full w-full"
+      className="cena-canvas pointer-events-none absolute inset-0 h-full w-full"
     />
   );
 }

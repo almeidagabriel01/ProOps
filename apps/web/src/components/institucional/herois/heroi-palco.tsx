@@ -47,7 +47,7 @@ interface HeroiPalcoProps {
  *   verdade na composição, no celular inclusive: ela deixou de ser textura
  *   sangrando pela borda, escondida abaixo de `md`.
  *
- * O material é `.heroi-noite` (globals.css), o mesmo do herói da raiz: as
+ * O material é `.superficie-noite` (globals.css), o mesmo do herói da raiz: as
  * quatro páginas e a raiz se leem como um site só pela luz, e não por um
  * elemento repetido.
  */
@@ -67,11 +67,11 @@ export function HeroiPalco({
     <HeroiSecao
       rotulo={rotulo}
       className={cn(
-        "heroi-noite relative isolate flex min-h-[100svh] flex-col overflow-hidden px-6 pb-9 pt-32 md:px-10 md:pb-11 md:pt-40",
+        "superficie-noite relative isolate flex min-h-[100svh] flex-col overflow-hidden px-6 pb-9 pt-32 md:px-10 md:pb-11 md:pt-40",
         className,
       )}
     >
-      <div aria-hidden="true" className="heroi-noite__luz pointer-events-none absolute inset-0" />
+      <div aria-hidden="true" className="superficie-noite__luz pointer-events-none absolute inset-0" />
 
       <div
         className={cn(

@@ -349,27 +349,60 @@ export const CANAIS: Canal[] = [
 
 
 /**
- * O herói da raiz: uma proposta acompanhada do cômodo ao dinheiro na conta.
+ * O herói da raiz: a empresa, e não o produto.
  *
- * As legendas são uma por ato da cena (`_components/heroi/roteiro.ts`) e só uma
- * aparece de cada vez; a do trilho é a palavra curta do mesmo ato. Os números da
- * cena (itens, valores, código) não moram aqui: moram em `cena-planta.ts`,
- * porque são dado que o desenho e a conta leem, não frase.
+ * O site institucional fala da ProOps; quem mostra o ERP funcionando é a landing
+ * dele. Por isso a primeira dobra daqui conta a ORIGEM (o sistema nasceu dentro
+ * de uma empresa que vende projeto, e dois dos três sócios escrevem o código) e
+ * diz, na mesma tela, que o nicho não é a fronteira: quem vende projeto cabe
+ * aqui, e o que falta a ProOps configura.
  */
 export const HEROI_RAIZ = {
-  titulo: ["Da planta", "ao dinheiro", "na conta."],
-  lead: "A ProOps faz software de gestão para a empresa que vende projeto, e para a pessoa por trás dela.",
-  dica: "Role e acompanhe uma proposta, do cômodo ao pagamento.",
-  legendas: {
-    projeto: "Cada cômodo que a equipe especifica vira um item, com preço.",
-    proposta: "Os itens montam a proposta sozinhos, com o código e o total certos.",
-    aprovada: "O cliente assina, e a entrada e as parcelas já nascem no financeiro.",
-    dinheiro: "E o aplicativo avisa, por mensagem, quando o dinheiro entra.",
-  },
-  trilho: {
-    projeto: "Projeto",
-    proposta: "Proposta",
-    aprovada: "Aprovada",
-    dinheiro: "Na conta",
+  titulo: ["Começou dentro", "de uma empresa", "de verdade."],
+  lead: "A ProOps nasceu em novembro de 2025 dentro de uma empresa que vende projeto, para resolver um problema que aparecia toda semana na mesa ao lado. Virou produto depois de provado no uso, e dois dos três sócios escrevem o código.",
+  ciclo: {
+    usa: { titulo: "Quem usa", texto: "A operação que vende projeto todo dia." },
+    constroi: { titulo: "Quem constrói", texto: "Os mesmos sócios, no código e na reunião." },
+    meio: "Sem camada no meio",
   },
 } as const;
+
+/**
+ * Os segmentos que já vêm configurados no produto, e o estado de cada um.
+ *
+ * Espelha `lib/niches/config.ts`, que é a fonte do que o sistema realmente
+ * tem hoje. Ao ligar um nicho novo lá, ele entra aqui; até lá, a página não
+ * pode prometer que ele existe.
+ */
+export const NICHOS_PRONTOS = [
+  { rotulo: "Automação residencial", estado: "pronto" },
+  { rotulo: "Cortinas e decoração", estado: "pronto" },
+] as const;
+
+/**
+ * O que muda de um segmento para o outro. É a parte verificável da frase "a
+ * ProOps adapta-se ao seu nicho": sem esta lista, ela é só uma promessa
+ * simpática, e quem está decidindo não tem o que conferir.
+ */
+export const O_QUE_SE_CONFIGURA = [
+  {
+    titulo: "O catálogo",
+    texto:
+      "Os produtos e serviços que a sua empresa vende, com as unidades que ela usa: peça, metro, metro quadrado ou hora.",
+  },
+  {
+    titulo: "A proposta",
+    texto:
+      "Os campos que o seu orçamento precisa ter, o modelo do PDF e a forma de calcular o preço de cada linha.",
+  },
+  {
+    titulo: "As etapas",
+    texto:
+      "O funil com os estágios que existem no seu negócio, do primeiro contato à obra entregue, e não um padrão genérico.",
+  },
+  {
+    titulo: "As palavras",
+    texto:
+      "O vocabulário das telas: ambiente, sistema, projeto ou obra. O sistema fala como a sua equipe fala.",
+  },
+] as const;

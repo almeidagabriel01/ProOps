@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   COMODOS,
   ITENS,
+  NICHOS,
   LARGURA_DA_CASA,
   PAGAMENTO,
   PAREDES,
@@ -12,7 +13,7 @@ import {
   divisaoDoPagamento,
   formataReais,
   type Parede,
-} from "../../../_content/cena-planta";
+} from "../dados";
 
 /** Uma borda de cômodo está coberta se alguma parede colinear a contém. */
 function coberta(eixo: "x" | "z", fixo: number, de: number, ate: number, paredes: readonly Parede[]) {
@@ -45,9 +46,21 @@ describe("cena-planta", () => {
     expect(parcelas[2]).toBeGreaterThanOrEqual(parcelas[0]);
   });
 
-  it("o formatador dá o valor que a bolha da mensagem mostra", () => {
+  it("o formatador dá o valor que a proposta mostra", () => {
     // O Intl põe um espaço inseparável entre o símbolo e o número.
     expect(formataReais(PAGAMENTO.entrada).replace(/\s/g, " ")).toBe("R$ 12.400,00");
+  });
+
+  it("cada nicho reescreve os MESMOS itens, um rótulo por item", () => {
+    expect(NICHOS.length).toBeGreaterThanOrEqual(2);
+    for (const nicho of NICHOS) {
+      expect(nicho.rotulos, nicho.id).toHaveLength(ITENS.length);
+      for (const rotulo of nicho.rotulos) expect(rotulo.trim().length).toBeGreaterThan(2);
+      // Rótulo repetido dentro do mesmo nicho vira duas linhas iguais na
+      // proposta, e o leitor lê como erro do sistema.
+      expect(new Set(nicho.rotulos).size, nicho.id).toBe(nicho.rotulos.length);
+    }
+    expect(new Set(NICHOS.map((n) => n.id)).size).toBe(NICHOS.length);
   });
 
   it("todo item pertence a um cômodo, e toda cortina tem janela", () => {

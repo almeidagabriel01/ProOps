@@ -1,4 +1,4 @@
-import type { Comodo, ComodoId } from "../../_content/cena-planta";
+import type { Comodo, ComodoId } from "./dados";
 
 /**
  * A projeção isométrica da cena, pura e compartilhada.

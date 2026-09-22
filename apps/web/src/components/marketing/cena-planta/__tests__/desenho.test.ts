@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { COMODOS, MOVEIS, PAREDES } from "../../../_content/cena-planta";
+import { COMODOS, MOVEIS, PAREDES } from "../dados";
 import { OBJETOS, atras, caixaDaParede } from "../desenho";
 
 describe("ordem de desenho da casa", () => {
