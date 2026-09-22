@@ -67,7 +67,7 @@ export default function SobrePage() {
             <LinhaHero atraso={0.27}>o código.</LinhaHero>
           </>
         }
-        descricao="Não há camada entre quem atende e quem constrói. O que você conta numa reunião chega, na mesma semana, em quem tem a mão no produto."
+        descricao="Não há camada entre quem atende e quem constrói. O que você conta numa reunião chega, na mesma semana, em quem tem a mão no produto, seja qual for o segmento da sua empresa."
         // Os rostos, antes de qualquer palavra sobre eles. É o assunto desta
         // página, e a faixa de pessoas logo abaixo é que os nomeia.
         cena={<HeroiGitLog />}
