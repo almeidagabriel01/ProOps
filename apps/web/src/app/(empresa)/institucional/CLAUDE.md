@@ -212,11 +212,31 @@ Três regras ao mexer nela:
 
 ## O herói da raiz fala da EMPRESA
 
-"Começou dentro de uma empresa de verdade": a origem (a ProOps nasceu em
-novembro de 2025 dentro de uma operação que vende projeto) e o ciclo curto que
-é a consequência dela, desenhado como um anel entre quem usa e quem constrói,
-com os retratos dos sócios nas duas pontas
-(`_components/heroi/cena-do-ciclo.tsx`, servidor, sem JavaScript).
+"Software de gestão para quem vende projeto": o título responde PARA QUEM a
+ProOps faz software, e o lead conta a origem (novembro de 2025, dentro de uma
+operação que vende projeto). Ao lado, o mural
+(`_components/heroi/mural-de-segmentos.tsx`, servidor, sem JavaScript): uma
+grade com os negócios que vendem projeto, uma luz percorrendo célula a célula,
+e a última, pontilhada, sendo "o seu".
+
+O mural é tipografia fazendo trabalho de ilustração, e é de propósito: é a
+resposta mais direta à pergunta que faz alguém fechar a aba na primeira tela,
+"isto serve para o meu negócio?". Quem já vem pronto está marcado como tal, e o
+resto é "configurado", a mesma distinção da seção "O seu segmento", pelo mesmo
+motivo (ver "Texto", no fim).
+
+A luz é UM keyframe (`.mural-acende`) com atraso proporcional por célula, então
+acrescentar um segmento em `SEGMENTOS` não pede nada no CSS. Duas coisas que
+parecem detalhe e não são: a volta ao apagado tem parada própria em 13% (sem
+ela a interpolação desfaz o acendimento ao longo do ciclo inteiro, e metade do
+mural fica meio acesa o tempo todo, o que se lê como células de brilho
+diferente, não como luz passando); e ela acende com `box-shadow: inset`, não
+com `background`, porque o fundo da célula é o da seção.
+
+**As heros são PRETO E BRANCO.** `.superficie-noite` é monocromática: `--noite`,
+`--noite-alta`, `--papel` e `--luz` (branco), que é o token que qualquer realce
+usa. Uma versão anterior tinha luz de tungstênio e ardósia azulada; ficava bom
+isolado e não era a marca. Cor entra só onde é conteúdo, não decoração.
 
 **A raiz já abriu com a cena da planta, do ambiente ao dinheiro no financeiro, e
 isso foi um erro de superfície.** A cena ficou boa e continua viva, na landing

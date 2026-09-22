@@ -45,7 +45,7 @@ export function InstitucionalSegmento() {
               <span className="ml-2 text-white/40">{nicho.estado}</span>
             </li>
           ))}
-          <li className="rounded-full border border-dashed border-[rgb(var(--tungstenio)/0.55)] px-4 py-2 text-sm text-[rgb(var(--tungstenio))]">
+          <li className="rounded-full border border-dashed border-[rgb(var(--luz)/0.55)] px-4 py-2 text-sm text-[rgb(var(--luz))]">
             O seu
             <span className="ml-2 text-white/45">configurado</span>
           </li>

@@ -200,13 +200,13 @@ export function PlantaSvg({ className }: { className?: string }) {
     >
       <defs>
         <radialGradient id={ID_LUZ}>
-          <stop offset="0" stopColor="rgb(255 196 138)" stopOpacity="0.85" />
-          <stop offset="0.35" stopColor="rgb(255 176 102)" stopOpacity="0.38" />
-          <stop offset="1" stopColor="rgb(255 176 102)" stopOpacity="0" />
+          <stop offset="0" stopColor="rgb(255 255 255)" stopOpacity="0.9" />
+          <stop offset="0.35" stopColor="rgb(255 255 255)" stopOpacity="0.34" />
+          <stop offset="1" stopColor="rgb(255 255 255)" stopOpacity="0" />
         </radialGradient>
         <pattern id={ID_PREGAS} width="0.22" height="1" patternUnits="userSpaceOnUse">
-          <rect width="0.22" height="1" fill="rgb(203 213 225)" fillOpacity="0.2" />
-          <rect x="0.14" width="0.08" height="1" fill="rgb(15 23 42)" fillOpacity="0.35" />
+          <rect width="0.22" height="1" fill="rgb(229 229 229)" fillOpacity="0.22" />
+          <rect x="0.14" width="0.08" height="1" fill="rgb(0 0 0)" fillOpacity="0.4" />
         </pattern>
       </defs>
 

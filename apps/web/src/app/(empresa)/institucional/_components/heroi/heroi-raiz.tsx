@@ -1,6 +1,6 @@
 import React from "react";
 
-import { CenaDoCiclo } from "./cena-do-ciclo";
+import { MuralDeSegmentos } from "./mural-de-segmentos";
 import { EsperaDaAbertura } from "./espera-da-abertura";
 import { TextoDoHeroi } from "./texto-do-heroi";
 
@@ -9,9 +9,8 @@ import { TextoDoHeroi } from "./texto-do-heroi";
  *
  * Ele fala da EMPRESA, e é a diferença que separa esta superfície da landing do
  * ERP: aqui não entra tela de produto nem fluxo de proposta. A primeira dobra
- * conta de onde a ProOps veio (de dentro de uma operação que vende projeto) e
- * mostra o ciclo curto que é a consequência disso, com os rostos de quem usa e
- * de quem constrói nas duas pontas.
+ * diz para quem a ProOps faz software, e o mural ao lado mostra a extensão
+ * disso, do segmento que já vem pronto ao que ainda vai ser configurado.
  *
  * Uma versão anterior abria com a cena da planta, do ambiente especificado ao
  * dinheiro na conta. Ela ficou boa e está viva: mudou de endereço, para a
@@ -30,16 +29,16 @@ export function HeroiRaiz() {
   return (
     <EsperaDaAbertura
       aria-label="ProOps"
-      className="superficie-noite relative isolate flex min-h-[100svh] flex-col justify-center overflow-hidden px-6 py-28 md:px-10 md:py-32"
+      className="superficie-noite relative isolate flex min-h-[100svh] flex-col justify-center overflow-hidden px-6 py-24 md:px-10 md:py-32"
     >
       <div aria-hidden="true" className="superficie-noite__luz pointer-events-none absolute inset-0" />
 
-      <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-14 lg:grid-cols-12 lg:gap-12">
+      <div className="relative z-10 mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-12 lg:gap-12">
         <div className="lg:col-span-7">
           <TextoDoHeroi />
         </div>
         <div className="lg:col-span-5">
-          <CenaDoCiclo />
+          <MuralDeSegmentos />
         </div>
       </div>
     </EsperaDaAbertura>

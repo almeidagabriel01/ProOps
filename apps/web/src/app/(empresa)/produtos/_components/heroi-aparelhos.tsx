@@ -52,7 +52,7 @@ export function HeroiAparelhos() {
           className="aparelhos-gota"
           pathLength={1}
           d="M330 258C330 350 380 382 446 382"
-          stroke="rgb(var(--tungstenio))"
+          stroke="rgb(var(--luz))"
           strokeWidth="2.4"
           strokeLinecap="round"
         />

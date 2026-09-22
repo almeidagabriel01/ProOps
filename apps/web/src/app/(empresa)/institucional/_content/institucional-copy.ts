@@ -352,20 +352,44 @@ export const CANAIS: Canal[] = [
  * O herói da raiz: a empresa, e não o produto.
  *
  * O site institucional fala da ProOps; quem mostra o ERP funcionando é a landing
- * dele. Por isso a primeira dobra daqui conta a ORIGEM (o sistema nasceu dentro
- * de uma empresa que vende projeto, e dois dos três sócios escrevem o código) e
- * diz, na mesma tela, que o nicho não é a fronteira: quem vende projeto cabe
- * aqui, e o que falta a ProOps configura.
+ * dele. A primeira dobra daqui diz para QUEM a empresa faz software, e o mural
+ * ao lado responde, sem prosa, a pergunta que faz alguém fechar a aba: "isto
+ * serve para o meu negócio?".
+ *
+ * `SEGMENTOS` não é uma lista de nichos atendidos, e o rótulo embaixo do mural
+ * diz isso: dois vêm prontos (os que existem em `lib/niches/config.ts`), o resto
+ * é configurado. Acrescentar um nome aqui é dizer que aquele negócio vende
+ * projeto, e não que ele já tem pacote.
  */
 export const HEROI_RAIZ = {
-  titulo: ["Começou dentro", "de uma empresa", "de verdade."],
-  lead: "A ProOps nasceu em novembro de 2025 dentro de uma empresa que vende projeto, para resolver um problema que aparecia toda semana na mesa ao lado. Virou produto depois de provado no uso, e dois dos três sócios escrevem o código.",
-  ciclo: {
-    usa: { titulo: "Quem usa", texto: "A operação que vende projeto todo dia." },
-    constroi: { titulo: "Quem constrói", texto: "Os mesmos sócios, no código e na reunião." },
-    meio: "Sem camada no meio",
+  titulo: ["Software de gestão", "para quem vende", "projeto."],
+  lead: "A ProOps nasceu em novembro de 2025 dentro de uma empresa que vende projeto, e virou produto depois de provada no uso diário. Dois segmentos já vêm prontos; para o resto, a gente configura.",
+  mural: {
+    rotulo: "Quem vende projeto",
+    nota: "Dois já vêm prontos. Para o resto, catálogo, proposta e etapas são configurados.",
+    seu: "o seu",
   },
 } as const;
+
+export interface Segmento {
+  nome: string;
+  /** Só é `true` o que existe configurado no produto hoje. */
+  pronto?: boolean;
+}
+
+export const SEGMENTOS: Segmento[] = [
+  { nome: "Automação residencial", pronto: true },
+  { nome: "Cortinas e decoração", pronto: true },
+  { nome: "Marcenaria" },
+  { nome: "Paisagismo" },
+  { nome: "Piscinas" },
+  { nome: "Energia solar" },
+  { nome: "Climatização" },
+  { nome: "Reforma" },
+  { nome: "Vidraçaria" },
+  { nome: "Luminotécnica" },
+  { nome: "Cenografia" },
+];
 
 /**
  * Os segmentos que já vêm configurados no produto, e o estado de cada um.

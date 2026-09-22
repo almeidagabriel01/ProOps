@@ -70,7 +70,7 @@ import { CAIXA, type EstadoDaCena } from "../roteiro";
  *   página, que é exatamente o que uma cena noturna quer.
  */
 
-const TUNGSTENIO = new Color("#ffb066");
+const LUZ = new Color("#fff6ec");
 
 /**
  * O que a cena alocou na GPU, para devolver no fim. Por instância, e não de
@@ -118,7 +118,7 @@ function caixa(
  */
 function materialDaCortina(guarda: Guarda, tempo: { value: number }): MeshStandardMaterial {
   const material = new MeshStandardMaterial({
-    color: "#d8dee8",
+    color: "#e8e8e8",
     roughness: 0.95,
     metalness: 0,
     side: DoubleSide,
@@ -185,7 +185,7 @@ function janelaNaParede(
 
   const vidro = new Mesh(
     guarda(new PlaneGeometry(largura, altura)),
-    guarda(new MeshStandardMaterial({ color: "#0b1422", roughness: 0.2, metalness: 0.4 })),
+    guarda(new MeshStandardMaterial({ color: "#0a0a0a", roughness: 0.2, metalness: 0.4 })),
   );
   aplica(vidro, 0.004, janela.peitoril + altura / 2);
   grupo.add(vidro);
@@ -224,13 +224,13 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
   const materialDaFace = (cor: string) =>
     guarda(new MeshStandardMaterial({ color: cor, roughness: 0.86, metalness: 0 }));
   const aresta = guarda(
-    new LineBasicMaterial({ color: "#94a3b8", transparent: true, opacity: 0.5 }),
+    new LineBasicMaterial({ color: "#d4d4d4", transparent: true, opacity: 0.5 }),
   );
 
   // A luz da noite: o bastante para a casa apagada se ler como o desenho do
   // SVG, e pouco o bastante para o tungstênio de um cômodo aceso ganhar dela.
-  cena.add(new HemisphereLight("#9fb3d4", "#0a0e14", 1.5));
-  const lua = new DirectionalLight("#b4c6e6", 1.1);
+  cena.add(new HemisphereLight("#e5e5e5", "#070707", 1.5));
+  const lua = new DirectionalLight("#f5f5f5", 1.1);
   lua.position.set(-6, 14, 4);
   cena.add(lua);
 
@@ -242,15 +242,15 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
     const [x0, z0, x1, z1] = comodo.retangulo;
     const piso = new Mesh(
       guarda(new BoxGeometry(x1 - x0, 0.02, z1 - z0)),
-      materialDaFace(comodo.id === "varanda" ? "#141a22" : "#10161f"),
+      materialDaFace(comodo.id === "varanda" ? "#151515" : "#101010"),
     );
     piso.position.set((x0 + x1) / 2, -0.01, (z0 + z1) / 2);
     casa.add(piso);
   }
 
-  const parede = materialDaFace("#1a2231");
-  const mureta = materialDaFace("#1d2636");
-  const movel = materialDaFace("#243044");
+  const parede = materialDaFace("#1c1c1c");
+  const mureta = materialDaFace("#202020");
+  const movel = materialDaFace("#2b2b2b");
   const comCortina = new Set(ITENS.filter((i) => i.cortina).map((i) => i.comodo));
   const cortinas: Cortina[] = [];
 
@@ -275,12 +275,12 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
   );
   for (const comodo of COMODOS) {
     const [x, z] = comodo.luz;
-    const material = guarda(new MeshBasicMaterial({ color: "#3a3024" }));
+    const material = guarda(new MeshBasicMaterial({ color: "#2e2e2e" }));
     const lampada = new Mesh(esfera, material);
     lampada.position.set(x, 1.93, z);
     const cabo = new LineSegments(fio, aresta);
     cabo.position.set(x, 0, z);
-    const luz = new PointLight(TUNGSTENIO, 0, 8, 1.2);
+    const luz = new PointLight(LUZ, 0, 8, 1.2);
     luz.position.set(x, 1.8, z);
     casa.add(lampada, cabo, luz);
     lampadas.push({ comodo: comodo.id, luz, material });
@@ -296,7 +296,7 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
   composer.addPass(new OutputPass());
 
   const lampadaAcesa = new Color();
-  const lampadaApagada = new Color("#3a3024");
+  const lampadaApagada = new Color("#2e2e2e");
 
   return {
     desenha(estado, segundos) {
@@ -316,7 +316,7 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
         const acesa = estado.luzes[comodo];
         luz.intensity = acesa * 16;
         // Acima de 1 de propósito: é isso que passa do limiar do bloom.
-        lampadaAcesa.copy(TUNGSTENIO).multiplyScalar(1 + acesa * 5);
+        lampadaAcesa.copy(LUZ).multiplyScalar(1 + acesa * 5);
         material.color.lerpColors(lampadaApagada, lampadaAcesa, acesa);
       }
       for (const { comodo, pivo } of cortinas) {

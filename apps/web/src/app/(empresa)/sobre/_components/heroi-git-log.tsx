@@ -85,7 +85,7 @@ export function HeroiGitLog() {
         </figcaption>
 
         <p aria-hidden="true" className="mt-4 [font-family:var(--font-geist-mono)] text-[12px] text-white/40">
-          <span className="text-[rgb(var(--tungstenio))]">$</span> git log --graph
+          <span className="text-[rgb(var(--luz))]">$</span> git log --graph
         </p>
 
         <div className="relative mt-2">
@@ -112,7 +112,7 @@ export function HeroiGitLog() {
                 className="traco-desenha"
                 pathLength={1}
                 d={`M${TRILHA[0]} ${meio(ramo + 1)}C${TRILHA[0]} ${meio(ramo + 1) - LINHA * 0.55} ${TRILHA[1]} ${meio(ramo) + LINHA * 0.45} ${TRILHA[1]} ${meio(ramo)}`}
-                stroke="rgb(var(--tungstenio) / 0.85)"
+                stroke="rgb(var(--luz) / 0.85)"
                 strokeWidth="1.5"
                 style={{ "--traco-delay": "1.35s", "--traco-dur": "0.6s" } as React.CSSProperties}
               />
@@ -124,8 +124,8 @@ export function HeroiGitLog() {
                 cy={meio(i)}
                 r={4.5}
                 className="hero-enter"
-                fill={commit.trilha === 1 ? "rgb(var(--tungstenio))" : "var(--noite-alta)"}
-                stroke={commit.trilha === 1 ? "rgb(var(--tungstenio))" : "rgb(var(--linha) / 0.9)"}
+                fill={commit.trilha === 1 ? "rgb(var(--luz))" : "var(--noite-alta)"}
+                stroke={commit.trilha === 1 ? "rgb(var(--luz))" : "rgb(var(--linha) / 0.9)"}
                 strokeWidth="1.5"
                 style={{ "--hero-delay": `${0.45 + (COMMITS.length - 1 - i) * 0.28}s`, "--hero-y": "0px" } as React.CSSProperties}
               />
@@ -156,7 +156,7 @@ export function HeroiGitLog() {
                       className={cn(
                         "shrink-0 rounded-full border px-1.5 py-px [font-family:var(--font-geist-mono)] text-[10.5px]",
                         commit.ramo === "aplicativo"
-                          ? "border-[rgb(var(--tungstenio)/0.6)] text-[rgb(var(--tungstenio))]"
+                          ? "border-[rgb(var(--luz)/0.6)] text-[rgb(var(--luz))]"
                           : "border-white/25 text-white/65",
                       )}
                     >

@@ -130,7 +130,7 @@ export function FolhaDaProposta() {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            <path d="M2 36H150" stroke="rgb(148 163 184)" strokeWidth="1" />
+            <path d="M2 36H150" stroke="rgb(163 163 163)" strokeWidth="1" />
           </svg>
           <span className="cena-selo rounded-[6px] border-[1.5px] border-slate-800 px-2 py-0.5 text-[11px] font-bold tracking-wide text-slate-800">
             Aprovada

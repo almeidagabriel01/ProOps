@@ -28,7 +28,7 @@ function depois(segundos: number): string {
 export function TextoDoHeroi() {
   return (
     <div className="max-w-2xl">
-      <h1 className="[font-family:var(--font-bricolage)] text-[clamp(2.25rem,5.1vw,4.4rem)] font-extrabold leading-[0.95] tracking-[-0.05em] text-white">
+      <h1 className="[font-family:var(--font-bricolage)] text-[clamp(2.1rem,4.4vw,3.8rem)] font-extrabold leading-[0.95] tracking-[-0.05em] text-white">
         <span className="sr-only">ProOps: </span>
         {HEROI_RAIZ.titulo.map((linha, i) => (
           <LinhaHero key={linha} atraso={depois(i * 0.09)}>
