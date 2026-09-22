@@ -30,7 +30,14 @@ import { test, expect } from "@playwright/test";
  * bastante para ninguém fazer.
  */
 const PORTA = process.env.E2E_PORT ?? 3001;
-const APEX = `http://localhost:${PORTA}`;
+/**
+ * O apex, localmente: `proops.localhost`, que está em `APEX_HOSTS`.
+ *
+ * Não é `localhost`. Depois da virada `localhost` serve o ERP, como todo host
+ * que não é o apex (previews incluídos), porque o E2E inteiro do projeto entra
+ * por ele; e o apex passou a ser a página da empresa.
+ */
+const APEX = `http://proops.localhost:${PORTA}`;
 const APP = `http://app.localhost:${PORTA}`;
 const ERP = `http://erp.localhost:${PORTA}`;
 
@@ -77,12 +84,37 @@ test.describe("SUPERFICIES-01: host routing", () => {
     expect(page.url()).not.toContain("/auth/refresh");
   });
 
-  test("the apex still serves the ERP, unchanged", async ({ page }) => {
-    // The guard that this whole phase is additive. It must keep passing until
-    // the cutover flips APEX_SURFACE, and must be updated in the same commit
-    // that flips it.
+  test("the apex serves the company site at the root", async ({ page }) => {
+    // A virada: a raiz do apex é a página da empresa, por rewrite, e o endereço
+    // continua sendo `/` (um redirect aqui viraria navegação).
     await page.goto(`${APEX}/`);
-    await expect(page).toHaveTitle(/ERP|ProOps/);
+    expect(new URL(page.url()).pathname).toBe("/");
+    await expect(page).toHaveTitle(
+      "ProOps: software de gestão para quem vende projeto",
+    );
+  });
+
+  /**
+   * Todo caminho do ERP no apex vai com 301 para o subdomínio, com a query.
+   * O destino é a PRODUÇÃO (`SITE_URLS.erp`), então ele é interceptado aqui:
+   * o teste confirma para onde o navegador foi mandado sem nunca tocar nela.
+   */
+  test("the apex sends ERP paths to erp.proops.com.br", async ({ page }) => {
+    await page.route("https://erp.proops.com.br/**", (rota) =>
+      rota.fulfill({ status: 200, contentType: "text/html", body: "erp" }),
+    );
+    for (const caminho of ["/login?next=%2Fdashboard", "/decoracao"]) {
+      await page.goto(`${APEX}${caminho}`);
+      expect(page.url()).toBe(`https://erp.proops.com.br${caminho}`);
+    }
+  });
+
+  // O guard do defeito que a virada revelou: com o fallback antigo, todo host
+  // desconhecido recebia a superfície do apex, e `localhost/login` passaria a
+  // responder 301 para a produção.
+  test("localhost keeps serving the ERP, with no redirect", async ({ page }) => {
+    await page.goto(`http://localhost:${PORTA}/`);
+    expect(new URL(page.url()).host).toBe(`localhost:${PORTA}`);
     await expect(
       page.getByRole("link", { name: /entrar/i }).first(),
     ).toBeAttached();
@@ -140,15 +172,13 @@ test.describe("SUPERFICIES-01: host routing", () => {
     }
   });
 
-  test("robots.txt closes the duplicate hosts and opens the apex", async ({
-    page,
-  }) => {
-    expect(await buscaNoHost(page, APEX, "/robots.txt")).toContain("Allow: /");
-
-    for (const host of [APP, ERP]) {
+  // Antes da virada os subdomínios eram duplicatas do apex e fechavam tudo.
+  // Depois cada host tem conteúdo próprio, e os três abrem a raiz.
+  test("robots.txt opens all three hosts", async ({ page }) => {
+    for (const host of [APEX, APP, ERP]) {
       const corpo = await buscaNoHost(page, host, "/robots.txt");
-      expect(corpo).toContain("Disallow: /\n");
-      expect(corpo).not.toContain("Allow: /");
+      expect(corpo).toContain("Allow: /");
+      expect(corpo).not.toContain("Disallow: /\n");
     }
   });
 
@@ -157,8 +187,13 @@ test.describe("SUPERFICIES-01: host routing", () => {
     expect(doApp).toContain("<loc>https://app.proops.com.br/</loc>");
     expect(doApp).not.toContain("automacao-residencial");
 
+    // O conteúdo comercial do ERP mudou de endereço junto com ele.
+    const doErp = await buscaNoHost(page, ERP, "/sitemap.xml");
+    expect(doErp).toContain("automacao-residencial");
+
     const doApex = await buscaNoHost(page, APEX, "/sitemap.xml");
-    expect(doApex).toContain("automacao-residencial");
+    expect(doApex).toContain("/sobre");
+    expect(doApex).not.toContain("automacao-residencial");
   });
 });
 

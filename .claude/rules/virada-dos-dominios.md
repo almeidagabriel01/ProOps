@@ -1,10 +1,37 @@
 # A virada dos domínios (fase 9)
 
 O dia em que `proops.com.br` deixa de servir o ERP e passa a servir a página da
-empresa. Todo o código já está escrito e testado; o que falta é **uma linha e um
-checklist de consoles**.
+empresa. **Feita em 2026-09-21** (`APEX_SURFACE` = `"institucional"`). O que
+segue fica como registro e como roteiro do rollback.
 
-Enquanto `APEX_SURFACE` for `"erp"`, nada aqui está ativo.
+## Dois defeitos que só a virada revelou
+
+Os dois estavam no código desde a fase aditiva e eram invisíveis enquanto o
+apex servia o ERP, porque ali "a superfície do apex" e "o ERP" eram a mesma
+coisa. Ficam registrados porque o mesmo raciocínio vale para qualquer
+superfície nova.
+
+1. **Todo host desconhecido recebia a superfície do apex.** Isso incluía
+   `localhost` e todas as URLs de preview da Vercel. Com a constante virada,
+   `localhost:3000/login` e o login de todo preview passariam a responder 301
+   para `erp.proops.com.br`, a PRODUÇÃO, e o E2E inteiro do CI, que entra por
+   `localhost`, iria junto. Hoje só `APEX_HOSTS` (`proops.com.br`,
+   `www.proops.com.br` e o substituto local `proops.localhost`) recebem a
+   superfície do apex; o resto serve o ERP. O destino da conta free
+   (`erpHomeUrl`) também passou a depender da superfície do host, pelo mesmo
+   motivo.
+2. **A raiz reescrita entrava nos provedores de sessão.** `providers.tsx`
+   decidia "sem sessão" só pelo caminho, e sob rewrite a raiz é `/`. Ir de
+   `/sobre` para `/` trocava a árvore acima do layout da empresa, o React o
+   montava de novo, e a cortina de transição ficava parada cobrindo a tela.
+   Hoje `isSessionlessPage` (`lib/auth/route-access.ts`) olha o host quando o
+   caminho é `/`. O mesmo defeito já afetava `app.proops.com.br/` antes da
+   virada, numa navegação para a raiz.
+
+**Para testar o apex localmente, use `proops.localhost:3000`**, e não
+`localhost`: depois da virada `localhost` é o ERP. Os specs do site da empresa
+(`institucional/`, `mobile/indice-empresa`) e o `superficies/host-routing` já
+fazem isso.
 
 ---
 
@@ -180,13 +207,20 @@ algo pode estar errado, porque no dia sobram só três coisas.
       variável de build.
 
 - [ ] **Google Cloud Console → tela de consentimento OAuth → página inicial:**
-      trocar para `https://erp.proops.com.br`, **nos dois projetos**. Na virada
+      trocar para `https://erp.proops.com.br`, **nos dois projetos**. ⚠️ Salve
+      só no dia (bloco C), junto com a política de privacidade e os termos no
+      apex: cada salvamento da marca pode disparar uma nova verificação. Hoje
+      ela fica em Google Auth Platform → Branding
+      (`console.cloud.google.com/auth/branding?project=<id>`). Na virada
       o apex passa a mostrar a página da empresa, que não descreve o uso da
       Agenda nem do Drive, e a verificação do Google exige que a página inicial
       cadastrada descreva o aplicativo. A política de privacidade não muda:
       `/privacy` fica no apex (`APEX_LEGAL_PATHS`).
 - [ ] **Vercel → Domains: tornar `proops.com.br` o domínio principal**, com
-      `www.proops.com.br` redirecionando para ele em **308**. Hoje é o contrário
+      `www.proops.com.br` redirecionando para ele em **308**. ⚠️ **NÃO faça isto
+      antes do dia** (vai no bloco C): trocar a origem principal desloga todo
+      mundo que usa o ERP em `www`, e a virada desloga de novo ao mandar o ERP
+      para `erp`. Feito na mesma janela, a base entra de novo uma vez só. Hoje é o contrário
       (o apex responde **307** para o `www`), enquanto todo canonical, sitemap e
       dado estruturado do código usa `https://proops.com.br` (`APEX_URL`). Ou
       seja, o canonical aponta para um redirect TEMPORÁRIO, que é o sinal mais
@@ -211,12 +245,12 @@ em `"erp"`, isto não muda nada para quem usa: os clientes continuam em
 `www.proops.com.br`, `erp` é uma cópia `noindex` do ERP e `app` é a landing do
 aplicativo, também `noindex`.
 
-- [ ] **1. Vercel → Domains: mover `erp.proops.com.br` e `app.proops.com.br`**
+- [x] **1. Vercel → Domains: mover `erp.proops.com.br` e `app.proops.com.br`**
       do preview da branch para **Production**. É este passo, e não desligar
       proteção nenhuma, que os torna públicos.
-- [ ] **2. Conferir de fora** (`curl -sI`): os dois respondem 200 com
+- [x] **2. Conferir de fora** (`curl -sI`): os dois respondem 200 com
       `X-Robots-Tag: noindex`.
-- [ ] **3. `CORS_ALLOWED_ORIGINS`** em `apps/functions/.env.erp-softcode-prod`:
+- [x] **3. `CORS_ALLOWED_ORIGINS`** em `apps/functions/.env.erp-softcode-prod`:
       **acrescentar** `https://erp.proops.com.br`, sem tirar o `www`. Atualizar o
       secret `FUNCTIONS_ENV_PRODUCTION` e rodar `npm run deploy:prod`. É
       aditivo: o backend passa a aceitar os dois domínios enquanto só um está em
@@ -230,6 +264,10 @@ aplicativo, também `noindex`.
       `develop` e, de lá, para `main`.
 - [ ] **2. Esperar o deploy de Production da Vercel terminar** e conferir que
       `www.proops.com.br/` mostra a página da empresa.
+- [ ] **2b. Vercel → Domains:** primeiro `proops.com.br` → *Connect to an
+      environment: Production*; depois `www.proops.com.br` → *Redirect to
+      Another Domain* → `proops.com.br`, **308**. Nesta ordem, para os dois nunca
+      redirecionarem um para o outro.
 - [ ] **3. Só agora: `APP_URL` → `https://erp.proops.com.br`** em
       `apps/functions/.env.erp-softcode-prod`, atualizar o secret
       `FUNCTIONS_ENV_PRODUCTION` e rodar `npm run deploy:prod`. Sem o deploy a
@@ -246,6 +284,10 @@ aplicativo, também `noindex`.
 > para um domínio que já serve Production.** Depois do bloco B isso já vale,
 > mas trocá-lo antes da virada espalharia o re-login pela base aos poucos, em
 > vez de concentrá-lo no dia avisado.
+
+- [ ] **4. Google Auth Platform → Branding**, num salvamento só: página inicial
+      `https://erp.proops.com.br`, política `https://proops.com.br/privacy`,
+      termos `https://proops.com.br/terms`, nos dois projetos.
 
 ### D. Depois
 

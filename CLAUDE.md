@@ -173,7 +173,7 @@ Detalhes em `apps/functions/src/lib/CLAUDE.md`.
 
 | Host | O que serve |
 |---|---|
-| `proops.com.br` | hoje o ERP; a página institucional depois da virada |
+| `proops.com.br` | a página institucional (desde a virada) |
 | `erp.proops.com.br` | o ERP: landing, login e área logada |
 | `app.proops.com.br` | a landing do aplicativo mobile |
 

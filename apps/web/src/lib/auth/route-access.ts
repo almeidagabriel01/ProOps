@@ -15,6 +15,8 @@
  * is additionally enforced by `__tests__/route-access.test.ts`.
  */
 
+import { resolveSurface } from "@/lib/site/surfaces";
+
 /**
  * Public MARKETING pages: reachable with NO auth AND rendered without the ERP
  * shell / `<ProtectedRoute>`. This is the subset shared with `providers.tsx`.
@@ -127,6 +129,30 @@ export const SESSIONLESS_MARKETING_ROUTES = [
 
 export function isSessionlessMarketingRoute(pathname: string): boolean {
   return matchesExactOrPrefix(pathname, SESSIONLESS_MARKETING_ROUTES);
+}
+
+/**
+ * Se a página renderiza sem sessão, olhando também o HOST quando o caminho é
+ * a raiz.
+ *
+ * A raiz é a única rota reescrita por host (`proxy.ts`), e sob rewrite o
+ * caminho que a página vê é o do navegador: `/`. Decidindo só pelo caminho, a
+ * raiz de `app.proops.com.br` e, depois da virada, a de `proops.com.br`
+ * entravam nos provedores de sessão, o oposto do que essas páginas são. No
+ * site da empresa o efeito era visível: ir de `/sobre` (sem sessão) para `/`
+ * (com sessão) trocava a árvore acima do layout da empresa, o React o montava
+ * de novo, e a cortina de transição morria no meio, cobrindo a tela.
+ *
+ * `host` nulo (no servidor) mantém a regra antiga para `/`. O HTML dessas
+ * raízes já vem da página sem sessão pré-renderizada (`/institucional`,
+ * `/aplicativo`), então a hidratação no cliente, que tem o host, bate com ele.
+ */
+export function isSessionlessPage(
+  pathname: string,
+  host: string | null,
+): boolean {
+  if (isSessionlessMarketingRoute(pathname)) return true;
+  return pathname === "/" && host !== null && resolveSurface(host) !== "erp";
 }
 
 export function isPublicRoute(pathname: string): boolean {

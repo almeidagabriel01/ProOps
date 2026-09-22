@@ -38,9 +38,12 @@ describe("proxy host routing", () => {
       expect(getRewrittenUrl(resp)).toContain("utm_source=x");
     });
 
-    it("marks the transitional hosts noindex while the apex still serves the ERP", async () => {
+    // Antes da virada os subdomínios eram duplicatas do apex e saíam com
+    // noindex. Com ela feita, cada host tem conteúdo próprio e entra no índice.
+    it("indexes the app host now that the apex no longer duplicates it", async () => {
       const resp = await proxy(request("app.proops.com.br", "/"));
-      expect(resp.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+      expect(isRewrite(resp)).toBe(true);
+      expect(resp.headers.get("X-Robots-Tag")).toBeNull();
     });
 
     /**
@@ -50,18 +53,26 @@ describe("proxy host routing", () => {
      * passa por rewrite (o ERP serve a árvore de rotas como ela é), então o
      * cabeçalho tem que sair pelo caminho de rota pública.
      */
-    it("marks erp.proops.com.br noindex too, though it shares the apex surface", async () => {
+    it("serves the ERP on erp.proops.com.br as-is, and indexable", async () => {
       const resp = await proxy(request("erp.proops.com.br", "/"));
       expect(isRewrite(resp)).toBe(false);
-      expect(resp.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+      expect(resp.headers.get("X-Robots-Tag")).toBeNull();
     });
 
-    it("leaves the apex root alone until the cutover", async () => {
-      // APEX_SURFACE is still "erp", so proops.com.br must behave exactly as
-      // it does today. This is the guard that the phase is additive.
+    // A virada: a raiz do apex passa a ser o site da empresa, e todo caminho
+    // do ERP no apex vai com 301 para o subdomínio, preservando a query.
+    it("rewrites the apex root to the company site", async () => {
       const resp = await proxy(request("proops.com.br", "/"));
-      expect(isRewrite(resp)).toBe(false);
+      expect(isRewrite(resp)).toBe(true);
       expect(resp.headers.get("X-Robots-Tag")).toBeNull();
+    });
+
+    it("sends ERP paths on the apex to erp.proops.com.br with a 301", async () => {
+      const resp = await proxy(request("proops.com.br", "/login?next=%2Fdashboard"));
+      expect(resp.status).toBe(301);
+      expect(resp.headers.get("location")).toBe(
+        "https://erp.proops.com.br/login?next=%2Fdashboard",
+      );
     });
   });
 
