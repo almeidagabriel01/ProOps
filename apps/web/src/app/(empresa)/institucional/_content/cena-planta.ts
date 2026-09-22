@@ -1,0 +1,259 @@
+import { buildProposalCodePreview } from "@/lib/proposal-numbering";
+
+/**
+ * A casa da cena de abertura da raiz, como DADO.
+ *
+ * O herói conta a história dos dois produtos numa casa só: a equipe especifica
+ * os cômodos, os cômodos viram itens, os itens montam a proposta, a proposta é
+ * aprovada e o dinheiro entra. Três coisas leem este arquivo, e é por isso que
+ * ele é dado e não markup:
+ *
+ * - o renderizador SVG (`_components/heroi/planta-svg.tsx`), que é o que o
+ *   celular, a corrida do Lighthouse e quem pede menos movimento veem;
+ * - o renderizador three.js (`_components/heroi/planta-3d.tsx`), só desktop;
+ * - o roteiro puro (`_components/heroi/roteiro.ts`), que diz o que cada um
+ *   deles mostra em cada ponto da rolagem.
+ *
+ * Com a mesma planta alimentando os dois renderizadores, o 3D pousa exatamente
+ * em cima do SVG, e a troca de um pelo outro não se vê.
+ *
+ * Unidades: METROS, no plano do piso. `x` cresce para a direita da planta e `z`
+ * para a frente dela; `y` é a altura. A parede `z = 0` e a parede `x = 0` são as
+ * duas do fundo, as únicas que a projeção isométrica mostra por dentro, e por
+ * isso as únicas de pé direito inteiro: as da frente são mureta, e as divisórias
+ * são cortadas na altura do corte, como numa maquete.
+ */
+
+export type ComodoId = "suite" | "quarto" | "sala" | "cozinha" | "varanda";
+
+/** Retângulo no piso: `[x0, z0, x1, z1]`, com `x0 < x1` e `z0 < z1`. */
+export type Retangulo = readonly [number, number, number, number];
+
+/**
+ * Uma janela numa das duas paredes do fundo.
+ *
+ * `de`/`ate` correm AO LONGO da parede (em `x` para a do fundo, em `z` para a
+ * lateral); `peitoril` e `verga` são as alturas de baixo e de cima do vão.
+ */
+export interface Janela {
+  parede: "fundo" | "lateral";
+  de: number;
+  ate: number;
+  peitoril: number;
+  verga: number;
+}
+
+export interface Comodo {
+  id: ComodoId;
+  nome: string;
+  retangulo: Retangulo;
+  janela?: Janela;
+  /** Onde fica o pendente, no piso. A luz cai ali. */
+  luz: readonly [number, number];
+}
+
+/**
+ * Um trecho de parede.
+ *
+ * `eixo: "x"` corre ao longo de `x` na cota `z = fixo`; `eixo: "z"` corre ao
+ * longo de `z` na cota `x = fixo`. As paredes são declaradas à mão e não
+ * derivadas das bordas dos cômodos: duas bordas vizinhas raramente têm o mesmo
+ * comprimento (a sala e a varanda dividem só parte da divisa), e o algoritmo que
+ * as reconcilia é mais código do que a lista inteira. O teste
+ * `cena-planta.test.ts` confere que toda borda de cômodo tem parede em cima.
+ */
+export interface Parede {
+  eixo: "x" | "z";
+  fixo: number;
+  de: number;
+  ate: number;
+  altura: number;
+  tipo: "fundo" | "divisoria" | "mureta";
+}
+
+export interface Item {
+  id: string;
+  /** O que aparece no chip e na linha da proposta. */
+  rotulo: string;
+  comodo: ComodoId;
+  /** Inteiro, em centavos. Dinheiro nunca é número de ponto flutuante aqui. */
+  centavos: number;
+  /** O item é uma cortina ou persiana, e a janela do cômodo ganha uma. */
+  cortina: boolean;
+}
+
+/** Pé direito das paredes do fundo. */
+export const PE_DIREITO = 2.7;
+/** Altura do corte das divisórias: a maquete é cortada aqui. */
+export const CORTE = 1.1;
+/** As paredes da frente ficam só como mureta, para não taparem a casa. */
+export const MURETA = 0.32;
+/** Espessura desenhada das paredes. */
+export const ESPESSURA = 0.14;
+
+export const LARGURA_DA_CASA = 13;
+export const PROFUNDIDADE_DA_CASA = 8;
+
+export const COMODOS: readonly Comodo[] = [
+  {
+    id: "suite",
+    nome: "Suíte",
+    retangulo: [0, 0, 4, 4.5],
+    janela: { parede: "lateral", de: 0.9, ate: 3.4, peitoril: 0.45, verga: 2.35 },
+    luz: [2, 2.25],
+  },
+  {
+    id: "quarto",
+    nome: "Quarto",
+    retangulo: [4, 0, 7.5, 4.5],
+    janela: { parede: "fundo", de: 4.7, ate: 6.8, peitoril: 0.6, verga: 2.3 },
+    luz: [5.75, 2.25],
+  },
+  {
+    id: "sala",
+    nome: "Sala",
+    retangulo: [7.5, 0, 13, 4.5],
+    janela: { parede: "fundo", de: 8.3, ate: 12.2, peitoril: 0.08, verga: 2.45 },
+    luz: [10.25, 2.25],
+  },
+  {
+    id: "cozinha",
+    nome: "Cozinha",
+    retangulo: [0, 4.5, 5, 8],
+    janela: { parede: "lateral", de: 5.4, ate: 7.1, peitoril: 1.05, verga: 2.2 },
+    luz: [2.5, 6.25],
+  },
+  {
+    id: "varanda",
+    nome: "Varanda",
+    retangulo: [5, 4.5, 13, 8],
+    luz: [9, 6.25],
+  },
+];
+
+export const PAREDES: readonly Parede[] = [
+  // As duas do fundo, de pé direito inteiro. É nelas que ficam as janelas.
+  { eixo: "x", fixo: 0, de: 0, ate: LARGURA_DA_CASA, altura: PE_DIREITO, tipo: "fundo" },
+  { eixo: "z", fixo: 0, de: 0, ate: PROFUNDIDADE_DA_CASA, altura: PE_DIREITO, tipo: "fundo" },
+  // Divisórias, cortadas.
+  { eixo: "x", fixo: 4.5, de: 0, ate: LARGURA_DA_CASA, altura: CORTE, tipo: "divisoria" },
+  { eixo: "z", fixo: 4, de: 0, ate: 4.5, altura: CORTE, tipo: "divisoria" },
+  { eixo: "z", fixo: 7.5, de: 0, ate: 4.5, altura: CORTE, tipo: "divisoria" },
+  { eixo: "z", fixo: 5, de: 4.5, ate: PROFUNDIDADE_DA_CASA, altura: CORTE, tipo: "divisoria" },
+  // A frente, como mureta.
+  { eixo: "x", fixo: PROFUNDIDADE_DA_CASA, de: 0, ate: LARGURA_DA_CASA, altura: MURETA, tipo: "mureta" },
+  { eixo: "z", fixo: LARGURA_DA_CASA, de: 0, ate: PROFUNDIDADE_DA_CASA, altura: MURETA, tipo: "mureta" },
+];
+
+/**
+ * Os itens, NA ORDEM em que a cena os especifica.
+ *
+ * A soma é R$ 31.000,00, e isso é escolha e não acaso: com entrada de 40% e três
+ * parcelas, a entrada dá R$ 12.400,00 e cada parcela R$ 6.200,00, números
+ * redondos que se leem de relance numa cena que passa rolando.
+ */
+export const ITENS: readonly Item[] = [
+  { id: "cortina-suite", rotulo: "Cortina blackout motorizada", comodo: "suite", centavos: 685_000, cortina: true },
+  { id: "persiana-quarto", rotulo: "Persiana rolô automatizada", comodo: "quarto", centavos: 342_000, cortina: true },
+  { id: "cena-sala", rotulo: "Cena de iluminação", comodo: "sala", centavos: 798_000, cortina: false },
+  { id: "cortina-sala", rotulo: "Cortina de linho motorizada", comodo: "sala", centavos: 589_000, cortina: true },
+  { id: "embutida-cozinha", rotulo: "Iluminação embutida", comodo: "cozinha", centavos: 276_000, cortina: false },
+  { id: "som-varanda", rotulo: "Som ambiente", comodo: "varanda", centavos: 410_000, cortina: false },
+];
+
+/**
+ * A proposta de exemplo. O código sai da MESMA função que a tela de
+ * configuração da numeração usa (`lib/proposal-numbering.ts`), então o herói
+ * mostra um código que o produto de fato imprimiria.
+ *
+ * É um exemplo, e o resumo para leitor de tela diz isso: um cliente e um valor
+ * numa página institucional se leem como caso real se nada disser o contrário.
+ */
+export const PROPOSTA = {
+  codigo: buildProposalCodePreview({ number: 189, year: 2026, praca: "SP" }),
+  cliente: "Casa Moreira",
+  entradaPercentual: 40,
+  parcelas: 3,
+} as const;
+
+const REAIS = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+/**
+ * O único formatador de dinheiro da cena. A bolha da mensagem, as linhas da
+ * proposta e a divisão em parcelas passam todas por aqui, e é isso que impede
+ * que uma delas diga um valor que a outra não diz.
+ */
+export function formataReais(centavos: number): string {
+  return REAIS.format(centavos / 100);
+}
+
+export const TOTAL_CENTAVOS = ITENS.reduce((soma, item) => soma + item.centavos, 0);
+
+/**
+ * Entrada e parcelas, em centavos inteiros. A sobra de arredondamento, se
+ * houver, vai para a ÚLTIMA parcela, que é como um financeiro de verdade fecha a
+ * conta: a soma das partes é sempre o total, ao centavo.
+ */
+export function divisaoDoPagamento(
+  total = TOTAL_CENTAVOS,
+  percentual: number = PROPOSTA.entradaPercentual,
+  parcelas: number = PROPOSTA.parcelas,
+): { entrada: number; parcelas: number[] } {
+  const entrada = Math.round((total * percentual) / 100);
+  const restante = total - entrada;
+  const base = Math.floor(restante / parcelas);
+  const lista = Array.from({ length: parcelas }, () => base);
+  lista[parcelas - 1] += restante - base * parcelas;
+  return { entrada, parcelas: lista };
+}
+
+export const PAGAMENTO = divisaoDoPagamento();
+
+export function comodoPorId(id: ComodoId): Comodo {
+  const comodo = COMODOS.find((c) => c.id === id);
+  if (!comodo) throw new Error(`Cômodo desconhecido: ${id}`);
+  return comodo;
+}
+
+/** O centro do cômodo, no piso. É para onde a câmera olha quando o visita. */
+export function centroDoComodo(id: ComodoId): readonly [number, number] {
+  const [x0, z0, x1, z1] = comodoPorId(id).retangulo;
+  return [(x0 + x1) / 2, (z0 + z1) / 2];
+}
+
+/**
+ * A partir de que largura a cena usa a composição lado a lado.
+ *
+ * Abaixo disso o texto fica em cima e a casa ocupa a tela; é a mesma chave que
+ * os `lg:` do markup usam, e o diretor lê a mesma string para escolher o
+ * `LAYOUT` que escreve.
+ */
+export const LARGO_QUERY = "(min-width: 1024px)";
+
+export type LayoutId = "largo" | "retrato";
+
+/**
+ * Quanto cada peça ANDA, por composição. Só deslocamento: onde cada uma
+ * repousa é o markup (classes do Tailwind), e o diretor mede isso em vez de
+ * repetir aqui.
+ *
+ * `cqw`/`cqh` do palco, que é o container. Percentagem não serviria: num
+ * `translate` ela é relativa à caixa do PRÓPRIO elemento, e a folha e a casa
+ * têm tamanhos diferentes.
+ */
+export interface Layout {
+  /** A casa se afasta para dar lugar à proposta. */
+  casa: readonly [number, number];
+  /** De onde a folha da proposta entra, relativo a onde ela repousa. */
+  folha: readonly [number, number];
+  /** De onde a bolha da mensagem entra. */
+  mensagem: readonly [number, number];
+}
+
+export const LAYOUTS: Record<LayoutId, Layout> = {
+  largo: { casa: [-30, 0], folha: [48, 0], mensagem: [0, 16] },
+  retrato: { casa: [0, -22], folha: [0, 70], mensagem: [0, -14] },
+};
