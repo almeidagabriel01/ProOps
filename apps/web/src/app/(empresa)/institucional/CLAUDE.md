@@ -214,29 +214,52 @@ Três regras ao mexer nela:
 
 "Software de gestão para quem vende projeto": o título responde PARA QUEM a
 ProOps faz software, e o lead conta a origem (novembro de 2025, dentro de uma
-operação que vende projeto). Ao lado, o mural
-(`_components/heroi/mural-de-segmentos.tsx`, servidor, sem JavaScript): uma
-grade com os negócios que vendem projeto, uma luz percorrendo célula a célula,
-e a última, pontilhada, sendo "o seu".
+operação que vende projeto). Atrás dele, a cena: uma prancheta no escuro com o
+desenho de sete ofícios, e uma luz que o visitante carrega
+(`_components/heroi/lanterna.tsx` + `pranchas.ts`, servidor, sem JavaScript
+próprio). Onde a luz passa, o desenho aparece com o nome do negócio; a última
+prancha é uma folha em branco, com marcas de registro, e o nome dela é "O seu
+projeto".
 
-O mural é tipografia fazendo trabalho de ilustração, e é de propósito: é a
-resposta mais direta à pergunta que faz alguém fechar a aba na primeira tela,
-"isto serve para o meu negócio?". Quem já vem pronto está marcado como tal, e o
-resto é "configurado", a mesma distinção da seção "O seu segmento", pelo mesmo
-motivo (ver "Texto", no fim).
+**A composição é de cartaz.** O texto ancora embaixo, à esquerda, e a cena
+ocupa a tela inteira por trás dele. Duas versões anteriores puseram o texto numa
+coluna e um bloco na outra (um anel de rótulos, depois uma grade deles), que é o
+layout de qualquer página de produto: informavam, a cena virava ilustração de
+canto, e não havia primeira tela nenhuma.
 
-A luz é UM keyframe (`.mural-acende`) com atraso proporcional por célula, então
-acrescentar um segmento em `SEGMENTOS` não pede nada no CSS. Duas coisas que
-parecem detalhe e não são: a volta ao apagado tem parada própria em 13% (sem
-ela a interpolação desfaz o acendimento ao longo do ciclo inteiro, e metade do
-mural fica meio acesa o tempo todo, o que se lê como células de brilho
-diferente, não como luz passando); e ela acende com `box-shadow: inset`, não
-com `background`, porque o fundo da célula é o da seção.
+Cinco coisas que parecem detalhe e não são:
+
+- **O véu é `background`, não `mask`.** Os dois abrem o mesmo furo, mas o
+  degradê de fundo é uma pintura só, sem camada de máscara para compor a cada
+  quadro, e o mesmo elemento ainda carrega o halo numa segunda camada. Fora do
+  furo ele para em 0,955: sobram uns 4% do traço, o bastante para a prancheta
+  existir antes de a luz chegar.
+- **`--lanterna-x`/`--lanterna-y` são REGISTRADAS** (`@property`, `<number>`).
+  Custom property comum é texto para o motor de animação: o keyframe do passeio
+  saltaria de um valor ao outro em vez de interpolar.
+- **A luz segue `--px`/`--py`, que a casca já escreve** (`usePointerField`), e só
+  onde há ponteiro fino. Sem ponteiro ela passeia sozinha, e no celular por uma
+  faixa mais alta (`lanterna-passeia-alto`): o texto ancora embaixo, então
+  nenhum desenho aceso cruza o parágrafo.
+- **A legibilidade do texto não pode depender de onde a luz está.**
+  `.lanterna-sombra` é uma elipse ancorada no canto do texto, por cima da cena e
+  por baixo dele; no celular vira uma faixa, porque ali o texto ocupa a largura
+  toda.
+- **Prancha sem lugar no celular não existe abaixo de `md`** (`celular` em
+  `pranchas.ts`). Numa tela de 393px cabem dois desenhos legíveis, não sete, e
+  um deles tem que ser a folha em branco, que é a frase da cena.
+
+O nome de cada ofício vem de `SEGMENTOS` e o desenho de `PRANCHAS`, casados por
+`SegmentoId`: segmento sem prancha não compila. Vale aqui a mesma regra de
+sempre, só é "pronto" o que existe em `lib/niches/config.ts`.
 
 **As heros são PRETO E BRANCO.** `.superficie-noite` é monocromática: `--noite`,
-`--noite-alta`, `--papel` e `--luz` (branco), que é o token que qualquer realce
-usa. Uma versão anterior tinha luz de tungstênio e ardósia azulada; ficava bom
-isolado e não era a marca. Cor entra só onde é conteúdo, não decoração.
+`--noite-alta`, `--papel` e `--realce` (branco), que é o token que qualquer
+realce usa. Uma versão anterior tinha luz de tungstênio e ardósia azulada;
+ficava bom isolado e não era a marca. Cor entra só onde é conteúdo, não
+decoração. **`--luz` é outra coisa** (o número por cômodo da cena da landing), e
+usar um como o outro falha em silêncio: guard em
+`__tests__/cor-da-luz-nao-sombreia-a-cena.test.ts`.
 
 **A raiz já abriu com a cena da planta, do ambiente ao dinheiro no financeiro, e
 isso foi um erro de superfície.** A cena ficou boa e continua viva, na landing

@@ -93,6 +93,7 @@ describe("a entrada do herói espera a cortina", () => {
    */
   it.each([
     "traco-desenha",
+    "lanterna",
     "aparelhos-placa",
     "aparelhos-janela",
     "aparelhos-telefone",

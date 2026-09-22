@@ -352,22 +352,27 @@ export const CANAIS: Canal[] = [
  * O herói da raiz: a empresa, e não o produto.
  *
  * O site institucional fala da ProOps; quem mostra o ERP funcionando é a landing
- * dele. A primeira dobra daqui diz para QUEM a empresa faz software, e o mural
- * ao lado responde, sem prosa, a pergunta que faz alguém fechar a aba: "isto
- * serve para o meu negócio?".
+ * dele. A primeira dobra daqui diz para QUEM a empresa faz software, e a cena
+ * responde, sem prosa, a pergunta que faz alguém fechar a aba: "isto serve para
+ * o meu negócio?".
  *
- * `SEGMENTOS` não é uma lista de nichos atendidos, e o rótulo embaixo do mural
- * diz isso: dois vêm prontos (os que existem em `lib/niches/config.ts`), o resto
- * é configurado. Acrescentar um nome aqui é dizer que aquele negócio vende
+ * A cena é uma prancheta no escuro, e uma luz que o visitante carrega: onde ela
+ * passa aparece o desenho de um ofício, e o último é uma folha em branco com o
+ * nome dele. `SEGMENTOS` não é uma lista de nichos atendidos, e a nota diz
+ * isso: dois vêm prontos (os que existem em `lib/niches/config.ts`), o resto é
+ * configurado. Acrescentar um nome aqui é dizer que aquele negócio vende
  * projeto, e não que ele já tem pacote.
  */
 export const HEROI_RAIZ = {
   titulo: ["Software de gestão", "para quem vende", "projeto."],
   lead: "A ProOps nasceu em novembro de 2025 dentro de uma empresa que vende projeto, e virou produto depois de provada no uso diário. Dois segmentos já vêm prontos; para o resto, a gente configura.",
-  mural: {
-    rotulo: "Quem vende projeto",
-    nota: "Dois já vêm prontos. Para o resto, catálogo, proposta e etapas são configurados.",
-    seu: "o seu",
+  lanterna: {
+    convite: "Leve a luz pela prancheta",
+    conviteToque: "A luz passeia pela prancheta",
+    nota: "Cada desenho é um negócio que vende projeto. O último é o seu.",
+    seu: "O seu projeto",
+    seuApoio: "configurado com as suas palavras",
+    pronto: "pacote pronto",
   },
 } as const;
 
@@ -386,25 +391,38 @@ export const HEROI_SOBRE = {
   nota: "Dois produtos que saem da mesma base. O aplicativo nasceu ao lado do ERP, não depois dele.",
 } as const;
 
+/**
+ * Os ofícios desenhados na prancheta do herói.
+ *
+ * O `id` casa com o desenho em `_components/heroi/pranchas.ts`, e o tipo de lá
+ * exige um desenho para cada um destes: acrescentar um nome aqui sem desenhar
+ * a prancha dele é erro de compilação, não uma lacuna que aparece na tela.
+ */
+export type SegmentoId =
+  | "automacao"
+  | "cortinas"
+  | "marcenaria"
+  | "paisagismo"
+  | "piscinas"
+  | "solar"
+  | "climatizacao";
+
 export interface Segmento {
+  id: SegmentoId;
   nome: string;
   /** Só é `true` o que existe configurado no produto hoje. */
   pronto?: boolean;
 }
 
-export const SEGMENTOS: Segmento[] = [
-  { nome: "Automação residencial", pronto: true },
-  { nome: "Cortinas e decoração", pronto: true },
-  { nome: "Marcenaria" },
-  { nome: "Paisagismo" },
-  { nome: "Piscinas" },
-  { nome: "Energia solar" },
-  { nome: "Climatização" },
-  { nome: "Reforma" },
-  { nome: "Vidraçaria" },
-  { nome: "Luminotécnica" },
-  { nome: "Cenografia" },
-];
+export const SEGMENTOS: readonly Segmento[] = [
+  { id: "automacao", nome: "Automação residencial", pronto: true },
+  { id: "cortinas", nome: "Cortinas e decoração", pronto: true },
+  { id: "marcenaria", nome: "Marcenaria" },
+  { id: "paisagismo", nome: "Paisagismo" },
+  { id: "piscinas", nome: "Piscinas" },
+  { id: "solar", nome: "Energia solar" },
+  { id: "climatizacao", nome: "Climatização" },
+] as const;
 
 /**
  * Os segmentos que já vêm configurados no produto, e o estado de cada um.

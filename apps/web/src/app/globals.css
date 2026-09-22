@@ -2245,56 +2245,226 @@ html[data-heroi="espera"] :is(.aparelhos-placa, .aparelhos-janela, .aparelhos-te
   }
 }
 
-/* A raiz do site da empresa: o mural dos segmentos.
+/* ────────────────────────────────────────────────────────────────────────────
+   A raiz do site da empresa: a prancheta no escuro, e a luz que o visitante
+   carrega.
 
-   Uma luz percorre as células, uma de cada vez, e a volta inteira é um ciclo
-   só: cada célula recebe o MESMO keyframe com um atraso proporcional, então
-   nunca há duas acesas, e acrescentar um segmento na lista não exige mexer
-   aqui (o componente recalcula duração e atraso).
+   As pranchas estão todas desenhadas desde o primeiro byte. Quem decide o que
+   se vê é o VÉU: um degradê radial quase opaco com um furo onde a luz está.
 
-   Acende com `box-shadow: inset`, e não com `background`: o fundo da célula é
-   o mesmo da seção, e uma transição de cor de fundo numa grade de doze células
-   custa repintura de tudo a cada passo. */
-@keyframes mural-acende {
+   **É `background`, e não `mask`.** Os dois abrem o mesmo furo, mas o degradê
+   de fundo é uma pintura só, sem camada de máscara para compor a cada quadro, e
+   o mesmo elemento ainda carrega o halo numa segunda camada (a primeira da
+   lista, que é a de cima). Fora do furo ele para em 0,955 de propósito: sobram
+   uns 4% do traço, o bastante para a prancheta existir antes de a luz chegar.
+
+   A posição da luz é um par de números de -1 a 1, como `--px`/`--py` da casca.
+   Eles precisam ser REGISTRADOS para poderem ser animados: um custom property
+   comum é texto para o motor de animação, e o keyframe do passeio saltaria de
+   um valor para o outro em vez de interpolar. */
+@property --lanterna-x {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --lanterna-y {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+.lanterna {
+  --lanterna-raio: clamp(11rem, 26vw, 24rem);
+  --lanterna-px: calc(50% + var(--lanterna-x) * 50%);
+  --lanterna-py: calc(50% + var(--lanterna-y) * 50%);
+  /* Sem ponteiro fino a luz passeia sozinha: num celular não há cursor, e uma
+     cena que só existe sob hover ali é uma cena que ninguém vê. */
+  animation: lanterna-passeia 26s ease-in-out infinite;
+}
+@media (pointer: fine) and (min-width: 768px) {
+  .lanterna {
+    animation: none;
+    --lanterna-x: var(--px, 0);
+    --lanterna-y: var(--py, 0);
+  }
+}
+html[data-heroi="espera"] .lanterna {
+  animation-play-state: paused;
+}
+
+@keyframes lanterna-passeia {
   0%,
   100% {
-    box-shadow: inset 0 0 0 0 rgb(var(--realce) / 0);
-    color: rgb(255 255 255 / 0.7);
+    --lanterna-x: -0.5;
+    --lanterna-y: -0.34;
   }
-  3%,
-  9% {
-    box-shadow: inset 0 0 0 999px rgb(var(--realce) / 0.1);
-    color: rgb(255 255 255 / 1);
+  28% {
+    --lanterna-x: 0.4;
+    --lanterna-y: -0.12;
   }
-  /* A volta ao apagado tem que ser CURTA. Sem esta parada a interpolação
-     desfaz o acendimento ao longo do ciclo inteiro, e metade do mural fica
-     meio aceso o tempo todo: não se lê como uma luz passando, e sim como
-     células de brilho diferente. */
-  13% {
-    box-shadow: inset 0 0 0 999px rgb(var(--realce) / 0);
-    color: rgb(255 255 255 / 0.7);
+  54% {
+    --lanterna-x: 0.52;
+    --lanterna-y: 0.38;
+  }
+  78% {
+    --lanterna-x: -0.32;
+    --lanterna-y: 0.46;
   }
 }
-.mural-celula {
-  animation: mural-acende var(--mural-dur, 9s) linear var(--mural-delay, 0s) infinite;
+
+.lanterna-veu {
+  background:
+    radial-gradient(
+      circle var(--lanterna-raio) at var(--lanterna-px) var(--lanterna-py),
+      rgb(var(--realce) / 0.09),
+      rgb(var(--realce) / 0) 62%
+    ),
+    radial-gradient(
+      circle var(--lanterna-raio) at var(--lanterna-px) var(--lanterna-py),
+      rgb(7 7 7 / 0) 38%,
+      rgb(7 7 7 / 0.2) 58%,
+      rgb(7 7 7 / 0.8) 78%,
+      rgb(7 7 7 / 0.955) 100%
+    );
 }
-.mural-celula:hover {
-  animation-play-state: paused;
-  box-shadow: inset 0 0 0 999px rgb(var(--realce) / 0.12);
-  color: rgb(255 255 255 / 1);
+
+/* O papel quadriculado da prancheta, que só existe onde a luz está. Ele não
+   desenha nada: é o que faz o traço parecer estar SOBRE uma mesa, e não
+   flutuando no preto. */
+.lanterna-campo {
+  background-image:
+    linear-gradient(to right, rgb(var(--realce) / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--realce) / 0.05) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
 }
-/* A célula do convite é a única com moldura, e ela não some quando a luz
-   passa. */
-.mural-celula--seu {
-  outline: 1px dashed rgb(var(--realce) / 0.45);
-  outline-offset: -1px;
+
+/* A legibilidade do texto não pode depender de onde a luz está: uma sombra
+   ancorada no canto do texto, por cima da cena e por baixo dele. */
+/* No celular a luz passeia SÓ pela faixa de cima, que é onde as três pranchas
+   moram. O texto ancora embaixo, e assim nenhum desenho aceso cruza o
+   parágrafo: lá embaixo sobra o traço de 4%, que é textura e não leitura. */
+@media (max-width: 767.98px) {
+  .lanterna {
+    --lanterna-raio: clamp(8rem, 40vw, 13rem);
+    animation-name: lanterna-passeia-alto;
+    animation-duration: 20s;
+  }
 }
-html[data-heroi="espera"] .mural-celula {
-  animation-play-state: paused;
+@keyframes lanterna-passeia-alto {
+  0%,
+  100% {
+    --lanterna-x: -0.52;
+    --lanterna-y: -0.72;
+  }
+  35% {
+    --lanterna-x: 0.5;
+    --lanterna-y: -0.78;
+  }
+  70% {
+    --lanterna-x: 0.1;
+    --lanterna-y: -0.38;
+  }
 }
+
+.lanterna-sombra {
+  background: radial-gradient(
+    62% 66% at 4% 96%,
+    rgb(7 7 7 / 0.88) 0%,
+    rgb(7 7 7 / 0.56) 46%,
+    rgb(7 7 7 / 0) 78%
+  );
+}
+@media (max-width: 767.98px) {
+  /* Numa tela estreita o texto ocupa a largura toda, então a sombra também. */
+  .lanterna-sombra {
+    background: linear-gradient(
+      to top,
+      rgb(7 7 7 / 0.94) 0%,
+      rgb(7 7 7 / 0.86) 34%,
+      rgb(7 7 7 / 0) 66%
+    );
+  }
+}
+
+/* Uma prancha: o desenho, o nome embaixo, e uma inclinação de folha largada na
+   mesa. `translate` e `rotate` são as propriedades individuais, e por isso
+   compõem com o `transform` do `.hero-enter` em vez de brigar com ele. */
+.prancha {
+  left: var(--prancha-x);
+  top: var(--prancha-y);
+  width: var(--prancha-w);
+  translate: -50% -50%;
+  rotate: var(--prancha-giro, 0deg);
+}
+@media (max-width: 767.98px) {
+  .prancha {
+    left: var(--prancha-xc);
+    top: var(--prancha-yc);
+    width: var(--prancha-wc);
+  }
+}
+.prancha-traco {
+  stroke: rgb(var(--realce) / 0.95);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+.prancha-guia {
+  stroke: rgb(var(--realce) / 0.55);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+.prancha-rotulo {
+  margin-top: 0.75rem;
+  color: rgb(var(--realce) / 0.9);
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.prancha-apoio {
+  display: block;
+  margin-top: 0.125rem;
+  color: rgb(var(--realce) / 0.5);
+  font-size: 0.6875rem;
+}
+/* A folha em branco é a única com moldura tracejada, e o nome dela é o convite:
+   sai mais forte que o dos ofícios. */
+.prancha--branco .prancha-guia {
+  stroke: rgb(var(--realce) / 0.7);
+  stroke-dasharray: 5 4;
+}
+.prancha--branco .prancha-rotulo {
+  font-weight: 600;
+}
+
+.lanterna-convite--toque {
+  display: inline;
+}
+.lanterna-convite--ponteiro {
+  display: none;
+}
+@media (pointer: fine) and (min-width: 768px) {
+  .lanterna-convite--toque {
+    display: none;
+  }
+  .lanterna-convite--ponteiro {
+    display: inline;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .mural-celula {
+  .lanterna {
     animation: none;
+  }
+  /* Sem luz nenhuma: um filtro parelho, e a prancheta inteira legível e
+     parada. Uma luz presa no meio da tela seria metade da cena escondida para
+     sempre. */
+  .lanterna-veu {
+    background: rgb(7 7 7 / 0.78);
   }
 }
 
