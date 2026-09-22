@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 
-import { AssinaturaSelo } from "@/components/institucional/assinaturas-hero";
 import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
 import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { canonicalFor } from "@/lib/site/host-seo";
 
+import { HeroiBalanca } from "./_components/heroi-balanca";
 import { PrincipioCena } from "./_components/principio-cena";
 
-import { PRINCIPIOS } from "@/app/(empresa)/institucional/_content/institucional-copy";
+import {
+  CONTRAPARTIDAS,
+  PRINCIPIOS,
+} from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 export const metadata: Metadata = {
   title: "Manifesto da ProOps",
@@ -39,11 +42,7 @@ export default function ManifestoPage() {
       */}
       <HeroiPalco
         composicao="centro"
-        cena={
-          <div className="mx-auto hidden aspect-square w-72 text-white/20 md:block">
-            <AssinaturaSelo />
-          </div>
-        }
+        cena={<HeroiBalanca />}
         rotulo="Manifesto"
         titulo={
           <>
@@ -99,23 +98,7 @@ export default function ManifestoPage() {
             selection working within a sentence.
           */}
           <ol className="space-y-10">
-            {[
-              {
-                falta: "Uma primeira reunião mais bonita que a do concorrente.",
-                porque:
-                  "O que a gente abre na tela é o sistema em que você vai trabalhar na terça à tarde, com o seu catálogo e os seus números dentro. Isso perde de um vídeo bem editado, e perde toda vez.",
-              },
-              {
-                falta: "Integração com tudo.",
-                porque:
-                  "Cada conexão nova é mais um lugar onde o mesmo dado pode divergir. Elas entram uma de cada vez, e só quando dá para dizer sem hesitar quem manda naquele dado.",
-              },
-              {
-                falta: "Novidade toda semana.",
-                porque:
-                  "O tempo que vai para o fuso horário, para o centavo do arredondamento e para a permissão de quem vê o quê é tempo que não aparece em lista de lançamento nenhuma.",
-              },
-            ].map((item, indice) => (
+            {CONTRAPARTIDAS.map((item, indice) => (
               <li key={item.falta} className="flex gap-6 md:gap-8">
                 <span
                   aria-hidden="true"

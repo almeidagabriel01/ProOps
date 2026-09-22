@@ -2252,6 +2252,45 @@ html[data-heroi="espera"] :is(.aparelhos-placa, .aparelhos-janela, .aparelhos-te
   }
 }
 
+/* /manifesto: a balança cai nivelada e assenta, passando do ponto duas vezes,
+   como uma de verdade. É `rotate` no wrapper externo; a mola do ponteiro gira
+   a viga, um elemento de dentro. */
+@keyframes balanca-assenta {
+  0% {
+    rotate: 4deg;
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  45% {
+    rotate: -2.2deg;
+  }
+  68% {
+    rotate: 1deg;
+  }
+  86% {
+    rotate: -0.35deg;
+  }
+  100% {
+    rotate: 0deg;
+    opacity: 1;
+  }
+}
+.balanca-assenta {
+  animation: balanca-assenta 1.9s cubic-bezier(0.33, 1, 0.68, 1) 0.2s both;
+}
+html[data-heroi="espera"] .balanca-assenta {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .balanca-assenta {
+    animation: none;
+    rotate: none;
+    opacity: 1;
+  }
+}
+
 /* Inclinação de card por ponteiro, sem JS por card: o escopo escreve as duas
    variáveis e cada card as lê com o próprio peso. */
 .inclina-ponteiro {

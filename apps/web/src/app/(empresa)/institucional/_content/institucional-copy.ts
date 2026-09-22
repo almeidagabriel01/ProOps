@@ -136,6 +136,41 @@ export const PRINCIPIOS: Principio[] = [
 ];
 
 /**
+ * O que cada princípio deixa de fora, NA MESMA ORDEM de `PRINCIPIOS`: a
+ * contrapartida `i` é o preço do princípio `i`. O herói de /manifesto depende
+ * dessa ordem, porque é ela que liga os dois pratos da balança item a item.
+ *
+ * `curto` é o rótulo do prato da balança; `falta` e `porque` são o texto da
+ * seção "A contrapartida" da mesma página, que é a dona do assunto.
+ */
+export interface Contrapartida {
+  curto: string;
+  falta: string;
+  porque: string;
+}
+
+export const CONTRAPARTIDAS: Contrapartida[] = [
+  {
+    curto: "Demonstração mais bonita",
+    falta: "Uma primeira reunião mais bonita que a do concorrente.",
+    porque:
+      "O que a gente abre na tela é o sistema em que você vai trabalhar na terça à tarde, com o seu catálogo e os seus números dentro. Isso perde de um vídeo bem editado, e perde toda vez.",
+  },
+  {
+    curto: "Integração com tudo",
+    falta: "Integração com tudo.",
+    porque:
+      "Cada conexão nova é mais um lugar onde o mesmo dado pode divergir. Elas entram uma de cada vez, e só quando dá para dizer sem hesitar quem manda naquele dado.",
+  },
+  {
+    curto: "Novidade toda semana",
+    falta: "Novidade toda semana.",
+    porque:
+      "O tempo que vai para o fuso horário, para o centavo do arredondamento e para a permissão de quem vê o quê é tempo que não aparece em lista de lançamento nenhuma.",
+  },
+];
+
+/**
  * A linha do tempo, como ela aconteceu de verdade.
  *
  * Mesma divisão dos princípios: a raiz passa por `resumo`, e /sobre é a única
