@@ -1782,8 +1782,13 @@ html[data-heroi="espera"] .regua-desenha {
    bloco de movimento reduzido, no fim deste trecho, desfazer o posicionamento
    da cena inteira num lugar só. */
 
+/* O fundo sólido não é redundante com o da seção: `sticky` cria um grupo
+   isolado de composição, e o `mix-blend-mode` do 3D (abaixo) só enxerga o que
+   está DENTRO dele. Sem cor aqui, o fundo do canvas somaria com transparente e
+   apareceria como um retângulo preto. */
 .cena-palco {
   container-type: size;
+  background-color: var(--noite);
 }
 
 /* A casa: à direita no desktop, embaixo no retrato. */
@@ -2032,6 +2037,13 @@ html[data-heroi="espera"] .regua-desenha {
 [data-casa][data-webgl="pronto"] [data-planta] {
   opacity: 0;
   transition: opacity 0.6s ease;
+}
+/* O canvas é opaco sobre preto (ver three/cena-3d.ts) e soma por `screen`: o
+   preto some, o resto acende sobre a luz da página. A mistura vai na CAIXA, e
+   não no canvas: o `translate` da caixa a torna um grupo isolado, e dentro dele
+   o canvas só teria transparente para somar. */
+[data-casa][data-webgl="pronto"] {
+  mix-blend-mode: screen;
 }
 
 /* O retrato: o texto em cima, a casa espiando por baixo e subindo quando o
