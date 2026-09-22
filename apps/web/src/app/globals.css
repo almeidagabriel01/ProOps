@@ -3,6 +3,13 @@
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
+/*
+  Celular com altura para a cena lateral dos produtos do site da empresa
+  (institucional-produtos.tsx). A mesma query está escrita lá, em
+  PAN_CELULAR, para o GSAP: as duas têm que concordar, senão o layout vira
+  fileira sem a animação que a percorre (ou o contrário).
+*/
+@custom-variant pan-celular (@media (max-width: 767px) and (min-height: 620px) and (prefers-reduced-motion: no-preference));
 
 :root {
   /* Premium Light Mode - Inverted White-Blue Theme */

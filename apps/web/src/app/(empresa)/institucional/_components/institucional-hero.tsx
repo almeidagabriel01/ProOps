@@ -231,7 +231,7 @@ export function InstitucionalHero() {
         </p>
 
         <div
-          className="hero-enter mt-10 flex flex-col gap-3 sm:flex-row sm:items-center"
+          className="hero-enter mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6"
           style={
             {
               "--hero-y": "12px",
