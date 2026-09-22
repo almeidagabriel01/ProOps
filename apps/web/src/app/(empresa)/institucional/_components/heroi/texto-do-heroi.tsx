@@ -27,8 +27,8 @@ function depois(segundos: number): string {
  */
 export function TextoDoHeroi() {
   return (
-    <div className="max-w-xl">
-      <h1 className="[font-family:var(--font-bricolage)] text-[clamp(3rem,7.2vw,6.6rem)] font-extrabold leading-[0.92] tracking-[-0.05em] text-white">
+    <div className="max-w-2xl">
+      <h1 className="[font-family:var(--font-bricolage)] text-[clamp(2.25rem,5.1vw,4.4rem)] font-extrabold leading-[0.95] tracking-[-0.05em] text-white">
         <span className="sr-only">ProOps: </span>
         {HEROI_RAIZ.titulo.map((linha, i) => (
           <LinhaHero key={linha} atraso={depois(i * 0.09)}>
@@ -38,7 +38,7 @@ export function TextoDoHeroi() {
       </h1>
 
       <p
-        className="hero-enter mt-8 max-w-md text-lg leading-snug text-white/75 md:text-xl"
+        className="hero-enter mt-7 max-w-lg text-[15px] leading-relaxed text-white/70 md:mt-8 md:text-[17px]"
         style={
           {
             "--hero-y": "16px",
@@ -50,7 +50,7 @@ export function TextoDoHeroi() {
       </p>
 
       <div
-        className="hero-enter mt-9 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6"
+        className="hero-enter mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6"
         style={
           {
             "--hero-y": "12px",
@@ -76,17 +76,6 @@ export function TextoDoHeroi() {
       </div>
 
       <PermissaoDeMovimento />
-
-      <p
-        aria-hidden="true"
-        className="cena-dica hero-enter mt-12 flex items-center gap-3 text-sm text-white/45"
-        style={{ "--hero-delay": depois(0.9), "--hero-y": "8px" } as React.CSSProperties}
-      >
-        <span className="cena-dica__trilho relative block h-8 w-px overflow-hidden bg-white/15">
-          <span className="cena-dica__gota absolute inset-x-0 top-0 block h-3 bg-[rgb(var(--tungstenio))]" />
-        </span>
-        {HEROI_RAIZ.dica}
-      </p>
     </div>
   );
 }
