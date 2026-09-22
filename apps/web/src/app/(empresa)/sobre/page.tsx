@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
-import { AssinaturaRetratos } from "@/components/institucional/assinaturas-hero";
 import { LinhaDoTempo } from "@/components/institucional/linha-do-tempo";
-import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
+import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
+import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { PessoasFaixa } from "@/components/institucional/pessoas-faixa";
 import {
   Realce,
@@ -14,6 +14,8 @@ import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
 import { Magnetic } from "@/components/marketing/_shared/magnetic";
 import { canonicalFor } from "@/lib/site/host-seo";
+
+import { HeroiBifurcacao } from "./_components/heroi-bifurcacao";
 
 import { MARCOS, PESSOAS } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
@@ -53,23 +55,24 @@ export const metadata: Metadata = {
 export default function SobrePage() {
   return (
     <main>
-      <PaginaHero
-        sobrancelha="Sobre"
+      <HeroiPalco
+        rotulo="Sobre"
         titulo={
           <>
             <LinhaHero>Três sócios,</LinhaHero>
             <LinhaHero atraso={0.09}>
-              <Realce className="font-extrabold">dois</Realce> deles
+              dois deles
             </LinhaHero>
             <LinhaHero atraso={0.18}>escrevendo</LinhaHero>
             <LinhaHero atraso={0.27}>o código.</LinhaHero>
           </>
         }
-        descricao="Não há camada entre quem atende e quem constrói. O que você conta numa reunião chega, na mesma semana, em quem tem a mão no produto."
-        // Os rostos, antes de qualquer palavra sobre eles. É o assunto desta
-        // página, e a faixa de pessoas logo abaixo é que os nomeia.
-        assinatura={<AssinaturaRetratos fotos={PESSOAS.map((p) => p.foto)} />}
-        dados={[
+        descricao="Não há camada entre quem atende e quem constrói. O que você conta numa reunião chega, na mesma semana, em quem tem a mão no produto, seja qual for o segmento da sua empresa."
+        // A história em quatro datas, e a bifurcação no fim: o ERP e o
+        // aplicativo saem da mesma base. Os rostos vêm logo abaixo, na faixa
+        // de pessoas, que é quem os nomeia.
+        cena={<HeroiBifurcacao />}
+        ficha={[
           { valor: "03", rotulo: "Sócios" },
           { valor: "02", rotulo: "Engenheiros de software" },
           { valor: "Nov 2025", rotulo: "Quando começou" },

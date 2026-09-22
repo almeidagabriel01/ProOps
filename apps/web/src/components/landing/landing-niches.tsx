@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { ArrowRight, Cpu, Layers, MoveHorizontal } from "lucide-react";
+import { ArrowRight, Cpu, Layers, MoveHorizontal, PenLine } from "lucide-react";
 import { m as motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
@@ -40,6 +40,19 @@ const NICHES: Niche[] = [
     features: ["Cálculo por medidas", "Tecidos e persianas", "Orçamento automático"],
     href: "/decoracao",
   },
+  {
+    // O terceiro cartão não é um pacote: é o convite. Sem ele a galeria diz,
+    // sem querer, que a ProOps atende dois segmentos, e quem vende outro tipo
+    // de projeto fecha a aba antes de falar com alguém.
+    index: "03",
+    icon: PenLine,
+    eyebrow: "Configurado para você",
+    title: "O seu segmento",
+    description:
+      "Vende projeto e não é nenhum dos dois? A base é a mesma: a ProOps configura catálogo, campos da proposta, etapas do funil e unidade de medida para a sua operação.",
+    features: ["Catálogo do seu negócio", "Campos e etapas sob medida", "Sem trocar de sistema"],
+    href: "/contato",
+  },
 ];
 
 /* ===================================================================== */
@@ -51,13 +64,13 @@ function IntroPanel() {
     <div className="flex h-full w-screen shrink-0 flex-col justify-center px-6 md:px-16 lg:px-24">
       <SectionHeading
         align="left"
-        eyebrow="Especializado no seu segmento"
+        eyebrow="Dois pacotes prontos, e o seu"
         title={
           <>
             Feito para o seu <Accent>nicho</Accent>
           </>
         }
-        description="Pacotes prontos com catálogos e cálculos sob medida para cada operação."
+        description="Automação e decoração já vêm prontas. Qualquer outro negócio que venda projeto é configurado na mesma base, e não em outro sistema."
       />
       <div className="mt-10 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/45">
         <MoveHorizontal className="h-4 w-4" />
@@ -274,7 +287,7 @@ export function LandingNiches() {
         <div>
           <p className="mb-4 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/55 dark:text-white/60">
             <span className="h-px w-6 bg-black/30 dark:bg-white/45" />
-            Especializado no seu segmento
+            Dois pacotes prontos, e o seu
           </p>
           <h2 className="[font-family:var(--font-pdf-montserrat)] text-4xl font-bold tracking-tight text-black dark:text-white md:text-5xl">
             Feito para o seu <Accent>nicho</Accent>
@@ -368,7 +381,8 @@ function NicheFooterCTA() {
   return (
     <div className="mx-auto max-w-xl text-center">
       <p className="mb-3 text-sm text-black/60 dark:text-white/60">
-        Atua em outro segmento? A ProOps adapta-se ao seu nicho.
+        Conte o que a sua empresa vende, e a gente diz na conversa o que muda
+        para o seu segmento.
       </p>
       <LandingButton
         href="/contato"

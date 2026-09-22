@@ -22,7 +22,7 @@ let jaAbriu = false;
  * Two components need the same answer, and they must never disagree.
  *
  * `InstitucionalAbertura` uses it to decide whether to render the slats at all.
- * `InstitucionalHero` uses it to decide how long its entrance waits: the hero's
+ * `EsperaDaAbertura` (the root hero) uses it to decide how long its entrance waits: the hero's
  * delays exist to let the slats clear the screen first, so on a client-side
  * return to the root, where the opening does NOT play, the same delays are
  * over a second of a blank near-black screen after the transition curtain has

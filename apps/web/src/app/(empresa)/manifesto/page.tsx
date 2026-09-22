@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 
-import { AssinaturaSelo } from "@/components/institucional/assinaturas-hero";
-import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
+import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
+import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { canonicalFor } from "@/lib/site/host-seo";
 
+import { HeroiBalanca } from "./_components/heroi-balanca";
 import { PrincipioCena } from "./_components/principio-cena";
 
-import { PRINCIPIOS } from "@/app/(empresa)/institucional/_content/institucional-copy";
+import {
+  CONTRAPARTIDAS,
+  PRINCIPIOS,
+} from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 export const metadata: Metadata = {
   title: "Manifesto da ProOps",
@@ -36,21 +40,21 @@ export default function ManifestoPage() {
         declaração, não índice, e declaração se lê no meio da página. O selo que
         se desenha atrás do título é a mesma ideia por outro meio.
       */}
-      <PaginaHero
-        alinhamento="centro"
-        assinatura={<AssinaturaSelo />}
-        sobrancelha="Manifesto"
+      <HeroiPalco
+        composicao="centro"
+        cena={<HeroiBalanca />}
+        rotulo="Manifesto"
         titulo={
           <>
             <LinhaHero>O que</LinhaHero>
             <LinhaHero atraso={0.09}>
-              <Realce className="font-extrabold">decide</Realce>
+              decide
             </LinhaHero>
             <LinhaHero atraso={0.18}>o produto.</LinhaHero>
           </>
         }
         descricao="Não é uma lista de valores para a parede. É o critério que sobra quando duas ideias boas competem pela mesma semana, e o que cada uma delas custa quando ganha."
-        dados={[
+        ficha={[
           { valor: "03", rotulo: "Princípios" },
           { valor: "03", rotulo: "Contrapartidas" },
         ]}
@@ -94,23 +98,7 @@ export default function ManifestoPage() {
             selection working within a sentence.
           */}
           <ol className="space-y-10">
-            {[
-              {
-                falta: "Uma primeira reunião mais bonita que a do concorrente.",
-                porque:
-                  "O que a gente abre na tela é o sistema em que você vai trabalhar na terça à tarde, com o seu catálogo e os seus números dentro. Isso perde de um vídeo bem editado, e perde toda vez.",
-              },
-              {
-                falta: "Integração com tudo.",
-                porque:
-                  "Cada conexão nova é mais um lugar onde o mesmo dado pode divergir. Elas entram uma de cada vez, e só quando dá para dizer sem hesitar quem manda naquele dado.",
-              },
-              {
-                falta: "Novidade toda semana.",
-                porque:
-                  "O tempo que vai para o fuso horário, para o centavo do arredondamento e para a permissão de quem vê o quê é tempo que não aparece em lista de lançamento nenhuma.",
-              },
-            ].map((item, indice) => (
+            {CONTRAPARTIDAS.map((item, indice) => (
               <li key={item.falta} className="flex gap-6 md:gap-8">
                 <span
                   aria-hidden="true"

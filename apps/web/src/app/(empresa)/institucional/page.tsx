@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 
 import { InstitucionalAbertura } from "./_components/institucional-abertura";
-import { InstitucionalHero } from "./_components/institucional-hero";
+import { HeroiRaiz } from "./_components/heroi/heroi-raiz";
 import { InstitucionalFrase } from "./_components/institucional-frase";
 import { InstitucionalJsonLd } from "./_components/institucional-json-ld";
 import { canonicalFor } from "@/lib/site/host-seo";
@@ -28,6 +28,9 @@ const InstitucionalProdutos = dynamic(() =>
   import("./_components/institucional-produtos").then(
     (m) => m.InstitucionalProdutos,
   ),
+);
+const InstitucionalSegmento = dynamic(() =>
+  import("./_components/institucional-segmento").then((m) => m.InstitucionalSegmento),
 );
 const InstitucionalManifesto = dynamic(() =>
   import("./_components/institucional-manifesto").then(
@@ -103,15 +106,17 @@ export default function InstitucionalPage() {
       {/*
         Ten scenes, and the order is an argument rather than a menu: what the
         company says (frase), the problem it exists for (problema), what it
-        built (produtos), how it decides (manifesto), what it can count
+        built (produtos), para quem ele serve (segmento), how it decides
+        (manifesto), what it can count
         (numeros), where it came from (historia), who does it (time), what it
         promises (compromissos), and only then the way out (cta).
       */}
       <main>
-        <InstitucionalHero />
+        <HeroiRaiz />
         <InstitucionalFrase />
         <InstitucionalProblema />
         <InstitucionalProdutos />
+        <InstitucionalSegmento />
         <InstitucionalManifesto />
         <InstitucionalNumeros />
         <InstitucionalHistoria />

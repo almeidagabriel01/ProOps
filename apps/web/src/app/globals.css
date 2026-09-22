@@ -1566,7 +1566,8 @@ html[data-heroi="espera"] .regua-desenha {
     var(--regua-delay, 0s) both;
 }
 
-/* Traço que se desenha, para as assinaturas dos heróis das sub-páginas.
+/* Traço que se desenha: a casa do herói da raiz, o fio de /produtos, a
+   balança de /manifesto e o grafo de /sobre.
 
    Todo elemento que use isto tem que declarar `pathLength="1"`: sem ele o
    dasharray teria que ser o comprimento real do caminho, que só o navegador
@@ -1589,9 +1590,8 @@ html[data-heroi="espera"] .regua-desenha {
     var(--traco-delay, 0s) both;
 }
 
-/* O ponto para onde as quatro linhas do /fale-conosco convergem. Pulso lento e
-   discreto: é o único elemento em movimento contínuo em qualquer um dos quatro
-   heróis, e existe para dizer que do outro lado tem alguém. */
+/* Um ponto que pulsa devagar, para dizer que do outro lado tem alguém. Hoje
+   só a landing do aplicativo o usa (a seção de privacidade). */
 @keyframes pulso-no {
   0%,
   100% {
@@ -1609,24 +1609,6 @@ html[data-heroi="espera"] .regua-desenha {
   animation: pulso-no 3.2s ease-in-out var(--pulso-delay, 0s) infinite;
 }
 
-/* A dica de rolagem do rodapé do herói. Ela existe porque o herói passou a
-   ocupar a tela inteira: sem nada abaixo aparecendo, uma tela cheia e parada não
-   diz que há mais página. Deslocamento pequeno e lento de propósito, para ser
-   percebida na periferia e não competir com o título. */
-@keyframes dica-desce {
-  0%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.5;
-  }
-  50% {
-    transform: translateY(4px);
-    opacity: 1;
-  }
-}
-.dica-desce {
-  animation: dica-desce 2.4s ease-in-out infinite;
-}
 
 /* Campo mono reativo: duas manchas que respondem ao ponteiro e ao giroscópio.
    É o fallback do FlowField em WebGL, e continua visível por baixo dele: num
@@ -1723,6 +1705,869 @@ html[data-heroi="espera"] .regua-desenha {
     rgba(0, 0, 0, 0.06) 1px,
     transparent 1px
   );
+}
+
+/* O material de noite: os heróis do site da empresa e a cena da planta na
+   landing do ERP.
+
+   **A marca é preto e branco, e isto aqui também.** Uma versão anterior usava
+   ardósia (um azul escuro) no fundo e tungstênio na luz, e o efeito era o
+   contrário do pretendido: duas cores que a ProOps não tem, numa superfície
+   cujo argumento é justamente a sobriedade. O que sobrou é preto, branco e os
+   cinzas entre os dois; a "cor" da luz é branco puro, que sobre preto já lê
+   como luz acesa.
+
+   Os tokens são custom properties no escopo, e as cores com transparência são
+   escritas como `rgb(var(--x) / a)`. Não troque por `color-mix()` dentro de um
+   gradiente: o Lightning CSS descarta a regra inteira no build (ver
+   `.campo-app`, mais acima).
+
+   **A cor da luz chama-se `--realce`, e não `--luz`, de propósito.** `--luz` já
+   é o nome da variável NUMÉRICA que a cena da planta escreve por cômodo (0 a 1,
+   "o quanto este cômodo está aceso"), e ela é redeclarada em grupos lá dentro.
+   Um token de cor com o mesmo nome é sombreado ali sem erro nenhum: `rgb(0.7)`
+   e `calc(255 255 255 * 26%)` são inválidos em tempo de cálculo, então a
+   declaração some e o que se vê é a face preta, ou a lâmpada sem cor, sem nada
+   no console. */
+.superficie-noite {
+  --noite: #070707;
+  --noite-alta: #141414;
+  --linha: 212 212 212;
+  --realce: 255 255 255;
+  --papel: #f5f5f5;
+  --tinta: #0a0a0a;
+  background-color: var(--noite);
+  color: #fafafa;
+}
+
+/* A luz ambiente do herói: um céu um pouco mais claro no alto e o chão
+   afundando nos cantos. Estática de propósito, sem granulação animada: o
+   movimento do herói é da cena, e qualquer coisa se mexendo no fundo competiria
+   com ela. */
+.superficie-noite__luz {
+  background:
+    radial-gradient(
+      70rem 38rem at 62% -6%,
+      rgb(var(--linha) / 0.07),
+      transparent 70%
+    ),
+    radial-gradient(
+      120% 90% at 50% 40%,
+      transparent 55%,
+      rgb(0 0 0 / 0.5)
+    );
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   A cena da raiz: da planta ao dinheiro na conta.
+
+   Tudo aqui lê variáveis. Quem as escreve é o `<style>` gerado no servidor
+   (`heroi/estilo-da-cena.tsx`: o começo da história, ou o fim dela sob
+   movimento reduzido) e, depois, o diretor, a cada quadro de rolagem. As regras
+   só mexem em `opacity`, `translate`, `scale`, `transform` de SVG e
+   `stroke-dashoffset`: nada que refaça layout com a cena andando.
+
+   São regras de fora de camada de propósito: vencem os utilitários do Tailwind
+   (que moram em `@layer utilities`) sem `!important`, e é isso que deixa o
+   bloco de movimento reduzido, no fim deste trecho, desfazer o posicionamento
+   da cena inteira num lugar só. */
+
+/* O fundo sólido não é redundante com o da seção: `sticky` cria um grupo
+   isolado de composição, e o `mix-blend-mode` do 3D (abaixo) só enxerga o que
+   está DENTRO dele. Sem cor aqui, o fundo do canvas somaria com transparente e
+   apareceria como um retângulo preto. */
+.cena-palco {
+  container-type: size;
+  background-color: var(--noite);
+}
+
+/* A casa: à direita no desktop, embaixo no retrato. */
+.cena-lugar-casa {
+  align-items: center;
+  justify-content: center;
+  padding-left: 6cqw;
+}
+/* A casa recua para a esquerda quando a proposta entra, e ENCOLHE junto: só
+   deslocar punha a lateral dela para fora do palco, que recorta. É `scale`, a
+   propriedade individual, pelo mesmo motivo do `translate` ao lado: as duas
+   compõem, enquanto um `transform` apagaria a outra. */
+.cena-casa {
+  aspect-ratio: var(--aspecto);
+  width: min(62cqw, calc(74cqh * var(--aspecto)));
+  translate: var(--casa-x) var(--casa-y);
+  scale: calc(1 - var(--recuo, 0) * 0.14);
+}
+
+/* As abas de nicho ficam no alto do palco, e continuam lá a cena inteira: dá
+   para trocar de negócio no meio da rolagem e ver a mesma proposta se
+   reescrever. */
+/* As abas ficam abaixo da barra fixa da landing: 5rem é a altura dela, e o
+   resto é respiro. */
+.cena-lugar-nichos {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: calc(5rem + 3cqh);
+}
+
+.cena-lugar-legendas {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 9cqh;
+}
+
+/* Um rótulo por nicho no HTML, e só o do nicho ativo na tela. */
+.cena-chip__nome {
+  display: none;
+}
+[data-nicho="automacao"] [data-rotulo-de="automacao"],
+[data-nicho="cortinas"] [data-rotulo-de="cortinas"],
+[data-nicho="marcenaria"] [data-rotulo-de="marcenaria"] {
+  display: block;
+}
+.cena-legenda {
+  opacity: var(--legenda);
+  translate: 0 calc((1 - var(--legenda)) * 10px);
+}
+.cena-trilho__barra {
+  transition: background-color 0.3s ease;
+}
+.cena-trilho span:last-child {
+  transition: color 0.3s ease;
+}
+[data-ato="projeto"] [data-trilho="projeto"] .cena-trilho__barra,
+[data-ato="proposta"] [data-trilho="proposta"] .cena-trilho__barra,
+[data-ato="aprovada"] [data-trilho="aprovada"] .cena-trilho__barra,
+[data-ato="financeiro"] [data-trilho="financeiro"] .cena-trilho__barra {
+  background-color: rgb(var(--realce));
+}
+[data-ato="projeto"] [data-trilho="projeto"] span:last-child,
+[data-ato="proposta"] [data-trilho="proposta"] span:last-child,
+[data-ato="aprovada"] [data-trilho="aprovada"] span:last-child,
+[data-ato="financeiro"] [data-trilho="financeiro"] span:last-child {
+  color: rgb(255 255 255 / 0.9);
+}
+
+/* A proposta e a divisão do pagamento, numa coluna só, que entra pela direita. */
+.cena-lugar-folha {
+  top: 0;
+  bottom: 0;
+  right: 5cqw;
+  width: min(23.5rem, 34cqw);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  translate: var(--folha-x) var(--folha-y);
+}
+.cena-folha__papel {
+  opacity: var(--folha);
+  box-shadow: 0 40px 90px -30px rgb(0 0 0 / 0.85);
+}
+.cena-folha__cabeca,
+.cena-folha__rodape {
+  opacity: var(--folha);
+}
+.cena-folha__codigo {
+  opacity: var(--codigo);
+}
+
+/* O item. Repousa na linha dele e é levado ao cômodo pelo diretor
+   (`--dx`/`--dy`); enquanto está fora da folha, é uma pílula de papel com a luz
+   acesa do lado. */
+.cena-chip {
+  translate: var(--dx) var(--dy);
+  opacity: var(--surge);
+}
+.cena-chip__pilula {
+  background: var(--papel);
+  box-shadow:
+    0 14px 34px -12px rgb(0 0 0 / 0.75),
+    0 0 0 1px rgb(var(--realce) / 0.45);
+  opacity: calc(1 - var(--voo));
+}
+.cena-chip__luz {
+  background: rgb(var(--realce));
+  box-shadow: 0 0 12px 2px rgb(var(--realce) / 0.8);
+  opacity: calc(1 - var(--voo));
+}
+.cena-chip__valor {
+  opacity: var(--linha);
+}
+
+.cena-assinatura {
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - var(--assinatura));
+}
+.cena-selo {
+  opacity: var(--selo);
+  scale: calc(1.35 - var(--selo) * 0.35);
+  rotate: -8deg;
+}
+.cena-divisao {
+  opacity: var(--divisao);
+  translate: 0 calc((1 - var(--divisao)) * -18px);
+}
+.cena-parte {
+  opacity: var(--parte);
+  translate: calc((1 - var(--parte)) * 8px) 0;
+}
+
+/* O desenho da casa. Faces opacas, e não translúcidas: num SVG a ordem de
+   desenho é o z-buffer, e uma face transparente deixaria ver através dela o
+   que ela deveria esconder. */
+.planta-camera {
+  transform: translate(calc(var(--cam-tx) * 1px), calc(var(--cam-ty) * 1px))
+    scale(var(--cam-z));
+  transform-origin: 0 0;
+  transform-box: view-box;
+}
+.planta-piso {
+  fill: #0d0d0d;
+}
+.planta-deck {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.12);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+/* A espessura é em unidades do desenho (1 = um metro isométrico), e não
+   `non-scaling-stroke`: com ele o tracejado passa a ser medido na TELA e
+   ignora o `pathLength="1"`, e o traço que se desenha vira uma linha
+   pontilhada para sempre. 0,026 dá pouco mais de um pixel no tamanho em que a
+   casa aparece. */
+.planta-aresta {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.55);
+  stroke-width: 0.026;
+  stroke-linejoin: round;
+}
+.planta-aresta--piso {
+  stroke: rgb(var(--linha) / 0.3);
+}
+/* Três tons, um por orientação: é o que dá volume sem nenhuma luz calculada.
+   O móvel esquenta com a luz do cômodo dele (`--luz`, escrita no grupo). A
+   mistura passa por custom property pelo mesmo motivo do `.campo-app`. */
+.planta-caixa {
+  --calor: calc(var(--luz, 0) * 26%);
+}
+.planta-face--frente {
+  --cor: color-mix(in srgb, rgb(var(--realce)) var(--calor), #171717);
+  fill: var(--cor);
+}
+.planta-face--lado {
+  --cor: color-mix(in srgb, rgb(var(--realce)) var(--calor), #202020);
+  fill: var(--cor);
+}
+.planta-face--tampo {
+  --cor: color-mix(in srgb, rgb(var(--realce)) var(--calor), #2b2b2b);
+  fill: var(--cor);
+}
+.planta-caixa--parede .planta-face--frente {
+  fill: #121212;
+}
+.planta-brilhos {
+  mix-blend-mode: screen;
+}
+.planta-brilho {
+  opacity: var(--luz);
+}
+.planta-vidro {
+  fill: #0a0a0a;
+}
+.planta-luar {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.22);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+/* A cortina desce a partir da verga, no plano da parede (ver projecao.ts). */
+.planta-cortina {
+  transform: scaleY(var(--cortina));
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.planta-cortina__calor {
+  fill: rgb(var(--realce));
+  opacity: calc(var(--luz) * 0.32);
+}
+.planta-trilho {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.65);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.planta-fio {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.35);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+/* A cúpula é cheia: o tom do tampo de móvel, para ler como objeto e não como
+   risco. O traço dela se desenha com o resto da casa, então a espessura vai em
+   unidades do DESENHO: `non-scaling-stroke` desliga o `pathLength`, e a
+   animação de traço para de existir (ver `.planta-aresta`). */
+.planta-cupula {
+  fill: #1c1c1c;
+  stroke: rgb(var(--linha) / 0.55);
+  stroke-width: 0.026;
+  stroke-linejoin: round;
+}
+/* A boca acende junto com o cômodo: é ela que faz a cúpula parecer conter a
+   luz, em vez de estar ao lado dela. */
+.planta-boca {
+  fill: none;
+  stroke: rgb(var(--realce) / calc(0.25 + var(--luz, 0) * 0.75));
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+/* O feixe some antes do piso, onde a elipse de luz já responde. Somado por
+   `screen`, como todo o resto que acende. */
+.planta-feixe {
+  opacity: calc(var(--luz, 0) * 0.5);
+  mix-blend-mode: screen;
+}
+.planta-lampada {
+  fill: rgb(var(--realce));
+  opacity: calc(0.16 + var(--luz) * 0.84);
+}
+.planta-halo {
+  opacity: var(--luz);
+  mix-blend-mode: screen;
+}
+
+/* A borda do canvas some numa máscara. O bloom espalha luz até a beirada do
+   quadro, e um canvas que termina em linha reta desenha um retângulo mais claro
+   por cima do palco: o que se vê não é a casa, é a moldura dela. */
+.cena-canvas {
+  mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent),
+    linear-gradient(to bottom, transparent, black 7%, black 93%, transparent);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
+}
+
+/* O desktop troca o desenho pelo three.js quando o canvas fica pronto. */
+[data-casa][data-webgl="pronto"] [data-planta] {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+/* O canvas é opaco sobre preto (ver three/cena-3d.ts) e soma por `screen`: o
+   preto some, o resto acende sobre a luz da página. A mistura vai na CAIXA, e
+   não no canvas: o `translate` da caixa a torna um grupo isolado, e dentro dele
+   o canvas só teria transparente para somar. */
+[data-casa][data-webgl="pronto"] {
+  mix-blend-mode: screen;
+}
+
+/* O retrato: o texto em cima, a casa espiando por baixo e subindo quando o
+   texto sai, e a proposta ocupando a tela. */
+@media (max-width: 1023.98px) {
+  .cena-lugar-casa {
+    align-items: center;
+    justify-content: center;
+    padding-right: 0;
+  }
+  .cena-casa {
+    width: min(94cqw, calc(44cqh * var(--aspecto)));
+    opacity: calc(1 - var(--recuo) * 0.7);
+  }
+  /* No retrato a proposta ocupa a tela, e a legenda por baixo dela seria
+     texto atrás de texto: ela narra o projeto e sai quando a folha entra. */
+  .cena-lugar-legendas {
+    padding-bottom: 5cqh;
+    opacity: calc(1 - var(--folha));
+  }
+  .cena-lugar-nichos {
+    padding-top: calc(4.5rem + 2cqh);
+  }
+  .cena-lugar-folha {
+    top: 13cqh;
+    bottom: auto;
+    left: 1.25rem;
+    right: 1.25rem;
+    width: auto;
+    max-width: 24rem;
+    margin-inline: auto;
+    justify-content: flex-start;
+  }
+}
+
+/* Movimento reduzido: o quadro final, no fluxo. A trilha perde a altura, o
+   palco deixa de ser preso e cada camada vira um bloco empilhado: o texto, a
+   casa acesa, a proposta aprovada com o pagamento, e a mensagem. As legendas
+   saem: elas narram uma passagem que aqui não acontece. */
+@media (prefers-reduced-motion: reduce) {
+  .cena-trilha {
+    height: auto;
+  }
+  .cena-palco {
+    position: relative;
+    height: auto;
+    overflow: visible;
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: 3.5rem;
+    padding: 8rem 0 5rem;
+  }
+  .cena-lugar-casa,
+  .cena-lugar-nichos,
+  .cena-lugar-folha {
+    position: static;
+    translate: none;
+    opacity: 1;
+    visibility: visible;
+  }
+  .cena-lugar-nichos {
+    order: 1;
+    padding: 0 1.25rem;
+  }
+  .cena-lugar-casa {
+    order: 2;
+    justify-content: center;
+    padding: 0 1.25rem;
+  }
+  .cena-casa {
+    width: min(56rem, 100%);
+    opacity: 1;
+    translate: none;
+  }
+  .cena-lugar-folha {
+    order: 3;
+    width: min(24rem, calc(100% - 2.5rem));
+    margin-inline: auto;
+  }
+  .cena-lugar-legendas {
+    display: none;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Os heróis das sub-páginas. Cada cena é CSS no primeiro paint, como o resto da
+   primeira dobra, e cada keyframe declara o estado FINAL no bloco de movimento
+   reduzido do fim do arquivo.
+
+   /produtos: a placa de onde saem os dois aparelhos. As propriedades são as
+   INDIVIDUAIS (`translate`, `rotate`, `scale`), e não `transform`: a inclinação
+   por ponteiro fica num filho, em `transform`, e as duas compõem em vez de uma
+   apagar a outra. */
+@keyframes aparelhos-placa {
+  0% {
+    opacity: 0;
+    scale: 0.92;
+  }
+  35% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.06;
+  }
+}
+.aparelhos-placa {
+  opacity: 0;
+  animation: aparelhos-placa 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+}
+@keyframes aparelhos-sai {
+  from {
+    opacity: 0;
+    translate: var(--sai-x) var(--sai-y);
+    rotate: var(--sai-r, 0deg);
+    scale: 0.78;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    rotate: 0deg;
+    scale: 1;
+  }
+}
+.aparelhos-janela,
+.aparelhos-telefone {
+  animation: aparelhos-sai 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both;
+}
+.aparelhos-janela {
+  --sai-x: 14%;
+  --sai-y: 14%;
+  --sai-r: 3deg;
+}
+.aparelhos-telefone {
+  --sai-x: -110%;
+  --sai-y: -34%;
+  --sai-r: -6deg;
+  animation-delay: 0.55s;
+}
+/* A gota que corre o fio: um traço curto (6% do caminho) cujo deslocamento
+   percorre o fio inteiro. Começa depois de o fio terminar de se desenhar. */
+@keyframes aparelhos-gota {
+  0% {
+    stroke-dashoffset: 0.06;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  60% {
+    stroke-dashoffset: -0.94;
+    opacity: 1;
+  }
+  70%,
+  100% {
+    stroke-dashoffset: -0.94;
+    opacity: 0;
+  }
+}
+.aparelhos-gota {
+  stroke-dasharray: 0.06 1;
+  opacity: 0;
+  animation: aparelhos-gota 3.4s cubic-bezier(0.65, 0, 0.35, 1) 2.3s infinite;
+}
+html[data-heroi="espera"] :is(.aparelhos-placa, .aparelhos-janela, .aparelhos-telefone, .aparelhos-gota) {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aparelhos-placa {
+    animation: none;
+    opacity: 0;
+  }
+  .aparelhos-janela,
+  .aparelhos-telefone {
+    animation: none;
+    opacity: 1;
+    translate: none;
+    rotate: none;
+    scale: none;
+  }
+  .aparelhos-gota {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   A raiz do site da empresa: a prancheta no escuro, e a luz que o visitante
+   carrega.
+
+   As pranchas estão todas desenhadas desde o primeiro byte. Quem decide o que
+   se vê é o VÉU: um degradê radial quase opaco com um furo onde a luz está.
+
+   **É `background`, e não `mask`.** Os dois abrem o mesmo furo, mas o degradê
+   de fundo é uma pintura só, sem camada de máscara para compor a cada quadro, e
+   o mesmo elemento ainda carrega o halo numa segunda camada (a primeira da
+   lista, que é a de cima). Fora do furo ele para em 0,955 de propósito: sobram
+   uns 4% do traço, o bastante para a prancheta existir antes de a luz chegar.
+
+   A posição da luz é um par de números de -1 a 1, como `--px`/`--py` da casca.
+   Eles precisam ser REGISTRADOS para poderem ser animados: um custom property
+   comum é texto para o motor de animação, e o keyframe do passeio saltaria de
+   um valor para o outro em vez de interpolar. */
+@property --lanterna-x {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --lanterna-y {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+.lanterna {
+  --lanterna-raio: clamp(11rem, 26vw, 24rem);
+  --lanterna-px: calc(50% + var(--lanterna-x) * 50%);
+  --lanterna-py: calc(50% + var(--lanterna-y) * 50%);
+  /* Sem ponteiro fino a luz passeia sozinha: num celular não há cursor, e uma
+     cena que só existe sob hover ali é uma cena que ninguém vê. */
+  animation: lanterna-passeia 26s ease-in-out infinite;
+}
+@media (pointer: fine) and (min-width: 768px) {
+  .lanterna {
+    animation: none;
+    --lanterna-x: var(--px, 0);
+    --lanterna-y: var(--py, 0);
+  }
+}
+html[data-heroi="espera"] .lanterna {
+  animation-play-state: paused;
+}
+
+@keyframes lanterna-passeia {
+  0%,
+  100% {
+    --lanterna-x: -0.5;
+    --lanterna-y: -0.34;
+  }
+  28% {
+    --lanterna-x: 0.4;
+    --lanterna-y: -0.12;
+  }
+  54% {
+    --lanterna-x: 0.52;
+    --lanterna-y: 0.38;
+  }
+  78% {
+    --lanterna-x: -0.32;
+    --lanterna-y: 0.46;
+  }
+}
+
+.lanterna-veu {
+  background:
+    radial-gradient(
+      circle var(--lanterna-raio) at var(--lanterna-px) var(--lanterna-py),
+      rgb(var(--realce) / 0.09),
+      rgb(var(--realce) / 0) 62%
+    ),
+    radial-gradient(
+      circle var(--lanterna-raio) at var(--lanterna-px) var(--lanterna-py),
+      rgb(7 7 7 / 0) 38%,
+      rgb(7 7 7 / 0.2) 58%,
+      rgb(7 7 7 / 0.8) 78%,
+      rgb(7 7 7 / 0.955) 100%
+    );
+}
+
+/* O papel quadriculado da prancheta, que só existe onde a luz está. Ele não
+   desenha nada: é o que faz o traço parecer estar SOBRE uma mesa, e não
+   flutuando no preto. */
+.lanterna-campo {
+  background-image:
+    linear-gradient(to right, rgb(var(--realce) / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--realce) / 0.05) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+}
+
+/* A legibilidade do texto não pode depender de onde a luz está: uma sombra
+   ancorada no canto do texto, por cima da cena e por baixo dele. */
+/* No celular a luz passeia SÓ pela faixa de cima, que é onde as três pranchas
+   moram. O texto ancora embaixo, e assim nenhum desenho aceso cruza o
+   parágrafo: lá embaixo sobra o traço de 4%, que é textura e não leitura. */
+@media (max-width: 767.98px) {
+  .lanterna {
+    --lanterna-raio: clamp(8rem, 40vw, 13rem);
+    animation-name: lanterna-passeia-alto;
+    animation-duration: 20s;
+  }
+}
+@keyframes lanterna-passeia-alto {
+  0%,
+  100% {
+    --lanterna-x: -0.52;
+    --lanterna-y: -0.72;
+  }
+  35% {
+    --lanterna-x: 0.5;
+    --lanterna-y: -0.78;
+  }
+  70% {
+    --lanterna-x: 0.1;
+    --lanterna-y: -0.38;
+  }
+}
+
+.lanterna-sombra {
+  background: radial-gradient(
+    62% 66% at 4% 96%,
+    rgb(7 7 7 / 0.88) 0%,
+    rgb(7 7 7 / 0.56) 46%,
+    rgb(7 7 7 / 0) 78%
+  );
+}
+@media (max-width: 767.98px) {
+  /* Numa tela estreita o texto ocupa a largura toda, então a sombra também. */
+  .lanterna-sombra {
+    background: linear-gradient(
+      to top,
+      rgb(7 7 7 / 0.94) 0%,
+      rgb(7 7 7 / 0.86) 34%,
+      rgb(7 7 7 / 0) 66%
+    );
+  }
+}
+
+/* Uma prancha: o desenho, o nome embaixo, e uma inclinação de folha largada na
+   mesa. `translate` e `rotate` são as propriedades individuais, e por isso
+   compõem com o `transform` do `.hero-enter` em vez de brigar com ele. */
+.prancha {
+  left: var(--prancha-x);
+  top: var(--prancha-y);
+  width: var(--prancha-w);
+  translate: -50% -50%;
+  rotate: var(--prancha-giro, 0deg);
+}
+@media (max-width: 767.98px) {
+  .prancha {
+    left: var(--prancha-xc);
+    top: var(--prancha-yc);
+    width: var(--prancha-wc);
+  }
+}
+.prancha-traco {
+  stroke: rgb(var(--realce) / 0.95);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+.prancha-guia {
+  stroke: rgb(var(--realce) / 0.55);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+  fill: none;
+}
+.prancha-rotulo {
+  margin-top: 0.75rem;
+  color: rgb(var(--realce) / 0.9);
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.prancha-apoio {
+  display: block;
+  margin-top: 0.125rem;
+  color: rgb(var(--realce) / 0.5);
+  font-size: 0.6875rem;
+}
+/* A folha em branco é a única com moldura tracejada, e o nome dela é o convite:
+   sai mais forte que o dos ofícios. */
+.prancha--branco .prancha-guia {
+  stroke: rgb(var(--realce) / 0.7);
+  stroke-dasharray: 5 4;
+}
+.prancha--branco .prancha-rotulo {
+  font-weight: 600;
+}
+
+.lanterna-convite--toque {
+  display: inline;
+}
+.lanterna-convite--ponteiro {
+  display: none;
+}
+@media (pointer: fine) and (min-width: 768px) {
+  .lanterna-convite--toque {
+    display: none;
+  }
+  .lanterna-convite--ponteiro {
+    display: inline;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lanterna {
+    animation: none;
+  }
+  /* Sem luz nenhuma: um filtro parelho, e a prancheta inteira legível e
+     parada. Uma luz presa no meio da tela seria metade da cena escondida para
+     sempre. */
+  .lanterna-veu {
+    background: rgb(7 7 7 / 0.78);
+  }
+}
+
+/* /manifesto: a balança cai nivelada e assenta, passando do ponto duas vezes,
+   como uma de verdade. É `rotate` no wrapper externo; a mola do ponteiro gira
+   a viga, um elemento de dentro. */
+@keyframes balanca-assenta {
+  0% {
+    rotate: 4deg;
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  45% {
+    rotate: -2.2deg;
+  }
+  68% {
+    rotate: 1deg;
+  }
+  86% {
+    rotate: -0.35deg;
+  }
+  100% {
+    rotate: 0deg;
+    opacity: 1;
+  }
+}
+.balanca-assenta {
+  animation: balanca-assenta 1.9s cubic-bezier(0.33, 1, 0.68, 1) 0.2s both;
+}
+html[data-heroi="espera"] .balanca-assenta {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .balanca-assenta {
+    animation: none;
+    rotate: none;
+    opacity: 1;
+  }
+}
+
+/* /fale-conosco: cada conversa "digita" e responde. Os pontos aparecem, somem,
+   e a resposta se revela por `clip-path`, que é pintura e não layout. Os
+   pontos pulam duas vezes e param: um loop infinito debaixo de uma resposta já
+   revelada seria GPU gasta com nada. */
+@keyframes conversa-digita {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  82% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.conversa-digita {
+  opacity: 0;
+  animation: conversa-digita 1s ease var(--conversa-delay, 0s) both;
+}
+@keyframes conversa-ponto {
+  0%,
+  100% {
+    translate: 0 0;
+    opacity: 0.45;
+  }
+  50% {
+    translate: 0 -3px;
+    opacity: 1;
+  }
+}
+.conversa-ponto {
+  animation: conversa-ponto 0.5s ease-in-out calc(var(--conversa-delay, 0s) + var(--ponto, 0s)) 2;
+}
+@keyframes conversa-revela {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0 round 16px);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round 16px);
+  }
+}
+.conversa-responde {
+  animation: conversa-revela 0.7s cubic-bezier(0.22, 1, 0.36, 1) var(--conversa-delay, 0s) both;
+}
+html[data-heroi="espera"] :is(.conversa-digita, .conversa-ponto, .conversa-responde) {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .conversa-digita,
+  .conversa-ponto {
+    animation: none;
+    opacity: 0;
+  }
+  .conversa-responde {
+    animation: none;
+    opacity: 1;
+    clip-path: none;
+  }
 }
 
 /* Inclinação de card por ponteiro, sem JS por card: o escopo escreve as duas
@@ -1850,8 +2695,8 @@ html[data-cookie-consent="pending"] .cookie-banner {
     animation: none !important;
     transform: scaleX(1);
   }
-  /* As assinaturas dos heróis também declaram o estado FINAL, e não só param:
-     um traço parado em `stroke-dashoffset: 1` é um desenho invisível. */
+  /* Os traços dos heróis também declaram o estado FINAL, e não só param: um
+     traço parado em `stroke-dashoffset: 1` é um desenho invisível. */
   .traco-desenha {
     animation: none !important;
     stroke-dashoffset: 0;
@@ -1860,11 +2705,6 @@ html[data-cookie-consent="pending"] .cookie-banner {
     animation: none !important;
     opacity: 1;
     transform: none;
-  }
-  .dica-desce {
-    animation: none !important;
-    transform: none;
-    opacity: 1;
   }
   .abertura-tira {
     animation: none !important;

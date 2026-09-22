@@ -136,6 +136,41 @@ export const PRINCIPIOS: Principio[] = [
 ];
 
 /**
+ * O que cada princípio deixa de fora, NA MESMA ORDEM de `PRINCIPIOS`: a
+ * contrapartida `i` é o preço do princípio `i`. O herói de /manifesto depende
+ * dessa ordem, porque é ela que liga os dois pratos da balança item a item.
+ *
+ * `curto` é o rótulo do prato da balança; `falta` e `porque` são o texto da
+ * seção "A contrapartida" da mesma página, que é a dona do assunto.
+ */
+export interface Contrapartida {
+  curto: string;
+  falta: string;
+  porque: string;
+}
+
+export const CONTRAPARTIDAS: Contrapartida[] = [
+  {
+    curto: "Demonstração mais bonita",
+    falta: "Uma primeira reunião mais bonita que a do concorrente.",
+    porque:
+      "O que a gente abre na tela é o sistema em que você vai trabalhar na terça à tarde, com o seu catálogo e os seus números dentro. Isso perde de um vídeo bem editado, e perde toda vez.",
+  },
+  {
+    curto: "Integração com tudo",
+    falta: "Integração com tudo.",
+    porque:
+      "Cada conexão nova é mais um lugar onde o mesmo dado pode divergir. Elas entram uma de cada vez, e só quando dá para dizer sem hesitar quem manda naquele dado.",
+  },
+  {
+    curto: "Novidade toda semana",
+    falta: "Novidade toda semana.",
+    porque:
+      "O tempo que vai para o fuso horário, para o centavo do arredondamento e para a permissão de quem vê o quê é tempo que não aparece em lista de lançamento nenhuma.",
+  },
+];
+
+/**
  * A linha do tempo, como ela aconteceu de verdade.
  *
  * Mesma divisão dos princípios: a raiz passa por `resumo`, e /sobre é a única
@@ -312,3 +347,119 @@ export const CANAIS: Canal[] = [
 ];
 
 
+
+/**
+ * O herói da raiz: a empresa, e não o produto.
+ *
+ * O site institucional fala da ProOps; quem mostra o ERP funcionando é a landing
+ * dele. A primeira dobra daqui diz para QUEM a empresa faz software, e a cena
+ * responde, sem prosa, a pergunta que faz alguém fechar a aba: "isto serve para
+ * o meu negócio?".
+ *
+ * A cena é uma prancheta no escuro, e uma luz que o visitante carrega: onde ela
+ * passa aparece o desenho de um ofício, e o último é uma folha em branco com o
+ * nome dele. `SEGMENTOS` não é uma lista de nichos atendidos, e a nota diz
+ * isso: dois vêm prontos (os que existem em `lib/niches/config.ts`), o resto é
+ * configurado. Acrescentar um nome aqui é dizer que aquele negócio vende
+ * projeto, e não que ele já tem pacote.
+ */
+export const HEROI_RAIZ = {
+  titulo: ["Software de gestão", "para quem vende", "projeto."],
+  lead: "A ProOps nasceu em novembro de 2025 dentro de uma empresa que vende projeto, e virou produto depois de provada no uso diário. Dois segmentos já vêm prontos; para o resto, a gente configura.",
+  lanterna: {
+    convite: "Leve a luz pela prancheta",
+    conviteToque: "A luz passeia pela prancheta",
+    nota: "Cada desenho é um negócio que vende projeto. O último é o seu.",
+    seu: "O seu projeto",
+    seuApoio: "configurado com as suas palavras",
+    pronto: "pacote pronto",
+  },
+} as const;
+
+/**
+ * O herói de /sobre: a história como uma linha que se bifurca.
+ *
+ * As datas e os títulos vêm de `MARCOS`, que é o dono do assunto. O que mora
+ * aqui é só o que a CENA acrescenta: o nome das duas pontas e a frase que diz
+ * o que a bifurcação significa. Nenhum marco é atribuído a sócio nenhum, aqui
+ * ou em qualquer lugar: autoria de marco é fato que a página não tem.
+ */
+export const HEROI_SOBRE = {
+  rotulo: "A ProOps em quatro datas",
+  tronco: "ERP",
+  galho: "Aplicativo",
+  nota: "Dois produtos que saem da mesma base. O aplicativo nasceu ao lado do ERP, não depois dele.",
+} as const;
+
+/**
+ * Os ofícios desenhados na prancheta do herói.
+ *
+ * O `id` casa com o desenho em `_components/heroi/pranchas.ts`, e o tipo de lá
+ * exige um desenho para cada um destes: acrescentar um nome aqui sem desenhar
+ * a prancha dele é erro de compilação, não uma lacuna que aparece na tela.
+ */
+export type SegmentoId =
+  | "automacao"
+  | "cortinas"
+  | "marcenaria"
+  | "paisagismo"
+  | "piscinas"
+  | "solar"
+  | "climatizacao";
+
+export interface Segmento {
+  id: SegmentoId;
+  nome: string;
+  /** Só é `true` o que existe configurado no produto hoje. */
+  pronto?: boolean;
+}
+
+export const SEGMENTOS: readonly Segmento[] = [
+  { id: "automacao", nome: "Automação residencial", pronto: true },
+  { id: "cortinas", nome: "Cortinas e decoração", pronto: true },
+  { id: "marcenaria", nome: "Marcenaria" },
+  { id: "paisagismo", nome: "Paisagismo" },
+  { id: "piscinas", nome: "Piscinas" },
+  { id: "solar", nome: "Energia solar" },
+  { id: "climatizacao", nome: "Climatização" },
+] as const;
+
+/**
+ * Os segmentos que já vêm configurados no produto, e o estado de cada um.
+ *
+ * Espelha `lib/niches/config.ts`, que é a fonte do que o sistema realmente
+ * tem hoje. Ao ligar um nicho novo lá, ele entra aqui; até lá, a página não
+ * pode prometer que ele existe.
+ */
+export const NICHOS_PRONTOS = [
+  { rotulo: "Automação residencial", estado: "pronto" },
+  { rotulo: "Cortinas e decoração", estado: "pronto" },
+] as const;
+
+/**
+ * O que muda de um segmento para o outro. É a parte verificável da frase "a
+ * ProOps adapta-se ao seu nicho": sem esta lista, ela é só uma promessa
+ * simpática, e quem está decidindo não tem o que conferir.
+ */
+export const O_QUE_SE_CONFIGURA = [
+  {
+    titulo: "O catálogo",
+    texto:
+      "Os produtos e serviços que a sua empresa vende, com as unidades que ela usa: peça, metro, metro quadrado ou hora.",
+  },
+  {
+    titulo: "A proposta",
+    texto:
+      "Os campos que o seu orçamento precisa ter, o modelo do PDF e a forma de calcular o preço de cada linha.",
+  },
+  {
+    titulo: "As etapas",
+    texto:
+      "O funil com os estágios que existem no seu negócio, do primeiro contato à obra entregue, e não um padrão genérico.",
+  },
+  {
+    titulo: "As palavras",
+    texto:
+      "O vocabulário das telas: ambiente, sistema, projeto ou obra. O sistema fala como a sua equipe fala.",
+  },
+] as const;

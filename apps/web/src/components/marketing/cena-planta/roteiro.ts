@@ -1,0 +1,296 @@
+import {
+  COMODOS,
+  ITENS,
+  LARGURA_DA_CASA,
+  LAYOUTS,
+  PAGAMENTO,
+  PE_DIREITO,
+  PROFUNDIDADE_DA_CASA,
+  centroDoComodo,
+  type ComodoId,
+  type LayoutId,
+} from "./dados";
+import {
+  alvoDoQuadro,
+  arredonda,
+  caixaDaCasa,
+  transformaCamera,
+  type Camera,
+  type Ponto2,
+} from "./projecao";
+
+/**
+ * O roteiro da cena de abertura: o que está na tela em cada ponto da rolagem.
+ *
+ * Função PURA de `p` (o progresso da seção, de 0 a 1) e do realce do ponteiro.
+ * Nada aqui conhece DOM, React, three ou o tamanho da tela: quem lê é quem
+ * traduz. É isso que deixa três consumidores concordarem sem conversar:
+ *
+ * - `estilo-da-cena.tsx`, no SERVIDOR, escreve `estadoDaCena(1)` como CSS base e
+ *   `estadoDaCena(0)` dentro de `prefers-reduced-motion: no-preference`. Quem
+ *   pede menos movimento recebe o quadro final composto sem JavaScript nenhum,
+ *   e todo o resto recebe o começo da história no primeiro paint;
+ * - `diretor.tsx`, no cliente, chama a mesma função a cada quadro de rolagem e
+ *   escreve as mesmas variáveis por cima;
+ * - `planta-3d.tsx` lê as luzes, as cortinas e a câmera.
+ *
+ * Todos os campos numéricos ficam entre 0 e 1, crescem com `p` e valem 1 no fim.
+ * A exceção é a câmera, que não é uma revelação e sim um enquadramento. Os
+ * testes em `__tests__/roteiro.test.ts` guardam essas três propriedades.
+ */
+
+export type Ato = "repouso" | "projeto" | "proposta" | "aprovada" | "financeiro";
+
+/**
+ * Os cinco atos, contíguos. O primeiro é curto de propósito: a cena entra na
+ * tela parada, e a história começa no primeiro gesto de rolagem, não depois de
+ * meia tela de nada acontecendo.
+ *
+ * O último é o financeiro, e é onde a história TERMINA: esta cena vende o ERP,
+ * e o que ela precisa provar é que a proposta aprovada vira entrada e parcelas
+ * lançadas sozinhas. O aplicativo é outro produto, com página própria.
+ */
+export const ATOS: readonly { id: Ato; de: number; ate: number }[] = [
+  { id: "repouso", de: 0, ate: 0.08 },
+  { id: "projeto", de: 0.08, ate: 0.42 },
+  { id: "proposta", de: 0.42, ate: 0.66 },
+  { id: "aprovada", de: 0.66, ate: 0.84 },
+  { id: "financeiro", de: 0.84, ate: 1 },
+];
+
+/** A folga do quadro em volta da casa, em metros isométricos. */
+const FOLGA = 0.7;
+
+/** O `viewBox` do SVG e o quadro do three. */
+export const CAIXA = caixaDaCasa(
+  LARGURA_DA_CASA,
+  PROFUNDIDADE_DA_CASA,
+  PE_DIREITO,
+  FOLGA,
+);
+
+export const CAMERA_DE_REPOUSO: Camera = { zoom: 1, alvo: alvoDoQuadro(CAIXA) };
+
+/** O realce do ponteiro por cômodo, de 0 a 1, já suavizado por quem chama. */
+export type Realce = Partial<Record<ComodoId, number>>;
+
+export interface EstadoDaCena {
+  ato: Ato;
+  /** Cada legenda, por ato. Só uma fica inteira de cada vez. */
+  legendas: Record<Exclude<Ato, "repouso">, number>;
+  luzes: Record<ComodoId, number>;
+  cortinas: Record<ComodoId, number>;
+  camera: Camera;
+  /** O quanto a casa já abriu espaço para a proposta. */
+  recuoDaCasa: number;
+  /** Por item, na ordem de `ITENS`. */
+  chips: { surge: number; voo: number; linha: number }[];
+  proposta: { entrada: number; codigo: number; totalCentavos: number };
+  pagamento: { assinatura: number; selo: number; divisao: number; partes: number[] };
+}
+
+const limita = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
+
+/** Quanto de um trecho `[a, b]` do progresso já passou, de 0 a 1. */
+export function trecho(p: number, a: number, b: number): number {
+  return limita((p - a) / (b - a));
+}
+
+/** Hermite. Início e fim sem tranco, e ainda monótona. */
+const suave = (t: number) => t * t * (3 - 2 * t);
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const lerp2 = (a: Ponto2, b: Ponto2, t: number): Ponto2 => [
+  lerp(a[0], b[0], t),
+  lerp(a[1], b[1], t),
+];
+
+export function atoEm(p: number): Ato {
+  const q = limita(p);
+  for (const ato of ATOS) if (q < ato.ate) return ato.id;
+  return "financeiro";
+}
+
+/** Quando cada item é especificado, dentro do ato do projeto. */
+const INICIO_DO_PROJETO = 0.1;
+const PASSO_DO_PROJETO = 0.048;
+const DURACAO_DO_ITEM = 0.07;
+const inicioDoItem = (i: number) => INICIO_DO_PROJETO + i * PASSO_DO_PROJETO;
+
+/** Quando cada item voa para a proposta. */
+const INICIO_DO_VOO = 0.45;
+const PASSO_DO_VOO = 0.022;
+const DURACAO_DO_VOO = 0.06;
+const fimDoVoo = (i: number) => INICIO_DO_VOO + i * PASSO_DO_VOO + DURACAO_DO_VOO;
+
+/** O primeiro item de cada cômodo é o que acende a luz dele. */
+const PRIMEIRO_ITEM: Record<ComodoId, number> = Object.fromEntries(
+  COMODOS.map((c) => [c.id, ITENS.findIndex((i) => i.comodo === c.id)]),
+) as Record<ComodoId, number>;
+
+/**
+ * A câmera durante o projeto: visita o cômodo do item que está sendo
+ * especificado, deslizando de um para o outro. Fora dali, enquadra a casa.
+ */
+function camera(p: number): Camera {
+  const aproxima = suave(trecho(p, 0.08, 0.16)) * (1 - suave(trecho(p, 0.37, 0.46)));
+  const posicao = limita((p - INICIO_DO_PROJETO) / (PASSO_DO_PROJETO * ITENS.length));
+  const escala = posicao * (ITENS.length - 1);
+  const de = Math.floor(escala);
+  const ate = Math.min(ITENS.length - 1, de + 1);
+  const visita = lerp2(
+    centroDoComodo(ITENS[de].comodo),
+    centroDoComodo(ITENS[ate].comodo),
+    suave(escala - de),
+  );
+  // A visita não centra o cômodo: puxa o quadro METADE do caminho até ele. Com
+  // a casa inteira como contexto, o olho sabe onde está; centrando, cada cômodo
+  // viraria uma tela solta.
+  const alvo = lerp2(CAMERA_DE_REPOUSO.alvo, lerp2(CAMERA_DE_REPOUSO.alvo, visita, 0.5), aproxima);
+  const recua = suave(trecho(p, 0.4, 0.5));
+  return { zoom: 1 + 0.16 * aproxima - 0.06 * recua, alvo };
+}
+
+export function estadoDaCena(p: number, realce: Realce = {}): EstadoDaCena {
+  const q = limita(p);
+
+  const chips = ITENS.map((_, i) => {
+    const fim = fimDoVoo(i);
+    return {
+      surge: suave(trecho(q, inicioDoItem(i), inicioDoItem(i) + 0.05)),
+      voo: suave(trecho(q, fim - DURACAO_DO_VOO, fim)),
+      linha: trecho(q, fim - 0.01, fim + 0.03),
+    };
+  });
+
+  const luzes = {} as Record<ComodoId, number>;
+  const cortinas = {} as Record<ComodoId, number>;
+  for (const comodo of COMODOS) {
+    const primeiro = PRIMEIRO_ITEM[comodo.id];
+    const acesa = trecho(q, inicioDoItem(primeiro), inicioDoItem(primeiro) + 0.05);
+    // O ponteiro só ACENDE. Apagar uma luz que a história já acendeu faria a
+    // cena desmentir a si mesma debaixo do cursor.
+    luzes[comodo.id] = Math.max(acesa, limita(realce[comodo.id] ?? 0));
+    const cortina = ITENS.findIndex((i) => i.comodo === comodo.id && i.cortina);
+    cortinas[comodo.id] =
+      cortina < 0
+        ? 0
+        : suave(trecho(q, inicioDoItem(cortina) + 0.015, inicioDoItem(cortina) + DURACAO_DO_ITEM));
+  }
+
+  const totalCentavos = Math.round(
+    ITENS.reduce((soma, item, i) => soma + item.centavos * chips[i].linha, 0),
+  );
+
+  const entra = (a: number, b: number) => trecho(q, a, b);
+  const sai = (a: number, b: number) => 1 - trecho(q, a, b);
+
+  return {
+    ato: atoEm(q),
+    legendas: {
+      projeto: Math.min(entra(0.1, 0.15), sai(0.39, 0.43)),
+      proposta: Math.min(entra(0.45, 0.49), sai(0.63, 0.67)),
+      aprovada: Math.min(entra(0.68, 0.72), sai(0.82, 0.86)),
+      financeiro: entra(0.86, 0.9),
+    },
+    luzes,
+    cortinas,
+    camera: camera(q),
+    recuoDaCasa: suave(trecho(q, 0.4, 0.49)),
+    chips,
+    proposta: {
+      entrada: suave(trecho(q, 0.41, 0.48)),
+      codigo: trecho(q, 0.47, 0.52),
+      totalCentavos,
+    },
+    pagamento: {
+      assinatura: trecho(q, 0.68, 0.76),
+      selo: suave(trecho(q, 0.75, 0.78)),
+      divisao: suave(trecho(q, 0.85, 0.9)),
+      partes: [PAGAMENTO.entrada, ...PAGAMENTO.parcelas].map((_, i) =>
+        suave(trecho(q, 0.87 + i * 0.016, 0.91 + i * 0.016)),
+      ),
+    },
+  };
+}
+
+export const ESTADO_FINAL: EstadoDaCena = estadoDaCena(1);
+
+const n = (valor: number) => String(arredonda(valor));
+
+/**
+ * Quanto a casa está deslocada do lugar dela, em `[cqw, cqh]` do palco.
+ *
+ * Separado de `paraVariaveis` porque o diretor precisa do MESMO número em
+ * pixels para mandar cada chip ao cômodo certo: se as duas contas fossem
+ * escritas duas vezes, bastaria uma mudar para os chips pousarem ao lado da
+ * casa.
+ */
+export function deslocamentoDaCasa(estado: EstadoDaCena, layout: LayoutId): [number, number] {
+  const l = LAYOUTS[layout];
+  return [l.casa[0] * estado.recuoDaCasa, l.casa[1] * estado.recuoDaCasa];
+}
+
+/** Quanto a coluna da proposta está fora do lugar dela, em `[cqw, cqh]`. */
+export function deslocamentoDaFolha(estado: EstadoDaCena, layout: LayoutId): [number, number] {
+  const l = LAYOUTS[layout];
+  const fora = 1 - estado.proposta.entrada;
+  return [l.folha[0] * fora, l.folha[1] * fora];
+}
+
+/**
+ * O estado como variáveis CSS, para uma composição.
+ *
+ * O ÚNICO serializador: o servidor e o diretor passam por aqui, e é isso que
+ * impede que o primeiro paint e o primeiro quadro de rolagem discordem.
+ *
+ * Os deslocamentos saem em `cqw`/`cqh` do palco. O chip que voa é a exceção e
+ * não aparece aqui: a posição de partida dele depende de onde a linha da
+ * proposta está na tela, que só a medição conhece, e o diretor escreve isso à
+ * parte. No servidor ele não precisa de nada, porque nos dois estados que o
+ * servidor escreve o chip ou está invisível (começo) ou pousado (fim).
+ */
+export function paraVariaveis(
+  estado: EstadoDaCena,
+  layout: LayoutId,
+): Record<string, string> {
+  const { tx, ty, escala } = transformaCamera(estado.camera, CAIXA);
+  const casa = deslocamentoDaCasa(estado, layout);
+  const folha = deslocamentoDaFolha(estado, layout);
+  const v: Record<string, string> = {
+    "--cam-tx": n(tx),
+    "--cam-ty": n(ty),
+    "--cam-z": n(escala),
+    "--recuo": n(estado.recuoDaCasa),
+    "--casa-x": `${n(casa[0])}cqw`,
+    "--casa-y": `${n(casa[1])}cqh`,
+    "--folha": n(estado.proposta.entrada),
+    "--folha-x": `${n(folha[0])}cqw`,
+    "--folha-y": `${n(folha[1])}cqh`,
+    "--codigo": n(estado.proposta.codigo),
+    "--assinatura": n(estado.pagamento.assinatura),
+    "--selo": n(estado.pagamento.selo),
+    "--divisao": n(estado.pagamento.divisao),
+  };
+  for (const [ato, valor] of Object.entries(estado.legendas)) v[`--legenda-${ato}`] = n(valor);
+  for (const comodo of COMODOS) {
+    v[`--luz-${comodo.id}`] = n(estado.luzes[comodo.id]);
+    v[`--cortina-${comodo.id}`] = n(estado.cortinas[comodo.id]);
+  }
+  estado.chips.forEach((chip, i) => {
+    v[`--chip-${i}-surge`] = n(chip.surge);
+    v[`--chip-${i}-voo`] = n(chip.voo);
+    v[`--linha-${i}`] = n(chip.linha);
+  });
+  estado.pagamento.partes.forEach((parte, i) => {
+    v[`--parte-${i}`] = n(parte);
+  });
+  return v;
+}
+
+/** `{ "--a": "1" }` como corpo de uma regra CSS. */
+export function declaracoes(variaveis: Record<string, string>): string {
+  return Object.entries(variaveis)
+    .map(([nome, valor]) => `${nome}:${valor}`)
+    .join(";");
+}

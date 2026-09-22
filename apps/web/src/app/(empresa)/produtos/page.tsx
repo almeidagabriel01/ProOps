@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 
-import { AssinaturaAparelhos } from "@/components/institucional/assinaturas-hero";
-import { PaginaHero, LinhaHero } from "@/components/institucional/pagina-hero";
+import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
+import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
@@ -13,6 +13,7 @@ import { canonicalFor } from "@/lib/site/host-seo";
 import { APP_NAME } from "@/lib/site/app-brand";
 import { SITE_URLS, hostnameDe } from "@/lib/site/surfaces";
 
+import { HeroiAparelhos } from "./_components/heroi-aparelhos";
 import { LedgerRecursos } from "./_components/ledger-recursos";
 import { TelasDoAplicativo } from "./_components/telas-do-aplicativo";
 import { TelasDoErp } from "./_components/telas-do-erp";
@@ -52,20 +53,20 @@ export const metadata: Metadata = {
 export default function ProdutosPage() {
   return (
     <main>
-      <PaginaHero
-        assinatura={<AssinaturaAparelhos />}
-        sobrancelha="Produtos"
+      <HeroiPalco
+        cena={<HeroiAparelhos />}
+        rotulo="Produtos"
         titulo={
           <>
             <LinhaHero>Dois produtos,</LinhaHero>
             <LinhaHero atraso={0.09}>
-              uma <Realce className="font-extrabold">ideia</Realce>
+              uma ideia
             </LinhaHero>
             <LinhaHero atraso={0.18}>só.</LinhaHero>
           </>
         }
-        descricao="Um roda na tela do escritório e o outro no bolso. Esta página mostra as duas por dentro, com captura do que está no ar hoje."
-        dados={[
+        descricao="Um roda na tela do escritório e o outro no bolso. Esta página mostra as duas por dentro, com captura do que está no ar hoje. O exemplo é de automação e de cortinas porque foi onde o ERP começou; o sistema é configurado para o segmento de cada empresa."
+        ficha={[
           { valor: "02", rotulo: "Produtos" },
           { valor: "07", rotulo: "Telas nesta página" },
           { valor: "0", rotulo: "Protótipos" },
@@ -213,11 +214,17 @@ export default function ProdutosPage() {
             </p>
             <p>
               Nada no sistema, porém, está preso a esse nicho. Catálogo,
-              ambientes, campos da proposta e etapas do funil são configurados
-              por empresa, e a ProOps altera o que for preciso para o sistema
-              caber na rotina de quem está do outro lado. Se o seu negócio vende
-              projeto, a conversa começa por aí, e não por uma lista de nichos
-              atendidos.
+              unidades de medida, campos da proposta, etapas do funil e até o
+              vocabulário das telas são configurados por empresa, e a ProOps
+              altera o que for preciso para o sistema caber na rotina de quem
+              está do outro lado. Automação e decoração já vêm prontas porque
+              alguém já passou por elas; um segmento novo entra pela mesma
+              porta, configurado com a gente.
+            </p>
+            <p>
+              Marcenaria, paisagismo, piscina, energia solar, reforma: se o seu
+              negócio vende projeto, a conversa começa pelo que você vende, e
+              não por uma lista de nichos atendidos.
             </p>
           </div>
         </div>

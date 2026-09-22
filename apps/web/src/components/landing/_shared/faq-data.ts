@@ -7,6 +7,11 @@ export type FAQ = { question: string; answer: string };
  */
 export const FAQS: FAQ[] = [
   {
+    question: "A ProOps serve para o meu segmento?",
+    answer:
+      "Se a sua empresa vende projeto, serve. Automação residencial e decoração já vêm configuradas, com catálogo e cálculos prontos, e qualquer outro segmento é configurado na mesma base: catálogo, campos da proposta, etapas do funil e unidade de medida. O que muda é a configuração, não o sistema.",
+  },
+  {
     question: "Preciso de cartão de crédito para começar?",
     answer:
       "A assinatura da ProOps é cobrada apenas no cartão de crédito (em até 12x). Você escolhe o plano e conclui a assinatura direto no checkout seguro.",

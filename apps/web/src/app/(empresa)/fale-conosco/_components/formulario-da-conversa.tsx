@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 import type { Canal } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
+import { escolheCanal, useCanalEscolhido } from "./canal-escolhido";
 import { CampoDaConversa } from "./campo-da-conversa";
 import { SeletorDeCanal } from "./seletor-de-canal";
 
@@ -57,7 +58,10 @@ const OBRIGATORIOS = ["name", "company", "email", "message"] as const;
  */
 export function FormularioDaConversa({ canais }: { canais: Canal[] }) {
   const reduce = useReducedMotion();
-  const [indice, setIndice] = useState(0);
+  // O assunto mora num store de módulo, e não aqui: o herói da página também o
+  // escolhe, clicando numa das conversas (`canal-escolhido.ts`).
+  const escolhido = useCanalEscolhido();
+  const indice = Math.max(0, canais.findIndex((c) => c.titulo === escolhido));
   const [dados, setDados] = useState<ContactFormData>(VAZIO);
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState<Canal | null>(null);
@@ -130,7 +134,7 @@ export function FormularioDaConversa({ canais }: { canais: Canal[] }) {
           canais={canais}
           ativo={indice}
           aoEscolher={(proximo) => {
-            setIndice(proximo);
+            escolheCanal(canais[proximo].titulo);
             setFalha(null);
           }}
           className="mt-8"
