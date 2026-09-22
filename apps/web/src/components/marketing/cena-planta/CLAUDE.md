@@ -8,6 +8,15 @@ pagamento nasce lançado no financeiro. Ela entra pela seção
 `components/landing/landing-cena-planta.tsx` ("Conheça a plataforma ProOps"),
 que substituiu um carrossel de três vídeos.
 
+**A seção é da landing, o escuro é do PALCO.** A cena chegou aqui com a casca
+do site da empresa (faixa escura de ponta a ponta, sobrancelha colorida, título
+em Bricolage) no meio de uma página branca, com título em Montserrat e uma
+palavra em Playfair itálico. Hoje o cabeçalho é o `SectionHeading` de todas as
+outras seções, e os tokens da noite (`.superficie-noite`) moram no palco, que é
+uma maquete iluminada, com moldura arredondada e filete. Os tokens não podem
+subir para o `[data-cena-planta]`: aquilo é a trilha inteira de 300vh, e
+pintaria uma faixa escura atrás da moldura.
+
 **Ela nasceu como herói do site da empresa e mudou de endereço.** O motivo está
 escrito em `app/(empresa)/institucional/_components/heroi/heroi-raiz.tsx`: no
 site institucional ela respondia "como o sistema funciona", que é pergunta da
@@ -22,7 +31,7 @@ duas coisas viraram vantagem.
 | `projecao.ts` | a isometria, pura: `projeta`, `desprojetaNoPiso`, a câmera e o frustum do three |
 | `desenho.ts` | a ordem de desenho do SVG, por ordenação topológica (o SVG não tem z-buffer) |
 | `roteiro.ts` | `estadoDaCena(p, realce)`: o que está na tela em cada ponto da rolagem, e `paraVariaveis`, o ÚNICO serializador para CSS |
-| `planta-svg.tsx` / `three/cena-3d.ts` | os dois renderizadores da mesma casa |
+| `planta-svg.tsx` / `three/cena-3d.ts` | os dois renderizadores da mesma casa, com as MESMAS medidas (o pendente é o caso mais visível: cúpula, boca e lâmpada na mesma altura nos dois, senão a troca no meio da cena entrega o truque) |
 | `camadas-da-cena.tsx` | as legendas, a proposta e a divisão do pagamento, em HTML por cima dos dois |
 | `diretor.tsx` | liga rolagem e ponteiro ao roteiro, escrevendo variáveis na raiz da cena |
 | `seletor-de-nicho.tsx` | troca `data-nicho`; quem troca os rótulos é o CSS |
@@ -83,11 +92,28 @@ Por isso a folha não tem `opacity` própria: ela apagaria os chips junto.
   sólido para ter com o que somar. Sem as duas coisas, retângulo preto. A borda
   do canvas ainda some numa máscara (`.cena-canvas`): o bloom espalha luz até a
   beirada, e um corte reto desenha a moldura do canvas por cima do palco.
+- **Luz forte com queda lenta estoura a casa inteira.** A `PointLight` de cada
+  cômodo é intensa (18) mas com `decay` alto (1,7) e alcance curto (7): o que se
+  quer é uma poça de luz embaixo do pendente, não um cômodo uniformemente
+  branco. Com queda quase linear a luz atravessava a planta toda, todas as
+  faces passavam do limiar do bloom e o que sobrava na tela era uma nuvem branca
+  sobre metade da casa. O bloom é o segundo botão do mesmo problema: limiar
+  0,95, força 0,55.
 - **Número de luzes fixo no three.** Uma `PointLight` por cômodo, sempre, com
   intensidade zero quando apagada; mudar a contagem recompila os programas e dá
   tranco no meio da rolagem.
 - **Nenhum ancestral do palco pode ter `overflow`**: overflow desliga `sticky`
   nos descendentes, e a cena passa reto pela tela.
+- **O canvas é MAIOR que a caixa da casa** (`SOBRA_DO_QUADRO`, 12% por lado), e
+  o frustum cresce na mesma fração. O SVG desenha com `overflow: visible` e pode
+  passar da caixa; o canvas termina onde acaba, e com a câmera aproximando um
+  cômodo a lateral da casa ficava decepada numa linha reta. Mexer num dos dois
+  sem o outro muda a ESCALA do 3D, e aí a troca de renderizador no meio da cena
+  dá um salto.
+- **A casa encolhe ao recuar** (`scale` em `.cena-casa`, por `--recuo`). Só
+  deslocá-la para abrir espaço para a proposta punha a lateral para fora do
+  palco, que recorta. `scale` é a propriedade individual, como o `translate` ao
+  lado: as duas compõem, e um `transform` apagaria a outra.
 - **A aba em segundo plano não roda `requestAnimationFrame`**, e o `loopVisivel`
   pausa de propósito ali: numa automação de navegador com a aba escondida, o 3D
   nunca fica "pronto". Use o Playwright para conferir o 3D.

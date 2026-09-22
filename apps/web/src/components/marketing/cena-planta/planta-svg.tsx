@@ -33,6 +33,7 @@ import { CAIXA } from "./roteiro";
  */
 
 const ID_LUZ = "heroi-planta-luz";
+const ID_FEIXE = "heroi-planta-feixe";
 
 /** Só ganha cortina a janela de um cômodo que tem cortina especificada. */
 const COM_CORTINA = new Set(ITENS.filter((i) => i.cortina).map((i) => i.comodo));
@@ -132,20 +133,50 @@ function JanelaNaParede({
   );
 }
 
-/** O pendente: o fio, a cúpula e a lâmpada, que acende com a luz do cômodo. */
+/**
+ * O pendente: o fio, a cúpula, a lâmpada e o feixe que cai dela.
+ *
+ * A cúpula é um tronco de cone CHEIO, e não um bico de traço: nesta escala o
+ * lustre é a única peça da casa que tem forma própria, e um triângulo vazado de
+ * 0,4 de largura lia como um risco solto no meio do cômodo. A boca acende junto
+ * com o cômodo, que é o que faz a cúpula parecer conter a luz em vez de estar
+ * ao lado dela.
+ *
+ * O feixe é desenhado no plano da parede, como todo o resto deste desenho (ver
+ * `projecao.ts`), e por isso desce reto. Ele é curto de propósito: some antes
+ * de chegar ao piso, onde a elipse de luz (`.planta-brilho`) já responde. Um
+ * feixe que fosse até o chão fecharia um triângulo sólido e viraria uma parede
+ * de luz.
+ */
 function Pendente({ comodo, luz: [x, z], ordem }: { comodo: ComodoId; luz: readonly [number, number]; ordem: number }) {
   const topo = PE_DIREITO - 0.25;
-  const cupula = 1.95;
+  /** A boca da cúpula, onde a luz sai. */
+  const boca = 1.92;
+  /** Onde o fio encontra o colo da cúpula. */
+  const colo = boca + 0.24;
+  const raio = 0.3;
+  const feixe = 1.0;
   return (
     <g
       className="planta-pendente"
       style={{ "--luz": `var(--luz-${comodo})` } as React.CSSProperties}
     >
       <g transform={matrizCss(matrizDaParede("x", z))}>
-        <path className="planta-fio" d={`M${r(x)} ${r(topo)}V${r(cupula + 0.12)}`} />
-        <path className="planta-aresta traco-desenha" pathLength={1} style={atraso(ordem)} d={`M${r(x - 0.2)} ${r(cupula)}L${r(x)} ${r(cupula + 0.14)}L${r(x + 0.2)} ${r(cupula)}Z`} />
-        <circle className="planta-halo" cx={r(x)} cy={r(cupula - 0.02)} r={0.55} fill={`url(#${ID_LUZ})`} />
-        <circle className="planta-lampada" cx={r(x)} cy={r(cupula - 0.02)} r={0.07} />
+        <path
+          className="planta-feixe"
+          d={`M${r(x - raio)} ${r(boca)}H${r(x + raio)}L${r(x + raio * 2.6)} ${r(boca - feixe)}H${r(x - raio * 2.6)}Z`}
+          fill={`url(#${ID_FEIXE})`}
+        />
+        <path className="planta-fio" d={`M${r(x)} ${r(topo)}V${r(colo)}`} />
+        <path
+          className="planta-cupula traco-desenha"
+          pathLength={1}
+          style={atraso(ordem)}
+          d={`M${r(x - 0.07)} ${r(colo)}H${r(x + 0.07)}L${r(x + raio)} ${r(boca)}H${r(x - raio)}Z`}
+        />
+        <path className="planta-boca" d={`M${r(x - raio)} ${r(boca)}H${r(x + raio)}`} />
+        <circle className="planta-halo" cx={r(x)} cy={r(boca - 0.04)} r={0.62} fill={`url(#${ID_LUZ})`} />
+        <circle className="planta-lampada" cx={r(x)} cy={r(boca - 0.06)} r={0.075} />
       </g>
     </g>
   );
@@ -204,6 +235,13 @@ export function PlantaSvg({ className }: { className?: string }) {
           <stop offset="0.35" stopColor="rgb(255 255 255)" stopOpacity="0.34" />
           <stop offset="1" stopColor="rgb(255 255 255)" stopOpacity="0" />
         </radialGradient>
+        {/* O feixe do pendente. `objectBoundingBox` com y invertido: neste
+            plano o topo da caixa é o menor y do usuário, que é a ponta LARGA
+            do feixe, a que some. */}
+        <linearGradient id={ID_FEIXE} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="rgb(255 255 255)" stopOpacity="0" />
+          <stop offset="1" stopColor="rgb(255 255 255)" stopOpacity="0.5" />
+        </linearGradient>
         <pattern id={ID_PREGAS} width="0.22" height="1" patternUnits="userSpaceOnUse">
           <rect width="0.22" height="1" fill="rgb(229 229 229)" fillOpacity="0.22" />
           <rect x="0.14" width="0.08" height="1" fill="rgb(0 0 0)" fillOpacity="0.4" />

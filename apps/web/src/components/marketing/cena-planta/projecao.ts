@@ -156,15 +156,35 @@ export function daCaixaAoPiso(
 }
 
 /**
+ * Sobra do quadro 3D além da caixa da casa, em fração da caixa, por lado.
+ *
+ * O SVG desenha com `overflow: visible`, então a casa pode passar da caixa sem
+ * ser cortada. O canvas não tem esse luxo: ele termina onde acaba, e com a
+ * câmera aproximando um cômodo (zoom 1,16 e pan até meio caminho) o telhado e
+ * a lateral encostavam na borda e ficavam decepados. O canvas é desenhado
+ * MAIOR que a caixa nesta fração, e o frustum cresce junto, então o que muda é
+ * só quanto de mundo cabe em volta: a casa continua do mesmo tamanho e no
+ * mesmo lugar que no SVG, que é o que faz a troca de um renderizador pelo
+ * outro passar despercebida.
+ */
+export const SOBRA_DO_QUADRO = 0.12;
+
+/**
  * O frustum do `OrthographicCamera` que reproduz o quadro do SVG, em unidades
  * de mundo do three, com a câmera centrada no alvo.
+ *
+ * `sobra` alarga o quadro sem mexer na escala: é a contrapartida de um canvas
+ * maior que a caixa (ver `SOBRA_DO_QUADRO`). Com zero, o quadro é exatamente o
+ * do SVG, que é o que o teste de equivalência compara.
  */
 export function frustoOrtografico(
   camera: Camera,
   caixa: Caixa,
+  sobra = 0,
 ): { left: number; right: number; top: number; bottom: number } {
-  const meiaLargura = caixa.largura / camera.zoom / 2 / ESCALA_ISO;
-  const meiaAltura = caixa.altura / camera.zoom / 2 / ESCALA_ISO;
+  const alarga = 1 + sobra * 2;
+  const meiaLargura = (caixa.largura * alarga) / camera.zoom / 2 / ESCALA_ISO;
+  const meiaAltura = (caixa.altura * alarga) / camera.zoom / 2 / ESCALA_ISO;
   return {
     left: -meiaLargura,
     right: meiaLargura,

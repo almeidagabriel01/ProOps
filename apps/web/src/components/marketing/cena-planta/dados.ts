@@ -349,6 +349,6 @@ export interface Layout {
 }
 
 export const LAYOUTS: Record<LayoutId, Layout> = {
-  largo: { casa: [-26, 0], folha: [48, 0] },
+  largo: { casa: [-19, 0], folha: [48, 0] },
   retrato: { casa: [0, -20], folha: [0, 80] },
 };

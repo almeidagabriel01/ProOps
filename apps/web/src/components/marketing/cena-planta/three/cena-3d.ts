@@ -1,6 +1,7 @@
 import {
   ACESFilmicToneMapping,
   BoxGeometry,
+  ConeGeometry,
   BufferGeometry,
   Color,
   DirectionalLight,
@@ -42,7 +43,7 @@ import {
   type Retangulo,
 } from "../dados";
 import { caixaDaParede } from "../desenho";
-import { frustoOrtografico } from "../projecao";
+import { SOBRA_DO_QUADRO, frustoOrtografico } from "../projecao";
 import { CAIXA, type EstadoDaCena } from "../roteiro";
 
 /**
@@ -70,7 +71,7 @@ import { CAIXA, type EstadoDaCena } from "../roteiro";
  *   página, que é exatamente o que uma cena noturna quer.
  */
 
-const LUZ = new Color("#fff6ec");
+const LUZ = new Color("#ffffff");
 
 /**
  * O que a cena alocou na GPU, para devolver no fim. Por instância, e não de
@@ -228,7 +229,7 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
   );
 
   // A luz da noite: o bastante para a casa apagada se ler como o desenho do
-  // SVG, e pouco o bastante para o tungstênio de um cômodo aceso ganhar dela.
+  // SVG, e pouco o bastante para a lâmpada de um cômodo aceso ganhar dela.
   cena.add(new HemisphereLight("#e5e5e5", "#070707", 1.5));
   const lua = new DirectionalLight("#f5f5f5", 1.1);
   lua.position.set(-6, 14, 4);
@@ -264,25 +265,37 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
   }
   for (const m of MOVEIS) casa.add(caixa(guarda, aresta, m.retangulo, m.altura, movel));
 
-  // Um pendente por cômodo: o fio, a lâmpada (HDR, é o que floresce) e a luz.
+  // Um pendente por cômodo: o fio, a cúpula, a lâmpada (HDR, é o que floresce)
+  // e a luz. As medidas são as mesmas do desenho SVG (`planta-svg.tsx`), e têm
+  // que continuar sendo: a troca de um renderizador pelo outro acontece no meio
+  // da cena, e um lustre que mudasse de tamanho na troca entregaria o truque.
   const lampadas: Lampada[] = [];
+  const BOCA = 1.92;
   const esfera = guarda(new SphereGeometry(0.075, 16, 12));
+  // Aberta em baixo e com as duas faces: a de dentro é iluminada pela própria
+  // lâmpada, e é ela que faz a cúpula parecer conter a luz.
+  const cupula = guarda(new ConeGeometry(0.3, 0.24, 24, 1, true));
+  const abajur = guarda(
+    new MeshStandardMaterial({ color: "#1c1c1c", roughness: 0.55, metalness: 0.2, side: DoubleSide }),
+  );
   const fio = guarda(
     new BufferGeometry().setAttribute(
       "position",
-      new Float32BufferAttribute([0, PE_DIREITO - 0.25, 0, 0, 2.02, 0], 3),
+      new Float32BufferAttribute([0, PE_DIREITO - 0.25, 0, 0, BOCA + 0.24, 0], 3),
     ),
   );
   for (const comodo of COMODOS) {
     const [x, z] = comodo.luz;
     const material = guarda(new MeshBasicMaterial({ color: "#2e2e2e" }));
     const lampada = new Mesh(esfera, material);
-    lampada.position.set(x, 1.93, z);
+    lampada.position.set(x, BOCA - 0.06, z);
+    const cone = new Mesh(cupula, abajur);
+    cone.position.set(x, BOCA + 0.12, z);
     const cabo = new LineSegments(fio, aresta);
     cabo.position.set(x, 0, z);
-    const luz = new PointLight(LUZ, 0, 8, 1.2);
-    luz.position.set(x, 1.8, z);
-    casa.add(lampada, cabo, luz);
+    const luz = new PointLight(LUZ, 0, 7, 1.7);
+    luz.position.set(x, BOCA - 0.04, z);
+    casa.add(lampada, cone, cabo, luz);
     lampadas.push({ comodo: comodo.id, luz, material });
   }
 
@@ -291,7 +304,7 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
   const alvo = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: 4 });
   const composer = new EffectComposer(renderer, alvo);
   composer.addPass(new RenderPass(cena, camera));
-  const bloom = new UnrealBloomPass(new Vector2(1, 1), 0.7, 0.38, 0.9);
+  const bloom = new UnrealBloomPass(new Vector2(1, 1), 0.55, 0.4, 0.95);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
@@ -302,7 +315,7 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
     desenha(estado, segundos) {
       tempo.value = segundos;
 
-      const f = frustoOrtografico(estado.camera, CAIXA);
+      const f = frustoOrtografico(estado.camera, CAIXA, SOBRA_DO_QUADRO);
       camera.left = f.left;
       camera.right = f.right;
       camera.top = f.top;
@@ -314,7 +327,7 @@ export function criaCena3d(canvas: HTMLCanvasElement): Cena3d | null {
 
       for (const { comodo, luz, material } of lampadas) {
         const acesa = estado.luzes[comodo];
-        luz.intensity = acesa * 16;
+        luz.intensity = acesa * 18;
         // Acima de 1 de propósito: é isso que passa do limiar do bloom.
         lampadaAcesa.copy(LUZ).multiplyScalar(1 + acesa * 5);
         material.color.lerpColors(lampadaApagada, lampadaAcesa, acesa);

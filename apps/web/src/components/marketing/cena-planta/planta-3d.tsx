@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 
 import { loopVisivel } from "@/components/marketing/_shared/webgl/create-gl";
 
+import { SOBRA_DO_QUADRO } from "./projecao";
 import type { CenaAoVivo } from "./cena-ao-vivo";
 import { criaCena3d } from "./three/cena-3d";
 
@@ -45,8 +46,12 @@ export default function Planta3d({ aoVivo }: Planta3dProps) {
     let altura = 0;
 
     const redimensiona = () => {
-      largura = caixa.clientWidth;
-      altura = caixa.clientHeight;
+      // O canvas é maior que a caixa (ver `SOBRA_DO_QUADRO`), e o frustum
+      // cresce na mesma fração: a casa fica do mesmo tamanho, com mundo de
+      // sobra em volta em vez de borda cortando.
+      const alarga = 1 + SOBRA_DO_QUADRO * 2;
+      largura = Math.round(caixa.clientWidth * alarga);
+      altura = Math.round(caixa.clientHeight * alarga);
       if (largura > 0 && altura > 0) {
         cena.redimensiona(largura, altura);
         versaoDesenhada = -1;
@@ -90,7 +95,8 @@ export default function Planta3d({ aoVivo }: Planta3dProps) {
       aria-hidden="true"
       width={0}
       height={0}
-      className="cena-canvas pointer-events-none absolute inset-0 h-full w-full"
+      style={{ inset: `${-SOBRA_DO_QUADRO * 100}%` }}
+      className="cena-canvas pointer-events-none absolute h-auto w-auto"
     />
   );
 }

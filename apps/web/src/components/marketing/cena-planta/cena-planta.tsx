@@ -59,7 +59,13 @@ const RESUMO = `Exemplo ilustrativo: numa casa de ${COMODOS.length} ambientes, $
  *
  * - **nenhum ancestral do palco pode ter `overflow`**: overflow desliga
  *   `sticky` nos descendentes, e a cena passa reto pela tela. O
- *   `overflow-hidden` mora NO palco, que é o que precisa recortar;
+ *   `overflow-hidden` e a moldura arredondada moram NO palco, que é o que
+ *   precisa recortar: a landing é clara, e o escuro daqui é o palco, não a
+ *   faixa;
+ * - **os tokens da noite moram NO palco** (`.superficie-noite`), e não na
+ *   seção: a landing em volta é clara, e o escuro é a maquete. Nenhum token
+ *   pode subir para o `[data-cena-planta]`, que é a trilha inteira de 300vh e
+ *   pintaria uma faixa escura atrás da moldura;
  * - **o palco é o container** (`container-type: size`), e todo deslocamento da
  *   cena é em `cqw`/`cqh` dele. Porcentagem num `translate` seria relativa ao
  *   próprio elemento, e a folha e a casa têm tamanhos diferentes;
@@ -81,7 +87,10 @@ export function CenaPlanta() {
       <EstiloDaCena />
 
       <div className="cena-trilha relative h-[300vh]">
-        <div data-palco="" className="cena-palco sticky top-0 h-[100svh] overflow-hidden">
+        <div
+          data-palco=""
+          className="superficie-noite cena-palco sticky top-3 h-[calc(100svh-1.5rem)] overflow-hidden rounded-[1.75rem] border border-white/10"
+        >
           <div aria-hidden="true" className="superficie-noite__luz pointer-events-none absolute inset-0" />
 
           <div className="cena-lugar-casa pointer-events-none absolute inset-0 flex">

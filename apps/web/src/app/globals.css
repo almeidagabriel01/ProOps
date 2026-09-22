@@ -1787,10 +1787,15 @@ html[data-heroi="espera"] .regua-desenha {
   justify-content: center;
   padding-left: 6cqw;
 }
+/* A casa recua para a esquerda quando a proposta entra, e ENCOLHE junto: só
+   deslocar punha a lateral dela para fora do palco, que recorta. É `scale`, a
+   propriedade individual, pelo mesmo motivo do `translate` ao lado: as duas
+   compõem, enquanto um `transform` apagaria a outra. */
 .cena-casa {
   aspect-ratio: var(--aspecto);
   width: min(62cqw, calc(74cqh * var(--aspecto)));
   translate: var(--casa-x) var(--casa-y);
+  scale: calc(1 - var(--recuo, 0) * 0.14);
 }
 
 /* As abas de nicho ficam no alto do palco, e continuam lá a cena inteira: dá
@@ -1995,6 +2000,31 @@ html[data-heroi="espera"] .regua-desenha {
   stroke: rgb(var(--linha) / 0.35);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+/* A cúpula é cheia: o tom do tampo de móvel, para ler como objeto e não como
+   risco. O traço dela se desenha com o resto da casa, então a espessura vai em
+   unidades do DESENHO: `non-scaling-stroke` desliga o `pathLength`, e a
+   animação de traço para de existir (ver `.planta-aresta`). */
+.planta-cupula {
+  fill: #1c1c1c;
+  stroke: rgb(var(--linha) / 0.55);
+  stroke-width: 0.026;
+  stroke-linejoin: round;
+}
+/* A boca acende junto com o cômodo: é ela que faz a cúpula parecer conter a
+   luz, em vez de estar ao lado dela. */
+.planta-boca {
+  fill: none;
+  stroke: rgb(var(--realce) / calc(0.25 + var(--luz, 0) * 0.75));
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+/* O feixe some antes do piso, onde a elipse de luz já responde. Somado por
+   `screen`, como todo o resto que acende. */
+.planta-feixe {
+  opacity: calc(var(--luz, 0) * 0.5);
+  mix-blend-mode: screen;
 }
 .planta-lampada {
   fill: rgb(var(--realce));
