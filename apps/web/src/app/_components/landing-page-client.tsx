@@ -15,8 +15,8 @@ import { setLandingLenis } from "@/lib/landing/smooth-scroll";
 // Seções abaixo da dobra: code-split com next/dynamic (ssr: true por padrão),
 // mantendo HTML server-rendered e animações scroll-triggered intactas.
 // Import por caminho direto (não pelo barrel) para o webpack dividir de fato.
-const LandingFeatureScroll = dynamic(() =>
-  import("@/components/landing/landing-feature-scroll").then((m) => m.LandingFeatureScroll),
+const LandingCenaPlanta = dynamic(() =>
+  import("@/components/landing/landing-cena-planta").then((m) => m.LandingCenaPlanta),
 );
 const LandingHowItWorks = dynamic(() =>
   import("@/components/landing/landing-how-it-works").then((m) => m.LandingHowItWorks),
@@ -140,7 +140,7 @@ export function LandingPageClient() {
 
       <main>
         <LandingHeroAssemble />
-        <LandingFeatureScroll />
+        <LandingCenaPlanta />
         <LandingHowItWorks />
         <LandingFeatures />
         <LandingIntegrations />
