@@ -112,8 +112,14 @@ export function LeituraAoVivo({
 
           {/* A altura mínima é a da maior leitura, medida com as sete frases:
               a de duas linhas com quatro campos. Sem ela o palco pularia a
-              cada troca de frase. Frase nova mais longa: meça de novo. */}
-          <div className="min-h-[21rem] max-md:[@media(max-height:720px)]:min-h-[17rem] md:min-h-[31rem]">
+              cada troca de frase. Frase nova mais longa: meça de novo.
+
+              `tela-baixa` é a mesma medida com a leitura compactada (frase,
+              ficha e espaçamentos menores nessas alturas). Sem ela, num
+              notebook de 720px o palco não cabia sob a barra fixa e, como ele
+              cresce para nunca cortar a ficha, era o título que sumia atrás
+              da barra. */}
+          <div className="min-h-[21rem] max-md:[@media(max-height:720px)]:min-h-[17rem] md:min-h-[31rem] tela-baixa:min-h-[25rem]">
             <TrocaComSaida valor={indice} chave={String}>
               {(exibido) => (
                 <LeituraNaFatia

@@ -2,6 +2,7 @@
 
 import React from "react";
 import gsap from "gsap";
+import type { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { Realce } from "@/components/institucional/secao";
@@ -63,17 +64,75 @@ const PRODUTOS: Produto[] = [
 ];
 
 /**
+ * Onde a cena lateral roda no celular. Tem que ser a MESMA query do
+ * `@custom-variant pan-celular` em globals.css: o CSS decide o layout (fileira
+ * de duas telas) e esta decide a animação que a percorre, e uma sem a outra é
+ * uma segunda tela inalcançável.
+ *
+ * O piso de altura existe porque cada painel passa a caber numa tela só. Abaixo
+ * de 620px (um iPhone SE com as barras do Safari) o conteúdo não cabe, e ali os
+ * painéis continuam empilhados, que é melhor do que um botão cortado.
+ */
+const PAN_CELULAR =
+  "(max-width: 767px) and (min-height: 620px) and (prefers-reduced-motion: no-preference)";
+
+/** O resto do celular: empilhado, com uma entrada por painel. */
+const EMPILHADO_CELULAR =
+  "(max-width: 767px) and (max-height: 619.98px) and (prefers-reduced-motion: no-preference)";
+
+/**
+ * The pan, with the parallax and the progress rule on the SAME timeline. A
+ * second ScrollTrigger measuring a pinned section would measure against the pin
+ * spacer instead of the viewport, and drift from the pan.
+ */
+function montarPan(
+  secao: HTMLElement,
+  track: HTMLElement,
+  scrollTrigger: ScrollTrigger.Vars,
+) {
+  const copias = gsap.utils.toArray<HTMLElement>(".produto-copia", secao);
+  const regua = secao.querySelector<HTMLElement>(".produto-regua");
+
+  const tl = gsap.timeline({ defaults: { ease: "none" }, scrollTrigger });
+
+  tl.to(track, { xPercent: -50 }, 0);
+  // The outgoing panel's copy leads the pan, the incoming one trails it. Small
+  // numbers on purpose: past about 12% it stops reading as depth and starts
+  // reading as the text sliding independently of its own panel.
+  tl.fromTo(copias[0], { xPercent: 0 }, { xPercent: -9 }, 0);
+  tl.fromTo(copias[1], { xPercent: 9 }, { xPercent: 0 }, 0);
+  if (regua) tl.fromTo(regua, { scaleX: 0 }, { scaleX: 1 }, 0);
+
+  return () => {
+    tl.scrollTrigger?.kill();
+    tl.kill();
+    gsap.set([track, ...copias, regua].filter(Boolean), {
+      clearProps: "all",
+    });
+  };
+}
+
+/**
  * The two products, one screen each.
  *
- * Above `md` the section pins and the scroll drives the track sideways, so
- * moving from one product to the other reads as a camera pan rather than as two
- * boxes on a page. The copy inside each panel counter-moves against the pan,
- * which is what stops the two screens from feeling like one flat image being
- * dragged past: the panel is the camera move, the copy is parallax inside it.
+ * The scroll drives the track sideways, so moving from one product to the other
+ * reads as a camera pan rather than as two boxes on a page. The copy inside each
+ * panel counter-moves against the pan, which is what stops the two screens from
+ * feeling like one flat image being dragged past: the panel is the camera move,
+ * the copy is parallax inside it.
  *
- * Below `md` there is no pin: the same two panels stack and scroll, and get
- * their own arrival instead. The markup is identical in both cases, which is
- * what keeps the small-screen path from being a second implementation that rots.
+ * Two ways of holding the stage still while the track moves, one per width:
+ *   - `md` up: GSAP's pin, as it always was.
+ *   - phone: CSS `sticky`, the same construction as "O problema". The section is
+ *     two screens tall and the stage sticks for the second one. A GSAP pin
+ *     swaps the section to `position: fixed` and back, and on iOS the Safari
+ *     toolbar collapsing mid-scroll is exactly when that swap jumps; `sticky` is
+ *     the browser's own and has nothing to re-measure.
+ *
+ * Phones too short for a panel to fit on one screen, and anyone with reduced
+ * motion on a phone, keep the stacked layout with an arrival per panel. The
+ * markup is identical in every case, which is what keeps the small-screen path
+ * from being a second implementation that rots.
  *
  * Only transforms are animated, so all of it stays on the compositor.
  */
@@ -81,52 +140,42 @@ export function InstitucionalProdutos() {
   const sectionRef = React.useRef<HTMLElement>(null);
   const trackRef = React.useRef<HTMLDivElement>(null);
 
-  // Desktop: the pan, with the parallax and the progress rule on the SAME
-  // timeline. A second ScrollTrigger measuring a pinned section would measure
-  // against the pin spacer instead of the viewport, and drift from the pan.
   useScrollScene(sectionRef, () => {
     const track = trackRef.current;
     const secao = sectionRef.current;
     if (!track || !secao) return;
-
-    const copias = gsap.utils.toArray<HTMLElement>(
-      ".produto-copia",
-      secao,
-    );
-    const regua = secao.querySelector<HTMLElement>(".produto-regua");
-
-    const tl = gsap.timeline({
-      defaults: { ease: "none" },
-      scrollTrigger: {
-        trigger: secao,
-        start: "top top",
-        // One extra viewport of scroll buys the pan. A function keeps it correct
-        // after a resize, together with invalidateOnRefresh.
-        end: () => `+=${window.innerHeight}`,
-        pin: true,
-        scrub: 0.6,
-        invalidateOnRefresh: true,
-      },
+    return montarPan(secao, track, {
+      trigger: secao,
+      start: "top top",
+      // One extra viewport of scroll buys the pan. A function keeps it correct
+      // after a resize, together with invalidateOnRefresh.
+      end: () => `+=${window.innerHeight}`,
+      pin: true,
+      scrub: 0.6,
+      invalidateOnRefresh: true,
     });
-
-    tl.to(track, { xPercent: -50 }, 0);
-    // The outgoing panel's copy leads the pan, the incoming one trails it. Small
-    // numbers on purpose: past about 12% it stops reading as depth and starts
-    // reading as the text sliding independently of its own panel.
-    tl.fromTo(copias[0], { xPercent: 0 }, { xPercent: -9 }, 0);
-    tl.fromTo(copias[1], { xPercent: 9 }, { xPercent: 0 }, 0);
-    if (regua) tl.fromTo(regua, { scaleX: 0 }, { scaleX: 1 }, 0);
-
-    return () => {
-      tl.scrollTrigger?.kill();
-      tl.kill();
-      gsap.set([track, ...copias, regua].filter(Boolean), {
-        clearProps: "all",
-      });
-    };
   });
 
-  // Below `md` the panels stack, so they arrive instead of panning.
+  // Phone: the section is already two screens tall and the stage is sticky, so
+  // the pan simply spans the section, with no pin.
+  useScrollScene(
+    sectionRef,
+    () => {
+      const track = trackRef.current;
+      const secao = sectionRef.current;
+      if (!track || !secao) return;
+      return montarPan(secao, track, {
+        trigger: secao,
+        start: "top top",
+        end: "bottom bottom",
+        scrub: 0.6,
+        invalidateOnRefresh: true,
+      });
+    },
+    { query: PAN_CELULAR },
+  );
+
+  // Short phones: the panels stack, so they arrive instead of panning.
   useScrollScene(
     sectionRef,
     () => {
@@ -158,10 +207,7 @@ export function InstitucionalProdutos() {
         });
       };
     },
-    {
-      query:
-        "(max-width: 767px) and (prefers-reduced-motion: no-preference)",
-    },
+    { query: EMPILHADO_CELULAR },
   );
 
   return (
@@ -169,121 +215,130 @@ export function InstitucionalProdutos() {
       ref={sectionRef}
       id="produtos"
       aria-label="Produtos da ProOps"
-      className="relative md:h-[100svh] md:overflow-hidden"
+      className="relative md:h-[100svh] md:overflow-hidden pan-celular:h-[200svh]"
     >
-      <div ref={trackRef} className="flex flex-col md:w-[200vw] md:flex-row">
-        {PRODUTOS.map((produto, index) => {
-          const claro = index === 0;
-          return (
-            <article
-              key={produto.nome}
-              className={
-                claro
-                  ? "flex min-h-[100svh] w-full flex-col justify-center bg-white px-6 py-24 text-black md:w-screen md:px-16 lg:px-24"
-                  : "flex min-h-[100svh] w-full flex-col justify-center bg-neutral-950 px-6 py-24 text-white md:w-screen md:px-16 lg:px-24"
-              }
-            >
-              <div className="produto-copia mx-auto w-full max-w-2xl">
-                <div className="mb-6 flex items-center justify-between gap-6">
-                  <p
-                    className={`inline-flex items-center gap-2.5 [font-family:var(--font-geist-mono)] text-[11px] font-medium uppercase tracking-[0.28em] ${
-                      claro ? "text-black/45" : "text-[#6DDC9E]"
-                    }`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`h-px w-7 ${
-                        claro ? "bg-black/30" : "bg-[#6DDC9E]/50"
-                      }`}
-                    />
-                    {produto.eyebrow}
-                  </p>
-                  {/* Where the reader is in the pan. A horizontal scroll hides
-                      its own length, and this is the only thing that says the
-                      section has two screens rather than one. */}
-                  <p
-                    aria-hidden="true"
-                    className={`[font-family:var(--font-geist-mono)] text-[11px] tabular-nums ${
-                      claro ? "text-black/30" : "text-white/30"
-                    }`}
-                  >
-                    0{index + 1} / 0{PRODUTOS.length}
-                  </p>
-                </div>
-
-                <h2 className="[font-family:var(--font-bricolage)] text-sm font-bold uppercase tracking-[0.2em]">
-                  {produto.nome}
-                </h2>
-
-                <p className="mt-5 [font-family:var(--font-bricolage)] text-3xl font-semibold leading-[1.12] tracking-tight md:text-5xl">
-                  {produto.promessa}
-                </p>
-
-                <p
-                  className={`mt-6 max-w-xl text-base leading-relaxed md:text-lg ${
-                    claro ? "text-black/60" : "text-white/60"
-                  }`}
-                >
-                  {produto.descricao}
-                </p>
-
-                <ul className="mt-9 space-y-3">
-                  {produto.capacidades.map((capacidade) => (
-                    <li
-                      key={capacidade}
-                      className={`flex items-baseline gap-3 text-sm md:text-base ${
-                        claro ? "text-black/75" : "text-white/75"
+      <div className="relative md:h-full pan-celular:sticky pan-celular:top-0 pan-celular:h-[100svh] pan-celular:overflow-hidden">
+        <div
+          ref={trackRef}
+          className="flex flex-col md:w-[200vw] md:flex-row pan-celular:w-[200vw] pan-celular:flex-row"
+        >
+          {PRODUTOS.map((produto, index) => {
+            const claro = index === 0;
+            return (
+              <article
+                key={produto.nome}
+                className={
+                  claro
+                    ? "flex min-h-[100svh] w-full flex-col justify-center bg-white px-6 py-24 text-black md:w-screen md:px-16 lg:px-24 pan-celular:h-[100svh] pan-celular:min-h-0 pan-celular:w-screen pan-celular:pb-12 pan-celular:pt-[5.5rem]"
+                    : "flex min-h-[100svh] w-full flex-col justify-center bg-neutral-950 px-6 py-24 text-white md:w-screen md:px-16 lg:px-24 pan-celular:h-[100svh] pan-celular:min-h-0 pan-celular:w-screen pan-celular:pb-12 pan-celular:pt-[5.5rem]"
+                }
+              >
+                <div className="produto-copia mx-auto w-full max-w-2xl">
+                  <div className="mb-6 flex items-center justify-between gap-6 pan-celular:mb-4">
+                    <p
+                      className={`inline-flex items-center gap-2.5 [font-family:var(--font-geist-mono)] text-[11px] font-medium uppercase tracking-[0.28em] ${
+                        claro ? "text-black/45" : "text-[#6DDC9E]"
                       }`}
                     >
                       <span
                         aria-hidden="true"
-                        className={`mt-[0.45em] h-1 w-1 shrink-0 rounded-full ${
-                          claro ? "bg-black/40" : "bg-[#6DDC9E]"
+                        className={`h-px w-7 ${
+                          claro ? "bg-black/30" : "bg-[#6DDC9E]/50"
                         }`}
                       />
-                      {capacidade}
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-11">
-                  <Magnetic>
-                    <LandingButton
-                      href={produto.href}
-                      external
-                      variant={claro ? "onLight" : "inverted"}
-                      size="lg"
+                      {produto.eyebrow}
+                    </p>
+                    {/* Where the reader is in the pan. A horizontal scroll hides
+                      its own length, and this is the only thing that says the
+                      section has two screens rather than one. */}
+                    <p
+                      aria-hidden="true"
+                      className={`[font-family:var(--font-geist-mono)] text-[11px] tabular-nums ${
+                        claro ? "text-black/30" : "text-white/30"
+                      }`}
                     >
-                      {produto.cta}
-                    </LandingButton>
-                  </Magnetic>
+                      0{index + 1} / 0{PRODUTOS.length}
+                    </p>
+                  </div>
+
+                  <h2 className="[font-family:var(--font-bricolage)] text-sm font-bold uppercase tracking-[0.2em]">
+                    {produto.nome}
+                  </h2>
+
+                  <p className="mt-5 [font-family:var(--font-bricolage)] text-3xl font-semibold leading-[1.12] tracking-tight md:text-5xl pan-celular:mt-3 pan-celular:text-[1.75rem]">
+                    {produto.promessa}
+                  </p>
+
+                  <p
+                    className={`mt-6 max-w-xl text-base leading-relaxed md:text-lg pan-celular:mt-4 pan-celular:text-[15px] ${
+                      claro ? "text-black/60" : "text-white/60"
+                    }`}
+                  >
+                    {produto.descricao}
+                  </p>
+
+                  <ul className="mt-9 space-y-3 pan-celular:mt-6 pan-celular:space-y-2.5">
+                    {produto.capacidades.map((capacidade) => (
+                      <li
+                        key={capacidade}
+                        className={`flex items-baseline gap-3 text-sm md:text-base ${
+                          claro ? "text-black/75" : "text-white/75"
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`mt-[0.45em] h-1 w-1 shrink-0 rounded-full ${
+                            claro ? "bg-black/40" : "bg-[#6DDC9E]"
+                          }`}
+                        />
+                        {capacidade}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-11 pan-celular:mt-8">
+                    <Magnetic>
+                      <LandingButton
+                        href={produto.href}
+                        external
+                        variant={claro ? "onLight" : "inverted"}
+                        size="lg"
+                      >
+                        {produto.cta}
+                      </LandingButton>
+                    </Magnetic>
+                  </div>
                 </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
+              </article>
+            );
+          })}
+        </div>
 
-      {/*
-        The pan's travel. Desktop only, because below `md` the panels stack and
-        the browser's own scrollbar already says how long the section is.
+        {/*
+        The pan's travel. Wherever the pan runs, and nowhere else: stacked, the
+        browser's own scrollbar already says how long the section is.
 
-        `mix-blend-difference` because the rule is pinned while the panels pan
+        `mix-blend-difference` because the rule stays put while the panels pan
         UNDER it: it crosses a white screen and a near-black one, and a single
         colour is invisible on one of the two. Difference against white renders
         black on white and white on black, which is the one thing that reads on
         both without a second element.
+
+        It lives inside the stage and not on the section, because on a phone the
+        section is two screens tall and `bottom` would be measured against it;
+        the stage is the box that stays on screen.
 
         No `scale-x-0` in the class: the resting state in the markup has to be
         the FINAL one, so that under `prefers-reduced-motion`, where no timeline
         is created, the rule is drawn rather than absent. The `fromTo` sets the
         zero itself when the scrub starts.
       */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-16 bottom-10 hidden h-px bg-white/25 mix-blend-difference md:block lg:inset-x-24"
-      >
-        <div className="produto-regua h-px w-full origin-left bg-white" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-16 bottom-10 hidden h-px bg-white/25 mix-blend-difference md:block lg:inset-x-24 pan-celular:inset-x-6 pan-celular:bottom-6 pan-celular:block"
+        >
+          <div className="produto-regua h-px w-full origin-left bg-white" />
+        </div>
       </div>
     </section>
   );

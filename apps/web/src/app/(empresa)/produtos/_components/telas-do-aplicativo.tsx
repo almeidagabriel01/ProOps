@@ -5,6 +5,7 @@ import Image from "next/image";
 import { m as motion, useTransform } from "motion/react";
 
 import { DeviceFrame } from "@/components/marketing/_shared/device-frame";
+import { useMediaQuery } from "@/components/marketing/_shared/use-media-query";
 import { useScrollProgress } from "@/components/marketing/_shared/use-scroll-progress";
 import { APP_NAME } from "@/lib/site/app-brand";
 
@@ -24,17 +25,20 @@ const TELAS: Tela[] = [
   {
     arquivo: "/mockup-ios/hoje.jpg",
     rotulo: "Hoje",
-    legenda: "Quanto sobra até o fim do mês, já contando o que está comprometido.",
+    legenda:
+      "Quanto sobra até o fim do mês, já contando o que está comprometido.",
   },
   {
     arquivo: "/mockup-ios/financeiro.jpg",
     rotulo: "Financeiro",
-    legenda: "Cartões, faturas e metas, alimentados pelo que você mandou por mensagem.",
+    legenda:
+      "Cartões, faturas e metas, alimentados pelo que você mandou por mensagem.",
   },
   {
     arquivo: "/mockup-ios/notas.jpg",
     rotulo: "Notas",
-    legenda: "Uma frase ou um áudio, e a IA classifica sem você abrir categoria.",
+    legenda:
+      "Uma frase ou um áudio, e a IA classifica sem você abrir categoria.",
   },
 ];
 
@@ -57,6 +61,10 @@ export function TelasDoAplicativo() {
     end: "bottom 70%",
     fallback: 1,
   });
+  // `sm`, and not `md`, because that is where the grid below goes to three
+  // columns. The server snapshot is `false`, i.e. stacked, which is the safe
+  // side: stacked is the path where each phone has its own clock.
+  const lado = useMediaQuery("(min-width: 640px)");
 
   return (
     <div
@@ -71,6 +79,7 @@ export function TelasDoAplicativo() {
           total={TELAS.length}
           progresso={progress}
           animado={animated}
+          empilhado={!lado}
         />
       ))}
     </div>
@@ -86,13 +95,36 @@ function Aparelho({
   total,
   progresso,
   animado,
+  empilhado,
 }: {
   tela: Tela;
   indice: number;
   total: number;
   progresso: ReturnType<typeof useScrollProgress>["progress"];
   animado: boolean;
+  empilhado: boolean;
 }) {
+  /*
+    Empilhado, cada aparelho tem o próprio relógio.
+
+    A cena foi escrita para a fileira de três, em que o grupo inteiro cabe numa
+    tela e uma só trilha mede todos. Empilhada, a mesma trilha passa a ter três
+    aparelhos de altura, perto de 1800px num celular, e as fatias dela viravam
+    distância de rolagem: o primeiro aparelho só chegava a opacidade cheia com
+    quase 60% dessa trilha percorrida, ou seja, depois de já ter passado pela
+    tela inteira apagado. A ordem "do centro para fora" também não significa
+    nada numa coluna.
+
+    Aqui a entrada começa quando o topo do aparelho aparece e termina com ele a
+    um terço da tela, que é onde o leitor está olhando.
+  */
+  const figura = useRef<HTMLElement>(null);
+  const proprio = useScrollProgress(figura, {
+    start: "top 95%",
+    end: "top 60%",
+    fallback: 1,
+  }).progress;
+
   // The middle one arrives first, then its neighbours, so the group assembles
   // outward from the centre instead of left to right like a list.
   const ordem = [1, 0, 2][indice] ?? indice;
@@ -100,11 +132,19 @@ function Aparelho({
   const de = 0.05 + ordem * fatia;
   const ate = de + fatia * 2.6;
 
-  const y = useTransform(progresso, [de, ate], [44, 0]);
-  const opacity = useTransform(progresso, [de, ate], [0, 1]);
+  // Both pairs always exist and the style picks one: which motion value feeds a
+  // `useTransform` is fixed at its first render, so switching the SOURCE when
+  // the viewport crosses `sm` would keep reading the old one.
+  const yGrupo = useTransform(progresso, [de, ate], [44, 0]);
+  const opacityGrupo = useTransform(progresso, [de, ate], [0, 1]);
+  const yProprio = useTransform(proprio, [0, 1], [44, 0]);
+  const opacityProprio = useTransform(proprio, [0, 1], [0, 1]);
+  const y = empilhado ? yProprio : yGrupo;
+  const opacity = empilhado ? opacityProprio : opacityGrupo;
 
   return (
     <motion.figure
+      ref={figura}
       style={animado ? { y, opacity } : undefined}
       className={DESNIVEL[indice]}
     >

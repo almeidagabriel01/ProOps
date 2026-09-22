@@ -58,7 +58,7 @@ export function FichaDaLeitura({ pedido, numero }: FichaDaLeituraProps) {
   const { resposta } = pedido;
 
   return (
-    <div className="ficha relative overflow-hidden rounded-[1.75rem] border border-[var(--app-card-border)] bg-[linear-gradient(180deg,var(--app-hero-top),var(--app-hero-bottom))] p-4 shadow-[0_40px_80px_-48px_rgba(0,0,0,0.9)] md:p-7">
+    <div className="ficha relative overflow-hidden rounded-[1.75rem] border border-[var(--app-card-border)] bg-[linear-gradient(180deg,var(--app-hero-top),var(--app-hero-bottom))] p-4 shadow-[0_40px_80px_-48px_rgba(0,0,0,0.9)] md:p-7 tela-baixa:p-5">
       <span
         aria-hidden="true"
         className="pointer-events-none absolute -right-16 -top-24 h-56 w-56 rounded-full bg-[var(--app-tint)] opacity-[0.12] blur-[60px]"
@@ -115,11 +115,11 @@ export function FichaDaLeitura({ pedido, numero }: FichaDaLeituraProps) {
         </div>
       ) : null}
 
-      <dl className="relative mt-4 divide-y divide-white/[0.06] border-t border-white/[0.06] md:mt-5">
+      <dl className="relative mt-4 divide-y divide-white/[0.06] border-t border-white/[0.06] md:mt-5 tela-baixa:mt-4">
         {pedido.campos.map((campo) => (
           <div
             key={campo.rotulo}
-            className="ficha-campo flex items-baseline justify-between gap-4 py-1.5 md:py-3"
+            className="ficha-campo flex items-baseline justify-between gap-4 py-1.5 md:py-3 tela-baixa:py-2"
           >
             <dt className="shrink-0 text-sm text-[var(--app-on-hero-muted)]">
               {campo.rotulo}

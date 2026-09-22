@@ -45,7 +45,7 @@ export function CabecalhoDaCena({
           {sobrancelha}
         </p>
       ) : null}
-      <Titulo className="max-w-2xl [font-family:var(--font-hanken)] text-2xl font-bold leading-[1.1] tracking-[-0.02em] md:text-4xl">
+      <Titulo className="max-w-2xl [font-family:var(--font-hanken)] text-2xl font-bold leading-[1.1] tracking-[-0.02em] md:text-4xl tela-baixa:text-3xl">
         {titulo}
       </Titulo>
       <p

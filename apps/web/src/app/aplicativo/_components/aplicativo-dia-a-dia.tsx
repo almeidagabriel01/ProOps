@@ -343,7 +343,7 @@ function CorpoDoDiaADia() {
   return (
     <section
       ref={sectionRef}
-      className="border-t border-white/[0.06] bg-[var(--app-bg)] px-6 py-28 text-[var(--app-text)] md:h-[100svh] md:overflow-hidden md:px-10 md:py-0"
+      className="border-t border-white/[0.06] bg-[var(--app-bg)] px-6 py-28 text-[var(--app-text)] md:h-[100svh] md:overflow-hidden md:px-10 md:pb-8 md:pt-[5.5rem]"
     >
       <div className="mx-auto flex h-full max-w-6xl flex-col md:justify-center">
         <header>
@@ -398,7 +398,7 @@ function CorpoDoDiaADia() {
           ))}
         </div>
 
-        <div className="relative mt-6 md:mt-12 md:max-h-[32rem] md:min-h-[24rem] md:flex-1">
+        <div className="relative mt-6 md:mt-12 md:max-h-[32rem] md:min-h-0 md:flex-1 tela-baixa:mt-8">
           {/* The rail. Desktop only: on a phone the hours live inside each
               block, where they do not need a column of their own.
 
@@ -453,7 +453,13 @@ function CorpoDoDiaADia() {
               {/* `md:pr-8` afasta o aparelho da linha do tempo, que corre
                   exatamente na borda direita desta coluna. Colado nela, o anel
                   do ponto sobrepunha a moldura. */}
-              <div className="flex items-stretch gap-4 md:h-[24rem] md:pr-8 lg:h-[28rem] lg:gap-5">
+              {/* A altura da fileira tem teto na altura da TELA, não só o
+                  valor fixo. O palco é `100svh` com a barra de navegação fixa
+                  por cima, e com 28rem fixos um notebook de 757px punha o
+                  título debaixo da barra e o aparelho para fora da base. Os
+                  15,5rem reservados são o recuo da barra, o título, o espaço
+                  até o palco e a folga de baixo. */}
+              <div className="flex items-stretch gap-4 md:h-[min(24rem,calc(100svh_-_15.5rem))] md:pr-8 lg:h-[min(28rem,calc(100svh_-_15.5rem))] lg:gap-5">
                 <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/[0.07] bg-[linear-gradient(150deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))]">
                   {/* The light of the hour. This is what carries the day passing,
                       in the absence of a photograph. */}
@@ -488,7 +494,9 @@ function CorpoDoDiaADia() {
 
                     A largura é o teto da altura da fileira: a moldura é 9/19,5,
                     então 12,5rem dão 433px e a fileira tem 448px de `lg`. Subir
-                    a largura sem subir a fileira junto corta o aparelho.
+                    a largura sem subir a fileira junto corta o aparelho. Em
+                    tela baixa as duas encolhem pela mesma conta (0,4615 é
+                    9/19,5), por isso a reserva de 15,5rem aparece nas duas.
 
                     ⚠️ O portão é de ESTADO, não de CSS, e isto é orçamento. Com
                     `hidden lg:block` os seis aparelhos continuam existindo no
@@ -499,7 +507,7 @@ function CorpoDoDiaADia() {
                     viewport de 412px, exatamente onde essas seis telas não
                     aparecem. */}
                 {mostraAparelho ? (
-                  <div className="w-[12.5rem] shrink-0 self-center">
+                  <div className="w-[min(12.5rem,calc((100svh_-_15.5rem)*0.4615))] shrink-0 self-center">
                     <DeviceFrame platform="ios">
                       <TelaDoAplicativo tela={momento.tela} />
                     </DeviceFrame>

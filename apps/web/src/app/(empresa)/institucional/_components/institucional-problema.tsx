@@ -11,25 +11,45 @@ import { PLANILHAS } from "../_content/institucional-copy";
 /**
  * Where each sheet starts, and how it is tilted.
  *
- * Viewport units, NOT percentages. A percentage in a `transform: translate` is
- * measured against the ELEMENT's own box, not its parent, so `-62%` moved a
- * 240px card by 149px and all six landed in a heap in the middle of the stage,
- * which is the opposite of scattered. Viewport units measure against the
- * viewport, which is what "off to the side" means here.
+ * `x` and `y` are NORMALISED, from -1 to 1, and the stage turns them into
+ * distance through two extents it declares as CSS variables (`--ex`, and
+ * `--ey-cima` / `--ey-baixo`). They used to be written straight in viewport
+ * units (`-40vw`, `-30vh`), which was right on a monitor and wrong on a phone:
+ * a card is 66vw wide there, so 40vw off centre put most of it past the edge,
+ * and 30vh up put it over the section's own eyebrow, which vanished under the
+ * pile. Nobody reads "scattered" from a card that is two thirds off-screen.
  *
- * Safe against the horizontal-overflow guard because the sticky stage is
- * `overflow-hidden`: a card starting past the edge is clipped, and a clipped
- * transform contributes nothing to `document.scrollWidth`. That is the exact
- * failure the mobile spec watches for at 393px, and clipping is what prevents it.
+ * The extents are what adapts, not the numbers:
+ *   - horizontal: the room that is actually left beside a card, so it touches
+ *     the edge at most, at every width, from 360px to an ultrawide
+ *   - vertical, portrait: the arena plus the gap around it, so the cards never
+ *     climb over the eyebrow (they may go further DOWN, because the closing
+ *     line underneath is still invisible while they are scattered)
+ *   - vertical, landscape: the original 34vh, which is what the desktop was
+ *     designed with and where the width keeps them off the eyebrow
+ *
+ * Viewport units and not percentages, still: a percentage in a translate is
+ * measured against the element's own box, and all six would land in a heap.
  */
 const DISPERSAO = [
-  { x: -34, y: -26, rot: -13, escala: 0.86 },
-  { x: 30, y: -30, rot: 10, escala: 0.92 },
-  { x: -40, y: 16, rot: 7, escala: 0.9 },
-  { x: 38, y: 22, rot: -8, escala: 0.84 },
-  { x: -14, y: 34, rot: 15, escala: 0.95 },
-  { x: 18, y: -6, rot: -5, escala: 0.88 },
+  { x: -0.85, y: -0.76, rot: -13, escala: 0.86 },
+  { x: 0.75, y: -0.88, rot: 10, escala: 0.92 },
+  { x: -1, y: 0.47, rot: 7, escala: 0.9 },
+  { x: 0.95, y: 0.65, rot: -8, escala: 0.84 },
+  { x: -0.35, y: 1, rot: 15, escala: 0.95 },
+  { x: 0.45, y: -0.18, rot: -5, escala: 0.88 },
 ] as const;
+
+/**
+ * Where a card is, `k` of the way back from its scattered start (1 = scattered,
+ * 0 = landed). Returned as a `calc()` over the stage's extents, so the SAME
+ * motion value lands correctly at any width without a resize listener.
+ */
+function deslocamento(normal: number, k: number, extensao: string): string {
+  return `calc(var(${extensao}) * ${(Math.abs(normal) * k).toFixed(4)} * ${
+    normal < 0 ? -1 : 1
+  })`;
+}
 
 const REUNE_ATE = 0.62;
 
@@ -64,8 +84,11 @@ function Planilha({
   const de = 0.06 + indice * 0.035;
   const ate = REUNE_ATE;
 
-  const x = useTransform(progresso, [de, ate], [`${cfg.x}vw`, "0vw"]);
-  const y = useTransform(progresso, [de, ate], [`${cfg.y}vh`, "0vh"]);
+  const restante = useTransform(progresso, [de, ate], [1, 0]);
+  const x = useTransform(restante, (k) => deslocamento(cfg.x, k, "--ex"));
+  const y = useTransform(restante, (k) =>
+    deslocamento(cfg.y, k, cfg.y < 0 ? "--ey-cima" : "--ey-baixo"),
+  );
   const rotate = useTransform(progresso, [de, ate], [cfg.rot, 0]);
   const scale = useTransform(progresso, [de, ate], [cfg.escala, 1]);
   // They fade as they land: six stacked cards at full opacity is a smear, and
@@ -83,7 +106,7 @@ function Planilha({
           ? { x, y, rotate, scale, opacity, zIndex: DISPERSAO.length - indice }
           : { opacity: 0.12 }
       }
-      className="absolute w-[min(17rem,66vw)] overflow-hidden border border-white/25 bg-neutral-900 shadow-[0_24px_60px_-24px_rgba(0,0,0,1)]"
+      className="absolute w-[var(--largura-planilha)] overflow-hidden border border-white/25 bg-neutral-900 shadow-[0_24px_60px_-24px_rgba(0,0,0,1)]"
     >
       {/* Title bar: the file name, and a column letter, which is the one detail
           that says "spreadsheet" without a single icon. */}
@@ -158,13 +181,24 @@ export function InstitucionalProblema() {
       className="relative border-t border-white/10 bg-neutral-950 text-white"
       style={{ height: "300vh" }}
     >
-      <div className="sticky top-0 flex h-[100svh] flex-col items-center justify-center overflow-hidden px-6 md:px-10">
+      {/*
+        The extents the cards scatter by (see DISPERSAO). `--largura-planilha`
+        is declared here and not on the card because the horizontal extent is
+        derived from it: the room beside a card is half the viewport minus half
+        the card, minus a small margin so the tilted corner does not touch the
+        edge. Capped at the 40vw the desktop was designed with.
+
+        The top padding below `md` is the navbar's height: on a short phone the
+        centred column is taller than what is left, and the eyebrow would sit
+        under the fixed pill.
+      */}
+      <div className="sticky top-0 flex h-[100svh] flex-col items-center justify-center overflow-hidden px-6 pt-[4.5rem] [--largura-planilha:min(17rem,56vw)] [--ex:min(40vw,calc(50vw_-_var(--largura-planilha)/2_-_0.75rem))] [--ey-cima:34vh] [--ey-baixo:34vh] portrait:[--ey-cima:calc(19vh_-_2rem)] portrait:[--ey-baixo:calc(19vh_+_4rem)] md:px-10 md:pt-0 md:[--largura-planilha:min(17rem,66vw)] md:portrait:[--ey-cima:calc(21vh_-_1rem)] md:portrait:[--ey-baixo:calc(21vh_+_4rem)]">
         <div
           aria-hidden="true"
           className="grade-pontos pointer-events-none absolute inset-0 opacity-40"
         />
 
-        <Sobrancelha className="relative z-10 mb-10 md:mb-14">
+        <Sobrancelha className="relative z-20 mb-10 md:mb-14">
           O problema
         </Sobrancelha>
 

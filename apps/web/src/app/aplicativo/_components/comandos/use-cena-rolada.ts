@@ -142,7 +142,7 @@ export const TOPO_DO_PALCO = 96;
  * padrão `0px` faz o `min` valer `6rem`, que é o comportamento antigo.
  */
 export const CLASSE_DO_PALCO =
-  "sticky top-[min(6rem,calc(100svh_-_var(--altura-do-palco,0px)))] flex min-h-[calc(100svh-6rem)] flex-col justify-start gap-4 md:justify-center md:gap-7";
+  "sticky top-[min(6rem,calc(100svh_-_var(--altura-do-palco,0px)))] flex min-h-[calc(100svh-6rem)] flex-col justify-start gap-4 md:justify-center md:gap-7 tela-baixa:gap-5";
 
 /**
  * Escreve a altura real do palco em `--altura-do-palco`, que é de onde o `top`
