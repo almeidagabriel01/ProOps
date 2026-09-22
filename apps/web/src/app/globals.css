@@ -2291,6 +2291,69 @@ html[data-heroi="espera"] .balanca-assenta {
   }
 }
 
+/* /fale-conosco: cada conversa "digita" e responde. Os pontos aparecem, somem,
+   e a resposta se revela por `clip-path`, que é pintura e não layout. Os
+   pontos pulam duas vezes e param: um loop infinito debaixo de uma resposta já
+   revelada seria GPU gasta com nada. */
+@keyframes conversa-digita {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  82% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.conversa-digita {
+  opacity: 0;
+  animation: conversa-digita 1s ease var(--conversa-delay, 0s) both;
+}
+@keyframes conversa-ponto {
+  0%,
+  100% {
+    translate: 0 0;
+    opacity: 0.45;
+  }
+  50% {
+    translate: 0 -3px;
+    opacity: 1;
+  }
+}
+.conversa-ponto {
+  animation: conversa-ponto 0.5s ease-in-out calc(var(--conversa-delay, 0s) + var(--ponto, 0s)) 2;
+}
+@keyframes conversa-revela {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0 round 16px);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round 16px);
+  }
+}
+.conversa-responde {
+  animation: conversa-revela 0.7s cubic-bezier(0.22, 1, 0.36, 1) var(--conversa-delay, 0s) both;
+}
+html[data-heroi="espera"] :is(.conversa-digita, .conversa-ponto, .conversa-responde) {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .conversa-digita,
+  .conversa-ponto {
+    animation: none;
+    opacity: 0;
+  }
+  .conversa-responde {
+    animation: none;
+    opacity: 1;
+    clip-path: none;
+  }
+}
+
 /* Inclinação de card por ponteiro, sem JS por card: o escopo escreve as duas
    variáveis e cada card as lê com o próprio peso. */
 .inclina-ponteiro {

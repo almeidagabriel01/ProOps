@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 
-import { AssinaturaCanais } from "@/components/institucional/assinaturas-hero";
 import { HeroiPalco } from "@/components/institucional/herois/heroi-palco";
 import { LinhaHero } from "@/components/institucional/herois/heroi-titulo";
 import { Realce, Secao, TituloSecao } from "@/components/institucional/secao";
 import { SplitReveal } from "@/components/marketing/_shared/split-reveal";
 import { canonicalFor } from "@/lib/site/host-seo";
 
+import { ALVO_DO_FORMULARIO } from "./_components/fio-da-conversa";
 import { FormularioDaConversa } from "./_components/formulario-da-conversa";
+import { HeroiConversas } from "./_components/heroi-conversas";
 
 import { CANAIS } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
@@ -51,11 +52,7 @@ export default function FaleConoscoPage() {
   return (
     <main>
       <HeroiPalco
-        cena={
-          <div className="hidden text-white/20 md:block">
-            <AssinaturaCanais />
-          </div>
-        }
+        cena={<HeroiConversas />}
         rotulo="Contato"
         titulo={
           <>
@@ -72,7 +69,7 @@ export default function FaleConoscoPage() {
         ]}
       />
 
-      <Secao aria-label="Escreva para a ProOps">
+      <Secao id={ALVO_DO_FORMULARIO} aria-label="Escreva para a ProOps">
         <div className="mx-auto max-w-6xl">
           <TituloSecao
             sobrancelha="Por onde"
