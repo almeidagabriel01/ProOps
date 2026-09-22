@@ -4,6 +4,13 @@
 
 @custom-variant dark (&:is(.dark *));
 /*
+  Notebook ou tablet deitado com pouca altura (1366x657, 1280x720, 1024x768).
+  Os palcos de tela cheia da landing do aplicativo foram medidos em telas
+  altas, e nessas alturas o conteúdo passava da tela ou ia para baixo da barra
+  de navegação fixa. Só de `md` para cima: o celular tem as próprias regras.
+*/
+@custom-variant tela-baixa (@media (min-width: 768px) and (max-height: 800px));
+/*
   Celular com altura para a cena lateral dos produtos do site da empresa
   (institucional-produtos.tsx). A mesma query está escrita lá, em
   PAN_CELULAR, para o GSAP: as duas têm que concordar, senão o layout vira

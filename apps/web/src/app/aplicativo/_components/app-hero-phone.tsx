@@ -30,7 +30,7 @@ import { APP_NAME } from "@/lib/site/app-brand";
  */
 export function AppHeroPhone() {
   return (
-    <div className="relative mx-auto w-full max-w-[20rem] sm:max-w-[21rem]">
+    <div className="relative mx-auto w-full max-w-[20rem] sm:max-w-[21rem] lg:max-w-[clamp(15rem,calc((100svh_-_9rem)*0.4615),21rem)]">
       {/* A luz. Fica atrás de tudo e não recebe ponteiro. */}
       <span
         aria-hidden="true"

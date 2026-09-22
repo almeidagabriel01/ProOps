@@ -152,7 +152,8 @@ The E2E job uses a matrix strategy with 4 shards:
 | `mobile-chrome` | Pixel 5 (393x851, `hasTouch`, `isMobile`) | `smoke.spec.ts` + `tests/e2e/mobile/**` |
 
 `tests/e2e/superficies/` cobre o roteamento por host das três superfícies num navegador
-de verdade, `tests/e2e/institucional/` cobre a navegação do site da empresa (cortina,
+de verdade (e, em `aplicativo-notebook.spec.ts`, que os palcos parados da landing do app
+cabem sob a barra fixa em telas de notebook de 1024 a 1440), `tests/e2e/institucional/` cobre a navegação do site da empresa (cortina,
 âncoras e o caminho de `prefers-reduced-motion`), e `mobile/superficies-layout.spec.ts`
 cobre as sete páginas de marketing a 393px.
 

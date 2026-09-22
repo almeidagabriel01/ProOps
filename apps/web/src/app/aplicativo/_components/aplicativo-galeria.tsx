@@ -213,7 +213,7 @@ function CorpoDaGaleria() {
       className="border-t border-white/[0.06] bg-[var(--app-bg)] py-28 text-[var(--app-text)] md:py-0"
     >
       <div className="md:h-[100svh] md:overflow-hidden">
-        <div className="md:flex md:h-full md:flex-col md:justify-center">
+        <div className="md:flex md:h-full md:flex-col md:justify-center md:pb-6 md:pt-[5.5rem]">
           <div className="px-6 md:px-10">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -297,6 +297,15 @@ function CorpoDaGaleria() {
             at all, so the emphasis only ever lands on the ones in between: the
             first and last are dim and small for the whole pan and then the
             section is gone.
+
+            A largura da moldura (`--tela`) sai da ALTURA da tela, com o teto
+            de antes (15rem, 19rem de `lg`). A moldura é 9/19,5, então 19rem de
+            largura são ~660px de altura, e num notebook de 757px isso não
+            cabia com o título, a legenda e a barra de navegação fixa: o título
+            ia para baixo da barra e a legenda saía pela base. Os 19rem
+            reservados são o resto do palco (o recuo da barra, o título, o
+            espaço até a fileira e a legenda); 0,4615 é 9/19,5. O lead-in usa a
+            mesma variável, senão a primeira tela deixa de nascer centrada.
           */}
           {/* No celular a prateleira é uma fileira que se arrasta, e ela
               precisa PARECER uma. Com molduras de 52% cabiam duas inteiras e
@@ -314,12 +323,12 @@ function CorpoDaGaleria() {
               o título ao lado respeitava a margem. */}
           <ul
             ref={trackRef}
-            className="landing-scrollbar mt-10 flex snap-x snap-mandatory scroll-px-6 gap-5 overflow-x-auto px-6 pb-5 [mask-image:linear-gradient(90deg,#000_calc(100%-2.5rem),transparent)] md:mt-10 md:w-max md:snap-none md:gap-8 md:overflow-visible md:px-[calc(50vw_-_7.5rem)] md:pb-0 md:[mask-image:none] lg:px-[calc(50vw_-_9.5rem)]"
+            className="landing-scrollbar mt-10 flex snap-x snap-mandatory scroll-px-6 gap-5 overflow-x-auto px-6 pb-5 [mask-image:linear-gradient(90deg,#000_calc(100%-2.5rem),transparent)] md:mt-10 md:w-max md:snap-none md:gap-8 md:overflow-visible md:px-[calc(50vw_-_var(--tela)/2)] md:pb-0 md:[mask-image:none] md:[--tela:clamp(9rem,calc((100svh_-_19rem)*0.4615),15rem)] lg:[--tela:clamp(9rem,calc((100svh_-_19rem)*0.4615),19rem)]"
           >
             {telas.map((tela, index) => (
               <li
                 key={tela.nome}
-                className="tela-item w-[43%] shrink-0 snap-start sm:w-[33%] md:w-[15rem] lg:w-[19rem]"
+                className="tela-item w-[43%] shrink-0 snap-start sm:w-[33%] md:w-[var(--tela)]"
               >
                 <DeviceFrame platform={plataforma}>
                   <Image
@@ -352,7 +361,7 @@ function CorpoDaGaleria() {
               already fit a wide monitor, and padding the track with empty
               space to force movement would be moving nothing.
             */}
-            <li className="flex w-[43%] shrink-0 snap-start items-center sm:w-[33%] md:w-[15rem] lg:w-[19rem]">
+            <li className="flex w-[43%] shrink-0 snap-start items-center sm:w-[33%] md:w-[var(--tela)]">
               <a
                 href="#planos"
                 className="flex aspect-[9/19.5] w-full flex-col justify-center rounded-[1.75rem] border border-dashed border-white/15 px-6 text-center transition-colors hover:border-[var(--app-tint)]/50 hover:bg-white/[0.02]"
