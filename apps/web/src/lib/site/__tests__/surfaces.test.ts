@@ -6,6 +6,7 @@ import {
   APEX_STILL_SERVES_ERP,
   APEX_SURFACE,
   apexRedirectPara,
+  erpHomeUrl,
   erpHomeUrlPara,
   institucionalHomeUrlPara,
   resolveApexRedirect,
@@ -39,24 +40,36 @@ describe("resolveSurface", () => {
     expect(resolveSurface("  APP.ProOps.com.BR  ")).toBe("app");
   });
 
-  it("falls back to the apex surface for the apex domain", () => {
+  it("gives the apex surface to the apex hosts, and only to them", () => {
     expect(resolveSurface("proops.com.br")).toBe(APEX_SURFACE);
     expect(resolveSurface("www.proops.com.br")).toBe(APEX_SURFACE);
+    expect(resolveSurface("proops.localhost:3000")).toBe(APEX_SURFACE);
   });
 
-  it("falls back to the apex surface for previews, localhost and a missing header", () => {
-    expect(resolveSurface("proops-web-git-feat.vercel.app")).toBe(APEX_SURFACE);
-    expect(resolveSurface("localhost:3000")).toBe(APEX_SURFACE);
-    expect(resolveSurface(null)).toBe(APEX_SURFACE);
-    expect(resolveSurface(undefined)).toBe(APEX_SURFACE);
-    expect(resolveSurface("")).toBe(APEX_SURFACE);
+  // O defeito que isto previne só aparecia depois da virada: com o fallback
+  // antigo ("a superfície do apex"), `localhost` e todo preview passariam a
+  // responder 301 para `erp.proops.com.br`, a produção. O E2E inteiro do CI
+  // entra por `localhost`.
+  it("serves the ERP on previews, localhost and a missing header", () => {
+    expect(resolveSurface("proops-web-git-feat.vercel.app")).toBe("erp");
+    expect(resolveSurface("localhost:3000")).toBe("erp");
+    expect(resolveSurface("127.0.0.1:3001")).toBe("erp");
+    expect(resolveSurface(null)).toBe("erp");
+    expect(resolveSurface(undefined)).toBe("erp");
+    expect(resolveSurface("")).toBe("erp");
+  });
+
+  it("never sends localhost or a preview to production", () => {
+    for (const host of ["localhost:3000", "proops-web-git-feat.vercel.app"]) {
+      expect(resolveApexRedirect(resolveSurface(host), "/login")).toBeNull();
+    }
   });
 
   it("does not match a host that merely CONTAINS the label", () => {
     // Regression guard: a substring check would hand these to the wrong site.
-    expect(resolveSurface("apps.proops.com.br")).toBe(APEX_SURFACE);
-    expect(resolveSurface("erpx.proops.com.br")).toBe(APEX_SURFACE);
-    expect(resolveSurface("meu-app.proops.com.br")).toBe(APEX_SURFACE);
+    expect(resolveSurface("apps.proops.com.br")).toBe("erp");
+    expect(resolveSurface("erpx.proops.com.br")).toBe("erp");
+    expect(resolveSurface("meu-app.proops.com.br")).toBe("erp");
   });
 });
 
@@ -122,16 +135,18 @@ describe("indexabilidade por host", () => {
    * e alguém pode "consertar" a normalização sem perceber: label vazio não é
    * "app" nem "erp", então a requisição cai no apex, que é o padrão seguro.
    */
-  it("degrada um host IPv6 para o apex, em vez de adivinhar", () => {
+  it("degrada um host IPv6 para o ERP, em vez de adivinhar", () => {
     expect(normalizeHost("[::1]:3000")).toBe("");
-    expect(resolveSurface("[::1]:3000")).toBe(APEX_SURFACE);
+    expect(resolveSurface("[::1]:3000")).toBe("erp");
     expect(isNewSubdomainHost("[::1]:3000")).toBe(false);
   });
 
-  it("mantém os dois subdomínios fora do índice enquanto o apex serve o ERP", () => {
-    expect(APEX_STILL_SERVES_ERP).toBe(true);
-    expect(shouldNoIndexHost("erp.proops.com.br")).toBe(true);
-    expect(shouldNoIndexHost("app.proops.com.br")).toBe(true);
+  // Depois da virada cada host tem conteúdo próprio, e os três entram no
+  // índice. Antes dela os subdomínios eram duplicatas do apex e ficavam fora.
+  it("abre os três hosts depois da virada", () => {
+    expect(APEX_STILL_SERVES_ERP).toBe(false);
+    expect(shouldNoIndexHost("erp.proops.com.br")).toBe(false);
+    expect(shouldNoIndexHost("app.proops.com.br")).toBe(false);
     expect(shouldNoIndexHost("proops.com.br")).toBe(false);
   });
 });
@@ -151,10 +166,18 @@ describe("a virada do apex", () => {
     superficie: "institucional" as const,
   };
 
-  it("hoje não redireciona nada", () => {
-    expect(APEX_STILL_SERVES_ERP).toBe(true);
-    for (const p of ["/", "/login", "/dashboard", "/privacy", "/decoracao"]) {
-      expect(resolveApexRedirect("erp", p)).toBeNull();
+  // O lado de antes (nada redireciona) está coberto por `apexRedirectPara`
+  // com o estado explícito; aqui a constante de verdade, já virada.
+  it("com a virada feita, o apex manda o ERP para o subdomínio", () => {
+    expect(APEX_STILL_SERVES_ERP).toBe(false);
+    expect(resolveApexRedirect("institucional", "/login")).toBe(
+      "https://erp.proops.com.br/login",
+    );
+    expect(resolveApexRedirect("institucional", "/decoracao")).toBe(
+      "https://erp.proops.com.br/decoracao",
+    );
+    for (const p of ["/", "/privacy", "/sobre", "/institucional"]) {
+      expect(resolveApexRedirect("institucional", p)).toBeNull();
     }
   });
 
@@ -243,6 +266,15 @@ describe("a virada do apex", () => {
     expect(erpHomeUrlPara(true)).toBe("/");
     expect(erpHomeUrlPara(false)).toBe("https://erp.proops.com.br/");
   });
+
+  // Decidido pela superfície do HOST, e não só pelo estado da virada: com o
+  // estado só, depois da virada a conta free em `localhost` ou num preview
+  // seria mandada para a produção.
+  it("fica no próprio host onde ele já serve o ERP", () => {
+    expect(erpHomeUrl(resolveSurface("erp.proops.com.br"))).toBe("/");
+    expect(erpHomeUrl(resolveSurface("localhost:3001"))).toBe("/");
+    expect(erpHomeUrl(resolveSurface("proops-web-git-x.vercel.app"))).toBe("/");
+  });
 });
 
 /**
@@ -287,8 +319,7 @@ describe("caminhos internos das superfícies", () => {
  * configuração que ainda não virou.
  */
 describe("institucionalHomeUrlPara", () => {
-  it("hoje aponta para o caminho interno, porque o apex ainda serve o ERP", () => {
-    expect(APEX_STILL_SERVES_ERP).toBe(true);
+  it("antes da virada apontava para o caminho interno", () => {
     expect(institucionalHomeUrlPara(true)).toBe(INSTITUCIONAL_ROOT);
   });
 
@@ -317,10 +348,10 @@ describe("institucionalHomeUrlPara", () => {
 });
 
 describe("shouldNoIndexPath", () => {
-  it("fecha as páginas da empresa enquanto o apex serve o ERP", () => {
-    expect(APEX_STILL_SERVES_ERP).toBe(true);
+  it("abre as páginas da empresa depois da virada", () => {
+    expect(APEX_STILL_SERVES_ERP).toBe(false);
     for (const p of APEX_COMPANY_PATHS) {
-      expect(shouldNoIndexPath(p)).toBe(true);
+      expect(shouldNoIndexPath(p)).toBe(false);
     }
   });
 

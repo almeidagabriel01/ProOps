@@ -12,7 +12,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { isAuthOnlyRoute } from "@/lib/auth/auth-only-routes";
 import {
   isPublicMarketingRoute,
-  isSessionlessMarketingRoute,
+  isSessionlessPage as rendersWithoutSession,
 } from "@/lib/auth/route-access";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -31,7 +31,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
    * neither page reads a user. See SESSIONLESS_MARKETING_ROUTES for the rule
    * and for what to check before adding a route to it.
    */
-  const isSessionlessPage = isSessionlessMarketingRoute(pathname);
+  // O host entra na conta para a raiz, que é reescrita por host: ver
+  // `isSessionlessPage`. No servidor ele não existe, e a regra é a antiga.
+  const isSessionlessPage = rendersWithoutSession(
+    pathname,
+    typeof window === "undefined" ? null : window.location.host,
+  );
 
   if (isSessionlessPage) {
     return (

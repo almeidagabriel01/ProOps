@@ -23,7 +23,9 @@
 import { test, expect } from "@playwright/test";
 
 const PORTA = process.env.E2E_PORT ?? 3001;
-const APEX = `http://localhost:${PORTA}`;
+// O apex local (`APEX_HOSTS`). Depois da virada `localhost` serve o ERP, e o
+// site da empresa mora no apex: ali o logo leva a `/`, que é a página dele.
+const APEX = `http://proops.localhost:${PORTA}`;
 
 test.describe("MOBILE-INDICE-01: o índice do site da empresa", () => {
   test("cobre a tela inteira, e não a caixa do cabeçalho", async ({ page }) => {

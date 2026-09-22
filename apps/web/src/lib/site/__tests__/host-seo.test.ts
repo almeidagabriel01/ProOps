@@ -97,11 +97,13 @@ describe("robots por host", () => {
    * noindex. Um crawler que a alcançasse veria a landing do ERP em dois
    * endereços, e o Google escolheria o canônico por nós.
    */
-  it("fecha os dois subdomínios enquanto eles duplicam o apex", () => {
+  // Antes da virada os dois eram duplicatas do apex e fechavam tudo. Depois
+  // cada um tem conteúdo próprio: abre a raiz e fecha só os caminhos internos.
+  it("abre os dois subdomínios depois da virada", () => {
     for (const host of ["erp.proops.com.br", "app.proops.com.br"]) {
       const politica = robotsPara(host.startsWith("app") ? "app" : "erp", host);
-      expect(politica.disallow).toEqual(["/"]);
-      expect(politica.allow).toBe("");
+      expect(politica.allow).toBe("/");
+      expect(politica.disallow).not.toContain("/");
     }
   });
 

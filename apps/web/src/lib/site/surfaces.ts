@@ -75,12 +75,11 @@ export const APP_ROOT = "/aplicativo";
 /**
  * What the apex domain (proops.com.br, and every preview/localhost host) serves.
  *
- * Deliberately still "erp": the subdomains go live first and additively, so
- * nothing changes for anyone already using proops.com.br while the two new
- * pages are being built. The cutover flips this ONE constant to
- * "institucional" and adds the 301s — see the plan, phase 9.
+ * "institucional" desde a virada (fase 9, `.claude/rules/virada-dos-dominios.md`).
+ * Foi "erp" enquanto os subdomínios subiam de forma aditiva; trocá-la de
+ * volta é o rollback da virada inteira.
  */
-export const APEX_SURFACE: Surface = "erp";
+export const APEX_SURFACE: Surface = "institucional";
 
 /**
  * True while the apex still serves the ERP, i.e. `erp.proops.com.br` is a
@@ -88,7 +87,10 @@ export const APEX_SURFACE: Surface = "erp";
  * cutover, otherwise Google indexes the same ERP twice and picks a winner
  * for us.
  */
-export const APEX_STILL_SERVES_ERP = APEX_SURFACE === "erp";
+// O `as Surface` impede o TypeScript de estreitar a constante para o literal
+// atual: sem ele, depois da virada a comparação vira "impossível" para o
+// compilador, e o rollback (trocar a constante de volta) quebraria o build.
+export const APEX_STILL_SERVES_ERP = (APEX_SURFACE as Surface) === "erp";
 
 /**
  * Resolves the surface from a `Host` header.
@@ -96,17 +98,40 @@ export const APEX_STILL_SERVES_ERP = APEX_SURFACE === "erp";
  * Matches on the leftmost label so it works for production
  * (`erp.proops.com.br`), for local development (`erp.localhost:3000` — Chrome
  * resolves any `*.localhost` to 127.0.0.1 with no hosts-file edit) and for
- * Playwright. Anything else, including Vercel preview URLs, falls back to the
- * apex surface.
+ * Playwright.
+ *
+ * Só os hosts de `APEX_HOSTS` recebem a superfície do apex. Todo o resto
+ * (`localhost`, as URLs de preview da Vercel, host desconhecido ou ausente)
+ * serve o ERP, que é o que esses ambientes sempre serviram. Antes da virada as
+ * duas regras davam no mesmo, porque o apex ERA o ERP; o fallback antigo era
+ * "a superfície do apex", e isso só se revelou errado no dia da virada: com a
+ * constante trocada, `localhost:3000/login` e o login de todo preview passariam
+ * a responder 301 para `erp.proops.com.br`, a produção, e o E2E inteiro do CI,
+ * que entra por `localhost`, iria junto.
  */
 export function resolveSurface(host: string | null | undefined): Surface {
-  if (!host) return APEX_SURFACE;
+  if (!host) return "erp";
 
-  const label = normalizeHost(host).split(".")[0];
+  const nome = normalizeHost(host);
+  const label = nome.split(".")[0];
   const casado = ROTULOS_DE_SUBDOMINIO.find(([rotulo]) => rotulo === label);
+  if (casado) return casado[1];
 
-  return casado ? casado[1] : APEX_SURFACE;
+  return (APEX_HOSTS as readonly string[]).includes(nome) ? APEX_SURFACE : "erp";
 }
+
+/**
+ * Os hosts que SÃO o apex, e só eles recebem `APEX_SURFACE`.
+ *
+ * `proops.localhost` é o substituto local, para o E2E e o dev enxergarem o apex
+ * como ele é em produção. Ele segue a mesma lógica de `erp.localhost` e
+ * `app.localhost`: o Chrome resolve qualquer `*.localhost` sem arquivo de hosts.
+ */
+export const APEX_HOSTS = [
+  "proops.com.br",
+  "www.proops.com.br",
+  "proops.localhost",
+] as const;
 
 /**
  * A `Host` header reduced to a bare hostname.
@@ -240,10 +265,14 @@ export function shouldNoIndexPath(pathname: string): boolean {
 }
 
 /**
- * Where the ERP landing lives, as something you can redirect to.
+ * Where the ERP landing lives, as something you can redirect to, from the host
+ * the request is on.
  *
- * `/` while the apex still serves the ERP, and the absolute subdomain after the
- * cutover. It exists because of one line in the proxy: a free-tier account that
+ * `/` wherever the host already serves the ERP (`erp.proops.com.br`, the apex
+ * before the cutover, `localhost` and previews), and the absolute subdomain
+ * only where it does not. Recebe a superfície da requisição, e não só o estado
+ * da virada: com o estado só, `localhost` e todo preview mandariam a conta free
+ * para a PRODUÇÃO depois da virada. It exists because of one line in the proxy: a free-tier account that
  * touches an ERP route is bounced to the public landing, and that bounce was
  * written as `new URL("/", request.url)`. After the flip that lands the user on
  * the company page, which is not a landing for the product they were trying to
@@ -251,13 +280,16 @@ export function shouldNoIndexPath(pathname: string): boolean {
  * as the first argument and ignores the base, so the call site does not change
  * shape.
  */
-export function erpHomeUrl(): string {
-  return erpHomeUrlPara(APEX_STILL_SERVES_ERP);
+export function erpHomeUrl(superficie: Surface): string {
+  return erpHomeUrlPara(superficie === "erp");
 }
 
-/** @internal A mesma decisão, com o estado da virada explícito, para o teste. */
-export function erpHomeUrlPara(apexServeErp: boolean): string {
-  return apexServeErp ? "/" : `${SITE_URLS.erp}/`;
+/**
+ * @internal A mesma decisão, com a resposta explícita, para o teste:
+ * `servidoAqui` diz se a raiz do host atual é a landing do ERP.
+ */
+export function erpHomeUrlPara(servidoAqui: boolean): string {
+  return servidoAqui ? "/" : `${SITE_URLS.erp}/`;
 }
 
 /**

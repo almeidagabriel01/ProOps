@@ -230,7 +230,7 @@ export async function proxy(request: NextRequest) {
           // meaning: a page with no login, no plans and nothing to click, for
           // someone who was trying to use the product.
           if (billing.reason === "free_tier_forbidden") {
-            const homeUrl = new URL(erpHomeUrl(), request.url);
+            const homeUrl = new URL(erpHomeUrl(surface), request.url);
             const resp = NextResponse.redirect(homeUrl);
             resp.headers.set("Cache-Control", "no-store");
             return resp;

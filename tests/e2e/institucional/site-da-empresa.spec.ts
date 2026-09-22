@@ -25,7 +25,9 @@ import { test, expect } from "@playwright/test";
  * `global-setup` levanta.
  */
 const PORTA = process.env.E2E_PORT ?? 3001;
-const APEX = `http://localhost:${PORTA}`;
+// O apex local (`APEX_HOSTS`). Depois da virada `localhost` serve o ERP, e o
+// site da empresa mora no apex: ali o logo leva a `/`, que é a página dele.
+const APEX = `http://proops.localhost:${PORTA}`;
 
 const PAGINAS = [
   "/institucional",
@@ -213,7 +215,8 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
       .getByRole("navigation", { name: "Principal" })
       .getByRole("link", { name: "ProOps, página inicial" })
       .click();
-    await page.waitForURL(`${APEX}/institucional`);
+    // Depois da virada a raiz do site da empresa é `/` no apex.
+    await page.waitForURL(`${APEX}/`);
     // Espera pela SOLTURA e não por um relógio: um `waitForTimeout` fixo vira
     // flaky na primeira máquina lenta, medindo nada e reprovando sem motivo.
     await expect
@@ -280,12 +283,12 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
   });
 
   /**
-   * O wordmark tem que levar para o SITE DA EMPRESA, e hoje a raiz dele é
-   * `/institucional`: o apex ainda serve o ERP. Escrito como `/` cru, este link
-   * levava de `/carreiras` direto para a landing do ERP, que responde 200 e
-   * troca a URL, então um teste que só olhasse o endereço passaria. Daí a
-   * asserção ser sobre o TÍTULO, que é o que diz em qual dos dois sites a pessoa
-   * caiu. Depois da virada os dois viram a mesma coisa e o teste segue valendo.
+   * O wordmark tem que levar para o SITE DA EMPRESA. Antes da virada a raiz
+   * dele era `/institucional`, porque o apex ainda servia o ERP, e um `/` cru
+   * levava para a landing do ERP, que responde 200 e troca a URL: um teste que
+   * só olhasse o endereço passaria. Daí a asserção ser sobre o TÍTULO, que é o
+   * que diz em qual dos dois sites a pessoa caiu. Depois da virada a raiz é `/`
+   * no apex, e o teste segue valendo.
    */
   test("o wordmark volta para a raiz do site da empresa, não para o ERP", async ({
     page,
@@ -326,7 +329,7 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
       .getByRole("navigation", { name: "Principal" })
       .getByRole("link", { name: "ProOps, página inicial" })
       .click();
-    await page.waitForURL(`${APEX}/institucional`);
+    await page.waitForURL(`${APEX}/`);
 
     await expect(page.locator(".abertura-lamina")).toHaveCount(0);
   });
