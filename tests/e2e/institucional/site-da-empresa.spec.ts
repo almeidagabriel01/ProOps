@@ -438,16 +438,17 @@ test.describe("INSTITUCIONAL-01: navegação do site da empresa", () => {
   });
 
   /**
-   * A cisalha do wordmark não pode decepar a letra.
+   * As linhas do título do herói não podem ser decepadas.
    *
-   * Cada letra da raiz mora numa caixa recortada, que existe para o corte
-   * VERTICAL da subida. `overflow-hidden` corta nos quatro lados, e a caixa tem
-   * exatamente a largura de avanço do glifo: com o ponteiro no extremo, a última
-   * letra é empurrada 9,6px para o lado e a ponta dela era cortada reto, o que na
-   * tela parece defeito da fonte. O recorte é `clip-path` com folga lateral
-   * agora, e o teste mede a folga contra o deslocamento real.
+   * Cada linha mora numa caixa recortada, que existe para o corte VERTICAL da
+   * subida. `overflow-hidden` corta nos quatro lados, e a caixa tem exatamente
+   * a largura de avanço dos glifos: a ponta de uma letra que passa da caixa
+   * (o "f", o "j", o itálico de uma fonte de exibição) era cortada reto, o que
+   * na tela parece defeito da fonte. O recorte é `clip-path` com folga lateral,
+   * e o teste mede a folga contra o quanto o glifo realmente sai da caixa, com
+   * o ponteiro no extremo para o caso de alguma linha reagir a ele.
    */
-  test("o wordmark não é cortado quando a cisalha vai ao extremo", async ({
+  test("as linhas do título do herói não são cortadas nas laterais", async ({
     page,
   }) => {
     await page.goto(`${APEX}/institucional`);

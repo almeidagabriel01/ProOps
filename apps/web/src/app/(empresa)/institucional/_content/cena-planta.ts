@@ -71,6 +71,31 @@ export interface Parede {
   tipo: "fundo" | "divisoria" | "mureta";
 }
 
+/**
+ * Um móvel, como caixa baixa. `altura` perto de zero é tapete: só o tampo.
+ *
+ * Não é enfeite. Uma planta sem móvel é um diagrama de áreas, e o que faz uma
+ * casa ser lida como casa, de relance, é a cama no quarto e o sofá na sala.
+ */
+export interface Movel {
+  comodo: ComodoId;
+  retangulo: Retangulo;
+  altura: number;
+}
+
+export const MOVEIS: readonly Movel[] = [
+  { comodo: "suite", retangulo: [0.12, 1.3, 2.2, 3.1], altura: 0.5 },
+  { comodo: "suite", retangulo: [0.12, 3.25, 0.62, 3.75], altura: 0.55 },
+  { comodo: "quarto", retangulo: [4.25, 1.2, 5.25, 3.2], altura: 0.45 },
+  { comodo: "quarto", retangulo: [6.5, 3.55, 7.35, 4.35], altura: 0.75 },
+  { comodo: "sala", retangulo: [8.6, 1.1, 11.6, 2.9], altura: 0.02 },
+  { comodo: "sala", retangulo: [8.4, 3.05, 11.8, 3.95], altura: 0.8 },
+  { comodo: "cozinha", retangulo: [0.12, 4.7, 0.75, 7.85], altura: 0.9 },
+  { comodo: "cozinha", retangulo: [2.1, 5.6, 3.7, 6.6], altura: 0.9 },
+  { comodo: "varanda", retangulo: [8.2, 5.4, 10, 6.9], altura: 0.75 },
+  { comodo: "varanda", retangulo: [11.3, 5.1, 12.5, 7.4], altura: 0.35 },
+];
+
 export interface Item {
   id: string;
   /** O que aparece no chip e na linha da proposta. */
@@ -99,7 +124,7 @@ export const COMODOS: readonly Comodo[] = [
     id: "suite",
     nome: "Suíte",
     retangulo: [0, 0, 4, 4.5],
-    janela: { parede: "lateral", de: 0.9, ate: 3.4, peitoril: 0.45, verga: 2.35 },
+    janela: { parede: "fundo", de: 0.7, ate: 3.3, peitoril: 0.55, verga: 2.35 },
     luz: [2, 2.25],
   },
   {
@@ -245,6 +270,12 @@ export type LayoutId = "largo" | "retrato";
  * têm tamanhos diferentes.
  */
 export interface Layout {
+  /**
+   * De onde a casa SOBE enquanto o texto sai. No retrato ela começa espiando
+   * por baixo do texto, e não atrás dele: numa tela estreita não há lado para
+   * ela ficar, e desenho passando por baixo de um parágrafo é ruído.
+   */
+  entrada: readonly [number, number];
   /** A casa se afasta para dar lugar à proposta. */
   casa: readonly [number, number];
   /** De onde a folha da proposta entra, relativo a onde ela repousa. */
@@ -254,6 +285,6 @@ export interface Layout {
 }
 
 export const LAYOUTS: Record<LayoutId, Layout> = {
-  largo: { casa: [-30, 0], folha: [48, 0], mensagem: [0, 16] },
-  retrato: { casa: [0, -22], folha: [0, 70], mensagem: [0, -14] },
+  largo: { entrada: [0, 0], casa: [-30, 0], folha: [48, 0], mensagem: [0, -16] },
+  retrato: { entrada: [0, 26], casa: [0, -24], folha: [0, 80], mensagem: [0, -14] },
 };

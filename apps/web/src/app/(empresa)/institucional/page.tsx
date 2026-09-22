@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 
 import { InstitucionalAbertura } from "./_components/institucional-abertura";
-import { InstitucionalHero } from "./_components/institucional-hero";
+import { HeroiRaiz } from "./_components/heroi/heroi-raiz";
 import { InstitucionalFrase } from "./_components/institucional-frase";
 import { InstitucionalJsonLd } from "./_components/institucional-json-ld";
 import { canonicalFor } from "@/lib/site/host-seo";
@@ -108,7 +108,7 @@ export default function InstitucionalPage() {
         promises (compromissos), and only then the way out (cta).
       */}
       <main>
-        <InstitucionalHero />
+        <HeroiRaiz />
         <InstitucionalFrase />
         <InstitucionalProblema />
         <InstitucionalProdutos />

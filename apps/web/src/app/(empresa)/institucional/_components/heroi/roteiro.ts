@@ -220,6 +220,30 @@ export const ESTADO_FINAL: EstadoDaCena = estadoDaCena(1);
 const n = (valor: number) => String(arredonda(valor));
 
 /**
+ * Quanto a casa está deslocada do lugar dela, em `[cqw, cqh]` do palco.
+ *
+ * Separado de `paraVariaveis` porque o diretor precisa do MESMO número em
+ * pixels para mandar cada chip ao cômodo certo: se as duas contas fossem
+ * escritas duas vezes, bastaria uma mudar para os chips pousarem ao lado da
+ * casa.
+ */
+export function deslocamentoDaCasa(estado: EstadoDaCena, layout: LayoutId): [number, number] {
+  const l = LAYOUTS[layout];
+  const fora = 1 - estado.saidaDoTexto;
+  return [
+    l.casa[0] * estado.recuoDaCasa + l.entrada[0] * fora,
+    l.casa[1] * estado.recuoDaCasa + l.entrada[1] * fora,
+  ];
+}
+
+/** Quanto a coluna da proposta está fora do lugar dela, em `[cqw, cqh]`. */
+export function deslocamentoDaFolha(estado: EstadoDaCena, layout: LayoutId): [number, number] {
+  const l = LAYOUTS[layout];
+  const fora = 1 - estado.proposta.entrada;
+  return [l.folha[0] * fora, l.folha[1] * fora];
+}
+
+/**
  * O estado como variáveis CSS, para uma composição.
  *
  * O ÚNICO serializador: o servidor e o diretor passam por aqui, e é isso que
@@ -237,16 +261,19 @@ export function paraVariaveis(
 ): Record<string, string> {
   const l = LAYOUTS[layout];
   const { tx, ty, escala } = transformaCamera(estado.camera, CAIXA);
+  const casa = deslocamentoDaCasa(estado, layout);
+  const folha = deslocamentoDaFolha(estado, layout);
   const v: Record<string, string> = {
     "--texto-saida": n(estado.saidaDoTexto),
     "--cam-tx": n(tx),
     "--cam-ty": n(ty),
     "--cam-z": n(escala),
-    "--casa-x": `${n(l.casa[0] * estado.recuoDaCasa)}cqw`,
-    "--casa-y": `${n(l.casa[1] * estado.recuoDaCasa)}cqh`,
+    "--recuo": n(estado.recuoDaCasa),
+    "--casa-x": `${n(casa[0])}cqw`,
+    "--casa-y": `${n(casa[1])}cqh`,
     "--folha": n(estado.proposta.entrada),
-    "--folha-x": `${n(l.folha[0] * (1 - estado.proposta.entrada))}cqw`,
-    "--folha-y": `${n(l.folha[1] * (1 - estado.proposta.entrada))}cqh`,
+    "--folha-x": `${n(folha[0])}cqw`,
+    "--folha-y": `${n(folha[1])}cqh`,
     "--codigo": n(estado.proposta.codigo),
     "--assinatura": n(estado.pagamento.assinatura),
     "--selo": n(estado.pagamento.selo),

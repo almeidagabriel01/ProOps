@@ -312,3 +312,29 @@ export const CANAIS: Canal[] = [
 ];
 
 
+
+/**
+ * O herói da raiz: uma proposta acompanhada do cômodo ao dinheiro na conta.
+ *
+ * As legendas são uma por ato da cena (`_components/heroi/roteiro.ts`) e só uma
+ * aparece de cada vez; a do trilho é a palavra curta do mesmo ato. Os números da
+ * cena (itens, valores, código) não moram aqui: moram em `cena-planta.ts`,
+ * porque são dado que o desenho e a conta leem, não frase.
+ */
+export const HEROI_RAIZ = {
+  titulo: ["Da planta", "ao dinheiro", "na conta."],
+  lead: "A ProOps faz software de gestão para a empresa que vende projeto, e para a pessoa por trás dela.",
+  dica: "Role e acompanhe uma proposta, do cômodo ao pagamento.",
+  legendas: {
+    projeto: "Cada cômodo que a equipe especifica vira um item, com preço.",
+    proposta: "Os itens montam a proposta sozinhos, com o código e o total certos.",
+    aprovada: "O cliente assina, e a entrada e as parcelas já nascem no financeiro.",
+    dinheiro: "E o aplicativo avisa, por mensagem, quando o dinheiro entra.",
+  },
+  trilho: {
+    projeto: "Projeto",
+    proposta: "Proposta",
+    aprovada: "Aprovada",
+    dinheiro: "Na conta",
+  },
+} as const;

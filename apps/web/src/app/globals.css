@@ -1768,6 +1768,374 @@ html[data-heroi="espera"] .regua-desenha {
     );
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+   A cena da raiz: da planta ao dinheiro na conta.
+
+   Tudo aqui lê variáveis. Quem as escreve é o `<style>` gerado no servidor
+   (`heroi/estilo-da-cena.tsx`: o começo da história, ou o fim dela sob
+   movimento reduzido) e, depois, o diretor, a cada quadro de rolagem. As regras
+   só mexem em `opacity`, `translate`, `scale`, `transform` de SVG e
+   `stroke-dashoffset`: nada que refaça layout com a cena andando.
+
+   São regras de fora de camada de propósito: vencem os utilitários do Tailwind
+   (que moram em `@layer utilities`) sem `!important`, e é isso que deixa o
+   bloco de movimento reduzido, no fim deste trecho, desfazer o posicionamento
+   da cena inteira num lugar só. */
+
+.cena-palco {
+  container-type: size;
+}
+
+/* A casa: à direita no desktop, embaixo no retrato. */
+.cena-lugar-casa {
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 2cqw;
+}
+.cena-casa {
+  aspect-ratio: var(--aspecto);
+  width: min(60cqw, calc(80cqh * var(--aspecto)));
+  translate: var(--casa-x) var(--casa-y);
+}
+
+/* O texto da primeira dobra sai para cima quando a história começa. O
+   `visibility` evita que um link já invisível continue recebendo o Tab. */
+.cena-texto {
+  align-items: center;
+  pointer-events: none;
+  opacity: calc(1 - var(--texto-saida));
+  translate: 0 calc(var(--texto-saida) * -6cqh);
+}
+.cena-texto :is(a, button) {
+  pointer-events: auto;
+}
+[data-cena-planta]:is([data-ato="proposta"], [data-ato="aprovada"], [data-ato="dinheiro"])
+  .cena-texto {
+  visibility: hidden;
+}
+
+.cena-lugar-legendas {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 9cqh;
+  opacity: var(--texto-saida);
+}
+.cena-legenda {
+  opacity: var(--legenda);
+  translate: 0 calc((1 - var(--legenda)) * 10px);
+}
+.cena-trilho__barra {
+  transition: background-color 0.3s ease;
+}
+.cena-trilho span:last-child {
+  transition: color 0.3s ease;
+}
+[data-ato="projeto"] [data-trilho="projeto"] .cena-trilho__barra,
+[data-ato="proposta"] [data-trilho="proposta"] .cena-trilho__barra,
+[data-ato="aprovada"] [data-trilho="aprovada"] .cena-trilho__barra,
+[data-ato="dinheiro"] [data-trilho="dinheiro"] .cena-trilho__barra {
+  background-color: rgb(var(--tungstenio));
+}
+[data-ato="projeto"] [data-trilho="projeto"] span:last-child,
+[data-ato="proposta"] [data-trilho="proposta"] span:last-child,
+[data-ato="aprovada"] [data-trilho="aprovada"] span:last-child,
+[data-ato="dinheiro"] [data-trilho="dinheiro"] span:last-child {
+  color: rgb(255 255 255 / 0.9);
+}
+
+/* A proposta e a divisão do pagamento, numa coluna só, que entra pela direita. */
+.cena-lugar-folha {
+  top: 0;
+  bottom: 0;
+  right: 5cqw;
+  width: min(23.5rem, 34cqw);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  translate: var(--folha-x) var(--folha-y);
+}
+.cena-folha__papel {
+  opacity: var(--folha);
+  box-shadow: 0 40px 90px -30px rgb(0 0 0 / 0.85);
+}
+.cena-folha__cabeca,
+.cena-folha__rodape {
+  opacity: var(--folha);
+}
+.cena-folha__codigo {
+  opacity: var(--codigo);
+}
+
+/* O item. Repousa na linha dele e é levado ao cômodo pelo diretor
+   (`--dx`/`--dy`); enquanto está fora da folha, é uma pílula de papel com a luz
+   acesa do lado. */
+.cena-chip {
+  translate: var(--dx) var(--dy);
+  opacity: var(--surge);
+}
+.cena-chip__pilula {
+  background: var(--papel);
+  box-shadow:
+    0 14px 34px -12px rgb(0 0 0 / 0.75),
+    0 0 0 1px rgb(var(--tungstenio) / 0.45);
+  opacity: calc(1 - var(--voo));
+}
+.cena-chip__luz {
+  background: rgb(var(--tungstenio));
+  box-shadow: 0 0 12px 2px rgb(var(--tungstenio) / 0.8);
+  opacity: calc(1 - var(--voo));
+}
+.cena-chip__valor {
+  opacity: var(--linha);
+}
+
+.cena-assinatura {
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - var(--assinatura));
+}
+.cena-selo {
+  opacity: var(--selo);
+  scale: calc(1.35 - var(--selo) * 0.35);
+  rotate: -8deg;
+}
+.cena-divisao {
+  opacity: var(--divisao);
+  translate: 0 calc((1 - var(--divisao)) * -18px);
+}
+.cena-parte {
+  opacity: var(--parte);
+  translate: calc((1 - var(--parte)) * 8px) 0;
+}
+
+/* A notificação do aplicativo desce do alto, por cima do canto da proposta. */
+.cena-lugar-mensagem {
+  top: 12cqh;
+  right: 3cqw;
+  width: min(21rem, 40cqw);
+  opacity: var(--mensagem);
+  translate: var(--mensagem-x) var(--mensagem-y);
+}
+
+/* A gota da dica de rolagem: o único loop da primeira dobra. */
+@keyframes cena-gota {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(270%);
+  }
+}
+.cena-dica__gota {
+  animation: cena-gota 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/* O desenho da casa. Faces opacas, e não translúcidas: num SVG a ordem de
+   desenho é o z-buffer, e uma face transparente deixaria ver através dela o
+   que ela deveria esconder. */
+.planta-camera {
+  transform: translate(calc(var(--cam-tx) * 1px), calc(var(--cam-ty) * 1px))
+    scale(var(--cam-z));
+  transform-origin: 0 0;
+  transform-box: view-box;
+}
+.planta-piso {
+  fill: #0e141e;
+}
+.planta-deck {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.12);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+/* A espessura é em unidades do desenho (1 = um metro isométrico), e não
+   `non-scaling-stroke`: com ele o tracejado passa a ser medido na TELA e
+   ignora o `pathLength="1"`, e o traço que se desenha vira uma linha
+   pontilhada para sempre. 0,026 dá pouco mais de um pixel no tamanho em que a
+   casa aparece. */
+.planta-aresta {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.55);
+  stroke-width: 0.026;
+  stroke-linejoin: round;
+}
+.planta-aresta--piso {
+  stroke: rgb(var(--linha) / 0.3);
+}
+/* Três tons, um por orientação: é o que dá volume sem nenhuma luz calculada.
+   O móvel esquenta com a luz do cômodo dele (`--luz`, escrita no grupo). A
+   mistura passa por custom property pelo mesmo motivo do `.campo-app`. */
+.planta-caixa {
+  --calor: calc(var(--luz, 0) * 26%);
+}
+.planta-face--frente {
+  --cor: color-mix(in srgb, rgb(var(--tungstenio)) var(--calor), #172030);
+  fill: var(--cor);
+}
+.planta-face--lado {
+  --cor: color-mix(in srgb, rgb(var(--tungstenio)) var(--calor), #1d2839);
+  fill: var(--cor);
+}
+.planta-face--tampo {
+  --cor: color-mix(in srgb, rgb(var(--tungstenio)) var(--calor), #243044);
+  fill: var(--cor);
+}
+.planta-caixa--parede .planta-face--frente {
+  fill: #121a27;
+}
+.planta-brilhos {
+  mix-blend-mode: screen;
+}
+.planta-brilho {
+  opacity: var(--luz);
+}
+.planta-vidro {
+  fill: #0b1422;
+}
+.planta-luar {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.22);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+/* A cortina desce a partir da verga, no plano da parede (ver projecao.ts). */
+.planta-cortina {
+  transform: scaleY(var(--cortina));
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.planta-cortina__calor {
+  fill: rgb(var(--tungstenio));
+  opacity: calc(var(--luz) * 0.32);
+}
+.planta-trilho {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.65);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.planta-fio {
+  fill: none;
+  stroke: rgb(var(--linha) / 0.35);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.planta-lampada {
+  fill: rgb(var(--tungstenio));
+  opacity: calc(0.16 + var(--luz) * 0.84);
+}
+.planta-halo {
+  opacity: var(--luz);
+  mix-blend-mode: screen;
+}
+
+/* O desktop troca o desenho pelo three.js quando o canvas fica pronto. */
+[data-casa][data-webgl="pronto"] [data-planta] {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+/* O retrato: o texto em cima, a casa espiando por baixo e subindo quando o
+   texto sai, e a proposta ocupando a tela. */
+@media (max-width: 1023.98px) {
+  .cena-lugar-casa {
+    align-items: center;
+    justify-content: center;
+    padding-right: 0;
+  }
+  .cena-casa {
+    width: min(94cqw, calc(44cqh * var(--aspecto)));
+    opacity: calc(1 - var(--recuo) * 0.7);
+  }
+  .cena-texto {
+    align-items: flex-start;
+    padding-top: 7.5rem;
+  }
+  /* No retrato a proposta ocupa a tela, e a legenda por baixo dela seria
+     texto atrás de texto: ela narra o projeto e sai quando a folha entra. */
+  .cena-lugar-legendas {
+    padding-bottom: 5cqh;
+    opacity: calc(var(--texto-saida) * (1 - var(--folha)));
+  }
+  .cena-lugar-folha {
+    top: 13cqh;
+    bottom: auto;
+    left: 1.25rem;
+    right: 1.25rem;
+    width: auto;
+    max-width: 24rem;
+    margin-inline: auto;
+    justify-content: flex-start;
+  }
+  .cena-lugar-mensagem {
+    top: calc(4.75rem + 1cqh);
+    left: 1.25rem;
+    right: 1.25rem;
+    width: auto;
+    max-width: 21rem;
+    margin-inline: auto;
+  }
+}
+
+/* Movimento reduzido: o quadro final, no fluxo. A trilha perde a altura, o
+   palco deixa de ser preso e cada camada vira um bloco empilhado: o texto, a
+   casa acesa, a proposta aprovada com o pagamento, e a mensagem. As legendas
+   saem: elas narram uma passagem que aqui não acontece. */
+@media (prefers-reduced-motion: reduce) {
+  .cena-trilha {
+    height: auto;
+  }
+  .cena-palco {
+    position: relative;
+    height: auto;
+    overflow: visible;
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: 3.5rem;
+    padding: 8rem 0 5rem;
+  }
+  .cena-lugar-casa,
+  .cena-texto,
+  .cena-lugar-folha,
+  .cena-lugar-mensagem {
+    position: static;
+    translate: none;
+    opacity: 1;
+    visibility: visible;
+  }
+  .cena-texto {
+    order: 1;
+    padding-top: 0;
+  }
+  .cena-lugar-casa {
+    order: 2;
+    justify-content: center;
+    padding: 0 1.25rem;
+  }
+  .cena-casa {
+    width: min(56rem, 100%);
+    opacity: 1;
+    translate: none;
+  }
+  .cena-lugar-folha {
+    order: 3;
+    width: min(24rem, calc(100% - 2.5rem));
+    margin-inline: auto;
+  }
+  .cena-lugar-mensagem {
+    order: 4;
+    width: min(21rem, calc(100% - 2.5rem));
+    margin-inline: auto;
+  }
+  .cena-lugar-legendas {
+    display: none;
+  }
+  .cena-dica__gota {
+    animation: none;
+    transform: translateY(90%);
+  }
+}
+
 /* Inclinação de card por ponteiro, sem JS por card: o escopo escreve as duas
    variáveis e cada card as lê com o próprio peso. */
 .inclina-ponteiro {
