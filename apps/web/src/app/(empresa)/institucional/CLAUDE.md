@@ -273,7 +273,7 @@ inclusive:
 |---|---|---|
 | `/produtos` | uma placa que se divide na janela do ERP e no telefone do aplicativo, ligados por um fio | `produtos/_components/heroi-aparelhos.tsx`, CSS puro |
 | `/manifesto` | uma balança: os princípios num prato, as contrapartidas no outro, pendendo numa mola | `manifesto/_components/heroi-balanca.tsx` (`composicao="centro"`) |
-| `/sobre` | o histórico da empresa como `git log`, com o aplicativo num ramo que sai do ERP | `sobre/_components/heroi-git-log.tsx`, zero JS |
+| `/sobre` | os quatro marcos numa linha que, no último, se divide nas duas pontas: o ERP e o aplicativo | `sobre/_components/heroi-bifurcacao.tsx`, zero JS |
 | `/fale-conosco` | as três conversas já começadas; clicar numa escolhe o assunto do formulário | `fale-conosco/_components/heroi-conversas.tsx` + `canal-escolhido.ts` |
 
 Regras ao mexer:
@@ -296,8 +296,10 @@ Regras ao mexer:
   CSS vence o transform inline; a balança tem a entrada no wrapper e a mola na
   viga, de dentro.
 - **`/sobre` não atribui marco a sócio.** Autoria de marco é fato que a página
-  não tem; o log mostra os três como contribuidores, com o papel tirado de
-  `PESSOAS`. Se um dia houver atribuição confirmada, ela entra em `Marco`.
+  não tem, e por isso a linha do tempo mostra data e título, e mais nada. Se um
+  dia houver atribuição confirmada, ela entra em `Marco`. A cena já foi um
+  `git log`, com hash, prompt e janela de terminal: a geometria estava certa e
+  o vocabulário não, porque quem abre esta página compra software, não escreve.
 - **`.hero-enter` escreve `filter` no elemento** (`fill-mode: both`) e apaga
   qualquer `filter` do Tailwind ali. Filtro vai num FILHO do que entra.
 

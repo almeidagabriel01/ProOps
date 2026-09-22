@@ -371,6 +371,21 @@ export const HEROI_RAIZ = {
   },
 } as const;
 
+/**
+ * O herói de /sobre: a história como uma linha que se bifurca.
+ *
+ * As datas e os títulos vêm de `MARCOS`, que é o dono do assunto. O que mora
+ * aqui é só o que a CENA acrescenta: o nome das duas pontas e a frase que diz
+ * o que a bifurcação significa. Nenhum marco é atribuído a sócio nenhum, aqui
+ * ou em qualquer lugar: autoria de marco é fato que a página não tem.
+ */
+export const HEROI_SOBRE = {
+  rotulo: "A ProOps em quatro datas",
+  tronco: "ERP",
+  galho: "Aplicativo",
+  nota: "Dois produtos que saem da mesma base. O aplicativo nasceu ao lado do ERP, não depois dele.",
+} as const;
+
 export interface Segmento {
   nome: string;
   /** Só é `true` o que existe configurado no produto hoje. */

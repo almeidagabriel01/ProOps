@@ -3,7 +3,8 @@
  *
  * Cada página abre com uma cena do próprio assunto, e três delas fazem alguma
  * coisa além de entrar: a balança pende, as conversas escolhem o assunto do
- * formulário, e o log mostra o ramo do aplicativo. Estes testes afirmam o que
+ * formulário, e a linha do tempo se divide nas duas pontas. Estes testes
+ * afirmam o que
  * cada uma promete, e o que o layout não pode perder no celular.
  */
 
@@ -67,14 +68,18 @@ test.describe("INSTITUCIONAL-05: /manifesto", () => {
 });
 
 test.describe("INSTITUCIONAL-05: /sobre", () => {
-  test("o log mostra os quatro marcos e o ramo do aplicativo", async ({ page }) => {
+  test("a linha do tempo mostra os quatro marcos e as duas pontas", async ({ page }) => {
     await page.goto(`${APEX}/sobre`);
     await page.waitForLoadState("networkidle");
-    const log = page.locator("figure").filter({ hasText: "git log" });
-    await expect(log).toBeVisible();
-    await expect(log.locator("ol > li")).toHaveCount(4);
-    await expect(log).toContainText("aplicativo");
-    await expect(log).toContainText("3 contribuidores");
+    const linha = page.locator("figure").filter({ hasText: "em quatro datas" });
+    await expect(linha).toBeVisible();
+    await expect(linha.locator("ol > li")).toHaveCount(4);
+    // A bifurcação: as duas pontas levam o nome do produto que cada uma virou.
+    await expect(linha.getByText("ERP", { exact: true })).toBeVisible();
+    await expect(linha.getByText("Aplicativo", { exact: true })).toBeVisible();
+    // O vocabulário de quem escreve código ficou para trás de propósito.
+    await expect(linha).not.toContainText("commit");
+    await expect(linha).not.toContainText("git log");
   });
 });
 

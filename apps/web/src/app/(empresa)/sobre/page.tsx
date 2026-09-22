@@ -15,7 +15,7 @@ import { CurtainLink } from "@/components/marketing/_shared/curtain-transition";
 import { Magnetic } from "@/components/marketing/_shared/magnetic";
 import { canonicalFor } from "@/lib/site/host-seo";
 
-import { HeroiGitLog } from "./_components/heroi-git-log";
+import { HeroiBifurcacao } from "./_components/heroi-bifurcacao";
 
 import { MARCOS, PESSOAS } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
@@ -68,9 +68,10 @@ export default function SobrePage() {
           </>
         }
         descricao="Não há camada entre quem atende e quem constrói. O que você conta numa reunião chega, na mesma semana, em quem tem a mão no produto, seja qual for o segmento da sua empresa."
-        // Os rostos, antes de qualquer palavra sobre eles. É o assunto desta
-        // página, e a faixa de pessoas logo abaixo é que os nomeia.
-        cena={<HeroiGitLog />}
+        // A história em quatro datas, e a bifurcação no fim: o ERP e o
+        // aplicativo saem da mesma base. Os rostos vêm logo abaixo, na faixa
+        // de pessoas, que é quem os nomeia.
+        cena={<HeroiBifurcacao />}
         ficha={[
           { valor: "03", rotulo: "Sócios" },
           { valor: "02", rotulo: "Engenheiros de software" },
