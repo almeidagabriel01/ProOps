@@ -1,16 +1,18 @@
 /**
- * The small amount of WebGL plumbing the company site needs, by hand.
+ * WebGL cru, à mão, para efeitos de tela cheia que não justificam uma cena.
  *
- * No three.js and no R3F, and that is a measured decision rather than a taste:
- * `globals.css` already records rejecting a WebGL hero because ~150KB plus the
- * main-thread cost would breach the CI's TBT ceiling on a throttled phone. The
- * two effects here are a fullscreen fragment shader and one textured quad, which
- * is about a hundred lines of plumbing; a scene graph, a camera, a material
- * system and a loader would all be dead weight around them.
+ * Duas peças: `criaQuad`, um fragment shader em tela cheia, e `loopVisivel`, o
+ * laço de render que só roda com o canvas à vista e a aba visível. O `criaQuad`
+ * está sem consumidor desde que o campo de pontos saiu do herói; fica como o
+ * ponto de extensão para um shader de tela cheia, que é trabalho de cem linhas
+ * e não de uma biblioteca.
  *
- * Everything in this folder is loaded through `next/dynamic({ ssr: false })`
- * behind a desktop + fine-pointer media query, so it never reaches a phone and
- * never reaches the Lighthouse run, which emulates one.
+ * O three.js entrou no site para a casa do herói da raiz
+ * (`app/(empresa)/institucional/_components/heroi/three/`), que É uma cena:
+ * geometria, câmera, luz e pós-processamento. Ele usa daqui só o
+ * `loopVisivel`. A regra de orçamento vale para os dois: tudo o que usa WebGL
+ * entra por `next/dynamic({ ssr: false })` atrás de `DesktopOnlyWebGl`, então
+ * nunca chega a um celular nem à corrida do Lighthouse, que emula um.
  */
 
 export interface GlQuad {

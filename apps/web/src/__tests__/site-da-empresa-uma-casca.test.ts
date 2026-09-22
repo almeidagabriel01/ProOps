@@ -86,6 +86,28 @@ describe("a entrada do herói espera a cortina", () => {
     expect(regra).toContain("animation-play-state: paused");
   });
 
+  /**
+   * Toda entrada de primeira dobra dos heróis que não é `.hero-enter` nem
+   * `.hero-rise-line` tem que estar pausada sob o mesmo atributo. Esquecer uma
+   * é uma cena que toca inteira atrás do painel da cortina e aparece parada.
+   */
+  it.each([
+    "traco-desenha",
+    "aparelhos-placa",
+    "aparelhos-janela",
+    "aparelhos-telefone",
+    "aparelhos-gota",
+    "balanca-assenta",
+    "conversa-digita",
+    "conversa-ponto",
+    "conversa-responde",
+  ])("a entrada .%s também espera a cortina", (classe) => {
+    const regras = [...css.matchAll(/html\[data-heroi="espera"\][^{]*\{[^}]*\}/g)].map((m) => m[0]);
+    const pausa = regras.find((regra) => regra.includes(`.${classe}`));
+    expect(pausa, `.${classe} sem pausa sob data-heroi`).toBeDefined();
+    expect(pausa).toContain("animation-play-state: paused");
+  });
+
   it("a cortina escreve e apaga o atributo", () => {
     // Escreve ANTES do push: depois dele a página nova já montou com os
     // keyframes correndo, e a pausa chega tarde para o primeiro quadro.

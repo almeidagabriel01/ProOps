@@ -1566,7 +1566,8 @@ html[data-heroi="espera"] .regua-desenha {
     var(--regua-delay, 0s) both;
 }
 
-/* Traço que se desenha, para as assinaturas dos heróis das sub-páginas.
+/* Traço que se desenha: a casa do herói da raiz, o fio de /produtos, a
+   balança de /manifesto e o grafo de /sobre.
 
    Todo elemento que use isto tem que declarar `pathLength="1"`: sem ele o
    dasharray teria que ser o comprimento real do caminho, que só o navegador
@@ -1589,9 +1590,8 @@ html[data-heroi="espera"] .regua-desenha {
     var(--traco-delay, 0s) both;
 }
 
-/* O ponto para onde as quatro linhas do /fale-conosco convergem. Pulso lento e
-   discreto: é o único elemento em movimento contínuo em qualquer um dos quatro
-   heróis, e existe para dizer que do outro lado tem alguém. */
+/* Um ponto que pulsa devagar, para dizer que do outro lado tem alguém. Hoje
+   só a landing do aplicativo o usa (a seção de privacidade). */
 @keyframes pulso-no {
   0%,
   100% {
@@ -1609,24 +1609,6 @@ html[data-heroi="espera"] .regua-desenha {
   animation: pulso-no 3.2s ease-in-out var(--pulso-delay, 0s) infinite;
 }
 
-/* A dica de rolagem do rodapé do herói. Ela existe porque o herói passou a
-   ocupar a tela inteira: sem nada abaixo aparecendo, uma tela cheia e parada não
-   diz que há mais página. Deslocamento pequeno e lento de propósito, para ser
-   percebida na periferia e não competir com o título. */
-@keyframes dica-desce {
-  0%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.5;
-  }
-  50% {
-    transform: translateY(4px);
-    opacity: 1;
-  }
-}
-.dica-desce {
-  animation: dica-desce 2.4s ease-in-out infinite;
-}
 
 /* Campo mono reativo: duas manchas que respondem ao ponteiro e ao giroscópio.
    É o fallback do FlowField em WebGL, e continua visível por baixo dele: num
@@ -2479,8 +2461,8 @@ html[data-cookie-consent="pending"] .cookie-banner {
     animation: none !important;
     transform: scaleX(1);
   }
-  /* As assinaturas dos heróis também declaram o estado FINAL, e não só param:
-     um traço parado em `stroke-dashoffset: 1` é um desenho invisível. */
+  /* Os traços dos heróis também declaram o estado FINAL, e não só param: um
+     traço parado em `stroke-dashoffset: 1` é um desenho invisível. */
   .traco-desenha {
     animation: none !important;
     stroke-dashoffset: 0;
@@ -2489,11 +2471,6 @@ html[data-cookie-consent="pending"] .cookie-banner {
     animation: none !important;
     opacity: 1;
     transform: none;
-  }
-  .dica-desce {
-    animation: none !important;
-    transform: none;
-    opacity: 1;
   }
   .abertura-tira {
     animation: none !important;
