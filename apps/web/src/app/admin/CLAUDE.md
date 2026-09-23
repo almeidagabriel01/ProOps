@@ -15,11 +15,10 @@ observabilidade e auditoria.
 
 ```
 src/app/admin/
-├── layout.tsx                       # AdminGuard + abas das seções (AdminSectionTabs)
+├── layout.tsx                       # AdminGuard (a navegação entre seções é a dock)
 ├── page.tsx                         # Empresas (cards) — rota /admin
 ├── _components/
 │   ├── admin-guard.tsx              # Bloqueia não-superadmin
-│   ├── admin-section-tabs.tsx       # Abas do topo (lê lib/admin-sections.ts)
 │   ├── admin-skeleton.tsx
 │   ├── tenant-card.tsx              # Card da empresa: editar, módulos, copiar, MFA, ciclo de vida
 │   └── copy-data-dialog.tsx         # Copiar catálogo entre empresas
@@ -36,7 +35,7 @@ src/components/admin/
 ├── tenant-dialog.tsx                # Criar/editar empresa
 └── tenant-modules-dialog.tsx        # "Plano e módulos" (substitui o antigo Editar Limites)
 
-src/lib/admin-sections.ts            # Seções do painel: abas do topo, dock e tab bar
+src/lib/admin-sections.ts            # Seções do painel: fonte da dock e da tab bar do superadmin
 src/components/layout/impersonation-bar.tsx  # Faixa do "Acessar Painel"
 ```
 
@@ -242,4 +241,9 @@ Toda mutação do superadmin grava um evento em `security_audit_events`, com
 - Não verificar role no componente: o layout já garante superadmin.
 - Chamadas via `AdminService`.
 - Operação destrutiva sempre com `AlertDialog` explicando o efeito.
-- Página nova do painel entra em `ADMIN_SECTIONS` (`lib/admin-sections.ts`).
+- Página nova do painel entra em `ADMIN_SECTIONS` (`lib/admin-sections.ts`), que
+  alimenta a dock (desktop) e a tab bar do celular. Não existe mais barra de
+  abas no topo. No celular só as 4 primeiras ficam na barra e o resto vai para o
+  "Mais": seção nova de uso diário e rótulo curto (até ~11 caracteres, ~72px a
+  360px) vai nas quatro primeiras; o guard é
+  `components/layout/__tests__/superadmin-navigation.test.tsx`.

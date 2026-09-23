@@ -77,6 +77,11 @@ para a página errada.
 bar mostra `VISIBLE_TABS = 4` abas e manda o resto para o sheet: a constante
 governa quantas abas cabem a 360px, não quantos destinos existem.
 
+**Super admin fora do "Acessar Painel"** (`role === "superadmin" && !tenant`) é o
+único caso que NÃO lê `useDockEntries()`: as três superfícies mostram as seções
+do painel, de `ADMIN_SECTIONS` (`lib/admin-sections.ts`), mais Perfil. É uma
+lista só, lida pela dock e pela tab bar, para as duas não divergirem.
+
 Item bloqueado por plano vira `<button>` com coroa e abre o `UpgradeModal`, em
 vez de `<Link>`. É `resolveCapabilityRestriction` (`capability-gate.ts`), e o
 seletor de cabeçalho usa exatamente o mesmo caminho, para uma visão bloqueada se
