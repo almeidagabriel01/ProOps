@@ -29,7 +29,7 @@ src/app/admin/
 ├── analytics/                       # /admin/analytics — KPIs e gráficos
 ├── billing/                         # /admin/billing — faturamento
 ├── observability/                   # /admin/observability — erros agrupados
-├── audit/                           # /admin/audit — eventos de security_audit_events
+├── audit/                           # /admin/audit — eventos de security_audit_events (com a coluna Quem)
 └── setup-mfa/                       # /admin/setup-mfa — MFA do superadmin
 
 src/components/admin/
@@ -150,6 +150,38 @@ free (`canAccessTenantPanel`) e para empresa desativada.
 - Sair: botão "Sair" da faixa, ou abrir qualquer rota `/admin`.
 
 ---
+
+## Auditoria (`/admin/audit`)
+
+Mostra `security_audit_events`, que junta duas coisas: o que o super admin fez
+em cada empresa e o que o backend recusou para os usuarios delas (conta
+gratuita barrada, plano insuficiente, limite, rate limit, CORS, login). As duas
+carregam o mesmo `tenantId`, entao a tela resolve **quem agiu**: o backend
+(`withActors` em `admin.controller.ts`) busca `users/{uid}` dos eventos da
+pagina e devolve nome, e-mail e papel, e a linha ganha selo quando o papel e
+`superadmin`. Sem isso nao havia como separar "eu entrei pelo Acessar Painel"
+de "o cliente tentou".
+
+Os rotulos dos eventos e dos motivos vivem em `EVENT_LABELS` e `REASON_LABELS`
+na propria pagina. Evento sem rotulo aparece cru (foi assim que
+`BILLING_SUBSCRIPTION_BLOCK` / `FREE_TIER_FORBIDDEN_ROUTE` apareceu em
+producao): ao criar um `eventType` novo, acrescente o rotulo ali.
+
+## Última vez online
+
+`tenants/{id}.lastSeenAt`, gravado pelo middleware de autenticacao
+(`lib/tenant-last-seen.ts`) no maximo **uma vez a cada 15 minutos por empresa,
+por instancia**. Responde "a conta que nao assinou voltou?" e "o assinante
+ainda usa?", que os contadores de proposta e lancamento nao respondem.
+
+- O valor pode **subestimar** o ultimo acesso em ate a janela; por isso o texto
+  da tela nunca desce de "há menos de 1 hora" (`lib/last-seen-format.ts`).
+- **Super admin nao conta.** Abrir o painel de uma empresa marcaria como acesso
+  dela algo que foi seu, justamente nas empresas sob investigacao.
+- O heartbeat **nunca cria** o doc do tenant (`update` + NOT_FOUND ignorado):
+  criar ressuscitaria empresa excluida e mudaria a resolucao de plano de tenant
+  legado, que vive em `companies`.
+- Aparece no card e na tabela da Visao geral, destacado acima de 30 dias.
 
 ## Custo
 

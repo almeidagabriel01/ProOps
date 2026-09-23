@@ -10,6 +10,11 @@ Documentação da infraestrutura de middleware do Express monolith.
 | `pdf-rate-limiter.ts` | Rate limiting específico para geração de PDF |
 | `impersonation.ts` | "Acessar Painel" do superadmin: tenant da empresa vista + modo somente leitura |
 
+> `auth.ts` também grava a **última vez online** da empresa
+> (`lib/tenant-last-seen.ts`): `tenants/{id}.lastSeenAt`, no máximo uma vez a
+> cada 15 minutos por empresa, aguardado (write sem `await` se perde no Cloud
+> Run). Super admin não conta, e o heartbeat nunca cria o documento do tenant.
+
 ---
 
 ## auth.ts — Middleware de Autenticação
