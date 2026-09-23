@@ -1,0 +1,52 @@
+name: Install dependencies
+description: >
+  Node 22 + node_modules em cache. O `cache: npm` do setup-node guarda so o
+  ~/.npm, e o `npm ci` ainda levava ~2 min em cada job. Com a chave exata pelo
+  lockfile, cache hit dispensa o `npm ci`; qualquer mudanca de dependencia muda
+  a chave e o `npm ci` roda de verdade.
+
+inputs:
+  functions:
+    description: Instala tambem apps/functions, que tem lockfile proprio.
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: 'npm'
+        cache-dependency-path: |
+          package-lock.json
+          apps/functions/package-lock.json
+
+    # O postinstall do web roda patch-package, entao os patches entram na chave:
+    # um patch novo sem mudanca de lockfile nao pode reaproveitar node_modules velho.
+    - name: Cache node_modules
+      id: web-modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          node_modules
+          apps/web/node_modules
+        key: node-modules-${{ runner.os }}-node22-${{ hashFiles('package-lock.json', '**/patches/**') }}
+
+    - name: npm ci
+      if: steps.web-modules.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci
+
+    - name: Cache functions node_modules
+      if: inputs.functions == 'true'
+      id: functions-modules
+      uses: actions/cache@v4
+      with:
+        path: apps/functions/node_modules
+        key: functions-node-modules-${{ runner.os }}-node22-${{ hashFiles('apps/functions/package-lock.json') }}
+
+    - name: npm ci (functions)
+      if: inputs.functions == 'true' && steps.functions-modules.outputs.cache-hit != 'true'
+      shell: bash
+      run: cd apps/functions && npm ci

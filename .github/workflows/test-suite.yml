@@ -46,19 +46,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            apps/functions/package-lock.json
-
       - name: Install dependencies
-        run: npm ci
-
-      - name: Install functions dependencies
-        run: cd apps/functions && npm ci
+        uses: ./.github/actions/install-deps
+        with:
+          functions: 'true'
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
@@ -127,19 +118,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            apps/functions/package-lock.json
-
       - name: Install dependencies
-        run: npm ci
-
-      - name: Install functions dependencies
-        run: cd apps/functions && npm ci
+        uses: ./.github/actions/install-deps
+        with:
+          functions: 'true'
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
@@ -189,25 +171,22 @@ jobs:
           retention-days: 7
 
   e2e-mobile:
-    name: E2E Mobile Tests
+    name: E2E Mobile Tests (${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Em um job so ele levava ~12 min e virava o caminho critico depois que o
+    # Lighthouse foi dividido.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            apps/functions/package-lock.json
-
       - name: Install dependencies
-        run: npm ci
-
-      - name: Install functions dependencies
-        run: cd apps/functions && npm ci
+        uses: ./.github/actions/install-deps
+        with:
+          functions: 'true'
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
@@ -228,10 +207,11 @@ jobs:
           key: firebase-emulators-${{ hashFiles('firebase.json') }}
           restore-keys: firebase-emulators-
 
-      - name: Run mobile E2E tests (Pixel 5 viewport)
+      - name: Run mobile E2E tests (Pixel 5 viewport, shard ${{ matrix.shard }}/2)
         run: >
           npx playwright test --config=tests/playwright.config.ts --fail-on-flaky-tests
           --project=mobile-chrome
+          --shard=${{ matrix.shard }}/2
         env:
           CI: true
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -243,7 +223,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-mobile-${{ github.run_number }}
+          name: playwright-report-mobile-shard${{ matrix.shard }}-${{ github.run_number }}
           path: playwright-report/
           retention-days: 7
 
@@ -251,7 +231,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-results-mobile-${{ github.run_number }}
+          name: playwright-results-mobile-shard${{ matrix.shard }}-${{ github.run_number }}
           path: test-results/
           retention-days: 7
 
@@ -259,23 +239,15 @@ jobs:
     name: Performance Tests
     runs-on: ubuntu-latest
     timeout-minutes: 12
-    needs: [e2e, e2e-financial]
+    # Sem `needs`: sobe os proprios emuladores e servidor e nao usa nada do E2E.
+    # Esperar os shards so somava ~8 min de relogio.
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            apps/functions/package-lock.json
-
       - name: Install dependencies
-        run: npm ci
-
-      - name: Install functions dependencies
-        run: cd apps/functions && npm ci
+        uses: ./.github/actions/install-deps
+        with:
+          functions: 'true'
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
@@ -320,33 +292,38 @@ jobs:
           retention-days: 14
 
   lighthouse:
-    name: Lighthouse Perf Budget
+    name: Lighthouse Perf Budget (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    # Observado entre 13m26 e 14m46 (15 corridas do Lighthouse sob throttling real
-    # de slow-3G). Com timeout de 15min sobravam 14s no pior caso, o que fazia o
-    # job falhar por timeout de forma intermitente sem nenhuma mudanca de codigo.
-    # 25 min cobria 5 URLs (medido: 13m26 a 14m46). A institucional e a do
-    # aplicativo levam a 7, ou seja 21 execucoes do Lighthouse em vez de 15,
-    # sob throttling real de rede e CPU. Regra de tres sobre a pior medicao da
-    # de 20 min, e o historico deste job e de falhar por variancia do runner
-    # quando a folga e curta.
-    timeout-minutes: 32
+    # As 27 corridas (9 URLs x 3) rodavam em serie num runner so: o lhci sozinho
+    # levava ~18 min e o job ~22, o caminho critico do pipeline inteiro. Rodar
+    # corridas em paralelo NO MESMO runner falsearia o TBT (disputa de CPU), entao
+    # a divisao e por runner: cada shard mede 3 URLs com a CPU so para ele.
+    # numberOfRuns continua 3 e os tetos continuam os do lighthouserc.json, que
+    # casa por padrao de URL. Ao acrescentar uma URL no lighthouserc.json, ponha-a
+    # tambem num shard daqui; o guard lighthouse-shards.test.ts falha se esquecer.
+    # Timeout: ~6 min de lhci + ~4 de setup por shard, com folga para a variancia
+    # do runner, que ja derrubou este job quando a margem era curta.
+    timeout-minutes: 15
     # Sem `needs`: este job sobe o proprio `next start` a partir de um build de
     # producao e nao depende de nada do E2E. Encadear atras dele so somava ~8min
     # de relogio ao pipeline — e o repo e publico, entao minuto de runner e de graca.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # /decoracao fica junto da home: e a calibracao usada nas leituras
+          # manuais de TBT, e comparar razoes entre runners diferentes e ruidoso.
+          - shard: 1
+            urls: "/ /automacao-residencial /decoracao"
+          - shard: 2
+            urls: "/contato /agendar /aplicativo"
+          - shard: 3
+            urls: "/institucional /sobre /produtos"
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            apps/functions/package-lock.json
-
       - name: Install dependencies
-        run: npm ci
+        uses: ./.github/actions/install-deps
 
       - name: Install Playwright Chromium (Lighthouse browser)
         run: npx playwright install chromium --with-deps
@@ -366,9 +343,15 @@ jobs:
 
       # lhci autorun starts `next start -p 3001`, runs throttled-mobile Lighthouse
       # 3x per URL, then asserts the budget in lighthouserc.json. Fails the job if
-      # LCP/TBT/CLS regress past the ceiling.
-      - name: Run Lighthouse budget (lhci)
-        run: npm run test:lighthouse
+      # LCP/TBT/CLS regress past the ceiling. As flags --collect.url sobrepoem a
+      # lista do arquivo, entao cada shard coleta so as URLs dele.
+      - name: Run Lighthouse budget (lhci, shard ${{ matrix.shard }}/3)
+        run: |
+          args=()
+          for path in ${{ matrix.urls }}; do
+            args+=("--collect.url=http://localhost:3001${path}")
+          done
+          npx lhci autorun --config=lighthouserc.json "${args[@]}"
         env:
           NEXT_PUBLIC_FIREBASE_API_KEY: demo-api-key
           NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: demo-proops-test.firebaseapp.com
@@ -381,7 +364,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lighthouse-report-${{ github.run_number }}
+          name: lighthouse-report-shard${{ matrix.shard }}-${{ github.run_number }}
           path: lhci-report/
           retention-days: 7
 
@@ -389,23 +372,14 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [e2e, e2e-financial]
+    # Sem `needs`: faz o proprio build e `npm start`, nao usa nada do E2E.
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            apps/functions/package-lock.json
-
       - name: Install dependencies
-        run: npm ci
-
-      - name: Install functions dependencies
-        run: cd apps/functions && npm ci
+        uses: ./.github/actions/install-deps
+        with:
+          functions: 'true'
 
       - name: Build Next.js for ZAP scan
         run: npm run build

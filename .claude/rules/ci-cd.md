@@ -33,6 +33,17 @@ Jobs shared between `push-checks` and `test-suite` live in dedicated reusable wo
 | `_reusable-unit-tests.yml` | test-suite |
 | `_reusable-firestore-rules.yml` | push-checks, test-suite |
 
+### Instalação de dependências (`.github/actions/install-deps`)
+
+Todo job de `push-checks` e `test-suite` instala por esta composite action, não por
+`npm ci` direto. Ela põe o `node_modules` (raiz + `apps/web`, e `apps/functions` com
+`functions: 'true'`) em `actions/cache` com a chave **exata** do lockfile, e só roda o
+`npm ci` em cache miss. Antes, o `cache: npm` do setup-node guardava apenas o `~/.npm`,
+e o `npm ci` custava ~2 min em cada um dos ~15 jobs (medido em 2026-09-23). Sem
+`restore-keys` de propósito: node_modules parcial de outro lockfile é pior que instalar.
+Os patches do `patch-package` (postinstall do web) entram na chave. Os workflows de
+deploy continuam com `npm ci` limpo.
+
 ## Push Checks Pipeline (`push-checks.yml`)
 
 Runs in parallel on every push to non-main branches:
@@ -50,10 +61,10 @@ Runs on PRs and Merge Queue events:
 - `unit-tests` — Vitest frontend unit tests `npm run test:web` (reusable)
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
-- `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.
-- `performance` — Core Web Vitals + API baseline (runs after all E2E shards pass)
-- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build (`npm run test:lighthouse`). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. It is the longest job (~14 min), so gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed`.
-- `security` — OWASP ZAP baseline (runs after all E2E shards pass)
+- `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`), **em 2 shards** (`--shard=N/2`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.
+- `performance` — Core Web Vitals + API baseline. Roda **em paralelo** com o E2E: sobe os próprios emuladores e não usa nada dele.
+- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build, **dividido em 3 shards paralelos** (3 URLs cada). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. Gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed` (um job em matriz falha se qualquer shard falhar).
+- `security` — OWASP ZAP baseline. Roda **em paralelo** com o E2E: faz o próprio build e `npm start`. Esperar os shards (como era até 2026-09-23) só somava ~8 min de relógio.
 - `all-checks-passed` — consolidated gate required by branch protection
 
 ## Lighthouse Perf Budget (`lighthouse` job + `lighthouserc.json`)
@@ -87,7 +98,17 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   LazyMotion async `features` (flat — framer is not the hot chunk). Lenis is already
   deferred (`requestIdleCallback`, commit `550a9bbd`).
 - Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
-- Report artifact: `lighthouse-report-<run>` (from `lhci-report/`).
+- Report artifact: `lighthouse-report-shard<N>-<run>` (from `lhci-report/`), um por shard.
+- **Shards.** No CI o job roda em matriz de 3 (`test-suite.yml`), e cada shard passa as
+  suas URLs por `--collect.url`, que **sobrepõe** a lista do `lighthouserc.json`. Os
+  tetos continuam vindo do arquivo, porque o `assertMatrix` casa por padrão de URL.
+  **Ao acrescentar uma URL no `lighthouserc.json`, ponha-a também num shard da matriz**,
+  senão ela continua medida no `npm run test:lighthouse` local e sai do CI em silêncio.
+  O guard `apps/web/src/__tests__/lighthouse-shards.test.ts` falha nesse caso.
+  `/decoracao` fica no mesmo shard da home de propósito: as calibrações manuais
+  ("X contra /decoracao na mesma rodada") só valem entre URLs do mesmo runner; comparar
+  shards diferentes mistura máquinas diferentes. Os tetos são absolutos, então o gate em
+  si não depende disso.
 - **`/institucional` tem teto de TBT próprio: 1200ms, não 800.** Medido num Pixel 5 com
   4× de CPU e slow-3G, usando `/decoracao` como calibração por já passar no teto
   genérico. Histórico: com as cinco cenas antigas ela ficava entre **642 e 785**; com as
@@ -121,8 +142,8 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   como o CI começa a falhar por motivo que ninguém entende. Em `warn` o número aparece no
   relatório sem reprovar. **Assim que houver três execuções do CI, aperte para `error`** no
   teto que os números pedirem. O CLS delas continua `error`: esse foi medido e deu 0.
-- Duas das sub-páginas, e não todas, porque cada URL custa 3 corridas reais e o job já tem
-  timeout de 32 min. São as duas mais pesadas (contadores scrubados, faixa de retratos,
+- Duas das sub-páginas, e não todas, porque cada URL custa 3 corridas reais (~2 min de
+  runner por URL). São as duas mais pesadas (contadores scrubados, faixa de retratos,
   ledger e a cena fixada), então uma regressão no kit de cenas aparece nelas primeiro.
 - **O padrão genérico usa lookahead negativo** (`http://[^/]+/(?!institucional$).+`) e
   isso é obrigatório: o `assertMatrix` aplica TODA entrada cujo padrão casa, então sem ele
@@ -136,13 +157,14 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   `background-color`, e cor de fundo não é candidata a LCP. `/decoracao` mostra o mesmo padrão (~3,9s). O teto de
   LCP é `warn`, então não reprova o CI; mexer no banner afeta todas as rotas públicas de
   uma vez, e por isso ficou registrado em vez de corrigido de passagem.
-- **Timing / `timeout-minutes`:** o passo do lhci sozinho é ~14 min (21 corridas do
-  Lighthouse = 7 URLs × `numberOfRuns: 3`, cada uma sob slow-3G + 4× CPU reais); com
-  `npm ci` e o build de produção o job passa a ficar por volta de 18–21 min. Com 5 URLs
-  ele media entre 13m26 e 14m46 em cinco execuções seguidas, e o timeout de 15 min deixava
-  14 s de folga no pior caso, o que fazia o job falhar de forma intermitente sem nenhuma
-  mudança de código; foi para 25 min em 2026-08-11 e para **32 min** ao entrar a sexta e a
-  sétima URL. **Do not "speed it up" by lowering
+- **Timing / `timeout-minutes`:** cada URL custa ~2 min de lhci (3 corridas sob slow-3G +
+  4× CPU reais). Em série, as 9 URLs davam ~18 min de lhci e ~22 de job, o caminho crítico
+  do pipeline inteiro (medido em 2026-09-23); o timeout tinha chegado a 32 min depois de
+  falhas intermitentes por folga curta. Por isso a divisão em shards, **um runner por
+  shard**: rodar corridas em paralelo no MESMO runner disputaria CPU e falsearia o TBT.
+  Com 3 URLs por shard o lhci fica em ~6 min e o job em ~9–10, com timeout de 15. Se um
+  shard passar a encostar no timeout, acrescente um shard em vez de apertar a folga.
+  **Do not "speed it up" by lowering
   `numberOfRuns`**: the assertions aggregate by median, and a median of 2 is just a mean
   of 2, which makes an `error`-level gate (CLS, TBT) swing on a single outlier.
 
