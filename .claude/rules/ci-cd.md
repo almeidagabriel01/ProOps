@@ -50,10 +50,10 @@ Runs on PRs and Merge Queue events:
 - `unit-tests` — Vitest frontend unit tests `npm run test:web` (reusable)
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
-- `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.
-- `performance` — Core Web Vitals + API baseline (runs after all E2E shards pass)
+- `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`), **em 2 shards** (`--shard=N/2`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.
+- `performance` — Core Web Vitals + API baseline. Roda **em paralelo** com o E2E: sobe os próprios emuladores e não usa nada dele.
 - `lighthouse` — throttled-mobile Lighthouse perf budget on a production build, **dividido em 3 shards paralelos** (3 URLs cada). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. Gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed` (um job em matriz falha se qualquer shard falhar).
-- `security` — OWASP ZAP baseline (runs after all E2E shards pass)
+- `security` — OWASP ZAP baseline. Roda **em paralelo** com o E2E: faz o próprio build e `npm start`. Esperar os shards (como era até 2026-09-23) só somava ~8 min de relógio.
 - `all-checks-passed` — consolidated gate required by branch protection
 
 ## Lighthouse Perf Budget (`lighthouse` job + `lighthouserc.json`)
