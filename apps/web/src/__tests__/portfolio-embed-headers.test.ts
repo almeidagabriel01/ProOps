@@ -30,7 +30,7 @@ describe("incorporação das landings no portfólio", () => {
     });
     for (const rule of allowed) {
       expect(valueOf(rule.headers, "Content-Security-Policy")).toContain(
-        "frame-ancestors https://www.almeidagabriel.com.br http://localhost:3001 http://127.0.0.1:3001",
+        "frame-ancestors https://www.almeidagabriel.com.br http://localhost:3000 http://127.0.0.1:3000 http://localhost:3001 http://127.0.0.1:3001;",
       );
       expect(valueOf(rule.headers, "X-Frame-Options")).toBeUndefined();
     }
