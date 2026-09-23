@@ -19,6 +19,12 @@ export interface Measurement {
   docClientWidth: number;
   /** Os elementos mais largos que a área do main, para diagnóstico. */
   offenders: { selector: string; width: number }[];
+  /**
+   * Os `transform` inline dentro do main, concatenados. É onde o framer-motion
+   * escreve as entradas animadas (`x: 20 → 0`); enquanto isso muda, a medida
+   * ainda está no meio de uma animação.
+   */
+  motionSignature: string;
 }
 
 export async function measure(page: Page, route: string): Promise<Measurement> {
@@ -63,6 +69,12 @@ export async function measure(page: Page, route: string): Promise<Measurement> {
 
       offenders.sort((a, b) => b.width - a.width);
 
+      const motionSignature = main
+        ? Array.from(main.querySelectorAll<HTMLElement>("[style*='transform']"))
+            .map((el) => el.style.transform)
+            .join("|")
+        : "";
+
       return {
         reachedRoute: window.location.pathname.startsWith(route),
         url: window.location.pathname,
@@ -71,6 +83,7 @@ export async function measure(page: Page, route: string): Promise<Measurement> {
         docScrollWidth: doc.scrollWidth,
         docClientWidth: doc.clientWidth,
         offenders: offenders.slice(0, 5),
+        motionSignature,
       };
     },
     { route, tolerance: TOLERANCE_PX },
@@ -78,10 +91,18 @@ export async function measure(page: Page, route: string): Promise<Measurement> {
 }
 
 /**
- * Mede até a largura do conteúdo repetir entre duas amostras.
+ * Mede até a largura do conteúdo E os transforms animados repetirem entre duas
+ * amostras.
  *
  * Não dá para usar `waitForLoadState("networkidle")`: os listeners em tempo
  * real do Firestore mantêm conexões abertas e o estado idle nunca chega.
+ *
+ * Só a largura não bastava. O `getBoundingClientRect` e o `scrollWidth` contam
+ * o transform, e várias telas entram deslizando da direita: o botão "Nova
+ * Solução" de `/solutions` tem largura total no celular e entra com `x: 20`.
+ * Ele aparece só depois do carregamento, então a medição pegava a cauda da
+ * animação com o botão ainda 4px além da borda, e o spec falhava de forma
+ * intermitente numa tela que em repouso cabe.
  */
 export async function measureWhenSettled(
   page: Page,
@@ -93,7 +114,8 @@ export async function measureWhenSettled(
     const current = await measure(page, route);
     if (
       current.mainScrollWidth === previous.mainScrollWidth &&
-      current.mainClientWidth === previous.mainClientWidth
+      current.mainClientWidth === previous.mainClientWidth &&
+      current.motionSignature === previous.motionSignature
     ) {
       return current;
     }
