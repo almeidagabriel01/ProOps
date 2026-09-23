@@ -34,19 +34,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: |
-            package-lock.json
-            apps/functions/package-lock.json
-
       - name: Install dependencies
-        run: npm ci
-
-      - name: Install functions dependencies
-        run: cd apps/functions && npm ci
+        uses: ./.github/actions/install-deps
+        with:
+          functions: 'true'
 
       # audit-level=critical because xlsx and firebase-admin transitive deps
       # (node-forge, @tootallnate/once) have high-severity vulns with no fix available.

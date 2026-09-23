@@ -33,6 +33,17 @@ Jobs shared between `push-checks` and `test-suite` live in dedicated reusable wo
 | `_reusable-unit-tests.yml` | test-suite |
 | `_reusable-firestore-rules.yml` | push-checks, test-suite |
 
+### Instalação de dependências (`.github/actions/install-deps`)
+
+Todo job de `push-checks` e `test-suite` instala por esta composite action, não por
+`npm ci` direto. Ela põe o `node_modules` (raiz + `apps/web`, e `apps/functions` com
+`functions: 'true'`) em `actions/cache` com a chave **exata** do lockfile, e só roda o
+`npm ci` em cache miss. Antes, o `cache: npm` do setup-node guardava apenas o `~/.npm`,
+e o `npm ci` custava ~2 min em cada um dos ~15 jobs (medido em 2026-09-23). Sem
+`restore-keys` de propósito: node_modules parcial de outro lockfile é pior que instalar.
+Os patches do `patch-package` (postinstall do web) entram na chave. Os workflows de
+deploy continuam com `npm ci` limpo.
+
 ## Push Checks Pipeline (`push-checks.yml`)
 
 Runs in parallel on every push to non-main branches:
