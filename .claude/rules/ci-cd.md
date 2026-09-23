@@ -208,6 +208,10 @@ sobre o `<main>` e não sobre o documento porque o shell tem `overflow-hidden` n
 container externo, então conteúdo largo demais é **cortado** em vez de gerar
 scroll — foi assim que o grid de lançamentos (~662px) ficou quebrado sem alarme.
 
+O painel do super admin tem guard próprio, `mobile/admin-no-overflow.spec.ts`: o spec
+acima entra como admin de empresa, que leva 403 no `/admin`, então o painel inteiro
+ficava de fora. As funções de medida são compartilhadas via `mobile/overflow-helpers.ts`.
+
 Não há screenshot baseline nem checagem de acessibilidade (axe) em nenhum projeto.
 
 ## Sessão de MEMBRO no E2E (`tests/e2e/permissions/`)

@@ -38,8 +38,8 @@ export function OccurrenceTable({ occurrences, users, tenants }: OccurrenceTable
           <TableHead>Usuário</TableHead>
           <TableHead>Tenant</TableHead>
           <TableHead>Rota</TableHead>
-          <TableHead>HTTP</TableHead>
-          <TableHead>Navegador</TableHead>
+          <TableHead className="hidden md:table-cell">HTTP</TableHead>
+          <TableHead className="hidden md:table-cell">Navegador</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -61,17 +61,17 @@ export function OccurrenceTable({ occurrences, users, tenants }: OccurrenceTable
                 </TableCell>
                 <TableCell className="text-xs">{tenant?.name ?? (o.tenantId ? <span className="font-mono">{o.tenantId}</span> : "—")}</TableCell>
                 <TableCell className="font-mono text-[11px]">{`${o.method ?? ""} ${o.route ?? "—"}`.trim()}</TableCell>
-                <TableCell className="text-xs">{o.status ?? "—"}</TableCell>
-                <TableCell className="text-xs">{ua.browser} · {ua.os} · {ua.device}</TableCell>
+                <TableCell className="hidden text-xs md:table-cell">{o.status ?? "—"}</TableCell>
+                <TableCell className="hidden text-xs md:table-cell">{ua.browser} · {ua.os} · {ua.device}</TableCell>
               </TableRow>
               {open && (
                 <TableRow>
                   <TableCell colSpan={6} className="bg-black/[0.02] dark:bg-white/[0.03]">
                     <div className="space-y-2 py-2">
                       <div className="flex flex-wrap gap-2 text-[11px]">
-                        {o.uid && <button onClick={() => copy(o.uid!)} className="rounded bg-black/10 px-2 py-1 dark:bg-white/10">Copiar uid</button>}
-                        {o.tenantId && <button onClick={() => copy(o.tenantId!)} className="rounded bg-black/10 px-2 py-1 dark:bg-white/10">Copiar tenantId</button>}
-                        <button onClick={() => copy(o.stack)} className="rounded bg-black/10 px-2 py-1 dark:bg-white/10">Copiar stack</button>
+                        {o.uid && <button onClick={() => copy(o.uid!)} className="rounded bg-black/10 px-2 py-1 max-md:py-2 dark:bg-white/10">Copiar uid</button>}
+                        {o.tenantId && <button onClick={() => copy(o.tenantId!)} className="rounded bg-black/10 px-2 py-1 max-md:py-2 dark:bg-white/10">Copiar tenantId</button>}
+                        <button onClick={() => copy(o.stack)} className="rounded bg-black/10 px-2 py-1 max-md:py-2 dark:bg-white/10">Copiar stack</button>
                       </div>
                       <p className="text-[11px] text-black/50 dark:text-white/50">{o.userAgent ?? "userAgent indisponível"}</p>
                       <pre className="max-h-72 overflow-auto rounded-lg bg-black/90 p-3 font-mono text-[11px] leading-relaxed text-white/90">

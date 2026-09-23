@@ -39,7 +39,11 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatDateBR } from "@/utils/date-format";
-import { formatLastSeen, daysSinceLastSeen } from "@/lib/last-seen-format";
+import {
+  formatLastSeen,
+  formatLastSeenExact,
+  daysSinceLastSeen,
+} from "@/lib/last-seen-format";
 import { Loader } from "@/components/ui/loader";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -208,14 +212,15 @@ export function TenantCard({
               </span>
             )}
           </div>
-          <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
+          <div className="flex flex-wrap justify-end gap-1 md:opacity-0 md:group-hover:opacity-100 md:focus-within:opacity-100 transition-opacity">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 max-md:h-10 max-md:w-10 text-muted-foreground hover:text-foreground"
               onClick={() => onEdit(item)}
               disabled={isDeleting}
               title="Editar"
+              aria-label="Editar"
             >
               <Pencil className="w-4 h-4" />
             </Button>
@@ -223,10 +228,11 @@ export function TenantCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 max-md:h-10 max-md:w-10 text-muted-foreground hover:text-foreground"
                 onClick={() => onManageModules(item)}
                 disabled={isDeleting}
                 title="Plano e módulos"
+              aria-label="Plano e módulos"
               >
                 <LayoutGrid className="w-4 h-4" />
               </Button>
@@ -235,10 +241,11 @@ export function TenantCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-brand"
+                className="h-8 w-8 max-md:h-10 max-md:w-10 text-muted-foreground hover:text-brand"
                 onClick={() => onCopy(item)}
                 disabled={isDeleting}
                 title="Clonar Dados (Produtos, Serviços, etc)"
+              aria-label="Clonar Dados (Produtos, Serviços, etc)"
               >
                 <Copy className="w-4 h-4" />
               </Button>
@@ -246,10 +253,11 @@ export function TenantCard({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-amber-600"
+              className="h-8 w-8 max-md:h-10 max-md:w-10 text-muted-foreground hover:text-amber-600"
               onClick={() => setIsResetMfaDialogOpen(true)}
               disabled={isDeleting || isResettingMfa}
               title="Resetar verificação em dois fatores do admin"
+              aria-label="Resetar verificação em dois fatores do admin"
             >
               <ShieldOff className="w-4 h-4" />
             </Button>
@@ -258,20 +266,22 @@ export function TenantCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
+                  className="h-8 w-8 max-md:h-10 max-md:w-10 text-muted-foreground hover:text-emerald-600"
                   onClick={() => runLifecycle(() => onReactivate(tenant.id))}
                   disabled={isDeleting}
                   title="Reativar empresa"
+              aria-label="Reativar empresa"
                 >
                   {isDeleting ? <Loader size="sm" /> : <RotateCcw className="w-4 h-4" />}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 max-md:h-10 max-md:w-10 text-destructive hover:bg-destructive/10"
                   onClick={() => setOpenDialog("purge")}
                   disabled={isDeleting}
                   title="Excluir definitivamente"
+              aria-label="Excluir definitivamente"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -281,10 +291,11 @@ export function TenantCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 max-md:h-10 max-md:w-10 text-destructive hover:bg-destructive/10"
                   onClick={() => setOpenDialog("deactivate")}
                   disabled={isDeleting}
                   title="Desativar empresa"
+              aria-label="Desativar empresa"
                 >
                   <Power className="w-4 h-4" />
                 </Button>
@@ -405,17 +416,23 @@ export function TenantCard({
           <span>{formatDateBR(tenant.createdAt)}</span>
         </div>
 
-        <div className="flex items-center justify-between text-xs">
+        <div className="flex items-start justify-between gap-2 text-xs">
           <span className="text-muted-foreground">Último acesso:</span>
-          <span
-            className={
-              lastSeenDays === null || lastSeenDays >= 30
-                ? "font-medium text-amber-600 dark:text-amber-400"
-                : "font-medium text-foreground"
-            }
-            title={tenant.lastSeenAt || "Sem registro de acesso"}
-          >
-            {formatLastSeen(tenant.lastSeenAt)}
+          <span className="flex flex-col items-end text-right">
+            <span
+              className={
+                lastSeenDays === null || lastSeenDays >= 30
+                  ? "font-medium text-amber-600 dark:text-amber-400"
+                  : "font-medium text-foreground"
+              }
+            >
+              {formatLastSeenExact(tenant.lastSeenAt)}
+            </span>
+            {tenant.lastSeenAt && (
+              <span className="text-[10px] text-muted-foreground">
+                {formatLastSeen(tenant.lastSeenAt)}
+              </span>
+            )}
           </span>
         </div>
       </CardContent>
@@ -441,6 +458,14 @@ export function TenantCard({
           >
             <LogIn className="w-4 h-4 mr-2 text-primary" /> Acessar Painel
           </Button>
+          {/* O title acima não aparece no toque: no celular o motivo vira texto. */}
+          {!canAccessPanel && (
+            <span className="mt-2 block text-center text-xs text-muted-foreground md:hidden">
+              {accountStatus !== "active"
+                ? "Empresa desativada: reative para acessar o painel"
+                : "Conta no plano gratuito não possui acesso ao painel ERP"}
+            </span>
+          )}
         </span>
       </CardFooter>
 

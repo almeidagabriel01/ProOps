@@ -269,6 +269,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `whatsappUsage/{tenantId}/months/{YYYY-MM}` | WhatsApp | Uso mensal e overage |
 | `whatsappLogs` | WhatsApp | Audit trail de acoes do bot |
 | `drive_delivery_jobs/{tenantId}_{proposalId}` | Drive | Fila de entrega da proposta no Drive. Admin SDK only |
+| `tenant_presence/{tenantId}` | Admin | Ultimo acesso da empresa (`lastSeenAt`), gravado por `POST /v1/session/ping`. Fora do doc do tenant porque aquele e escutado em tempo real por toda aba aberta. Admin SDK only |
 | `tenant_purge_jobs/{tenantId}` | Admin | Job de exclusao definitiva de empresa. Escrita so pelo backend; superadmin com MFA le o progresso |
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |

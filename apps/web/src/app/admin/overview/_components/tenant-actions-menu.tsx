@@ -84,7 +84,7 @@ export function TenantActionsMenu({
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
-                    className="h-8 w-8 p-0 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-muted"
+                    className="h-8 w-8 max-md:h-10 max-md:w-10 p-0 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-muted"
                 >
                     <span className="sr-only">Abrir menu</span>
                     <MoreHorizontal className="h-4 w-4" />

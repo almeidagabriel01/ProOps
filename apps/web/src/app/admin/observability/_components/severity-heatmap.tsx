@@ -27,7 +27,7 @@ export function SeverityHeatmap({ windows }: { windows: ErrorMetricWindow[] }) {
               {ROW_LABEL[sev]}
             </span>
             <div
-              className="grid flex-1 gap-1"
+              className="grid flex-1 gap-1 max-md:gap-0.5"
               style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
             >
               {cells

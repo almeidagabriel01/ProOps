@@ -51,6 +51,7 @@ export const TENANT_PURGE_BY_DOC_ID = [
   "received_invoice_cursors",
   "whatsappUsage",
   "tenant_usage",
+  "tenant_presence",
 ] as const;
 
 /**

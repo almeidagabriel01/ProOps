@@ -1,6 +1,6 @@
 export function AdminSkeleton() {
   return (
-    <div className="max-w-7xl mx-auto space-y-8 p-6 animate-pulse">
+    <div className="max-w-7xl mx-auto space-y-8 p-6 animate-pulse max-md:p-0">
       {/* Header: Icon + Title + Buttons */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div className="space-y-2">
@@ -8,7 +8,7 @@ export function AdminSkeleton() {
             <div className="h-8 w-8 rounded-xl bg-muted" />
             <div className="h-9 w-64 rounded bg-muted" />
           </div>
-          <div className="h-5 w-96 rounded bg-muted" />
+          <div className="h-5 w-96 max-w-full rounded bg-muted" />
         </div>
         <div className="flex gap-2">
           <div className="h-11 w-32 rounded-xl bg-muted" />

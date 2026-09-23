@@ -11,6 +11,7 @@ import {
   Cell,
   ReferenceLine,
 } from "recharts";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { ModuleAdoptionItem } from "../_hooks/useAnalyticsData";
 
 interface ModuleAdoptionChartProps {
@@ -50,9 +51,12 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export function ModuleAdoptionChart({ data }: ModuleAdoptionChartProps) {
+  // Recharts não lê classe do Tailwind: a largura do eixo de rótulos e a
+  // margem vêm por prop. Com 148px fixos, a 360px sobravam ~36px para as barras.
+  const isMobile = useIsMobile();
   if (data.length === 0) {
     return (
-      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+      <div className="rounded-2xl border bg-card p-6 max-md:p-4 shadow-sm">
         <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
           Sem dados de adoção disponíveis
         </div>
@@ -63,7 +67,7 @@ export function ModuleAdoptionChart({ data }: ModuleAdoptionChartProps) {
   const chartHeight = Math.max(200, data.length * 52);
 
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="rounded-2xl border bg-card p-6 max-md:p-4 shadow-sm">
       <div className="mb-5">
         <h3 className="text-base font-semibold">Adoção de Módulos</h3>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -76,7 +80,7 @@ export function ModuleAdoptionChart({ data }: ModuleAdoptionChartProps) {
           <BarChart
             data={data}
             layout="vertical"
-            margin={{ top: 0, right: 48, left: 0, bottom: 0 }}
+            margin={{ top: 0, right: isMobile ? 16 : 48, left: 0, bottom: 0 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -94,8 +98,8 @@ export function ModuleAdoptionChart({ data }: ModuleAdoptionChartProps) {
             <YAxis
               type="category"
               dataKey="label"
-              width={148}
-              tick={{ fontSize: 12 }}
+              width={isMobile ? 96 : 148}
+              tick={{ fontSize: isMobile ? 10 : 12 }}
               tickLine={false}
               axisLine={false}
             />

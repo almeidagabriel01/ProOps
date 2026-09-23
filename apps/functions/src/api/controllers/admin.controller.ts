@@ -26,6 +26,10 @@ import {
 } from "../../lib/admin-billing-guards";
 import { auditAdminAction } from "../../lib/admin-audit";
 import {
+  TENANT_PRESENCE_COLLECTION,
+  pickLastSeen,
+} from "../../lib/tenant-last-seen";
+import {
   buildPurgeStages,
   TENANT_PURGE_JOBS_COLLECTION,
 } from "../services/tenant-purge.service";
@@ -947,6 +951,26 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
       }
     }
 
+    // Ultimo acesso, da colecao propria (ver lib/tenant-last-seen.ts): uma
+    // leitura por empresa da pagina. Falha aqui nao derruba a listagem.
+    const presenceMap = new Map<string, unknown>();
+    if (tenantIds.size > 0) {
+      try {
+        const presenceSnaps = await db.getAll(
+          ...Array.from(tenantIds).map((id) =>
+            db.collection(TENANT_PRESENCE_COLLECTION).doc(id),
+          ),
+        );
+        for (const snap of presenceSnaps) {
+          if (snap.exists) presenceMap.set(snap.id, snap.get("lastSeenAt"));
+        }
+      } catch (err) {
+        logger.warn("[getAllTenantsBilling] presence fetch failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
     // Batch fetch all plan docs at once
     const planNameMap = new Map<string, string>();
     const planTierMap = new Map<string, string>(); // Maps document ID -> tier name
@@ -1141,7 +1165,10 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             niche: tenantData.niche,
             whatsappEnabled: tenantData.whatsappEnabled,
             accountStatus: tenantData.accountStatus || "active",
-            lastSeenAt: tenantData.lastSeenAt,
+            lastSeenAt: pickLastSeen(
+              presenceMap.get(tenantId || ""),
+              tenantData.lastSeenAt,
+            ),
           },
           admin: {
             id: userDoc.id,

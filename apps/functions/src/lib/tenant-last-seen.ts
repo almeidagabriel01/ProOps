@@ -19,15 +19,36 @@ import { logger } from "./logger";
  * recarga nao vira uma escrita por segundo. Ele e curto de proposito, para nao
  * descartar acesso de verdade.
  *
- * Duas exclusoes deliberadas:
- * - **super admin nao conta.** Abrir o painel de uma empresa pelo "Acessar
- *   Painel" marcaria como acesso dela algo que foi seu, e a coluna passaria a
- *   mentir justamente nas empresas que voce anda investigando.
- * - **nunca CRIA o documento do tenant.** Usa `update`, e ignora NOT_FOUND: um
- *   `set` com merge criaria um doc so com `lastSeenAt` para tenant legado (que
- *   vive em `companies`) e para empresa ja excluida, mudando a resolucao de
- *   plano e ressuscitando o que a exclusao definitiva apagou.
+ * **Super admin nao conta.** Abrir o painel de uma empresa pelo "Acessar
+ * Painel" marcaria como acesso dela algo que foi seu, e a coluna passaria a
+ * mentir justamente nas empresas que voce anda investigando.
+ *
+ * **Colecao propria, nunca o doc `tenants/{id}`.** A primeira versao gravava
+ * `lastSeenAt` no doc da empresa, e esse doc e escutado em tempo real
+ * (`onSnapshot` no TenantProvider) por TODA aba aberta de TODO usuario dela:
+ * cada registro virava uma leitura por aba, um re-render da tela inteira e uma
+ * nova busca de add-ons no PlanProvider, que recarrega quando o objeto da
+ * empresa muda. `tenant_presence/{tenantId}` so e lido pelo backend do painel
+ * (rules negam o navegador), entao gravar ali nao acorda ninguem.
  */
+
+export const TENANT_PRESENCE_COLLECTION = "tenant_presence";
+
+/**
+ * O ultimo acesso vindo das duas fontes: a colecao propria e o campo legado no
+ * doc da empresa, gravado enquanto a primeira versao esteve no ar. Vale o mais
+ * recente, para nao perder o que ja foi registrado.
+ */
+export function pickLastSeen(
+  presenceIso?: unknown,
+  legacyIso?: unknown,
+): string | undefined {
+  const candidates = [presenceIso, legacyIso]
+    .map((value) => String(value ?? "").trim())
+    .filter((value) => Number.isFinite(Date.parse(value)));
+  if (candidates.length === 0) return undefined;
+  return candidates.sort((a, b) => Date.parse(b) - Date.parse(a))[0];
+}
 
 /** Janela antirrepeticao: protege de laco de recarga, nao define a precisao. */
 export const LAST_SEEN_DEDUPE_MS = 60 * 1000;
@@ -80,13 +101,10 @@ export async function recordTenantLastSeen(input: {
 
   try {
     await db
-      .collection("tenants")
+      .collection(TENANT_PRESENCE_COLLECTION)
       .doc(tenantId)
-      .update({ lastSeenAt: new Date(nowMs).toISOString() });
+      .set({ tenantId, lastSeenAt: new Date(nowMs).toISOString() }, { merge: true });
   } catch (err) {
-    const code = (err as { code?: number | string }).code;
-    // 5 = NOT_FOUND: tenant legado sem documento. Nao criar.
-    if (code === 5 || code === "not-found") return;
     logger.warn("last_seen_write_failed", {
       tenantId,
       error: err instanceof Error ? err.message : String(err),

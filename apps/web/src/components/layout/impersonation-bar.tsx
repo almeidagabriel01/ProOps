@@ -82,7 +82,7 @@ export function ImpersonationBar({
           variant="ghost"
           size="sm"
           onClick={() => (writeEnabled ? onToggleWrite(false) : setConfirmOpen(true))}
-          className="h-auto shrink-0 p-0 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
+          className="h-auto shrink-0 p-0 max-md:min-h-9 max-md:px-1 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
         >
           {writeEnabled ? "Voltar a só leitura" : "Habilitar edição"}
         </Button>
@@ -94,7 +94,7 @@ export function ImpersonationBar({
           size="sm"
           onClick={onExit}
           aria-label="Voltar ao painel super admin"
-          className="h-auto shrink-0 p-0 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
+          className="h-auto shrink-0 p-0 max-md:min-h-9 max-md:px-1 text-xs font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
         >
           <span className="hidden sm:inline">Sair</span>
           <LogOut className="h-3 w-3 sm:ml-1.5" />

@@ -31,7 +31,7 @@ import { useTenant } from "@/providers/tenant-provider";
 const VISIBLE_TABS = 4;
 
 const SUPERADMIN_ENTRIES: DockEntry[] = [
-  ...ADMIN_SECTIONS.filter((s) => s.inDock).map(({ icon, label, href }) => ({
+  ...ADMIN_SECTIONS.map(({ icon, label, href }) => ({
     icon,
     label,
     href,

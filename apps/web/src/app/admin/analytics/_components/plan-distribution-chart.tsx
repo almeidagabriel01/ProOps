@@ -8,6 +8,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { PlanDistributionItem } from "../_hooks/useAnalyticsData";
 
 interface PlanDistributionChartProps {
@@ -53,12 +54,15 @@ function CustomCenterLabel({ viewBox, total }: CustomLabelProps) {
 }
 
 export function PlanDistributionChart({ data }: PlanDistributionChartProps) {
+  // Raio fixo de 100px + legenda quebrando em duas linhas sobrepõe a pizza no
+  // celular; ali o raio acompanha o card.
+  const isMobile = useIsMobile();
   const total = data.reduce((sum, d) => sum + d.count, 0);
   // recharts requires an index signature on chart data entries
   const chartData = data as (PlanDistributionItem & Record<string, unknown>)[];
 
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="rounded-2xl border bg-card p-6 max-md:p-4 shadow-sm">
       <div className="mb-4">
         <h3 className="text-base font-semibold">Distribuição por Plano</h3>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -78,8 +82,8 @@ export function PlanDistributionChart({ data }: PlanDistributionChartProps) {
                 data={chartData}
                 cx="50%"
                 cy="45%"
-                innerRadius={60}
-                outerRadius={100}
+                innerRadius={isMobile ? "42%" : 60}
+                outerRadius={isMobile ? "70%" : 100}
                 dataKey="count"
                 nameKey="name"
                 paddingAngle={2}

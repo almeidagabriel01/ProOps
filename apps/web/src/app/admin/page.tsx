@@ -70,7 +70,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 p-6">
+    <div className="max-w-7xl mx-auto space-y-8 p-6 max-md:p-0">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>

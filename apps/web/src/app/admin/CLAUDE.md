@@ -15,11 +15,10 @@ observabilidade e auditoria.
 
 ```
 src/app/admin/
-├── layout.tsx                       # AdminGuard + abas das seções (AdminSectionTabs)
+├── layout.tsx                       # AdminGuard (a navegação entre seções é a dock)
 ├── page.tsx                         # Empresas (cards) — rota /admin
 ├── _components/
 │   ├── admin-guard.tsx              # Bloqueia não-superadmin
-│   ├── admin-section-tabs.tsx       # Abas do topo (lê lib/admin-sections.ts)
 │   ├── admin-skeleton.tsx
 │   ├── tenant-card.tsx              # Card da empresa: editar, módulos, copiar, MFA, ciclo de vida
 │   └── copy-data-dialog.tsx         # Copiar catálogo entre empresas
@@ -36,7 +35,7 @@ src/components/admin/
 ├── tenant-dialog.tsx                # Criar/editar empresa
 └── tenant-modules-dialog.tsx        # "Plano e módulos" (substitui o antigo Editar Limites)
 
-src/lib/admin-sections.ts            # Seções do painel: abas do topo, dock e tab bar
+src/lib/admin-sections.ts            # Seções do painel: fonte da dock e da tab bar do superadmin
 src/components/layout/impersonation-bar.tsx  # Faixa do "Acessar Painel"
 ```
 
@@ -169,13 +168,30 @@ producao): ao criar um `eventType` novo, acrescente o rotulo ali.
 
 ## Última vez online
 
-`tenants/{id}.lastSeenAt`. Responde "a conta que nao assinou voltou?" e "o
-assinante ainda usa?", que os contadores de proposta e lancamento nao respondem.
+`tenant_presence/{tenantId}.lastSeenAt`. Responde "a conta que nao assinou
+voltou?" e "o assinante ainda usa?", que os contadores de proposta e lancamento
+nao respondem.
+
+**Colecao propria, nunca o doc `tenants/{id}`.** A primeira versao gravava no
+doc da empresa, que o `TenantProvider` escuta em tempo real em toda aba aberta
+de todo usuario dela: cada registro virava uma leitura por aba, um re-render da
+tela inteira e uma nova busca de add-ons no `PlanProvider`. A listagem do painel
+le a colecao nova com `getAll` (uma leitura por empresa da pagina) e usa o
+`lastSeenAt` legado do doc da empresa como reserva (`pickLastSeen`, vale o mais
+recente), para nao perder o que ja foi registrado enquanto a primeira versao
+esteve no ar. Rules negam o navegador; so o backend le e grava.
 
 **E por EVENTO, nao por tempo.** O frontend (`hooks/use-session-ping.ts`) chama
-`POST /v1/session/ping` quando a plataforma abre autenticada (login novo ou
-sessao que ja existia) e de novo no primeiro acesso de cada dia, marcando
-`localStorage` com uid + dia. A hora gravada e a daquele instante.
+`POST /v1/session/ping` quando a plataforma abre autenticada (login, aba ou
+janela nova: uma vez por aba por usuario, marca em `sessionStorage`) e quando a
+pessoa volta para a aba, se o ultimo aviso daquela aba tem 5 minutos ou mais. A
+hora gravada e a daquele instante, e a tela mostra **dia e horario exatos**
+(`formatLastSeenExact`, sempre no fuso de Brasilia) com o tempo relativo abaixo.
+
+Houve uma versao intermediaria que avisava uma vez por DIA por navegador: quem
+entrava as 9h e voltava as 14h ficava registrado as 9h, o que so parecia certo
+enquanto a tela arredondava para "ha menos de 1 hora". Limite que sobrou: quem
+passa horas na mesma aba sem nunca sair dela aparece com a hora em que entrou.
 
 A primeira versao gravava em TODA request autenticada, com janela de 15 min: era
 barata, mas subestimava o ultimo acesso por construcao e punha escrita no caminho
@@ -184,9 +200,6 @@ de toda request. O unico tempo que sobrou e antirrepeticao de 1 min no backend
 
 - **Super admin nao conta.** Abrir o painel de uma empresa marcaria como acesso
   dela algo que foi seu, justamente nas empresas sob investigacao.
-- A gravacao **nunca cria** o doc do tenant (`update` + NOT_FOUND ignorado):
-  criar ressuscitaria empresa excluida e mudaria a resolucao de plano de tenant
-  legado, que vive em `companies`.
 - `/v1/session/ping` esta em `FREE_TIER_ALLOWED_PREFIXES`: sem isso a conta
   gratuita levaria 402 e o caso que originou o pedido nunca seria registrado.
 - Aparece no card e na tabela da Visao geral, destacado acima de 30 dias.
@@ -228,4 +241,31 @@ Toda mutação do superadmin grava um evento em `security_audit_events`, com
 - Não verificar role no componente: o layout já garante superadmin.
 - Chamadas via `AdminService`.
 - Operação destrutiva sempre com `AlertDialog` explicando o efeito.
-- Página nova do painel entra em `ADMIN_SECTIONS` (`lib/admin-sections.ts`).
+- Página nova do painel entra em `ADMIN_SECTIONS` (`lib/admin-sections.ts`), que
+  alimenta a dock (desktop) e a tab bar do celular. Não existe mais barra de
+  abas no topo. No celular só as 4 primeiras ficam na barra e o resto vai para o
+  "Mais": seção nova de uso diário e rótulo curto (até ~11 caracteres, ~72px a
+  360px) vai nas quatro primeiras; o guard é
+  `components/layout/__tests__/superadmin-navigation.test.tsx`.
+
+## Celular
+
+O painel segue as regras de responsividade do ERP (`CLAUDE.md` da raiz): o
+desktop não muda, toda diferença é aditiva com prefixo.
+
+- **Padding da página:** o `<main>` do shell já aplica `p-4 md:p-8`. A raiz de
+  cada página do painel usa `p-6 max-md:p-0` (ou `md:p-6 max-md:p-0`); sem isso
+  o conteúdo ficava com ~280px a 360px.
+- **Tabelas largas viram lista abaixo de `md`:** a da Visão geral (8 colunas) e a
+  de Faturamento (6 colunas) têm uma `<ul className="md:hidden">` de cards e a
+  tabela dentro de `hidden md:block`. Tabela nova do painel com mais de ~4
+  colunas segue o mesmo padrão, ou esconde colunas secundárias com
+  `hidden md:table-cell` (ranking de atividade, ocorrências).
+- **Gráficos (Recharts)** não leem classe do Tailwind: largura de eixo, fonte e
+  raio vêm de `useIsMobile()`.
+- **Toque:** botões de ícone ganham `max-md:h-10 max-md:w-10`; nada de ação que
+  só aparece no hover. Tooltip de informação vira texto visível abaixo de `md`.
+- **Guard:** `tests/e2e/mobile/admin-no-overflow.spec.ts`, logado como super
+  admin, mede as 7 rotas e confere que os filtros da Visão geral aparecem
+  inteiros (card com `overflow-hidden` corta em vez de vazar, e a medida de
+  overflow sozinha não enxerga isso).

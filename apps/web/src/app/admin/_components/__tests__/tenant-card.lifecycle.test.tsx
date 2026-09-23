@@ -100,9 +100,9 @@ describe("TenantCard: ciclo de vida da empresa", () => {
     expect(screen.queryByTitle("Reativar empresa")).not.toBeInTheDocument();
   });
 
-  it("mostra o ultimo acesso da empresa, e avisa quando nunca houve", () => {
-    const { unmount } = renderCard(item(undefined, new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString()));
-    expect(screen.getByText("ontem")).toBeInTheDocument();
+  it("mostra dia e horario exatos do ultimo acesso, mais o tempo relativo", () => {
+    const { unmount } = renderCard(item(undefined, "2026-09-23T17:32:00.000Z"));
+    expect(screen.getByText("23/09/2026 às 14:32")).toBeInTheDocument();
     unmount();
 
     renderCard(item());

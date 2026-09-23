@@ -293,7 +293,7 @@ export function BottomDock() {
 
   if (isSuperAdminMode) {
     const superAdminItems = [
-      ...ADMIN_SECTIONS.filter((s) => s.inDock).map(({ icon, label, href }) => ({
+      ...ADMIN_SECTIONS.map(({ icon, label, href }) => ({
         icon,
         label,
         href,

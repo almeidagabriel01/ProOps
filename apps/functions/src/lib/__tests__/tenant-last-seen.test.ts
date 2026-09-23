@@ -6,11 +6,14 @@
 const updates: Array<{ id: string; data: Record<string, unknown> }> = [];
 let updateError: unknown = null;
 
+const collections: string[] = [];
+
 jest.mock("../../init", () => ({
   db: {
-    collection: () => ({
+    collection: (name: string) => ({
       doc: (id: string) => ({
-        update: async (data: Record<string, unknown>) => {
+        set: async (data: Record<string, unknown>) => {
+          collections.push(name);
           if (updateError) throw updateError;
           updates.push({ id, data });
         },
@@ -25,6 +28,7 @@ import {
   LAST_SEEN_DEDUPE_MS,
   clearLastSeenCacheForTest,
   countsAsTenantAccess,
+  pickLastSeen,
   recordTenantLastSeen,
   shouldRecordLastSeen,
 } from "../tenant-last-seen";
@@ -33,6 +37,7 @@ const T0 = Date.parse("2026-09-23T10:00:00.000Z");
 
 beforeEach(() => {
   updates.length = 0;
+  collections.length = 0;
   updateError = null;
   warn.mockClear();
   clearLastSeenCacheForTest();
@@ -80,7 +85,7 @@ describe("recordTenantLastSeen", () => {
     await recordTenantLastSeen({ tenantId: "t1", role: "MASTER", nowMs: T0 });
     await recordTenantLastSeen({ tenantId: "t1", role: "MASTER", nowMs: T0 + 5_000 });
     expect(updates).toEqual([
-      { id: "t1", data: { lastSeenAt: "2026-09-23T10:00:00.000Z" } },
+      { id: "t1", data: { tenantId: "t1", lastSeenAt: "2026-09-23T10:00:00.000Z" } },
     ]);
 
     // Voltar meia hora depois e um acesso de verdade: grava a hora NOVA, e nao
@@ -91,7 +96,7 @@ describe("recordTenantLastSeen", () => {
       nowMs: T0 + 30 * 60_000,
     });
     expect(updates).toHaveLength(2);
-    expect(updates[1].data).toEqual({ lastSeenAt: "2026-09-23T10:30:00.000Z" });
+    expect(updates[1].data).toEqual({ tenantId: "t1", lastSeenAt: "2026-09-23T10:30:00.000Z" });
   });
 
   it("empresas diferentes tem janelas independentes", async () => {
@@ -105,11 +110,11 @@ describe("recordTenantLastSeen", () => {
     expect(updates).toHaveLength(0);
   });
 
-  it("tenant legado sem documento nao e criado pelo heartbeat", async () => {
-    updateError = Object.assign(new Error("no document"), { code: 5 });
+  it("grava na colecao propria, nunca no doc tenants/{id}", async () => {
+    // O doc da empresa e escutado em tempo real por toda aba aberta dela:
+    // gravar ali fazia cada registro re-renderizar a tela e rebuscar add-ons.
     await recordTenantLastSeen({ tenantId: "t1", role: "MASTER", nowMs: T0 });
-    expect(updates).toHaveLength(0);
-    expect(warn).not.toHaveBeenCalled();
+    expect(collections).toEqual(["tenant_presence"]);
   });
 
   it("outra falha e registrada, sem derrubar a request", async () => {
@@ -118,5 +123,25 @@ describe("recordTenantLastSeen", () => {
       recordTenantLastSeen({ tenantId: "t1", role: "MASTER", nowMs: T0 }),
     ).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalled();
+  });
+});
+
+describe("pickLastSeen", () => {
+  it("vale o mais recente entre a colecao nova e o campo legado", () => {
+    expect(pickLastSeen("2026-09-23T10:00:00.000Z", "2026-09-22T10:00:00.000Z")).toBe(
+      "2026-09-23T10:00:00.000Z",
+    );
+    expect(pickLastSeen("2026-09-21T10:00:00.000Z", "2026-09-22T10:00:00.000Z")).toBe(
+      "2026-09-22T10:00:00.000Z",
+    );
+  });
+
+  it("so o legado (gravado na primeira versao) nao se perde", () => {
+    expect(pickLastSeen(undefined, "2026-09-22T10:00:00.000Z")).toBe("2026-09-22T10:00:00.000Z");
+  });
+
+  it("nada valido vira undefined", () => {
+    expect(pickLastSeen(undefined, undefined)).toBeUndefined();
+    expect(pickLastSeen("lixo", "")).toBeUndefined();
   });
 });

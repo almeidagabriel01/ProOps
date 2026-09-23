@@ -43,7 +43,7 @@ function RankBadge({ rank }: RankBadgeProps) {
 
 export function ActivityLeaderboard({ data }: ActivityLeaderboardProps) {
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="rounded-2xl border bg-card p-6 max-md:p-4 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
         <Trophy className="h-4 w-4 text-amber-500" />
         <div>
@@ -67,9 +67,9 @@ export function ActivityLeaderboard({ data }: ActivityLeaderboardProps) {
                 <th className="pb-2 pr-3 text-left font-medium">Empresa</th>
                 <th className="pb-2 pr-3 text-left font-medium">Plano</th>
                 <th className="pb-2 pr-3 text-right font-medium">Propostas</th>
-                <th className="pb-2 pr-3 text-right font-medium">Clientes</th>
-                <th className="pb-2 pr-3 text-right font-medium">Produtos</th>
-                <th className="pb-2 pr-3 text-right font-medium">Usuários</th>
+                <th className="pb-2 pr-3 text-right font-medium hidden md:table-cell">Clientes</th>
+                <th className="pb-2 pr-3 text-right font-medium hidden md:table-cell">Produtos</th>
+                <th className="pb-2 pr-3 text-right font-medium hidden md:table-cell">Usuários</th>
                 <th className="pb-2 pr-3 text-right font-medium">Score</th>
                 <th className="pb-2 text-right font-medium">Health</th>
               </tr>
@@ -87,7 +87,9 @@ export function ActivityLeaderboard({ data }: ActivityLeaderboardProps) {
                     <RankBadge rank={index + 1} />
                   </td>
                   <td className="py-2.5 pr-3">
-                    <span className="font-medium">{item.tenant.name}</span>
+                    <span className="block max-w-[40vw] truncate font-medium md:max-w-none">
+                      {item.tenant.name}
+                    </span>
                   </td>
                   <td className="py-2.5 pr-3">
                     <span className="text-xs capitalize text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
@@ -97,13 +99,13 @@ export function ActivityLeaderboard({ data }: ActivityLeaderboardProps) {
                   <td className="py-2.5 pr-3 text-right tabular-nums">
                     {item.usage.proposals.toLocaleString("pt-BR")}
                   </td>
-                  <td className="py-2.5 pr-3 text-right tabular-nums">
+                  <td className="py-2.5 pr-3 text-right tabular-nums hidden md:table-cell">
                     {item.usage.clients.toLocaleString("pt-BR")}
                   </td>
-                  <td className="py-2.5 pr-3 text-right tabular-nums">
+                  <td className="py-2.5 pr-3 text-right tabular-nums hidden md:table-cell">
                     {item.usage.products.toLocaleString("pt-BR")}
                   </td>
-                  <td className="py-2.5 pr-3 text-right tabular-nums">
+                  <td className="py-2.5 pr-3 text-right tabular-nums hidden md:table-cell">
                     {item.usage.users.toLocaleString("pt-BR")}
                   </td>
                   <td className="py-2.5 pr-3 text-right">

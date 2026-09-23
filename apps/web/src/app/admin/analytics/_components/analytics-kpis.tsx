@@ -67,7 +67,7 @@ function MetricCard({
                   side="bottom"
                   className="rounded-lg max-w-[220px] whitespace-normal text-xs leading-relaxed"
                 >
-                  <Info className="h-3 w-3 text-white/40 hover:text-white/70 transition-colors cursor-help shrink-0" />
+                  <Info className="h-3 w-3 text-white/40 hover:text-white/70 transition-colors cursor-help shrink-0 max-md:hidden" />
                 </Tooltip>
               )}
             </div>
@@ -78,6 +78,11 @@ function MetricCard({
               {badge}
             </div>
             <p className="text-xs text-white/50">{subtitle}</p>
+            {/* O tooltip abre no hover, que não existe no toque: no celular a
+                explicação aparece escrita. */}
+            {infoTooltip && (
+              <p className="text-[11px] leading-snug text-white/60 md:hidden">{infoTooltip}</p>
+            )}
           </div>
 
           <div
