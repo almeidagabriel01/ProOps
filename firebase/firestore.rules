@@ -689,6 +689,13 @@ service cloud.firestore {
     // Read is allowed ONLY to an MFA'd super admin (isSuperAdmin() already requires
     // hasMfa()), to power the live superadmin dashboard via onSnapshot. Client
     // writes are denied entirely — the ingest pipeline is server-side only.
+    // Ultimo acesso da empresa (painel do superadmin). Fora do doc tenants/{id}
+    // de proposito: aquele doc e escutado em tempo real por toda aba aberta da
+    // empresa. Escrita e leitura so pelo backend (Admin SDK).
+    match /tenant_presence/{tenantId} {
+      allow read, write: if false;
+    }
+
     // Exclusao definitiva de empresa (painel do superadmin). Escrita so pelo
     // backend; o superadmin le para acompanhar o progresso na tela.
     match /tenant_purge_jobs/{tenantId} {

@@ -169,8 +169,18 @@ producao): ao criar um `eventType` novo, acrescente o rotulo ali.
 
 ## Última vez online
 
-`tenants/{id}.lastSeenAt`. Responde "a conta que nao assinou voltou?" e "o
-assinante ainda usa?", que os contadores de proposta e lancamento nao respondem.
+`tenant_presence/{tenantId}.lastSeenAt`. Responde "a conta que nao assinou
+voltou?" e "o assinante ainda usa?", que os contadores de proposta e lancamento
+nao respondem.
+
+**Colecao propria, nunca o doc `tenants/{id}`.** A primeira versao gravava no
+doc da empresa, que o `TenantProvider` escuta em tempo real em toda aba aberta
+de todo usuario dela: cada registro virava uma leitura por aba, um re-render da
+tela inteira e uma nova busca de add-ons no `PlanProvider`. A listagem do painel
+le a colecao nova com `getAll` (uma leitura por empresa da pagina) e usa o
+`lastSeenAt` legado do doc da empresa como reserva (`pickLastSeen`, vale o mais
+recente), para nao perder o que ja foi registrado enquanto a primeira versao
+esteve no ar. Rules negam o navegador; so o backend le e grava.
 
 **E por EVENTO, nao por tempo.** O frontend (`hooks/use-session-ping.ts`) chama
 `POST /v1/session/ping` quando a plataforma abre autenticada (login, aba ou
@@ -191,9 +201,6 @@ de toda request. O unico tempo que sobrou e antirrepeticao de 1 min no backend
 
 - **Super admin nao conta.** Abrir o painel de uma empresa marcaria como acesso
   dela algo que foi seu, justamente nas empresas sob investigacao.
-- A gravacao **nunca cria** o doc do tenant (`update` + NOT_FOUND ignorado):
-  criar ressuscitaria empresa excluida e mudaria a resolucao de plano de tenant
-  legado, que vive em `companies`.
 - `/v1/session/ping` esta em `FREE_TIER_ALLOWED_PREFIXES`: sem isso a conta
   gratuita levaria 402 e o caso que originou o pedido nunca seria registrado.
 - Aparece no card e na tabela da Visao geral, destacado acima de 30 dias.
