@@ -12,6 +12,7 @@ import { PriceChangeBanner } from "@/components/billing/price-change-banner";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useAuth } from "@/providers/auth-provider";
+import { useSessionPing } from "@/hooks/use-session-ping";
 import { useTenant } from "@/providers/tenant-provider";
 import { StripeService } from "@/services/stripe-service";
 import { AddonService } from "@/services/addon-service";
@@ -31,6 +32,10 @@ function ProtectedShell({ children }: { children: React.ReactNode }) {
   const [isOpeningPortal, setIsOpeningPortal] = React.useState(false);
   const [isReactivating, setIsReactivating] = React.useState(false);
   const registerMain = useRegisterScrollContainer();
+
+  // Marca o acesso da empresa (uma vez por navegador, por dia). Ver
+  // hooks/use-session-ping.ts.
+  useSessionPing(user);
 
   React.useEffect(() => {
     document.documentElement.dataset.shell = "locked";

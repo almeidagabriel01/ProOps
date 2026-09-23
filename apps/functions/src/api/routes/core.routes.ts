@@ -33,7 +33,13 @@ import {
 import { createShareLink } from "../controllers/shared-proposals.controller";
 import { updateTenant } from "../controllers/tenants.controller";
 
+import { pingSession } from "../controllers/session.controller";
+
 const router = Router();
+
+// A plataforma abriu autenticada (login ou sessao que ja existia): alimenta o
+// "Ultima vez online" do painel do super admin.
+router.post("/session/ping", pingSession);
 
 // Products
 router.post("/products", createProduct);

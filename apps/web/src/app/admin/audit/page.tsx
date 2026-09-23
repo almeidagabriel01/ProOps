@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
+import { Badge } from "@/components/ui/badge";
 import {
   AdminService,
   type AdminAuditEvent,
@@ -14,9 +15,14 @@ import {
 import { toast } from "@/lib/toast";
 
 /**
- * Rastro das acoes do superadmin: acessos ao painel das empresas, escritas
- * feitas la dentro, mudancas de plano, desativacao e exclusao. O backend ja
- * gravava parte disso em `security_audit_events`, mas nada exibia.
+ * Rastro de seguranca e cobranca: o que o super admin fez em cada empresa e o
+ * que o backend recusou para os usuarios delas (conta gratuita barrada, plano
+ * insuficiente, limite atingido, falha de login). O backend ja gravava tudo em
+ * `security_audit_events`, mas nada exibia.
+ *
+ * A coluna "Quem" vem do `role` do usuario que agiu, resolvido no backend: e o
+ * que separa uma acao SUA dentro do painel da empresa de uma acao do usuario
+ * dela. Sem ela, as duas apareciam iguais, porque carregam o mesmo tenantId.
  */
 
 const EVENT_LABELS: Record<string, string> = {
@@ -39,8 +45,37 @@ const EVENT_LABELS: Record<string, string> = {
   super_admin_permissions_updated: "Alterou permissões de membro",
   super_admin_destructive_op: "Operação destrutiva",
   super_admin_prices_migrated: "Migrou preços",
+  super_admin_mfa_required: "Acesso admin barrado por falta de MFA",
   mfa_reset_by_admin: "Resetou MFA de usuário",
   observability_issue_triaged: "Triou erro na observabilidade",
+  // Eventos dos usuários das empresas, não do super admin.
+  BILLING_SUBSCRIPTION_BLOCK: "Acesso barrado pela cobrança",
+  TENANT_PLAN_CAPABILITY_BLOCKED: "Módulo fora do plano",
+  TENANT_PLAN_LIMIT_BLOCKED: "Limite do plano atingido",
+  TENANT_PLAN_LIMIT_WOULD_BLOCK: "Limite atingido (só monitorado)",
+  TENANT_PLAN_SUPERADMIN_BYPASS: "Limite ignorado por ser super admin",
+  plan_violation: "Tentativa fora do plano",
+  ratelimit_triggered: "Excesso de requisições",
+  cors_denied: "Origem bloqueada (CORS)",
+  denial: "Acesso negado",
+  login: "Login",
+  AUTH_COMPAT: "Login com dados de sessão desatualizados",
+  recovery_code_used: "Usou código de recuperação",
+  recovery_codes_generated: "Gerou códigos de recuperação",
+  mfa_recovery_code_signin: "Entrou por código de recuperação",
+  whatsapp_mfa_enroll: "Ativou 2FA por WhatsApp",
+  whatsapp_mfa_login_verified: "Entrou com 2FA por WhatsApp",
+  whatsapp_mfa_disabled: "Desativou 2FA por WhatsApp",
+  superadmin_portal_session: "Abriu portal de cobrança pelo painel",
+  webhook_failed: "Webhook falhou",
+};
+
+/** Motivos que aparecem crus na coluna de detalhe. */
+const REASON_LABELS: Record<string, string> = {
+  FREE_TIER_FORBIDDEN_ROUTE: "conta gratuita, recurso só de plano pago",
+  SUBSCRIPTION_PAST_DUE: "assinatura em atraso",
+  SUBSCRIPTION_CANCELED: "assinatura cancelada",
+  SUBSCRIPTION_INACTIVE: "assinatura inativa",
 };
 
 function formatDateTime(iso: string): string {
@@ -83,6 +118,21 @@ export default function AdminAuditPage() {
     [tenants],
   );
 
+  const actorOf = (event: AdminAuditEvent) => {
+    const actor = event.actor;
+    if (!actor) return { label: event.uid ? "Usuário removido" : "Sistema", isSuperAdmin: false };
+    return {
+      label: actor.name || actor.email || actor.uid,
+      title: actor.email || actor.uid,
+      isSuperAdmin: actor.isSuperAdmin,
+    };
+  };
+
+  const detailOf = (event: AdminAuditEvent) => {
+    const reason = event.reason || "";
+    return REASON_LABELS[reason] || reason || event.route || "";
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 p-4 md:p-6">
       <div className="flex flex-col gap-1">
@@ -91,8 +141,9 @@ export default function AdminAuditPage() {
           Auditoria
         </h1>
         <p className="text-sm text-muted-foreground">
-          O que o super admin fez, em qual empresa e quando. Eventos são guardados
-          pelo prazo de retenção de auditoria.
+          O que o super admin fez em cada empresa e o que o backend recusou para
+          os usuários delas. A coluna &quot;Quem&quot; separa uma ação sua, feita pelo
+          Acessar Painel, de uma ação do próprio usuário da empresa.
         </p>
       </div>
 
@@ -148,11 +199,22 @@ export default function AdminAuditPage() {
                   <span className="text-sm font-medium md:flex-1">
                     {EVENT_LABELS[event.eventType] ?? event.eventType}
                   </span>
-                  <span className="text-sm text-muted-foreground md:w-56 truncate">
+                  <span className="text-sm text-muted-foreground md:w-48 truncate">
                     {tenantName(event.tenantId)}
                   </span>
-                  <span className="text-xs text-muted-foreground md:w-64 truncate" title={event.route ?? ""}>
-                    {event.reason || event.route || ""}
+                  <span
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground md:w-52 min-w-0"
+                    title={actorOf(event).title}
+                  >
+                    <span className="truncate">{actorOf(event).label}</span>
+                    {actorOf(event).isSuperAdmin && (
+                      <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[10px]">
+                        Super admin
+                      </Badge>
+                    )}
+                  </span>
+                  <span className="text-xs text-muted-foreground md:w-56 truncate" title={event.route ?? ""}>
+                    {detailOf(event)}
                   </span>
                 </li>
               ))}

@@ -27,10 +27,20 @@ interface CreateTenantInput {
   currentPeriodEnd?: string;
 }
 
+export interface AdminAuditActor {
+  uid: string;
+  name: string;
+  email: string;
+  role: string;
+  isSuperAdmin: boolean;
+}
+
 export interface AdminAuditEvent {
   id: string;
   eventType: string;
   uid?: string | null;
+  /** Quem agiu, resolvido pelo backend a partir do uid. */
+  actor?: AdminAuditActor;
   tenantId?: string | null;
   route?: string | null;
   reason?: string | null;
@@ -78,6 +88,8 @@ export interface TenantBillingInfo {
     whatsappEnabled?: boolean;
     /** active | deactivated | purging | purged */
     accountStatus?: string;
+    /** Última vez que alguém da empresa usou o ERP (precisão de 15 min). */
+    lastSeenAt?: string;
   };
   admin: {
     id: string;

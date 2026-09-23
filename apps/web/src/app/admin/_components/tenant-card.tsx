@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatDateBR } from "@/utils/date-format";
+import { formatLastSeen, daysSinceLastSeen } from "@/lib/last-seen-format";
 import { Loader } from "@/components/ui/loader";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -69,6 +70,9 @@ export function TenantCard({
   const isDeactivated = accountStatus === "deactivated";
   const isPurging = accountStatus === "purging" || accountStatus === "purged";
   const canAccessPanel = canAccessTenantPanel(item) && accountStatus === "active";
+  // Empresa sumida (ou que nunca entrou) fica destacada: é o sinal que o
+  // contador de propostas não dá, porque ele nunca volta a zero.
+  const lastSeenDays = daysSinceLastSeen(tenant.lastSeenAt);
   const currentPeriodEnd = admin.currentPeriodEnd;
   const isStaleWithNoDate = isBillingStale && !currentPeriodEnd;
 
@@ -399,6 +403,20 @@ export function TenantCard({
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Desde:</span>
           <span>{formatDateBR(tenant.createdAt)}</span>
+        </div>
+
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Último acesso:</span>
+          <span
+            className={
+              lastSeenDays === null || lastSeenDays >= 30
+                ? "font-medium text-amber-600 dark:text-amber-400"
+                : "font-medium text-foreground"
+            }
+            title={tenant.lastSeenAt || "Sem registro de acesso"}
+          >
+            {formatLastSeen(tenant.lastSeenAt)}
+          </span>
         </div>
       </CardContent>
 

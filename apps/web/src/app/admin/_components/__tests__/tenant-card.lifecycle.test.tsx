@@ -19,9 +19,9 @@ vi.mock("@/services/admin-service", () => ({
 import { TenantCard } from "../tenant-card";
 import type { TenantBillingInfo } from "@/services/admin-service";
 
-function item(accountStatus?: string): TenantBillingInfo {
+function item(accountStatus?: string, lastSeenAt?: string): TenantBillingInfo {
   return {
-    tenant: { id: "t1", name: "Cortinas Silva", createdAt: "2026-03-18", accountStatus },
+    tenant: { id: "t1", name: "Cortinas Silva", createdAt: "2026-03-18", accountStatus, lastSeenAt },
     admin: { id: "u1", email: "a@b.com", currentPeriodEnd: "2026-12-01" },
     planName: "Pro",
     planId: "pro",
@@ -98,5 +98,14 @@ describe("TenantCard: ciclo de vida da empresa", () => {
     expect(screen.getByText("Exclusão em andamento")).toBeInTheDocument();
     expect(screen.queryByTitle("Desativar empresa")).not.toBeInTheDocument();
     expect(screen.queryByTitle("Reativar empresa")).not.toBeInTheDocument();
+  });
+
+  it("mostra o ultimo acesso da empresa, e avisa quando nunca houve", () => {
+    const { unmount } = renderCard(item(undefined, new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString()));
+    expect(screen.getByText("ontem")).toBeInTheDocument();
+    unmount();
+
+    renderCard(item());
+    expect(screen.getByText("Nunca acessou")).toBeInTheDocument();
   });
 });

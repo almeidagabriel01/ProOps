@@ -29,7 +29,7 @@ src/app/admin/
 ├── analytics/                       # /admin/analytics — KPIs e gráficos
 ├── billing/                         # /admin/billing — faturamento
 ├── observability/                   # /admin/observability — erros agrupados
-├── audit/                           # /admin/audit — eventos de security_audit_events
+├── audit/                           # /admin/audit — eventos de security_audit_events (com a coluna Quem)
 └── setup-mfa/                       # /admin/setup-mfa — MFA do superadmin
 
 src/components/admin/
@@ -150,6 +150,46 @@ free (`canAccessTenantPanel`) e para empresa desativada.
 - Sair: botão "Sair" da faixa, ou abrir qualquer rota `/admin`.
 
 ---
+
+## Auditoria (`/admin/audit`)
+
+Mostra `security_audit_events`, que junta duas coisas: o que o super admin fez
+em cada empresa e o que o backend recusou para os usuarios delas (conta
+gratuita barrada, plano insuficiente, limite, rate limit, CORS, login). As duas
+carregam o mesmo `tenantId`, entao a tela resolve **quem agiu**: o backend
+(`withActors` em `admin.controller.ts`) busca `users/{uid}` dos eventos da
+pagina e devolve nome, e-mail e papel, e a linha ganha selo quando o papel e
+`superadmin`. Sem isso nao havia como separar "eu entrei pelo Acessar Painel"
+de "o cliente tentou".
+
+Os rotulos dos eventos e dos motivos vivem em `EVENT_LABELS` e `REASON_LABELS`
+na propria pagina. Evento sem rotulo aparece cru (foi assim que
+`BILLING_SUBSCRIPTION_BLOCK` / `FREE_TIER_FORBIDDEN_ROUTE` apareceu em
+producao): ao criar um `eventType` novo, acrescente o rotulo ali.
+
+## Última vez online
+
+`tenants/{id}.lastSeenAt`. Responde "a conta que nao assinou voltou?" e "o
+assinante ainda usa?", que os contadores de proposta e lancamento nao respondem.
+
+**E por EVENTO, nao por tempo.** O frontend (`hooks/use-session-ping.ts`) chama
+`POST /v1/session/ping` quando a plataforma abre autenticada (login novo ou
+sessao que ja existia) e de novo no primeiro acesso de cada dia, marcando
+`localStorage` com uid + dia. A hora gravada e a daquele instante.
+
+A primeira versao gravava em TODA request autenticada, com janela de 15 min: era
+barata, mas subestimava o ultimo acesso por construcao e punha escrita no caminho
+de toda request. O unico tempo que sobrou e antirrepeticao de 1 min no backend
+(`lib/tenant-last-seen.ts`), contra laco de recarga.
+
+- **Super admin nao conta.** Abrir o painel de uma empresa marcaria como acesso
+  dela algo que foi seu, justamente nas empresas sob investigacao.
+- A gravacao **nunca cria** o doc do tenant (`update` + NOT_FOUND ignorado):
+  criar ressuscitaria empresa excluida e mudaria a resolucao de plano de tenant
+  legado, que vive em `companies`.
+- `/v1/session/ping` esta em `FREE_TIER_ALLOWED_PREFIXES`: sem isso a conta
+  gratuita levaria 402 e o caso que originou o pedido nunca seria registrado.
+- Aparece no card e na tabela da Visao geral, destacado acima de 30 dias.
 
 ## Custo
 
