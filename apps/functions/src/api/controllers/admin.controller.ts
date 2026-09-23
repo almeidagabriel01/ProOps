@@ -829,6 +829,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
     interface TenantData {
       name?: string;
       accountStatus?: string;
+      lastSeenAt?: string;
       slug?: string;
       createdAt?: string;
       logoUrl?: string;
@@ -1140,6 +1141,7 @@ export const getAllTenantsBilling = async (req: Request, res: Response) => {
             niche: tenantData.niche,
             whatsappEnabled: tenantData.whatsappEnabled,
             accountStatus: tenantData.accountStatus || "active",
+            lastSeenAt: tenantData.lastSeenAt,
           },
           admin: {
             id: userDoc.id,

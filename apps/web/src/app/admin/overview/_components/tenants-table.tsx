@@ -28,6 +28,7 @@ import { TenantBillingInfo } from "@/services/admin-service";
 import { m as motion } from "motion/react";
 
 import { UsageIndicator } from "./usage-indicator";
+import { formatLastSeen, daysSinceLastSeen } from "@/lib/last-seen-format";
 import { StatusBadge } from "./status-badge";
 import { PlanBadge } from "./plan-badge";
 import { CompanyAvatar } from "./company-avatar";
@@ -45,7 +46,7 @@ interface TenantsTableProps {
 function TableEmptyState() {
   return (
     <TableRow>
-      <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
         <div className="flex flex-col items-center justify-center gap-2">
           <Building2 className="h-8 w-8 opacity-20" />
           <p>Nenhuma empresa encontrada.</p>
@@ -62,6 +63,7 @@ interface TenantRowProps {
 }
 
 function TenantRow({ item, index, onManageModules }: TenantRowProps) {
+  const lastSeenDays = daysSinceLastSeen(item.tenant.lastSeenAt);
   return (
     <motion.tr
       key={item.tenant.id}
@@ -110,6 +112,18 @@ function TenantRow({ item, index, onManageModules }: TenantRowProps) {
           current={item.usage.proposals}
           max={item.planFeatures?.maxProposals}
         />
+      </TableCell>
+      <TableCell className="py-4 whitespace-nowrap">
+        <span
+          className={
+            lastSeenDays === null || lastSeenDays >= 30
+              ? "text-sm text-amber-600 dark:text-amber-400"
+              : "text-sm text-muted-foreground"
+          }
+          title={item.tenant.lastSeenAt || "Sem registro de acesso"}
+        >
+          {formatLastSeen(item.tenant.lastSeenAt)}
+        </span>
       </TableCell>
       <TableCell className="py-4">
         <StatusBadge status={item.subscriptionStatus || "active"} />
@@ -206,6 +220,9 @@ export function TenantsTable({
                       <FileText className="h-3 w-3" />
                       Propostas
                     </div>
+                  </TableHead>
+                  <TableHead className="py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Último acesso
                   </TableHead>
                   <TableHead className="py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Status

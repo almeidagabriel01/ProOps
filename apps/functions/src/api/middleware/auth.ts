@@ -4,6 +4,7 @@ import {
   resolveAuthContextFromRequest,
   shouldRequireStrictClaimsInMiddleware,
 } from "../../lib/auth-context";
+import { recordTenantLastSeen } from "../../lib/tenant-last-seen";
 import {
   buildSecurityLogContext,
   incrementSecurityCounter,
@@ -116,6 +117,14 @@ export const validateFirebaseIdToken = async (
         code: "SUPERADMIN_MFA_REQUIRED",
       });
     }
+
+    // Ultima vez online da empresa. Escreve no maximo uma vez a cada 15 min por
+    // empresa; aguardado porque write disparado sem await se perde quando o
+    // Cloud Run congela a instancia (ver apps/functions/CLAUDE.md).
+    await recordTenantLastSeen({
+      tenantId: authContext.tenantId,
+      role: authContext.role,
+    });
 
     return next();
   } catch (error) {

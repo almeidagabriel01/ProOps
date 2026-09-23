@@ -88,6 +88,8 @@ export interface TenantBillingInfo {
     whatsappEnabled?: boolean;
     /** active | deactivated | purging | purged */
     accountStatus?: string;
+    /** Última vez que alguém da empresa usou o ERP (precisão de 15 min). */
+    lastSeenAt?: string;
   };
   admin: {
     id: string;
