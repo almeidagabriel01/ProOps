@@ -1,6 +1,6 @@
 import path from "path";
 import type { NextConfig } from "next";
-import { hostnameDe } from "./src/lib/site/surfaces";
+import { APP_LANDING_REWRITE_HEADER, APP_ROOT, hostnameDe } from "./src/lib/site/surfaces";
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 const scriptSrc = isDevelopment
@@ -11,8 +11,9 @@ const firebaseAuthFrameSrc = firebaseAuthDomain
   ? ` https://${firebaseAuthDomain}`
   : "";
 
-const securityHeaders = [
-  { key: "X-Frame-Options", value: "DENY" },
+const contentSecurityPolicy = `default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'self' https://vercel.live https://*.vercel.app${firebaseAuthFrameSrc} https://*.firebaseapp.com https://accounts.google.com https://*.google.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com; img-src 'self' data: blob: https:; media-src 'self' https:; font-src 'self' data: https:; connect-src 'self' https: wss:${isDevelopment ? " http://127.0.0.1:* http://localhost:*" : ""}; style-src 'self' 'unsafe-inline' https:; script-src ${scriptSrc};${isDevelopment ? "" : " upgrade-insecure-requests;"}`;
+
+const commonSecurityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
@@ -25,11 +26,34 @@ const securityHeaders = [
   },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+];
+
+const denyEmbeddingHeaders = [
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Content-Security-Policy", value: contentSecurityPolicy },
+];
+
+const portfolioFrameAncestors = [
+  "https://www.almeidagabriel.com.br",
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+].join(" ");
+
+// Só as duas landings públicas podem aparecer no portfólio. Não emitir XFO
+// nelas: DENY bloquearia a prévia em navegadores que ainda aplicam esse header.
+const publicLandingHeaders = [
   {
     key: "Content-Security-Policy",
-    value: `default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'self' https://vercel.live https://*.vercel.app${firebaseAuthFrameSrc} https://*.firebaseapp.com https://accounts.google.com https://*.google.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com; img-src 'self' data: blob: https:; media-src 'self' https:; font-src 'self' data: https:; connect-src 'self' https: wss:${isDevelopment ? " http://127.0.0.1:* http://localhost:*" : ""}; style-src 'self' 'unsafe-inline' https:; script-src ${scriptSrc};${isDevelopment ? "" : " upgrade-insecure-requests;"}`,
+    value: contentSecurityPolicy.replace(
+      "frame-ancestors 'none'",
+      `frame-ancestors ${portfolioFrameAncestors}`,
+    ),
   },
 ];
+
+const publicLandingHosts = (["erp", "app"] as const).map((surface) =>
+  hostnameDe(surface).replace(/\./g, "\\."),
+);
 
 const nextConfig: NextConfig = {
   // Playwright sobe o dev server em 127.0.0.1; sem isto o Next 16 recusa a
@@ -81,7 +105,33 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: securityHeaders,
+        headers: commonSecurityHeaders,
+      },
+      {
+        // O host do app reescreve / para /aplicativo. Esse caminho precisa
+        // herdar a política da landing pública depois do rewrite.
+        source: `/:path((?!${APP_ROOT.slice(1)}$).+)`,
+        headers: denyEmbeddingHeaders,
+      },
+      {
+        source: APP_ROOT,
+        missing: [{ type: "header" as const, key: APP_LANDING_REWRITE_HEADER, value: "1" }],
+        headers: denyEmbeddingHeaders,
+      },
+      {
+        source: "/",
+        missing: publicLandingHosts.map((value) => ({ type: "host" as const, value })),
+        headers: denyEmbeddingHeaders,
+      },
+      ...publicLandingHosts.map((value) => ({
+        source: "/",
+        has: [{ type: "host" as const, value }],
+        headers: publicLandingHeaders,
+      })),
+      {
+        source: APP_ROOT,
+        has: [{ type: "header" as const, key: APP_LANDING_REWRITE_HEADER, value: "1" }],
+        headers: publicLandingHeaders,
       },
     ];
   },

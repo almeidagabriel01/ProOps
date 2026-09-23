@@ -28,6 +28,7 @@ import {
   shouldSkipRoute,
 } from "@/lib/auth/route-access";
 import {
+  APP_LANDING_REWRITE_HEADER,
   erpHomeUrl,
   resolveApexRedirect,
   resolveRewritePath,
@@ -109,7 +110,12 @@ export async function proxy(request: NextRequest) {
   if (rewriteTo) {
     const url = request.nextUrl.clone();
     url.pathname = rewriteTo;
-    const resp = NextResponse.rewrite(url);
+    const rewrittenHeaders = new Headers(request.headers);
+    rewrittenHeaders.delete(APP_LANDING_REWRITE_HEADER);
+    if (surface === "app" && pathname === "/") {
+      rewrittenHeaders.set(APP_LANDING_REWRITE_HEADER, "1");
+    }
+    const resp = NextResponse.rewrite(url, { request: { headers: rewrittenHeaders } });
     if (transitionalNoIndex) {
       resp.headers.set("X-Robots-Tag", "noindex, nofollow");
     }
