@@ -169,18 +169,26 @@ producao): ao criar um `eventType` novo, acrescente o rotulo ali.
 
 ## Última vez online
 
-`tenants/{id}.lastSeenAt`, gravado pelo middleware de autenticacao
-(`lib/tenant-last-seen.ts`) no maximo **uma vez a cada 15 minutos por empresa,
-por instancia**. Responde "a conta que nao assinou voltou?" e "o assinante
-ainda usa?", que os contadores de proposta e lancamento nao respondem.
+`tenants/{id}.lastSeenAt`. Responde "a conta que nao assinou voltou?" e "o
+assinante ainda usa?", que os contadores de proposta e lancamento nao respondem.
 
-- O valor pode **subestimar** o ultimo acesso em ate a janela; por isso o texto
-  da tela nunca desce de "há menos de 1 hora" (`lib/last-seen-format.ts`).
+**E por EVENTO, nao por tempo.** O frontend (`hooks/use-session-ping.ts`) chama
+`POST /v1/session/ping` quando a plataforma abre autenticada (login novo ou
+sessao que ja existia) e de novo no primeiro acesso de cada dia, marcando
+`localStorage` com uid + dia. A hora gravada e a daquele instante.
+
+A primeira versao gravava em TODA request autenticada, com janela de 15 min: era
+barata, mas subestimava o ultimo acesso por construcao e punha escrita no caminho
+de toda request. O unico tempo que sobrou e antirrepeticao de 1 min no backend
+(`lib/tenant-last-seen.ts`), contra laco de recarga.
+
 - **Super admin nao conta.** Abrir o painel de uma empresa marcaria como acesso
   dela algo que foi seu, justamente nas empresas sob investigacao.
-- O heartbeat **nunca cria** o doc do tenant (`update` + NOT_FOUND ignorado):
+- A gravacao **nunca cria** o doc do tenant (`update` + NOT_FOUND ignorado):
   criar ressuscitaria empresa excluida e mudaria a resolucao de plano de tenant
   legado, que vive em `companies`.
+- `/v1/session/ping` esta em `FREE_TIER_ALLOWED_PREFIXES`: sem isso a conta
+  gratuita levaria 402 e o caso que originou o pedido nunca seria registrado.
 - Aparece no card e na tabela da Visao geral, destacado acima de 30 dias.
 
 ## Custo

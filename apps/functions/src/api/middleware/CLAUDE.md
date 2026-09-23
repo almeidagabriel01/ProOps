@@ -10,10 +10,11 @@ Documentação da infraestrutura de middleware do Express monolith.
 | `pdf-rate-limiter.ts` | Rate limiting específico para geração de PDF |
 | `impersonation.ts` | "Acessar Painel" do superadmin: tenant da empresa vista + modo somente leitura |
 
-> `auth.ts` também grava a **última vez online** da empresa
-> (`lib/tenant-last-seen.ts`): `tenants/{id}.lastSeenAt`, no máximo uma vez a
-> cada 15 minutos por empresa, aguardado (write sem `await` se perde no Cloud
-> Run). Super admin não conta, e o heartbeat nunca cria o documento do tenant.
+> A **última vez online** da empresa (`tenants/{id}.lastSeenAt`) NÃO é gravada
+> aqui: ela vem de `POST /v1/session/ping`, que o frontend chama quando a
+> plataforma abre autenticada (ver `lib/tenant-last-seen.ts` e
+> `session.controller.ts`). Era um heartbeat neste middleware, e saiu do caminho
+> de toda request quando virou evento.
 
 ---
 

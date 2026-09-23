@@ -1,5 +1,6 @@
 /**
- * Ultima vez online da empresa: janela de gravacao e quem NAO conta.
+ * Ultima vez online da empresa: quem conta como acesso, e a janela
+ * ANTIRREPETICAO (que protege de laco de recarga, nao define precisao).
  */
 
 const updates: Array<{ id: string; data: Record<string, unknown> }> = [];
@@ -21,7 +22,7 @@ const warn = jest.fn();
 jest.mock("../logger", () => ({ logger: { warn: (...a: unknown[]) => warn(...(a as [])), info: jest.fn(), error: jest.fn() } }));
 
 import {
-  LAST_SEEN_WINDOW_MS,
+  LAST_SEEN_DEDUPE_MS,
   clearLastSeenCacheForTest,
   countsAsTenantAccess,
   recordTenantLastSeen,
@@ -42,12 +43,13 @@ describe("shouldRecordLastSeen", () => {
     expect(shouldRecordLastSeen(undefined, T0)).toBe(true);
   });
 
-  it("dentro da janela nao grava de novo", () => {
-    expect(shouldRecordLastSeen(T0, T0 + LAST_SEEN_WINDOW_MS - 1)).toBe(false);
+  it("aviso repetido no mesmo minuto nao vira segunda escrita", () => {
+    expect(shouldRecordLastSeen(T0, T0 + LAST_SEEN_DEDUPE_MS - 1)).toBe(false);
   });
 
-  it("no limite da janela grava", () => {
-    expect(shouldRecordLastSeen(T0, T0 + LAST_SEEN_WINDOW_MS)).toBe(true);
+  it("a janela e curta: um minuto depois ja grava de novo", () => {
+    expect(LAST_SEEN_DEDUPE_MS).toBe(60_000);
+    expect(shouldRecordLastSeen(T0, T0 + LAST_SEEN_DEDUPE_MS)).toBe(true);
   });
 });
 
@@ -74,20 +76,22 @@ describe("countsAsTenantAccess", () => {
 });
 
 describe("recordTenantLastSeen", () => {
-  it("grava a hora do acesso e segura as repeticoes dentro da janela", async () => {
+  it("grava a hora do acesso e ignora a repeticao imediata", async () => {
     await recordTenantLastSeen({ tenantId: "t1", role: "MASTER", nowMs: T0 });
-    await recordTenantLastSeen({ tenantId: "t1", role: "MASTER", nowMs: T0 + 60_000 });
+    await recordTenantLastSeen({ tenantId: "t1", role: "MASTER", nowMs: T0 + 5_000 });
     expect(updates).toEqual([
       { id: "t1", data: { lastSeenAt: "2026-09-23T10:00:00.000Z" } },
     ]);
 
+    // Voltar meia hora depois e um acesso de verdade: grava a hora NOVA, e nao
+    // a antiga. Era exatamente isto que a versao por janela de 15 min perdia.
     await recordTenantLastSeen({
       tenantId: "t1",
       role: "MASTER",
-      nowMs: T0 + LAST_SEEN_WINDOW_MS,
+      nowMs: T0 + 30 * 60_000,
     });
     expect(updates).toHaveLength(2);
-    expect(updates[1].data).toEqual({ lastSeenAt: "2026-09-23T10:15:00.000Z" });
+    expect(updates[1].data).toEqual({ lastSeenAt: "2026-09-23T10:30:00.000Z" });
   });
 
   it("empresas diferentes tem janelas independentes", async () => {

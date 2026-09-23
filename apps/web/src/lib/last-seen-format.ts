@@ -1,9 +1,9 @@
 /**
  * "Último acesso" da empresa, em texto curto para o painel do super admin.
  *
- * O backend grava no máximo uma vez a cada 15 minutos por empresa, então o
- * valor pode estar atrasado em até esse tanto. Por isso o texto nunca promete
- * precisão de minuto: abaixo de uma hora ele diz "há menos de 1 hora".
+ * O registro é por evento (abriu a plataforma autenticado), gravado uma vez por
+ * navegador por dia. A pergunta que ele responde é de dias, não de minutos, e o
+ * texto acompanha: abaixo de uma hora ele diz só "há menos de 1 hora".
  */
 
 const MINUTE = 60 * 1000;

@@ -8,12 +8,16 @@ import { logger } from "./logger";
  * entrar? A empresa que paga ainda usa o ERP? Nada respondia isso: o painel so
  * tinha contadores de proposta e lancamento, que crescem uma vez e nunca mais.
  *
- * Grava em `tenants/{id}.lastSeenAt` a partir do middleware de autenticacao,
- * no maximo uma vez a cada 15 minutos por empresa, por instancia. O efeito e
- * que o valor pode SUBESTIMAR o ultimo acesso em ate a janela (quem entra
- * 10:00 e 10:10 fica registrado como 10:00), o que e irrelevante para "voltou?"
- * e mantem o custo desprezivel: uma empresa com alguem trabalhando 8 horas gera
- * ~32 escritas no dia.
+ * **E registrado por EVENTO, nao por tempo.** O frontend avisa uma vez quando a
+ * plataforma abre autenticada (login novo ou sessao que ja existia), e a hora
+ * gravada e a daquele instante. A primeira versao gravava em toda request
+ * autenticada, no maximo uma vez a cada 15 minutos: barato, mas impreciso por
+ * construcao (quem entrava 10:00 e voltava 10:10 ficava registrado como 10:00)
+ * e com escrita no caminho de TODA request.
+ *
+ * O unico limite de tempo que sobrou e antirrepeticao: uma tela em laco de
+ * recarga nao vira uma escrita por segundo. Ele e curto de proposito, para nao
+ * descartar acesso de verdade.
  *
  * Duas exclusoes deliberadas:
  * - **super admin nao conta.** Abrir o painel de uma empresa pelo "Acessar
@@ -25,7 +29,8 @@ import { logger } from "./logger";
  *   plano e ressuscitando o que a exclusao definitiva apagou.
  */
 
-export const LAST_SEEN_WINDOW_MS = 15 * 60 * 1000;
+/** Janela antirrepeticao: protege de laco de recarga, nao define a precisao. */
+export const LAST_SEEN_DEDUPE_MS = 60 * 1000;
 
 /** Teto do mapa em memoria: instancia longeva nao acumula tenant para sempre. */
 const MAX_TRACKED_TENANTS = 1000;
@@ -35,10 +40,10 @@ const lastWrittenAt = new Map<string, number>();
 export function shouldRecordLastSeen(
   lastWrittenMs: number | undefined,
   nowMs: number,
-  windowMs: number = LAST_SEEN_WINDOW_MS,
+  dedupeMs: number = LAST_SEEN_DEDUPE_MS,
 ): boolean {
   if (lastWrittenMs === undefined) return true;
-  return nowMs - lastWrittenMs >= windowMs;
+  return nowMs - lastWrittenMs >= dedupeMs;
 }
 
 /** O acesso conta como acesso DA EMPRESA? */
@@ -65,7 +70,7 @@ export async function recordTenantLastSeen(input: {
   const nowMs = input.nowMs ?? Date.now();
   if (!shouldRecordLastSeen(lastWrittenAt.get(tenantId), nowMs)) return;
 
-  // Marca ANTES de gravar: duas requests simultaneas da mesma empresa nao
+  // Marca ANTES de gravar: dois avisos simultaneos da mesma empresa nao
   // disparam duas escritas, e uma falha nao vira tentativa a cada request.
   lastWrittenAt.set(tenantId, nowMs);
   if (lastWrittenAt.size > MAX_TRACKED_TENANTS) {
