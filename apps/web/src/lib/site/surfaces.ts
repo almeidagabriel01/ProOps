@@ -71,6 +71,8 @@ export function hostnameDe(surface: Surface): string {
 /** Internal route subtree that backs each non-ERP surface. */
 export const INSTITUCIONAL_ROOT = "/institucional";
 export const APP_ROOT = "/aplicativo";
+/** Marcador interno do rewrite da landing pública do app para os headers. */
+export const APP_LANDING_REWRITE_HEADER = "x-proops-app-landing-rewrite";
 
 /**
  * What the apex domain (proops.com.br, and every preview/localhost host) serves.

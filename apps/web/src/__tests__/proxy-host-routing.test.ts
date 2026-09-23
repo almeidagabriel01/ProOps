@@ -31,6 +31,9 @@ describe("proxy host routing", () => {
       const resp = await proxy(request("app.proops.com.br", "/"));
       expect(isRewrite(resp)).toBe(true);
       expect(getRewrittenUrl(resp)).toContain("/aplicativo");
+      expect(
+        resp.headers.get("x-middleware-request-x-proops-app-landing-rewrite"),
+      ).toBe("1");
     });
 
     it("keeps the query string across the rewrite", async () => {
