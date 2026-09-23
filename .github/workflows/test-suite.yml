@@ -320,20 +320,33 @@ jobs:
           retention-days: 14
 
   lighthouse:
-    name: Lighthouse Perf Budget
+    name: Lighthouse Perf Budget (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    # Observado entre 13m26 e 14m46 (15 corridas do Lighthouse sob throttling real
-    # de slow-3G). Com timeout de 15min sobravam 14s no pior caso, o que fazia o
-    # job falhar por timeout de forma intermitente sem nenhuma mudanca de codigo.
-    # 25 min cobria 5 URLs (medido: 13m26 a 14m46). A institucional e a do
-    # aplicativo levam a 7, ou seja 21 execucoes do Lighthouse em vez de 15,
-    # sob throttling real de rede e CPU. Regra de tres sobre a pior medicao da
-    # de 20 min, e o historico deste job e de falhar por variancia do runner
-    # quando a folga e curta.
-    timeout-minutes: 32
+    # As 27 corridas (9 URLs x 3) rodavam em serie num runner so: o lhci sozinho
+    # levava ~18 min e o job ~22, o caminho critico do pipeline inteiro. Rodar
+    # corridas em paralelo NO MESMO runner falsearia o TBT (disputa de CPU), entao
+    # a divisao e por runner: cada shard mede 3 URLs com a CPU so para ele.
+    # numberOfRuns continua 3 e os tetos continuam os do lighthouserc.json, que
+    # casa por padrao de URL. Ao acrescentar uma URL no lighthouserc.json, ponha-a
+    # tambem num shard daqui; o guard lighthouse-shards.test.ts falha se esquecer.
+    # Timeout: ~6 min de lhci + ~4 de setup por shard, com folga para a variancia
+    # do runner, que ja derrubou este job quando a margem era curta.
+    timeout-minutes: 15
     # Sem `needs`: este job sobe o proprio `next start` a partir de um build de
     # producao e nao depende de nada do E2E. Encadear atras dele so somava ~8min
     # de relogio ao pipeline — e o repo e publico, entao minuto de runner e de graca.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # /decoracao fica junto da home: e a calibracao usada nas leituras
+          # manuais de TBT, e comparar razoes entre runners diferentes e ruidoso.
+          - shard: 1
+            urls: "/ /automacao-residencial /decoracao"
+          - shard: 2
+            urls: "/contato /agendar /aplicativo"
+          - shard: 3
+            urls: "/institucional /sobre /produtos"
     steps:
       - uses: actions/checkout@v4
 
@@ -366,9 +379,15 @@ jobs:
 
       # lhci autorun starts `next start -p 3001`, runs throttled-mobile Lighthouse
       # 3x per URL, then asserts the budget in lighthouserc.json. Fails the job if
-      # LCP/TBT/CLS regress past the ceiling.
-      - name: Run Lighthouse budget (lhci)
-        run: npm run test:lighthouse
+      # LCP/TBT/CLS regress past the ceiling. As flags --collect.url sobrepoem a
+      # lista do arquivo, entao cada shard coleta so as URLs dele.
+      - name: Run Lighthouse budget (lhci, shard ${{ matrix.shard }}/3)
+        run: |
+          args=()
+          for path in ${{ matrix.urls }}; do
+            args+=("--collect.url=http://localhost:3001${path}")
+          done
+          npx lhci autorun --config=lighthouserc.json "${args[@]}"
         env:
           NEXT_PUBLIC_FIREBASE_API_KEY: demo-api-key
           NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: demo-proops-test.firebaseapp.com
@@ -381,7 +400,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lighthouse-report-${{ github.run_number }}
+          name: lighthouse-report-shard${{ matrix.shard }}-${{ github.run_number }}
           path: lhci-report/
           retention-days: 7
 
