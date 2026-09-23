@@ -247,3 +247,25 @@ Toda mutação do superadmin grava um evento em `security_audit_events`, com
   "Mais": seção nova de uso diário e rótulo curto (até ~11 caracteres, ~72px a
   360px) vai nas quatro primeiras; o guard é
   `components/layout/__tests__/superadmin-navigation.test.tsx`.
+
+## Celular
+
+O painel segue as regras de responsividade do ERP (`CLAUDE.md` da raiz): o
+desktop não muda, toda diferença é aditiva com prefixo.
+
+- **Padding da página:** o `<main>` do shell já aplica `p-4 md:p-8`. A raiz de
+  cada página do painel usa `p-6 max-md:p-0` (ou `md:p-6 max-md:p-0`); sem isso
+  o conteúdo ficava com ~280px a 360px.
+- **Tabelas largas viram lista abaixo de `md`:** a da Visão geral (8 colunas) e a
+  de Faturamento (6 colunas) têm uma `<ul className="md:hidden">` de cards e a
+  tabela dentro de `hidden md:block`. Tabela nova do painel com mais de ~4
+  colunas segue o mesmo padrão, ou esconde colunas secundárias com
+  `hidden md:table-cell` (ranking de atividade, ocorrências).
+- **Gráficos (Recharts)** não leem classe do Tailwind: largura de eixo, fonte e
+  raio vêm de `useIsMobile()`.
+- **Toque:** botões de ícone ganham `max-md:h-10 max-md:w-10`; nada de ação que
+  só aparece no hover. Tooltip de informação vira texto visível abaixo de `md`.
+- **Guard:** `tests/e2e/mobile/admin-no-overflow.spec.ts`, logado como super
+  admin, mede as 7 rotas e confere que os filtros da Visão geral aparecem
+  inteiros (card com `overflow-hidden` corta em vez de vazar, e a medida de
+  overflow sozinha não enxerga isso).

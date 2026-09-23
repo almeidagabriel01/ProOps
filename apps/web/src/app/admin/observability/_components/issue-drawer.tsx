@@ -16,7 +16,9 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-[11px] uppercase tracking-wider text-black/40 dark:text-white/40">{label}</p>
-      <p className="mt-0.5 text-sm text-black/80 dark:text-white/80">{value}</p>
+      {/* Rota e fingerprint são strings longas sem espaço: sem quebra, a gaveta
+          rolava na horizontal no celular. */}
+      <p className="mt-0.5 break-all text-sm text-black/80 dark:text-white/80">{value}</p>
     </div>
   );
 }
@@ -76,7 +78,7 @@ export function IssueDrawer({
                   </p>
                   <button
                     onClick={() => navigator.clipboard.writeText(issue.fingerprint)}
-                    className="text-[11px] text-black/40 underline dark:text-white/40"
+                    className="text-[11px] text-black/40 underline max-md:py-2 dark:text-white/40"
                   >
                     Copiar fingerprint
                   </button>

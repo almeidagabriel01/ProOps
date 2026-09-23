@@ -36,7 +36,7 @@ export default function AdminAnalyticsPage() {
   }
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-8 p-6 max-md:p-0">
       {/* Page Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

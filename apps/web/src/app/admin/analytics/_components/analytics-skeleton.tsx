@@ -1,6 +1,6 @@
 export function AnalyticsSkeleton() {
   return (
-    <div className="space-y-8 p-6 animate-pulse">
+    <div className="space-y-8 p-6 animate-pulse max-md:p-0">
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="h-9 w-9 rounded-xl bg-muted" />

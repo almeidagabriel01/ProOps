@@ -47,7 +47,7 @@ function TenantRow({ item }: { item: ChurnRiskTenant }) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0"
+          className="h-7 w-7 max-md:h-9 max-md:w-9 shrink-0"
           onClick={handleCopyId}
           aria-label={`Copiar ID de ${item.tenant.name}`}
         >
@@ -98,7 +98,7 @@ function RiskSection({ title, description, items, accentClass, headerClass, icon
 
 export function ChurnRiskPanel({ churnRisk }: ChurnRiskPanelProps) {
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="rounded-2xl border bg-card p-6 max-md:p-4 shadow-sm">
       <div className="mb-5 flex items-start justify-between">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5" />

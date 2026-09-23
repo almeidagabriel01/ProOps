@@ -157,7 +157,7 @@ export default function AdminBillingMigrationPage() {
   const selectedCount = rows.filter((r) => r.selected).length;
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-8 p-6 max-md:p-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -184,7 +184,7 @@ export default function AdminBillingMigrationPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -213,7 +213,7 @@ export default function AdminBillingMigrationPage() {
 
       {/* Table */}
       <Card className="shadow-lg border-0 bg-card/50 backdrop-blur-sm overflow-hidden">
-        <CardHeader className="px-6 py-5">
+        <CardHeader className="px-6 py-5 max-sm:px-4">
           <p className="text-sm text-muted-foreground">
             {isLoading
               ? "Carregando..."
@@ -221,10 +221,83 @@ export default function AdminBillingMigrationPage() {
                 ? "Nenhuma empresa com drift de preço encontrada."
                 : `${rows.length} empresa(s) com preço desatualizado`}
           </p>
+          {rows.length > 0 && (
+            <label className="mt-2 flex min-h-10 cursor-pointer items-center gap-3 text-sm md:hidden">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+                aria-label="Selecionar todos"
+                className="h-5 w-5 rounded border-input accent-primary"
+              />
+              Selecionar todas
+            </label>
+          )}
         </CardHeader>
 
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
+        <CardContent className="p-0 max-sm:p-0">
+          {/* Abaixo de md a tabela de 6 colunas precisaria de ~700px: vira lista. */}
+          <ul className="divide-y divide-muted/50 md:hidden">
+            {isLoading ? (
+              <li className="px-4 py-10 text-center text-sm text-muted-foreground">
+                Carregando...
+              </li>
+            ) : rows.length === 0 ? (
+              <li className="px-4 py-10 text-center text-sm text-muted-foreground">
+                Nenhuma empresa com drift de preço.
+              </li>
+            ) : (
+              rows.map(({ item, selected }) => {
+                const isBusy = migratingIds.has(item.tenant.id);
+                return (
+                  <li key={item.tenant.id} className="flex items-start gap-3 px-4 py-3">
+                    {/* Área de toque de 40px em volta da caixa de 20px. */}
+                    <label className="-m-2 flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleRow(item.tenant.id)}
+                        aria-label={`Selecionar ${item.tenant.name}`}
+                        className="h-5 w-5 rounded border-input accent-primary"
+                      />
+                    </label>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-foreground">{item.tenant.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{item.admin.email}</p>
+                      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                        <dt className="text-muted-foreground">Plano</dt>
+                        <dd className="text-right">
+                          {item.planName}
+                          {item.billingInterval && (
+                            <span className="text-muted-foreground">
+                              {" · "}
+                              {item.billingInterval === "yearly" ? "Anual" : "Mensal"}
+                            </span>
+                          )}
+                        </dd>
+                        <dt className="text-muted-foreground">Preço atual</dt>
+                        <dd className="text-right">{formatBRL(item.unitAmount)}</dd>
+                        <dt className="text-muted-foreground">Renovação</dt>
+                        <dd className="text-right">{formatDate(item.admin.currentPeriodEnd)}</dd>
+                      </dl>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => migrateSingle(item.tenant.id)}
+                        disabled={isBusy || isMigrating}
+                        className="mt-3 w-full text-amber-600 border-amber-200 hover:bg-amber-50 hover:border-amber-400"
+                      >
+                        <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5" />
+                        {isBusy ? "Migrando..." : "Migrar"}
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-b-0">
@@ -339,7 +412,7 @@ export default function AdminBillingMigrationPage() {
           </div>
         </CardContent>
 
-        <CardFooter className="border-t bg-muted/20 px-6 py-4">
+        <CardFooter className="border-t bg-muted/20 px-6 py-4 max-sm:px-4">
           <span className="text-sm text-muted-foreground">
             {rows.length} empresa(s) com preço desatualizado
           </span>

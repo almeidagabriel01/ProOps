@@ -2,7 +2,7 @@
 
 export function AdminOverviewSkeleton() {
   return (
-    <div className="space-y-8 p-6 animate-pulse">
+    <div className="space-y-8 p-6 animate-pulse max-md:p-0">
       {/* Header: Back Button + Icon + Title + Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">

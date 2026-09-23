@@ -46,9 +46,15 @@ export function VerificationCodeInput({
       inputMode="numeric"
       containerClassName="mx-auto w-fit"
     >
-      <InputOTPGroup>
+      {/* 6 x 44px + 5 x 8px = 304px, que não cabem num card a 360px. Até 400px
+          as casas encolhem para 40px e o espaço para 6px (270px no total). */}
+      <InputOTPGroup className="max-[400px]:gap-1.5">
         {[0, 1, 2, 3, 4, 5].map((index) => (
-          <InputOTPSlot key={index} index={index} className="h-11 w-11" />
+          <InputOTPSlot
+            key={index}
+            index={index}
+            className="h-11 w-11 max-[400px]:h-10 max-[400px]:w-10"
+          />
         ))}
       </InputOTPGroup>
     </InputOTP>

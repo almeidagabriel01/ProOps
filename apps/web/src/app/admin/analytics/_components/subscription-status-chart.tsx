@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { StatusDistributionItem } from "../_hooks/useAnalyticsData";
 
 interface SubscriptionStatusChartProps {
@@ -35,8 +36,11 @@ function CustomTooltip({ active, payload }: TooltipProps) {
 }
 
 export function SubscriptionStatusChart({ data }: SubscriptionStatusChartProps) {
+  // 6 a 7 categorias em ~250px: na horizontal o Recharts descarta rótulos.
+  // No celular eles ficam inclinados e todos aparecem.
+  const isMobile = useIsMobile();
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="rounded-2xl border bg-card p-6 max-md:p-4 shadow-sm">
       <div className="mb-4">
         <h3 className="text-base font-semibold">Status de Assinaturas</h3>
         <p className="text-sm text-muted-foreground mt-0.5">
@@ -55,9 +59,13 @@ export function SubscriptionStatusChart({ data }: SubscriptionStatusChartProps) 
               <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: isMobile ? 10 : 11 }}
                 tickLine={false}
                 axisLine={false}
+                interval={isMobile ? 0 : undefined}
+                angle={isMobile ? -35 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
+                height={isMobile ? 56 : 30}
               />
               <YAxis
                 tick={{ fontSize: 11 }}

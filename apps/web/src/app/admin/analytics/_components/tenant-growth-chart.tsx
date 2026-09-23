@@ -19,7 +19,7 @@ interface TenantGrowthChartProps {
 
 export function TenantGrowthChart({ data }: TenantGrowthChartProps) {
   return (
-    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="rounded-2xl border bg-card p-6 max-md:p-4 shadow-sm">
       <div className="mb-4">
         <h3 className="text-base font-semibold">Crescimento da Plataforma</h3>
         <p className="text-sm text-muted-foreground mt-0.5">
