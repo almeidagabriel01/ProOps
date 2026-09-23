@@ -28,7 +28,11 @@ import { TenantBillingInfo } from "@/services/admin-service";
 import { m as motion } from "motion/react";
 
 import { UsageIndicator } from "./usage-indicator";
-import { formatLastSeen, daysSinceLastSeen } from "@/lib/last-seen-format";
+import {
+  formatLastSeen,
+  formatLastSeenExact,
+  daysSinceLastSeen,
+} from "@/lib/last-seen-format";
 import { StatusBadge } from "./status-badge";
 import { PlanBadge } from "./plan-badge";
 import { CompanyAvatar } from "./company-avatar";
@@ -114,16 +118,22 @@ function TenantRow({ item, index, onManageModules }: TenantRowProps) {
         />
       </TableCell>
       <TableCell className="py-4 whitespace-nowrap">
-        <span
-          className={
-            lastSeenDays === null || lastSeenDays >= 30
-              ? "text-sm text-amber-600 dark:text-amber-400"
-              : "text-sm text-muted-foreground"
-          }
-          title={item.tenant.lastSeenAt || "Sem registro de acesso"}
-        >
-          {formatLastSeen(item.tenant.lastSeenAt)}
-        </span>
+        <div className="flex flex-col">
+          <span
+            className={
+              lastSeenDays === null || lastSeenDays >= 30
+                ? "text-sm text-amber-600 dark:text-amber-400"
+                : "text-sm text-foreground"
+            }
+          >
+            {formatLastSeenExact(item.tenant.lastSeenAt)}
+          </span>
+          {item.tenant.lastSeenAt && (
+            <span className="text-xs text-muted-foreground">
+              {formatLastSeen(item.tenant.lastSeenAt)}
+            </span>
+          )}
+        </div>
       </TableCell>
       <TableCell className="py-4">
         <StatusBadge status={item.subscriptionStatus || "active"} />

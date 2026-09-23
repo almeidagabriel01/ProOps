@@ -39,7 +39,11 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatDateBR } from "@/utils/date-format";
-import { formatLastSeen, daysSinceLastSeen } from "@/lib/last-seen-format";
+import {
+  formatLastSeen,
+  formatLastSeenExact,
+  daysSinceLastSeen,
+} from "@/lib/last-seen-format";
 import { Loader } from "@/components/ui/loader";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -405,17 +409,23 @@ export function TenantCard({
           <span>{formatDateBR(tenant.createdAt)}</span>
         </div>
 
-        <div className="flex items-center justify-between text-xs">
+        <div className="flex items-start justify-between gap-2 text-xs">
           <span className="text-muted-foreground">Último acesso:</span>
-          <span
-            className={
-              lastSeenDays === null || lastSeenDays >= 30
-                ? "font-medium text-amber-600 dark:text-amber-400"
-                : "font-medium text-foreground"
-            }
-            title={tenant.lastSeenAt || "Sem registro de acesso"}
-          >
-            {formatLastSeen(tenant.lastSeenAt)}
+          <span className="flex flex-col items-end text-right">
+            <span
+              className={
+                lastSeenDays === null || lastSeenDays >= 30
+                  ? "font-medium text-amber-600 dark:text-amber-400"
+                  : "font-medium text-foreground"
+              }
+            >
+              {formatLastSeenExact(tenant.lastSeenAt)}
+            </span>
+            {tenant.lastSeenAt && (
+              <span className="text-[10px] text-muted-foreground">
+                {formatLastSeen(tenant.lastSeenAt)}
+              </span>
+            )}
           </span>
         </div>
       </CardContent>

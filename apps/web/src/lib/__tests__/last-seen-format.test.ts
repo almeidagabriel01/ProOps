@@ -1,27 +1,43 @@
 import { describe, it, expect } from "vitest";
-import { formatLastSeen, daysSinceLastSeen } from "../last-seen-format";
+import {
+  formatLastSeen,
+  formatLastSeenExact,
+  daysSinceLastSeen,
+} from "../last-seen-format";
 
-const AGORA = Date.parse("2026-09-23T12:00:00.000Z");
+const AGORA = Date.parse("2026-09-23T17:32:00.000Z"); // 14:32 em Brasília
 const atras = (ms: number) => new Date(AGORA - ms).toISOString();
 const MIN = 60_000;
 const HORA = 60 * MIN;
 const DIA = 24 * HORA;
 
-describe("formatLastSeen", () => {
-  it("sem registro diz que nunca acessou", () => {
-    expect(formatLastSeen(undefined, AGORA)).toBe("Nunca acessou");
-    expect(formatLastSeen("", AGORA)).toBe("Nunca acessou");
-    expect(formatLastSeen("data quebrada", AGORA)).toBe("Nunca acessou");
+describe("formatLastSeenExact", () => {
+  it("dia e horario exatos, no fuso de Brasilia", () => {
+    expect(formatLastSeenExact("2026-09-23T17:32:00.000Z")).toBe("23/09/2026 às 14:32");
   });
 
-  it("nao promete precisao de minuto: o backend grava a cada 15 min", () => {
-    expect(formatLastSeen(atras(2 * MIN), AGORA)).toBe("há menos de 1 hora");
-    expect(formatLastSeen(atras(59 * MIN), AGORA)).toBe("há menos de 1 hora");
+  it("virada de dia respeita Brasilia, nao UTC", () => {
+    // 01:10 UTC do dia 24 ainda e 22:10 do dia 23 em Brasilia.
+    expect(formatLastSeenExact("2026-09-24T01:10:00.000Z")).toBe("23/09/2026 às 22:10");
+  });
+
+  it("sem registro diz que nunca acessou", () => {
+    expect(formatLastSeenExact(undefined)).toBe("Nunca acessou");
+    expect(formatLastSeenExact("data quebrada")).toBe("Nunca acessou");
+  });
+});
+
+describe("formatLastSeen (relativo)", () => {
+  it("precisao de minuto: nao arredonda mais para 'menos de 1 hora'", () => {
+    expect(formatLastSeen(atras(20 * 1000), AGORA)).toBe("agora");
+    expect(formatLastSeen(atras(MIN), AGORA)).toBe("há 1 min");
+    expect(formatLastSeen(atras(12 * MIN), AGORA)).toBe("há 12 min");
+    expect(formatLastSeen(atras(59 * MIN), AGORA)).toBe("há 59 min");
   });
 
   it("horas, ontem e dias", () => {
-    expect(formatLastSeen(atras(HORA), AGORA)).toBe("há 1 hora");
-    expect(formatLastSeen(atras(5 * HORA), AGORA)).toBe("há 5 horas");
+    expect(formatLastSeen(atras(HORA), AGORA)).toBe("há 1 h");
+    expect(formatLastSeen(atras(5 * HORA), AGORA)).toBe("há 5 h");
     expect(formatLastSeen(atras(DIA), AGORA)).toBe("ontem");
     expect(formatLastSeen(atras(9 * DIA), AGORA)).toBe("há 9 dias");
   });
@@ -32,10 +48,12 @@ describe("formatLastSeen", () => {
     expect(formatLastSeen(atras(400 * DIA), AGORA)).toBe("há 1 ano");
   });
 
-  it("data no futuro (relogio torto) nao vira texto negativo", () => {
-    expect(formatLastSeen(new Date(AGORA + HORA).toISOString(), AGORA)).toBe(
-      "há menos de 1 hora",
-    );
+  it("sem registro fica vazio (a linha exata ja diz 'Nunca acessou')", () => {
+    expect(formatLastSeen(undefined, AGORA)).toBe("");
+  });
+
+  it("data no futuro (relogio torto) vira 'agora', nao texto negativo", () => {
+    expect(formatLastSeen(new Date(AGORA + HORA).toISOString(), AGORA)).toBe("agora");
   });
 });
 

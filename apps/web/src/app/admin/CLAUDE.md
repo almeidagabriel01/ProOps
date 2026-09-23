@@ -173,9 +173,16 @@ producao): ao criar um `eventType` novo, acrescente o rotulo ali.
 assinante ainda usa?", que os contadores de proposta e lancamento nao respondem.
 
 **E por EVENTO, nao por tempo.** O frontend (`hooks/use-session-ping.ts`) chama
-`POST /v1/session/ping` quando a plataforma abre autenticada (login novo ou
-sessao que ja existia) e de novo no primeiro acesso de cada dia, marcando
-`localStorage` com uid + dia. A hora gravada e a daquele instante.
+`POST /v1/session/ping` quando a plataforma abre autenticada (login, aba ou
+janela nova: uma vez por aba por usuario, marca em `sessionStorage`) e quando a
+pessoa volta para a aba, se o ultimo aviso daquela aba tem 5 minutos ou mais. A
+hora gravada e a daquele instante, e a tela mostra **dia e horario exatos**
+(`formatLastSeenExact`, sempre no fuso de Brasilia) com o tempo relativo abaixo.
+
+Houve uma versao intermediaria que avisava uma vez por DIA por navegador: quem
+entrava as 9h e voltava as 14h ficava registrado as 9h, o que so parecia certo
+enquanto a tela arredondava para "ha menos de 1 hora". Limite que sobrou: quem
+passa horas na mesma aba sem nunca sair dela aparece com a hora em que entrou.
 
 A primeira versao gravava em TODA request autenticada, com janela de 15 min: era
 barata, mas subestimava o ultimo acesso por construcao e punha escrita no caminho

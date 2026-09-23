@@ -1,55 +1,101 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 
 /**
- * O aviso de presenca dispara por EVENTO (abriu a plataforma autenticado), uma
- * vez por navegador por dia. A primeira versao gravava a cada request, com
- * janela de 15 min: barata, porem imprecisa por construcao.
+ * O aviso de presenca dispara por EVENTO: abriu a plataforma (uma vez por aba
+ * por usuario) ou voltou para a aba, com pelo menos 5 min desde o ultimo aviso.
+ * A versao anterior avisava uma vez por DIA, e quem entrava as 9h e voltava as
+ * 14h ficava registrado as 9h, justamente o horario que a tela passou a mostrar.
  */
 
 const callApi = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/lib/api-client", () => ({ callApi: (...a: unknown[]) => callApi(...a) }));
 
-import { useSessionPing, shouldPing, buildPingMark } from "../use-session-ping";
+import {
+  RETURN_AFTER_MS,
+  parsePingMark,
+  shouldPingOnOpen,
+  shouldPingOnReturn,
+  useSessionPing,
+} from "../use-session-ping";
 
-const HOJE = new Date("2026-09-23T09:00:00.000Z");
-const AMANHA = new Date("2026-09-24T09:00:00.000Z");
+const T0 = Date.parse("2026-09-23T12:00:00.000Z");
+
+function setVisibility(state: "visible" | "hidden") {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+  document.dispatchEvent(new Event("visibilitychange"));
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
-  localStorage.clear();
+  sessionStorage.clear();
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(T0);
 });
 
-describe("shouldPing", () => {
-  it("sem marca nenhuma, avisa", () => {
-    expect(shouldPing(null, "u1", HOJE)).toBe(true);
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("regras puras", () => {
+  it("abrir sem marca avisa; com marca do mesmo usuario nao repete", () => {
+    expect(shouldPingOnOpen(null, "u1")).toBe(true);
+    expect(shouldPingOnOpen({ uid: "u1", at: T0 }, "u1")).toBe(false);
   });
 
-  it("ja avisou hoje por este usuario: nao repete", () => {
-    expect(shouldPing(buildPingMark("u1", HOJE), "u1", HOJE)).toBe(false);
+  it("outro usuario na mesma aba conta como acesso novo", () => {
+    expect(shouldPingOnOpen({ uid: "u1", at: T0 }, "u2")).toBe(true);
+    expect(shouldPingOnReturn({ uid: "u1", at: T0 }, "u2", T0)).toBe(true);
   });
 
-  it("aba aberta desde ontem avisa de novo no dia seguinte", () => {
-    expect(shouldPing(buildPingMark("u1", HOJE), "u1", AMANHA)).toBe(true);
+  it("voltar para a aba so avisa passados 5 min do ultimo aviso", () => {
+    expect(shouldPingOnReturn({ uid: "u1", at: T0 }, "u1", T0 + RETURN_AFTER_MS - 1)).toBe(false);
+    expect(shouldPingOnReturn({ uid: "u1", at: T0 }, "u1", T0 + RETURN_AFTER_MS)).toBe(true);
   });
 
-  it("outro usuario no mesmo navegador conta como acesso novo", () => {
-    expect(shouldPing(buildPingMark("u1", HOJE), "u2", HOJE)).toBe(true);
+  it("sem usuario nunca avisa", () => {
+    expect(shouldPingOnOpen(null, "")).toBe(false);
+    expect(shouldPingOnReturn(null, "", T0)).toBe(false);
   });
 
-  it("sem usuario nao avisa", () => {
-    expect(shouldPing(null, "", HOJE)).toBe(false);
+  it("marca corrompida vira ausencia de marca", () => {
+    expect(parsePingMark("lixo")).toBeNull();
+    expect(parsePingMark(JSON.stringify({ uid: 1 }))).toBeNull();
   });
 });
 
 describe("useSessionPing", () => {
-  it("avisa uma vez ao abrir a plataforma e nao repete no mesmo dia", () => {
+  it("avisa ao abrir a plataforma e nao repete ao re-renderizar", () => {
     const { rerender } = renderHook(() => useSessionPing({ id: "u1", role: "master" }));
     expect(callApi).toHaveBeenCalledTimes(1);
     expect(callApi).toHaveBeenCalledWith("/v1/session/ping", "POST", {});
-
     rerender();
+    expect(callApi).toHaveBeenCalledTimes(1);
+  });
+
+  it("recarregar a mesma aba nao conta de novo", () => {
+    const first = renderHook(() => useSessionPing({ id: "u1", role: "master" }));
+    first.unmount();
+    renderHook(() => useSessionPing({ id: "u1", role: "master" }));
+    expect(callApi).toHaveBeenCalledTimes(1);
+  });
+
+  it("voltar para a aba horas depois registra o horario novo (o caso 9h/14h)", () => {
+    renderHook(() => useSessionPing({ id: "u1", role: "master" }));
+    expect(callApi).toHaveBeenCalledTimes(1);
+
+    setVisibility("hidden");
+    vi.setSystemTime(T0 + 5 * 60 * 60 * 1000);
+    setVisibility("visible");
+    expect(callApi).toHaveBeenCalledTimes(2);
+  });
+
+  it("alt-tab rapido nao gera aviso", () => {
+    renderHook(() => useSessionPing({ id: "u1", role: "master" }));
+    setVisibility("hidden");
+    vi.setSystemTime(T0 + 30 * 1000);
+    setVisibility("visible");
     expect(callApi).toHaveBeenCalledTimes(1);
   });
 
@@ -58,8 +104,10 @@ describe("useSessionPing", () => {
     expect(callApi).toHaveBeenCalledTimes(1);
   });
 
-  it("super admin nao avisa: seria marcar como acesso da empresa algo do suporte", () => {
+  it("super admin nao avisa, nem ao abrir nem ao voltar", () => {
     renderHook(() => useSessionPing({ id: "root", role: "superadmin" }));
+    vi.setSystemTime(T0 + 60 * 60 * 1000);
+    setVisibility("visible");
     expect(callApi).not.toHaveBeenCalled();
   });
 
@@ -68,8 +116,11 @@ describe("useSessionPing", () => {
     expect(callApi).not.toHaveBeenCalled();
   });
 
-  it("falha do aviso nao chega na tela", async () => {
-    callApi.mockRejectedValueOnce(new Error("offline"));
-    expect(() => renderHook(() => useSessionPing({ id: "u1", role: "master" }))).not.toThrow();
+  it("para de escutar a aba ao sair da area logada", () => {
+    const { unmount } = renderHook(() => useSessionPing({ id: "u1", role: "master" }));
+    unmount();
+    vi.setSystemTime(T0 + 60 * 60 * 1000);
+    setVisibility("visible");
+    expect(callApi).toHaveBeenCalledTimes(1);
   });
 });
