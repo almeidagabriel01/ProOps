@@ -20,7 +20,6 @@ import {
 import { comodoEm, daCaixaAoPiso, naCaixa } from "./projecao";
 import {
   CAIXA,
-  deslocamentoDaCasa,
   deslocamentoDaFolha,
   estadoDaCena,
   paraVariaveis,
@@ -107,6 +106,56 @@ function posicaoEm(el: HTMLElement, ancestral: HTMLElement): [number, number] {
   return [x, y];
 }
 
+/** O vão entre a casa recuada e o texto ou a proposta, em px. */
+const VAO_DO_RECUO = 16;
+
+/**
+ * Para onde a casa vai quando a proposta entra, medido no DOM:
+ * `[deslocamento x, deslocamento y, escala]`, em px do palco.
+ *
+ * No desktop a proposta ocupa a direita do palco e a casa, que repousava ali,
+ * precisa sair da frente. O lugar que sobra é a FAIXA DO MEIO da coluna de
+ * texto: abaixo das abas e da nota, acima da legenda, e à esquerda da
+ * proposta. Um deslocamento fixo em cqw (era -19cqw, com a escala fixa em
+ * 0,86) acertava a tela em que foi calibrado e levava a casa para baixo da nota
+ * dos nichos nas outras, porque o texto não encolhe com a tela. Medido, a casa
+ * cabe na faixa em qualquer tela e com qualquer fonte.
+ *
+ * A caixa em repouso vem pela cadeia de `offsetParent` (ignora o transform que
+ * o próprio recuo aplica); os textos não têm transform e vêm do retângulo.
+ * No retrato não há recuo: a proposta cobre o palco e a casa só some.
+ */
+function medeRecuo(
+  secao: HTMLElement,
+  palco: HTMLElement,
+  casa: HTMLElement,
+  lugarFolha: HTMLElement | null,
+  layout: LayoutId,
+): [number, number, number] {
+  if (layout !== "largo" || !lugarFolha) return [0, 0, 1];
+  const abas = secao.querySelector<HTMLElement>("[data-seletor-de-nicho]");
+  const legendas = secao.querySelector<HTMLElement>(".cena-legendas");
+  if (!abas || !legendas) return [0, 0, 1];
+
+  const p = palco.getBoundingClientRect();
+  const texto = abas.getBoundingClientRect();
+  const topo = texto.bottom - p.top + VAO_DO_RECUO;
+  const base = legendas.getBoundingClientRect().top - p.top - VAO_DO_RECUO;
+  const esquerda = texto.left - p.left;
+  const direita = posicaoEm(lugarFolha, palco)[0] - VAO_DO_RECUO;
+
+  const [cx, cy] = posicaoEm(casa, palco);
+  const cw = casa.offsetWidth;
+  const ch = casa.offsetHeight;
+  if (!cw || !ch || base <= topo || direita <= esquerda) return [0, 0, 1];
+
+  const altura = Math.min(base - topo, ((direita - esquerda) * ch) / cw);
+  const escala = Math.min(1, altura / ch);
+  const alvoX = (esquerda + direita) / 2;
+  const alvoY = (topo + base) / 2;
+  return [alvoX - (cx + cw / 2), alvoY - (cy + ch / 2), escala];
+}
+
 /** Dois chips no mesmo cômodo não podem pousar um em cima do outro. */
 const ORDEM_NO_COMODO = ITENS.map(
   (item, i) => ITENS.slice(0, i).filter((anterior) => anterior.comodo === item.comodo).length,
@@ -135,39 +184,51 @@ function iniciaCena({ secao, palco, casa, trilha, aoVivo }: Pecas): () => void {
   const total = secao.querySelector<HTMLElement>("[data-total]");
 
   // Medidas de layout, refeitas só no resize.
-  let medidas = {
-    palco: [0, 0] as [number, number],
-    casa: [0, 0, 0, 0] as [number, number, number, number],
-    chips: [] as [number, number][],
-  };
-  const mede = () => {
-    medidas = {
-      palco: [palco.clientWidth, palco.clientHeight],
-      casa: [...posicaoEm(casa, palco), casa.offsetWidth, casa.offsetHeight],
-      chips: chips.map((chip, i) => {
-        const [x, y] = lugarFolha ? posicaoEm(chip, palco) : [0, 0];
-        const rotulo = rotulos[i];
-        return [x + (rotulo?.offsetWidth ?? 0) / 2, y + (rotulo?.offsetHeight ?? 0) / 2];
-      }),
-    };
-  };
-
   const escreve = (nome: string, valor: string) => {
     if (escritas.get(nome) === valor) return;
     escritas.set(nome, valor);
     secao.style.setProperty(nome, valor);
   };
 
+  let medidas = {
+    palco: [0, 0] as [number, number],
+    casa: [0, 0, 0, 0] as [number, number, number, number],
+    recuo: [0, 0, 1] as [number, number, number],
+    chips: [] as [number, number][],
+  };
+  const mede = () => {
+    medidas = {
+      palco: [palco.clientWidth, palco.clientHeight],
+      casa: [...posicaoEm(casa, palco), casa.offsetWidth, casa.offsetHeight],
+      recuo: medeRecuo(secao, palco, casa, lugarFolha, layout),
+      chips: chips.map((chip, i) => {
+        const [x, y] = lugarFolha ? posicaoEm(chip, palco) : [0, 0];
+        const rotulo = rotulos[i];
+        return [x + (rotulo?.offsetWidth ?? 0) / 2, y + (rotulo?.offsetHeight ?? 0) / 2];
+      }),
+    };
+    const [rx, ry, re] = medidas.recuo;
+    escreve("--recuo-x", `${rx.toFixed(1)}px`);
+    escreve("--recuo-y", `${ry.toFixed(1)}px`);
+    escreve("--recuo-escala", re.toFixed(4));
+  };
+
   /** Onde o chip `i` tem que estar, em px do palco, enquanto não voou. */
   const deslocamentoDoChip = (estado: EstadoDaCena, i: number): [number, number] => {
     const [pw, ph] = medidas.palco;
     const [cx, cy, cw, ch] = medidas.casa;
-    const [dxCasa, dyCasa] = deslocamentoDaCasa(estado, layout);
     const [dxFolha, dyFolha] = deslocamentoDaFolha(estado, layout);
     const [lx, lz] = centroDoComodo(ITENS[i].comodo);
     const [fx, fy] = naCaixa([lx, 1.5, lz], estado.camera, CAIXA);
-    const alvoX = cx + (dxCasa * pw) / 100 + fx * cw;
-    const alvoY = cy + (dyCasa * ph) / 100 + fy * ch - 18 + ORDEM_NO_COMODO[i] * 40;
+    // A MESMA transformação que o CSS aplica à casa (`.cena-casa`): escala em
+    // torno do centro da caixa e depois o deslocamento, as duas pesadas pelo
+    // recuo. Sem a escala, o chip de um item que voa durante o recuo pousaria
+    // ao lado do cômodo.
+    const r = estado.recuoDaCasa;
+    const [recuoX, recuoY, recuoEscala] = medidas.recuo;
+    const escala = 1 - r * (1 - recuoEscala);
+    const alvoX = cx + cw / 2 + r * recuoX + (fx - 0.5) * cw * escala;
+    const alvoY = cy + ch / 2 + r * recuoY + (fy - 0.5) * ch * escala - 18 + ORDEM_NO_COMODO[i] * 40;
     const [rx, ry] = medidas.chips[i] ?? [0, 0];
     const repousoX = rx + (dxFolha * pw) / 100;
     const repousoY = ry + (dyFolha * ph) / 100;
@@ -176,7 +237,7 @@ function iniciaCena({ secao, palco, casa, trilha, aoVivo }: Pecas): () => void {
   };
 
   const desenha = () => {
-    const estado = estadoDaCena(atual, realce);
+    const estado = estadoDaCena(atual, realce, layout);
     for (const [nome, valor] of Object.entries(paraVariaveis(estado, layout))) escreve(nome, valor);
     estado.chips.forEach((_, i) => {
       const [dx, dy] = deslocamentoDoChip(estado, i);
@@ -300,6 +361,11 @@ function iniciaCena({ secao, palco, casa, trilha, aoVivo }: Pecas): () => void {
     atual = alvo;
     desenha();
     observadorDeTamanho.observe(palco);
+    // O texto muda de altura sem o palco mudar (a fonte chega, o nicho troca a
+    // nota): o recuo da casa é medido contra ele, e tem que acompanhar.
+    for (const texto of secao.querySelectorAll<HTMLElement>("[data-seletor-de-nicho], .cena-legendas")) {
+      observadorDeTamanho.observe(texto);
+    }
     composicao.addEventListener("change", trocaComposicao);
     casa.addEventListener("pointermove", aoMover, { passive: true });
     casa.addEventListener("pointerleave", aoSair, { passive: true });

@@ -79,6 +79,59 @@ o desloca até o ambiente, medindo a posição de repouso por
 `offsetTop`/`offsetLeft` (que ignoram transform) no resize, nunca na rolagem.
 Por isso a folha não tem `opacity` própria: ela apagaria os chips junto.
 
+## A casa nunca passa por cima de texto
+
+O palco tem texto em três lugares: as abas de nicho e a nota delas (em cima, à
+esquerda), a legenda do ato com o trilho (embaixo, à esquerda) e, depois, a
+proposta (à direita). As abas são botões translúcidos, e uma casa passando por
+trás delas aparece ATRAVÉS delas; foi assim que o defeito foi reportado, no
+notebook e no celular. A regra é: nenhum desenho da casa debaixo de texto, em
+nenhum ato, em nenhum tamanho. Quem garante é o E2E
+(`tests/e2e/landing/cena-da-planta.spec.ts`, "a casa e o texto"), que varre a
+cena inteira em quatro tamanhos e consulta `elementsFromPoint` em pontos dentro
+de cada texto.
+
+A cena foi desenhada numa tela de 1440x900, e cada tela menor achou um jeito de
+quebrá-la. Três lições, uma por defeito:
+
+- **No desktop a separação é pela LARGURA.** Em repouso a casa mora na raia à
+  direita da coluna de texto (`--coluna-texto`, derivada da mesma caixa
+  `max-w-7xl px-10` das camadas) e usa a altura inteira abaixo da barra.
+  Reservar as faixas de texto na largura toda, que foi a primeira tentativa,
+  deixava a casa com um terço do tamanho num notebook e seis chips empilhados
+  em cima dela.
+- **O recuo é MEDIDO, não constante.** Quando a proposta entra, a casa vai para
+  a faixa do meio da coluna de texto: abaixo da nota, acima da legenda e à
+  esquerda da proposta. `medeRecuo`, no diretor, mede esse vão no DOM e escreve
+  `--recuo-x/--recuo-y/--recuo-escala`; o CSS aplica escala em torno do centro e
+  depois o deslocamento, pesados por `--recuo`, e `deslocamentoDoChip` manda os
+  chips pela MESMA conta. O valor antigo era fixo (-19cqw e escala 0,86) e
+  acertava a tela em que foi calibrado; nas outras a casa recuava para baixo da
+  nota, porque o texto não encolhe com a tela. O recuo é medido de novo quando
+  o texto muda de altura sem o palco mudar (a fonte chega, a nota do nicho
+  troca), e por isso o `ResizeObserver` observa o seletor e a legenda também.
+- **O pan da câmera tira a casa da caixa mais que o zoom.** A visita a um
+  cômodo puxa o quadro só parte do caminho (`PAN_DA_VISITA`: um terço no
+  desktop, quase nada no retrato), e `--folga-da-camera` desconta o que sobra
+  do tamanho da casa. Metade do caminho, o valor original, arrastava o desenho
+  para cima das abas.
+
+**No retrato** não há largura para separar, e a separação é pela ALTURA: as
+faixas de texto são reservadas em cima e embaixo (`--faixa-topo` /
+`--faixa-base`, medidas de 360 a 417px e escritas em rem, porque são texto).
+Não há recuo: a proposta cobre o palco, a casa SOME (em vez de subir para trás
+das abas a 30%, que era o fantasma visível), e os itens aparecem um por vez
+(`--proximo`, o `surge` do item seguinte). O chip não reaparece em voo, porque
+a casa já sumiu quando os itens voam e uma pílula atravessando o vazio não
+aponta para nada; ele volta nos últimos 10% do voo, já como linha da proposta.
+A atenuação vai no RÓTULO, nunca no `<li>`: pousado, o item é a linha, e a
+linha não pode apagar.
+
+**Para medir numa sessão local**, o que vale é o contorno das ARESTAS
+(`.planta-aresta`) e não o grupo da câmera: o brilho do piso são elipses
+translúcidas que passam do contorno de propósito, e o retângulo do grupo
+acusaria corte onde não há nada visível.
+
 ## Armadilhas, todas silenciosas
 
 - **`vector-effect: non-scaling-stroke` quebra o `pathLength`.** O tracejado
@@ -104,15 +157,6 @@ Por isso a folha não tem `opacity` própria: ela apagaria os chips junto.
   tranco no meio da rolagem.
 - **Nenhum ancestral do palco pode ter `overflow`**: overflow desliga `sticky`
   nos descendentes, e a cena passa reto pela tela.
-- **A casa é dimensionada pela FAIXA LIVRE, não por uma fração do palco.**
-  `width: min(56cqw, calc((100cqh - 21.5rem) * var(--aspecto)))`: as 21,5rem
-  são o que está reservado em cima (as abas, debaixo da barra fixa da landing)
-  e embaixo (a legenda de duas linhas e o trilho dos atos). Escrito em `cqh`
-  puro, como era (`74cqh`), a cena cabia na tela de 1440x900 em que foi
-  desenhada e invadia a legenda num notebook de 768, ou de 614 a 125% de
-  escala: **o texto reservado embaixo não encolhe com a tela, e uma fração do
-  palco encolhe.** O `padding-bottom` de `.cena-lugar-casa` reserva a mesma
-  faixa, em rem, pelo mesmo motivo.
 - **A coluna da proposta encosta no topo em tela baixa** (`max-height: 800px`),
   e encolhe o que dá: o nome do cômodo sai de cada linha e o respiro entre elas
   diminui. Ela tem ~590px de altura, que é o palco INTEIRO num notebook de
@@ -121,22 +165,12 @@ Por isso a folha não tem `opacity` própria: ela apagaria os chips junto.
   diretor escreve o voo do chip em pixels medidos fora dela, e um `scale`
   encurtaria o voo na mesma proporção, deixando o item parado no meio do
   caminho.
-- **No retrato, uma pílula por vez.** Cada item recebe `--proximo` (o `surge`
-  do item seguinte, escrito por item em `camadas-da-cena.tsx`) e apaga quando o
-  próximo aparece. Seis pílulas sobre uma casa de 345px se empilham umas por
-  cima das outras e cobrem a casa inteira. A atenuação vai no RÓTULO
-  (`1 - proximo * (1 - voo)`), nunca no `<li>`: depois de pousar na proposta o
-  item é uma linha, e a linha não pode apagar.
 - **O canvas é MAIOR que a caixa da casa** (`SOBRA_DO_QUADRO`, 25% por lado), e
   o frustum cresce na mesma fração. O SVG desenha com `overflow: visible` e pode
   passar da caixa; o canvas termina onde acaba, e com a câmera aproximando um
   cômodo a lateral da casa ficava decepada numa linha reta. Mexer num dos dois
   sem o outro muda a ESCALA do 3D, e aí a troca de renderizador no meio da cena
   dá um salto.
-- **A casa encolhe ao recuar** (`scale` em `.cena-casa`, por `--recuo`). Só
-  deslocá-la para abrir espaço para a proposta punha a lateral para fora do
-  palco, que recorta. `scale` é a propriedade individual, como o `translate` ao
-  lado: as duas compõem, e um `transform` apagaria a outra.
 - **A aba em segundo plano não roda `requestAnimationFrame`**, e o `loopVisivel`
   pausa de propósito ali: numa automação de navegador com a aba escondida, o 3D
   nunca fica "pronto". Use o Playwright para conferir o 3D.

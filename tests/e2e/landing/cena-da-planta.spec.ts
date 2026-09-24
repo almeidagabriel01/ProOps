@@ -157,62 +157,139 @@ test.describe("LANDING-CENA-01: orçamento do celular", () => {
 });
 
 /**
- * **Notebook.** A cena foi desenhada e conferida numa tela de 1440x900, e a
- * metade dos notebooks tem 768px de altura (ou 614, a 125% de escala). Ali
- * tudo o que era folga virou sobreposição: a casa era centrada no palco
- * inteiro e a quina de baixo caía em cima da legenda; ela era dimensionada por
- * 74cqh sem contar o zoom da câmera, e a lateral era decepada na borda do
- * canvas; e a coluna da proposta, centrada e quase tão alta quanto o palco,
- * enfiava o cabeçalho debaixo da barra fixa.
+ * **A casa nunca passa por cima de texto, e nunca é cortada.**
  *
- * Os três são medidas de caixa, e é assim que este teste os afirma. Ele roda
- * nas DUAS alturas porque só a de 614 aciona o modo compacto da coluna.
+ * A cena foi desenhada numa tela de 1440x900, e cada tela menor achou um jeito
+ * de quebrá-la. Num notebook de 768 a câmera, visitando um cômodo, arrastava o
+ * desenho para cima das abas de nicho; o recuo da proposta levava a casa para
+ * baixo da nota; e a lateral era decepada na borda do canvas. No celular a casa
+ * subia para trás das abas, que são botões translúcidos, e aparecia através
+ * delas.
+ *
+ * A medida é a de quem olha, e não a de caixas: pontos espalhados dentro das
+ * abas, da nota e da legenda, e `elementsFromPoint` dizendo se debaixo de
+ * algum deles há uma face ou aresta da casa. É o desenho SVG que responde,
+ * inclusive no desktop, onde ele fica invisível sob o three.js: os dois são
+ * desenhados pela mesma câmera, e o SVG é o único que o DOM sabe consultar. O
+ * contorno para o corte são as arestas, e não o grupo da câmera, porque o
+ * brilho do piso passa do contorno de propósito.
+ *
+ * A rolagem varre a cena inteira em passos curtos, porque as colisões eram de
+ * instantes: um cômodo visitado, o meio de um recuo.
  */
-for (const tela of [
-  { nome: "1366x768", viewport: { width: 1366, height: 768 } },
-  { nome: "1093x614", viewport: { width: 1093, height: 614 } },
-]) {
-  test.describe(`LANDING-CENA-01: notebook ${tela.nome}`, () => {
-    test.use({ viewport: tela.viewport });
+const MEDE = () => {
+  const palco = document.querySelector("[data-palco]")!.getBoundingClientRect();
+  if (palco.bottom < window.innerHeight * 0.6) return { fim: true, ato: "", problemas: [], folha: null };
+  const opacidade = (el: Element) => {
+    let o = 1;
+    for (let a: Element | null = el; a; a = a.parentElement) o *= Number(getComputedStyle(a).opacity);
+    return o;
+  };
+  const casa = document.querySelector("[data-casa]")!;
+  const problemas: string[] = [];
+  if (opacidade(casa) > 0.15) {
+    const seletor = document.querySelector("[data-seletor-de-nicho]");
+    const textos: Record<string, Element | null | undefined> = {
+      abas: seletor?.firstElementChild,
+      nota: seletor?.lastElementChild,
+      legenda: document.querySelector(".cena-legendas > div"),
+      trilho: document.querySelector(".cena-legendas > ol"),
+    };
+    const ehDaCasa = (el: Element) =>
+      el instanceof SVGGeometryElement && !!el.closest("[data-planta]");
+    for (const [nome, el] of Object.entries(textos)) {
+      if (!el || opacidade(el) < 0.15) continue;
+      const b = el.getBoundingClientRect();
+      let pontos = 0;
+      for (let i = 0; i < 9; i++) {
+        for (let j = 0; j < 4; j++) {
+          const x = b.left + (b.width * (i + 0.5)) / 9;
+          const y = b.top + (b.height * (j + 0.5)) / 4;
+          if (document.elementsFromPoint(x, y).some(ehDaCasa)) pontos++;
+        }
+      }
+      if (pontos) problemas.push(`casa sobre ${nome} (${pontos} pontos)`);
+    }
+    const contorno = [...document.querySelectorAll("[data-planta] .planta-aresta")].reduce(
+      (u, el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          left: Math.min(u.left, r.left),
+          top: Math.min(u.top, r.top),
+          right: Math.max(u.right, r.right),
+          bottom: Math.max(u.bottom, r.bottom),
+        };
+      },
+      { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity },
+    );
+    const moldura = [palco];
+    const canvas = document.querySelector("[data-casa] canvas");
+    if (canvas) moldura.push(canvas.getBoundingClientRect());
+    for (const m of moldura) {
+      if (
+        contorno.left < m.left - 1 ||
+        contorno.right > m.right + 1 ||
+        contorno.top < m.top - 1 ||
+        contorno.bottom > m.bottom + 1
+      ) {
+        problemas.push(`casa cortada pela ${m === palco ? "borda do palco" : "borda do canvas"}`);
+      }
+    }
+  }
+  const f = document.querySelector("[data-folha]")!.getBoundingClientRect();
+  return {
+    fim: false,
+    ato: document.querySelector("[data-cena-planta]")!.getAttribute("data-ato") ?? "",
+    problemas,
+    folha: { topo: f.top, base: f.bottom, palcoBase: palco.bottom },
+  };
+};
 
-    test("a casa não encosta na legenda, e a proposta não entra debaixo da barra", async ({
+for (const tela of [
+  { nome: "notebook 1366x768", viewport: { width: 1366, height: 768 }, celular: false },
+  { nome: "notebook 1093x614", viewport: { width: 1093, height: 614 }, celular: false },
+  { nome: "celular 417x760", viewport: { width: 417, height: 760 }, celular: true },
+  { nome: "celular 360x740", viewport: { width: 360, height: 740 }, celular: true },
+]) {
+  test.describe(`LANDING-CENA-01: a casa e o texto (${tela.nome})`, () => {
+    test.use({ viewport: tela.viewport, isMobile: tela.celular, hasTouch: tela.celular });
+
+    test("a casa não passa por cima das abas, da nota nem da legenda, e não é cortada", async ({
       page,
     }) => {
       await page.goto(`${ERP}/`);
       await page.waitForLoadState("networkidle");
-      await rolaAte(page, "aprovada");
-      await page.waitForTimeout(600);
+      await page.mouse.move(tela.viewport.width / 2, tela.viewport.height / 2);
 
-      const caixas = await page.evaluate(() => {
-        const caixa = (seletor: string) => {
-          const el = document.querySelector(seletor);
-          if (!el) return null;
-          const r = el.getBoundingClientRect();
-          return { topo: r.top, base: r.bottom, altura: r.height };
-        };
-        return {
-          palco: caixa("[data-palco]"),
-          casa: caixa("[data-casa]"),
-          legenda: caixa(".cena-legenda"),
-          folha: caixa("[data-folha]"),
-        };
-      });
+      for (let i = 0; i < 80; i++) {
+        const topo = await page.locator("[data-palco]").evaluate((el) => el.getBoundingClientRect().top);
+        if (topo < 20) break;
+        await page.mouse.wheel(0, 200);
+        await page.waitForTimeout(60);
+      }
 
-      const { palco, casa, legenda, folha } = caixas;
-      expect(palco && casa && legenda && folha).toBeTruthy();
-      if (!palco || !casa || !legenda || !folha) return;
+      const problemas: string[] = [];
+      let folhaNaAprovada: { topo: number; base: number; palcoBase: number } | null = null;
+      for (let passo = 0; passo < 40; passo++) {
+        // A rolagem passa por uma mola: medir antes de ela assentar mediria um
+        // quadro que ninguém vê parado.
+        await page.waitForTimeout(650);
+        const r = await page.evaluate(MEDE);
+        if (r.fim) break;
+        problemas.push(...r.problemas.map((p) => `${r.ato}: ${p}`));
+        if (r.ato === "aprovada" && r.folha) folhaNaAprovada = r.folha;
+        await page.mouse.wheel(0, Math.round(tela.viewport.height / 7));
+      }
 
-      // A casa fica ACIMA da legenda: uma quina em cima do texto foi o defeito.
-      expect(casa.base).toBeLessThanOrEqual(legenda.topo + 1);
+      expect(problemas).toEqual([]);
 
-      // E cabe no palco com a folga do zoom: a câmera chega a 1,16 e o desenho
-      // passa da caixa antes de o canvas acabar.
-      expect(casa.altura * 1.16).toBeLessThanOrEqual(palco.altura);
-
-      // A barra da landing é uma cápsula flutuante de ~5rem: a proposta começa
-      // abaixo dela, com o nome do cliente e o código à vista.
-      expect(folha.topo).toBeGreaterThanOrEqual(64);
-      expect(folha.base).toBeLessThanOrEqual(palco.base + 1);
+      // A proposta começa abaixo da barra fixa (uma cápsula de ~5rem), com o nome
+      // do cliente e o código à vista, e não passa do fundo do palco.
+      expect(folhaNaAprovada).not.toBeNull();
+      if (folhaNaAprovada) {
+        expect(folhaNaAprovada.topo).toBeGreaterThanOrEqual(64);
+        expect(folhaNaAprovada.base).toBeLessThanOrEqual(folhaNaAprovada.palcoBase + 1);
+      }
     });
   });
 }
