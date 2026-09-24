@@ -25,6 +25,13 @@ import {
   type InvoiceDocument,
 } from "./invoice.service";
 import type { FiscalGap } from "./fiscal-readiness";
+import {
+  assertInvoiceQuota,
+  getInvoiceQuota,
+  remainingInvoices,
+  type InvoiceQuota,
+} from "./invoice-quota.service";
+import { resolveTenantCapabilities } from "../../../lib/tenant-capabilities";
 import type { NaturezaOperacao } from "./natureza-operacao";
 import type { FiscalDocumentType, FiscalInvoiceStatus } from "./fiscal-types";
 
@@ -123,7 +130,10 @@ export interface IssuePreview {
     | "FISCAL_NAO_CONFIGURADO"
     | "FISCAL_NAO_PRONTO"
     | "FISCAL_INCOMPLETO"
+    | "FISCAL_COTA_MENSAL_ATINGIDA"
     | "PROPOSTA_SEM_CLIENTE";
+  /** Franquia do mes. `limit: -1` = ilimitado (Enterprise). */
+  cota?: InvoiceQuota;
   gaps: FiscalGap[];
   /** Uma entrada por documento que seria emitido — duas numa venda mista. */
   documentos: Array<{ type: FiscalDocumentType; valorTotal: number }>;
@@ -193,9 +203,22 @@ export async function previewFromProposal(
     proposalId,
   });
 
+  // Convidar a emitir uma nota que o 402 vai recusar seria o mesmo erro do
+  // convite sobre emitente nao credenciado.
+  const cota = await getInvoiceQuota(tenantId);
+  const semCota =
+    assembly.invoices.length > 0 && remainingInvoices(cota) < assembly.invoices.length;
+
   return {
-    canIssue: assembly.gaps.length === 0 && assembly.invoices.length > 0,
-    reason: assembly.gaps.length > 0 ? "FISCAL_INCOMPLETO" : undefined,
+    canIssue:
+      assembly.gaps.length === 0 && assembly.invoices.length > 0 && !semCota,
+    reason:
+      assembly.gaps.length > 0
+        ? "FISCAL_INCOMPLETO"
+        : semCota
+          ? "FISCAL_COTA_MENSAL_ATINGIDA"
+          : undefined,
+    cota,
     gaps: assembly.gaps,
     documentos: assembly.invoices.map((inv) => ({
       type: inv.type,
@@ -261,6 +284,8 @@ async function dispatch(
     throw new Error("NADA_A_EMITIR");
   }
 
+  await assertInvoiceQuota(context.tenantId, assembly.invoices.length);
+
   const issued: InvoiceDocument[] = [];
 
   for (const assembled of assembly.invoices) {
@@ -308,6 +333,13 @@ export async function tryAutoIssue(
     // `ready` é o único estado que prova credenciamento na SEFAZ/prefeitura.
     // Disparar antes disso só produziria rejeição.
     if (!settings || settings.autoIssueRule !== rule || settings.status !== "ready") {
+      return;
+    }
+    // O gatilho roda fora de qualquer rota, entao o gate de plano nao passa
+    // por aqui: sem esta checagem um tenant que perdeu o modulo continuaria
+    // emitindo (e consumindo Focus) pela configuracao antiga.
+    const { capabilities } = await resolveTenantCapabilities(tenantId);
+    if (!capabilities.fiscal) {
       return;
     }
 

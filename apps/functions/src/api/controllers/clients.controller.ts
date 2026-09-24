@@ -1,8 +1,11 @@
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { resolveUserAndTenant, checkPermission, UserDoc } from "../../lib/auth-helpers";
-import { checkClientLimit } from "../../lib/billing-helpers";
+import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
+import {
+  enforceTenantPlanLimit,
+  getTenantClientsUsage,
+} from "../../lib/tenant-plan-policy";
 import {
   assertTenantExists,
   auditSuperAdminCrossTenantWrite,
@@ -182,7 +185,6 @@ export const createClient = async (req: Request, res: Response) => {
 
     // Adjust masterRef and masterData if Super Admin is acting on behalf of another tenant
     let targetMasterRef = masterRef;
-    let targetMasterData = masterData;
 
     if (isSuperAdmin && targetTenantId && targetTenantId !== userData.tenantId) {
       console.log(`[CreateClient] SuperAdmin acting for targetTenantId: ${targetTenantId}`);
@@ -206,21 +208,29 @@ export const createClient = async (req: Request, res: Response) => {
 
        if (ownerDoc) {
           targetMasterRef = db.collection("users").doc(ownerDoc.id);
-          targetMasterData = ownerDoc.data() as UserDoc;
        }
     }
 
-    // Limit Check
-    try {
-      if (targetMasterData) {
-        await checkClientLimit(targetMasterData);
-      }
-    } catch (e: unknown) {
-      // If Super Admin, allow proceeding even if limit reached
-      if (!isSuperAdmin) {
-         const message = e instanceof Error ? e.message : "Erro desconhecido";
-         return res.status(402).json({ message, code: "resource-exhausted" });
-      }
+    // Teto de contatos pelo plano do TENANT, como os demais limites. Antes
+    // lia `planId` do doc do usuario dono, que diverge do tenant quando uma
+    // troca de plano so atualizou um dos dois (ver "Plano do tenant: DUAS
+    // fontes" em apps/functions/CLAUDE.md), e contava um `usage.clients`
+    // mantido a mao em vez dos documentos de fato.
+    const clientsDecision = await enforceTenantPlanLimit({
+      tenantId: targetTenantId,
+      feature: "maxClients",
+      currentUsage: await getTenantClientsUsage(targetTenantId),
+      uid: userId,
+      requestId: req.requestId,
+      route: req.path,
+      isSuperAdmin,
+    });
+    if (!clientsDecision.allowed) {
+      return res.status(clientsDecision.statusCode || 402).json({
+        message:
+          clientsDecision.message || "Limite de contatos atingido para o plano atual.",
+        code: clientsDecision.code || "PLAN_LIMIT_EXCEEDED",
+      });
     }
 
     // Transaction

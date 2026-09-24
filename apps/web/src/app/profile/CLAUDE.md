@@ -169,6 +169,14 @@ Definidos em `ADDON_DEFINITIONS` (`src/services/addon-service.ts`):
 | `financial` | Módulo Financeiro | `hasFinancial: true` | Starter |
 | `pdf_editor_full` | Editor PDF Completo | `maxPdfTemplates: -1`, `canEditPdfSections: true` | Starter |
 | `crm` | Módulo CRM | `hasKanban: true` | Starter, Pro |
+| `fiscal` | Notas Fiscais | `hasFiscal: true`, `maxInvoicesPerMonth: 100` (sem a recepção de notas de entrada) | Starter, Pro |
+| `online_payments` | Pagamento Online | `hasOnlinePayments: true` | Starter (exige `financial`), Pro |
+
+`requiresAddons` declara pré-requisito por tier: o card mostra "Contrate antes:
+Módulo Financeiro" e desabilita a compra, e o backend recusa com
+`ADDON_REQUIRES_ADDON`. A cópia do front é guardada por
+`src/__tests__/addon-definitions-parity.test.ts` (ids, tiers, pré-requisitos e o
+efeito de cada add-on, contra `ADDON_DEFINITIONS_BACKEND`).
 
 > **Preços:** NÃO estão armazenados no frontend. São buscados dinamicamente via `useStripePrices()` que chama o backend. Isso garante que dev/prod sempre usem os preços corretos do Stripe.
 

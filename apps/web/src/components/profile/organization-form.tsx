@@ -19,6 +19,7 @@ import { Building2, Shield, Save, Palette, Camera, X } from "lucide-react";
 import { TenantService } from "@/services/tenant-service";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { usePermissions } from "@/providers/permissions-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { toast } from '@/lib/toast';
 import { Loader } from "@/components/ui/loader";
 
@@ -29,6 +30,9 @@ interface OrganizationFormProps {
 
 export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
   const { isDemo } = usePermissions();
+  // Cores personalizadas são do Pro para cima. Até 2026-09 este campo ficava
+  // aberto para todo plano; o backend agora recusa a troca sem a capacidade.
+  const { canCustomizeTheme } = usePlanLimits();
   // Demo/free accounts own their tenant (their real company), so they get the
   // administrator view AND may edit it — unlike the shared demo DATA, the org
   // settings belong to their own account.
@@ -275,7 +279,7 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
                 onChange={(e) => setPrimaryColor(e.target.value)}
                 className="pl-9"
                 placeholder="#000000"
-                disabled={!isEditing}
+                disabled={!isEditing || !canCustomizeTheme}
               />
               <Palette className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             </div>
@@ -283,7 +287,7 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
               className="w-10 h-10 rounded-md border shadow-sm shrink-0"
               style={{ backgroundColor: primaryColor }}
             />
-            {isEditing && (
+            {isEditing && canCustomizeTheme && (
               <>
                 <input
                   type="color"
@@ -305,6 +309,12 @@ export function OrganizationForm({ tenant, isMaster }: OrganizationFormProps) {
               </>
             )}
           </div>
+          {!canCustomizeTheme && (
+            <p className="text-xs text-muted-foreground">
+              Cores personalizadas estão disponíveis a partir do plano
+              Profissional.
+            </p>
+          )}
         </div>
 
         <div className="pt-4 border-t mt-auto">

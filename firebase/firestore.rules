@@ -503,11 +503,10 @@ service cloud.firestore {
     // SPREADSHEETS
     match /spreadsheets/{spreadsheetId} {
       allow read: if isSuperAdmin() || isDemoRead(resource.data.get('tenantId', '')) || (isAuthenticated() && belongsToTenant(resource.data.get('tenantId', '')) && tenantSubscriptionAllowsRead(resource.data.get('tenantId', '')));
-      allow create: if isSuperAdmin()
-                    || (isAuthenticated()
-                        && hasTenantAdminRole()
-                        && request.resource.data.get('tenantId', '') != ''
-              && request.resource.data.get('tenantId', '') == getEffectiveTenantId());
+      // Criacao so pelo backend (POST /v1/spreadsheets), que aplica o teto de
+      // planilhas do plano. As rules nao conhecem plano: com create aberto ao
+      // client, o limite se contornava com uma escrita direta.
+      allow create: if false;
       allow update: if isSuperAdmin()
                     || (isAuthenticated()
                         && hasTenantAdminRole()
@@ -694,6 +693,18 @@ service cloud.firestore {
     // empresa. Escrita e leitura so pelo backend (Admin SDK).
     match /tenant_presence/{tenantId} {
       allow read, write: if false;
+    }
+
+    // Armazenamento em uso (bytes + flag de estouro), mantido pelos gatilhos de
+    // Storage. A empresa le para mostrar o uso na tela de assinatura e avisar
+    // antes do upload; quem barra de fato e a storage.rules, que le a flag.
+    // A subcolecao `events` (dedup de eventos) nao tem regra: DENY.
+    match /tenant_storage_usage/{tenantId} {
+      allow read: if isSuperAdmin()
+                  || (isAuthenticated()
+                      && belongsToTenant(tenantId)
+                      && tenantSubscriptionAllowsRead(tenantId));
+      allow write: if false;
     }
 
     // Exclusao definitiva de empresa (painel do superadmin). Escrita so pelo

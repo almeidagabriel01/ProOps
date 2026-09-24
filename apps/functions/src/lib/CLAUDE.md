@@ -209,19 +209,12 @@ LEGACY_PROPOSAL_LIMITS = { free: 5, starter: 80, pro: -1, enterprise: -1 }
 
 `-1` significa ilimitado.
 
-### `checkClientLimit(masterData)` → `void | throws`
-
-Determina `maxClients` na seguinte ordem de prioridade:
-1. `LEGACY_LIMITS[planId]` — tiers conhecidos (free/starter/pro/enterprise)
-2. `masterData.subscription.limits.maxClients` — limite customizado no doc
-3. Fetch do doc `plans/{planId}` → `features.maxClients`
-4. Default: `10` (free)
-
-Lanca `Error(mensagem)` se `currentClients >= maxClients` (para limite >= 0). O caller deve capturar e retornar HTTP 402.
-
 ### `checkUserLimit(masterData, masterId)` → `void | throws`
 
-Mesma logica, mas para `maxUsers`. Fallback adicional: se `usage.users === 0`, faz query de contagem real em `users.where("masterId", "==", masterId)` para evitar falso positivo em dados antigos.
+Le `maxUsers` do plano do USUARIO (`planId`), em ordem: `LEGACY_USER_LIMITS`,
+`subscription.limits`, doc `plans/{planId}`. O limite de contatos, que usava a
+mesma logica (`checkClientLimit`), migrou para `enforceTenantPlanLimit` em
+2026-09. Fallback adicional: se `usage.users === 0`, faz query de contagem real em `users.where("masterId", "==", masterId)` para evitar falso positivo em dados antigos.
 
 ### `checkProposalLimit(masterData)` → `void | throws`
 
@@ -450,12 +443,22 @@ aplicaria o gate a API inteira.
 |---|---|
 | `/v1/transactions`, `/v1/wallets` | `financial` |
 | `/v1/kanban-statuses` | `crm` |
-| `/v1/fiscal/*` | `fiscal` |
-| `/v1/asaas/*` | `financial` (segue o financeiro; payout vive sobre lancamentos) |
+| `/v1/fiscal/*` | `fiscal` (Enterprise ou add-on, com franquia `maxInvoicesPerMonth`) |
+| `/v1/fiscal/received-invoices*` | `fiscal` **e** `fiscalReceiving` (so Enterprise) |
+| `/v1/asaas/*` | `financial` **e** `onlinePayments` (Enterprise ou add-on) |
 | `/v1/calendar/google/*` | `calendarSync` (a agenda interna fica em todos os planos) |
+| `/v1/drive/*` | `driveSync` |
 
-`TENANT_PLAN_CAPABILITY_MODE` (`off` | `monitor` | `enforce`, **default
-`monitor`**) e proprio, separado de `TENANT_PLAN_ENFORCEMENT_MODE`: os limites
+**Caminhos que nao passam por rota checam a capacidade por conta propria**,
+senao um downgrade nao desliga nada: a fila do Drive (`isDriveConnected` /
+`syncProposalToDrive`), a emissao automatica (`tryAutoIssue`), o cron de notas
+recebidas, a sincronia do evento com o Google Agenda (`syncEventToGoogle`) e o
+link publico de pagamento (`createPayment`, `payment-config` e o `asaasEnabled`
+do link compartilhado). A franquia fiscal fica em
+`api/services/fiscal/invoice-quota.service.ts`.
+
+`TENANT_PLAN_CAPABILITY_MODE` (`off` | `monitor` | `enforce`, default
+`monitor` no codigo e **`enforce` nos env files de dev e prod**) e proprio, separado de `TENANT_PLAN_ENFORCEMENT_MODE`: os limites
 numericos ja rodam em `enforce` ha tempo, enquanto este gate foi ligado sobre
 rotas que estavam abertas. Um interruptor comum obrigaria a escolher entre
 afrouxar limites que funcionam e bloquear modulo sem medir antes quem depende
@@ -471,6 +474,25 @@ navegacao de suporte nao poluir `plan_capability_would_block`.
 
 Os rotulos de modulo e de limite (`CAPABILITY_LABELS`, `LIMIT_LABELS`) moram em
 `shared/plan-capabilities.ts`, junto do catalogo.
+
+### Armazenamento (`storageQuotaMB`)
+
+O upload vai do navegador direto ao Storage, entao o teto nao passa por
+`enforceTenantPlanLimit` numa rota. Tres pecas:
+
+- `shared/storage-usage.ts` — o que conta: `products/`, `services/` e
+  `proposals/` (anexos inclusos). Fica de fora `.../pdf/...` (cache gerado),
+  `fiscal/` (guarda legal) e `transactions/`.
+- `onTenantStorageChange.ts` + `lib/tenant-storage-usage.ts` — somam e subtraem
+  bytes em `tenant_storage_usage/{tenantId}` e recalculam `overQuota`; o id do
+  evento e registrado na mesma transacao (entrega e ao-menos-uma-vez).
+  `syncTenantPlanBillingSnapshot` recalcula a flag na troca de plano.
+- `firebase/storage.rules` — `storageQuotaAvailable(tenantId)` le a flag e barra
+  gravacao; apagar continua liberado.
+
+Historico anterior a este mecanismo: `npx tsx src/scripts/backfill-storage-usage.ts
+--bucket=<projeto>.firebasestorage.app` (dry-run; `--apply` grava). Rodar depois
+do deploy dos gatilhos.
 
 ### lib/tenant-capabilities.ts
 

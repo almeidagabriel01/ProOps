@@ -13,7 +13,11 @@ import {
   LEGACY_USER_LIMITS,
 } from "../../lib/billing-helpers";
 import { AI_LIMITS } from "../../ai/ai.types";
-import { applyAddonsToCapabilities } from "../addon-definitions";
+import {
+  applyAddonsToCapabilities,
+  isAddonAvailableForTier,
+  missingRequiredAddons,
+} from "../addon-definitions";
 
 const TIERS: PlanTierId[] = ["free", "starter", "pro", "enterprise"];
 
@@ -39,6 +43,8 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "whatsapp",
           "calendarSync",
           "driveSync",
+          "onlinePayments",
+          "fiscalReceiving",
         ],
       ],
     ]);
@@ -51,6 +57,26 @@ describe("PLAN_CATALOG — matriz alvo", () => {
     expect(minimumTierForCapability("fiscal")).toBe("enterprise");
     expect(PLAN_CATALOG.pro.capabilities.fiscal).toBe(false);
     expect(PLAN_CATALOG.starter.capabilities.fiscal).toBe(false);
+  });
+
+  it("pagamento online e recepcao de notas sao nativos so no Enterprise", () => {
+    // Ate 2026-09 o pagamento online vinha junto do financeiro, entao o Pro o
+    // tinha. Agora e Enterprise ou add-on.
+    expect(minimumTierForCapability("onlinePayments")).toBe("enterprise");
+    expect(PLAN_CATALOG.pro.capabilities.onlinePayments).toBe(false);
+    expect(minimumTierForCapability("fiscalReceiving")).toBe("enterprise");
+  });
+
+  it("planilhas: Starter 5, Pro 50, Enterprise ilimitado", () => {
+    expect(PLAN_CATALOG.starter.limits.maxSpreadsheets).toBe(5);
+    expect(PLAN_CATALOG.pro.limits.maxSpreadsheets).toBe(50);
+    expect(PLAN_CATALOG.enterprise.limits.maxSpreadsheets).toBe(-1);
+  });
+
+  it("so o Enterprise emite notas sem teto; os demais so com add-on", () => {
+    expect(PLAN_CATALOG.starter.limits.maxInvoicesPerMonth).toBe(0);
+    expect(PLAN_CATALOG.pro.limits.maxInvoicesPerMonth).toBe(0);
+    expect(PLAN_CATALOG.enterprise.limits.maxInvoicesPerMonth).toBe(-1);
   });
 
   it("mantem o CRM nativo so no Enterprise (Starter e Pro compram add-on)", () => {
@@ -113,7 +139,7 @@ describe("buildPublicPlanFeatures — o que o cliente ve", () => {
     // maxSpreadsheets e maxWallets sao aplicados pelo backend desde sempre e
     // nao apareciam em descricao de plano nenhuma: o cliente descobria no 402.
     const starter = buildPublicPlanFeatures("starter");
-    expect(starter.maxSpreadsheets).toBe(25);
+    expect(starter.maxSpreadsheets).toBe(5);
     expect(starter.maxWallets).toBe(5);
     expect(starter.aiMessagesPerMonth).toBe(80);
   });
@@ -129,6 +155,10 @@ describe("buildPublicPlanFeatures — o que o cliente ve", () => {
     expect(pro.hasFinancial).toBe(true);
     expect(pro.hasKanban).toBe(false);
     expect(pro.hasFiscal).toBe(false);
+    expect(pro.hasOnlinePayments).toBe(false);
+    expect(pro.hasDriveSync).toBe(true);
+    expect(enterprise.hasOnlinePayments).toBe(true);
+    expect(enterprise.hasFiscalReceiving).toBe(true);
   });
 });
 
@@ -170,10 +200,71 @@ describe("applyAddonsToCapabilities", () => {
     ).toBe(-1);
   });
 
+  it("o add-on fiscal abre a emissao com franquia de 100 notas, sem a recepcao", () => {
+    for (const tier of ["starter", "pro"] as const) {
+      const out = applyAddonsToCapabilities(
+        {
+          capabilities: resolvePlanCapabilities(tier),
+          limits: { ...PLAN_CATALOG[tier].limits },
+        },
+        ["fiscal"],
+      );
+      expect(out.capabilities.fiscal).toBe(true);
+      expect(out.capabilities.fiscalReceiving).toBe(false);
+      expect(out.limits.maxInvoicesPerMonth).toBe(100);
+    }
+  });
+
+  it("o add-on fiscal nunca rebaixa o Enterprise ilimitado", () => {
+    const out = applyAddonsToCapabilities(
+      {
+        capabilities: resolvePlanCapabilities("enterprise"),
+        limits: { ...PLAN_CATALOG.enterprise.limits },
+      },
+      ["fiscal"],
+    );
+    expect(out.limits.maxInvoicesPerMonth).toBe(-1);
+  });
+
+  it("o add-on de pagamento online abre so o pagamento", () => {
+    const out = applyAddonsToCapabilities(
+      {
+        capabilities: resolvePlanCapabilities("pro"),
+        limits: { ...PLAN_CATALOG.pro.limits },
+      },
+      ["online_payments"],
+    );
+    expect(out.capabilities.onlinePayments).toBe(true);
+    expect(out.capabilities.fiscal).toBe(false);
+  });
+
   it("nao muta a entrada e ignora id desconhecido", () => {
     const input = base();
     const out = applyAddonsToCapabilities(input, ["financial", "inexistente"]);
     expect(input.capabilities.financial).toBe(false);
     expect(out.capabilities.financial).toBe(true);
+  });
+});
+
+describe("ADDON_DEFINITIONS_BACKEND — tiers e pre-requisitos", () => {
+  it("fiscal e pagamento online sao vendidos para Starter e Pro, nunca Enterprise", () => {
+    for (const id of ["fiscal", "online_payments"]) {
+      expect(isAddonAvailableForTier(id, "starter")).toBe(true);
+      expect(isAddonAvailableForTier(id, "pro")).toBe(true);
+      expect(isAddonAvailableForTier(id, "enterprise")).toBe(false);
+      expect(isAddonAvailableForTier(id, "free")).toBe(false);
+    }
+  });
+
+  it("pagamento online no Starter exige o add-on financeiro", () => {
+    expect(missingRequiredAddons("online_payments", "starter", [])).toEqual([
+      "financial",
+    ]);
+    expect(
+      missingRequiredAddons("online_payments", "starter", ["financial"]),
+    ).toEqual([]);
+    // O Pro ja tem o financeiro no plano.
+    expect(missingRequiredAddons("online_payments", "pro", [])).toEqual([]);
+    expect(missingRequiredAddons("fiscal", "starter", [])).toEqual([]);
   });
 });

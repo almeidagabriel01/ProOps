@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { canCustomizeTheme, canUsePdfEditor, sameJsonValue } from "../../lib/catalog-plan-guards";
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
@@ -60,6 +61,37 @@ export const updateTenant = async (req: Request, res: Response) => {
     for (const field of allowedFields) {
       if (updateData[field] !== undefined) {
         safeUpdate[field] = updateData[field];
+      }
+    }
+
+    // Cores e PDF padrao so mudam com a capacidade do plano. Ate 2026-09 so a
+    // tela barrava. So MUDANCA e barrada: o formulario de configuracoes reenvia
+    // os valores atuais, e um tenant que personalizou quando era Pro nao pode
+    // ficar sem conseguir salvar o nome da empresa depois de um downgrade.
+    if (!isSuperAdmin) {
+      const current = tenantSnap.data() ?? {};
+      if (
+        safeUpdate.primaryColor !== undefined &&
+        !sameJsonValue(safeUpdate.primaryColor, current.primaryColor) &&
+        !(await canCustomizeTheme(id))
+      ) {
+        return res.status(402).json({
+          message: "Cores personalizadas estão disponíveis a partir do plano Profissional.",
+          code: "PLAN_CAPABILITY_REQUIRED",
+          capability: "customTheme",
+        });
+      }
+      if (
+        safeUpdate.proposalDefaults !== undefined &&
+        !sameJsonValue(safeUpdate.proposalDefaults, current.proposalDefaults) &&
+        !(await canUsePdfEditor(id))
+      ) {
+        return res.status(402).json({
+          message:
+            "A personalização do PDF está disponível no plano Profissional ou com o add-on de Editor de PDF.",
+          code: "PLAN_CAPABILITY_REQUIRED",
+          capability: "pdfEditor",
+        });
       }
     }
 

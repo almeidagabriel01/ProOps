@@ -42,9 +42,9 @@ Exceção: `createCheckoutSession` e `confirmCheckoutSession` aceitam `allowFree
 
 | Tier | Nome | Destaques |
 |------|------|-----------|
-| `starter` | Starter | 80 propostas, 1 usuario, sem financeiro |
-| `pro` | Profissional | Ilimitado, 2 usuarios, financeiro, customizacao |
-| `enterprise` | Enterprise | Tudo ilimitado, Kanban |
+| `starter` | Starter | 80 propostas, 1 usuario, 5 planilhas, sem financeiro |
+| `pro` | Profissional | Ilimitado, 2 usuarios, 50 planilhas, financeiro, customizacao, Google Agenda e Drive |
+| `enterprise` | Enterprise | Tudo ilimitado, CRM, notas fiscais, pagamento online, WhatsApp |
 
 ### Add-ons compraveis
 
@@ -53,7 +53,15 @@ Exceção: `createCheckoutSession` e `confirmCheckoutSession` aceitam `allowFree
 | `financial` | Módulo financeiro avulso |
 | `pdf_editor_partial` | Editor PDF parcial |
 | `pdf_editor_full` | Editor PDF completo |
-| `crm` | CRM avulso |
+| `crm` | CRM avulso (Starter e Pro) |
+| `fiscal` | Notas fiscais, 100 por mes, sem recepcao de notas de entrada (Starter e Pro) |
+| `online_payments` | Pagamento online pelo Asaas (Starter e Pro; no Starter exige `financial`) |
+
+Pre-requisito entre add-ons: `requiresAddons` em `shared/addon-definitions.ts`,
+checado no checkout (403 `ADDON_REQUIRES_ADDON`) e na cortesia do superadmin.
+Envs: `STRIPE_ADDON_FISCAL_MONTHLY` e `STRIPE_ADDON_ONLINE_PAYMENTS_MONTHLY`.
+Reajuste de preco = price novo no Stripe e troca da env; quem ja assinava fica
+no price antigo, e a assinatura continua reconhecida como add-on pela metadata.
 
 Precos sao lidos dinamicamente do Stripe via `getPriceConfig()` de `stripeConfig.ts`. IDs de price ficam em variaveis de ambiente — nunca hardcoded no código.
 
@@ -162,7 +170,7 @@ whatsappOverageSubscriptionItemId?: string  // item ID do Stripe para overage me
 
 ```
 tenantId: string
-addonType: string               // financial | pdf_editor_partial | pdf_editor_full | crm
+addonType: string               // financial | pdf_editor_partial | pdf_editor_full | crm | fiscal | online_payments
 stripeSubscriptionId: string
 status: "active" | "past_due" | "canceled"
 cancelAtPeriodEnd: boolean

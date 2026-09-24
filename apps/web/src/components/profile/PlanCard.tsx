@@ -271,7 +271,7 @@ export function PlanCard({
                 value={
                   plan.features.aiMessagesPerMonth === -1
                     ? "Ilimitadas"
-                    : `${plan.features.aiMessagesPerMonth}/mês`
+                    : `${plan.features.aiMessagesPerMonth.toLocaleString("pt-BR")}/mês`
                 }
               />
               <BooleanFeature
@@ -295,8 +295,16 @@ export function PlanCard({
                 available={plan.features.hasFiscal}
               />
               <BooleanFeature
+                label="Pagamento online (Pix e boleto no link)"
+                available={plan.features.hasOnlinePayments}
+              />
+              <BooleanFeature
                 label="Sincronia com o Google Agenda"
                 available={plan.features.hasCalendarSync}
+              />
+              <BooleanFeature
+                label="Entrega da proposta no Google Drive"
+                available={plan.features.hasDriveSync}
               />
               {isEnterprise && (
                 <>

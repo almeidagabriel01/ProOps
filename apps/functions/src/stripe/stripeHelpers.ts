@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getStripe } from "./stripeConfig";
 import { syncTenantPlanBillingSnapshot } from "./stripeWebhook";
 import type { TenantPlanTier } from "../lib/tenant-plan-policy";
+import type { AddonId } from "../shared/addon-definitions";
 
 export const WHATSAPP_OVERAGE_PRICE_ID = "price_1T20T7GrkF9UfsqcEtdBX9fY";
 
@@ -285,11 +286,9 @@ export async function updateSubscriptionStatus(
   console.log(`Updated subscription status for user ${userId} to ${status}`);
 }
 
-export type AddonType =
-  | "financial"
-  | "pdf_editor_partial"
-  | "pdf_editor_full"
-  | "crm";
+// A lista de ids vive em shared/addon-definitions.ts; repeti-la aqui deixava
+// um add-on novo invisivel para o webhook.
+export type AddonType = AddonId;
 
 export async function saveAddon(
   tenantId: string,

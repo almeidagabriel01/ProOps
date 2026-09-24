@@ -28,35 +28,6 @@ export const LEGACY_PROPOSAL_LIMITS: Record<string, number> = {
   enterprise: PLAN_CATALOG.enterprise.limits.maxProposalsPerMonth,
 };
 
-export const checkClientLimit = async (masterData: UserDoc): Promise<void> => {
-  let maxClientsVal = 10; // Default Free Limit
-  const planId = masterData.planId || "free";
-
-  if (LEGACY_LIMITS[planId] !== undefined) {
-    maxClientsVal = LEGACY_LIMITS[planId];
-  } else {
-    // Check subscription object
-    if (masterData.subscription?.limits?.maxClients !== undefined) {
-      maxClientsVal = masterData.subscription.limits.maxClients;
-    } else {
-      // Fetch plan document
-      const planSnap = await db.collection("plans").doc(planId).get();
-      if (planSnap.exists) {
-        maxClientsVal = planSnap.data()?.features?.maxClients ?? 10;
-      }
-    }
-  }
-
-  const maxClients = Number(maxClientsVal);
-  const currentClients = Number(masterData.usage?.clients ?? 0);
-
-  if (maxClients >= 0 && currentClients >= maxClients) {
-    throw new Error(
-      `Limite de clientes atingido (${currentClients}/${maxClients}). Faça upgrade do plano.`
-    );
-  }
-};
-
 export const checkUserLimit = async (
   masterData: UserDoc,
   masterId: string

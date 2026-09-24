@@ -3,6 +3,10 @@
  * Tests error mapping for AsaasApiError and key business error codes.
  */
 
+const tenantHasCapability = jest.fn(async (_tenantId: string, _cap: string) => true);
+jest.mock("../../lib/tenant-capabilities", () => ({
+  tenantHasCapability: (tenantId: string, cap: string) => tenantHasCapability(tenantId, cap),
+}));
 jest.mock("../services/transaction-payment.service", () => {
   return {
     TransactionPaymentService: {
@@ -279,6 +283,27 @@ describe("getPaymentConfig", () => {
     await getPaymentConfig(req, res);
     expect(status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith({ gateway: "asaas", environment: "sandbox" });
+  });
+
+  it("returns 422 when the tenant lost online payments (downgrade), even if connected", async () => {
+    const { db } = require("../../init");
+    (db.collection as jest.Mock).mockReturnValue({
+      where: jest.fn().mockReturnValue({
+        limit: jest.fn().mockReturnValue({
+          get: jest.fn().mockResolvedValue({
+            empty: false,
+            docs: [{ data: () => ({ tenantId: "tenant_abc", expiresAt: null }) }],
+          }),
+        }),
+      }),
+    });
+    mockGetPublicStatus.mockResolvedValue({ connected: true, environment: "sandbox" });
+    tenantHasCapability.mockResolvedValueOnce(false);
+
+    const { res, status } = makeRes();
+    await getPaymentConfig(makeReq({ params: { token: "valid_token" } }), res);
+    expect(status).toHaveBeenCalledWith(422);
+    expect(tenantHasCapability).toHaveBeenCalledWith("tenant_abc", "onlinePayments");
   });
 
   it("returns 422 when Asaas not connected", async () => {

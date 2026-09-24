@@ -23,7 +23,14 @@ export interface SeedPlanTenant {
   email: string;
   name: string;
   /** Add-ons ativos na coleção `addons`. */
-  addons?: Array<"financial" | "crm" | "pdf_editor_full" | "pdf_editor_partial">;
+  addons?: Array<
+    | "financial"
+    | "crm"
+    | "pdf_editor_full"
+    | "pdf_editor_partial"
+    | "fiscal"
+    | "online_payments"
+  >;
 }
 
 export const PLAN_STARTER: SeedPlanTenant = {
@@ -59,11 +66,25 @@ export const PLAN_STARTER_ADDON: SeedPlanTenant = {
   addons: ["financial"],
 };
 
+/**
+ * Pro que comprou os add-ons de Notas Fiscais e Pagamento Online: os dois
+ * módulos que deixaram de vir no plano em 2026-09 e passaram a ser vendidos.
+ */
+export const PLAN_PRO_ADDONS: SeedPlanTenant = {
+  tenantId: "tenant-plan-pro-addons",
+  tier: "pro",
+  uid: "user-plan-pro-addons",
+  email: "pro-addons@plans.test",
+  name: "Master Pro com Add-ons",
+  addons: ["fiscal", "online_payments"],
+};
+
 export const PLAN_TENANTS = [
   PLAN_STARTER,
   PLAN_PRO,
   PLAN_ENTERPRISE,
   PLAN_STARTER_ADDON,
+  PLAN_PRO_ADDONS,
 ];
 
 export const PLAN_PASSWORD = PASSWORD;

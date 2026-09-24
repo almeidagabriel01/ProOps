@@ -50,7 +50,7 @@ Runs in parallel on every push to non-main branches:
 - `type-check` — TypeScript on frontend and functions (reusable)
 - `lint` — ESLint on frontend and functions (reusable)
 - `security-audit` — `npm audit --audit-level=critical` on both
-- `firestore-rules` — Jest security rules with Firestore emulator (reusable)
+- `firestore-rules` — Jest security rules with Firestore **and Storage** emulators (reusable); `storage-quota.test.ts` cobre a leitura cross-service
 - `push-gate` — final job that fails if any job above failed
 
 ## Test Suite Pipeline (`test-suite.yml`)
@@ -309,11 +309,31 @@ Do NOT add `push-gate` (push-checks.yml) as a required status check for PRs — 
 
 ## Auto-Deploy
 
-`deploy-functions.yml` triggers when push has changes in `apps/functions/`, `firestore.rules`, or `firebase.json`:
+`deploy-functions.yml` triggers when push has changes in `apps/functions/`, `firestore.rules`, `storage.rules`, or `firebase.json`:
 - Push to `develop` → deploy to `erp-softcode` (environment: **staging**)
 - Push to `main` → deploy to `erp-softcode-prod` (environment: **production**)
 
 Frontend (Next.js) is deployed automatically by Vercel — no workflow needed.
+
+### `storage.rules` entra no deploy (desde 2026-09)
+
+Até 2026-09 nenhum script nem workflow publicava `firebase/storage.rules`
+(`--only functions,firestore:rules,firestore:indexes`). Dev tinha as rules do
+repositório porque alguém as publicou à mão; **produção rodava uma versão de
+06/01/2026 em que qualquer usuário logado lia, gravava e apagava arquivo de
+qualquer empresa**. Os três deploys agora incluem `storage`.
+
+**Pré-requisito por projeto, uma vez só:** as rules leem o Firestore
+(`firestore.get`/`exists`, teto de armazenamento), e isso exige o papel
+`roles/firebaserules.firestoreServiceAgent` para o agente do Storage. A CLI só
+concede em modo INTERATIVO (pergunta no `npm run deploy:*`); no CI
+(`nonInteractive`) ela pula a concessão em silêncio, e sem o papel a leitura
+falha e a regra **nega todo upload**. Conferir antes de um deploy novo:
+
+```bash
+gcloud projects get-iam-policy <projeto> --flatten="bindings[].members" --filter="bindings.role:roles/firebaserules.firestoreServiceAgent" --format="value(bindings.members)"
+# esperado: serviceAccount:service-<numero>@gcp-sa-firebasestorage.iam.gserviceaccount.com
+```
 
 ## GitHub Secrets
 

@@ -95,6 +95,13 @@ describe("isDriveConnected", () => {
     await expect(isDriveConnected("t1")).resolves.toBe(false);
   });
 
+  it("e falso para quem perdeu o Drive no plano, mesmo conectado", async () => {
+    // Downgrade para o Starter sem desconectar: a fila seguia entregando.
+    tenantHasCapability.mockResolvedValue(false);
+    await expect(isDriveConnected("t1")).resolves.toBe(false);
+    expect(tenantHasCapability).toHaveBeenCalledWith("t1", "driveSync");
+  });
+
   it("falha de leitura responde verdadeiro, para nao perder a entrega", async () => {
     getDriveIntegration.mockRejectedValue(new Error("firestore fora do ar"));
     await expect(isDriveConnected("t1")).resolves.toBe(true);
@@ -196,6 +203,20 @@ describe("syncProposalToDrive", () => {
         fileName: "0018926SP - Automação.pdf",
       }),
     );
+  });
+
+  it("nao entrega job antigo de quem perdeu o Drive no plano", async () => {
+    tenantHasCapability.mockResolvedValue(false);
+
+    const result = await syncProposalToDrive({
+      tenantId: "t1",
+      proposalId: "p1",
+      proposalData: PROPOSTA,
+    });
+
+    expect(result).toEqual({ status: "skipped", reason: "sem_plano" });
+    expect(getOrGenerateProposalPdfBuffer).not.toHaveBeenCalled();
+    expect(uploadProposalPdf).not.toHaveBeenCalled();
   });
 
   it("sai calado quando o tenant nao ligou o Drive", async () => {

@@ -4,7 +4,6 @@ import {
   doc,
   getDocs,
   getDoc,
-  addDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -225,47 +224,24 @@ export const SpreadsheetService = {
         sheetData,
         rest.name,
       );
-      try {
-        const response = await callApi<{ id?: string; spreadsheetId?: string }>(
-          "/v1/spreadsheets",
-          "POST",
-          {
-            ...rest,
-            tenantId,
-            dataJson,
-            dataFormat,
-          },
-        );
-        const createdId = response.id || response.spreadsheetId;
-        if (!createdId) {
-          throw new Error("Spreadsheet API response missing id");
-        }
-        return createdId;
-      } catch (apiError) {
-        // Non-production fallback keeps local preview/dev productive.
-        // Recusa de permissao (inclusive o modo somente leitura do "Acessar
-        // Painel") nao e falha de infraestrutura: gravar direto contornaria a regra.
-        if (
-          process.env.NODE_ENV === "production" ||
-          (apiError instanceof ApiError && apiError.status < 500)
-        ) {
-          throw apiError;
-        }
-        console.warn(
-          "Falling back to direct Firestore spreadsheet create in non-production:",
-          apiError,
-        );
+      // Só pelo backend: é ele que aplica o teto de planilhas do plano, e as
+      // rules fecham a criação direta. O fallback de gravar no Firestore que
+      // existia aqui contornava o limite.
+      const response = await callApi<{ id?: string; spreadsheetId?: string }>(
+        "/v1/spreadsheets",
+        "POST",
+        {
+          ...rest,
+          tenantId,
+          dataJson,
+          dataFormat,
+        },
+      );
+      const createdId = response.id || response.spreadsheetId;
+      if (!createdId) {
+        throw new Error("Spreadsheet API response missing id");
       }
-
-      const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-        ...rest,
-        tenantId,
-        dataJson,
-        dataFormat,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      return docRef.id;
+      return createdId;
     } catch (error) {
       console.error("Error creating spreadsheet:", error);
       throw error;

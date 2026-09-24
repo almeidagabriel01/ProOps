@@ -126,7 +126,7 @@ export const NICHE_LANDING_CONFIG: Record<
       {
         question: "Qual o custo para começar?",
         answer:
-          "Há um plano gratuito para você testar. Os planos pagos começam com preço acessível para pequenas empresas e integradores independentes.",
+          "Você cria uma conta gratuita e navega a ProOps em modo demonstração antes de assinar. Os planos pagos começam com preço acessível para pequenas empresas e integradores independentes.",
       },
     ],
     cta: {
@@ -255,7 +255,7 @@ export const NICHE_LANDING_CONFIG: Record<
       {
         question: "Qual o custo para começar?",
         answer:
-          "Há um plano gratuito para testar. Os planos pagos têm preço acessível para lojas de todos os portes.",
+          "Você cria uma conta gratuita e navega a ProOps em modo demonstração antes de assinar. Os planos pagos têm preço acessível para lojas de todos os portes.",
       },
     ],
     cta: {

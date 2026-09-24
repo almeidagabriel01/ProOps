@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { tenantHasCapability } from "../../lib/tenant-capabilities";
 import { SharedTransactionService } from "../services/shared-transactions.service";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
@@ -301,7 +302,11 @@ export const getSharedTransaction = async (req: Request, res: Response) => {
             logoUrl: tenantData.logoUrl,
             primaryColor: tenantData.primaryColor,
             mercadoPagoEnabled: tenantData.mercadoPagoEnabled ?? false,
-            asaasEnabled: tenantData.asaasEnabled ?? false,
+            // Sem a capacidade o botao de pagar some do link: quem perdeu o
+            // pagamento online nao pode seguir cobrando por links antigos.
+            asaasEnabled:
+              (tenantData.asaasEnabled ?? false) &&
+              (await tenantHasCapability(sharedTransaction.tenantId, "onlinePayments")),
           }
         : null,
       client: clientPayload,

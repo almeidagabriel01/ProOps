@@ -64,6 +64,19 @@ service firebase.storage {
              || request.resource.contentType == 'application/pdf';
     }
 
+    // Teto de armazenamento do plano. O upload vai do navegador direto para ca,
+    // sem passar pelo backend, entao e aqui que ele e barrado. As rules nao
+    // conhecem plano: quem calcula e o backend, que grava `overQuota` a cada
+    // arquivo e a cada troca de plano. Sem doc = empresa sem arquivo contado.
+    // Apagar continua liberado (regra `delete` propria), que e o caminho para
+    // voltar ao teto.
+    function storageQuotaAvailable(tenantId) {
+      let usagePath = /databases/(default)/documents/tenant_storage_usage/$(tenantId);
+      return isSuperAdmin()
+             || !firestore.exists(usagePath)
+             || firestore.get(usagePath).data.get('overQuota', false) != true;
+    }
+
     function canReadTenantPath(tenantId) {
       return isSuperAdmin() || belongsToTenant(tenantId);
     }
@@ -77,7 +90,8 @@ service firebase.storage {
                    && canReadTenantPath(tenantId)
                    && hasTenantWriteRole()
                    && isValidImageFileSize()
-                   && isAllowedImageType();
+                   && isAllowedImageType()
+                   && storageQuotaAvailable(tenantId);
       allow delete: if isAllowedImageFolder(folder)
                     && canReadTenantPath(tenantId)
                     && hasTenantWriteRole();
@@ -89,7 +103,8 @@ service firebase.storage {
                    && canReadTenantPath(tenantId)
                    && hasTenantWriteRole()
                    && isValidImageFileSize()
-                   && isAllowedImageType();
+                   && isAllowedImageType()
+                   && storageQuotaAvailable(tenantId);
       allow delete: if isAllowedImageFolder(folder)
                     && canReadTenantPath(tenantId)
                     && hasTenantWriteRole();
@@ -102,7 +117,8 @@ service firebase.storage {
       allow write: if canReadTenantPath(tenantId)
                    && hasTenantWriteRole()
                    && isValidAttachmentFileSize()
-                   && isAllowedAttachmentType();
+                   && isAllowedAttachmentType()
+                   && storageQuotaAvailable(tenantId);
       allow delete: if canReadTenantPath(tenantId) && hasTenantWriteRole();
     }
 

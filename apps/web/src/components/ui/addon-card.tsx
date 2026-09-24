@@ -3,7 +3,19 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AddonDefinition } from "@/types";
-import { DollarSign, FileEdit, Layout, Palette, Users, Check, Crown, Calendar } from "lucide-react";
+import {
+  DollarSign,
+  FileEdit,
+  Layout,
+  Palette,
+  Users,
+  Check,
+  Crown,
+  Calendar,
+  Kanban,
+  Receipt,
+  CreditCard,
+} from "lucide-react";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/utils/format";
@@ -24,6 +36,8 @@ interface AddonCardProps {
   isIncluded?: boolean; // New prop
   // Read-only (demo/free) accounts can browse add-ons but not buy/cancel them.
   isReadOnly?: boolean;
+  /** Pré-requisito que falta (ex.: pagamento online no Starter pede o Financeiro). */
+  requirementMessage?: string;
 }
 
 // Map icon names to Lucide components
@@ -33,6 +47,9 @@ const iconMap: Record<string, typeof DollarSign> = {
   Layout,
   Palette,
   Users,
+  Kanban,
+  Receipt,
+  CreditCard,
 };
 
 export function AddonCard({
@@ -47,6 +64,7 @@ export function AddonCard({
   cancelDate,
   isIncluded = false,
   isReadOnly = false,
+  requirementMessage,
 }: AddonCardProps) {
   const IconComponent = iconMap[addon.icon] || DollarSign;
 
@@ -160,22 +178,34 @@ export function AddonCard({
             Incluso no seu plano
           </Button>
         ) : (
-          <Button
-            size="sm"
-            onClick={onPurchase}
-            disabled={isLoading || monthlyPrice === null || isReadOnly}
-            className="w-full gap-2"
-            style={{ backgroundColor: primaryColor }}
-          >
-            {isLoading ? (
-              <Loader size="sm" />
-            ) : (
-              <>
-                <Crown className="w-4 h-4" />
-                {isReadOnly ? "Assine para contratar" : "Adicionar"}
-              </>
+          <>
+            {requirementMessage && (
+              <p className="mb-2 text-center text-xs text-muted-foreground">
+                {requirementMessage}
+              </p>
             )}
-          </Button>
+            <Button
+              size="sm"
+              onClick={onPurchase}
+              disabled={
+                isLoading ||
+                monthlyPrice === null ||
+                isReadOnly ||
+                Boolean(requirementMessage)
+              }
+              className="w-full gap-2"
+              style={{ backgroundColor: primaryColor }}
+            >
+              {isLoading ? (
+                <Loader size="sm" />
+              ) : (
+                <>
+                  <Crown className="w-4 h-4" />
+                  {isReadOnly ? "Assine para contratar" : "Adicionar"}
+                </>
+              )}
+            </Button>
+          </>
         )}
       </div>
     </Card>

@@ -29,7 +29,10 @@ export interface FiscalIssuePreview {
     | "FISCAL_NAO_CONFIGURADO"
     | "FISCAL_NAO_PRONTO"
     | "FISCAL_INCOMPLETO"
+    | "FISCAL_COTA_MENSAL_ATINGIDA"
     | "PROPOSTA_SEM_CLIENTE";
+  /** Franquia do mês. `limit: -1` = ilimitado. */
+  cota?: { limit: number; used: number };
   gaps: FiscalGap[];
   documentos: Array<{ type: "nfe" | "nfse"; valorTotal: number }>;
   /** Só autorizadas ou em processamento — as outras não são documento válido. */
@@ -280,6 +283,9 @@ export const FiscalService = {
   }) =>
     callApi<{ suggestions: NcmSuggestion[] }>("/v1/fiscal/ncm-suggestions", "POST", payload),
 
+  /** Franquia do mês. `limit: -1` = ilimitado (Enterprise). */
+  getInvoiceQuota: () =>
+    callApi<{ limit: number; used: number }>("/v1/fiscal/invoices/quota", "GET"),
   listInvoices: (params?: { limit?: number; status?: FiscalInvoiceStatus }) => {
     const query = new URLSearchParams();
     if (params?.limit) query.set("limit", String(params.limit));

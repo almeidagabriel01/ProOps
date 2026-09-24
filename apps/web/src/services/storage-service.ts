@@ -1,4 +1,5 @@
-import { storage } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import {
   ref,
   uploadBytes,
@@ -73,6 +74,36 @@ function getAttachmentFileName(file: File): string {
   return `${timestamp}-${randomSuffix}.${extension || "bin"}`;
 }
 
+/** Uso de armazenamento da empresa (mantido pelos gatilhos de Storage). */
+export async function getStorageUsage(
+  tenantId: string,
+): Promise<{ storageMB: number; overQuota: boolean }> {
+  const snap = await getDoc(doc(db, "tenant_storage_usage", tenantId));
+  const bytes = Number(snap.get("storageBytes")) || 0;
+  return {
+    storageMB: bytes / (1024 * 1024),
+    overQuota: snap.get("overQuota") === true,
+  };
+}
+
+export const STORAGE_QUOTA_MESSAGE =
+  "O armazenamento do seu plano está cheio. Apague arquivos que não usa mais ou faça upgrade do plano.";
+
+/**
+ * Quem barra é a storage.rules; isto só troca o "permissão negada" genérico
+ * dela por um motivo que a pessoa entende. Falha de leitura segue para o
+ * upload, e a regra decide.
+ */
+async function assertStorageAvailable(tenantId: string): Promise<void> {
+  let overQuota = false;
+  try {
+    overQuota = (await getStorageUsage(tenantId)).overQuota;
+  } catch {
+    return;
+  }
+  if (overQuota) throw new Error(STORAGE_QUOTA_MESSAGE);
+}
+
 export async function uploadImage(
   file: File,
   tenantId: string,
@@ -80,6 +111,7 @@ export async function uploadImage(
   entityId?: string,
 ): Promise<UploadResult> {
   validateFile(file);
+  await assertStorageAvailable(tenantId);
 
   const fileName = generateFileName(file.name);
   const path = entityId
@@ -107,6 +139,7 @@ export async function uploadBase64Image(
   folder: "products" | "services" | "proposals",
   entityId?: string,
 ): Promise<UploadResult> {
+  await assertStorageAvailable(tenantId);
   const isDataUrl = base64Data.startsWith("data:");
 
   let contentType = "image/png";
@@ -176,6 +209,7 @@ export async function uploadProposalAttachment(
   proposalId: string,
 ): Promise<UploadResult> {
   validateAttachmentFile(file);
+  await assertStorageAvailable(tenantId);
 
   const fileName = getAttachmentFileName(file);
   const path = `tenants/${tenantId}/proposals/${proposalId}/attachments/${fileName}`;

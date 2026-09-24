@@ -1,4 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { refreshStorageQuotaFlag } from "../lib/tenant-storage-usage";
 import { getStripe, getWebhookSecret } from "./stripeConfig";
 import {
   updateUserPlan,
@@ -45,6 +46,7 @@ import { logger } from "../lib/logger";
 import { applyBillingClaimsToTenantUsers } from "../lib/billing-claims";
 import { invalidateBillingCache } from "../api/middleware/require-active-subscription";
 import type { SyncTenantPlanBillingSnapshotParams } from "../shared/billing-types";
+import { isKnownAddonId } from "../shared/addon-definitions";
 import { notifyInternalLifecycle } from "../services/email/internal-notify";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -156,13 +158,7 @@ async function demoteIfPureTrialChurn(
 }
 
 function isSupportedAddonType(value: unknown): value is AddonType {
-  const normalized = String(value || "").trim();
-  return [
-    "financial",
-    "pdf_editor_partial",
-    "pdf_editor_full",
-    "crm",
-  ].includes(normalized);
+  return isKnownAddonId(String(value || "").trim());
 }
 
 export function buildTenantSubscriptionLifecyclePatch(input: {
@@ -345,6 +341,18 @@ export async function syncTenantPlanBillingSnapshot(
   clearTenantPlanCache(tenantId);
   const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
   await tenantRef.update({ whatsappEnabled: allowsWhatsApp });
+
+  // O teto de armazenamento muda com o plano, e quem barra o upload e a
+  // storage.rules lendo a flag. Sem recalcular aqui, quem faz upgrade seguiria
+  // barrado ate apagar algum arquivo. Best-effort: a troca de plano ja valeu.
+  try {
+    await refreshStorageQuotaFlag(tenantId);
+  } catch (error) {
+    logger.warn("storage_quota_flag_refresh_failed", {
+      tenantId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 function getWebhookClientIp(req: any): string {

@@ -48,6 +48,7 @@ export function useIssueInvoice(onIssued?: () => void) {
           code?: string;
           gaps?: FiscalGap[];
           message?: string;
+          cota?: { used: number; limit: number };
         } | null;
 
         // Lacunas viram checklist, não um toast de erro que some em 4 segundos.
@@ -60,6 +61,15 @@ export function useIssueInvoice(onIssued?: () => void) {
           toast.error("Emissão de notas ainda não configurada", {
             description:
               "Configure os dados fiscais da sua empresa para começar a emitir.",
+          });
+          return;
+        }
+
+        if (payload?.code === "FISCAL_COTA_MENSAL_ATINGIDA") {
+          toast.error("Limite de notas do mês atingido", {
+            description: payload.cota
+              ? `Você já emitiu ${payload.cota.used} de ${payload.cota.limit} notas neste mês. O limite renova no dia 1; para emitir sem limite, conheça o plano Enterprise.`
+              : "O limite renova no dia 1; para emitir sem limite, conheça o plano Enterprise.",
           });
           return;
         }
