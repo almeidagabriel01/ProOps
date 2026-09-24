@@ -301,6 +301,18 @@ aplicativo, também `noindex`.
       `app.proops.com.br`, cada uma com o próprio sitemap submetido. A ferramenta de "mudança de endereço" **não se aplica**:
       ela é para migração de domínio inteiro, e isto é uma divisão.
 
+      Numa propriedade de DOMÍNIO (`proops.com.br`, verificada por DNS) os três
+      sitemaps podem ser enviados na mesma propriedade. Depois, "Inspeção de
+      URL → Solicitar indexação" nas raízes dos três hosts, nas páginas de nicho
+      do ERP e nas quatro da empresa.
+
+      > Três dias depois da virada o relatório mostrava as páginas públicas do ERP
+      > como "alternativa com canônica adequada": elas declaravam canonical
+      > relativo, resolvido no apex, que devolve 301 para o ERP. Corrigido em
+      > 2026-09-24 (ver `apps/web/src/lib/CLAUDE.md`, seção Site). O resto do
+      > relatório era esperado: `http`/`www` redirecionando, `/login` bloqueado
+      > pelo robots e páginas novas na fila de rastreamento.
+
 ## Rollback
 
 Reverter o commit que trocou a constante. Domínios e DNS podem ficar no ar sem

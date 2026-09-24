@@ -8,7 +8,13 @@ import {
   rotasDoSitemap,
   sitemapAbsoluto,
 } from "../host-seo";
-import { APEX_SURFACE, APEX_URL, SITE_URLS } from "../surfaces";
+import {
+  APEX_SURFACE,
+  APEX_URL,
+  SITE_URLS,
+  resolveApexRedirect,
+  resolveSurface,
+} from "../surfaces";
 
 /**
  * The SEO half of the host policy.
@@ -75,6 +81,32 @@ describe("canonical", () => {
    * canonical do ERP para lá pediria ao Google para mudar o ranking para um
    * host que está prestes a trocar de conteúdo.
    */
+  /**
+   * O laço que tirou o ERP do índice: `erp.proops.com.br/decoracao` declarava
+   * canonical em `proops.com.br/decoracao`, que devolve 301 para o ERP. Uma URL
+   * de sitemap que não se declara canônica pede ao Google para indexar OUTRA,
+   * e se a outra redireciona de volta, nenhuma das duas entra.
+   */
+  it("toda URL de sitemap é canônica de si mesma", () => {
+    for (const surface of ["institucional", "erp", "app"] as const) {
+      for (const rota of sitemapAbsoluto(surface)) {
+        expect(canonicalFor(surface, rota.path), rota.url).toBe(rota.url);
+      }
+    }
+  });
+
+  it("nenhuma URL de sitemap é redirecionada pelo host que a publica", () => {
+    for (const surface of ["institucional", "erp", "app"] as const) {
+      for (const rota of sitemapAbsoluto(surface)) {
+        const host = new URL(rota.url).host;
+        expect(
+          resolveApexRedirect(resolveSurface(host), rota.path),
+          rota.url,
+        ).toBeNull();
+      }
+    }
+  });
+
   it("mantém a superfície do apex canônica no apex", () => {
     expect(origemDe(APEX_SURFACE)).toBe(APEX_URL);
     expect(canonicalFor(APEX_SURFACE, "/")).toBe(`${APEX_URL}/`);

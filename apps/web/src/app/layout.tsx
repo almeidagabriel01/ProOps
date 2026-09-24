@@ -147,7 +147,6 @@ export const metadata: Metadata = {
     type: "website",
     locale: "pt_BR",
     siteName: "ProOps",
-    url: "/",
     images: [
       {
         url: "/opengraph-image.png",
@@ -161,7 +160,10 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     images: ["/opengraph-image.png"],
   },
-  alternates: { canonical: "/" },
+  // Sem canonical padrão. Um `"/"` aqui resolvia contra o `metadataBase` (o
+  // apex) e era herdado por toda página sem canonical própria: no ERP, cada
+  // uma se declarava cópia da página da empresa. A página indexável declara o
+  // seu por `canonicalFor`; guard em `__tests__/canonical-por-rota.test.ts`.
   verification: {
     google: process.env.NEXT_PUBLIC_SEARCH_CONSOLE_VERIFICATION,
   },

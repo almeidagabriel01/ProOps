@@ -6,6 +6,7 @@ import {
 } from "@/components/seo/json-ld";
 import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
 import { NicheLandingPage } from "@/components/landing/niche/niche-landing-page";
+import { canonicalFor } from "@/lib/site/host-seo";
 
 export const metadata: Metadata = {
   title: "ERP para Decoração: cortinas, persianas e papéis de parede",
@@ -18,12 +19,12 @@ export const metadata: Metadata = {
     "software proposta decoração",
     "sistema decoração interiores",
   ],
-  alternates: { canonical: "/decoracao" },
+  alternates: { canonical: canonicalFor("erp", "/decoracao") },
   openGraph: {
     title: "ERP para Decoração | ProOps",
     description:
       "Sistema completo para lojas de decoração: propostas com medidas, CRM, financeiro e WhatsApp.",
-    url: "/decoracao",
+    url: canonicalFor("erp", "/decoracao"),
   },
 };
 

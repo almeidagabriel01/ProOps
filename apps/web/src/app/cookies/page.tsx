@@ -4,7 +4,7 @@ import { canonicalLegal } from "@/lib/site/host-seo";
 import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata: Metadata = {
-  title: "Política de Cookies | ProOps",
+  title: "Política de Cookies",
   description:
     "Saiba quais cookies a ProOps utiliza, para quais finalidades e como você pode gerenciá-los.",
   alternates: { canonical: canonicalLegal("/cookies") },

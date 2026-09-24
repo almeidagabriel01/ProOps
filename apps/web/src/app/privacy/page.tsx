@@ -4,7 +4,7 @@ import { canonicalLegal } from "@/lib/site/host-seo";
 import { LegalPage } from "@/components/legal/legal-page";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidade | ProOps",
+  title: "Política de Privacidade",
   description:
     "Política de Privacidade da ProOps, incluindo o tratamento de dados pessoais e o uso da integração com Google Agenda.",
   alternates: { canonical: canonicalLegal("/privacy") },

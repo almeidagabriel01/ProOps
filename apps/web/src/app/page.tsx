@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import {
-  OrganizationJsonLd,
   WebSiteJsonLd,
   SoftwareApplicationJsonLd,
   FAQPageJsonLd,
@@ -30,7 +29,6 @@ export const metadata: Metadata = {
 export default function Page() {
   return (
     <>
-      <OrganizationJsonLd />
       <WebSiteJsonLd />
       <SoftwareApplicationJsonLd />
       <FAQPageJsonLd items={FAQS} />
