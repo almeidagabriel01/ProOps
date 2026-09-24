@@ -8,7 +8,9 @@ import { auditAdminAction } from "../../lib/admin-audit";
 import { logger } from "../../lib/logger";
 import {
   ADDON_DEFINITIONS_BACKEND,
+  isAddonAvailableForTier,
   isKnownAddonId,
+  missingRequiredAddons,
 } from "../../shared/addon-definitions";
 import {
   CAPABILITY_LABELS,
@@ -95,6 +97,17 @@ export const grantCourtesyAddon = async (req: Request, res: Response) => {
       await assertTenantExists(tenantId);
     } catch {
       return res.status(404).json({ message: "Empresa não encontrada." });
+    }
+
+    // Mesmas regras da compra. So a tela barrava isto, entao uma chamada direta
+    // dava cortesia de pagamento online a um Starter sem financeiro.
+    clearTenantPlanCache(tenantId);
+    const profile = await resolveTenantCapabilities(tenantId);
+    if (!isAddonAvailableForTier(addonId, profile.tier)) {
+      return res.status(400).json({ message: "Este add-on não é vendido para o plano da empresa." });
+    }
+    if (missingRequiredAddons(addonId, profile.tier, profile.activeAddons).length > 0) {
+      return res.status(400).json({ message: "Conceda antes o Módulo Financeiro." });
     }
 
     const ref = db.collection("addons").doc(addonDocId(tenantId, addonId));

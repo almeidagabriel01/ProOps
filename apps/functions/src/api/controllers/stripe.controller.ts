@@ -37,7 +37,12 @@ import {
 import {
   isAddonAvailableForTier,
   isKnownAddonId,
+  missingRequiredAddons,
 } from "../../shared/addon-definitions";
+import {
+  clearTenantCapabilitiesCache,
+  resolveTenantCapabilities,
+} from "../../lib/tenant-capabilities";
 import { logger } from "../../lib/logger";
 import { reserveCheckout, clearCheckoutReservation } from "../../billing";
 import {
@@ -874,6 +879,21 @@ export const createAddonCheckoutSession = async (
       return res.status(403).json({
         message: "Este add-on não está disponível para o seu plano atual.",
         code: "ADDON_NOT_AVAILABLE_FOR_TIER",
+      });
+    }
+
+    // Pagamento online no Starter vive dentro do financeiro: vender sem ele
+    // entregaria um modulo que o cliente nao consegue abrir. Cache limpo antes
+    // porque o pre-requisito pode ter sido comprado segundos atras.
+    clearTenantCapabilitiesCache(tenantId);
+    const { activeAddons } = await resolveTenantCapabilities(tenantId);
+    const missingAddons = missingRequiredAddons(addonId, tenantTier, activeAddons);
+    if (missingAddons.length > 0) {
+      return res.status(403).json({
+        message:
+          "Para contratar este add-on, contrate antes o Módulo Financeiro.",
+        code: "ADDON_REQUIRES_ADDON",
+        requiredAddons: missingAddons,
       });
     }
 

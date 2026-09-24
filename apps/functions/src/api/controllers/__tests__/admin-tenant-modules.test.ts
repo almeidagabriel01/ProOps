@@ -29,7 +29,10 @@ const clearTenantPlanCache = jest.fn();
 jest.mock("../../../lib/tenant-plan-policy", () => ({
   clearTenantPlanCache: (id: string) => clearTenantPlanCache(id),
 }));
-jest.mock("../../../lib/tenant-capabilities", () => ({ resolveTenantCapabilities: jest.fn() }));
+let profile: { tier: string; activeAddons: string[] } = { tier: "starter", activeAddons: [] };
+jest.mock("../../../lib/tenant-capabilities", () => ({
+  resolveTenantCapabilities: jest.fn(async () => profile),
+}));
 const auditAdminAction = jest.fn(async () => undefined);
 jest.mock("../../../lib/admin-audit", () => ({
   auditAdminAction: (...a: unknown[]) => auditAdminAction(...(a as [])),
@@ -55,6 +58,7 @@ async function call(handler: typeof grantCourtesyAddon, addonId: string) {
 beforeEach(() => {
   jest.clearAllMocks();
   addonDoc = null;
+  profile = { tier: "starter", activeAddons: [] };
   sets.length = 0;
   deletes.length = 0;
 });
@@ -75,6 +79,30 @@ describe("grantCourtesyAddon", () => {
     const res = await call(grantCourtesyAddon, "financial");
     expect(res.status).toHaveBeenCalledWith(409);
     expect(sets).toHaveLength(0);
+  });
+
+  it("recusa add-on que o plano da empresa nao compra", async () => {
+    profile = { tier: "enterprise", activeAddons: [] };
+    const res = await call(grantCourtesyAddon, "fiscal");
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(sets).toHaveLength(0);
+  });
+
+  it("pagamento online no Starter exige o financeiro antes", async () => {
+    const res = await call(grantCourtesyAddon, "online_payments");
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(sets).toHaveLength(0);
+
+    profile = { tier: "starter", activeAddons: ["financial"] };
+    const ok = await call(grantCourtesyAddon, "online_payments");
+    expect(ok.status).not.toHaveBeenCalled();
+    expect(sets[0].id).toBe("t1_online_payments");
+  });
+
+  it("pagamento online no Pro nao exige nada (o financeiro vem no plano)", async () => {
+    profile = { tier: "pro", activeAddons: [] };
+    const res = await call(grantCourtesyAddon, "online_payments");
+    expect(res.status).not.toHaveBeenCalled();
   });
 
   it("add-on desconhecido da 400", async () => {
