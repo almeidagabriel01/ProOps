@@ -5,6 +5,10 @@
  * All Firestore and Asaas HTTP calls are mocked.
  */
 
+const tenantHasCapability = jest.fn(async (_tenantId: string, _cap: string) => true);
+jest.mock("../../../lib/tenant-capabilities", () => ({
+  tenantHasCapability: (tenantId: string, cap: string) => tenantHasCapability(tenantId, cap),
+}));
 jest.mock("../../../lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
@@ -148,6 +152,17 @@ describe("TransactionPaymentService.createPayment — subconta approval guard", 
       if (name === "payment_attempts") return attemptsCol;
       return makeMockCollection();
     });
+  });
+
+  test("recusa cobrar quando o tenant perdeu o pagamento online, antes de falar com o Asaas", async () => {
+    mockGetAsaasData.mockResolvedValue({ ...baseAsaasData });
+    tenantHasCapability.mockResolvedValueOnce(false);
+
+    await expect(
+      TransactionPaymentService.createPayment({ token: "tok", method: "pix" }),
+    ).rejects.toThrow("ASAAS_NOT_CONFIGURED");
+    expect(tenantHasCapability).toHaveBeenCalledWith("tenant-1", "onlinePayments");
+    expect(mockRefreshAccountStatus).not.toHaveBeenCalled();
   });
 
   test("throws AsaasAccountNotApprovedError when accountStatus.general is PENDING", async () => {
