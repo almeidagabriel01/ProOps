@@ -12,30 +12,26 @@ import { origemDe } from "@/lib/site/host-seo";
  */
 const BASE = origemDe("erp");
 
-export function OrganizationJsonLd() {
-  const data = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "ProOps",
-    // A EMPRESA mora no apex, antes e depois da virada. Só os produtos se
-    // mudam de endereço.
-    url: APEX_URL,
-    logo: `${APEX_URL}/icons/icon-512.png`,
-    sameAs: [],
-    contactPoint: {
-      "@type": "ContactPoint",
-      contactType: "customer support",
-      availableLanguage: "Portuguese",
-    },
-  };
+/**
+ * O nó da empresa, declarado uma vez só, na página institucional
+ * (`InstitucionalJsonLd`). Os produtos o citam por este `@id` em vez de repetir
+ * um `Organization` próprio: a landing do ERP chegou a publicar um segundo, sem
+ * `sameAs` e sem `owns`, e duas organizações com o mesmo nome em dois hosts é
+ * justamente o sinal que impede o Google de ver os três sites como uma empresa.
+ */
+export const ORGANIZACAO_ID = `${APEX_URL}/#organization`;
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
-  );
-}
+/**
+ * A referência à empresa para páginas FORA do apex. Leva nome e URL junto do
+ * `@id` porque um `@id` sozinho só é resolvido dentro do mesmo documento: numa
+ * página do ERP ou do app ele seria um nó vazio.
+ */
+export const ORGANIZACAO_REF = {
+  "@type": "Organization",
+  "@id": ORGANIZACAO_ID,
+  name: "ProOps",
+  url: `${APEX_URL}/`,
+} as const;
 
 interface SoftwareApplicationJsonLdProps {
   niche?: "automacao_residencial" | "cortinas";
@@ -61,16 +57,12 @@ export function SoftwareApplicationJsonLd({
     operatingSystem: "Web",
     url: BASE,
     description,
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "BRL",
-      availability: "https://schema.org/InStock",
-    },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8",
-      reviewCount: "50",
-    },
+    // Sem `aggregateRating`: a nota que estava aqui (4,8 com 50 avaliações) não
+    // existia. Nota inventada em dado estruturado é violação de política do
+    // Google, com ação manual que derruba os rich results do domínio inteiro.
+    // Sem `offers` também: um `Offer` sem `price` é erro no Rich Results Test, e
+    // o preço do ERP vem da Stripe em tempo de execução.
+    publisher: ORGANIZACAO_REF,
   };
 
   return (
@@ -81,20 +73,23 @@ export function SoftwareApplicationJsonLd({
   );
 }
 
+/**
+ * O `WebSite` do ERP, com nome próprio.
+ *
+ * "ProOps", sem qualificador, é o nome do site do APEX (`InstitucionalJsonLd`),
+ * que é quem deve aparecer como a ProOps num resultado de busca. Aqui já houve
+ * uma `SearchAction` com `?q={search_term_string}`: o site não tem busca, o
+ * Google aposentou a caixa de busca de sitelinks em 2024, e o rastreador
+ * visitava a URL literal do modelo, que aparecia no Search Console.
+ */
 export function WebSiteJsonLd() {
   const data = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "ProOps",
-    url: BASE,
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${BASE}/?q={search_term_string}`,
-      },
-      "query-input": "required name=search_term_string",
-    },
+    name: "ProOps ERP",
+    url: `${BASE}/`,
+    inLanguage: "pt-BR",
+    publisher: ORGANIZACAO_REF,
   };
 
   return (

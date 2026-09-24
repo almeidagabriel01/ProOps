@@ -1,3 +1,4 @@
+import { ORGANIZACAO_REF } from "@/components/seo/json-ld";
 import { APP_NAME } from "@/lib/site/app-brand";
 import { SITE_URLS } from "@/lib/site/surfaces";
 
@@ -56,11 +57,7 @@ export function AplicativoJsonLd() {
       "Importação de extrato em OFX e CSV",
       "Financeiro compartilhado entre pessoas da mesma casa",
     ],
-    publisher: {
-      "@type": "Organization",
-      name: "ProOps",
-      url: SITE_URLS.institucional,
-    },
+    publisher: ORGANIZACAO_REF,
     offers: PLANOS.map((plano) => ({
       "@type": "Offer",
       name: plano.nome,

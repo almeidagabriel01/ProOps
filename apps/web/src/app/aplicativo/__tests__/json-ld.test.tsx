@@ -124,7 +124,12 @@ describe("JSON-LD do aplicativo", () => {
 });
 
 describe("JSON-LD institucional", () => {
-  const data = payload(InstitucionalJsonLd() as never);
+  // Um `@graph` com a empresa e o `WebSite` do apex; os testes daqui são da
+  // empresa. O `WebSite` é coberto em `components/seo/__tests__/json-ld.test.tsx`.
+  const grafo = payload(InstitucionalJsonLd() as never)["@graph"] as Array<
+    Record<string, unknown>
+  >;
+  const data = grafo.find((n) => n["@type"] === "Organization") ?? {};
 
   it("é a Organization, ancorada no apex", () => {
     expect(data["@type"]).toBe("Organization");
