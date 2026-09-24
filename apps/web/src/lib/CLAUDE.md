@@ -73,6 +73,19 @@ lib/
 - `host-seo.ts` deriva sitemap, canonical e robots por host. As páginas legais
   ancoram no apex venham de onde vierem: só a raiz é reescrita, então elas
   respondem 200 nos três domínios.
+- **Canonical e `og:url` são SEMPRE `canonicalFor(superficie, caminho)`, nunca
+  string relativa.** Relativo resolve contra o `metadataBase`, que é o apex. As
+  quatro páginas públicas do ERP declaravam `"/decoracao"` e companhia, e em
+  produção `erp.proops.com.br/decoracao` apontava para `proops.com.br/decoracao`,
+  que devolve 301 para o ERP: um laço, e nenhuma das quatro entrava no índice. O
+  root layout não declara canonical padrão pelo mesmo motivo. Guards:
+  `__tests__/canonical-por-rota.test.ts` (varredura) e
+  `tests/e2e/superficies/canonical-do-sitemap.spec.ts` (HTML servido).
+- **Dado estruturado:** a `Organization` é declarada uma vez, no apex
+  (`InstitucionalJsonLd`, junto do `WebSite` chamado "ProOps", que é de onde o
+  Google tira o nome do site). ERP e app a citam por `ORGANIZACAO_REF`
+  (`components/seo/json-ld.tsx`). Nada de `aggregateRating` sem avaliação real,
+  nem `SearchAction` para busca que não existe.
 - `APEX_OWNED_PATHS` é o que o apex continua servindo depois da virada, e são
   duas metades: `APEX_LEGAL_PATHS` (privacidade, termos, cookies, exclusão) e
   `APEX_COMPANY_PATHS` (as cinco páginas do site da empresa). Separadas porque
