@@ -19,7 +19,7 @@ export const FAQS: FAQ[] = [
   {
     question: "Quais formas de pagamento são aceitas?",
     answer:
-      "A assinatura é paga por cartão de crédito (em até 12x). Já para receber dos seus clientes dentro da plataforma, a integração com o Asaas aceita Pix, boleto e cartão.",
+      "A assinatura é paga por cartão de crédito (em até 12x). Já para receber dos seus clientes dentro da plataforma, o pagamento online pelo Asaas aceita Pix e boleto, direto no link da parcela. Ele vem no plano Enterprise e pode ser contratado como add-on nos demais.",
   },
   {
     question: "O sistema é compatível com a minha contabilidade?",
@@ -29,7 +29,7 @@ export const FAQS: FAQ[] = [
   {
     question: "Qual o limite de usuários?",
     answer:
-      "Depende do plano escolhido. Planos superiores oferecem mais assentos, e você pode adicionar membros extras sob demanda direto pelo painel.",
+      "Depende do plano: o Starter tem 1 usuário, o Profissional tem 2 e o Enterprise não tem limite. Para aumentar a equipe, basta mudar de plano.",
   },
   {
     question: "Meus dados estão seguros? E quanto à LGPD?",

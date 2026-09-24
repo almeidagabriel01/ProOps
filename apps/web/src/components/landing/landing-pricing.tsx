@@ -52,18 +52,21 @@ const ENTERPRISE_EXTRA_FEATURES = [
 const ENTERPRISE_CONTACT_EMAIL = "gestao@proops.com.br";
 
 const FALLBACK_PLANS: PricingCard[] = [
+  // Só aparece se o Stripe não responder. Preços de produção em 2026-09
+  // (o anual é 15% abaixo de 12 mensalidades, que é o que o selo promete).
   {
-    name: "Essencial",
+    name: "Starter",
     tier: "starter",
     description: "Para equipes pequenas validarem o processo comercial.",
     cta: "Começar agora",
     popular: false,
-    prices: { monthly: 49, yearly: 470 },
+    prices: { monthly: 119.9, yearly: 1222.98 },
     features: [
-      "Gestão de propostas",
-      "Cadastro de clientes e produtos",
-      "Exportação de PDF",
-      "Suporte por email",
+      "Crie até 80 propostas por mês",
+      "Cadastre até 120 clientes e 220 produtos",
+      "Até 5 planilhas",
+      "Lia, a assistente de IA: 80 mensagens por mês",
+      "Módulos extras como add-on: Financeiro, CRM, Notas Fiscais e Pagamento Online",
     ],
   },
   {
@@ -72,12 +75,14 @@ const FALLBACK_PLANS: PricingCard[] = [
     description: "Plano recomendado para operação comercial em escala.",
     cta: "Solicitar demonstração",
     popular: true,
-    prices: { monthly: 99, yearly: 950 },
+    prices: { monthly: 179.9, yearly: 1834.98 },
     features: [
-      "Tudo do Essencial",
+      "Propostas, clientes e produtos ilimitados",
       "Financeiro e carteiras",
-      "Editor de PDF avançado",
+      "Até 50 planilhas",
+      "Editor de PDF avançado e cores personalizadas",
       "Agenda sincronizada com o Google Agenda",
+      "Proposta entregue na pasta do cliente no Google Drive",
       "Permissões de equipe",
     ],
   },
@@ -92,6 +97,7 @@ const FALLBACK_PLANS: PricingCard[] = [
       "Tudo do Profissional",
       "CRM Kanban",
       "Emissão de NF-e e NFS-e",
+      "Pagamento online: o cliente paga a parcela por Pix ou boleto no link",
       "WhatsApp integrado para consultas e envio de documentos",
       "Acordo de SLA",
       "Acompanhamento de implantação",

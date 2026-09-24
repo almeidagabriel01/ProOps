@@ -120,6 +120,31 @@ const featuresList: {
     label: "Módulo CRM",
     format: (v) => (v ? "Incluso" : "Não incluso"),
   },
+  {
+    key: "maxSpreadsheets",
+    label: "Planilhas",
+    format: (v) => (v === -1 ? "Ilimitadas" : String(v)),
+  },
+  {
+    key: "hasFiscal",
+    label: "Notas Fiscais",
+    format: (v) => (v ? "Incluso" : "Não incluso"),
+  },
+  {
+    key: "hasOnlinePayments",
+    label: "Pagamento online",
+    format: (v) => (v ? "Incluso" : "Não incluso"),
+  },
+  {
+    key: "hasCalendarSync",
+    label: "Google Agenda",
+    format: (v) => (v ? "Sim" : "Não"),
+  },
+  {
+    key: "hasDriveSync",
+    label: "Google Drive",
+    format: (v) => (v ? "Sim" : "Não"),
+  },
 ];
 
 export function MySubscriptionTab({

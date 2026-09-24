@@ -42,6 +42,7 @@ function buildPlanHighlights(tier: "pro" | "enterprise"): string[] {
       "Módulo Financeiro completo",
       "Personalização de cores",
       "Editor de PDF avançado",
+      "Google Agenda e Google Drive",
       seats,
     ];
   }
@@ -50,6 +51,7 @@ function buildPlanHighlights(tier: "pro" | "enterprise"): string[] {
     "Tudo do plano Profissional",
     "CRM Kanban",
     "Notas Fiscais (NF-e e NFS-e)",
+    "Pagamento online no link da parcela",
     "WhatsApp integrado",
     "Consultoria dedicada",
     seats,

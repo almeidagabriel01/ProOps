@@ -337,10 +337,24 @@ export default function AddonsPage() {
             // This is a heuristic. Ideally we check features.
             // But for now, relying on 'availableForTiers' logic (which implies "Upgrade Opportunities") is consistent with the Service.
 
+            const missingRequired = (
+              addon.requiresAddons?.[normalizedTier] ?? []
+            ).filter((id) => !purchasedAddons.includes(id));
+            const requirementMessage =
+              missingRequired.length > 0
+                ? `Contrate antes: ${missingRequired
+                    .map(
+                      (id) =>
+                        ADDON_DEFINITIONS.find((d) => d.id === id)?.name ?? id,
+                    )
+                    .join(", ")}.`
+                : undefined;
+
             return (
               <AddonCard
                 key={addon.id}
                 addon={addon}
+                requirementMessage={requirementMessage}
                 isPurchased={purchasedAddons.includes(addon.id)}
                 isIncluded={isIncluded && !purchasedAddons.includes(addon.id)}
                 isReadOnly={isReadOnly}

@@ -28,7 +28,8 @@ function pluralize(count: number, singular: string, plural: string): string {
 
 function describeStorage(mb: number): string {
   if (mb === -1) return "Armazenamento ilimitado";
-  if (mb >= 1000) return `${(mb / 1024).toFixed(1)} GB de armazenamento`;
+  if (mb >= 1000)
+    return `${(mb / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} GB de armazenamento`;
   return `${mb} MB para armazenar arquivos`;
 }
 
@@ -60,6 +61,10 @@ export function buildPlanFeatureList(plan: UserPlan): string[] {
     f.hasFinancial ? "Controle financeiro completo" : null,
     f.hasKanban ? "CRM Kanban" : null,
     f.hasFiscal ? "Emissão de NF-e e NFS-e" : null,
+    f.hasFiscalReceiving ? "Recebimento das notas dos fornecedores" : null,
+    f.hasOnlinePayments
+      ? "Pagamento online: o cliente paga a parcela por Pix ou boleto no link"
+      : null,
     // Estes três já eram COBRADOS pelo backend sem aparecer em lugar nenhum:
     // o cliente descobria o teto ao ser bloqueado.
     f.maxWallets === -1
@@ -71,9 +76,10 @@ export function buildPlanFeatureList(plan: UserPlan): string[] {
     f.aiMessagesPerMonth === -1
       ? "Lia (IA) sem limite de mensagens"
       : f.aiMessagesPerMonth > 0
-        ? `Lia, a assistente de IA: ${f.aiMessagesPerMonth} mensagens por mês`
+        ? `Lia, a assistente de IA: ${f.aiMessagesPerMonth.toLocaleString("pt-BR")} mensagens por mês`
         : null,
     f.hasCalendarSync ? "Agenda sincronizada com o Google Agenda" : null,
+    f.hasDriveSync ? "Proposta entregue na pasta do cliente no Google Drive" : null,
     f.canCustomizeTheme ? "Cores personalizadas" : null,
     f.maxPdfTemplates === -1
       ? "Todos os layouts de PDF"
