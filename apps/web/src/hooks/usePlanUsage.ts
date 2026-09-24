@@ -12,6 +12,8 @@ interface UsageItem {
   isUnlimited: boolean;
   label: string;
   icon?: string;
+  /** Unidade exibida junto do número (armazenamento é em MB). */
+  unit?: string;
 }
 
 export interface UsePlanUsageReturn {
@@ -89,7 +91,12 @@ export function usePlanUsage(): UsePlanUsageReturn {
     fetchCounts();
   }, [planLoading, features, getProposalCount, getClientCount, getProductCount, getUserCount, tenantId]);
 
-  const createUsageItem = (current: number, limit: number, label: string): UsageItem => {
+  const createUsageItem = (
+    current: number,
+    limit: number,
+    label: string,
+    unit?: string,
+  ): UsageItem => {
     const isUnlimited = limit === -1;
     const percentage = isUnlimited ? 0 : limit > 0 ? Math.round((current / limit) * 100) : 0;
     
@@ -99,6 +106,7 @@ export function usePlanUsage(): UsePlanUsageReturn {
       percentage: Math.min(percentage, 100),
       isUnlimited,
       label,
+      unit,
     };
   };
 
@@ -119,7 +127,12 @@ export function usePlanUsage(): UsePlanUsageReturn {
       clients: createUsageItem(counts.clients, features.maxClients, "Clientes"),
       products: createUsageItem(counts.products, features.maxProducts, "Produtos"),
       users: createUsageItem(counts.users, features.maxUsers, "Membros"),
-      storage: createUsageItem(counts.storageMB, features.maxStorageMB ?? 50, "Armazenamento"),
+      storage: createUsageItem(
+        Math.round(counts.storageMB * 10) / 10,
+        features.maxStorageMB ?? 50,
+        "Armazenamento",
+        "MB",
+      ),
     };
   }, [features, counts]);
 
