@@ -96,9 +96,10 @@ export function FolhaDaProposta() {
                   {nicho.rotulos[i]}
                 </span>
               ))}
-              {/* No retrato a folha divide a tela com a casa, e o nome do
-                  cômodo é a linha que sobra: o chip ainda aponta para ele. */}
-              <span className="cena-chip__comodo relative hidden text-[11px] leading-tight text-slate-500 min-[400px]:block lg:block">
+              {/* O nome do cômodo, só no desktop. No retrato o chip já está
+                  em cima do cômodo aceso, e na folha essa linha a mais em cada
+                  item empurrava a divisão do pagamento para fora da tela. */}
+              <span className="cena-chip__comodo relative hidden text-[11px] leading-tight text-slate-500 lg:block">
                 {comodoPorId(item.comodo).nome}
               </span>
             </span>

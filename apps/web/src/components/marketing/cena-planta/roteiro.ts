@@ -129,10 +129,22 @@ const PRIMEIRO_ITEM: Record<ComodoId, number> = Object.fromEntries(
 ) as Record<ComodoId, number>;
 
 /**
+ * Quanto a câmera anda até o cômodo visitado, por composição: a fração do
+ * caminho entre o enquadramento de repouso e o centro do cômodo.
+ *
+ * O pan é o que mais tira o desenho da caixa, mais que o zoom. No desktop um
+ * terço já dá a sensação de visita e cabe na folga da raia
+ * (`--folga-da-camera`, no globals.css, conta com este número). No retrato a
+ * casa ocupa a largura inteira da tela e qualquer andança lateral a corta na
+ * borda, então ela quase só aproxima.
+ */
+export const PAN_DA_VISITA: Record<LayoutId, number> = { largo: 0.33, retrato: 0.12 };
+
+/**
  * A câmera durante o projeto: visita o cômodo do item que está sendo
  * especificado, deslizando de um para o outro. Fora dali, enquadra a casa.
  */
-function camera(p: number): Camera {
+function camera(p: number, pan: number): Camera {
   const aproxima = suave(trecho(p, 0.08, 0.16)) * (1 - suave(trecho(p, 0.37, 0.46)));
   const posicao = limita((p - INICIO_DO_PROJETO) / (PASSO_DO_PROJETO * ITENS.length));
   const escala = posicao * (ITENS.length - 1);
@@ -143,15 +155,27 @@ function camera(p: number): Camera {
     centroDoComodo(ITENS[ate].comodo),
     suave(escala - de),
   );
-  // A visita não centra o cômodo: puxa o quadro METADE do caminho até ele. Com
-  // a casa inteira como contexto, o olho sabe onde está; centrando, cada cômodo
-  // viraria uma tela solta.
-  const alvo = lerp2(CAMERA_DE_REPOUSO.alvo, lerp2(CAMERA_DE_REPOUSO.alvo, visita, 0.5), aproxima);
+  // A visita não centra o cômodo: puxa o quadro só parte do caminho até ele
+  // (`PAN_DA_VISITA`). Com a casa inteira como contexto, o olho sabe onde está;
+  // centrando, cada cômodo viraria uma tela solta. Já foi metade, e metade
+  // arrastava o desenho para cima das abas de nicho num notebook.
+  const alvo = lerp2(CAMERA_DE_REPOUSO.alvo, lerp2(CAMERA_DE_REPOUSO.alvo, visita, pan), aproxima);
   const recua = suave(trecho(p, 0.4, 0.5));
   return { zoom: 1 + 0.16 * aproxima - 0.06 * recua, alvo };
 }
 
-export function estadoDaCena(p: number, realce: Realce = {}): EstadoDaCena {
+/**
+ * O estado da cena no progresso `p` (0 a 1).
+ *
+ * `layout` só muda a andança da câmera (`PAN_DA_VISITA`). Nos dois extremos,
+ * que são o que o servidor escreve, a câmera está parada no enquadramento de
+ * repouso e o layout não faz diferença nenhuma.
+ */
+export function estadoDaCena(
+  p: number,
+  realce: Realce = {},
+  layout: LayoutId = "largo",
+): EstadoDaCena {
   const q = limita(p);
 
   const chips = ITENS.map((_, i) => {
@@ -195,7 +219,7 @@ export function estadoDaCena(p: number, realce: Realce = {}): EstadoDaCena {
     },
     luzes,
     cortinas,
-    camera: camera(q),
+    camera: camera(q, PAN_DA_VISITA[layout]),
     recuoDaCasa: suave(trecho(q, 0.4, 0.49)),
     chips,
     proposta: {
@@ -217,19 +241,6 @@ export function estadoDaCena(p: number, realce: Realce = {}): EstadoDaCena {
 export const ESTADO_FINAL: EstadoDaCena = estadoDaCena(1);
 
 const n = (valor: number) => String(arredonda(valor));
-
-/**
- * Quanto a casa está deslocada do lugar dela, em `[cqw, cqh]` do palco.
- *
- * Separado de `paraVariaveis` porque o diretor precisa do MESMO número em
- * pixels para mandar cada chip ao cômodo certo: se as duas contas fossem
- * escritas duas vezes, bastaria uma mudar para os chips pousarem ao lado da
- * casa.
- */
-export function deslocamentoDaCasa(estado: EstadoDaCena, layout: LayoutId): [number, number] {
-  const l = LAYOUTS[layout];
-  return [l.casa[0] * estado.recuoDaCasa, l.casa[1] * estado.recuoDaCasa];
-}
 
 /** Quanto a coluna da proposta está fora do lugar dela, em `[cqw, cqh]`. */
 export function deslocamentoDaFolha(estado: EstadoDaCena, layout: LayoutId): [number, number] {
@@ -255,15 +266,12 @@ export function paraVariaveis(
   layout: LayoutId,
 ): Record<string, string> {
   const { tx, ty, escala } = transformaCamera(estado.camera, CAIXA);
-  const casa = deslocamentoDaCasa(estado, layout);
   const folha = deslocamentoDaFolha(estado, layout);
   const v: Record<string, string> = {
     "--cam-tx": n(tx),
     "--cam-ty": n(ty),
     "--cam-z": n(escala),
     "--recuo": n(estado.recuoDaCasa),
-    "--casa-x": `${n(casa[0])}cqw`,
-    "--casa-y": `${n(casa[1])}cqh`,
     "--folha": n(estado.proposta.entrada),
     "--folha-x": `${n(folha[0])}cqw`,
     "--folha-y": `${n(folha[1])}cqh`,

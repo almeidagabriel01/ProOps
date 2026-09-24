@@ -27,7 +27,7 @@ export function SeletorDeNicho({ className }: { className?: string }) {
   };
 
   return (
-    <div ref={ancora} className={cn("pointer-events-auto", className)}>
+    <div ref={ancora} data-seletor-de-nicho="" className={cn("pointer-events-auto", className)}>
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Nicho do exemplo">
         {NICHOS.map((nicho) => (
           <button

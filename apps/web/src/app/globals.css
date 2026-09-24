@@ -1776,9 +1776,30 @@ html[data-heroi="espera"] .regua-desenha {
    isolado de composição, e o `mix-blend-mode` do 3D (abaixo) só enxerga o que
    está DENTRO dele. Sem cor aqui, o fundo do canvas somaria com transparente e
    apareceria como um retângulo preto. */
+/* **O palco e os textos que moram nele.** Em cima, a barra fixa, as abas de
+   nicho e a nota delas; embaixo, a legenda do ato e o trilho. A casa nunca
+   pode passar por cima deles: as abas são botões translúcidos, e o desenho
+   aparecendo através delas foi exatamente o defeito reportado.
+
+   No desktop a casa se separa dos textos pela LARGURA (ela mora na raia à
+   direita da coluna de texto, `--coluna-texto`). No retrato não há largura
+   para isso, e a separação é pela ALTURA: as faixas de texto são reservadas
+   em cima e embaixo (`--faixa-topo`/`--faixa-base`, no bloco do retrato,
+   medidas de 360 a 417px de largura).
+
+   `cqw`/`cqh` dentro de uma custom property são resolvidos onde ela é USADA,
+   e todo uso é num descendente do palco, que é o container. */
 .cena-palco {
   container-type: size;
   background-color: var(--noite);
+  /* Quanto a câmera leva o desenho para fora da caixa: zoom de 1,16 e o pan
+     até um terço do caminho para o cômodo visitado. */
+  --folga-da-camera: 1.22;
+  /* A borda direita da coluna de texto (abas, nota, legenda), que moram na
+     mesma caixa `max-w-7xl px-10` das camadas, com 26rem de largura no
+     máximo. Em repouso a casa fica toda à direita disto, com um vão. */
+  --coluna-texto: calc(max(0px, (100cqw - 80rem) / 2) + 2.5rem + 26rem + 2rem);
+  --topo-da-barra: calc(5rem + 3cqh);
 }
 
 /* A casa: à direita no desktop, embaixo no retrato. */
@@ -1786,12 +1807,22 @@ html[data-heroi="espera"] .regua-desenha {
    para a legenda e o trilho dos atos. Sem ele, a casa é centrada no palco
    inteiro e, numa tela baixa de notebook (768px), a quina de baixo cai em cima
    do texto da legenda. */
+/* **Em repouso a casa mora na RAIA DA DIREITA**, ao lado da coluna de texto e
+   não entre as faixas dela: ali não há abas nem legenda, e ela pode usar a
+   altura inteira abaixo da barra. Reservar as faixas de texto na largura toda
+   deixava a casa com um terço do tamanho num notebook, e seis chips
+   empilhados em cima dela.
+
+   Quando a proposta entra pela direita, a casa recua para a FAIXA DO MEIO da
+   coluna de texto (abaixo da nota, acima da legenda). Esse destino é medido
+   pelo diretor (`medeRecuo`) e chega aqui como `--recuo-x/y/escala`. */
 .cena-lugar-casa {
   align-items: center;
   justify-content: center;
-  padding-left: 6cqw;
-  padding-top: calc(5rem + 3cqh);
-  padding-bottom: 15rem;
+  padding-left: var(--coluna-texto);
+  padding-right: 3cqw;
+  padding-top: var(--topo-da-barra);
+  padding-bottom: 2rem;
 }
 /* A casa recua para a esquerda quando a proposta entra, e ENCOLHE junto: só
    deslocar punha a lateral dela para fora do palco, que recorta. É `scale`, a
@@ -1799,18 +1830,21 @@ html[data-heroi="espera"] .regua-desenha {
    compõem, enquanto um `transform` apagaria a outra. */
 .cena-casa {
   aspect-ratio: var(--aspecto);
-  /* A altura sai da FAIXA livre, e não do palco: 20rem é o que está reservado
-     em cima (as abas, debaixo da barra fixa) e embaixo (a legenda de duas
-     linhas e o trilho dos atos, ~15rem medidos). Escrito em cqh puro, como era, a casa cabia numa tela de 900px
-     e invadia a legenda numa de 768 ou de 614, porque o texto reservado
-     embaixo NÃO encolhe com a tela e uma fração do palco encolhe. O teto de
-     largura continua em cqw: numa tela larga e baixa é ele que segura. E os
-     dois contam com o ZOOM, que chega a 1,16 e ainda desloca meio caminho até
-     um cômodo: com 74cqh, o valor original, a lateral era decepada na borda do
-     canvas numa tela de 768. */
-  width: min(56cqw, calc((100cqh - 21.5rem) * var(--aspecto)));
-  translate: var(--casa-x) var(--casa-y);
-  scale: calc(1 - var(--recuo, 0) * 0.14);
+  /* Os dois tetos descontam a folga que a câmera usa para fora da caixa. O de
+     altura sai da raia (abaixo da barra fixa), e não de uma fração do palco:
+     escrito em cqh puro, como era (74cqh), a casa cabia na tela de 1440x900 em
+     que a cena foi desenhada e era decepada num notebook de 768. */
+  width: min(
+    calc((100cqw - var(--coluna-texto) - 3cqw) / var(--folga-da-camera)),
+    calc(
+      (100cqh - var(--topo-da-barra) - 2rem) / var(--folga-da-camera) * var(--aspecto)
+    )
+  );
+  /* O recuo: escala em torno do centro da caixa e desloca, as duas pesadas por
+     `--recuo`. O diretor manda os chips pela MESMA conta (`deslocamentoDoChip`).
+     Sem as medidas (antes do diretor), a casa não recua: fica onde está. */
+  translate: calc(var(--recuo, 0) * var(--recuo-x, 0px)) calc(var(--recuo, 0) * var(--recuo-y, 0px));
+  scale: calc(1 - var(--recuo, 0) * (1 - var(--recuo-escala, 1)));
 }
 
 /* As abas de nicho ficam no alto do palco, e continuam lá a cena inteira: dá
@@ -2105,18 +2139,41 @@ html[data-heroi="espera"] .regua-desenha {
 /* O retrato: o texto em cima, a casa espiando por baixo e subindo quando o
    texto sai, e a proposta ocupando a tela. */
 @media (max-width: 1023.98px) {
-  /* No retrato o palco é alto e estreito, e a faixa da legenda é curta: a
-     reserva do desktop (13cqh) subiria a casa por cima da nota dos nichos. */
+  /* As faixas de texto do retrato, medidas. São texto, então a maior parte é
+     rem, e o que não é rem é o respiro que o layout já dava em cqh. As abas
+     quebram em duas linhas e a nota em duas; o `1rem` é o vão até o desenho. */
+  .cena-palco {
+    --faixa-topo: calc(12.8rem + 2cqh);
+    --faixa-base: calc(9.4rem + 5cqh);
+    /* Só o zoom (o pan aqui é mínimo, `PAN_DA_VISITA.retrato`), com margem. */
+    --folga-da-camera: 1.24;
+  }
   .cena-lugar-casa {
     align-items: center;
     justify-content: center;
     padding-left: 0;
     padding-right: 0;
-    padding-top: 6cqh;
+    padding-top: var(--faixa-topo);
+    padding-bottom: var(--faixa-base);
   }
+  /* A casa SOME quando a proposta entra, e não sobe. Ela subia 20cqh e ficava
+     a 30%, que é exatamente o fantasma que se via atrás das abas: na tela
+     estreita a proposta ocupa o palco inteiro, e a casa não tem mais papel. */
   .cena-casa {
-    width: min(86cqw, calc(40cqh * var(--aspecto)));
-    opacity: calc(1 - var(--recuo) * 0.7);
+    /* A largura também desconta a folga: a casa ocupa a tela de lado a lado, e
+       sem isso o zoom da câmera a cortava na borda. */
+    width: min(
+      calc(100cqw / var(--folga-da-camera)),
+      calc(
+        (100cqh - var(--faixa-topo) - var(--faixa-base)) / var(--folga-da-camera) *
+          var(--aspecto)
+      )
+    );
+    /* Some na primeira metade do recuo, antes de a folha estar opaca: as duas
+       translúcidas ao mesmo tempo, uma por cima da outra, viravam lama. */
+    opacity: calc(1 - var(--recuo) * 1.8);
+    translate: none;
+    scale: none;
   }
   /* No retrato a proposta ocupa a tela, e a legenda por baixo dela seria
      texto atrás de texto: ela narra o projeto e sai quando a folha entra. */
@@ -2134,8 +2191,19 @@ html[data-heroi="espera"] .regua-desenha {
      `camadas-da-cena.tsx`), e o que fica na tela é sempre um cômodo aceso com
      um rótulo só. A LINHA da proposta não é afetada: ela vive em `--linha`, e
      é por isso que a atenuação vai na pílula e na luz, nunca no `<li>`. */
+  /* E o chip não reaparece em voo: a casa já está sumindo quando os itens
+     voam para a proposta, e uma pílula atravessando o vazio não aponta para
+     nada. Pousado (`--voo` = 1), ele é a linha da proposta e volta inteiro.
+     As parcelas: aceso até o próximo aparecer (e sai rápido, para as duas
+     pílulas não se cruzarem na metade) e enquanto a casa estiver ali (o último
+     item não tem próximo, e ficava boiando sobre o vazio depois que a casa
+     sumia); apagado durante o voo; e de volta nos últimos 10% dele, já no
+     lugar. O `1,8` é o mesmo da opacidade da casa, logo acima. */
   .cena-chip__rotulo {
-    opacity: calc(1 - var(--proximo, 0) * (1 - var(--voo)));
+    opacity: calc(
+      max(0, 1 - var(--proximo, 0) * 3) * max(0, 1 - var(--recuo, 0) * 1.8) *
+        (1 - min(1, var(--voo) * 20)) + max(0, (var(--voo) - 0.9) * 10)
+    );
   }
   /* A casa é pequena aqui, e o traço fino de uma tela de 1440px vira quase
      invisível em 345px de largura. */
@@ -2148,8 +2216,20 @@ html[data-heroi="espera"] .regua-desenha {
   .planta-deck {
     stroke: rgb(var(--linha) / 0.2);
   }
+  /* A folha fica opaca na primeira metade da subida: translúcida por cima do
+     palco vazio ela era um retângulo cinza atravessando a tela. */
+  .cena-folha__papel,
+  .cena-folha__cabeca,
+  .cena-folha__rodape {
+    opacity: min(1, calc(var(--folha) * 2));
+  }
+  /* A proposta entra logo abaixo da nota dos nichos, e não por cima dela. O
+     `padding` zerado é o do desktop, que reserva a barra fixa: herdado aqui,
+     ele empurrava a folha 100px para baixo e cortava a divisão do pagamento. */
   .cena-lugar-folha {
-    top: 13cqh;
+    top: var(--faixa-topo);
+    padding-top: 0;
+    padding-bottom: 0;
     bottom: auto;
     left: 1.25rem;
     right: 1.25rem;

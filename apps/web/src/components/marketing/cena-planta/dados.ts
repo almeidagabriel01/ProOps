@@ -333,22 +333,19 @@ export const LARGO_QUERY = "(min-width: 1024px)";
 export type LayoutId = "largo" | "retrato";
 
 /**
- * Quanto cada peça ANDA, por composição. Só deslocamento: onde cada uma
- * repousa é o markup (classes do Tailwind), e o diretor mede isso em vez de
- * repetir aqui.
+ * De onde a folha da proposta entra, por composição, relativo a onde ela
+ * repousa. `cqw`/`cqh` do palco, que é o container: percentagem num
+ * `translate` seria relativa à caixa do PRÓPRIO elemento.
  *
- * `cqw`/`cqh` do palco, que é o container. Percentagem não serviria: num
- * `translate` ela é relativa à caixa do PRÓPRIO elemento, e a folha e a casa
- * têm tamanhos diferentes.
+ * A casa não mora aqui. O recuo dela é MEDIDO pelo diretor (o vão entre a
+ * coluna de texto e a proposta), porque um deslocamento fixo em cqw acertava a
+ * tela em que foi calibrado e levava a casa para baixo das abas nas outras.
  */
 export interface Layout {
-  /** A casa se afasta para dar lugar à proposta. */
-  casa: readonly [number, number];
-  /** De onde a folha da proposta entra, relativo a onde ela repousa. */
   folha: readonly [number, number];
 }
 
 export const LAYOUTS: Record<LayoutId, Layout> = {
-  largo: { casa: [-19, 0], folha: [48, 0] },
-  retrato: { casa: [0, -20], folha: [0, 80] },
+  largo: { folha: [48, 0] },
+  retrato: { folha: [0, 80] },
 };
