@@ -491,8 +491,10 @@ O upload vai do navegador direto ao Storage, entao o teto nao passa por
   gravacao; apagar continua liberado.
 
 Historico anterior a este mecanismo: `npx tsx src/scripts/backfill-storage-usage.ts
---bucket=<projeto>.firebasestorage.app` (dry-run; `--apply` grava). Rodar depois
-do deploy dos gatilhos.
+--project=<projeto>` (dry-run; `--apply` grava). Rodar depois do deploy dos
+gatilhos. **`--project` e obrigatorio e define bucket e Firestore juntos**: a
+primeira versao so trocava o bucket, e contra producao leria o plano e gravaria
+o uso no Firestore de dev (o projeto padrao da credencial local).
 
 ### lib/tenant-capabilities.ts
 
