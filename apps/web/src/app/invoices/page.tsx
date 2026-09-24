@@ -108,7 +108,17 @@ export default function InvoicesPage() {
   // Cancelar uma nota autorizada e o "excluir" deste modulo: a nota nao sai do
   // acervo (guarda legal de 5 anos), mas deixa de valer.
   const { canDelete: canCancel } = usePagePermission("invoices");
-  const { hasFiscal, isLoading: isPlanLoading } = usePlanLimits();
+  const {
+    hasFiscal,
+    hasFiscalReceiving,
+    maxInvoicesPerMonth,
+    isLoading: isPlanLoading,
+  } = usePlanLimits();
+  /** Franquia do mês (add-on fiscal). Ausente no Enterprise, que é ilimitado. */
+  const [quota, setQuota] = React.useState<{
+    limit: number;
+    used: number;
+  } | null>(null);
   const [invoices, setInvoices] = React.useState<FiscalInvoice[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [notConfigured, setNotConfigured] = React.useState(false);
@@ -170,6 +180,17 @@ export default function InvoicesPage() {
   React.useEffect(() => {
     void load();
   }, [load]);
+
+  // Recontado quando a lista muda: uma nota recém-emitida já consome a vaga.
+  React.useEffect(() => {
+    if (isPlanLoading || !hasFiscal || maxInvoicesPerMonth === -1) {
+      setQuota(null);
+      return;
+    }
+    FiscalService.getInvoiceQuota()
+      .then(setQuota)
+      .catch(() => setQuota(null));
+  }, [isPlanLoading, hasFiscal, maxInvoicesPerMonth, invoices.length]);
 
   const { items: sortedInvoices, requestSort, sortConfig } = useSort(invoices);
 
@@ -386,7 +407,7 @@ export default function InvoicesPage() {
     return (
       <UpgradeRequired
         feature="Notas Fiscais"
-        description="Emita NF-e e NFS-e direto da proposta aprovada, com arquivamento legal do XML e do DANFE. Disponível no plano Enterprise."
+        description="Emita NF-e e NFS-e direto da proposta aprovada, com arquivamento legal do XML e do DANFE. Contrate o add-on de Notas Fiscais ou tenha incluído no plano Enterprise."
       />
     );
   }
@@ -430,27 +451,44 @@ export default function InvoicesPage() {
               recorte desta tela. Dois SegmentedControl idênticos lado a lado
               seriam ilegíveis. */}
           <PageViewSwitcher className="mt-3" />
+          {quota && quota.limit !== -1 && (
+            <p
+              className={
+                quota.used >= quota.limit
+                  ? "mt-2 text-sm font-medium text-destructive"
+                  : "mt-2 text-sm text-muted-foreground"
+              }
+            >
+              {quota.used} de {quota.limit} notas emitidas neste mês
+              {quota.used >= quota.limit &&
+                ". O limite renova no dia 1 do próximo mês."}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <SegmentedControl
-            id="Notas emitidas ou recebidas"
-            value={view}
-            onChange={(v) => setView(v as "emitidas" | "recebidas")}
-            options={[
-              {
-                value: "emitidas",
-                label: "Emitidas",
-                icon: <FileOutput className="h-3.5 w-3.5" />,
-                count: isLoading ? undefined : invoices.length,
-              },
-              {
-                value: "recebidas",
-                label: "Recebidas",
-                icon: <FileInput className="h-3.5 w-3.5" />,
-                count: receivedCount,
-              },
-            ]}
-          />
+          {/* Recepção de notas de entrada é só do Enterprise; com o add-on
+              fiscal a tela mostra apenas as emitidas. */}
+          {hasFiscalReceiving && (
+            <SegmentedControl
+              id="Notas emitidas ou recebidas"
+              value={view}
+              onChange={(v) => setView(v as "emitidas" | "recebidas")}
+              options={[
+                {
+                  value: "emitidas",
+                  label: "Emitidas",
+                  icon: <FileOutput className="h-3.5 w-3.5" />,
+                  count: isLoading ? undefined : invoices.length,
+                },
+                {
+                  value: "recebidas",
+                  label: "Recebidas",
+                  icon: <FileInput className="h-3.5 w-3.5" />,
+                  count: receivedCount,
+                },
+              ]}
+            />
+          )}
           <Button variant="outline" asChild>
             <Link href="/settings/fiscal">
               <Settings className="mr-2 h-4 w-4" />
@@ -509,7 +547,9 @@ export default function InvoicesPage() {
           módulo não paga request nenhuma. */}
       <div hidden={view !== "recebidas"}>
         <ReceivedInvoicesPanel
-          enabled={settings?.habilitaManifestacao === true}
+          enabled={
+            hasFiscalReceiving && settings?.habilitaManifestacao === true
+          }
           onCountChange={setReceivedCount}
         />
       </div>

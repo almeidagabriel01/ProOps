@@ -11,6 +11,7 @@ import {
   minimumTierForCapability,
   type PlanCapabilityKey,
 } from "../../shared/plan-capabilities";
+import { addonsGrantingCapability } from "../../shared/addon-definitions";
 
 /**
  * Gate de MODULO por plano — a metade que faltava no backend.
@@ -61,7 +62,10 @@ export function buildCapabilityDeniedMessage(
   if (!minimumTier) {
     return `O módulo ${label} não está disponível no seu plano.`;
   }
-  return `O módulo ${label} está disponível no plano ${PLAN_TIER_LABELS[minimumTier]}. Faça upgrade do plano para continuar.`;
+  const soldAsAddon = addonsGrantingCapability(capability).length > 0;
+  return soldAsAddon
+    ? `O módulo ${label} está disponível no plano ${PLAN_TIER_LABELS[minimumTier]} ou como add-on. Faça upgrade do plano ou contrate o módulo para continuar.`
+    : `O módulo ${label} está disponível no plano ${PLAN_TIER_LABELS[minimumTier]}. Faça upgrade do plano para continuar.`;
 }
 
 export function requirePlanCapability(capability: PlanCapabilityKey) {

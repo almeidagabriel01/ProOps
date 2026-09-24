@@ -1,4 +1,6 @@
 import {
+  resolvePlanCapabilities,
+  resolvePlanLimits,
   type PlanCapabilities,
   type PlanNumericLimits,
   type PlanTierId,
@@ -86,6 +88,22 @@ export function missingRequiredAddons(
   const def = ADDON_MAP.get(addonId as AddonId);
   const required = def?.requiresAddons?.[planTier] ?? [];
   return required.filter((id) => !activeAddonIds.includes(id));
+}
+
+/**
+ * Add-ons que destravam a capacidade. Derivado de `applyAddonsToCapabilities`
+ * sobre um plano vazio, para nao existir uma segunda tabela a manter.
+ */
+export function addonsGrantingCapability(
+  capability: keyof PlanCapabilities,
+): AddonId[] {
+  const empty = resolvePlanCapabilities("free");
+  const limits = resolvePlanLimits("free");
+  return ADDON_DEFINITIONS_BACKEND.filter(
+    (def) =>
+      applyAddonsToCapabilities({ capabilities: empty, limits }, [def.id])
+        .capabilities[capability],
+  ).map((def) => def.id);
 }
 
 export function isKnownAddonId(addonId: string): addonId is AddonId {

@@ -60,6 +60,12 @@ import {
 } from "../services/fiscal/invoice.service";
 import { sanitizeFiscalText } from "../services/fiscal/fiscal-text";
 import { readArchivedDocument } from "../services/fiscal/invoice-archive.service";
+import { resolveTenantCapabilities } from "../../lib/tenant-capabilities";
+import {
+  InvoiceQuotaError,
+  getInvoiceQuota,
+  assertInvoiceQuota,
+} from "../services/fiscal/invoice-quota.service";
 import {
   issueFromProposal,
   previewFromProposal,
@@ -112,10 +118,23 @@ const FISCAL_ERROR_MESSAGES: Record<string, string> = {
     "O provedor fiscal nao aceita carta de correcao para este documento.",
   INVOICE_NAO_AUTORIZADA:
     "So uma nota autorizada aceita esta operacao.",
+  FISCAL_COTA_MENSAL_ATINGIDA:
+    "Voce atingiu o limite de notas fiscais do mes no seu plano. O limite renova no dia 1; para emitir sem limite, fale com a gente sobre o plano Enterprise.",
 };
 
 export function mapFiscalErrorMessage(error: Error): string {
   return FISCAL_ERROR_MESSAGES[error.message] ?? error.message;
+}
+
+function fiscalErrorBody(err: Error): Record<string, unknown> {
+  return {
+    message: mapFiscalErrorMessage(err),
+    code: err.message,
+    // A tela mostra "X de Y notas" no aviso; sem os numeros o 402 so diria "nao".
+    ...(err instanceof InvoiceQuotaError
+      ? { cota: { used: err.used, limit: err.limit } }
+      : {}),
+  };
 }
 
 /** Erro NOSSO, de pre-condicao — nao veio do provedor. */
@@ -127,6 +146,8 @@ function mapFiscalErrorStatus(error: Error): number {
   // 422: o cliente consegue resolver reenviando o certificado. Um 500 diria
   // "problema nosso" sobre algo que so ele pode destravar.
   if (error.message === "FISCAL_EMITENTE_NAO_REGISTRADO") return 422;
+  // 402, como os demais limites de plano: nao e erro do cliente nem nosso.
+  if (error.message === "FISCAL_COTA_MENSAL_ATINGIDA") return 402;
   if (error.message === "FISCAL_SETTINGS_NOT_FOUND") return 404;
   if (error.message === "FISCAL_CERTIFICADO_AUSENTE") return 422;
   if (error.message === "FISCAL_SETTINGS_SAVE_FAILED") return 500;
@@ -261,7 +282,7 @@ export const getFiscalSettingsHandler = async (
     logger.error("Falha ao buscar configuração fiscal", { error: err.message });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
   }
 };
 
@@ -370,7 +391,13 @@ export const saveFiscalSettingsHandler = async (
       habilitaNfse,
       // Recepcao de notas de entrada: desligada por padrao porque cada nota
       // recebida consome uma unidade do pacote mensal do provedor.
-      habilitaManifestacao: body.habilitaManifestacao === true,
+      // Recepcao e so do Enterprise: o add-on fiscal nao cobre, porque cada
+      // nota recebida consome unidade sem ninguem clicar. Quem perdeu a
+      // capacidade (downgrade) tem o flag DESLIGADO no proximo salvamento, e
+      // como o campo vai sempre ao provedor, la tambem.
+      habilitaManifestacao:
+        body.habilitaManifestacao === true &&
+        (await resolveTenantCapabilities(ctx.tenantId)).capabilities.fiscalReceiving,
       // Campo montado a mao aqui: esquecer uma linha nesta lista e como o
       // modulo de recepcao ficou inalcancavel por meses — sem erro nenhum.
       dataInicioRecebimento:
@@ -406,7 +433,7 @@ export const saveFiscalSettingsHandler = async (
     logger.error("Falha ao salvar configuração fiscal", { error: err.message });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
   }
 };
 
@@ -712,6 +739,8 @@ export const issueInvoiceHandler = async (req: Request, res: Response): Promise<
       return;
     }
 
+    await assertInvoiceQuota(ctx.tenantId, 1);
+
     const invoice = await createInvoice({
       tenantId: ctx.tenantId,
       type,
@@ -769,7 +798,7 @@ export const issueInvoiceHandler = async (req: Request, res: Response): Promise<
     logger.error("Falha ao emitir nota fiscal", { error: err.message });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
   }
 };
 
@@ -884,7 +913,7 @@ async function issueFromSource(
     });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
   }
 }
 
@@ -985,7 +1014,7 @@ export const setFiscalEnvironmentHandler = async (req: Request, res: Response) =
     logger.error("Falha ao trocar o ambiente fiscal", { error: err.message });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
   }
 };
 
@@ -1053,7 +1082,7 @@ export const retryFiscalWebhooksHandler = async (req: Request, res: Response) =>
     logger.error("Falha ao reenviar gatilhos fiscais", { error: err.message });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
   }
 };
 
@@ -1093,7 +1122,20 @@ export const previewFromProposalHandler = async (
     logger.error("Falha ao verificar emissão da proposta", { error: err.message });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
+  }
+};
+
+// GET /v1/fiscal/invoices/quota
+export const getInvoiceQuotaHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ctx = await requireInvoiceAccess(req, res, "canView");
+    if (!ctx) return;
+    res.status(200).json(await getInvoiceQuota(ctx.tenantId));
+  } catch (error) {
+    const err = error as Error;
+    logger.error("Falha ao consultar a franquia de notas", { error: err.message });
+    res.status(mapFiscalErrorStatus(err)).json(fiscalErrorBody(err));
   }
 };
 
@@ -1114,7 +1156,7 @@ export const listInvoicesHandler = async (req: Request, res: Response): Promise<
     logger.error("Falha ao listar notas fiscais", { error: err.message });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
   }
 };
 
@@ -1192,7 +1234,7 @@ export const downloadCorrectionDocumentHandler = async (
     });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
   }
 };
 
@@ -1328,6 +1370,6 @@ export const disconnectFiscalHandler = async (
     logger.error("Falha ao remover configuração fiscal", { error: err.message });
     res
       .status(mapFiscalErrorStatus(err))
-      .json({ message: mapFiscalErrorMessage(err), code: err.message });
+      .json(fiscalErrorBody(err));
   }
 };

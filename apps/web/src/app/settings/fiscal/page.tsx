@@ -16,7 +16,8 @@ import { UpgradeRequired } from "@/components/ui/upgrade-required";
 
 export default function SettingsFiscalPage() {
   const { isMaster, isDemo, isLoading: permLoading } = usePermissions();
-  const { hasFiscal, isLoading: planLoading } = usePlanLimits();
+  const { hasFiscal, hasFiscalReceiving, isLoading: planLoading } =
+    usePlanLimits();
   // Contas demo e free são donas do próprio tenant, então veem a seção — o
   // conteúdo é somente-leitura. O `inert` fica DENTRO do card, passo a passo:
   // aqui por cima ele mataria também a navegação do wizard e prenderia a conta
@@ -34,7 +35,7 @@ export default function SettingsFiscalPage() {
     return (
       <UpgradeRequired
         feature="Notas Fiscais"
-        description="Emita NF-e e NFS-e direto da proposta aprovada, com arquivamento legal do XML e do DANFE. Disponível no plano Enterprise."
+        description="Emita NF-e e NFS-e direto da proposta aprovada, com arquivamento legal do XML e do DANFE. Contrate o add-on de Notas Fiscais ou tenha incluído no plano Enterprise."
       />
     );
   }
@@ -56,6 +57,7 @@ export default function SettingsFiscalPage() {
         <FiscalSettingsCard
           onLoadingChange={setCardLoading}
           demoReadOnly={isDemo}
+          canReceive={hasFiscalReceiving}
         />
       ) : (
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center">

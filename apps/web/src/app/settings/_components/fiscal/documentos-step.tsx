@@ -24,6 +24,8 @@ interface DocumentosStepProps {
   /** Hoje no fuso local — teto da data de início de recebimento. */
   hoje: string;
   dataRecebimentoBloqueada: boolean;
+  /** Recepção de notas de entrada é só do Enterprise. */
+  canReceive?: boolean;
   onBeforeNext?: () => boolean;
   /**
    * Conta demo: o conteúdo do passo fica inerte, a navegação NÃO. O `inert`
@@ -40,6 +42,7 @@ export function DocumentosStep({
   setField,
   hoje,
   dataRecebimentoBloqueada,
+  canReceive = true,
   onBeforeNext,
   contentDisabled,
 }: DocumentosStepProps) {
@@ -102,7 +105,9 @@ export function DocumentosStep({
                 <Input
                   id="fiscal-ie"
                   value={form.inscricaoEstadual}
-                  onChange={(e) => setField("inscricaoEstadual", e.target.value)}
+                  onChange={(e) =>
+                    setField("inscricaoEstadual", e.target.value)
+                  }
                 />
               </FormItem>
 
@@ -158,9 +163,7 @@ export function DocumentosStep({
                     setField("padraoNfse", e.target.value as FiscalNfsePadrao)
                   }
                 >
-                  <option value="nacional">
-                    Nacional: portal nfse.gov.br
-                  </option>
+                  <option value="nacional">Nacional: portal nfse.gov.br</option>
                   <option value="municipal">
                     Municipal: sistema próprio da prefeitura
                   </option>
@@ -182,7 +185,9 @@ export function DocumentosStep({
                 <Input
                   id="fiscal-im"
                   value={form.inscricaoMunicipal}
-                  onChange={(e) => setField("inscricaoMunicipal", e.target.value)}
+                  onChange={(e) =>
+                    setField("inscricaoMunicipal", e.target.value)
+                  }
                 />
               </FormItem>
 
@@ -219,77 +224,94 @@ export function DocumentosStep({
               cada nota recebida consome uma unidade do pacote mensal do
               provedor, do mesmo jeito que uma emitida. Ligar isso sem saber
               disso seria descobrir na fatura. */}
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 p-4">
-            <div>
+          {!canReceive ? (
+            <div className="rounded-xl border border-border/50 p-4">
               <p className="text-sm font-medium">
                 Receber notas dos fornecedores
               </p>
               <p className="text-xs text-muted-foreground">
-                Traz as notas emitidas contra o seu CNPJ e permite se manifestar
-                sobre elas. Cada nota recebida consome uma unidade do seu pacote,
-                inclusive as que seus fornecedores já emitiram antes de você
-                ligar isto.
+                Disponível no plano Enterprise. O add-on de Notas Fiscais cobre
+                a emissão; a recepção traz as notas emitidas contra o seu CNPJ e
+                consome unidades do pacote sem que ninguém peça.
               </p>
             </div>
-            <Switch
-              aria-label="Receber notas dos fornecedores"
-              checked={form.habilitaManifestacao}
-              onCheckedChange={(checked) => {
-                setField("habilitaManifestacao", checked);
-                // Hoje como padrão: em branco o provedor puxa TODO o histórico
-                // e cobra por nota. Quem quiser o histórico escolhe a data —
-                // ninguém deve pagar por ele sem ter pedido.
-                if (checked && !form.dataInicioRecebimento) {
-                  setField("dataInicioRecebimento", hoje);
-                }
-              }}
-            />
-          </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 p-4">
+                <div>
+                  <p className="text-sm font-medium">
+                    Receber notas dos fornecedores
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Traz as notas emitidas contra o seu CNPJ e permite se
+                    manifestar sobre elas. Cada nota recebida consome uma
+                    unidade do seu pacote, inclusive as que seus fornecedores já
+                    emitiram antes de você ligar isto.
+                  </p>
+                </div>
+                <Switch
+                  aria-label="Receber notas dos fornecedores"
+                  checked={form.habilitaManifestacao}
+                  onCheckedChange={(checked) => {
+                    setField("habilitaManifestacao", checked);
+                    // Hoje como padrão: em branco o provedor puxa TODO o histórico
+                    // e cobra por nota. Quem quiser o histórico escolhe a data —
+                    // ninguém deve pagar por ele sem ter pedido.
+                    if (checked && !form.dataInicioRecebimento) {
+                      setField("dataInicioRecebimento", hoje);
+                    }
+                  }}
+                />
+              </div>
 
-          {form.habilitaManifestacao && (
-            <div className="flex flex-col gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
-              <Label htmlFor="fiscal-data-inicio-recebimento">
-                Buscar notas emitidas a partir de
-              </Label>
-              <DatePicker
-                id="fiscal-data-inicio-recebimento"
-                clearable={false}
-                className="sm:max-w-[220px]"
-                value={form.dataInicioRecebimento}
-                max={hoje}
-                disabled={dataRecebimentoBloqueada}
-                onChange={(e) =>
-                  setField("dataInicioRecebimento", e.target.value)
-                }
-              />
-              {dataRecebimentoFutura && (
-                <p className="text-xs text-amber-600">
-                  Data no futuro: nenhuma nota será recebida até lá, e esta
-                  escolha não poderá ser desfeita.
-                </p>
+              {form.habilitaManifestacao && (
+                <div className="flex flex-col gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+                  <Label htmlFor="fiscal-data-inicio-recebimento">
+                    Buscar notas emitidas a partir de
+                  </Label>
+                  <DatePicker
+                    id="fiscal-data-inicio-recebimento"
+                    clearable={false}
+                    className="sm:max-w-[220px]"
+                    value={form.dataInicioRecebimento}
+                    max={hoje}
+                    disabled={dataRecebimentoBloqueada}
+                    onChange={(e) =>
+                      setField("dataInicioRecebimento", e.target.value)
+                    }
+                  />
+                  {dataRecebimentoFutura && (
+                    <p className="text-xs text-amber-600">
+                      Data no futuro: nenhuma nota será recebida até lá, e esta
+                      escolha não poderá ser desfeita.
+                    </p>
+                  )}
+                  {dataRecebimentoBloqueada ? (
+                    <p className="text-xs text-muted-foreground">
+                      Esta data já foi registrada no provedor fiscal e não pode
+                      mais ser alterada.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Notas emitidas antes desta data são descartadas e{" "}
+                      <strong className="text-foreground">
+                        não são cobradas
+                      </strong>
+                      . Recuar a data traz o histórico do fornecedor, útil para
+                      aproveitar os NCM de compras antigas, mas{" "}
+                      <strong className="text-foreground">
+                        cada nota trazida consome uma unidade do seu pacote
+                      </strong>
+                      . Depois de enviar o certificado,{" "}
+                      <strong className="text-foreground">
+                        esta data não pode mais ser alterada
+                      </strong>
+                      .
+                    </p>
+                  )}
+                </div>
               )}
-              {dataRecebimentoBloqueada ? (
-                <p className="text-xs text-muted-foreground">
-                  Esta data já foi registrada no provedor fiscal e não pode mais
-                  ser alterada.
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Notas emitidas antes desta data são descartadas e{" "}
-                  <strong className="text-foreground">não são cobradas</strong>.
-                  Recuar a data traz o histórico do fornecedor, útil para
-                  aproveitar os NCM de compras antigas, mas{" "}
-                  <strong className="text-foreground">
-                    cada nota trazida consome uma unidade do seu pacote
-                  </strong>
-                  . Depois de enviar o certificado,{" "}
-                  <strong className="text-foreground">
-                    esta data não pode mais ser alterada
-                  </strong>
-                  .
-                </p>
-              )}
-            </div>
+            </>
           )}
         </div>
       </div>
