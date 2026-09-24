@@ -421,6 +421,14 @@ simplesmente não aparecer, sem erro nenhum. O sintoma é um layout que ignora a
 classe que está claramente no arquivo. Confirme buscando a regra no CSS servido
 antes de "consertar" o componente; a cura é `rm -rf apps/web/.next` e reiniciar.
 
+**Não dê ao seu `next dev` um `distDir` que o `.gitignore` não conheça.** O
+Tailwind v4 varre o repositório respeitando o `.gitignore`, então um
+`NEXT_DIST_DIR=.next-dev2` (uma tentativa de fugir de um cache defasado) faz
+ele varrer os próprios artefatos compilados: nascem utilitários de lixo a
+partir de bytes binários e o build morre com `Unexpected token Delim` numa
+classe que ninguém escreveu. `.next` e `.next-test` estão ignorados; qualquer
+outro nome precisa entrar na lista antes.
+
 **Ao inspecionar por automação de navegador**, lembre de duas coisas:
 
 - `window.scrollTo` **não** aciona o Lenis, e o Lenis é quem chama

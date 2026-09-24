@@ -156,6 +156,105 @@ test.describe("LANDING-CENA-01: orçamento do celular", () => {
   });
 });
 
+/**
+ * **Notebook.** A cena foi desenhada e conferida numa tela de 1440x900, e a
+ * metade dos notebooks tem 768px de altura (ou 614, a 125% de escala). Ali
+ * tudo o que era folga virou sobreposição: a casa era centrada no palco
+ * inteiro e a quina de baixo caía em cima da legenda; ela era dimensionada por
+ * 74cqh sem contar o zoom da câmera, e a lateral era decepada na borda do
+ * canvas; e a coluna da proposta, centrada e quase tão alta quanto o palco,
+ * enfiava o cabeçalho debaixo da barra fixa.
+ *
+ * Os três são medidas de caixa, e é assim que este teste os afirma. Ele roda
+ * nas DUAS alturas porque só a de 614 aciona o modo compacto da coluna.
+ */
+for (const tela of [
+  { nome: "1366x768", viewport: { width: 1366, height: 768 } },
+  { nome: "1093x614", viewport: { width: 1093, height: 614 } },
+]) {
+  test.describe(`LANDING-CENA-01: notebook ${tela.nome}`, () => {
+    test.use({ viewport: tela.viewport });
+
+    test("a casa não encosta na legenda, e a proposta não entra debaixo da barra", async ({
+      page,
+    }) => {
+      await page.goto(`${ERP}/`);
+      await page.waitForLoadState("networkidle");
+      await rolaAte(page, "aprovada");
+      await page.waitForTimeout(600);
+
+      const caixas = await page.evaluate(() => {
+        const caixa = (seletor: string) => {
+          const el = document.querySelector(seletor);
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return { topo: r.top, base: r.bottom, altura: r.height };
+        };
+        return {
+          palco: caixa("[data-palco]"),
+          casa: caixa("[data-casa]"),
+          legenda: caixa(".cena-legenda"),
+          folha: caixa("[data-folha]"),
+        };
+      });
+
+      const { palco, casa, legenda, folha } = caixas;
+      expect(palco && casa && legenda && folha).toBeTruthy();
+      if (!palco || !casa || !legenda || !folha) return;
+
+      // A casa fica ACIMA da legenda: uma quina em cima do texto foi o defeito.
+      expect(casa.base).toBeLessThanOrEqual(legenda.topo + 1);
+
+      // E cabe no palco com a folga do zoom: a câmera chega a 1,16 e o desenho
+      // passa da caixa antes de o canvas acabar.
+      expect(casa.altura * 1.16).toBeLessThanOrEqual(palco.altura);
+
+      // A barra da landing é uma cápsula flutuante de ~5rem: a proposta começa
+      // abaixo dela, com o nome do cliente e o código à vista.
+      expect(folha.topo).toBeGreaterThanOrEqual(64);
+      expect(folha.base).toBeLessThanOrEqual(palco.base + 1);
+    });
+  });
+}
+
+/**
+ * **Celular.** Seis pílulas de item sobre uma casa de 345px se empilham umas
+ * por cima das outras e cobrem a casa inteira, que foi o que se viu em
+ * produção. No retrato cada item apaga quando o seguinte aparece.
+ */
+test.describe("LANDING-CENA-01: um item por vez no celular", () => {
+  test.use({ viewport: { width: 393, height: 852 } });
+
+  test("nunca há duas pílulas acesas ao mesmo tempo sobre a casa", async ({ page }) => {
+    await page.goto(`${ERP}/`);
+    await page.waitForLoadState("networkidle");
+    await rolaAte(page, "projeto");
+
+    // Durante o ato inteiro, e não num instante só: os itens surgem em
+    // sequência, e o defeito era justamente o acúmulo.
+    for (let passo = 0; passo < 14; passo++) {
+      const acesas = await page.evaluate(() =>
+        [...document.querySelectorAll(".cena-chip__rotulo")].filter((el) => {
+          let opacidade = 1;
+          for (let atual: Element | null = el; atual; atual = atual.parentElement) {
+            opacidade *= Number(getComputedStyle(atual).opacity);
+          }
+          // O item que já pousou na proposta não conta: ele é linha, não pílula.
+          const pilula = el.querySelector(".cena-chip__pilula");
+          const visivel = pilula ? Number(getComputedStyle(pilula).opacity) : 0;
+          return opacidade > 0.6 && visivel > 0.6;
+        }).length,
+      );
+      // Uma, e não zero: a troca entre um item e o seguinte é um crossfade, e
+      // no meio dele os dois existem. O que o defeito tinha eram SEIS pílulas
+      // inteiras ao mesmo tempo.
+      expect(acesas).toBeLessThanOrEqual(1);
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(120);
+    }
+  });
+});
+
 test.describe("LANDING-CENA-01: movimento reduzido", () => {
   test("a cena é o quadro final, no fluxo, sem precisar rolar", async ({ browser }) => {
     // `contextOptions`, e não `test.use({ reducedMotion })`: por `test.use` a

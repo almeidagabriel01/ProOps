@@ -72,6 +72,11 @@ export function FolhaDaProposta() {
                 "--linha": `var(--linha-${i})`,
                 "--dx": `var(--chip-${i}-x, 0px)`,
                 "--dy": `var(--chip-${i}-y, 0px)`,
+                // Quanto o item SEGUINTE já apareceu. No retrato é o que apaga
+                // este quando o próximo entra: seis pílulas sobre uma casa de
+                // 345px se empilham umas por cima das outras.
+                "--proximo":
+                  i < ITENS.length - 1 ? `var(--chip-${i + 1}-surge)` : "0",
               } as React.CSSProperties
             }
           >
@@ -93,7 +98,7 @@ export function FolhaDaProposta() {
               ))}
               {/* No retrato a folha divide a tela com a casa, e o nome do
                   cômodo é a linha que sobra: o chip ainda aponta para ele. */}
-              <span className="relative hidden text-[11px] leading-tight text-slate-500 min-[400px]:block lg:block">
+              <span className="cena-chip__comodo relative hidden text-[11px] leading-tight text-slate-500 min-[400px]:block lg:block">
                 {comodoPorId(item.comodo).nome}
               </span>
             </span>

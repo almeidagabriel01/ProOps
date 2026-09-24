@@ -104,7 +104,30 @@ Por isso a folha não tem `opacity` própria: ela apagaria os chips junto.
   tranco no meio da rolagem.
 - **Nenhum ancestral do palco pode ter `overflow`**: overflow desliga `sticky`
   nos descendentes, e a cena passa reto pela tela.
-- **O canvas é MAIOR que a caixa da casa** (`SOBRA_DO_QUADRO`, 12% por lado), e
+- **A casa é dimensionada pela FAIXA LIVRE, não por uma fração do palco.**
+  `width: min(56cqw, calc((100cqh - 21.5rem) * var(--aspecto)))`: as 21,5rem
+  são o que está reservado em cima (as abas, debaixo da barra fixa da landing)
+  e embaixo (a legenda de duas linhas e o trilho dos atos). Escrito em `cqh`
+  puro, como era (`74cqh`), a cena cabia na tela de 1440x900 em que foi
+  desenhada e invadia a legenda num notebook de 768, ou de 614 a 125% de
+  escala: **o texto reservado embaixo não encolhe com a tela, e uma fração do
+  palco encolhe.** O `padding-bottom` de `.cena-lugar-casa` reserva a mesma
+  faixa, em rem, pelo mesmo motivo.
+- **A coluna da proposta encosta no topo em tela baixa** (`max-height: 800px`),
+  e encolhe o que dá: o nome do cômodo sai de cada linha e o respiro entre elas
+  diminui. Ela tem ~590px de altura, que é o palco INTEIRO num notebook de
+  614px, e centrada transbordava dos dois lados, enfiando o cabeçalho debaixo
+  da barra fixa. **Escalar a coluna seria mais simples e está errado:** o
+  diretor escreve o voo do chip em pixels medidos fora dela, e um `scale`
+  encurtaria o voo na mesma proporção, deixando o item parado no meio do
+  caminho.
+- **No retrato, uma pílula por vez.** Cada item recebe `--proximo` (o `surge`
+  do item seguinte, escrito por item em `camadas-da-cena.tsx`) e apaga quando o
+  próximo aparece. Seis pílulas sobre uma casa de 345px se empilham umas por
+  cima das outras e cobrem a casa inteira. A atenuação vai no RÓTULO
+  (`1 - proximo * (1 - voo)`), nunca no `<li>`: depois de pousar na proposta o
+  item é uma linha, e a linha não pode apagar.
+- **O canvas é MAIOR que a caixa da casa** (`SOBRA_DO_QUADRO`, 25% por lado), e
   o frustum cresce na mesma fração. O SVG desenha com `overflow: visible` e pode
   passar da caixa; o canvas termina onde acaba, e com a câmera aproximando um
   cômodo a lateral da casa ficava decepada numa linha reta. Mexer num dos dois

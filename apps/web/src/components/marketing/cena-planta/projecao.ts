@@ -161,13 +161,16 @@ export function daCaixaAoPiso(
  * O SVG desenha com `overflow: visible`, então a casa pode passar da caixa sem
  * ser cortada. O canvas não tem esse luxo: ele termina onde acaba, e com a
  * câmera aproximando um cômodo (zoom 1,16 e pan até meio caminho) o telhado e
- * a lateral encostavam na borda e ficavam decepados. O canvas é desenhado
+ * a lateral encostavam na borda e ficavam decepados. A conta é a excursão da
+ * câmera, não um número bonito: 8% de cada lado só do zoom, mais o quanto o
+ * pan arrasta o desenho dentro da caixa. Com 12% ainda sobrava um corte reto
+ * na lateral direita numa tela de notebook. O canvas é desenhado
  * MAIOR que a caixa nesta fração, e o frustum cresce junto, então o que muda é
  * só quanto de mundo cabe em volta: a casa continua do mesmo tamanho e no
  * mesmo lugar que no SVG, que é o que faz a troca de um renderizador pelo
  * outro passar despercebida.
  */
-export const SOBRA_DO_QUADRO = 0.12;
+export const SOBRA_DO_QUADRO = 0.25;
 
 /**
  * O frustum do `OrthographicCamera` que reproduz o quadro do SVG, em unidades
