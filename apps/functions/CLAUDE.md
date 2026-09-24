@@ -845,7 +845,9 @@ Alimenta `/settings/linked-accounts`. Lógica em
   informa `plan.availableInPlan`, e um gate fecharia a tela inteira por causa
   de uma integração.
 - **Vocabulário único de estado:** `connected | attention | needs_reconnect |
-  disconnected | not_in_plan | platform_unavailable`. `needs_reconnect` é o
+  disconnected | not_in_plan | platform_unavailable`, mais um `notice` neutro
+  para etapa em andamento que não é problema (fiscal `registered`, aguardando a
+  primeira nota autorizada). `needs_reconnect` é o
   caso em que tentar de novo nunca resolve (token revogado, escopo antigo,
   certificado A1 vencido).
 - **Nada sensível sai na resposta**: e-mail, CNPJ, telefone mascarado (4

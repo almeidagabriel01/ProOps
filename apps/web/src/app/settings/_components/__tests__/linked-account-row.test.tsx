@@ -28,6 +28,7 @@ function account(overrides: Partial<LinkedAccount> = {}): LinkedAccount {
     connectedAt: "2026-08-02T10:00:00.000Z",
     lastActivityAt: null,
     issue: null,
+    notice: null,
     plan: { availableInPlan: true, minimumTier: null, addonAvailable: false },
     canManage: true,
     manageHref: "/settings/drive",
@@ -121,6 +122,18 @@ describe("LinkedAccountRow", () => {
       "href",
       "/profile?tab=billing",
     );
+  });
+
+  it("etapa em andamento aparece como aviso neutro, sem selo de problema", () => {
+    renderRow({
+      id: "fiscal",
+      notice: "Aguardando a primeira nota autorizada para liberar a emissão real.",
+      manageHref: "/settings/fiscal",
+    });
+    const row = screen.getByTestId("linked-account-fiscal");
+    expect(row).toHaveAttribute("data-status", "connected");
+    expect(screen.getByText(/primeira nota autorizada/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Gerenciar" })).toBeInTheDocument();
   });
 
   it("indisponível na plataforma não oferece ação", () => {

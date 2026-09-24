@@ -79,6 +79,8 @@ export interface LinkedAccount {
   lastActivityAt: string | null;
   /** O que precisa ser feito, em texto para o usuario. */
   issue: string | null;
+  /** Etapa em andamento que NAO e problema, em texto neutro. */
+  notice: string | null;
   plan: LinkedAccountPlanInfo;
   canManage: boolean;
   manageHref: string;
@@ -161,6 +163,7 @@ function base(
     connectedAt: null,
     lastActivityAt: null,
     issue: null,
+    notice: null,
     plan,
     canManage,
     manageHref,
@@ -379,11 +382,12 @@ export function classifyFiscal(
         : "A configuração fiscal está com erro. Revise os dados da empresa.",
     };
   }
-  if (settings.status !== "ready") {
+  if (settings.status === "pending") {
     return {
       ...connectedItem,
       status: "attention",
-      issue: "A configuração fiscal ainda não foi concluída.",
+      issue:
+        "Falta enviar o certificado digital A1 para concluir a configuração fiscal.",
     };
   }
   if (
@@ -397,6 +401,17 @@ export function classifyFiscal(
         "O emissor de notas não está conseguindo avisar a ProOps sobre o resultado das notas. Tente registrar o aviso de novo.",
     };
   }
+  // `registered` e configuracao COMPLETA: o que falta e a primeira nota
+  // autorizada (`markIssuerReady`), que depende do fisco e nao do usuario.
+  // Trata-lo como problema mandava a pessoa "resolver" algo que nao tem conserto
+  // na tela dela.
+  const awaitingFirstInvoice: Partial<LinkedAccount> =
+    settings.status === "registered"
+      ? {
+          notice:
+            "Aguardando a primeira nota autorizada para liberar a emissão real.",
+        }
+      : {};
   if (typeof daysLeft === "number" && daysLeft <= CERTIFICATE_WARNING_DAYS) {
     return {
       ...connectedItem,
@@ -405,9 +420,10 @@ export function classifyFiscal(
         daysLeft === 0
           ? "O certificado digital A1 vence hoje."
           : `O certificado digital A1 vence em ${daysLeft} ${daysLeft === 1 ? "dia" : "dias"}.`,
+      ...awaitingFirstInvoice,
     };
   }
-  return connectedItem;
+  return { ...connectedItem, ...awaitingFirstInvoice };
 }
 
 export function maskPhone(phone: string | null | undefined): string | null {

@@ -8,6 +8,7 @@ import {
   Crown,
   FileText,
   FolderOpen,
+  Info,
   MessageCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -202,6 +203,13 @@ export function LinkedAccountRow({ account }: LinkedAccountRowProps) {
             >
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <span>{account.issue}</span>
+            </p>
+          )}
+
+          {account.notice && (
+            <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>{account.notice}</span>
             </p>
           )}
 

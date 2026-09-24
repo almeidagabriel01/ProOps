@@ -306,6 +306,54 @@ describe("Notas fiscais", () => {
     });
   });
 
+  it("registered (aguardando a primeira nota autorizada) conta como conectado, com aviso neutro", () => {
+    const item = pick(
+      build("enterprise", { fiscal: fiscalDoc({ status: "registered" }) }),
+      "fiscal",
+    );
+    expect(item.status).toBe("connected");
+    expect(item.issue).toBeNull();
+    expect(item.notice).toMatch(/primeira nota autorizada/);
+  });
+
+  it("registered em homologacao, como o emitente real de dev, nao pede atencao", () => {
+    const item = pick(
+      build("enterprise", {
+        fiscal: fiscalDoc({ status: "registered", environment: "homologacao" }),
+      }),
+      "fiscal",
+    );
+    expect(item.status).toBe("connected");
+    expect(item.accountDetail).toContain("homologação");
+  });
+
+  it("registered com certificado vencendo: a atencao do certificado vence, e o aviso continua", () => {
+    const item = pick(
+      build("enterprise", {
+        fiscal: fiscalDoc({ status: "registered", certificadoValidade: "2026-10-04" }),
+      }),
+      "fiscal",
+    );
+    expect(item.status).toBe("attention");
+    expect(item.issue).toContain("10 dias");
+    expect(item.notice).toMatch(/primeira nota autorizada/);
+  });
+
+  it("pending pede o certificado, sem falar em configuracao generica", () => {
+    const item = pick(
+      build("enterprise", { fiscal: fiscalDoc({ status: "pending" }) }),
+      "fiscal",
+    );
+    expect(item.status).toBe("attention");
+    expect(item.issue).toMatch(/certificado digital A1/);
+    expect(item.notice).toBeNull();
+  });
+
+  it("ready nao tem aviso", () => {
+    const item = pick(build("enterprise", { fiscal: fiscalDoc() }), "fiscal");
+    expect(item.notice).toBeNull();
+  });
+
   it("certificado vencido pede reconexao", () => {
     const item = pick(
       build("enterprise", { fiscal: fiscalDoc({ certificadoValidade: "2026-09-01" }) }),
@@ -325,7 +373,7 @@ describe("Notas fiscais", () => {
 
   it.each([
     ["status error", { status: "error", lastError: "CNPJ recusado" }],
-    ["configuracao incompleta", { status: "pending" }],
+    ["certificado ainda nao enviado", { status: "pending" }],
     ["webhook falhou", { webhookStatus: { state: "failed", attemptedAt: "x", registered: [] } }],
     ["webhook parcial", { webhookStatus: { state: "partial", attemptedAt: "x", registered: [] } }],
   ])("%s pede atencao", (_label, extra) => {

@@ -32,6 +32,8 @@ export interface LinkedAccount {
   connectedAt: string | null;
   lastActivityAt: string | null;
   issue: string | null;
+  /** Etapa em andamento que não é problema (ex.: aguardando a primeira nota autorizada). */
+  notice: string | null;
   plan: {
     availableInPlan: boolean;
     minimumTier: LinkedAccountPlanTier | null;
