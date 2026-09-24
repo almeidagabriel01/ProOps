@@ -19,9 +19,12 @@ src/app/settings/
 ├── payments/page.tsx         # Asaas (master) ou "Acesso Restrito" (não-master)
 ├── fiscal/page.tsx           # Nota fiscal (master) ou "Acesso Restrito"
 ├── proposals/page.tsx        # Numeracao das propostas (master) ou "Acesso Restrito"
+├── drive/page.tsx            # Google Drive (master) ou "Acesso Restrito"
+├── linked-accounts/page.tsx  # Contas vinculadas: resumo de todas as integracoes (todos)
 ├── _components/
 │   ├── settings-nav.tsx      # Client — sidebar vertical agrupada (usePathname + <Link>)
 │   ├── asaas-connect-card.tsx
+│   ├── linked-account-row.tsx     # Linha de Contas vinculadas (selo, conta, motivo, acao)
 │   ├── asaas-payout-config-section.tsx
 │   ├── asaas-webhook-status-alert.tsx
 │   ├── fiscal-settings-card.tsx   # Orquestra o wizard fiscal (estado + status + desconectar)
@@ -46,6 +49,8 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/proposals` | Propostas (numeração) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/drive` | Google Drive | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/linked-accounts` | Contas vinculadas | Todos veem; ação só para quem pode conectar |
 
 > Os itens master-only permanecem visíveis na sidebar para todos os usuários (cada página gateia o conteúdo); não esconder por permissão sem reavaliar os testes de acesso a `/settings/*`.
 
@@ -254,6 +259,26 @@ entregue no Drive (`0018926SP_casa_do_mauricio.pdf`). Detalhes da regra em
 - A prévia do código é montada no cliente (`lib/proposal-numbering.ts`) para
   não pedir o servidor a cada tecla; a paridade com o backend tem guard em
   `src/__tests__/proposal-code-preview.test.ts`.
+
+## Contas vinculadas (`/settings/linked-accounts`)
+
+Resumo, só de leitura, de toda conta externa ligada à empresa (Google Agenda,
+Google Drive, Asaas, Notas Fiscais) e do WhatsApp do próprio usuário, com o
+estado de cada uma: conectado, precisa de atenção, precisa reconectar, não
+conectado, fora do plano. Lê `GET /v1/linked-accounts` (regra no backend,
+`apps/functions/CLAUDE.md`).
+
+- **Não conecta nada.** Cada ação é um link para a tela da própria integração
+  (`manageHref`), que já tem o fluxo de OAuth/cadastro. Uma segunda cópia desse
+  fluxo aqui divergiria da original.
+- **Todos veem, só quem pode conectar vê o botão** (`canManage`, decidido no
+  backend). Membro vê o problema e o aviso "Peça ao administrador".
+- **Fora do modo demo:** a conta free vê `UpgradeRequired` e o backend responde 402.
+- Sem `pageId` concedível: não entra em `PERMISSION_PAGES`, de propósito.
+- Integração nova com conta externa precisa entrar no serviço do backend e em
+  `LINKED_ACCOUNT_META` (`_components/linked-account-row.tsx`).
+
+Guard: `_components/__tests__/linked-account-row.test.tsx`.
 
 ## Padrões de componente para settings
 

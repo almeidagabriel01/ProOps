@@ -15,6 +15,7 @@ describe("settings sub-tab page configs", () => {
     "/settings/team",
     "/settings/security",
     "/settings/payments",
+    "/settings/linked-accounts",
   ];
 
   it.each(SUBTABS)("%s resolves a direct page config", (path) => {
