@@ -45,6 +45,7 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   maxUsers: 1,
   maxWallets: 2,
   maxSpreadsheets: 5,
+  maxInvoicesPerMonth: 0,
   maxPdfTemplates: 1,
   maxImagesPerProduct: 2,
   maxStorageMB: 100,
@@ -54,6 +55,8 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   hasFiscal: false,
   hasCalendarSync: false,
   hasDriveSync: false,
+  hasOnlinePayments: false,
+  hasFiscalReceiving: false,
   hasWhatsApp: false,
   canCustomizeTheme: false,
   canEditPdfSections: false,
@@ -101,6 +104,11 @@ export interface PlanContextValue {
   hasKanban: boolean;
   hasFiscal: boolean;
   hasDriveSync: boolean;
+  hasCalendarSync: boolean;
+  hasOnlinePayments: boolean;
+  hasFiscalReceiving: boolean;
+  /** Notas por mês que o plano (com add-ons) permite emitir. -1 = ilimitado. */
+  maxInvoicesPerMonth: number;
   /**
    * Flag de TENANT (`whatsappEnabled`), não a claim comercial do plano. São
    * coisas diferentes com o mesmo nome: `features.hasWhatsApp` diz o que o
@@ -185,6 +193,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           maxUsers: -1,
           maxWallets: -1,
           maxSpreadsheets: -1,
+          maxInvoicesPerMonth: -1,
           maxPdfTemplates: -1,
           maxImagesPerProduct: 3,
           maxStorageMB: -1,
@@ -194,6 +203,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           hasFiscal: true,
           hasCalendarSync: true,
           hasDriveSync: true,
+          hasOnlinePayments: true,
+          hasFiscalReceiving: true,
           hasWhatsApp: true,
           canCustomizeTheme: true,
           canEditPdfSections: true,
@@ -452,31 +463,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
   const addonAugmented = useMemo(() => {
     if (!baseFeatures) return null;
-    return AddonService.applyAddonsToFeatures(
-      {
-        hasFinancial: baseFeatures.hasFinancial,
-        canEditPdfSections: baseFeatures.canEditPdfSections,
-        maxPdfTemplates: baseFeatures.maxPdfTemplates,
-        hasKanban: baseFeatures.hasKanban,
-        canCustomizeTheme: baseFeatures.canCustomizeTheme,
-        maxUsers: baseFeatures.maxUsers,
-      },
-      purchasedAddons,
-    ) as unknown as PlanFeatures;
+    return AddonService.applyAddonsToFeatures(baseFeatures, purchasedAddons);
   }, [baseFeatures, purchasedAddons]);
 
-  const mergedFeatures = useMemo(() => {
-    if (!baseFeatures || !addonAugmented) return null;
-    return {
-      ...baseFeatures,
-      hasFinancial: addonAugmented.hasFinancial,
-      canEditPdfSections: addonAugmented.canEditPdfSections,
-      maxPdfTemplates: addonAugmented.maxPdfTemplates,
-      hasKanban: addonAugmented.hasKanban,
-      canCustomizeTheme: addonAugmented.canCustomizeTheme,
-      maxUsers: addonAugmented.maxUsers,
-    };
-  }, [baseFeatures, addonAugmented]);
+  const mergedFeatures = addonAugmented;
 
   // -------------------------------------------------------------------------
   // Count helpers
@@ -634,6 +624,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       hasKanban: mergedFeatures?.hasKanban ?? false,
       hasFiscal: mergedFeatures?.hasFiscal ?? false,
       hasDriveSync: mergedFeatures?.hasDriveSync ?? false,
+      hasCalendarSync: mergedFeatures?.hasCalendarSync ?? false,
+      hasOnlinePayments: mergedFeatures?.hasOnlinePayments ?? false,
+      hasFiscalReceiving: mergedFeatures?.hasFiscalReceiving ?? false,
+      maxInvoicesPerMonth: mergedFeatures?.maxInvoicesPerMonth ?? 0,
       hasWhatsApp: featureFlags.whatsapp,
       canCustomizeTheme: mergedFeatures?.canCustomizeTheme ?? false,
       canEditPdfSections: mergedFeatures?.canEditPdfSections ?? false,

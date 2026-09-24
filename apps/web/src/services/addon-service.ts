@@ -20,7 +20,8 @@ const COLLECTION_NAME = "addons";
 // Add-on definitions with metadata and feature mappings
 // IMPORTANT: Prices are NOT stored here - they come ONLY from Stripe via Cloud Functions
 // This ensures proper separation between dev/staging/production environments
-// Ordered by price ascending (R$19, R$29, R$40)
+// Espelha ADDON_DEFINITIONS_BACKEND (apps/functions/src/shared/addon-definitions.ts).
+// Guard: src/__tests__/addon-definitions-parity.test.ts.
 export const ADDON_DEFINITIONS: AddonDefinition[] = [
   {
     id: "pdf_editor_partial",
@@ -63,7 +64,33 @@ export const ADDON_DEFINITIONS: AddonDefinition[] = [
     order: 4,
     availableForTiers: ["starter", "pro"],
   },
+  {
+    id: "fiscal",
+    name: "Notas Fiscais",
+    description:
+      "Emissão de NF-e e NFS-e a partir das propostas e lançamentos, até 100 notas por mês",
+    featureKey: "hasFiscal",
+    featureValue: true,
+    icon: "Receipt",
+    order: 5,
+    availableForTiers: ["starter", "pro"],
+  },
+  {
+    id: "online_payments",
+    name: "Pagamento Online",
+    description:
+      "Seu cliente paga a parcela por Pix ou boleto direto no link compartilhado",
+    featureKey: "hasOnlinePayments",
+    featureValue: true,
+    icon: "CreditCard",
+    order: 6,
+    availableForTiers: ["starter", "pro"],
+    requiresAddons: { starter: ["financial"] },
+  },
 ];
+
+/** Franquia mensal do add-on fiscal. Espelha FISCAL_ADDON_MONTHLY_INVOICES do backend. */
+export const FISCAL_ADDON_MONTHLY_INVOICES = 100;
 
 export const AddonService = {
   /**
@@ -242,17 +269,17 @@ export const AddonService = {
    * Get effective feature value considering add-ons
    * This merges base plan features with purchased add-ons
    */
-  applyAddonsToFeatures(
-    baseFeatures: {
+  applyAddonsToFeatures<
+    T extends {
       hasFinancial: boolean;
       canEditPdfSections: boolean;
       maxPdfTemplates: number;
       hasKanban: boolean;
-      canCustomizeTheme: boolean;
-      maxUsers: number;
+      hasFiscal?: boolean;
+      maxInvoicesPerMonth?: number;
+      hasOnlinePayments?: boolean;
     },
-    purchasedAddons: AddonType[]
-  ): typeof baseFeatures {
+  >(baseFeatures: T, purchasedAddons: AddonType[]): T {
     const result = { ...baseFeatures };
 
     for (const addonType of purchasedAddons) {
@@ -276,6 +303,19 @@ export const AddonService = {
           break;
         case "crm":
           result.hasKanban = true;
+          break;
+        case "fiscal":
+          // A recepção de notas de entrada não entra: é só Enterprise.
+          result.hasFiscal = true;
+          if (result.maxInvoicesPerMonth !== -1) {
+            result.maxInvoicesPerMonth = Math.max(
+              result.maxInvoicesPerMonth ?? 0,
+              FISCAL_ADDON_MONTHLY_INVOICES,
+            );
+          }
+          break;
+        case "online_payments":
+          result.hasOnlinePayments = true;
           break;
       }
     }

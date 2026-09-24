@@ -8,12 +8,23 @@ export type AddonId =
   | "financial"
   | "pdf_editor_partial"
   | "pdf_editor_full"
-  | "crm";
+  | "crm"
+  | "fiscal"
+  | "online_payments";
 
 export interface AddonDefinitionBackend {
   id: AddonId;
   availableForTiers: PlanTierId[];
+  /**
+   * Add-ons que precisam estar ativos antes deste, por tier. O pagamento online
+   * vive dentro do financeiro (o link de pagamento e de um lancamento), entao um
+   * Starter sem o add-on financeiro compraria um modulo que nao consegue abrir.
+   */
+  requiresAddons?: Partial<Record<PlanTierId, AddonId[]>>;
 }
+
+/** Franquia mensal de notas do add-on fiscal. O Enterprise segue ilimitado. */
+export const FISCAL_ADDON_MONTHLY_INVOICES = 100;
 
 /**
  * Backend source of truth for addon tier restrictions.
@@ -37,6 +48,15 @@ export const ADDON_DEFINITIONS_BACKEND: AddonDefinitionBackend[] = [
     id: "crm",
     availableForTiers: ["starter", "pro"],
   },
+  {
+    id: "fiscal",
+    availableForTiers: ["starter", "pro"],
+  },
+  {
+    id: "online_payments",
+    availableForTiers: ["starter", "pro"],
+    requiresAddons: { starter: ["financial"] },
+  },
 ];
 
 const ADDON_MAP = new Map<AddonId, AddonDefinitionBackend>(
@@ -51,6 +71,21 @@ export function isAddonAvailableForTier(
   const def = ADDON_MAP.get(addonId as AddonId);
   if (!def) return false;
   return def.availableForTiers.includes(planTier);
+}
+
+/**
+ * Add-ons pre-requisito que faltam para `addonId` neste tier. Lista vazia =
+ * pode comprar. O tier precisa ja ter sido validado por `isAddonAvailableForTier`.
+ */
+export function missingRequiredAddons(
+  addonId: string,
+  planTier: PlanTierId | null,
+  activeAddonIds: readonly string[],
+): AddonId[] {
+  if (!planTier) return [];
+  const def = ADDON_MAP.get(addonId as AddonId);
+  const required = def?.requiresAddons?.[planTier] ?? [];
+  return required.filter((id) => !activeAddonIds.includes(id));
 }
 
 export function isKnownAddonId(addonId: string): addonId is AddonId {
@@ -93,6 +128,20 @@ export function applyAddonsToCapabilities(
       case "pdf_editor_full":
         limits.maxPdfTemplates = -1;
         capabilities.pdfEditor = true;
+        break;
+      case "fiscal":
+        // Emissao, com franquia. A recepcao de notas de entrada (`fiscalReceiving`)
+        // NAO entra: consome unidade paga sem ninguem clicar.
+        capabilities.fiscal = true;
+        if (limits.maxInvoicesPerMonth !== -1) {
+          limits.maxInvoicesPerMonth = Math.max(
+            limits.maxInvoicesPerMonth,
+            FISCAL_ADDON_MONTHLY_INVOICES,
+          );
+        }
+        break;
+      case "online_payments":
+        capabilities.onlinePayments = true;
         break;
       default:
         break;

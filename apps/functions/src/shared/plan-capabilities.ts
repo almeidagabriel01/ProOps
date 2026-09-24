@@ -32,6 +32,14 @@ export type PlanTierId = "free" | "starter" | "pro" | "enterprise";
  * `driveSync` fica na MESMA faixa do `calendarSync`, e nao numa acima: as duas
  * usam o mesmo consentimento Google e resolvem a mesma dor — nao manter duas
  * organizacoes, uma no ERP e outra fora dele. Separa-las confundiria na venda.
+ *
+ * `onlinePayments` e o pagamento da parcela pelo link compartilhado (Asaas).
+ * Ate 2026-09 ele vinha junto do `financial`; separou para ser nativo so no
+ * Enterprise e vendido como add-on nos demais.
+ *
+ * `fiscalReceiving` e a recepcao de notas de ENTRADA. Fica fora do add-on
+ * fiscal de proposito: cada nota recebida consome uma unidade paga do Focus
+ * sem clique de ninguem, entao nao cabe na franquia mensal do add-on.
  */
 export type PlanCapabilityKey =
   | "financial"
@@ -41,7 +49,9 @@ export type PlanCapabilityKey =
   | "customTheme"
   | "whatsapp"
   | "calendarSync"
-  | "driveSync";
+  | "driveSync"
+  | "onlinePayments"
+  | "fiscalReceiving";
 
 export type PlanCapabilities = Record<PlanCapabilityKey, boolean>;
 
@@ -52,6 +62,8 @@ export interface PlanNumericLimits {
   maxUsers: number;
   maxWallets: number;
   maxSpreadsheets: number;
+  /** Notas fiscais emitidas por mes. So o add-on fiscal usa teto finito. */
+  maxInvoicesPerMonth: number;
   maxPdfTemplates: number;
   maxImagesPerProduct: number;
   storageQuotaMB: number;
@@ -76,6 +88,8 @@ export const PLAN_CAPABILITY_KEYS: readonly PlanCapabilityKey[] = [
   "whatsapp",
   "calendarSync",
   "driveSync",
+  "onlinePayments",
+  "fiscalReceiving",
 ] as const;
 
 const NO_CAPABILITIES: PlanCapabilities = {
@@ -87,6 +101,8 @@ const NO_CAPABILITIES: PlanCapabilities = {
   whatsapp: false,
   calendarSync: false,
   driveSync: false,
+  onlinePayments: false,
+  fiscalReceiving: false,
 };
 
 export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
@@ -101,6 +117,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       maxUsers: 1,
       maxWallets: 2,
       maxSpreadsheets: 5,
+      maxInvoicesPerMonth: 0,
       maxPdfTemplates: 1,
       maxImagesPerProduct: 2,
       storageQuotaMB: 100,
@@ -121,7 +138,8 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       maxProducts: 220,
       maxUsers: 1,
       maxWallets: 5,
-      maxSpreadsheets: 25,
+      maxSpreadsheets: 5,
+      maxInvoicesPerMonth: 0,
       maxPdfTemplates: 1,
       maxImagesPerProduct: 2,
       storageQuotaMB: 200,
@@ -146,7 +164,8 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       maxProducts: -1,
       maxUsers: 2,
       maxWallets: 30,
-      maxSpreadsheets: 250,
+      maxSpreadsheets: 50,
+      maxInvoicesPerMonth: 0,
       maxPdfTemplates: -1,
       maxImagesPerProduct: 3,
       storageQuotaMB: 2560,
@@ -166,6 +185,8 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       whatsapp: true,
       calendarSync: true,
       driveSync: true,
+      onlinePayments: true,
+      fiscalReceiving: true,
     },
     limits: {
       maxProposalsPerMonth: -1,
@@ -174,6 +195,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       maxUsers: -1,
       maxWallets: -1,
       maxSpreadsheets: -1,
+      maxInvoicesPerMonth: -1,
       maxPdfTemplates: -1,
       maxImagesPerProduct: 3,
       storageQuotaMB: -1,
@@ -240,6 +262,8 @@ export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   whatsapp: "WhatsApp",
   calendarSync: "Google Agenda",
   driveSync: "Google Drive",
+  onlinePayments: "Pagamento online",
+  fiscalReceiving: "Notas de entrada",
 };
 
 export const LIMIT_LABELS: Record<keyof PlanNumericLimits, string> = {
@@ -249,6 +273,7 @@ export const LIMIT_LABELS: Record<keyof PlanNumericLimits, string> = {
   maxUsers: "Usuários da equipe",
   maxWallets: "Carteiras",
   maxSpreadsheets: "Planilhas",
+  maxInvoicesPerMonth: "Notas fiscais por mês",
   maxPdfTemplates: "Modelos de PDF",
   maxImagesPerProduct: "Imagens por produto",
   storageQuotaMB: "Armazenamento (MB)",
@@ -282,6 +307,7 @@ export interface PublicPlanFeatures {
   maxUsers: number;
   maxWallets: number;
   maxSpreadsheets: number;
+  maxInvoicesPerMonth: number;
   maxPdfTemplates: number;
   maxImagesPerProduct: number;
   maxStorageMB: number;
@@ -291,6 +317,8 @@ export interface PublicPlanFeatures {
   hasFiscal: boolean;
   hasCalendarSync: boolean;
   hasDriveSync: boolean;
+  hasOnlinePayments: boolean;
+  hasFiscalReceiving: boolean;
   hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
   canEditPdfSections: boolean;
@@ -305,6 +333,7 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     maxUsers: entry.limits.maxUsers,
     maxWallets: entry.limits.maxWallets,
     maxSpreadsheets: entry.limits.maxSpreadsheets,
+    maxInvoicesPerMonth: entry.limits.maxInvoicesPerMonth,
     maxPdfTemplates: entry.limits.maxPdfTemplates,
     maxImagesPerProduct: entry.limits.maxImagesPerProduct,
     maxStorageMB: entry.limits.storageQuotaMB,
@@ -314,6 +343,8 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     hasFiscal: entry.capabilities.fiscal,
     hasCalendarSync: entry.capabilities.calendarSync,
     hasDriveSync: entry.capabilities.driveSync,
+    hasOnlinePayments: entry.capabilities.onlinePayments,
+    hasFiscalReceiving: entry.capabilities.fiscalReceiving,
     hasWhatsApp: entry.capabilities.whatsapp,
     canCustomizeTheme: entry.capabilities.customTheme,
     canEditPdfSections: entry.capabilities.pdfEditor,

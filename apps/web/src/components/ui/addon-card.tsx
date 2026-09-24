@@ -3,7 +3,19 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AddonDefinition } from "@/types";
-import { DollarSign, FileEdit, Layout, Palette, Users, Check, Crown, Calendar } from "lucide-react";
+import {
+  DollarSign,
+  FileEdit,
+  Layout,
+  Palette,
+  Users,
+  Check,
+  Crown,
+  Calendar,
+  Kanban,
+  Receipt,
+  CreditCard,
+} from "lucide-react";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/utils/format";
@@ -33,6 +45,9 @@ const iconMap: Record<string, typeof DollarSign> = {
   Layout,
   Palette,
   Users,
+  Kanban,
+  Receipt,
+  CreditCard,
 };
 
 export function AddonCard({

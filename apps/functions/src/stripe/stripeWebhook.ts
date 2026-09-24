@@ -45,6 +45,7 @@ import { logger } from "../lib/logger";
 import { applyBillingClaimsToTenantUsers } from "../lib/billing-claims";
 import { invalidateBillingCache } from "../api/middleware/require-active-subscription";
 import type { SyncTenantPlanBillingSnapshotParams } from "../shared/billing-types";
+import { isKnownAddonId } from "../shared/addon-definitions";
 import { notifyInternalLifecycle } from "../services/email/internal-notify";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -156,13 +157,7 @@ async function demoteIfPureTrialChurn(
 }
 
 function isSupportedAddonType(value: unknown): value is AddonType {
-  const normalized = String(value || "").trim();
-  return [
-    "financial",
-    "pdf_editor_partial",
-    "pdf_editor_full",
-    "crm",
-  ].includes(normalized);
+  return isKnownAddonId(String(value || "").trim());
 }
 
 export function buildTenantSubscriptionLifecyclePatch(input: {

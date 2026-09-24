@@ -23,6 +23,7 @@ function toolNamesFor(
               maxUsers: 0,
               maxWallets: 0,
               maxSpreadsheets: 0,
+              maxInvoicesPerMonth: 0,
               maxPdfTemplates: 1,
               maxImagesPerProduct: 0,
               storageQuotaMB: 0,

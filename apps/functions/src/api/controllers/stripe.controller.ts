@@ -34,7 +34,10 @@ import {
   buildPublicPlanFeatures,
   type PublicPlanFeatures,
 } from "../../shared/plan-capabilities";
-import { isAddonAvailableForTier } from "../../shared/addon-definitions";
+import {
+  isAddonAvailableForTier,
+  isKnownAddonId,
+} from "../../shared/addon-definitions";
 import { logger } from "../../lib/logger";
 import { reserveCheckout, clearCheckoutReservation } from "../../billing";
 import {
@@ -214,13 +217,7 @@ function resolveRequestOrigin(req: Request): string {
 function resolveAddonId(rawAddonId: unknown): string | null {
   const addonId = String(rawAddonId || "").trim();
   if (!addonId) return null;
-  const purchaseableAddonIds = new Set([
-    "financial",
-    "pdf_editor_partial",
-    "pdf_editor_full",
-    "crm",
-  ]);
-  if (!purchaseableAddonIds.has(addonId)) return null;
+  if (!isKnownAddonId(addonId)) return null;
   return getPriceIdForAddon(addonId) ? addonId : null;
 }
 
