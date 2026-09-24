@@ -14,8 +14,8 @@ import {
   assertTenantExists,
   auditSuperAdminCrossTenantWrite,
 } from "../../lib/tenant-resolution";
-import { resolveWalletRef } from "../../lib/finance-helpers";
 import { buildProposalTransactionsCleanupQuery } from "../../lib/proposal-transactions-query";
+import { applyProposalTransactionsCleanup } from "../../lib/proposal-transactions-cleanup";
 import {
   enforceTenantPlanLimit,
   buildMonthlyPeriodWindowUtc,
@@ -2212,33 +2212,9 @@ async function cleanupProposalTransactions(
 
     if (snapshot.empty) return;
 
-    await db.runTransaction(async (t) => {
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
-
-        // 1. Reverse balance if paid
-        if (data.status === "paid" && data.wallet && data.amount) {
-          const isIncome = data.type === "income";
-          const sign = isIncome ? 1 : -1;
-          const offset = data.amount * sign;
-
-          // To reverse, we subtract the offset: balance -= offset
-          // But using increment: increment(-offset)
-          const reverseAmount = -offset;
-
-          const w = await resolveWalletRef(t, db, tenantId, data.wallet);
-          if (w) {
-            t.update(w.ref, {
-              balance: FieldValue.increment(reverseAmount),
-              updatedAt: Timestamp.now(),
-            });
-          }
-        }
-
-        // 2. Delete transaction
-        t.delete(doc.ref);
-      }
-    });
+    await db.runTransaction((t) =>
+      applyProposalTransactionsCleanup(t, db, tenantId, snapshot.docs),
+    );
 
     console.log(
       `Transactions cleaned up for reverted/deleted proposal ${proposalId}`,
