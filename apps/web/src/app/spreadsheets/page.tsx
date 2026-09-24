@@ -19,6 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { ApiError, isDemoReadOnlyError } from "@/lib/api-client";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
 import {
@@ -52,6 +53,22 @@ import {
 } from "@/lib/spreadsheet-import";
 import { DEFAULT_SPREADSHEET_LOCALE } from "@/lib/univer-pt-br";
 import { formatDateBR } from "@/utils/date-format";
+
+/**
+ * O 402 do teto de planilhas é desfecho de plano, não falha: sem este caso a
+ * pessoa via "Erro ao criar planilha" e não sabia que tinha chegado ao limite.
+ */
+function notifyCreateError(error: unknown, fallback: string) {
+  if (isDemoReadOnlyError(error)) return;
+  if (error instanceof ApiError && error.status === 402) {
+    toast.error(error.message || "Limite de planilhas do plano atingido.", {
+      description:
+        "Apague uma planilha que não usa mais ou faça upgrade do plano para criar outras.",
+    });
+    return;
+  }
+  toast.error(error instanceof Error && error.message ? error.message : fallback);
+}
 
 export default function SpreadsheetsPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -171,7 +188,7 @@ export default function SpreadsheetsPage() {
       router.push(`/spreadsheets/${newId}`);
     } catch (error) {
       console.error("Error creating spreadsheet:", error);
-      toast.error("Erro ao criar planilha");
+      notifyCreateError(error, "Erro ao criar planilha");
       setCreating(false);
     }
   };
@@ -208,11 +225,7 @@ export default function SpreadsheetsPage() {
       router.push(`/spreadsheets/${newId}`);
     } catch (error) {
       console.error("Error importing spreadsheet:", error);
-      toast.error(
-        error instanceof Error && error.message
-          ? error.message
-          : "Erro ao importar planilha",
-      );
+      notifyCreateError(error, "Erro ao importar planilha");
     } finally {
       setImporting(false);
     }

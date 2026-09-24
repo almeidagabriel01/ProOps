@@ -34,7 +34,9 @@ export type PlanLimitFeature =
   | "maxWallets"
   | "maxUsers"
   | "storageQuotaMB"
-  | "maxSpreadsheets";
+  | "maxSpreadsheets"
+  | "maxClients"
+  | "maxProducts";
 
 export type TenantPlanLimits = Record<PlanLimitFeature, number>;
 
@@ -149,6 +151,8 @@ function buildPlanLimits(tier: TenantPlanTier): TenantPlanLimits {
     maxUsers: catalog.maxUsers,
     storageQuotaMB: catalog.storageQuotaMB,
     maxSpreadsheets: catalog.maxSpreadsheets,
+    maxClients: catalog.maxClients,
+    maxProducts: catalog.maxProducts,
   };
 }
 
@@ -567,6 +571,8 @@ function getFeatureLabel(feature: PlanLimitFeature): string {
   if (feature === "maxWallets") return "carteiras";
   if (feature === "maxUsers") return "membros da equipe";
   if (feature === "storageQuotaMB") return "armazenamento";
+  if (feature === "maxClients") return "contatos";
+  if (feature === "maxProducts") return "produtos e serviços";
   return "planilhas";
 }
 
@@ -1165,6 +1171,27 @@ export async function getTenantSpreadsheetsUsage(
     .count()
     .get();
   return Number(snap.data().count || 0);
+}
+
+export async function getTenantClientsUsage(tenantId: string): Promise<number> {
+  const snap = await db
+    .collection("clients")
+    .where("tenantId", "==", tenantId)
+    .count()
+    .get();
+  return Number(snap.data().count || 0);
+}
+
+/**
+ * Produtos e servicos dividem o mesmo teto (`maxProducts`): os dois sao o que
+ * a empresa vende, e os dois sempre incrementaram o mesmo `usage.products`.
+ */
+export async function getTenantProductsUsage(tenantId: string): Promise<number> {
+  const [products, services] = await Promise.all([
+    db.collection("products").where("tenantId", "==", tenantId).count().get(),
+    db.collection("services").where("tenantId", "==", tenantId).count().get(),
+  ]);
+  return Number(products.data().count || 0) + Number(services.data().count || 0);
 }
 
 export async function getTenantStorageUsageMb(tenantId: string): Promise<number> {

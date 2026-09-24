@@ -209,19 +209,12 @@ LEGACY_PROPOSAL_LIMITS = { free: 5, starter: 80, pro: -1, enterprise: -1 }
 
 `-1` significa ilimitado.
 
-### `checkClientLimit(masterData)` → `void | throws`
-
-Determina `maxClients` na seguinte ordem de prioridade:
-1. `LEGACY_LIMITS[planId]` — tiers conhecidos (free/starter/pro/enterprise)
-2. `masterData.subscription.limits.maxClients` — limite customizado no doc
-3. Fetch do doc `plans/{planId}` → `features.maxClients`
-4. Default: `10` (free)
-
-Lanca `Error(mensagem)` se `currentClients >= maxClients` (para limite >= 0). O caller deve capturar e retornar HTTP 402.
-
 ### `checkUserLimit(masterData, masterId)` → `void | throws`
 
-Mesma logica, mas para `maxUsers`. Fallback adicional: se `usage.users === 0`, faz query de contagem real em `users.where("masterId", "==", masterId)` para evitar falso positivo em dados antigos.
+Le `maxUsers` do plano do USUARIO (`planId`), em ordem: `LEGACY_USER_LIMITS`,
+`subscription.limits`, doc `plans/{planId}`. O limite de contatos, que usava a
+mesma logica (`checkClientLimit`), migrou para `enforceTenantPlanLimit` em
+2026-09. Fallback adicional: se `usage.users === 0`, faz query de contagem real em `users.where("masterId", "==", masterId)` para evitar falso positivo em dados antigos.
 
 ### `checkProposalLimit(masterData)` → `void | throws`
 

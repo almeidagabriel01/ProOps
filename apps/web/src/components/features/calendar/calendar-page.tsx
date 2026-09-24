@@ -46,6 +46,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useIsMobile, useMediaQuery } from "@/hooks/use-is-mobile";
 import { usePermissions } from "@/providers/permissions-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { CalendarService } from "@/services/calendar-service";
 import type {
   CalendarEvent,
@@ -427,6 +428,9 @@ export function CalendarPage() {
   const [currentTitle, setCurrentTitle] = React.useState("");
   const [isLoadingEvents, setIsLoadingEvents] = React.useState(true);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  // A agenda interna é de todos os planos; a sincronia com o Google é do Pro
+  // para cima. Sem este gate o Starter via "Conectar" e levava 402 no clique.
+  const { hasCalendarSync, isLoading: isPlanLoading } = usePlanLimits();
   const [googleStatus, setGoogleStatus] =
     React.useState<GoogleCalendarConnectionStatus>({
       enabled: GOOGLE_CALENDAR_SYNC_ENABLED,
@@ -518,7 +522,8 @@ export function CalendarPage() {
   }, [tenant?.id, user?.id, range.startMs, range.endMs]);
 
   React.useEffect(() => {
-    if (!GOOGLE_CALENDAR_SYNC_ENABLED) {
+    if (isPlanLoading) return;
+    if (!GOOGLE_CALENDAR_SYNC_ENABLED || !hasCalendarSync) {
       setGoogleStatus({ enabled: false, connected: false });
       setIsLoadingGoogle(false);
       return;
@@ -559,7 +564,7 @@ export function CalendarPage() {
     return () => {
       active = false;
     };
-  }, [tenant?.id, user?.id]);
+  }, [tenant?.id, user?.id, isPlanLoading, hasCalendarSync]);
 
   React.useEffect(() => {
     if (!GOOGLE_CALENDAR_SYNC_ENABLED) {
@@ -1182,7 +1187,18 @@ export function CalendarPage() {
           </section>
 
           <aside className="flex min-h-0 w-full shrink-0 flex-col border-t border-border/60 bg-muted/[0.16] xl:w-[360px] xl:border-l xl:border-t-0">
-            {GOOGLE_CALENDAR_SYNC_ENABLED ? (
+            {GOOGLE_CALENDAR_SYNC_ENABLED &&
+            !isPlanLoading &&
+            !hasCalendarSync ? (
+              <div className="shrink-0 border-b border-border/60 px-5 py-4">
+                <p className="text-sm font-medium">Google Agenda</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  A sincronia com o Google Agenda está disponível a partir do
+                  plano Profissional. A agenda da ProOps continua funcionando
+                  normalmente.
+                </p>
+              </div>
+            ) : GOOGLE_CALENDAR_SYNC_ENABLED ? (
               <div className="shrink-0 border-b border-border/60 px-5 py-4">
                 <GoogleCalendarCompanyCard
                   status={googleStatus}

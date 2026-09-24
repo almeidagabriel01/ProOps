@@ -29,6 +29,8 @@ const fakeProfile = (id: string): TenantPlanProfile => ({
     maxUsers: 1,
     storageQuotaMB: 200,
     maxSpreadsheets: 5,
+    maxClients: 120,
+    maxProducts: 220,
   },
   subscriptionStatus: "active",
   source: "test",

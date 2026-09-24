@@ -57,9 +57,12 @@ Se nenhum dos dois retornar `true`, retorna `403`. Masters e superadmins ignoram
 Se `isSuperAdmin` e `input.targetTenantId` presente e diferente do proprio tenant, o controller busca o owner do tenant alvo (user sem `masterId`, ou com role `MASTER/ADMIN`) para usar como `targetMasterRef` no decremento/incremento de `usage`.
 
 **Limite de plano:**
-Chama `checkClientLimit(targetMasterData)` de `lib/billing-helpers`. Se limite atingido:
-- Usuario normal → `402 { message, code: "resource-exhausted" }`
-- SuperAdmin → ignora o erro e prossegue
+`enforceTenantPlanLimit({ feature: "maxClients" })` com a contagem real de
+`clients` do tenant (`getTenantClientsUsage`). O plano vem do doc do TENANT, como
+os demais limites; ate 2026-09 vinha do `planId` do usuario dono e de um
+`usage.clients` mantido a mao. Se limite atingido:
+- Usuario normal → `402 { message, code: "PLAN_LIMIT_EXCEEDED" }`
+- SuperAdmin → bypass (mesma regra do `enforceTenantPlanLimit`)
 
 **Transacao atomica:**
 1. Cria doc em `clients/{newId}`
@@ -156,7 +159,7 @@ O sistema de permissoes usa a subcollection `users/{memberId}/permissions/{pageI
 ## Dependencias
 
 - `lib/auth-helpers` — `resolveUserAndTenant`, `checkPermission`, `UserDoc`
-- `lib/billing-helpers` — `checkClientLimit`
+- `lib/tenant-plan-policy` — `enforceTenantPlanLimit`, `getTenantClientsUsage`
 
 ## Relacao com outros recursos
 

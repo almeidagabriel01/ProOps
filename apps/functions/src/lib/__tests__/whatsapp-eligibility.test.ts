@@ -32,6 +32,8 @@ function makeProfile(tier: TenantPlanProfile["tier"]): TenantPlanProfile {
       maxUsers: -1,
       storageQuotaMB: -1,
       maxSpreadsheets: -1,
+      maxClients: -1,
+      maxProducts: -1,
     },
     subscriptionStatus: "active",
     source: "tenant.plan",
