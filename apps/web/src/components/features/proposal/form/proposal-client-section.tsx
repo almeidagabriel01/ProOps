@@ -86,6 +86,16 @@ export function ProposalClientSection({
     !isExistingProposal,
   );
 
+  const mostraDocumento = Boolean(
+    isNewClient && formData.clientName && onNewClientDocumentChange,
+  );
+  // Email, Telefone, o documento (contato novo) e a validade (sem numeração,
+  // que a leva para a linha de baixo). Quatro campos viram 2x2 em vez de uma
+  // linha de quatro, onde o documento ficaria espremido.
+  const contactRowFields =
+    2 + (mostraDocumento ? 1 : 0) + (mostraNumeracao ? 0 : 1);
+  const contactRowCols = contactRowFields === 3 ? 3 : 2;
+
   // Handler for type checkbox changes
   const handleTypeChange = (type: ClientType, checked: boolean) => {
     if (!onClientTypesChange) return;
@@ -212,45 +222,10 @@ export function ProposalClientSection({
               </label>
             </div>
           )}
-
-          {/* CPF/CNPJ — só no contato NOVO, junto do seletor de tipo, porque é
-              a única janela em que esses dados são gravados. Sem ele o contato
-              nascia sem documento e a emissão de nota parava num campo que só
-              dava para preencher voltando em Contatos. */}
-          {isNewClient && formData.clientName && onNewClientDocumentChange && (
-            <div className="mt-3">
-              <FormItem
-                label="CPF ou CNPJ"
-                htmlFor="newClientDocument"
-                hint="Opcional aqui, obrigatório para emitir nota fiscal."
-                error={
-                  isDocumentoValido(newClientDocument)
-                    ? undefined
-                    : "CPF ou CNPJ inválido"
-                }
-              >
-                <Input
-                  id="newClientDocument"
-                  name="newClientDocument"
-                  value={newClientDocument}
-                  onChange={(e) =>
-                    onNewClientDocumentChange(formatDocumento(e.target.value))
-                  }
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                  icon={<CreditCard className="w-4 h-4" />}
-                  className={
-                    isDocumentoValido(newClientDocument)
-                      ? ""
-                      : "border-destructive"
-                  }
-                />
-              </FormItem>
-            </div>
-          )}
         </FormItem>
       </FormGroup>
 
-      <FormGroup cols={mostraNumeracao ? 2 : 3}>
+      <FormGroup cols={contactRowCols}>
         <FormItem
           label="Email"
           htmlFor="clientEmail"
@@ -282,6 +257,37 @@ export function ProposalClientSection({
             className={errors.clientPhone ? "border-destructive" : ""}
           />
         </FormItem>
+        {/* CPF/CNPJ só no contato NOVO: é a única janela em que esses dados
+            são gravados. Sem ele o contato nascia sem documento e a emissão de
+            nota parava num campo que só dava para preencher voltando em
+            Contatos. Fica na linha de Email/Telefone, e não embaixo do seletor
+            de contato, onde alongava só a coluna da direita. */}
+        {mostraDocumento && (
+          <FormItem
+            label="CPF ou CNPJ"
+            htmlFor="newClientDocument"
+            hint="Exigido na nota fiscal"
+            error={
+              isDocumentoValido(newClientDocument)
+                ? undefined
+                : "CPF ou CNPJ inválido"
+            }
+          >
+            <Input
+              id="newClientDocument"
+              name="newClientDocument"
+              value={newClientDocument}
+              onChange={(e) =>
+                onNewClientDocumentChange?.(formatDocumento(e.target.value))
+              }
+              placeholder="Somente números"
+              icon={<CreditCard className="w-4 h-4" />}
+              className={
+                isDocumentoValido(newClientDocument) ? "" : "border-destructive"
+              }
+            />
+          </FormItem>
+        )}
         {!mostraNumeracao && (
           <FormItem
             label="Válida até"
