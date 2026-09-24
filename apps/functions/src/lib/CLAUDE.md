@@ -443,12 +443,22 @@ aplicaria o gate a API inteira.
 |---|---|
 | `/v1/transactions`, `/v1/wallets` | `financial` |
 | `/v1/kanban-statuses` | `crm` |
-| `/v1/fiscal/*` | `fiscal` |
-| `/v1/asaas/*` | `financial` (segue o financeiro; payout vive sobre lancamentos) |
+| `/v1/fiscal/*` | `fiscal` (Enterprise ou add-on, com franquia `maxInvoicesPerMonth`) |
+| `/v1/fiscal/received-invoices*` | `fiscal` **e** `fiscalReceiving` (so Enterprise) |
+| `/v1/asaas/*` | `financial` **e** `onlinePayments` (Enterprise ou add-on) |
 | `/v1/calendar/google/*` | `calendarSync` (a agenda interna fica em todos os planos) |
+| `/v1/drive/*` | `driveSync` |
 
-`TENANT_PLAN_CAPABILITY_MODE` (`off` | `monitor` | `enforce`, **default
-`monitor`**) e proprio, separado de `TENANT_PLAN_ENFORCEMENT_MODE`: os limites
+**Caminhos que nao passam por rota checam a capacidade por conta propria**,
+senao um downgrade nao desliga nada: a fila do Drive (`isDriveConnected` /
+`syncProposalToDrive`), a emissao automatica (`tryAutoIssue`), o cron de notas
+recebidas, a sincronia do evento com o Google Agenda (`syncEventToGoogle`) e o
+link publico de pagamento (`createPayment`, `payment-config` e o `asaasEnabled`
+do link compartilhado). A franquia fiscal fica em
+`api/services/fiscal/invoice-quota.service.ts`.
+
+`TENANT_PLAN_CAPABILITY_MODE` (`off` | `monitor` | `enforce`, default
+`monitor` no codigo e **`enforce` nos env files de dev e prod**) e proprio, separado de `TENANT_PLAN_ENFORCEMENT_MODE`: os limites
 numericos ja rodam em `enforce` ha tempo, enquanto este gate foi ligado sobre
 rotas que estavam abertas. Um interruptor comum obrigaria a escolher entre
 afrouxar limites que funcionam e bloquear modulo sem medir antes quem depende
