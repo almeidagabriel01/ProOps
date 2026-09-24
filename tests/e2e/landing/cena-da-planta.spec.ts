@@ -274,7 +274,15 @@ for (const tela of [
         // A rolagem passa por uma mola: medir antes de ela assentar mediria um
         // quadro que ninguém vê parado.
         await page.waitForTimeout(650);
-        const r = await page.evaluate(MEDE);
+        let r = await page.evaluate(MEDE);
+        // Os 650ms bastam numa máquina de desenvolvimento e às vezes não no
+        // runner do CI, mais lento: lá uma medição já pegou a casa ainda a
+        // caminho do recuo, com 1 ponto sobre as abas, e a nova tentativa
+        // passou. Uma colisão só conta se continuar lá com a mola parada.
+        if (r.problemas.length) {
+          await page.waitForTimeout(1200);
+          r = await page.evaluate(MEDE);
+        }
         if (r.fim) break;
         problemas.push(...r.problemas.map((p) => `${r.ato}: ${p}`));
         if (r.ato === "aprovada" && r.folha) folhaNaAprovada = r.folha;
