@@ -12,7 +12,7 @@ import {
 /**
  * Toda rota que entra num sitemap declara o próprio canonical.
  *
- * O root layout define `alternates: { canonical: "/" }`, e em Next isso é
+ * O root layout definia `alternates: { canonical: "/" }`, e em Next isso é
  * HERDADO por qualquer página que não defina o seu. O efeito é silencioso e do
  * pior tipo: a página renderiza normalmente e declara, na tag canonical, ser
  * uma cópia da home. Foi o que aconteceu com as quatro páginas legais, que
@@ -103,6 +103,42 @@ describe("canonical", () => {
     }
 
     expect(semCanonical).toEqual([]);
+  });
+
+  it("nunca é relativo, nem o og:url", () => {
+    // Relativo, o canonical resolve contra o `metadataBase`, que é o apex. As
+    // quatro páginas públicas do ERP declaravam `"/automacao-residencial"` e
+    // companhia, e em produção `erp.proops.com.br/automacao-residencial`
+    // apontava para `proops.com.br/automacao-residencial`, que devolve 301 para
+    // o ERP: um laço, e o Google não indexava nenhuma das duas. O valor certo
+    // sai de `canonicalFor`, que conhece o host de cada superfície.
+    //
+    // O og:url é casado só no primeiro nível do `openGraph` (`[^{}]`): imagem
+    // relativa, `images: [{ url: "/opengraph-image.png" }]`, é legítima, porque
+    // o arquivo existe nos três hosts.
+    const CANONICAL_RELATIVO = /canonical:\s*["'`]\//;
+    const OG_URL_RELATIVO = /openGraph:\s*\{[^{}]*?\burl:\s*["'`]\//;
+
+    const arquivos: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (e.name === "page.tsx" || e.name === "layout.tsx") {
+          arquivos.push(full);
+        }
+      }
+    };
+    walk(APP_DIR);
+
+    const relativos = arquivos
+      .filter((arquivo) => {
+        const fonte = fs.readFileSync(arquivo, "utf8");
+        return CANONICAL_RELATIVO.test(fonte) || OG_URL_RELATIVO.test(fonte);
+      })
+      .map((arquivo) => path.relative(APP_DIR, arquivo));
+
+    expect(relativos).toEqual([]);
   });
 
   it("aponta o page.tsx certo para cada raiz de superfície", () => {
