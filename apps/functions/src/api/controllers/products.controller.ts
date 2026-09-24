@@ -4,9 +4,13 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import {
   resolveUserAndTenant,
   checkPermission,
-  UserDoc,
 } from "../../lib/auth-helpers";
 import { deleteProductImages } from "../../lib/storage-helpers";
+import {
+  enforceTenantPlanLimit,
+  getTenantProductsUsage,
+} from "../../lib/tenant-plan-policy";
+import { checkImagesWithinPlan } from "../../lib/catalog-plan-guards";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { sanitizeProductFiscalFields } from "../services/fiscal/fiscal-catalog-fields";
@@ -166,7 +170,7 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     }
 
-    const { masterData, masterRef, tenantId, isMaster, isSuperAdmin } =
+    const { masterRef, tenantId, isMaster, isSuperAdmin } =
       await resolveUserAndTenant(userId, req.user);
 
     // Permission Check
@@ -184,7 +188,6 @@ export const createProduct = async (req: Request, res: Response) => {
 
     // Adjust masterRef and masterData if Super Admin is acting on behalf of another tenant
     let targetMasterRef = masterRef;
-    let targetMasterData = masterData;
 
     if (isSuperAdmin && targetTenantId && targetTenantId !== tenantId) {
       const ownerQuery = await db
@@ -203,22 +206,38 @@ export const createProduct = async (req: Request, res: Response) => {
 
       if (ownerDoc) {
         targetMasterRef = db.collection("users").doc(ownerDoc.id);
-        targetMasterData = ownerDoc.data() as UserDoc;
       }
     }
 
-    // Plan Limits
-    const maxProducts = targetMasterData.subscription?.limits?.maxProducts;
-    const currentProducts = targetMasterData.usage?.products || 0;
+    // Teto de produtos pelo plano do TENANT. Antes so bloqueava se o doc do
+    // usuario tivesse `subscription.limits.maxProducts`, campo que nenhum
+    // caminho grava: na pratica o limite existia so na tela.
+    const productsDecision = await enforceTenantPlanLimit({
+      tenantId: targetTenantId,
+      feature: "maxProducts",
+      currentUsage: await getTenantProductsUsage(targetTenantId),
+      uid: userId,
+      requestId: req.requestId,
+      route: req.path,
+      isSuperAdmin,
+    });
+    if (!productsDecision.allowed) {
+      return res.status(productsDecision.statusCode || 402).json({
+        message:
+          productsDecision.message || "Limite de produtos atingido para o plano atual.",
+        code: productsDecision.code || "PLAN_LIMIT_EXCEEDED",
+      });
+    }
 
-    if (maxProducts !== undefined && currentProducts >= maxProducts) {
-      // If Super Admin, allow proceeding
-      if (!isSuperAdmin) {
-        return res.status(402).json({
-          message: "Limite de produtos atingido para o seu plano.",
-          code: "resource-exhausted",
-        });
-      }
+    const imagesCheck = await checkImagesWithinPlan({
+      tenantId: targetTenantId,
+      requested: (input.images || []).length,
+      isSuperAdmin,
+    });
+    if (!imagesCheck.allowed) {
+      return res
+        .status(402)
+        .json({ message: imagesCheck.message, code: "PLAN_LIMIT_EXCEEDED" });
     }
 
     // null (limpar campo) nao faz sentido na criacao — vira ausencia.
@@ -333,6 +352,20 @@ export const updateProduct = async (req: Request, res: Response) => {
         return res
           .status(403)
           .json({ message: "Sem permissão para editar produtos." });
+      }
+    }
+
+    if (Array.isArray(updateData.images)) {
+      const imagesCheck = await checkImagesWithinPlan({
+        tenantId: String(productData?.tenantId || tenantId),
+        requested: updateData.images.length,
+        existing: Array.isArray(productData?.images) ? productData.images.length : 0,
+        isSuperAdmin,
+      });
+      if (!imagesCheck.allowed) {
+        return res
+          .status(402)
+          .json({ message: imagesCheck.message, code: "PLAN_LIMIT_EXCEEDED" });
       }
     }
 
