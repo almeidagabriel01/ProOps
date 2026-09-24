@@ -20,15 +20,9 @@ import {
 import { PlanService, DEFAULT_PLANS } from "@/services/plan-service";
 import { AddonService } from "@/services/addon-service";
 import { computeTrialInfo, type TrialInfo } from "@/lib/trial-info";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  doc,
-  getDoc,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { countTenantDocs, countTenantMembers } from "@/lib/plan-usage-counts";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -475,47 +469,26 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const getProposalCount = useCallback(async (): Promise<number> => {
     if (!tenant?.id) return 0;
     if (user?.role?.toLowerCase() === "free") return 0;
-    const q = query(
-      collection(db, "proposals"),
-      where("tenantId", "==", tenant.id),
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.size;
+    return countTenantDocs("proposals", tenant.id);
   }, [tenant, user]);
 
   const getClientCount = useCallback(async (): Promise<number> => {
     if (!tenant?.id) return 0;
     if (user?.role?.toLowerCase() === "free") return 0;
-    const q = query(
-      collection(db, "clients"),
-      where("tenantId", "==", tenant.id),
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.size;
+    return countTenantDocs("clients", tenant.id);
   }, [tenant, user]);
 
   const getProductCount = useCallback(async (): Promise<number> => {
     if (!tenant?.id) return 0;
     if (user?.role?.toLowerCase() === "free") return 0;
-    const q = query(
-      collection(db, "products"),
-      where("tenantId", "==", tenant.id),
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.size;
+    return countTenantDocs("products", tenant.id);
   }, [tenant, user]);
 
   const getUserCount = useCallback(async (): Promise<number> => {
     if (!tenant?.id) return 0;
     if (user?.role?.toLowerCase() === "free") return 0;
     if (user?.role?.toLowerCase() === "member") return 0;
-    const q = query(
-      collection(db, "users"),
-      where("tenantId", "==", tenant.id),
-      where("role", "==", "MEMBER"),
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.size;
+    return countTenantMembers(tenant.id);
   }, [tenant, user]);
 
   // -------------------------------------------------------------------------
