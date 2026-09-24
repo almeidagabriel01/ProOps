@@ -8,20 +8,19 @@
  * o deploy ficaria de fora da conta.
  *
  *   cd apps/functions
- *   npx tsx src/scripts/backfill-storage-usage.ts            # so mostra
- *   npx tsx src/scripts/backfill-storage-usage.ts --apply    # grava
+ *   npx tsx src/scripts/backfill-storage-usage.ts --project=erp-softcode-prod            # so mostra
+ *   npx tsx src/scripts/backfill-storage-usage.ts --project=erp-softcode-prod --apply    # grava
  *
- * Fora do Cloud Functions o app nao sabe o bucket padrao: passe
- * `--bucket=<projeto>.firebasestorage.app`.
+ * `--project` e OBRIGATORIO e define o bucket E o Firestore juntos. A primeira
+ * versao recebia so `--bucket`, e o Firestore vinha da credencial padrao da
+ * maquina: rodando contra o bucket de producao, o script lia o plano e gravaria
+ * o uso no Firestore de DEV. So foi pego porque as empresas de dev apareceram
+ * na listagem de producao.
  *
- * Aponta para o projeto de GOOGLE_APPLICATION_CREDENTIALS / gcloud ADC.
  * Idempotente: grava o total ABSOLUTO lido do bucket, entao rodar de novo
  * corrige qualquer desvio em vez de somar.
  */
-import { getStorage } from "firebase-admin/storage";
-import { FieldValue } from "firebase-admin/firestore";
-import { adminApp, db } from "../init";
-import { getTenantPlanProfile } from "../lib/tenant-plan-policy";
+import { getApps, initializeApp } from "firebase-admin/app";
 import {
   STORAGE_USAGE_COLLECTION,
   bytesToMb,
@@ -31,11 +30,37 @@ import {
 
 const PAGE_SIZE = 1000;
 
+function argValue(name: string): string | undefined {
+  const arg = process.argv.find((value) => value.startsWith(`--${name}=`));
+  return arg?.slice(name.length + 3).trim() || undefined;
+}
+
 async function main(): Promise<void> {
+  const projectId = argValue("project");
+  if (!projectId) {
+    throw new Error("Informe --project=<id do projeto Firebase> (ex.: erp-softcode-prod).");
+  }
+  const bucketName = argValue("bucket") ?? `${projectId}.firebasestorage.app`;
+  if (!bucketName.startsWith(`${projectId}.`)) {
+    throw new Error(`O bucket ${bucketName} nao pertence ao projeto ${projectId}.`);
+  }
   const apply = process.argv.includes("--apply");
-  const bucketArg = process.argv.find((arg) => arg.startsWith("--bucket="));
-  const bucket = getStorage(adminApp).bucket(bucketArg?.slice("--bucket=".length) || undefined);
-  console.log(`=== backfill-storage-usage (${apply ? "APPLY" : "dry-run"}) bucket=${bucket.name} ===`);
+
+  // O app tem que nascer com o projeto ANTES de qualquer import que toque
+  // `../init`: ele reaproveita o primeiro app existente, e sem isto criaria um
+  // com o projeto padrao da credencial local.
+  if (getApps().length > 0) throw new Error("App do Firebase ja inicializado antes do script.");
+  initializeApp({ projectId, storageBucket: bucketName });
+
+  const { getStorage } = await import("firebase-admin/storage");
+  const { FieldValue } = await import("firebase-admin/firestore");
+  const { adminApp, db } = await import("../init");
+  const { getTenantPlanProfile } = await import("../lib/tenant-plan-policy");
+
+  const bucket = getStorage(adminApp).bucket(bucketName);
+  console.log(
+    `=== backfill-storage-usage (${apply ? "APPLY" : "dry-run"}) projeto=${projectId} bucket=${bucket.name} ===`,
+  );
 
   const bytesByTenant = new Map<string, number>();
   let pageToken: string | undefined;
@@ -67,12 +92,14 @@ async function main(): Promise<void> {
   console.log(`arquivos lidos: ${files}; empresas: ${bytesByTenant.size}`);
 
   for (const [tenantId, storageBytes] of bytesByTenant) {
+    const tenantExists = (await db.collection("tenants").doc(tenantId).get()).exists;
     const quotaMb = (await getTenantPlanProfile(tenantId)).limits.storageQuotaMB;
     const overQuota = isOverStorageQuota(storageBytes, quotaMb);
     console.log(
-      `${tenantId}: ${bytesToMb(storageBytes).toFixed(1)} MB de ${quotaMb === -1 ? "ilimitado" : `${quotaMb} MB`}${overQuota ? "  ESTOURADO" : ""}`,
+      `${tenantId}: ${bytesToMb(storageBytes).toFixed(1)} MB de ${quotaMb === -1 ? "ilimitado" : `${quotaMb} MB`}${overQuota ? "  ESTOURADO" : ""}${tenantExists ? "" : "  (empresa nao existe neste projeto)"}`,
     );
-    if (!apply) continue;
+    // Arquivo que sobrou de empresa apagada: nao ha a quem atribuir o uso.
+    if (!apply || !tenantExists) continue;
     await db.collection(STORAGE_USAGE_COLLECTION).doc(tenantId).set(
       { tenantId, storageBytes, overQuota, updatedAt: FieldValue.serverTimestamp() },
       { merge: true },
@@ -83,6 +110,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });
