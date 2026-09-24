@@ -61,8 +61,37 @@ describe("bullets de plano da landing", () => {
   it("expõe os tetos que já eram cobrados em silêncio", () => {
     const starter = buildPlanFeatureList(planFor("starter"));
     expect(starter).toContain("Até 5 carteiras");
-    expect(starter).toContain("Até 25 planilhas");
+    expect(starter).toContain("Até 5 planilhas");
     expect(starter).toContain("Lia, a assistente de IA: 80 mensagens por mês");
+  });
+
+  it("Google Drive é do Pro para cima, e aparece na descrição", () => {
+    expect(buildPlanFeatureList(planFor("starter")).join(" ")).not.toContain("Google Drive");
+    expect(buildPlanFeatureList(planFor("pro"))).toContain(
+      "Proposta entregue na pasta do cliente no Google Drive",
+    );
+    expect(buildPlanFeatureList(planFor("enterprise"))).toContain(
+      "Proposta entregue na pasta do cliente no Google Drive",
+    );
+  });
+
+  it("pagamento online e recebimento de notas só no Enterprise", () => {
+    const pagamento =
+      "Pagamento online: o cliente paga a parcela por Pix ou boleto no link";
+    expect(buildPlanFeatureList(planFor("pro"))).not.toContain(pagamento);
+    expect(buildPlanFeatureList(planFor("enterprise"))).toContain(pagamento);
+    expect(buildPlanFeatureList(planFor("enterprise"))).toContain(
+      "Recebimento das notas dos fornecedores",
+    );
+  });
+
+  it("Pro anuncia 50 planilhas; números em formato brasileiro", () => {
+    const pro = buildPlanFeatureList(planFor("pro"));
+    expect(pro).toContain("Até 50 planilhas");
+    expect(pro).toContain("2,5 GB de armazenamento");
+    expect(buildPlanFeatureList(planFor("enterprise"))).toContain(
+      "Lia, a assistente de IA: 1.200 mensagens por mês",
+    );
   });
 
   it("não anuncia a Lia num plano sem cota", () => {

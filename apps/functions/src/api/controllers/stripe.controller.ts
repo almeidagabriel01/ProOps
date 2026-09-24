@@ -34,7 +34,15 @@ import {
   buildPublicPlanFeatures,
   type PublicPlanFeatures,
 } from "../../shared/plan-capabilities";
-import { isAddonAvailableForTier } from "../../shared/addon-definitions";
+import {
+  isAddonAvailableForTier,
+  isKnownAddonId,
+  missingRequiredAddons,
+} from "../../shared/addon-definitions";
+import {
+  clearTenantCapabilitiesCache,
+  resolveTenantCapabilities,
+} from "../../lib/tenant-capabilities";
 import { logger } from "../../lib/logger";
 import { reserveCheckout, clearCheckoutReservation } from "../../billing";
 import {
@@ -214,13 +222,7 @@ function resolveRequestOrigin(req: Request): string {
 function resolveAddonId(rawAddonId: unknown): string | null {
   const addonId = String(rawAddonId || "").trim();
   if (!addonId) return null;
-  const purchaseableAddonIds = new Set([
-    "financial",
-    "pdf_editor_partial",
-    "pdf_editor_full",
-    "crm",
-  ]);
-  if (!purchaseableAddonIds.has(addonId)) return null;
+  if (!isKnownAddonId(addonId)) return null;
   return getPriceIdForAddon(addonId) ? addonId : null;
 }
 
@@ -877,6 +879,21 @@ export const createAddonCheckoutSession = async (
       return res.status(403).json({
         message: "Este add-on não está disponível para o seu plano atual.",
         code: "ADDON_NOT_AVAILABLE_FOR_TIER",
+      });
+    }
+
+    // Pagamento online no Starter vive dentro do financeiro: vender sem ele
+    // entregaria um modulo que o cliente nao consegue abrir. Cache limpo antes
+    // porque o pre-requisito pode ter sido comprado segundos atras.
+    clearTenantCapabilitiesCache(tenantId);
+    const { activeAddons } = await resolveTenantCapabilities(tenantId);
+    const missingAddons = missingRequiredAddons(addonId, tenantTier, activeAddons);
+    if (missingAddons.length > 0) {
+      return res.status(403).json({
+        message:
+          "Para contratar este add-on, contrate antes o Módulo Financeiro.",
+        code: "ADDON_REQUIRES_ADDON",
+        requiredAddons: missingAddons,
       });
     }
 

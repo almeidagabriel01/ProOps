@@ -125,7 +125,7 @@ jobs:
           done
 
       - name: Deploy to production
-        run: firebase deploy --project prod --only functions,firestore:rules,firestore:indexes
+        run: firebase deploy --project prod --only functions,firestore:rules,firestore:indexes,storage
 
       - name: Revoke credentials
         if: always()

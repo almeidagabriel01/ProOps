@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { STORAGE_USAGE_COLLECTION, bytesToMb } from "../shared/storage-usage";
 import { LRUCache } from "lru-cache";
 import { db } from "../init";
 import {
@@ -34,7 +35,9 @@ export type PlanLimitFeature =
   | "maxWallets"
   | "maxUsers"
   | "storageQuotaMB"
-  | "maxSpreadsheets";
+  | "maxSpreadsheets"
+  | "maxClients"
+  | "maxProducts";
 
 export type TenantPlanLimits = Record<PlanLimitFeature, number>;
 
@@ -149,6 +152,8 @@ function buildPlanLimits(tier: TenantPlanTier): TenantPlanLimits {
     maxUsers: catalog.maxUsers,
     storageQuotaMB: catalog.storageQuotaMB,
     maxSpreadsheets: catalog.maxSpreadsheets,
+    maxClients: catalog.maxClients,
+    maxProducts: catalog.maxProducts,
   };
 }
 
@@ -567,6 +572,8 @@ function getFeatureLabel(feature: PlanLimitFeature): string {
   if (feature === "maxWallets") return "carteiras";
   if (feature === "maxUsers") return "membros da equipe";
   if (feature === "storageQuotaMB") return "armazenamento";
+  if (feature === "maxClients") return "contatos";
+  if (feature === "maxProducts") return "produtos e serviços";
   return "planilhas";
 }
 
@@ -1167,24 +1174,34 @@ export async function getTenantSpreadsheetsUsage(
   return Number(snap.data().count || 0);
 }
 
-export async function getTenantStorageUsageMb(tenantId: string): Promise<number> {
-  const tenantSnap = await db.collection("tenants").doc(tenantId).get();
-  const tenantData = tenantSnap.exists
-    ? (tenantSnap.data() as Record<string, unknown> | undefined)
-    : undefined;
-  const tenantUsage = Number(
-    (tenantData?.usage as { storageMB?: unknown } | undefined)?.storageMB || 0,
-  );
-  if (Number.isFinite(tenantUsage) && tenantUsage >= 0) {
-    return tenantUsage;
-  }
+export async function getTenantClientsUsage(tenantId: string): Promise<number> {
+  const snap = await db
+    .collection("clients")
+    .where("tenantId", "==", tenantId)
+    .count()
+    .get();
+  return Number(snap.data().count || 0);
+}
 
-  const companySnap = await db.collection("companies").doc(tenantId).get();
-  const companyData = companySnap.exists
-    ? (companySnap.data() as Record<string, unknown> | undefined)
-    : undefined;
-  const companyUsage = Number(
-    (companyData?.usage as { storageMB?: unknown } | undefined)?.storageMB || 0,
-  );
-  return Number.isFinite(companyUsage) && companyUsage >= 0 ? companyUsage : 0;
+/**
+ * Produtos e servicos dividem o mesmo teto (`maxProducts`): os dois sao o que
+ * a empresa vende, e os dois sempre incrementaram o mesmo `usage.products`.
+ */
+export async function getTenantProductsUsage(tenantId: string): Promise<number> {
+  const [products, services] = await Promise.all([
+    db.collection("products").where("tenantId", "==", tenantId).count().get(),
+    db.collection("services").where("tenantId", "==", tenantId).count().get(),
+  ]);
+  return Number(products.data().count || 0) + Number(services.data().count || 0);
+}
+
+/**
+ * Armazenamento em uso, em MB. Mantido pelos gatilhos de Storage
+ * (`onTenantStorageChange.ts`) em `tenant_storage_usage/{tenantId}`. Antes lia
+ * `tenants/{id}.usage.storageMB`, que nenhum caminho gravava: o teto de
+ * armazenamento comparava sempre contra zero.
+ */
+export async function getTenantStorageUsageMb(tenantId: string): Promise<number> {
+  const snap = await db.collection(STORAGE_USAGE_COLLECTION).doc(tenantId).get();
+  return bytesToMb(Number(snap.get("storageBytes")) || 0);
 }

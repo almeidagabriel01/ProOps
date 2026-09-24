@@ -26,6 +26,16 @@ jest.mock("./invoice.service", () => ({
   issueInvoice: jest.fn(),
 }));
 
+const getInvoiceQuota = jest.fn();
+jest.mock("./invoice-quota.service", () => ({
+  ...jest.requireActual("./invoice-quota.service"),
+  getInvoiceQuota: (id: string) => getInvoiceQuota(id),
+  assertInvoiceQuota: jest.fn(),
+}));
+jest.mock("../../../lib/tenant-capabilities", () => ({
+  resolveTenantCapabilities: jest.fn(),
+}));
+
 import { previewFromProposal } from "./invoice-issue.service";
 
 const READY = { status: "ready" };
@@ -42,6 +52,7 @@ beforeEach(() => {
   getFiscalSettings.mockResolvedValue(READY);
   mockProposal({ tenantId: "t1", clientId: "c1", products: [] });
   listInvoicesByProposal.mockResolvedValue([]);
+  getInvoiceQuota.mockResolvedValue({ limit: -1, used: 0 });
   assembleInvoices.mockResolvedValue({
     invoices: [{ type: "nfe", valorTotal: 100 }],
     gaps: [],
@@ -55,6 +66,32 @@ describe("previewFromProposal", () => {
     expect(preview.canIssue).toBe(true);
     expect(preview.documentos).toEqual([{ type: "nfe", valorTotal: 100 }]);
     expect(preview.reason).toBeUndefined();
+  });
+
+  it("nao convida quando a franquia do mes acabou", async () => {
+    getInvoiceQuota.mockResolvedValue({ limit: 100, used: 100 });
+
+    const preview = await previewFromProposal("t1", "p1");
+
+    expect(preview.canIssue).toBe(false);
+    expect(preview.reason).toBe("FISCAL_COTA_MENSAL_ATINGIDA");
+    expect(preview.cota).toEqual({ limit: 100, used: 100 });
+  });
+
+  it("venda mista com uma vaga so tambem nao convida", async () => {
+    getInvoiceQuota.mockResolvedValue({ limit: 100, used: 99 });
+    assembleInvoices.mockResolvedValue({
+      invoices: [
+        { type: "nfe", valorTotal: 100 },
+        { type: "nfse", valorTotal: 50 },
+      ],
+      gaps: [],
+    });
+
+    const preview = await previewFromProposal("t1", "p1");
+
+    expect(preview.canIssue).toBe(false);
+    expect(preview.reason).toBe("FISCAL_COTA_MENSAL_ATINGIDA");
   });
 
   it("conta as duas notas de uma venda mista", async () => {

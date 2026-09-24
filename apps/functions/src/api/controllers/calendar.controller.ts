@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { tenantHasCapability } from "../../lib/tenant-capabilities";
 import { Request, Response } from "express";
 import { z } from "zod";
 import { db } from "../../init";
@@ -860,7 +861,7 @@ async function syncGoogleEventsToLocalCalendar(params: {
   }
 }
 
-async function syncEventToGoogle(
+export async function syncEventToGoogle(
   eventId: string,
   eventData: CalendarEventDocument,
 ): Promise<GoogleSyncMetadata> {
@@ -869,7 +870,15 @@ async function syncEventToGoogle(
   }
 
   const attemptedAt = nowIso();
-  const integrationRecord = await getGoogleIntegration(eventData.tenantId);
+  // /calendar/events nao e gateada por plano (a agenda interna e de todos),
+  // entao a sincronia com o Google tem que perguntar aqui. Sem isso quem
+  // perdeu o `calendarSync` e continuou conectado seguia sincronizando.
+  const integrationRecord = (await tenantHasCapability(
+    eventData.tenantId,
+    "calendarSync",
+  ))
+    ? await getGoogleIntegration(eventData.tenantId)
+    : null;
 
   if (!integrationRecord) {
     return {

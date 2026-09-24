@@ -11,6 +11,7 @@ on:
       - 'apps/functions/**'
       - 'firebase/firestore.rules'
       - 'firebase/firestore.indexes.json'
+      - 'firebase/storage.rules'
       - 'firebase.json'
 
 permissions:
@@ -71,7 +72,7 @@ jobs:
           fi
 
       - name: Deploy to staging (dev project)
-        run: firebase deploy --project dev --only functions,firestore:rules,firestore:indexes
+        run: firebase deploy --project dev --only functions,firestore:rules,firestore:indexes,storage
 
       - name: Revoke credentials
         if: always()

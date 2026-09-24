@@ -107,7 +107,7 @@ export async function isStatusDeliverableToDrive(
  */
 export type DriveDeliveryResult =
   | { status: "delivered"; fileId: string }
-  | { status: "skipped"; reason: "sem_integracao" | "sem_cliente" }
+  | { status: "skipped"; reason: "sem_integracao" | "sem_cliente" | "sem_plano" }
   | { status: "failed"; error: string };
 
 /**
@@ -123,6 +123,10 @@ export type DriveDeliveryResult =
  */
 export async function isDriveConnected(tenantId: string): Promise<boolean> {
   try {
+    // A rota /drive e gateada por plano, mas a entrega nao passa por rota:
+    // quem perdeu o Drive (downgrade para o Starter) e continuou conectado
+    // seguia recebendo propostas pela fila.
+    if (!(await tenantHasCapability(tenantId, "driveSync"))) return false;
     const integration = await getDriveIntegration(tenantId);
     return Boolean(integration?.refreshTokenEnc && integration.rootFolderId);
   } catch (error) {
@@ -164,6 +168,11 @@ export async function syncProposalToDrive(params: {
   proposalData: Record<string, unknown>;
 }): Promise<DriveDeliveryResult> {
   try {
+    // Mesma condicao de `isDriveConnected`. Aqui cobre o job que ja estava na
+    // fila quando o plano mudou.
+    if (!(await tenantHasCapability(params.tenantId, "driveSync"))) {
+      return { status: "skipped", reason: "sem_plano" };
+    }
     const integration = await getDriveIntegration(params.tenantId);
     // Sem token nao ha entrega — e o documento sobrevive ao desconectar para
     // preservar a pasta, entao checar so a pasta geraria um PDF a toa (o

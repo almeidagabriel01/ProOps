@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { tenantHasCapability } from "../../lib/tenant-capabilities";
 import { TransactionPaymentService, AsaasApiError, AsaasAccountNotApprovedError } from "../services/transaction-payment.service";
 import { AsaasService } from "../services/asaas.service";
 import { db } from "../../init";
@@ -198,7 +199,10 @@ export const getPaymentConfig = async (req: Request, res: Response): Promise<voi
 
     const status = await AsaasService.getPublicStatus(linkData.tenantId);
 
-    if (!status.connected) {
+    if (
+      !status.connected ||
+      !(await tenantHasCapability(linkData.tenantId, "onlinePayments"))
+    ) {
       res
         .status(422)
         .json({ message: "Pagamento online não configurado para este tenant" });

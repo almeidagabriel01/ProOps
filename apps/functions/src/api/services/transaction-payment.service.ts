@@ -1,4 +1,5 @@
 import axios from "axios";
+import { tenantHasCapability } from "../../lib/tenant-capabilities";
 import crypto from "node:crypto";
 import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
@@ -322,6 +323,13 @@ export class TransactionPaymentService {
 
     const asaasData = await AsaasService.getAsaasData(tenantId);
     if (!asaasData) {
+      throw new Error("ASAAS_NOT_CONFIGURED");
+    }
+    // A rota e publica (o token do link e a credencial), entao o gate de plano
+    // nao passa por aqui. Sem esta checagem, quem perdeu o pagamento online
+    // (downgrade, add-on cancelado) continuaria cobrando pelos links ja
+    // enviados. Para o pagador, o desfecho e o mesmo de "nao configurado".
+    if (!(await tenantHasCapability(tenantId, "onlinePayments"))) {
       throw new Error("ASAAS_NOT_CONFIGURED");
     }
 

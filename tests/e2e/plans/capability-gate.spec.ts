@@ -22,6 +22,7 @@ import {
   PLAN_ENTERPRISE,
   PLAN_PASSWORD,
   PLAN_PRO,
+  PLAN_PRO_ADDONS,
   PLAN_STARTER,
   PLAN_STARTER_ADDON,
   type SeedPlanTenant,
@@ -195,6 +196,66 @@ test.describe("PLAN-01: notas fiscais", () => {
       headers: { Authorization: "Bearer " + idToken },
     });
 
+    expect(response.status()).not.toBe(402);
+  });
+});
+
+test.describe("PLAN-02: add-ons de Notas Fiscais e Pagamento Online", () => {
+  test("Pro com o add-on fiscal lê as notas e a franquia de 100", async ({
+    request,
+  }) => {
+    const idToken = await tokenDo(PLAN_PRO_ADDONS);
+    const headers = { Authorization: "Bearer " + idToken };
+
+    const invoices = await request.get("/api/backend/v1/fiscal/invoices", { headers });
+    expect(invoices.status()).not.toBe(402);
+
+    const quota = await request.get("/api/backend/v1/fiscal/invoices/quota", { headers });
+    expect(quota.status()).toBe(200);
+    expect(await quota.json()).toMatchObject({ limit: 100 });
+  });
+
+  test("o add-on fiscal NÃO abre a recepção de notas de entrada", async ({
+    request,
+  }) => {
+    const idToken = await tokenDo(PLAN_PRO_ADDONS);
+    const response = await request.get("/api/backend/v1/fiscal/received-invoices", {
+      headers: { Authorization: "Bearer " + idToken },
+    });
+    await expectBlockedByPlan(response, "fiscalReceiving");
+  });
+
+  test("Enterprise emite sem franquia", async ({ request }) => {
+    const idToken = await tokenDo(PLAN_ENTERPRISE);
+    const response = await request.get("/api/backend/v1/fiscal/invoices/quota", {
+      headers: { Authorization: "Bearer " + idToken },
+    });
+    expect(await response.json()).toMatchObject({ limit: -1 });
+  });
+
+  test("Pro SEM add-on é bloqueado no pagamento online", async ({ request }) => {
+    // Até 2026-09 o pagamento online vinha junto do financeiro, então o Pro
+    // passava aqui.
+    const idToken = await tokenDo(PLAN_PRO);
+    const response = await request.get("/api/backend/v1/asaas/status", {
+      headers: { Authorization: "Bearer " + idToken },
+    });
+    await expectBlockedByPlan(response, "onlinePayments");
+  });
+
+  test("Pro COM o add-on de pagamento online passa", async ({ request }) => {
+    const idToken = await tokenDo(PLAN_PRO_ADDONS);
+    const response = await request.get("/api/backend/v1/asaas/status", {
+      headers: { Authorization: "Bearer " + idToken },
+    });
+    expect(response.status()).not.toBe(402);
+  });
+
+  test("Enterprise tem pagamento online no plano", async ({ request }) => {
+    const idToken = await tokenDo(PLAN_ENTERPRISE);
+    const response = await request.get("/api/backend/v1/asaas/status", {
+      headers: { Authorization: "Bearer " + idToken },
+    });
     expect(response.status()).not.toBe(402);
   });
 });

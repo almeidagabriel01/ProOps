@@ -52,6 +52,7 @@ export const TENANT_PURGE_BY_DOC_ID = [
   "whatsappUsage",
   "tenant_usage",
   "tenant_presence",
+  "tenant_storage_usage",
 ] as const;
 
 /**

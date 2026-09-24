@@ -52,7 +52,7 @@ const CAPABILITY_COPY: Record<
   fiscal: {
     requiredPlan: "enterprise",
     description:
-      "Emita NF-e e NFS-e direto da proposta aprovada. Disponível no plano Enterprise.",
+      "Emita NF-e e NFS-e direto da proposta aprovada. Contrate como add-on ou tenha incluído no plano Enterprise.",
   },
 };
 

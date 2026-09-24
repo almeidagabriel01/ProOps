@@ -169,11 +169,17 @@ interface FiscalSettingsCardProps {
    * mataria também os botões de navegação e prenderia a conta no passo 1.
    */
   demoReadOnly?: boolean;
+  /**
+   * Plano com recepção de notas de entrada (só Enterprise). O add-on fiscal
+   * emite, mas não recebe: cada nota recebida consome unidade paga sem clique.
+   */
+  canReceive?: boolean;
 }
 
 export function FiscalSettingsCard({
   onLoadingChange,
   demoReadOnly = false,
+  canReceive = true,
 }: FiscalSettingsCardProps) {
   const [settings, setSettings] = React.useState<FiscalSettings | null>(null);
   const dataRecebimentoBloqueada =
@@ -649,6 +655,7 @@ export function FiscalSettingsCard({
             setField={setField}
             hoje={hojeIso()}
             dataRecebimentoBloqueada={dataRecebimentoBloqueada}
+            canReceive={canReceive}
             onBeforeNext={demoReadOnly ? undefined : validateDocumentos}
             contentDisabled={demoReadOnly}
           />

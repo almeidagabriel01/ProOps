@@ -144,6 +144,7 @@ export type PlanFeatures = {
   maxUsers: number; // -1 for unlimited
   maxWallets: number; // -1 for unlimited
   maxSpreadsheets: number; // -1 for unlimited
+  maxInvoicesPerMonth: number; // Notas emitidas por mês (-1 = ilimitado, 0 = sem módulo)
   maxPdfTemplates: number; // Number of PDF templates available (-1 = all)
   maxImagesPerProduct: number; // Max images per product (2-3)
   maxStorageMB: number; // Total storage in MB (-1 = unlimited)
@@ -153,6 +154,8 @@ export type PlanFeatures = {
   hasFiscal: boolean; // Notas Fiscais (Enterprise)
   hasCalendarSync: boolean; // Sincronia com o Google Agenda
   hasDriveSync: boolean; // Proposta entregue no Google Drive do cliente
+  hasOnlinePayments: boolean; // Pagamento da parcela pelo link (Asaas)
+  hasFiscalReceiving: boolean; // Recepção de notas de entrada (Enterprise)
   hasWhatsApp: boolean; // Bot do WhatsApp (Enterprise)
   canCustomizeTheme: boolean; // Can change colors/branding
   canEditPdfSections: boolean; // Editor de PDF avançado
@@ -177,7 +180,9 @@ export type AddonType =
   | "financial"
   | "pdf_editor_partial" // 3 templates, no content editing
   | "pdf_editor_full" // Full access: all templates + content editing
-  | "crm";
+  | "crm"
+  | "fiscal" // Notas fiscais, franquia de 100 notas/mês
+  | "online_payments"; // Pagamento da parcela pelo link (Asaas)
 
 export type PurchasedAddon = {
   id: string;
@@ -205,6 +210,8 @@ export type AddonDefinition = {
   icon: string; // Lucide icon name
   order: number; // For sorting display
   availableForTiers: PlanTier[]; // Which plans can purchase this
+  /** Add-ons que precisam estar ativos antes deste, por tier. */
+  requiresAddons?: Partial<Record<PlanTier, AddonType[]>>;
 };
 
 // Proposals

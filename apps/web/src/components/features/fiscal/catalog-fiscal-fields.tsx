@@ -156,23 +156,31 @@ export function CatalogFiscalFields({
         <FormGroup cols={2}>
           <FormItem label="NCM" htmlFor="fiscal-ncm">
             <div className="flex gap-2">
-              <Input
-                id="fiscal-ncm"
-                name="ncm"
-                inputMode="numeric"
-                placeholder="00000000"
-                maxLength={8}
-                value={values.ncm}
-                disabled={disabled}
-                onChange={(e) =>
-                  onChange("ncm", e.target.value.replace(/\D/g, "").slice(0, 8))
-                }
-              />
+              {/* A raiz do Input é uma div sem largura própria: sem o flex-1
+                  ela encolhe até o conteúdo e o NCM fica mais estreito que a
+                  Origem ao lado. */}
+              <div className="min-w-0 flex-1">
+                <Input
+                  id="fiscal-ncm"
+                  name="ncm"
+                  inputMode="numeric"
+                  placeholder="00000000"
+                  maxLength={8}
+                  value={values.ncm}
+                  disabled={disabled}
+                  onChange={(e) =>
+                    onChange(
+                      "ncm",
+                      e.target.value.replace(/\D/g, "").slice(0, 8),
+                    )
+                  }
+                />
+              </div>
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
-                className="shrink-0"
+                className="h-12 w-12 shrink-0"
                 disabled={!canSuggest}
                 onClick={handleSuggest}
                 title={

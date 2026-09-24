@@ -42,6 +42,12 @@ interface UsageItemProps {
   percentage: number;
   isUnlimited: boolean;
   compact?: boolean;
+  unit?: string;
+}
+
+function formatAmount(value: number, unit?: string): string {
+  const text = value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  return unit ? `${text} ${unit}` : text;
 }
 
 function UsageItem({
@@ -51,6 +57,7 @@ function UsageItem({
   percentage,
   isUnlimited,
   compact,
+  unit,
 }: UsageItemProps) {
   const Icon = resourceIcons[label as keyof typeof resourceIcons] || FileText;
 
@@ -70,9 +77,13 @@ function UsageItem({
               )}
             >
               {isUnlimited ? (
-                <Infinity className="w-3 h-3 inline" />
+                unit ? (
+                  formatAmount(current, unit)
+                ) : (
+                  <Infinity className="w-3 h-3 inline" />
+                )
               ) : (
-                `${current}/${limit}`
+                `${formatAmount(current)}/${formatAmount(limit, unit)}`
               )}
             </span>
           </div>
@@ -105,11 +116,12 @@ function UsageItem({
           {isUnlimited ? (
             <Badge variant="secondary" className="gap-1">
               <Infinity className="w-3 h-3" />
-              Ilimitado
+              {/* Com unidade o número importa mesmo sem teto: é quanto já se usou. */}
+              {unit ? `${formatAmount(current, unit)} usados` : "Ilimitado"}
             </Badge>
           ) : (
             <span className={cn("font-bold text-sm", getTextColor(percentage))}>
-              {current} / {limit}
+              {formatAmount(current)} / {formatAmount(limit, unit)}
             </span>
           )}
         </div>
@@ -142,6 +154,7 @@ export function PlanUsageCard({
     clients,
     products,
     users,
+    storage,
     isLoading,
     overallPercentage,
     criticalItems,
@@ -158,7 +171,7 @@ export function PlanUsageCard({
     );
   }
 
-  const usageItems = [proposals, clients, products, users];
+  const usageItems = [proposals, clients, products, users, storage];
 
   if (variant === "profile") {
     return (

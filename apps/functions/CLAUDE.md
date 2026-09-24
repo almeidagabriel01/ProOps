@@ -540,6 +540,13 @@ Complementa a emissao e e **independente** dela. Aqui NAO somos o emitente: nao
 controlamos numeracao, nao assinamos e nao cancelamos. Recebemos, arquivamos e
 permitimos a manifestacao.
 
+- **So Enterprise** (`fiscalReceiving`). O add-on fiscal de Starter/Pro emite com franquia
+  de 100 notas/mes (`invoice-quota.service.ts`, conta autorizada, em processamento e
+  cancelada no mes de Brasilia) e NAO recebe: cada nota recebida consome unidade sem
+  clique, entao nao cabe numa franquia. Sem a capacidade, `saveFiscalSettings` grava o flag
+  desligado e o cron pula o tenant com `fiscal_receiving_sem_plano`. **Limite conhecido:**
+  o provedor so desliga a recepcao quando o cadastro da empresa e reenviado (exige o
+  certificado); ate la ele segue recebendo e cobrando. O aviso no log existe para isso.
 - **Opt-in por tenant** via `habilitaManifestacao` (flag `habilita_manifestacao` no cadastro
   da empresa no Focus). Nasce **desligada** porque **cada nota recebida consome uma unidade
   do pacote mensal** — a regra do Focus e "cada nota emitida OU RECEBIDA conta como uma

@@ -105,7 +105,7 @@ npm run test:functions                 # Jest (backend, unitário) — sem infra
 npm run test:functions:integration     # Jest (backend, integração) — sobe o emulador sozinho
 npm run test:e2e                       # Playwright E2E desktop (requires emulators)
 npx playwright test --config=tests/playwright.config.ts --project=mobile-chrome   # E2E mobile (Pixel 5)
-npm run test:rules                     # Firestore security rules (Jest)
+npm run test:rules                     # Firestore + Storage security rules (Jest; emuladores firestore,storage)
 npm run security:scan                  # OWASP ZAP baseline
 ```
 
@@ -160,10 +160,14 @@ aconteceu com o fiscal, o calendário e o Asaas, que existiram meses com
 `hasFinancial`/`hasKanban` vivendo só no `PlanProvider` do frontend enquanto
 qualquer chamada HTTP direta passava.
 
-Matriz atual: **Starter** sem módulo premium nativo (compra `financial`, `crm` e
-`pdf_editor_*` como add-on); **Pro** com financeiro, editor de PDF, cores e
-sincronia do Google Agenda; **Enterprise** com tudo, mais CRM, Notas Fiscais e
-WhatsApp. Add-ons somam por cima do tier via `resolveTenantCapabilities`.
+Matriz atual: **Starter** sem módulo premium nativo (compra `financial`, `crm`,
+`fiscal`, `online_payments` e `pdf_editor_*` como add-on; o pagamento online no
+Starter exige o financeiro); **Pro** com financeiro, editor de PDF, cores,
+Google Agenda e Google Drive (compra `crm`, `fiscal` e `online_payments`);
+**Enterprise** com tudo, mais CRM, Notas Fiscais sem franquia, recepção de notas
+de entrada, Pagamento Online e WhatsApp. O add-on fiscal emite até 100 notas por
+mês e não inclui a recepção. Planilhas: 5 / 50 / ilimitado. Add-ons somam por
+cima do tier via `resolveTenantCapabilities`; os preços vivem só no Stripe.
 
 Detalhes em `apps/functions/src/lib/CLAUDE.md`.
 

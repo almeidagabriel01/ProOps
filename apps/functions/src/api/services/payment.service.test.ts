@@ -3,6 +3,10 @@
  * Mocks: axios, ../../init (db), AsaasService
  */
 
+const tenantHasCapability = jest.fn(async (_tenantId: string, _cap: string) => true);
+jest.mock("../../lib/tenant-capabilities", () => ({
+  tenantHasCapability: (tenantId: string, cap: string) => tenantHasCapability(tenantId, cap),
+}));
 jest.mock("axios");
 jest.mock("../../init", () => ({
   db: {

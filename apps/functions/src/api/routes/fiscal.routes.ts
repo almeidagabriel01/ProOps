@@ -20,6 +20,7 @@ import {
   replayNotificationHandler,
   listNaturezasHandler,
   disconnectFiscalHandler,
+  getInvoiceQuotaHandler,
 } from "../controllers/fiscal.controller";
 import {
   launchReceivedInvoiceHandler,
@@ -40,6 +41,10 @@ const router = Router();
 // Escopado por prefixo de proposito — todos os routers sao montados em "/v1",
 // entao um use() sem path pegaria a API inteira.
 router.use("/fiscal", requirePlanCapability("fiscal"));
+// Notas de ENTRADA: so Enterprise. O add-on fiscal (Starter/Pro) emite com
+// franquia; a recepcao consome unidade paga sem clique de ninguem e por isso
+// nao cabe na franquia.
+router.use("/fiscal/received-invoices", requirePlanCapability("fiscalReceiving"));
 
 router.get("/fiscal/settings", validateFirebaseIdToken, getFiscalSettingsHandler);
 router.put("/fiscal/settings", validateFirebaseIdToken, saveFiscalSettingsHandler);
@@ -62,6 +67,7 @@ router.post(
 );
 
 router.get("/fiscal/invoices", validateFirebaseIdToken, listInvoicesHandler);
+router.get("/fiscal/invoices/quota", validateFirebaseIdToken, getInvoiceQuotaHandler);
 // Fica acima de qualquer futura `GET /fiscal/invoices/:id`: declarada depois,
 // "preview" seria capturado como identificador de nota.
 router.get(

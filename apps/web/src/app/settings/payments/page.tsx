@@ -10,18 +10,33 @@ import { AsaasConnectCard } from "@/app/settings/_components/asaas-connect-card"
 import { PaymentsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
 import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { usePermissions } from "@/providers/permissions-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { CreditCard, Shield } from "lucide-react";
 
 export default function SettingsPaymentsPage() {
   const { isMaster, isDemo, isLoading: permLoading } = usePermissions();
+  const { hasOnlinePayments, isLoading: planLoading } = usePlanLimits();
   // Demo/free accounts own their tenant, so they may view this section (the
   // content is rendered read-only via `inert` below).
   const canSeeSection = isMaster || isDemo;
   // The Asaas card reports its own status load; combine with the permission
   // load so the header + chrome skeleton stays up until the section is ready.
   const [asaasLoading, setAsaasLoading] = React.useState(true);
-  const loading = permLoading || (canSeeSection && asaasLoading);
+  const loading = permLoading || planLoading || (canSeeSection && asaasLoading);
   useReportSettingsLoading(loading);
+
+  // Pagamento online é nativo só no Enterprise e vendido como add-on. Sem este
+  // gate a tela abria e o card mostrava "Erro ao carregar status do Asaas",
+  // que é o 402 do backend sem explicação.
+  if (!planLoading && !hasOnlinePayments && !isDemo) {
+    return (
+      <UpgradeRequired
+        feature="Pagamento Online"
+        description="Seu cliente paga a parcela por Pix ou boleto direto no link compartilhado, e o lançamento baixa sozinho. Contrate o add-on de Pagamento Online ou tenha incluído no plano Enterprise."
+      />
+    );
+  }
 
   return (
     <FormContainer>
