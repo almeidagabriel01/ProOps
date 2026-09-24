@@ -34,6 +34,6 @@ jobs:
           restore-keys: firebase-emulators-
 
       - name: Run Firestore rules tests
-        run: firebase emulators:exec --only firestore --project demo-proops-test "npm run test:rules"
+        run: firebase emulators:exec --only firestore,storage --project demo-proops-test "npm run test:rules"
         env:
           CI: true

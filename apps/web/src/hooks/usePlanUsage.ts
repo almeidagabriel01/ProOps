@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useTenant } from "@/providers/tenant-provider";
+import { getStorageUsage } from "@/services/storage-service";
 
 interface UsageItem {
   current: number;
@@ -32,6 +34,8 @@ export function usePlanUsage(): UsePlanUsageReturn {
     getProductCount,
     getUserCount,
   } = usePlanLimits();
+  const { tenant } = useTenant();
+  const tenantId = tenant?.id;
 
   const [counts, setCounts] = useState({
     proposals: 0,
@@ -53,19 +57,26 @@ export function usePlanUsage(): UsePlanUsageReturn {
       }
 
       try {
-        const [proposalCount, clientCount, productCount, userCount] = await Promise.all([
-          getProposalCount(),
-          getClientCount(),
-          getProductCount(),
-          getUserCount(),
-        ]);
+        const [proposalCount, clientCount, productCount, userCount, storageMB] =
+          await Promise.all([
+            getProposalCount(),
+            getClientCount(),
+            getProductCount(),
+            getUserCount(),
+            // Mantido pelos gatilhos de Storage. Falhar aqui não esconde o resto.
+            tenantId
+              ? getStorageUsage(tenantId)
+                  .then((usage) => usage.storageMB)
+                  .catch(() => 0)
+              : Promise.resolve(0),
+          ]);
 
         setCounts({
           proposals: proposalCount,
           clients: clientCount,
           products: productCount,
           users: userCount,
-          storageMB: 0, // TODO: Implement storage calculation if needed
+          storageMB,
         });
         hasLoadedRef.current = true;
       } catch (error) {
@@ -76,7 +87,7 @@ export function usePlanUsage(): UsePlanUsageReturn {
     };
 
     fetchCounts();
-  }, [planLoading, features, getProposalCount, getClientCount, getProductCount, getUserCount]);
+  }, [planLoading, features, getProposalCount, getClientCount, getProductCount, getUserCount, tenantId]);
 
   const createUsageItem = (current: number, limit: number, label: string): UsageItem => {
     const isUnlimited = limit === -1;

@@ -28,6 +28,7 @@
 | `onWalletCascadeJob` | Firestore trigger | Cascata de exclusao de carteira |
 | `onTenantPurgeJob` | Firestore trigger | Exclusao definitiva de empresa pelo painel do superadmin, em etapas resumiveis (`api/services/tenant-purge.service.ts`) |
 | `onTransactionTotals` | Firestore trigger | Mantem `paidTotal`/`pendingTotal` + `grouped` em transactions/{id} E os doc-resumos em `transaction_groups/{groupDocId}` (fonte da aba Agrupados) |
+| `onTenantStorageFinalized` / `onTenantStorageDeleted` | Storage trigger | Mantem `tenant_storage_usage/{tenantId}` (bytes + `overQuota`) a cada arquivo que a empresa sobe ou apaga; o teto de armazenamento e aplicado pela storage.rules lendo a flag |
 | `onUserSignupNotify` | Firestore trigger | Email interno para a ProOps em todo create de users/{uid} (cadastro novo ou membro de equipe); idempotente via `internal_notify_claims` |
 
 **Global options** aplicadas a todas as funcoes:
@@ -270,6 +271,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `whatsappLogs` | WhatsApp | Audit trail de acoes do bot |
 | `drive_delivery_jobs/{tenantId}_{proposalId}` | Drive | Fila de entrega da proposta no Drive. Admin SDK only |
 | `tenant_presence/{tenantId}` | Admin | Ultimo acesso da empresa (`lastSeenAt`), gravado por `POST /v1/session/ping`. Fora do doc do tenant porque aquele e escutado em tempo real por toda aba aberta. Admin SDK only |
+| `tenant_storage_usage/{tenantId}` | Plano | Armazenamento em uso (`storageBytes`) e `overQuota`, lido pela storage.rules. Subcolecao `events` = dedup de evento do Storage (`expiresAt` para TTL). Tenant le; escrita so Admin SDK |
 | `tenant_purge_jobs/{tenantId}` | Admin | Job de exclusao definitiva de empresa. Escrita so pelo backend; superadmin com MFA le o progresso |
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |

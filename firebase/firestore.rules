@@ -695,6 +695,18 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Armazenamento em uso (bytes + flag de estouro), mantido pelos gatilhos de
+    // Storage. A empresa le para mostrar o uso na tela de assinatura e avisar
+    // antes do upload; quem barra de fato e a storage.rules, que le a flag.
+    // A subcolecao `events` (dedup de eventos) nao tem regra: DENY.
+    match /tenant_storage_usage/{tenantId} {
+      allow read: if isSuperAdmin()
+                  || (isAuthenticated()
+                      && belongsToTenant(tenantId)
+                      && tenantSubscriptionAllowsRead(tenantId));
+      allow write: if false;
+    }
+
     // Exclusao definitiva de empresa (painel do superadmin). Escrita so pelo
     // backend; o superadmin le para acompanhar o progresso na tela.
     match /tenant_purge_jobs/{tenantId} {

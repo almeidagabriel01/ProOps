@@ -105,7 +105,7 @@ npm run test:functions                 # Jest (backend, unitário) — sem infra
 npm run test:functions:integration     # Jest (backend, integração) — sobe o emulador sozinho
 npm run test:e2e                       # Playwright E2E desktop (requires emulators)
 npx playwright test --config=tests/playwright.config.ts --project=mobile-chrome   # E2E mobile (Pixel 5)
-npm run test:rules                     # Firestore security rules (Jest)
+npm run test:rules                     # Firestore + Storage security rules (Jest; emuladores firestore,storage)
 npm run security:scan                  # OWASP ZAP baseline
 ```
 

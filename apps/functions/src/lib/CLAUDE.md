@@ -475,6 +475,25 @@ navegacao de suporte nao poluir `plan_capability_would_block`.
 Os rotulos de modulo e de limite (`CAPABILITY_LABELS`, `LIMIT_LABELS`) moram em
 `shared/plan-capabilities.ts`, junto do catalogo.
 
+### Armazenamento (`storageQuotaMB`)
+
+O upload vai do navegador direto ao Storage, entao o teto nao passa por
+`enforceTenantPlanLimit` numa rota. Tres pecas:
+
+- `shared/storage-usage.ts` — o que conta: `products/`, `services/` e
+  `proposals/` (anexos inclusos). Fica de fora `.../pdf/...` (cache gerado),
+  `fiscal/` (guarda legal) e `transactions/`.
+- `onTenantStorageChange.ts` + `lib/tenant-storage-usage.ts` — somam e subtraem
+  bytes em `tenant_storage_usage/{tenantId}` e recalculam `overQuota`; o id do
+  evento e registrado na mesma transacao (entrega e ao-menos-uma-vez).
+  `syncTenantPlanBillingSnapshot` recalcula a flag na troca de plano.
+- `firebase/storage.rules` — `storageQuotaAvailable(tenantId)` le a flag e barra
+  gravacao; apagar continua liberado.
+
+Historico anterior a este mecanismo: `npx tsx src/scripts/backfill-storage-usage.ts
+--bucket=<projeto>.firebasestorage.app` (dry-run; `--apply` grava). Rodar depois
+do deploy dos gatilhos.
+
 ### lib/tenant-capabilities.ts
 
 `resolveTenantCapabilities(tenantId)` = capacidades do tier **+ add-ons

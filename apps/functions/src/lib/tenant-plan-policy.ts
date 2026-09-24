@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { STORAGE_USAGE_COLLECTION, bytesToMb } from "../shared/storage-usage";
 import { LRUCache } from "lru-cache";
 import { db } from "../init";
 import {
@@ -1194,24 +1195,13 @@ export async function getTenantProductsUsage(tenantId: string): Promise<number> 
   return Number(products.data().count || 0) + Number(services.data().count || 0);
 }
 
+/**
+ * Armazenamento em uso, em MB. Mantido pelos gatilhos de Storage
+ * (`onTenantStorageChange.ts`) em `tenant_storage_usage/{tenantId}`. Antes lia
+ * `tenants/{id}.usage.storageMB`, que nenhum caminho gravava: o teto de
+ * armazenamento comparava sempre contra zero.
+ */
 export async function getTenantStorageUsageMb(tenantId: string): Promise<number> {
-  const tenantSnap = await db.collection("tenants").doc(tenantId).get();
-  const tenantData = tenantSnap.exists
-    ? (tenantSnap.data() as Record<string, unknown> | undefined)
-    : undefined;
-  const tenantUsage = Number(
-    (tenantData?.usage as { storageMB?: unknown } | undefined)?.storageMB || 0,
-  );
-  if (Number.isFinite(tenantUsage) && tenantUsage >= 0) {
-    return tenantUsage;
-  }
-
-  const companySnap = await db.collection("companies").doc(tenantId).get();
-  const companyData = companySnap.exists
-    ? (companySnap.data() as Record<string, unknown> | undefined)
-    : undefined;
-  const companyUsage = Number(
-    (companyData?.usage as { storageMB?: unknown } | undefined)?.storageMB || 0,
-  );
-  return Number.isFinite(companyUsage) && companyUsage >= 0 ? companyUsage : 0;
+  const snap = await db.collection(STORAGE_USAGE_COLLECTION).doc(tenantId).get();
+  return bytesToMb(Number(snap.get("storageBytes")) || 0);
 }

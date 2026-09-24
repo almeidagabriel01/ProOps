@@ -45,6 +45,10 @@ export { remindNoSubscriptionSignups } from "./checkInactiveSignups";
 export { onWalletCascadeJob } from "./onWalletCascadeJob";
 export { onTenantPurgeJob } from "./onTenantPurgeJob";
 export { onTransactionTotals } from "./onTransactionTotals";
+export {
+  onTenantStorageFinalized,
+  onTenantStorageDeleted,
+} from "./onTenantStorageChange";
 export { onUserSignupNotify } from "./onUserSignupNotify";
 
 // 3. Webhooks

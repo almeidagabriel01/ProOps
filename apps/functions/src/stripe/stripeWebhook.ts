@@ -1,4 +1,5 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { refreshStorageQuotaFlag } from "../lib/tenant-storage-usage";
 import { getStripe, getWebhookSecret } from "./stripeConfig";
 import {
   updateUserPlan,
@@ -340,6 +341,18 @@ export async function syncTenantPlanBillingSnapshot(
   clearTenantPlanCache(tenantId);
   const allowsWhatsApp = await tenantPlanAllowsWhatsApp(tenantId);
   await tenantRef.update({ whatsappEnabled: allowsWhatsApp });
+
+  // O teto de armazenamento muda com o plano, e quem barra o upload e a
+  // storage.rules lendo a flag. Sem recalcular aqui, quem faz upgrade seguiria
+  // barrado ate apagar algum arquivo. Best-effort: a troca de plano ja valeu.
+  try {
+    await refreshStorageQuotaFlag(tenantId);
+  } catch (error) {
+    logger.warn("storage_quota_flag_refresh_failed", {
+      tenantId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 function getWebhookClientIp(req: any): string {
