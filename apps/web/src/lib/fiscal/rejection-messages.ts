@@ -57,6 +57,20 @@ const REJECTIONS: Record<string, RejectionEntry> = {
       focusField: "inscricaoMunicipal",
     },
   },
+  // A mensagem do Ambiente Nacional diz "a IM deve ser informada", mas sai
+  // igual quando a IM FOI informada e não confere com o cadastro do município.
+  // Repassada crua, ela manda a pessoa preencher um campo que já está
+  // preenchido, e a conclusão natural é que o sistema está com defeito.
+  E0116: {
+    titulo: "A prefeitura não reconheceu a inscrição municipal",
+    explicacao:
+      "A inscrição municipal foi enviada, mas não confere com o cadastro da prefeitura. Confira o número exatamente como consta no cadastro municipal, com dígitos e zeros. Se estiver em modo de teste e o número estiver certo, a prefeitura pode não ter a sua empresa no cadastro de testes, que é separado do de produção.",
+    acao: {
+      label: "Revisar dados fiscais",
+      href: "/settings/fiscal",
+      focusField: "inscricaoMunicipal",
+    },
+  },
   "213": {
     titulo: "O CNPJ do emitente não confere",
     explicacao:

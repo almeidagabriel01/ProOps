@@ -4,7 +4,6 @@ import * as React from "react";
 import { useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { useTenant } from "@/providers/tenant-provider";
-import { FullPageLoading } from "@/components/ui/full-page-loading";
 import { useRouter } from "next/navigation";
 
 interface SubscriptionGuardProps {
@@ -138,8 +137,11 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, [router]);
 
+  // No spinner of its own while auth/tenant load: the only caller is
+  // ProtectedRoute, whose loading window contains this one and which passes the
+  // route's skeleton as children meanwhile. A spinner here covered that skeleton.
   if (isLoading) {
-    return <FullPageLoading />;
+    return <>{children}</>;
   }
 
   if (isBlocked) {

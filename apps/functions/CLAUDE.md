@@ -227,6 +227,12 @@ outras requests em voo, a CPU segue alocada e a escrita completa. Em dev
   no CNC da NFS-e se ela e obrigatoria, e Machado exige — rejeicao **E0116**. Mandar sempre
   que houver e mais barato que mapear onde e obrigatoria; omitir quando nao houver tambem
   importa, porque alguns municipios validam o formato de uma IM presente.
+  **E0116 tambem sai quando a IM FOI enviada** e nao confere com o CNC do municipio
+  (numero com outro formato, ou empresa ausente do cadastro de HOMOLOGACAO da prefeitura,
+  que e separado do de producao). Visto em Balneario Camboriu com `<IM>` presente no XML.
+  O texto cru manda "informar" o que ja foi informado, entao a tela traduz
+  (`lib/fiscal/rejection-messages.ts`). Para separar os dois casos: abrir o XML ENVIO no
+  painel do provedor e procurar `<IM>` dentro de `<prest>`.
 - **`totTrib` e um CHOICE obrigatorio dentro de `trib`, e qual filho entra depende do
   regime.** As opcoes sao `vTotTrib`, `pTotTrib`, `indTotTrib` e `pTotTribSN` — exatamente
   uma. Para **ME/EPP** (`opSimpNac` 3) o indicador e PROIBIDO (rejeicao **E0712**) e o campo

@@ -8,7 +8,7 @@ import {
   FormHeaderSkeleton,
 } from "@/components/ui/form-components";
 import { ProposalNumberingCard } from "@/app/settings/_components/proposal-numbering-card";
-import { PaymentsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
+import { ProposalNumberingCardSkeleton } from "@/app/settings/_components/settings-skeleton";
 import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { usePermissions } from "@/providers/permissions-provider";
 
@@ -40,7 +40,7 @@ export default function SettingsProposalsPage() {
         />
       )}
       {permLoading ? (
-        <PaymentsCardSkeleton />
+        <ProposalNumberingCardSkeleton />
       ) : isMaster ? (
         <ProposalNumberingCard onLoadingChange={setCardLoading} />
       ) : (

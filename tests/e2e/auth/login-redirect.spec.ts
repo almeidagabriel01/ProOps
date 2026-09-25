@@ -15,6 +15,7 @@
 
 import { test, expect } from "@playwright/test";
 import { LoginPage } from "../pages/login.page";
+import { DashboardPage } from "../pages/dashboard.page";
 import {
   USER_ADMIN_ALPHA,
   USER_FREE,
@@ -22,6 +23,17 @@ import {
 } from "../seed/data/users";
 
 async function clearSessionAndStorage(page: import("@playwright/test").Page) {
+  // Este spec usa o `test` cru do Playwright, sem a fixture base que dispensa o
+  // banner de cookies. Sem isto o banner (fixed bottom, z-[100]) cobre a dock e
+  // intercepta o clique em "Sair". O init script roda a cada navegação, então
+  // sobrevive ao localStorage.clear() logo abaixo.
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem("proops_cookie_consent", "dismissed");
+    } catch {
+      // noop
+    }
+  });
   await page.context().clearCookies();
   await page.goto("/login");
   await page.evaluate(async () => {
@@ -81,14 +93,9 @@ test.describe("AUTH-LR-06: Logout clears sticky redirect — free user never sen
     await page.goto("/profile");
     await expect(page).toHaveURL(/\/profile/, { timeout: 10000 });
 
-    const logoutButton = page
-      .getByRole("button", { name: /sair|logout|sign out/i })
-      .first();
-    if (await logoutButton.isVisible()) {
-      await logoutButton.click();
-    } else {
-      await page.goto("/login");
-    }
+    // O logout de verdade é o cenário: ir direto para /login pularia a limpeza
+    // que o teste quer provar. O helper revela a dock, que se recolhe sozinha.
+    await new DashboardPage(page).logout();
     await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
 
     // Wipe Firebase Auth persisted state from IndexedDB so the login page

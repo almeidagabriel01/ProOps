@@ -59,6 +59,12 @@ espera é anunciada por leitor de tela em vez de ser um ícone mudo.
 | Carregando uma seção/página | `<Loader size="md" />` |
 | Overlay de página inteira | `<Loader variant="page" />` |
 
+Tela autenticada que está **abrindo** usa skeleton com o formato dela, não
+`Loader`: é o `RouteContentSkeleton` no carregamento da rota e o skeleton da
+própria tela enquanto os dados chegam. O `SubscriptionGuard` não desenha
+spinner enquanto auth e tenant carregam, porque o `ProtectedRoute` já passa o
+skeleton da rota como filho nesse intervalo.
+
 `variant="button"` não quer dizer só "está num botão": é o que faz o spinner
 herdar `currentColor`. É por isso que ele também serve ao adorno de campo, onde
 a cor vem de um `text-muted-foreground` do call site.

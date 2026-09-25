@@ -81,6 +81,16 @@ beforeEach(() => {
   disconnect.mockResolvedValue({ message: "ok" });
 });
 
+describe("FiscalSettingsCard — carregando", () => {
+  it("mostra o skeleton do wizard, nunca o spinner", () => {
+    getSettings.mockReturnValue(new Promise(() => {}));
+    render(<FiscalSettingsCard />);
+
+    expect(screen.getByTestId("settings-skeleton-fiscal")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
 describe("FiscalSettingsCard — desconectar", () => {
   it("não oferece desconectar quando nada foi configurado", async () => {
     // Botão de remover numa conta que ainda não configurou é ruído — e assusta

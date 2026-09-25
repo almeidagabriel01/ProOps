@@ -10,6 +10,11 @@ import {
   SettingsShellSkeleton,
   SettingsSecuritySkeleton,
   SettingsPaymentsSkeleton,
+  SettingsProposalsSkeleton,
+  SettingsFiscalSkeleton,
+  SettingsDriveSkeleton,
+  SettingsLinkedAccountsSkeleton,
+  SettingsTeamSkeleton,
 } from "@/app/settings/_components/settings-skeleton";
 import { AdminSkeleton } from "@/app/admin/_components/admin-skeleton";
 import { AdminOverviewSkeleton } from "@/app/admin/overview/_components/admin-overview-skeleton";
@@ -31,6 +36,19 @@ import { isPageEnabledForNiche } from "@/lib/niches/config";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SpinnerFallback({ message: _message }: { message?: string } = {}) {
   return <FullPageLoading />;
+}
+
+function SettingsSectionSkeleton({ pathname }: { pathname: string }) {
+  if (pathname.startsWith("/settings/security")) return <SettingsSecuritySkeleton />;
+  if (pathname.startsWith("/settings/payments")) return <SettingsPaymentsSkeleton />;
+  if (pathname.startsWith("/settings/proposals")) return <SettingsProposalsSkeleton />;
+  if (pathname.startsWith("/settings/fiscal")) return <SettingsFiscalSkeleton />;
+  if (pathname.startsWith("/settings/drive")) return <SettingsDriveSkeleton />;
+  if (pathname.startsWith("/settings/linked-accounts")) {
+    return <SettingsLinkedAccountsSkeleton />;
+  }
+  // /settings/team and bare /settings (redirects to team).
+  return <SettingsTeamSkeleton />;
 }
 
 export function RouteContentSkeleton({ pathname }: { pathname: string }) {
@@ -101,27 +119,11 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
   if (pathname.startsWith("/settings")) {
     // Rendered outside the settings layout (protected-route loading), so the
     // shell skeleton supplies the title + sidebar; the section matches the route.
-    if (pathname.startsWith("/settings/security")) {
-      return (
-        <SettingsShellSkeleton>
-          <SettingsSecuritySkeleton />
-        </SettingsShellSkeleton>
-      );
-    }
-    if (
-      pathname.startsWith("/settings/payments") ||
-      pathname.startsWith("/settings/linked-accounts")
-    ) {
-      return (
-        <SettingsShellSkeleton>
-          <SettingsPaymentsSkeleton />
-        </SettingsShellSkeleton>
-      );
-    }
-    // /settings/team and bare /settings (redirects to team).
+    // A new settings section needs its own case here, or it loads with the
+    // team's shape.
     return (
       <SettingsShellSkeleton>
-        <TeamSkeleton />
+        <SettingsSectionSkeleton pathname={pathname} />
       </SettingsShellSkeleton>
     );
   }
