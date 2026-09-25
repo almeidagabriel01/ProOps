@@ -25,6 +25,7 @@ import {
   getProductPricingMode,
   normalizeProductPricingModel,
 } from "@/lib/product-pricing";
+import { downscaleCatalogImage } from "@/lib/image-downscale";
 
 // Maximum file size: 5MB per image
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -677,17 +678,20 @@ export function useProductForm(
       : "selecionado";
 
     try {
-      // Upload pending files to Storage
-      const uploadedUrls: string[] = [];
-      for (const file of pendingFiles) {
-        const result = await uploadImage(
-          file,
-          tenant.id,
-          entityType === "service" ? "services" : "products",
-          productId || undefined,
-        );
-        uploadedUrls.push(result.url);
-      }
+      // Upload em paralelo, com a imagem reduzida antes de subir (foto de
+      // celular chega com 4000 px e vários MB). A ordem do array é preservada.
+      const uploadedUrls = await Promise.all(
+        pendingFiles.map(async (file) => {
+          const optimized = await downscaleCatalogImage(file);
+          const result = await uploadImage(
+            optimized,
+            tenant.id,
+            entityType === "service" ? "services" : "products",
+            productId || undefined,
+          );
+          return result.url;
+        }),
+      );
 
       // Combine existing URLs with newly uploaded ones
       const allImageUrls = [...imageUrls, ...uploadedUrls];
@@ -733,13 +737,15 @@ export function useProductForm(
           : formData.markup;
 
       // Delete removed images from Storage
-      for (const url of removedUrls) {
-        try {
-          await deleteImage(url);
-        } catch (error) {
-          console.warn("Failed to delete image:", error);
-        }
-      }
+      await Promise.all(
+        removedUrls.map(async (url) => {
+          try {
+            await deleteImage(url);
+          } catch (error) {
+            console.warn("Failed to delete image:", error);
+          }
+        }),
+      );
 
       // Enviados sempre, inclusive vazios: o sanitizador do backend so olha as
       // chaves presentes, e string vazia e como o usuario apaga um NCM errado.
@@ -789,7 +795,7 @@ export function useProductForm(
         } else {
           await ProductService.updateProduct(productId, dataToSave);
           if (tenant) {
-            ProductService.invalidateTenantCache(tenant.id);
+            await ProductService.refreshCachedProduct(tenant.id, productId);
           }
         }
         toast.success(
@@ -799,7 +805,6 @@ export function useProductForm(
           },
         );
         router.push(entityPluralPath);
-        router.refresh();
       } else {
         const basePayload = {
           targetTenantId: tenant.id,
@@ -830,7 +835,6 @@ export function useProductForm(
 
         if (result?.success) {
           router.push(entityPluralPath);
-          router.refresh();
         }
       }
     } catch (error) {
