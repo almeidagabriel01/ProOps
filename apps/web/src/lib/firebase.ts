@@ -1,8 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
-import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
-import { connectStorageEmulator, getStorage } from "firebase/storage";
 
 declare global {
   interface Window {
@@ -26,15 +24,14 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
-// IMPORTANT: Functions must use the same region as deployed Cloud Functions
-// Cloud Functions are deployed to 'southamerica-east1' (São Paulo)
-const functions = getFunctions(app, "southamerica-east1");
+// Storage mora em lib/firebase-storage.ts, importado só por quem sobe ou apaga
+// arquivo: este módulo é importado por quase toda tela, e trazer o SDK de
+// Storage (e o de Functions, que nada usa) aqui o colocava no bundle de todas.
 
 // Also auto-enable emulators for "demo-*" project IDs (Firebase convention) or when
 // Playwright e2e tests inject __E2E_USE_FIREBASE_EMULATORS via addInitScript.
-const useFirebaseEmulators =
+export const useFirebaseEmulators =
   String(process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS || "")
     .trim()
     .toLowerCase() === "true" ||
@@ -47,10 +44,8 @@ if (useFirebaseEmulators && typeof window !== "undefined") {
       disableWarnings: true,
     });
     connectFirestoreEmulator(db, "127.0.0.1", 8080);
-    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
-    connectStorageEmulator(storage, "127.0.0.1", 9199);
     window.__templateErpFirebaseEmulatorsConnected = true;
   }
 }
 
-export { app, auth, db, functions, storage };
+export { app, auth, db };
