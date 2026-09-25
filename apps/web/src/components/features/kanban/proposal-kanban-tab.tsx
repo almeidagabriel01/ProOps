@@ -22,10 +22,12 @@ import { Proposal } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { KanbanBoardSkeleton } from "@/app/crm/_components/kanban-skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
-import { Plus, Pencil, Trash2, Search, ListFilter } from "lucide-react";
+import Link from "next/link";
+import { Plus, Pencil, Trash2, Search, ListFilter, Kanban } from "lucide-react";
 import { isDateBeforeTodayBR } from "@/utils/date-format";
 import { cn } from "@/lib/utils";
 import { normalize } from "@/utils/text";
@@ -93,7 +95,8 @@ export function ProposalKanbanTab() {
     canEdit: canEditColumn,
     canDelete: canDeleteColumn,
   } = usePagePermission("kanban");
-  const { canEdit: canEditProposal } = usePagePermission("proposals");
+  const { canEdit: canEditProposal, canCreate: canCreateProposal } =
+    usePagePermission("proposals");
   const canMoveCards = !isDemoReadOnly && canEditProposal;
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [columns, setColumns] = React.useState<KanbanStatusColumn[]>([]);
@@ -1111,8 +1114,34 @@ export function ProposalKanbanTab() {
     );
   }
 
+  // Funil sem nenhuma proposta: o quadro continua embaixo (é onde se ajustam
+  // as colunas), mas sozinho ele parecia uma tela quebrada, sem dizer o que
+  // fazer.
+  const isFunnelEmpty =
+    columns.length > 0 &&
+    columns.every(
+      (column) => (columnMeta[columnStatusKey(column)]?.total ?? 0) === 0,
+    );
+
   return (
     <div className="space-y-4">
+      {isFunnelEmpty && (
+        <EmptyState
+          icon={Kanban}
+          title="Nenhuma proposta no funil ainda"
+          description="Cada proposta criada entra aqui na coluna do status dela. Arraste o cartão entre as colunas para acompanhar a negociação."
+          action={
+            canCreateProposal && !isDemoReadOnly ? (
+              <Button asChild size="sm">
+                <Link href="/proposals/new">
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Nova proposta
+                </Link>
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
       {/* Toolbar */}
       <div className="flex items-center justify-start gap-3 flex-wrap">
         <div className="flex items-center gap-2">
