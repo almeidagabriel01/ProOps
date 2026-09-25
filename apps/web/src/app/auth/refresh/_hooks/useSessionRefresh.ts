@@ -6,6 +6,7 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/providers/auth-provider";
 import { decideRefreshOutcome } from "@/lib/auth/decide-refresh-outcome";
 import { hardRedirect } from "@/lib/auth/hard-redirect";
+import { sanitizeInternalPath } from "@/lib/auth/sanitize-internal-path";
 import {
   clearRefreshVisits,
   recordRefreshRedirect,
@@ -31,20 +32,12 @@ export const REFRESH_SLOW_NOTICE_MS = 8_000;
 const LOGIN_FALLBACK = "/login?redirect_reason=session_expired";
 
 /**
- * Validates the `?next=` target as an internal path to prevent an open redirect.
- * RBAC is still enforced downstream by the proxy + ProtectedRoute; here we only
- * guarantee the destination is same-origin. Defaults to `/dashboard`.
+ * O `?next=` só pode apontar para a própria origem (ver
+ * `lib/auth/sanitize-internal-path.ts`). RBAC continua a cargo do proxy e do
+ * ProtectedRoute. Padrão: `/dashboard`.
  */
 function sanitizeNext(raw: string | null): string {
-  if (!raw) return "/dashboard";
-  let decoded = raw;
-  try {
-    decoded = decodeURIComponent(raw);
-  } catch {
-    decoded = raw;
-  }
-  const isInternal = decoded.startsWith("/") && !decoded.startsWith("//");
-  return isInternal ? decoded : "/dashboard";
+  return sanitizeInternalPath(raw, "/dashboard");
 }
 
 /**
