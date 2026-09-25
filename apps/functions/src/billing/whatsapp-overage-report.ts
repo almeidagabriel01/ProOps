@@ -1,4 +1,5 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { mapWithConcurrency } from "../lib/cron-iteration";
 
 /**
  * Reporte mensal do excedente de WhatsApp ao Stripe (cobrança real).
@@ -54,21 +55,6 @@ export function getPreviousMonthKey(baseDate = new Date()): string {
   );
   d.setUTCMonth(d.getUTCMonth() - 1);
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-async function mapWithConcurrency<T>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<void>,
-): Promise<void> {
-  let next = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const item = items[next++];
-      await fn(item);
-    }
-  });
-  await Promise.all(workers);
 }
 
 type ClaimOutcome = "claimed" | "skip" | "manual_review" | "missing_customer";

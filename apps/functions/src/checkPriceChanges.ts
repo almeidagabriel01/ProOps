@@ -8,6 +8,7 @@ import { detectPriceDrift } from "./billing/price-drift";
 import { sendEmail } from "./services/email/send-email";
 import { renderPriceChangeEmail } from "./services/email/templates/price-change";
 import type { NotificationType } from "./api/services/notification.service";
+import { paginateQuery } from "./lib/cron-iteration";
 
 const PRICE_CHANGE_NOTIFY_DAYS = 30;
 const PRICE_CHANGE_MIGRATE_DAYS = 1;
@@ -72,18 +73,19 @@ export const checkPriceChanges = onSchedule(
     let skipped = 0;
     let errors = 0;
 
-    const tenantsSnap = await db
+    // Paginado: antes era limit(200) sem cursor, então acima de 200 assinantes
+    // os mesmos 200 voltavam todo dia e o resto nunca recebia aviso nem
+    // migração de preço.
+    const tenantsQuery = db
       .collection("tenants")
-      .where("subscriptionStatus", "in", ["active", "trialing"])
-      .limit(QUERY_LIMIT)
-      .get();
+      .where("subscriptionStatus", "in", ["active", "trialing"]);
 
     const stripe = getStripe();
     // NOT app.proops.com.br: that host is the mobile app landing page.
     // These links deep-link into the ERP, which lives on erp.proops.com.br.
     const APP_URL = process.env.APP_URL ?? "https://erp.proops.com.br";
 
-    for (const tenantDoc of tenantsSnap.docs) {
+    for await (const tenantDoc of paginateQuery(tenantsQuery, QUERY_LIMIT)) {
       const tenantId = tenantDoc.id;
       const tenantData = tenantDoc.data() as Record<string, unknown>;
 

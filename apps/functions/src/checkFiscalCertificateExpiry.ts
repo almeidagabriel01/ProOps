@@ -3,6 +3,7 @@ import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { logger } from "./lib/logger";
 import { daysUntil } from "./api/services/fiscal/fiscal-settings.service";
+import { paginateQuery } from "./lib/cron-iteration";
 
 /**
  * Avisa antes de o certificado digital A1 vencer.
@@ -53,9 +54,11 @@ export const checkFiscalCertificateExpiry = onSchedule(
     let notified = 0;
 
     try {
-      const snap = await db.collection("fiscal_settings").limit(1000).get();
-
-      for (const doc of snap.docs) {
+      // Paginado: antes limit(1000) sem cursor, e o tenant 1001 nunca era
+      // avisado do vencimento do certificado.
+      let analisados = 0;
+      for await (const doc of paginateQuery(db.collection("fiscal_settings"), 300)) {
+        analisados += 1;
         const data = doc.data() as {
           tenantId?: string;
           certificadoValidade?: string;
@@ -98,7 +101,7 @@ export const checkFiscalCertificateExpiry = onSchedule(
       }
 
       logger.info("Verificacao de validade de certificado concluida", {
-        analisados: snap.size,
+        analisados,
         notificados: notified,
       });
     } catch (error) {

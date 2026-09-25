@@ -4,6 +4,7 @@ import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { logger } from "./lib/logger";
 import { syncReceivedInvoices as syncTenant } from "./api/services/fiscal/received-invoice.service";
 import { tenantHasCapability } from "./lib/tenant-capabilities";
+import { mapWithConcurrency, paginateQuery } from "./lib/cron-iteration";
 
 /**
  * Busca as notas de entrada de cada tenant com recepcao habilitada.
@@ -31,28 +32,39 @@ export const syncReceivedInvoices = onSchedule(
     try {
       // So quem optou pela recepcao: a flag existe porque cada nota recebida
       // consome uma unidade do pacote mensal do provedor.
-      const snap = await db
+      // Paginado (antes limit(500) sem cursor: o tenant 501 nunca sincronizava)
+      // e com 4 tenants em paralelo, porque cada um consulta o provedor.
+      const query = db
         .collection("fiscal_settings")
-        .where("habilitaManifestacao", "==", true)
-        .limit(500)
-        .get();
+        .where("habilitaManifestacao", "==", true);
 
-      for (const doc of snap.docs) {
-        const tenantId = (doc.data() as { tenantId?: string }).tenantId ?? doc.id;
-        // Recepcao e so do Enterprise. Quem perdeu o plano com o flag ligado
-        // para de ser sincronizado aqui, mas o provedor segue recebendo (e
-        // cobrando) ate a recepcao ser desligada no cadastro da empresa, que
-        // so muda com o certificado. O aviso existe para alguem desligar.
-        if (!(await tenantHasCapability(tenantId, "fiscalReceiving"))) {
-          semPlano += 1;
-          logger.warn("fiscal_receiving_sem_plano", { tenantId });
-          continue;
+      let page: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+      const processPage = () =>
+        mapWithConcurrency(page, 4, async (doc) => {
+          const tenantId = (doc.data() as { tenantId?: string }).tenantId ?? doc.id;
+          // Recepcao e so do Enterprise. Quem perdeu o plano com o flag ligado
+          // para de ser sincronizado aqui, mas o provedor segue recebendo (e
+          // cobrando) ate a recepcao ser desligada no cadastro da empresa, que
+          // so muda com o certificado. O aviso existe para alguem desligar.
+          if (!(await tenantHasCapability(tenantId, "fiscalReceiving"))) {
+            semPlano += 1;
+            logger.warn("fiscal_receiving_sem_plano", { tenantId });
+            return;
+          }
+          // syncTenant nao lanca — um tenant com problema nao pode travar os outros.
+          const result = await syncTenant(tenantId);
+          tenants += 1;
+          applied += result.applied;
+        });
+
+      for await (const doc of paginateQuery(query, 100)) {
+        page.push(doc);
+        if (page.length >= 100) {
+          await processPage();
+          page = [];
         }
-        // syncTenant nao lanca — um tenant com problema nao pode travar os outros.
-        const result = await syncTenant(tenantId);
-        tenants += 1;
-        applied += result.applied;
       }
+      if (page.length > 0) await processPage();
 
       logger.info("Sincronizacao de notas de entrada concluida", {
         tenants,
