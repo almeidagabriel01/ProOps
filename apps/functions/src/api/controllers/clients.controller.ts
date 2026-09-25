@@ -12,7 +12,7 @@ import {
 } from "../../lib/tenant-resolution";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
-import { buildSearchTokens } from "../../lib/search-tokens";
+import { buildClientSearchTokens } from "../../lib/search-tokens";
 import { cpf, cnpj } from "cpf-cnpj-validator";
 
 /**
@@ -261,7 +261,7 @@ export const createClient = async (req: Request, res: Response) => {
         source: input.source || "manual",
         sourceId: input.sourceId || null,
         // Indexed search tokens (array-contains as-you-type search)
-        searchTokens: buildSearchTokens(input.name, input.email, input.phone),
+        searchTokens: buildClientSearchTokens(input.name, input.email, input.phone),
         createdAt: now,
         updatedAt: now,
       };
@@ -420,7 +420,7 @@ export const updateClient = async (req: Request, res: Response) => {
       updateData.email !== undefined ||
       updateData.phone !== undefined
     ) {
-      safeUpdate.searchTokens = buildSearchTokens(
+      safeUpdate.searchTokens = buildClientSearchTokens(
         updateData.name !== undefined ? updateData.name : clientData?.name,
         updateData.email !== undefined ? updateData.email : clientData?.email,
         updateData.phone !== undefined ? updateData.phone : clientData?.phone,

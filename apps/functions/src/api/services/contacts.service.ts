@@ -1,7 +1,7 @@
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
-import { buildSearchTokens } from "../../lib/search-tokens";
+import { buildClientSearchTokens } from "../../lib/search-tokens";
 import { cpf, cnpj } from "cpf-cnpj-validator";
 
 // CRITICAL: collection name is "clients", not "contacts"
@@ -155,7 +155,7 @@ export async function createContact(
   }
 
   // Indexed search tokens (array-contains as-you-type search)
-  contactData.searchTokens = buildSearchTokens(
+  contactData.searchTokens = buildClientSearchTokens(
     name,
     params.email,
     params.phone,
@@ -204,7 +204,7 @@ export async function updateContact(
     updates.email !== undefined ||
     updates.phone !== undefined
   ) {
-    safeUpdate.searchTokens = buildSearchTokens(
+    safeUpdate.searchTokens = buildClientSearchTokens(
       updates.name !== undefined ? (safeUpdate.name as string) : data.name,
       updates.email !== undefined ? updates.email : data.email,
       updates.phone !== undefined ? updates.phone : data.phone,

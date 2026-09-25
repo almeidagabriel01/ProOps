@@ -18,10 +18,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const { getClients } = vi.hoisted(() => ({ getClients: vi.fn() }));
+const { getClientsByTypes, getClients } = vi.hoisted(() => ({
+  getClientsByTypes: vi.fn(),
+  getClients: vi.fn(),
+}));
 
 vi.mock("@/services/client-service", () => ({
-  ClientService: { getClients },
+  ClientService: { getClientsByTypes, getClients },
 }));
 vi.mock("@/providers/tenant-provider", () => ({
   useTenant: () => ({ tenant: { id: "t1" } }),
@@ -69,10 +72,17 @@ function setup(commissions: ProposalCommission[] = [], totalValue = 100000) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  getClients.mockResolvedValue(PARTNERS);
+  getClientsByTypes.mockResolvedValue(PARTNERS);
 });
 
 describe("ProposalCommissionsSection", () => {
+  it("busca só vendedor e arquiteto, sem baixar todos os contatos", async () => {
+    setup();
+    await openPartnerList();
+    expect(getClientsByTypes).toHaveBeenCalledWith("t1", ["vendedor", "arquiteto"]);
+    expect(getClients).not.toHaveBeenCalled();
+  });
+
   it("só oferece vendedor e arquiteto", async () => {
     setup();
     await openPartnerList();
@@ -200,7 +210,7 @@ describe("ProposalCommissionsSection", () => {
   });
 
   it("avisa quando não há nenhum parceiro cadastrado", async () => {
-    getClients.mockResolvedValue([PARTNERS[2]]);
+    getClientsByTypes.mockResolvedValue([PARTNERS[2]]);
     setup();
     expect(
       await screen.findByText(/Nenhum contato marcado como vendedor/),
