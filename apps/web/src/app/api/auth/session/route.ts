@@ -94,7 +94,7 @@ async function requestWhatsappChallenge(
   req: NextRequest,
   idToken: string,
   resend?: boolean,
-): Promise<WhatsappChallengeResult | null> {
+): Promise<WhatsappChallengeResult | null | "rate-limited"> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), WHATSAPP_MFA_TIMEOUT_MS);
   try {
@@ -108,6 +108,12 @@ async function requestWhatsappChallenge(
       cache: "no-store",
       signal: controller.signal,
     });
+    // 429 fica FECHADO: é o único não-2xx que quem tem a senha provoca de
+    // propósito, e lido como "sem resposta" liberava o cookie sem o OTP.
+    if (upstreamResponse.status === 429) {
+      console.warn("WhatsApp MFA challenge rate-limited; withholding session");
+      return "rate-limited";
+    }
     if (!upstreamResponse.ok) {
       console.error(
         "WhatsApp MFA challenge returned non-OK status:",
@@ -385,7 +391,9 @@ export async function POST(req: NextRequest) {
       // factor already satisfied, and NOT a re-sync of an existing authenticated
       // session. Ask the backend whether this user requires WhatsApp OTP. On a
       // non-fatal failure the challenge result is null → fail open.
-      const challenge = await requestWhatsappChallenge(req, idToken, resend);
+      const challengeResponse = await requestWhatsappChallenge(req, idToken, resend);
+      const challengeRateLimited = challengeResponse === "rate-limited";
+      const challenge = challengeRateLimited ? null : challengeResponse;
       const decision = decideWhatsappGate({
         isSuperAdmin: isSuperAdminRole,
         hasNativeSecondFactor: Boolean(secondFactor),
@@ -393,7 +401,14 @@ export async function POST(req: NextRequest) {
         whatsappLogin,
         alreadyAuthenticated,
         challenge,
+        challengeRateLimited,
       });
+      if (decision === "rate-limited") {
+        return NextResponse.json(
+          { error: "Muitas tentativas. Aguarde um minuto e tente novamente." },
+          { status: 429, headers: { "Retry-After": "60" } },
+        );
+      }
       if (decision === "require") {
         // Withhold the __session cookie until the OTP is verified.
         return NextResponse.json({

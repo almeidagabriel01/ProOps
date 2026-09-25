@@ -55,14 +55,24 @@ export interface WhatsappGateInput {
    * is made BEFORE the challenge call (super admin / native 2FA short-circuit).
    */
   challenge: WhatsappChallengeResult | null;
+  /**
+   * The backend answered the challenge with 429. It is NOT the same as
+   * "unavailable": the limiter is per user, so whoever has the password could
+   * provoke it on purpose (a few logins in a minute) and, if it were read as
+   * "no answer → fail open", walk in without the OTP. Optional so callers that
+   * decide before the challenge call don't need to pass it.
+   */
+  challengeRateLimited?: boolean;
 }
 
 /**
  * - `skip`    — do not call the challenge / do not gate; emit the cookie normally.
  * - `require` — the backend says WhatsApp OTP is required; withhold the cookie.
  * - `proceed` — WhatsApp OTP not required; emit the cookie normally.
+ * - `rate-limited` — the challenge was throttled; withhold the cookie and let
+ *                    the client retry later (fail-CLOSED).
  */
-export type WhatsappGateDecision = "skip" | "require" | "proceed";
+export type WhatsappGateDecision = "skip" | "require" | "proceed" | "rate-limited";
 
 export function decideWhatsappGate(input: WhatsappGateInput): WhatsappGateDecision {
   if (input.isSuperAdmin) {
@@ -79,6 +89,9 @@ export function decideWhatsappGate(input: WhatsappGateInput): WhatsappGateDecisi
   }
   if (input.alreadyAuthenticated) {
     return "skip";
+  }
+  if (input.challengeRateLimited === true) {
+    return "rate-limited";
   }
   if (input.challenge?.mfaRequired === true) {
     return "require";

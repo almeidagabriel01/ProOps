@@ -424,10 +424,11 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
     // just-written cooldown, and declines to send. deliverOtp (an external
     // WhatsApp call, non-retryable) stays OUTSIDE the transaction.
     //
-    // This endpoint is also invoked automatically by the login session flow and
-    // must always respond 200 with the gate (never 429) — a 429 would swallow
-    // the gate and stall the login. So "can't send" surfaces retryAfterSeconds
-    // rather than an error.
+    // This endpoint is also invoked automatically by the login session flow.
+    // "Can't send" (cooldown / hourly cap) surfaces retryAfterSeconds with 200,
+    // not an error. The route itself still sits behind the 5/min
+    // whatsappMfaLimiter, which CAN answer 429: the web session route treats
+    // that 429 as fail-CLOSED (withholds the cookie), never as "no answer".
     type ChallengeOutcome =
       | { action: "send"; code: string; retryAfterSeconds: number }
       | { action: "reuse" | "none"; retryAfterSeconds: number };
