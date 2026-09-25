@@ -1,7 +1,8 @@
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
-import { buildSearchTokens } from "../../lib/search-tokens";
+import { buildSearchTokens, matchesAllWords, parseSearchQuery } from "../../lib/search-tokens";
+import { INDEXED_SEARCH_SCAN_LIMIT, sortDocsByField } from "../../lib/indexed-search";
 import { productRefsFields } from "../../lib/proposal-product-refs";
 
 // ===== Interfaces =====
@@ -76,6 +77,38 @@ export async function listProposals(
   const maxLimit = Math.min(opts?.limit || 10, 50);
   const orderField = opts?.orderBy ?? "createdAt";
   const orderDir = opts?.direction ?? "desc";
+
+  const toItem = (doc: FirebaseFirestore.QueryDocumentSnapshot): ProposalListItem => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      title: data.title || "",
+      clientName: data.clientName || "",
+      status: data.status || "draft",
+      totalValue: data.totalValue || 0,
+      createdAt: data.createdAt instanceof Timestamp
+        ? data.createdAt.toDate().toISOString()
+        : String(data.createdAt || ""),
+    };
+  };
+
+  // Com termo, a busca vai pelo índice (searchTokens) em vez de filtrar só as
+  // N mais recentes, que perdia qualquer proposta fora dessa janela.
+  const parsed = opts?.search ? parseSearchQuery(opts.search) : null;
+  if (parsed && !parsed.digits) {
+    const found = await db
+      .collection("proposals")
+      .where("tenantId", "==", tenantId)
+      .where("searchTokens", "array-contains", parsed.token)
+      .limit(INDEXED_SEARCH_SCAN_LIMIT)
+      .get();
+    const matched = found.docs.filter((doc) => {
+      const data = doc.data();
+      if (opts?.status && data.status !== opts.status) return false;
+      return matchesAllWords(parsed.words, [data.title, data.clientName]);
+    });
+    return sortDocsByField(matched, orderField, orderDir).slice(0, maxLimit).map(toItem);
+  }
 
   let query: FirebaseFirestore.Query = db
     .collection("proposals")

@@ -2,6 +2,8 @@ import {
   buildClientSearchTokens,
   buildPhoneSearchTokens,
   buildSearchTokens,
+  matchesAllWords,
+  parseSearchQuery,
   normalizeSearchText,
 } from "./search-tokens";
 
@@ -86,5 +88,22 @@ describe("buildPhoneSearchTokens / buildClientSearchTokens", () => {
     expect(buildPhoneSearchTokens(undefined)).toEqual([]);
     expect(buildPhoneSearchTokens("12")).toEqual([]);
     expect(buildClientSearchTokens("Ana", undefined, undefined)).toEqual(["an", "ana"]);
+  });
+});
+
+describe("parseSearchQuery / matchesAllWords", () => {
+  it("termo de texto: primeira palavra útil vira o token", () => {
+    expect(parseSearchQuery("  a João Silva ")).toEqual({ token: "joao", words: ["a", "joao", "silva"], digits: null });
+  });
+  it("termo só com dígitos e pontuação vira busca por telefone", () => {
+    expect(parseSearchQuery("(35) 9999-1")).toEqual({ token: "3599991", words: [], digits: "3599991" });
+  });
+  it("sem nada indexável devolve null", () => {
+    expect(parseSearchQuery("a")).toBeNull();
+    expect(parseSearchQuery("")).toBeNull();
+  });
+  it("matchesAllWords ignora acento e caixa", () => {
+    expect(matchesAllWords(["joao", "silva"], ["João", "SILVA@x.com"])).toBe(true);
+    expect(matchesAllWords(["joao", "souza"], ["João Silva"])).toBe(false);
   });
 });

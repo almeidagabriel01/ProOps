@@ -89,3 +89,36 @@ export function buildClientSearchTokens(
   for (const token of buildPhoneSearchTokens(phone)) tokens.add(token);
   return Array.from(tokens);
 }
+
+/**
+ * Termo de busca → consulta indexada: o token para `array-contains` e as
+ * palavras (ou dígitos) para refinar o resultado. Mesma regra do front
+ * (`apps/web/src/lib/search-term.ts`): termo sem letra e com 2+ dígitos é
+ * telefone; senão vale a primeira palavra com 2+ caracteres. `null` quando o
+ * termo não tem nada indexável.
+ */
+export function parseSearchQuery(term: string): {
+  token: string;
+  words: string[];
+  digits: string | null;
+} | null {
+  const trimmed = String(term || "").trim();
+  if (!trimmed) return null;
+  if (!/[a-z]/i.test(normalizeSearchText(trimmed))) {
+    const digits = trimmed.replace(/\D/g, "");
+    if (digits.length >= MIN_PREFIX_LENGTH) {
+      const capped = digits.slice(0, MAX_PREFIX_LENGTH);
+      return { token: capped, words: [], digits: capped };
+    }
+  }
+  const words = normalizeSearchText(trimmed).split(/\s+/).filter(Boolean);
+  const first = words.find((w) => w.length >= MIN_PREFIX_LENGTH);
+  if (!first) return null;
+  return { token: first.slice(0, MAX_PREFIX_LENGTH), words, digits: null };
+}
+
+/** true quando todas as palavras aparecem em algum dos campos (sem acento/caixa). */
+export function matchesAllWords(words: string[], fields: Array<string | undefined | null>): boolean {
+  const haystacks = fields.map((f) => normalizeSearchText(String(f || "")));
+  return words.every((word) => haystacks.some((h) => h.includes(word)));
+}
