@@ -11,8 +11,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   return (
     <NextThemesProvider
       attribute="class"
+      // Claro continua o padrão; "Sistema" é uma escolha no menu do perfil
+      // (ThemeChoice). Todo consumidor lê `resolvedTheme`, nunca `theme`.
       defaultTheme="light"
-      enableSystem={false}
+      enableSystem
       disableTransitionOnChange={false}
     >
       {children}

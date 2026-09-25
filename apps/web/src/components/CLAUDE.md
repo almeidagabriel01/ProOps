@@ -78,6 +78,17 @@ da altura do texto. `className` serve para margem e cor, não para tamanho.
 Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer
 ou se algum `<Loader>` tentar se dimensionar por classe.
 
+## Componentes compartilhados de estado (`shared/`)
+
+| Componente | Quando usar |
+|---|---|
+| `ConfirmDialog` | Toda confirmação. `window.confirm()`/`alert()` são proibidos na interface (guard `no-native-dialogs.test.ts`); aviso simples é `toast` |
+| `EmptyState` | Lista ou bloco sem nada: ícone, o que falta e a ação que resolve |
+| `RouteError` | O `error.tsx` de cada módulo. Reporta ao pipeline de observabilidade (o boundary do Next captura antes do `window`) e oferece tentar de novo, início e suporte. Guard `route-error-boundaries.test.ts`: destino novo do menu precisa do seu `error.tsx` |
+
+Exclusão com "Desfazer" é `runUndoableAction` (`lib/undoable-action.ts`): a
+tela já mostra o resultado e a gravação só acontece depois da janela do toast.
+
 ## Data
 
 O seletor de data do projeto é o `DatePicker` (`ui/date-picker.tsx`), **nunca**

@@ -95,3 +95,16 @@ Item bloqueado por plano vira `<button>` com coroa e abre o `UpgradeModal`, em
 vez de `<Link>`. É `resolveCapabilityRestriction` (`capability-gate.ts`), e o
 seletor de cabeçalho usa exatamente o mesmo caminho, para uma visão bloqueada se
 comportar igual ao ícone bloqueado.
+
+## Cabeçalho: ajuda, tema e suporte
+
+- **"?" (`help-panel.tsx`)** abre um painel com o texto do tutorial da tela
+  atual (`matchedStep` do onboarding), o tutorial por capítulo e o suporte
+  humano (WhatsApp de suporte e e-mail). Tela nova do menu ganha ajuda de graça
+  ao ganhar o passo em `onboarding-steps.ts`.
+- **Tema (`theme-choice.tsx`)** fica no menu do perfil: Claro, Escuro ou
+  Sistema. O padrão continua claro; o sol/lua do cabeçalho fixa um dos dois e
+  some abaixo de `sm` para dar lugar ao "?". Todo consumidor de tema lê
+  `resolvedTheme`: ler `theme` quebraria com "system".
+- **"Falar com o suporte"** no menu do perfil é o WhatsApp de SUPORTE; o item
+  "WhatsApp" logo acima é o bot da Lia.

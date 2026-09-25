@@ -7,8 +7,10 @@ React hooks customizados que encapsulam lógica reutilizável de dados e UI.
 ```
 hooks/
 ├── proposal/              # Hooks específicos de propostas (subpasta)
+├── use-before-unload-warning.ts # Confirmação do navegador ao fechar a aba com trabalho não salvo
 ├── use-count-up.ts        # Animação de contagem numérica
 ├── use-prefers-reduced-motion.ts
+├── use-record-search.ts   # Busca de propostas e contatos para o Ctrl+K (índice searchTokens)
 ├── use-sort.ts            # Ordenação de listas
 ├── use-window-focus.ts    # Detecção de foco da janela
 ├── useAiChat.ts           # Chat com a IA Lia
@@ -16,7 +18,7 @@ hooks/
 ├── useCreateMember.ts     # Criação de membros da equipe (reexporta getDefaultPermissions de lib/permissions/pages)
 ├── useCreateProposal.ts   # Criação de propostas
 ├── useCurrentNicheConfig.ts # Config do nicho atual do tenant
-├── useDashboardData.ts    # Dados do dashboard
+├── useDashboardData.ts    # Dados do dashboard, em quatro grupos com carregamento próprio (cálculos em lib/dashboard-metrics.ts)
 ├── useDisplayTenant.ts    # Tenant exibido (superadmin impersonation)
 ├── useFormValidation.ts   # Validação de formulários
 ├── useHeaderPresentation.ts
