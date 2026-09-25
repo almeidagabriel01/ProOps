@@ -59,7 +59,7 @@ export const PERMISSION_PAGES: PermissionPage[] = [
   },
   {
     id: "calendar",
-    name: "Calendario",
+    name: "Calendário",
     description: "Agenda, compromissos e acompanhamento",
   },
   {
