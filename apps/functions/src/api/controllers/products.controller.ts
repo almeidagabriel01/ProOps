@@ -10,7 +10,7 @@ import {
   enforceTenantPlanLimit,
   getTenantProductsUsage,
 } from "../../lib/tenant-plan-policy";
-import { checkImagesWithinPlan } from "../../lib/catalog-plan-guards";
+import { checkCatalogImagesLimit } from "../../lib/catalog-plan-guards";
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { sanitizeProductFiscalFields } from "../services/fiscal/fiscal-catalog-fields";
@@ -224,7 +224,8 @@ export const createProduct = async (req: Request, res: Response) => {
         route: req.path,
         isSuperAdmin,
       }),
-      checkImagesWithinPlan({
+      checkCatalogImagesLimit({
+        itemType: "product",
         tenantId: targetTenantId,
         requested: (input.images || []).length,
         isSuperAdmin,
@@ -240,8 +241,8 @@ export const createProduct = async (req: Request, res: Response) => {
 
     if (!imagesCheck.allowed) {
       return res
-        .status(402)
-        .json({ message: imagesCheck.message, code: "PLAN_LIMIT_EXCEEDED" });
+        .status(400)
+        .json({ message: imagesCheck.message, code: "IMAGE_LIMIT_EXCEEDED" });
     }
 
     // null (limpar campo) nao faz sentido na criacao — vira ausencia.
@@ -360,7 +361,8 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
 
     if (Array.isArray(updateData.images)) {
-      const imagesCheck = await checkImagesWithinPlan({
+      const imagesCheck = await checkCatalogImagesLimit({
+        itemType: "product",
         tenantId: String(productData?.tenantId || tenantId),
         requested: updateData.images.length,
         existing: Array.isArray(productData?.images) ? productData.images.length : 0,
@@ -368,8 +370,8 @@ export const updateProduct = async (req: Request, res: Response) => {
       });
       if (!imagesCheck.allowed) {
         return res
-          .status(402)
-          .json({ message: imagesCheck.message, code: "PLAN_LIMIT_EXCEEDED" });
+          .status(400)
+          .json({ message: imagesCheck.message, code: "IMAGE_LIMIT_EXCEEDED" });
       }
     }
 

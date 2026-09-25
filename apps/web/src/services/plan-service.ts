@@ -38,7 +38,6 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       maxSpreadsheets: 5,
       maxInvoicesPerMonth: 0,
       maxPdfTemplates: 1,
-      maxImagesPerProduct: 2,
       maxStorageMB: 200,
       aiMessagesPerMonth: 80,
       hasFinancial: false,
@@ -74,7 +73,6 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       maxSpreadsheets: 50,
       maxInvoicesPerMonth: 0,
       maxPdfTemplates: -1,
-      maxImagesPerProduct: 3,
       maxStorageMB: 2560, // 2.5GB
       aiMessagesPerMonth: 400,
       hasFinancial: true,
@@ -109,7 +107,6 @@ export const DEFAULT_PLANS: Omit<UserPlan, "id">[] = [
       maxSpreadsheets: -1,
       maxInvoicesPerMonth: -1,
       maxPdfTemplates: -1, // All templates
-      maxImagesPerProduct: 3,
       maxStorageMB: -1, // Unlimited
       aiMessagesPerMonth: 1200,
       hasFinancial: true,

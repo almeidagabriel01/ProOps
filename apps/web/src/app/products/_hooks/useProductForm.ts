@@ -26,6 +26,7 @@ import {
   normalizeProductPricingModel,
 } from "@/lib/product-pricing";
 import { downscaleCatalogImage } from "@/lib/image-downscale";
+import { resolveCatalogImageLimit } from "@/lib/catalog-image-limits";
 
 // Maximum file size: 5MB per image
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -303,8 +304,10 @@ export function useProductForm(
   const { canCreateProduct, getProductCount, features } = usePlanLimits();
   const { createProduct } = useProductActions();
   const { createService } = useServiceActions();
-  const maxImagesPerProduct =
-    entityType === "product" && tenant?.niche === "cortinas" ? 3 : 1;
+  const maxImagesPerProduct = resolveCatalogImageLimit({
+    niche: tenant?.niche,
+    itemType: entityType === "service" ? "service" : "product",
+  });
 
   const [showLimitModal, setShowLimitModal] = React.useState(false);
   const [showImageLimitModal, setShowImageLimitModal] = React.useState(false);

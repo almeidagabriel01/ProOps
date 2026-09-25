@@ -25,7 +25,6 @@ function toolNamesFor(
               maxSpreadsheets: 0,
               maxInvoicesPerMonth: 0,
               maxPdfTemplates: 1,
-              maxImagesPerProduct: 0,
               storageQuotaMB: 0,
               aiMessagesPerMonth: 0,
             },

@@ -10,7 +10,7 @@ import {
   enforceTenantPlanLimit,
   getTenantProductsUsage,
 } from "../../lib/tenant-plan-policy";
-import { checkImagesWithinPlan } from "../../lib/catalog-plan-guards";
+import { checkCatalogImagesLimit } from "../../lib/catalog-plan-guards";
 import { sanitizeServiceFiscalFields } from "../services/fiscal/fiscal-catalog-fields";
 
 const sanitizeServicePayload = (input: Record<string, unknown>) => ({
@@ -89,7 +89,8 @@ export const createService = async (req: Request, res: Response) => {
         route: req.path,
         isSuperAdmin,
       }),
-      checkImagesWithinPlan({
+      checkCatalogImagesLimit({
+        itemType: "service",
         tenantId: targetTenantId,
         requested: sanitizedInput.images.length,
         isSuperAdmin,
@@ -106,8 +107,8 @@ export const createService = async (req: Request, res: Response) => {
 
     if (!imagesCheck.allowed) {
       return res
-        .status(402)
-        .json({ message: imagesCheck.message, code: "PLAN_LIMIT_EXCEEDED" });
+        .status(400)
+        .json({ message: imagesCheck.message, code: "IMAGE_LIMIT_EXCEEDED" });
     }
 
     const serviceId = await db.runTransaction(async (transaction) => {
@@ -200,7 +201,8 @@ export const updateService = async (req: Request, res: Response) => {
     const sanitizedInput = sanitizeServicePayload(updateData);
 
     if (updateData.images !== undefined) {
-      const imagesCheck = await checkImagesWithinPlan({
+      const imagesCheck = await checkCatalogImagesLimit({
+        itemType: "service",
         tenantId: String(serviceData?.tenantId || tenantId),
         requested: sanitizedInput.images.length,
         existing: Array.isArray(serviceData?.images) ? serviceData.images.length : 0,
@@ -208,8 +210,8 @@ export const updateService = async (req: Request, res: Response) => {
       });
       if (!imagesCheck.allowed) {
         return res
-          .status(402)
-          .json({ message: imagesCheck.message, code: "PLAN_LIMIT_EXCEEDED" });
+          .status(400)
+          .json({ message: imagesCheck.message, code: "IMAGE_LIMIT_EXCEEDED" });
       }
     }
 

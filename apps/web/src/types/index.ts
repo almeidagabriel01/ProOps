@@ -146,7 +146,6 @@ export type PlanFeatures = {
   maxSpreadsheets: number; // -1 for unlimited
   maxInvoicesPerMonth: number; // Notas emitidas por mês (-1 = ilimitado, 0 = sem módulo)
   maxPdfTemplates: number; // Number of PDF templates available (-1 = all)
-  maxImagesPerProduct: number; // Max images per product (2-3)
   maxStorageMB: number; // Total storage in MB (-1 = unlimited)
   aiMessagesPerMonth: number; // Cota mensal da Lia (0 = sem acesso)
   hasFinancial: boolean; // Lançamentos e carteiras
