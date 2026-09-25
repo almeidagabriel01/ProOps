@@ -71,7 +71,10 @@ function getHostFromRequest(req: NextRequest): string {
     .toLowerCase();
 }
 
-export function resolveUpstreamForHost(host: string | null): UpstreamTarget {
+export function resolveUpstreamForHost(
+  host: string | null,
+  env: { VERCEL_ENV?: string } = { VERCEL_ENV: process.env.VERCEL_ENV },
+): UpstreamTarget {
   const isLocalHost = host === "localhost" || host === "127.0.0.1";
   if (isLocalHost) {
     return {
@@ -82,7 +85,11 @@ export function resolveUpstreamForHost(host: string | null): UpstreamTarget {
       target: "local",
     };
   }
-  if (host && PRODUCTION_HOSTS.has(host)) {
+  // Um deploy de PRODUÇÃO da Vercel fala sempre com o backend de produção,
+  // venha pelo host que vier. Sem isso, um host fora da lista (a URL
+  // `*.vercel.app` do próprio deploy) caía no DEV: o DEV recusa o token de
+  // produção, e na rota de sessão essa recusa abria o gate do WhatsApp.
+  if ((host && PRODUCTION_HOSTS.has(host)) || env.VERCEL_ENV === "production") {
     return {
       baseUrl: getValidatedOverride(
         process.env.FUNCTIONS_PROD_API_URL,

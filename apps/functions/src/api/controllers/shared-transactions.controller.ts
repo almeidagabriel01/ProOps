@@ -3,6 +3,7 @@ import { tenantHasCapability } from "../../lib/tenant-capabilities";
 import { SharedTransactionService } from "../services/shared-transactions.service";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
+import { resolveClientIp } from "../../lib/client-ip";
 
 const VALID_EXPIRE_DAYS = [15, 30, 60, 90, 180, 365, null] as const;
 type ValidExpireDays = (typeof VALID_EXPIRE_DAYS)[number];
@@ -252,7 +253,7 @@ export const getSharedTransaction = async (req: Request, res: Response) => {
 
     if (!isPdfGeneratorRequest) {
       const viewerData = {
-        ip: req.ip || (req.headers["x-forwarded-for"] as string),
+        ip: resolveClientIp(req),
         userAgent: req.headers["user-agent"],
       };
 

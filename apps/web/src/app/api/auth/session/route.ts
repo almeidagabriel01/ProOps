@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { rateLimit } from "@/lib/rate-limit";
 import { resolveFunctionsApiUpstream } from "@/lib/server-api-upstream";
+import { applyClientIpForwarding } from "@/lib/forward-client-ip";
 import {
   decideWhatsappGate,
   type WhatsappChallengeResult,
 } from "./_lib/whatsapp-gate";
 import { decideSessionVerification } from "./_lib/session-verification";
 import { resolveSessionMaxAgeSeconds } from "./_lib/session-max-age";
+import { checkSessionRequestOrigin } from "./_lib/request-origin-guard";
 import {
   shouldCountSessionFailure,
   type SessionFailureStage,
@@ -77,6 +79,16 @@ function clearLegacyCookie(response: NextResponse, req: NextRequest): void {
   });
 }
 
+/** Cabeçalhos das chamadas ao backend, com o IP real do usuário (ver lib/forward-client-ip). */
+function backendHeaders(req: NextRequest, idToken: string): Headers {
+  const headers = new Headers({
+    "content-type": "application/json",
+    authorization: `Bearer ${idToken}`,
+  });
+  applyClientIpForwarding(req.headers, headers);
+  return headers;
+}
+
 function buildWhatsappMfaUrl(req: NextRequest, endpoint: "challenge" | "verify"): string {
   const { baseUrl } = resolveFunctionsApiUpstream(req);
   return `${baseUrl}/v1/auth/whatsapp-mfa/${endpoint}`;
@@ -93,20 +105,23 @@ async function requestWhatsappChallenge(
   req: NextRequest,
   idToken: string,
   resend?: boolean,
-): Promise<WhatsappChallengeResult | null> {
+): Promise<WhatsappChallengeResult | null | "rate-limited"> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), WHATSAPP_MFA_TIMEOUT_MS);
   try {
     const upstreamResponse = await fetch(buildWhatsappMfaUrl(req, "challenge"), {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${idToken}`,
-      },
+      headers: backendHeaders(req, idToken),
       body: JSON.stringify({ resend: Boolean(resend) }),
       cache: "no-store",
       signal: controller.signal,
     });
+    // 429 fica FECHADO: é o único não-2xx que quem tem a senha provoca de
+    // propósito, e lido como "sem resposta" liberava o cookie sem o OTP.
+    if (upstreamResponse.status === 429) {
+      console.warn("WhatsApp MFA challenge rate-limited; withholding session");
+      return "rate-limited";
+    }
     if (!upstreamResponse.ok) {
       console.error(
         "WhatsApp MFA challenge returned non-OK status:",
@@ -145,10 +160,7 @@ async function requestWhatsappVerify(
   try {
     const upstreamResponse = await fetch(buildWhatsappMfaUrl(req, "verify"), {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${idToken}`,
-      },
+      headers: backendHeaders(req, idToken),
       body: JSON.stringify({ code }),
       cache: "no-store",
       signal: controller.signal,
@@ -194,10 +206,7 @@ async function requestRecoveryCodeVerify(
       `${baseUrl}/v1/auth/recovery-codes/verify`,
       {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${idToken}`,
-        },
+        headers: backendHeaders(req, idToken),
         body: JSON.stringify({ code }),
         cache: "no-store",
         signal: controller.signal,
@@ -239,6 +248,18 @@ export async function POST(req: NextRequest) {
     );
     response.headers.set("Retry-After", String(preCheck.retryAfterSeconds));
     return response;
+  }
+
+  // Antes de ler o corpo: login CSRF (ver _lib/request-origin-guard).
+  const originVerdict = checkSessionRequestOrigin({
+    contentType: req.headers.get("content-type"),
+    secFetchSite: req.headers.get("sec-fetch-site"),
+  });
+  if (originVerdict === "unsupported-media-type") {
+    return NextResponse.json({ error: "Unsupported Media Type" }, { status: 415 });
+  }
+  if (originVerdict === "cross-origin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let stage: SessionFailureStage = "request";
@@ -372,7 +393,9 @@ export async function POST(req: NextRequest) {
       // factor already satisfied, and NOT a re-sync of an existing authenticated
       // session. Ask the backend whether this user requires WhatsApp OTP. On a
       // non-fatal failure the challenge result is null → fail open.
-      const challenge = await requestWhatsappChallenge(req, idToken, resend);
+      const challengeResponse = await requestWhatsappChallenge(req, idToken, resend);
+      const challengeRateLimited = challengeResponse === "rate-limited";
+      const challenge = challengeRateLimited ? null : challengeResponse;
       const decision = decideWhatsappGate({
         isSuperAdmin: isSuperAdminRole,
         hasNativeSecondFactor: Boolean(secondFactor),
@@ -380,7 +403,14 @@ export async function POST(req: NextRequest) {
         whatsappLogin,
         alreadyAuthenticated,
         challenge,
+        challengeRateLimited,
       });
+      if (decision === "rate-limited") {
+        return NextResponse.json(
+          { error: "Muitas tentativas. Aguarde um minuto e tente novamente." },
+          { status: 429, headers: { "Retry-After": "60" } },
+        );
+      }
       if (decision === "require") {
         // Withhold the __session cookie until the OTP is verified.
         return NextResponse.json({

@@ -149,7 +149,7 @@ import { hashOtp } from "../../../lib/mfa-otp";
 
 function makeReq(
   body: unknown,
-  user: { uid: string; tenantId: string; isSuperAdmin?: boolean },
+  user: { uid: string; tenantId: string; isSuperAdmin?: boolean; authTime?: number },
 ): Request {
   return {
     body,
@@ -167,7 +167,8 @@ function makeRes(): { res: Response; json: jest.Mock; status: jest.Mock; set: je
   return { res, json, status, set };
 }
 
-const USER = { uid: "user-1", tenantId: "tenant-1" };
+// authTime = `auth_time` do login; chave da marca de sessão verificada.
+const USER = { uid: "user-1", tenantId: "tenant-1", authTime: 1_700_000_000 };
 const PHONE_INPUT = "11999998888"; // normalizes to 5511999998888
 
 beforeEach(() => {
@@ -298,6 +299,14 @@ describe("verifyWhatsappEnroll", () => {
     await verifyWhatsappEnroll(req, res);
 
     expect(json).toHaveBeenCalledWith({ success: true });
+
+    // O login que acabou de ligar o 2FA fica marcado como verificado; sem isso
+    // a próxima chamada da API cairia no gate recém-ligado.
+    expect(docStore.get("mfa_sessions/user-1_1700000000")).toMatchObject({
+      uid: "user-1",
+      authTime: 1_700_000_000,
+      method: "whatsapp_enroll",
+    });
 
     const userDoc = docStore.get("users/user-1");
     expect(userDoc?.whatsappMfaEnabled).toBe(true);
@@ -506,6 +515,37 @@ describe("challengeWhatsappLogin", () => {
         retryAfterSeconds: 60,
       }),
     );
+  });
+
+  // O cookie do site venceu dentro do MESMO login e está sendo re-emitido: a
+  // pessoa já provou o código, então nada de desafio novo nem de mensagem paga.
+  it("does not challenge a login that already passed the WhatsApp code", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+
+    const req = makeReq({}, { ...USER, whatsappMfaPending: false } as typeof USER);
+    const { res, json } = makeRes();
+
+    await challengeWhatsappLogin(req, res);
+
+    expect(json).toHaveBeenCalledWith({ mfaRequired: false });
+    expect(mockSendTemplate).not.toHaveBeenCalled();
+  });
+
+  it("still challenges when the login has not passed the code yet", async () => {
+    docStore.set("users/user-1", {
+      whatsappMfaEnabled: true,
+      whatsappMfaPhone: "5511999998888",
+    });
+
+    const req = makeReq({}, { ...USER, whatsappMfaPending: true } as typeof USER);
+    const { res, json } = makeRes();
+
+    await challengeWhatsappLogin(req, res);
+
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({ mfaRequired: true }));
   });
 
   it("two concurrent auto-challenges deliver only ONE code (atomic reservation)", async () => {
@@ -796,6 +836,32 @@ describe("verifyWhatsappLogin", () => {
 
     expect(json).toHaveBeenCalledWith({ verified: true });
     expect(docStore.get("mfaOtpChallenges/user-1")).toBeUndefined();
+    // A prova que a API passa a exigir deste login.
+    expect(docStore.get("mfa_sessions/user-1_1700000000")).toMatchObject({
+      uid: "user-1",
+      authTime: 1_700_000_000,
+      method: "whatsapp",
+    });
+  });
+
+  it("does NOT mark the session when the code is wrong", async () => {
+    docStore.delete("mfa_sessions/user-1_1700000000");
+    docStore.set("mfaOtpChallenges/user-1", {
+      uid: "user-1",
+      tenantId: "tenant-1",
+      purpose: "login",
+      phoneHash: "x",
+      codeHash: hashOtp("111111"),
+      expiresAt: { toMillis: () => Date.now() + 60_000 },
+      attempts: 0,
+      maxAttempts: 3,
+    });
+
+    const { res, status } = makeRes();
+    await verifyWhatsappLogin(makeReq({ code: "222222" }, USER), res);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(docStore.get("mfa_sessions/user-1_1700000000")).toBeUndefined();
   });
 
   it("returns 400 for a wrong code", async () => {

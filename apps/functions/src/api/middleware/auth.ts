@@ -10,6 +10,7 @@ import {
   logSecurityEvent,
   writeSecurityAuditEvent,
 } from "../../lib/security-observability";
+import { isWhatsappMfaExemptPath } from "../../lib/whatsapp-mfa-session";
 
 function getAuthErrorStatus(errorMessage: string): number {
   if (errorMessage === "UNAUTHENTICATED") return 401;
@@ -114,6 +115,33 @@ export const validateFirebaseIdToken = async (
         error:
           "Autenticação multifator (MFA) obrigatória para acesso de super admin.",
         code: "SUPERADMIN_MFA_REQUIRED",
+      });
+    }
+
+    if (authContext.whatsappMfaPending && !isWhatsappMfaExemptPath(req.path)) {
+      const context = buildSecurityLogContext(req, {
+        uid: authContext.uid,
+        tenantId: authContext.tenantId,
+        route: req.path,
+        status: 403,
+        source: "auth_middleware",
+        reason: "whatsapp_mfa_required",
+      });
+      logSecurityEvent("whatsapp_mfa_required", context, "WARN");
+      void incrementSecurityCounter("whatsapp_mfa_required", context);
+      void writeSecurityAuditEvent({
+        eventType: "whatsapp_mfa_required",
+        requestId: context.requestId,
+        route: context.route,
+        status: context.status,
+        tenantId: context.tenantId,
+        uid: context.uid,
+        reason: context.reason,
+        source: context.source,
+      });
+      return res.status(403).json({
+        error: "Confirme o código enviado ao seu WhatsApp para continuar.",
+        code: "WHATSAPP_MFA_REQUIRED",
       });
     }
 

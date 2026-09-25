@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { logger } from "../../lib/logger";
+import { resolveClientIp } from "../../lib/client-ip";
 
 const TURNSTILE_VERIFY_URL =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -11,14 +12,8 @@ interface TurnstileVerifyResponse {
 }
 
 function getClientIp(req: Request): string {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return forwardedFor.split(",")[0].trim();
-  }
-  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
-    return String(forwardedFor[0] || "").trim();
-  }
-  return req.ip || "";
+  const ip = resolveClientIp(req);
+  return ip === "unknown" ? "" : ip;
 }
 
 /**

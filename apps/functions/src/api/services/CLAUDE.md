@@ -242,7 +242,7 @@ Limite: 5 requisicoes por janela por usuario (uid) ou IP
 ```
 
 - Usuarios autenticados: chave = `uid:<firebaseUid>`
-- Endpoints publicos (sem uid): chave = `ip:<x-forwarded-for ou req.ip>`
+- Endpoints publicos (sem uid): chave = `ip:<resolveClientIp>` (`lib/client-ip.ts`: IP repassado pelo proxy com segredo, senão o ÚLTIMO valor do x-forwarded-for)
 - HTTP 429 com header `Retry-After: <segundos>` e corpo `{ code: "PDF_RATE_LIMIT_EXCEEDED" }`
 
 **Atencao:** Em ambientes com multiplas instancias Cloud Run, o rate limit e por instancia. Para enforcement global use Firebase App Check ou Cloud Armor.

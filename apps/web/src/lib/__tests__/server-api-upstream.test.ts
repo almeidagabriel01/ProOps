@@ -11,10 +11,21 @@ describe("resolveUpstreamForHost", () => {
     expect(resolveUpstreamForHost("127.0.0.1").target).toBe("local");
   });
   it("dev for an unknown host", () => {
-    expect(resolveUpstreamForHost("preview-xyz.vercel.app").target).toBe("dev");
+    expect(resolveUpstreamForHost("preview-xyz.vercel.app", {}).target).toBe("dev");
+    expect(
+      resolveUpstreamForHost("preview-xyz.vercel.app", { VERCEL_ENV: "preview" }).target,
+    ).toBe("dev");
+  });
+  // Regressão: a URL *.vercel.app de um deploy de produção caía no backend de
+  // DEV, que recusava o token de produção.
+  it("prod for any host on a Vercel production deployment", () => {
+    expect(
+      resolveUpstreamForHost("proops-abc123.vercel.app", { VERCEL_ENV: "production" }).target,
+    ).toBe("prod");
+    expect(resolveUpstreamForHost(null, { VERCEL_ENV: "production" }).target).toBe("prod");
   });
   it("dev for null host", () => {
-    expect(resolveUpstreamForHost(null).target).toBe("dev");
+    expect(resolveUpstreamForHost(null, {}).target).toBe("dev");
   });
 });
 

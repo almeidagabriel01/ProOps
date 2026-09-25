@@ -148,4 +148,35 @@ describe("decideWhatsappGate", () => {
       }),
     ).toBe("proceed");
   });
+
+  // Regressão: o challenge fica sob o limitador de 5/min do backend. O 429 era
+  // lido como "sem resposta" e o gate abria: quem tinha a senha entrava sem o
+  // OTP depois de alguns logins seguidos.
+  it("withholds the cookie when the challenge was rate-limited (fail-closed)", () => {
+    expect(
+      decideWhatsappGate({
+        isSuperAdmin: false,
+        hasNativeSecondFactor: false,
+        recoveryLogin: false,
+        whatsappLogin: false,
+        alreadyAuthenticated: false,
+        challenge: null,
+        challengeRateLimited: true,
+      }),
+    ).toBe("rate-limited");
+  });
+
+  it("still skips on a background re-sync even if the challenge was rate-limited", () => {
+    expect(
+      decideWhatsappGate({
+        isSuperAdmin: false,
+        hasNativeSecondFactor: false,
+        recoveryLogin: false,
+        whatsappLogin: false,
+        alreadyAuthenticated: true,
+        challenge: null,
+        challengeRateLimited: true,
+      }),
+    ).toBe("skip");
+  });
 });

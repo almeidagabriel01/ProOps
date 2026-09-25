@@ -28,6 +28,7 @@ import { shouldReflectWhatsappGate } from "../_lib/should-reflect-whatsapp-gate"
 import { useResendCountdown } from "@/hooks/useResendCountdown";
 import { getCaptchaToken } from "@/lib/captcha";
 import { toast } from "@/lib/toast";
+import { sanitizeInternalPath } from "@/lib/auth/sanitize-internal-path";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
 
@@ -438,14 +439,9 @@ export function useLoginForm(): UseLoginFormReturn {
     const REDIRECT_ALLOWED_PREFIXES = ["/subscribe", "/checkout-success"];
     const redirectParam = searchParams.get("redirect");
     if (redirectParam) {
-      const decoded = (() => {
-        try {
-          return decodeURIComponent(redirectParam);
-        } catch {
-          return redirectParam;
-        }
-      })();
-      const isInternal = decoded.startsWith("/") && !decoded.startsWith("//");
+      // Mesma origem ou nada: `/\evil.com` passava num `startsWith("/")`.
+      const decoded = sanitizeInternalPath(redirectParam, "");
+      const isInternal = decoded !== "";
       const base = decoded.split("?")[0];
       const isPaymentFlow = REDIRECT_ALLOWED_PREFIXES.some(
         (prefix) => base === prefix || base.startsWith(prefix + "/"),

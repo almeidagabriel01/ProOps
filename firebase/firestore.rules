@@ -113,7 +113,36 @@ service cloud.firestore {
        return isAuthenticated()
             && getEffectiveTenantId() != ''
               && resourceTenantId != ''
-            && getEffectiveTenantId() == resourceTenantId;
+            && getEffectiveTenantId() == resourceTenantId
+            && whatsappMfaSatisfied();
+    }
+
+    /**
+     * 2FA por WhatsApp: quem o tem ativo só lê dado da empresa num login que
+     * passou pelo código. Sem isto, a senha sozinha rendia um ID token (pela
+     * API pública do Firebase) e o SDK lia tudo direto daqui, contornando o
+     * segundo fator que só era conferido ao criar o cookie do site.
+     *
+     * A prova é `mfa_sessions/{uid}_{auth_time}`, gravada pelo backend quando o
+     * código (ou um código de recuperação) é aceito; `auth_time` identifica o
+     * login e sobrevive à renovação do token. TOTP nativo e os tokens de
+     * recuperação (`recovery_login`, `whatsapp_login`) também satisfazem. Mesma
+     * regra do backend: `apps/functions/src/lib/whatsapp-mfa-session.ts`.
+     *
+     * O próprio `users/{uid}` fica fora (é `isOwner`): a tela de login o lê
+     * antes de o código ser digitado.
+     */
+    function whatsappMfaSatisfied() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      let sessionPath = /databases/$(database)/documents/mfa_sessions/$(request.auth.uid + '_' + string(request.auth.token.auth_time));
+      return !exists(userPath)
+             || get(userPath).data.get('whatsappMfaEnabled', false) != true
+             || !(get(userPath).data.get('whatsappMfaPhone', '') is string)
+             || get(userPath).data.get('whatsappMfaPhone', '') == ''
+             || request.auth.token.firebase.get('sign_in_second_factor', null) != null
+             || request.auth.token.get('recovery_login', false) == true
+             || request.auth.token.get('whatsapp_login', false) == true
+             || (exists(sessionPath) && get(sessionPath).data.expiresAt > request.time);
     }
 
     /**
@@ -771,6 +800,13 @@ service cloud.firestore {
     // MFA recovery (backup) codes — hashed, single-use. Written, read and
     // consumed exclusively by Cloud Functions (Admin SDK). Never client-visible.
     match /mfaRecoveryCodes/{uid} {
+      allow read, write: if false;
+    }
+
+    // Logins que passaram pelo 2FA do WhatsApp (whatsappMfaSatisfied). Gravado
+    // só pelo backend; um cliente que pudesse criar o próprio doc pularia o
+    // segundo fator.
+    match /mfa_sessions/{sessionId} {
       allow read, write: if false;
     }
 

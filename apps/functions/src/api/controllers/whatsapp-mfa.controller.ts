@@ -20,6 +20,7 @@ import {
 } from "../../lib/mfa-otp";
 import { sendWhatsAppTemplate } from "../services/whatsapp/whatsapp.api";
 import { normalizePhoneNumber } from "../services/whatsapp/whatsapp.utils";
+import { recordVerifiedMfaSession } from "../../lib/whatsapp-mfa-session";
 
 export const CHALLENGES_COLLECTION = "mfaOtpChallenges";
 
@@ -344,6 +345,11 @@ export const verifyWhatsappEnroll = async (req: Request, res: Response) => {
     // challenge (defends against the pending field being tampered mid-flow).
     // We deliberately do NOT write phoneNumberIndex, to avoid colliding with
     // the WhatsApp bot's phone→user routing.
+    // O login ATUAL acabou de provar posse do número. Sem esta marca, a
+    // próxima chamada da API cairia no gate do 2FA recém-ligado e derrubaria a
+    // pessoa logo depois de ativá-lo. Gravada ANTES de ligar a flag: se falhar,
+    // o 2FA continua desligado e o código ainda vale para tentar de novo.
+    await recordVerifiedMfaSession(uid, req.user!.authTime, "whatsapp_enroll");
     await db.collection("users").doc(uid).set(
       {
         whatsappMfaEnabled: true,
@@ -410,6 +416,13 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
       return res.json({ mfaRequired: false });
     }
 
+    // Este login já passou pelo código (o cookie do site só venceu e está
+    // sendo re-emitido): não há o que desafiar, e mandar outro código seria
+    // pedir de novo o que a pessoa já provou.
+    if (req.user!.whatsappMfaPending === false) {
+      return res.json({ mfaRequired: false });
+    }
+
     const resend = challengeSchema.safeParse(req.body).data?.resend === true;
 
     const normalizedPhone = userData.whatsappMfaPhone;
@@ -424,10 +437,11 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
     // just-written cooldown, and declines to send. deliverOtp (an external
     // WhatsApp call, non-retryable) stays OUTSIDE the transaction.
     //
-    // This endpoint is also invoked automatically by the login session flow and
-    // must always respond 200 with the gate (never 429) — a 429 would swallow
-    // the gate and stall the login. So "can't send" surfaces retryAfterSeconds
-    // rather than an error.
+    // This endpoint is also invoked automatically by the login session flow.
+    // "Can't send" (cooldown / hourly cap) surfaces retryAfterSeconds with 200,
+    // not an error. The route itself still sits behind the 5/min
+    // whatsappMfaLimiter, which CAN answer 429: the web session route treats
+    // that 429 as fail-CLOSED (withholds the cookie), never as "no answer".
     type ChallengeOutcome =
       | { action: "send"; code: string; retryAfterSeconds: number }
       | { action: "reuse" | "none"; retryAfterSeconds: number };
@@ -566,6 +580,10 @@ export const verifyWhatsappLogin = async (req: Request, res: Response) => {
       });
     }
 
+    // A prova que a API passa a exigir (ver lib/whatsapp-mfa-session.ts).
+    // Antes de apagar o desafio: se a gravação falhar, o mesmo código ainda
+    // vale para tentar de novo.
+    await recordVerifiedMfaSession(uid, req.user!.authTime, "whatsapp");
     await challengeRef.delete();
 
     void writeSecurityAuditEvent({
