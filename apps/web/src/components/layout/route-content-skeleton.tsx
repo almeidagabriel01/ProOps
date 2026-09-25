@@ -29,6 +29,9 @@ import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
 import { SpreadsheetsSkeleton } from "@/app/spreadsheets/_components/spreadsheets-skeleton";
 import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/spreadsheet-editor-skeleton";
 import { KanbanSkeleton } from "@/app/crm/_components/kanban-skeleton";
+import { InvoicesSkeleton } from "@/app/invoices/_components/invoices-skeleton";
+import { CommissionsSkeleton } from "@/app/commissions/_components/commissions-skeleton";
+import { CalendarSkeleton } from "@/app/calendar/_components/calendar-skeleton";
 import { useTenant } from "@/providers/tenant-provider";
 import { isPageEnabledForNiche } from "@/lib/niches/config";
 
@@ -38,7 +41,7 @@ function SpinnerFallback({ message: _message }: { message?: string } = {}) {
   return <FullPageLoading />;
 }
 
-function SettingsSectionSkeleton({ pathname }: { pathname: string }) {
+export function SettingsSectionSkeleton({ pathname }: { pathname: string }) {
   if (pathname.startsWith("/settings/security")) return <SettingsSecuritySkeleton />;
   if (pathname.startsWith("/settings/payments")) return <SettingsPaymentsSkeleton />;
   if (pathname.startsWith("/settings/proposals")) return <SettingsProposalsSkeleton />;
@@ -150,6 +153,18 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
 
   if (pathname.startsWith("/crm")) {
     return <KanbanSkeleton />;
+  }
+
+  if (pathname.startsWith("/invoices")) {
+    return <InvoicesSkeleton />;
+  }
+
+  if (pathname.startsWith("/commissions")) {
+    return <CommissionsSkeleton />;
+  }
+
+  if (pathname.startsWith("/calendar")) {
+    return <CalendarSkeleton />;
   }
 
   return <DashboardSkeleton />;

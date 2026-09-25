@@ -229,7 +229,7 @@ function GoogleCalendarCompanyCard(props: {
             Google Agenda da empresa
           </p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Sincronizacao central da agenda operacional com a conta Google
+            Sincronização central da agenda operacional com a conta Google
             principal.
           </p>
         </div>
@@ -948,7 +948,7 @@ export function CalendarPage() {
                       icon={<CalendarRange className="h-3.5 w-3.5" />}
                     />
                     <CalendarStatPill
-                      label="Concluidos"
+                      label="Concluídos"
                       value={stats.completed}
                       icon={<CheckCircle2 className="h-3.5 w-3.5" />}
                       tone="success"

@@ -37,6 +37,7 @@ import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { RejectionDetailButton } from "@/components/features/fiscal/rejection-detail-button";
 import { useSort } from "@/hooks/use-sort";
 import { Loader } from "@/components/ui/loader";
+import { InvoicesTableSkeleton } from "./_components/invoices-skeleton";
 
 const STATUS_META: Record<
   FiscalInvoiceStatus,
@@ -502,11 +503,7 @@ export default function InvoicesPage() {
 
       <div className="flex flex-col gap-4" hidden={view !== "emitidas"}>
         {isLoading ? (
-          <Card>
-            <CardContent className="flex items-center justify-center py-16">
-              <Loader size="md" />
-            </CardContent>
-          </Card>
+          <InvoicesTableSkeleton />
         ) : invoices.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center gap-2 py-16 text-center">
