@@ -7,10 +7,10 @@ import {
   type WhatsappChallengeResult,
 } from "./_lib/whatsapp-gate";
 import { decideSessionVerification } from "./_lib/session-verification";
+import { resolveSessionMaxAgeSeconds } from "./_lib/session-max-age";
 
 const SESSION_COOKIE_NAME = "__session";
 const LEGACY_COOKIE_NAME = "firebase-auth-token";
-const DEFAULT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 5; // 5 days
 const MAX_REQUEST_BODY_BYTES = 8 * 1024;
 
 // Rate limiting: 5 attempts per IP in a 15-minute sliding window
@@ -31,12 +31,6 @@ function getClientIp(req: NextRequest): string {
     return forwarded.split(",")[0].trim();
   }
   return req.headers.get("x-real-ip") || "unknown";
-}
-
-function resolveSessionMaxAgeSeconds(): number {
-  const configured = Number(process.env.AUTH_SESSION_MAX_AGE_SECONDS || "");
-  if (!Number.isFinite(configured)) return DEFAULT_SESSION_MAX_AGE_SECONDS;
-  return Math.min(Math.max(Math.floor(configured), 60 * 10), 60 * 60 * 24 * 14);
 }
 
 function isSecureCookieRequest(req: NextRequest): boolean {
@@ -399,7 +393,9 @@ export async function POST(req: NextRequest) {
     // here ~hourly while a tab is open, re-minting with a fresh window. Do NOT
     // add a redundant proactive timer. The only gap — a tab fully closed past the
     // cookie lifetime — is covered by the proxy → /auth/refresh silent re-mint.
-    const maxAgeSeconds = resolveSessionMaxAgeSeconds();
+    const maxAgeSeconds = resolveSessionMaxAgeSeconds(
+      process.env.AUTH_SESSION_MAX_AGE_SECONDS,
+    );
     const expiresInMs = maxAgeSeconds * 1000;
     const sessionCookie = await adminAuth.createSessionCookie(idToken, {
       expiresIn: expiresInMs,
