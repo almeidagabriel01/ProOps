@@ -3,6 +3,40 @@ import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { captureError } from "./lib/observability/error-logger";
 
+/**
+ * Batch que se divide sozinho: o Firestore aceita 500 escritas por batch, e
+ * cada usuário expirado gera duas (user + espelho no tenant). Com mais de 250
+ * expirações no mesmo dia o batch único falhava inteiro, e ninguém mudava de
+ * status.
+ */
+export function createChunkedBatch(maxWrites = 400) {
+  const batches: FirebaseFirestore.WriteBatch[] = [db.batch()];
+  let writes = 0;
+  const current = () => {
+    if (writes >= maxWrites) {
+      batches.push(db.batch());
+      writes = 0;
+    }
+    writes += 1;
+    return batches[batches.length - 1];
+  };
+  return {
+    update(ref: FirebaseFirestore.DocumentReference, data: FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData>) {
+      current().update(ref, data);
+    },
+    set(
+      ref: FirebaseFirestore.DocumentReference,
+      data: FirebaseFirestore.DocumentData,
+      options: FirebaseFirestore.SetOptions,
+    ) {
+      current().set(ref, data, options);
+    },
+    async commit() {
+      for (const batch of batches) await batch.commit();
+    },
+  };
+}
+
 /** Resolve the tenant id from a user doc (tenantId, legacy companyId fallback). */
 function mirrorTenantId(userData: FirebaseFirestore.DocumentData): string | null {
   const raw = userData?.["tenantId"] ?? userData?.["companyId"];
@@ -32,7 +66,7 @@ export const checkManualSubscriptions = onSchedule(
         .get();
 
       if (!activeSnapshot.empty) {
-        const batch = db.batch();
+        const batch = createChunkedBatch();
         let count = 0;
         const nowIso = new Date().toISOString();
 
@@ -77,7 +111,7 @@ export const checkManualSubscriptions = onSchedule(
         .get();
 
       if (!pastDueSnapshot.empty) {
-        const batch = db.batch();
+        const batch = createChunkedBatch();
         let count = 0;
         const nowIso = new Date().toISOString();
 
