@@ -52,7 +52,11 @@ vi.mock("@/lib/auth/hard-redirect", () => ({
   hardRedirect: (url: string) => mockHardRedirect(url),
 }));
 
-import { useSessionRefresh } from "../useSessionRefresh";
+import {
+  REFRESH_SLOW_NOTICE_MS,
+  REFRESH_WATCHDOG_MS,
+  useSessionRefresh,
+} from "../useSessionRefresh";
 
 const LOGIN_FALLBACK = "/login?redirect_reason=session_expired";
 
@@ -105,17 +109,68 @@ describe("useSessionRefresh", () => {
     // is set. Without the fix the watchdog was swallowed by the doneRef guard
     // and the spinner froze forever.
     await act(async () => {
-      vi.advanceTimersByTime(10_000);
+      vi.advanceTimersByTime(REFRESH_WATCHDOG_MS);
     });
     expect(mockReplace).toHaveBeenCalledTimes(1);
     expect(mockReplace).toHaveBeenLastCalledWith(LOGIN_FALLBACK);
 
     // And only once — later re-renders must not spam navigation.
     await act(async () => {
-      vi.advanceTimersByTime(10_000);
+      vi.advanceTimersByTime(REFRESH_WATCHDOG_MS);
     });
     expect(mockReplace).toHaveBeenCalledTimes(1);
     expect(mockHardRedirect).toHaveBeenCalledTimes(1);
+  });
+
+  // Regressão: o watchdog era de 10s, mais curto que o caminho que vigia. Uma
+  // re-emissão lenta (servidores frios depois de a aba ficar parada) que ia dar
+  // certo era abandonada e o usuário caía no /login.
+  it("waits for a slow but successful re-mint instead of bailing to /login", async () => {
+    let resolveSync: (ok: boolean) => void = () => {};
+    mockForceSyncSession.mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        resolveSync = resolve;
+      }),
+    );
+
+    const { result } = renderHook(() => useSessionRefresh());
+    await act(async () => {});
+    expect(result.current.isSlow).toBe(false);
+
+    await act(async () => {
+      vi.advanceTimersByTime(12_000);
+    });
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(result.current.isSlow).toBe(true);
+
+    await act(async () => {
+      resolveSync(true);
+    });
+    expect(mockHardRedirect).toHaveBeenCalledWith("/proposals");
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("flags the wait as slow only after the notice threshold", async () => {
+    mockForceSyncSession.mockReturnValue(new Promise<boolean>(() => {}));
+    const { result } = renderHook(() => useSessionRefresh());
+    await act(async () => {
+      vi.advanceTimersByTime(REFRESH_SLOW_NOTICE_MS - 1);
+    });
+    expect(result.current.isSlow).toBe(false);
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.isSlow).toBe(true);
+  });
+
+  it("still terminates to /login at the watchdog when the re-mint never resolves", async () => {
+    mockForceSyncSession.mockReturnValue(new Promise<boolean>(() => {}));
+    renderHook(() => useSessionRefresh());
+    await act(async () => {
+      vi.advanceTimersByTime(REFRESH_WATCHDOG_MS);
+    });
+    expect(mockReplace).toHaveBeenCalledWith(LOGIN_FALLBACK);
+    expect(mockHardRedirect).not.toHaveBeenCalled();
   });
 
   it("breaks a cross-navigation redirect loop (3rd redirect within 30s goes to /login and clears the counter)", async () => {
