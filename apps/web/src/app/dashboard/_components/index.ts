@@ -5,4 +5,5 @@ export { QuickActionsCard, ProposalStatsCard, ClientsStatsCard } from "./stats-c
 export { WalletsGrid } from "./wallets-grid";
 export { MonthStats } from "./month-stats";
 export { CommissionsPanel } from "./commissions-panel";
-export { FutureBalanceChart } from "./future-balance-chart";
+// FutureBalanceChart fica fora do barrel: a página o importa sob demanda
+// (Recharts), e reexportá-lo aqui o colocaria no bundle de quem usa o barrel.
