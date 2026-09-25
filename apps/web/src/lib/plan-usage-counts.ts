@@ -6,7 +6,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export type PlanUsageCollection = "proposals" | "clients" | "products";
+export type PlanUsageCollection = "proposals" | "clients" | "products" | "services";
 
 /**
  * Conta os documentos do tenant por aggregation `count()`: o servidor devolve

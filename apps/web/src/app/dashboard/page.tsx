@@ -43,6 +43,7 @@ import { DashboardSkeleton } from "./_components/dashboard-skeleton";
 
 import { useTenant } from "@/providers/tenant-provider";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
+import { FirstStepsCard } from "@/components/onboarding/first-steps-card";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -106,6 +107,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Primeiros passos (conta nova, some quando tudo estiver feito) */}
+      <FirstStepsCard />
 
       {/* Alerts */}
       <AlertsCard
