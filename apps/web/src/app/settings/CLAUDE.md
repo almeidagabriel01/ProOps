@@ -23,6 +23,7 @@ src/app/settings/
 ├── linked-accounts/page.tsx  # Contas vinculadas: resumo de todas as integracoes (todos)
 ├── _components/
 │   ├── settings-nav.tsx      # Client — sidebar vertical agrupada (usePathname + <Link>)
+│   ├── settings-nav-items.ts # As seções da sidebar; fonte única, lida também pelo onboarding
 │   ├── asaas-connect-card.tsx
 │   ├── linked-account-row.tsx     # Linha de Contas vinculadas (selo, conta, motivo, acao)
 │   ├── asaas-payout-config-section.tsx

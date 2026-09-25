@@ -16,7 +16,7 @@ components/
 ├── lia/          # Componentes da IA Lia (chat, widgets)
 ├── notifications/# Sistema de notificações
 ├── observability/# Painéis de observabilidade (superadmin)
-├── onboarding/   # Fluxo de onboarding de novos tenants
+├── onboarding/   # Tutorial de conta nova (ver seção Onboarding)
 ├── pdf/          # Renderização de PDFs (usado server-side via Playwright)
 ├── profile/      # Perfil do usuário
 ├── seo/          # JSON-LD e schemas de SEO
@@ -130,6 +130,37 @@ das páginas) tem contrato próprio em `layout/CLAUDE.md`. O resumo: `menuItems`
 a fonte, `useNavigationItems` é o único gate de plano, permissão e nicho,
 `useDockEntries` colapsa um grupo em um ícone e `PageViewSwitcher` o expande de
 volta no cabeçalho. Ninguém deriva a própria lista de destinos.
+
+## Onboarding (`onboarding/`)
+
+O tutorial de conta nova. Um card flutuante, uma TELA por passo: ele não aponta
+para elementos da página, então não quebra quando um layout muda.
+
+| Arquivo | Papel |
+|---|---|
+| `onboarding-steps.ts` | **O roteiro.** Puro: templates, capítulos, `buildOnboardingSteps`, `matchStepForPath` |
+| `onboarding-provider.tsx` | Estado (`users/{uid}.onboarding`) e ações, montado no `ProtectedAppShell` |
+| `app-onboarding.tsx` | O card (e a pílula minimizada) |
+| `onboarding-welcome-dialog.tsx` | Boas-vindas, uma vez, com variante de demonstração |
+| `first-steps.ts` / `first-steps-card.tsx` | Tarefas reais no Dashboard, só em conta paga |
+
+- **Os passos derivam de duas listas que já existem**: `menuItems` (já filtrado
+  pelo `useNavigationItems`) e `SETTINGS_NAV_GROUPS`
+  (`app/settings/_components/settings-nav-items.ts`). **Tela nova no menu ou em
+  Configurações precisa de template em `onboarding-steps.ts`**, ou de uma
+  entrada justificada em `ROUTES_WITHOUT_OWN_STEP`. O guard
+  `onboarding/__tests__/onboarding-steps.test.ts` falha nos dois sentidos: rota
+  sem passo e passo sem rota. Foi assim que Comissões e Notas Fiscais ficaram
+  meses fora do tutorial.
+- Item de checklist que depende de plano declara `requiresCapability`; passo
+  cujo módulo o plano não abre SOME (o menu coroa, o tutorial não leva a beco
+  sem saída).
+- Só abre sozinho para conta nova (as sementes gravam o estado no cadastro).
+  Qualquer pessoa reabre por "Tutorial da plataforma", no menu do perfil, que
+  retoma o tour em andamento ou recomeça do zero.
+- `welcomeSeenAt` e `firstStepsDismissedAt` sobrevivem a recomeçar o tour. O
+  backend reconstrói o objeto campo a campo (`normalizeOnboardingPayload`):
+  campo novo no estado precisa entrar lá, senão é descartado sem erro.
 
 ## Nomenclatura
 - Arquivo: `nome-componente.tsx` (kebab-case)

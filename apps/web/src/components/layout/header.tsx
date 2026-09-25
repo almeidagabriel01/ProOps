@@ -136,6 +136,7 @@ export function Header({}: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
+                data-testid="user-menu-trigger"
                 className="relative h-fit py-2 pr-2 pl-2 md:pl-6 rounded-full flex items-center justify-end gap-3 hover:bg-muted/50 transition-colors"
               >
                 <div className="hidden md:flex flex-col items-end">
@@ -196,7 +197,6 @@ export function Header({}: HeaderProps) {
                 <DropdownMenuItem
                   onClick={() => void onboarding.openTutorial()}
                   className="cursor-pointer"
-                  data-testid="menu-restart-tutorial"
                 >
                   <Compass className="mr-2 h-4 w-4" />
                   <span>Tutorial da plataforma</span>
