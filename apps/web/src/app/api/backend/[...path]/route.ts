@@ -3,6 +3,7 @@ import {
   derivePdfUpstream,
   resolveFunctionsApiUpstream,
 } from "@/lib/server-api-upstream";
+import { applyClientIpForwarding } from "@/lib/forward-client-ip";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const PDF_TIMEOUT_MS = 80_000;
@@ -131,6 +132,7 @@ function buildForwardHeaders(req: NextRequest, requestId: string): Headers {
   if (forwardedHost) headers.set("x-forwarded-host", forwardedHost);
   if (forwardedProto) headers.set("x-forwarded-proto", forwardedProto);
   headers.set("x-request-id", requestId);
+  applyClientIpForwarding(req.headers, headers);
 
   return headers;
 }

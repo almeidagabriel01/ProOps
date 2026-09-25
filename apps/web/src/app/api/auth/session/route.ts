@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth } from "@/lib/firebase-admin";
 import { rateLimit } from "@/lib/rate-limit";
 import { resolveFunctionsApiUpstream } from "@/lib/server-api-upstream";
+import { applyClientIpForwarding } from "@/lib/forward-client-ip";
 import {
   decideWhatsappGate,
   type WhatsappChallengeResult,
@@ -78,6 +79,16 @@ function clearLegacyCookie(response: NextResponse, req: NextRequest): void {
   });
 }
 
+/** Cabeçalhos das chamadas ao backend, com o IP real do usuário (ver lib/forward-client-ip). */
+function backendHeaders(req: NextRequest, idToken: string): Headers {
+  const headers = new Headers({
+    "content-type": "application/json",
+    authorization: `Bearer ${idToken}`,
+  });
+  applyClientIpForwarding(req.headers, headers);
+  return headers;
+}
+
 function buildWhatsappMfaUrl(req: NextRequest, endpoint: "challenge" | "verify"): string {
   const { baseUrl } = resolveFunctionsApiUpstream(req);
   return `${baseUrl}/v1/auth/whatsapp-mfa/${endpoint}`;
@@ -100,10 +111,7 @@ async function requestWhatsappChallenge(
   try {
     const upstreamResponse = await fetch(buildWhatsappMfaUrl(req, "challenge"), {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${idToken}`,
-      },
+      headers: backendHeaders(req, idToken),
       body: JSON.stringify({ resend: Boolean(resend) }),
       cache: "no-store",
       signal: controller.signal,
@@ -152,10 +160,7 @@ async function requestWhatsappVerify(
   try {
     const upstreamResponse = await fetch(buildWhatsappMfaUrl(req, "verify"), {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${idToken}`,
-      },
+      headers: backendHeaders(req, idToken),
       body: JSON.stringify({ code }),
       cache: "no-store",
       signal: controller.signal,
@@ -201,10 +206,7 @@ async function requestRecoveryCodeVerify(
       `${baseUrl}/v1/auth/recovery-codes/verify`,
       {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${idToken}`,
-        },
+        headers: backendHeaders(req, idToken),
         body: JSON.stringify({ code }),
         cache: "no-store",
         signal: controller.signal,
