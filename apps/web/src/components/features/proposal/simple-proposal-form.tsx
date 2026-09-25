@@ -21,6 +21,8 @@ import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { useTenant } from "@/providers/tenant-provider";
+import { useBeforeUnloadWarning } from "@/hooks/use-before-unload-warning";
+import { hasUnsavedProposalWork } from "@/hooks/proposal/unsaved-proposal";
 import { FormContainer } from "@/components/ui/form-components";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
@@ -223,6 +225,18 @@ export function SimpleProposalForm({
   // add/remove controls disabled via FormStepCard's fieldset). Distinct from the
   // `isReadOnly` PROP, which renders a fully static view without the stepper.
   const { isReadOnly: isDemo } = useTenant();
+
+  useBeforeUnloadWarning(
+    hasUnsavedProposalWork({
+      proposalId,
+      isDirty,
+      isSaving,
+      isReadOnly: isDemo,
+      formData,
+      selectedClientId,
+      selectedSistemasCount: selectedSistemas.length,
+    }),
+  );
 
   // State for unsaved changes modal
   const [showUnsavedModal, setShowUnsavedModal] = React.useState(false);
