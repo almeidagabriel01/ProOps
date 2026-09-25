@@ -20,6 +20,7 @@ import {
 } from "../../lib/mfa-otp";
 import { sendWhatsAppTemplate } from "../services/whatsapp/whatsapp.api";
 import { normalizePhoneNumber } from "../services/whatsapp/whatsapp.utils";
+import { recordVerifiedMfaSession } from "../../lib/whatsapp-mfa-session";
 
 export const CHALLENGES_COLLECTION = "mfaOtpChallenges";
 
@@ -344,6 +345,11 @@ export const verifyWhatsappEnroll = async (req: Request, res: Response) => {
     // challenge (defends against the pending field being tampered mid-flow).
     // We deliberately do NOT write phoneNumberIndex, to avoid colliding with
     // the WhatsApp bot's phone→user routing.
+    // O login ATUAL acabou de provar posse do número. Sem esta marca, a
+    // próxima chamada da API cairia no gate do 2FA recém-ligado e derrubaria a
+    // pessoa logo depois de ativá-lo. Gravada ANTES de ligar a flag: se falhar,
+    // o 2FA continua desligado e o código ainda vale para tentar de novo.
+    await recordVerifiedMfaSession(uid, req.user!.authTime, "whatsapp_enroll");
     await db.collection("users").doc(uid).set(
       {
         whatsappMfaEnabled: true,
@@ -407,6 +413,13 @@ export const challengeWhatsappLogin = async (req: Request, res: Response) => {
       | undefined;
 
     if (!userData?.whatsappMfaEnabled || !userData.whatsappMfaPhone) {
+      return res.json({ mfaRequired: false });
+    }
+
+    // Este login já passou pelo código (o cookie do site só venceu e está
+    // sendo re-emitido): não há o que desafiar, e mandar outro código seria
+    // pedir de novo o que a pessoa já provou.
+    if (req.user!.whatsappMfaPending === false) {
       return res.json({ mfaRequired: false });
     }
 
@@ -567,6 +580,10 @@ export const verifyWhatsappLogin = async (req: Request, res: Response) => {
       });
     }
 
+    // A prova que a API passa a exigir (ver lib/whatsapp-mfa-session.ts).
+    // Antes de apagar o desafio: se a gravação falhar, o mesmo código ainda
+    // vale para tentar de novo.
+    await recordVerifiedMfaSession(uid, req.user!.authTime, "whatsapp");
     await challengeRef.delete();
 
     void writeSecurityAuditEvent({
