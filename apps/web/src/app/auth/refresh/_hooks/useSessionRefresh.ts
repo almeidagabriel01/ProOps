@@ -13,8 +13,20 @@ import {
 
 /** Bounded re-mint attempts before giving up and bouncing to /login. */
 const MAX_REFRESH_ATTEMPTS = 2;
-/** Absolute ceiling: the interstitial can NEVER spin longer than this. */
-const REFRESH_WATCHDOG_MS = 10_000;
+/**
+ * Absolute ceiling: the interstitial can NEVER spin longer than this.
+ *
+ * Tem de cobrir o caminho que ele vigia, e não só o caso rápido. Numa página
+ * carregada do zero, depois de muito tempo parada, o caminho é: init do
+ * Firebase, leitura do perfil no Firestore (até 6s), `getIdToken(true)` (até 8s)
+ * e o POST da sessão (até 10s, e ele ainda consulta o backend do WhatsApp com os
+ * servidores frios). Com 10s o watchdog vencia uma recuperação lenta que ia dar
+ * certo e mandava o usuário para o /login, e só um F5 (servidores já quentes)
+ * resolvia.
+ */
+export const REFRESH_WATCHDOG_MS = 30_000;
+/** A partir daqui a tela avisa que a espera é da conexão, não um travamento. */
+export const REFRESH_SLOW_NOTICE_MS = 8_000;
 
 const LOGIN_FALLBACK = "/login?redirect_reason=session_expired";
 
@@ -50,13 +62,14 @@ function sanitizeNext(raw: string | null): string {
  * - sessionStorage redirect counter (proxy keeps bouncing across remounts:
  *   3 redirect-next events within 30s) → /login.
  */
-export function useSessionRefresh(): void {
+export function useSessionRefresh(): { isSlow: boolean } {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading, whatsappMfaPending, forceSyncSession } = useAuth();
 
   const [attemptsUsed, setAttemptsUsed] = React.useState(0);
   const [watchdogFired, setWatchdogFired] = React.useState(false);
+  const [isSlow, setIsSlow] = React.useState(false);
   // A fresh, successful re-mint happened during THIS interstitial visit.
   const [freshSyncDone, setFreshSyncDone] = React.useState(false);
   const attemptingRef = React.useRef(false);
@@ -73,7 +86,11 @@ export function useSessionRefresh(): void {
   // navigation bounced back here.
   React.useEffect(() => {
     const timer = setTimeout(() => setWatchdogFired(true), REFRESH_WATCHDOG_MS);
-    return () => clearTimeout(timer);
+    const slowTimer = setTimeout(() => setIsSlow(true), REFRESH_SLOW_NOTICE_MS);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(slowTimer);
+    };
   }, []);
 
   React.useEffect(() => {
@@ -156,4 +173,6 @@ export function useSessionRefresh(): void {
     router,
     next,
   ]);
+
+  return { isSlow };
 }

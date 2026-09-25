@@ -57,6 +57,28 @@ lib/
   obrigava todo consumidor (e todo teste) a arrastar o cliente HTTP e a init do
   Firebase.
 
+### Sessão (`auth/` e `app/api/auth/session`)
+- O cookie `__session` é um session cookie do Firebase, **5 dias** por padrão
+  (`AUTH_SESSION_MAX_AGE_SECONDS`, opcional, com clamp de 10 min a 14 dias em
+  `app/api/auth/session/_lib/session-max-age.ts`). É re-emitido a cada troca do
+  token do Firebase (~1h) e quando a aba volta a ficar visível.
+- Até 2026-09 o padrão nunca valia: `Number("")` é `0`, que é finito, e o clamp
+  levava a **10 minutos**. Em produção (sem a variável) toda navegação feita mais
+  de 10 min depois da última re-emissão caía no interstitial `/auth/refresh`
+  ("Verificando sua sessão..."). Ao ler variável numérica opcional, trate
+  ausente/vazia antes do `Number()`.
+- `/auth/refresh` sem `reason` = o navegador chegou sem cookie; com
+  `reason=session_expired` = o servidor recusou o cookie. Um redirect do proxy
+  fica no route cache do Next por 5 min (`staleTimes.static`), inclusive o de um
+  prefetch, e `router.refresh()` não o limpa: por isso a saída do interstitial é
+  uma navegação dura (`auth/hard-redirect.ts`).
+- O watchdog do interstitial (30s) precisa ser maior que a soma dos passos
+  limitados que ele espera; com 10s ele abandonava recuperações lentas que iam
+  dar certo.
+- O rate limit da rota de sessão conta só corpo inválido e token forjado
+  (`_lib/session-failure.ts`). Re-sync com token expirado e erro de
+  infraestrutura não bloqueiam o IP.
+
 ### Site (`site/`)
 - `surfaces.ts` é a **fonte única** de qual das três superfícies (`institucional`,
   `erp`, `app`) responde por um host, e do que ainda é duplicata. Puro, sem
