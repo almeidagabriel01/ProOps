@@ -1067,6 +1067,13 @@ por ano e por cidade.
   criação; um PUT do cliente não renumera proposta nenhuma.
 - **A praça pedida só vale se estiver na lista da empresa**, senão cai na
   padrão. Sigla livre produziria um código que a própria empresa não reconhece.
+- **A mesma configuração guarda a validade padrão da proposta**
+  (`defaultValidityDays`, 1 a 365, padrão 30). O formulário preenche "Válida
+  até" com hoje + esse número na proposta nova, e ela vale mesmo com a
+  numeração desligada. Pegou carona neste doc porque o GET já é lido pelo
+  formulário e escrito pelo master na mesma tela. A tela só envia o campo
+  quando o GET o devolveu: o schema é `.strict()`, e um front publicado antes
+  do backend quebraria o salvamento da numeração com 400.
 - `GET /v1/proposals/numbering` é liberado a quem enxerga propostas (o
   formulário precisa da lista de praças); `PUT` é só do master. As duas são
   montadas **antes** de `/proposals/:id` em `core.routes.ts` — o Express casa

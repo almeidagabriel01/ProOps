@@ -48,7 +48,7 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Conta | `/settings/security` | Verificação em dois fatores | Todos |
 | Organização | `/settings/team` | Equipe | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
-| Organização | `/settings/proposals` | Propostas (numeração) | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/proposals` | Propostas (numeração e validade padrão) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/drive` | Google Drive | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/linked-accounts` | Contas vinculadas | Todos veem; ação só para quem pode conectar |
@@ -257,6 +257,11 @@ entregue no Drive (`0018926SP_casa_do_mauricio.pdf`). Detalhes da regra em
 - **"Próximo número" é o campo perigoso.** É editável para quem já numerava
   fora do ERP continuar a sequência, e a tela diz com todas as letras que
   voltar atrás repete um código já entregue a um cliente.
+- **A validade padrão da proposta mora no mesmo card**, fora da chave da
+  numeração (vale com ela desligada). O campo só aparece quando o GET devolve
+  `defaultValidityDays`; com backend antigo ele some e a chave não é enviada.
+  O formulário aplica o valor em `ProposalClientSection` (`onDefaultValidUntil`),
+  só em proposta nova e só com o campo vazio (`lib/proposal-validity.ts`).
 - A prévia do código é montada no cliente (`lib/proposal-numbering.ts`) para
   não pedir o servidor a cada tecla; a paridade com o backend tem guard em
   `src/__tests__/proposal-code-preview.test.ts`.

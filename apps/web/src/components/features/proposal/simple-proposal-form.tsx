@@ -209,6 +209,16 @@ export function SimpleProposalForm({
     removeAmbienteFromSistema,
   } = useProposalForm({ proposalId });
 
+  // Só preenche se o campo continua vazio: a configuração chega depois do
+  // primeiro render, e o usuário pode ter escolhido uma data nesse meio tempo.
+  const applyDefaultValidUntil = React.useCallback(
+    (validUntil: string) =>
+      setFormData((prev) =>
+        prev.validUntil ? prev : { ...prev, validUntil },
+      ),
+    [setFormData],
+  );
+
   // Demo/free accounts: navigate the steps freely but edit nothing (fields and
   // add/remove controls disabled via FormStepCard's fieldset). Distinct from the
   // `isReadOnly` PROP, which renders a fully static view without the stepper.
@@ -1082,6 +1092,7 @@ export function SimpleProposalForm({
               onPracaChange={(proposalPraca) =>
                 setFormData((prev) => ({ ...prev, proposalPraca }))
               }
+              onDefaultValidUntil={applyDefaultValidUntil}
             />
           </div>
           <StepNavigation onBeforeNext={isDemo ? undefined : validateStep1} />

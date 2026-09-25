@@ -35,7 +35,7 @@ export default function SettingsProposalsPage() {
       ) : (
         <FormHeader
           title="Propostas"
-          subtitle="Numeração e código das propostas da sua empresa"
+          subtitle="Numeração, código e validade das propostas da sua empresa"
           icon={Hash}
         />
       )}

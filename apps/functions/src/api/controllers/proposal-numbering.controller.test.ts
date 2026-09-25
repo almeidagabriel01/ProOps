@@ -42,6 +42,7 @@ const CONFIG = {
   defaultPraca: "SP",
   nextNumber: 186,
   year: 2026,
+  defaultValidityDays: 15,
 };
 
 function fakeRes() {
@@ -112,6 +113,25 @@ describe("PUT /v1/proposals/numbering", () => {
     await updateProposalNumbering(fakeReq({ enabled: true, foo: 1 }), res);
 
     expect(res.statusCode).toBe(400);
+    expect(saveNumberingConfig).not.toHaveBeenCalled();
+  });
+
+  it("aceita a validade padrao da proposta", async () => {
+    const res = fakeRes();
+    await updateProposalNumbering(fakeReq({ defaultValidityDays: 15 }), res);
+
+    expect(res.statusCode).toBe(200);
+    expect(saveNumberingConfig).toHaveBeenCalledWith("t1", {
+      defaultValidityDays: 15,
+    });
+  });
+
+  it("recusa validade fora de 1 a 365 dias", async () => {
+    for (const dias of [0, 366, 2.5]) {
+      const res = fakeRes();
+      await updateProposalNumbering(fakeReq({ defaultValidityDays: dias }), res);
+      expect(res.statusCode).toBe(400);
+    }
     expect(saveNumberingConfig).not.toHaveBeenCalled();
   });
 

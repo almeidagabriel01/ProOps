@@ -22,6 +22,7 @@ import {
   hasProposalNumbering,
 } from "./proposal-numbering-field";
 import { useProposalNumbering } from "@/hooks/useProposalNumbering";
+import { defaultProposalValidUntil } from "@/lib/proposal-validity";
 
 interface ProposalClientSectionProps {
   formData: Partial<Proposal>;
@@ -46,6 +47,11 @@ interface ProposalClientSectionProps {
   onFormChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
+  /**
+   * Recebe a validade sugerida (hoje + dias configurados) quando a proposta é
+   * nova e o campo ainda está vazio.
+   */
+  onDefaultValidUntil?: (validUntil: string) => void;
   onClientChange: (data: {
     clientId?: string;
     clientName: string;
@@ -68,6 +74,7 @@ export function ProposalClientSection({
   newClientDocument = "",
   onNewClientDocumentChange,
   onPracaChange,
+  onDefaultValidUntil,
   isExistingProposal = false,
   onFormChange,
   onClientChange,
@@ -79,7 +86,24 @@ export function ProposalClientSection({
    * faltou na primeira versão, e a praça caiu sozinha numa quarta célula, com
    * dois terços de linha vazia ao lado.
    */
-  const { config: numberingConfig } = useProposalNumbering();
+  const { config: numberingConfig, isLoading: numberingLoading } =
+    useProposalNumbering();
+
+  const precisaValidadePadrao =
+    !isExistingProposal && !isReadOnly && !formData.validUntil;
+  React.useEffect(() => {
+    if (!precisaValidadePadrao || numberingLoading || !onDefaultValidUntil) {
+      return;
+    }
+    onDefaultValidUntil(
+      defaultProposalValidUntil(numberingConfig?.defaultValidityDays),
+    );
+  }, [
+    precisaValidadePadrao,
+    numberingLoading,
+    numberingConfig?.defaultValidityDays,
+    onDefaultValidUntil,
+  ]);
   const mostraNumeracao = hasProposalNumbering(
     numberingConfig,
     formData.proposalCode,
