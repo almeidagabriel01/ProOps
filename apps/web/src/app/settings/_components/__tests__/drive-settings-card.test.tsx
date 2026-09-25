@@ -86,6 +86,14 @@ beforeEach(() => {
 });
 
 describe("DriveSettingsCard", () => {
+  it("carregando mostra o skeleton do card, nunca o spinner", () => {
+    getStatus.mockReturnValue(new Promise(() => {}));
+    render(<DriveSettingsCard />);
+
+    expect(screen.getByTestId("settings-skeleton-drive")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("só oferece conectar quando não há conta", async () => {
     getStatus.mockResolvedValue(DESCONECTADO);
     render(<DriveSettingsCard />);

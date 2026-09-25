@@ -43,6 +43,7 @@ import { EnderecoStep } from "./fiscal/endereco-step";
 import { DocumentosStep } from "./fiscal/documentos-step";
 import { CertificadoStep } from "./fiscal/certificado-step";
 import type { FiscalErrors } from "./fiscal/types";
+import { FiscalSettingsSkeleton } from "./settings-skeleton";
 
 /** ViaCEP devolve o código IBGE em `ibge` — é ele que a SEFAZ valida. */
 interface ViaCepResponse {
@@ -498,13 +499,7 @@ export function FiscalSettingsCard({
   };
 
   if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-16">
-          <Loader size="md" />
-        </CardContent>
-      </Card>
-    );
+    return <FiscalSettingsSkeleton />;
   }
 
   const status = settings?.status ? STATUS_LABEL[settings.status] : undefined;

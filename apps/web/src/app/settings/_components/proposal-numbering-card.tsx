@@ -24,6 +24,7 @@ import {
   ProposalNumberingService,
   type ProposalNumberingConfig,
 } from "@/services/proposal-numbering-service";
+import { ProposalNumberingCardSkeleton } from "./settings-skeleton";
 
 interface ProposalNumberingCardProps {
   onLoadingChange?: (loading: boolean) => void;
@@ -50,6 +51,7 @@ export function ProposalNumberingCard({
   );
   const [novaPraca, setNovaPraca] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     let ativo = true;
@@ -62,7 +64,10 @@ export function ProposalNumberingCard({
           toast.error("Não foi possível carregar a numeração das propostas.");
         }
       } finally {
-        if (ativo) onLoadingChange?.(false);
+        if (ativo) {
+          setIsLoading(false);
+          onLoadingChange?.(false);
+        }
       }
     })();
     return () => {
@@ -70,6 +75,7 @@ export function ProposalNumberingCard({
     };
   }, [onLoadingChange]);
 
+  if (isLoading) return <ProposalNumberingCardSkeleton />;
   if (!config) return null;
 
   const patch = (mudanca: Partial<ProposalNumberingConfig>) =>

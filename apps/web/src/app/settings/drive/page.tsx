@@ -8,7 +8,7 @@ import {
   FormHeaderSkeleton,
 } from "@/components/ui/form-components";
 import { DriveSettingsCard } from "@/app/settings/_components/drive-settings-card";
-import { PaymentsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
+import { DriveCardsSkeleton } from "@/app/settings/_components/settings-skeleton";
 import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -45,7 +45,7 @@ export default function SettingsDrivePage() {
         />
       )}
       {permLoading ? (
-        <PaymentsCardSkeleton />
+        <DriveCardsSkeleton />
       ) : isMaster ? (
         <DriveSettingsCard onLoadingChange={setCardLoading} />
       ) : (

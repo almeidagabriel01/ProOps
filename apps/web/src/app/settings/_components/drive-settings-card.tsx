@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/lib/toast";
 import { DriveService, type DriveStatus } from "@/services/drive-service";
+import { DriveCardsSkeleton } from "./settings-skeleton";
 
 /**
  * Conexão com o Google Drive.
@@ -191,11 +192,7 @@ export function DriveSettingsCard({ onLoadingChange }: DriveSettingsCardProps) {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader size="md" />
-      </div>
-    );
+    return <DriveCardsSkeleton />;
   }
 
   const conectado = status?.connected === true;

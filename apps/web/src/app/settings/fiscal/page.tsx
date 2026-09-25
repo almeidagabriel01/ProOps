@@ -8,7 +8,7 @@ import {
   FormHeaderSkeleton,
 } from "@/components/ui/form-components";
 import { FiscalSettingsCard } from "@/app/settings/_components/fiscal-settings-card";
-import { PaymentsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
+import { FiscalSettingsSkeleton } from "@/app/settings/_components/settings-skeleton";
 import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -52,7 +52,7 @@ export default function SettingsFiscalPage() {
         />
       )}
       {permLoading ? (
-        <PaymentsCardSkeleton />
+        <FiscalSettingsSkeleton />
       ) : canSeeSection ? (
         <FiscalSettingsCard
           onLoadingChange={setCardLoading}

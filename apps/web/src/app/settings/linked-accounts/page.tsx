@@ -19,7 +19,7 @@ import {
   LinkedAccountRow,
   summarizeLinkedAccounts,
 } from "@/app/settings/_components/linked-account-row";
-import { PaymentsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
+import { LinkedAccountsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
 import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
 import { useLinkedAccounts } from "@/hooks/use-linked-accounts";
 import { usePermissions } from "@/providers/permissions-provider";
@@ -55,7 +55,7 @@ export default function SettingsLinkedAccountsPage() {
       )}
 
       {loading ? (
-        <PaymentsCardSkeleton />
+        <LinkedAccountsCardSkeleton />
       ) : error ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-10 text-center">

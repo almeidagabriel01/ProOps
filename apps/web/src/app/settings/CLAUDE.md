@@ -281,6 +281,24 @@ conectado, fora do plano. Lê `GET /v1/linked-accounts` (regra no backend,
 
 Guard: `_components/__tests__/linked-account-row.test.tsx`.
 
+## Carregamento: só skeleton
+
+Nenhuma seção abre com spinner. Cada uma tem um skeleton próprio, com o
+desenho da tela que vai aparecer, em `_components/settings-skeleton.tsx`, em
+duas versões: a do card (usada pela page enquanto `permLoading` e pelo próprio
+card enquanto busca os dados) e a com cabeçalho (usada pelo
+`RouteContentSkeleton`, no carregamento da rota, dentro do
+`SettingsShellSkeleton`).
+
+**Seção nova precisa dos dois**: o skeleton em `settings-skeleton.tsx` e um
+caso em `SettingsSectionSkeleton` (`components/layout/route-content-skeleton.tsx`).
+Sem o caso, a rota carrega com o desenho da equipe, que é o padrão.
+
+Spinner pequeno (`size="sm"`) continua valendo para botão e para recarregar
+algo com a tela já aberta. Guards: `src/__tests__/settings-no-page-spinner.test.ts`
+(varredura) e `components/layout/__tests__/route-content-skeleton.settings.test.tsx`
+(uma seção, um skeleton).
+
 ## Padrões de componente para settings
 
 Ao criar um novo formulário de configurações:
