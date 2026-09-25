@@ -8,6 +8,10 @@ import {
 } from "./_lib/whatsapp-gate";
 import { decideSessionVerification } from "./_lib/session-verification";
 import { resolveSessionMaxAgeSeconds } from "./_lib/session-max-age";
+import {
+  shouldCountSessionFailure,
+  type SessionFailureStage,
+} from "./_lib/session-failure";
 
 const SESSION_COOKIE_NAME = "__session";
 const LEGACY_COOKIE_NAME = "firebase-auth-token";
@@ -237,6 +241,7 @@ export async function POST(req: NextRequest) {
     return response;
   }
 
+  let stage: SessionFailureStage = "request";
   try {
     const contentLength = Number(req.headers.get("content-length") || "0");
     if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
@@ -263,7 +268,9 @@ export async function POST(req: NextRequest) {
     // checkRevoked=true. Detect emulator mode and avoid the extra revoked
     // check there while keeping strict verification in production.
     const isEmulator = Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
+    stage = "verify-token";
     const decoded = await adminAuth.verifyIdToken(idToken, isEmulator ? false : true);
+    stage = "after-verify";
 
     // Defense-in-depth super admin gates (the backend middleware is authoritative).
     const role = String((decoded as { role?: unknown }).role || "")
@@ -414,8 +421,11 @@ export async function POST(req: NextRequest) {
     clearLegacyCookie(response, req);
     return response;
   } catch (error) {
-    // Token verification failed — THIS counts as a failed attempt
-    rateLimit(clientIp, RATE_LIMIT_MAX_ATTEMPTS, RATE_LIMIT_WINDOW_MS);
+    // Só corpo inválido e token forjado contam; re-sync com token velho e
+    // erro de infraestrutura não bloqueiam o IP (ver _lib/session-failure).
+    if (shouldCountSessionFailure(stage, error)) {
+      rateLimit(clientIp, RATE_LIMIT_MAX_ATTEMPTS, RATE_LIMIT_WINDOW_MS);
+    }
     console.error("Failed to create session cookie:", error);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
