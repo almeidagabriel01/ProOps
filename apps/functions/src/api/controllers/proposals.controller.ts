@@ -1076,8 +1076,6 @@ export const createProposal = async (req: Request, res: Response) => {
     try {
       createdProposal = await db.runTransaction(async (t) => {
         // === ALL READS FIRST ===
-        await t.get(masterRef);
-
         const companyRef = db.collection("companies").doc(userCompanyId);
         const companySnap = await t.get(companyRef);
         const numberingConfig = await readNumberingStateInTransaction(
