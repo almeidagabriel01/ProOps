@@ -25,12 +25,32 @@ import { OnboardingWelcomeDialog } from "./onboarding-welcome-dialog";
  * elementos da página, e por isso não quebra quando um layout muda; o roteiro
  * mora em `onboarding-steps.ts` e o estado em `onboarding-provider.tsx`.
  *
- * Posição: acima da dock (desktop) e acima da tab bar (celular), sempre do
- * lado ESQUERDO, porque o botão da Lia ocupa o canto inferior direito nas duas
- * superfícies.
+ * Posição: canto inferior DIREITO, empilhado logo acima do botão da Lia, que é
+ * onde um tutorial é procurado e onde ele não cobre o conteúdo principal. A
+ * pílula minimizada fica ao lado do botão da Lia, na mesma linha. Na conta
+ * demo a Lia não existe, e os dois descem para o canto.
+ *
+ * Abaixo de md o card ocupa a largura e sobe acima do botão da Lia (que fica
+ * sobre a tab bar, à direita); a pílula vai para a esquerda, na mesma altura.
  */
-const POSITION =
-  "fixed z-[45] left-4 bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] md:left-6 md:bottom-24";
+function cardPosition(hasLia: boolean) {
+  return cn(
+    "fixed z-[45] left-4 right-4",
+    hasLia
+      ? "bottom-[calc(9.5rem_+_env(safe-area-inset-bottom))]"
+      : "bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))]",
+    "md:left-auto md:right-6 md:w-[360px]",
+    hasLia ? "md:bottom-[5.75rem]" : "md:bottom-6",
+  );
+}
+
+function pillPosition(hasLia: boolean) {
+  return cn(
+    "fixed z-[45] left-4 bottom-[calc(5.75rem_+_env(safe-area-inset-bottom))]",
+    "md:left-auto",
+    hasLia ? "md:right-[5.5rem] md:bottom-7" : "md:right-6 md:bottom-6",
+  );
+}
 
 export function AppOnboarding() {
   const onboarding = useOnboarding();
@@ -48,6 +68,8 @@ export function AppOnboarding() {
     completeCurrentAndAdvance,
     exit,
   } = onboarding;
+
+  const hasLia = !isDemo;
 
   if (!isActive || !displayStep) {
     return <OnboardingWelcomeDialog />;
@@ -74,7 +96,7 @@ export function AppOnboarding() {
           type="button"
           onClick={() => setMinimized(false)}
           className={cn(
-            POSITION,
+            pillPosition(hasLia),
             "flex items-center gap-2 rounded-full border border-border/70 bg-background/95 py-2 pl-2 pr-3.5 text-sm font-medium shadow-lg backdrop-blur-xl transition-colors hover:bg-muted",
           )}
           aria-label={`Abrir o tutorial, ${completedCount} de ${steps.length} telas vistas`}
@@ -103,13 +125,12 @@ export function AppOnboarding() {
           if (event.key === "Escape") setMinimized(true);
         }}
         className={cn(
-          POSITION,
-          "right-4 md:right-auto md:w-[380px]",
+          cardPosition(hasLia),
           "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2",
         )}
       >
-        <Card className="max-h-[min(70dvh,560px)] overflow-y-auto border-border/70 bg-background/95 shadow-2xl backdrop-blur-xl">
-          <CardContent className="space-y-4 p-4 max-sm:p-4">
+        <Card className="max-h-[calc(100dvh-15rem)] overflow-y-auto md:max-h-[calc(100dvh-11rem)] border-border/70 bg-background/95 shadow-2xl backdrop-blur-xl">
+          <CardContent className="space-y-3 p-4 max-sm:p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
@@ -130,6 +151,10 @@ export function AppOnboarding() {
                       ? "Você já viu esta tela."
                       : "Você está nesta tela agora."
                     : "Próxima tela do tour."}
+                  <span className="tabular-nums">
+                    {" "}
+                    · {completedCount} de {steps.length} telas vistas
+                  </span>
                 </p>
               </div>
               <div className="-mr-1 -mt-1 flex shrink-0">
@@ -155,9 +180,8 @@ export function AppOnboarding() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <div
-                className="h-1.5 overflow-hidden rounded-full bg-muted"
+            <div
+                className="h-1 overflow-hidden rounded-full bg-muted"
                 role="progressbar"
                 aria-label="Progresso do tutorial"
                 aria-valuemin={0}
@@ -169,17 +193,13 @@ export function AppOnboarding() {
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <p className="text-[11px] tabular-nums text-muted-foreground">
-                {completedCount} de {steps.length} telas vistas
-              </p>
-            </div>
 
             <p className="text-sm leading-relaxed text-foreground/90">
               {displayStep.description}
             </p>
 
             {displayStep.checklist.length > 0 && (
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {displayStep.checklist.map((item) => (
                   <li key={item} className="flex items-start gap-2 text-sm">
                     {isDone ? (
@@ -249,9 +269,6 @@ export function AppOnboarding() {
               )}
             </div>
 
-            <p className="text-center text-[11px] text-muted-foreground">
-              Para rever depois: menu do seu perfil, Tutorial da plataforma.
-            </p>
           </CardContent>
         </Card>
       </section>

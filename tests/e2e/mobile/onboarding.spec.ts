@@ -5,7 +5,7 @@ import { PLAN_ONBOARDING_MOBILE } from "../seed/data/plans";
 
 /**
  * O tutorial no celular: abaixo de md o card nasce minimizado (ele cobriria
- * metade da tela), cabe na largura e não fica por cima da tab bar nem do
+ * metade da tela), cabe na largura e não fica por baixo da tab bar nem do
  * botão da Lia. Usuário exclusivo deste arquivo.
  */
 
@@ -48,6 +48,17 @@ test("o tutorial nasce como pílula e abre sem vazar nem cobrir a tab bar", asyn
   const tabBar = page.getByTestId("mobile-tab-bar");
   const tabBox = (await tabBar.boundingBox())!;
   expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(tabBox.y + 1);
+
+  // O botão da Lia fica fixo à direita, acima da tab bar: o card sobe acima
+  // dele em vez de ter o canto (onde fica o botão de avançar) coberto.
+  const liaBox = (await page.getByRole("button", { name: "Abrir Lia" }).boundingBox())!;
+  expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(liaBox.y + 1);
+
+  // E a pílula, quando minimizada, divide a linha com a Lia sem encostar nela.
+  await card.getByRole("button", { name: "Minimizar o tutorial" }).click();
+  const pillBox = (await pill.boundingBox())!;
+  expect(pillBox.x + pillBox.width).toBeLessThanOrEqual(liaBox.x);
+  await pill.click();
 
   // O botão de avançar precisa estar dentro da tela, não cortado pelo teto de altura.
   const next = card.getByTestId("onboarding-next");
