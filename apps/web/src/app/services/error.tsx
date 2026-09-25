@@ -9,5 +9,5 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  return <RouteError error={error} reset={reset} />;
+  return <RouteError error={error} reset={reset} moduleName="os serviços" />;
 }
