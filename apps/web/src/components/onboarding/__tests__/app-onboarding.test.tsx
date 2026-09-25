@@ -126,6 +126,41 @@ describe("boas-vindas", () => {
     expect(push).toHaveBeenCalledWith("/dashboard");
   });
 
+  it("não volta quando o servidor devolve o estado sem welcomeSeenAt", async () => {
+    // Backend com o código antigo descarta o campo: o refreshUser traz o
+    // estado de volta sem ele. Antes, o modal reabria a cada clique.
+    onboardingState = { version: "core-v2", status: "active", completedStepIds: [] };
+    refreshUser.mockImplementationOnce(async () => {
+      onboardingState = { version: "core-v2", status: "active", completedStepIds: [] };
+    });
+    const view = renderShell();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("onboarding-welcome-start"));
+    });
+    view.rerender(
+      <OnboardingProvider>
+        <MenuButton />
+        <AppOnboarding />
+      </OnboardingProvider>,
+    );
+    expect(screen.queryByTestId("onboarding-welcome")).not.toBeInTheDocument();
+    expect(screen.getByTestId("onboarding-card")).toBeInTheDocument();
+  });
+
+  it("não volta depois de recarregar a página no mesmo navegador", async () => {
+    onboardingState = { version: "core-v2", status: "active", completedStepIds: [] };
+    const first = renderShell();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Explorar sozinho" }));
+    });
+    first.unmount();
+
+    onboardingState = { version: "core-v2", status: "active", completedStepIds: [] };
+    renderShell();
+    expect(screen.queryByTestId("onboarding-welcome")).not.toBeInTheDocument();
+  });
+
   it("não aparece de novo depois de vista", () => {
     renderShell();
     expect(screen.queryByTestId("onboarding-welcome")).not.toBeInTheDocument();

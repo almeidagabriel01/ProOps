@@ -57,6 +57,44 @@ function minimizedStorageKey(uid: string) {
   return `proops:onboarding:minimized:${uid}`;
 }
 
+function welcomeSeenStorageKey(uid: string) {
+  return `proops:onboarding:welcome-seen:${uid}`;
+}
+
+function readStoredWelcomeSeen(uid: string): boolean {
+  try {
+    return window.localStorage.getItem(welcomeSeenStorageKey(uid)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeStoredWelcomeSeen(uid: string) {
+  try {
+    window.localStorage.setItem(welcomeSeenStorageKey(uid), "1");
+  } catch {
+    // Sem storage, vale só o que o servidor gravou.
+  }
+}
+
+/**
+ * O estado que volta do servidor substitui o local, MENOS os marcos que a
+ * pessoa já cumpriu nesta sessão. Um backend que ainda não conhece o campo
+ * (código antigo publicado, emulador sem recarregar) o devolve ausente, e
+ * adotar a resposta crua reabria as boas-vindas a cada clique.
+ */
+function mergeServerState(
+  server: UserOnboardingState | undefined,
+  local: UserOnboardingState | undefined,
+): UserOnboardingState | undefined {
+  if (!server) return server;
+  return {
+    ...server,
+    welcomeSeenAt: server.welcomeSeenAt ?? local?.welcomeSeenAt,
+    firstStepsDismissedAt: server.firstStepsDismissedAt ?? local?.firstStepsDismissedAt,
+  };
+}
+
 function readStoredMinimized(uid: string): boolean | null {
   try {
     const value = window.localStorage.getItem(minimizedStorageKey(uid));
@@ -90,13 +128,16 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [isSaving, setIsSaving] = React.useState(false);
   const [minimizedOverride, setMinimizedOverride] = React.useState<boolean | null>(null);
 
+  const [welcomeSeenLocally, setWelcomeSeenLocally] = React.useState(false);
+
   React.useEffect(() => {
-    setLocalState(user?.onboarding);
+    setLocalState((previous) => mergeServerState(user?.onboarding, previous));
   }, [user?.onboarding]);
 
   React.useEffect(() => {
     if (!user?.id) return;
     setMinimizedOverride(readStoredMinimized(user.id));
+    setWelcomeSeenLocally(readStoredWelcomeSeen(user.id));
   }, [user?.id]);
 
   const capabilities = React.useMemo<OnboardingCapabilityMap>(
@@ -147,7 +188,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const isActive = !!user && state?.status === "active" && steps.length > 0;
 
   const showWelcome =
-    isActive && !state?.welcomeSeenAt && (state?.completedStepIds.length ?? 0) === 0;
+    isActive &&
+    !welcomeSeenLocally &&
+    !state?.welcomeSeenAt &&
+    (state?.completedStepIds.length ?? 0) === 0;
 
   // Abaixo de md o card cobre metade da tela: nasce minimizado, a menos que a
   // pessoa já tenha escolhido (ou acabe de começar o tour pelas boas-vindas).
@@ -281,10 +325,15 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     async (startTour: boolean) => {
       const now = new Date().toISOString();
       setMinimized(!startTour);
-      const ok = await save({ ...baseState(), welcomeSeenAt: now, updatedAt: now });
-      if (ok && startTour && steps[0]) router.push(steps[0].route);
+      // Fechar vale na hora e neste navegador, independente de o servidor
+      // confirmar: as boas-vindas não podem reaparecer por causa de uma
+      // gravação que falhou ou de um backend que descartou o campo.
+      setWelcomeSeenLocally(true);
+      if (user?.id) writeStoredWelcomeSeen(user.id);
+      if (startTour && steps[0]) router.push(steps[0].route);
+      await save({ ...baseState(), welcomeSeenAt: now, updatedAt: now });
     },
-    [baseState, router, save, setMinimized, steps],
+    [baseState, router, save, setMinimized, steps, user?.id],
   );
 
   const dismissFirstSteps = React.useCallback(async () => {
