@@ -110,6 +110,10 @@ export const PDF_IRRELEVANT_PROPOSAL_FIELDS = new Set([
   "primarySystem",
   "primaryEnvironment",
   "commissions",
+  // Índice de itens usados (lib/proposal-product-refs): derivado de `products`,
+  // que já entra no hash. Listado aqui para o backfill não invalidar o cache.
+  "productRefs",
+  "productRefsIndexed",
 ]);
 
 function buildVersionHash(

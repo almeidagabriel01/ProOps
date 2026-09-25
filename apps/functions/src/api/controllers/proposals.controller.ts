@@ -32,6 +32,7 @@ import {
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildSearchTokens } from "../../lib/search-tokens";
+import { productRefsFields } from "../../lib/proposal-product-refs";
 import { logger, recordPhase } from "../../lib/logger";
 import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
 import {
@@ -1235,6 +1236,7 @@ export const createProposal = async (req: Request, res: Response) => {
           clientPhone: input.clientPhone || null,
           clientAddress: input.clientAddress || null,
           products: sanitizedProducts,
+          ...productRefsFields(sanitizedProducts),
           sistemas: input.sistemas || [],
           sections: input.sections || [],
           // Denormalized sort fields (computed client-side from sistemas);
@@ -1561,6 +1563,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
       if (f === "products") {
         safeUpdate[f] = sanitizedProducts || [];
+        Object.assign(safeUpdate, productRefsFields(sanitizedProducts || []));
         return;
       }
       if (f === "commissions") {

@@ -2,6 +2,7 @@ import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildSearchTokens } from "../../lib/search-tokens";
+import { productRefsFields } from "../../lib/proposal-product-refs";
 
 // ===== Interfaces =====
 
@@ -189,6 +190,7 @@ export async function createProposal(
     clientName,
     status: "draft",
     products,
+    ...productRefsFields(products),
     totalValue: Math.round(totalValue * 100) / 100,
     discount: discount,
     // Sem sistemas neste fluxo — "" mantém o doc nos índices de ordenação
@@ -259,6 +261,7 @@ export async function updateProposal(
     const totalValue = Math.max(0, subtotal - (subtotal * discount) / 100);
 
     safeUpdate.products = products;
+    Object.assign(safeUpdate, productRefsFields(products));
     safeUpdate.totalValue = Math.round(totalValue * 100) / 100;
   }
 
