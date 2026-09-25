@@ -17,6 +17,7 @@ import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/lib/toast";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 
 interface SistemaManagerDialogProps {
@@ -47,6 +48,9 @@ export function SistemaManagerDialog({
   const [ambientes, setAmbientes] = React.useState<Ambiente[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [sistemaToDelete, setSistemaToDelete] = React.useState<Sistema | null>(
+    null,
+  );
 
   const loadData = React.useCallback(async () => {
     if (managedSistemas && managedAmbientes) {
@@ -96,33 +100,30 @@ export function SistemaManagerDialog({
     }
   }, [isOpen, tenant?.id, loadData]);
 
-  const handleDelete = async (sistema: Sistema) => {
-    if (
-      confirm(
-        `Tem certeza que deseja excluir o template da solução "${sistema.name}"?`,
-      )
-    ) {
-      setDeletingId(sistema.id);
-      try {
-        if (onAction) {
-          await onAction({
-            type: "delete",
-            entity: "sistema",
-            id: sistema.id,
-          });
-          onSistemasChange?.();
-          toast.success("Solução removida!");
-        } else {
-          await SistemaService.deleteSistema(sistema.id);
-          await loadData();
-          onSistemasChange?.();
-        }
-      } catch (error) {
-        console.error("Error deleting sistema:", error);
-        toast.error("Erro ao excluir solução");
-      } finally {
-        setDeletingId(null);
+  const handleDelete = async () => {
+    const sistema = sistemaToDelete;
+    if (!sistema) return;
+    setDeletingId(sistema.id);
+    try {
+      if (onAction) {
+        await onAction({
+          type: "delete",
+          entity: "sistema",
+          id: sistema.id,
+        });
+        onSistemasChange?.();
+        toast.success("Solução removida!");
+      } else {
+        await SistemaService.deleteSistema(sistema.id);
+        await loadData();
+        onSistemasChange?.();
       }
+    } catch (error) {
+      console.error("Error deleting sistema:", error);
+      toast.error("Erro ao excluir solução");
+    } finally {
+      setDeletingId(null);
+      setSistemaToDelete(null);
     }
   };
 
@@ -134,7 +135,16 @@ export function SistemaManagerDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <>
+    {/* O Dialog não fecha enquanto a confirmação está aberta: o focus-trap do
+        Radix dispara onOpenChange(false) quando o AlertDialog monta (ver
+        ambiente-manager-dialog.tsx). */}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !sistemaToDelete) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Gerenciar Templates da Solução</DialogTitle>
@@ -223,7 +233,7 @@ export function SistemaManagerDialog({
                       size="icon"
                       variant="ghost"
                       className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(sistema)}
+                      onClick={() => setSistemaToDelete(sistema)}
                       title="Excluir"
                       disabled={deletingId !== null}
                     >
@@ -243,5 +253,17 @@ export function SistemaManagerDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ConfirmDialog
+      open={sistemaToDelete !== null}
+      onOpenChange={(open) => !open && !deletingId && setSistemaToDelete(null)}
+      title="Excluir template da solução"
+      description={`O template da solução "${sistemaToDelete?.name ?? ""}" será excluído.`}
+      confirmLabel="Excluir"
+      pendingLabel="Excluindo..."
+      destructive
+      isPending={deletingId !== null}
+      onConfirm={handleDelete}
+    />
+    </>
   );
 }

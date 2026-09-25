@@ -20,6 +20,7 @@ import {
 } from "@/services/storage-service";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 interface ProposalAttachmentsDialogProps {
   proposal: Proposal;
@@ -99,6 +100,9 @@ export function ProposalAttachmentsDialog({
   }, [proposal.attachments, proposal.id]);
 
   const [isDragging, setIsDragging] = React.useState(false);
+  const [externalUrlToOpen, setExternalUrlToOpen] = React.useState<
+    string | null
+  >(null);
 
   // Reusable file processing function
   const processFile = async (file: File) => {
@@ -293,17 +297,29 @@ export function ProposalAttachmentsDialog({
     // URLs externas (fora do Firebase Storage) exigem confirmação explícita
     // para mitigar phishing — o usuário é avisado antes de sair do sistema.
     if (!isInternalStorageUrl(targetUrl)) {
-      const confirmed = window.confirm(
-        `Você está prestes a abrir um link externo:\n${targetUrl}\n\nContinuar?`,
-      );
-      if (!confirmed) return;
+      setExternalUrlToOpen(targetUrl);
+      return;
     }
 
     window.open(targetUrl, "_blank", "noopener,noreferrer");
   };
 
+  const openConfirmedExternalUrl = () => {
+    if (externalUrlToOpen) {
+      window.open(externalUrlToOpen, "_blank", "noopener,noreferrer");
+    }
+    setExternalUrlToOpen(null);
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        // Radix fecha o Dialog quando o AlertDialog de confirmação monta.
+        if (!open && externalUrlToOpen === null) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Anexos da Proposta</DialogTitle>
@@ -433,5 +449,21 @@ export function ProposalAttachmentsDialog({
         </div>
       </DialogContent>
     </Dialog>
+    <ConfirmDialog
+      open={externalUrlToOpen !== null}
+      onOpenChange={(open) => !open && setExternalUrlToOpen(null)}
+      title="Abrir link externo?"
+      description={
+        <>
+          Este anexo aponta para um endereço fora da ProOps:
+          <span className="mt-2 block font-mono text-xs">
+            {externalUrlToOpen}
+          </span>
+        </>
+      }
+      confirmLabel="Abrir link"
+      onConfirm={openConfirmedExternalUrl}
+    />
+    </>
   );
 }

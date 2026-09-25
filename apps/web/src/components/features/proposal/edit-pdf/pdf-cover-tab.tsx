@@ -16,6 +16,7 @@ import {
 } from "@/components/features/proposal/pdf-section-editor";
 import { CoverElementsEditor } from "@/components/features/proposal/pdf-editor";
 import { ALLOWED_TYPES } from "@/services/storage-service";
+import { toast } from "@/lib/toast";
 
 interface PdfCoverTabProps {
   coverTitle: string;
@@ -85,14 +86,14 @@ export function PdfCoverTab({
     const file = e.target.files?.[0];
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        alert(
+        toast.error(
           "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
         );
         e.target.value = "";
         return;
       }
       if (file.size > 2 * 1024 * 1024) {
-        alert("A imagem de capa deve ter no máximo 2MB.");
+        toast.error("A imagem de capa deve ter no máximo 2MB.");
         e.target.value = "";
         return;
       }
@@ -108,14 +109,14 @@ export function PdfCoverTab({
     const file = e.target.files?.[0];
     if (file) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        alert(
+        toast.error(
           "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
         );
         e.target.value = "";
         return;
       }
       if (file.size > 1 * 1024 * 1024) {
-        alert("O logo deve ter no máximo 1MB.");
+        toast.error("O logo deve ter no máximo 1MB.");
         e.target.value = "";
         return;
       }

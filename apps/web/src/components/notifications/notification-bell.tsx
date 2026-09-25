@@ -15,6 +15,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { Notification, NotificationType } from "@/types/notification";
 import { formatDateBR } from "@/utils/date-format";
 import { Loader } from "@/components/ui/loader";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
@@ -74,6 +75,7 @@ function NotificationListSkeleton() {
 export function NotificationBell() {
   const router = useRouter();
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+  const [confirmClearAllOpen, setConfirmClearAllOpen] = React.useState(false);
   const { isGlobalLoading } = useTenant();
   const {
     scopeKey,
@@ -139,6 +141,7 @@ export function NotificationBell() {
   };
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
@@ -194,7 +197,7 @@ export function NotificationBell() {
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
-                  clearAllNotifications();
+                  setConfirmClearAllOpen(true);
                 }}
                 className="text-xs h-7 px-2"
               >
@@ -315,5 +318,20 @@ export function NotificationBell() {
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
+    <ConfirmDialog
+      open={confirmClearAllOpen}
+      onOpenChange={(open) => !isClearingAll && setConfirmClearAllOpen(open)}
+      title="Limpar todas as notificações?"
+      description="Todas as notificações serão removidas da lista."
+      confirmLabel="Limpar tudo"
+      pendingLabel="Limpando..."
+      destructive
+      isPending={isClearingAll}
+      onConfirm={async () => {
+        await clearAllNotifications();
+        setConfirmClearAllOpen(false);
+      }}
+    />
+    </>
   );
 }

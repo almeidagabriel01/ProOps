@@ -15,6 +15,7 @@ import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { downloadSharedProposalPdf } from "@/services/pdf/download-shared-proposal-pdf";
 import { computePrimaryForeground } from "@/utils/color-utils";
 import { Loader } from "@/components/ui/loader";
+import { toast } from "@/lib/toast";
 
 export default function SharedProposalPage() {
   const params = useParams();
@@ -39,7 +40,7 @@ export default function SharedProposalPage() {
       await downloadSharedProposalPdf(token, proposal?.title);
     } catch (err) {
       console.error("Error downloading shared PDF:", err);
-      alert("Erro ao baixar PDF. Tente novamente.");
+      toast.error("Erro ao baixar PDF. Tente novamente.");
     } finally {
       setIsGenerating(false);
     }

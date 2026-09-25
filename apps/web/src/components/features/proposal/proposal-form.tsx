@@ -22,6 +22,7 @@ import { ProposalService, Proposal } from "@/services/proposal-service"; // Use 
 import { useTenant } from "@/providers/tenant-provider";
 import { Save, ArrowLeft, Eye, Edit } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
+import { toast } from "@/lib/toast";
 
 interface ProposalFormProps {
   proposalId?: string;
@@ -79,12 +80,12 @@ export function ProposalForm({ proposalId }: ProposalFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenant) {
-      alert("Erro: Nenhuma empresa selecionada!");
+      toast.error("Erro: Nenhuma empresa selecionada!");
       return;
     }
 
     if (!formData.title || !formData.clientName) {
-      alert("Preencha o título e o nome do contato!");
+      toast.error("Preencha o título e o nome do contato!");
       return;
     }
 
@@ -104,7 +105,7 @@ export function ProposalForm({ proposalId }: ProposalFormProps) {
       } else {
         // Create new
         // Disabled legacy creation
-        alert(
+        toast.error(
           "A criação por este formulário antigo está desabilitada. Use o 'Nova Proposta' simplificado para garantir segurança.",
         );
         setIsSaving(false);

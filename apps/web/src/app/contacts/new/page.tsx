@@ -39,6 +39,7 @@ import { ContactCommissionField } from "../_components/contact-commission-field"
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import type { ClientType } from "@/services/client-service";
 import { formatDocumento } from "@/lib/format-document";
+import { toast } from "@/lib/toast";
 
 
 /**
@@ -183,7 +184,7 @@ export default function NewCustomerPage() {
     }
 
     if (!tenant) {
-      alert("Erro: Nenhuma empresa selecionada!");
+      toast.error("Erro: Nenhuma empresa selecionada!");
       return;
     }
 

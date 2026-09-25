@@ -27,6 +27,7 @@ import {
 import { CoverElement } from "../pdf-section-editor";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { formatDateBR } from "@/utils/date-format";
+import { toast } from "@/lib/toast";
 
 interface CoverElementsEditorProps {
   elements: CoverElement[];
@@ -681,14 +682,14 @@ export function CoverElementsEditor({
                                     const file = e.target.files?.[0];
                                     if (file) {
                                       if (!ALLOWED_TYPES.includes(file.type)) {
-                                        alert(
+                                        toast.error(
                                           "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
                                         );
                                         e.target.value = "";
                                         return;
                                       }
                                       if (file.size > 2 * 1024 * 1024) {
-                                        alert(
+                                        toast.error(
                                           "A imagem deve ter no máximo 2MB.",
                                         );
                                         e.target.value = "";

@@ -871,7 +871,7 @@ export function SimpleProposalForm({
     });
 
     if (exists) {
-      alert("Este sistema já existe na proposta.");
+      toast.error("Este sistema já existe na proposta.");
       return;
     }
 
