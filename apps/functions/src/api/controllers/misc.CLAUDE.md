@@ -129,6 +129,13 @@ O callback OAuth (`/v1/calendar/google/callback`) é público pois o Google redi
 2. Se não encontrar, faz query por `tenantId + provider + enabled` (formato legado)
 3. Se encontrar legado, migra automaticamente para o formato novo (doc ID = tenantId) e deleta o legado
 
+O "não tem integração" fica em cache **por instância** por 60s, para a listagem
+de eventos não pagar leitura em todo tenant sem Google. Status, callback e
+desconexão passam `fresh: true` e ignoram esse cache: a invalidação ao conectar
+só alcança a instância que recebeu o callback, e sem o `fresh` a tela dizia
+"Desconectado" logo depois do "conectado com sucesso". Guard:
+`calendar.controller.status-cache.test.ts`.
+
 **Escopos OAuth solicitados:**
 ```
 https://www.googleapis.com/auth/calendar.events.owned

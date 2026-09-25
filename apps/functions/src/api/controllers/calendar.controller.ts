@@ -340,8 +340,14 @@ async function createGoogleOAuthClient() {
 // Cache negativo por instância: a MAIORIA dos tenants não tem Google
 // conectado, mas toda listagem de eventos pagava 1-2 leituras só para
 // descobrir isso. Só o "não tem" é cacheado — o registro real é sempre
-// relido (refreshToken precisa estar fresco). Invalidado ao conectar.
-const NO_INTEGRATION_CACHE_TTL_MS = 5 * 60 * 1000;
+// relido (refreshToken precisa estar fresco).
+//
+// A invalidação ao conectar só alcança a instância que recebeu o callback, e o
+// Cloud Run (e o emulador) rodam várias. Por isso status, callback e
+// desconexão leem sem o cache (`fresh`): com ele, a tela dizia "Desconectado"
+// logo depois do "conectado com sucesso", e desconectar respondia 204 sem
+// desconectar nada. O TTL curto limita o atraso da sincronização nas outras.
+const NO_INTEGRATION_CACHE_TTL_MS = 60 * 1000;
 const noIntegrationCache = new Map<string, number>(); // tenantId → expiresAtMs
 
 export function invalidateGoogleIntegrationCache(tenantId: string): void {
@@ -365,10 +371,10 @@ export async function decryptGoogleIntegrationRecord(
 
 export async function getGoogleIntegration(
   tenantId: string,
-  options: { decrypt?: boolean } = {},
+  options: { decrypt?: boolean; fresh?: boolean } = {},
 ): Promise<GoogleCalendarIntegrationRecord | null> {
   const shouldDecrypt = options.decrypt !== false;
-  const cachedUntil = noIntegrationCache.get(tenantId);
+  const cachedUntil = options.fresh ? undefined : noIntegrationCache.get(tenantId);
   if (cachedUntil !== undefined) {
     if (cachedUntil > Date.now()) return null;
     noIntegrationCache.delete(tenantId);
@@ -1634,7 +1640,9 @@ export async function handleGoogleCalendarCallback(req: Request, res: Response) 
     const tokens = tokenResponse.tokens;
     oauthClient.setCredentials(tokens);
 
-    const existingIntegration = await getGoogleIntegration(stateData.tenantId);
+    const existingIntegration = await getGoogleIntegration(stateData.tenantId, {
+      fresh: true,
+    });
 
     const existingRefreshToken = String(
       existingIntegration?.data.refreshToken || "",
@@ -1708,7 +1716,7 @@ export async function getGoogleCalendarStatus(req: Request, res: Response) {
       return res.status(403).json({ message: "Tenant nao identificado." });
     }
 
-    const integration = await getGoogleIntegration(tenantId);
+    const integration = await getGoogleIntegration(tenantId, { fresh: true });
 
     if (!integration) {
       return res.json({
@@ -1752,7 +1760,7 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
       });
     }
 
-    const integration = await getGoogleIntegration(tenantId);
+    const integration = await getGoogleIntegration(tenantId, { fresh: true });
     if (!integration) {
       return res.status(204).send();
     }
