@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 import { unstable_cache } from "next/cache";
 import { resolveBillingAccess } from "@/lib/auth/billing-access";
+import { assertSessionNotRevoked } from "@/lib/auth/session-revocation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,16 +52,22 @@ export async function GET(req: NextRequest) {
 
   try {
     const adminAuth = getAdminAuth();
-    // checkRevoked: true ensures revoked tokens (canceled/unpaid via revokeRefreshTokens)
-    // are rejected immediately rather than waiting for the 1-hour JWT expiry.
-    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+    // Assinatura verificada sempre; a revogação (canceled/unpaid via
+    // revokeRefreshTokens) é conferida com cache de 60s por usuário em vez de
+    // uma busca no Firebase Auth a cada navegação (lib/auth/session-revocation).
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, false);
+    await assertSessionNotRevoked(decoded, (uid) => adminAuth.getUser(uid));
 
     // SuperAdmins need cross-tenant access to manage billing — never block them.
     const isSuperAdmin =
       decoded.isSuperAdmin === true ||
       String(decoded.role || "").toUpperCase() === "SUPERADMIN";
     if (isSuperAdmin) {
-      return NextResponse.json({ allowed: true, status: "superadmin_bypass" });
+      return NextResponse.json({
+        allowed: true,
+        status: "superadmin_bypass",
+        snapshot: { bypass: true },
+      });
     }
 
     const tenantId = String(decoded.tenantId || "").trim();
@@ -87,7 +94,20 @@ export async function GET(req: NextRequest) {
       pastDueSince,
       requestedPath,
     });
-    return NextResponse.json(decision);
+    // O estado vai junto só quando deu acesso: o proxy o guarda por 30s e
+    // decide os próximos caminhos sem chamar esta rota (lib/auth/billing-gate-cache).
+    return NextResponse.json(
+      decision.allowed
+        ? {
+            ...decision,
+            snapshot: {
+              role: (decoded.role as string | undefined) ?? null,
+              subscriptionStatus,
+              pastDueSince,
+            },
+          }
+        : decision,
+    );
   } catch (error: unknown) {
     const code = (error as { code?: string })?.code;
 
