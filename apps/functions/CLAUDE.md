@@ -701,7 +701,8 @@ pelo ERP chegar la sem baixar e subir a mao.
 - **Desconectar PRESERVA a pasta raiz.** Apagar o documento inteiro parecia mais limpo e
   estava errado: a pasta nao e segredo, e esquecer o id dela fazia reconectar criar uma
   SEGUNDA "ProOps - Propostas" ao lado da primeira, porque o sistema nao tinha como saber
-  que ja existia uma. O que some e o refresh token. Consequencia: **"conectado" significa
+  que ja existia uma. O que some e o refresh token, que tambem e revogado no
+  Google (falha na revogacao so e registrada). Consequencia: **"conectado" significa
   TER TOKEN** (`refreshTokenEnc`), nunca "o documento existe" — checar a existencia do doc
   diria conectado para quem acabou de desconectar. Se a pessoa reconectar com outra conta
   Google, a pasta antiga fica inacessivel e e recriada; nao ha estado preso.
