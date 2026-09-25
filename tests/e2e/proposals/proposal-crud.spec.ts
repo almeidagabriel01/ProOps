@@ -113,4 +113,37 @@ test.describe("PROP-03: Delete proposal", () => {
     const after = await proposalsPage.getProposalByTitle(deleteTitle);
     await expect(after).not.toBeVisible();
   });
+
+  test("Desfazer devolve a proposta e nada é excluído", async ({ authenticatedPage }) => {
+    const proposalsPage = new ProposalsPage(authenticatedPage);
+    await proposalsPage.goto();
+    await proposalsPage.isLoaded();
+
+    const undoTitle = `Undo Target ${Date.now()}`;
+    await proposalsPage.createProposal({ title: undoTitle, clientName: "Joao Silva" });
+    await proposalsPage.goto();
+    await proposalsPage.isLoaded();
+
+    let deleteSent = false;
+    authenticatedPage.on("request", (request) => {
+      if (
+        request.method() === "DELETE" &&
+        /\/v1\/proposals\/[^/]+$/.test(new URL(request.url()).pathname)
+      ) {
+        deleteSent = true;
+      }
+    });
+
+    await proposalsPage.deleteProposalAndUndo(undoTitle);
+
+    await expect(await proposalsPage.getProposalByTitle(undoTitle)).toBeVisible({
+      timeout: 15000,
+    });
+    // Past the undo window: the DELETE must never have been sent.
+    await authenticatedPage.waitForTimeout(7000);
+    expect(deleteSent).toBe(false);
+
+    // Cleanup
+    await proposalsPage.deleteProposal(undoTitle);
+  });
 });

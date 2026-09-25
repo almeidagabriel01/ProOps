@@ -234,16 +234,53 @@ export class ProposalsPage {
     await deleteMenuItem.waitFor({ state: "visible", timeout: 5000 });
     await deleteMenuItem.click();
 
-    // Confirm the AlertDialog
+    // Confirm the AlertDialog. The DELETE only reaches the server after the
+    // "Desfazer" window (~6s), so wait for it: otherwise the test ends with the
+    // proposal still in the database.
+    const deleteRequest = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        /\/v1\/proposals\/[^/]+$/.test(new URL(response.url()).pathname),
+      { timeout: 20000 },
+    );
     const confirmButton = this.page.getByRole("button", { name: /^excluir$/i });
     await confirmButton.waitFor({ state: "visible", timeout: 8000 });
     await confirmButton.click();
 
-    // Wait for proposal to disappear from the list
-    const proposalText = this.page.getByText(title, { exact: false }).first();
-    await proposalText.waitFor({ state: "hidden", timeout: 10000 }).catch(() => {
-      // Acceptable: item may already be gone before waitFor
-    });
+    // The row leaves the list right away (the toast also carries the title,
+    // so look for the link, not any text).
+    await this.page
+      .getByRole("link", { name: title })
+      .first()
+      .waitFor({ state: "hidden", timeout: 10000 });
+    await deleteRequest;
+  }
+
+  /**
+   * Deletes through the UI and clicks "Desfazer" before the undo window ends.
+   * Nothing is sent to the server; the proposal comes back to the list.
+   */
+  async deleteProposalAndUndo(title: string): Promise<void> {
+    const row = this.page.locator("div").filter({
+      has: this.page.getByRole("link", { name: title }),
+    }).filter({
+      has: this.page.getByRole("button", { name: /mais ações/i }),
+    }).last();
+
+    await row.getByRole("button", { name: /mais ações/i }).click();
+    const deleteMenuItem = this.page.locator("div, button, li").filter({
+      hasText: /^excluir$/i,
+    }).last();
+    await deleteMenuItem.waitFor({ state: "visible", timeout: 5000 });
+    await deleteMenuItem.click();
+
+    await this.page.getByRole("button", { name: /^excluir$/i }).click();
+    await this.page
+      .getByRole("link", { name: title })
+      .first()
+      .waitFor({ state: "hidden", timeout: 10000 });
+
+    await this.page.getByRole("button", { name: /^desfazer$/i }).click();
   }
 
   /**

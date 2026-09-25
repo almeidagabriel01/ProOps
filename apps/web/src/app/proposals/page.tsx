@@ -38,11 +38,11 @@ import { Input } from "@/components/ui/input";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
-import { Spinner } from "@/components/ui/spinner";
 import {
   DRIVE_DELIVERY_PENDING_HINT,
   DRIVE_NOT_CONNECTED_HINT,
 } from "@/lib/proposal-payment";
+import { runUndoableAction } from "@/lib/undoable-action";
 import { toast } from "@/lib/toast";
 import { isDemoReadOnlyError } from "@/lib/api-client";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
@@ -140,7 +140,6 @@ export default function ProposalsPage() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
   const [updatingStatusId, setUpdatingStatusId] = React.useState<string | null>(
     null,
   );
@@ -553,51 +552,48 @@ export default function ProposalsPage() {
       ? `"${proposal.title.trim()}"`
       : `ID ${deleteId}`;
 
-    setIsDeleting(true);
-    try {
-      await ProposalService.deleteProposal(deleteId);
-      const remainingProposals = proposals.filter((p) => p.id !== deleteId);
-
-      // Bug 3 Fix: Optimistically update the empty-state flag immediately when
-      // the last proposal is removed. Firestore may serve cached results for the
-      // verification query, causing the empty-state card to never appear without
-      // a page reload. By setting hasAnyProposals=false right now (before the
-      // async check), the UI transitions instantly to the empty state.
-      if (remainingProposals.length === 0) {
-        setHasAnyProposals(false);
-        setProposals([]);
-      }
-
-      // Secondary verification against Firestore to ensure consistency
-      // (handles edge cases like concurrent deletes from another session).
-      const hasRemainingProposals = await refreshHasAnyProposals();
-
-      if (!hasRemainingProposals) {
-        setProposals([]);
-      } else {
-        const removedId = deleteId;
-        updateItemsRef.current?.((items) =>
-          items.filter((p) => p.id !== removedId),
-        );
-        setProposals(remainingProposals);
-      }
-      toast.success(`Proposta ${proposalLabel} foi excluída com sucesso.`, {
-        title: "Sucesso ao excluir",
-      });
-    } catch (error) {
-      console.error(error);
-      const errorMessage =
-        error instanceof Error && error.message.trim()
-          ? error.message.trim()
-          : "Falha inesperada ao excluir a proposta.";
-      toast.error(
-        `Não foi possível excluir a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
-        { title: "Erro ao excluir" },
-      );
-    } finally {
-      setIsDeleting(false);
-      setDeleteId(null);
+    // A exclusão só vai para o servidor depois da janela de "Desfazer": a
+    // proposta sai da lista agora, e desfazer é recarregar a lista, porque o
+    // documento continua lá.
+    const removedId = deleteId;
+    const remainingProposals = proposals.filter((p) => p.id !== removedId);
+    updateItemsRef.current?.((items) =>
+      items.filter((p) => p.id !== removedId),
+    );
+    setProposals(remainingProposals);
+    if (remainingProposals.length === 0) {
+      setHasAnyProposals(false);
     }
+    setDeleteId(null);
+
+    const restoreList = () => {
+      void refreshHasAnyProposals();
+      refreshRef.current?.();
+    };
+
+    runUndoableAction({
+      message: `Proposta ${proposalLabel} excluída.`,
+      title: "Proposta excluída",
+      commit: async () => {
+        await ProposalService.deleteProposal(removedId);
+        // Secondary verification against Firestore to ensure consistency
+        // (handles edge cases like concurrent deletes from another session).
+        await refreshHasAnyProposals();
+      },
+      onUndo: restoreList,
+      onCommitError: (error) => {
+        console.error(error);
+        const errorMessage =
+          error instanceof Error && error.message.trim()
+            ? error.message.trim()
+            : "Falha inesperada ao excluir a proposta.";
+        toast.error(
+          `Não foi possível excluir a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
+          { title: "Erro ao excluir" },
+        );
+        restoreList();
+      },
+    });
   };
 
   const handleDuplicate = React.useCallback(
@@ -1144,9 +1140,7 @@ export default function ProposalsPage() {
     <AlertDialog
       open={!!deleteId}
       onOpenChange={(open) => {
-        if (!isDeleting) {
-          if (!open) setDeleteId(null);
-        }
+        if (!open) setDeleteId(null);
       }}
     >
       <AlertDialogContent>
@@ -1154,19 +1148,17 @@ export default function ProposalsPage() {
           <AlertDialogTitle>Excluir Proposta</AlertDialogTitle>
           <AlertDialogDescription>
             Tem certeza que deseja excluir a proposta{" "}
-            <strong>{proposalToDelete?.title}</strong>? Esta ação não pode ser
-            desfeita.
+            <strong>{proposalToDelete?.title}</strong>? Depois de excluir, você
+            tem alguns segundos para desfazer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             className="bg-destructive hover:bg-destructive/90 gap-2"
-            disabled={isDeleting}
           >
-            {isDeleting && <Spinner className="w-4 h-4 text-white" />}
-            {isDeleting ? "Excluindo..." : "Excluir"}
+            Excluir
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
