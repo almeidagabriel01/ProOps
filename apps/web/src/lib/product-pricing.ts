@@ -568,17 +568,17 @@ export function getProductPricingDescription(product: ProductPricingSource): str
   const pricingModel = normalizeProductPricingModel(product.pricingModel);
 
   if (pricingModel.mode === "curtain_meter") {
-    return "Calculado por largura x altura x preco com markup.";
+    return "Calculado por largura x altura x preço com markup.";
   }
 
   if (pricingModel.mode === "curtain_height") {
     if (pricingModel.tiers.length === 0) {
-      return "Faixas de altura sem configuracao.";
+      return "Faixas de altura sem configuração.";
     }
 
     return pricingModel.tiers
       .map((tier) => {
-        const startLabel = `ate ${formatMeters(tier.maxHeight)}`;
+        const startLabel = `até ${formatMeters(tier.maxHeight)}`;
         return `${startLabel}: R$ ${calculateSellingPrice(
           tier.basePrice,
           tier.markup,
@@ -587,7 +587,7 @@ export function getProductPricingDescription(product: ProductPricingSource): str
       .join(" | ");
   }
 
-  return "Preco simples por quantidade.";
+  return "Preço simples por quantidade.";
 }
 
 export function getProposalProductMeasurementLabel(

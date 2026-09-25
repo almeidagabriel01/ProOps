@@ -127,7 +127,7 @@ export function useServiceActions() {
       );
 
       const serviceLabel = formatServiceLabel(serviceName);
-      toast.success(`Serviço ${serviceLabel} foi excluido com sucesso.`, {
+      toast.success(`Serviço ${serviceLabel} foi excluído com sucesso.`, {
         title: "Sucesso ao excluir",
       });
       return true;

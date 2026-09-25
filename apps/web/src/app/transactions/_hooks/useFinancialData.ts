@@ -433,7 +433,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         await fetchData(true);
 
         toast.success(
-          `Lancamento ${transactionLabel} foi excluido com sucesso.`,
+          `Lançamento ${transactionLabel} foi excluído com sucesso.`,
           {
             title: "Sucesso ao excluir",
           },
@@ -496,7 +496,7 @@ export function useFinancialData(): UseFinancialDataReturn {
           applyOptimisticWalletUpdate(transaction, undefined);
           setTransactions((prev) => prev.filter((t) => t.id !== transaction.id));
           toast.success(
-            `Lancamento ${transactionLabel} foi excluido com sucesso.`,
+            `Lançamento ${transactionLabel} foi excluído com sucesso.`,
             { title: "Sucesso ao excluir" },
           );
         }
@@ -602,7 +602,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         );
 
         toast.success(
-          `Lancamento ${transactionLabel} atualizado com sucesso.`,
+          `Lançamento ${transactionLabel} atualizado com sucesso.`,
           {
             title: "Sucesso ao editar",
           },

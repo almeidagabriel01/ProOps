@@ -306,7 +306,7 @@ const decodeCellReference = (
   const match = reference.match(/^([A-Z]+)(\d+)$/i);
 
   if (!match) {
-    throw new Error(`Referencia de celula invalida: ${reference}`);
+    throw new Error(`Referência de célula inválida: ${reference}`);
   }
 
   return {

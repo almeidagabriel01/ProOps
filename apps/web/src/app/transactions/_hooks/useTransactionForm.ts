@@ -462,7 +462,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
     setIsSaving(true);
     const transactionLabel = formData.description.trim()
       ? `"${formData.description.trim()}"`
-      : "sem descricao";
+      : "sem descrição";
 
     try {
       let clientId = formData.clientId;
@@ -591,7 +591,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
             : undefined,
       });
 
-      toast.success(`Lancamento ${transactionLabel} criado com sucesso.`, {
+      toast.success(`Lançamento ${transactionLabel} criado com sucesso.`, {
         title: "Sucesso ao criar",
       });
       router.push("/transactions");
@@ -600,7 +600,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
       const errorMessage =
         error instanceof Error && error.message.trim()
           ? error.message.trim()
-          : "Falha inesperada ao criar o lancamento.";
+          : "Falha inesperada ao criar o lançamento.";
       toast.error(
         `Não foi possível criar o lançamento ${transactionLabel}. Detalhes: ${errorMessage}`,
         { title: "Erro ao criar" },

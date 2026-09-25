@@ -145,7 +145,7 @@ export function NotificationBell() {
           variant="ghost"
           size="icon"
           className="relative"
-          title="Notificacoes"
+          title="Notificações"
         >
           <Bell className="w-5 h-5 transition-opacity opacity-100" />
           {!showLoadingState && unreadCount > 0 && (
@@ -161,7 +161,7 @@ export function NotificationBell() {
 
       <DropdownMenuContent align="end" className="w-[24rem] p-0">
         <div className="p-3 border-b space-y-2">
-          <h3 className="font-semibold">Notificacoes</h3>
+          <h3 className="font-semibold">Notificações</h3>
           {!showLoadingState && notifications.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               {unreadCount > 0 && (
@@ -217,7 +217,7 @@ export function NotificationBell() {
           ) : notifications.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              Nenhuma notificacao
+              Nenhuma notificação
             </div>
           ) : (
             notifications.map((notification) => {
@@ -294,7 +294,7 @@ export function NotificationBell() {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 mt-0.5"
-                    title="Remover notificacao"
+                    title="Remover notificação"
                     disabled={clearingIds.includes(notification.id)}
                     onClick={(event) => {
                       event.preventDefault();

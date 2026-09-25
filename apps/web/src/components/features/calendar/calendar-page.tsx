@@ -322,7 +322,7 @@ function GoogleCalendarCompanyCard(props: {
             </Button>
           ) : (
             <div className="rounded-[22px] border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-              Peca para um usuario master conectar a agenda da empresa.
+              Peça para um usuário master conectar a agenda da empresa.
             </div>
           )}
         </>
@@ -349,7 +349,7 @@ function UpcomingEventsCard(props: {
       <div className="calendar-panel-scrollbar mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
         {props.events.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-            Nenhum compromisso visivel neste recorte.
+            Nenhum compromisso visível neste recorte.
           </div>
         ) : (
           props.events.map((event) => (
@@ -724,7 +724,7 @@ export function CalendarPage() {
     try {
       await CalendarService.deleteEvent(activeEvent.id);
       removeEvent(activeEvent.id);
-      toast.success("Compromisso excluido.");
+      toast.success("Compromisso excluído.");
       setDialogOpen(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao excluir.");
@@ -736,7 +736,7 @@ export function CalendarPage() {
   async function handleGoogleConnect() {
     if (!GOOGLE_CALENDAR_SYNC_ENABLED) {
       toast.info(
-        "A integracao com Google Agenda esta temporariamente desabilitada.",
+        "A integração com Google Agenda está temporariamente desabilitada.",
       );
       return;
     }

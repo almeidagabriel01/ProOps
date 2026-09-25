@@ -99,7 +99,7 @@ export function useNotifications() {
         );
 
         toastableNotifications.forEach((notification) => {
-          toast.info(notification.title || "Nova notificacao", {
+          toast.info(notification.title || "Nova notificação", {
             position: "top-center",
             autoClose: 5000,
             hideProgressBar: false,

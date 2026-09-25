@@ -581,7 +581,7 @@ export default function ProposalsPage() {
         );
         setProposals(remainingProposals);
       }
-      toast.success(`Proposta ${proposalLabel} foi excluida com sucesso.`, {
+      toast.success(`Proposta ${proposalLabel} foi excluída com sucesso.`, {
         title: "Sucesso ao excluir",
       });
     } catch (error) {

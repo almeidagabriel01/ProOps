@@ -262,7 +262,7 @@ export function ProductPricingStep({
               active={isCurtainQuantityMode}
               icon={<Boxes className="h-5 w-5" />}
               title="Por quantidade"
-              description="Usa quantidade, preco unitario e markup, como um produto padrao."
+              description="Usa quantidade, preço unitário e markup, como um produto padrão."
               onClick={() => onPricingModeChange("standard")}
             />
             <PricingModeButton
@@ -547,10 +547,10 @@ export function ProductPricingStep({
       ) : isCurtainQuantityMode ? (
         <PricingSection
           title="Regra por quantidade"
-          description="Defina o preco bruto por unidade e o markup. A proposta usara a quantidade informada para o item."
+          description="Defina o preço bruto por unidade e o markup. A proposta usará a quantidade informada para o item."
           badge={
             <div className="rounded-xl bg-muted/40 px-4 py-3">
-              <div className="text-xs text-muted-foreground">Preco final</div>
+              <div className="text-xs text-muted-foreground">Preço final</div>
               <div className="mt-1 text-xl font-semibold text-foreground">
                 R$ {sellingPrice.toFixed(2)} / un
               </div>
@@ -560,7 +560,7 @@ export function ProductPricingStep({
           <div className="space-y-5">
             <FormGroup cols={3}>
               <FormItem
-                label="Preco bruto"
+                label="Preço bruto"
                 htmlFor="price"
                 required
                 error={errors.price}
@@ -615,7 +615,7 @@ export function ProductPricingStep({
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-                <div className="text-xs text-muted-foreground">Preco bruto</div>
+                <div className="text-xs text-muted-foreground">Preço bruto</div>
                 <div className="mt-1 font-semibold text-foreground">
                   R$ {basePrice.toFixed(2)}
                 </div>
@@ -627,7 +627,7 @@ export function ProductPricingStep({
                 </div>
               </div>
               <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                <div className="text-xs text-muted-foreground">Preco com markup</div>
+                <div className="text-xs text-muted-foreground">Preço com markup</div>
                 <div className="mt-1 font-semibold text-primary">
                   R$ {sellingPrice.toFixed(2)} / un
                 </div>

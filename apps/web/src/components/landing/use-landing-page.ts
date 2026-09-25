@@ -131,7 +131,7 @@ export function useLandingPage() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      toast.success("Voce saiu da sua conta.", {
+      toast.success("Você saiu da sua conta.", {
         title: "Logout realizado",
       });
     } catch {

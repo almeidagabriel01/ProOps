@@ -123,7 +123,7 @@ function createDefaultPaymentTermsSection(): PdfSection {
   return {
     id: crypto.randomUUID(),
     type: "payment-terms",
-    content: "Condicoes de Pagamento",
+    content: "Condições de Pagamento",
     columnWidth: 100,
     styles: {
       fontSize: "14px",
@@ -438,7 +438,7 @@ export function usePdfSectionEditor({
 
   const addSection = (type: PdfSection["type"]) => {
     if (type === "product-table") {
-      alert("Este bloco e fixo e ja existe na proposta.");
+      alert("Este bloco é fixo e já existe na proposta.");
       return;
     }
     if (type === "payment-terms") {

@@ -180,7 +180,7 @@ export function useProductActions() {
       }
 
       const productLabel = formatProductLabel(productName);
-      toast.success(`Produto ${productLabel} foi excluido com sucesso.`, {
+      toast.success(`Produto ${productLabel} foi excluído com sucesso.`, {
         title: "Sucesso ao excluir",
       });
       return true;
