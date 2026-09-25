@@ -162,39 +162,17 @@ export function useProductActions() {
     }
   };
 
-  const deleteProduct = async (
-    productId: string,
-    productName?: string,
-  ): Promise<boolean> => {
-    if (!productId) return false;
-
-    setIsLoading(true);
-    try {
-      await callApi<{ success: boolean; message: string }>(
-        `v1/products/${productId}`,
-        "DELETE",
-      );
-
-      if (tenant) {
-        ProductService.removeCachedProduct(tenant.id, productId);
-      }
-
-      const productLabel = formatProductLabel(productName);
-      toast.success(`Produto ${productLabel} foi excluído com sucesso.`, {
-        title: "Sucesso ao excluir",
-      });
-      return true;
-    } catch (error: unknown) {
-      console.error("Error deleting product:", error);
-      const productLabel = formatProductLabel(productName);
-      const message = getErrorMessage(error, "Falha ao excluir produto.");
-      toast.error(
-        `Não foi possível excluir o produto ${productLabel}. Detalhes: ${message}`,
-        { title: "Erro ao excluir" },
-      );
-      return false;
-    } finally {
-      setIsLoading(false);
+  /**
+   * Exclui no servidor e propaga o erro. Quem chama cuida do aviso: a tela de
+   * produtos mostra "Desfazer" e só grava depois da janela.
+   */
+  const deleteProduct = async (productId: string): Promise<void> => {
+    await callApi<{ success: boolean; message: string }>(
+      `v1/products/${productId}`,
+      "DELETE",
+    );
+    if (tenant) {
+      ProductService.removeCachedProduct(tenant.id, productId);
     }
   };
 

@@ -113,36 +113,15 @@ export function useServiceActions() {
     }
   };
 
-  const deleteService = async (
-    serviceId: string,
-    serviceName?: string,
-  ): Promise<boolean> => {
-    if (!serviceId) return false;
-
-    setIsLoading(true);
-    try {
-      await callApi<{ success: boolean; message: string }>(
-        `v1/services/${serviceId}`,
-        "DELETE",
-      );
-
-      const serviceLabel = formatServiceLabel(serviceName);
-      toast.success(`Serviço ${serviceLabel} foi excluído com sucesso.`, {
-        title: "Sucesso ao excluir",
-      });
-      return true;
-    } catch (error: unknown) {
-      console.error("Error deleting service:", error);
-      const serviceLabel = formatServiceLabel(serviceName);
-      const message = getErrorMessage(error, "Falha ao excluir serviço.");
-      toast.error(
-        `Não foi possível excluir o serviço ${serviceLabel}. Detalhes: ${message}`,
-        { title: "Erro ao excluir" },
-      );
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
+  /**
+   * Exclui no servidor e propaga o erro. Quem chama cuida do aviso: a tela de
+   * serviços mostra "Desfazer" e só grava depois da janela.
+   */
+  const deleteService = async (serviceId: string): Promise<void> => {
+    await callApi<{ success: boolean; message: string }>(
+      `v1/services/${serviceId}`,
+      "DELETE",
+    );
   };
 
   return {

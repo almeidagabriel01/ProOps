@@ -13,6 +13,7 @@ import {
   Wallet,
   TrendingUp,
 } from "lucide-react";
+import { runUndoableAction } from "@/lib/undoable-action";
 import { toast } from "@/lib/toast";
 import { ProductsTableSkeleton } from "./_components/products-table-skeleton";
 import { normalize } from "@/utils/text";
@@ -99,6 +100,7 @@ export default function ProductsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTableLoading, setIsTableLoading] = useState(true);
   const resetRef = useRef<(() => void) | null>(null);
+  const refreshRef = useRef<(() => void) | null>(null);
   const updateItemsRef = useRef<
     ((updater: (items: Product[]) => Product[]) => void) | null
   >(null);
@@ -288,25 +290,43 @@ export default function ProductsPage() {
         return;
       }
 
-      const success = await deleteProduct(deleteId, selectedProduct?.name);
-      if (success) {
-        const remainingProducts =
-          allProducts?.filter((p) => p.id !== deleteId) ?? null;
-        const hasRemainingProducts = await refreshHasAnyProducts();
-
-        if (!hasRemainingProducts) {
-          setAllProducts([]);
-        } else {
-          const removedId = deleteId;
-          updateItemsRef.current?.((items) =>
-            items.filter((p) => p.id !== removedId),
-          );
-          if (remainingProducts) {
-            setAllProducts(remainingProducts);
-          }
-        }
-      }
+      // A exclusão só vai ao servidor depois da janela de "Desfazer": o
+      // produto sai da lista agora, e desfazer é recarregar a lista.
+      const removedId = deleteId;
+      const previousProducts = allProducts;
+      updateItemsRef.current?.((items) =>
+        items.filter((p) => p.id !== removedId),
+      );
+      setAllProducts((prev) => prev?.filter((p) => p.id !== removedId) ?? prev);
       setDeleteId(null);
+
+      const restoreList = () => {
+        if (previousProducts) setAllProducts(previousProducts);
+        void refreshHasAnyProducts();
+        refreshRef.current?.();
+      };
+
+      runUndoableAction({
+        message: `Produto ${productLabel} excluído.`,
+        title: "Produto excluído",
+        commit: async () => {
+          await deleteProduct(removedId);
+          await refreshHasAnyProducts();
+        },
+        onUndo: restoreList,
+        onCommitError: (error) => {
+          console.error("Error deleting product:", error);
+          const message =
+            error instanceof Error && error.message.trim()
+              ? error.message.trim()
+              : "Falha ao excluir produto.";
+          toast.error(
+            `Não foi possível excluir o produto ${productLabel}. Detalhes: ${message}`,
+            { title: "Erro ao excluir" },
+          );
+          restoreList();
+        },
+      });
     } catch (error) {
       console.error("Error deleting product:", error);
     } finally {
@@ -458,8 +478,8 @@ export default function ProductsPage() {
           <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
           <AlertDialogDescription>
             Tem certeza que deseja excluir o produto{" "}
-            <strong>{productToDelete?.name}</strong>? Essa ação não pode ser
-            desfeita.
+            <strong>{productToDelete?.name}</strong>? Depois de excluir, você
+            tem alguns segundos para desfazer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -740,6 +760,7 @@ export default function ProductsPage() {
                 fetchPage={fetchPage}
                 fetchEnabled={!!tenant}
                 onResetRef={resetRef}
+                onRefreshRef={refreshRef}
                 onUpdateItemsRef={updateItemsRef}
                 batchSize={12}
                 minWidth="800px"

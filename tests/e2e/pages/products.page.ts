@@ -204,16 +204,23 @@ export class ProductsPage {
     const dialogTitle = this.page.getByText("Excluir Produto");
     await dialogTitle.waitFor({ state: "visible", timeout: 8000 });
 
+    // The DELETE only reaches the server after the "Desfazer" window (~6s):
+    // wait for it, otherwise the test ends with the product still stored.
+    const deleteRequest = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        /\/v1\/products\/[^/]+$/.test(new URL(response.url()).pathname),
+      { timeout: 20000 },
+    );
+
     const confirmButton = this.page.getByRole("button", { name: /^excluir$/i });
     await confirmButton.waitFor({ state: "visible", timeout: 5000 });
     await confirmButton.click();
 
-    // Wait for the product link to disappear from the list
+    // The product link leaves the list right away
     await this.page
       .getByRole("link", { name: productName })
-      .waitFor({ state: "hidden", timeout: 10000 })
-      .catch(() => {
-        // Acceptable: item may already be gone before waitFor resolves
-      });
+      .waitFor({ state: "hidden", timeout: 10000 });
+    await deleteRequest;
   }
 }

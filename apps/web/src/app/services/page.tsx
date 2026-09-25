@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Wrench } from "lucide-react";
+import { runUndoableAction } from "@/lib/undoable-action";
 import { toast } from "@/lib/toast";
 import { ServicesTableSkeleton } from "./_components/services-table-skeleton";
 import { normalize } from "@/utils/text";
@@ -47,6 +48,10 @@ export default function ServicesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTableLoading, setIsTableLoading] = useState(true);
   const resetRef = useRef<(() => void) | null>(null);
+  const refreshRef = useRef<(() => void) | null>(null);
+  const updateItemsRef = useRef<
+    ((updater: (items: Service[]) => Service[]) => void) | null
+  >(null);
 
   const isFiltering = searchTerm.trim() !== "";
 
@@ -154,22 +159,45 @@ export default function ServicesPage() {
         return;
       }
 
-      const success = await deleteService(deleteId, selectedService?.name);
-      if (success) {
-        const remainingServices =
-          allServices?.filter((service) => service.id !== deleteId) ?? null;
-        const hasRemainingServices = await refreshHasAnyServices();
-
-        if (!hasRemainingServices) {
-          setAllServices([]);
-        } else {
-          resetRef.current?.();
-          if (remainingServices) {
-            setAllServices(remainingServices);
-          }
-        }
-      }
+      // A exclusão só vai ao servidor depois da janela de "Desfazer": o
+      // serviço sai da lista agora, e desfazer é recarregar a lista.
+      const removedId = deleteId;
+      const previousServices = allServices;
+      updateItemsRef.current?.((items) =>
+        items.filter((service) => service.id !== removedId),
+      );
+      setAllServices(
+        (prev) => prev?.filter((service) => service.id !== removedId) ?? prev,
+      );
       setDeleteId(null);
+
+      const restoreList = () => {
+        if (previousServices) setAllServices(previousServices);
+        void refreshHasAnyServices();
+        refreshRef.current?.();
+      };
+
+      runUndoableAction({
+        message: `Serviço ${serviceLabel} excluído.`,
+        title: "Serviço excluído",
+        commit: async () => {
+          await deleteService(removedId);
+          await refreshHasAnyServices();
+        },
+        onUndo: restoreList,
+        onCommitError: (error) => {
+          console.error("Error deleting service:", error);
+          const message =
+            error instanceof Error && error.message.trim()
+              ? error.message.trim()
+              : "Falha ao excluir serviço.";
+          toast.error(
+            `Não foi possível excluir o serviço ${serviceLabel}. Detalhes: ${message}`,
+            { title: "Erro ao excluir" },
+          );
+          restoreList();
+        },
+      });
     } catch (error) {
       console.error("Error deleting service:", error);
     } finally {
@@ -299,7 +327,7 @@ export default function ServicesPage() {
           <AlertDialogDescription>
             {"Tem certeza que deseja excluir o serviço "}
             <strong>{serviceToDelete?.name}</strong>
-            {"? Essa ação não pode ser desfeita."}
+            {"? Depois de excluir, você tem alguns segundos para desfazer."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -420,6 +448,8 @@ export default function ServicesPage() {
                 sortConfig={sortConfig}
                 fetchEnabled={!!tenant}
                 onResetRef={resetRef}
+                onRefreshRef={refreshRef}
+                onUpdateItemsRef={updateItemsRef}
                 batchSize={12}
                 minWidth="800px"
                 loadingSkeleton={<ServicesTableSkeleton />}
