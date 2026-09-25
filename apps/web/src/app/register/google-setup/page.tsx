@@ -213,7 +213,7 @@ function GoogleSetupContent() {
           tenantId,
           companyId: tenantId,
           onboarding: {
-            version: "core-v1",
+            version: "core-v2",
             status: "active",
             completedStepIds: [],
             currentStepId: "dashboard",

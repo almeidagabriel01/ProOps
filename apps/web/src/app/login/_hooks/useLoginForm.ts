@@ -1311,7 +1311,7 @@ export function useLoginForm(): UseLoginFormReturn {
         companyId: tenantId,
         ...(phoneNumber.trim() ? { phoneNumber: phoneNumber.trim() } : {}),
         onboarding: {
-          version: "core-v1",
+          version: "core-v2",
           status: "active",
           completedStepIds: [],
           currentStepId: "dashboard",

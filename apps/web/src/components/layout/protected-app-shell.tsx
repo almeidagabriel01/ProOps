@@ -6,6 +6,7 @@ import { BottomDock } from "@/components/layout/bottom-dock";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { SubscriptionGuard } from "@/components/shared/subscription-guard";
 import { AppOnboarding } from "@/components/onboarding/app-onboarding";
+import { OnboardingProvider } from "@/components/onboarding/onboarding-provider";
 import { LiaContainer } from "@/components/lia/lia-container";
 import { BillingStateBanner } from "@/components/layout/billing-state-banner";
 import { PriceChangeBanner } from "@/components/billing/price-change-banner";
@@ -202,7 +203,9 @@ export function ProtectedAppShell({
 }) {
   return (
     <ScrollContainerProvider>
-      <ProtectedShell>{children}</ProtectedShell>
+      <OnboardingProvider>
+        <ProtectedShell>{children}</ProtectedShell>
+      </OnboardingProvider>
     </ScrollContainerProvider>
   );
 }
