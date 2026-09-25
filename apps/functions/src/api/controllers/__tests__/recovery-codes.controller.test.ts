@@ -43,6 +43,7 @@ const mockRunTransaction = jest.fn(
     fn: (tx: {
       get: (ref: { get: () => unknown }) => unknown;
       update: (ref: { __key: string }, value: Record<string, unknown>) => void;
+      set: (ref: { __key: string }, value: Record<string, unknown>) => void;
     }) => unknown,
   ) => {
     const tx = {
@@ -50,6 +51,9 @@ const mockRunTransaction = jest.fn(
       update: (ref: { __key: string }, value: Record<string, unknown>) => {
         const existing = docStore.get(ref.__key) ?? {};
         docStore.set(ref.__key, { ...existing, ...value });
+      },
+      set: (ref: { __key: string }, value: Record<string, unknown>) => {
+        docStore.set(ref.__key, value);
       },
     };
     return fn(tx);
@@ -95,6 +99,7 @@ jest.mock("firebase-admin/firestore", () => {
         const ms = (nowCounter += 1000);
         return { toDate: () => new Date(ms), __ts: ms };
       },
+      fromMillis: (ms: number) => ({ toMillis: () => ms, __ts: ms }),
     },
   };
 });
@@ -112,7 +117,7 @@ import { hashRecoveryCode } from "../../../lib/mfa-recovery-codes";
 
 function makeReq(
   body: unknown,
-  user: { uid: string; tenantId: string },
+  user: { uid: string; tenantId: string; authTime?: number },
 ): Request {
   return {
     body,
@@ -129,7 +134,7 @@ function makeRes(): { res: Response; json: jest.Mock; status: jest.Mock } {
   return { res, json, status };
 }
 
-const USER = { uid: "user-1", tenantId: "tenant-1" };
+const USER = { uid: "user-1", tenantId: "tenant-1", authTime: 1_700_000_000 };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -255,6 +260,23 @@ describe("verifyRecoveryCodeHandler", () => {
     expect(mockWriteAudit).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: "recovery_code_used", uid: "user-1" }),
     );
+    // O código satisfaz o 2FA deste login: a marca entra na mesma transação.
+    expect(docStore.get("mfa_sessions/user-1_1700000000")).toMatchObject({
+      uid: "user-1",
+      method: "recovery_code",
+    });
+  });
+
+  it("does NOT mark the session when the code is invalid", async () => {
+    docStore.delete("mfa_sessions/user-1_1700000000");
+    docStore.set("mfaRecoveryCodes/user-1", {
+      uid: "user-1",
+      codes: [{ hash: hashRecoveryCode("aaaa-bbbb"), usedAt: null }],
+      generatedAt: { toDate: () => new Date() },
+    });
+    const { res } = makeRes();
+    await verifyRecoveryCodeHandler(makeReq({ code: "zzzz-zzzz" }, USER), res);
+    expect(docStore.get("mfa_sessions/user-1_1700000000")).toBeUndefined();
   });
 
   it("rejects an invalid code with 400", async () => {

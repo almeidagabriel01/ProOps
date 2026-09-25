@@ -12,6 +12,10 @@ import {
   verifyRecoveryCode,
   type HashedRecoveryCode,
 } from "../../lib/mfa-recovery-codes";
+import {
+  buildMfaSessionWrite,
+  rememberVerifiedMfaSession,
+} from "../../lib/whatsapp-mfa-session";
 
 const RECOVERY_CODES_COLLECTION = "mfaRecoveryCodes";
 const RECOVERY_CODE_COUNT = 10;
@@ -193,6 +197,10 @@ export const verifyRecoveryCodeHandler = async (
     }
 
     const codeRef = db.collection(RECOVERY_CODES_COLLECTION).doc(uid);
+    // O código de recuperação satisfaz o 2FA deste login: a marca de sessão
+    // entra na MESMA transação que consome o código, para um nunca existir sem
+    // o outro (ver lib/whatsapp-mfa-session.ts).
+    const mfaSession = buildMfaSessionWrite(uid, req.user!.authTime, "recovery_code");
 
     const result = await db.runTransaction(async (tx) => {
       const snap = await tx.get(codeRef);
@@ -214,6 +222,7 @@ export const verifyRecoveryCodeHandler = async (
         i === match.index ? { ...c, usedAt: Timestamp.now() } : c,
       );
       tx.update(codeRef, { codes: updatedCodes });
+      tx.set(mfaSession.ref, mfaSession.data);
 
       return { verified: true as const, remaining: countRemaining(updatedCodes) };
     });
@@ -223,6 +232,8 @@ export const verifyRecoveryCodeHandler = async (
         .status(400)
         .json({ verified: false, message: "Código de recuperação inválido." });
     }
+
+    rememberVerifiedMfaSession(mfaSession.id);
 
     void writeSecurityAuditEvent({
       eventType: "recovery_code_used",

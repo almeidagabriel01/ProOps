@@ -71,12 +71,15 @@ export const PUBLIC_ROUTES = [
 export const BILLING_ALLOWED_ROUTES = ["/subscription-blocked"] as const;
 
 /** Static assets and API routes the proxy skips entirely. */
+// Pastas terminam em "/": um prefixo solto como "/logo" tiraria do gate uma
+// rota futura `/logout` ou `/logos`. `/_next` fica solto de propósito (cobre
+// `/_next/static`, `/_next/data`, `/_next/image`...).
 export const SKIP_PATTERNS = [
   "/_next",
   "/favicon.ico",
-  "/public",
-  "/hero",
-  "/logo",
+  "/public/",
+  "/hero/",
+  "/logo/",
   "/api/", // Let API routes handle their own auth
 ] as const;
 

@@ -116,7 +116,8 @@ describe("createRateLimiter", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("keys by ip:uid:tenant by default", async () => {
+  // Com o IP na chave, quem variava o IP ganhava um balde novo por pedido.
+  it("keys authenticated requests by uid:tenant, without the IP", async () => {
     consumeMock.mockResolvedValue(decision(true));
     const limiter = createRateLimiter({ maxRequests: 2, keyPrefix: "px" });
     const req = makeReq({
@@ -125,16 +126,17 @@ describe("createRateLimiter", () => {
 
     await limiter(req, makeRes().res, jest.fn());
 
-    expect(consumeMock).toHaveBeenCalledWith("px:1.2.3.4:u1:t1", 2, 60_000);
+    expect(consumeMock).toHaveBeenCalledWith("px:uid:u1:t1", 2, 60_000);
   });
 });
 
 describe("helpers", () => {
-  it("getClientIp prefers first x-forwarded-for entry", () => {
+  // O primeiro valor é de quem chama; o Google acrescenta o IP real no fim.
+  it("getClientIp uses the last x-forwarded-for entry (the one Google appends)", () => {
     const req = makeReq({
       headers: { "x-forwarded-for": "9.9.9.9, 8.8.8.8" },
     } as unknown as Partial<Request>);
-    expect(getClientIp(req)).toBe("9.9.9.9");
+    expect(getClientIp(req)).toBe("8.8.8.8");
   });
 
   it("buildRateLimitIdentity handles anonymous requests", () => {

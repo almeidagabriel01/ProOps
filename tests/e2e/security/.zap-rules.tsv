@@ -3,4 +3,4 @@
 10049	IGNORE	(Non-Storable Content / Storable and Cacheable Content — comportamento intencional do cache do Next.js, páginas estáticas são cacheáveis by design)
 10094	IGNORE	(Base64 Disclosure)
 10109	IGNORE	(Modern Web Application)
-10055	IGNORE	(CSP: Wildcard Directive / script-src unsafe-inline / style-src unsafe-inline — unsafe-inline necessário para Next.js hydration e styled-jsx, wildcards https: necessários para Firebase Auth, Vercel, Google APIs e fontes externas. Mitigado por sanitização de input na origem e React auto-escaping)
+10055	IGNORE	(CSP: Wildcard Directive / script-src unsafe-inline / style-src unsafe-inline — unsafe-inline necessário para Next.js hydration e styled-jsx, script-src sem wildcard desde 2026-09 (lista em apps/web/src/lib/security/script-src.ts); os https: que restam são de img/font/style/connect. Mitigado por sanitização de input na origem e React auto-escaping)

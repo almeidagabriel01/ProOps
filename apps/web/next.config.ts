@@ -1,17 +1,16 @@
 import path from "path";
 import type { NextConfig } from "next";
 import { APP_LANDING_REWRITE_HEADER, APP_ROOT, hostnameDe } from "./src/lib/site/surfaces";
+import { buildScriptSrc } from "./src/lib/security/script-src";
 
 const isDevelopment = process.env.NODE_ENV !== "production";
-const scriptSrc = isDevelopment
-  ? "'self' 'unsafe-inline' 'unsafe-eval' https:"
-  : "'self' 'unsafe-inline' https:";
+const scriptSrc = buildScriptSrc(isDevelopment);
 const firebaseAuthDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 const firebaseAuthFrameSrc = firebaseAuthDomain
   ? ` https://${firebaseAuthDomain}`
   : "";
 
-const contentSecurityPolicy = `default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'self' https://vercel.live https://*.vercel.app${firebaseAuthFrameSrc} https://*.firebaseapp.com https://accounts.google.com https://*.google.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com; img-src 'self' data: blob: https:; media-src 'self' https:; font-src 'self' data: https:; connect-src 'self' https: wss:${isDevelopment ? " http://127.0.0.1:* http://localhost:*" : ""}; style-src 'self' 'unsafe-inline' https:; script-src ${scriptSrc};${isDevelopment ? "" : " upgrade-insecure-requests;"}`;
+const contentSecurityPolicy = `default-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'self' https://vercel.live https://*.vercel.app${firebaseAuthFrameSrc} https://*.firebaseapp.com https://accounts.google.com https://*.google.com https://*.mercadopago.com https://*.mercadopago.com.br https://*.mercadolibre.com https://challenges.cloudflare.com; img-src 'self' data: blob: https:; media-src 'self' https:; font-src 'self' data: https:; connect-src 'self' https: wss:${isDevelopment ? " http://127.0.0.1:* http://localhost:*" : ""}; style-src 'self' 'unsafe-inline' https:; script-src ${scriptSrc};${isDevelopment ? "" : " upgrade-insecure-requests;"}`;
 
 const commonSecurityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },

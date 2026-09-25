@@ -2,6 +2,11 @@ import { Request } from "express";
 import type { DecodedIdToken, UserRecord } from "firebase-admin/auth";
 import { auth, db } from "../init";
 import { assertTokenNotRevoked } from "./token-revocation";
+import {
+  isMfaSessionVerified,
+  isWhatsappMfaPending,
+  userHasWhatsappMfa,
+} from "./whatsapp-mfa-session";
 
 const SESSION_COOKIE_NAME = "__session";
 const LEGACY_COOKIE_NAME = "firebase-auth-token";
@@ -148,6 +153,17 @@ export interface AuthContext {
   tokenSource: TokenSource;
   mfaVerified: boolean;
   mfaRequired: boolean;
+  /**
+   * `auth_time` do token (segundos): identifica o login e sobrevive à
+   * renovação do token. Chave da sessão verificada do 2FA do WhatsApp.
+   */
+  authTime?: number;
+  /**
+   * O usuário tem 2FA por WhatsApp e ESTE login ainda não passou pelo código.
+   * O middleware barra a API inteira, fora as rotas da própria tela de login
+   * (ver lib/whatsapp-mfa-session.ts).
+   */
+  whatsappMfaPending?: boolean;
   superAdminRoleClaimed: boolean;
   superAdminAllowlisted: boolean;
   /**
@@ -406,6 +422,30 @@ async function resolveAuthContextFromDecodedToken(
     throw new Error("FORBIDDEN_SUPERADMIN_NOT_ALLOWLISTED");
   }
 
+  const authTime =
+    typeof decodedIdToken.auth_time === "number" ? decodedIdToken.auth_time : undefined;
+  const userDocData = userSnap.exists
+    ? ((userSnap.data() as Record<string, unknown>) ?? undefined)
+    : undefined;
+  const developerClaims = decodedIdToken as unknown as Record<string, unknown>;
+  const gateInput = {
+    whatsappMfaEnabled: userHasWhatsappMfa(userDocData),
+    isSuperAdmin: invariantResult.isSuperAdmin,
+    nativeSecondFactor: mfaVerified,
+    recoveryLogin: developerClaims.recovery_login === true,
+    whatsappLogin: developerClaims.whatsapp_login === true,
+    sessionVerified: false,
+  };
+  // A leitura de `mfa_sessions` só acontece para quem tem o WhatsApp ativo e
+  // não satisfez o 2FA por outro caminho: o caminho quente não paga nada.
+  let whatsappMfaPending = isWhatsappMfaPending(gateInput);
+  if (whatsappMfaPending) {
+    whatsappMfaPending = isWhatsappMfaPending({
+      ...gateInput,
+      sessionVerified: await isMfaSessionVerified(decodedIdToken.uid, authTime),
+    });
+  }
+
   return {
     uid: decodedIdToken.uid,
     email: resolvedEmail,
@@ -423,6 +463,8 @@ async function resolveAuthContextFromDecodedToken(
     tokenSource,
     mfaVerified: invariantResult.mfaVerified,
     mfaRequired: invariantResult.mfaRequired,
+    authTime,
+    whatsappMfaPending,
     superAdminRoleClaimed: invariantResult.superAdminRoleClaimed,
     superAdminAllowlisted: invariantResult.superAdminAllowlisted,
   };

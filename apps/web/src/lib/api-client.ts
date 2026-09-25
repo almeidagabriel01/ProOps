@@ -4,6 +4,10 @@ import { reportClientError } from "@/lib/observability/client-error-reporter";
 import { isDemoBlockedMutation } from "@/lib/demo-mode";
 import { toast } from "@/lib/toast";
 import { buildImpersonationHeaders } from "@/lib/viewing-tenant-session";
+import {
+  forceWhatsappMfaReauth,
+  isWhatsappMfaRequiredError,
+} from "@/lib/auth/whatsapp-mfa-reauth";
 
 const OBSERVABILITY_PREFIX = "/v1/observability";
 
@@ -153,6 +157,12 @@ export const callApi = async <T = unknown>(
         console.error(
           `[timeout] ${method} ${path} | teto=${errorData?.timeoutMs ?? "?"}ms | etapas=${phases}`,
         );
+      }
+
+      // Login com 2FA do WhatsApp que ainda não passou pelo código: entrar de
+      // novo é a única saída, e o login pede o código.
+      if (isWhatsappMfaRequiredError(errorData)) {
+        void forceWhatsappMfaReauth(auth);
       }
 
       if (errorData?.code === "IMPERSONATION_READ_ONLY") {

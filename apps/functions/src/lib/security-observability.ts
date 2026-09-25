@@ -23,7 +23,8 @@ export type SecurityCounterName =
   | "super_admin_tenant_write"
   | "super_admin_destructive_op"
   | "super_admin_not_allowlisted"
-  | "super_admin_mfa_required";
+  | "super_admin_mfa_required"
+  | "whatsapp_mfa_required";
 
 type SecurityLogLevel = "INFO" | "WARN" | "ERROR";
 
@@ -65,6 +66,7 @@ const KNOWN_COUNTERS = new Set<SecurityCounterName>([
   "super_admin_destructive_op",
   "super_admin_not_allowlisted",
   "super_admin_mfa_required",
+  "whatsapp_mfa_required",
 ]);
 
 const DEFAULT_AUDIT_COLLECTION = "security_audit_events";

@@ -48,6 +48,7 @@ import { invalidateBillingCache } from "../api/middleware/require-active-subscri
 import type { SyncTenantPlanBillingSnapshotParams } from "../shared/billing-types";
 import { isKnownAddonId } from "../shared/addon-definitions";
 import { notifyInternalLifecycle } from "../services/email/internal-notify";
+import { resolveClientIp } from "../lib/client-ip";
 
 const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
 const WEBHOOK_RATE_LIMIT_MAX_REQUESTS = 240;
@@ -356,14 +357,7 @@ export async function syncTenantPlanBillingSnapshot(
 }
 
 function getWebhookClientIp(req: any): string {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return forwardedFor.split(",")[0].trim();
-  }
-  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
-    return String(forwardedFor[0] || "").trim();
-  }
-  return req.ip || "unknown";
+  return resolveClientIp(req);
 }
 
 function isWebhookRateLimited(req: any, res: any): boolean {

@@ -46,6 +46,33 @@ Funcao principal. Fluxo:
 6. Detecta `tenantMismatch` (claim vs. doc divergem) → lanca `FORBIDDEN_TENANT_MISMATCH`
 7. Se `requireStrictClaims: true` e claims incompletas → lanca erro de claims
 
+### 2FA do WhatsApp (`whatsapp-mfa-session.ts`)
+
+O TOTP nativo mora no proprio token (`firebase.sign_in_second_factor`); o
+WhatsApp e nosso, entao a prova mora do nosso lado. **Ate 2026-09 ele so era
+conferido ao criar o cookie do site**: com a senha se obtinha um ID token pela
+API publica do Firebase, e a API e as rules o aceitavam sem o segundo fator
+(inclusive `/whatsapp-mfa/disable` e `/recovery-codes/generate`).
+
+- Codigo do WhatsApp aceito, codigo de recuperacao aceito ou numero recem
+  cadastrado gravam `mfa_sessions/{uid}_{auth_time}`. `auth_time` identifica o
+  LOGIN e sobrevive a renovacao do token; outro login com a mesma senha tem outro
+  `auth_time` e nao herda a marca.
+- `resolveAuthContextFromDecodedToken` publica `authTime` e `whatsappMfaPending`.
+  A leitura da marca so acontece para quem tem o WhatsApp ativo (flag **e**
+  telefone, como o challenge) e nao satisfez por TOTP, `recovery_login` ou
+  `whatsapp_login`: o caminho quente nao paga nada.
+- `validateFirebaseIdToken` responde 403 `WHATSAPP_MFA_REQUIRED`, com excecao
+  SO de `challenge`, `verify` e `recovery-codes/verify`, que a tela de login usa
+  antes do codigo. O front desloga e manda para o login
+  (`apps/web/src/lib/auth/whatsapp-mfa-reauth.ts`).
+- As rules aplicam a mesma regra dentro de `belongsToTenant`
+  (`whatsappMfaSatisfied`). **Mudou a regra num lado, mude no outro.**
+- A marca e gravada ANTES de apagar o desafio (e antes de ligar a flag no
+  cadastro): se a gravacao falhar, o mesmo codigo ainda vale para tentar de novo.
+- O `challenge` nao manda codigo novo para um login ja verificado: re-emitir o
+  cookie do site dentro do mesmo login nao pede o codigo outra vez.
+
 ### `evaluateAuthContextInvariants(input)` (pura, testavel)
 
 Funcao pura que avalia o conjunto de invariantes de autenticacao:

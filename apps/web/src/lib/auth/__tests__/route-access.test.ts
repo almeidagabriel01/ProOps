@@ -98,5 +98,14 @@ describe("route-access", () => {
       expect(shouldSkipRoute("/dashboard")).toBe(false);
       expect(shouldSkipRoute("/agendar")).toBe(false);
     });
+    it("skips asset folders by segment, not by loose prefix", () => {
+      expect(shouldSkipRoute("/logo/proops.svg")).toBe(true);
+      expect(shouldSkipRoute("/hero/cena.webp")).toBe(true);
+      // Regressão: "/logo" casava `/logout` e tirava a rota do gate de sessão.
+      expect(shouldSkipRoute("/logout")).toBe(false);
+      expect(shouldSkipRoute("/logos")).toBe(false);
+      expect(shouldSkipRoute("/heroes")).toBe(false);
+      expect(shouldSkipRoute("/publicacoes")).toBe(false);
+    });
   });
 });

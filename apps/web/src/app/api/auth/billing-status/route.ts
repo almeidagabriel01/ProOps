@@ -111,7 +111,9 @@ export async function GET(req: NextRequest) {
   } catch (error: unknown) {
     const code = (error as { code?: string })?.code;
 
-    if (code === "auth/session-cookie-revoked") {
+    // Conta desativada é sessão encerrada, não assinatura bloqueada: o destino
+    // certo é o login, não a tela de "assinatura bloqueada".
+    if (code === "auth/session-cookie-revoked" || code === "auth/user-disabled") {
       return NextResponse.json({
         allowed: false,
         status: "revoked",

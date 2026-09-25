@@ -289,6 +289,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `tenant_storage_usage/{tenantId}` | Plano | Armazenamento em uso (`storageBytes`) e `overQuota`, lido pela storage.rules. Subcolecao `events` = dedup de evento do Storage (`expiresAt` para TTL). Tenant le; escrita so Admin SDK |
 | `tenant_purge_jobs/{tenantId}` | Admin | Job de exclusao definitiva de empresa. Escrita so pelo backend; superadmin com MFA le o progresso |
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
+| `mfa_sessions/{uid}_{auth_time}` | Auth (2FA WhatsApp) | Login que passou pelo codigo do WhatsApp (ou por codigo de recuperacao). Exigido pela API e pelas rules de quem tem o WhatsApp ativo (`lib/whatsapp-mfa-session.ts`). `expiresAt` Timestamp, 30 dias. Admin SDK only |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |

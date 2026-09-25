@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { createRateLimitStore } from "../../lib/rate-limit/factory";
+import { resolveClientIp } from "../../lib/client-ip";
 
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 120;
@@ -7,12 +8,7 @@ const MAX_REQUESTS_PER_WINDOW = 120;
 const store = createRateLimitStore();
 
 function deriveKey(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  const rawIp =
-    (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() ||
-    req.ip ||
-    req.socket?.remoteAddress ||
-    "unknown";
+  const rawIp = resolveClientIp(req);
   return `payment_status_ip:${rawIp}`;
 }
 

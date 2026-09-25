@@ -3,6 +3,7 @@ import {
   derivePdfUpstream,
   resolveFunctionsApiUpstream,
 } from "@/lib/server-api-upstream";
+import { applyClientIpForwarding } from "@/lib/forward-client-ip";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const PDF_TIMEOUT_MS = 80_000;
@@ -131,6 +132,7 @@ function buildForwardHeaders(req: NextRequest, requestId: string): Headers {
   if (forwardedHost) headers.set("x-forwarded-host", forwardedHost);
   if (forwardedProto) headers.set("x-forwarded-proto", forwardedProto);
   headers.set("x-request-id", requestId);
+  applyClientIpForwarding(req.headers, headers);
 
   return headers;
 }
@@ -158,6 +160,11 @@ async function proxyRequest(
   const startedAt = Date.now();
   const requestId = getRequestId(req);
   const { path } = await context.params;
+  // `encodeURIComponent("..")` é `..`, e o `new URL` do upstream o resolveria,
+  // tirando o caminho de `/api` para outra função do mesmo host.
+  if (path.some((segment) => segment === "." || segment === "..")) {
+    return NextResponse.json({ error: "Invalid path" }, { status: 400 });
+  }
   const upstream = resolveFunctionsApiUpstream(req);
   const upstreamUrl = buildUpstreamUrl(req, path);
   warnIfLocalHostUsesRemoteUpstream(req, upstream);
