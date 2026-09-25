@@ -280,6 +280,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |
 | `wallets/{walletId}` | Financeiro | Carteiras com saldo desnormalizado |
+| `transaction_group_sync/{groupDocId}` | Financeiro | `readTime` em que cada resumo de `transaction_groups` se baseou; ordena e coalesce os recalculos do `onTransactionTotals`. Admin SDK only |
 | `sharedProposals/{token}` | Share Links | Links publicos de propostas |
 | `sharedTransactions/{token}` | Share Links | Links publicos de lancamentos |
 | `fiscal_settings/{tenantId}` | Fiscal | Config do emitente (CNPJ, IE/IM, regime, serie/numeracao, senha do certificado cifrada em KMS). Admin SDK only |
