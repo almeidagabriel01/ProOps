@@ -45,6 +45,7 @@ import {
   daysSinceLastSeen,
 } from "@/lib/last-seen-format";
 import { Loader } from "@/components/ui/loader";
+import { useThemeAdjustedColor } from "@/hooks/useThemeAdjustedColor";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface TenantCardProps {
@@ -112,9 +113,13 @@ export function TenantCard({
     return "";
   }
 
+  // A faixa usa a cor de cada empresa, ajustada ao tema do painel: preto no
+  // escuro e branco no claro sumiriam contra o fundo.
+  const brandTopColor = useThemeAdjustedColor(tenant.primaryColor);
+
   function cardBorderTopColor() {
     if (isPastDue || isCancelingAtPeriodEnd || isCanceled || isInactive) return undefined;
-    return tenant.primaryColor;
+    return tenant.primaryColor ? brandTopColor : undefined;
   }
 
   // Controlled dialog state

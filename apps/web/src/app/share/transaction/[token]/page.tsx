@@ -263,8 +263,8 @@ export default function SharedTransactionPage() {
                       borderColor: tenant.primaryColor,
                     }
                   : {
-                      backgroundColor: "hsl(var(--primary))",
-                      color: "hsl(var(--primary-foreground))",
+                      backgroundColor: "var(--primary)",
+                      color: "var(--primary-foreground)",
                     }
               }
               onClick={handleDownloadPdf}
@@ -295,12 +295,12 @@ export default function SharedTransactionPage() {
               tenant?.primaryColor
                 ? {
                     backgroundColor: tenant.primaryColor,
-                    color: "#ffffff",
+                    color: computePrimaryForeground(tenant.primaryColor),
                     borderColor: tenant.primaryColor,
                   }
                 : {
-                    backgroundColor: "hsl(var(--primary))",
-                    color: "hsl(var(--primary-foreground))",
+                    backgroundColor: "var(--primary)",
+                    color: "var(--primary-foreground)",
                   }
             }
             onClick={handleDownloadPdf}

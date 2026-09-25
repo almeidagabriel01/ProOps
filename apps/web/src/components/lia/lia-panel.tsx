@@ -3,7 +3,8 @@
 import { ArrowLeft, History, Plus, Volume2, VolumeX, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useTenant } from "@/providers/tenant-provider";
+import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
+import { computePrimaryForeground } from "@/utils/color-utils";
 import { cn } from "@/lib/utils";
 
 interface LiaPanelProps {
@@ -38,9 +39,7 @@ export function LiaPanel({
   historyView,
   inputBar,
 }: LiaPanelProps) {
-  const { tenant } = useTenant();
-
-  const avatarColor = tenant?.primaryColor ?? "hsl(var(--primary))";
+  const avatarColor = useThemePrimaryColor();
   const isHistory = view === "history";
 
   return (
@@ -81,8 +80,11 @@ export function LiaPanel({
             {/* Chat view: avatar + title */}
             <Avatar className="w-8 h-8 shrink-0">
               <AvatarFallback
-                style={{ backgroundColor: avatarColor }}
-                className="text-white text-xs font-semibold"
+                style={{
+                  backgroundColor: avatarColor,
+                  color: computePrimaryForeground(avatarColor),
+                }}
+                className="text-xs font-semibold"
               >
                 LI
               </AvatarFallback>

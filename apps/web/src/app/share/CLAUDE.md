@@ -97,7 +97,7 @@ if (isPrintMode) {
 A página de proposta injeta CSS com `@media print` que oculta elementos `[data-pdf-ui]` (cabeçalho, controles de zoom). Não remova o atributo `data-pdf-ui` dos elementos de UI.
 
 ### Branding do tenant
-O cabeçalho usa `tenant.primaryColor` para estilizar o botão de download via inline style. Se `primaryColor` for `null` ou `undefined`, cai no CSS variable `hsl(var(--primary))`.
+O cabeçalho usa `tenant.primaryColor` como fundo do botão de download via inline style, com o texto por `computePrimaryForeground(cor)` (nunca branco fixo: empresa de cor branca some). Se `primaryColor` for `null` ou `undefined`, cai em `var(--primary)` / `var(--primary-foreground)`. Texto ou borda na cor da marca direto sobre o fundo da página (boleto, PIX) passa por `useThemeAdjustedColor`. Guard: `src/__tests__/tenant-color-contrast.test.ts`.
 
 ### Zoom responsivo
 Mobile: calcula escala automática `(window.innerWidth - 32) / 794` para caber o A4 na tela. ResizeObserver ajusta `marginBottom` para corrigir o espaço deixado pelo `transform: scale()`.

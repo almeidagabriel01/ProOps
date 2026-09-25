@@ -168,6 +168,25 @@ export function hexToRgba(hex: string, opacity: number): string {
 }
 
 /**
+ * Normalize a hex color to `#rrggbb` (lowercase), expanding the 3-digit form.
+ * Returns null when the input is not a valid hex color. The contrast helpers
+ * and the `${color}15` alpha-suffix pattern only work with 6 digits.
+ */
+export function normalizeHex(input: string | null | undefined): string | null {
+  const v = String(input || "").trim();
+  const match = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(v);
+  if (!match) return null;
+  const digits =
+    match[1].length === 3
+      ? match[1]
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : match[1];
+  return `#${digits.toLowerCase()}`;
+}
+
+/**
  * Check if a color is valid hex
  */
 export function isValidHex(hex: string): boolean {

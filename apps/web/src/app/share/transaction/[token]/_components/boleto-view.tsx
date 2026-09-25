@@ -4,6 +4,7 @@ import * as React from "react";
 import { toast } from "@/lib/toast";
 import { Copy, CheckCheck, ExternalLink, FileText, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useThemeAdjustedColor } from "@/hooks/useThemeAdjustedColor";
 
 interface BoletoViewProps {
   barcodeContent: string;
@@ -32,6 +33,8 @@ export function BoletoView({
   primaryColor,
 }: BoletoViewProps) {
   const [copied, setCopied] = React.useState(false);
+  // Texto e borda sobre o fundo da página: ajustados ao tema.
+  const readableColor = useThemeAdjustedColor(primaryColor);
 
   const handleCopy = async () => {
     try {
@@ -96,7 +99,7 @@ export function BoletoView({
           variant="outline"
           className="w-full"
           onClick={() => window.open(boletoUrl, "_blank", "noopener,noreferrer")}
-          style={primaryColor ? { borderColor: primaryColor, color: primaryColor } : undefined}
+          style={primaryColor ? { borderColor: readableColor, color: readableColor } : undefined}
         >
           <ExternalLink className="mr-2 h-4 w-4" aria-hidden="true" />
           Abrir PDF do boleto

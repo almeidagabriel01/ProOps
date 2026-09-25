@@ -30,6 +30,7 @@ import {
   ensureDarkModeContrast,
   ensureLightModeContrast,
   computePrimaryForeground,
+  normalizeHex,
 } from "@/utils/color-utils";
 
 // Fixed id of the shared read-only demo dataset a free account browses.
@@ -98,11 +99,7 @@ const TenantContext = React.createContext<TenantContextType>({
 });
 
 function resolveSafeTenantColor(input: unknown): string {
-  const normalized = String(input || "").trim();
-  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized)) {
-    return normalized;
-  }
-  return "#3b82f6";
+  return normalizeHex(typeof input === "string" ? input : null) ?? "#3b82f6";
 }
 
 function normalizePlanId(input?: string): string | undefined {

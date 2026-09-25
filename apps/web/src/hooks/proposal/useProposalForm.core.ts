@@ -12,6 +12,7 @@ import { Service } from "@/services/service-service";
 import { ProposalTemplate } from "@/types";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { useClientActions } from "@/hooks/useClientActions";
 import { ProposalSistema } from "@/types/automation";
 import { prepareCreatePayload } from "./submit-helpers";
@@ -94,7 +95,9 @@ export function useProposalFormCore({
     new Set(),
   );
 
-  const primaryColor = tenant?.primaryColor || "#2563eb";
+  // Cor de tela, ajustada ao tema: a crua some no fundo quando a empresa
+  // escolhe preto (tema escuro) ou branco (tema claro).
+  const primaryColor = useThemePrimaryColor();
   const proposalWorkflow = getNicheConfig(tenant?.niche).proposal.workflow;
   const isAutomacaoNiche = tenant !== null && proposalWorkflow === "automation";
   const isEnvironmentProposal =

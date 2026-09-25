@@ -20,6 +20,7 @@ import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/utils/format";
 import { Loader } from "@/components/ui/loader";
+import { computePrimaryForeground } from "@/utils/color-utils";
 
 interface AddonCardProps {
   addon: AddonDefinition;
@@ -86,9 +87,12 @@ export function AddonCard({
     >
       {(isPurchased || isIncluded) && (
         <div
-          className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white`}
+          className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium`}
           style={{
             backgroundColor: isScheduledCancel ? "#ef4444" : primaryColor,
+            color: isScheduledCancel
+              ? "#ffffff"
+              : computePrimaryForeground(primaryColor),
           }}
         >
           {isScheduledCancel ? (
