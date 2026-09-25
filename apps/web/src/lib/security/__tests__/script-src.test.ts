@@ -27,3 +27,19 @@ describe("buildScriptSrc", () => {
     expect(buildScriptSrc(true)).toContain("'unsafe-eval'");
   });
 });
+
+describe("frame-src", () => {
+  // Regressão: o Turnstile do cadastro desenha um iframe de
+  // challenges.cloudflare.com, e o frame-src não o listava: o script
+  // carregava e o widget era bloqueado pela própria CSP.
+  it("libera o iframe do Turnstile", async () => {
+    const { default: nextConfig } = await import("../../../../next.config");
+    const rules = (await nextConfig.headers?.()) ?? [];
+    const csp = rules
+      .flatMap((rule) => rule.headers)
+      .find((header) => header.key === "Content-Security-Policy")?.value;
+    const frameSrc = csp?.split(";").find((d) => d.trim().startsWith("frame-src"));
+    expect(frameSrc).toContain("https://challenges.cloudflare.com");
+  });
+});
+
