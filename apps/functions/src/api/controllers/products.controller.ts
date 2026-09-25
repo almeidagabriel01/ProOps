@@ -212,15 +212,24 @@ export const createProduct = async (req: Request, res: Response) => {
     // Teto de produtos pelo plano do TENANT. Antes so bloqueava se o doc do
     // usuario tivesse `subscription.limits.maxProducts`, campo que nenhum
     // caminho grava: na pratica o limite existia so na tela.
-    const productsDecision = await enforceTenantPlanLimit({
-      tenantId: targetTenantId,
-      feature: "maxProducts",
-      currentUsage: await getTenantProductsUsage(targetTenantId),
-      uid: userId,
-      requestId: req.requestId,
-      route: req.path,
-      isSuperAdmin,
-    });
+    // As duas checagens de plano são independentes: correm juntas, e a
+    // contagem de produtos só roda quando o plano tem teto.
+    const [productsDecision, imagesCheck] = await Promise.all([
+      enforceTenantPlanLimit({
+        tenantId: targetTenantId,
+        feature: "maxProducts",
+        loadCurrentUsage: () => getTenantProductsUsage(targetTenantId),
+        uid: userId,
+        requestId: req.requestId,
+        route: req.path,
+        isSuperAdmin,
+      }),
+      checkImagesWithinPlan({
+        tenantId: targetTenantId,
+        requested: (input.images || []).length,
+        isSuperAdmin,
+      }),
+    ]);
     if (!productsDecision.allowed) {
       return res.status(productsDecision.statusCode || 402).json({
         message:
@@ -229,11 +238,6 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     }
 
-    const imagesCheck = await checkImagesWithinPlan({
-      tenantId: targetTenantId,
-      requested: (input.images || []).length,
-      isSuperAdmin,
-    });
     if (!imagesCheck.allowed) {
       return res
         .status(402)

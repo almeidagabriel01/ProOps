@@ -219,7 +219,7 @@ export const createClient = async (req: Request, res: Response) => {
     const clientsDecision = await enforceTenantPlanLimit({
       tenantId: targetTenantId,
       feature: "maxClients",
-      currentUsage: await getTenantClientsUsage(targetTenantId),
+      loadCurrentUsage: () => getTenantClientsUsage(targetTenantId),
       uid: userId,
       requestId: req.requestId,
       route: req.path,

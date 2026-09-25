@@ -79,15 +79,22 @@ export const createService = async (req: Request, res: Response) => {
 
     // Produtos e servicos dividem o teto `maxProducts`, como sempre dividiram
     // o contador `usage.products`.
-    const productsDecision = await enforceTenantPlanLimit({
-      tenantId: targetTenantId,
-      feature: "maxProducts",
-      currentUsage: await getTenantProductsUsage(targetTenantId),
-      uid: userId,
-      requestId: req.requestId,
-      route: req.path,
-      isSuperAdmin,
-    });
+    const [productsDecision, imagesCheck] = await Promise.all([
+      enforceTenantPlanLimit({
+        tenantId: targetTenantId,
+        feature: "maxProducts",
+        loadCurrentUsage: () => getTenantProductsUsage(targetTenantId),
+        uid: userId,
+        requestId: req.requestId,
+        route: req.path,
+        isSuperAdmin,
+      }),
+      checkImagesWithinPlan({
+        tenantId: targetTenantId,
+        requested: sanitizedInput.images.length,
+        isSuperAdmin,
+      }),
+    ]);
     if (!productsDecision.allowed) {
       return res.status(productsDecision.statusCode || 402).json({
         message:
@@ -97,11 +104,6 @@ export const createService = async (req: Request, res: Response) => {
       });
     }
 
-    const imagesCheck = await checkImagesWithinPlan({
-      tenantId: targetTenantId,
-      requested: sanitizedInput.images.length,
-      isSuperAdmin,
-    });
     if (!imagesCheck.allowed) {
       return res
         .status(402)
