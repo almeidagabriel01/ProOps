@@ -310,17 +310,22 @@ export class TransactionsPage {
     const deleteButton = card.getByTitle("Excluir");
     await deleteButton.click();
 
-    // Confirm the AlertDialog
+    // Confirm the AlertDialog. The DELETE only reaches the server after the
+    // "Desfazer" window (~6s), so wait for it: otherwise the test ends with the
+    // transaction still in the database.
+    const deleteRequest = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        /\/v1\/transactions\/(group\/)?[^/]+$/.test(new URL(response.url()).pathname),
+      { timeout: 20000 },
+    );
     const confirmButton = this.page.getByRole("button", { name: /sim, excluir/i });
     await confirmButton.waitFor({ state: "visible", timeout: 8000 });
     await confirmButton.click();
 
-    // Wait for the transaction to disappear
-    await this.page.waitForTimeout(500);
-    const transactionText = this.page.getByText(description, { exact: false });
-    await transactionText.waitFor({ state: "hidden", timeout: 10000 }).catch(() => {
-      // Acceptable: item may already be removed before waitFor completes
-    });
+    // The card leaves the list right away.
+    await card.waitFor({ state: "hidden", timeout: 10000 });
+    await deleteRequest;
   }
 }
 

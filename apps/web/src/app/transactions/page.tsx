@@ -86,6 +86,30 @@ export default function FinancialPage() {
     tenantId: tenant?.id,
     enabled: viewMode === "grouped" && hasFinancial,
   });
+  // Exclusões ainda dentro da janela de "Desfazer": a aba Agrupados lê resumos
+  // do servidor, que só mudam depois da gravação, então a tela esconde o que
+  // o usuário já excluiu. Chaves: `group:{id}` e `tx:{id}`.
+  const [pendingDeleteKeys, setPendingDeleteKeys] = React.useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const visibleGroupSummaries = React.useMemo(
+    () =>
+      pendingDeleteKeys.size === 0
+        ? grouped.groupSummaries
+        : grouped.groupSummaries.filter(
+            (summary) => !pendingDeleteKeys.has(summary.groupKey),
+          ),
+    [grouped.groupSummaries, pendingDeleteKeys],
+  );
+  const visibleStandalone = React.useMemo(
+    () =>
+      pendingDeleteKeys.size === 0
+        ? grouped.standalone
+        : grouped.standalone.filter(
+            (t) => !pendingDeleteKeys.has(`tx:${t.id}`),
+          ),
+    [grouped.standalone, pendingDeleteKeys],
+  );
   const groupedRefreshTimerRef = React.useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
@@ -145,7 +169,6 @@ export default function FinancialPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [transactionToDelete, setTransactionToDelete] =
     React.useState<Transaction | null>(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Selection state
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
@@ -319,7 +342,7 @@ export default function FinancialPage() {
     if (viewMode !== "grouped") return transactions;
     const byId = new Map<string, Transaction>();
     for (const t of [
-      ...grouped.standalone,
+      ...visibleStandalone,
       ...grouped.getAllCachedMembers(),
       ...transactions,
     ]) {
@@ -331,7 +354,7 @@ export default function FinancialPage() {
   }, [
     viewMode,
     transactions,
-    grouped.standalone,
+    visibleStandalone,
     grouped.getAllCachedMembers,
     grouped.membersVersion,
   ]);
@@ -401,7 +424,7 @@ export default function FinancialPage() {
       pendingIncome: 0,
       pendingExpense: 0,
     };
-    filterGroupSummaries(grouped.groupSummaries, filters, wallets).forEach(
+    filterGroupSummaries(visibleGroupSummaries, filters, wallets).forEach(
       (s) => {
         if (s.type === "income") {
           result.totalIncome += s.paidTotal;
@@ -412,7 +435,7 @@ export default function FinancialPage() {
         }
       },
     );
-    filterStandaloneTransactions(grouped.standalone, filters, wallets).forEach(
+    filterStandaloneTransactions(visibleStandalone, filters, wallets).forEach(
       (t) => {
         const add = (amount: number, paid: boolean) => {
           if (t.type === "income") {
@@ -432,8 +455,8 @@ export default function FinancialPage() {
     return result;
   }, [
     viewMode,
-    grouped.groupSummaries,
-    grouped.standalone,
+    visibleGroupSummaries,
+    visibleStandalone,
     searchTerm,
     filterType,
     filterStatus,
@@ -475,12 +498,29 @@ export default function FinancialPage() {
   const confirmDelete = async () => {
     if (!transactionToDelete) return;
 
-    setIsDeleting(true);
-    await deleteTransactionGroup(transactionToDelete);
-    if (viewMode === "grouped") scheduleGroupedRefresh();
-    setIsDeleting(false);
+    const groupId =
+      transactionToDelete.installmentGroupId ||
+      transactionToDelete.recurringGroupId;
+    const hiddenKey = groupId ? `group:${groupId}` : `tx:${transactionToDelete.id}`;
+    const setHidden = (hidden: boolean) =>
+      setPendingDeleteKeys((prev) => {
+        const next = new Set(prev);
+        if (hidden) next.add(hiddenKey);
+        else next.delete(hiddenKey);
+        return next;
+      });
+
+    setHidden(true);
     setDeleteDialogOpen(false);
     setTransactionToDelete(null);
+    await deleteTransactionGroup(transactionToDelete, {
+      // Depois de gravado, o resumo some do servidor; a chave continua no
+      // conjunto só para a linha não piscar antes do refetch.
+      onCommitted: () => {
+        if (viewMode === "grouped") scheduleGroupedRefresh();
+      },
+      onReverted: () => setHidden(false),
+    });
   };
 
   const handleViewModeChange = (mode: "grouped" | "byDueDate") => {
@@ -635,8 +675,8 @@ export default function FinancialPage() {
       {/* Transactions List */}
       {viewMode === "grouped" ? (
         <GroupedTransactionsView
-          groupSummaries={grouped.groupSummaries}
-          standalone={grouped.standalone}
+          groupSummaries={visibleGroupSummaries}
+          standalone={visibleStandalone}
           isLoading={grouped.isLoading}
           isLoadingMore={grouped.isLoadingMore}
           hasMore={grouped.hasMore}
@@ -754,7 +794,7 @@ export default function FinancialPage() {
         onOpenChange={setDeleteDialogOpen}
         transaction={transactionToDelete}
         onConfirm={confirmDelete}
-        isDeleting={isDeleting}
+        isDeleting={false}
       />
 
       <UpgradeModal
