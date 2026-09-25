@@ -851,7 +851,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) return false;
       try {
-        await firebaseUser.getIdToken(true);
+        // Limitado como os demais passos: sem teto, uma renovação pendurada
+        // depois de a aba ficar parada prendia o interstitial até o watchdog.
+        await withTimeout(firebaseUser.getIdToken(true), TOKEN_REFRESH_TIMEOUT_MS);
       } catch {
         return false;
       }

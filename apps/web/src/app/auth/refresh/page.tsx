@@ -19,8 +19,16 @@ import { useSessionRefresh } from "./_hooks/useSessionRefresh";
  * proxy lets it through without a cookie.
  */
 function SessionRefreshController() {
-  useSessionRefresh();
-  return <FullPageLoading description="Verificando sua sessão..." />;
+  const { isSlow } = useSessionRefresh();
+  return (
+    <FullPageLoading
+      description={
+        isSlow
+          ? "Ainda verificando sua sessão, a conexão está lenta..."
+          : "Verificando sua sessão..."
+      }
+    />
+  );
 }
 
 export default function AuthRefreshPage() {

@@ -7,10 +7,14 @@ import {
   type WhatsappChallengeResult,
 } from "./_lib/whatsapp-gate";
 import { decideSessionVerification } from "./_lib/session-verification";
+import { resolveSessionMaxAgeSeconds } from "./_lib/session-max-age";
+import {
+  shouldCountSessionFailure,
+  type SessionFailureStage,
+} from "./_lib/session-failure";
 
 const SESSION_COOKIE_NAME = "__session";
 const LEGACY_COOKIE_NAME = "firebase-auth-token";
-const DEFAULT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 5; // 5 days
 const MAX_REQUEST_BODY_BYTES = 8 * 1024;
 
 // Rate limiting: 5 attempts per IP in a 15-minute sliding window
@@ -31,12 +35,6 @@ function getClientIp(req: NextRequest): string {
     return forwarded.split(",")[0].trim();
   }
   return req.headers.get("x-real-ip") || "unknown";
-}
-
-function resolveSessionMaxAgeSeconds(): number {
-  const configured = Number(process.env.AUTH_SESSION_MAX_AGE_SECONDS || "");
-  if (!Number.isFinite(configured)) return DEFAULT_SESSION_MAX_AGE_SECONDS;
-  return Math.min(Math.max(Math.floor(configured), 60 * 10), 60 * 60 * 24 * 14);
 }
 
 function isSecureCookieRequest(req: NextRequest): boolean {
@@ -243,6 +241,7 @@ export async function POST(req: NextRequest) {
     return response;
   }
 
+  let stage: SessionFailureStage = "request";
   try {
     const contentLength = Number(req.headers.get("content-length") || "0");
     if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) {
@@ -269,7 +268,9 @@ export async function POST(req: NextRequest) {
     // checkRevoked=true. Detect emulator mode and avoid the extra revoked
     // check there while keeping strict verification in production.
     const isEmulator = Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
+    stage = "verify-token";
     const decoded = await adminAuth.verifyIdToken(idToken, isEmulator ? false : true);
+    stage = "after-verify";
 
     // Defense-in-depth super admin gates (the backend middleware is authoritative).
     const role = String((decoded as { role?: unknown }).role || "")
@@ -399,7 +400,9 @@ export async function POST(req: NextRequest) {
     // here ~hourly while a tab is open, re-minting with a fresh window. Do NOT
     // add a redundant proactive timer. The only gap — a tab fully closed past the
     // cookie lifetime — is covered by the proxy → /auth/refresh silent re-mint.
-    const maxAgeSeconds = resolveSessionMaxAgeSeconds();
+    const maxAgeSeconds = resolveSessionMaxAgeSeconds(
+      process.env.AUTH_SESSION_MAX_AGE_SECONDS,
+    );
     const expiresInMs = maxAgeSeconds * 1000;
     const sessionCookie = await adminAuth.createSessionCookie(idToken, {
       expiresIn: expiresInMs,
@@ -418,8 +421,11 @@ export async function POST(req: NextRequest) {
     clearLegacyCookie(response, req);
     return response;
   } catch (error) {
-    // Token verification failed — THIS counts as a failed attempt
-    rateLimit(clientIp, RATE_LIMIT_MAX_ATTEMPTS, RATE_LIMIT_WINDOW_MS);
+    // Só corpo inválido e token forjado contam; re-sync com token velho e
+    // erro de infraestrutura não bloqueiam o IP (ver _lib/session-failure).
+    if (shouldCountSessionFailure(stage, error)) {
+      rateLimit(clientIp, RATE_LIMIT_MAX_ATTEMPTS, RATE_LIMIT_WINDOW_MS);
+    }
     console.error("Failed to create session cookie:", error);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
