@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { createRateLimiter } from "../../lib/rate-limit/express-limiter";
 import type { RateLimitDecision } from "../../lib/rate-limit/types";
+import { resolveClientIp } from "../../lib/client-ip";
 
 /**
  * Rate limiter para endpoints de geração de PDF (5/min por usuário ou IP).
@@ -26,12 +27,7 @@ function deriveKey(req: Request): string {
   const uid = req.user?.uid;
   if (uid) return `uid:${uid}`;
 
-  const forwarded = req.headers["x-forwarded-for"];
-  const rawIp =
-    (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() ||
-    req.ip ||
-    req.socket?.remoteAddress ||
-    "unknown";
+  const rawIp = resolveClientIp(req);
 
   return `ip:${rawIp}`;
 }

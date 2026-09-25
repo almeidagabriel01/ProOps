@@ -183,7 +183,10 @@ key = "uid:${uid}"
 
 // Endpoint público (token de link compartilhado) → IP do cliente
 key = "ip:${ip}"
-// IP extraído de: x-forwarded-for[0] → req.ip → req.socket.remoteAddress → "unknown"
+// IP: resolveClientIp (lib/client-ip.ts). NUNCA o primeiro valor do
+// x-forwarded-for, que é de quem chama: o Google acrescenta o IP real no FIM.
+// Pelo proxy da Vercel vale o x-proops-client-ip, só com o segredo
+// PROXY_CLIENT_IP_SECRET conferido.
 ```
 
 ### Comportamento em Rate Limit Excedido

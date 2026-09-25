@@ -9,6 +9,7 @@ import {
   isBucketAllowed,
   resolveAllowedBuckets,
 } from "../security/gcs-bucket";
+import { resolveClientIp } from "../../lib/client-ip";
 
 const DEFAULT_USER_AGENT =
   "ProOps-ProxyImage/1.0 (+https://proops.com.br)";
@@ -213,16 +214,7 @@ function applySecurityHeaders(req: Request, res: Response): boolean {
 }
 
 function getClientIp(req: Request): string {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return forwardedFor.split(",")[0].trim();
-  }
-
-  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
-    return String(forwardedFor[0] || "").trim();
-  }
-
-  return req.ip || "unknown";
+  return resolveClientIp(req);
 }
 
 function isRateLimited(req: Request, res: Response): boolean {

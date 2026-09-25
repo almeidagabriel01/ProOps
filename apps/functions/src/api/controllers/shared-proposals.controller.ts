@@ -3,6 +3,7 @@ import { SharedProposalService } from "../services/shared-proposal.service";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
 import { FieldPath } from "firebase-admin/firestore";
+import { resolveClientIp } from "../../lib/client-ip";
 
 type ProductLike = {
   productId?: string;
@@ -393,7 +394,7 @@ export const getSharedProposal = async (req: Request, res: Response) => {
     const isPdfGeneratorRequest = req.headers["x-pdf-generator"] === "true";
     if (!isPdfGeneratorRequest) {
       const viewerData = {
-        ip: req.ip || (req.headers["x-forwarded-for"] as string),
+        ip: resolveClientIp(req),
         userAgent: req.headers["user-agent"],
       };
       void SharedProposalService.recordView(

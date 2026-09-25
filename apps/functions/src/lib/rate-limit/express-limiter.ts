@@ -8,6 +8,7 @@ import {
   logSecurityEvent,
   writeSecurityAuditEvent,
 } from "../security-observability";
+import { resolveClientIp } from "../client-ip";
 
 /**
  * Middleware Express de rate limiting sobre o store plugável
@@ -23,15 +24,9 @@ const DEFAULT_WINDOW_MS = 60_000;
 
 const rateLimitStore = createRateLimitStore();
 
+/** Ver `lib/client-ip.ts`: nunca o primeiro valor do X-Forwarded-For. */
 export function getClientIp(req: express.Request): string {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return forwardedFor.split(",")[0].trim();
-  }
-  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
-    return String(forwardedFor[0] || "").trim();
-  }
-  return req.ip || "unknown";
+  return resolveClientIp(req);
 }
 
 export function sanitizeLoggedPath(path: string): string {
@@ -44,10 +39,16 @@ export function sanitizeLoggedPath(path: string): string {
   return path;
 }
 
+/**
+ * Com usuário autenticado a chave é o uid, sem IP: com o IP na chave, quem
+ * variava o IP ganhava um balde novo a cada pedido, o que anulava, por
+ * exemplo, o limite de tentativas do código OTP. Anônimo continua por IP.
+ */
 export function buildRateLimitIdentity(req: express.Request): string {
-  const uid = String(req.user?.uid || "anonymous");
+  const uid = req.user?.uid;
   const tenantId = String(req.user?.tenantId || "no-tenant");
-  return `${getClientIp(req)}:${uid}:${tenantId}`;
+  if (uid) return `uid:${uid}:${tenantId}`;
+  return `${getClientIp(req)}:anonymous:${tenantId}`;
 }
 
 export type RateLimiterOptions = {
