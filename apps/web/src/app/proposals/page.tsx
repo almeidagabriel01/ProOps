@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,9 @@ import {
   Kanban,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { replaceUrlSearchParams } from "@/lib/url-state";
+import { proposalStatusFilterOptions } from "@/lib/proposal-status-filter";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
@@ -138,7 +141,21 @@ export default function ProposalsPage() {
   const premiumColor = useThemePrimaryColor();
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [searchTerm, setSearchTerm] = React.useState("");
+  // Busca e status vivem também no endereço: voltar da proposta aberta ou
+  // recarregar a página mantém a lista como estava.
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = React.useState(
+    () => searchParams.get("q") ?? "",
+  );
+  const [statusFilter, setStatusFilter] = React.useState(
+    () => searchParams.get("status") ?? "",
+  );
+  React.useEffect(() => {
+    replaceUrlSearchParams({
+      q: searchTerm.trim() || null,
+      status: statusFilter || null,
+    });
+  }, [searchTerm, statusFilter]);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = React.useState<string | null>(
     null,
@@ -343,18 +360,24 @@ export default function ProposalsPage() {
     sortConfig,
   } = useSort(proposals);
 
-  // Filter proposals based on search term
+  // Filter proposals based on search term (and the status filter, when set)
   const filteredProposals = React.useMemo(() => {
     if (!isFiltering) return [];
 
     const term = normalize(searchTerm);
     return sortedProposals.filter(
       (proposal) =>
-        normalize(proposal.title).includes(term) ||
-        normalize(proposal.clientName || "").includes(term) ||
-        normalize(getStatusLabel(proposal.status)).includes(term),
+        (!statusFilter || proposal.status === statusFilter) &&
+        (normalize(proposal.title).includes(term) ||
+          normalize(proposal.clientName || "").includes(term) ||
+          normalize(getStatusLabel(proposal.status)).includes(term)),
     );
-  }, [sortedProposals, searchTerm, isFiltering, getStatusLabel]);
+  }, [sortedProposals, searchTerm, isFiltering, getStatusLabel, statusFilter]);
+
+  const statusFilterOptions = React.useMemo(
+    () => proposalStatusFilterOptions(kanbanColumns),
+    [kanbanColumns],
+  );
 
   /* isPageLoading is now false for search to prevent table blink. We use isLoading for Input spinner. */
   const isPageLoading = false;
@@ -473,15 +496,16 @@ export default function ProposalsPage() {
               direction: sortConfig.direction || "asc",
             }
           : null,
+        statusFilter || null,
       );
     },
-    [tenant, sortConfig],
+    [tenant, sortConfig, statusFilter],
   );
 
-  // Reset pagination when sort changes
+  // Reset pagination when sort or status filter changes
   React.useEffect(() => {
     resetRef.current?.();
-  }, [sortConfig]);
+  }, [sortConfig, statusFilter]);
 
   const fetchProposals = React.useCallback(async () => {
     if (tenant) {
@@ -1247,19 +1271,36 @@ export default function ProposalsPage() {
 
             {/* Search */}
             {hasAnyProposals !== false && (
-              <div className="max-w-md">
-                <Input
-                  placeholder="Buscar por título, contato ou status..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  icon={
-                    isFiltering && isLoading ? (
-                      <Loader size="sm" />
-                    ) : (
-                      <Search className="w-4 h-4" />
-                    )
-                  }
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="w-full sm:max-w-md sm:flex-1">
+                  <Input
+                    placeholder="Buscar por título, contato ou status..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    icon={
+                      isFiltering && isLoading ? (
+                        <Loader size="sm" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )
+                    }
+                  />
+                </div>
+                <div className="w-full sm:w-56">
+                  <Select
+                    aria-label="Filtrar por status"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    disableSort
+                  >
+                    <option value="">Todos os status</option>
+                    {statusFilterOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
             )}
 

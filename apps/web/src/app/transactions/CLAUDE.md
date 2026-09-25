@@ -101,6 +101,14 @@ tenha desativado antes de trocar de aba; Agrupados SEMPRE entra limpo (todos).
 Mudanças do usuário valem só enquanto permanece na aba. Não reintroduzir
 persistência em localStorage (as chaves `transactions:filterStatus*` legadas
 são removidas no mount). Testes: `_hooks/__tests__/useFinancialFilters.test.ts`.
+
+**Filtros no endereço (2026-09-25)** não contrariam a regra acima: o endereço
+não é persistência entre sessões, é o estado da página aberta. Voltar de um
+lançamento ou recarregar devolve a lista como estava; trocar de aba continua
+zerando o status. O padrão de cada filtro não aparece no endereço, e
+`status=todos` é a escolha explícita de ver todos na Lista
+(`_lib/filters-url.ts`). O tenant chegar depois do primeiro render não conta
+como troca de empresa, senão o status do endereço seria apagado.
 | `_hooks/useEditTransaction.ts` | Carrega e submete edição de lançamento/grupo |
 | `_hooks/useTransactionForm.ts` | Criação de lançamentos |
 | `_components/transaction-card.tsx` | Exibe lançamentos em cards agrupados |

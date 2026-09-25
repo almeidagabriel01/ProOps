@@ -1,4 +1,6 @@
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
+import { replaceUrlSearchParams } from "@/lib/url-state";
 import { toast } from '@/lib/toast';
 import { runUndoableAction } from "@/lib/undoable-action";
 import { Client, ClientService } from "@/services/client-service";
@@ -15,6 +17,23 @@ export type ContactsTypeFilter =
   | "vendedor"
   | "arquiteto";
 
+const CONTACTS_TYPE_FILTERS: readonly ContactsTypeFilter[] = [
+  "todos",
+  "cliente",
+  "fornecedor",
+  "vendedor",
+  "arquiteto",
+];
+
+/** Lê o tipo do endereço; valor desconhecido cai em "todos". */
+export function parseContactsTypeFilter(
+  value: string | null | undefined,
+): ContactsTypeFilter {
+  return CONTACTS_TYPE_FILTERS.includes(value as ContactsTypeFilter)
+    ? (value as ContactsTypeFilter)
+    : "todos";
+}
+
 export function useContactsCtrl() {
   const { tenant, isLoading: tenantLoading } = useTenant();
   
@@ -26,8 +45,21 @@ export function useContactsCtrl() {
   const [hasAnyClients, setHasAnyClients] = React.useState<boolean | null>(null);
 
   const { deleteClient } = useClientActions();
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [typeFilter, setTypeFilter] = React.useState<ContactsTypeFilter>("todos");
+  // Busca e tipo vivem também no endereço: voltar do contato aberto ou
+  // recarregar a página mantém a lista como estava.
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = React.useState(
+    () => searchParams.get("q") ?? "",
+  );
+  const [typeFilter, setTypeFilter] = React.useState<ContactsTypeFilter>(() =>
+    parseContactsTypeFilter(searchParams.get("tipo")),
+  );
+  React.useEffect(() => {
+    replaceUrlSearchParams({
+      q: searchTerm.trim() || null,
+      tipo: typeFilter === "todos" ? null : typeFilter,
+    });
+  }, [searchTerm, typeFilter]);
   
   const [clientToDelete, setClientToDelete] = React.useState<Client | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);

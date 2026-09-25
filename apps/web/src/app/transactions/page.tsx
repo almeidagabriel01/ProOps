@@ -3,6 +3,7 @@
 import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
@@ -22,6 +23,11 @@ import {
   resolveSelectedTransactions,
 } from "./_lib/bulk-actions";
 import { downloadTransactionsXlsx } from "./_lib/export-transactions-xlsx";
+import {
+  parseTransactionFilters,
+  serializeTransactionFilters,
+} from "./_lib/filters-url";
+import { replaceUrlSearchParams } from "@/lib/url-state";
 import { Crown, Kanban, Plus, Search, Wallet, X } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
@@ -55,6 +61,12 @@ export default function FinancialPage() {
   const upgradeModal = useUpgradeModal();
   const canAccessCrm = hasKanban || user?.role === "superadmin";
   const premiumColor = useThemePrimaryColor();
+  // Filtros lidos do endereço uma vez, na entrada: voltar de um lançamento
+  // aberto ou recarregar a página devolve a lista como estava.
+  const searchParams = useSearchParams();
+  const [initialUrlFilters] = React.useState(() =>
+    parseTransactionFilters(new URLSearchParams(searchParams.toString())),
+  );
   const {
     summary,
     isLoading: dataLoading,
@@ -90,7 +102,33 @@ export default function FinancialPage() {
     transactions,
     refreshData,
     wallets,
-  } = useFinancialData();
+  } = useFinancialData(initialUrlFilters);
+
+  React.useEffect(() => {
+    replaceUrlSearchParams(
+      serializeTransactionFilters({
+        searchTerm,
+        filterType,
+        filterStatus,
+        filterWallet,
+        filterStartDate,
+        filterEndDate,
+        filterDateType,
+        sortBy,
+        viewMode,
+      }),
+    );
+  }, [
+    searchTerm,
+    filterType,
+    filterStatus,
+    filterWallet,
+    filterStartDate,
+    filterEndDate,
+    filterDateType,
+    sortBy,
+    viewMode,
+  ]);
 
   // Fonte da aba Agrupados: resumos de transaction_groups + avulsos paginados,
   // membros lazy — independente do filtro de data (2026-07-06).

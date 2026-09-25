@@ -27,6 +27,7 @@ import {
 import { normalize } from "@/utils/text";
 import { useOptimisticWallets } from "./useOptimisticWallets";
 import { useFinancialFilters } from "./useFinancialFilters";
+import type { TransactionFiltersState } from "../_lib/filters-url";
 
 const syncExtraCostsStatus = (
   extraCosts: ExtraCost[] | undefined,
@@ -184,7 +185,10 @@ interface UseFinancialDataReturn {
   wallets: Wallet[];
 }
 
-export function useFinancialData(): UseFinancialDataReturn {
+export function useFinancialData(
+  /** Filtros lidos do endereço na entrada da tela. */
+  initialFilters: Partial<TransactionFiltersState> = {},
+): UseFinancialDataReturn {
   const { tenant } = useTenant();
   const { hasFinancial, isLoading: isPlanLoading } = usePlanLimits();
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
@@ -213,7 +217,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     setViewMode,
     filteredTransactions,
     totalWalletBalance,
-  } = useFinancialFilters(transactions, wallets);
+  } = useFinancialFilters(transactions, wallets, "byDueDate", initialFilters);
 
   const {
     applyOptimisticWalletUpdate,

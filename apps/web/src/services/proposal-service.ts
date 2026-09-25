@@ -288,10 +288,14 @@ export const ProposalService = {
     pageSize: number = 12,
     cursor?: QueryDocumentSnapshot<DocumentData> | null,
     sortConfig?: { key: string; direction: "asc" | "desc" } | null,
+    status?: string | null,
   ): Promise<PaginatedResult<Proposal>> => {
     try {
       const sortField = sortConfig?.key || "createdAt";
       const sortDirection = sortConfig?.direction || "desc";
+      // Filtro de status da lista: índices (tenantId, status, campo) existem
+      // para todo campo ordenável da tela em firestore.indexes.json.
+      const statusFilter = status ? [where("status", "==", status)] : [];
 
       // primarySystem/primaryEnvironment são desnormalizados no doc
       // (computeProposalSortFields + backfill-proposal-sort-fields) — o sort
@@ -301,6 +305,7 @@ export const ProposalService = {
         ? query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
+            ...statusFilter,
             orderBy(sortField, sortDirection),
             startAfter(cursor),
             limit(pageSize + 1),
@@ -308,6 +313,7 @@ export const ProposalService = {
         : query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
+            ...statusFilter,
             orderBy(sortField, sortDirection),
             limit(pageSize + 1),
           );
