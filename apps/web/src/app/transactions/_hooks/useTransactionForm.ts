@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "@/lib/toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   TransactionService,
   TransactionType,
@@ -15,6 +15,7 @@ import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { transactionSchema } from "@/lib/validations";
 import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 import { getTodayISO } from "@/utils/date-utils";
+import { resolveInitialTransactionType } from "../_lib/initial-transaction-type";
 
 export type PaymentMode = "total" | "installmentValue";
 
@@ -139,6 +140,7 @@ interface UseTransactionFormReturn {
 
 export function useTransactionForm(): UseTransactionFormReturn {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tenant } = useTenant();
   const { canCreate, isLoading: permLoading } =
     usePagePermission("transactions");
@@ -146,6 +148,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
   const [formData, setFormData] = React.useState<TransactionFormData>(() => {
     return {
       ...initialFormData,
+      type: resolveInitialTransactionType(searchParams.get("type")),
       date: getTodayISO(),
     };
   });
