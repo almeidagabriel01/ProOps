@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { TransactionFormData } from "../_hooks/useTransactionForm";
 import { TransactionType } from "@/services/transaction-service";
+import { TransactionClientField } from "./form-steps/transaction-client-field";
 
 interface TypeSelectorStepProps {
   type: TransactionType;
@@ -147,6 +148,15 @@ interface DetailsStepProps {
   ) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => void;
   errors?: FormErrors<TransactionFormData>;
+  /**
+   * Com ele, o cliente/fornecedor é pedido aqui, e não na revisão: a receita
+   * exige cliente, e descobrir isso só no último passo custava voltar.
+   */
+  onClientChange?: (data: {
+    clientId?: string;
+    clientName: string;
+    isNew: boolean;
+  }) => void;
   isProposalTransaction?: boolean;
   groupInfo?: {
     currentTotal: number;
@@ -159,6 +169,7 @@ export function DetailsStep({
   formData,
   onChange,
   onBlur,
+  onClientChange,
   errors = {},
 }: DetailsStepProps) {
   return (
@@ -231,6 +242,14 @@ export function DetailsStep({
           required
         />
       </FormItem>
+
+      {onClientChange && (
+        <TransactionClientField
+          formData={formData}
+          onClientChange={onClientChange}
+          errors={errors}
+        />
+      )}
     </div>
   );
 }

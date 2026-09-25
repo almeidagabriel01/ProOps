@@ -16,6 +16,7 @@ import { transactionSchema } from "@/lib/validations";
 import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 import { getTodayISO } from "@/utils/date-utils";
 import { resolveInitialTransactionType } from "../_lib/initial-transaction-type";
+import { dueDateAfterDateChange } from "../_lib/due-date-follows-date";
 
 export type PaymentMode = "total" | "installmentValue";
 
@@ -146,10 +147,12 @@ export function useTransactionForm(): UseTransactionFormReturn {
     usePagePermission("transactions");
   const { createClient } = useClientActions();
   const [formData, setFormData] = React.useState<TransactionFormData>(() => {
+    const today = getTodayISO();
     return {
       ...initialFormData,
       type: resolveInitialTransactionType(searchParams.get("type")),
-      date: getTodayISO(),
+      date: today,
+      dueDate: today,
     };
   });
   const [isSaving, setIsSaving] = React.useState(false);
@@ -413,6 +416,9 @@ export function useTransactionForm(): UseTransactionFormReturn {
       ...prev,
       [name]:
         type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      ...(name === "date" && {
+        dueDate: dueDateAfterDateChange(prev, value),
+      }),
     }));
     // Clear error when user starts typing
     if (errors[name as keyof typeof errors]) {
