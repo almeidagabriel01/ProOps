@@ -133,9 +133,19 @@ export async function checkFinancialPermission(
   }
 
   const userRef = db.collection("users").doc(userId);
-  const userSnap = await userRef.get();
-  if (!userSnap.exists) throw new Error("Usuário não encontrado.");
-  const userDoc = userSnap.data() as UserDoc;
+  // O middleware de auth já leu users/{uid} nesta request e publicou o
+  // snapshot em `claims.userDoc` (null = doc não existe). Reler aqui custava
+  // uma leitura extra em todo endpoint financeiro. `undefined` (chamador sem o
+  // contexto do middleware) mantém a leitura.
+  let userDoc: UserDoc;
+  if (claims.userDoc !== undefined) {
+    if (claims.userDoc === null) throw new Error("Usuário não encontrado.");
+    userDoc = claims.userDoc as UserDoc;
+  } else {
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) throw new Error("Usuário não encontrado.");
+    userDoc = userSnap.data() as UserDoc;
+  }
 
   const docTenantId = normalizeTenantId(userDoc.tenantId || userDoc.companyId);
   if (tenantId && docTenantId && tenantId !== docTenantId) {
