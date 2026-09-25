@@ -141,6 +141,7 @@ para elementos da página, então não quebra quando um layout muda.
 | `onboarding-steps.ts` | **O roteiro.** Puro: templates, capítulos, `buildOnboardingSteps`, `matchStepForPath` |
 | `onboarding-provider.tsx` | Estado (`users/{uid}.onboarding`) e ações, montado no `ProtectedAppShell` |
 | `app-onboarding.tsx` | O card (e a pílula minimizada) |
+| `use-draggable-position.ts` | Arraste do card no desktop, com posição lembrada no navegador |
 | `onboarding-welcome-dialog.tsx` | Boas-vindas, uma vez, com variante de demonstração |
 | `first-steps.ts` / `first-steps-card.tsx` | Tarefas reais no Dashboard, só em conta paga |
 
@@ -158,6 +159,11 @@ para elementos da página, então não quebra quando um layout muda.
 - Só abre sozinho para conta nova (as sementes gravam o estado no cadastro).
   Qualquer pessoa reabre por "Tutorial da plataforma", no menu do perfil, que
   retoma o tour em andamento ou recomeça do zero.
+- O card fica no canto inferior direito, acima da Lia, e no desktop pode ser
+  arrastado pela faixa do título (setas também; Home, duplo clique ou "voltar
+  ao canto" desfazem). A posição é conveniência por navegador, em
+  localStorage, e é sempre puxada de volta para dentro da janela. No celular
+  ele fica ancorado.
 - `welcomeSeenAt` e `firstStepsDismissedAt` sobrevivem a recomeçar o tour. O
   backend reconstrói o objeto campo a campo (`normalizeOnboardingPayload`):
   campo novo no estado precisa entrar lá, senão é descartado sem erro.

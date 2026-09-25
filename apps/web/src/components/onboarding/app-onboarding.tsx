@@ -8,7 +8,9 @@ import {
   CheckCircle2,
   Circle,
   Compass,
+  GripHorizontal,
   Minus,
+  Undo2,
   X,
 } from "lucide-react";
 
@@ -16,9 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { chapterProgress } from "./onboarding-steps";
 import { useOnboarding } from "./onboarding-provider";
 import { OnboardingWelcomeDialog } from "./onboarding-welcome-dialog";
+import { useDraggablePosition } from "./use-draggable-position";
 
 /**
  * O tutorial: um card flutuante, uma tela por vez. Ele não aponta para
@@ -29,6 +34,11 @@ import { OnboardingWelcomeDialog } from "./onboarding-welcome-dialog";
  * onde um tutorial é procurado e onde ele não cobre o conteúdo principal. A
  * pílula minimizada fica ao lado do botão da Lia, na mesma linha. Na conta
  * demo a Lia não existe, e os dois descem para o canto.
+ *
+ * No desktop a pessoa pode arrastar o card pela faixa do título e soltá-lo
+ * onde quiser; a posição fica neste navegador, e "voltar ao canto" (ou duplo
+ * clique na faixa, ou Home) desfaz. No celular ele fica ancorado: com a largura
+ * inteira ocupada, arrastar só atrapalharia a rolagem.
  *
  * Abaixo de md o card ocupa a largura e sobe acima do botão da Lia (que fica
  * sobre a tab bar, à direita); a pílula vai para a esquerda, na mesma altura.
@@ -70,6 +80,14 @@ export function AppOnboarding() {
   } = onboarding;
 
   const hasLia = !isDemo;
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const cardRef = React.useRef<HTMLElement>(null);
+  const drag = useDraggablePosition({
+    storageKey: user?.id ? `proops:onboarding:position:${user.id}` : null,
+    enabled: !isMobile,
+    elementRef: cardRef,
+  });
 
   if (!isActive || !displayStep) {
     return <OnboardingWelcomeDialog />;
@@ -118,6 +136,8 @@ export function AppOnboarding() {
     <>
       <OnboardingWelcomeDialog />
       <section
+        ref={cardRef}
+        style={drag.style}
         role="region"
         aria-label="Tutorial da plataforma"
         data-testid="onboarding-card"
@@ -127,11 +147,27 @@ export function AppOnboarding() {
         className={cn(
           cardPosition(hasLia),
           "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2",
+          drag.isDragging && "select-none",
         )}
       >
         <Card className="max-h-[calc(100dvh-15rem)] overflow-y-auto md:max-h-[calc(100dvh-11rem)] border-border/70 bg-background/95 shadow-2xl backdrop-blur-xl">
           <CardContent className="space-y-3 p-4 max-sm:p-4">
-            <div className="flex items-start justify-between gap-3">
+            <div
+              {...drag.handleProps}
+              data-testid="onboarding-drag-handle"
+              tabIndex={isMobile ? undefined : 0}
+              aria-label={
+                isMobile
+                  ? undefined
+                  : "Mover o tutorial: arraste, ou use as setas. Home volta ao canto."
+              }
+              title={isMobile ? undefined : "Arraste para mover"}
+              className={cn(
+                "-mx-4 -mt-4 flex items-start justify-between gap-3 rounded-t-xl px-4 pt-4 touch-none",
+                !isMobile && "md:cursor-grab focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                drag.isDragging && "md:cursor-grabbing",
+              )}
+            >
               <div className="min-w-0 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary" className="gap-1 rounded-full px-2.5 py-0.5">
@@ -157,7 +193,25 @@ export function AppOnboarding() {
                   </span>
                 </p>
               </div>
-              <div className="-mr-1 -mt-1 flex shrink-0">
+              <div className="-mr-1 -mt-1 flex shrink-0 items-center">
+                {!isMobile && (
+                  <GripHorizontal
+                    className="mr-1 h-4 w-4 text-muted-foreground/60"
+                    aria-hidden
+                  />
+                )}
+                {drag.position && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground"
+                    onClick={drag.reset}
+                    aria-label="Voltar o tutorial ao canto"
+                    title="Voltar ao canto"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

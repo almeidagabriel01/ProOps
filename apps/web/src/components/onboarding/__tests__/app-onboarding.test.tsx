@@ -246,6 +246,58 @@ describe("card do tour", () => {
   });
 });
 
+describe("mover o card", () => {
+  function drag(handle: HTMLElement, from: [number, number], to: [number, number]) {
+    fireEvent.pointerDown(handle, { button: 0, pointerId: 1, clientX: from[0], clientY: from[1] });
+    fireEvent.pointerMove(handle, { pointerId: 1, clientX: to[0], clientY: to[1] });
+    fireEvent.pointerUp(handle, { pointerId: 1, clientX: to[0], clientY: to[1] });
+  }
+
+  it("arrastar pela faixa do título leva o card e lembra a posição", () => {
+    const view = renderShell();
+    const card = screen.getByTestId("onboarding-card");
+    drag(screen.getByTestId("onboarding-drag-handle"), [10, 10], [210, 110]);
+
+    expect(card.style.left).toBe("200px");
+    expect(card.style.top).toBe("100px");
+    expect(JSON.parse(window.localStorage.getItem("proops:onboarding:position:u1")!)).toEqual({
+      x: 200,
+      y: 100,
+    });
+
+    view.unmount();
+    renderShell();
+    expect(screen.getByTestId("onboarding-card").style.left).toBe("200px");
+  });
+
+  it("arrastar a partir de um botão da faixa não move nada", () => {
+    renderShell();
+    const minimize = screen.getByRole("button", { name: "Minimizar o tutorial" });
+    fireEvent.pointerDown(minimize, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(screen.getByTestId("onboarding-drag-handle"), {
+      pointerId: 1,
+      clientX: 300,
+      clientY: 300,
+    });
+    expect(screen.getByTestId("onboarding-card").style.left).toBe("");
+  });
+
+  it("setas movem, e voltar ao canto desfaz", () => {
+    renderShell();
+    const handle = screen.getByTestId("onboarding-drag-handle");
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    fireEvent.keyDown(handle, { key: "ArrowDown", shiftKey: true });
+    const card = screen.getByTestId("onboarding-card");
+    expect(card.style.left).toBe("16px");
+    // A primeira seta já prende o card na margem de 8px: 8 + 64.
+    expect(card.style.top).toBe("72px");
+
+    fireEvent.click(screen.getByRole("button", { name: "Voltar o tutorial ao canto" }));
+    expect(card.style.left).toBe("");
+    expect(window.localStorage.getItem("proops:onboarding:position:u1")).toBeNull();
+  });
+});
+
 describe("reabrir pelo menu", () => {
   it.each([
     ["skipped", { ...ACTIVE_SEEN, status: "skipped" as const, completedStepIds: ["dashboard"] }],
