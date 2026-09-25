@@ -4,6 +4,15 @@
 
 `apps/functions/src/index.ts` e o entry point que exporta todas as Cloud Functions V2:
 
+> **Exports preguicosos (2026-09-25).** Cada funcao e exportada por getter
+> (`lazyExport` em `index.ts`), nao por `export { x } from "./x"`. O runtime le
+> so `exports[FUNCTION_TARGET]`, entao cada instancia carrega apenas o modulo da
+> funcao que serve; antes todo cron e todo trigger carregavam o monolito inteiro
+> (Express, rotas, controllers) no cold start. O deploy descobre as funcoes por
+> `Object.entries(module)`, que avalia os getters, entao continua enxergando
+> todas. **Funcao nova entra com `lazyExport` e na lista do guard**
+> `src/__tests__/lazy-exports.test.ts`.
+
 | Exportacao | Tipo | Descricao |
 |------------|------|-----------|
 | `api` | HTTP (Express) | Monolito Express — todas as rotas REST |
