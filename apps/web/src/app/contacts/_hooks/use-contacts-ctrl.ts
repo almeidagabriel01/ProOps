@@ -1,5 +1,6 @@
 import * as React from "react";
 import { toast } from '@/lib/toast';
+import { runUndoableAction } from "@/lib/undoable-action";
 import { Client, ClientService } from "@/services/client-service";
 import { ProposalService } from "@/services/proposal-service";
 import { useClientActions } from "@/hooks/useClientActions";
@@ -33,6 +34,10 @@ export function useContactsCtrl() {
 
   
   const resetRef = React.useRef<(() => void) | null>(null);
+  const refreshRef = React.useRef<(() => void) | null>(null);
+  const updateItemsRef = React.useRef<
+    ((updater: (items: Client[]) => Client[]) => void) | null
+  >(null);
 
   const isFiltering = searchTerm.trim() !== "" || typeFilter !== "todos";
 
@@ -132,7 +137,8 @@ export function useContactsCtrl() {
 
     setIsDeleting(true);
     try {
-      // Check if client is used in any proposal
+      // Checado ANTES de esconder a linha: é a recusa mais comum, e ela precisa
+      // aparecer na hora, não seis segundos depois.
       const isUsed = await ProposalService.isClientUsedInProposal(
         clientToDelete.id,
         tenant.id
@@ -141,33 +147,49 @@ export function useContactsCtrl() {
         toast.error(
           "Não é possível excluir este cliente pois ele está vinculado a uma ou mais propostas."
         );
-        setIsDeleting(false);
-        setClientToDelete(null);
         return;
       }
-
-      const success = await deleteClient(clientToDelete.id);
-      if (success) {
-        const remainingClients =
-          allClients?.filter((c) => c.id !== clientToDelete.id) ?? null;
-        const hasRemainingClients = await refreshHasAnyClients();
-
-        if (!hasRemainingClients) {
-          setAllClients([]);
-        } else {
-          resetRef.current?.();
-          if (remainingClients) {
-            setAllClients(remainingClients);
-          }
-        }
-      }
-      setClientToDelete(null);
     } catch (error) {
-      console.error("Error deleting client:", error);
+      console.error("Error checking client usage:", error);
       toast.error("Erro ao excluir cliente.");
+      return;
     } finally {
       setIsDeleting(false);
+      setClientToDelete(null);
     }
+
+    // A exclusão só vai ao servidor depois da janela de "Desfazer": o contato
+    // sai da lista agora, e desfazer é recarregar a lista.
+    const removed = clientToDelete;
+    updateItemsRef.current?.((items) => items.filter((c) => c.id !== removed.id));
+    setAllClients((prev) => prev?.filter((c) => c.id !== removed.id) ?? prev);
+
+    const restoreList = () => {
+      void refreshHasAnyClients();
+      refreshRef.current?.();
+      if (isFiltering) resetRef.current?.();
+    };
+
+    runUndoableAction({
+      message: `Contato "${removed.name}" excluído.`,
+      title: "Contato excluído",
+      commit: async () => {
+        await deleteClient(removed.id);
+        await refreshHasAnyClients();
+      },
+      onUndo: () => {
+        if (allClients) setAllClients(allClients);
+        restoreList();
+      },
+      onCommitError: (error) => {
+        console.error("Error deleting client:", error);
+        const message =
+          (error as { message?: string })?.message || "Erro ao excluir cliente.";
+        toast.error(message);
+        if (allClients) setAllClients(allClients);
+        restoreList();
+      },
+    });
   };
 
   const filteredClients = React.useMemo(() => {
@@ -204,6 +226,8 @@ export function useContactsCtrl() {
       isFiltering,
       sortConfig,
       resetRef,
+      refreshRef,
+      updateItemsRef,
     },
     actions: {
       setSearchTerm,

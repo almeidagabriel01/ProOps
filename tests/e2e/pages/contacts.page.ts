@@ -148,18 +148,25 @@ export class ContactsPage {
     // Wait for the AlertDialog to appear with title "Excluir Cliente"
     await this.page.getByText("Excluir Cliente").waitFor({ state: "visible", timeout: 8000 });
 
+    // The DELETE only reaches the server after the "Desfazer" window (~6s):
+    // wait for it, otherwise the test ends with the contact still stored.
+    const deleteRequest = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        /\/v1\/clients\/[^/]+$/.test(new URL(response.url()).pathname),
+      { timeout: 20000 },
+    );
+
     // Click the confirm button in the AlertDialog footer
     // AlertDialogAction renders as a <button> with text "Excluir"
     const confirmButton = this.page.getByRole("button", { name: /^excluir$/i });
     await confirmButton.waitFor({ state: "visible", timeout: 5000 });
     await confirmButton.click();
 
-    // Wait for the contact link to disappear from the list
+    // The contact link leaves the list right away
     await this.page
       .getByRole("link", { name: contactName })
-      .waitFor({ state: "hidden", timeout: 10000 })
-      .catch(() => {
-        // Acceptable: item may already be gone before waitFor resolves
-      });
+      .waitFor({ state: "hidden", timeout: 10000 });
+    await deleteRequest;
   }
 }

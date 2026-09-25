@@ -119,6 +119,8 @@ export default function CustomersPage() {
             fetchPage={actions.fetchPage}
             fetchEnabled={!!tenant}
             onResetRef={state.resetRef}
+            onRefreshRef={state.refreshRef}
+            onUpdateItemsRef={state.updateItemsRef}
             batchSize={12}
             minWidth="900px"
             onSort={actions.requestSort}

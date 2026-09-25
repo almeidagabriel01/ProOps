@@ -91,27 +91,15 @@ export function useClientActions() {
     }
   };
 
-  const deleteClient = async (clientId: string): Promise<boolean> => {
-    if (!clientId) return false;
-
-    setIsLoading(true);
-    try {
-      await callApi<{ success: boolean; message: string }>(
-        `v1/clients/${clientId}`,
-        "DELETE",
-      );
-
-      toast.success("Contato removido com sucesso!");
-      return true;
-    } catch (error: unknown) {
-      console.error("Error deleting client:", error);
-      const message =
-        (error as { message?: string })?.message || "Erro ao deletar cliente.";
-      toast.error(message);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
+  /**
+   * Exclui no servidor e propaga o erro. Quem chama cuida do aviso: a tela de
+   * contatos mostra "Desfazer" e só grava depois da janela.
+   */
+  const deleteClient = async (clientId: string): Promise<void> => {
+    await callApi<{ success: boolean; message: string }>(
+      `v1/clients/${clientId}`,
+      "DELETE",
+    );
   };
 
   return {
