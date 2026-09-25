@@ -1,11 +1,10 @@
 import path from "path";
 import type { NextConfig } from "next";
 import { APP_LANDING_REWRITE_HEADER, APP_ROOT, hostnameDe } from "./src/lib/site/surfaces";
+import { buildScriptSrc } from "./src/lib/security/script-src";
 
 const isDevelopment = process.env.NODE_ENV !== "production";
-const scriptSrc = isDevelopment
-  ? "'self' 'unsafe-inline' 'unsafe-eval' https:"
-  : "'self' 'unsafe-inline' https:";
+const scriptSrc = buildScriptSrc(isDevelopment);
 const firebaseAuthDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
 const firebaseAuthFrameSrc = firebaseAuthDomain
   ? ` https://${firebaseAuthDomain}`
