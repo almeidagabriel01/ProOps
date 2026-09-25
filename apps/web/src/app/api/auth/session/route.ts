@@ -8,6 +8,7 @@ import {
 } from "./_lib/whatsapp-gate";
 import { decideSessionVerification } from "./_lib/session-verification";
 import { resolveSessionMaxAgeSeconds } from "./_lib/session-max-age";
+import { checkSessionRequestOrigin } from "./_lib/request-origin-guard";
 import {
   shouldCountSessionFailure,
   type SessionFailureStage,
@@ -239,6 +240,18 @@ export async function POST(req: NextRequest) {
     );
     response.headers.set("Retry-After", String(preCheck.retryAfterSeconds));
     return response;
+  }
+
+  // Antes de ler o corpo: login CSRF (ver _lib/request-origin-guard).
+  const originVerdict = checkSessionRequestOrigin({
+    contentType: req.headers.get("content-type"),
+    secFetchSite: req.headers.get("sec-fetch-site"),
+  });
+  if (originVerdict === "unsupported-media-type") {
+    return NextResponse.json({ error: "Unsupported Media Type" }, { status: 415 });
+  }
+  if (originVerdict === "cross-origin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   let stage: SessionFailureStage = "request";
