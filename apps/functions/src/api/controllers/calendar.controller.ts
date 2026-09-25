@@ -4,7 +4,11 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { db } from "../../init";
 import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
-import { isGoogleCalendarSyncEnabled } from "../../lib/google-calendar-feature";
+import {
+  isGoogleCalendarSyncEnabled,
+  isInsufficientScopeError,
+  RECONNECT_REQUIRED_MESSAGE,
+} from "../../lib/google-calendar-feature";
 import { isTenantAdminRole } from "../../lib/auth-context";
 import { hasPagePermission } from "../../lib/auth-helpers";
 import {
@@ -71,21 +75,9 @@ const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/userinfo.email",
 ];
 
-/**
- * Marca de um consentimento antigo, concedido antes de um escopo ser
- * adicionado.
- *
- * Sem isso a UI mostra "Request had insufficient authentication scopes", que
- * não diz nada a quem instala cortina. O que resolve é reconectar, e é isso que
- * a mensagem precisa dizer.
- */
-export function isInsufficientScopeError(message: string): boolean {
-  return /insufficient authentication scopes|insufficient_scope/i.test(message);
-}
-
-/** Mensagem acionável para o erro que só a reconexão resolve. */
-export const RECONNECT_REQUIRED_MESSAGE =
-  "A permissão concedida ao Google Agenda está desatualizada. Clique em Reconectar para autorizar a leitura dos seus eventos.";
+// Vivem em lib/google-calendar-feature para a tela de Contas vinculadas
+// classificar o erro sem importar este controller.
+export { isInsufficientScopeError, RECONNECT_REQUIRED_MESSAGE };
 
 // RFC 4122 UUID — `state` is generated via crypto.randomUUID() (v4).
 const UUID_RE =

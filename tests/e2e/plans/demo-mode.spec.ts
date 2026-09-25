@@ -123,6 +123,8 @@ test.describe("DEMO-01: módulos que o demo não alcança", () => {
     ["configuração fiscal", "/api/backend/v1/fiscal/settings"],
     ["notas fiscais", "/api/backend/v1/fiscal/invoices"],
     ["status do Asaas", "/api/backend/v1/asaas/status"],
+    // Nenhuma conta de demonstração está conectada a nada.
+    ["contas vinculadas", "/api/backend/v1/linked-accounts"],
   ] as const;
 
   for (const [nome, url] of FORA_DO_DEMO) {

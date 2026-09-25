@@ -8,6 +8,7 @@ import {
   Home,
   Kanban,
   LayoutDashboard,
+  Link2,
   Package,
   ReceiptText,
   Settings,
@@ -285,6 +286,14 @@ export const searchItems: SearchItem[] = [
     icon: Users,
     keywords: ["membros", "usuários", "time", "colaboradores"],
     masterOnly: true,
+  },
+  {
+    id: "linked-accounts",
+    label: "Contas vinculadas",
+    description: "Integrações conectadas à empresa",
+    path: "/settings/linked-accounts",
+    icon: Link2,
+    keywords: ["integrações", "google", "agenda", "drive", "asaas", "conectar", "reconectar"],
   },
   {
     id: "billing",

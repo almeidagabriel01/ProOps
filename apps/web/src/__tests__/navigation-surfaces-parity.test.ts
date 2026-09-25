@@ -24,6 +24,7 @@ const CAMINHOS_SO_DO_PALETTE = new Set([
   "/profile?tab=billing",
   "/settings",
   "/settings/team",
+  "/settings/linked-accounts",
   // Atalhos de criação, não destinos de navegação.
   "/proposals/new",
   "/products/new",

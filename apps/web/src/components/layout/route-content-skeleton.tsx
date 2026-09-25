@@ -108,7 +108,10 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
         </SettingsShellSkeleton>
       );
     }
-    if (pathname.startsWith("/settings/payments")) {
+    if (
+      pathname.startsWith("/settings/payments") ||
+      pathname.startsWith("/settings/linked-accounts")
+    ) {
       return (
         <SettingsShellSkeleton>
           <SettingsPaymentsSkeleton />

@@ -34,6 +34,7 @@ const ROUTES = [
   "/crm",
   "/settings/team",
   "/settings/fiscal",
+  "/settings/linked-accounts",
   "/invoices",
   "/solutions",
   "/ambientes",

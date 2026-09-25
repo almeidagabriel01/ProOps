@@ -240,6 +240,13 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     module: "settings",
     requiresAuth: true,
   },
+  "/settings/linked-accounts": {
+    pageId: "settings-linked-accounts",
+    slug: "/settings/linked-accounts",
+    name: "Contas vinculadas",
+    module: "settings",
+    requiresAuth: true,
+  },
   "/invoices": {
     pageId: "invoices",
     slug: "/invoices",

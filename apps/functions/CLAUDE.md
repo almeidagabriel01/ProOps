@@ -831,6 +831,35 @@ pelo ERP chegar la sem baixar e subir a mao.
   - Entrega bem-sucedida **limpa** o `driveSyncError` da proposta; sem isso o
     documento ficava com o registro de uma falha ja resolvida.
 
+### Contas vinculadas (`GET /v1/linked-accounts`)
+
+Resumo, numa chamada só, de toda conta externa ligada à empresa (Google
+Agenda, Google Drive, Asaas, Focus NFe) e do WhatsApp do próprio usuário.
+Alimenta `/settings/linked-accounts`. Lógica em
+`api/services/linked-accounts.service.ts`.
+
+- **Lê os documentos direto**, e não pelos endpoints de status de cada
+  integração: aqueles estão atrás do próprio `requirePlanCapability` (402
+  quando o plano não inclui), o fiscal é só do master, e a Agenda não marca
+  `invalid_grant` em campo nenhum. A rota **não tem gate de plano**: cada item
+  informa `plan.availableInPlan`, e um gate fecharia a tela inteira por causa
+  de uma integração.
+- **Vocabulário único de estado:** `connected | attention | needs_reconnect |
+  disconnected | not_in_plan | platform_unavailable`, mais um `notice` neutro
+  para etapa em andamento que não é problema (fiscal `registered`, aguardando a
+  primeira nota autorizada). `needs_reconnect` é o
+  caso em que tentar de novo nunca resolve (token revogado, escopo antigo,
+  certificado A1 vencido).
+- **Nada sensível sai na resposta**: e-mail, CNPJ, telefone mascarado (4
+  últimos dígitos) e estado. O teste afirma que token, `apiKey`, segredo de
+  webhook e senha de certificado não aparecem no JSON.
+- Fora de `DEMO_READABLE_PREFIXES` de propósito: a conta free leva 402.
+- **Integração nova com conta externa entra no serviço também**, senão ela
+  fica fora da tela e a pessoa só descobre que a conexão caiu ao precisar dela.
+
+Guards: `api/services/__tests__/linked-accounts.service.test.ts` e
+`api/routes/linked-accounts.routes.test.ts`.
+
 ### PDF em desenvolvimento (fora do Linux)
 
 Duas barreiras faziam a geracao de PDF — e portanto a entrega no Drive —
