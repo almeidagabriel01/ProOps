@@ -79,12 +79,36 @@ export const PLAN_PRO_ADDONS: SeedPlanTenant = {
   addons: ["fiscal", "online_payments"],
 };
 
+/**
+ * Donos de conta Pro exclusivos do tutorial (`onboarding/` e
+ * `mobile/onboarding.spec.ts`). O spec reescreve `users/{uid}.onboarding` a
+ * cada teste, então nenhum outro arquivo pode usar estes usuários: o card
+ * flutuante do tour cobriria a tela de quem não o espera.
+ */
+export const PLAN_ONBOARDING: SeedPlanTenant = {
+  tenantId: "tenant-onboarding",
+  tier: "pro",
+  uid: "user-onboarding",
+  email: "onboarding@plans.test",
+  name: "Maria Onboarding",
+};
+
+export const PLAN_ONBOARDING_MOBILE: SeedPlanTenant = {
+  tenantId: "tenant-onboarding-mobile",
+  tier: "pro",
+  uid: "user-onboarding-mobile",
+  email: "onboarding-mobile@plans.test",
+  name: "Maria Onboarding Mobile",
+};
+
 export const PLAN_TENANTS = [
   PLAN_STARTER,
   PLAN_PRO,
   PLAN_ENTERPRISE,
   PLAN_STARTER_ADDON,
   PLAN_PRO_ADDONS,
+  PLAN_ONBOARDING,
+  PLAN_ONBOARDING_MOBILE,
 ];
 
 export const PLAN_PASSWORD = PASSWORD;

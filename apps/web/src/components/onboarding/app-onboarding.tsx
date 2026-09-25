@@ -1,568 +1,331 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { ArrowRight, CheckCircle2, CircleHelp, Sparkles } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Circle,
+  Compass,
+  GripHorizontal,
+  Minus,
+  Undo2,
+  X,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/providers/auth-provider";
-import { useNavigationItems } from "@/components/layout/use-navigation-items";
-import {
-  useMenuCapabilities,
-  type MenuCapabilityMap,
-} from "@/components/layout/capability-gate";
-import {
-  flattenMenuItems,
-  type MenuItem,
-  type MenuCapability,
-} from "@/components/layout/navigation-config";
-import { UserOnboardingState } from "@/types";
-import { UserService } from "@/services/user-service";
-import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
+import { useIsMobile } from "@/hooks/use-is-mobile";
+import { chapterProgress } from "./onboarding-steps";
+import { useOnboarding } from "./onboarding-provider";
+import { OnboardingWelcomeDialog } from "./onboarding-welcome-dialog";
+import { useDraggablePosition } from "./use-draggable-position";
 
-type OnboardingStep = {
-  id: string;
-  route: string;
-  pageId?: string;
-  title: string;
-  description: string;
-  checklist: string[];
-  actionLabel?: string;
-};
-
-type NavigationStepItem = {
-  href: string;
-  label: string;
-  pageId?: string;
-  requiresCapability?: MenuCapability;
-};
-
-const ONBOARDING_VERSION = "core-v1";
-
-const ROUTE_STEP_TEMPLATES: Record<string, Omit<OnboardingStep, "title">> = {
-  "/dashboard": {
-    id: "dashboard",
-    route: "/dashboard",
-    pageId: "dashboard",
-    description:
-      "Veja rapidamente o que precisa de atenção no negócio antes de entrar nos módulos.",
-    checklist: [
-      "Confira os cards com os números principais.",
-      "Use as ações rápidas para acelerar o primeiro cadastro.",
-      "Acompanhe alertas, propostas recentes e saldo futuro.",
-    ],
-    actionLabel: "Abrir dashboard",
-  },
-  "/crm": {
-    id: "crm",
-    route: "/crm",
-    pageId: "kanban",
-    description:
-      "Organize oportunidades em colunas e acompanhe a evolução de cada negociação.",
-    checklist: [
-      "Arraste cards entre etapas para atualizar o funil.",
-      "Abra um card para ver detalhes sem sair da tela.",
-      "Use o CRM para priorizar o que esta mais perto de fechar.",
-    ],
-    actionLabel: "Abrir CRM",
-  },
-  "/proposals": {
-    id: "proposals",
-    route: "/proposals",
-    pageId: "proposals",
-    description:
-      "Aqui você concentra todo o fluxo comercial das propostas, do acompanhamento ate a apresentação final.",
-    checklist: [
-      "Acompanhe o andamento de cada proposta pelos status.",
-      "Use a busca para localizar clientes e documentos mais rápido.",
-      "Acesse ações como visualizar PDF, compartilhar e organizar a operação comercial.",
-    ],
-    actionLabel: "Abrir propostas",
-  },
-  "/transactions": {
-    id: "transactions",
-    route: "/transactions",
-    pageId: "transactions",
-    description:
-      "Controle receitas, despesas, filtros e situação financeira em uma única tela.",
-    checklist: [
-      "Use filtros por periodo, status, carteira e tipo.",
-      "Acompanhe o saldo e os cards de resumo.",
-      "Abra os lançamentos para editar, pagar ou excluir.",
-    ],
-    actionLabel: "Abrir lançamentos",
-  },
-  "/wallets": {
-    id: "wallets",
-    route: "/wallets",
-    pageId: "wallet",
-    description:
-      "Gerencie contas, caixas e carteiras para distribuir melhor a operação financeira.",
-    checklist: [
-      "Veja o saldo de cada carteira em cards separados.",
-      "Use os diálogos para criar, ajustar ou transferir valores.",
-      "Consulte o histórico para auditar movimentações.",
-    ],
-    actionLabel: "Abrir carteiras",
-  },
-  "/contacts": {
-    id: "contacts",
-    route: "/contacts",
-    pageId: "clients",
-    description:
-      "Centralize clientes e fornecedores para alimentar propostas, serviços e financeiro.",
-    checklist: [
-      "Pesquise por nome, contato ou tipo.",
-      "Abra um cadastro para consultar histórico e detalhes.",
-      "Mantenha a base atualizada para agilizar os próximos passos.",
-    ],
-    actionLabel: "Abrir contatos",
-  },
-  "/calendar": {
-    id: "calendar",
-    route: "/calendar",
-    pageId: "calendar",
-    description:
-      "Organize compromissos, entregas e lembretes da operação em uma visão de agenda.",
-    checklist: [
-      "Navegue por dia, semana ou mês.",
-      "Clique em uma data para criar um evento.",
-      "Use o calendário para acompanhar prazos e visitas.",
-    ],
-    actionLabel: "Abrir calendário",
-  },
-  "/products": {
-    id: "products",
-    route: "/products",
-    pageId: "products",
-    description:
-      "Cadastre itens do catálogo para reaproveitar em propostas e operações.",
-    checklist: [
-      "Use a busca e a tabela para localizar itens rapidamente.",
-      "Atualize preço, estoque e dados comerciais.",
-      "Mantenha o catálogo limpo para montar propostas mais rápido.",
-    ],
-    actionLabel: "Abrir produtos",
-  },
-  "/services": {
-    id: "services",
-    route: "/services",
-    pageId: "services",
-    description:
-      "Gerencie os serviços disponíveis para compor propostas e padronizar a operação.",
-    checklist: [
-      "Busque por nome ou categoria.",
-      "Revise valores e descrições periodicamente.",
-      "Use a lista para manter o portfólio organizado.",
-    ],
-    actionLabel: "Abrir serviços",
-  },
-  "/spreadsheets": {
-    id: "spreadsheets",
-    route: "/spreadsheets",
-    pageId: "spreadsheets",
-    description:
-      "Use planilhas para operações mais detalhadas sem sair do sistema.",
-    checklist: [
-      "Abra uma planilha para editar direto no navegador.",
-      "Centralize cálculos e controles do time.",
-      "Mantenha arquivos importantes organizados por tenant.",
-    ],
-    actionLabel: "Abrir planilhas",
-  },
-  "/solutions": {
-    id: "solutions",
-    route: "/solutions",
-    pageId: "solutions",
-    description:
-      "Configure estruturas reutilizaveis para acelerar propostas e padrões operacionais.",
-    checklist: [
-      "Cadastre soluções ou sistemas padrão.",
-      "Relacione ambientes e itens reutilizaveis.",
-      "Use esse módulo para ganhar escala nas montagens.",
-    ],
-    actionLabel: "Abrir solucoes",
-  },
-  "/ambientes": {
-    id: "ambientes",
-    route: "/ambientes",
-    pageId: "solutions",
-    description:
-      "Organize ambientes e combinações padrao para reaproveitar em novos projetos.",
-    checklist: [
-      "Cadastre ambientes frequentes do seu processo.",
-      "Associe itens e estruturas recorrentes.",
-      "Reaproveite esses ambientes na construcao das propostas.",
-    ],
-    actionLabel: "Abrir ambientes",
-  },
-  "/settings/team": {
-    id: "team",
-    route: "/settings/team",
-    pageId: "team",
-    description:
-      "Convide pessoas, controle acessos e mantenha a operação distribuida com segurança.",
-    checklist: [
-      "Cadastre novos membros da equipe.",
-      "Ajuste permissões por módulo e por nível de acesso.",
-      "Revise o time periodicamente para manter o controle.",
-    ],
-    actionLabel: "Abrir equipe",
-  },
-  "/profile": {
-    id: "profile",
-    route: "/profile",
-    pageId: "profile",
-    description:
-      "Finalize configurações pessoais e acompanhe dados da conta e assinatura.",
-    checklist: [
-      "Revise seus dados pessoais e da empresa.",
-      "Confira plano, assinatura e add-ons ativos.",
-      "Use esta area para manter a conta sempre atualizada.",
-    ],
-    actionLabel: "Abrir perfil",
-  },
-};
-
-function flattenNavigationItems(
-  visibleMenuItems: MenuItem[],
-  capabilities: MenuCapabilityMap,
-): NavigationStepItem[] {
-  // O onboarding monta um passo por ROTA (ROUTE_STEP_TEMPLATES), então continua
-  // achatando de propósito, ao contrário da dock, que colapsa. O que sai daqui é
-  // a cópia do achatamento do Financeiro: agora é `flattenMenuItems`, o mesmo
-  // que a navegação usa.
-  return flattenMenuItems(visibleMenuItems)
-    // REMOVE o módulo bloqueado em vez de coroá-lo: um passo guiado para uma
-    // tela que o plano não abre seria um beco sem saída.
-    .filter(
-      (leaf) =>
-        !leaf.requiresCapability || capabilities[leaf.requiresCapability],
-    )
-    .map((leaf) => ({
-      href: leaf.href,
-      label: leaf.label,
-      pageId: leaf.pageId,
-      requiresCapability: leaf.requiresCapability,
-    }));
-}
-
-function buildOnboardingSteps(params: {
-  visibleMenuItems: MenuItem[];
-  capabilities: MenuCapabilityMap;
-}): OnboardingStep[] {
-  const flattenedItems = flattenNavigationItems(
-    params.visibleMenuItems,
-    params.capabilities,
+/**
+ * O tutorial: um card flutuante, uma tela por vez. Ele não aponta para
+ * elementos da página, e por isso não quebra quando um layout muda; o roteiro
+ * mora em `onboarding-steps.ts` e o estado em `onboarding-provider.tsx`.
+ *
+ * Posição: canto inferior DIREITO, empilhado logo acima do botão da Lia, que é
+ * onde um tutorial é procurado e onde ele não cobre o conteúdo principal. A
+ * pílula minimizada fica ao lado do botão da Lia, na mesma linha. Na conta
+ * demo a Lia não existe, e os dois descem para o canto.
+ *
+ * No desktop a pessoa pode arrastar o card pela faixa do título e soltá-lo
+ * onde quiser; a posição fica neste navegador, e "voltar ao canto" (ou duplo
+ * clique na faixa, ou Home) desfaz. No celular ele fica ancorado: com a largura
+ * inteira ocupada, arrastar só atrapalharia a rolagem.
+ *
+ * Abaixo de md o card ocupa a largura e sobe acima do botão da Lia (que fica
+ * sobre a tab bar, à direita); a pílula vai para a esquerda, na mesma altura.
+ */
+function cardPosition(hasLia: boolean) {
+  return cn(
+    "fixed z-[45] left-4 right-4",
+    hasLia
+      ? "bottom-[calc(9.5rem_+_env(safe-area-inset-bottom))]"
+      : "bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))]",
+    "md:left-auto md:right-6 md:w-[360px]",
+    hasLia ? "md:bottom-[5.75rem]" : "md:bottom-6",
   );
-  const steps: OnboardingStep[] = [];
-  const seenStepIds = new Set<string>();
-
-  const pushStep = (step: OnboardingStep | null) => {
-    if (!step || seenStepIds.has(step.id)) return;
-    seenStepIds.add(step.id);
-    steps.push(step);
-  };
-
-  flattenedItems.forEach((item) => {
-    const template = ROUTE_STEP_TEMPLATES[item.href];
-    if (!template) return;
-
-    pushStep({
-      ...template,
-      title: item.label,
-    });
-  });
-
-  return steps;
 }
 
-function getInitialOnboardingState(
-  previousState: UserOnboardingState | undefined,
-  steps: OnboardingStep[],
-): UserOnboardingState | undefined {
-  if (!previousState) return undefined;
-
-  const completedStepIds = Array.from(
-    new Set(previousState?.completedStepIds || []),
-  ).filter((stepId) => steps.some((step) => step.id === stepId));
-  const nextStep =
-    steps.find((step) => !completedStepIds.includes(step.id)) || steps[0];
-  const now = new Date().toISOString();
-
-  return {
-    version: previousState?.version || ONBOARDING_VERSION,
-    status: previousState?.status || "active",
-    completedStepIds,
-    currentStepId: nextStep?.id,
-    startedAt: previousState?.startedAt || now,
-    updatedAt: now,
-    completedAt: previousState?.completedAt,
-    skippedAt: previousState?.skippedAt,
-  };
+function pillPosition(hasLia: boolean) {
+  return cn(
+    "fixed z-[45] left-4 bottom-[calc(5.75rem_+_env(safe-area-inset-bottom))]",
+    "md:left-auto",
+    hasLia ? "md:right-[5.5rem] md:bottom-7" : "md:right-6 md:bottom-6",
+  );
 }
 
 export function AppOnboarding() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, refreshUser } = useAuth();
-  const { visibleMenuItems } = useNavigationItems();
-  const capabilities = useMenuCapabilities();
-  const [localOnboarding, setLocalOnboarding] = React.useState<
-    UserOnboardingState | undefined
-  >(user?.onboarding);
-  const [isSaving, setIsSaving] = React.useState(false);
+  const onboarding = useOnboarding();
+  const {
+    steps,
+    isActive,
+    isDemo,
+    isSaving,
+    completedIds,
+    matchedStep,
+    displayStep,
+    isMinimized,
+    setMinimized,
+    goToStep,
+    completeCurrentAndAdvance,
+    exit,
+  } = onboarding;
 
-  React.useEffect(() => {
-    setLocalOnboarding(user?.onboarding);
-  }, [user?.onboarding]);
+  const hasLia = !isDemo;
+  const { user } = useAuth();
+  const isMobile = useIsMobile();
+  const cardRef = React.useRef<HTMLElement>(null);
+  const drag = useDraggablePosition({
+    storageKey: user?.id ? `proops:onboarding:position:${user.id}` : null,
+    enabled: !isMobile,
+    elementRef: cardRef,
+  });
 
-  const steps = React.useMemo(
-    () =>
-      buildOnboardingSteps({
-        visibleMenuItems,
-        capabilities,
-      }),
-    [visibleMenuItems, capabilities],
-  );
-
-  const onboarding = React.useMemo(
-    () => getInitialOnboardingState(localOnboarding || user?.onboarding, steps),
-    [localOnboarding, steps, user?.onboarding],
-  );
-
-  const completedStepIds = React.useMemo(
-    () => onboarding?.completedStepIds || [],
-    [onboarding],
-  );
-  const completedSet = React.useMemo(
-    () => new Set(completedStepIds),
-    [completedStepIds],
-  );
-  const pendingSteps = React.useMemo(
-    () => steps.filter((step) => !completedSet.has(step.id)),
-    [steps, completedSet],
-  );
-  const matchedStep = steps.find((step) => step.route === pathname) || null;
-  const activeMatchedStep =
-    matchedStep && !completedSet.has(matchedStep.id) ? matchedStep : null;
-  const nextPendingStep = pendingSteps[0] || null;
-  const displayStep =
-    activeMatchedStep || nextPendingStep || matchedStep || steps[0] || null;
-  const completedCount = steps.filter((step) =>
-    completedSet.has(step.id),
-  ).length;
-  const progress =
-    steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0;
-  const isCurrentScreenStep =
-    !!activeMatchedStep &&
-    !!displayStep &&
-    activeMatchedStep.id === displayStep.id;
-
-  const saveOnboarding = React.useCallback(
-    async (nextState: UserOnboardingState) => {
-      const previousState = localOnboarding || user?.onboarding;
-      setLocalOnboarding(nextState);
-      setIsSaving(true);
-
-      try {
-        await UserService.updateOnboarding(nextState);
-        await refreshUser();
-        return true;
-      } catch (error) {
-        console.error("Failed to persist onboarding state:", error);
-        setLocalOnboarding(previousState);
-        toast.error("Nao foi possivel atualizar o tutorial agora.");
-        return false;
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [localOnboarding, refreshUser, user?.onboarding],
-  );
-
-  const markStepAsUnderstood = React.useCallback(async () => {
-    if (!displayStep || !onboarding || isSaving) return;
-
-    const nextCompleted = Array.from(
-      new Set([...onboarding.completedStepIds, displayStep.id]),
-    );
-    const allStepsDone = steps.every((step) => nextCompleted.includes(step.id));
-    const nextPending = steps.find((step) => !nextCompleted.includes(step.id));
-    const now = new Date().toISOString();
-
-    const didSave = await saveOnboarding({
-      ...onboarding,
-      completedStepIds: nextCompleted,
-      currentStepId: nextPending?.id,
-      updatedAt: now,
-      status: allStepsDone ? "completed" : "active",
-      completedAt: allStepsDone ? now : undefined,
-      skippedAt: undefined,
-    });
-
-    if (didSave && allStepsDone) {
-      toast.success("Tutorial concluido. Ele nao sera mais exibido.");
-    }
-  }, [displayStep, isSaving, onboarding, saveOnboarding, steps]);
-
-  const finishOnboarding = React.useCallback(async () => {
-    if (!onboarding || isSaving) return;
-
-    const now = new Date().toISOString();
-
-    const didSave = await saveOnboarding({
-      ...onboarding,
-      status: "completed",
-      completedStepIds: steps.map((step) => step.id),
-      currentStepId: undefined,
-      updatedAt: now,
-      completedAt: now,
-      skippedAt: undefined,
-    });
-
-    if (didSave) {
-      toast.success("Onboarding concluido.");
-    }
-  }, [isSaving, onboarding, saveOnboarding, steps]);
-
-  const skipOnboarding = React.useCallback(async () => {
-    if (!onboarding || isSaving) return;
-
-    const now = new Date().toISOString();
-
-    const didSave = await saveOnboarding({
-      ...onboarding,
-      status: "skipped",
-      currentStepId: undefined,
-      updatedAt: now,
-      skippedAt: now,
-    });
-
-    if (didSave) {
-      toast.info("Tutorial pausado para esta conta.");
-    }
-  }, [isSaving, onboarding, saveOnboarding]);
-
-  const openDisplayStep = React.useCallback(() => {
-    if (!displayStep || pathname === displayStep.route) return;
-    router.push(displayStep.route);
-  }, [displayStep, pathname, router]);
-
-  if (!user || !displayStep || steps.length === 0) {
-    return null;
+  if (!isActive || !displayStep) {
+    return <OnboardingWelcomeDialog />;
   }
 
-  if (!onboarding || onboarding.status !== "active") {
-    return null;
+  const completedCount = steps.filter((step) => completedIds.has(step.id)).length;
+  const progress = Math.round((completedCount / steps.length) * 100);
+  const isOnStep = matchedStep?.id === displayStep.id;
+  const isDone = completedIds.has(displayStep.id);
+  const index = steps.findIndex((step) => step.id === displayStep.id);
+  const previous = index > 0 ? steps[index - 1] : null;
+  // Depois da última tela, o que ainda estiver pendente em qualquer ponto.
+  const following =
+    (index < steps.length - 1 ? steps[index + 1] : null) ??
+    steps.find((step) => !completedIds.has(step.id)) ??
+    null;
+  const chapter = chapterProgress(steps, displayStep);
+
+  if (isMinimized) {
+    return (
+      <>
+        <OnboardingWelcomeDialog />
+        <button
+          type="button"
+          onClick={() => setMinimized(false)}
+          className={cn(
+            pillPosition(hasLia),
+            "flex items-center gap-2 rounded-full border border-border/70 bg-background/95 py-2 pl-2 pr-3.5 text-sm font-medium shadow-lg backdrop-blur-xl transition-colors hover:bg-muted",
+          )}
+          aria-label={`Abrir o tutorial, ${completedCount} de ${steps.length} telas vistas`}
+          data-testid="onboarding-pill"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Compass className="h-4 w-4" aria-hidden />
+          </span>
+          Tutorial
+          <span className="tabular-nums text-muted-foreground">
+            {completedCount}/{steps.length}
+          </span>
+        </button>
+      </>
+    );
   }
 
   return (
-    <div
-      className={cn(
-        "fixed z-[45] left-4 right-4 bottom-24",
-        "sm:left-auto sm:right-6 sm:top-20 sm:bottom-auto sm:w-[360px]",
-      )}
-    >
-      <Card className="border-border/70 bg-background/95 backdrop-blur-xl shadow-2xl">
-        <CardContent className="p-4 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-2 min-w-0">
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="secondary"
-                  className="gap-1 rounded-full px-2.5 py-0.5"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  Tutorial
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {completedCount}/{steps.length} telas
-                </span>
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-foreground">
+    <>
+      <OnboardingWelcomeDialog />
+      <section
+        ref={cardRef}
+        style={drag.style}
+        role="region"
+        aria-label="Tutorial da plataforma"
+        data-testid="onboarding-card"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setMinimized(true);
+        }}
+        className={cn(
+          cardPosition(hasLia),
+          "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2",
+          drag.isDragging && "select-none",
+        )}
+      >
+        <Card className="max-h-[calc(100dvh-15rem)] overflow-y-auto md:max-h-[calc(100dvh-11rem)] border-border/70 bg-background/95 shadow-2xl backdrop-blur-xl">
+          <CardContent className="space-y-3 p-4 max-sm:p-4">
+            <div
+              {...drag.handleProps}
+              data-testid="onboarding-drag-handle"
+              tabIndex={isMobile ? undefined : 0}
+              aria-label={
+                isMobile
+                  ? undefined
+                  : "Mover o tutorial: arraste, ou use as setas. Home volta ao canto."
+              }
+              title={isMobile ? undefined : "Arraste para mover"}
+              className={cn(
+                "-mx-4 -mt-4 flex items-start justify-between gap-3 rounded-t-xl px-4 pt-4 touch-none",
+                !isMobile && "md:cursor-grab focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                drag.isDragging && "md:cursor-grabbing",
+              )}
+            >
+              <div className="min-w-0 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="gap-1 rounded-full px-2.5 py-0.5">
+                    <Compass className="h-3 w-3" aria-hidden />
+                    Tutorial
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {chapter.label} · {chapter.position} de {chapter.total}
+                  </span>
+                </div>
+                <h2 className="text-base font-semibold leading-snug text-foreground">
                   {displayStep.title}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {isOnStep
+                    ? isDone
+                      ? "Você já viu esta tela."
+                      : "Você está nesta tela agora."
+                    : "Próxima tela do tour."}
+                  <span className="tabular-nums">
+                    {" "}
+                    · {completedCount} de {steps.length} telas vistas
+                  </span>
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {isCurrentScreenStep
-                    ? "Voce esta nesta tela agora."
-                    : "Proxima tela sugerida do onboarding."}
-                </p>
+              </div>
+              <div className="-mr-1 -mt-1 flex shrink-0 items-center">
+                {!isMobile && (
+                  <GripHorizontal
+                    className="mr-1 h-4 w-4 text-muted-foreground/60"
+                    aria-hidden
+                  />
+                )}
+                {drag.position && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground"
+                    onClick={drag.reset}
+                    aria-label="Voltar o tutorial ao canto"
+                    title="Voltar ao canto"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground"
+                  onClick={() => setMinimized(true)}
+                  aria-label="Minimizar o tutorial"
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground"
+                  onClick={() => void exit()}
+                  disabled={isSaving}
+                  aria-label="Sair do tutorial"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
-            <CircleHelp className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-          </div>
+            <div
+                className="h-1 overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-label="Progresso do tutorial"
+                aria-valuemin={0}
+                aria-valuemax={steps.length}
+                aria-valuenow={completedCount}
+              >
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-300 motion-reduce:transition-none"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
 
-          <div className="space-y-2">
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary transition-[width] duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm leading-relaxed text-foreground/90">
               {displayStep.description}
             </p>
-          </div>
 
-          <div className="space-y-2">
-            {displayStep.checklist.map((item) => (
-              <div key={item} className="flex items-start gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <span className="text-foreground/85">{item}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {isCurrentScreenStep ? (
-              <Button
-                onClick={() => void markStepAsUnderstood()}
-                disabled={isSaving}
-                className="w-full gap-2"
-              >
-                Entendi esta tela
-                <CheckCircle2 className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                onClick={openDisplayStep}
-                disabled={isSaving}
-                className="w-full gap-2"
-              >
-                {displayStep.actionLabel || "Abrir tela"}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+            {displayStep.checklist.length > 0 && (
+              <ul className="space-y-1.5">
+                {displayStep.checklist.map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-sm">
+                    {isDone ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    ) : (
+                      <Circle className="mt-0.5 h-4 w-4 shrink-0 text-primary/60" aria-hidden />
+                    )}
+                    <span className="text-foreground/85">{item}</span>
+                  </li>
+                ))}
+              </ul>
             )}
 
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void finishOnboarding()}
-                disabled={isSaving}
-                className="px-2 text-xs text-muted-foreground hover:text-foreground"
-              >
-                Concluir onboarding
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void skipOnboarding()}
-                disabled={isSaving}
-                className="px-2 text-xs text-muted-foreground hover:text-foreground"
-              >
-                Pular tutorial
-              </Button>
+            {isDemo && (
+              <p className="rounded-lg bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                Na demonstração você só visualiza.{" "}
+                <Link
+                  href="/profile?tab=billing"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
+                >
+                  Assine para cadastrar os seus dados.
+                </Link>
+              </p>
+            )}
+
+            <div className="flex items-center gap-2">
+              {isOnStep && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => previous && goToStep(previous)}
+                  disabled={!previous || isSaving}
+                  aria-label={previous ? `Voltar para ${previous.title}` : "Não há tela anterior"}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
+              {!isOnStep ? (
+                <Button
+                  onClick={() => goToStep(displayStep)}
+                  disabled={isSaving}
+                  className="flex-1 gap-2"
+                >
+                  {displayStep.actionLabel}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              ) : !isDone ? (
+                <Button
+                  onClick={() => void completeCurrentAndAdvance()}
+                  disabled={isSaving}
+                  className="flex-1 gap-2"
+                  data-testid="onboarding-next"
+                >
+                  {completedCount === steps.length - 1 ? "Concluir o tutorial" : "Entendi, próxima tela"}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => following && goToStep(following)}
+                  disabled={!following || isSaving}
+                  className="flex-1 gap-2"
+                >
+                  {following ? `Ir para ${following.title}` : "Você viu todas as telas"}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+
+          </CardContent>
+        </Card>
+      </section>
+    </>
   );
 }

@@ -45,7 +45,7 @@ interface AuthFixtures {
 // Override fetch AND XHR in the browser before any SDK code runs.
 // Needed because .env.local bakes real Firebase credentials into the client
 // bundle; Firebase SDK would otherwise talk to Google's production servers.
-async function interceptFirebaseRequests(page: Page): Promise<void> {
+export async function interceptFirebaseRequests(page: Page): Promise<void> {
   await page.addInitScript(() => {
     // Override fetch
     const _fetch = window.fetch;
@@ -100,7 +100,7 @@ async function loginAsMember(
 }
 
 /** MASTER de um tenant de plano: a home é sempre /dashboard (tem tudo liberado por role). */
-async function loginAsPlanMaster(
+export async function loginAsPlanMaster(
   page: Page,
   seed: SeedPlanTenant,
 ): Promise<void> {

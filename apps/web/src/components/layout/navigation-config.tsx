@@ -145,7 +145,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     icon: CalendarDays,
-    label: "Calendario",
+    label: "Calendário",
     href: "/calendar",
     pageId: "calendar",
   },

@@ -3,75 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { m as motion, useReducedMotion } from "motion/react";
-import {
-  CreditCard,
-  FileText,
-  FolderOpen,
-  Hash,
-  Link2,
-  ShieldCheck,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface NavItem {
-  label: string;
-  /** Rótulo curto usado abaixo de lg, onde os três itens dividem a largura. */
-  shortLabel?: string;
-  href: string;
-  icon: LucideIcon;
-}
-
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    label: "Conta",
-    items: [
-      { label: "Segurança", href: "/settings/security", icon: ShieldCheck },
-    ],
-  },
-  {
-    label: "Organização",
-    items: [
-      { label: "Equipe", href: "/settings/team", icon: Users },
-      { label: "Propostas", href: "/settings/proposals", icon: Hash },
-      {
-        label: "Pagamento Online",
-        shortLabel: "Pagamento",
-        href: "/settings/payments",
-        icon: CreditCard,
-      },
-      {
-        label: "Notas Fiscais",
-        shortLabel: "Notas",
-        href: "/settings/fiscal",
-        icon: FileText,
-      },
-      {
-        label: "Google Drive",
-        shortLabel: "Drive",
-        href: "/settings/drive",
-        icon: FolderOpen,
-      },
-      {
-        label: "Contas vinculadas",
-        shortLabel: "Contas",
-        href: "/settings/linked-accounts",
-        icon: Link2,
-      },
-    ],
-  },
-];
+import { SETTINGS_NAV_GROUPS } from "./settings-nav-items";
 
 export function SettingsNav() {
   const pathname = usePathname();
@@ -89,7 +27,7 @@ export function SettingsNav() {
         className="rounded-xl border border-border/60 bg-card p-2"
       >
         <div className="flex flex-row justify-center gap-1 overflow-x-auto lg:flex-col lg:justify-start lg:gap-3 lg:overflow-visible">
-          {NAV_GROUPS.map((group) => (
+          {SETTINGS_NAV_GROUPS.map((group) => (
             <div
               key={group.label}
               className="flex flex-row gap-1 lg:flex-col lg:gap-0.5"
