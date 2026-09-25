@@ -72,22 +72,66 @@ produto demora"). Foco no que o usuário sente:
 - **Bug de saldo:** estorno dos lançamentos de proposta revertida/excluída lia
   carteira depois de escrever na transação (`lib/proposal-transactions-cleanup.ts`).
 
-**Ondas seguintes, ainda abertas** (diagnóstico de 2026-09-24):
+### Feito em 2026-09-25 (performance, ondas 2 a 4; branch `perf/onda-2`)
 
-- **Onda 2, queries que crescem com o histórico:** N² leituras de
-  `onTransactionTotals` por grupo; `isProductUsedInProposal` baixa todas as
-  propostas; página de produtos baixa o catálogo no mount; contatos e comissões
-  baixam todos os clientes; sync da agenda relê e regrava tudo; `checkDueDates`
-  sem limite inferior; fallback do WhatsApp que varre os lançamentos; planilhas
-  listadas com o `dataJson`; busca da Lia só nos 50 mais recentes.
-- **Onda 3, crons que ignoram tenants em silêncio:** `reportWhatsappOverage`
-  (cobrança), `checkPriceChanges`, `syncReceivedInvoices`,
-  `checkFiscalCertificateExpiry`, `reconcileAddons`, `checkStripeSubscriptions`
-  e `checkManualSubscriptions` (batch > 500).
-- **Onda 4, contenção, cold start e bundle:** contadores legados
-  `usage.*` em `users/{master}`/`companies`, import eager do KMS e do monolito
-  inteiro em cada função, webhook do WhatsApp síncrono, Lia/markdown/recharts
-  carregados em toda página.
+- **Contatos:** busca e filtro por tipo pelo índice (`searchTokens`, agora com
+  os dígitos do telefone; `types` com `array-contains-any`). Decisão do dono do
+  produto: busca por INÍCIO de palavra, não por trecho.
+- **Exclusão de produto:** `productRefs` + `productRefsIndexed` na proposta e
+  checagem com `limit(1)`; cai no método antigo enquanto houver proposta do
+  tenant sem o índice.
+- **`checkDueDates`:** piso de 30 dias para propostas expiradas e gravação por
+  `BulkWriter`.
+- **WhatsApp "hoje":** dia sem movimento não varre mais os lançamentos.
+- **Agenda:** sync lê só os eventos devolvidos, pagina, grava só o que mudou e
+  decifra o token depois do throttle.
+- **`onTransactionTotals`:** coalescência por `readTime` e gravação condicional
+  (`transaction_group_sync`): sem N² leituras e sem sobrescrita por dado velho.
+- **Lotes de lançamentos:** `t.getAll` e recusa clara acima de 500 escritas.
+- **Lia:** busca de contatos e propostas pelo índice; 10 índices compostos que
+  faltavam nas ferramentas.
+- **Crons:** `reportWhatsappOverage` alcança todos e nunca cobra duas vezes
+  (reserva antes do Stripe; roda nos dias 1 a 3); `checkPriceChanges`,
+  `syncReceivedInvoices`, `checkFiscalCertificateExpiry` e
+  `applyScheduledPlanChanges` paginam; `checkManualSubscriptions` em lotes;
+  `checkStripeSubscriptions` e `reconcileAddons` com cursor rotativo
+  (`cron_cursors`).
+- **Cold start:** exports preguiçosos no `index.ts` (cada função carrega só o
+  próprio módulo) e KMS carregado no primeiro uso.
+- **Front:** Lia (conversa, histórico e markdown) só quando usada; Recharts do
+  dashboard em chunk próprio; SDK de Storage só onde se sobe arquivo e o de
+  Functions removido; `loading.tsx` nas rotas de lista.
+
+**Para publicar** (nesta ordem): deploy dos índices e das rules
+(`transaction_group_sync`, `cron_cursors`); deploy do backend; rodar
+`backfill-search-tokens.ts` (tokens de telefone e `types` que falta) e
+`backfill-proposal-product-refs.ts` nos dois projetos. **Revisão manual
+obrigatória** antes de produção: `reportWhatsappOverage`, `checkPriceChanges`,
+`checkStripeSubscriptions`, `reconcileAddons`, `checkManualSubscriptions` e
+`applyScheduledPlanChanges` mexem em cobrança ou plano.
+
+**Ainda aberto, e por quê:**
+
+- **Página de produtos baixa o catálogo no mount.** Os cards de saldo (e o de
+  cortinas, com faixas de altura) precisam de todos os produtos; tirar isso do
+  navegador exige portar a lógica de preço para o backend com paridade. Com o
+  cache por item da onda 1, o download acontece no máximo a cada 5 min por aba.
+- **Planilhas listadas com o `dataJson`.** Exige mover o conteúdo para um
+  subdocumento, com migração. O custo por página tem teto pelo plano (5/50).
+- **Lançamentos em aberto sem limite de data + histórico da carteira.** A
+  consulta traz toda dívida aberta de propósito; mexer nela junto do 4.1
+  (`walletsInvolved`), que pede a mesma mudança de modelo.
+- **Contadores legados `usage.*` em `users/{master}`/`companies`.** Ainda
+  alimentam o analytics do superadmin e o limite legado de propostas; a
+  contenção só aparece acima de 1 criação/s no mesmo tenant.
+- **Webhook do WhatsApp síncrono (com PDF no monolito).** Mudança de
+  arquitetura do canal (trigger ou Cloud Tasks) que precisa de teste de ponta
+  a ponta com a Meta.
+- **Leituras duplicadas de usuário/permissões no boot.** Mexe nos providers de
+  autenticação (alto risco); a mudança do tenant (onda 1) já tirou a busca
+  duplicada das telas.
+- **Busca de produtos da Lia** continua só nos 50 mais recentes: produtos não
+  têm `searchTokens`.
 
 ## 3. Pendente com você — ~20 min, custo R$ 0
 
