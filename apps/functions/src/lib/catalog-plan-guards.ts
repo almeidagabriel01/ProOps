@@ -1,37 +1,45 @@
 import { resolveTenantCapabilities } from "./tenant-capabilities";
+import { getTenantDocCached } from "./tenant-doc-cache";
+import {
+  resolveCatalogImageLimit,
+  type CatalogItemType,
+} from "../shared/catalog-image-limits";
 
-export type ImagesPlanCheck =
+export type CatalogImagesCheck =
   | { allowed: true }
   | { allowed: false; limit: number; message: string };
 
 /**
- * Teto de imagens por produto/servico do plano (Starter 2, Pro e Enterprise 3).
+ * Teto de imagens por item do catálogo, pela regra de NICHO
+ * (`shared/catalog-image-limits.ts`): a mesma que a tela aplica.
  *
- * Ate 2026-09 so a tela barrava: o schema do produto aceitava ate 20 imagens de
- * qualquer plano. A regra aqui tambem nao pune quem ja tinha mais fotos antes
- * de um downgrade: editar um item com 3 fotos continua possivel, so nao se
- * passa do que ja existia nem do teto do plano.
+ * Não pune dado anterior à regra: editar um item que já tinha mais fotos
+ * continua possível, só não se passa do que já existia nem do teto.
  */
-export async function checkImagesWithinPlan(input: {
+export async function checkCatalogImagesLimit(input: {
   tenantId: string;
+  itemType: CatalogItemType;
   requested: number;
   existing?: number;
   isSuperAdmin?: boolean;
-}): Promise<ImagesPlanCheck> {
+}): Promise<CatalogImagesCheck> {
   if (input.isSuperAdmin) return { allowed: true };
 
-  const { limits } = await resolveTenantCapabilities(input.tenantId);
-  const limit = limits.maxImagesPerProduct;
-  if (limit === -1) return { allowed: true };
+  const tenant = await getTenantDocCached(input.tenantId);
+  const limit = resolveCatalogImageLimit({
+    niche: typeof tenant.data?.niche === "string" ? tenant.data.niche : null,
+    itemType: input.itemType,
+  });
 
   if (input.requested <= limit || input.requested <= (input.existing ?? 0)) {
     return { allowed: true };
   }
 
+  const noun = input.itemType === "service" ? "serviço" : "produto";
   return {
     allowed: false,
     limit,
-    message: `Seu plano permite até ${limit} ${limit === 1 ? "imagem" : "imagens"} por item. Remova uma imagem ou faça upgrade do plano.`,
+    message: `É permitido adicionar até ${limit} ${limit === 1 ? "imagem" : "imagens"} por ${noun}.`,
   };
 }
 

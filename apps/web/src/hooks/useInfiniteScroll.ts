@@ -17,6 +17,14 @@ export interface AsyncInfiniteScrollResult<T> {
   hasMore: boolean;
   sentinelRef: React.MutableRefObject<HTMLDivElement | null>;
   reset: () => void;
+  /**
+   * Recarrega a primeira página SEM limpar as linhas nem mostrar skeleton: as
+   * atuais ficam na tela até a resposta chegar. Para quando algo mudou mas não
+   * se sabe o quê (ex.: aviso de auto-save).
+   */
+  refresh: () => void;
+  /** Edita as linhas já carregadas no lugar (ex.: um item editado ou excluído). */
+  updateItems: (updater: (items: T[]) => T[]) => void;
 }
 
 /** Result type for static (array-slicing) mode */
@@ -206,7 +214,32 @@ export function useAsyncInfiniteScroll<T>(
       });
   }, [initialLoadTimeoutMs, withTimeout]);
 
-  return { items, isLoading, isLoadingMore, hasMore, sentinelRef, reset };
+  const refresh = useCallback(() => {
+    withTimeout(fetchPageRef.current(null), initialLoadTimeoutMs)
+      .then((result) => {
+        setItems(result.data);
+        cursorRef.current = result.lastDoc;
+        setHasMore(result.hasMore);
+      })
+      .catch((error) => {
+        console.error("Error refreshing:", error);
+      });
+  }, [initialLoadTimeoutMs, withTimeout]);
+
+  const updateItems = useCallback((updater: (items: T[]) => T[]) => {
+    setItems((prev) => updater(prev));
+  }, []);
+
+  return {
+    items,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    sentinelRef,
+    reset,
+    refresh,
+    updateItems,
+  };
 }
 
 // ============================================

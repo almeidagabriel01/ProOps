@@ -99,6 +99,9 @@ export default function ProductsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTableLoading, setIsTableLoading] = useState(true);
   const resetRef = useRef<(() => void) | null>(null);
+  const updateItemsRef = useRef<
+    ((updater: (items: Product[]) => Product[]) => void) | null
+  >(null);
 
   const isFiltering = searchTerm.trim() !== "";
   const isCurtainNiche = nicheConfig.id === "cortinas";
@@ -148,7 +151,20 @@ export default function ProductsPage() {
     );
 
     if (success) {
-      resetRef.current?.();
+      // Atualiza a linha no lugar: recarregar a tabela a trocava por skeleton
+      // e perdia a rolagem só para mostrar um número novo.
+      updateItemsRef.current?.((items) =>
+        items.map((p) =>
+          p.id === product.id
+            ? {
+                ...p,
+                inventoryValue: normalizedInventoryValue,
+                inventoryUnit: inventoryConfig.mode,
+                stock: normalizedInventoryValue,
+              }
+            : p,
+        ),
+      );
       if (allProducts) {
         setAllProducts(
           (prev) =>
@@ -281,7 +297,10 @@ export default function ProductsPage() {
         if (!hasRemainingProducts) {
           setAllProducts([]);
         } else {
-          resetRef.current?.();
+          const removedId = deleteId;
+          updateItemsRef.current?.((items) =>
+            items.filter((p) => p.id !== removedId),
+          );
           if (remainingProducts) {
             setAllProducts(remainingProducts);
           }
@@ -721,6 +740,7 @@ export default function ProductsPage() {
                 fetchPage={fetchPage}
                 fetchEnabled={!!tenant}
                 onResetRef={resetRef}
+                onUpdateItemsRef={updateItemsRef}
                 batchSize={12}
                 minWidth="800px"
                 onSort={requestSort}

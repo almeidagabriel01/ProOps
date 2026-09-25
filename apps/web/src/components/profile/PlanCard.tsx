@@ -237,10 +237,6 @@ export function PlanCard({
                 }
               />
               <FeatureRow
-                label="Fotos por produto"
-                value={`Até ${plan.features.maxImagesPerProduct}`}
-              />
-              <FeatureRow
                 label="Espaço para arquivos"
                 value={
                   plan.features.maxStorageMB === -1

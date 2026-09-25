@@ -348,9 +348,26 @@ export function invalidateGoogleIntegrationCache(tenantId: string): void {
   noIntegrationCache.delete(tenantId);
 }
 
+/**
+ * Decifra o refresh token (KMS) de um registro lido com `decrypt: false`.
+ * Separado para o sync de entrada pagar o KMS só depois do throttle.
+ */
+export async function decryptGoogleIntegrationRecord(
+  record: GoogleCalendarIntegrationRecord,
+): Promise<GoogleCalendarIntegrationRecord> {
+  const tokenSource = selectRefreshTokenSource(record.data);
+  if (tokenSource.source !== "encrypted") {
+    return record;
+  }
+  const decrypted = await decryptToken(tokenSource.value);
+  return { ...record, data: { ...record.data, refreshToken: decrypted } };
+}
+
 export async function getGoogleIntegration(
   tenantId: string,
+  options: { decrypt?: boolean } = {},
 ): Promise<GoogleCalendarIntegrationRecord | null> {
+  const shouldDecrypt = options.decrypt !== false;
   const cachedUntil = noIntegrationCache.get(tenantId);
   if (cachedUntil !== undefined) {
     if (cachedUntil > Date.now()) return null;
@@ -413,14 +430,8 @@ export async function getGoogleIntegration(
 
   const finalizeRecord = async (
     record: GoogleCalendarIntegrationRecord,
-  ): Promise<GoogleCalendarIntegrationRecord> => {
-    const tokenSource = selectRefreshTokenSource(record.data);
-    if (tokenSource.source !== "encrypted") {
-      return record;
-    }
-    const decrypted = await decryptToken(tokenSource.value);
-    return { ...record, data: { ...record.data, refreshToken: decrypted } };
-  };
+  ): Promise<GoogleCalendarIntegrationRecord> =>
+    shouldDecrypt ? decryptGoogleIntegrationRecord(record) : record;
 
   const directSnapshot = await collection.doc(tenantId).get();
   const directRecord = normalizeIntegrationRecord(
@@ -708,17 +719,63 @@ function buildCalendarEventDocumentFromGoogleEvent(params: {
   };
 }
 
+const GOOGLE_INBOUND_SYNC_MAX_PAGES = 8;
+
+function stableStringifyCalendar(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringifyCalendar).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${JSON.stringify(k)}:${stableStringifyCalendar(v)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+/**
+ * Compara o evento importado ignorando os carimbos de sincronização, que mudam
+ * a cada leitura mesmo sem mudança nenhuma no Google.
+ */
+export function isSameImportedCalendarEvent(
+  existing: CalendarEventDocument,
+  next: CalendarEventDocument,
+): boolean {
+  const strip = (doc: CalendarEventDocument) => {
+    const { updatedAt: _updatedAt, googleSync, ...rest } = doc;
+    const sync = { ...(googleSync || {}) } as Record<string, unknown>;
+    delete sync.lastAttemptAt;
+    delete sync.lastSyncedAt;
+    return { ...rest, googleSync: sync };
+  };
+  return stableStringifyCalendar(strip(existing)) === stableStringifyCalendar(strip(next));
+}
+
+/**
+ * Eventos locais já ligados aos eventos que o Google devolveu, buscados pelos
+ * ids externos (`in`, em lotes de 30). Antes lia TODOS os eventos do tenant a
+ * cada sincronização, e o custo crescia com o histórico da agenda.
+ */
 async function listGoogleLinkedCalendarEventsByExternalId(params: {
   tenantId: string;
+  externalEventIds: string[];
 }): Promise<Map<string, { id: string; data: CalendarEventDocument }>> {
-  const snapshot = await db
-    .collection(CALENDAR_EVENTS_COLLECTION)
-    .where("tenantId", "==", params.tenantId)
-    .get();
-
   const eventsByExternalId = new Map<string, { id: string; data: CalendarEventDocument }>();
+  const ids = Array.from(new Set(params.externalEventIds.filter(Boolean)));
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
 
-  snapshot.docs.forEach((doc) => {
+  const snapshots = await Promise.all(
+    chunks.map((chunk) =>
+      db
+        .collection(CALENDAR_EVENTS_COLLECTION)
+        .where("tenantId", "==", params.tenantId)
+        .where("googleSync.externalEventId", "in", chunk)
+        .get(),
+    ),
+  );
+
+  snapshots.flatMap((snapshot) => snapshot.docs).forEach((doc) => {
     const data = doc.data() as CalendarEventDocument;
     const externalEventId = String(data.googleSync?.externalEventId || "").trim();
 
@@ -738,7 +795,7 @@ async function listGoogleLinkedCalendarEventsByExternalId(params: {
   return eventsByExternalId;
 }
 
-async function syncGoogleEventsToLocalCalendar(params: {
+export async function syncGoogleEventsToLocalCalendar(params: {
   tenantId: string;
   startMs: number;
   endMs: number;
@@ -747,19 +804,23 @@ async function syncGoogleEventsToLocalCalendar(params: {
     return;
   }
 
-  const integrationRecord = await getGoogleIntegration(params.tenantId);
-  if (!integrationRecord) {
+  // Throttle ANTES de decifrar: o KMS era pago em toda leitura da agenda,
+  // inclusive nas que o throttle descartava logo em seguida.
+  const storedRecord = await getGoogleIntegration(params.tenantId, { decrypt: false });
+  if (!storedRecord) {
     return;
   }
-  const integration = integrationRecord.data;
 
-  const lastInboundSyncAtMs = Date.parse(String(integration.lastInboundSyncAt || ""));
+  const lastInboundSyncAtMs = Date.parse(String(storedRecord.data.lastInboundSyncAt || ""));
   if (
     Number.isFinite(lastInboundSyncAtMs) &&
     Date.now() - lastInboundSyncAtMs < GOOGLE_INBOUND_SYNC_MIN_INTERVAL_MS
   ) {
     return;
   }
+
+  const integrationRecord = await decryptGoogleIntegrationRecord(storedRecord);
+  const integration = integrationRecord.data;
 
   const oauthClient = await createGoogleOAuthClient();
   oauthClient.setCredentials({
@@ -773,21 +834,24 @@ async function syncGoogleEventsToLocalCalendar(params: {
   });
 
   try {
-    const [localEventsByExternalId, googleResponse] = await Promise.all([
-      listGoogleLinkedCalendarEventsByExternalId({
-        tenantId: params.tenantId,
-      }),
-      calendar.events.list({
+    // Paginado: sem isso o Google devolve só os primeiros 250 eventos.
+    const googleEvents: GoogleCalendarEventInput[] = [];
+    let pageToken: string | undefined;
+    for (let page = 0; page < GOOGLE_INBOUND_SYNC_MAX_PAGES; page++) {
+      const googleResponse = await calendar.events.list({
         calendarId: integration.calendarId,
         singleEvents: true,
         orderBy: "startTime",
         showDeleted: true,
+        maxResults: 250,
+        pageToken,
         timeMin: new Date(params.startMs).toISOString(),
         timeMax: new Date(params.endMs).toISOString(),
-      }),
-    ]);
-
-    const googleEvents = googleResponse.data.items || [];
+      });
+      googleEvents.push(...(googleResponse.data.items || []));
+      pageToken = googleResponse.data.nextPageToken || undefined;
+      if (!pageToken) break;
+    }
     if (googleEvents.length === 0) {
       await persistGoogleIntegrationStatus(integrationRecord.id, {
         lastInboundSyncAt: nowIso(),
@@ -797,8 +861,15 @@ async function syncGoogleEventsToLocalCalendar(params: {
       return;
     }
 
-    const batch = db.batch();
-    let hasWrites = false;
+    const localEventsByExternalId = await listGoogleLinkedCalendarEventsByExternalId({
+      tenantId: params.tenantId,
+      externalEventIds: googleEvents.map((event) => String(event.id || "").trim()),
+    });
+
+    const writes: Array<{
+      ref: FirebaseFirestore.DocumentReference;
+      data: CalendarEventDocument;
+    }> = [];
 
     googleEvents.forEach((googleEvent) => {
       const externalEventId = String(googleEvent.id || "").trim();
@@ -827,15 +898,25 @@ async function syncGoogleEventsToLocalCalendar(params: {
         return;
       }
 
+      // Evento que não mudou no Google não é regravado: antes, toda leitura
+      // da agenda (a cada 15s) reescrevia todos os eventos do período.
+      if (existing && isSameImportedCalendarEvent(existing.data, nextDocument)) {
+        return;
+      }
+
       const docRef = existing
         ? db.collection(CALENDAR_EVENTS_COLLECTION).doc(existing.id)
         : db.collection(CALENDAR_EVENTS_COLLECTION).doc();
 
-      batch.set(docRef, nextDocument, { merge: false });
-      hasWrites = true;
+      writes.push({ ref: docRef, data: nextDocument });
     });
 
-    if (hasWrites) {
+    // Lotes de 400: um único batch passava do teto de 500 escritas.
+    for (let i = 0; i < writes.length; i += 400) {
+      const batch = db.batch();
+      writes.slice(i, i + 400).forEach(({ ref, data }) => {
+        batch.set(ref, data, { merge: false });
+      });
       await batch.commit();
     }
 

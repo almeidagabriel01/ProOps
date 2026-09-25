@@ -48,7 +48,9 @@ export function ProposalCommissionsSection({
   React.useEffect(() => {
     if (!tenant?.id) return;
     let cancelled = false;
-    ClientService.getClients(tenant.id)
+    // Só os parceiros (vendedor/arquiteto), pelo índice de `types`: antes o
+    // formulário de proposta baixava todos os contatos da empresa.
+    ClientService.getClientsByTypes(tenant.id, ["vendedor", "arquiteto"])
       .then((clients) => {
         if (cancelled) return;
         setPartners(clients.filter(isCommissionPartner));

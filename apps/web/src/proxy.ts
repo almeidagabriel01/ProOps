@@ -28,6 +28,12 @@ import {
   shouldSkipRoute,
 } from "@/lib/auth/route-access";
 import {
+  hashSessionCookie,
+  isAllowedFromCache,
+  rememberAllowedSnapshot,
+  type BillingSnapshot,
+} from "@/lib/auth/billing-gate-cache";
+import {
   APP_LANDING_REWRITE_HEADER,
   erpHomeUrl,
   resolveApexRedirect,
@@ -45,6 +51,7 @@ interface BillingStatusResponse {
   allowed: boolean;
   status: string;
   reason?: string;
+  snapshot?: BillingSnapshot;
 }
 
 // ============================================
@@ -176,9 +183,17 @@ export async function proxy(request: NextRequest) {
 
   // Billing gate: verify subscription status via Node.js route (supports firebase-admin).
   // Skipped for BILLING_ALLOWED_ROUTES so blocked users can still reach /subscription-blocked.
-  // No client-side cache — the route call is ~50ms and other layers (backend, Firestore Rules)
-  // are the primary enforcement; this gate prevents SSR of protected pages before HTML is served.
-  if (!isBillingAllowedRoute(pathname)) {
+  // Other layers (backend, Firestore Rules) are the primary enforcement; this gate prevents
+  // SSR of protected pages before HTML is served. ALLOWED answers are cached for 30s per
+  // session (lib/auth/billing-gate-cache) so each navigation doesn't pay a second function
+  // call; a denial is always re-checked against the route.
+  const billingGated = !isBillingAllowedRoute(pathname);
+  const billingCacheKey =
+    billingGated && sessionCookie ? await hashSessionCookie(sessionCookie) : null;
+  const billingAllowedFromCache =
+    billingCacheKey !== null && isAllowedFromCache(billingCacheKey, pathname);
+
+  if (billingGated && !billingAllowedFromCache) {
     try {
       const billingUrl = new URL("/api/auth/billing-status", request.url);
       // Forward the requested path so billing-status can enforce the free
@@ -194,6 +209,9 @@ export async function proxy(request: NextRequest) {
       });
       if (billingRes.ok) {
         const billing = (await billingRes.json()) as BillingStatusResponse;
+        if (billing.allowed && billingCacheKey) {
+          rememberAllowedSnapshot(billingCacheKey, billing.snapshot);
+        }
         if (!billing.allowed) {
           if (
             billing.reason === "session_revoked" ||

@@ -60,6 +60,13 @@ export type PlanEnforcementInput = {
   tenantId: string;
   feature: PlanLimitFeature;
   currentUsage?: number;
+  /**
+   * Alternativa preguiçosa a `currentUsage`: só é chamada quando o plano tem
+   * teto finito para a feature. Num plano ilimitado a decisão libera sem olhar
+   * o uso, então contar os documentos (aggregation que cresce com o catálogo)
+   * era custo puro em toda criação.
+   */
+  loadCurrentUsage?: () => Promise<number>;
   usageKnown?: boolean;
   usageUnavailableCode?: string;
   incrementBy?: number;
@@ -1030,7 +1037,12 @@ export async function enforceTenantPlanLimit(
     return unavailableDecision;
   }
 
-  const currentUsage = Math.max(0, Math.floor(Number(input.currentUsage || 0)));
+  const hasFiniteLimit = Number.isFinite(limit) && limit >= 0;
+  const rawUsage =
+    input.currentUsage === undefined && input.loadCurrentUsage && hasFiniteLimit
+      ? await input.loadCurrentUsage()
+      : input.currentUsage;
+  const currentUsage = Math.max(0, Math.floor(Number(rawUsage || 0)));
   const incrementBy = Math.max(0, Math.floor(Number(input.incrementBy || 1)));
   const projectedUsage = currentUsage + incrementBy;
 

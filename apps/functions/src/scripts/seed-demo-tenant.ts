@@ -1,5 +1,6 @@
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { logger } from "../lib/logger";
+import { productRefsFields } from "../lib/proposal-product-refs";
 
 /**
  * Shared, read-only demo dataset for the free-tier demo mode (Feature B).
@@ -498,6 +499,7 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
       clientName: prop.client.name,
       clientEmail: prop.client.email,
       products: lineItems,
+      ...productRefsFields(lineItems),
       sistemas,
       sections: [],
       totalValue,

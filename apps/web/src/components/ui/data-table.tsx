@@ -84,6 +84,12 @@ export interface DataTableProps<T> {
   fetchEnabled?: boolean;
   /** Exposes the reset function for async mode */
   onResetRef?: React.MutableRefObject<(() => void) | null>;
+  /** Recarga silenciosa da primeira página (sem skeleton), no modo async. */
+  onRefreshRef?: React.MutableRefObject<(() => void) | null>;
+  /** Edição local das linhas carregadas, no modo async. */
+  onUpdateItemsRef?: React.MutableRefObject<
+    ((updater: (items: T[]) => T[]) => void) | null
+  >;
   /** Exposes items for external use (search filtering, etc.) */
   onItemsChange?: (items: T[]) => void;
   /**
@@ -507,6 +513,8 @@ function AsyncDataTable<T>({
   fetchPage,
   fetchEnabled = true,
   onResetRef,
+  onRefreshRef,
+  onUpdateItemsRef,
   onItemsChange,
   minWidth,
   loadingSkeleton,
@@ -515,7 +523,7 @@ function AsyncDataTable<T>({
 }: DataTableProps<T> & {
   fetchPage: NonNullable<DataTableProps<T>["fetchPage"]>;
 }) {
-  const { items, isLoading, hasMore, sentinelRef, reset } =
+  const { items, isLoading, hasMore, sentinelRef, reset, refresh, updateItems } =
     useAsyncInfiniteScroll({
       fetchPage,
       batchSize,
@@ -529,6 +537,14 @@ function AsyncDataTable<T>({
       onResetRef.current = reset;
     }
   }, [reset, onResetRef]);
+
+  React.useEffect(() => {
+    if (onRefreshRef) onRefreshRef.current = refresh;
+  }, [refresh, onRefreshRef]);
+
+  React.useEffect(() => {
+    if (onUpdateItemsRef) onUpdateItemsRef.current = updateItems;
+  }, [updateItems, onUpdateItemsRef]);
 
   // Notify parent of items changes
   React.useEffect(() => {

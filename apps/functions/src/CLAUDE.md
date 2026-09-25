@@ -4,6 +4,15 @@
 
 `apps/functions/src/index.ts` e o entry point que exporta todas as Cloud Functions V2:
 
+> **Exports preguicosos (2026-09-25).** Cada funcao e exportada por getter
+> (`lazyExport` em `index.ts`), nao por `export { x } from "./x"`. O runtime le
+> so `exports[FUNCTION_TARGET]`, entao cada instancia carrega apenas o modulo da
+> funcao que serve; antes todo cron e todo trigger carregavam o monolito inteiro
+> (Express, rotas, controllers) no cold start. O deploy descobre as funcoes por
+> `Object.entries(module)`, que avalia os getters, entao continua enxergando
+> todas. **Funcao nova entra com `lazyExport` e na lista do guard**
+> `src/__tests__/lazy-exports.test.ts`.
+
 | Exportacao | Tipo | Descricao |
 |------------|------|-----------|
 | `api` | HTTP (Express) | Monolito Express — todas as rotas REST |
@@ -13,7 +22,7 @@
 | `checkDueDates` | Scheduled | Verificacao diaria de vencimentos |
 | `markOverdueTransactions` | Scheduled | Marca transacoes vencidas |
 | `checkStripeSubscriptions` | Scheduled | Sync diario de status Stripe |
-| `reportWhatsappOverage` | Scheduled | Billing de overage WhatsApp (dia 1 do mes) |
+| `reportWhatsappOverage` | Scheduled | Billing de overage WhatsApp (dias 1 a 3 do mes, idempotente) |
 | `applyScheduledPlanChanges` | Scheduled | Aplica trocas de plano agendadas |
 | `checkPriceChanges` | Scheduled | Detecta price drift do Stripe |
 | `cleanupStorageAndSharedLinks` | Scheduled | Limpeza de arquivos e links expirados |
@@ -94,9 +103,11 @@ Centraliza configuracoes de deploy para evitar divergencias entre funcoes.
 - Diferencia vencidos (`dueDate < hoje`) de proximos ao vencimento
 
 **Parte 2 — Propostas expirando:**
-- Query: `status in ["draft", "in_progress", "sent"]` (sem filtro de data — filtragem em memoria)
-- Ignora propostas com `validUntil > (hoje + 3 dias)`
+- Query: `status in ["draft", "in_progress", "sent"]` e `validUntil` entre (hoje - 30 dias) e (hoje + 3 dias), no indice `(status, validUntil)`
+- O piso de 30 dias (`PROPOSAL_EXPIRED_REMINDER_WINDOW_DAYS`) existe porque sem ele toda proposta aberta ja expirada era relembrada todo dia, para sempre, e em escala o cron estourava os 300s no acervo antigo antes de chegar as que estao para vencer
 - Cria notificacao `proposal_expiring` para cada proposta elegivel
+
+Os upserts das partes 1 e 2 vao por um `BulkWriter` (paralelo, com retentativa), fechado num `finally`. A logica fica em `runDueDateCheck(now)`, exportada para teste (`checkDueDates.test.ts`).
 
 **Parte 3 — Limpeza de sessoes WhatsApp:**
 - Remove documentos de `whatsappSessions` com `expiresAt < (agora - 24h)`
@@ -137,6 +148,8 @@ Isso garante que a mesma transacao nao gera multiplas notificacoes a cada execuc
 **Memory:** 512MiB
 
 #### O que faz
+
+> **Atualizado em 2026-09-25:** o cron percorre `tenants` com `subscriptionStatus != "free"` por paginas e com prazo de 420s, continuando no dia seguinte de onde parou (`cron_cursors/checkStripeSubscriptions`, via `runRotatingCursor` em `lib/cron-iteration.ts`), e enfileira `enqueueTenantSync` por tenant. Antes lia todos de uma vez e, acima de ~1.800 tenants, estourava os 540s sempre no mesmo ponto. O `reconcileAddons` usa o mesmo cursor (`cron_cursors/reconcileAddons`). A descricao abaixo e do fluxo antigo.
 
 1. Chama `runStripeSync(LIMIT=200, startAfterId, dryRun=false)` em loop paginado
 2. `runStripeSync` (em `stripeHelpers.ts`) itera todos os usuarios com `stripeSubscriptionId`, recupera a subscription no Stripe e compara o status
@@ -184,9 +197,9 @@ past_due ─── mais de 7 dias expirado ──►  canceled (planId: "free")
 
 ### 4. `reportWhatsappOverage` — Billing de overage WhatsApp
 
-**Arquivo:** `apps/functions/src/reportWhatsappOverage.ts`
-**Schedule:** `0 3 1 * *` — Dia 1 de cada mes as 03:00 BRT
-**Timeout:** 300 segundos
+**Arquivo:** `apps/functions/src/reportWhatsappOverage.ts` (agenda) + `apps/functions/src/billing/whatsapp-overage-report.ts` (logica, compartilhada com o endpoint manual)
+**Schedule:** `0 3 1-3 * *` — dias 1, 2 e 3 de cada mes as 03:00 BRT
+**Timeout:** 540 segundos
 **Memory:** 512MiB
 **Regiao:** `southamerica-east1`
 
@@ -209,13 +222,15 @@ Para cada tenant com `whatsappEnabled == true AND whatsappAllowOverage == true`:
    ```
 4. Atualiza o documento de uso com `stripeReported: true` e `stripeEventId`
 
-**Idempotencia:** O `identifier` garante que o mesmo overage nao seja reportado duas vezes mesmo se o cron rodar mais de uma vez no mesmo mes.
+**Idempotencia e cobranca unica:** tenant com `stripeReported` e pulado. Antes de chamar o Stripe a tentativa e RESERVADA (`stripeReportClaimedAt`, numa transacao), porque o Stripe so deduplica o `identifier` por **24h**: se a cobranca passasse e a marca nao fosse gravada, uma nova execucao dias depois cobraria de novo. Reserva sem confirmacao e repetida so dentro de 23h (`SAFE_RETRY_WINDOW_MS`); depois disso o tenant vai para `needsManualReview` e **nao** e cobrado: conferir no painel do Stripe antes de reportar a mao. Tenant sem `stripeCustomerId` e erro, sem reserva.
 
-**Saida:** Log com `processed`, `charged`, `skipped`, `errors`.
+**Alcance:** tenants paginados (200 por pagina) com 8 em paralelo. Antes, um laco serial sem cursor contra 300s: com ~1000 tenants a execucao morria no meio e os demais nunca eram cobrados. Os dias 2 e 3 pegam quem uma execucao interrompida deixou de fora.
+
+**Saida:** Log com `processed`, `charged`, `skipped`, `needsManualReview`, `errors`. Guard: `billing/__tests__/whatsapp-overage-report.test.ts`.
 
 #### Debug manual
 
-Endpoint `POST /internal/cron/whatsapp-overage-report` replica a logica do cron:
+Endpoint `POST /internal/cron/whatsapp-overage-report` chama a MESMA funcao do cron (`runWhatsappOverageReport`):
 
 ```bash
 curl -X POST https://.../api/internal/cron/whatsapp-overage-report \
@@ -278,6 +293,8 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |
 | `wallets/{walletId}` | Financeiro | Carteiras com saldo desnormalizado |
+| `cron_cursors/{cronId}` | Crons | Onde um cron longo parou (`runRotatingCursor`): `checkStripeSubscriptions`, `reconcileAddons`. Admin SDK only |
+| `transaction_group_sync/{groupDocId}` | Financeiro | `readTime` em que cada resumo de `transaction_groups` se baseou; ordena e coalesce os recalculos do `onTransactionTotals`. Admin SDK only |
 | `sharedProposals/{token}` | Share Links | Links publicos de propostas |
 | `sharedTransactions/{token}` | Share Links | Links publicos de lancamentos |
 | `fiscal_settings/{tenantId}` | Fiscal | Config do emitente (CNPJ, IE/IM, regime, serie/numeracao, senha do certificado cifrada em KMS). Admin SDK only |

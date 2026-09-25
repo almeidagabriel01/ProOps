@@ -31,3 +31,15 @@ export function firstSearchToken(term: string): string | null {
   );
   return word ? word.slice(0, MAX_TOKEN_LENGTH) : null;
 }
+
+/**
+ * Termo de busca que é um telefone (só dígitos e pontuação, pelo menos 2
+ * dígitos): devolve os dígitos, que casam com os tokens de telefone gravados
+ * pelo backend (`buildPhoneSearchTokens`). `null` quando há letra no termo.
+ */
+export function phoneSearchDigits(term: string): string | null {
+  if (/[a-z]/i.test(term.normalize("NFD"))) return null;
+  const digits = term.replace(/\D/g, "");
+  if (digits.length < MIN_TOKEN_LENGTH) return null;
+  return digits.slice(0, MAX_TOKEN_LENGTH);
+}

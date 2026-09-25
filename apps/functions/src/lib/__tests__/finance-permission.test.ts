@@ -11,15 +11,19 @@
 
 const permissionDocs = new Map<string, Record<string, boolean>>();
 let userDoc: Record<string, unknown> | null = null;
+let userDocReads = 0;
 
 jest.mock("../../init", () => ({
   db: {
     collection: jest.fn(() => ({
       doc: jest.fn((uid: string) => ({
-        get: async () => ({
-          exists: userDoc !== null,
-          data: () => userDoc,
-        }),
+        get: async () => {
+          userDocReads += 1;
+          return {
+            exists: userDoc !== null,
+            data: () => userDoc,
+          };
+        },
         collection: jest.fn(() => ({
           doc: jest.fn((pageId: string) => ({
             get: async () => {
@@ -43,6 +47,7 @@ const MEMBER_CLAIMS = {
 };
 
 beforeEach(() => {
+  userDocReads = 0;
   permissionDocs.clear();
   userDoc = { role: "MEMBER", tenantId: "tenant-1", masterId: "master-1" };
 });
@@ -130,5 +135,53 @@ describe("master e superadmin seguem com bypass", () => {
     });
 
     expect(result.isSuperAdmin).toBe(true);
+  });
+});
+
+describe("reaproveita o users/{uid} que o middleware já leu", () => {
+  it("membro: usa claims.userDoc e não relê o doc do usuário", async () => {
+    grant("transactions", { canEdit: true });
+    const result = await checkFinancialPermission("member-1", "transactions", "canEdit", {
+      ...MEMBER_CLAIMS,
+      userDoc: { role: "MEMBER", tenantId: "tenant-1", masterId: "master-1" },
+    });
+    expect(result.isMaster).toBe(false);
+    expect(userDocReads).toBe(0);
+  });
+
+  it("master: nenhuma leitura de users/{uid}", async () => {
+    const result = await checkFinancialPermission("member-1", "wallet", "canEdit", {
+      uid: "member-1",
+      role: "MASTER",
+      tenantId: "tenant-1",
+      userDoc: { role: "MASTER", tenantId: "tenant-1" },
+    });
+    expect(result.isMaster).toBe(true);
+    expect(userDocReads).toBe(0);
+  });
+
+  it("snapshot null (doc não existe) continua recusando", async () => {
+    await expect(
+      checkFinancialPermission("member-1", "transactions", "canEdit", {
+        ...MEMBER_CLAIMS,
+        userDoc: null,
+      }),
+    ).rejects.toThrow("Usuário não encontrado.");
+    expect(userDocReads).toBe(0);
+  });
+
+  it("snapshot de outro tenant continua dando FORBIDDEN_TENANT_MISMATCH", async () => {
+    await expect(
+      checkFinancialPermission("member-1", "transactions", "canEdit", {
+        ...MEMBER_CLAIMS,
+        userDoc: { role: "MEMBER", tenantId: "tenant-2" },
+      }),
+    ).rejects.toThrow("FORBIDDEN_TENANT_MISMATCH");
+  });
+
+  it("sem snapshot (chamador fora do middleware) mantém a leitura", async () => {
+    grant("transactions", { canEdit: true });
+    await checkFinancialPermission("member-1", "transactions", "canEdit", MEMBER_CLAIMS);
+    expect(userDocReads).toBe(1);
   });
 });

@@ -5,7 +5,6 @@ import { ProposalService } from "@/services/proposal-service";
 import { useClientActions } from "@/hooks/useClientActions";
 import { useTenant } from "@/providers/tenant-provider";
 import { useSort } from "@/hooks/use-sort";
-import { normalize } from "@/utils/text";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
 export type ContactsTypeFilter =
@@ -58,7 +57,10 @@ export function useContactsCtrl() {
     void refreshHasAnyClients();
   }, [refreshHasAnyClients]);
 
-  // Fetch all clients when filtering/searching
+  // Busca e filtro consultam o índice em vez de baixar todos os contatos:
+  // termo → searchTokens (início de palavra e dígitos do telefone), tipo sem
+  // termo → `types`. Com termo, o filtro de tipo é aplicado sobre o resultado.
+  const trimmedSearch = searchTerm.trim();
   React.useEffect(() => {
     if (!isFiltering || !tenant) {
       setAllClients(null);
@@ -66,10 +68,12 @@ export function useContactsCtrl() {
     }
 
     let cancelled = false;
-    const fetchAll = async () => {
+    const fetchFiltered = async () => {
       setIsLoadingAll(true);
       try {
-        const data = await ClientService.getClients(tenant.id);
+        const data = trimmedSearch
+          ? await ClientService.searchClients(tenant.id, trimmedSearch)
+          : await ClientService.getClientsByTypes(tenant.id, [typeFilter]);
         if (!cancelled) setAllClients(data);
       } catch (error) {
         console.error("Failed to fetch clients for filtering", error);
@@ -82,12 +86,14 @@ export function useContactsCtrl() {
         if (!cancelled) setIsLoadingAll(false);
       }
     };
-    fetchAll();
+    // Espera a digitação parar antes de consultar.
+    const timeoutId = setTimeout(fetchFiltered, trimmedSearch ? 300 : 0);
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
-  }, [isFiltering, tenant]);
+  }, [isFiltering, tenant, trimmedSearch, typeFilter]);
 
   const {
     items: sortedClients,
@@ -176,19 +182,10 @@ export function useContactsCtrl() {
       });
     }
 
-    // Filter by search term
-    if (searchTerm.trim()) {
-      const term = normalize(searchTerm);
-      result = result.filter(
-        (client) =>
-          normalize(client.name).includes(term) ||
-          normalize(client.email || "").includes(term) ||
-          normalize(client.phone || "").includes(term)
-      );
-    }
+    // O termo já foi aplicado pela consulta indexada (searchClients).
 
     return result;
-  }, [sortedClients, searchTerm, typeFilter, isFiltering]);
+  }, [sortedClients, typeFilter, isFiltering]);
 
 
 

@@ -10,13 +10,20 @@ import { useLiaSoundPreference } from "@/hooks/useLiaSoundPreference";
 import { LiaTriggerButton } from "./lia-trigger-button";
 import { LiaPanel } from "./lia-panel";
 import { LiaChatWindow } from "./lia-chat-window";
-import { LiaMessageBubble } from "./lia-message-bubble";
 import { LiaInputBar } from "./lia-input-bar";
 import { LiaUsageBadge } from "./lia-usage-badge";
 import { LiaToolConfirmDialog } from "./lia-tool-confirm-dialog";
 import { LiaHistoryPanel } from "./lia-history-panel";
 import { ZapOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import dynamic from "next/dynamic";
+
+// A bolha usa react-markdown + remark: chunk prÃ³prio, carregado sÃ³ quando hÃ¡
+// mensagem para mostrar (o container fica montado em toda pÃ¡gina autenticada).
+const LiaMessageBubble = dynamic(
+  () => import("./lia-message-bubble").then((m) => m.LiaMessageBubble),
+  { ssr: false },
+);
 
 // Route-based greetings and quick-action chips per UI-SPEC
 const ROUTE_CONFIG: Record<
@@ -90,7 +97,12 @@ export function LiaContainer() {
   const pathname = usePathname();
 
   const chat = useAiChat();
-  const session = useLiaSession();
+  // Conversa salva sÃ³ Ã© carregada depois da primeira abertura do painel.
+  const [hasOpened, setHasOpened] = useState(false);
+  useEffect(() => {
+    if (chat.isOpen) setHasOpened(true);
+  }, [chat.isOpen]);
+  const session = useLiaSession(hasOpened);
   const usage = useLiaUsage();
   const soundPreference = useLiaSoundPreference();
 
@@ -98,7 +110,9 @@ export function LiaContainer() {
   const showNearLimitBanner = usage.isNearLimit && !usage.isAtLimit && !nearLimitDismissed;
 
   const [view, setView] = useState<"chat" | "history">("chat");
-  const history = useLiaHistory(session.persistHistory);
+  // Lista de conversas sÃ³ quando a aba de histÃ³rico estÃ¡ aberta: antes eram 30
+  // documentos completos baixados em toda pÃ¡gina autenticada.
+  const history = useLiaHistory(session.persistHistory && view === "history");
 
   const routeConfig = getRouteConfig(pathname);
 
@@ -153,12 +167,9 @@ export function LiaContainer() {
   }, [chat]);
 
   const handleToggleHistory = useCallback(() => {
-    setView((v) => {
-      const next = v === "chat" ? "history" : "chat";
-      if (next === "history") void history.reload();
-      return next;
-    });
-  }, [history]);
+    // Entrar no histÃ³rico liga o useLiaHistory, que busca a lista sozinho.
+    setView((v) => (v === "chat" ? "history" : "chat"));
+  }, []);
 
   const handleLoadSession = useCallback((sessionId: string) => {
     session.loadSession(sessionId);

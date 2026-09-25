@@ -5,7 +5,14 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Wallet, Users, FileText, Package, UserPlus } from "lucide-react";
-import { PieChart, Pie, Cell, Tooltip as RechartsTooltip } from "recharts";
+import dynamic from "next/dynamic";
+
+// Recharts em chunk próprio: a caixa ao redor já tem 170x170 fixo, então o
+// gráfico entra depois sem mexer no layout.
+const ProposalStatusDonut = dynamic(
+  () => import("./proposal-status-donut").then((m) => m.ProposalStatusDonut),
+  { ssr: false },
+);
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
@@ -170,32 +177,7 @@ export function ProposalStatsCard({ stats }: ProposalStatsCardProps) {
               className="relative shrink-0"
               style={{ width: 170, height: 170 }}
             >
-              <PieChart width={170} height={170}>
-                <Pie
-                  data={data}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={75}
-                  paddingAngle={4}
-                  dataKey="value"
-                  stroke="none"
-                  cornerRadius={4}
-                >
-                  {data.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <RechartsTooltip
-                  formatter={(value: number) => [value, "Qtd"]}
-                  contentStyle={{
-                    borderRadius: "12px",
-                    border: "none",
-                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                  }}
-                  itemStyle={{ fontSize: "13px", fontWeight: "bold" }}
-                />
-              </PieChart>
+              <ProposalStatusDonut data={data} />
               {/* Texto central - absolutamente centralizado */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="flex flex-col items-center">

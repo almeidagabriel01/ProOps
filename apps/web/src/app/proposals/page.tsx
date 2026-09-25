@@ -248,6 +248,10 @@ export default function ProposalsPage() {
     new Map(),
   );
   const resetRef = React.useRef<(() => void) | null>(null);
+  const refreshRef = React.useRef<(() => void) | null>(null);
+  const updateItemsRef = React.useRef<
+    ((updater: (items: Proposal[]) => Proposal[]) => void) | null
+  >(null);
   const isFiltering = searchTerm.trim() !== "";
   const [asyncDataReady, setAsyncDataReady] = React.useState(false);
 
@@ -533,8 +537,7 @@ export default function ProposalsPage() {
   // Subscribe to updates (e.g. from auto-save)
   React.useEffect(() => {
     return ProposalService.subscribe(() => {
-      console.log("Received proposal update notification, refreshing list...");
-      resetRef.current?.();
+      refreshRef.current?.();
       if (isFiltering) {
         fetchProposals();
       }
@@ -572,7 +575,10 @@ export default function ProposalsPage() {
       if (!hasRemainingProposals) {
         setProposals([]);
       } else {
-        resetRef.current?.();
+        const removedId = deleteId;
+        updateItemsRef.current?.((items) =>
+          items.filter((p) => p.id !== removedId),
+        );
         setProposals(remainingProposals);
       }
       toast.success(`Proposta ${proposalLabel} foi excluida com sucesso.`, {
@@ -621,7 +627,7 @@ export default function ProposalsPage() {
           pdfSettings: original.pdfSettings,
         });
 
-        resetRef.current?.();
+        refreshRef.current?.();
         toast.success("Proposta duplicada com sucesso!");
       } catch (error) {
         console.error("Duplicate error:", error);
@@ -1320,6 +1326,8 @@ export default function ProposalsPage() {
                 fetchPage={fetchPage}
                 fetchEnabled={!!tenant && !isAwaitingPendingSave}
                 onResetRef={resetRef}
+                onRefreshRef={refreshRef}
+                onUpdateItemsRef={updateItemsRef}
                 batchSize={12}
                 minWidth="900px"
                 onSort={requestSort}

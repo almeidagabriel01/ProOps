@@ -231,12 +231,13 @@ export async function getTodaysTransactions(
         /* index may not exist */
       }
 
+      // Vazio é resposta válida: um dia sem movimento. Antes, resultado vazio
+      // caía na varredura de TODOS os lançamentos do tenant logo abaixo, ou
+      // seja, todo dia parado custava a coleção inteira. Todo escritor atual
+      // grava createdAt/paidAt/updatedAt como Timestamp, e dado legado com data
+      // em string nunca é "de hoje", então a varredura não achava nada a mais.
       const allDocs = [...createdSnap.docs, ...extraDocs];
-      if (allDocs.length > 0) {
-        return dedup(normalize(allDocs));
-      }
-
-      // No indexed results — fall through to in-memory filter below
+      return dedup(normalize(allDocs));
     } catch (error) {
       console.warn(`[WhatsApp] Failed ${collectionName} indexed query`, error);
     }

@@ -1,4 +1,4 @@
-import { KeyManagementServiceClient } from "@google-cloud/kms";
+import type { KeyManagementServiceClient } from "@google-cloud/kms";
 import { logger } from "./logger";
 
 /**
@@ -31,11 +31,19 @@ export type KmsKeyPurpose = "CALENDAR_TOKEN" | "FISCAL_SECRET";
 
 const DEFAULT_PURPOSE: KmsKeyPurpose = "CALENDAR_TOKEN";
 
-let cachedClient: KeyManagementServiceClient | null = null;
+let cachedClient: Promise<KeyManagementServiceClient> | null = null;
 
-function getClient(): KeyManagementServiceClient {
+/**
+ * Carregado no primeiro uso: o `@google-cloud/kms` traz o cliente gRPC
+ * inteiro, e este módulo é importado pelos controllers de Agenda, Drive e
+ * fiscal, ou seja, toda instância da API pagava essa carga no cold start,
+ * mesmo sem nunca cifrar nada.
+ */
+function getClient(): Promise<KeyManagementServiceClient> {
   if (!cachedClient) {
-    cachedClient = new KeyManagementServiceClient();
+    cachedClient = import("@google-cloud/kms").then(
+      ({ KeyManagementServiceClient: Client }) => new Client(),
+    );
   }
   return cachedClient;
 }
@@ -57,7 +65,7 @@ function resolveKeyName(purpose: KmsKeyPurpose): string {
     throw new Error(`${purpose}_KMS_KEY_NOT_CONFIGURED`);
   }
 
-  return getClient().cryptoKeyPath(project, location, keyRing, keyId);
+  return `projects/${project}/locations/${location}/keyRings/${keyRing}/cryptoKeys/${keyId}`;
 }
 
 /** Whether a stored value is in the KMS-encrypted envelope format. */
@@ -75,7 +83,7 @@ export async function encryptToken(
     throw new Error("ENCRYPT_EMPTY_TOKEN");
   }
 
-  const [result] = await getClient().encrypt({
+  const [result] = await (await getClient()).encrypt({
     name: resolveKeyName(purpose),
     plaintext: Buffer.from(value, "utf8"),
   });
@@ -106,7 +114,7 @@ export async function decryptToken(
     : value;
 
   try {
-    const [result] = await getClient().decrypt({
+    const [result] = await (await getClient()).decrypt({
       name: resolveKeyName(purpose),
       ciphertext: Buffer.from(base64, "base64"),
     });

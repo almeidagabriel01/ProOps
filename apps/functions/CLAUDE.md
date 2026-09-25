@@ -977,6 +977,16 @@ ausente); (b) 1 doc-resumo por grupo em `transaction_groups/{groupDocId}`
   deletado.
 - Write em `transaction_groups` só via Admin SDK (rules negam client write);
   client lê direto (aba Agrupados).
+- **Coalescência e ordem** (2026-09-25): cada recálculo grava em
+  `transaction_group_sync/{groupDocId}` o `readTime` da consulta de membros em
+  que se baseou (o MENOR, quando há mais de uma consulta). O evento pula o
+  recálculo se esse `readTime` já é posterior à própria escrita (o resumo já a
+  contém), e a gravação do resumo é condicional numa transação sobre o doc de
+  controle: recálculo de leitura mais velha nunca sobrescreve um mais novo.
+  Antes, uma série de N parcelas custava N recálculos de N membros (N²
+  leituras) e o último a gravar vencia, mesmo com dado velho. Comparação em
+  nanossegundo (`compareTimestamps`): em milissegundo, leitura e escrita no
+  mesmo milissegundo se confundiriam.
 - Backfill histórico: `npx tsx src/scripts/backfill-transaction-groups.ts`
   (idempotente).
 

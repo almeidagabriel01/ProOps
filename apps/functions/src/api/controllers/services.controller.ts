@@ -10,7 +10,7 @@ import {
   enforceTenantPlanLimit,
   getTenantProductsUsage,
 } from "../../lib/tenant-plan-policy";
-import { checkImagesWithinPlan } from "../../lib/catalog-plan-guards";
+import { checkCatalogImagesLimit } from "../../lib/catalog-plan-guards";
 import { sanitizeServiceFiscalFields } from "../services/fiscal/fiscal-catalog-fields";
 
 const sanitizeServicePayload = (input: Record<string, unknown>) => ({
@@ -79,15 +79,23 @@ export const createService = async (req: Request, res: Response) => {
 
     // Produtos e servicos dividem o teto `maxProducts`, como sempre dividiram
     // o contador `usage.products`.
-    const productsDecision = await enforceTenantPlanLimit({
-      tenantId: targetTenantId,
-      feature: "maxProducts",
-      currentUsage: await getTenantProductsUsage(targetTenantId),
-      uid: userId,
-      requestId: req.requestId,
-      route: req.path,
-      isSuperAdmin,
-    });
+    const [productsDecision, imagesCheck] = await Promise.all([
+      enforceTenantPlanLimit({
+        tenantId: targetTenantId,
+        feature: "maxProducts",
+        loadCurrentUsage: () => getTenantProductsUsage(targetTenantId),
+        uid: userId,
+        requestId: req.requestId,
+        route: req.path,
+        isSuperAdmin,
+      }),
+      checkCatalogImagesLimit({
+        itemType: "service",
+        tenantId: targetTenantId,
+        requested: sanitizedInput.images.length,
+        isSuperAdmin,
+      }),
+    ]);
     if (!productsDecision.allowed) {
       return res.status(productsDecision.statusCode || 402).json({
         message:
@@ -97,15 +105,10 @@ export const createService = async (req: Request, res: Response) => {
       });
     }
 
-    const imagesCheck = await checkImagesWithinPlan({
-      tenantId: targetTenantId,
-      requested: sanitizedInput.images.length,
-      isSuperAdmin,
-    });
     if (!imagesCheck.allowed) {
       return res
-        .status(402)
-        .json({ message: imagesCheck.message, code: "PLAN_LIMIT_EXCEEDED" });
+        .status(400)
+        .json({ message: imagesCheck.message, code: "IMAGE_LIMIT_EXCEEDED" });
     }
 
     const serviceId = await db.runTransaction(async (transaction) => {
@@ -198,7 +201,8 @@ export const updateService = async (req: Request, res: Response) => {
     const sanitizedInput = sanitizeServicePayload(updateData);
 
     if (updateData.images !== undefined) {
-      const imagesCheck = await checkImagesWithinPlan({
+      const imagesCheck = await checkCatalogImagesLimit({
+        itemType: "service",
         tenantId: String(serviceData?.tenantId || tenantId),
         requested: sanitizedInput.images.length,
         existing: Array.isArray(serviceData?.images) ? serviceData.images.length : 0,
@@ -206,8 +210,8 @@ export const updateService = async (req: Request, res: Response) => {
       });
       if (!imagesCheck.allowed) {
         return res
-          .status(402)
-          .json({ message: imagesCheck.message, code: "PLAN_LIMIT_EXCEEDED" });
+          .status(400)
+          .json({ message: imagesCheck.message, code: "IMAGE_LIMIT_EXCEEDED" });
       }
     }
 

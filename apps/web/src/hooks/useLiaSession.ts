@@ -68,7 +68,12 @@ export interface UseLiaSessionReturn {
  * Pro/Enterprise: sessionId persists in localStorage. History is loaded from Firestore on mount.
  * Auto-starts a new session if last message is older than 4 hours.
  */
-export function useLiaSession(): UseLiaSessionReturn {
+/**
+ * @param loadEnabled carrega a conversa salva só quando true. O container
+ * liga na primeira abertura do painel: antes, toda página autenticada baixava
+ * o documento da conversa (com todas as mensagens) mesmo com a Lia fechada.
+ */
+export function useLiaSession(loadEnabled = true): UseLiaSessionReturn {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { planTier, isLoading: isPlanLoading } = usePlanLimits();
@@ -82,6 +87,10 @@ export function useLiaSession(): UseLiaSessionReturn {
 
   const [historyMessages, setHistoryMessages] = useState<LiaMessage[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  // A leitura só começa na primeira abertura do painel; até ela terminar, o
+  // hook se declara carregando para o painel não mostrar a saudação e trocá-la
+  // logo depois pela conversa salva.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Restore sessionId from localStorage once auth context is ready (Pro/Enterprise only)
   useEffect(() => {
@@ -100,9 +109,9 @@ export function useLiaSession(): UseLiaSessionReturn {
     localStorage.setItem(getStorageKey(tenantId), sessionId);
   }, [sessionId, tenantId, persistHistory]);
 
-  // Load conversation history on mount for Pro/Enterprise
+  // Load conversation history for Pro/Enterprise (after the panel first opens)
   useEffect(() => {
-    if (!persistHistory || !tenantId || !user?.id || !sessionId) return;
+    if (!loadEnabled || !persistHistory || !tenantId || !user?.id || !sessionId) return;
 
     let cancelled = false;
     setIsLoadingHistory(true);
@@ -144,7 +153,10 @@ export function useLiaSession(): UseLiaSessionReturn {
         console.error("[useLiaSession] Failed to load conversation history:", error);
         setHistoryMessages([]);
       } finally {
-        if (!cancelled) setIsLoadingHistory(false);
+        if (!cancelled) {
+          setIsLoadingHistory(false);
+          setHasLoadedOnce(true);
+        }
       }
     };
 
@@ -153,7 +165,7 @@ export function useLiaSession(): UseLiaSessionReturn {
     return () => {
       cancelled = true;
     };
-  }, [persistHistory, tenantId, user?.id, sessionId]);
+  }, [loadEnabled, persistHistory, tenantId, user?.id, sessionId]);
 
   const startNewSession = useCallback(() => {
     const newId = generateSessionId();
@@ -175,7 +187,7 @@ export function useLiaSession(): UseLiaSessionReturn {
   return {
     sessionId,
     historyMessages,
-    isLoadingHistory,
+    isLoadingHistory: isLoadingHistory || (persistHistory && !hasLoadedOnce),
     isPlanLoading,
     startNewSession,
     loadSession,

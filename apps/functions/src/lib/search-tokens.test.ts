@@ -1,4 +1,11 @@
-import { buildSearchTokens, normalizeSearchText } from "./search-tokens";
+import {
+  buildClientSearchTokens,
+  buildPhoneSearchTokens,
+  buildSearchTokens,
+  matchesAllWords,
+  parseSearchQuery,
+  normalizeSearchText,
+} from "./search-tokens";
 
 describe("normalizeSearchText", () => {
   it("lowercase, remove acentos e trim", () => {
@@ -55,5 +62,48 @@ describe("buildSearchTokens", () => {
 
   it("retorna vazio para entrada sem conteúdo indexável", () => {
     expect(buildSearchTokens("", "  ", null, undefined, "a")).toEqual([]);
+  });
+});
+
+describe("buildPhoneSearchTokens / buildClientSearchTokens", () => {
+  it("telefone formatado acha pelo número com DDD, sem DDD e pelos 4 últimos", () => {
+    const tokens = buildClientSearchTokens("Maria Silva", "maria@x.com", "(35) 99999-1234");
+    expect(tokens).toEqual(expect.arrayContaining(["35999991234", "3599999", "999991234", "99999", "1234"]));
+    // palavras continuam valendo
+    expect(tokens).toEqual(expect.arrayContaining(["ma", "maria", "si", "silva"]));
+  });
+
+  it("com código do país também acha sem o 55", () => {
+    const tokens = buildPhoneSearchTokens("+55 35 99999-1234");
+    expect(tokens).toEqual(expect.arrayContaining(["5535999991234", "35999991234", "999991234", "1234"]));
+  });
+
+  it("fixo de 10 dígitos acha sem o DDD", () => {
+    expect(buildPhoneSearchTokens("(11) 3333-4444")).toEqual(
+      expect.arrayContaining(["1133334444", "33334444", "4444"]),
+    );
+  });
+
+  it("sem telefone ou com menos de 4 dígitos não gera token de telefone", () => {
+    expect(buildPhoneSearchTokens(undefined)).toEqual([]);
+    expect(buildPhoneSearchTokens("12")).toEqual([]);
+    expect(buildClientSearchTokens("Ana", undefined, undefined)).toEqual(["an", "ana"]);
+  });
+});
+
+describe("parseSearchQuery / matchesAllWords", () => {
+  it("termo de texto: primeira palavra útil vira o token", () => {
+    expect(parseSearchQuery("  a João Silva ")).toEqual({ token: "joao", words: ["a", "joao", "silva"], digits: null });
+  });
+  it("termo só com dígitos e pontuação vira busca por telefone", () => {
+    expect(parseSearchQuery("(35) 9999-1")).toEqual({ token: "3599991", words: [], digits: "3599991" });
+  });
+  it("sem nada indexável devolve null", () => {
+    expect(parseSearchQuery("a")).toBeNull();
+    expect(parseSearchQuery("")).toBeNull();
+  });
+  it("matchesAllWords ignora acento e caixa", () => {
+    expect(matchesAllWords(["joao", "silva"], ["João", "SILVA@x.com"])).toBe(true);
+    expect(matchesAllWords(["joao", "souza"], ["João Silva"])).toBe(false);
   });
 });

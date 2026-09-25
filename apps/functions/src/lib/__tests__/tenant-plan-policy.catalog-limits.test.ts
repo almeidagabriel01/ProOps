@@ -103,3 +103,56 @@ it("super admin passa mesmo no teto", async () => {
   });
   expect(decision.allowed).toBe(true);
 });
+
+describe("loadCurrentUsage: a contagem só roda quando o plano tem teto", () => {
+  it("plano ilimitado (Pro) libera sem contar os documentos", async () => {
+    setTenantPlanCacheForTest("t-pro-lazy", pro("t-pro-lazy"));
+    const load = jest.fn().mockResolvedValue(999_999);
+    for (const feature of ["maxClients", "maxProducts"] as const) {
+      const decision = await enforceTenantPlanLimit({
+        tenantId: "t-pro-lazy",
+        feature,
+        loadCurrentUsage: load,
+      });
+      expect(decision.allowed).toBe(true);
+    }
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["maxClients", 120],
+    ["maxProducts", 220],
+  ] as const)("Starter: %s conta e bloqueia no teto (%i)", async (feature, teto) => {
+    setTenantPlanCacheForTest("t-starter-lazy", starter("t-starter-lazy"));
+
+    const loadAbaixo = jest.fn().mockResolvedValue(teto - 1);
+    const abaixo = await enforceTenantPlanLimit({
+      tenantId: "t-starter-lazy",
+      feature,
+      loadCurrentUsage: loadAbaixo,
+    });
+    expect(loadAbaixo).toHaveBeenCalledTimes(1);
+    expect(abaixo.allowed).toBe(true);
+
+    const noTeto = await enforceTenantPlanLimit({
+      tenantId: "t-starter-lazy",
+      feature,
+      loadCurrentUsage: jest.fn().mockResolvedValue(teto),
+    });
+    expect(noTeto.allowed).toBe(false);
+    expect(noTeto.statusCode).toBe(402);
+  });
+
+  it("currentUsage explícito tem precedência e não chama o loader", async () => {
+    setTenantPlanCacheForTest("t-starter-explicit", starter("t-starter-explicit"));
+    const load = jest.fn().mockResolvedValue(0);
+    const decision = await enforceTenantPlanLimit({
+      tenantId: "t-starter-explicit",
+      feature: "maxProducts",
+      currentUsage: 220,
+      loadCurrentUsage: load,
+    });
+    expect(decision.allowed).toBe(false);
+    expect(load).not.toHaveBeenCalled();
+  });
+});

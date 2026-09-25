@@ -375,6 +375,41 @@ export const ProductService = {
       tenantProductCache.delete(tenantId);
     }
   },
+
+  /**
+   * Depois de criar ou editar UM produto, relê só aquele documento e troca a
+   * entrada no cache, em vez de apagar o catálogo inteiro: sem isso a próxima
+   * tela (lista, proposta) baixava todos os produtos do tenant de novo a cada
+   * cadastro. Sem cache ativo não faz nada; se a releitura falhar, invalida.
+   */
+  refreshCachedProduct: async (tenantId: string, productId: string): Promise<void> => {
+    if (!tenantId || !productId) return;
+    const cache = tenantProductCache.get(tenantId);
+    if (!cache || cache.expiresAt <= Date.now()) return;
+    if (allProductsInFlight.has(tenantId)) {
+      tenantProductCache.delete(tenantId);
+      return;
+    }
+    try {
+      const snap = await getDoc(doc(db, COLLECTION_NAME, productId));
+      if (tenantProductCache.get(tenantId) !== cache) return;
+      if (!snap.exists() || snap.data()?.tenantId !== tenantId) {
+        cache.byId.delete(productId);
+        return;
+      }
+      cache.byId.set(
+        productId,
+        mapProductDoc(snap as QueryDocumentSnapshot<DocumentData>),
+      );
+    } catch {
+      tenantProductCache.delete(tenantId);
+    }
+  },
+
+  /** Remove um produto excluído do cache sem descartar o resto do catálogo. */
+  removeCachedProduct: (tenantId: string, productId: string): void => {
+    tenantProductCache.get(tenantId)?.byId.delete(productId);
+  },
 };
 
 export function getProductInventoryValue(
