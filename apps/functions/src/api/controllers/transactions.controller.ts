@@ -93,7 +93,10 @@ function mapTransactionErrorStatus(message: string): number {
   if (
     message.includes("Dados inválidos") ||
     message.includes("Status inválido") ||
-    message.includes("ID inválido")
+    message.includes("ID inválido") ||
+    // Lote grande demais: pedido do cliente, não falha do servidor.
+    message.includes("por operação em lote excedido") ||
+    message.includes("registros demais de uma vez")
   ) {
     return 400;
   }

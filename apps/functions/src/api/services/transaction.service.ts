@@ -72,6 +72,8 @@ type DbOp =
  * Handles reading the next recurrence to determine if it should be generated/destroyed.
  * Returns the write operations to avoid Firestore "read after write" errors.
  */
+const FIRESTORE_TRANSACTION_WRITE_LIMIT = 500;
+
 async function getNextRecurringTransactionOps(
   t: FirebaseFirestore.Transaction,
   db: FirebaseFirestore.Firestore,
@@ -596,9 +598,10 @@ export class TransactionService {
       const extraIds = Array.from(
         new Set((payload.extraTransactionIds || []).filter(Boolean)),
       );
-      for (const extraId of extraIds) {
-        const extraRef = db.collection(COLLECTION_NAME).doc(extraId);
-        const extraSnap = await t.get(extraRef);
+      const extraRefs = extraIds.map((extraId) => db.collection(COLLECTION_NAME).doc(extraId));
+      const extraSnaps = extraRefs.length > 0 ? await t.getAll(...extraRefs) : [];
+      for (const [index, extraSnap] of extraSnaps.entries()) {
+        const extraRef = extraRefs[index];
         if (!extraSnap.exists) continue;
         const extraData = extraSnap.data() as Record<string, any>;
         if (!extraData) continue;
@@ -1199,10 +1202,12 @@ export class TransactionService {
         { tenantId: string; wallet: string; delta: number }
       >();
 
-      // 1) Read all transactions first
-      for (const id of uniqueIds) {
-        const txRef = db.collection(COLLECTION_NAME).doc(id);
-        const txSnap = await t.get(txRef);
+      // 1) Read all transactions first, numa ida só (antes: um t.get por id,
+      // em série, com a transação aberta; até 200 idas ao servidor).
+      const txRefs = uniqueIds.map((id) => db.collection(COLLECTION_NAME).doc(id));
+      const txSnaps = txRefs.length > 0 ? await t.getAll(...txRefs) : [];
+      for (const [index, txSnap] of txSnaps.entries()) {
+        const txRef = txRefs[index];
 
         if (!txSnap.exists) continue;
 
@@ -1282,6 +1287,26 @@ export class TransactionService {
             );
             recurOps.push(...ops);
         }
+      }
+
+      // O Firestore aceita até 500 escritas por transação. Um lote de
+      // recorrências soma a atualização de cada lançamento, a próxima
+      // ocorrência de cada um, as carteiras e as propostas: sem esta conta o
+      // erro chegava como falha técnica do banco.
+      const affectedProposals = new Set(
+        transactionsToUpdateWithData
+          .map(({ currentTxData }) => currentTxData.proposalId)
+          .filter(Boolean),
+      );
+      const plannedWrites =
+        transactionsToUpdateWithData.length +
+        walletRefs.size +
+        recurOps.length +
+        affectedProposals.size;
+      if (plannedWrites > FIRESTORE_TRANSACTION_WRITE_LIMIT) {
+        throw new Error(
+          "Esta operação em lote altera registros demais de uma vez. Selecione menos lançamentos e tente de novo.",
+        );
       }
 
       // 3) Write transaction statuses + paidAt timestamp & sync recurrences
@@ -1365,10 +1390,12 @@ export class TransactionService {
       const entries: TxEntry[] = [];
       const walletAdjustments = new Map<string, { tenantId: string; delta: number }>();
 
-      // Phase 1: read all transaction docs
-      for (const { id, data } of updates) {
-        const ref = db.collection(COLLECTION_NAME).doc(id);
-        const snap = await t.get(ref);
+      // Phase 1: read all transaction docs, numa ida só (getAll preserva a ordem)
+      const updateRefs = updates.map(({ id }) => db.collection(COLLECTION_NAME).doc(id));
+      const updateSnaps = updateRefs.length > 0 ? await t.getAll(...updateRefs) : [];
+      for (const [index, snap] of updateSnaps.entries()) {
+        const ref = updateRefs[index];
+        const { data } = updates[index];
         if (!snap.exists) continue;
 
         const current = snap.data() as Record<string, any>;
