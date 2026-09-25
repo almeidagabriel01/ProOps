@@ -23,7 +23,6 @@ export function sanitizeInternalPath(raw: string | null | undefined, fallback: s
   // Nenhum destino legítimo do produto tem barra invertida ou caractere de
   // controle; recusar antes de resolver evita depender de como cada parser os
   // normaliza.
-  // eslint-disable-next-line no-control-regex
   if (/[\\\u0000-\u001f\u007f]/.test(decoded)) return fallback;
   let resolved: URL;
   try {
