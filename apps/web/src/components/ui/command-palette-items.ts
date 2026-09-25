@@ -70,7 +70,7 @@ export const searchItems: SearchItem[] = [
   },
   {
     id: "calendar",
-    label: "Calendario",
+    label: "Calendário",
     description: "Agenda de compromissos e visitas",
     path: "/calendar",
     icon: CalendarDays,

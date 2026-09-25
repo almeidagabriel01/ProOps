@@ -1,7 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { LogOut, MessageCircle, Settings, User as UserIcon } from "lucide-react";
+import {
+  Compass,
+  LogOut,
+  MessageCircle,
+  Settings,
+  User as UserIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -28,6 +34,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useHeaderPresentation } from "@/hooks/useHeaderPresentation";
 import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { ImpersonationBar } from "@/components/layout/impersonation-bar";
+import { useOptionalOnboarding } from "@/components/onboarding/onboarding-provider";
 
 // Aponta para o BOT (assistente), não para o suporte.
 const WHATSAPP_HREF = buildWhatsAppHref(BOT_WHATSAPP_DIGITS);
@@ -61,6 +68,13 @@ function HeaderSkeleton() {
 
 export function Header({}: HeaderProps) {
   const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const onboarding = useOptionalOnboarding();
+  // O super admin não tem tutorial: o painel dele é outro, e no "Acessar
+  // Painel" o estado gravado seria o da conta dele, não o da empresa vista.
+  const canOpenTutorial =
+    !!onboarding &&
+    onboarding.steps.length > 0 &&
+    String(user?.role || "").toLowerCase() !== "superadmin";
   const { isLoading: isPermLoading } = usePermissions();
   const {
     tenant,
@@ -122,6 +136,7 @@ export function Header({}: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
+                data-testid="user-menu-trigger"
                 className="relative h-fit py-2 pr-2 pl-2 md:pl-6 rounded-full flex items-center justify-end gap-3 hover:bg-muted/50 transition-colors"
               >
                 <div className="hidden md:flex flex-col items-end">
@@ -178,6 +193,15 @@ export function Header({}: HeaderProps) {
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Configurações</span>
               </DropdownMenuItem>
+              {canOpenTutorial && (
+                <DropdownMenuItem
+                  onClick={() => void onboarding.openTutorial()}
+                  className="cursor-pointer"
+                >
+                  <Compass className="mr-2 h-4 w-4" />
+                  <span>Tutorial da plataforma</span>
+                </DropdownMenuItem>
+              )}
               {/* O bot no WhatsApp: link externo, não um módulo do ERP. Ele não
                   tem página, permissão nem nicho, e ocupava um lugar fixo na
                   dock para uma ação que nem é navegação. Sem a flag do tenant,

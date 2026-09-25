@@ -60,6 +60,10 @@ export type UserOnboardingState = {
   updatedAt?: string;
   completedAt?: string;
   skippedAt?: string;
+  /** Quando o modal de boas-vindas foi fechado. Sobrevive a refazer o tour. */
+  welcomeSeenAt?: string;
+  /** Quando o card de primeiros passos do Dashboard foi dispensado. */
+  firstStepsDismissedAt?: string;
 };
 
 export interface UserPreferences {

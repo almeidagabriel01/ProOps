@@ -102,7 +102,7 @@ test.describe("PERM-02: a dock só oferece o que o membro pode abrir", () => {
       "CRM",
       "Financeiro",
       "Contatos",
-      "Calendario",
+      "Calendário",
       "Catálogo",
       "Planilhas",
       // e os filhos dos grupos: nenhum pode vazar para a dock como item solto,

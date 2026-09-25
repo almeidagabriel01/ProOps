@@ -233,6 +233,8 @@ function normalizeOnboardingState(value: unknown): User["onboarding"] {
     updatedAt: toIsoDate(raw.updatedAt),
     completedAt: toIsoDate(raw.completedAt),
     skippedAt: toIsoDate(raw.skippedAt),
+    welcomeSeenAt: toIsoDate(raw.welcomeSeenAt),
+    firstStepsDismissedAt: toIsoDate(raw.firstStepsDismissedAt),
   };
 }
 

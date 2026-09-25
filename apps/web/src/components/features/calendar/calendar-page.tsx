@@ -924,7 +924,7 @@ export function CalendarPage() {
                   <div className="min-w-0">
                     <div className="flex flex-col items-start gap-2">
                       <h1 className="text-2xl sm:text-[2rem] font-semibold tracking-[-0.045em] text-foreground">
-                        Calendario{" "}
+                        Calendário{" "}
                         <span className="text-muted-foreground">
                           operacional
                         </span>
