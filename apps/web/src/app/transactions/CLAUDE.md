@@ -193,6 +193,24 @@ O relatório por parceiro fica em `/commissions`, alimentado por
 despesas de comissão continuam visíveis nesta lista** para quem tem permissão
 de Lançamentos: escondê-las daqui exigiria filtrar a lista, e é decisão à parte.
 
+## Exclusão com "Desfazer" e ações em massa (2026-09-25)
+
+- **Excluir não grava na hora.** `deleteTransactionGroup` e
+  `deleteTransactionsBulk` tiram as linhas da lista e ajustam as carteiras de
+  forma otimista; o `DELETE` só vai ao servidor depois da janela do toast
+  (`lib/undoable-action.ts`, 6s). "Desfazer" é um `fetchData(true)`: o servidor
+  não mudou. Fechar a aba dentro da janela pede confirmação do navegador.
+- **Aba Agrupados** lê resumos do servidor, que só mudam depois da gravação.
+  Por isso a página guarda `pendingDeleteKeys` (`group:{id}` e `tx:{id}`) e
+  filtra `visibleGroupSummaries`/`visibleStandalone`.
+- **Ações em massa** (`_components/bulk-actions-bar.tsx`, regra pura em
+  `_lib/bulk-actions.ts`): marcar como pago pelo `status-batch` (lotes de 200,
+  o teto do backend), exportar `.xlsx` (exceljs por import dinâmico) e excluir
+  (até 100, uma chamada por lançamento). A seleção também guarda ids de custo
+  extra, que ficam de fora. Lançamento de proposta não é excluído em massa, pela
+  mesma regra do diálogo individual. Toda ação que grava confirma com a
+  contagem, porque a lista por vencimento começa com tudo selecionado.
+
 ## Race conditions e guards (frontend)
 
 - `updatingIdsRef` (Set) em `useFinancialData.ts` previne cliques duplos nos handlers: `updateTransactionStatus`, `updateTransaction`, `updateGroupStatus`

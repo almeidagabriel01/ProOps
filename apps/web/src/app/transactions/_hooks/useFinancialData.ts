@@ -151,6 +151,10 @@ interface UseFinancialDataReturn {
     transaction: Transaction,
     callbacks?: { onCommitted?: () => void; onReverted?: () => void },
   ) => Promise<boolean>;
+  deleteTransactionsBulk: (
+    targets: Transaction[],
+    callbacks?: { onCommitted?: () => void; onReverted?: () => void },
+  ) => Promise<boolean>;
   updateTransactionStatus: (
     transaction: Transaction,
     newStatus: Transaction["status"],
@@ -551,6 +555,75 @@ export function useFinancialData(): UseFinancialDataReturn {
     ],
   );
 
+  // Bulk delete from the selection. Same model as the single delete: rows and
+  // wallets change now, the server only after the "Desfazer" window. One call
+  // per transaction, in sequence, so a refusal stops at the first failure
+  // instead of leaving a half-applied batch hidden from the user.
+  const deleteTransactionsBulk = React.useCallback(
+    async (
+      targets: Transaction[],
+      callbacks?: { onCommitted?: () => void; onReverted?: () => void },
+    ): Promise<boolean> => {
+      if (targets.length === 0) return false;
+      const ids = targets.map((t) => t.id);
+      if (ids.some((id) => updatingIdsRef.current.has(id))) return false;
+      ids.forEach((id) => updatingIdsRef.current.add(id));
+      const release = () => ids.forEach((id) => updatingIdsRef.current.delete(id));
+
+      applyOptimisticWalletUpdateBatch(
+        targets.map((t) => ({
+          oldTx: t,
+          newTx: { ...t, wallet: undefined, status: "pending" as TransactionStatus },
+        })),
+      );
+      const removedIds = new Set(ids);
+      setTransactions((prev) => prev.filter((t) => !removedIds.has(t.id)));
+
+      const restore = () => {
+        void fetchData(true);
+        callbacks?.onReverted?.();
+      };
+
+      runUndoableAction({
+        message:
+          targets.length === 1
+            ? `Lançamento ${formatTransactionLabel(targets[0])} excluído.`
+            : `${targets.length} lançamentos excluídos.`,
+        title: "Lançamentos excluídos",
+        commit: async () => {
+          try {
+            for (const id of ids) {
+              await TransactionService.deleteTransaction(id);
+            }
+            await fetchData(true);
+            callbacks?.onCommitted?.();
+          } finally {
+            release();
+          }
+        },
+        onUndo: () => {
+          release();
+          restore();
+        },
+        onCommitError: (error) => {
+          console.error("Error deleting transactions in bulk:", error);
+          const errorMessage = getErrorMessage(
+            error,
+            "Falha inesperada ao excluir os lançamentos.",
+          );
+          toast.error(
+            `A exclusão em massa parou no meio. Os lançamentos que já tinham sido excluídos continuam excluídos. Detalhes: ${errorMessage}`,
+            { title: "Erro ao excluir" },
+          );
+          restore();
+        },
+      });
+
+      return true;
+    },
+    [fetchData, applyOptimisticWalletUpdateBatch],
+  );
+
   // Update single transaction status
   const updateTransactionStatus = React.useCallback(
     async (
@@ -914,6 +987,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     filteredTransactions,
     totalWalletBalance,
     deleteTransaction,
+    deleteTransactionsBulk,
     deleteTransactionGroup,
     updateTransactionStatus,
     updateTransaction,

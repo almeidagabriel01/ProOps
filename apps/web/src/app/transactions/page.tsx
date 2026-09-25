@@ -10,7 +10,18 @@ import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { Transaction } from "@/services/transaction-service";
+import { Transaction, TransactionService } from "@/services/transaction-service";
+import { toast } from "@/lib/toast";
+import { getTodayISO } from "@/utils/date-utils";
+import { BulkActionsBar } from "./_components/bulk-actions-bar";
+import {
+  BULK_DELETE_MAX,
+  buildExportRows,
+  planBulkDelete,
+  planBulkMarkPaid,
+  resolveSelectedTransactions,
+} from "./_lib/bulk-actions";
+import { downloadTransactionsXlsx } from "./_lib/export-transactions-xlsx";
 import { Crown, Kanban, Plus, Search, Wallet, X } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
@@ -70,6 +81,7 @@ export default function FinancialPage() {
     filteredTransactions,
     totalWalletBalance,
     deleteTransactionGroup,
+    deleteTransactionsBulk,
     updateGroupStatus,
     updateExtraCostStatus,
     updateTransaction,
@@ -358,6 +370,94 @@ export default function FinancialPage() {
     grouped.getAllCachedMembers,
     grouped.membersVersion,
   ]);
+
+  // Ações em massa sobre a seleção (marcar como pago, exportar, excluir).
+  const selectedTransactions = React.useMemo(
+    () => resolveSelectedTransactions(selectionPool, selectedIds),
+    [selectionPool, selectedIds],
+  );
+  const bulkDeletePlan = React.useMemo(
+    () => planBulkDelete(selectedTransactions),
+    [selectedTransactions],
+  );
+  const payableCount = React.useMemo(
+    () => selectedTransactions.filter((t) => t.status !== "paid").length,
+    [selectedTransactions],
+  );
+  const [isBulkBusy, setIsBulkBusy] = React.useState(false);
+
+  const afterBulkChange = React.useCallback(() => {
+    if (viewMode === "grouped") scheduleGroupedRefresh();
+  }, [viewMode, scheduleGroupedRefresh]);
+
+  const handleBulkMarkPaid = React.useCallback(async () => {
+    const chunks = planBulkMarkPaid(selectedTransactions);
+    const total = chunks.reduce((sum, ids) => sum + ids.length, 0);
+    if (total === 0) return;
+    setIsBulkBusy(true);
+    try {
+      for (const ids of chunks) {
+        await TransactionService.updateTransactionsStatusBatch(ids, "paid");
+      }
+      toast.success(
+        total === 1
+          ? "1 lançamento marcado como pago."
+          : `${total} lançamentos marcados como pagos.`,
+        { title: "Lançamentos atualizados" },
+      );
+      setSelectedIds(new Set());
+    } catch (error) {
+      console.error("Error marking transactions as paid:", error);
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível marcar os lançamentos como pagos.",
+        { title: "Erro ao atualizar" },
+      );
+    } finally {
+      await refreshData(true);
+      afterBulkChange();
+      setIsBulkBusy(false);
+    }
+  }, [selectedTransactions, refreshData, afterBulkChange]);
+
+  const handleBulkExport = React.useCallback(async () => {
+    try {
+      await downloadTransactionsXlsx(
+        buildExportRows(selectedTransactions, wallets),
+        `lancamentos-${getTodayISO()}.xlsx`,
+      );
+    } catch (error) {
+      console.error("Error exporting transactions:", error);
+      toast.error("Não foi possível gerar a planilha.", {
+        title: "Erro ao exportar",
+      });
+    }
+  }, [selectedTransactions, wallets]);
+
+  const handleBulkDelete = React.useCallback(() => {
+    const { deletable } = bulkDeletePlan;
+    if (deletable.length > BULK_DELETE_MAX) {
+      toast.error(
+        `Selecione até ${BULK_DELETE_MAX} lançamentos para excluir de uma vez.`,
+        { title: "Seleção grande demais" },
+      );
+      return;
+    }
+    const hiddenKeys = deletable.map((t) => `tx:${t.id}`);
+    const setHidden = (hidden: boolean) =>
+      setPendingDeleteKeys((prev) => {
+        const next = new Set(prev);
+        hiddenKeys.forEach((key) => (hidden ? next.add(key) : next.delete(key)));
+        return next;
+      });
+    setHidden(true);
+    setSelectedIds(new Set());
+    void deleteTransactionsBulk(deletable, {
+      onCommitted: afterBulkChange,
+      onReverted: () => setHidden(false),
+    });
+  }, [bulkDeletePlan, deleteTransactionsBulk, afterBulkChange]);
 
   // Calculate selection summary - use ALL transactions, not just filtered
   const selectionSummary = React.useMemo(() => {
@@ -670,6 +770,19 @@ export default function FinancialPage() {
         onSortChange={setSortBy}
         viewMode={viewMode}
         onViewModeChange={handleViewModeChange}
+      />
+
+      <BulkActionsBar
+        selectedCount={selectedTransactions.length}
+        payableCount={payableCount}
+        deletableCount={bulkDeletePlan.deletable.length}
+        skippedProposalCount={bulkDeletePlan.skippedProposal.length}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        isBusy={isBulkBusy}
+        onMarkPaid={handleBulkMarkPaid}
+        onExport={handleBulkExport}
+        onDelete={handleBulkDelete}
       />
 
       {/* Transactions List */}
