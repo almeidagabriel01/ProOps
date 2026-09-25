@@ -140,6 +140,8 @@ Isso garante que a mesma transacao nao gera multiplas notificacoes a cada execuc
 
 #### O que faz
 
+> **Atualizado em 2026-09-25:** o cron percorre `tenants` com `subscriptionStatus != "free"` por paginas e com prazo de 420s, continuando no dia seguinte de onde parou (`cron_cursors/checkStripeSubscriptions`, via `runRotatingCursor` em `lib/cron-iteration.ts`), e enfileira `enqueueTenantSync` por tenant. Antes lia todos de uma vez e, acima de ~1.800 tenants, estourava os 540s sempre no mesmo ponto. O `reconcileAddons` usa o mesmo cursor (`cron_cursors/reconcileAddons`). A descricao abaixo e do fluxo antigo.
+
 1. Chama `runStripeSync(LIMIT=200, startAfterId, dryRun=false)` em loop paginado
 2. `runStripeSync` (em `stripeHelpers.ts`) itera todos os usuarios com `stripeSubscriptionId`, recupera a subscription no Stripe e compara o status
 3. Se houve mudanca de status: atualiza `users/{uid}` e `tenants/{tenantId}` no Firestore
@@ -282,6 +284,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |
 | `wallets/{walletId}` | Financeiro | Carteiras com saldo desnormalizado |
+| `cron_cursors/{cronId}` | Crons | Onde um cron longo parou (`runRotatingCursor`): `checkStripeSubscriptions`, `reconcileAddons`. Admin SDK only |
 | `transaction_group_sync/{groupDocId}` | Financeiro | `readTime` em que cada resumo de `transaction_groups` se baseou; ordena e coalesce os recalculos do `onTransactionTotals`. Admin SDK only |
 | `sharedProposals/{token}` | Share Links | Links publicos de propostas |
 | `sharedTransactions/{token}` | Share Links | Links publicos de lancamentos |

@@ -337,6 +337,12 @@ service cloud.firestore {
       allow read, write: if false; // Admin SDK only
     }
 
+    // Cursor de crons longos (lib/cron-iteration runRotatingCursor): onde a
+    // execução anterior parou. Uso interno dos crons.
+    match /cron_cursors/{cronId} {
+      allow read, write: if false; // Admin SDK only
+    }
+
     // WALLETS
     match /wallets/{walletId} {
       allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));

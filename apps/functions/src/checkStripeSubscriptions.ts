@@ -6,6 +6,10 @@ import { enqueueTenantSync } from "./billing";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "./lib/logger";
 import { captureError } from "./lib/observability/error-logger";
+import { runRotatingCursor } from "./lib/cron-iteration";
+
+/** Prazo de trabalho da execução, com folga até o timeout de 540s. */
+const STRIPE_SYNC_BUDGET_MS = 420_000;
 
 /**
  * Cloud Function agendada diariamente para verificar o status das assinaturas
@@ -26,29 +30,39 @@ export const checkStripeSubscriptions = onSchedule(
       let totalSynced = 0;
       let totalFailed = 0;
 
-      const tenantsSnap = await db
-        .collection("tenants")
-        .where("subscriptionStatus", "!=", "free")
-        .get();
+      // Por páginas e com prazo, continuando de onde a execução anterior parou
+      // (cron_cursors/checkStripeSubscriptions). Antes lia todos os tenants
+      // não-free de uma vez (inclusive cancelados, que só crescem) e, acima de
+      // ~1.800, estourava os 540s sempre no mesmo ponto: o fim da lista nunca
+      // era sincronizado.
+      const { pages, completedCycle } = await runRotatingCursor({
+        db,
+        cursorId: "checkStripeSubscriptions",
+        collectionName: "tenants",
+        baseQuery: db.collection("tenants").where("subscriptionStatus", "!=", "free"),
+        pageSize: 200,
+        deadlineMs: Date.now() + STRIPE_SYNC_BUDGET_MS,
+        processPage: async (docs) => {
+          await Promise.allSettled(
+            docs.map(async (doc) => {
+              try {
+                await enqueueTenantSync(doc.id, "cron");
+                totalSynced++;
+              } catch (err) {
+                logger.error(`[checkStripeSubscriptions] Failed to sync tenant ${doc.id}`, {
+                  tenantId: doc.id,
+                  error: err instanceof Error ? err.message : String(err),
+                });
+                totalFailed++;
+              }
+            }),
+          );
+        },
+      });
 
-      logger.info(`[checkStripeSubscriptions] Found ${tenantsSnap.docs.length} tenants to sync`);
-
-      await Promise.allSettled(
-        tenantsSnap.docs.map(async (doc) => {
-          try {
-            await enqueueTenantSync(doc.id, "cron");
-            totalSynced++;
-          } catch (err) {
-            logger.error(`[checkStripeSubscriptions] Failed to sync tenant ${doc.id}`, {
-              tenantId: doc.id,
-              error: err instanceof Error ? err.message : String(err),
-            });
-            totalFailed++;
-          }
-        })
+      logger.info(
+        `Sync complete. Synced: ${totalSynced}, Failed: ${totalFailed}, pages: ${pages}, cycleCompleted: ${completedCycle}`,
       );
-
-      logger.info(`Sync complete. Synced: ${totalSynced}, Failed: ${totalFailed}`);
 
       // Notify superadmins with summary
       try {

@@ -1,9 +1,11 @@
 /**
- * `transaction_group_sync` guarda o readTime em que cada resumo de grupo
- * (`transaction_groups`) se baseou. É controle interno do trigger
- * onTransactionTotals: nenhum client lê nem escreve, nem o do próprio tenant.
- * Escrita pelo client permitiria travar um resumo desatualizado (um
- * sourceReadTime no futuro faria o trigger pular todo recálculo).
+ * Coleções internas, só Admin SDK:
+ * - `transaction_group_sync`: readTime em que cada resumo de grupo
+ *   (`transaction_groups`) se baseou. Escrita pelo client permitiria travar um
+ *   resumo desatualizado (um sourceReadTime no futuro faria o trigger pular
+ *   todo recálculo).
+ * - `cron_cursors`: onde cada cron longo parou. Escrita pelo client faria o
+ *   cron pular tenants.
  */
 
 import {
@@ -69,6 +71,16 @@ describe('transaction_group_sync: Admin SDK only', () => {
         setDoc(doc(db, 'transaction_group_sync', DOC), { tenantId: TENANT, sourceReadTime: new Date(4102444800000) }),
       );
       await assertFails(deleteDoc(doc(db, 'transaction_group_sync', DOC)));
+    });
+  }
+});
+
+describe('cron_cursors: Admin SDK only', () => {
+  for (const who of ['master', 'member', 'superAdmin', 'anon'] as const) {
+    it(`${who} não lê nem escreve`, async () => {
+      const db = contexts()[who];
+      await assertFails(getDoc(doc(db, 'cron_cursors', 'checkStripeSubscriptions')));
+      await assertFails(setDoc(doc(db, 'cron_cursors', 'checkStripeSubscriptions'), { lastDocId: 'x' }));
     });
   }
 });
