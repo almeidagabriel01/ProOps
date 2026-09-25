@@ -6,6 +6,7 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { fontOptions, themeOptions, ThemeType } from "./pdf-theme-utils";
 import { PdfSection } from "@/components/features/proposal/pdf-section-editor";
+import { useThemeAdjustedColor } from "@/hooks/useThemeAdjustedColor";
 
 interface PdfStyleTabProps {
   primaryColor: string;
@@ -32,6 +33,8 @@ export function PdfStyleTab({
 }: PdfStyleTabProps) {
   const [useCompanyColor, setUseCompanyColor] = React.useState(false);
   const [previousColor, setPreviousColor] = React.useState<string>("");
+  // A prévia fica sobre a superfície do ERP, não sobre o papel do PDF.
+  const previewColor = useThemeAdjustedColor(primaryColor);
 
   const handleColorChange = (newColor: string) => {
     setPrimaryColor(newColor);
@@ -147,7 +150,7 @@ export function PdfStyleTab({
         <div className="p-4 rounded-lg bg-muted" style={{ fontFamily }}>
           <div
             className="text-lg font-bold mb-2"
-            style={{ color: primaryColor }}
+            style={{ color: previewColor }}
           >
             Prévia do Estilo
           </div>

@@ -10,12 +10,12 @@ import { ArrowLeft, Save, ZoomIn, ZoomOut, FileDown } from "lucide-react";
 import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { useEditPdfPage } from "@/components/features/proposal/edit-pdf/use-edit-pdf-page";
 import { PdfEditorTabs } from "@/components/features/proposal/edit-pdf/pdf-editor-tabs";
-import { lightenColor } from "@/components/features/proposal/edit-pdf/pdf-theme-utils";
 import { SaveConfirmationModal } from "@/components/features/proposal/edit-pdf/save-confirmation-modal";
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { Loader } from "@/components/ui/loader";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { useTenant } from "@/providers/tenant-provider";
+import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 
 export default function EditPdfPage() {
   // Modal states
@@ -97,10 +97,8 @@ export default function EditPdfPage() {
     }
   };
 
-  // Premium color based on tenant theme
-  const premiumColor = tenant?.primaryColor
-    ? lightenColor(tenant.primaryColor, 30)
-    : "#a78bfa";
+  // Cor de tela ajustada ao tema (o documento continua com a cor da marca).
+  const premiumColor = useThemePrimaryColor();
 
   if (!isPlanLoading && !canAccessPage) {
     return (

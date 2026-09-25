@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { computePrimaryForeground } from "@/utils/color-utils";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -539,8 +540,11 @@ function SystemCard({
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
-              style={{ backgroundColor: primaryColor }}
+              className="w-10 h-10 rounded-lg flex items-center justify-center font-bold shrink-0"
+              style={{
+                backgroundColor: primaryColor,
+                color: computePrimaryForeground(primaryColor),
+              }}
             >
               <Cpu className="w-5 h-5" />
             </div>

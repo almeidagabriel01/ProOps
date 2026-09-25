@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { PixQrCodeView } from "./pix-qrcode-view";
 import { BoletoView } from "./boleto-view";
 import { Loader } from "@/components/ui/loader";
+import { computePrimaryForeground } from "@/utils/color-utils";
 
 interface PaymentModalProps {
   open: boolean;
@@ -127,7 +128,7 @@ function PixPaymentForm({
           onClick={handleSubmit}
           disabled={isLoading}
           className="w-full"
-          style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
+          style={primaryColor ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) } : undefined}
         >
           {isLoading ? (
             <Loader size="sm" className="mr-2" />
@@ -178,7 +179,7 @@ function PixPaymentForm({
         onClick={handleSubmit}
         disabled={isLoading || !canSubmit}
         className="w-full"
-        style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
+        style={primaryColor ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) } : undefined}
       >
         {isLoading ? (
           <Loader size="sm" className="mr-2" />
@@ -236,7 +237,7 @@ function BoletoPaymentForm({
           onClick={handleSubmit}
           disabled={isLoading}
           className="w-full"
-          style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
+          style={primaryColor ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) } : undefined}
         >
           {isLoading ? <Loader size="sm" className="mr-2" /> : <FileText className="mr-2 h-4 w-4" aria-hidden="true" />}
           {isLoading ? "Gerando boleto..." : `Gerar Boleto para ${clientName}`}
@@ -283,7 +284,7 @@ function BoletoPaymentForm({
         onClick={handleSubmit}
         disabled={isLoading || !canSubmit}
         className={cn("w-full")}
-        style={primaryColor ? { backgroundColor: primaryColor, color: "#ffffff" } : undefined}
+        style={primaryColor ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) } : undefined}
       >
         {isLoading ? (
           <Loader size="sm" className="mr-2" />

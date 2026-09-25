@@ -7,6 +7,7 @@ import { Copy, CheckCheck, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PaymentService } from "@/services/payment-service";
 import { Loader } from "@/components/ui/loader";
+import { useThemeAdjustedColor } from "@/hooks/useThemeAdjustedColor";
 
 interface PixQrCodeViewProps {
   token: string;
@@ -61,6 +62,8 @@ export function PixQrCodeView({
   isSandbox,
 }: PixQrCodeViewProps) {
   const [copied, setCopied] = React.useState(false);
+  // Texto e borda sobre o fundo da página: ajustados ao tema.
+  const readableColor = useThemeAdjustedColor(primaryColor);
   const [isSimulating, setIsSimulating] = React.useState(false);
   const [paymentStatus, setPaymentStatus] = React.useState<
     "polling" | "approved" | "rejected" | "expired"
@@ -272,7 +275,7 @@ export function PixQrCodeView({
         className="w-full max-w-xs"
         style={
           primaryColor && copied
-            ? { borderColor: primaryColor, color: primaryColor }
+            ? { borderColor: readableColor, color: readableColor }
             : undefined
         }
       >

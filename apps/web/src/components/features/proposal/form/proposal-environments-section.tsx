@@ -43,6 +43,7 @@ import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import { getEnvironmentSelectionInstanceId } from "@/lib/proposal-environment-utils";
 import { getNicheConfig } from "@/lib/niches/config";
 import { cn } from "@/lib/utils";
+import { computePrimaryForeground } from "@/utils/color-utils";
 import {
   formatItemQuantity,
   normalizeItemQuantity,
@@ -467,8 +468,11 @@ function EnvironmentCard({
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold shrink-0"
-              style={{ backgroundColor: primaryColor }}
+              className="w-10 h-10 rounded-lg flex items-center justify-center font-bold shrink-0"
+              style={{
+                backgroundColor: primaryColor,
+                color: computePrimaryForeground(primaryColor),
+              }}
             >
               <Layers className="w-5 h-5" />
             </div>

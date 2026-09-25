@@ -12,6 +12,7 @@ import type { CoverLogoSettings } from "@/types/pdf.types";
 import { PdfCoverTab } from "./pdf-cover-tab";
 import { PdfStyleTab } from "./pdf-style-tab";
 import { ThemeType } from "./pdf-theme-utils";
+import { computePrimaryForeground } from "@/utils/color-utils";
 
 interface PdfEditorTabsProps {
   // Cover Tab Props
@@ -190,7 +191,10 @@ export function PdfEditorTabs({
             {!canEditPdfSections && (
               <div
                 className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
-                style={{ backgroundColor: premiumColor, color: "white" }}
+                style={{
+                  backgroundColor: premiumColor,
+                  color: computePrimaryForeground(premiumColor),
+                }}
               >
                 <Crown className="w-3 h-3" />
                 Enterprise
@@ -221,9 +225,12 @@ export function PdfEditorTabs({
               >
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: premiumColor }}
+                  style={{
+                    backgroundColor: premiumColor,
+                    color: computePrimaryForeground(premiumColor),
+                  }}
                 >
-                  <Crown className="w-6 h-6 text-white" />
+                  <Crown className="w-6 h-6" />
                 </div>
                 <div className="text-center">
                   <p className="font-semibold" style={{ color: premiumColor }}>
