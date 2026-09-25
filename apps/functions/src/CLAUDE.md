@@ -94,9 +94,11 @@ Centraliza configuracoes de deploy para evitar divergencias entre funcoes.
 - Diferencia vencidos (`dueDate < hoje`) de proximos ao vencimento
 
 **Parte 2 — Propostas expirando:**
-- Query: `status in ["draft", "in_progress", "sent"]` (sem filtro de data — filtragem em memoria)
-- Ignora propostas com `validUntil > (hoje + 3 dias)`
+- Query: `status in ["draft", "in_progress", "sent"]` e `validUntil` entre (hoje - 30 dias) e (hoje + 3 dias), no indice `(status, validUntil)`
+- O piso de 30 dias (`PROPOSAL_EXPIRED_REMINDER_WINDOW_DAYS`) existe porque sem ele toda proposta aberta ja expirada era relembrada todo dia, para sempre, e em escala o cron estourava os 300s no acervo antigo antes de chegar as que estao para vencer
 - Cria notificacao `proposal_expiring` para cada proposta elegivel
+
+Os upserts das partes 1 e 2 vao por um `BulkWriter` (paralelo, com retentativa), fechado num `finally`. A logica fica em `runDueDateCheck(now)`, exportada para teste (`checkDueDates.test.ts`).
 
 **Parte 3 — Limpeza de sessoes WhatsApp:**
 - Remove documentos de `whatsappSessions` com `expiresAt < (agora - 24h)`
