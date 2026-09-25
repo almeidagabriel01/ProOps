@@ -6,7 +6,7 @@ import { LegalPage } from "@/components/legal/legal-page";
 export const metadata: Metadata = {
   title: "Política de Privacidade",
   description:
-    "Política de Privacidade da ProOps, incluindo o tratamento de dados pessoais e o uso da integração com Google Agenda.",
+    "Política de Privacidade da ProOps, incluindo o tratamento de dados pessoais e o uso das integrações com Google Agenda e Google Drive.",
   alternates: { canonical: canonicalLegal("/privacy") },
 };
 
@@ -15,7 +15,7 @@ export default function PrivacyPage() {
     <LegalPage
       title="Política de Privacidade"
       description="Esta Política de Privacidade explica como a ProOps coleta, utiliza, armazena e protege dados pessoais de usuários, clientes e contatos cadastrados na plataforma."
-      updatedAt="19 de março de 2026"
+      updatedAt="25 de setembro de 2026"
       sections={[
         {
           title: "1. Quem somos",
@@ -67,13 +67,14 @@ export default function PrivacyPage() {
               </p>
               <p>
                 viabilizar integrações ativadas pelo próprio usuário ou pela
-                empresa, inclusive a integração com Google Agenda.
+                empresa, inclusive as integrações com Google Agenda e Google
+                Drive.
               </p>
             </>
           ),
         },
         {
-          title: "4. Integração com Google Agenda",
+          title: "4. Integrações com Google Agenda e Google Drive",
           content: (
             <>
               <p>
@@ -110,6 +111,40 @@ export default function PrivacyPage() {
                 utilizados para determinar a elegibilidade a crédito, fins de
                 empréstimo ou qualquer outra finalidade não relacionada
                 diretamente ao funcionamento do módulo de agenda da ProOps.
+              </p>
+              <p>
+                Da agenda conectada, a ProOps armazena apenas título, descrição,
+                local, data e horário e situação dos eventos do período
+                consultado. Participantes, anexos e links de reunião não são
+                lidos. O token de acesso é armazenado cifrado. Ao desconectar a
+                integração, os eventos importados do Google são excluídos da
+                ProOps e o acesso concedido é revogado junto ao Google.
+              </p>
+              <p>
+                Quando a empresa ativa a integração com Google Drive, a ProOps
+                solicita apenas o escopo de arquivos criados pelo próprio
+                aplicativo. Ela cria a pasta do cliente e envia para ela o PDF
+                da proposta. A ProOps não lê, não lista e não baixa nenhum outro
+                arquivo do Drive. Ao desconectar, o acesso é revogado junto ao
+                Google.
+              </p>
+              <p>
+                <strong>
+                  A ProOps não utiliza dados de usuário obtidos por meio das
+                  APIs do Google Workspace para desenvolver, melhorar ou treinar
+                  modelos generalizados de inteligência artificial ou de
+                  aprendizado de máquina.
+                </strong>{" "}
+                <span lang="en">
+                  (ProOps does not use Google Workspace API user data to
+                  develop, improve, or train generalized AI and/or ML models.)
+                </span>
+              </p>
+              <p>
+                A assistente de inteligência artificial da ProOps (Lia) não tem
+                acesso aos dados obtidos do Google Agenda nem do Google Drive, e
+                nenhum dado recebido das APIs do Google é enviado a provedores
+                de inteligência artificial.
               </p>
             </>
           ),
