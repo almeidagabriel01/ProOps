@@ -13,7 +13,7 @@
 | `checkDueDates` | Scheduled | Verificacao diaria de vencimentos |
 | `markOverdueTransactions` | Scheduled | Marca transacoes vencidas |
 | `checkStripeSubscriptions` | Scheduled | Sync diario de status Stripe |
-| `reportWhatsappOverage` | Scheduled | Billing de overage WhatsApp (dia 1 do mes) |
+| `reportWhatsappOverage` | Scheduled | Billing de overage WhatsApp (dias 1 a 3 do mes, idempotente) |
 | `applyScheduledPlanChanges` | Scheduled | Aplica trocas de plano agendadas |
 | `checkPriceChanges` | Scheduled | Detecta price drift do Stripe |
 | `cleanupStorageAndSharedLinks` | Scheduled | Limpeza de arquivos e links expirados |
@@ -186,9 +186,9 @@ past_due ─── mais de 7 dias expirado ──►  canceled (planId: "free")
 
 ### 4. `reportWhatsappOverage` — Billing de overage WhatsApp
 
-**Arquivo:** `apps/functions/src/reportWhatsappOverage.ts`
-**Schedule:** `0 3 1 * *` — Dia 1 de cada mes as 03:00 BRT
-**Timeout:** 300 segundos
+**Arquivo:** `apps/functions/src/reportWhatsappOverage.ts` (agenda) + `apps/functions/src/billing/whatsapp-overage-report.ts` (logica, compartilhada com o endpoint manual)
+**Schedule:** `0 3 1-3 * *` — dias 1, 2 e 3 de cada mes as 03:00 BRT
+**Timeout:** 540 segundos
 **Memory:** 512MiB
 **Regiao:** `southamerica-east1`
 
@@ -211,13 +211,15 @@ Para cada tenant com `whatsappEnabled == true AND whatsappAllowOverage == true`:
    ```
 4. Atualiza o documento de uso com `stripeReported: true` e `stripeEventId`
 
-**Idempotencia:** O `identifier` garante que o mesmo overage nao seja reportado duas vezes mesmo se o cron rodar mais de uma vez no mesmo mes.
+**Idempotencia e cobranca unica:** tenant com `stripeReported` e pulado. Antes de chamar o Stripe a tentativa e RESERVADA (`stripeReportClaimedAt`, numa transacao), porque o Stripe so deduplica o `identifier` por **24h**: se a cobranca passasse e a marca nao fosse gravada, uma nova execucao dias depois cobraria de novo. Reserva sem confirmacao e repetida so dentro de 23h (`SAFE_RETRY_WINDOW_MS`); depois disso o tenant vai para `needsManualReview` e **nao** e cobrado: conferir no painel do Stripe antes de reportar a mao. Tenant sem `stripeCustomerId` e erro, sem reserva.
 
-**Saida:** Log com `processed`, `charged`, `skipped`, `errors`.
+**Alcance:** tenants paginados (200 por pagina) com 8 em paralelo. Antes, um laco serial sem cursor contra 300s: com ~1000 tenants a execucao morria no meio e os demais nunca eram cobrados. Os dias 2 e 3 pegam quem uma execucao interrompida deixou de fora.
+
+**Saida:** Log com `processed`, `charged`, `skipped`, `needsManualReview`, `errors`. Guard: `billing/__tests__/whatsapp-overage-report.test.ts`.
 
 #### Debug manual
 
-Endpoint `POST /internal/cron/whatsapp-overage-report` replica a logica do cron:
+Endpoint `POST /internal/cron/whatsapp-overage-report` chama a MESMA funcao do cron (`runWhatsappOverageReport`):
 
 ```bash
 curl -X POST https://.../api/internal/cron/whatsapp-overage-report \

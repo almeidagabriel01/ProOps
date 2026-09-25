@@ -121,7 +121,7 @@ npm run security:scan                  # OWASP ZAP baseline
 
 ### Key Integrations
 - **Stripe** — subscriptions, plan enforcement, overage billing. Webhook: `/stripe/stripeWebhook`
-- **WhatsApp** — webhooks, monthly overage cron (1st of month, 03:00 AM BRT). Webhook: `/webhooks/whatsapp`
+- **WhatsApp** — webhooks, monthly overage cron (days 1–3 of the month, 03:00 AM BRT; idempotent). Webhook: `/webhooks/whatsapp`
 - **Asaas** — payment processing (PIX/boleto/card) for shared-transaction payments. Webhook: `/webhooks/asaas/:tenantId`; public payment API mounted at `/v1`. (Replaced the former MercadoPago webhook.)
 - **Nota Fiscal** — Focus NFe, provedor único de NF-e e NFS-e. Atrás da interface
   `FiscalProvider` (`apps/functions/src/api/services/fiscal/`); os nomes de campo do provedor
