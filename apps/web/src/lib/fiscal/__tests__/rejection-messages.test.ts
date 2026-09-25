@@ -18,6 +18,20 @@ describe("humanizeRejection", () => {
     expect(humanizeRejection("805", original).original).toBe(original);
   });
 
+  it("traduz o E0116 sem mandar preencher o que já foi preenchido", () => {
+    // Visto num tenant real: a IM foi enviada e o texto cru dizia "a IM deve
+    // ser informada". A tradução tem que dizer que ela NÃO CONFERE.
+    const result = humanizeRejection(
+      "E0116",
+      "A IM deve ser informada para o emitente prestador do serviço na DPS",
+    );
+
+    expect(result.titulo).toContain("não reconheceu");
+    expect(result.explicacao).toContain("não confere");
+    expect(result.acao?.focusField).toBe("inscricaoMunicipal");
+    expect(result.original).toContain("A IM deve ser informada");
+  });
+
   it("aponta para a numeração quando a série sai de sincronia", () => {
     const result = humanizeRejection("539", "Duplicidade de NF-e");
     expect(result.acao?.href).toBe("/settings/fiscal");

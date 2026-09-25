@@ -60,7 +60,7 @@ interface ClientDocument {
   };
 }
 
-interface CatalogItemDocument {
+export interface CatalogItemDocument {
   ncm?: string;
   cest?: string;
   origem?: number;
@@ -182,7 +182,7 @@ function buildProductItem(
 }
 
 /** Agrupa as linhas de serviço numa única NFS-e — o padrão do documento. */
-function buildServiceItem(
+export function buildServiceItem(
   items: ProposalItem[],
   catalogs: Map<string, CatalogItemDocument>,
 ): FiscalServiceItem {
@@ -194,10 +194,16 @@ function buildServiceItem(
     .find((catalog) => text(catalog?.codigoLc116));
 
   return {
-    descricao: items
-      .map((item) => text(item.productName) || text(item.name))
-      .filter(Boolean)
-      .join(" | "),
+    // Sem repetição: a mesma linha de serviço costuma aparecer em mais de um
+    // ambiente da proposta, e a nota saía com "Instalação | Instalação" na
+    // descrição que o cliente final lê.
+    descricao: [
+      ...new Set(
+        items
+          .map((item) => text(item.productName) || text(item.name))
+          .filter(Boolean),
+      ),
+    ].join(" | "),
     codigoLc116: text(primary?.codigoLc116),
     codigoTributacaoMunicipio: text(primary?.codigoTributacaoMunicipio) || undefined,
     valorServicos,
