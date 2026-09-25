@@ -15,6 +15,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { keepIfUnchanged } from "@/lib/keep-if-unchanged";
 import { usePathname } from "next/navigation";
 import {
   clearViewingTenantId,
@@ -340,7 +341,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (fetchedTenant) {
-          setTenant(fetchedTenant);
+          const resolvedTenant = fetchedTenant;
+          setTenant((prev) => keepIfUnchanged(prev, resolvedTenant));
           currentTenantIdRef.current = fetchedTenant.id;
           setTenantOwnerPlanName(null);
 
@@ -623,7 +625,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       doc(db, "tenants", idToListen),
       (snap) => {
         if (snap.exists()) {
-          setTenant({ id: snap.id, ...snap.data() } as Tenant);
+          const next = { id: snap.id, ...snap.data() } as Tenant;
+          setTenant((prev) => keepIfUnchanged(prev, next));
           invalidateTenantCache(idToListen);
         }
       },

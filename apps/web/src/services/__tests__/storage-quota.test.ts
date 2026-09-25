@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getDoc = vi.fn();
 const uploadBytes = vi.fn();
 
-vi.mock("@/lib/firebase", () => ({ db: {}, storage: {} }));
+vi.mock("@/lib/firebase", () => ({ db: {} }));
+vi.mock("@/lib/firebase-storage", () => ({ storage: {} }));
 vi.mock("firebase/firestore", () => ({
   doc: (_db: unknown, ...path: string[]) => path.join("/"),
   getDoc: (ref: string) => getDoc(ref),

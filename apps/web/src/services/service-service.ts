@@ -7,6 +7,7 @@ import {
   getDocs,
   query,
   where,
+  documentId,
   getDoc,
   orderBy,
   limit,
@@ -103,6 +104,38 @@ export const ServiceService = {
       console.error("Error fetching services:", error);
       throw error;
     }
+  },
+
+  /**
+   * Busca só os serviços pedidos (em lotes de 30, o teto do `in`), em vez do
+   * catálogo inteiro. Usado por telas que precisam atualizar os itens de UMA
+   * proposta.
+   */
+  getServicesByIds: async (
+    tenantId: string,
+    serviceIds: string[],
+  ): Promise<Service[]> => {
+    const uniqueIds = Array.from(
+      new Set(serviceIds.map((id) => String(id || "").trim()).filter(Boolean)),
+    );
+    if (!tenantId || uniqueIds.length === 0) return [];
+
+    const chunks: string[][] = [];
+    for (let i = 0; i < uniqueIds.length; i += 30) {
+      chunks.push(uniqueIds.slice(i, i + 30));
+    }
+    const snapshots = await Promise.all(
+      chunks.map((ids) =>
+        getDocs(
+          query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            where(documentId(), "in", ids),
+          ),
+        ),
+      ),
+    );
+    return snapshots.flatMap((snap) => snap.docs.map(mapServiceDoc));
   },
 
   getServicesPaginated: async (

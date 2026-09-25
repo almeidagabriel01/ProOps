@@ -14,8 +14,8 @@ import {
   assertTenantExists,
   auditSuperAdminCrossTenantWrite,
 } from "../../lib/tenant-resolution";
-import { resolveWalletRef } from "../../lib/finance-helpers";
 import { buildProposalTransactionsCleanupQuery } from "../../lib/proposal-transactions-query";
+import { applyProposalTransactionsCleanup } from "../../lib/proposal-transactions-cleanup";
 import {
   enforceTenantPlanLimit,
   buildMonthlyPeriodWindowUtc,
@@ -32,6 +32,7 @@ import {
 import { z } from "zod";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildSearchTokens } from "../../lib/search-tokens";
+import { productRefsFields } from "../../lib/proposal-product-refs";
 import { logger, recordPhase } from "../../lib/logger";
 import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
 import {
@@ -1076,8 +1077,6 @@ export const createProposal = async (req: Request, res: Response) => {
     try {
       createdProposal = await db.runTransaction(async (t) => {
         // === ALL READS FIRST ===
-        await t.get(masterRef);
-
         const companyRef = db.collection("companies").doc(userCompanyId);
         const companySnap = await t.get(companyRef);
         const numberingConfig = await readNumberingStateInTransaction(
@@ -1237,6 +1236,7 @@ export const createProposal = async (req: Request, res: Response) => {
           clientPhone: input.clientPhone || null,
           clientAddress: input.clientAddress || null,
           products: sanitizedProducts,
+          ...productRefsFields(sanitizedProducts),
           sistemas: input.sistemas || [],
           sections: input.sections || [],
           // Denormalized sort fields (computed client-side from sistemas);
@@ -1563,6 +1563,7 @@ export const updateProposal = async (req: Request, res: Response) => {
       }
       if (f === "products") {
         safeUpdate[f] = sanitizedProducts || [];
+        Object.assign(safeUpdate, productRefsFields(sanitizedProducts || []));
         return;
       }
       if (f === "commissions") {
@@ -2212,33 +2213,9 @@ async function cleanupProposalTransactions(
 
     if (snapshot.empty) return;
 
-    await db.runTransaction(async (t) => {
-      for (const doc of snapshot.docs) {
-        const data = doc.data();
-
-        // 1. Reverse balance if paid
-        if (data.status === "paid" && data.wallet && data.amount) {
-          const isIncome = data.type === "income";
-          const sign = isIncome ? 1 : -1;
-          const offset = data.amount * sign;
-
-          // To reverse, we subtract the offset: balance -= offset
-          // But using increment: increment(-offset)
-          const reverseAmount = -offset;
-
-          const w = await resolveWalletRef(t, db, tenantId, data.wallet);
-          if (w) {
-            t.update(w.ref, {
-              balance: FieldValue.increment(reverseAmount),
-              updatedAt: Timestamp.now(),
-            });
-          }
-        }
-
-        // 2. Delete transaction
-        t.delete(doc.ref);
-      }
-    });
+    await db.runTransaction((t) =>
+      applyProposalTransactionsCleanup(t, db, tenantId, snapshot.docs),
+    );
 
     console.log(
       `Transactions cleaned up for reverted/deleted proposal ${proposalId}`,

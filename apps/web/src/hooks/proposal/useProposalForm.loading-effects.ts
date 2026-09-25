@@ -16,6 +16,7 @@ import { mergePdfDisplaySettings } from "@/types/pdf-display-settings";
 import { toast } from "@/lib/toast";
 import { isFirestorePermissionError } from "@/lib/firestore-error";
 import { buildFullFormSnapshot } from "./useProposalForm.helpers";
+import { shouldRefreshOnFocus } from "./focus-refresh";
 import { isEnvironmentProposalSelection } from "@/lib/proposal-environment-utils";
 import { DEFAULT_PROPOSAL_PAYMENT_METHOD } from "@/lib/proposal-payment";
 import {
@@ -74,6 +75,13 @@ export function useProposalFormLoadingEffects(
   } = ctx;
 
   const isFetchingRef = React.useRef(false);
+  const lastCatalogLoadAtRef = React.useRef<number | null>(null);
+  // A proposta começa a ser buscada assim que o id é conhecido, em paralelo
+  // com o catálogo; o processamento abaixo continua esperando o catálogo.
+  const proposalPrefetchRef = React.useRef<{
+    id: string;
+    promise: ReturnType<typeof ProposalService.getProposalById>;
+  } | null>(null);
   const isMountedRef = React.useRef(true);
 
   React.useEffect(() => {
@@ -237,6 +245,7 @@ export function useProposalFormLoadingEffects(
           })),
         ];
         setProducts(mergedCatalog);
+        lastCatalogLoadAtRef.current = Date.now();
 
         const defaultTemplate =
           templates.find((t) => t.isDefault) || templates[0];
@@ -291,6 +300,7 @@ export function useProposalFormLoadingEffects(
         })),
       ];
       setProducts(mergedCatalog);
+      lastCatalogLoadAtRef.current = Date.now();
 
       if (freshAmbientes.length === 0 && freshSistemas.length === 0) {
         return;
@@ -312,13 +322,25 @@ export function useProposalFormLoadingEffects(
   }, [tenant, setLocalAmbientes, setLocalSistemas, syncSystemsWithMasterData, setProducts]);
 
   React.useEffect(() => {
+    if (!proposalId || proposalFetchedRef.current) return;
+    if (proposalPrefetchRef.current?.id === proposalId) return;
+    const promise = ProposalService.getProposalById(proposalId);
+    // O erro é tratado quando a promise é aguardada em fetchProposal.
+    promise.catch(() => {});
+    proposalPrefetchRef.current = { id: proposalId, promise };
+  }, [proposalId, proposalFetchedRef]);
+
+  React.useEffect(() => {
     const fetchProposal = async () => {
       if (proposalFetchedRef.current) return;
       if (!proposalId || products.length === 0) return;
 
       try {
         proposalFetchedRef.current = true;
-        const proposal = await ProposalService.getProposalById(proposalId);
+        const prefetched = proposalPrefetchRef.current;
+        const proposal = await (prefetched?.id === proposalId
+          ? prefetched.promise
+          : ProposalService.getProposalById(proposalId));
         if (!proposal) return;
 
         const syncedClientName = proposal.clientName || "";
@@ -546,9 +568,6 @@ export function useProposalFormLoadingEffects(
           initialSistemasRef.current = JSON.stringify([]);
         }
 
-        // Fire and forget: trigger refresh to update descriptions if they were stale
-        // This ensures that if we loaded with stale or empty merged data, it gets updated shortly
-        refreshMasterData();
       } catch (error) {
         console.error("Error loading proposal", error);
         toast.error("Erro ao carregar proposta");
@@ -577,12 +596,14 @@ export function useProposalFormLoadingEffects(
     initialSistemasRef,
     mergedAmbientes,
     mergedSistemas,
-    refreshMasterData,
   ]);
 
   React.useEffect(() => {
     const onFocus = () => {
-      if (document.visibilityState === "visible") {
+      if (
+        document.visibilityState === "visible" &&
+        shouldRefreshOnFocus(lastCatalogLoadAtRef.current, Date.now())
+      ) {
         refreshMasterData();
       }
     };

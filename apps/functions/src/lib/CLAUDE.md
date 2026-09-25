@@ -39,7 +39,7 @@ interface AuthContext {
 
 Funcao principal. Fluxo:
 1. Extrai token da requisicao
-2. Verifica via Firebase Admin (`auth.verifyIdToken` ou `auth.verifySessionCookie`, ambos com `checkRevoked=true`)
+2. Verifica a assinatura via Firebase Admin (`auth.verifyIdToken` ou `auth.verifySessionCookie`, ambos com `checkRevoked=false`) e confere a revogação em `token-revocation.ts`: o estado do usuário (`disabled` + `tokensValidAfterTime`) fica em cache LRU de **60s por instância** (`AUTH_REVOCATION_CACHE_TTL_MS`, `0` = conferir em toda request). Antes cada request fazia uma busca no Firebase Auth só para isso. Custo aceito: logout forçado, troca de senha ou desativação levam até 60s para derrubar a sessão na API; quem revoga pelo backend chama `invalidateRevocationState(uid)`, o que vale na hora na mesma instância. Quando o passo 3 já busca o usuário (claims frescas), o mesmo registro serve para a revogação, sem segunda busca
 3. Decide freshness via `shouldFetchFreshClaims` (pura, testavel): busca `userRecord.customClaims` via `getUser()` **apenas quando** o token tem claims incompletas (role/tenant ausentes), role `FREE` (upgrade pago deve refletir imediato) ou `SUPERADMIN` (seguranca). Roles pagas estaveis confiam nas claims do proprio token (pior caso: downgrade demora <=1h ate o refresh — coberto pelo grace period de billing). Env `AUTH_CLAIMS_FRESHNESS=always` restaura o comportamento legado (getUser em toda request)
 4. Busca doc `users/{uid}` no Firestore para obter `userDocTenantId` (e publica o snapshot em `userDoc`)
 5. Faz fallback: se `role` ausente nas claims, usa `userData.role`; se `tenantId` ausente, usa `userDocTenantId`

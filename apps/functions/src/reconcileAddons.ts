@@ -5,8 +5,11 @@ import { getStripe } from "./stripe/stripeConfig";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { NotificationService } from "./api/services/notification.service";
 import { logger } from "./lib/logger";
+import { runRotatingCursor } from "./lib/cron-iteration";
 
 const PAGE_LIMIT = 200;
+/** Prazo de trabalho da reconciliação, com folga até o timeout de 540s (e a limpeza depois). */
+const ADDON_RECONCILE_BUDGET_MS = 360_000;
 
 export interface ReconcileResult {
   processed: number;
@@ -45,157 +48,147 @@ export async function runAddonReconciliation(
     dryRun,
   };
 
-  // Paginate through all addon docs that have a Stripe subscription attached.
-  let lastDocId: string | undefined;
+  // Por páginas e com prazo, continuando de onde a execução anterior parou
+  // (cron_cursors/reconcileAddons). Antes cada execução recomeçava do primeiro
+  // addon e, com ~1.500+ addons, a cauda nunca era reconciliada. O dry run
+  // roda do início e não grava cursor.
+  await runRotatingCursor({
+    db,
+    cursorId: dryRun ? null : "reconcileAddons",
+    collectionName: "addons",
+    baseQuery: db.collection("addons").where("stripeSubscriptionId", "!=", null),
+    pageSize: PAGE_LIMIT,
+    deadlineMs: Date.now() + ADDON_RECONCILE_BUDGET_MS,
+    processPage: async (docs) => {
+        for (const addonDoc of docs) {
+          result.processed++;
+          const data = addonDoc.data() as Record<string, unknown>;
+          const tenantId = String(data.tenantId || "").trim();
+          const addonType = String(data.addonType || "").trim();
+          const stripeSubscriptionId = String(data.stripeSubscriptionId || "").trim();
+          const firestoreStatus = String(data.status || "").trim().toLowerCase();
+          const firestoreCancelAtPeriodEnd = Boolean(data.cancelAtPeriodEnd);
 
-  while (true) {
-    let q = db
-      .collection("addons")
-      .where("stripeSubscriptionId", "!=", null)
-      .limit(PAGE_LIMIT);
+          if (!stripeSubscriptionId || !tenantId) {
+            continue;
+          }
 
-    if (lastDocId) {
-      const lastDoc = await db.collection("addons").doc(lastDocId).get();
-      if (lastDoc.exists) {
-        q = q.startAfter(lastDoc);
-      }
-    }
+          let stripeSub: Awaited<ReturnType<typeof stripe.subscriptions.retrieve>>;
+          try {
+            stripeSub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+          } catch (stripeErr) {
+            const code = (stripeErr as { code?: string })?.code;
+            const status = (stripeErr as { statusCode?: number })?.statusCode;
+            if (code === "resource_missing" || status === 404) {
+              // Subscription no longer exists in Stripe — mark as cancelled in Firestore.
+              if (firestoreStatus !== "cancelled" && firestoreStatus !== "canceled") {
+                if (!dryRun) {
+                  await addonDoc.ref.update({
+                    status: "cancelled",
+                    cancelAtPeriodEnd: false,
+                    updatedAt: new Date().toISOString(),
+                    reconcilerNote: "stripe_subscription_not_found",
+                  });
+                }
+                logger.warn("[reconcileAddons] Stripe subscription missing — marking cancelled", {
+                  tenantId,
+                  addonType,
+                  stripeSubscriptionId,
+                  dryRun,
+                });
+                result.corrected++;
+              }
+            } else {
+              logger.error("[reconcileAddons] Failed to retrieve Stripe subscription", {
+                tenantId,
+                addonType,
+                stripeSubscriptionId,
+                error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr),
+              });
+              result.errors++;
+            }
+            continue;
+          }
 
-    const snap = await q.get();
-    if (snap.empty) break;
+          const stripeStatus = String(stripeSub.status || "").trim().toLowerCase();
+          const stripeCancelAtPeriodEnd = Boolean(stripeSub.cancel_at_period_end);
+          const normalizedFirestoreStatus =
+            firestoreStatus === "cancelled" ? "canceled" : firestoreStatus;
 
-    lastDocId = snap.docs[snap.docs.length - 1].id;
-
-    for (const addonDoc of snap.docs) {
-      result.processed++;
-      const data = addonDoc.data() as Record<string, unknown>;
-      const tenantId = String(data.tenantId || "").trim();
-      const addonType = String(data.addonType || "").trim();
-      const stripeSubscriptionId = String(data.stripeSubscriptionId || "").trim();
-      const firestoreStatus = String(data.status || "").trim().toLowerCase();
-      const firestoreCancelAtPeriodEnd = Boolean(data.cancelAtPeriodEnd);
-
-      if (!stripeSubscriptionId || !tenantId) {
-        continue;
-      }
-
-      let stripeSub: Awaited<ReturnType<typeof stripe.subscriptions.retrieve>>;
-      try {
-        stripeSub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
-      } catch (stripeErr) {
-        const code = (stripeErr as { code?: string })?.code;
-        const status = (stripeErr as { statusCode?: number })?.statusCode;
-        if (code === "resource_missing" || status === 404) {
-          // Subscription no longer exists in Stripe — mark as cancelled in Firestore.
-          if (firestoreStatus !== "cancelled" && firestoreStatus !== "canceled") {
+          // Case 1: Stripe is canceled but Firestore still shows active/past_due.
+          if (
+            stripeStatus === "canceled" &&
+            normalizedFirestoreStatus !== "canceled"
+          ) {
             if (!dryRun) {
+              const nowIso = new Date().toISOString();
               await addonDoc.ref.update({
                 status: "cancelled",
                 cancelAtPeriodEnd: false,
-                updatedAt: new Date().toISOString(),
-                reconcilerNote: "stripe_subscription_not_found",
+                expiresAt: nowIso,
+                updatedAt: nowIso,
+                reconcilerNote: "stripe_status_canceled",
               });
             }
-            logger.warn("[reconcileAddons] Stripe subscription missing — marking cancelled", {
+            logger.warn("[reconcileAddons] Corrected: Stripe canceled, Firestore was active", {
               tenantId,
               addonType,
               stripeSubscriptionId,
+              firestoreStatus,
+              dryRun,
+            });
+            result.corrected++;
+            continue;
+          }
+
+          // Case 2: Stripe is active but Firestore shows cancelled — possible race with
+          // scheduled-plan cron or a checkout that completed after a cancel. Do NOT
+          // auto-correct; alert superadmins for manual review.
+          if (
+            (stripeStatus === "active" || stripeStatus === "trialing") &&
+            (normalizedFirestoreStatus === "canceled")
+          ) {
+            logger.warn("[reconcileAddons] Alert: Stripe active but Firestore cancelled — needs manual review", {
+              tenantId,
+              addonType,
+              stripeSubscriptionId,
+              stripeStatus,
+              firestoreStatus,
+              dryRun,
+            });
+            result.alerts++;
+            continue;
+          }
+
+          // Case 3: cancel_at_period_end divergence — Firestore should always match Stripe.
+          if (
+            (stripeStatus === "active" || stripeStatus === "trialing" || stripeStatus === "past_due") &&
+            firestoreCancelAtPeriodEnd !== stripeCancelAtPeriodEnd
+          ) {
+            if (!dryRun) {
+              const update: Record<string, unknown> = {
+                cancelAtPeriodEnd: stripeCancelAtPeriodEnd,
+                updatedAt: new Date().toISOString(),
+                reconcilerNote: "cancel_at_period_end_drift",
+              };
+              if (!stripeCancelAtPeriodEnd) {
+                update.cancelScheduledAt = null;
+              }
+              await addonDoc.ref.update(update);
+            }
+            logger.warn("[reconcileAddons] Corrected: cancel_at_period_end drift", {
+              tenantId,
+              addonType,
+              stripeSubscriptionId,
+              firestoreCancelAtPeriodEnd,
+              stripeCancelAtPeriodEnd,
               dryRun,
             });
             result.corrected++;
           }
-        } else {
-          logger.error("[reconcileAddons] Failed to retrieve Stripe subscription", {
-            tenantId,
-            addonType,
-            stripeSubscriptionId,
-            error: stripeErr instanceof Error ? stripeErr.message : String(stripeErr),
-          });
-          result.errors++;
         }
-        continue;
-      }
-
-      const stripeStatus = String(stripeSub.status || "").trim().toLowerCase();
-      const stripeCancelAtPeriodEnd = Boolean(stripeSub.cancel_at_period_end);
-      const normalizedFirestoreStatus =
-        firestoreStatus === "cancelled" ? "canceled" : firestoreStatus;
-
-      // Case 1: Stripe is canceled but Firestore still shows active/past_due.
-      if (
-        stripeStatus === "canceled" &&
-        normalizedFirestoreStatus !== "canceled"
-      ) {
-        if (!dryRun) {
-          const nowIso = new Date().toISOString();
-          await addonDoc.ref.update({
-            status: "cancelled",
-            cancelAtPeriodEnd: false,
-            expiresAt: nowIso,
-            updatedAt: nowIso,
-            reconcilerNote: "stripe_status_canceled",
-          });
-        }
-        logger.warn("[reconcileAddons] Corrected: Stripe canceled, Firestore was active", {
-          tenantId,
-          addonType,
-          stripeSubscriptionId,
-          firestoreStatus,
-          dryRun,
-        });
-        result.corrected++;
-        continue;
-      }
-
-      // Case 2: Stripe is active but Firestore shows cancelled — possible race with
-      // scheduled-plan cron or a checkout that completed after a cancel. Do NOT
-      // auto-correct; alert superadmins for manual review.
-      if (
-        (stripeStatus === "active" || stripeStatus === "trialing") &&
-        (normalizedFirestoreStatus === "canceled")
-      ) {
-        logger.warn("[reconcileAddons] Alert: Stripe active but Firestore cancelled — needs manual review", {
-          tenantId,
-          addonType,
-          stripeSubscriptionId,
-          stripeStatus,
-          firestoreStatus,
-          dryRun,
-        });
-        result.alerts++;
-        continue;
-      }
-
-      // Case 3: cancel_at_period_end divergence — Firestore should always match Stripe.
-      if (
-        (stripeStatus === "active" || stripeStatus === "trialing" || stripeStatus === "past_due") &&
-        firestoreCancelAtPeriodEnd !== stripeCancelAtPeriodEnd
-      ) {
-        if (!dryRun) {
-          const update: Record<string, unknown> = {
-            cancelAtPeriodEnd: stripeCancelAtPeriodEnd,
-            updatedAt: new Date().toISOString(),
-            reconcilerNote: "cancel_at_period_end_drift",
-          };
-          if (!stripeCancelAtPeriodEnd) {
-            update.cancelScheduledAt = null;
-          }
-          await addonDoc.ref.update(update);
-        }
-        logger.warn("[reconcileAddons] Corrected: cancel_at_period_end drift", {
-          tenantId,
-          addonType,
-          stripeSubscriptionId,
-          firestoreCancelAtPeriodEnd,
-          stripeCancelAtPeriodEnd,
-          dryRun,
-        });
-        result.corrected++;
-      }
-    }
-
-    if (snap.docs.length < PAGE_LIMIT) break;
-  }
+    },
+  });
 
   return result;
 }

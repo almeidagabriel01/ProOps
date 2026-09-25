@@ -1,7 +1,8 @@
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
-import { buildSearchTokens } from "../../lib/search-tokens";
+import { buildClientSearchTokens, matchesAllWords, parseSearchQuery } from "../../lib/search-tokens";
+import { INDEXED_SEARCH_SCAN_LIMIT, sortDocsByField } from "../../lib/indexed-search";
 import { cpf, cnpj } from "cpf-cnpj-validator";
 
 // CRITICAL: collection name is "clients", not "contacts"
@@ -75,6 +76,36 @@ export async function listContacts(
   const maxLimit = Math.min(opts?.limit || 10, 50);
   const orderField = opts?.orderBy ?? "createdAt";
   const orderDir = opts?.direction ?? "desc";
+
+  // Com termo, a busca vai pelo índice (searchTokens), não pelos N mais
+  // recentes: antes, "ache o João" falhava sempre que o João não estava entre
+  // os 50 últimos contatos.
+  const parsed = opts?.search ? parseSearchQuery(opts.search) : null;
+  if (parsed) {
+    const found = await db
+      .collection(CLIENTS_COLLECTION)
+      .where("tenantId", "==", tenantId)
+      .where("searchTokens", "array-contains", parsed.token)
+      .limit(INDEXED_SEARCH_SCAN_LIMIT)
+      .get();
+    const matched = found.docs.filter((doc) => {
+      const data = doc.data();
+      return parsed.digits
+        ? String(data.phone || "").replace(/\D/g, "").includes(parsed.digits)
+        : matchesAllWords(parsed.words, [data.name, data.email, data.phone]);
+    });
+    return sortDocsByField(matched, orderField, orderDir)
+      .slice(0, maxLimit)
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+        };
+      });
+  }
 
   const snap = await db
     .collection(CLIENTS_COLLECTION)
@@ -155,7 +186,7 @@ export async function createContact(
   }
 
   // Indexed search tokens (array-contains as-you-type search)
-  contactData.searchTokens = buildSearchTokens(
+  contactData.searchTokens = buildClientSearchTokens(
     name,
     params.email,
     params.phone,
@@ -204,7 +235,7 @@ export async function updateContact(
     updates.email !== undefined ||
     updates.phone !== undefined
   ) {
-    safeUpdate.searchTokens = buildSearchTokens(
+    safeUpdate.searchTokens = buildClientSearchTokens(
       updates.name !== undefined ? (safeUpdate.name as string) : data.name,
       updates.email !== undefined ? updates.email : data.email,
       updates.phone !== undefined ? updates.phone : data.phone,

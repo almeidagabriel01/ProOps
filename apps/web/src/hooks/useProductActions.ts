@@ -93,7 +93,9 @@ export function useProductActions() {
         payload,
       );
 
-      if (tenant) {
+      if (tenant && result?.productId) {
+        await ProductService.refreshCachedProduct(tenant.id, result.productId);
+      } else if (tenant) {
         ProductService.invalidateTenantCache(tenant.id);
       }
 
@@ -133,7 +135,7 @@ export function useProductActions() {
       );
 
       if (tenant) {
-        ProductService.invalidateTenantCache(tenant.id);
+        await ProductService.refreshCachedProduct(tenant.id, productId);
       }
 
       const productLabel = formatProductLabel(
@@ -174,7 +176,7 @@ export function useProductActions() {
       );
 
       if (tenant) {
-        ProductService.invalidateTenantCache(tenant.id);
+        ProductService.removeCachedProduct(tenant.id, productId);
       }
 
       const productLabel = formatProductLabel(productName);

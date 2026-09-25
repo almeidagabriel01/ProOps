@@ -1,4 +1,5 @@
 import { auth, db } from "../init";
+import { invalidateRevocationState } from "../lib/token-revocation";
 import { FieldValue } from "firebase-admin/firestore";
 import { getStripe } from "./stripeConfig";
 import { syncTenantPlanBillingSnapshot } from "./stripeWebhook";
@@ -213,6 +214,7 @@ export async function demoteTrialOwnerToFree(userId: string): Promise<void> {
     await auth.setCustomUserClaims(userId, { ...previousClaims, role: "free" });
     // Force a token refresh so the downgraded role takes effect immediately.
     await auth.revokeRefreshTokens(userId);
+    invalidateRevocationState(userId);
   } catch (claimsError) {
     console.error(
       `[demoteTrialOwnerToFree] Failed to set custom claims for user ${userId}`,

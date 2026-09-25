@@ -12,7 +12,6 @@ import { useAuth } from "@/providers/auth-provider";
 import { getGreeting, formatCurrency, resolveGreetingName } from "@/utils/format";
 import { formatDateBR } from "@/utils/date-format";
 import { useDashboardData } from "@/hooks/useDashboardData";
-import { SimpleBarChart } from "@/components/charts/simple-bar-chart";
 import {
   AlertsCard,
   RecentTransactionsList,
@@ -22,8 +21,24 @@ import {
   ClientsStatsCard,
   MonthStats,
   CommissionsPanel,
-  FutureBalanceChart,
 } from "./_components";
+import dynamic from "next/dynamic";
+
+// Os gráficos (Recharts) carregam depois do resto do dashboard. Os
+// placeholders ocupam o mesmo espaço, então nada pula quando eles chegam.
+const SimpleBarChart = dynamic(
+  () => import("@/components/charts/simple-bar-chart").then((m) => m.SimpleBarChart),
+  { ssr: false, loading: () => <div className="h-full w-full min-h-[200px]" /> },
+);
+const FutureBalanceChart = dynamic(
+  () => import("./_components/future-balance-chart").then((m) => m.FutureBalanceChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full min-h-[380px] rounded-xl border border-border/50 bg-card animate-pulse" />
+    ),
+  },
+);
 import { DashboardSkeleton } from "./_components/dashboard-skeleton";
 
 import { useTenant } from "@/providers/tenant-provider";

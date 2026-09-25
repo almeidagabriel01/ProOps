@@ -162,3 +162,61 @@ describe("ClientService.searchClients", () => {
     expect(getDocsMock).not.toHaveBeenCalled();
   });
 });
+
+describe("ClientService.searchClients: telefone", () => {
+  it("termo só com dígitos consulta pelos dígitos e acha o telefone formatado", async () => {
+    getDocsMock.mockResolvedValueOnce(
+      snap([
+        { id: "c1", data: { name: "Ana", phone: "(35) 99999-1234" } },
+        { id: "c2", data: { name: "Bruno", phone: "(11) 3333-4444" } },
+      ]),
+    );
+
+    const { ClientService } = await import("../client-service");
+    const result = await ClientService.searchClients("t1", "(35) 99999");
+
+    expect(captured.whereArgs).toContainEqual(["searchTokens", "array-contains", "3599999"]);
+    expect(result.map((c) => c.id)).toEqual(["c1"]);
+  });
+
+  it("últimos 4 dígitos", async () => {
+    getDocsMock.mockResolvedValueOnce(
+      snap([{ id: "c1", data: { name: "Ana", phone: "(35) 99999-1234" } }]),
+    );
+    const { ClientService } = await import("../client-service");
+    const result = await ClientService.searchClients("t1", "1234");
+    expect(captured.whereArgs).toContainEqual(["searchTokens", "array-contains", "1234"]);
+    expect(result.map((c) => c.id)).toEqual(["c1"]);
+  });
+
+  it("termo com letra segue a busca por palavra", async () => {
+    getDocsMock.mockResolvedValueOnce(snap([]));
+    const { ClientService } = await import("../client-service");
+    await ClientService.searchClients("t1", "Ana 35");
+    expect(captured.whereArgs).toContainEqual(["searchTokens", "array-contains", "ana"]);
+  });
+});
+
+describe("ClientService.getClientsByTypes", () => {
+  it("consulta por types com array-contains-any e limite, sem baixar a coleção", async () => {
+    getDocsMock.mockResolvedValueOnce(
+      snap([
+        { id: "v1", data: { name: "Vera", types: ["vendedor"] } },
+        { id: "a1", data: { name: "Arthur", types: ["arquiteto"] } },
+      ]),
+    );
+    const { ClientService } = await import("../client-service");
+    const result = await ClientService.getClientsByTypes("t1", ["vendedor", "arquiteto"]);
+
+    expect(captured.whereArgs).toContainEqual(["tenantId", "==", "t1"]);
+    expect(captured.whereArgs).toContainEqual(["types", "array-contains-any", ["vendedor", "arquiteto"]]);
+    expect(captured.limitArgs.length).toBe(1);
+    expect(result.map((c) => c.id)).toEqual(["a1", "v1"]);
+  });
+
+  it("sem tipo não consulta", async () => {
+    const { ClientService } = await import("../client-service");
+    await expect(ClientService.getClientsByTypes("t1", [])).resolves.toEqual([]);
+    expect(getDocsMock).not.toHaveBeenCalled();
+  });
+});

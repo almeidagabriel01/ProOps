@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { db, auth } from "../../init";
+import { invalidateRevocationState } from "../../lib/token-revocation";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { randomUUID } from "node:crypto";
@@ -1301,6 +1302,7 @@ export const updateCredentials = async (req: Request, res: Response) => {
       }
       // Sessoes abertas com a credencial antiga caem na proxima request.
       await auth.revokeRefreshTokens(userId);
+      invalidateRevocationState(userId);
     }
 
     // Update Firestore User
@@ -1871,6 +1873,7 @@ async function setTenantUsersDisabled(uids: string[], disabled: boolean): Promis
     try {
       await auth.updateUser(uid, { disabled });
       if (disabled) await auth.revokeRefreshTokens(uid);
+      invalidateRevocationState(uid);
       changed += 1;
     } catch (err) {
       if ((err as { code?: string })?.code !== "auth/user-not-found") throw err;

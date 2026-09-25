@@ -4,6 +4,7 @@ import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { clearTenantPlanCache, normalizePlanTier } from "./lib/tenant-plan-policy";
 import { tenantPlanAllowsWhatsApp } from "./lib/whatsapp-eligibility";
+import { paginateQuery } from "./lib/cron-iteration";
 
 /**
  * Daily cron (03:00 BRT) that applies scheduled plan transitions whose
@@ -38,18 +39,14 @@ export const applyScheduledPlanChanges = onSchedule(
     try {
       // Query tenants with a scheduled plan whose effective date is in the past.
       // Firestore requires an index on (scheduledPlanAt ASC) for this query.
-      const snap = await db
+      // Paginado: antes limit(200) sem laço. Além do excedente ficar para o
+      // dia seguinte, tenants com agendamento inválido (sempre pulados abaixo)
+      // ocupavam para sempre vagas dessas 200.
+      const pendingQuery = db
         .collection("tenants")
-        .where("scheduledPlanAt", "<=", now)
-        .limit(200)
-        .get();
+        .where("scheduledPlanAt", "<=", now);
 
-      if (snap.empty) {
-        console.log("[applyScheduledPlanChanges] No pending plan transitions.");
-        return;
-      }
-
-      for (const doc of snap.docs) {
+      for await (const doc of paginateQuery(pendingQuery, 200)) {
         processed++;
         const tenantId = doc.id;
         const data = doc.data() as Record<string, unknown>;

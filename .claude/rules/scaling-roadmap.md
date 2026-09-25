@@ -43,6 +43,96 @@ Verificado no código. Não "melhorar" nada disto sem medir antes:
 
 ---
 
+### Feito em 2026-09-24 (performance, onda 1)
+
+Nasceu de um cliente em potencial que trocava de ERP por lentidão ("criar
+produto demora"). Foco no que o usuário sente:
+
+- **Revogação de sessão com cache de 60s** no backend
+  (`lib/token-revocation.ts`) e na rota de billing
+  (`lib/auth/session-revocation.ts`): antes, toda chamada da API e toda
+  navegação buscavam o usuário no Firebase Auth. A assinatura segue verificada
+  sempre.
+- **Gate de billing do proxy** guarda por 30s as respostas PERMITIDAS
+  (`lib/auth/billing-gate-cache.ts`); negação é sempre reconfirmada. Pular o
+  gate em prefetch foi descartado: o Next 16 esconde os cabeçalhos de prefetch
+  do proxy e a navegação servida de um prefetch em cache nem passa por ele.
+- **Contagens de limite do plano por aggregation** no front
+  (`lib/plan-usage-counts.ts`) e **contagem preguiçosa** no backend
+  (`loadCurrentUsage` em `enforceTenantPlanLimit`: plano ilimitado não conta).
+- **Produto:** imagem reduzida para 1600 px WebP antes do upload, uploads em
+  paralelo, cache do catálogo atualizado por item (`refreshCachedProduct`) em
+  vez de apagado, lista editada no lugar (`updateItems`/`refresh` do
+  `useAsyncInfiniteScroll`) em vez de voltar ao skeleton.
+- **Proposta:** edição busca a proposta em paralelo com o catálogo e não
+  rebaixa o catálogo a cada foco de aba; visualização busca só os itens da
+  proposta (`getProductsByIds`/`getServicesByIds`).
+- **Tenant:** snapshot idêntico não troca o objeto (`keep-if-unchanged.ts`),
+  o que refazia a busca de toda tela ao abrir.
+- **Bug de saldo:** estorno dos lançamentos de proposta revertida/excluída lia
+  carteira depois de escrever na transação (`lib/proposal-transactions-cleanup.ts`).
+
+### Feito em 2026-09-25 (performance, ondas 2 a 4; branch `perf/onda-2`)
+
+- **Contatos:** busca e filtro por tipo pelo índice (`searchTokens`, agora com
+  os dígitos do telefone; `types` com `array-contains-any`). Decisão do dono do
+  produto: busca por INÍCIO de palavra, não por trecho.
+- **Exclusão de produto:** `productRefs` + `productRefsIndexed` na proposta e
+  checagem com `limit(1)`; cai no método antigo enquanto houver proposta do
+  tenant sem o índice.
+- **`checkDueDates`:** piso de 30 dias para propostas expiradas e gravação por
+  `BulkWriter`.
+- **WhatsApp "hoje":** dia sem movimento não varre mais os lançamentos.
+- **Agenda:** sync lê só os eventos devolvidos, pagina, grava só o que mudou e
+  decifra o token depois do throttle.
+- **`onTransactionTotals`:** coalescência por `readTime` e gravação condicional
+  (`transaction_group_sync`): sem N² leituras e sem sobrescrita por dado velho.
+- **Lotes de lançamentos:** `t.getAll` e recusa clara acima de 500 escritas.
+- **Lia:** busca de contatos e propostas pelo índice; 10 índices compostos que
+  faltavam nas ferramentas.
+- **Crons:** `reportWhatsappOverage` alcança todos e nunca cobra duas vezes
+  (reserva antes do Stripe; roda nos dias 1 a 3); `checkPriceChanges`,
+  `syncReceivedInvoices`, `checkFiscalCertificateExpiry` e
+  `applyScheduledPlanChanges` paginam; `checkManualSubscriptions` em lotes;
+  `checkStripeSubscriptions` e `reconcileAddons` com cursor rotativo
+  (`cron_cursors`).
+- **Cold start:** exports preguiçosos no `index.ts` (cada função carrega só o
+  próprio módulo) e KMS carregado no primeiro uso.
+- **Front:** Lia (conversa, histórico e markdown) só quando usada; Recharts do
+  dashboard em chunk próprio; SDK de Storage só onde se sobe arquivo e o de
+  Functions removido; `loading.tsx` nas rotas de lista.
+
+**Para publicar** (nesta ordem): deploy dos índices e das rules
+(`transaction_group_sync`, `cron_cursors`); deploy do backend; rodar
+`backfill-search-tokens.ts` (tokens de telefone e `types` que falta) e
+`backfill-proposal-product-refs.ts` nos dois projetos. **Revisão manual
+obrigatória** antes de produção: `reportWhatsappOverage`, `checkPriceChanges`,
+`checkStripeSubscriptions`, `reconcileAddons`, `checkManualSubscriptions` e
+`applyScheduledPlanChanges` mexem em cobrança ou plano.
+
+**Ainda aberto, e por quê:**
+
+- **Página de produtos baixa o catálogo no mount.** Os cards de saldo (e o de
+  cortinas, com faixas de altura) precisam de todos os produtos; tirar isso do
+  navegador exige portar a lógica de preço para o backend com paridade. Com o
+  cache por item da onda 1, o download acontece no máximo a cada 5 min por aba.
+- **Planilhas listadas com o `dataJson`.** Exige mover o conteúdo para um
+  subdocumento, com migração. O custo por página tem teto pelo plano (5/50).
+- **Lançamentos em aberto sem limite de data + histórico da carteira.** A
+  consulta traz toda dívida aberta de propósito; mexer nela junto do 4.1
+  (`walletsInvolved`), que pede a mesma mudança de modelo.
+- **Contadores legados `usage.*` em `users/{master}`/`companies`.** Ainda
+  alimentam o analytics do superadmin e o limite legado de propostas; a
+  contenção só aparece acima de 1 criação/s no mesmo tenant.
+- **Webhook do WhatsApp síncrono (com PDF no monolito).** Mudança de
+  arquitetura do canal (trigger ou Cloud Tasks) que precisa de teste de ponta
+  a ponta com a Meta.
+- **Leituras duplicadas de usuário/permissões no boot.** Mexe nos providers de
+  autenticação (alto risco); a mudança do tenant (onda 1) já tirou a busca
+  duplicada das telas.
+- **Busca de produtos da Lia** continua só nos 50 mais recentes: produtos não
+  têm `searchTokens`.
+
 ## 3. Pendente com você — ~20 min, custo R$ 0
 
 > **Status em 2026-08-27:** 3.1 concluído até o secret (falta o deploy). 3.2

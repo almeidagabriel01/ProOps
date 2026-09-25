@@ -466,6 +466,7 @@ export const ProposalService = {
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
         where("clientId", "==", clientId),
+        limit(1),
       );
       const snap = await getDocs(q);
       return !snap.empty;
@@ -490,12 +491,37 @@ export const ProposalService = {
     }
 
     try {
-      const q = query(
+      // Caminho indexado: `productRefs` (gravado pelo backend) com limit(1).
+      // Só vale quando TODA proposta do tenant já tem o campo; antes do
+      // backfill-proposal-product-refs, cai no método antigo abaixo, para nunca
+      // liberar a exclusão de um item em uso.
+      const tenantProposals = query(
         collection(db, COLLECTION_NAME),
         where("tenantId", "==", tenantId),
       );
+      const [totalSnap, indexedSnap] = await Promise.all([
+        getCountFromServer(tenantProposals),
+        getCountFromServer(
+          query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            where("productRefsIndexed", "==", true),
+          ),
+        ),
+      ]);
+      if (indexedSnap.data().count === totalSnap.data().count) {
+        const used = await getDocs(
+          query(
+            collection(db, COLLECTION_NAME),
+            where("tenantId", "==", tenantId),
+            where("productRefs", "array-contains", `${itemType}:${productId}`),
+            limit(1),
+          ),
+        );
+        return !used.empty;
+      }
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await getDocs(tenantProposals);
 
       // Client-side filtering because Firestore can't query inside array of objects easily
       // without specific structure or third-party search (like Algolia)

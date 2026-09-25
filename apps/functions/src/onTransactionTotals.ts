@@ -30,16 +30,30 @@ import { logger } from "./lib/logger";
  *    totais/grouped) não gera novas queries;
  *  - escrita em transaction_groups é outra coleção — não re-dispara.
  *
+ * Coalescência e ordem (2026-09-25): cada recálculo grava, em
+ * `transaction_group_sync/{groupDocId}`, o `readTime` da consulta de membros
+ * em que se baseou.
+ *  - Antes de reler o grupo, o evento compara o instante da PRÓPRIA escrita
+ *    com esse `readTime`: se o resumo já saiu de uma leitura posterior, ele já
+ *    contém esta escrita e o recálculo é pulado. Sem isso, criar uma série de
+ *    N parcelas disparava N recálculos de N membros (N² leituras).
+ *  - A gravação do resumo é condicional, numa transação sobre o doc de
+ *    controle: um recálculo baseado numa leitura mais antiga nunca sobrescreve
+ *    um mais novo. Antes, o último a gravar vencia, mesmo com dado velho.
+ *
  * Grupos legados mistos (parte dos membros com proposalGroupId, parte só com
  * installmentGroupId): o grupo inteiro é promovido à chave proposal — o
  * resumo `proposal:{id}` inclui os irmãos legados e o doc `group_{id}` é
  * deletado. Espelha a mitigação do backfill (docs/plans/2026-07-06).
  */
 
+type TimestampLike = { seconds: number; nanoseconds: number };
+
 type SnapLike =
   | {
       exists: boolean;
       data: () => Record<string, unknown> | undefined;
+      updateTime?: TimestampLike;
       ref: {
         firestore: FirebaseFirestore.Firestore;
         update: (data: Record<string, unknown>) => Promise<unknown>;
@@ -50,6 +64,46 @@ type SnapLike =
 type EventLike = {
   data?: { before?: SnapLike; after?: SnapLike };
   params: { transactionId: string };
+  /** Instante do evento (ISO). Em delete, é a melhor aproximação da escrita. */
+  time?: string;
+};
+
+const GROUP_SYNC_COLLECTION = "transaction_group_sync";
+
+/** Compara com precisão de nanossegundo; milissegundo confundiria leitura e escrita. */
+export function compareTimestamps(a: TimestampLike, b: TimestampLike): number {
+  if (a.seconds !== b.seconds) return a.seconds < b.seconds ? -1 : 1;
+  if (a.nanoseconds !== b.nanoseconds) return a.nanoseconds < b.nanoseconds ? -1 : 1;
+  return 0;
+}
+
+function minTimestamp(values: TimestampLike[]): TimestampLike | null {
+  let min: TimestampLike | null = null;
+  for (const value of values) {
+    if (!min || compareTimestamps(value, min) < 0) min = value;
+  }
+  return min;
+}
+
+function asTimestamp(value: unknown): TimestampLike | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as { seconds?: unknown; nanoseconds?: unknown };
+  return typeof v.seconds === "number" && typeof v.nanoseconds === "number"
+    ? { seconds: v.seconds, nanoseconds: v.nanoseconds }
+    : null;
+}
+
+function writeTimeOfEvent(event: EventLike): TimestampLike | null {
+  const after = event.data?.after;
+  if (after?.exists && after.updateTime) return asTimestamp(after.updateTime);
+  const ms = event.time ? Date.parse(event.time) : NaN;
+  if (!Number.isFinite(ms)) return null;
+  return { seconds: Math.floor(ms / 1000), nanoseconds: (ms % 1000) * 1_000_000 };
+}
+
+type MembersRead = {
+  members: Array<Record<string, unknown>>;
+  readTime: TimestampLike | null;
 };
 
 const MEMBER_QUERY_LIMIT = 500;
@@ -106,7 +160,7 @@ async function queryMembers(
   tenantId: string,
   field: string,
   value: string,
-): Promise<Array<Record<string, unknown>>> {
+): Promise<MembersRead> {
   const snap = await firestore
     .collection("transactions")
     .where("tenantId", "==", tenantId)
@@ -114,23 +168,28 @@ async function queryMembers(
     .limit(MEMBER_QUERY_LIMIT)
     .get();
   // id incluído: computeGroupSummary grava anchorTransactionId no resumo.
-  return snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Record<string, unknown>),
-  }));
+  return {
+    members: snap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Record<string, unknown>),
+    })),
+    readTime: asTimestamp(snap.readTime),
+  };
 }
 
 async function fetchProposalMembers(
   firestore: FirebaseFirestore.Firestore,
   tenantId: string,
   proposalGroupId: string,
-): Promise<Array<Record<string, unknown>>> {
-  const base = await queryMembers(
+): Promise<MembersRead> {
+  const baseRead = await queryMembers(
     firestore,
     tenantId,
     "proposalGroupId",
     proposalGroupId,
   );
+  const base = baseRead.members;
+  const readTimes: TimestampLike[] = baseRead.readTime ? [baseRead.readTime] : [];
   // Irmãos legados: mesmo installmentGroupId mas sem proposalGroupId.
   const instIds = new Set<string>();
   for (const m of base) {
@@ -140,13 +199,14 @@ async function fetchProposalMembers(
   const seen = new Set(base.map((m) => String(m.id)));
   const members = [...base];
   for (const instId of instIds) {
-    const siblings = await queryMembers(
+    const siblingsRead = await queryMembers(
       firestore,
       tenantId,
       "installmentGroupId",
       instId,
     );
-    for (const sibling of siblings) {
+    if (siblingsRead.readTime) readTimes.push(siblingsRead.readTime);
+    for (const sibling of siblingsRead.members) {
       const siblingId = String(sibling.id);
       if (!seen.has(siblingId)) {
         seen.add(siblingId);
@@ -154,29 +214,59 @@ async function fetchProposalMembers(
       }
     }
   }
-  return members;
+  // O MENOR readTime: o conjunto só é garantido completo até o mais antigo.
+  return { members, readTime: minTimestamp(readTimes) };
 }
 
 async function writeSummary(
   firestore: FirebaseFirestore.Firestore,
   tenantId: string,
   groupKey: string,
-  members: Array<Record<string, unknown>>,
+  read: MembersRead,
 ): Promise<void> {
-  const docRef = firestore
-    .collection("transaction_groups")
-    .doc(groupDocIdFromKey(groupKey));
+  const groupDocId = groupDocIdFromKey(groupKey);
+  const docRef = firestore.collection("transaction_groups").doc(groupDocId);
+  const syncRef = firestore.collection(GROUP_SYNC_COLLECTION).doc(groupDocId);
   const summary = computeGroupSummary(
     tenantId,
     groupKey,
-    members,
+    read.members,
     todayIsoSaoPaulo(),
   );
-  if (summary === null) {
-    await docRef.delete();
-    return;
-  }
-  await docRef.set(summary);
+
+  await firestore.runTransaction(async (t) => {
+    const syncSnap = await t.get(syncRef);
+    const stored = asTimestamp(syncSnap.exists ? syncSnap.data()?.sourceReadTime : null);
+    // Um recálculo mais novo já gravou: o nosso partiu de dado mais velho.
+    if (stored && read.readTime && compareTimestamps(stored, read.readTime) > 0) {
+      return;
+    }
+    if (summary === null) {
+      t.delete(docRef);
+    } else {
+      t.set(docRef, summary);
+    }
+    if (read.readTime) {
+      t.set(syncRef, { tenantId, groupKey, sourceReadTime: read.readTime });
+    }
+  });
+}
+
+/**
+ * true quando o resumo atual saiu de uma leitura feita depois desta escrita,
+ * ou seja, já a contém.
+ */
+async function summaryAlreadyCovers(
+  firestore: FirebaseFirestore.Firestore,
+  groupKey: string,
+  writeTime: TimestampLike,
+): Promise<boolean> {
+  const syncSnap = await firestore
+    .collection(GROUP_SYNC_COLLECTION)
+    .doc(groupDocIdFromKey(groupKey))
+    .get();
+  const stored = asTimestamp(syncSnap.exists ? syncSnap.data()?.sourceReadTime : null);
+  return !!stored && compareTimestamps(stored, writeTime) >= 0;
 }
 
 /** Exportado para reuso no backfill (scripts/backfill-transaction-groups.ts). */
@@ -187,12 +277,12 @@ export async function recomputeGroup(
 ): Promise<void> {
   if (groupKey.startsWith("proposal:")) {
     const proposalGroupId = groupKey.slice("proposal:".length);
-    const members = await fetchProposalMembers(
+    const read = await fetchProposalMembers(
       firestore,
       tenantId,
       proposalGroupId,
     );
-    await writeSummary(firestore, tenantId, groupKey, members);
+    await writeSummary(firestore, tenantId, groupKey, read);
     return;
   }
 
@@ -201,11 +291,16 @@ export async function recomputeGroup(
     queryMembers(firestore, tenantId, "installmentGroupId", groupId),
     queryMembers(firestore, tenantId, "recurringGroupId", groupId),
   ]);
-  const members = [...byInstallment];
+  const members = [...byInstallment.members];
   const seen = new Set(members.map((m) => String(m.id)));
-  for (const m of byRecurring) {
+  for (const m of byRecurring.members) {
     if (!seen.has(String(m.id))) members.push(m);
   }
+  const readTime = minTimestamp(
+    [byInstallment.readTime, byRecurring.readTime].filter(
+      (t): t is TimestampLike => t !== null,
+    ),
+  );
 
   // Grupo legado misto → promove à chave proposal e remove o doc group_.
   const proposalIds = new Set(
@@ -229,7 +324,7 @@ export async function recomputeGroup(
     return;
   }
 
-  await writeSummary(firestore, tenantId, groupKey, members);
+  await writeSummary(firestore, tenantId, groupKey, { members, readTime });
 }
 
 export async function handleTransactionTotalsEvent(
@@ -299,8 +394,13 @@ export async function handleTransactionTotalsEvent(
     return;
   }
 
+  const writeTime = writeTimeOfEvent(event);
+
   for (const key of keys) {
     try {
+      if (writeTime && (await summaryAlreadyCovers(firestore, key, writeTime))) {
+        continue;
+      }
       await recomputeGroup(firestore, tenantId, key);
     } catch (err) {
       logger.error("onTransactionTotals group recompute failed", {

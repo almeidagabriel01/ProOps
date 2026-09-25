@@ -1,5 +1,6 @@
 import { auth, db } from "../init";
 import { logger } from "./logger";
+import { invalidateRevocationState } from "./token-revocation";
 
 export interface BillingClaimsUpdate {
   subscriptionStatus: string;
@@ -36,6 +37,7 @@ async function applyClaimsToUser(
       await auth.setCustomUserClaims(uid, { ...existing, ...billingClaims });
       if (shouldRevoke) {
         await auth.revokeRefreshTokens(uid);
+        invalidateRevocationState(uid);
       }
       return;
     } catch (err) {

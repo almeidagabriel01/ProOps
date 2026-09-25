@@ -1,6 +1,7 @@
 import { Request } from "express";
-import type { DecodedIdToken } from "firebase-admin/auth";
+import type { DecodedIdToken, UserRecord } from "firebase-admin/auth";
 import { auth, db } from "../init";
+import { assertTokenNotRevoked } from "./token-revocation";
 
 const SESSION_COOKIE_NAME = "__session";
 const LEGACY_COOKIE_NAME = "firebase-auth-token";
@@ -303,10 +304,12 @@ async function decodeToken(
   token: string,
   tokenSource: TokenSource,
 ): Promise<DecodedIdToken> {
+  // Assinatura e expiração são verificadas aqui; a revogação é conferida em
+  // seguida por assertTokenNotRevoked, com cache curto (lib/token-revocation).
   if (tokenSource === "session_cookie") {
-    return auth.verifySessionCookie(token, true);
+    return auth.verifySessionCookie(token, false);
   }
-  return auth.verifyIdToken(token, true);
+  return auth.verifyIdToken(token, false);
 }
 
 async function resolveAuthContextFromDecodedToken(
@@ -324,6 +327,7 @@ async function resolveAuthContextFromDecodedToken(
     stripeId?: unknown;
   } = {};
   let userRecordEmail: string | undefined;
+  let freshUserRecord: UserRecord | undefined;
 
   if (
     shouldFetchFreshClaims({
@@ -332,9 +336,9 @@ async function resolveAuthContextFromDecodedToken(
       mode: resolveClaimsFreshnessMode(),
     })
   ) {
-    const userRecord = await auth.getUser(decodedIdToken.uid);
-    customClaims = (userRecord.customClaims || {}) as typeof customClaims;
-    userRecordEmail = userRecord.email ?? undefined;
+    freshUserRecord = await auth.getUser(decodedIdToken.uid);
+    customClaims = (freshUserRecord.customClaims || {}) as typeof customClaims;
+    userRecordEmail = freshUserRecord.email ?? undefined;
   }
 
   const role = normalizeRole(customClaims.role ?? decodedIdToken.role);
@@ -348,7 +352,10 @@ async function resolveAuthContextFromDecodedToken(
     customClaims.stripeId ?? decodedIdToken.stripeId,
   );
 
-  const userSnap = await db.collection("users").doc(decodedIdToken.uid).get();
+  const [userSnap] = await Promise.all([
+    db.collection("users").doc(decodedIdToken.uid).get(),
+    assertTokenNotRevoked(decodedIdToken, tokenSource, freshUserRecord),
+  ]);
   const userData = userSnap.exists
     ? (userSnap.data() as { tenantId?: string; companyId?: string; role?: string })
     : undefined;

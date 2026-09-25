@@ -68,8 +68,17 @@ export default function ViewProposalPage() {
               return;
             }
 
-            // Sync client data from source if clientId exists
-            if (p.clientId) {
+            // Cliente, itens e sistemas são independentes: buscados em
+            // paralelo, e os itens só pelos ids da proposta (não o catálogo).
+            const productIds = (p.products || [])
+              .filter((pp) => (pp.itemType || "product") !== "service")
+              .map((pp) => pp.productId);
+            const serviceIds = (p.products || [])
+              .filter((pp) => pp.itemType === "service")
+              .map((pp) => pp.productId);
+
+            const clientSync = (async () => {
+              if (!p.clientId) return;
               try {
                 const { ClientService } =
                   await import("@/services/client-service");
@@ -85,24 +94,25 @@ export default function ViewProposalPage() {
               } catch (clientError) {
                 console.warn("Could not fetch fresh client data:", clientError);
               }
-            }
+            })();
 
-            // Sync item data from products/services collections
-            if (p.products && p.products.length > 0) {
+            const itemsSync = (async () => {
+              if (!p.products || p.products.length === 0) return;
               try {
-                const { ProductService } =
-                  await import("@/services/product-service");
-                const { ServiceService } =
-                  await import("@/services/service-service");
-                const [allProducts, allServices] = await Promise.all([
-                  ProductService.getProducts(tenant.id),
-                  ServiceService.getServices(tenant.id),
+                const [{ ProductService }, { ServiceService }] =
+                  await Promise.all([
+                    import("@/services/product-service"),
+                    import("@/services/service-service"),
+                  ]);
+                const [freshProducts, freshServices] = await Promise.all([
+                  ProductService.getProductsByIds(tenant.id, productIds),
+                  ServiceService.getServicesByIds(tenant.id, serviceIds),
                 ]);
 
                 p.products = p.products.map((pp) => {
                   const sourceType = pp.itemType || "product";
                   const sourceList =
-                    sourceType === "service" ? allServices : allProducts;
+                    sourceType === "service" ? freshServices : freshProducts;
                   const freshProduct = sourceList.find(
                     (prod) => prod.id === pp.productId,
                   );
@@ -113,15 +123,16 @@ export default function ViewProposalPage() {
               } catch (productError) {
                 console.warn("Could not fetch fresh item data:", productError);
               }
-            }
+            })();
 
-            // Sync system data (descriptions) to ensure PDF shows latest master data
-            if (p.sistemas && p.sistemas.length > 0) {
+            const sistemasSync = (async () => {
+              if (!p.sistemas || p.sistemas.length === 0) return;
               try {
-                const { SistemaService } =
-                  await import("@/services/sistema-service");
-                const { AmbienteService } =
-                  await import("@/services/ambiente-service");
+                const [{ SistemaService }, { AmbienteService }] =
+                  await Promise.all([
+                    import("@/services/sistema-service"),
+                    import("@/services/ambiente-service"),
+                  ]);
 
                 const [allSistemas, allAmbientes] = await Promise.all([
                   SistemaService.getSistemas(tenant.id),
@@ -168,7 +179,9 @@ export default function ViewProposalPage() {
               } catch (sysError) {
                 console.warn("Could not fetch fresh system data:", sysError);
               }
-            }
+            })();
+
+            await Promise.all([clientSync, itemsSync, sistemasSync]);
 
             setProposal(p);
             // Synthesize template

@@ -18,7 +18,11 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { compareDisplayText } from "@/lib/sort-text";
-import { firstSearchToken, normalizeSearchWords } from "@/lib/search-term";
+import {
+  firstSearchToken,
+  normalizeSearchWords,
+  phoneSearchDigits,
+} from "@/lib/search-term";
 
 export type ClientSource = "manual" | "proposal" | "financial";
 
@@ -119,7 +123,8 @@ export const ClientService = {
     term: string,
     max = 50,
   ): Promise<Client[]> => {
-    const token = firstSearchToken(term);
+    const digits = phoneSearchDigits(term);
+    const token = digits ?? firstSearchToken(term);
     if (!token) return [];
 
     const snap = await getDocs(
@@ -130,6 +135,14 @@ export const ClientService = {
         limit(max),
       ),
     );
+
+    if (digits) {
+      return sortClientsByName(
+        snap.docs
+          .map(mapClientDoc)
+          .filter((client) => (client.phone || "").replace(/\D/g, "").includes(digits)),
+      );
+    }
 
     const words = normalizeSearchWords(term);
     const matches = snap.docs.map(mapClientDoc).filter((client) => {
@@ -144,6 +157,30 @@ export const ClientService = {
     });
 
     return sortClientsByName(matches);
+  },
+
+  /**
+   * Contatos de um ou mais tipos (`types` array-contains-any), sem baixar a
+   * coleção. Usado pelo filtro por tipo da tela de Contatos e pela seção de
+   * comissões (vendedor/arquiteto). Contato sem `types` é completado com
+   * ["cliente"] pelo backfill-search-tokens.
+   */
+  getClientsByTypes: async (
+    tenantId: string,
+    types: string[],
+    max = 500,
+  ): Promise<Client[]> => {
+    const wanted = Array.from(new Set(types.filter(Boolean))).slice(0, 30);
+    if (!tenantId || wanted.length === 0) return [];
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("types", "array-contains-any", wanted),
+        limit(max),
+      ),
+    );
+    return sortClientsByName(snap.docs.map(mapClientDoc));
   },
 
   /** Contagem server-side (aggregation) — 1 leitura por 1000 docs. */

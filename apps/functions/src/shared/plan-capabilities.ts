@@ -65,7 +65,6 @@ export interface PlanNumericLimits {
   /** Notas fiscais emitidas por mes. So o add-on fiscal usa teto finito. */
   maxInvoicesPerMonth: number;
   maxPdfTemplates: number;
-  maxImagesPerProduct: number;
   storageQuotaMB: number;
   aiMessagesPerMonth: number;
 }
@@ -119,7 +118,6 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       maxSpreadsheets: 5,
       maxInvoicesPerMonth: 0,
       maxPdfTemplates: 1,
-      maxImagesPerProduct: 2,
       storageQuotaMB: 100,
       aiMessagesPerMonth: 0,
     },
@@ -141,7 +139,6 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       maxSpreadsheets: 5,
       maxInvoicesPerMonth: 0,
       maxPdfTemplates: 1,
-      maxImagesPerProduct: 2,
       storageQuotaMB: 200,
       aiMessagesPerMonth: 80,
     },
@@ -167,7 +164,6 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       maxSpreadsheets: 50,
       maxInvoicesPerMonth: 0,
       maxPdfTemplates: -1,
-      maxImagesPerProduct: 3,
       storageQuotaMB: 2560,
       aiMessagesPerMonth: 400,
     },
@@ -197,7 +193,6 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       maxSpreadsheets: -1,
       maxInvoicesPerMonth: -1,
       maxPdfTemplates: -1,
-      maxImagesPerProduct: 3,
       storageQuotaMB: -1,
       aiMessagesPerMonth: 1200,
     },
@@ -275,7 +270,6 @@ export const LIMIT_LABELS: Record<keyof PlanNumericLimits, string> = {
   maxSpreadsheets: "Planilhas",
   maxInvoicesPerMonth: "Notas fiscais por mês",
   maxPdfTemplates: "Modelos de PDF",
-  maxImagesPerProduct: "Imagens por produto",
   storageQuotaMB: "Armazenamento (MB)",
   aiMessagesPerMonth: "Mensagens da Lia por mês",
 };
@@ -309,7 +303,6 @@ export interface PublicPlanFeatures {
   maxSpreadsheets: number;
   maxInvoicesPerMonth: number;
   maxPdfTemplates: number;
-  maxImagesPerProduct: number;
   maxStorageMB: number;
   aiMessagesPerMonth: number;
   hasFinancial: boolean;
@@ -335,7 +328,6 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     maxSpreadsheets: entry.limits.maxSpreadsheets,
     maxInvoicesPerMonth: entry.limits.maxInvoicesPerMonth,
     maxPdfTemplates: entry.limits.maxPdfTemplates,
-    maxImagesPerProduct: entry.limits.maxImagesPerProduct,
     maxStorageMB: entry.limits.storageQuotaMB,
     aiMessagesPerMonth: entry.limits.aiMessagesPerMonth,
     hasFinancial: entry.capabilities.financial,
