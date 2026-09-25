@@ -25,7 +25,7 @@ function normalizeIsoString(value: unknown): string | undefined {
   return undefined;
 }
 
-function normalizeOnboardingPayload(
+export function normalizeOnboardingPayload(
   rawValue: unknown,
   currentValue: unknown,
 ): Record<string, unknown> {
@@ -80,6 +80,18 @@ function normalizeOnboardingPayload(
         updatedAt
       : null;
 
+  // Marcos que sobrevivem a um reinício do tutorial: quem já viu as boas-vindas
+  // ou dispensou os primeiros passos não deve vê-los de novo ao refazer o tour.
+  // Ausente no payload preserva o gravado; o front nunca os apaga.
+  const welcomeSeenAt =
+    normalizeIsoString(raw.welcomeSeenAt) ||
+    normalizeIsoString(current.welcomeSeenAt) ||
+    null;
+  const firstStepsDismissedAt =
+    normalizeIsoString(raw.firstStepsDismissedAt) ||
+    normalizeIsoString(current.firstStepsDismissedAt) ||
+    null;
+
   return {
     version: String(raw.version || current.version || "core-v1").trim(),
     status,
@@ -89,6 +101,8 @@ function normalizeOnboardingPayload(
     updatedAt,
     completedAt,
     skippedAt,
+    welcomeSeenAt,
+    firstStepsDismissedAt,
   };
 }
 

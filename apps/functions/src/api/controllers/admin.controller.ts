@@ -276,7 +276,7 @@ export const createMember = async (req: Request, res: Response) => {
           companyName: masterData.companyName || "Minha Empresa", // Legacy/Compat
           companyId: tenantId, // Standardize
           onboarding: {
-            version: "core-v1",
+            version: "core-v2",
             status: "active",
             completedStepIds: [],
             currentStepId: "dashboard",
@@ -1770,7 +1770,7 @@ export const createTenant = async (req: Request, res: Response) => {
         currentPeriodEnd: isFreePlan ? null : periodEndRaw,
         isManualSubscription,
         onboarding: {
-          version: "core-v1",
+          version: "core-v2",
           status: "active",
           completedStepIds: [],
           currentStepId: "dashboard",
