@@ -43,6 +43,52 @@ Verificado no código. Não "melhorar" nada disto sem medir antes:
 
 ---
 
+### Feito em 2026-09-24 (performance, onda 1)
+
+Nasceu de um cliente em potencial que trocava de ERP por lentidão ("criar
+produto demora"). Foco no que o usuário sente:
+
+- **Revogação de sessão com cache de 60s** no backend
+  (`lib/token-revocation.ts`) e na rota de billing
+  (`lib/auth/session-revocation.ts`): antes, toda chamada da API e toda
+  navegação buscavam o usuário no Firebase Auth. A assinatura segue verificada
+  sempre.
+- **Gate de billing do proxy** guarda por 30s as respostas PERMITIDAS
+  (`lib/auth/billing-gate-cache.ts`); negação é sempre reconfirmada. Pular o
+  gate em prefetch foi descartado: o Next 16 esconde os cabeçalhos de prefetch
+  do proxy e a navegação servida de um prefetch em cache nem passa por ele.
+- **Contagens de limite do plano por aggregation** no front
+  (`lib/plan-usage-counts.ts`) e **contagem preguiçosa** no backend
+  (`loadCurrentUsage` em `enforceTenantPlanLimit`: plano ilimitado não conta).
+- **Produto:** imagem reduzida para 1600 px WebP antes do upload, uploads em
+  paralelo, cache do catálogo atualizado por item (`refreshCachedProduct`) em
+  vez de apagado, lista editada no lugar (`updateItems`/`refresh` do
+  `useAsyncInfiniteScroll`) em vez de voltar ao skeleton.
+- **Proposta:** edição busca a proposta em paralelo com o catálogo e não
+  rebaixa o catálogo a cada foco de aba; visualização busca só os itens da
+  proposta (`getProductsByIds`/`getServicesByIds`).
+- **Tenant:** snapshot idêntico não troca o objeto (`keep-if-unchanged.ts`),
+  o que refazia a busca de toda tela ao abrir.
+- **Bug de saldo:** estorno dos lançamentos de proposta revertida/excluída lia
+  carteira depois de escrever na transação (`lib/proposal-transactions-cleanup.ts`).
+
+**Ondas seguintes, ainda abertas** (diagnóstico de 2026-09-24):
+
+- **Onda 2, queries que crescem com o histórico:** N² leituras de
+  `onTransactionTotals` por grupo; `isProductUsedInProposal` baixa todas as
+  propostas; página de produtos baixa o catálogo no mount; contatos e comissões
+  baixam todos os clientes; sync da agenda relê e regrava tudo; `checkDueDates`
+  sem limite inferior; fallback do WhatsApp que varre os lançamentos; planilhas
+  listadas com o `dataJson`; busca da Lia só nos 50 mais recentes.
+- **Onda 3, crons que ignoram tenants em silêncio:** `reportWhatsappOverage`
+  (cobrança), `checkPriceChanges`, `syncReceivedInvoices`,
+  `checkFiscalCertificateExpiry`, `reconcileAddons`, `checkStripeSubscriptions`
+  e `checkManualSubscriptions` (batch > 500).
+- **Onda 4, contenção, cold start e bundle:** contadores legados
+  `usage.*` em `users/{master}`/`companies`, import eager do KMS e do monolito
+  inteiro em cada função, webhook do WhatsApp síncrono, Lia/markdown/recharts
+  carregados em toda página.
+
 ## 3. Pendente com você — ~20 min, custo R$ 0
 
 > **Status em 2026-08-27:** 3.1 concluído até o secret (falta o deploy). 3.2
