@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/base.fixture";
 import { loginAsPlanMaster } from "../fixtures/auth.fixture";
 import { getTestDb } from "../helpers/admin-firestore";
 import { PLAN_ONBOARDING_MOBILE } from "../seed/data/plans";
