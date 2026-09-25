@@ -17,6 +17,15 @@ a tab bar do celular, o sheet e o seletor de cabeçalho leem todos o mesmo
 precisa ser plano, e existe um guard (`navigation-surfaces-parity.test.ts`) que
 afirma que ele não perdeu nenhum destino do menu.
 
+Além dos destinos, o palette acha **registros**: propostas e contatos, pelo
+índice `searchTokens` (`hooks/use-record-search.ts`, no máximo duas consultas
+com `limit` por termo, debounce de 250ms). Cada tipo só é buscado com o
+`view` da página dele (`proposals`, `clients`). Os registros abertos por ali
+viram "Recentes", mostrados com o campo vazio (`lib/command-palette-recents.ts`,
+localStorage por usuário). Lançamentos ficam de fora: a coleção não tem
+`searchTokens`, e indexá-la exige mexer em todo caminho de escrita do
+financeiro mais um backfill.
+
 ## Grupo
 
 Um `MenuItem` com `children` é um grupo: a dock desenha **um** ícone, e as telas
