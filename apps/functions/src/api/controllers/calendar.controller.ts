@@ -1203,6 +1203,8 @@ function buildBaseGoogleSyncMetadata(): GoogleSyncMetadata {
   };
 }
 
+const DISCONNECT_BATCH_SIZE = 450;
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -1284,22 +1286,25 @@ async function cleanupLocalEventsAfterGoogleDisconnect(params: {
     }),
   );
 
-  const batch = db.batch();
   const resetPayload = {
     googleSync: buildBaseGoogleSyncMetadata(),
     updatedAt: nowIso(),
   };
 
-  cleanupActions.forEach((action) => {
-    if (action.type === "delete") {
-      batch.delete(action.ref);
-      return;
-    }
+  // Um lote do Firestore aceita 500 escritas; uma agenda com mais eventos
+  // sincronizados fazia o commit unico falhar e a desconexao inteira com ele.
+  for (let start = 0; start < cleanupActions.length; start += DISCONNECT_BATCH_SIZE) {
+    const batch = db.batch();
+    cleanupActions.slice(start, start + DISCONNECT_BATCH_SIZE).forEach((action) => {
+      if (action.type === "delete") {
+        batch.delete(action.ref);
+        return;
+      }
 
-    batch.set(action.ref, resetPayload, { merge: true });
-  });
-
-  await batch.commit();
+      batch.set(action.ref, resetPayload, { merge: true });
+    });
+    await batch.commit();
+  }
 }
 
 function buildCalendarEventsErrorResponse(error: unknown): {
@@ -1753,11 +1758,21 @@ export async function disconnectGoogleCalendar(req: Request, res: Response) {
     }
     const docRef = db.collection(CALENDAR_INTEGRATIONS_COLLECTION).doc(integration.id);
 
-    await cleanupLocalEventsAfterGoogleDisconnect({
-      tenantId,
-      integration: integration.data,
-      req,
-    });
+    // A limpeza nao pode barrar a revogacao: se ela falhasse antes, o token
+    // continuava valido no Google e a integracao continuava gravada, o
+    // contrario do que "desconectar" promete ao usuario.
+    try {
+      await cleanupLocalEventsAfterGoogleDisconnect({
+        tenantId,
+        integration: integration.data,
+        req,
+      });
+    } catch (error) {
+      console.error(
+        "[CalendarController] Unable to clean up synced events on disconnect:",
+        error,
+      );
+    }
 
     if (integration.data.refreshToken) {
       try {

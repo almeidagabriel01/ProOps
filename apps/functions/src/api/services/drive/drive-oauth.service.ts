@@ -245,10 +245,31 @@ export async function saveRootFolder(
  * com OUTRA conta Google, a pasta antiga fica inacessivel e
  * `ensureClientFolder`/`createRootFolder` recriam o que falta; nao ha estado
  * preso.
+ *
+ * O token tambem e revogado no Google, e nao so apagado daqui: a politica de
+ * privacidade (e a verificacao OAuth) promete que desconectar encerra o
+ * acesso. Falha na revogacao so e registrada, porque ela nao pode impedir o
+ * usuario de desconectar (o token pode ja estar morto, que e o caso comum).
  */
 export async function disconnectDrive(tenantId: string): Promise<void> {
   const existente = await getDriveIntegration(tenantId);
   if (!existente) return;
+
+  if (existente.refreshTokenEnc) {
+    try {
+      const refreshToken = await decryptToken(
+        existente.refreshTokenEnc,
+        "CALENDAR_TOKEN",
+      );
+      const oauthClient = await createDriveOAuthClient();
+      await oauthClient.revokeToken(refreshToken);
+    } catch (error) {
+      logger.warn("drive_disconnect_revoke_failed", {
+        tenantId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 
   await db.collection(DRIVE_INTEGRATIONS_COLLECTION).doc(tenantId).set(
     {
