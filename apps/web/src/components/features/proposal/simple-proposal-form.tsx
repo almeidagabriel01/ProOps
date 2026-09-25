@@ -836,7 +836,7 @@ export function SimpleProposalForm({
 
     if (alreadySelected) {
       toast.error(
-        `O ambiente "${ambiente.name}" jÃ¡ foi adicionado Ã  proposta.`,
+        `O ambiente "${ambiente.name}" já foi adicionado à proposta.`,
       );
       return;
     }
