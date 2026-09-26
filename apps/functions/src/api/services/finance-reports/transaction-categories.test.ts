@@ -6,6 +6,12 @@ describe("grupo sugerido para a categoria que a empresa já usava", () => {
   it.each([
     ["Simples Nacional", "expense", "deduction"],
     ["ISS", "expense", "deduction"],
+    ["ISS retido", "expense", "deduction"],
+    ["DAS", "expense", "deduction"],
+    // A comissão automática dos parceiros ("Comissao") contém "iss": não é imposto.
+    ["Comissao", "expense", "operating"],
+    ["Comissões de venda", "expense", "operating"],
+    ["Permissão de uso", "expense", "operating"],
     ["Fornecedores", "expense", "cost"],
     ["Mão de obra", "expense", "cost"],
     ["Tarifas", "expense", "other_expense"],

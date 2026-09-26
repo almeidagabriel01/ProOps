@@ -57,7 +57,10 @@ export function suggestGroup(name: string, kind: TransactionKind): DreGroup {
   if (kind === "income") {
     return /(rendimento|juros|reembolso|estorno)/.test(n) ? "other_income" : "revenue";
   }
-  if (/(imposto|simples|\bdas\b|iss|icms|tributo)/.test(n)) return "deduction";
+  // Comissão é despesa de venda. Vem antes dos impostos: "comissao" contém
+  // "iss", e a sigla solta casava dentro da palavra.
+  if (/comiss/.test(n)) return "operating";
+  if (/(imposto|simples|tributo|\b(iss|icms|das|pis|cofins|irpj|csll)\b)/.test(n)) return "deduction";
   if (/(material|materiais|mao de obra|fornecedor|mercadoria|produto|compra|insumo|instalac)/.test(n)) return "cost";
   if (/(tarifa|taxa bancaria|juros|multa)/.test(n)) return "other_expense";
   return DEFAULT_GROUP.expense;
