@@ -57,7 +57,15 @@ function LeadCard({ lead, today }: { lead: Lead; today: string }) {
 }
 
 /** Funil de leads: a oportunidade antes da proposta, em etapas fixas. */
-export function LeadsTab() {
+interface LeadsTabProps {
+  /**
+   * Incrementado pelo "Novo lead" do cabeçalho da página, que fica ao lado do
+   * título como nas outras telas. Cada incremento abre o formulário.
+   */
+  createSignal?: number;
+}
+
+export function LeadsTab({ createSignal = 0 }: LeadsTabProps) {
   const { tenant, isReadOnly } = useTenant();
   const { canCreate, canEdit, canDelete } = usePagePermission("kanban");
   const router = useRouter();
@@ -75,6 +83,12 @@ export function LeadsTab() {
 
   const writable = !isReadOnly;
   const tenantId = tenant?.id;
+
+  React.useEffect(() => {
+    if (createSignal === 0) return;
+    setEditing(null);
+    setFormOpen(true);
+  }, [createSignal]);
 
   React.useEffect(() => {
     if (!tenantId) return;
@@ -146,24 +160,10 @@ export function LeadsTab() {
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {openCount} {openCount === 1 ? "lead aberto" : "leads abertos"}
-          {openCount > 0 ? `, ${formatCurrency(openPipelineValue(leads))} em negociação` : ""}
-        </p>
-        {writable && canCreate && (
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditing(null);
-              setFormOpen(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Novo lead
-          </Button>
-        )}
-      </div>
+      <p className="text-sm text-muted-foreground">
+        {openCount} {openCount === 1 ? "lead aberto" : "leads abertos"}
+        {openCount > 0 ? `, ${formatCurrency(openPipelineValue(leads))} em negociação` : ""}
+      </p>
 
       {leads.length === 0 ? (
         <EmptyState

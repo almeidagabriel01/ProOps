@@ -10,18 +10,22 @@ import { ProposalKanbanTab } from "@/components/features/kanban/proposal-kanban-
 import { TransactionKanbanTab } from "@/components/features/kanban/transaction-kanban-tab";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
-import { LayoutDashboard, ReceiptText, Target } from "lucide-react";
+import { LayoutDashboard, Plus, ReceiptText, Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { usePagePermission } from "@/hooks/usePagePermission";
 import { LeadsTab } from "./_components/leads-tab";
 import KanbanSkeleton from "@/app/crm/loading";
 
 type KanbanTab = "proposals" | "transactions" | "leads";
 
 export default function KanbanPage() {
-  const { tenant } = useTenant();
+  const { tenant, isReadOnly } = useTenant();
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { hasKanban, isLoading: isPlanLoading } = usePlanLimits();
+  const { canCreate: canCreateLead } = usePagePermission("kanban");
+  const [newLeadSignal, setNewLeadSignal] = React.useState(0);
 
   const scopeParam = searchParams.get("scope");
   const lockedTab: KanbanTab | null =
@@ -98,11 +102,19 @@ export default function KanbanPage() {
 
   return (
     <div className="space-y-6 flex flex-col md:h-[calc(100vh-180px)]">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-          CRM
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">{description}</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+            CRM
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">{description}</p>
+        </div>
+        {!isScopedView && currentTab === "leads" && !isReadOnly && canCreateLead && (
+          <Button onClick={() => setNewLeadSignal((n) => n + 1)} className="self-start md:self-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Novo lead
+          </Button>
+        )}
       </div>
 
       {isScopedView ? (
@@ -148,7 +160,7 @@ export default function KanbanPage() {
           </TabsContent>
 
           <TabsContent value="leads" className="m-0 flex-1">
-            <LeadsTab />
+            <LeadsTab createSignal={newLeadSignal} />
           </TabsContent>
 
           <TabsContent value="transactions" className="m-0 flex-1">
