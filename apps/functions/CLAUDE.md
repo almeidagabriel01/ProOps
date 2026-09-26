@@ -1180,6 +1180,38 @@ Guards: `dre-model.test.ts`, `transaction-categories.test.ts`,
 `finance-reports.controller.test.ts` e
 `tests/firestore-rules/transaction-categories.test.ts`.
 
+### Importação por planilha (`api/services/import/`)
+
+`POST /v1/clients/import`, `/v1/products/import` e `/v1/services/import`
+(`import.controller.ts`), com até 500 linhas por chamada, já com as colunas
+ligadas aos campos pela tela. Mesma permissão de criar do cadastro manual
+(`clients` | `products` | `services`, `canCreate`) e mesmos tetos de plano
+(`maxClients`; `maxProducts` soma produtos e serviços), conferidos para o
+lote inteiro com `incrementBy`.
+
+- **`dryRun`** só valida e marca repetido, para a prévia; sem ele, grava as
+  linhas válidas e responde, linha a linha, o que entrou, o que era repetido e
+  o que tinha erro. A conta free nunca chega aqui (é POST): a prévia dela é só
+  a validação do navegador.
+- **Repetido não entra** (decisão do produto): contato com o mesmo CPF/CNPJ,
+  e-mail ou telefone (com ou sem 55) de um que já existe ou de uma linha
+  anterior da planilha; produto ou serviço com o mesmo nome. Nada que já está
+  no ERP é alterado.
+- A validação (`import-model.ts`, pura) segue a do cadastro manual: CPF/CNPJ
+  pelo dígito verificador, e-mail, preço maior que zero. Número aceita o
+  formato de planilha brasileira ("R$ 1.234,50", "12,5%").
+- O documento gravado é o mesmo do cadastro manual: `searchTokens` do contato,
+  `usage.clients`/`usage.products` no dono e em `companies`, em lotes de 400.
+  Contato importado leva `source: "import"`.
+- **Categoria e fabricante que vierem na planilha entram na lista da empresa**
+  (`options`, `product_categories`/`product_manufacturers`), senão o seletor
+  do cadastro não os mostraria.
+- **Produto por metro** (`pricingModel: curtain_meter`, estoque em metros) só
+  quando a tela manda `allowPerMeter`, e ela manda pelo nicho (cortinas). O
+  backend continua sem conhecer o nicho.
+
+Guards: `import-model.test.ts` e `import.controller.test.ts`.
+
 ### Portal do cliente (`api/services/client-portal/`)
 
 Uma página por CONTATO, aberta por link fixo e revogável

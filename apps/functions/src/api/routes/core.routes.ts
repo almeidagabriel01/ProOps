@@ -10,6 +10,11 @@ import {
   deleteService,
 } from "../controllers/services.controller";
 import {
+  importClientsHandler,
+  importProductsHandler,
+  importServicesHandler,
+} from "../controllers/import.controller";
+import {
   createClient,
   updateClient,
   deleteClient,
@@ -52,16 +57,20 @@ router.post("/session/ping", pingSession);
 
 // Products
 router.post("/products", createProduct);
+// Importação por planilha: antes das rotas /:id.
+router.post("/products/import", importProductsHandler);
 router.put("/products/:id", updateProduct);
 router.delete("/products/:id", deleteProduct);
 
 // Services
 router.post("/services", createService);
+router.post("/services/import", importServicesHandler);
 router.put("/services/:id", updateService);
 router.delete("/services/:id", deleteService);
 
 // Clients
 router.post("/clients", createClient);
+router.post("/clients/import", importClientsHandler);
 router.put("/clients/:id", updateClient);
 router.delete("/clients/:id", deleteClient);
 router.get("/clients/:id/notes", listClientNotes);
