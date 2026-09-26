@@ -607,6 +607,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // CLIENT_PORTAL_LINKS - Link do portal do cliente, um por contato. O token
+    // abre propostas, pagamentos e obra do contato sem login, então nem a
+    // própria empresa o lê pelo SDK: tudo passa pela API, com a permissão de
+    // Contatos.
+    match /client_portal_links/{linkId} {
+      allow read, write: if false;
+    }
+
     // SALES_GOALS - Metas de vendas por mês: lidas e gravadas só pelo backend,
     // que decide quem vê o quê (o membro recebe só o próprio número).
     match /sales_goals/{goalId} {

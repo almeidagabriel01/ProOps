@@ -43,6 +43,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "projects",
           "salesGoals",
           "bookingLink",
+          "clientPortal",
         ],
       ],
       [
@@ -61,6 +62,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "projects",
           "salesGoals",
           "bookingLink",
+          "clientPortal",
           "fiscalReceiving",
         ],
       ],
@@ -103,6 +105,9 @@ describe("PLAN_CATALOG — matriz alvo", () => {
     expect(buildPublicPlanFeatures("starter").hasSalesGoals).toBe(false);
     expect(buildPublicPlanFeatures("pro").hasBookingLink).toBe(true);
     expect(buildPublicPlanFeatures("starter").hasBookingLink).toBe(false);
+    expect(buildPublicPlanFeatures("pro").hasClientPortal).toBe(true);
+    expect(buildPublicPlanFeatures("enterprise").hasClientPortal).toBe(true);
+    expect(buildPublicPlanFeatures("starter").hasClientPortal).toBe(false);
   });
 
   it("planilhas: Starter 5, Pro 50, Enterprise ilimitado", () => {

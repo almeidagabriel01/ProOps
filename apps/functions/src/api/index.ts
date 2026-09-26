@@ -30,6 +30,7 @@ import { projectsRoutes } from "./routes/projects.routes";
 import { tasksRoutes } from "./routes/tasks.routes";
 import { salesGoalsRoutes } from "./routes/sales-goals.routes";
 import { bookingRoutes, publicBookingRoutes } from "./routes/booking.routes";
+import { clientPortalRoutes, publicClientPortalRoutes } from "./routes/client-portal.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
 import { drivePublicRoutes, driveRoutes } from "./routes/drive.routes";
@@ -448,6 +449,11 @@ app.use(
 app.use("/v1", publicGeneralLimiter, calendarPublicRoutes);
 app.use("/v1", publicGeneralLimiter, drivePublicRoutes);
 
+// Portal do cliente: com prefixo próprio e ANTES dos `app.use("/v1", ...)`
+// abaixo, cujo limitador roda em todo caminho de /v1 (a página contaria três
+// vezes). Sob /v1/share, herda a liberação da autenticação.
+app.use("/v1/share/portal", publicShareLimiter, publicClientPortalRoutes);
+
 // Public shared links
 app.use("/v1", publicShareLimiter, sharedProposalsRoutes);
 app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
@@ -552,6 +558,7 @@ app.use("/v1", projectsRoutes);
 app.use("/v1", tasksRoutes);
 app.use("/v1", salesGoalsRoutes);
 app.use("/v1", bookingRoutes);
+app.use("/v1", clientPortalRoutes);
 app.use("/v1", calendarRoutes);
 app.use("/v1", driveRoutes);
 app.use("/v1", linkedAccountsRoutes);

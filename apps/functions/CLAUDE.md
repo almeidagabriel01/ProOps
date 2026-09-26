@@ -1130,6 +1130,45 @@ empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
 Guards: `booking-model.test.ts`, `booking.controller.test.ts`,
 `booking.routes.gates.test.ts` e `tests/firestore-rules/booking.test.ts`.
 
+### Portal do cliente (`api/services/client-portal/`)
+
+Uma página por CONTATO, aberta por link fixo e revogável
+(`/share/portal/{token}` no front), com as propostas, os pagamentos, a obra e
+as notas fiscais dele. Pro e Enterprise (`clientPortal`).
+
+- **Um link por contato**, em `client_portal_links/{tenantId}_{clientId}`
+  (Admin SDK only). Criar devolve o existente; "gerar novo" troca o token e o
+  anterior para de abrir na hora; desligar apaga o doc. A empresa lê e grava
+  por `/v1/client-portal/:clientId/link`, com a permissão de Contatos
+  (`clients`: ver para ler o link, editar para criar, trocar ou desligar).
+- **Abrir o portal é leitura pura.** Ele não cria link nenhum: cada item leva
+  à página pública que já existe (proposta, lançamento, obra), e o link dela só
+  é obtido ou criado quando o cliente clica (`POST /v1/share/portal/:token/open`,
+  `openPortalItem`). Antes de criar, confere que o item é daquela empresa E
+  daquele contato, e que o portal o listaria: rascunho, comissão e obra
+  cancelada não abrem por ali.
+- **O link do lançamento que a empresa já mandou fica como está.**
+  `SharedTransactionService.createShareLink` sobrescreve a validade de um link
+  existente (inclusive "sem validade"), então o portal reaproveita o link
+  válido e só cria um de 30 dias quando não há ou venceu.
+- **O que o cliente vê:** propostas fora do rascunho (aprovada, recusada ou em
+  aberto, lido como `isStatusApproved`), receitas do contato sem a comissão (que
+  tem o `clientId` do PARCEIRO), obras não canceladas com o avanço pelas
+  etapas, e notas AUTORIZADAS com o PDF do Focus (que abre sem login). Só o
+  primeiro nome do contato.
+- **Token inexistente, empresa sem o plano, ou contato apagado ou de outra
+  empresa dão o mesmo 404**, como no agendamento.
+- **Rota pública montada em `/v1/share/portal`, antes dos `app.use("/v1", ...)`
+  dos links públicos**: sob `/v1/share` ela herda a liberação da autenticação,
+  e com prefixo próprio não passa três vezes pelo `publicShareLimiter`. A
+  resposta vai com `Cache-Control: no-store`.
+- As consultas por contato usam duas igualdades (`tenantId`, `clientId`) sem
+  `orderBy`: não pedem índice composto. A ordenação é no código.
+
+Guards: `client-portal-model.test.ts`, `client-portal.service.test.ts` (a
+fronteira do contato), `client-portal.controller.test.ts`,
+`client-portal.routes.gates.test.ts` e `tests/firestore-rules/client-portal.test.ts`.
+
 ### Vendedor e metas de vendas
 
 A proposta guarda **`sellerId`/`sellerName`** (quem vendeu: membro da empresa,
