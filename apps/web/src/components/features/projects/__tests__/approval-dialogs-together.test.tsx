@@ -36,12 +36,17 @@ import { ProjectOnApprovalHost } from "../project-on-approval-host";
 import { announceProjectOnApproval, resetProjectApprovalQueue } from "@/lib/project-on-approval";
 import { resetApprovalDialogQueue } from "@/lib/approval-dialog-queue";
 
-let controller: ReturnType<typeof useProposalInvoicePrompt>;
+type Controller = ReturnType<typeof useProposalInvoicePrompt>;
+let controller: Controller;
+const expose = (value: Controller) => {
+  controller = value;
+};
 
 /** Simula a lista de propostas: dispara a consulta da nota e aprova. */
-function ProposalsScreen() {
-  controller = useProposalInvoicePrompt();
-  return <ProposalInvoicePrompt {...controller} />;
+function ProposalsScreen({ onController }: { onController: (value: Controller) => void }) {
+  const value = useProposalInvoicePrompt();
+  onController(value);
+  return <ProposalInvoicePrompt {...value} />;
 }
 
 const CAN_ISSUE = { canIssue: true, jaEmitidas: [], documentos: [{ type: "nfe", valorTotal: 1000 }] };
@@ -71,7 +76,7 @@ describe("nota fiscal e projeto da obra depois da aprovação", () => {
   it("com a consulta da nota em andamento, o projeto espera; a nota abre primeiro", async () => {
     render(
       <>
-        <ProposalsScreen />
+        <ProposalsScreen onController={expose} />
         <ProjectOnApprovalHost />
       </>,
     );
@@ -93,7 +98,7 @@ describe("nota fiscal e projeto da obra depois da aprovação", () => {
   it("sem convite de nota (há pendência fiscal ou já emitida): o projeto abre assim que a consulta decide", async () => {
     render(
       <>
-        <ProposalsScreen />
+        <ProposalsScreen onController={expose} />
         <ProjectOnApprovalHost />
       </>,
     );
@@ -109,7 +114,7 @@ describe("nota fiscal e projeto da obra depois da aprovação", () => {
   it("aprovação falhou: a vez da nota é solta e nada fica preso", async () => {
     render(
       <>
-        <ProposalsScreen />
+        <ProposalsScreen onController={expose} />
         <ProjectOnApprovalHost />
       </>,
     );
