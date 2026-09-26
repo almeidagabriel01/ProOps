@@ -27,6 +27,7 @@ import {
   FormItem,
   FormStatic,
 } from "@/components/ui/form-components";
+import { ContactHub } from "./_components/contact-hub";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
 import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Receipt, CreditCard } from "lucide-react";
@@ -360,8 +361,8 @@ export default function EditCustomerPage() {
     return (
       <FormContainer>
         <FormHeader
-          title="Detalhes do Cliente"
-          subtitle={`Visualizando dados de "${formData.name}"`}
+          title={formData.name || "Contato"}
+          subtitle="Ficha do contato: propostas, financeiro e histórico"
           icon={User}
           onBack={() => router.push("/contacts")}
           badge={
@@ -373,6 +374,9 @@ export default function EditCustomerPage() {
           }
         />
 
+        <ContactHub
+          client={client}
+          dataTab={
         <StepWizard steps={customerSteps} allowClickAhead>
           {/* Step 1: Basic Info */}
           <FormStepCard>
@@ -474,6 +478,8 @@ export default function EditCustomerPage() {
             />
           </FormStepCard>
         </StepWizard>
+          }
+        />
       </FormContainer>
     );
   }
@@ -481,8 +487,8 @@ export default function EditCustomerPage() {
   return (
     <FormContainer>
       <FormHeader
-        title="Editar Contato"
-        subtitle={`Atualize as informações de "${formData.name}"`}
+        title={formData.name || "Contato"}
+        subtitle="Ficha do contato: propostas, financeiro e histórico"
         icon={User}
         onBack={() => router.push("/contacts")}
         badge={
@@ -494,6 +500,9 @@ export default function EditCustomerPage() {
         }
       />
 
+      <ContactHub
+        client={client}
+        dataTab={
       <StepWizard steps={customerSteps} allowClickAhead>
         {/* Step 1: Basic Info + Contact */}
         <FormStepCard>
@@ -706,6 +715,8 @@ export default function EditCustomerPage() {
           />
         </FormStepCard>
       </StepWizard>
+        }
+      />
     </FormContainer>
   );
 }

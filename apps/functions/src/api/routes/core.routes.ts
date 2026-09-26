@@ -35,6 +35,11 @@ import { updateTenant } from "../controllers/tenants.controller";
 
 import { pingSession } from "../controllers/session.controller";
 
+import {
+  createClientNote,
+  deleteClientNote,
+  listClientNotes,
+} from "../controllers/client-notes.controller";
 const router = Router();
 
 // A plataforma abriu autenticada (login ou sessao que ja existia): alimenta o
@@ -55,6 +60,9 @@ router.delete("/services/:id", deleteService);
 router.post("/clients", createClient);
 router.put("/clients/:id", updateClient);
 router.delete("/clients/:id", deleteClient);
+router.get("/clients/:id/notes", listClientNotes);
+router.post("/clients/:id/notes", createClientNote);
+router.delete("/clients/:id/notes/:noteId", deleteClientNote);
 
 // Proposals
 // A numeracao vem ANTES de `/proposals/:id`: o Express casa por ordem, e

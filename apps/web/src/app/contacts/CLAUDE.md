@@ -16,9 +16,32 @@ Clientes podem ser criados de três formas:
 ```
 /contacts              → Listagem paginada com busca e filtro de tipo
 /contacts/new          → Formulário de criação (StepWizard em 3 passos)
-/contacts/[id]         → Formulário de edição / visualização somente leitura
-                         (StepWizard em 3 passos, os MESMOS da criação)
+/contacts/[id]         → Ficha 360 do contato (abas). A aba "Dados" é o
+                         formulário de edição / somente leitura (StepWizard em
+                         3 passos, os MESMOS da criação). `?aba=dados` abre
+                         direto nela: é o que o "Editar" da lista usa.
 ```
+
+## Ficha 360 (`[id]/_components/contact-hub.tsx`, 2026-09-25)
+
+Abas: **Resumo** (contato, totais de propostas e do financeiro, últimas
+anotações), **Propostas**, **Financeiro** (lançamentos e notas fiscais),
+**Anotações** e **Dados**.
+
+- **Cada aba segue a permissão e o plano da tela dela.** Propostas exige
+  `proposals.canView`; lançamentos exigem o módulo financeiro no plano e
+  `transactions.canView`; notas exigem `hasFiscal` e `invoices.canView`. Sem a
+  permissão a aba some e a consulta nem é feita: um membro sem financeiro não
+  vê valores de lançamento pelo contato.
+- Consultas por contato com duas igualdades (`tenantId`, `clientId`), sem
+  índice composto, ordenadas no cliente: `ProposalService.getProposalsByClient`,
+  `TransactionService.getTransactionsByClient` (comissões de fora: nelas o
+  `clientId` é o parceiro) e `GET /v1/fiscal/invoices?clientId=`.
+- **Anotações** vivem em `client_notes`, gravadas só pelo backend
+  (`GET/POST /v1/clients/:id/notes`, `DELETE .../:noteId`), com a permissão de
+  contatos: `canView` lê, `canEdit` escreve e apaga. Todos os planos. Índice
+  `(tenantId, clientId, createdAt desc)`.
+- A agenda não aparece: `calendar_events` não tem `clientId`.
 
 Não há sub-rota de API aqui — todas as mutações passam por `/api/backend/` (proxy → Cloud Functions).
 

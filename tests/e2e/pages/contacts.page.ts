@@ -96,7 +96,8 @@ export class ContactsPage {
    * Always modify at least one field before calling this method.
    */
   async editContact(contactId: string, data: { name?: string }): Promise<void> {
-    await this.page.goto(`/contacts/${contactId}`);
+    // A ficha abre no Resumo; o formulário fica na aba "Dados".
+    await this.page.goto(`/contacts/${contactId}?aba=dados`);
     await this.page.waitForURL(new RegExp(`/contacts/${contactId}`), { timeout: 15000 });
 
     // Wait for the form to load — name input must be visible and populated

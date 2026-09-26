@@ -296,6 +296,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `tenant_purge_jobs/{tenantId}` | Admin | Job de exclusao definitiva de empresa. Escrita so pelo backend; superadmin com MFA le o progresso |
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
 | `mfa_sessions/{uid}_{auth_time}` | Auth (2FA WhatsApp) | Login que passou pelo codigo do WhatsApp (ou por codigo de recuperacao). Exigido pela API e pelas rules de quem tem o WhatsApp ativo (`lib/whatsapp-mfa-session.ts`). `expiresAt` Timestamp, 30 dias. Admin SDK only |
+| `client_notes/{id}` | Contatos | Anotacoes da ficha do contato (`client-notes.controller.ts`). Tenant le; escrita so via Cloud Functions |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |

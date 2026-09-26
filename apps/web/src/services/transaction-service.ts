@@ -254,6 +254,33 @@ export const TransactionService = {
    * completeTransactionGroups — a visualização agrupada nunca mostra grupo
    * pela metade.
    */
+  /**
+   * Lançamentos de um contato, para a ficha 360. Comissões ficam de fora: nelas
+   * o `clientId` é o parceiro (vendedor/arquiteto), não o cliente.
+   */
+  getTransactionsByClient: async (
+    tenantId: string,
+    clientId: string,
+    max = 100,
+  ): Promise<Transaction[]> => {
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("clientId", "==", clientId),
+        limit(max),
+      ),
+    );
+    return snap.docs
+      .map((docSnap) =>
+        withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction),
+      )
+      .filter((t) => !t.isCommission)
+      .sort((a, b) =>
+        String(b.dueDate || b.date || "").localeCompare(String(a.dueDate || a.date || "")),
+      );
+  },
+
   getTransactionsScoped: async (
     tenantId: string,
     period: { start: string; end: string },

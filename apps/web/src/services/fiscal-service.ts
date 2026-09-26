@@ -286,10 +286,16 @@ export const FiscalService = {
   /** Franquia do mês. `limit: -1` = ilimitado (Enterprise). */
   getInvoiceQuota: () =>
     callApi<{ limit: number; used: number }>("/v1/fiscal/invoices/quota", "GET"),
-  listInvoices: (params?: { limit?: number; status?: FiscalInvoiceStatus }) => {
+  listInvoices: (params?: {
+    limit?: number;
+    status?: FiscalInvoiceStatus;
+    /** Notas de um contato (ficha 360). */
+    clientId?: string;
+  }) => {
     const query = new URLSearchParams();
     if (params?.limit) query.set("limit", String(params.limit));
     if (params?.status) query.set("status", params.status);
+    if (params?.clientId) query.set("clientId", params.clientId);
     const suffix = query.toString() ? `?${query}` : "";
     return callApi<{ invoices: FiscalInvoice[] }>(`/v1/fiscal/invoices${suffix}`, "GET");
   },

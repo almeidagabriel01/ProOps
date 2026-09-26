@@ -370,6 +370,31 @@ export const ProposalService = {
     });
   },
 
+  /**
+   * Propostas de um contato, para a ficha 360. Só igualdades (tenantId,
+   * clientId): o Firestore resolve por mesclagem de índices, sem composto.
+   * A ordem (mais recente primeiro) é feita aqui.
+   */
+  getProposalsByClient: async (
+    tenantId: string,
+    clientId: string,
+    max = 50,
+  ): Promise<Proposal[]> => {
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("clientId", "==", clientId),
+        limit(max),
+      ),
+    );
+    return snap.docs
+      .map(mapProposalDoc)
+      .sort((a, b) =>
+        String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")),
+      );
+  },
+
   getProposalById: async (id: string): Promise<Proposal | null> => {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);

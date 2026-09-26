@@ -139,7 +139,7 @@ export const createColumns = ({
             vendedor na casa do cliente, no celular. */}
         <OpenDriveFolderButton clientId={client.id} iconOnly />
         {canEdit && (
-          <Link href={`/contacts/${client.id}`}>
+          <Link href={`/contacts/${client.id}?aba=dados`}>
             <Button
               variant="ghost"
               size="icon"
