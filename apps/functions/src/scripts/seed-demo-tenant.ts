@@ -628,6 +628,7 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
   batch.set(db.collection("transaction_categories").doc(DEMO_TENANT_ID), {
     ...tenantTag,
     items: [
+      { id: "demo_cat_propostas", name: "Propostas", kind: "income", group: "revenue" },
       { id: "demo_cat_projetos", name: "Projetos", kind: "income", group: "revenue" },
       { id: "demo_cat_instalacao", name: "Instalação", kind: "income", group: "revenue" },
       { id: "demo_cat_manutencao", name: "Manutenção", kind: "income", group: "revenue" },

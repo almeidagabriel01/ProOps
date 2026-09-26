@@ -1,3 +1,5 @@
+import { PROPOSAL_INCOME_CATEGORY } from "../services/finance-reports/dre-model";
+import { syncedTransactionCategory } from "./proposals.helpers";
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { tryAutoIssue } from "../services/fiscal/invoice-issue.service";
@@ -908,7 +910,7 @@ export async function syncApprovedProposalTransactions(params: {
       notes: draft.notes,
       // Campos de comissao: sem eles, mudar o percentual reescreveria o valor
       // e deixaria `commissionPercentage` mostrando o numero antigo.
-      category: draft.category ?? null,
+      category: syncedTransactionCategory(draft, existingData),
       isCommission: draft.isCommission ?? false,
       commissionContactId: draft.commissionContactId ?? null,
       commissionContactName: draft.commissionContactName ?? null,
@@ -2021,7 +2023,7 @@ export const updateProposal = async (req: Request, res: Response) => {
               clientName: mergedData.clientName || null,
               proposalId: id,
               proposalGroupId: installData.proposalGroupId || null,
-              category: null,
+              category: PROPOSAL_INCOME_CATEGORY,
               wallet:
                 mergedData.downPaymentWallet ||
                 installData.wallet ||

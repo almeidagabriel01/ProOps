@@ -3,6 +3,7 @@ import { db } from "../../../init";
 import {
   DEFAULT_GROUP,
   DRE_GROUPS,
+  PROPOSAL_INCOME_CATEGORY,
   normalizeCategoryName,
   type DreGroup,
   type TransactionKind,
@@ -40,6 +41,7 @@ export class CategoryError extends Error {
 
 /** A empresa começa com estas, além das que já usava. */
 export const DEFAULT_CATEGORIES: Array<Omit<TransactionCategory, "id">> = [
+  { name: PROPOSAL_INCOME_CATEGORY, kind: "income", group: "revenue" },
   { name: "Vendas", kind: "income", group: "revenue" },
   { name: "Serviços", kind: "income", group: "revenue" },
   { name: "Impostos", kind: "expense", group: "deduction" },
@@ -128,9 +130,26 @@ function ref(tenantId: string) {
   return db.collection(TRANSACTION_CATEGORIES_COLLECTION).doc(tenantId);
 }
 
+/**
+ * "Propostas" é a categoria que a aprovação da proposta grava, então ela tem
+ * que estar na lista para a empresa escolher o grupo dela. Listas criadas
+ * antes dela a ganham na primeira leitura.
+ */
+export function withProposalCategory(items: TransactionCategory[]): TransactionCategory[] | null {
+  const key = normalizeCategoryName(PROPOSAL_INCOME_CATEGORY);
+  if (items.some((c) => c.kind === "income" && normalizeCategoryName(c.name) === key)) return null;
+  return [...items, { id: newId(), name: PROPOSAL_INCOME_CATEGORY, kind: "income", group: "revenue" }];
+}
+
 export async function listCategories(tenantId: string): Promise<TransactionCategory[]> {
   const snap = await ref(tenantId).get();
-  if (snap.exists) return sanitizeItems(snap.data()?.items);
+  if (snap.exists) {
+    const items = sanitizeItems(snap.data()?.items);
+    const completed = withProposalCategory(items);
+    if (!completed) return items;
+    await ref(tenantId).set({ items: completed, updatedAt: new Date().toISOString() }, { merge: true });
+    return completed;
+  }
   const initial = buildInitialCategories(await categoriesInUse(tenantId));
   // `create` e não `set`: duas abas abrindo juntas não semeiam duas vezes.
   await ref(tenantId)

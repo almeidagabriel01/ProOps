@@ -28,6 +28,12 @@ export type DreBasis = "cash" | "accrual";
 
 export const NO_CATEGORY = "Sem categoria";
 
+/**
+ * Categoria das receitas que a aprovação da proposta gera. As antigas nasceram
+ * sem categoria; o DRE as conta aqui do mesmo jeito, sem regravar nada.
+ */
+export const PROPOSAL_INCOME_CATEGORY = "Propostas";
+
 /** "Mão de Obra " e "mao de obra" são a mesma categoria. */
 export function normalizeCategoryName(value: unknown): string {
   return String(value ?? "")
@@ -175,7 +181,9 @@ export function computeDre(params: {
     if (entries.length === 0) continue;
     count += 1;
 
-    const rawName = str(tx.category).trim();
+    const ownName = str(tx.category).trim();
+    const fromProposal = kind === "income" && tx.isCommission !== true && str(tx.proposalId) !== "";
+    const rawName = ownName || (fromProposal ? PROPOSAL_INCOME_CATEGORY : "");
     const known = rawName ? lookup.get(`${kind}:${normalizeCategoryName(rawName)}`) : undefined;
     const group = known?.group ?? DEFAULT_GROUP[kind];
     const name = known?.name ?? (rawName || NO_CATEGORY);

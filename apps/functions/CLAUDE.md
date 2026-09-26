@@ -1152,6 +1152,16 @@ para tirar da lista.
   está na lista (texto antigo, a "Comissao" automática, categoria excluída) vai
   para o grupo padrão do tipo: receita em Receita bruta, despesa em Despesas
   operacionais. Vazio vira "Sem categoria".
+- **Receita de proposta nasce em "Propostas"** (`PROPOSAL_INCOME_CATEGORY`,
+  gravada por `buildApprovedProposalTransactionDrafts` e pela entrada criada
+  na edição). As que nasceram antes, sem categoria, contam como "Propostas" no
+  DRE sem regravar nada (receita com `proposalId`, fora a comissão). A
+  sincronização da proposta aprovada **não apaga mais a categoria escolhida à
+  mão** numa receita (`syncedTransactionCategory`); a da comissão segue sempre
+  "Comissao". Toda lista ganha "Propostas" na primeira leitura
+  (`withProposalCategory`), para a empresa poder mudar o grupo dela.
+- O grupo sugerido na lista inicial casa sigla de imposto (ISS, DAS, ICMS...)
+  só como palavra inteira: "Comissao" contém "iss" e caía em impostos.
 - **Caixa (padrão) e competência.** Competência usa a `date` do lançamento,
   pago ou não, com todo custo extra. Caixa usa o `paidAt`, mas **o lançamento
   que já nasce pago não tem `paidAt`** (ele só é gravado quando o status MUDA

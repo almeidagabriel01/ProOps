@@ -94,6 +94,27 @@ describe("DRE", () => {
     expect(dre.groups.revenue.byMonth).toEqual({ "2026-08": 1000, "2026-09": 800, "2026-10": 9999 });
   });
 
+  it("receita de proposta sem categoria conta em Propostas; comissão e categoria própria não mudam", () => {
+    const dre = computeDre({
+      transactions: [
+        { type: "income", proposalId: "p1", amount: 700, status: "paid", date: "2026-09-01" },
+        { type: "income", proposalId: "p2", category: "Projetos", amount: 100, status: "paid", date: "2026-09-02" },
+        { type: "income", amount: 50, status: "paid", date: "2026-09-03" },
+        { type: "expense", proposalId: "p1", isCommission: true, category: "Comissao", amount: 70, status: "paid", date: "2026-09-04" },
+      ],
+      categories: CATEGORIES,
+      basis: "cash",
+      from: "2026-09",
+      to: "2026-09",
+    });
+    expect(dre.groups.revenue.categories.map((c) => [c.name, c.total])).toEqual([
+      ["Propostas", 700],
+      ["Projetos", 100],
+      ["Sem categoria", 50],
+    ]);
+    expect(dre.groups.operating.categories.map((c) => c.name)).toEqual(["Comissao"]);
+  });
+
   it("período sem nada", () => {
     const dre = computeDre({ transactions: [], categories: CATEGORIES, basis: "cash", from: "2026-01", to: "2026-01" });
     expect(dre.count).toBe(0);

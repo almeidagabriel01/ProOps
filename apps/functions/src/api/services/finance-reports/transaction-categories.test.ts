@@ -1,6 +1,6 @@
 jest.mock("../../../init", () => ({ db: {} }));
 
-import { DEFAULT_CATEGORIES, buildInitialCategories, suggestGroup } from "./transaction-categories";
+import { DEFAULT_CATEGORIES, buildInitialCategories, suggestGroup, withProposalCategory } from "./transaction-categories";
 
 describe("grupo sugerido para a categoria que a empresa já usava", () => {
   it.each([
@@ -42,5 +42,23 @@ describe("lista inicial", () => {
       { name: "Serviços", kind: "expense", group: "operating" },
     ]);
     expect(items.filter((c) => c.name === "Serviços").map((c) => c.kind).sort()).toEqual(["expense", "income"]);
+  });
+});
+
+describe("Propostas na lista", () => {
+  it("lista antiga ganha Propostas, em Receita bruta", () => {
+    const next = withProposalCategory([{ id: "a", name: "Vendas", kind: "income", group: "revenue" }]);
+    expect(next?.map((c) => [c.name, c.kind, c.group])).toEqual([
+      ["Vendas", "income", "revenue"],
+      ["Propostas", "income", "revenue"],
+    ]);
+  });
+
+  it("quem já tem (com outra grafia ou outro grupo) fica como está", () => {
+    expect(withProposalCategory([{ id: "a", name: "propostas", kind: "income", group: "other_income" }])).toBeNull();
+  });
+
+  it("despesa chamada Propostas não conta", () => {
+    expect(withProposalCategory([{ id: "a", name: "Propostas", kind: "expense", group: "operating" }])).not.toBeNull();
   });
 });
