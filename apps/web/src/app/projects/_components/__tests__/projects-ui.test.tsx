@@ -151,23 +151,24 @@ describe("ProjectsPage", () => {
 
 describe("StageCard", () => {
   const stage = PROJECT.stages[0];
+  const handlers = { onToggleItem: vi.fn(), onStageStatus: vi.fn() };
 
-  it("marcar o item chama a API da etapa certa", async () => {
-    m.toggle.mockResolvedValue({});
-    render(<StageCard projectId="p1" stage={stage} index={0} canEdit />);
+  it("marcar o item avisa a tela na hora, com o item certo", async () => {
+    const onToggleItem = vi.fn();
+    render(<StageCard {...handlers} onToggleItem={onToggleItem} projectId="p1" stage={stage} index={0} canEdit />);
     await userEvent.click(screen.getByRole("checkbox", { name: "Testar controle" }));
-    expect(m.toggle).toHaveBeenCalledWith("p1", "s1", "i2", true);
+    expect(onToggleItem).toHaveBeenCalledWith("i2", true);
   });
 
   it("sem permissão de editar: checklist travado, sem incluir nem enviar foto", () => {
-    render(<StageCard projectId="p1" stage={stage} index={0} canEdit={false} />);
+    render(<StageCard {...handlers} projectId="p1" stage={stage} index={0} canEdit={false} />);
     expect(screen.getByRole("checkbox", { name: "Testar controle" })).toBeDisabled();
     expect(screen.queryByLabelText(/Novo item/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Adicionar fotos/ })).toBeNull();
   });
 
   it("foto grande demais mesmo reduzida não sobe", async () => {
-    render(<StageCard projectId="p1" stage={stage} index={0} canEdit />);
+    render(<StageCard {...handlers} projectId="p1" stage={stage} index={0} canEdit />);
     const big = new File([new Uint8Array(800 * 1024)], "obra.jpg", { type: "image/jpeg" });
     await userEvent.upload(screen.getByLabelText(/Enviar fotos da etapa/), big);
     expect(m.upload).not.toHaveBeenCalled();
@@ -175,7 +176,7 @@ describe("StageCard", () => {
 
   it("foto pequena sobe como data URL", async () => {
     m.upload.mockResolvedValue({});
-    render(<StageCard projectId="p1" stage={stage} index={0} canEdit />);
+    render(<StageCard {...handlers} projectId="p1" stage={stage} index={0} canEdit />);
     const small = new File([new Uint8Array(1000)], "obra.webp", { type: "image/webp" });
     await userEvent.upload(screen.getByLabelText(/Enviar fotos da etapa/), small);
     await vi.waitFor(() => expect(m.upload).toHaveBeenCalled());

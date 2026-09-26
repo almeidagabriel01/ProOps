@@ -31,6 +31,10 @@ interface StageCardProps {
   stage: ProjectStage;
   index: number;
   canEdit: boolean;
+  /** Marca ou desmarca o item. A tela mostra na hora; o servidor confirma depois. */
+  onToggleItem: (itemId: string, done: boolean) => void;
+  /** Troca a situação da etapa, também com resposta imediata. */
+  onStageStatus: (status: StageStatus) => void;
 }
 
 /**
@@ -38,7 +42,7 @@ interface StageCardProps {
  * então a tela não mantém cópia própria das etapas: o técnico marca o item no
  * celular e o escritório vê na hora.
  */
-export function StageCard({ projectId, stage, index, canEdit }: StageCardProps) {
+export function StageCard({ projectId, stage, index, canEdit, onToggleItem, onStageStatus }: StageCardProps) {
   const [newItem, setNewItem] = React.useState("");
   const [busy, setBusy] = React.useState<string | null>(null);
   const [uploading, setUploading] = React.useState(0);
@@ -113,13 +117,7 @@ export function StageCard({ projectId, stage, index, canEdit }: StageCardProps) 
           <Select
             aria-label={`Situação da etapa ${stage.name}`}
             value={stage.status}
-            onChange={(e) =>
-              void run(
-                "status",
-                () => ProjectsService.updateStage(projectId, stage.id, { status: e.target.value as StageStatus }),
-                "Erro ao atualizar a etapa.",
-              )
-            }
+            onChange={(e) => onStageStatus(e.target.value as StageStatus)}
             disableSort
             className="sm:w-44"
           >
@@ -139,14 +137,8 @@ export function StageCard({ projectId, stage, index, canEdit }: StageCardProps) 
           <li key={item.id} className="flex items-center gap-3">
             <Checkbox
               checked={item.done}
-              disabled={!canEdit || busy === item.id}
-              onCheckedChange={(checked) =>
-                void run(
-                  item.id,
-                  () => ProjectsService.toggleChecklistItem(projectId, stage.id, item.id, checked === true),
-                  "Erro ao atualizar o item.",
-                )
-              }
+              disabled={!canEdit}
+              onCheckedChange={(checked) => onToggleItem(item.id, checked === true)}
               aria-label={item.text}
             />
             <span className={cn("min-w-0 flex-1 break-words text-sm", item.done && "text-muted-foreground line-through")}>

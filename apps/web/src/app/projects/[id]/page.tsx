@@ -19,11 +19,21 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { toast } from "@/lib/toast";
 import { ProjectsService } from "@/services/projects-service";
-import type { Project, ProjectStatus } from "@/types/project";
+import type { Project, ProjectStatus, StageStatus } from "@/types/project";
+import { Loader } from "@/components/ui/loader";
 import { ProjectsSkeleton } from "../_components/projects-skeleton";
 import { StageCard } from "../_components/stage-card";
 import { DeliveryCard } from "../_components/delivery-card";
 import { PROJECT_STATUS_LABELS, computeProgress } from "../_lib/projects";
+import {
+  EMPTY_OVERLAY,
+  applyOverlay,
+  dropFromOverlay,
+  itemKey,
+  pruneOverlay,
+  type OverlayField,
+  type ProjectOverlay,
+} from "../_lib/project-overlay";
 
 /** A obra: etapas com checklist e fotos, responsável, prazo e a entrega. */
 export default function ProjectDetailPage() {
@@ -35,7 +45,12 @@ export default function ProjectDetailPage() {
   const { hasProjects, isLoading: isPlanLoading } = usePlanLimits();
   const { canEdit: canEditPerm, canDelete: canDeletePerm } = usePagePermission("projects");
 
-  const [project, setProject] = React.useState<Project | null>(null);
+  const [serverProject, setProject] = React.useState<Project | null>(null);
+  // Mudanças já mostradas e ainda não confirmadas pelo servidor: é o que faz
+  // o checklist, a situação, o responsável e as datas responderem na hora.
+  const [overlay, setOverlay] = React.useState<ProjectOverlay>(EMPTY_OVERLAY);
+  const latest = React.useRef<Project | null>(null);
+  const [savingNotes, setSavingNotes] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [assignees, setAssignees] = React.useState<Array<{ id: string; name: string }>>([]);
   const [notes, setNotes] = React.useState("");
@@ -43,6 +58,41 @@ export default function ProjectDetailPage() {
   const [deleting, setDeleting] = React.useState(false);
 
   const allowed = hasProjects || user?.role === "superadmin";
+
+  React.useEffect(() => {
+    latest.current = serverProject;
+    if (serverProject) setOverlay((o) => pruneOverlay(serverProject, o));
+  }, [serverProject]);
+
+  const project = React.useMemo(
+    () => (serverProject ? applyOverlay(serverProject, overlay) : null),
+    [serverProject, overlay],
+  );
+
+  /**
+   * Mostra na hora, grava em seguida. Se o servidor recusar, a entrada sai da
+   * camada e a tela volta ao valor real, com o aviso do erro.
+   */
+  const optimistic = React.useCallback(
+    async (
+      patch: (o: ProjectOverlay) => ProjectOverlay,
+      drop: Parameters<typeof dropFromOverlay>[1],
+      request: () => Promise<unknown>,
+      fallback: string,
+    ) => {
+      setOverlay(patch);
+      try {
+        await request();
+        // O listener pode ter entregado o valor novo antes da resposta.
+        const current = latest.current;
+        if (current) setOverlay((o) => pruneOverlay(current, o));
+      } catch (error) {
+        setOverlay((o) => dropFromOverlay(o, drop));
+        toast.error(error instanceof Error ? error.message : fallback);
+      }
+    },
+    [],
+  );
   const canEdit = canEditPerm && !isReadOnly;
   const canDelete = canDeletePerm && !isReadOnly;
 
@@ -63,10 +113,10 @@ export default function ProjectDetailPage() {
   }, [projectId, allowed]);
 
   React.useEffect(() => {
-    setNotes(project?.notes ?? "");
+    setNotes(serverProject?.notes ?? "");
     // Só ao trocar de projeto: o listener não pode apagar o que está sendo digitado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id]);
+  }, [serverProject?.id]);
 
   React.useEffect(() => {
     if (!canEdit || !allowed) return;
@@ -75,14 +125,53 @@ export default function ProjectDetailPage() {
       .catch(() => setAssignees([]));
   }, [canEdit, allowed]);
 
-  const save = async (input: Parameters<typeof ProjectsService.update>[1], okMessage?: string) => {
-    if (!project) return;
-    try {
-      await ProjectsService.update(project.id, input);
-      if (okMessage) toast.success(okMessage);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao salvar o projeto.");
-    }
+  const save = (
+    input: Parameters<typeof ProjectsService.update>[1],
+    display: Partial<Pick<Project, OverlayField>> = {},
+  ) => {
+    if (!serverProject) return Promise.resolve();
+    const fields = { ...input, ...display } as Partial<Pick<Project, OverlayField>>;
+    return optimistic(
+      (o) => ({ ...o, fields: { ...o.fields, ...fields } }),
+      { field: Object.keys(fields) as OverlayField[] },
+      () => ProjectsService.update(serverProject.id, input),
+      "Erro ao salvar o projeto.",
+    );
+  };
+
+  const toggleItem = (stageId: string, itemId: string, done: boolean) => {
+    if (!serverProject) return;
+    const key = itemKey(stageId, itemId);
+    const stage = project?.stages.find((s) => s.id === stageId);
+    // O backend põe a etapa pendente em andamento ao marcar o primeiro item;
+    // a tela antecipa o mesmo para não piscar.
+    const startsStage = done && stage?.status === "pending";
+    void optimistic(
+      (o) => ({
+        ...o,
+        items: { ...o.items, [key]: done },
+        stageStatus: startsStage ? { ...o.stageStatus, [stageId]: "in_progress" } : o.stageStatus,
+      }),
+      { item: key, stageStatus: startsStage ? stageId : undefined },
+      () => ProjectsService.toggleChecklistItem(serverProject.id, stageId, itemId, done),
+      "Erro ao atualizar o item.",
+    );
+  };
+
+  const setStageStatus = (stageId: string, status: StageStatus) => {
+    if (!serverProject) return;
+    void optimistic(
+      (o) => ({ ...o, stageStatus: { ...o.stageStatus, [stageId]: status } }),
+      { stageStatus: stageId },
+      () => ProjectsService.updateStage(serverProject.id, stageId, { status }),
+      "Erro ao atualizar a etapa.",
+    );
+  };
+
+  const saveNotes = async () => {
+    setSavingNotes(true);
+    await save({ notes: notes.trim() || null });
+    setSavingNotes(false);
   };
 
   const handleDelete = async () => {
@@ -203,7 +292,13 @@ export default function ProjectDetailPage() {
             <Select
               id="project-assignee"
               value={project.assigneeId ?? ""}
-              onChange={(e) => void save({ assigneeId: e.target.value || null }, "Responsável atualizado.")}
+              onChange={(e) => {
+                const id = e.target.value || null;
+                void save(
+                  { assigneeId: id },
+                  { assigneeName: id ? (assigneeOptions.find((a) => a.id === id)?.name ?? null) : null },
+                );
+              }}
             >
               <option value="">Sem responsável</option>
               {assigneeOptions.map((a) => (
@@ -241,7 +336,15 @@ export default function ProjectDetailPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
           {project.stages.map((stage, index) => (
-            <StageCard key={stage.id} projectId={project.id} stage={stage} index={index} canEdit={canEdit} />
+            <StageCard
+              key={stage.id}
+              projectId={project.id}
+              stage={stage}
+              index={index}
+              canEdit={canEdit}
+              onToggleItem={(itemId, done) => toggleItem(stage.id, itemId, done)}
+              onStageStatus={(status) => setStageStatus(stage.id, status)}
+            />
           ))}
         </div>
 
@@ -261,9 +364,10 @@ export default function ProjectDetailPage() {
               className="min-h-[120px]"
             />
             <p className="text-xs text-muted-foreground">Não aparecem para o cliente.</p>
-            {canEdit && notes !== (project.notes ?? "") && (
-              <Button size="sm" onClick={() => void save({ notes: notes.trim() || null }, "Observações salvas.")}>
-                Salvar observações
+            {canEdit && (savingNotes || notes !== (project.notes ?? "")) && (
+              <Button size="sm" onClick={() => void saveNotes()} disabled={savingNotes}>
+                {savingNotes && <Loader size="sm" variant="button" />}
+                {savingNotes ? "Salvando..." : "Salvar observações"}
               </Button>
             )}
           </section>

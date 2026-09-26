@@ -15,8 +15,10 @@ Onda 3 do roadmap de UX (2026-09-26).
 | 5 | Tutorial | passo `/projects` no capítulo Vendas, depois do CRM |
 | 6 | Nichos | nos dois, mesmo nome. Muda só o roteiro padrão: automação nasce com Infraestrutura, Instalação, Configuração e Entrega; cortinas com Medição, Produção, Instalação e Entrega |
 
-Outras decisões: o projeto **nasce na aprovação** da proposta (a empresa pode
-desligar em "Configurar etapas"); o **técnico é um membro da equipe**; o
+Outras decisões: na aprovação a ProOps **pergunta se a venda tem instalação**
+(nem toda venda é obra; revisto em 2026-09-26, a primeira versão criava
+sempre). Em "Configurar etapas" a empresa escolhe `ask` (padrão), `always` ou
+`never`; o **técnico é um membro da equipe**; o
 **aceite da entrega é pelo link**, com nome, CPF/CNPJ, data e IP; as etapas vêm
 de um **roteiro por empresa**, com padrão por nicho; as **fotos são por etapa**
 e contam no armazenamento do plano.
@@ -32,8 +34,20 @@ e contam no armazenamento do plano.
   pessoas marcando itens ao mesmo tempo não se sobrescrevem.
 - **Id determinístico** `proposal_{proposalId}`: aprovar, reverter e aprovar de
   novo encontra o mesmo projeto. O `updateProposal` chama
-  `maybeCreateProjectOnApproval` na transição para aprovada e devolve
-  `projectCreated`; a lista de propostas mostra o aviso com "Abrir".
+  `resolveProjectOnApproval` na transição para aprovada e devolve
+  `projectCreated` (modo `always`) ou `projectSuggested` (modo `ask`, sem obra
+  ainda).
+- **O aviso e o convite passam por uma fila** (`lib/project-on-approval.ts`)
+  até o `ProjectOnApprovalHost`, montado uma vez no `protected-app-shell`. A
+  proposta é aprovada em três lugares (lista, formulário e quadro do CRM), e o
+  formulário navega logo depois de salvar: um diálogo aberto por ele morreria
+  na troca de página. Todo caminho que muda status chama
+  `announceProjectOnApproval(result, proposta)`.
+- **A tela da obra responde na hora** (`_lib/project-overlay.ts`): checklist,
+  situação da etapa, responsável e datas entram numa camada de "pendente" por
+  cima do que o listener entrega. A entrada sai quando o listener mostra o
+  mesmo valor, ou quando o servidor recusa (a tela volta e avisa). Antes cada
+  clique esperava a ida e volta da API.
 - **Criar pela proposta** (`ProposalProjectButton`, na visualização): abre o
   projeto se existe, ou cria a partir de proposta aprovada. O backend recusa
   proposta que não está aprovada (409).
