@@ -17,7 +17,8 @@ O middleware do Next.js (`middleware.ts`) deve ter estas rotas explicitamente ex
 ```
 share/
 ├── [token]/page.tsx              # Proposta compartilhada
-└── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
+├── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
+└── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir e aceitar
 ```
 
 ## Arquivos-chave
@@ -71,6 +72,8 @@ A resposta pública do backend retorna a proposta/lançamento junto com dados do
 | Aceitar proposta | `POST` (público) | `SharedProposalService.accept` | `/v1/share/:token/accept` |
 | Pedir mudanças | `POST` (público) | `SharedProposalService.requestChanges` | `/v1/share/:token/request-changes` |
 | Link de pagamento da proposta aprovada | `POST` (público) | `SharedProposalService.paymentLink` | `/v1/share/:token/payment-link` |
+| Buscar a entrega da obra | `GET` (público) | `SharedProjectService.get` | `/v1/share/project/:token` |
+| Aceitar a entrega da obra | `POST` (público) | `SharedProjectService.accept` | `/v1/share/project/:token/accept` |
 
 As chamadas públicas usam `callPublicApi` (sem token de autenticação no header), diferentemente do `callApi` padrão.
 

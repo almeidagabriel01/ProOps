@@ -63,6 +63,11 @@ export const PERMISSION_PAGES: PermissionPage[] = [
     description: "Agenda, compromissos e acompanhamento",
   },
   {
+    id: "projects",
+    name: "Projetos",
+    description: "Obras de instalação: etapas, fotos e entrega",
+  },
+  {
     id: "solutions",
     name: "Soluções",
     description: "Aplicativos, automações e ambientes",

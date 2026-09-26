@@ -4,6 +4,8 @@ export enum NotificationType {
   PROPOSAL_ACCEPTED = "proposal_accepted",
   /** O cliente pediu mudanças pelo link, com a justificativa. */
   PROPOSAL_CHANGES_REQUESTED = "proposal_changes_requested",
+  /** O cliente aceitou a entrega da obra pelo link. */
+  PROJECT_DELIVERY_ACCEPTED = "project_delivery_accepted",
   /** Cliente abriu o link há dias e a proposta segue sem resposta. */
   PROPOSAL_FOLLOW_UP = "proposal_follow_up",
   /** Próxima ação de um lead ou atividade do CRM com prazo hoje. */
@@ -27,6 +29,7 @@ export interface Notification {
   transactionId?: string;
   leadId?: string;
   clientId?: string;
+  projectId?: string;
   isRead: boolean;
   createdAt: string;
   readAt?: string;

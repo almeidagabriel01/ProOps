@@ -48,6 +48,7 @@ afterAll(() => new Promise((r) => server.close(r)));
 it.each([
   ["GET", "/projects/settings", "getProjectSettings"],
   ["PUT", "/projects/settings", "updateProjectSettings"],
+  ["GET", "/projects/assignees", "listProjectAssignees"],
   ["POST", "/projects", "createProject"],
   ["PUT", "/projects/p1", "updateProject"],
   ["DELETE", "/projects/p1", "deleteProject"],

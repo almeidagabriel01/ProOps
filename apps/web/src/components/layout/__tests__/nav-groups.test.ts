@@ -6,6 +6,7 @@ import {
   flattenMenuItems,
   menuItems,
   resolveGroupTarget,
+  type MenuCapability,
   type MenuCapabilityMap,
   type MenuItem,
   type SubMenuItem,
@@ -18,10 +19,10 @@ import {
  */
 
 const CAPS = {
-  starter: { financial: false, crm: false, fiscal: false },
-  starterComAddonFinancial: { financial: true, crm: false, fiscal: false },
-  pro: { financial: true, crm: false, fiscal: false },
-  enterprise: { financial: true, crm: true, fiscal: true },
+  starter: { financial: false, crm: false, fiscal: false, projects: false },
+  starterComAddonFinancial: { financial: true, crm: false, fiscal: false, projects: false },
+  pro: { financial: true, crm: false, fiscal: false, projects: true },
+  enterprise: { financial: true, crm: true, fiscal: true, projects: true },
 } satisfies Record<string, MenuCapabilityMap>;
 
 const LANCAMENTOS: SubMenuItem = {
@@ -76,7 +77,7 @@ const CATALOGO: MenuItem = {
  * efetiva mesmo quando o plano a satisfaz.
  */
 function estaCoroado(
-  target: { requiresCapability?: "financial" | "crm" | "fiscal" } | null,
+  target: { requiresCapability?: MenuCapability } | null,
   capabilities: MenuCapabilityMap,
 ): boolean {
   if (!target?.requiresCapability) return false;

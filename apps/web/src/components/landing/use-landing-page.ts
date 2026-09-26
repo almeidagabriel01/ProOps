@@ -65,6 +65,9 @@ export function buildPlanFeatureList(plan: UserPlan): string[] {
     f.hasOnlineApproval
       ? "Aceite online: o cliente aceita a proposta pelo link"
       : null,
+    f.hasProjects
+      ? "Projetos de instalação: etapas, fotos e aceite da entrega"
+      : null,
     f.hasOnlinePayments
       ? "Pagamento online: o cliente paga a parcela por Pix ou boleto no link"
       : null,

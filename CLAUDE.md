@@ -176,7 +176,7 @@ qualquer chamada HTTP direta passava.
 Matriz atual: **Starter** sem módulo premium nativo (compra `financial`, `crm`,
 `fiscal`, `online_payments` e `pdf_editor_*` como add-on; o pagamento online no
 Starter exige o financeiro); **Pro** com financeiro, editor de PDF, cores,
-Google Agenda, Google Drive e aceite online da proposta pelo link (compra `crm`, `fiscal` e `online_payments`);
+Google Agenda, Google Drive, aceite online da proposta pelo link e projetos de instalação (compra `crm`, `fiscal` e `online_payments`);
 **Enterprise** com tudo, mais CRM, Notas Fiscais sem franquia, recepção de notas
 de entrada, Pagamento Online e WhatsApp. O add-on fiscal emite até 100 notas por
 mês e não inclui a recepção. Planilhas: 5 / 50 / ilimitado. Add-ons somam por
@@ -312,6 +312,7 @@ a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
 Detailed documentation per module lives in CLAUDE.md files within each folder:
 - Navegação (dock, tab bar, seletor de visão): `apps/web/src/components/layout/CLAUDE.md`
 - Financial module (frontend): `apps/web/src/app/transactions/CLAUDE.md`
+- Projetos de instalação (obra depois da venda): `apps/web/src/app/projects/CLAUDE.md`
 - Financial module (backend): `apps/functions/CLAUDE.md`
 - Backend services: `apps/functions/src/api/services/CLAUDE.md`
 - Backend middleware: `apps/functions/src/api/middleware/CLAUDE.md`

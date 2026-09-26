@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { hasOpenChangeRequest, hasPendingAcceptance } from "@/lib/client-acceptance";
 import { useClientResponses } from "@/hooks/use-client-responses";
+import { ProposalProjectButton } from "@/components/features/projects/proposal-project-button";
 import { formatDateBR } from "@/utils/date-format";
 import { ProposalService } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
@@ -265,6 +266,7 @@ export default function ViewProposalPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ProposalProjectButton proposalId={proposalId} proposalStatus={proposal.status} />
           {canEdit && canAccessEditPdf && (
             <Button
               variant="outline"

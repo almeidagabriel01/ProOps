@@ -5,6 +5,7 @@ import { HARD_BLOCKED_STATUSES } from "./subscription-blocked-statuses";
 export const PAGE_ROUTE_MAP: Record<string, string> = {
   kanban: "/crm",
   proposals: "/proposals",
+  projects: "/projects",
   clients: "/contacts",
   products: "/products",
   services: "/services",
@@ -19,6 +20,7 @@ export const PAGE_ROUTE_MAP: Record<string, string> = {
 export const ORDERED_MEMBER_PAGES = [
   "kanban",
   "proposals",
+  "projects",
   "clients",
   "products",
   "services",
@@ -122,6 +124,8 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/transactions",
   "/wallets",
   "/crm",
+  // Projetos de instalação: o tenant de demonstração tem projetos de exemplo.
+  "/projects",
   // `/commissions` fica FORA de propósito, pelo mesmo motivo do fiscal: não há
   // dado de demonstração (comissão nasce de proposta aprovada com parceiro), e
   // a tela é `masterOnly` — uma conta free é MEMBER, então nem veria o item no

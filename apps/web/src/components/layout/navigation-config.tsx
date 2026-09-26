@@ -15,6 +15,7 @@ import {
   Home,
   CalendarDays,
   Kanban,
+  HardHat,
 } from "lucide-react";
 
 /**
@@ -27,7 +28,7 @@ import {
  * morto, e o CRM não tinha entrada de menu alguma: só era alcançado pelo
  * command palette, por botões soltos ou por URL direta.
  */
-export type MenuCapability = "financial" | "crm" | "fiscal";
+export type MenuCapability = "financial" | "crm" | "fiscal" | "projects";
 
 /**
  * Quais capacidades o plano do tenant abre. Mora aqui, e não em
@@ -90,6 +91,13 @@ export const menuItems: MenuItem[] = [
     href: "/crm",
     pageId: "kanban",
     requiresCapability: "crm",
+  },
+  {
+    icon: HardHat,
+    label: "Projetos",
+    href: "/projects",
+    pageId: "projects",
+    requiresCapability: "projects",
   },
   {
     icon: Wallet,

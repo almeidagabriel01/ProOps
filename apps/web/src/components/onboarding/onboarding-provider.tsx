@@ -150,6 +150,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       driveSync: plan.hasDriveSync,
       onlinePayments: plan.hasOnlinePayments,
       fiscalReceiving: plan.hasFiscalReceiving,
+      projects: plan.hasProjects,
     }),
     [
       plan.hasFinancial,
@@ -160,6 +161,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       plan.hasDriveSync,
       plan.hasOnlinePayments,
       plan.hasFiscalReceiving,
+      plan.hasProjects,
     ],
   );
 

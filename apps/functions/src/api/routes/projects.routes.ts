@@ -7,6 +7,7 @@ import {
   deleteProject,
   deleteStagePhoto,
   getProjectSettings,
+  listProjectAssignees,
   toggleChecklistItem,
   updateProject,
   updateProjectSettings,
@@ -24,6 +25,7 @@ router.use("/projects", requirePlanCapability("projects"));
 // `/settings` antes de `/:id`: o Express casa por ordem, e `PUT /projects/settings`
 // cairia no update de um projeto com id "settings".
 router.get("/projects/settings", getProjectSettings);
+router.get("/projects/assignees", listProjectAssignees);
 router.put("/projects/settings", updateProjectSettings);
 
 router.post("/projects", createProject);

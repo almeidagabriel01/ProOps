@@ -95,6 +95,9 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     pageAvailability: {
       solutions: true,
       ambientes: false,
+      // Projetos de instalação: nos dois nichos, com etapas padrão próprias
+      // (Infraestrutura, Instalação, Configuração, Entrega).
+      projects: true,
     },
     solutionsPage: {
       navigationLabel: "Soluções",
@@ -125,6 +128,9 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     pageAvailability: {
       solutions: false,
       ambientes: true,
+      // Projetos de instalação: nos dois nichos, com etapas padrão próprias
+      // (Medição, Produção, Instalação, Entrega).
+      projects: true,
     },
     solutionsPage: {
       navigationLabel: "Ambientes",

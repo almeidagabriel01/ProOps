@@ -25,7 +25,7 @@ Há ~38 segmentos de rota: proposals, contacts, products, transactions, calendar
 automacao-residencial, automation, calendar, checkout-success,
 commissions, contacts, contato, cookies, crm, dashboard, data-deletion,
 decoracao, fale-conosco, forgot-password, institucional, invoices, login,
-manifesto, privacy, products, produtos, profile, proposals, register, reset,
+manifesto, privacy, products, produtos, profile, projects, proposals, register, reset,
 services, settings, share, sobre, solutions, spreadsheets, subscribe,
 subscription-blocked, team, terms, transactions, verify, wallets
 ```

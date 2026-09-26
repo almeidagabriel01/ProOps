@@ -63,6 +63,26 @@ export function buildProposalMessage(params: {
   };
 }
 
+/** Link da entrega da obra: o cliente confere etapas e fotos e aceita. */
+export function buildDeliveryMessage(params: {
+  clientName?: string | null;
+  projectTitle?: string | null;
+  companyName?: string | null;
+  url: string;
+}): { subject: string; message: string } {
+  const title = params.projectTitle?.trim() || "sua obra";
+  const company = params.companyName?.trim();
+  return {
+    subject: company ? `Entrega: ${title} | ${company}` : `Entrega: ${title}`,
+    message: [
+      greeting(params.clientName),
+      `A instalação de "${title}" está pronta. Pelo link você confere as etapas e as fotos e confirma a entrega:`,
+      params.url,
+      "Qualquer ajuste, é só me chamar.",
+    ].join("\n\n"),
+  };
+}
+
 export function buildChargeMessage(params: {
   clientName?: string | null;
   description?: string | null;

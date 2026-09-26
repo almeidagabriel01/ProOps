@@ -145,6 +145,19 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     ],
     actionLabel: "Abrir o CRM",
   },
+  "/projects": {
+    id: "projects",
+    route: "/projects",
+    chapter: "sales",
+    description:
+      "Depois da venda, a obra: a proposta aprovada vira projeto com as etapas da sua empresa, do início ao aceite da entrega.",
+    checklist: [
+      { text: "Abra o projeto criado na aprovação e escolha o técnico responsável." },
+      { text: "Marque o checklist de cada etapa e anexe as fotos da obra." },
+      { text: "Com tudo pronto, envie o link para o cliente aceitar a entrega." },
+    ],
+    actionLabel: "Abrir Projetos",
+  },
   "/contacts": {
     id: "contacts",
     route: "/contacts",

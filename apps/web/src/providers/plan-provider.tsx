@@ -50,6 +50,7 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   hasDriveSync: false,
   hasOnlinePayments: false,
   hasOnlineApproval: false,
+  hasProjects: false,
   hasFiscalReceiving: false,
   hasWhatsApp: false,
   canCustomizeTheme: false,
@@ -96,6 +97,8 @@ export interface PlanContextValue {
   trialInfo: TrialInfo;
   hasFinancial: boolean;
   hasKanban: boolean;
+  /** Projetos de instalação (Pro e Enterprise). */
+  hasProjects: boolean;
   hasFiscal: boolean;
   hasDriveSync: boolean;
   hasCalendarSync: boolean;
@@ -198,6 +201,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           hasDriveSync: true,
           hasOnlinePayments: true,
           hasOnlineApproval: true,
+          hasProjects: true,
           hasFiscalReceiving: true,
           hasWhatsApp: true,
           canCustomizeTheme: true,
@@ -225,6 +229,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           ...FREE_PLAN_FEATURES,
           hasFinancial: true,
           hasKanban: true,
+          hasProjects: true,
           canEditPdfSections: true,
           canCustomizeTheme: true,
           maxPdfTemplates: -1,
@@ -595,6 +600,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       trialInfo,
       hasFinancial: mergedFeatures?.hasFinancial ?? false,
       hasKanban: mergedFeatures?.hasKanban ?? false,
+      hasProjects: mergedFeatures?.hasProjects ?? false,
       hasFiscal: mergedFeatures?.hasFiscal ?? false,
       hasDriveSync: mergedFeatures?.hasDriveSync ?? false,
       hasCalendarSync: mergedFeatures?.hasCalendarSync ?? false,

@@ -4,6 +4,7 @@ import { db } from "../../init";
 import { logger } from "../../lib/logger";
 import { hasPagePermission } from "../../lib/auth-helpers";
 import { isTenantAdminRole } from "../../lib/auth-context";
+import { isStatusApproved } from "./proposals.controller";
 import {
   ChecklistItemSchema,
   ChecklistToggleSchema,
@@ -115,6 +116,10 @@ export async function createProject(req: Request, res: Response) {
       const proposal = await db.collection("proposals").doc(parsed.data.proposalId).get();
       if (!proposal.exists || proposal.data()?.tenantId !== tenantId) {
         return res.status(404).json({ message: "Proposta não encontrada." });
+      }
+      // A obra é do que foi vendido: proposta em aberto ainda pode mudar.
+      if (!(await isStatusApproved(proposal.data()?.status as string | undefined, tenantId))) {
+        return res.status(409).json({ message: "Aprove a proposta antes de criar o projeto da obra." });
       }
       const result = await createProjectFromProposal({
         tenantId,
@@ -395,6 +400,24 @@ export async function createDeliveryLink(req: Request, res: Response) {
     return res.json({ url: link.url });
   } catch (error) {
     return fail(res, error, "Erro ao gerar o link de entrega.", "project_delivery_link_failed");
+  }
+}
+
+/**
+ * GET /v1/projects/assignees — quem pode ser o técnico responsável: a equipe
+ * da empresa. Pela API porque as regras do Firestore só deixam o admin listar
+ * os usuários, e quem monta a obra no dia a dia costuma ser membro.
+ */
+export async function listProjectAssignees(req: Request, res: Response) {
+  try {
+    const { tenantId } = await requireProjectAccess(req, "canView");
+    const snap = await db.collection("users").where("tenantId", "==", tenantId).limit(200).get();
+    const assignees = snap.docs
+      .map((doc) => ({ id: doc.id, name: String(doc.data().name || doc.data().email || "Sem nome") }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    return res.json({ assignees });
+  } catch (error) {
+    return fail(res, error, "Erro ao carregar a equipe.", "project_assignees_failed");
   }
 }
 

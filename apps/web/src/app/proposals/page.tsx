@@ -712,6 +712,15 @@ export default function ProposalsPage() {
         );
         // A entrega no Drive saiu da request e roda num cron: sem o aviso,
         // quem aprova e vai direto na pasta do cliente acha que falhou.
+        if (result?.projectCreated) {
+          const projectId = result.projectCreated;
+          toast.success("Projeto de instalação criado para acompanhar a obra.", {
+            duration: 8000,
+            // O sileo recolhe o toast 2s antes do fim, escondendo o botão.
+            autopilot: { expand: 150, collapse: 7700 },
+            button: { title: "Abrir", onClick: () => router.push(`/projects/${projectId}`) },
+          });
+        }
         if (result?.driveDeliveryQueued) {
           toast.info(DRIVE_DELIVERY_PENDING_HINT);
         } else if (result?.driveNotConnected) {
@@ -743,6 +752,7 @@ export default function ProposalsPage() {
       }
     },
     [
+      router,
       proposals,
       getStatusLabel,
       kanbanColumns,

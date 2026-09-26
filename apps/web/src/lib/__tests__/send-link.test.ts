@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDeliveryMessage,
   buildChargeMessage,
   buildMailtoHref,
   buildProposalMessage,
@@ -68,5 +69,21 @@ describe("mensagens", () => {
     expect(message).toContain("Olá!");
     expect(message).toMatch(/R\$\s?1\.500,00/);
     expect(message).toContain("05/10/2026");
+  });
+});
+
+describe("buildDeliveryMessage", () => {
+  it("chama pelo nome, cita a obra e leva o link, sem assinar pela empresa no corpo", () => {
+    const { subject, message } = buildDeliveryMessage({
+      clientName: "Maria Souza",
+      projectTitle: "Casa da Maria",
+      companyName: "Casa Inteligente",
+      url: "https://erp/share/project/tok",
+    });
+    expect(subject).toBe("Entrega: Casa da Maria | Casa Inteligente");
+    expect(message).toContain("Casa da Maria");
+    expect(message).toContain("https://erp/share/project/tok");
+    expect(message.split("\n\n")).toHaveLength(4);
+    expect(message).not.toContain("—");
   });
 });

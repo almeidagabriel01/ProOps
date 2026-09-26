@@ -23,6 +23,11 @@ let docs: Record<string, Record<string, Record<string, unknown>>>;
 const projectUpdates: Array<{ id: string; data: Record<string, unknown> }> = [];
 const projectDeletes: string[] = [];
 
+const isStatusApproved = jest.fn();
+jest.mock("./proposals.controller", () => ({
+  isStatusApproved: (...a: unknown[]) => isStatusApproved(...a),
+}));
+
 jest.mock("../../lib/auth-helpers", () => ({
   hasPagePermission: (...a: unknown[]) => hasPagePermission(...a),
 }));
@@ -44,7 +49,21 @@ jest.mock("../../init", () => {
       collection: (name: string) => {
         if (name === "projects") return { doc: projectRef };
         const col = docs[name] ?? {};
+        let filter: [string, unknown] | null = null;
+        const q = {
+          where: (field: string, _op: string, value: unknown) => {
+            filter = [field, value];
+            return q;
+          },
+          limit: () => q,
+          get: async () => ({
+            docs: Object.entries(col)
+              .filter(([, d]) => !filter || d[filter[0]] === filter[1])
+              .map(([id, d]) => ({ id, data: () => d })),
+          }),
+        };
         return {
+          ...q,
           doc: (id: string) => ({
             id,
             get: async () => ({ id, exists: !!col[id], data: () => col[id] }),
@@ -101,6 +120,7 @@ import {
   createDeliveryLink,
   createProject,
   deleteProject,
+  listProjectAssignees,
   toggleChecklistItem,
   updateProject,
   updateProjectSettings,
@@ -151,6 +171,7 @@ beforeEach(() => {
   projectUpdates.length = 0;
   projectDeletes.length = 0;
   hasPagePermission.mockResolvedValue(true);
+  isStatusApproved.mockResolvedValue(true);
   svc.isStorageOverQuota.mockResolvedValue(false);
   svc.storeProjectPhoto.mockResolvedValue("https://storage/foto.webp");
   svc.createProjectShareLink.mockResolvedValue({ url: "https://erp/share/project/tok", sharedProjectId: "sp1" });
@@ -205,6 +226,14 @@ describe("createProject", () => {
     const again = fakeRes();
     await createProject(fakeReq({}, { proposalId: "prop1" }), again);
     expect(again.statusCode).toBe(200);
+  });
+
+  it("proposta ainda não aprovada: 409, nada criado", async () => {
+    isStatusApproved.mockResolvedValue(false);
+    const res = fakeRes();
+    await createProject(fakeReq({}, { proposalId: "prop1" }), res);
+    expect(res.statusCode).toBe(409);
+    expect(svc.createProjectFromProposal).not.toHaveBeenCalled();
   });
 
   it("proposta de outra empresa: 404, nada criado", async () => {
@@ -323,6 +352,27 @@ describe("createDeliveryLink", () => {
     const res = fakeRes();
     await createDeliveryLink(fakeReq({ id: "p1" }), res);
     expect(res.statusCode).toBe(409);
+  });
+});
+
+describe("listProjectAssignees", () => {
+  it("lista só a equipe da empresa, em ordem alfabética", async () => {
+    docs.users.zeca = { tenantId: "t1", name: "Zeca" };
+    docs.users.bia = { tenantId: "t1", name: "Bia" };
+    const res = fakeRes();
+    await listProjectAssignees(fakeReq(), res);
+    expect(res.body.assignees).toEqual([
+      { id: "bia", name: "Bia" },
+      { id: "tec", name: "Carlos Técnico" },
+      { id: "zeca", name: "Zeca" },
+    ]);
+  });
+
+  it("sem permissão de ver Projetos: 403", async () => {
+    hasPagePermission.mockResolvedValue(false);
+    const res = fakeRes();
+    await listProjectAssignees(fakeReq(), res);
+    expect(res.statusCode).toBe(403);
   });
 });
 
