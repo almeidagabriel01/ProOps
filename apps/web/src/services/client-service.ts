@@ -24,7 +24,7 @@ import {
   phoneSearchDigits,
 } from "@/lib/search-term";
 
-export type ClientSource = "manual" | "proposal" | "financial";
+export type ClientSource = "manual" | "proposal" | "financial" | "import";
 
 export type ClientType = "cliente" | "fornecedor" | "vendedor" | "arquiteto";
 

@@ -44,6 +44,8 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ProductsSkeleton } from "./_components/products-skeleton";
+import { ImportButton, ImportDialog } from "@/components/features/import/import-dialog";
+import { productFields } from "@/lib/import/import-fields";
 import { formatCurrency } from "@/utils/format";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import {
@@ -107,6 +109,18 @@ export default function ProductsPage() {
 
   const isFiltering = searchTerm.trim() !== "";
   const isCurtainNiche = nicheConfig.id === "cortinas";
+  const [importOpen, setImportOpen] = useState(false);
+  // A planilha segue o nicho: em metros (e com "preço por") onde o estoque é
+  // por metragem.
+  const importPerMeter = nicheConfig.productCatalog.inventory.mode === "meter";
+  const importFields = useMemo(
+    () =>
+      productFields({
+        inventoryLabel: nicheConfig.productCatalog.inventory.formLabel,
+        perMeter: importPerMeter,
+      }),
+    [nicheConfig.productCatalog.inventory.formLabel, importPerMeter],
+  );
   const curtainInventorySummary = useMemo(
     () => summarizeCurtainInventoryBalance(allProducts ?? []),
     [allProducts],
@@ -213,6 +227,15 @@ export default function ProductsPage() {
   useEffect(() => {
     void refreshHasAnyProducts();
   }, [refreshHasAnyProducts]);
+
+  // Depois de importar: o catálogo guardado é descartado e relido.
+  const reloadAfterImport = useCallback(() => {
+    if (!tenant) return;
+    ProductService.invalidateTenantCache(tenant.id);
+    void refreshHasAnyProducts();
+    refreshRef.current?.();
+    void ProductService.getProducts(tenant.id).then(setAllProducts).catch(() => undefined);
+  }, [tenant, refreshHasAnyProducts]);
 
   useEffect(() => {
     if (!tenant) {
@@ -528,7 +551,8 @@ export default function ProductsPage() {
                 <PageViewSwitcher className="mt-3" />
               </div>
               {canCreate && (
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <ImportButton onClick={() => setImportOpen(true)} />
                   <Link href="/products/new" className="block w-full sm:w-auto">
                     <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Plus className="w-5 h-5" />
@@ -537,6 +561,15 @@ export default function ProductsPage() {
                   </Link>
                 </div>
               )}
+              <ImportDialog
+                kind="products"
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                noun={{ singular: "produto", plural: "produtos" }}
+                fields={importFields}
+                allowPerMeter={importPerMeter}
+                onImported={reloadAfterImport}
+              />
             </div>
 
             {isCurtainNiche ? (

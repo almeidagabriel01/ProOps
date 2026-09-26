@@ -56,6 +56,10 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
     label: "Via Financeiro",
     color: "bg-purple-500/10 text-purple-600 border-purple-500/20",
   },
+  import: {
+    label: "Via Planilha",
+    color: "bg-slate-500/10 text-slate-600 border-slate-500/20",
+  },
 };
 
 /**

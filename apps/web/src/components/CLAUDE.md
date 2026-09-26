@@ -185,6 +185,18 @@ para elementos da página, então não quebra quando um layout muda.
   backend reconstrói o objeto campo a campo (`normalizeOnboardingPayload`):
   campo novo no estado precisa entrar lá, senão é descartado sem erro.
 
+## Importar planilha (`features/import/`)
+
+`ImportDialog` é o importar de Contatos, Produtos e Serviços: arquivo (.xlsx ou
+.csv, com modelo para baixar), ligação das colunas (feita sozinha pelo nome,
+em `lib/import/import-fields.ts`) e prévia antes de gravar. Para quem assina a
+prévia é a do servidor (`dryRun`, que acha os repetidos); na demonstração é a
+validação do navegador, e o último passo leva aos planos. A regra do backend
+está no `apps/functions/CLAUDE.md`, seção Importação por planilha. A planilha
+de produtos segue o nicho: coluna de metragem e "preço por" onde o estoque é em
+metros. Leitor de planilha em `lib/import/read-sheet.ts` (o CSV detecta o ponto
+e vírgula do Excel em português).
+
 ## Nomenclatura
 - Arquivo: `nome-componente.tsx` (kebab-case)
 - Componente: `NomeComponente` (PascalCase)

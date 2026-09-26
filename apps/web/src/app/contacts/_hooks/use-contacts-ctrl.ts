@@ -262,6 +262,12 @@ export function useContactsCtrl() {
       updateItemsRef,
     },
     actions: {
+      /** Depois de importar: a lista e o "tem algum contato" relidos. */
+      reloadAfterImport: () => {
+        void refreshHasAnyClients();
+        refreshRef.current?.();
+        resetRef.current?.();
+      },
       setSearchTerm,
       setTypeFilter,
       setClientToDelete,

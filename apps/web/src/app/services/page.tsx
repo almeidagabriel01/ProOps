@@ -34,6 +34,8 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ServicesSkeleton } from "./_components/services-skeleton";
+import { ImportButton, ImportDialog } from "@/components/features/import/import-dialog";
+import { SERVICE_FIELDS } from "@/lib/import/import-fields";
 
 export default function ServicesPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -81,6 +83,16 @@ export default function ServicesPage() {
   useEffect(() => {
     void refreshHasAnyServices();
   }, [refreshHasAnyServices]);
+
+  const [importOpen, setImportOpen] = useState(false);
+  // Depois de importar: a lista e o "tem algum serviço" relidos.
+  const reloadAfterImport = useCallback(() => {
+    void refreshHasAnyServices();
+    refreshRef.current?.();
+    if (tenant && allServices) {
+      void ServiceService.getServices(tenant.id).then(setAllServices).catch(() => undefined);
+    }
+  }, [tenant, allServices, refreshHasAnyServices]);
 
   useEffect(() => {
     if (!isFiltering || !tenant) {
@@ -376,7 +388,8 @@ export default function ServicesPage() {
                 <PageViewSwitcher className="mt-3" />
               </div>
               {canCreate && (
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <ImportButton onClick={() => setImportOpen(true)} />
                   <Link href="/services/new" className="block w-full sm:w-auto">
                     <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Plus className="w-5 h-5" />
@@ -385,6 +398,14 @@ export default function ServicesPage() {
                   </Link>
                 </div>
               )}
+              <ImportDialog
+                kind="services"
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                noun={{ singular: "serviço", plural: "serviços" }}
+                fields={SERVICE_FIELDS}
+                onImported={reloadAfterImport}
+              />
             </div>
 
             {hasAnyServices !== false && (

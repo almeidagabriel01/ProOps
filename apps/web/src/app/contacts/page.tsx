@@ -10,6 +10,8 @@ import { DataTable } from "@/components/ui/data-table";
 
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useContactsCtrl } from "./_hooks/use-contacts-ctrl";
+import { ImportButton, ImportDialog } from "@/components/features/import/import-dialog";
+import { CONTACT_FIELDS } from "@/lib/import/import-fields";
 import { useAuth } from "@/providers/auth-provider";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { ContactsToolbar } from "./_components/contacts-toolbar";
@@ -24,6 +26,7 @@ export default function CustomersPage() {
   const { canCreate, canDelete, canEdit } = usePagePermission("clients");
   const { user } = useAuth();
   const { state, actions } = useContactsCtrl();
+  const [importOpen, setImportOpen] = React.useState(false);
 
   const {
     tenant,
@@ -75,13 +78,24 @@ export default function CustomersPage() {
             </p>
           </div>
           {canCreate && (
-            <Link href="/contacts/new" className="block w-full sm:w-auto">
-              <Button size="lg" className="gap-2 w-full sm:w-auto">
-                <Plus className="w-5 h-5" />
-                Novo Cadastro
-              </Button>
-            </Link>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <ImportButton onClick={() => setImportOpen(true)} />
+              <Link href="/contacts/new" className="block w-full sm:w-auto">
+                <Button size="lg" className="gap-2 w-full sm:w-auto">
+                  <Plus className="w-5 h-5" />
+                  Novo Cadastro
+                </Button>
+              </Link>
+            </div>
           )}
+          <ImportDialog
+            kind="clients"
+            open={importOpen}
+            onOpenChange={setImportOpen}
+            noun={{ singular: "contato", plural: "contatos" }}
+            fields={CONTACT_FIELDS}
+            onImported={actions.reloadAfterImport}
+          />
         </div>
 
         {hasAnyClients !== false && (

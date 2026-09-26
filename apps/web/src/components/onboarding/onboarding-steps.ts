@@ -169,6 +169,7 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
       "Clientes, fornecedores, vendedores e arquitetos num cadastro só, que alimenta propostas, financeiro e comissões.",
     checklist: [
       { text: "Busque pelo início do nome ou do telefone e filtre pelo tipo de contato." },
+      { text: "Veio de outro sistema? Importe os contatos da planilha em Importar." },
       { text: "Marque vendedores e arquitetos com o percentual de comissão de cada um." },
       {
         text: "Preencha os dados fiscais do cliente para emitir nota sem pendências.",
@@ -219,6 +220,7 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
       "Os produtos que você vende, com preço, fotos e estoque, prontos para entrar numa proposta em poucos cliques.",
     checklist: [
       { text: "Cadastre o produto com custo, markup, preço de venda e fotos." },
+      { text: "Já tem o catálogo numa planilha? Traga tudo de uma vez em Importar." },
       { text: "Edite preço, estoque e fotos sempre que precisar." },
       {
         text: "Informe o NCM do produto (a Lia sugere um) para emitir NF-e.",
@@ -235,6 +237,7 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
       "A mão de obra e os serviços que acompanham a venda, como instalação, programação e manutenção.",
     checklist: [
       { text: "Cadastre cada serviço com descrição e valor padrão." },
+      { text: "Já tem a lista numa planilha? Traga tudo de uma vez em Importar." },
       { text: "Use os serviços junto com os produtos na mesma proposta." },
       {
         text: "Informe o código da LC 116 e a alíquota de ISS para emitir NFS-e.",

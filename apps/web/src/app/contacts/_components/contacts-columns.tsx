@@ -22,6 +22,7 @@ const sourceConfig: Record<
   manual: { label: "Manual", variant: "default" },
   proposal: { label: "Proposta", variant: "success" },
   financial: { label: "Financeiro", variant: "warning" },
+  import: { label: "Planilha", variant: "outline" },
 };
 
 const typeConfig: Record<
