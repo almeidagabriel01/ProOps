@@ -5,6 +5,9 @@ import {
   isProposalExpired,
   proposalContentHash,
   resolveAcceptanceOnSave,
+  ChangeRequestSchema,
+  pickPayableTransaction,
+  resolveChangeRequestOnSave,
   pickApprovedStatus,
   todayInBrazil,
 } from "./proposal-online-approval";
@@ -218,3 +221,109 @@ describe("pickApprovedStatus", () => {
     ).toBe("fechado");
   });
 });
+
+describe("ChangeRequestSchema", () => {
+  it("exige uma justificativa de verdade", () => {
+    expect(ChangeRequestSchema.safeParse({ message: "curto" }).success).toBe(false);
+    expect(ChangeRequestSchema.safeParse({ message: "          " }).success).toBe(false);
+    expect(
+      ChangeRequestSchema.safeParse({ message: "O prazo de entrega combinado era 30 dias" }).success,
+    ).toBe(true);
+  });
+
+  it("nome é opcional e campo a mais é recusado", () => {
+    expect(ChangeRequestSchema.safeParse({ name: "Maria", message: "Faltou a cortina da sala" }).success).toBe(true);
+    expect(ChangeRequestSchema.safeParse({ message: "Faltou a cortina da sala", status: "x" }).success).toBe(false);
+  });
+});
+
+describe("resolveChangeRequestOnSave", () => {
+  const proposal = { title: "Casa", totalValue: 1000 };
+  const open = { status: "open", contentHash: proposalContentHash(proposal), message: "m" };
+
+  it("editar o conteúdo atende o pedido", () => {
+    expect(
+      resolveChangeRequestOnSave({
+        request: open,
+        proposalAfter: { ...proposal, totalValue: 900 },
+        isBeingApproved: false,
+        closedWithoutApproval: false,
+      }),
+    ).toBe("resolved");
+  });
+
+  it("aprovar ou fechar sem aprovação encerra o pedido", () => {
+    for (const [isBeingApproved, closedWithoutApproval] of [[true, false], [false, true]]) {
+      expect(
+        resolveChangeRequestOnSave({
+          request: open,
+          proposalAfter: proposal,
+          isBeingApproved,
+          closedWithoutApproval,
+        }),
+      ).toBe("resolved");
+    }
+  });
+
+  it("salvar sem mudar nada deixa o pedido aberto", () => {
+    expect(
+      resolveChangeRequestOnSave({
+        request: open,
+        proposalAfter: { ...proposal, notes: "" },
+        isBeingApproved: false,
+        closedWithoutApproval: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("pedido já resolvido ou ausente não muda", () => {
+    expect(
+      resolveChangeRequestOnSave({
+        request: { ...open, status: "resolved" },
+        proposalAfter: { ...proposal, totalValue: 1 },
+        isBeingApproved: true,
+        closedWithoutApproval: false,
+      }),
+    ).toBeNull();
+    expect(
+      resolveChangeRequestOnSave({
+        request: undefined,
+        proposalAfter: proposal,
+        isBeingApproved: true,
+        closedWithoutApproval: false,
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("pickPayableTransaction", () => {
+  it("a entrada em aberto vem primeiro", () => {
+    expect(
+      pickPayableTransaction([
+        { id: "parcela", type: "income", status: "pending", dueDate: "2026-10-01" },
+        { id: "entrada", type: "income", status: "pending", isDownPayment: true },
+      ]),
+    ).toEqual({ id: "entrada", isDownPayment: true });
+  });
+
+  it("entrada paga: a próxima parcela a vencer", () => {
+    expect(
+      pickPayableTransaction([
+        { id: "entrada", type: "income", status: "paid", isDownPayment: true },
+        { id: "p3", type: "income", status: "pending", dueDate: "2026-12-01" },
+        { id: "p2", type: "income", status: "overdue", dueDate: "2026-11-01" },
+      ]),
+    ).toEqual({ id: "p2", isDownPayment: false });
+  });
+
+  it("comissão, despesa e tudo pago: nada a pagar", () => {
+    expect(
+      pickPayableTransaction([
+        { id: "c", type: "expense", isCommission: true, status: "pending" },
+        { id: "x", type: "expense", status: "pending" },
+        { id: "p", type: "income", status: "paid" },
+      ]),
+    ).toBeNull();
+  });
+});
+

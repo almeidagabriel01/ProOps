@@ -80,10 +80,14 @@ As chamadas públicas usam `callPublicApi` (sem token de autenticação no heade
 
 ## Aceite online (2026-09-25, revisto em 2026-09-26)
 
-O cliente final ACEITA a proposta pelo próprio link: barra fixa no rodapé
-(`[token]/_components/online-approval-bar.tsx`, fora do PDF por `data-pdf-ui`)
-com nome, CPF/CNPJ e aceite. `POST /v1/share/:token/accept`
+O cliente final ACEITA a proposta pelo próprio link, com nome, CPF/CNPJ e
+aceite. `POST /v1/share/:token/accept`
 (`functions/.../proposal-online-approval.controller.ts`).
+
+**Onde fica:** `[token]/_components/proposal-response-panel.tsx`, um painel em
+fluxo normal ACIMA do documento e repetido no FIM dele (o do fim só aparece
+quando há o que fazer). A primeira versão era uma barra fixa no rodapé e
+cobria o PDF. Fora do PDF por `data-pdf-ui`.
 
 **O aceite não aprova.** A primeira versão aprovava direto do link, com
 lançamentos, Drive e cobrança do sinal. O dono do produto trocou por aceite +
@@ -120,8 +124,26 @@ alguém da equipe.
   `_components/client-acceptance-dialog.tsx` em `/proposals`), no card do CRM e
   um aviso na visualização. A notificação `proposal_accepted` leva a
   `/proposals?aceite=<id>`, que abre o diálogo.
-- **Sem cobrança no aceite.** O pagamento do sinal vai pelo "Enviar cobrança"
-  depois da confirmação.
+- **Sem cobrança no aceite.** Depois que a empresa confirma, o GET devolve
+  `payment: { label }` ("Pagar entrada" ou "Pagar parcela") quando há receita
+  em aberto e a empresa recebe online (`onlinePayments` + Asaas ligado). O
+  botão chama `POST /v1/share/:token/payment-link`, que reaproveita o link
+  público do lançamento (`SharedTransactionService.createShareLink`, que já
+  devolve o link existente). Entrada primeiro; senão a próxima parcela.
+- **Solicitar mudanças** (`POST /v1/share/:token/request-changes`): o cliente
+  diz o que não ficou como o combinado, com justificativa obrigatória (10 a
+  2.000 caracteres; nome opcional). Grava `clientChangeRequest` (`open` |
+  `resolved`, com `contentHash`; os anteriores em `clientChangeRequestHistory`)
+  e notifica `proposal_changes_requested`, que leva a `/proposals?ajuste=<id>`.
+  O pedido se resolve sozinho quando a empresa salva a proposta com conteúdo
+  diferente, aprova ou recusa; ou pelo "Marcar como resolvido"
+  (`POST /v1/proposals/:id/change-request/resolve`). Com o pedido aberto, o
+  cliente ainda pode aceitar, mas não abre outro pedido.
+- **Ao vivo no ERP:** `hooks/use-client-responses.ts` escuta, em tempo real,
+  só as propostas com aceite pendente ou pedido aberto (duas consultas por
+  igualdade). A lista, o quadro e a visualização leem dele, então o selo e o
+  diálogo aparecem sem F5; antes de o listener responder, vale o dado da lista
+  (`hasPendingAcceptance` / `hasOpenChangeRequest` em `lib/client-acceptance.ts`).
 
 ## Padrões e gotchas
 

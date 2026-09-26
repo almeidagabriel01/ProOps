@@ -141,6 +141,111 @@ export function buildClientAcceptance(params: {
   };
 }
 
+/**
+ * Pedido de mudanças: o cliente diz, pelo link, o que não ficou como o
+ * combinado. Fica aberto até a empresa editar a proposta (resolve sozinho),
+ * aprová-la, recusá-la ou marcar como resolvido.
+ */
+export const ChangeRequestSchema = z
+  .object({
+    name: z.string().trim().max(120, "Nome muito longo.").optional(),
+    message: z
+      .string()
+      .trim()
+      .min(10, "Conte o que precisa mudar (pelo menos 10 caracteres).")
+      .max(2000, "O pedido passou de 2.000 caracteres."),
+  })
+  .strict();
+
+export type ChangeRequestInput = z.infer<typeof ChangeRequestSchema>;
+
+export interface ClientChangeRequest {
+  name: string | null;
+  message: string;
+  requestedAt: string;
+  ip: string | null;
+  userAgent: string | null;
+  sharedProposalId: string;
+  status: "open" | "resolved";
+  /** Conteúdo da proposta quando o pedido chegou: mudou, está atendido. */
+  contentHash: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+}
+
+export function buildChangeRequest(params: {
+  input: ChangeRequestInput;
+  ip: string | null | undefined;
+  userAgent: string | null | undefined;
+  sharedProposalId: string;
+  contentHash: string;
+  now?: Date;
+}): ClientChangeRequest {
+  return {
+    name: params.input.name?.trim() || null,
+    message: params.input.message.trim(),
+    requestedAt: (params.now ?? new Date()).toISOString(),
+    ip: params.ip ? String(params.ip).slice(0, 64) : null,
+    userAgent: params.userAgent ? String(params.userAgent).slice(0, 300) : null,
+    sharedProposalId: params.sharedProposalId,
+    status: "open",
+    contentHash: params.contentHash,
+  };
+}
+
+export function isChangeRequestOpen(request: unknown): boolean {
+  return (
+    !!request &&
+    typeof request === "object" &&
+    (request as { status?: unknown }).status === "open"
+  );
+}
+
+/**
+ * O pedido de mudanças ABERTO se resolve quando a empresa salva a proposta com
+ * conteúdo diferente (atendeu), aprova ou fecha sem aprovação.
+ */
+export function resolveChangeRequestOnSave(params: {
+  request: unknown;
+  proposalAfter: Record<string, unknown>;
+  isBeingApproved: boolean;
+  closedWithoutApproval: boolean;
+}): "resolved" | null {
+  if (!isChangeRequestOpen(params.request)) return null;
+  const request = params.request as ClientChangeRequest;
+  if (params.isBeingApproved || params.closedWithoutApproval) return "resolved";
+  return request.contentHash !== proposalContentHash(params.proposalAfter)
+    ? "resolved"
+    : null;
+}
+
+export interface PayableTransactionRow {
+  id: string;
+  type?: string;
+  isCommission?: boolean;
+  isDownPayment?: boolean;
+  status?: string;
+  dueDate?: string;
+}
+
+/**
+ * O que o cliente paga pelo link depois da aprovação: a entrada, se ainda
+ * aberta, senão a próxima parcela a vencer. Comissão e despesa nunca.
+ */
+export function pickPayableTransaction(
+  rows: PayableTransactionRow[],
+): { id: string; isDownPayment: boolean } | null {
+  const candidates = rows.filter(
+    (t) => t.type === "income" && !t.isCommission && t.status !== "paid",
+  );
+  const target =
+    candidates.find((t) => t.isDownPayment) ??
+    [...candidates].sort((a, b) =>
+      String(a.dueDate ?? "").localeCompare(String(b.dueDate ?? "")),
+    )[0];
+  return target ? { id: target.id, isDownPayment: !!target.isDownPayment } : null;
+}
+
 /** Hoje no fuso de Brasília, "YYYY-MM-DD" (a validade é uma data de calendário). */
 export function todayInBrazil(now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {

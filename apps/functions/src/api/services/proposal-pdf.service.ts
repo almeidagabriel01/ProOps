@@ -118,6 +118,8 @@ export const PDF_IRRELEVANT_PROPOSAL_FIELDS = new Set([
   // anteriores), não conteúdo do documento. Sem isto o aceite invalidava o PDF.
   "clientAcceptance",
   "clientAcceptanceHistory",
+  "clientChangeRequest",
+  "clientChangeRequestHistory",
 ]);
 
 function buildVersionHash(

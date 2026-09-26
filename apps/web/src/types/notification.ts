@@ -2,6 +2,8 @@ export enum NotificationType {
   PROPOSAL_VIEWED = "proposal_viewed",
   /** O cliente aceitou pelo link; a empresa precisa confirmar a aprovação. */
   PROPOSAL_ACCEPTED = "proposal_accepted",
+  /** O cliente pediu mudanças pelo link, com a justificativa. */
+  PROPOSAL_CHANGES_REQUESTED = "proposal_changes_requested",
   /** Cliente abriu o link há dias e a proposta segue sem resposta. */
   PROPOSAL_FOLLOW_UP = "proposal_follow_up",
   /** Próxima ação de um lead ou atividade do CRM com prazo hoje. */

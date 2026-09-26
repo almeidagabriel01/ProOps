@@ -1,4 +1,4 @@
-import type { ClientAcceptance } from "@/lib/client-acceptance";
+import type { ClientAcceptance, ClientChangeRequest } from "@/lib/client-acceptance";
 import { PdfDisplaySettings } from "./pdf-display-settings";
 import { ProposalProductPricingDetails } from "@/lib/product-pricing";
 
@@ -167,6 +167,8 @@ export interface Proposal {
    * (ver `lib/client-acceptance.ts`). Gravado só pelo backend.
    */
   clientAcceptance?: ClientAcceptance | null;
+  /** Pedido de mudanças do cliente pelo link. Gravado só pelo backend. */
+  clientChangeRequest?: ClientChangeRequest | null;
 
   // Flattened fields for sorting
   primarySystem?: string;

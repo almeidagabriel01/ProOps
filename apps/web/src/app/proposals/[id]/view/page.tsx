@@ -13,8 +13,17 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
 import Link from "next/link";
-import { ArrowLeft, FileDown, Pencil, Palette, Crown, ShieldCheck } from "lucide-react";
-import { isAcceptancePending } from "@/lib/client-acceptance";
+import {
+  ArrowLeft,
+  FileDown,
+  Pencil,
+  Palette,
+  Crown,
+  ShieldCheck,
+  MessageSquareWarning,
+} from "lucide-react";
+import { hasOpenChangeRequest, hasPendingAcceptance } from "@/lib/client-acceptance";
+import { useClientResponses } from "@/hooks/use-client-responses";
 import { formatDateBR } from "@/utils/date-format";
 import { ProposalService } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
@@ -41,6 +50,16 @@ export default function ViewProposalPage() {
   const [proposal, setProposal] = React.useState<Proposal | null>(null);
   const [template, setTemplate] = React.useState<ProposalTemplate | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  // Aceite e pedido de mudanças do cliente, ao vivo: chegam com a tela aberta.
+  const clientResponses = useClientResponses(tenant?.id);
+  const liveAcceptance =
+    clientResponses.acceptances.get(proposalId)?.clientAcceptance ??
+    proposal?.clientAcceptance ??
+    null;
+  const liveChangeRequest =
+    clientResponses.changeRequests.get(proposalId)?.clientChangeRequest ??
+    proposal?.clientChangeRequest ??
+    null;
   const { isGenerating, handleGenerate } = usePdfGenerator({
     proposal: proposal || {},
     template,
@@ -305,18 +324,38 @@ export default function ViewProposalPage() {
         </div>
       </div>
 
-      {proposal.clientAcceptance && isAcceptancePending(proposal) && (
+      {liveAcceptance && hasPendingAcceptance(proposal, clientResponses) && (
         <div className="flex flex-col gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-start gap-2 text-sm">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <span>
-              {proposal.clientAcceptance.name} aceitou esta proposta pelo link em{" "}
-              {formatDateBR(proposal.clientAcceptance.acceptedAt)}. Nada foi lançado
+              {liveAcceptance.name} aceitou esta proposta pelo link em{" "}
+              {formatDateBR(liveAcceptance.acceptedAt)}. Nada foi lançado
               ainda: confirme a aprovação ou ajuste a proposta.
             </span>
           </p>
           <Button asChild size="sm" className="shrink-0">
             <Link href={`/proposals?aceite=${proposal.id}`}>Revisar aceite</Link>
+          </Button>
+        </div>
+      )}
+
+      {liveChangeRequest && hasOpenChangeRequest(proposal, clientResponses) && (
+        <div className="flex flex-col gap-3 rounded-lg border border-orange-500/40 bg-orange-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-2 text-sm">
+            <MessageSquareWarning className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
+            <div className="min-w-0">
+              <p>
+                {liveChangeRequest.name || "O cliente"} pediu mudanças em{" "}
+                {formatDateBR(liveChangeRequest.requestedAt)}:
+              </p>
+              <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-muted-foreground">
+                {liveChangeRequest.message}
+              </p>
+            </div>
+          </div>
+          <Button asChild size="sm" className="shrink-0">
+            <Link href={`/proposals?ajuste=${proposal.id}`}>Ver pedido</Link>
           </Button>
         </div>
       )}

@@ -413,6 +413,7 @@ export const getSharedProposal = async (req: Request, res: Response) => {
       : await resolveOnlineApprovalState(
           sharedProposal.tenantId,
           (proposalData ?? {}) as Record<string, unknown>,
+          sharedProposal.proposalId,
         );
 
     // Retornar dados da proposta

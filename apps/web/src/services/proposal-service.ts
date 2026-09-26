@@ -155,7 +155,7 @@ export function computeProposalSortFields(data: DocumentData): {
   };
 }
 
-function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
+export function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
   const data = d.data();
   return {
     id: d.id,
@@ -442,6 +442,12 @@ export const ProposalService = {
       console.error("Error creating proposal:", error);
       throw error;
     }
+  },
+
+  /** Encerra o pedido de mudanças do cliente sem editar a proposta. */
+  resolveChangeRequest: async (id: string): Promise<void> => {
+    await callApi(`/v1/proposals/${id}/change-request/resolve`, "POST");
+    notifyListeners();
   },
 
   /** Descarta o aceite pendente do cliente para ajustar a proposta. */

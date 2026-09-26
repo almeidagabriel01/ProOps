@@ -12,6 +12,17 @@ export interface OnlineApprovalState {
   /** O cliente já aceitou e a empresa ainda não confirmou a aprovação. */
   awaitingConfirmation: boolean;
   acceptance: { name: string; acceptedAt: string } | null;
+  /** O botão "Solicitar mudanças" aparece. */
+  canRequestChanges: boolean;
+  /** Pedido de mudanças ainda aberto: a empresa está revisando. */
+  changeRequest: { requestedAt: string } | null;
+  /** Aprovada e com algo a pagar online ("Pagar entrada" ou "Pagar parcela"). */
+  payment: { label: string } | null;
+}
+
+export interface RequestChangesInput {
+  name?: string;
+  message: string;
 }
 
 export interface ApproveSharedProposalInput {
@@ -69,7 +80,6 @@ export const SharedProposalService = {
     }
   },
 
-  /** O cliente final aprova a proposta pelo link (nome, documento e aceite). */
   /** Registra o aceite do cliente. A empresa confirma a aprovação no ERP. */
   accept: async (
     token: string,
@@ -80,4 +90,19 @@ export const SharedProposalService = {
       "POST",
       input,
     ),
+
+  /** O cliente aponta o que precisa mudar (justificativa obrigatória). */
+  requestChanges: async (
+    token: string,
+    input: RequestChangesInput,
+  ): Promise<{ requestedAt: string }> =>
+    callPublicApi<{ requestedAt: string }>(
+      `/v1/share/${token}/request-changes`,
+      "POST",
+      input,
+    ),
+
+  /** Link de pagamento da entrada (ou da próxima parcela) da proposta aprovada. */
+  paymentLink: async (token: string): Promise<{ url: string }> =>
+    callPublicApi<{ url: string }>(`/v1/share/${token}/payment-link`, "POST", {}),
 };

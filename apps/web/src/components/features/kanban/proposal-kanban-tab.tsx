@@ -26,7 +26,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
-import { isAcceptancePending } from "@/lib/client-acceptance";
+import { hasOpenChangeRequest, hasPendingAcceptance } from "@/lib/client-acceptance";
+import { useClientResponses } from "@/hooks/use-client-responses";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, Search, ListFilter, Kanban } from "lucide-react";
 import { isDateBeforeTodayBR } from "@/utils/date-format";
@@ -86,6 +87,8 @@ function mergeById<T extends { id: string }>(prev: T[], incoming: T[]): T[] {
 
 export function ProposalKanbanTab() {
   const { tenant, isReadOnly: isDemoReadOnly } = useTenant();
+  // Aceite e pedido de mudanças do cliente chegam com o quadro aberto.
+  const clientResponses = useClientResponses(tenant?.id);
   // Duas coisas diferentes no mesmo quadro:
   //  - a COLUNA e um recurso proprio do CRM (kanban_statuses) → pageId kanban;
   //  - arrastar um CARTAO muda o status da PROPOSTA → pageId proposals.
@@ -1204,7 +1207,8 @@ export function ProposalKanbanTab() {
             validUntil={proposal.validUntil}
             productCount={proposal.products?.length}
             status={proposal.status}
-            awaitingAcceptanceConfirmation={isAcceptancePending(proposal)}
+            awaitingAcceptanceConfirmation={hasPendingAcceptance(proposal, clientResponses)}
+            changesRequested={hasOpenChangeRequest(proposal, clientResponses)}
             isDragging={isDragging}
           />
         )}

@@ -37,3 +37,40 @@ export function pickApprovedColumnId(columns: ColumnLike[]): string {
     "approved"
   );
 }
+
+/** O cliente pediu mudanças pelo link. Aberto até a empresa atender ou encerrar. */
+export interface ClientChangeRequest {
+  name: string | null;
+  message: string;
+  requestedAt: string;
+  status?: "open" | "resolved";
+}
+
+export function isChangeRequestOpen(proposal: { clientChangeRequest?: ClientChangeRequest | null }): boolean {
+  return proposal.clientChangeRequest?.status === "open";
+}
+
+interface LiveResponses {
+  ready: boolean;
+  acceptances: Map<string, unknown>;
+  changeRequests: Map<string, unknown>;
+}
+
+/**
+ * Com o listener em tempo real pronto, ele manda (a lista pode estar velha);
+ * antes disso, vale o que veio com a proposta.
+ */
+export function hasPendingAcceptance(
+  proposal: { id: string; clientAcceptance?: ClientAcceptance | null },
+  live?: LiveResponses,
+): boolean {
+  return live?.ready ? live.acceptances.has(proposal.id) : isAcceptancePending(proposal);
+}
+
+export function hasOpenChangeRequest(
+  proposal: { id: string; clientChangeRequest?: ClientChangeRequest | null },
+  live?: LiveResponses,
+): boolean {
+  return live?.ready ? live.changeRequests.has(proposal.id) : isChangeRequestOpen(proposal);
+}
+

@@ -24,7 +24,10 @@ import {
   updateProposalNumbering,
 } from "../controllers/proposal-numbering.controller";
 import { downloadProposalPdf } from "../controllers/proposal-pdf.controller";
-import { discardClientAcceptance } from "../controllers/proposal-online-approval.controller";
+import {
+  discardClientAcceptance,
+  resolveClientChangeRequest,
+} from "../controllers/proposal-online-approval.controller";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 import {
   createSpreadsheet,
@@ -75,6 +78,7 @@ router.put("/proposals/:id", updateProposal);
 // Aceite do cliente pelo link: a empresa descarta para ajustar. Confirmar é
 // mudar a proposta para aprovada, pelo PUT acima.
 router.post("/proposals/:id/acceptance/discard", discardClientAcceptance);
+router.post("/proposals/:id/change-request/resolve", resolveClientChangeRequest);
 router.delete("/proposals/:id", deleteProposal);
 router.get("/proposals/:id/pdf", pdfRateLimiter, downloadProposalPdf);
 router.post("/spreadsheets", createSpreadsheet);

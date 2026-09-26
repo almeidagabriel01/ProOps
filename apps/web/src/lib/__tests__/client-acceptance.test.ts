@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isAcceptancePending, pickApprovedColumnId } from "../client-acceptance";
+import {
+  hasOpenChangeRequest,
+  hasPendingAcceptance,
+  isAcceptancePending,
+  pickApprovedColumnId,
+} from "../client-acceptance";
 
 describe("isAcceptancePending", () => {
   it("só o aceite pendente conta", () => {
@@ -34,5 +39,37 @@ describe("pickApprovedColumnId", () => {
 
   it("sem coluna nenhuma cai no status aprovado", () => {
     expect(pickApprovedColumnId([])).toBe("approved");
+  });
+});
+
+describe("selos ao vivo", () => {
+  const live = (acc: string[], chg: string[]) => ({
+    ready: true,
+    acceptances: new Map(acc.map((id) => [id, {}])),
+    changeRequests: new Map(chg.map((id) => [id, {}])),
+  });
+
+  it("com o listener pronto, ele manda, mesmo com a lista velha", () => {
+    const stale = { id: "p1", clientAcceptance: null, clientChangeRequest: null };
+    expect(hasPendingAcceptance(stale, live(["p1"], []))).toBe(true);
+    expect(hasOpenChangeRequest(stale, live([], ["p1"]))).toBe(true);
+
+    const resolvedMeanwhile = {
+      id: "p2",
+      clientAcceptance: { name: "a", document: "1", acceptedAt: "x", status: "pending" as const },
+      clientChangeRequest: { name: null, message: "m", requestedAt: "x", status: "open" as const },
+    };
+    expect(hasPendingAcceptance(resolvedMeanwhile, live([], []))).toBe(false);
+    expect(hasOpenChangeRequest(resolvedMeanwhile, live([], []))).toBe(false);
+  });
+
+  it("antes do listener responder, vale o dado da proposta", () => {
+    const notReady = { ready: false, acceptances: new Map(), changeRequests: new Map() };
+    const p = {
+      id: "p1",
+      clientChangeRequest: { name: null, message: "m", requestedAt: "x", status: "open" as const },
+    };
+    expect(hasOpenChangeRequest(p, notReady)).toBe(true);
+    expect(hasPendingAcceptance(p, notReady)).toBe(false);
   });
 });

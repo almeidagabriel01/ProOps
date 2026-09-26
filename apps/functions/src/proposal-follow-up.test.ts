@@ -89,6 +89,15 @@ describe("isProposalAwaitingClient", () => {
     expect(await isProposalAwaitingClient({ status: "sent", clientAcceptance: {} })).toBe(false);
   });
 
+  it("pedido de mudanças aberto: a bola está com a empresa", async () => {
+    expect(
+      await isProposalAwaitingClient({ status: "sent", clientChangeRequest: { status: "open" } }),
+    ).toBe(false);
+    expect(
+      await isProposalAwaitingClient({ status: "sent", clientChangeRequest: { status: "resolved" } }),
+    ).toBe(true);
+  });
+
   it("aceite pendente já é resposta; descartado ou anulado volta a esperar o cliente", async () => {
     expect(
       await isProposalAwaitingClient({ status: "sent", clientAcceptance: { status: "pending" } }),

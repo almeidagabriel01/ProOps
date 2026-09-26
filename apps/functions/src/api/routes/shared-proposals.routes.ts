@@ -2,7 +2,11 @@ import { Router } from "express";
 import * as SharedProposalsController from "../controllers/shared-proposals.controller";
 import { downloadSharedProposalPdf } from "../controllers/shared-proposal-pdf.controller";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
-import { acceptSharedProposal } from "../controllers/proposal-online-approval.controller";
+import {
+  acceptSharedProposal,
+  createSharedProposalPaymentLink,
+  requestSharedProposalChanges,
+} from "../controllers/proposal-online-approval.controller";
 
 const router = Router();
 
@@ -25,5 +29,11 @@ router.get("/share/:token/pdf", pdfRateLimiter, downloadSharedProposalPdf);
  * `api/index.ts` vale para ela também.
  */
 router.post("/share/:token/accept", acceptSharedProposal);
+
+/** Pedido de mudanças: o cliente diz o que não ficou como o combinado. */
+router.post("/share/:token/request-changes", requestSharedProposalChanges);
+
+/** Proposta aprovada: link de pagamento da entrada ou da próxima parcela. */
+router.post("/share/:token/payment-link", createSharedProposalPaymentLink);
 
 export default router;

@@ -9,7 +9,7 @@ import {
   SharedProposalService,
   type OnlineApprovalState,
 } from "@/services/shared-proposal-service";
-import { OnlineApprovalBar } from "./_components/online-approval-bar";
+import { ProposalResponsePanel } from "./_components/proposal-response-panel";
 import { Proposal } from "@/types/proposal";
 import { Tenant, ProposalTemplate } from "@/types";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
@@ -308,7 +308,17 @@ export default function SharedProposalPage() {
 
       {/* PDF View Area */}
       <main className="flex-1 w-full bg-muted/20 overflow-hidden flex flex-col relative">
-        <div className="container mx-auto px-4 py-4 w-full flex justify-center">
+        <div className="container mx-auto px-4 py-4 w-full flex flex-col items-center gap-3">
+          {onlineApproval && (
+            <ProposalResponsePanel
+              token={token}
+              state={onlineApproval}
+              tenantName={tenant?.name || "a empresa"}
+              primaryColor={tenant?.primaryColor}
+              onStateChange={setOnlineApproval}
+              className="max-w-[794px]"
+            />
+          )}
           <div
             data-pdf-ui
             className="w-full max-w-[794px] flex items-center justify-between bg-card border rounded-lg p-2 shadow-sm z-10"
@@ -340,7 +350,7 @@ export default function SharedProposalPage() {
           </div>
         </div>
 
-        <div className="w-full flex-1 overflow-auto px-4 sm:px-8 pb-32 pt-4 flex justify-center">
+        <div className="w-full flex-1 overflow-auto px-4 sm:px-8 pb-8 pt-4 flex justify-center">
           <div
             id="shared-proposal-preview-content"
             ref={contentRef}
@@ -367,17 +377,22 @@ export default function SharedProposalPage() {
             />
           </div>
         </div>
+        {onlineApproval && (
+          <div className="container mx-auto px-4 pb-12 w-full flex justify-center">
+            <ProposalResponsePanel
+              token={token}
+              state={onlineApproval}
+              tenantName={tenant?.name || "a empresa"}
+              primaryColor={tenant?.primaryColor}
+              onStateChange={setOnlineApproval}
+              position="end"
+              className="max-w-[794px]"
+            />
+          </div>
+        )}
       </main>
 
-      {onlineApproval && (
-        <OnlineApprovalBar
-          token={token}
-          state={onlineApproval}
-          tenantName={tenant?.name || "a empresa"}
-          primaryColor={tenant?.primaryColor}
-          onAccepted={setOnlineApproval}
-        />
-      )}
+
     </div>
   );
 }

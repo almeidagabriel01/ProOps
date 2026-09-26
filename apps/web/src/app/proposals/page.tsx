@@ -34,6 +34,7 @@ import {
   Pencil,
   Kanban,
   ShieldCheck,
+  MessageSquareWarning,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -41,7 +42,15 @@ import { replaceUrlSearchParams } from "@/lib/url-state";
 import { proposalStatusFilterOptions } from "@/lib/proposal-status-filter";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
 import { ClientAcceptanceDialog } from "./_components/client-acceptance-dialog";
-import { isAcceptancePending, pickApprovedColumnId } from "@/lib/client-acceptance";
+import { ClientChangeRequestDialog } from "./_components/client-change-request-dialog";
+import {
+  hasOpenChangeRequest,
+  hasPendingAcceptance,
+  isAcceptancePending,
+  isChangeRequestOpen,
+  pickApprovedColumnId,
+} from "@/lib/client-acceptance";
+import { useClientResponses } from "@/hooks/use-client-responses";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import {
@@ -170,6 +179,11 @@ export default function ProposalsPage() {
     () => searchParams.get("aceite"),
   );
   const [acceptanceFallback, setAcceptanceFallback] = React.useState<Proposal | null>(null);
+  const [changeRequestId, setChangeRequestId] = React.useState<string | null>(
+    () => searchParams.get("ajuste"),
+  );
+  // Aceites e pedidos de mudança em aberto, ao vivo: chegam com a tela aberta.
+  const clientResponses = useClientResponses(tenant?.id);
   const [updatingStatusId, setUpdatingStatusId] = React.useState<string | null>(
     null,
   );
@@ -741,7 +755,9 @@ export default function ProposalsPage() {
 
   // A notificação pode apontar para uma proposta fora da página carregada.
   const acceptanceFromList = acceptanceId
-    ? proposals.find((p) => p.id === acceptanceId) ?? null
+    ? clientResponses.acceptances.get(acceptanceId) ??
+      proposals.find((p) => p.id === acceptanceId) ??
+      null
     : null;
   React.useEffect(() => {
     if (!acceptanceId || acceptanceFromList) return;
@@ -830,6 +846,39 @@ export default function ProposalsPage() {
     toast.info("Aceite descartado. Ajuste a proposta e reenvie o link para o cliente aceitar de novo.");
     router.push(`/proposals/${acceptanceTarget.id}`);
   }, [acceptanceTarget, markAcceptanceResolved, router]);
+
+  const changeRequestTarget = (() => {
+    if (!changeRequestId) return null;
+    const found =
+      clientResponses.changeRequests.get(changeRequestId) ??
+      proposals.find((p) => p.id === changeRequestId);
+    return found && isChangeRequestOpen(found) ? found : null;
+  })();
+
+  const closeChangeRequest = React.useCallback(() => {
+    setChangeRequestId(null);
+    replaceUrlSearchParams({ ajuste: null });
+  }, []);
+
+  const editForChangeRequest = React.useCallback(() => {
+    if (!changeRequestTarget) return;
+    router.push(`/proposals/${changeRequestTarget.id}`);
+  }, [changeRequestTarget, router]);
+
+  const resolveChangeRequest = React.useCallback(async () => {
+    if (!changeRequestTarget) return;
+    try {
+      await ProposalService.resolveChangeRequest(changeRequestTarget.id);
+      toast.success("Pedido de mudanças encerrado.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível encerrar o pedido.",
+      );
+      throw error;
+    }
+  }, [changeRequestTarget]);
 
   const proposalToDelete = sortedProposals.find((p) => p.id === deleteId);
   const columns: DataTableColumn<Proposal>[] = React.useMemo(
@@ -947,7 +996,7 @@ export default function ProposalsPage() {
                 {getStatusLabel(proposal.status)}
               </Badge>
             )}
-            {isAcceptancePending(proposal) && (
+            {hasPendingAcceptance(proposal, clientResponses) && (
               <button
                 type="button"
                 onClick={() => setAcceptanceId(proposal.id)}
@@ -955,6 +1004,16 @@ export default function ProposalsPage() {
               >
                 <ShieldCheck className="h-3 w-3" />
                 Aceite do cliente
+              </button>
+            )}
+            {hasOpenChangeRequest(proposal, clientResponses) && (
+              <button
+                type="button"
+                onClick={() => setChangeRequestId(proposal.id)}
+                className="mt-1 flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-700 hover:bg-orange-500/20 dark:text-orange-400"
+              >
+                <MessageSquareWarning className="h-3 w-3" />
+                Ajuste solicitado
               </button>
             )}
           </div>
@@ -1247,6 +1306,7 @@ export default function ProposalsPage() {
       getStatusColor,
       getStatusLabel,
       kanbanColumns,
+      clientResponses,
     ],
   );
 
@@ -1463,6 +1523,14 @@ export default function ProposalsPage() {
             )}
           </div>
           {renderDialogs()}
+          <ClientChangeRequestDialog
+            proposalTitle={changeRequestTarget?.title?.trim() || "sem título"}
+            request={changeRequestTarget?.clientChangeRequest ?? null}
+            canDecide={canEdit && !isReadOnly}
+            onClose={closeChangeRequest}
+            onEdit={editForChangeRequest}
+            onResolve={resolveChangeRequest}
+          />
           <ClientAcceptanceDialog
             proposalTitle={acceptanceTarget?.title?.trim() || "sem título"}
             acceptance={acceptanceTarget?.clientAcceptance ?? null}

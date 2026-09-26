@@ -13,6 +13,11 @@ describe("ProposalKanbanCard", () => {
     expect(screen.getByText(/Aceite do cliente: confirme/)).toBeInTheDocument();
   });
 
+  it("mostra o selo de ajuste solicitado", () => {
+    render(<ProposalKanbanCard title="Casa" changesRequested />);
+    expect(screen.getByText("Ajuste solicitado")).toBeInTheDocument();
+  });
+
   it("sem aceite pendente, sem selo", () => {
     render(<ProposalKanbanCard title="Casa" />);
     expect(screen.queryByText(/Aceite do cliente/)).toBeNull();

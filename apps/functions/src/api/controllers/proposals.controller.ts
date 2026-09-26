@@ -37,8 +37,10 @@ import { logger, recordPhase } from "../../lib/logger";
 import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
 import {
   isAcceptancePending,
+  isChangeRequestOpen,
   isStatusClosedWithoutApproval,
   resolveAcceptanceOnSave,
+  resolveChangeRequestOnSave,
 } from "../services/proposal-online-approval";
 import {
   normalizeProposalTransactionTitle,
@@ -1649,23 +1651,44 @@ export const updateProposal = async (req: Request, res: Response) => {
     // Aceite do cliente pelo link, ainda pendente: confirmar é aprovar a
     // proposta (este mesmo caminho, da lista, do quadro ou do formulário), e
     // editar o que o cliente viu anula o aceite, porque ele aceitou outra versão.
-    if (isAcceptancePending(proposalData?.clientAcceptance)) {
+    // O pedido de mudanças aberto se resolve do mesmo jeito: editar o conteúdo
+    // é atender, e aprovar ou fechar encerra a conversa.
+    const hasPendingAcceptance = isAcceptancePending(proposalData?.clientAcceptance);
+    const hasOpenChangeRequest = isChangeRequestOpen(proposalData?.clientChangeRequest);
+    if (hasPendingAcceptance || hasOpenChangeRequest) {
       const statusChanged =
         updateData.status !== undefined && updateData.status !== proposalData?.status;
+      const closedWithoutApproval =
+        statusChanged &&
+        (await isStatusClosedWithoutApproval(String(updateData.status), proposalTenantId));
+      const proposalAfter = { ...proposalData, ...safeUpdate };
+      const resolvedAt = new Date().toISOString();
+      const responseUpdate: Record<string, unknown> = {};
+
       const nextAcceptance = resolveAcceptanceOnSave({
         acceptance: proposalData?.clientAcceptance,
-        proposalAfter: { ...proposalData, ...safeUpdate },
+        proposalAfter,
         isBeingApproved,
-        closedWithoutApproval:
-          statusChanged &&
-          (await isStatusClosedWithoutApproval(String(updateData.status), proposalTenantId)),
+        closedWithoutApproval,
       });
       if (nextAcceptance) {
-        await proposalRef.update({
-          "clientAcceptance.status": nextAcceptance,
-          "clientAcceptance.resolvedAt": new Date().toISOString(),
-          "clientAcceptance.resolvedBy": userId,
-        });
+        responseUpdate["clientAcceptance.status"] = nextAcceptance;
+        responseUpdate["clientAcceptance.resolvedAt"] = resolvedAt;
+        responseUpdate["clientAcceptance.resolvedBy"] = userId;
+      }
+      const nextChangeRequest = resolveChangeRequestOnSave({
+        request: proposalData?.clientChangeRequest,
+        proposalAfter,
+        isBeingApproved,
+        closedWithoutApproval,
+      });
+      if (nextChangeRequest) {
+        responseUpdate["clientChangeRequest.status"] = nextChangeRequest;
+        responseUpdate["clientChangeRequest.resolvedAt"] = resolvedAt;
+        responseUpdate["clientChangeRequest.resolvedBy"] = userId;
+      }
+      if (Object.keys(responseUpdate).length > 0) {
+        await proposalRef.update(responseUpdate);
       }
     }
 

@@ -10,6 +10,7 @@ import {
   Clock,
   FileText,
   MessageCircle,
+  MessageSquareWarning,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -41,6 +42,8 @@ function getNotificationIcon(type: NotificationType) {
       return CalendarClock;
     case NotificationType.PROPOSAL_ACCEPTED:
       return CheckCircle2;
+    case NotificationType.PROPOSAL_CHANGES_REQUESTED:
+      return MessageSquareWarning;
     default:
       return FileText;
   }
@@ -52,6 +55,8 @@ function getNotificationIconClassName(type: NotificationType): string {
       return "bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400";
     case NotificationType.PROPOSAL_ACCEPTED:
       return "bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400";
+    case NotificationType.PROPOSAL_CHANGES_REQUESTED:
+      return "bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400";
     case NotificationType.PROPOSAL_FOLLOW_UP:
       return "bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400";
     case NotificationType.LEAD_REMINDER:
@@ -74,6 +79,10 @@ function getNotificationLink(notification: Notification): string | undefined {
       // (que gera o financeiro e convida a emitir a nota) e o ajustar.
       return notification.proposalId
         ? `/proposals?aceite=${notification.proposalId}`
+        : "/proposals";
+    case NotificationType.PROPOSAL_CHANGES_REQUESTED:
+      return notification.proposalId
+        ? `/proposals?ajuste=${notification.proposalId}`
         : "/proposals";
     case NotificationType.PROPOSAL_EXPIRING:
       return notification.proposalId
