@@ -4,11 +4,13 @@ import { callApi, callPublicApi } from "@/lib/api-client";
 import { ShareLinkResponse } from "@/types/shared-proposal";
 import { Proposal } from "@/types/proposal";
 
-/** Estado da aprovação online devolvido pelo link público. */
+/** Estado do aceite online devolvido pelo link público. */
 export interface OnlineApprovalState {
   canApprove: boolean;
   approved: boolean;
   expired: boolean;
+  /** O cliente já aceitou e a empresa ainda não confirmou a aprovação. */
+  awaitingConfirmation: boolean;
   acceptance: { name: string; acceptedAt: string } | null;
 }
 
@@ -20,8 +22,6 @@ export interface ApproveSharedProposalInput {
 
 export interface ApproveSharedProposalResult {
   acceptedAt: string;
-  /** Link para pagar o sinal, quando a empresa recebe online. */
-  paymentUrl: string | null;
 }
 
 export const SharedProposalService = {
@@ -70,12 +70,13 @@ export const SharedProposalService = {
   },
 
   /** O cliente final aprova a proposta pelo link (nome, documento e aceite). */
-  approve: async (
+  /** Registra o aceite do cliente. A empresa confirma a aprovação no ERP. */
+  accept: async (
     token: string,
     input: ApproveSharedProposalInput,
   ): Promise<ApproveSharedProposalResult> =>
     callPublicApi<ApproveSharedProposalResult>(
-      `/v1/share/${token}/approve`,
+      `/v1/share/${token}/accept`,
       "POST",
       input,
     ),

@@ -89,6 +89,17 @@ describe("isProposalAwaitingClient", () => {
     expect(await isProposalAwaitingClient({ status: "sent", clientAcceptance: {} })).toBe(false);
   });
 
+  it("aceite pendente já é resposta; descartado ou anulado volta a esperar o cliente", async () => {
+    expect(
+      await isProposalAwaitingClient({ status: "sent", clientAcceptance: { status: "pending" } }),
+    ).toBe(false);
+    for (const status of ["discarded", "invalidated"]) {
+      expect(
+        await isProposalAwaitingClient({ status: "sent", clientAcceptance: { status } }),
+      ).toBe(true);
+    }
+  });
+
   it("coluna personalizada ganha ou perdida já teve resposta", async () => {
     kanban = {
       ganha: { category: "won" },

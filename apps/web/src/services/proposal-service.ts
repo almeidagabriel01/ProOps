@@ -444,6 +444,12 @@ export const ProposalService = {
     }
   },
 
+  /** Descarta o aceite pendente do cliente para ajustar a proposta. */
+  discardClientAcceptance: async (id: string): Promise<void> => {
+    await callApi(`/v1/proposals/${id}/acceptance/discard`, "POST");
+    notifyListeners();
+  },
+
   updateProposal: async (
     id: string,
     data: Partial<Proposal>,

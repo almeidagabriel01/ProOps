@@ -114,9 +114,10 @@ export const PDF_IRRELEVANT_PROPOSAL_FIELDS = new Set([
   // que já entra no hash. Listado aqui para o backfill não invalidar o cache.
   "productRefs",
   "productRefsIndexed",
-  // Aceite do cliente pelo link (aprovação online): registro de quem aprovou,
-  // não conteúdo do documento. Sem isto a aprovação invalidava o PDF.
+  // Aceite do cliente pelo link: registro de quem aceitou (e os aceites
+  // anteriores), não conteúdo do documento. Sem isto o aceite invalidava o PDF.
   "clientAcceptance",
+  "clientAcceptanceHistory",
 ]);
 
 function buildVersionHash(

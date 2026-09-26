@@ -39,7 +39,7 @@ function getNotificationIcon(type: NotificationType) {
       return MessageCircle;
     case NotificationType.LEAD_REMINDER:
       return CalendarClock;
-    case NotificationType.PROPOSAL_APPROVED:
+    case NotificationType.PROPOSAL_ACCEPTED:
       return CheckCircle2;
     default:
       return FileText;
@@ -50,7 +50,7 @@ function getNotificationIconClassName(type: NotificationType): string {
   switch (type) {
     case NotificationType.PRICE_CHANGE:
       return "bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400";
-    case NotificationType.PROPOSAL_APPROVED:
+    case NotificationType.PROPOSAL_ACCEPTED:
       return "bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400";
     case NotificationType.PROPOSAL_FOLLOW_UP:
       return "bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400";
@@ -69,6 +69,12 @@ function getNotificationLink(notification: Notification): string | undefined {
     case NotificationType.LEAD_REMINDER:
       if (notification.leadId) return `/crm?tab=leads&lead=${notification.leadId}`;
       return notification.clientId ? `/contacts/${notification.clientId}` : "/crm?tab=leads";
+    case NotificationType.PROPOSAL_ACCEPTED:
+      // Abre a lista já com o aceite na tela: é ali que ficam o confirmar
+      // (que gera o financeiro e convida a emitir a nota) e o ajustar.
+      return notification.proposalId
+        ? `/proposals?aceite=${notification.proposalId}`
+        : "/proposals";
     case NotificationType.PROPOSAL_EXPIRING:
       return notification.proposalId
         ? `/proposals/${notification.proposalId}/view`

@@ -1,4 +1,5 @@
 import { db } from "./init";
+import { acceptanceStatus } from "./api/services/proposal-online-approval";
 
 /**
  * Follow-up de proposta vista e não respondida: o cliente abriu o link há
@@ -19,7 +20,9 @@ export async function isProposalAwaitingClient(
 ): Promise<boolean> {
   const status = String(proposal.status ?? "");
   if (!status || CLOSED_STATUSES.has(status)) return false;
-  if (proposal.clientAcceptance) return false;
+  // Aceite pendente ou confirmado já é resposta; descartado ou anulado não.
+  const accepted = acceptanceStatus(proposal.clientAcceptance);
+  if (accepted === "pending" || accepted === "confirmed") return false;
   if (["in_progress", "sent", "default_0", "default_1"].includes(status)) return true;
 
   // Coluna personalizada do CRM: ganha ou perdida já teve resposta.

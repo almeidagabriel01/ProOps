@@ -36,6 +36,11 @@ import { productRefsFields } from "../../lib/proposal-product-refs";
 import { logger, recordPhase } from "../../lib/logger";
 import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
 import {
+  isAcceptancePending,
+  isStatusClosedWithoutApproval,
+  resolveAcceptanceOnSave,
+} from "../services/proposal-online-approval";
+import {
   normalizeProposalTransactionTitle,
   resolveDefaultWalletNameForTenant,
   buildApprovedProposalTransactionDrafts,
@@ -1640,6 +1645,29 @@ export const updateProposal = async (req: Request, res: Response) => {
         : isCurrentlyApproved;
 
     const isBeingApproved = willBeApproved && !isCurrentlyApproved;
+
+    // Aceite do cliente pelo link, ainda pendente: confirmar é aprovar a
+    // proposta (este mesmo caminho, da lista, do quadro ou do formulário), e
+    // editar o que o cliente viu anula o aceite, porque ele aceitou outra versão.
+    if (isAcceptancePending(proposalData?.clientAcceptance)) {
+      const statusChanged =
+        updateData.status !== undefined && updateData.status !== proposalData?.status;
+      const nextAcceptance = resolveAcceptanceOnSave({
+        acceptance: proposalData?.clientAcceptance,
+        proposalAfter: { ...proposalData, ...safeUpdate },
+        isBeingApproved,
+        closedWithoutApproval:
+          statusChanged &&
+          (await isStatusClosedWithoutApproval(String(updateData.status), proposalTenantId)),
+      });
+      if (nextAcceptance) {
+        await proposalRef.update({
+          "clientAcceptance.status": nextAcceptance,
+          "clientAcceptance.resolvedAt": new Date().toISOString(),
+          "clientAcceptance.resolvedBy": userId,
+        });
+      }
+    }
 
     // Remover receita se sair de aprovada (Rascunho/Enviada)
     const isBeingReverted =

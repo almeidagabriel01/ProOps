@@ -1,7 +1,10 @@
 import {
   OnlineApprovalSchema,
+  acceptanceStatus,
   buildClientAcceptance,
   isProposalExpired,
+  proposalContentHash,
+  resolveAcceptanceOnSave,
   pickApprovedStatus,
   todayInBrazil,
 } from "./proposal-online-approval";
@@ -34,6 +37,7 @@ describe("buildClientAcceptance", () => {
       ip: "200.1.2.3",
       userAgent: "x".repeat(500),
       sharedProposalId: "sp1",
+      contentHash: "h1",
       now: new Date("2026-09-25T15:00:00.000Z"),
     });
     expect(acceptance).toMatchObject({
@@ -42,8 +46,128 @@ describe("buildClientAcceptance", () => {
       acceptedAt: "2026-09-25T15:00:00.000Z",
       ip: "200.1.2.3",
       sharedProposalId: "sp1",
+      status: "pending",
+      contentHash: "h1",
     });
     expect(acceptance.userAgent).toHaveLength(300);
+  });
+});
+
+describe("proposalContentHash", () => {
+  const base = {
+    title: "Casa",
+    totalValue: 1000,
+    products: [{ productId: "a", quantity: 2 }],
+    status: "sent",
+    updatedAt: "2026-09-01",
+  };
+
+  it("não muda com status, datas de controle nem com o próprio aceite", () => {
+    expect(
+      proposalContentHash({
+        ...base,
+        status: "approved",
+        updatedAt: "2026-09-26",
+        clientAcceptance: { name: "x" },
+        clientAcceptanceHistory: [{ name: "y" }],
+      }),
+    ).toBe(proposalContentHash(base));
+  });
+
+  it("vazio, nulo e ausente contam igual (o formulário reenvia tudo)", () => {
+    expect(proposalContentHash({ ...base, customNotes: "", discount: null })).toBe(
+      proposalContentHash(base),
+    );
+  });
+
+  it("não depende da ordem das chaves", () => {
+    expect(proposalContentHash({ totalValue: 1000, title: "Casa" })).toBe(
+      proposalContentHash({ title: "Casa", totalValue: 1000 }),
+    );
+  });
+
+  it("muda com valor, item ou texto", () => {
+    const h = proposalContentHash(base);
+    expect(proposalContentHash({ ...base, totalValue: 1200 })).not.toBe(h);
+    expect(proposalContentHash({ ...base, products: [{ productId: "a", quantity: 3 }] })).not.toBe(h);
+    expect(proposalContentHash({ ...base, title: "Casa nova" })).not.toBe(h);
+  });
+});
+
+describe("resolveAcceptanceOnSave", () => {
+  const proposal = { title: "Casa", totalValue: 1000 };
+  const pending = { name: "Maria", status: "pending", contentHash: proposalContentHash(proposal) };
+
+  it("aprovar sem mudar o conteúdo confirma o aceite", () => {
+    expect(
+      resolveAcceptanceOnSave({
+        acceptance: pending,
+        proposalAfter: { ...proposal, status: "approved" },
+        isBeingApproved: true,
+        closedWithoutApproval: false,
+      }),
+    ).toBe("confirmed");
+  });
+
+  it("editar o que o cliente viu anula, mesmo aprovando no mesmo salvamento", () => {
+    for (const isBeingApproved of [true, false]) {
+      expect(
+        resolveAcceptanceOnSave({
+          acceptance: pending,
+          proposalAfter: { ...proposal, totalValue: 900 },
+          isBeingApproved,
+          closedWithoutApproval: false,
+        }),
+      ).toBe("invalidated");
+    }
+  });
+
+  it("recusar ou voltar ao rascunho descarta", () => {
+    expect(
+      resolveAcceptanceOnSave({
+        acceptance: pending,
+        proposalAfter: proposal,
+        isBeingApproved: false,
+        closedWithoutApproval: true,
+      }),
+    ).toBe("discarded");
+  });
+
+  it("salvar sem mudar nada, ou mover para outra coluna aberta, mantém pendente", () => {
+    expect(
+      resolveAcceptanceOnSave({
+        acceptance: pending,
+        proposalAfter: { ...proposal, notes: "" },
+        isBeingApproved: false,
+        closedWithoutApproval: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("aceite que não está pendente não muda", () => {
+    for (const status of ["confirmed", "discarded", "invalidated"]) {
+      expect(
+        resolveAcceptanceOnSave({
+          acceptance: { ...pending, status },
+          proposalAfter: { ...proposal, totalValue: 1 },
+          isBeingApproved: true,
+          closedWithoutApproval: false,
+        }),
+      ).toBeNull();
+    }
+    expect(
+      resolveAcceptanceOnSave({
+        acceptance: undefined,
+        proposalAfter: proposal,
+        isBeingApproved: true,
+        closedWithoutApproval: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("aceite antigo sem status (de quando o link aprovava direto) conta como confirmado", () => {
+    expect(acceptanceStatus({ name: "Maria" })).toBe("confirmed");
+    expect(acceptanceStatus(undefined)).toBeNull();
   });
 });
 

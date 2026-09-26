@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
+import { isAcceptancePending } from "@/lib/client-acceptance";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, Search, ListFilter, Kanban } from "lucide-react";
 import { isDateBeforeTodayBR } from "@/utils/date-format";
@@ -1203,6 +1204,7 @@ export function ProposalKanbanTab() {
             validUntil={proposal.validUntil}
             productCount={proposal.products?.length}
             status={proposal.status}
+            awaitingAcceptanceConfirmation={isAcceptancePending(proposal)}
             isDragging={isDragging}
           />
         )}

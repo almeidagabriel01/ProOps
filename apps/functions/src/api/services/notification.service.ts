@@ -7,7 +7,7 @@ import {
 
 export type NotificationType =
   | "proposal_viewed"
-  | "proposal_approved"
+  | "proposal_accepted"
   | "proposal_follow_up"
   | "lead_reminder"
   | "transaction_due_reminder"

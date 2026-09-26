@@ -112,7 +112,7 @@ Os upserts das partes 1 e 2 vao por um `BulkWriter` (paralelo, com retentativa),
 **Parte 2b — Follow-up de proposta vista e sem resposta (2026-09-25):**
 - `runProposalFollowUps` (`proposal-follow-up.ts`): links com `followUpPending == true` e `firstViewedAt` ha 3 dias ou mais (indice `shared_proposals(followUpPending, firstViewedAt)`)
 - A primeira abertura do link grava os dois campos (`SharedProposalService.recordView`); links anteriores a mudanca nao tem os campos e nunca entram
-- Proposta ainda aberta (nem aprovada, recusada, rascunho, com aceite, nem em coluna `won`/`lost`) gera notificacao `proposal_follow_up` com id `followup_{sharedProposalId}`; o link e desmarcado em qualquer caso: um aviso por link
+- Proposta ainda aberta (nem aprovada, recusada, rascunho, com aceite pendente ou confirmado, nem em coluna `won`/`lost`) gera notificacao `proposal_follow_up` com id `followup_{sharedProposalId}`; o link e desmarcado em qualquer caso: um aviso por link
 - Falha nao-fatal, como a parte 3
 
 **Parte 2c — Lembretes do CRM (2026-09-25):**

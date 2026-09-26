@@ -277,7 +277,7 @@ interface Notification {
 | Tipo | Origem |
 |------|--------|
 | `proposal_viewed` | Quando cliente visualiza proposta compartilhada |
-| `proposal_approved` | Quando o cliente aprova a proposta pelo link (`proposal-online-approval.controller.ts`) |
+| `proposal_accepted` | Quando o cliente aceita a proposta pelo link (`proposal-online-approval.controller.ts`); a empresa confirma a aprovação no ERP |
 | `proposal_follow_up` | Cron `checkDueDates` (parte 2b) — cliente abriu o link ha 3 dias e a proposta segue aberta |
 | `lead_reminder` | Cron `checkDueDates` (parte 2c) — proxima acao de lead ou atividade do CRM com prazo hoje (`leadId`/`clientId` no doc) |
 | `transaction_due_reminder` | Cron `checkDueDates` — lancamento vencendo em 3 dias |

@@ -266,7 +266,7 @@ export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   calendarSync: "Google Agenda",
   driveSync: "Google Drive",
   onlinePayments: "Pagamento online",
-  onlineApproval: "Aprovação online da proposta",
+  onlineApproval: "Aceite online da proposta",
   fiscalReceiving: "Notas de entrada",
 };
 

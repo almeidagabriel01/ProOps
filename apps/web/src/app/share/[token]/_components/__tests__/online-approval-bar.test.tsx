@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 /**
- * Aprovação online no link público: o cliente informa nome, CPF/CNPJ e aceita.
+ * Aceite online no link público: o cliente informa nome, CPF/CNPJ e aceita.
+ * O aceite NÃO aprova: a barra diz que a empresa vai confirmar, e nada de
+ * pagamento é oferecido antes disso.
  */
 
 import "@testing-library/jest-dom/vitest";
@@ -9,101 +11,118 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-const approve = vi.hoisted(() => vi.fn());
+const accept = vi.hoisted(() => vi.fn());
 vi.mock("@/services/shared-proposal-service", () => ({
-  SharedProposalService: { approve },
+  SharedProposalService: { accept },
 }));
 
 import { OnlineApprovalBar } from "../online-approval-bar";
 import type { OnlineApprovalState } from "@/services/shared-proposal-service";
 
-const OPEN: OnlineApprovalState = { canApprove: true, approved: false, expired: false, acceptance: null };
+const OPEN: OnlineApprovalState = {
+  canApprove: true,
+  approved: false,
+  expired: false,
+  awaitingConfirmation: false,
+  acceptance: null,
+};
 
-function renderBar(state: OnlineApprovalState = OPEN, onApproved = vi.fn()) {
+function renderBar(state: OnlineApprovalState = OPEN, onAccepted = vi.fn()) {
   render(
     <OnlineApprovalBar
       token="tok"
       state={state}
       tenantName="Casa Inteligente"
       primaryColor="#2563eb"
-      onApproved={onApproved}
+      onAccepted={onAccepted}
     />,
   );
-  return onApproved;
+  return onAccepted;
 }
 
-async function fillAndConfirm(document = "529.982.247-25") {
-  await userEvent.click(screen.getByRole("button", { name: /aprovar proposta/i }));
+async function fillForm(document = "529.982.247-25") {
+  await userEvent.click(screen.getByRole("button", { name: /aceitar proposta/i }));
   await userEvent.type(screen.getByLabelText(/nome completo/i), "Maria Souza");
   await userEvent.type(screen.getByLabelText(/cpf ou cnpj/i), document);
   await userEvent.click(screen.getByRole("checkbox"));
 }
 
 beforeEach(() => {
-  approve.mockReset();
+  accept.mockReset();
 });
 
 describe("OnlineApprovalBar", () => {
-  it("aprova com nome, documento e aceite, e oferece pagar a entrada", async () => {
-    approve.mockResolvedValue({
-      acceptedAt: "2026-09-25T15:00:00.000Z",
-      paymentUrl: "https://erp/share/transaction/x",
-    });
-    const onApproved = renderBar();
-    await fillAndConfirm();
-    await userEvent.click(screen.getByRole("button", { name: /confirmar aprovação/i }));
+  it("envia o aceite e avisa que a empresa vai confirmar, sem oferecer pagamento", async () => {
+    accept.mockResolvedValue({ acceptedAt: "2026-09-25T15:00:00.000Z" });
+    const onAccepted = renderBar();
+    await fillForm();
+    await userEvent.click(screen.getByRole("button", { name: /enviar aceite/i }));
 
-    expect(approve).toHaveBeenCalledWith("tok", {
+    expect(accept).toHaveBeenCalledWith("tok", {
       name: "Maria Souza",
       document: "529.982.247-25",
       accepted: true,
     });
-    expect(await screen.findByText("Proposta aprovada")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /pagar a entrada/i })).toHaveAttribute(
-      "href",
-      "https://erp/share/transaction/x",
+    expect(await screen.findByText("Aceite enviado")).toBeInTheDocument();
+    expect(screen.getByText(/vai conferir e confirmar a\s+aprovação/i)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /pagar/i })).toBeNull();
+    expect(onAccepted).toHaveBeenCalledWith(
+      expect.objectContaining({ approved: false, awaitingConfirmation: true }),
     );
-    expect(onApproved).toHaveBeenCalledWith(expect.objectContaining({ approved: true }));
   });
 
-  it("não deixa confirmar sem aceitar ou com documento inválido", async () => {
+  it("não deixa enviar sem aceitar ou com documento inválido", async () => {
     renderBar();
-    await userEvent.click(screen.getByRole("button", { name: /aprovar proposta/i }));
+    await userEvent.click(screen.getByRole("button", { name: /aceitar proposta/i }));
     await userEvent.type(screen.getByLabelText(/nome completo/i), "Maria Souza");
     await userEvent.type(screen.getByLabelText(/cpf ou cnpj/i), "111.111.111-11");
     await userEvent.click(screen.getByRole("checkbox"));
 
     expect(screen.getByText("CPF ou CNPJ inválido")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /confirmar aprovação/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /enviar aceite/i })).toBeDisabled();
   });
 
   it("mostra o erro do servidor sem fechar o diálogo", async () => {
-    approve.mockRejectedValue(new Error("Esta proposta já foi aprovada."));
+    accept.mockRejectedValue(new Error("O aceite desta proposta já foi enviado."));
     renderBar();
-    await fillAndConfirm();
-    await userEvent.click(screen.getByRole("button", { name: /confirmar aprovação/i }));
+    await fillForm();
+    await userEvent.click(screen.getByRole("button", { name: /enviar aceite/i }));
 
-    expect(await screen.findByText("Esta proposta já foi aprovada.")).toBeInTheDocument();
+    expect(await screen.findByText("O aceite desta proposta já foi enviado.")).toBeInTheDocument();
   });
 
-  it("proposta já aprovada mostra quem aprovou e quando", () => {
+  it("aceite aguardando a empresa: mostra quem aceitou e que falta a confirmação", () => {
+    renderBar({
+      canApprove: false,
+      approved: false,
+      expired: false,
+      awaitingConfirmation: true,
+      acceptance: { name: "Maria Souza", acceptedAt: "2026-09-25T15:00:00.000Z" },
+    });
+    expect(screen.getByText(/aceite enviado por maria souza/i)).toHaveTextContent(
+      /casa inteligente vai confirmar/i,
+    );
+    expect(screen.queryByRole("button", { name: /aceitar proposta/i })).toBeNull();
+  });
+
+  it("proposta aprovada pela empresa mostra quem aceitou", () => {
     renderBar({
       canApprove: false,
       approved: true,
       expired: false,
+      awaitingConfirmation: false,
       acceptance: { name: "Maria Souza", acceptedAt: "2026-09-25T15:00:00.000Z" },
     });
     expect(screen.getByText(/aprovada por maria souza/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /aprovar proposta/i })).toBeNull();
   });
 
-  it("plano sem aprovação online não mostra nada", () => {
+  it("plano sem aceite online não mostra nada", () => {
     const { container } = render(
       <OnlineApprovalBar
         token="tok"
-        state={{ canApprove: false, approved: false, expired: false, acceptance: null }}
+        state={{ canApprove: false, approved: false, expired: false, awaitingConfirmation: false, acceptance: null }}
         tenantName="Casa"
-        onApproved={vi.fn()}
+        onAccepted={vi.fn()}
       />,
     );
     expect(container).toBeEmptyDOMElement();

@@ -33,12 +33,15 @@ import {
   Palette,
   Pencil,
   Kanban,
+  ShieldCheck,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { replaceUrlSearchParams } from "@/lib/url-state";
 import { proposalStatusFilterOptions } from "@/lib/proposal-status-filter";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
+import { ClientAcceptanceDialog } from "./_components/client-acceptance-dialog";
+import { isAcceptancePending, pickApprovedColumnId } from "@/lib/client-acceptance";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import {
@@ -161,6 +164,12 @@ export default function ProposalsPage() {
     });
   }, [searchTerm, statusFilter]);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  // Aceite do cliente em revisão. Vem do endereço (`?aceite=<id>`) quando a
+  // pessoa chega pela notificação, ou do selo na coluna de status.
+  const [acceptanceId, setAcceptanceId] = React.useState<string | null>(
+    () => searchParams.get("aceite"),
+  );
+  const [acceptanceFallback, setAcceptanceFallback] = React.useState<Proposal | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = React.useState<string | null>(
     null,
   );
@@ -703,6 +712,7 @@ export default function ProposalsPage() {
             pendingPreview,
           );
         }
+        return true;
       } catch (error) {
         console.error("Error updating status:", error);
         const errorMessage =
@@ -713,6 +723,7 @@ export default function ProposalsPage() {
           `Não foi possível alterar o status da proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
           { title: "Erro ao editar" },
         );
+        return false;
       } finally {
         setUpdatingStatusId(null);
       }
@@ -727,6 +738,98 @@ export default function ProposalsPage() {
       canIssueInvoice,
     ],
   );
+
+  // A notificação pode apontar para uma proposta fora da página carregada.
+  const acceptanceFromList = acceptanceId
+    ? proposals.find((p) => p.id === acceptanceId) ?? null
+    : null;
+  React.useEffect(() => {
+    if (!acceptanceId || acceptanceFromList) return;
+    let cancelled = false;
+    ProposalService.getProposalById(acceptanceId)
+      .then((found) => {
+        if (!cancelled) setAcceptanceFallback(found);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [acceptanceId, acceptanceFromList]);
+  const acceptanceCandidate =
+    acceptanceFromList ??
+    (acceptanceFallback?.id === acceptanceId ? acceptanceFallback : null);
+  const acceptanceTarget =
+    acceptanceCandidate && isAcceptancePending(acceptanceCandidate)
+      ? acceptanceCandidate
+      : null;
+
+  const closeAcceptance = React.useCallback(() => {
+    setAcceptanceId(null);
+    replaceUrlSearchParams({ aceite: null });
+  }, []);
+
+  const markAcceptanceResolved = React.useCallback(
+    (proposalId: string, status: "confirmed" | "discarded") => {
+      const resolve = (p: Proposal) =>
+        p.id === proposalId && p.clientAcceptance
+          ? { ...p, clientAcceptance: { ...p.clientAcceptance, status } }
+          : p;
+      setProposals((prev) => prev.map(resolve));
+      updateItemsRef.current?.((items) => items.map(resolve));
+    },
+    [],
+  );
+
+  const confirmAcceptance = React.useCallback(async () => {
+    if (!acceptanceTarget) return;
+    // Confirmar é o mesmo caminho de mudar o status para aprovada: o backend
+    // gera os lançamentos, entrega no Drive e marca o aceite como confirmado.
+    const approvedColumnId = pickApprovedColumnId(kanbanColumns);
+    let ok: boolean | undefined;
+    if (proposals.some((p) => p.id === acceptanceTarget.id)) {
+      ok = await handleStatusChange(acceptanceTarget.id, approvedColumnId);
+    } else {
+      // Fora da página carregada: sem a linha, a troca de status da lista
+      // não tem o que atualizar, então grava direto.
+      const column = kanbanColumns.find((c) => c.id === approvedColumnId);
+      const status =
+        column?.id.startsWith("default_") && column.mappedStatus
+          ? (column.mappedStatus as ProposalStatus)
+          : (approvedColumnId as ProposalStatus);
+      try {
+        await ProposalService.updateProposal(acceptanceTarget.id, { status });
+        toast.success("Aprovação confirmada.");
+        ok = true;
+      } catch (error) {
+        toast.error(
+          error instanceof Error && error.message
+            ? error.message
+            : "Não foi possível confirmar a aprovação.",
+        );
+        ok = false;
+      }
+    }
+    // Falhou: o toast de erro já apareceu e o diálogo fica aberto.
+    if (!ok) throw new Error("STATUS_CHANGE_FAILED");
+    markAcceptanceResolved(acceptanceTarget.id, "confirmed");
+  }, [acceptanceTarget, handleStatusChange, kanbanColumns, markAcceptanceResolved, proposals]);
+
+  const adjustAcceptance = React.useCallback(async () => {
+    if (!acceptanceTarget) return;
+    try {
+      await ProposalService.discardClientAcceptance(acceptanceTarget.id);
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível descartar o aceite.",
+      );
+      throw error;
+    }
+    markAcceptanceResolved(acceptanceTarget.id, "discarded");
+    toast.info("Aceite descartado. Ajuste a proposta e reenvie o link para o cliente aceitar de novo.");
+    router.push(`/proposals/${acceptanceTarget.id}`);
+  }, [acceptanceTarget, markAcceptanceResolved, router]);
 
   const proposalToDelete = sortedProposals.find((p) => p.id === deleteId);
   const columns: DataTableColumn<Proposal>[] = React.useMemo(
@@ -843,6 +946,16 @@ export default function ProposalsPage() {
               >
                 {getStatusLabel(proposal.status)}
               </Badge>
+            )}
+            {isAcceptancePending(proposal) && (
+              <button
+                type="button"
+                onClick={() => setAcceptanceId(proposal.id)}
+                className="mt-1 flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                Aceite do cliente
+              </button>
             )}
           </div>
         ),
@@ -1350,6 +1463,14 @@ export default function ProposalsPage() {
             )}
           </div>
           {renderDialogs()}
+          <ClientAcceptanceDialog
+            proposalTitle={acceptanceTarget?.title?.trim() || "sem título"}
+            acceptance={acceptanceTarget?.clientAcceptance ?? null}
+            canDecide={canEdit && !isReadOnly}
+            onClose={closeAcceptance}
+            onConfirm={confirmAcceptance}
+            onAdjust={adjustAcceptance}
+          />
           <SendProposalDialog
             target={sendTarget}
             companyName={tenant?.name}

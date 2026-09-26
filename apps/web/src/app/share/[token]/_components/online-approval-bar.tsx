@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, CreditCard, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Clock, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ interface OnlineApprovalBarProps {
   state: OnlineApprovalState;
   tenantName: string;
   primaryColor?: string | null;
-  onApproved: (state: OnlineApprovalState) => void;
+  onAccepted: (state: OnlineApprovalState) => void;
 }
 
 function brandStyle(primaryColor?: string | null): React.CSSProperties {
@@ -38,15 +38,16 @@ function brandStyle(primaryColor?: string | null): React.CSSProperties {
 }
 
 /**
- * Rodapé do link público com a aprovação online: o cliente informa nome,
- * CPF/CNPJ e aceita. Fica fora do PDF (`data-pdf-ui`).
+ * Rodapé do link público com o aceite online: o cliente informa nome, CPF/CNPJ
+ * e aceita. O aceite fica pendente até a empresa confirmar a aprovação no ERP,
+ * e a barra diz isso. Fica fora do PDF (`data-pdf-ui`).
  */
 export function OnlineApprovalBar({
   token,
   state,
   tenantName,
   primaryColor,
-  onApproved,
+  onAccepted,
 }: OnlineApprovalBarProps) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
@@ -54,7 +55,6 @@ export function OnlineApprovalBar({
   const [accepted, setAccepted] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [paymentUrl, setPaymentUrl] = React.useState<string | null>(null);
   const [done, setDone] = React.useState(false);
 
   const documentInvalid = document.length > 0 && !isDocumentoValido(document);
@@ -65,31 +65,33 @@ export function OnlineApprovalBar({
     setSubmitting(true);
     setError(null);
     try {
-      const result = await SharedProposalService.approve(token, {
+      const result = await SharedProposalService.accept(token, {
         name: name.trim(),
         document,
         accepted: true,
       });
-      setPaymentUrl(result.paymentUrl);
       setDone(true);
-      onApproved({
+      onAccepted({
         canApprove: false,
-        approved: true,
+        approved: false,
         expired: false,
+        awaitingConfirmation: true,
         acceptance: { name: name.trim(), acceptedAt: result.acceptedAt },
       });
     } catch (err) {
       setError(
         err instanceof Error && err.message
           ? err.message
-          : "Não foi possível registrar a aprovação. Tente de novo.",
+          : "Não foi possível registrar o aceite. Tente de novo.",
       );
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!state.canApprove && !state.approved && !state.expired) return null;
+  if (!state.canApprove && !state.approved && !state.expired && !state.awaitingConfirmation) {
+    return null;
+  }
 
   return (
     <>
@@ -101,9 +103,9 @@ export function OnlineApprovalBar({
           {state.canApprove ? (
             <>
               <p className="text-sm text-muted-foreground">
-                Está tudo certo? Aprove a proposta por aqui: a confirmação
-                chega na hora para{" "}
-                <strong className="text-foreground">{tenantName}</strong>.
+                Está tudo certo? Aceite a proposta por aqui: o aceite chega na
+                hora para <strong className="text-foreground">{tenantName}</strong>,
+                que confirma e segue com os próximos passos.
               </p>
               <button
                 type="button"
@@ -112,9 +114,16 @@ export function OnlineApprovalBar({
                 style={brandStyle(primaryColor)}
               >
                 <CheckCircle2 className="h-4 w-4" />
-                Aprovar proposta
+                Aceitar proposta
               </button>
             </>
+          ) : state.awaitingConfirmation ? (
+            <p className="flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 shrink-0 text-amber-600" />
+              {state.acceptance
+                ? `Aceite enviado por ${state.acceptance.name} em ${formatDateBR(state.acceptance.acceptedAt)}. ${tenantName} vai confirmar e entrar em contato.`
+                : `Aceite enviado. ${tenantName} vai confirmar e entrar em contato.`}
+            </p>
           ) : state.approved ? (
             <p className="flex items-center gap-2 text-sm">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
@@ -138,26 +147,14 @@ export function OnlineApprovalBar({
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                  Proposta aprovada
+                  Aceite enviado
                 </DialogTitle>
                 <DialogDescription>
-                  Sua aprovação já foi enviada para {tenantName}.
-                  {paymentUrl
-                    ? " Se quiser, você já pode pagar a entrada agora."
-                    : " Em breve você recebe os próximos passos."}
+                  {tenantName} recebeu o seu aceite, vai conferir e confirmar a
+                  aprovação. Em breve você recebe os próximos passos.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter className="gap-2 sm:gap-0">
-                {paymentUrl && (
-                  <a
-                    href={paymentUrl}
-                    className="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-bold"
-                    style={brandStyle(primaryColor)}
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    Pagar a entrada
-                  </a>
-                )}
+              <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>
                   Fechar
                 </Button>
@@ -166,10 +163,10 @@ export function OnlineApprovalBar({
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Aprovar proposta</DialogTitle>
+                <DialogTitle>Aceitar proposta</DialogTitle>
                 <DialogDescription>
-                  Seus dados ficam registrados junto da aprovação, como
-                  comprovante do aceite.
+                  Seus dados ficam registrados como comprovante do aceite.
+                  Depois, {tenantName} confirma a aprovação com você.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -224,7 +221,7 @@ export function OnlineApprovalBar({
                   style={brandStyle(primaryColor)}
                 >
                   {submitting && <Loader size="sm" variant="button" />}
-                  Confirmar aprovação
+                  Enviar aceite
                 </button>
               </DialogFooter>
             </>

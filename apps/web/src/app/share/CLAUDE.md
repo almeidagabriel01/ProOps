@@ -78,27 +78,50 @@ As chamadas públicas usam `callPublicApi` (sem token de autenticação no heade
 - **Lançamentos** (`src/app/transactions/`) — gera o share link via `SharedTransactionService.generateShareLink`
 - **PDF backend** (`functions/src/api/routes/sharedProposals.ts`, `sharedTransactions.ts`) — rotas públicas que retornam dados e geram PDF via Playwright
 
-## Aprovação online (2026-09-25)
+## Aceite online (2026-09-25, revisto em 2026-09-26)
 
-O cliente final aprova a proposta pelo próprio link: barra fixa no rodapé
+O cliente final ACEITA a proposta pelo próprio link: barra fixa no rodapé
 (`[token]/_components/online-approval-bar.tsx`, fora do PDF por `data-pdf-ui`)
-com nome, CPF/CNPJ e aceite. `POST /v1/share/:token/approve`
-(`functions/.../proposal-online-approval.controller.ts`):
+com nome, CPF/CNPJ e aceite. `POST /v1/share/:token/accept`
+(`functions/.../proposal-online-approval.controller.ts`).
+
+**O aceite não aprova.** A primeira versão aprovava direto do link, com
+lançamentos, Drive e cobrança do sinal. O dono do produto trocou por aceite +
+confirmação: uma proposta aceita às vezes ainda precisa de ajuste, e desfazer
+lançamento é justamente o que o ERP protege. Quem mexe no financeiro é sempre
+alguém da equipe.
 
 - **Capacidade `onlineApproval`** (Pro e Enterprise). O `GET /v1/share/:token`
-  devolve `onlineApproval: { canApprove, approved, expired, acceptance }`; sem a
-  capacidade, com a proposta vencida, em rascunho ou já aprovada, o botão não
-  aparece.
-- **Mesmas consequências da aprovação no ERP**: lançamentos
-  (`syncApprovedProposalTransactions`), comissões, nota automática "ao aprovar"
-  e entrega no Drive. O autor gravado é `client_online_approval`.
-- **O status gravado cai numa coluna do CRM**: a coluna com
-  `mappedStatus: approved`, senão a primeira `category: won`, senão
-  `"approved"`.
-- **O aceite fica na proposta** (`clientAcceptance`: nome, documento, data, IP
-  e navegador), fora do hash do PDF.
-- Com pagamento online (`onlinePayments` + Asaas), a resposta traz o link de
-  pagamento da entrada (ou da primeira parcela) e o diálogo oferece pagar.
+  devolve `onlineApproval: { canApprove, approved, expired, awaitingConfirmation,
+  acceptance }`. Sem a capacidade, vencida, em rascunho, já aprovada ou com
+  aceite pendente, o formulário não aparece; com aceite pendente a barra diz
+  "a empresa vai confirmar".
+- **O aceite fica na proposta** (`clientAcceptance`: nome, documento, data, IP,
+  navegador, `status` e `contentHash`), fora do hash do PDF. Aceites anteriores
+  vão para `clientAcceptanceHistory`. O link público nunca devolve esses campos
+  (allowlist de `sanitizeSharedProposalPayload`).
+- **Estados:** `pending` → `confirmed` (a empresa aprovou) | `discarded` (a
+  empresa descartou para ajustar, ou recusou a proposta) | `invalidated` (a
+  proposta mudou depois do aceite). Aceite antigo sem `status` conta como
+  confirmado. Depois de descartado ou anulado, o cliente aceita de novo pelo
+  mesmo link.
+- **Confirmar é aprovar pelo caminho de sempre** (`PUT /v1/proposals/:id` com a
+  coluna aprovada, da lista, do quadro ou do formulário): lançamentos, Drive e
+  convite de nota vêm dali, e o `updateProposal` marca o aceite como
+  confirmado. Não existe endpoint de "confirmar".
+- **Editar o que o cliente viu anula o aceite.** `proposalContentHash` usa os
+  mesmos campos do PDF (`PDF_IRRELEVANT_PROPOSAL_FIELDS`), tratando vazio, nulo
+  e ausente como iguais, porque o formulário reenvia todos os campos. Se a
+  empresa edita e aprova no mesmo salvamento, a aprovação vale, mas o aceite
+  fica `invalidated`: o cliente aceitou outra versão.
+- **Ajustar:** `POST /v1/proposals/:id/acceptance/discard` (permissão de editar
+  propostas).
+- **No ERP:** selo "Aceite do cliente" na lista (abre
+  `_components/client-acceptance-dialog.tsx` em `/proposals`), no card do CRM e
+  um aviso na visualização. A notificação `proposal_accepted` leva a
+  `/proposals?aceite=<id>`, que abre o diálogo.
+- **Sem cobrança no aceite.** O pagamento do sinal vai pelo "Enviar cobrança"
+  depois da confirmação.
 
 ## Padrões e gotchas
 

@@ -12,7 +12,10 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
-import { ArrowLeft, FileDown, Pencil, Palette, Crown } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, FileDown, Pencil, Palette, Crown, ShieldCheck } from "lucide-react";
+import { isAcceptancePending } from "@/lib/client-acceptance";
+import { formatDateBR } from "@/utils/date-format";
 import { ProposalService } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { toast } from "@/lib/toast";
@@ -301,6 +304,22 @@ export default function ViewProposalPage() {
           </Button>
         </div>
       </div>
+
+      {proposal.clientAcceptance && isAcceptancePending(proposal) && (
+        <div className="flex flex-col gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-start gap-2 text-sm">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <span>
+              {proposal.clientAcceptance.name} aceitou esta proposta pelo link em{" "}
+              {formatDateBR(proposal.clientAcceptance.acceptedAt)}. Nada foi lançado
+              ainda: confirme a aprovação ou ajuste a proposta.
+            </span>
+          </p>
+          <Button asChild size="sm" className="shrink-0">
+            <Link href={`/proposals?aceite=${proposal.id}`}>Revisar aceite</Link>
+          </Button>
+        </div>
+      )}
 
       {/* Preview */}
       <Card>

@@ -375,7 +375,7 @@ export default function SharedProposalPage() {
           state={onlineApproval}
           tenantName={tenant?.name || "a empresa"}
           primaryColor={tenant?.primaryColor}
-          onApproved={setOnlineApproval}
+          onAccepted={setOnlineApproval}
         />
       )}
     </div>
