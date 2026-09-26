@@ -615,6 +615,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // TRANSACTION_CATEGORIES - Lista de categorias de lançamento da empresa,
+    // cada uma num grupo do DRE (um doc por tenant). A tela lê e grava pela
+    // API, com a permissão de Lançamentos; o DRE é montado no backend.
+    match /transaction_categories/{tenantId} {
+      allow read, write: if false;
+    }
+
     // SALES_GOALS - Metas de vendas por mês: lidas e gravadas só pelo backend,
     // que decide quem vê o quê (o membro recebe só o próprio número).
     match /sales_goals/{goalId} {

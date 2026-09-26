@@ -1130,6 +1130,46 @@ empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
 Guards: `booking-model.test.ts`, `booking.controller.test.ts`,
 `booking.routes.gates.test.ts` e `tests/firestore-rules/booking.test.ts`.
 
+### DRE e categorias de lançamento (`api/services/finance-reports/`)
+
+O DRE sai dos lançamentos, agrupados pela categoria, e cada categoria pertence
+a um grupo do DRE escolhido pela empresa. Rotas sob `/v1/transactions` (gate
+`financial`, leitura do demo), com a permissão de Lançamentos: ver para ler,
+criar para cadastrar categoria, editar para renomear ou mudar o grupo, excluir
+para tirar da lista.
+
+- **Grupos** (`DRE_GROUPS`): receita em Receita bruta ou Outras receitas;
+  despesa em Impostos e deduções, Custos, Despesas operacionais ou Outras
+  despesas. Subtotais: receita líquida, lucro bruto, resultado operacional e
+  resultado do período.
+- **A lista é um doc por empresa** (`transaction_categories/{tenantId}`, Admin
+  SDK only), semeado na primeira leitura com as categorias que os lançamentos
+  já usavam (as 5.000 mais recentes, grupo sugerido pelo nome) e as padrão que
+  faltarem. `create` e não `set`, para duas abas não semearem duas vezes.
+- **O lançamento continua guardando o NOME** da categoria (`category`), e o DRE
+  casa pelo nome normalizado (sem acento, caixa ou espaço sobrando). Renomear
+  leva o nome novo aos lançamentos do mesmo tipo, em lotes de 400. Nome que não
+  está na lista (texto antigo, a "Comissao" automática, categoria excluída) vai
+  para o grupo padrão do tipo: receita em Receita bruta, despesa em Despesas
+  operacionais. Vazio vira "Sem categoria".
+- **Caixa (padrão) e competência.** Competência usa a `date` do lançamento,
+  pago ou não, com todo custo extra. Caixa usa o `paidAt`, mas **o lançamento
+  que já nasce pago não tem `paidAt`** (ele só é gravado quando o status MUDA
+  para pago), então a data de caixa é o `paidAt` ou, sem ele, a `date`. Por
+  isso o caixa faz duas consultas, por `date` e por `paidAt`, ambas com índice
+  que já existia, e junta pelo id. Custo extra herda tipo e categoria e, no
+  caixa, conta só se pago, na data de caixa do lançamento.
+- **Até 12 meses por consulta**, 10.000 lançamentos por consulta (`truncated`
+  avisa se bater no teto). Horário de Brasília (UTC-3) na virada do mês.
+- **A conta free lê o DRE e as categorias do tenant `demo`**
+  (`shared/demo-tenant.ts`): as chamadas da API usam o tenant da própria conta,
+  que está vazio, e os dados de exemplo já são legíveis por ela pelas rules.
+  Escrever continua bloqueado.
+
+Guards: `dre-model.test.ts`, `transaction-categories.test.ts`,
+`finance-reports.controller.test.ts` e
+`tests/firestore-rules/transaction-categories.test.ts`.
+
 ### Portal do cliente (`api/services/client-portal/`)
 
 Uma página por CONTATO, aberta por link fixo e revogável

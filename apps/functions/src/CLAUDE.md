@@ -314,6 +314,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `booking_requests/{id}` | Agendamento | Pedido de visita do cliente (`pending` -> `confirmed`/`declined`), com o `eventId` do evento "a confirmar" criado na Agenda. Admin SDK only; a tela le pela API com a permissao da Agenda |
 | `booking_locks/{tenantId}_{dia}` | Agendamento | Trava da transacao do pedido: dois clientes no mesmo horario nao viram duas visitas. Admin SDK only |
 | `client_portal_links/{tenantId}_{clientId}` | Portal do cliente | Link do portal de um contato (`token`, `viewCount`, `lastViewedAt`). Admin SDK only: o token abre propostas, pagamentos e obra do contato sem login (`client-portal.service.ts`) |
+| `transaction_categories/{tenantId}` | Financeiro | Categorias de lancamento da empresa, cada uma num grupo do DRE (`items`). Admin SDK only: a tela le e grava pela API (`finance-reports.controller.ts`), com a permissao de Lancamentos |
 | `tasks/{id}` | Tarefas | "A fazer" com responsavel, ligado ou nao a contato, proposta ou lead (`tasks.controller.ts`, pageId `tasks`, todos os planos). Da PESSOA: as rules leem `audienceUids` (quem criou, responsavel e citados); dono e admins leem todas. Escrita so via Cloud Functions |
 | `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
 | `project_settings/{tenantId}` | Projetos | Criacao automatica na aprovacao e roteiro de etapas. Admin SDK only |
