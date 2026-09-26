@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { CheckCircle2, Circle, UserRound } from "lucide-react";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { formatDue, taskBucket } from "@/lib/tasks/tasks";
 import type { Task } from "@/types/task";
@@ -31,12 +32,21 @@ export function TaskRow({ task, today, canEdit, hideContext, onToggle, onOpen }:
   const done = bucket === "done";
   const due = formatDue(task.dueAt);
   const link = hideContext ? null : contextLink(task);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+
+  // Concluir pede confirmação: o círculo fica perto do título e um toque sem
+  // querer tirava a tarefa da lista. Reabrir é direto, porque não perde nada.
+  const handleCircle = () => {
+    if (!canEdit) return;
+    if (done) onToggle(task);
+    else setConfirmOpen(true);
+  };
 
   return (
     <li className="flex items-start gap-3 p-3">
       <button
         type="button"
-        onClick={() => canEdit && onToggle(task)}
+        onClick={handleCircle}
         disabled={!canEdit}
         aria-label={done ? `Reabrir "${task.title}"` : `Concluir "${task.title}"`}
         className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground disabled:cursor-default disabled:hover:text-muted-foreground"
@@ -78,6 +88,17 @@ export function TaskRow({ task, today, canEdit, hideContext, onToggle, onOpen }:
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Concluir esta tarefa?"
+        description={`"${task.title}" sai das tarefas abertas e vai para Concluídas. Dá para reabrir depois.`}
+        confirmLabel="Concluir"
+        onConfirm={() => {
+          setConfirmOpen(false);
+          onToggle(task);
+        }}
+      />
     </li>
   );
 }
