@@ -240,6 +240,24 @@ de Lançamentos: escondê-las daqui exigiria filtrar a lista, e é decisão à p
 - A conta free vê o DRE do tenant de demonstração pela API, e as categorias
   só para ver.
 
+## Fluxo de caixa projetado (2026-09-26)
+
+- **Rota `/cash-flow`**, no grupo Financeiro, com o pageId de Lançamentos e a
+  capacidade `financial`, como o DRE. Lê do Firestore o saldo das carteiras
+  ativas e os lançamentos em aberto (`TransactionService.getOpenTransactions`,
+  com teto de 5.000), o mesmo caminho do Dashboard, então funciona na
+  demonstração sem backend novo.
+- **A conta é pura** (`lib/finance/cash-flow.ts`) e roda no navegador: mexer no
+  cenário recalcula na hora. O cenário mexe só no que está a RECEBER (a
+  porcentagem que entra e os dias de atraso); o que está a pagar entra inteiro,
+  no vencimento; vencido dos dois lados conta como hoje. Padrões: pessimista
+  80% e 30 dias, realista 95% e 15, otimista 100% no vencimento. O ajuste de
+  cada pessoa fica no navegador dela (localStorage), não é dado da empresa.
+- **Limite conhecido, o mesmo do Dashboard:** custo extra pendente de um
+  lançamento já pago não entra, porque a consulta traz só lançamentos
+  pendentes ou vencidos. Recorrência só entra quando os lançamentos dela já
+  existem.
+
 ## Race conditions e guards (frontend)
 
 - `updatingIdsRef` (Set) em `useFinancialData.ts` previne cliques duplos nos handlers: `updateTransactionStatus`, `updateTransaction`, `updateGroupStatus`

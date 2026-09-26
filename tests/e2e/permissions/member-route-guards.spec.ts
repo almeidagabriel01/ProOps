@@ -27,6 +27,7 @@ const BLOQUEADAS = [
   "/transactions",
   "/wallets",
   "/dre",
+  "/cash-flow",
   "/invoices",
   "/calendar",
 ];

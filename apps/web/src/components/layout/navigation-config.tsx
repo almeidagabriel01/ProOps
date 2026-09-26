@@ -18,6 +18,7 @@ import {
   HardHat,
   ListTodo,
   BarChart3,
+  TrendingUp,
 } from "lucide-react";
 
 /**
@@ -141,6 +142,13 @@ export const menuItems: MenuItem[] = [
         href: "/dre",
         // Mesmo pageId de Lançamentos: o DRE é um relatório sobre eles, e
         // quem vê os lançamentos vê o resultado (decisão do produto).
+        pageId: "transactions",
+      },
+      {
+        icon: TrendingUp,
+        label: "Fluxo de caixa",
+        href: "/cash-flow",
+        // Projeção sobre os lançamentos em aberto: mesma permissão deles.
         pageId: "transactions",
       },
       {

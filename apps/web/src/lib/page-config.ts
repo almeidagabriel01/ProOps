@@ -209,6 +209,14 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  "/cash-flow": {
+    pageId: "transactions",
+    slug: "/cash-flow",
+    name: "Fluxo de caixa",
+    module: "financial",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
   // Visão do grupo Financeiro: alcançada pelo seletor no cabeçalho das telas
   // irmãs. O gate da navegação vem de filterChildren, este é o da URL direta.
   "/wallets": {

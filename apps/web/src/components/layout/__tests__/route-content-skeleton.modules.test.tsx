@@ -18,6 +18,7 @@ const CASOS: Array<[string, string]> = [
   ["/invoices", "invoices-skeleton"],
   ["/commissions", "commissions-skeleton"],
   ["/dre", "dre-skeleton"],
+  ["/cash-flow", "cash-flow-skeleton"],
   ["/calendar", "calendar-skeleton"],
 ];
 

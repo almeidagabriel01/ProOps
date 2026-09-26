@@ -281,6 +281,24 @@ export const TransactionService = {
       );
   },
 
+  /**
+   * Só os lançamentos em aberto (pendentes e vencidos), para o fluxo de caixa
+   * projetado. Mesma consulta que o escopo por período já usa, com teto.
+   */
+  getOpenTransactions: async (tenantId: string, max = 5000): Promise<Transaction[]> => {
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("status", "in", ["pending", "overdue"]),
+        limit(max),
+      ),
+    );
+    return snap.docs.map((docSnap) =>
+      withDerivedOverdue({ id: docSnap.id, ...docSnap.data() } as Transaction),
+    );
+  },
+
   getTransactionsScoped: async (
     tenantId: string,
     period: { start: string; end: string },

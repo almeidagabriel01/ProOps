@@ -127,6 +127,8 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/wallets",
   // DRE: lê pela API o exemplo do tenant de demonstração.
   "/dre",
+  // Fluxo de caixa: lê do Firestore os lançamentos e carteiras de exemplo.
+  "/cash-flow",
   "/crm",
   // Projetos de instalação: o tenant de demonstração tem projetos de exemplo.
   "/projects",

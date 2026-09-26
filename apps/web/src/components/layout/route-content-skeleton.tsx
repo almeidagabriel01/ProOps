@@ -34,6 +34,7 @@ import { KanbanSkeleton } from "@/app/crm/_components/kanban-skeleton";
 import { InvoicesSkeleton } from "@/app/invoices/_components/invoices-skeleton";
 import { CommissionsSkeleton } from "@/app/commissions/_components/commissions-skeleton";
 import { DreSkeleton } from "@/app/dre/_components/dre-skeleton";
+import { CashFlowSkeleton } from "@/app/cash-flow/_components/cash-flow-skeleton";
 import { CalendarSkeleton } from "@/app/calendar/_components/calendar-skeleton";
 import { useTenant } from "@/providers/tenant-provider";
 import { isPageEnabledForNiche } from "@/lib/niches/config";
@@ -170,6 +171,10 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
 
   if (pathname.startsWith("/dre")) {
     return <DreSkeleton />;
+  }
+
+  if (pathname.startsWith("/cash-flow")) {
+    return <CashFlowSkeleton />;
   }
 
   if (pathname.startsWith("/calendar")) {

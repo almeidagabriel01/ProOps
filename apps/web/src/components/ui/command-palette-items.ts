@@ -21,6 +21,7 @@ import {
   Wrench,
   ListTodo,
   BarChart3,
+  TrendingUp,
 } from "lucide-react";
 
 import type { MenuCapability } from "@/components/layout/navigation-config";
@@ -224,6 +225,16 @@ export const searchItems: SearchItem[] = [
     requiresView: "transactions",
     requiresCapability: "financial",
     keywords: ["dre", "resultado", "lucro", "prejuizo", "prejuízo", "demonstrativo", "relatorio", "relatório", "categorias"],
+  },
+  {
+    id: "cash-flow",
+    label: "Fluxo de caixa",
+    description: "Quanto vai ter em caixa nos próximos meses, em três cenários",
+    path: "/cash-flow",
+    icon: TrendingUp,
+    requiresView: "transactions",
+    requiresCapability: "financial",
+    keywords: ["fluxo", "caixa", "projecao", "projeção", "previsao", "previsão", "saldo", "cenarios", "cenários"],
   },
   {
     id: "commissions",

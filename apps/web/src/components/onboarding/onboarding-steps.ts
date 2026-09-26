@@ -324,6 +324,19 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     ],
     actionLabel: "Abrir o DRE",
   },
+  "/cash-flow": {
+    id: "cash-flow",
+    route: "/cash-flow",
+    chapter: "financial",
+    description:
+      "Quanto você vai ter em caixa nos próximos meses: o saldo das carteiras, mais o que está a receber, menos o que está a pagar.",
+    checklist: [
+      { text: "Compare os cenários pessimista, realista e otimista." },
+      { text: "Ajuste quanto do que está a receber entra, e com quanto atraso." },
+      { text: "Veja o mês em que o saldo fica mais baixo antes de assumir um gasto." },
+    ],
+    actionLabel: "Abrir o fluxo de caixa",
+  },
   "/invoices": {
     id: "invoices",
     route: "/invoices",

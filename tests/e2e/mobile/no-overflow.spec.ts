@@ -30,6 +30,7 @@ const ROUTES = [
   "/wallets",
   // A tabela do DRE rola por dentro do próprio card, não a página.
   "/dre",
+  "/cash-flow",
   "/calendar",
   "/spreadsheets",
   "/automation",
