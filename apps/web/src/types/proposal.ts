@@ -146,6 +146,11 @@ export interface Proposal {
    * como `downPaymentWallet` e `installmentsWallet` tambem nao entram.
    */
   commissions?: ProposalCommission[];
+  /** Quem vendeu (metas de vendas). Padrão: quem criou. */
+  sellerId?: string | null;
+  sellerName?: string | null;
+  /** Quando foi aprovada (ISO). Apagado se a proposta sair de aprovada. */
+  approvedAt?: string | null;
 
   /**
    * Numeracao da proposta, quando a empresa liga a funcionalidade em

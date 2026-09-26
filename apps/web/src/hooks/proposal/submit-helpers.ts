@@ -282,6 +282,9 @@ export async function updateProposal(
     paymentMethod: formData.paymentMethod || "",
     // Comissoes de vendedor/arquiteto (interno; nao entra no PDF)
     commissions: formData.commissions || [],
+    // Vendedor (metas de vendas): só vai quando o formulário tem o campo;
+    // ausente, a criação grava quem criou e a edição não mexe.
+    ...(formData.sellerId !== undefined ? { sellerId: formData.sellerId } : {}),
     // PDF display settings (persisted for correct PDF rendering)
     pdfSettings: formData.pdfSettings || undefined,
   });
@@ -368,6 +371,9 @@ export function prepareCreatePayload(payload: CreateProposalPayload) {
     paymentMethod: formData.paymentMethod || "",
     // Comissoes de vendedor/arquiteto (interno; nao entra no PDF)
     commissions: formData.commissions || [],
+    // Vendedor (metas de vendas): só vai quando o formulário tem o campo;
+    // ausente, a criação grava quem criou e a edição não mexe.
+    ...(formData.sellerId !== undefined ? { sellerId: formData.sellerId } : {}),
     // PDF display settings (persisted for correct PDF rendering)
     pdfSettings: formData.pdfSettings || undefined,
   };

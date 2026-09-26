@@ -30,13 +30,14 @@ const NONE: OnboardingCapabilityMap = {
   onlinePayments: false,
   fiscalReceiving: false,
   projects: false,
+  salesGoals: false,
 };
 
 /** O que o `PlanProvider` entrega por tier, sem add-ons. */
 const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabilityMap> = {
   // A conta free destrava financeiro, CRM, projetos e editor de PDF para a
   // demonstração, e deixa fiscal e Drive de fora.
-  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true },
+  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true },
   starter: NONE,
   pro: {
     ...NONE,
@@ -45,6 +46,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     calendarSync: true,
     driveSync: true,
     projects: true,
+    salesGoals: true,
   },
   enterprise: {
     financial: true,
@@ -56,6 +58,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     onlinePayments: true,
     fiscalReceiving: true,
     projects: true,
+    salesGoals: true,
   },
 };
 
@@ -176,6 +179,7 @@ describe("passos por plano e papel", () => {
       "settings-security",
       "settings-team",
       "settings-proposals",
+      "settings-goals",
       "settings-integrations",
     ]);
   });
@@ -188,11 +192,13 @@ describe("passos por plano e papel", () => {
     expect(ids).toContain("settings-integrations");
     // Projetos de instalação entram no Pro.
     expect(ids).toContain("projects");
+    // Metas de vendas também.
+    expect(ids).toContain("settings-goals");
   });
 
   it("Starter, master: sem Financeiro nem Integrações", () => {
     const ids = stepIds("starter", MASTER);
-    for (const id of ["transactions", "wallets", "commissions", "invoices", "crm", "projects", "settings-integrations"]) {
+    for (const id of ["transactions", "wallets", "commissions", "invoices", "crm", "projects", "settings-goals", "settings-integrations"]) {
       expect(ids).not.toContain(id);
     }
     expect(ids).toContain("settings-team");

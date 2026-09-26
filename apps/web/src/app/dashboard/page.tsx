@@ -48,6 +48,7 @@ import { useTenant } from "@/providers/tenant-provider";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { FirstStepsCard } from "@/components/onboarding/first-steps-card";
 import { MyTasksCard } from "@/components/features/tasks/my-tasks-card";
+import { GoalsProgressCard } from "@/components/features/sales-goals/goals-progress-card";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -220,6 +221,9 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Metas do mês escolhido acima (Pro e Enterprise); some sem plano */}
+      <GoalsProgressCard month={selectedMonth} />
 
       {/* Comissões a pagar no mês — some sozinho quando não há nenhuma */}
       {!loading.month && <CommissionsPanel report={commissionReport} />}

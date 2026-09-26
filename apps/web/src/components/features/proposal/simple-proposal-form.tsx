@@ -47,6 +47,8 @@ import {
 import { ProposalLoadingState } from "@/components/features/proposal/proposal-loading-state";
 import { isDocumentoValido } from "@/lib/format-document";
 import { ClientService } from "@/services/client-service";
+import { useAuth } from "@/providers/auth-provider";
+import { ProposalSellerField } from "./form/proposal-seller-field";
 
 interface SimpleProposalFormProps {
   proposalId?: string;
@@ -226,6 +228,7 @@ export function SimpleProposalForm({
   // add/remove controls disabled via FormStepCard's fieldset). Distinct from the
   // `isReadOnly` PROP, which renders a fully static view without the stepper.
   const { isReadOnly: isDemo } = useTenant();
+  const { user } = useAuth();
 
   useBeforeUnloadWarning(
     hasUnsavedProposalWork({
@@ -1133,6 +1136,14 @@ export function SimpleProposalForm({
               }
               onDefaultValidUntil={applyDefaultValidUntil}
             />
+            <div className="mt-6 max-w-sm">
+              <ProposalSellerField
+                value={formData.sellerId}
+                currentUserId={user?.id}
+                onChange={(sellerId) => setFormData((prev) => ({ ...prev, sellerId }))}
+                disabled={isDemo}
+              />
+            </div>
           </div>
           <StepNavigation onBeforeNext={isDemo ? undefined : validateStep1} />
         </FormStepCard>

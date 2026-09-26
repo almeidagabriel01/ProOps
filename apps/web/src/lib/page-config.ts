@@ -249,6 +249,15 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     module: "settings",
     requiresAuth: true,
   },
+  // Metas: o portão (plano e administrador) fica dentro da tela, como na
+  // numeração. Sem requiredPermission, senão o membro levaria /403.
+  "/settings/goals": {
+    pageId: "settings-goals",
+    slug: "/settings/goals",
+    name: "Metas de vendas",
+    module: "settings",
+    requiresAuth: true,
+  },
   "/settings/fiscal": {
     pageId: "settings-fiscal",
     slug: "/settings/fiscal",

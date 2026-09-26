@@ -36,7 +36,8 @@ export type OnboardingCapability =
   | "calendarSync"
   | "driveSync"
   | "onlinePayments"
-  | "fiscalReceiving";
+  | "fiscalReceiving"
+  | "salesGoals";
 
 export type OnboardingCapabilityMap = Record<OnboardingCapability, boolean>;
 
@@ -379,6 +380,23 @@ export const SETTINGS_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     actionLabel: "Abrir a numeração",
     masterOnly: true,
     excludeFromDemo: true,
+  },
+  "/settings/goals": {
+    id: "settings-goals",
+    route: "/settings/goals",
+    chapter: "settings",
+    title: "Metas de vendas",
+    description:
+      "A meta do mês da empresa e de cada vendedor. O progresso aparece no Dashboard, pelo valor das propostas aprovadas.",
+    checklist: [
+      { text: "Defina a meta da empresa para este mês." },
+      { text: "Dê a cada vendedor a meta dele; em branco é sem meta." },
+      { text: "Na proposta, confira quem é o vendedor: é para ele que a venda conta." },
+    ],
+    actionLabel: "Abrir as metas",
+    masterOnly: true,
+    excludeFromDemo: true,
+    requiresAnyCapability: ["salesGoals"],
   },
   "/settings/linked-accounts": {
     id: "settings-integrations",

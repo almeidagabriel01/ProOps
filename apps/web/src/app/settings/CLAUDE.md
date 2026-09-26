@@ -19,6 +19,7 @@ src/app/settings/
 ├── payments/page.tsx         # Asaas (master) ou "Acesso Restrito" (não-master)
 ├── fiscal/page.tsx           # Nota fiscal (master) ou "Acesso Restrito"
 ├── proposals/page.tsx        # Numeracao das propostas (master) ou "Acesso Restrito"
+├── goals/page.tsx            # Metas de vendas (master, Pro e Enterprise) ou "Acesso Restrito"
 ├── drive/page.tsx            # Google Drive (master) ou "Acesso Restrito"
 ├── linked-accounts/page.tsx  # Contas vinculadas: resumo de todas as integracoes (todos)
 ├── _components/
@@ -49,6 +50,7 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Organização | `/settings/team` | Equipe | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/proposals` | Propostas (numeração e validade padrão) | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/goals` | Metas de vendas: a meta do mês da empresa e de cada vendedor (Pro e Enterprise; sem o plano, `UpgradeRequired`) | Master (membro vê "Acesso Restrito"; o progresso dele aparece no Dashboard) |
 | Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/drive` | Google Drive | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/linked-accounts` | Contas vinculadas | Todos veem; ação só para quem pode conectar |

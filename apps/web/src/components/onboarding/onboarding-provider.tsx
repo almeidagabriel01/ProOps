@@ -151,6 +151,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       onlinePayments: plan.hasOnlinePayments,
       fiscalReceiving: plan.hasFiscalReceiving,
       projects: plan.hasProjects,
+      salesGoals: plan.hasSalesGoals,
     }),
     [
       plan.hasFinancial,
@@ -162,6 +163,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       plan.hasOnlinePayments,
       plan.hasFiscalReceiving,
       plan.hasProjects,
+      plan.hasSalesGoals,
     ],
   );
 
