@@ -10,12 +10,12 @@ import {
   TrendingUp,
   TrendingDown,
   FileText,
-  Tag,
   Check,
 } from "lucide-react";
 import { TransactionFormData } from "../_hooks/useTransactionForm";
 import { TransactionType } from "@/services/transaction-service";
 import { TransactionClientField } from "./form-steps/transaction-client-field";
+import { TransactionCategoryField } from "./form-steps/transaction-category-field";
 
 interface TypeSelectorStepProps {
   type: TransactionType;
@@ -207,14 +207,7 @@ export function DetailsStep({
 
       <FormGroup>
         <FormItem label="Categoria" htmlFor="category">
-          <Input
-            id="category"
-            name="category"
-            value={formData.category}
-            onChange={onChange}
-            placeholder="Vendas, Material, Serviço..."
-            icon={<Tag className="w-4 h-4" />}
-          />
+          <TransactionCategoryField type={formData.type} value={formData.category} onChange={onChange} />
         </FormItem>
 
         <FormItem label="Status" htmlFor="status">

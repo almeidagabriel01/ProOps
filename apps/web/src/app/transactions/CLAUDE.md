@@ -219,6 +219,27 @@ de Lançamentos: escondê-las daqui exigiria filtrar a lista, e é decisão à p
   mesma regra do diálogo individual. Toda ação que grava confirma com a
   contagem, porque a lista por vencimento começa com tudo selecionado.
 
+## Categorias e DRE (2026-09-26)
+
+- **A categoria virou lista da empresa**, cada uma num grupo do DRE (Receita
+  bruta, Outras receitas, Impostos e deduções, Custos, Despesas operacionais,
+  Outras despesas). O campo do formulário é
+  `_components/form-steps/transaction-category-field.tsx`: busca separada por
+  receita e despesa, e quem pode criar lançamento cria categoria digitando. O
+  lançamento **continua guardando o nome** (`category`), então busca, cartão e
+  exportação seguem iguais; um nome antigo fora da lista aparece e é gravado
+  como está.
+- A lista vem de `GET /v1/transactions/categories` (semeada no backend com as
+  categorias que a empresa já usava) e fica guardada no módulo
+  (`hooks/use-transaction-categories.ts`): formulário e DRE leem a mesma cópia.
+- **O DRE é a rota `/dre`**, no grupo Financeiro, com o pageId de Lançamentos
+  (quem vê lançamentos vê o resultado) e a capacidade `financial`. Caixa é o
+  padrão; competência numa chave. Regra do cálculo no `apps/functions/CLAUDE.md`,
+  seção DRE e categorias. A gestão das categorias (grupo, renomear, excluir)
+  fica no botão "Categorias" da própria tela (`app/dre/_components/`).
+- A conta free vê o DRE do tenant de demonstração pela API, e as categorias
+  só para ver.
+
 ## Race conditions e guards (frontend)
 
 - `updatingIdsRef` (Set) em `useFinancialData.ts` previne cliques duplos nos handlers: `updateTransactionStatus`, `updateTransaction`, `updateGroupStatus`

@@ -311,6 +311,19 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     // Não há comissão no dado de demonstração: a tela abriria vazia.
     excludeFromDemo: true,
   },
+  "/dre": {
+    id: "dre",
+    route: "/dre",
+    chapter: "financial",
+    description:
+      "Quanto sobrou em cada mês: receitas menos impostos, custos e despesas, pelas categorias dos lançamentos.",
+    checklist: [
+      { text: "Em Categorias, diga em que linha do DRE cada categoria entra." },
+      { text: "Caixa mostra o que foi pago; competência, o que foi lançado no mês." },
+      { text: "Categorize os lançamentos para o resultado sair certo." },
+    ],
+    actionLabel: "Abrir o DRE",
+  },
   "/invoices": {
     id: "invoices",
     route: "/invoices",

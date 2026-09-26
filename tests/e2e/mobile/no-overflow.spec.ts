@@ -28,6 +28,8 @@ const ROUTES = [
   "/services",
   "/transactions",
   "/wallets",
+  // A tabela do DRE rola por dentro do próprio card, não a página.
+  "/dre",
   "/calendar",
   "/spreadsheets",
   "/automation",

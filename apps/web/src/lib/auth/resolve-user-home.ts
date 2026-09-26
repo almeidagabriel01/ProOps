@@ -125,6 +125,8 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/spreadsheets",
   "/transactions",
   "/wallets",
+  // DRE: lê pela API o exemplo do tenant de demonstração.
+  "/dre",
   "/crm",
   // Projetos de instalação: o tenant de demonstração tem projetos de exemplo.
   "/projects",

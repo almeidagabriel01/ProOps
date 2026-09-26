@@ -23,7 +23,7 @@ Há ~38 segmentos de rota: proposals, contacts, products, transactions, calendar
 ```
 403, actions, addon-success, admin, agendar, ambientes, aplicativo, api, auth,
 automacao-residencial, automation, calendar, checkout-success,
-commissions, contacts, contato, cookies, crm, dashboard, data-deletion,
+commissions, contacts, contato, cookies, crm, dashboard, data-deletion, dre,
 decoracao, fale-conosco, forgot-password, institucional, invoices, login,
 manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
 register, reset,

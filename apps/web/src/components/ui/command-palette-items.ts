@@ -20,6 +20,7 @@ import {
   WalletCards,
   Wrench,
   ListTodo,
+  BarChart3,
 } from "lucide-react";
 
 import type { MenuCapability } from "@/components/layout/navigation-config";
@@ -213,6 +214,16 @@ export const searchItems: SearchItem[] = [
     requiresCapability: "fiscal",
     requiresView: "invoices",
     keywords: ["nota", "notas", "fiscal", "nfe", "nfse", "danfe", "xml"],
+  },
+  {
+    id: "dre",
+    label: "DRE",
+    description: "Quanto sobrou: receitas menos impostos, custos e despesas",
+    path: "/dre",
+    icon: BarChart3,
+    requiresView: "transactions",
+    requiresCapability: "financial",
+    keywords: ["dre", "resultado", "lucro", "prejuizo", "prejuízo", "demonstrativo", "relatorio", "relatório", "categorias"],
   },
   {
     id: "commissions",

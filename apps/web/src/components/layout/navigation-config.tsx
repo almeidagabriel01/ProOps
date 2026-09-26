@@ -17,6 +17,7 @@ import {
   Kanban,
   HardHat,
   ListTodo,
+  BarChart3,
 } from "lucide-react";
 
 /**
@@ -133,6 +134,14 @@ export const menuItems: MenuItem[] = [
         // todo membro.
         pageId: "transactions",
         masterOnly: true,
+      },
+      {
+        icon: BarChart3,
+        label: "DRE",
+        href: "/dre",
+        // Mesmo pageId de Lançamentos: o DRE é um relatório sobre eles, e
+        // quem vê os lançamentos vê o resultado (decisão do produto).
+        pageId: "transactions",
       },
       {
         icon: FileText,

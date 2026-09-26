@@ -180,6 +180,7 @@ describe("passos por plano e papel", () => {
       "transactions",
       "wallets",
       "commissions",
+      "dre",
       "invoices",
       "spreadsheets",
       "settings-security",
@@ -196,6 +197,7 @@ describe("passos por plano e papel", () => {
     expect(ids).not.toContain("crm");
     expect(ids).not.toContain("invoices");
     expect(ids).toContain("commissions");
+    expect(ids).toContain("dre");
     expect(ids).toContain("settings-integrations");
     // Projetos de instalação entram no Pro.
     expect(ids).toContain("projects");
@@ -206,7 +208,7 @@ describe("passos por plano e papel", () => {
 
   it("Starter, master: sem Financeiro nem Integrações", () => {
     const ids = stepIds("starter", MASTER);
-    for (const id of ["transactions", "wallets", "commissions", "invoices", "crm", "projects", "settings-goals", "settings-booking", "settings-integrations"]) {
+    for (const id of ["transactions", "wallets", "commissions", "dre", "invoices", "crm", "projects", "settings-goals", "settings-booking", "settings-integrations"]) {
       expect(ids).not.toContain(id);
     }
     expect(ids).toContain("settings-team");
@@ -218,6 +220,8 @@ describe("passos por plano e papel", () => {
     expect(ids).toContain("projects");
     expect(ids).toContain("transactions");
     expect(ids).toContain("wallets");
+    // O DRE da demonstração lê o exemplo do tenant demo.
+    expect(ids).toContain("dre");
     expect(ids).toContain("settings-security");
     expect(ids).toContain("settings-team");
     for (const id of ["commissions", "invoices", "settings-proposals", "settings-booking", "settings-integrations"]) {

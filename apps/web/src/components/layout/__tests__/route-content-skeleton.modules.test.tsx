@@ -17,6 +17,7 @@ import { RouteContentSkeleton } from "../route-content-skeleton";
 const CASOS: Array<[string, string]> = [
   ["/invoices", "invoices-skeleton"],
   ["/commissions", "commissions-skeleton"],
+  ["/dre", "dre-skeleton"],
   ["/calendar", "calendar-skeleton"],
 ];
 

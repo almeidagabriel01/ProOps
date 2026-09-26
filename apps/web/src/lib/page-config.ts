@@ -200,6 +200,15 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiredPermission: "view",
     masterOnly: true,
   },
+  // DRE: relatório sobre os lançamentos, com a mesma permissão deles.
+  "/dre": {
+    pageId: "transactions",
+    slug: "/dre",
+    name: "DRE",
+    module: "financial",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
   // Visão do grupo Financeiro: alcançada pelo seletor no cabeçalho das telas
   // irmãs. O gate da navegação vem de filterChildren, este é o da URL direta.
   "/wallets": {
