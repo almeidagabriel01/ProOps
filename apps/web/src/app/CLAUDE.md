@@ -45,8 +45,8 @@ recebe sai do catálogo (`lib/notifications/catalog.ts`, espelho do backend com
 teste de paridade). Regras no `apps/functions/src/api/services/CLAUDE.md`.
 
 `tasks` são as **tarefas**: o "a fazer" com responsável, prazo e @menção, em
-todos os planos, com `pageId` próprio (`tasks`). Ficam no grupo Agenda, com o
-Calendário. A tarefa é DA PESSOA: o membro lê as que criou, as dele e as em que
+todos os planos, com `pageId` próprio (`tasks`) e ícone próprio na dock, ao
+lado do Calendário. A tarefa é DA PESSOA: o membro lê as que criou, as dele e as em que
 foi citado (`audienceUids`, que as rules leem); dono e administradores leem
 todas (`useTaskReader`). Coleção própria `tasks`, e não as atividades do CRM,
 porque o histórico do lead é da equipe e as rules não liberariam uma lista que

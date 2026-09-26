@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -935,7 +934,6 @@ export function CalendarPage() {
                       Visualize, organize e reagende compromissos sem perder
                       contexto.
                     </p>
-                    <PageViewSwitcher className="mt-3" />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 xl:justify-end">
