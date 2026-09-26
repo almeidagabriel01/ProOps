@@ -58,3 +58,26 @@ describe("É da equipe?", () => {
     expect(container).toBeEmptyDOMElement();
   });
 });
+
+describe("layout: divide a linha com o nome só quando aparece", () => {
+  it("vendedor com plano de metas: aparece (a página divide a linha)", async () => {
+    const { showsMemberLink } = await import("../contact-member-link-field");
+    expect(showsMemberLink(["vendedor"], true)).toBe(true);
+    expect(showsMemberLink(["cliente", "vendedor"], true)).toBe(true);
+  });
+
+  it("sem vendedor ou sem plano: não aparece (o nome ocupa a linha toda)", async () => {
+    const { showsMemberLink } = await import("../contact-member-link-field");
+    expect(showsMemberLink(["arquiteto"], true)).toBe(false);
+    expect(showsMemberLink(["vendedor"], false)).toBe(false);
+  });
+
+  it("enquanto a equipe carrega, o campo existe desabilitado (não some e não desmonta a linha)", async () => {
+    let resolve!: (v: unknown) => void;
+    m.sellers.mockReturnValue(new Promise((r) => (resolve = r)));
+    render(<ContactMemberLinkField types={["vendedor"]} value={null} onChange={vi.fn()} />);
+    expect(screen.getByLabelText("É da equipe?")).toBeDisabled();
+    resolve([{ id: "u-ana", name: "Ana" }]);
+    await vi.waitFor(() => expect(screen.getByLabelText("É da equipe?")).not.toBeDisabled());
+  });
+});

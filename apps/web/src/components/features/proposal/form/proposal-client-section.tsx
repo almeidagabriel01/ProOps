@@ -52,6 +52,11 @@ interface ProposalClientSectionProps {
    * nova e o campo ainda está vazio.
    */
   onDefaultValidUntil?: (validUntil: string) => void;
+  /**
+   * Campo que divide a linha com o Endereço (o responsável pela venda, nos
+   * planos com metas). Sem ele, o Endereço ocupa a linha toda.
+   */
+  addressSibling?: React.ReactNode;
   onClientChange: (data: {
     clientId?: string;
     clientName: string;
@@ -75,6 +80,7 @@ export function ProposalClientSection({
   onNewClientDocumentChange,
   onPracaChange,
   onDefaultValidUntil,
+  addressSibling,
   isExistingProposal = false,
   onFormChange,
   onClientChange,
@@ -186,6 +192,19 @@ export function ProposalClientSection({
       </FormSection>
     );
   }
+
+  const addressField = (
+    <FormItem label="Endereço" htmlFor="clientAddress">
+      <Input
+        id="clientAddress"
+        name="clientAddress"
+        value={formData.clientAddress || ""}
+        onChange={onFormChange}
+        placeholder="Endereço completo do cliente"
+        icon={<MapPin className="w-4 h-4" />}
+      />
+    </FormItem>
+  );
 
   const content = (
     <>
@@ -360,16 +379,14 @@ export function ProposalClientSection({
         </FormGroup>
       )}
 
-      <FormItem label="Endereço" htmlFor="clientAddress">
-        <Input
-          id="clientAddress"
-          name="clientAddress"
-          value={formData.clientAddress || ""}
-          onChange={onFormChange}
-          placeholder="Endereço completo do cliente"
-          icon={<MapPin className="w-4 h-4" />}
-        />
-      </FormItem>
+      {addressSibling ? (
+        <FormGroup cols={2}>
+          {addressField}
+          {addressSibling}
+        </FormGroup>
+      ) : (
+        addressField
+      )}
     </>
   );
 

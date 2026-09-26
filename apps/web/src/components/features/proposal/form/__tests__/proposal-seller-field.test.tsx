@@ -58,3 +58,12 @@ describe("vendedor da proposta", () => {
     expect(m.sellers).not.toHaveBeenCalled();
   });
 });
+
+it("enquanto a equipe carrega, o campo existe desabilitado ao lado do Endereço", async () => {
+  let resolve!: (v: unknown) => void;
+  m.sellers.mockReturnValue(new Promise((r) => (resolve = r)));
+  render(<ProposalSellerField value={undefined} currentUserId="eu" onChange={vi.fn()} />);
+  expect(screen.getByLabelText("Responsável pela venda")).toBeDisabled();
+  resolve([{ id: "eu", name: "Eu" }]);
+  await vi.waitFor(() => expect(screen.getByLabelText("Responsável pela venda")).not.toBeDisabled());
+});

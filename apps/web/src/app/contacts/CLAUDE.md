@@ -148,10 +148,13 @@ e também contato vendedor (recebe comissão). Ligar os dois faz a comissão
 entrar sozinha na proposta quando ele é o responsável
 (`lib/contacts/seller-commission.ts`). Só para vendedor e só nos planos com
 metas (`_components/contact-member-link-field.tsx`); o backend recusa membro de
-outra empresa e membro já ligado a outro contato. O campo fica abaixo da
-comissão, SEM dica no cabeçalho do `FormItem` e com a explicação embaixo do
-select: a linha do rótulo tem altura fixa e divide a largura com a dica, e
-qualquer texto ali quebrava "É da equipe?" em duas linhas.
+outra empresa e membro já ligado a outro contato. O campo divide a linha com
+o Nome (`showsMemberLink` decide o layout na página, e o campo não some
+enquanto a equipe carrega, só fica desabilitado), SEM dica no cabeçalho do
+`FormItem` e com a explicação embaixo do select: a linha do rótulo tem altura
+fixa e divide a largura com a dica, e qualquer texto ali quebrava "É da equipe?"
+em duas linhas. Na proposta, o "Responsável pela venda" divide a linha com o
+Endereço pelo mesmo motivo (`addressSibling` de `ProposalClientSection`).
 
 `isCommissionPartner` e a lista dos papéis ficam em
 `src/lib/contacts/commission-partner.ts`, **fora** do `client-service`: aquele

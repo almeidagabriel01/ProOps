@@ -33,7 +33,11 @@ import { FormStepCard } from "@/components/ui/form-step-card";
 import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Receipt, CreditCard } from "lucide-react";
 import { ContactTypeSelector } from "../_components/contact-type-selector";
 import { ContactCommissionField } from "../_components/contact-commission-field";
-import { ContactMemberLinkField } from "../_components/contact-member-link-field";
+import {
+  ContactMemberLinkField,
+  showsMemberLink,
+} from "../_components/contact-member-link-field";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { formatDocumento } from "@/lib/format-document";
@@ -112,6 +116,7 @@ const buildCustomerFormSnapshot = (formData: EditCustomerFormData): string =>
   });
 
 export default function EditCustomerPage() {
+  const { hasSalesGoals } = usePlanLimits();
   const router = useRouter();
   const params = useParams();
   const clientId = params.id as string;
@@ -534,24 +539,37 @@ export default function EditCustomerPage() {
               }
             />
 
-            <FormItem
-              label="Nome Completo"
-              htmlFor="name"
-              required
-              error={errors.name}
-            >
-              <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                placeholder="Nome completo ou razão social"
-                icon={<User className="w-4 h-4" />}
-                className={errors.name ? "border-destructive" : ""}
+            {/* Vendedor nos planos com metas: "É da equipe?" divide a linha com o
+                nome. Nos outros casos o nome ocupa a linha toda. */}
+            <FormGroup>
+              <FormItem
+                label="Nome Completo"
+                htmlFor="name"
                 required
+                error={errors.name}
+                className={showsMemberLink(formData.types, hasSalesGoals) ? "" : "sm:col-span-2"}
+              >
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Nome completo ou razão social"
+                  icon={<User className="w-4 h-4" />}
+                  className={errors.name ? "border-destructive" : ""}
+                  required
+                />
+              </FormItem>
+
+              <ContactMemberLinkField
+                types={formData.types}
+                value={formData.linkedMemberId}
+                onChange={(linkedMemberId) =>
+                  setFormData((prev) => ({ ...prev, linkedMemberId }))
+                }
               />
-            </FormItem>
+            </FormGroup>
 
             <FormGroup>
               <FormItem label="Email" htmlFor="email" error={errors.email}>
@@ -616,13 +634,6 @@ export default function EditCustomerPage() {
                 }
               />
 
-              <ContactMemberLinkField
-                types={formData.types}
-                value={formData.linkedMemberId}
-                onChange={(linkedMemberId) =>
-                  setFormData((prev) => ({ ...prev, linkedMemberId }))
-                }
-              />
             </FormGroup>
 
             <FormItem label="Endereço Completo" htmlFor="address">

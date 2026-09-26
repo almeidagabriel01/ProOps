@@ -7,6 +7,15 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { SalesGoalsService, type SalesGoalsPerson } from "@/services/sales-goals-service";
 import type { ClientType } from "@/services/client-service";
 
+/**
+ * Se o campo aparece. A página usa isto para decidir o layout (ao lado do
+ * nome, dividindo a linha, ou o nome ocupando a linha toda): o campo não pode
+ * sumir depois de a linha já ter sido dividida.
+ */
+export function showsMemberLink(types: ClientType[], hasSalesGoals: boolean): boolean {
+  return hasSalesGoals && types.includes("vendedor");
+}
+
 interface ContactMemberLinkFieldProps {
   types: ClientType[];
   value: string | null;
@@ -22,11 +31,11 @@ interface ContactMemberLinkFieldProps {
  */
 export function ContactMemberLinkField({ types, value, onChange }: ContactMemberLinkFieldProps) {
   const { hasSalesGoals } = usePlanLimits();
-  const isSeller = types.includes("vendedor");
+  const visible = showsMemberLink(types, hasSalesGoals);
   const [people, setPeople] = React.useState<SalesGoalsPerson[]>([]);
 
   React.useEffect(() => {
-    if (!hasSalesGoals || !isSeller) return;
+    if (!visible) return;
     let cancelled = false;
     SalesGoalsService.sellers()
       .then((list) => {
@@ -36,9 +45,9 @@ export function ContactMemberLinkField({ types, value, onChange }: ContactMember
     return () => {
       cancelled = true;
     };
-  }, [hasSalesGoals, isSeller]);
+  }, [visible]);
 
-  if (!hasSalesGoals || !isSeller || people.length === 0) return null;
+  if (!visible) return null;
 
   return (
     // Sem dica no cabeçalho: a linha do rótulo tem altura fixa e divide a
@@ -51,6 +60,7 @@ export function ContactMemberLinkField({ types, value, onChange }: ContactMember
           aria-label="É da equipe?"
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value || null)}
+          disabled={people.length === 0}
           disableSort
         >
           <option value="">Não, é vendedor externo</option>

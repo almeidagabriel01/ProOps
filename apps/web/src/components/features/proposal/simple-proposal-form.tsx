@@ -50,6 +50,7 @@ import { ClientService } from "@/services/client-service";
 import { useAuth } from "@/providers/auth-provider";
 import { ProposalSellerField } from "./form/proposal-seller-field";
 import { useSellerCommission } from "@/hooks/proposal/use-seller-commission";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 interface SimpleProposalFormProps {
   proposalId?: string;
@@ -229,6 +230,7 @@ export function SimpleProposalForm({
   // add/remove controls disabled via FormStepCard's fieldset). Distinct from the
   // `isReadOnly` PROP, which renders a fully static view without the stepper.
   const { isReadOnly: isDemo, tenant } = useTenant();
+  const { hasSalesGoals } = usePlanLimits();
   const { user } = useAuth();
   // A comissão do vendedor da equipe acompanha o responsável pela venda.
   const { changeSeller } = useSellerCommission({
@@ -1145,15 +1147,17 @@ export function SimpleProposalForm({
                 setFormData((prev) => ({ ...prev, proposalPraca }))
               }
               onDefaultValidUntil={applyDefaultValidUntil}
+              addressSibling={
+                hasSalesGoals ? (
+                  <ProposalSellerField
+                    value={formData.sellerId}
+                    currentUserId={user?.id}
+                    onChange={changeSeller}
+                    disabled={isDemo}
+                  />
+                ) : undefined
+              }
             />
-            <div className="mt-6 max-w-sm">
-              <ProposalSellerField
-                value={formData.sellerId}
-                currentUserId={user?.id}
-                onChange={changeSeller}
-                disabled={isDemo}
-              />
-            </div>
           </div>
           <StepNavigation onBeforeNext={isDemo ? undefined : validateStep1} />
         </FormStepCard>

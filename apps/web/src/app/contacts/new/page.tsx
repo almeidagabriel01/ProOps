@@ -36,7 +36,10 @@ import { User, Mail, MapPin, FileText, CheckCircle, CreditCard, Receipt } from "
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { ContactTypeSelector } from "../_components/contact-type-selector";
 import { ContactCommissionField } from "../_components/contact-commission-field";
-import { ContactMemberLinkField } from "../_components/contact-member-link-field";
+import {
+  ContactMemberLinkField,
+  showsMemberLink,
+} from "../_components/contact-member-link-field";
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import type { ClientType } from "@/services/client-service";
 import { formatDocumento } from "@/lib/format-document";
@@ -77,7 +80,7 @@ const customerSteps = [
 export default function NewCustomerPage() {
   const router = useRouter();
   const { tenant } = useTenant();
-  const { canCreateClient, getClientCount, features } = usePlanLimits();
+  const { canCreateClient, getClientCount, features, hasSalesGoals } = usePlanLimits();
   const { canCreate, isLoading: permLoading } = usePagePermission("clients");
   const { createClient, isLoading: isCreating } = useClientActions();
   const {
@@ -274,24 +277,37 @@ export default function NewCustomerPage() {
               }
             />
 
-            <FormItem
-              label="Nome Completo"
-              htmlFor="name"
-              required
-              error={errors.name}
-            >
-              <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                placeholder="Nome completo ou razão social"
-                icon={<User className="w-4 h-4" />}
-                className={errors.name ? "border-destructive" : ""}
+            {/* Vendedor nos planos com metas: "É da equipe?" divide a linha com o
+                nome. Nos outros casos o nome ocupa a linha toda. */}
+            <FormGroup>
+              <FormItem
+                label="Nome Completo"
+                htmlFor="name"
                 required
+                error={errors.name}
+                className={showsMemberLink(formData.types, hasSalesGoals) ? "" : "sm:col-span-2"}
+              >
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Nome completo ou razão social"
+                  icon={<User className="w-4 h-4" />}
+                  className={errors.name ? "border-destructive" : ""}
+                  required
+                />
+              </FormItem>
+
+              <ContactMemberLinkField
+                types={formData.types}
+                value={formData.linkedMemberId}
+                onChange={(linkedMemberId) =>
+                  setFormData((prev) => ({ ...prev, linkedMemberId }))
+                }
               />
-            </FormItem>
+            </FormGroup>
 
             <FormGroup>
               <FormItem label="Email" htmlFor="email" error={errors.email}>
@@ -356,13 +372,6 @@ export default function NewCustomerPage() {
                 }
               />
 
-              <ContactMemberLinkField
-                types={formData.types}
-                value={formData.linkedMemberId}
-                onChange={(linkedMemberId) =>
-                  setFormData((prev) => ({ ...prev, linkedMemberId }))
-                }
-              />
             </FormGroup>
 
             <FormItem label="Endereço Completo" htmlFor="address">
