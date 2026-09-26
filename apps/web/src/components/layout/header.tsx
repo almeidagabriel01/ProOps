@@ -38,6 +38,7 @@ import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { ImpersonationBar } from "@/components/layout/impersonation-bar";
 import { useOptionalOnboarding } from "@/components/onboarding/onboarding-provider";
 import { HelpPanel } from "@/components/layout/help-panel";
+import { HEADER_ICON_BUTTON_CLASS } from "@/components/layout/header-icon-button";
 
 const SUPPORT_HREF = buildWhatsAppHref(
   SUPPORT_WHATSAPP_DIGITS,
@@ -136,9 +137,15 @@ export function Header({}: HeaderProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-2 md:gap-4">
-        <HelpPanel canOpenTutorial={canOpenTutorial} />
-        <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
-        <NotificationBell />
+        {/* Os três na mesma caixa do sino (40px, ícone de 20px centralizado) e
+            sem gap entre eles: com caixas diferentes, o espaço visível entre
+            os ícones ficava desigual. O [&>div]:mt-0 anula o mt-1 do wrapper
+            do DropdownMenu do sino, que o deixava 4px abaixo dos outros. */}
+        <div className="flex items-center [&>div]:mt-0">
+          <HelpPanel canOpenTutorial={canOpenTutorial} />
+          <AnimatedThemeToggler className={HEADER_ICON_BUTTON_CLASS} />
+          <NotificationBell />
+        </div>
         <div className="hidden h-8 w-px bg-border sm:block" />
         <div className="flex items-center gap-3">
           <DropdownMenu>

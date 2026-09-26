@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useOptionalOnboarding } from "@/components/onboarding/onboarding-provider";
+import { HEADER_ICON_BUTTON_CLASS } from "@/components/layout/header-icon-button";
 import {
   ONBOARDING_CHAPTERS,
   type OnboardingChapterId,
@@ -89,10 +90,7 @@ export function HelpPanel({ canOpenTutorial }: HelpPanelProps) {
         onClick={() => setOpen(true)}
         aria-label="Ajuda desta tela"
         title="Ajuda"
-        // Montado igual ao sol/lua do AnimatedThemeToggler (caixa w-5 h-5 com o
-        // ícone no tamanho padrão de 24px, sem centralizar): centralizado, o
-        // "?" ficava 2px acima dos vizinhos.
-        className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors"
+        className={HEADER_ICON_BUTTON_CLASS}
       >
         <CircleHelp />
       </button>
