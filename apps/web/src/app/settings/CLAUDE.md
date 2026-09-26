@@ -63,6 +63,7 @@ A rota legada `/team` faz `redirect("/settings/team")`. O conteúdo de equipe vi
 Pré-requisitos de acesso (não remover ao mexer aqui):
 - `proxy.ts` **não** deve voltar a redirecionar `/settings/team` → `/team`.
 - `/settings` está na allowlist do plano free (`resolve-user-home.ts`) para preservar o 2FA do free.
+- A raiz `/settings` **não** tem `requiredPermission` em `page-config.ts`. Tinha, com a chave "settings", que a tela de Equipe nunca grava, e todo membro levava 403 ao clicar em "Configurações" no menu do avatar (corrigido em 2026-09-26; guard em `lib/__tests__/page-config.test.ts`).
 
 ---
 

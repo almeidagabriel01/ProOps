@@ -210,13 +210,17 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  // A raiz só redireciona para /settings/team. `requiredPermission` aqui
+  // pedia a chave "settings", que a tela de Equipe nunca grava: todo membro
+  // levava 403 ao clicar em "Configurações" no menu do avatar, embora as
+  // seções abaixo sejam abertas a todos (cada uma mostra o próprio "Acesso
+  // Restrito").
   "/settings": {
     pageId: "settings",
     slug: "/settings",
     name: "Configurações",
     module: "settings",
     requiresAuth: true,
-    requiredPermission: "view",
   },
   // Settings sub-tabs. Intentionally NOT masterOnly and WITHOUT requiredPermission
   // so any authenticated user can open the page and see the in-page "Acesso

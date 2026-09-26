@@ -12,10 +12,13 @@ import { PERMISSION_PAGES } from "../permissions/pages";
  */
 describe("settings sub-tab page configs", () => {
   const SUBTABS = [
+    // A raiz entra junto: é o item "Configurações" do menu do avatar.
+    "/settings",
     "/settings/team",
     "/settings/security",
     "/settings/payments",
     "/settings/linked-accounts",
+    "/settings/goals",
   ];
 
   it.each(SUBTABS)("%s resolves a direct page config", (path) => {
