@@ -286,7 +286,7 @@ export default function ProposalsPage() {
     closeGaps: closeFiscalGaps,
   } = useIssueInvoice();
   const invoicePrompt = useProposalInvoicePrompt();
-  const { promptAfterApproval, startPreview } = invoicePrompt;
+  const { promptAfterApproval, startPreview, dismiss: dismissInvoicePrompt } = invoicePrompt;
   const [isAwaitingPendingSave, setIsAwaitingPendingSave] =
     React.useState(true);
   // Cache for attachments to prevent fetchProposals from overwriting local updates
@@ -730,6 +730,9 @@ export default function ProposalsPage() {
         }
         return true;
       } catch (error) {
+        // A consulta de emissão guardou a vez na fila de diálogos; sem
+        // aprovação não há convite, então solta.
+        if (pendingPreview) dismissInvoicePrompt();
         console.error("Error updating status:", error);
         const errorMessage =
           error instanceof Error && error.message.trim()
@@ -751,6 +754,7 @@ export default function ProposalsPage() {
       isProposalApproved,
       promptAfterApproval,
       startPreview,
+      dismissInvoicePrompt,
       canIssueInvoice,
     ],
   );

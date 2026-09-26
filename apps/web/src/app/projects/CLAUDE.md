@@ -43,6 +43,12 @@ e contam no armazenamento do plano.
   formulário navega logo depois de salvar: um diálogo aberto por ele morreria
   na troca de página. Todo caminho que muda status chama
   `announceProjectOnApproval(result, proposta)`.
+- **Um diálogo pós-aprovação por vez** (`lib/approval-dialog-queue.ts`): o
+  convite da nota fiscal e a pergunta do projeto nunca abrem juntos, e a nota
+  vem primeiro, inclusive enquanto a consulta "dá para emitir?" ainda está em
+  andamento. Criar o projeto leva para a tela da obra; se a pergunta viesse
+  antes, o convite da nota atrás dela se perderia na troca de página. Quem já
+  está na tela não é trocado por outro que chegou depois.
 - **A tela da obra responde na hora** (`_lib/project-overlay.ts`): checklist,
   situação da etapa, responsável e datas entram numa camada de "pendente" por
   cima do que o listener entrega. A entrada sai quando o listener mostra o

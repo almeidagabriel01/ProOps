@@ -129,7 +129,7 @@ export function ProposalKanbanTab() {
     >
   >({});
   const invoicePrompt = useProposalInvoicePrompt();
-  const { promptAfterApproval, startPreview } = invoicePrompt;
+  const { promptAfterApproval, startPreview, dismiss: dismissInvoicePrompt } = invoicePrompt;
   const [selectedProposal, setSelectedProposal] =
     React.useState<Proposal | null>(null);
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
@@ -458,6 +458,8 @@ export function ProposalKanbanTab() {
           );
         }
       } catch (error) {
+        // Sem aprovação não há convite de nota: solta a vez na fila de diálogos.
+        if (pendingPreview) dismissInvoicePrompt();
         // Revert on failure
         setProposals((prev) =>
           prev.map((p) =>
@@ -469,7 +471,7 @@ export function ProposalKanbanTab() {
         toast.error("Erro ao atualizar o status da proposta.");
       }
     },
-    [columns, proposals, adjustColumnTotals, promptAfterApproval, startPreview],
+    [columns, proposals, adjustColumnTotals, promptAfterApproval, startPreview, dismissInvoicePrompt],
   );
 
   // Handle card click — open detail modal

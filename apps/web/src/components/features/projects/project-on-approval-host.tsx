@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { toast } from "@/lib/toast";
 import { subscribeProjectApproval } from "@/lib/project-on-approval";
+import { APPROVAL_DIALOG_PRIORITY, useApprovalDialogTurn } from "@/lib/approval-dialog-queue";
 import { ProjectsService } from "@/services/projects-service";
 
 /**
@@ -26,6 +27,13 @@ export function ProjectOnApprovalHost() {
   const router = useRouter();
   const [suggestion, setSuggestion] = React.useState<{ proposalId: string; proposalTitle: string } | null>(null);
   const [creating, setCreating] = React.useState(false);
+  // Espera a vez: o convite da nota fiscal vem antes, porque criar o projeto
+  // leva para a tela da obra e o convite da nota se perderia na troca.
+  const hasTurn = useApprovalDialogTurn(
+    "project-on-approval",
+    suggestion !== null,
+    APPROVAL_DIALOG_PRIORITY.project,
+  );
 
   React.useEffect(
     () =>
@@ -60,7 +68,7 @@ export function ProjectOnApprovalHost() {
   };
 
   return (
-    <Dialog open={suggestion !== null} onOpenChange={(open) => !open && !creating && setSuggestion(null)}>
+    <Dialog open={suggestion !== null && hasTurn} onOpenChange={(open) => !open && !creating && setSuggestion(null)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

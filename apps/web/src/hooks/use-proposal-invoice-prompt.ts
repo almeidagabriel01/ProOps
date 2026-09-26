@@ -3,6 +3,16 @@
 import * as React from "react";
 import { FiscalService, type FiscalIssuePreview } from "@/services/fiscal-service";
 import { useIssueInvoice } from "@/hooks/use-issue-invoice";
+import {
+  APPROVAL_DIALOG_PRIORITY,
+  useApprovalDialogTurn,
+} from "@/lib/approval-dialog-queue";
+
+/**
+ * Quanto a vez na fila fica guardada esperando a consulta de emissão. Passado
+ * isso, solta: uma consulta travada não pode segurar o convite do projeto.
+ */
+const PREVIEW_RESERVATION_MS = 20_000;
 
 /**
  * Convite para emitir a nota logo depois de aprovar uma proposta.
@@ -31,6 +41,22 @@ export function useProposalInvoicePrompt() {
   const [prompt, setPrompt] = React.useState<ProposalInvoicePromptState | null>(
     null,
   );
+  // A vez na fila é guardada desde que a consulta começa, antes de se saber
+  // se haverá convite: sem isso a pergunta do projeto abriria primeiro, e
+  // criar o projeto leva para outra tela, onde o convite da nota se perderia.
+  const [reserved, setReserved] = React.useState(false);
+  const queueId = React.useId();
+  const hasTurn = useApprovalDialogTurn(
+    queueId,
+    reserved || prompt !== null || gaps !== null,
+    APPROVAL_DIALOG_PRIORITY.invoice,
+  );
+
+  React.useEffect(() => {
+    if (!reserved) return;
+    const timer = window.setTimeout(() => setReserved(false), PREVIEW_RESERVATION_MS);
+    return () => window.clearTimeout(timer);
+  }, [reserved]);
 
   /**
    * Dispara a consulta sem esperar por ela.
@@ -41,6 +67,7 @@ export function useProposalInvoicePrompt() {
    * toast em vez de segundos depois dele.
    */
   const startPreview = React.useCallback((proposalId: string) => {
+    setReserved(true);
     return FiscalService.previewFromProposal(proposalId).catch((error) => {
       console.warn("[fiscal] não foi possível verificar a emissão:", error);
       return null;
@@ -79,12 +106,19 @@ export function useProposalInvoicePrompt() {
         // mas a falha vai para o console, senão ela é indistinguível de um
         // "não havia o que convidar".
         console.warn("[fiscal] não foi possível verificar a emissão:", error);
+      } finally {
+        // Decidido: com convite, quem segura a vez é o `prompt`; sem, solta.
+        setReserved(false);
       }
     },
     [startPreview],
   );
 
-  const dismiss = React.useCallback(() => setPrompt(null), []);
+  /** Fecha o convite. Também serve para soltar a vez quando a aprovação falhou. */
+  const dismiss = React.useCallback(() => {
+    setPrompt(null);
+    setReserved(false);
+  }, []);
 
   // O diálogo só fecha DEPOIS da resposta: fechar no clique jogava o estado de
   // carregando para o botão da lista, longe de onde a pessoa estava olhando, e
@@ -98,11 +132,12 @@ export function useProposalInvoicePrompt() {
   return {
     startPreview,
     promptAfterApproval,
-    prompt,
+    // Só aparece na vez dele: com outro diálogo pós-aprovação na tela, espera.
+    prompt: hasTurn ? prompt : null,
     dismiss,
     confirm,
     isIssuing: issuingId !== null,
-    gaps,
+    gaps: hasTurn ? gaps : null,
     closeGaps,
   };
 }
