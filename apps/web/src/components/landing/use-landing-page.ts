@@ -62,6 +62,9 @@ export function buildPlanFeatureList(plan: UserPlan): string[] {
     f.hasKanban ? "CRM Kanban" : null,
     f.hasFiscal ? "Emissão de NF-e e NFS-e" : null,
     f.hasFiscalReceiving ? "Recebimento das notas dos fornecedores" : null,
+    f.hasOnlineApproval
+      ? "Aprovação online: o cliente aceita a proposta pelo link"
+      : null,
     f.hasOnlinePayments
       ? "Pagamento online: o cliente paga a parcela por Pix ou boleto no link"
       : null,

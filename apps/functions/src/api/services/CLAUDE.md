@@ -277,7 +277,7 @@ interface Notification {
 | Tipo | Origem |
 |------|--------|
 | `proposal_viewed` | Quando cliente visualiza proposta compartilhada |
-| `proposal_approved` | Quando proposta e aprovada |
+| `proposal_approved` | Quando o cliente aprova a proposta pelo link (`proposal-online-approval.controller.ts`) |
 | `transaction_due_reminder` | Cron `checkDueDates` — lancamento vencendo em 3 dias |
 | `proposal_expiring` | Cron `checkDueDates` — proposta vencendo em 3 dias |
 | `system` | Cron `checkStripeSubscriptions` — notificacoes de sistema para superadmins |

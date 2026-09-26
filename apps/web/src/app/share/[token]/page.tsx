@@ -5,7 +5,11 @@ import { useParams, useSearchParams } from "next/navigation";
 import { AlertCircle, FileText, FileDown, ZoomIn, ZoomOut } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { SharedProposalService } from "@/services/shared-proposal-service";
+import {
+  SharedProposalService,
+  type OnlineApprovalState,
+} from "@/services/shared-proposal-service";
+import { OnlineApprovalBar } from "./_components/online-approval-bar";
 import { Proposal } from "@/types/proposal";
 import { Tenant, ProposalTemplate } from "@/types";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
@@ -32,6 +36,8 @@ export default function SharedProposalPage() {
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = React.useState(0);
   const [isGenerating, setIsGenerating] = React.useState(false);
+  const [onlineApproval, setOnlineApproval] =
+    React.useState<OnlineApprovalState | null>(null);
 
   const handleDownloadPdf = React.useCallback(async () => {
     if (!token) return;
@@ -88,6 +94,7 @@ export default function SharedProposalPage() {
         setIsLoading(true);
         const data = await SharedProposalService.getSharedProposal(token);
         setProposal(data.proposal);
+        setOnlineApproval(data.onlineApproval);
         const tenantData = data.tenant as Tenant;
         setTenant(tenantData);
 
@@ -361,6 +368,16 @@ export default function SharedProposalPage() {
           </div>
         </div>
       </main>
+
+      {onlineApproval && (
+        <OnlineApprovalBar
+          token={token}
+          state={onlineApproval}
+          tenantName={tenant?.name || "a empresa"}
+          primaryColor={tenant?.primaryColor}
+          onApproved={setOnlineApproval}
+        />
+      )}
     </div>
   );
 }

@@ -163,7 +163,7 @@ qualquer chamada HTTP direta passava.
 Matriz atual: **Starter** sem módulo premium nativo (compra `financial`, `crm`,
 `fiscal`, `online_payments` e `pdf_editor_*` como add-on; o pagamento online no
 Starter exige o financeiro); **Pro** com financeiro, editor de PDF, cores,
-Google Agenda e Google Drive (compra `crm`, `fiscal` e `online_payments`);
+Google Agenda, Google Drive e aprovação online da proposta pelo link (compra `crm`, `fiscal` e `online_payments`);
 **Enterprise** com tudo, mais CRM, Notas Fiscais sem franquia, recepção de notas
 de entrada, Pagamento Online e WhatsApp. O add-on fiscal emite até 100 notas por
 mês e não inclui a recepção. Planilhas: 5 / 50 / ilimitado. Add-ons somam por

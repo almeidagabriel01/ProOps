@@ -158,6 +158,7 @@ export type PlanFeatures = {
   hasCalendarSync: boolean; // Sincronia com o Google Agenda
   hasDriveSync: boolean; // Proposta entregue no Google Drive do cliente
   hasOnlinePayments: boolean; // Pagamento da parcela pelo link (Asaas)
+  hasOnlineApproval: boolean; // Cliente aprova a proposta pelo link (Pro e Enterprise)
   hasFiscalReceiving: boolean; // Recepção de notas de entrada (Enterprise)
   hasWhatsApp: boolean; // Bot do WhatsApp (Enterprise)
   canCustomizeTheme: boolean; // Can change colors/branding

@@ -1,0 +1,236 @@
+"use client";
+
+import * as React from "react";
+import { CheckCircle2, CreditCard, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader } from "@/components/ui/loader";
+import { formatDocumento, isDocumentoValido } from "@/lib/format-document";
+import { computePrimaryForeground } from "@/utils/color-utils";
+import { formatDateBR } from "@/utils/date-format";
+import {
+  SharedProposalService,
+  type OnlineApprovalState,
+} from "@/services/shared-proposal-service";
+
+interface OnlineApprovalBarProps {
+  token: string;
+  state: OnlineApprovalState;
+  tenantName: string;
+  primaryColor?: string | null;
+  onApproved: (state: OnlineApprovalState) => void;
+}
+
+function brandStyle(primaryColor?: string | null): React.CSSProperties {
+  return primaryColor
+    ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) }
+    : { backgroundColor: "var(--primary)", color: "var(--primary-foreground)" };
+}
+
+/**
+ * Rodapé do link público com a aprovação online: o cliente informa nome,
+ * CPF/CNPJ e aceita. Fica fora do PDF (`data-pdf-ui`).
+ */
+export function OnlineApprovalBar({
+  token,
+  state,
+  tenantName,
+  primaryColor,
+  onApproved,
+}: OnlineApprovalBarProps) {
+  const [open, setOpen] = React.useState(false);
+  const [name, setName] = React.useState("");
+  const [document, setDocument] = React.useState("");
+  const [accepted, setAccepted] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [paymentUrl, setPaymentUrl] = React.useState<string | null>(null);
+  const [done, setDone] = React.useState(false);
+
+  const documentInvalid = document.length > 0 && !isDocumentoValido(document);
+  const canSubmit =
+    name.trim().length >= 3 && isDocumentoValido(document) && accepted && !submitting;
+
+  const submit = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await SharedProposalService.approve(token, {
+        name: name.trim(),
+        document,
+        accepted: true,
+      });
+      setPaymentUrl(result.paymentUrl);
+      setDone(true);
+      onApproved({
+        canApprove: false,
+        approved: true,
+        expired: false,
+        acceptance: { name: name.trim(), acceptedAt: result.acceptedAt },
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Não foi possível registrar a aprovação. Tente de novo.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!state.canApprove && !state.approved && !state.expired) return null;
+
+  return (
+    <>
+      <div
+        data-pdf-ui
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 backdrop-blur shadow-[0_-8px_30px_rgba(0,0,0,0.08)]"
+      >
+        <div className="container mx-auto flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          {state.canApprove ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Está tudo certo? Aprove a proposta por aqui: a confirmação
+                chega na hora para{" "}
+                <strong className="text-foreground">{tenantName}</strong>.
+              </p>
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md px-5 py-2.5 text-sm font-bold shadow-sm transition-all hover:brightness-110 active:scale-95"
+                style={brandStyle(primaryColor)}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Aprovar proposta
+              </button>
+            </>
+          ) : state.approved ? (
+            <p className="flex items-center gap-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              {state.acceptance
+                ? `Proposta aprovada por ${state.acceptance.name} em ${formatDateBR(state.acceptance.acceptedAt)}.`
+                : "Proposta aprovada."}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              A validade desta proposta terminou. Fale com {tenantName} para
+              receber uma atualizada.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={open} onOpenChange={(value) => !submitting && setOpen(value)}>
+        <DialogContent className="sm:max-w-md">
+          {done ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  Proposta aprovada
+                </DialogTitle>
+                <DialogDescription>
+                  Sua aprovação já foi enviada para {tenantName}.
+                  {paymentUrl
+                    ? " Se quiser, você já pode pagar a entrada agora."
+                    : " Em breve você recebe os próximos passos."}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-0">
+                {paymentUrl && (
+                  <a
+                    href={paymentUrl}
+                    className="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-bold"
+                    style={brandStyle(primaryColor)}
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Pagar a entrada
+                  </a>
+                )}
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Fechar
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Aprovar proposta</DialogTitle>
+                <DialogDescription>
+                  Seus dados ficam registrados junto da aprovação, como
+                  comprovante do aceite.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="approval-name">Nome completo</Label>
+                  <Input
+                    id="approval-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="name"
+                    maxLength={120}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="approval-document">CPF ou CNPJ</Label>
+                  <Input
+                    id="approval-document"
+                    value={document}
+                    onChange={(e) => setDocument(formatDocumento(e.target.value))}
+                    inputMode="numeric"
+                    aria-invalid={documentInvalid}
+                    className={documentInvalid ? "border-destructive" : ""}
+                  />
+                  {documentInvalid && (
+                    <p className="text-sm text-destructive">CPF ou CNPJ inválido</p>
+                  )}
+                </div>
+                <label className="flex items-start gap-3 text-sm">
+                  <Checkbox
+                    checked={accepted}
+                    onCheckedChange={setAccepted}
+                    aria-label="Li e aceito a proposta"
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Li e aceito esta proposta, com os itens, valores, condições
+                    de pagamento e prazos descritos nela.
+                  </span>
+                </label>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Registramos a data, o endereço de IP e o navegador do aceite.
+                </p>
+              </div>
+              <DialogFooter>
+                <button
+                  type="button"
+                  onClick={() => void submit()}
+                  disabled={!canSubmit}
+                  className="inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-bold transition-all disabled:opacity-50"
+                  style={brandStyle(primaryColor)}
+                >
+                  {submitting && <Loader size="sm" variant="button" />}
+                  Confirmar aprovação
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

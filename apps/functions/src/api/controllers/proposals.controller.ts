@@ -306,7 +306,7 @@ function normalizeStatusIdentifier(value: unknown): string {
     .toLowerCase();
 }
 
-async function isStatusApproved(
+export async function isStatusApproved(
   statusId: string | undefined | null,
   tenantId?: string | null,
 ): Promise<boolean> {
@@ -694,7 +694,7 @@ async function deleteStorageObjectsBestEffort(
   );
 }
 
-async function syncApprovedProposalTransactions(params: {
+export async function syncApprovedProposalTransactions(params: {
   proposalId: string;
   proposalTenantId: string;
   proposalData: Record<string, unknown>;

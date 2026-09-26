@@ -31,7 +31,10 @@ describe("PLAN_CATALOG — matriz alvo", () => {
     expect(matrix).toEqual([
       ["free", []],
       ["starter", []],
-      ["pro", ["financial", "pdfEditor", "customTheme", "calendarSync", "driveSync"]],
+      [
+        "pro",
+        ["financial", "pdfEditor", "customTheme", "calendarSync", "driveSync", "onlineApproval"],
+      ],
       [
         "enterprise",
         [
@@ -44,6 +47,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "calendarSync",
           "driveSync",
           "onlinePayments",
+          "onlineApproval",
           "fiscalReceiving",
         ],
       ],
@@ -65,6 +69,14 @@ describe("PLAN_CATALOG — matriz alvo", () => {
     expect(minimumTierForCapability("onlinePayments")).toBe("enterprise");
     expect(PLAN_CATALOG.pro.capabilities.onlinePayments).toBe(false);
     expect(minimumTierForCapability("fiscalReceiving")).toBe("enterprise");
+  });
+
+  it("aprovacao online da proposta: Pro e Enterprise", () => {
+    expect(minimumTierForCapability("onlineApproval")).toBe("pro");
+    expect(PLAN_CATALOG.starter.capabilities.onlineApproval).toBe(false);
+    expect(PLAN_CATALOG.enterprise.capabilities.onlineApproval).toBe(true);
+    expect(buildPublicPlanFeatures("pro").hasOnlineApproval).toBe(true);
+    expect(buildPublicPlanFeatures("starter").hasOnlineApproval).toBe(false);
   });
 
   it("planilhas: Starter 5, Pro 50, Enterprise ilimitado", () => {

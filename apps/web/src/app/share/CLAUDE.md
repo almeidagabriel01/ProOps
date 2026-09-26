@@ -68,6 +68,7 @@ A resposta pública do backend retorna a proposta/lançamento junto com dados do
 | Buscar lançamento pelo token | `GET` (público) | `SharedTransactionService.getSharedTransaction` | `/v1/share/transaction/:token` |
 | Download PDF proposta | `GET` (público) | `downloadSharedProposalPdf` | `/v1/share/:token/pdf` |
 | Download PDF recibo | `GET` (público) | `downloadSharedTransactionPdf` | `/v1/share/transaction/:token/pdf` |
+| Aprovar proposta | `POST` (público) | `SharedProposalService.approve` | `/v1/share/:token/approve` |
 
 As chamadas públicas usam `callPublicApi` (sem token de autenticação no header), diferentemente do `callApi` padrão.
 
@@ -76,6 +77,28 @@ As chamadas públicas usam `callPublicApi` (sem token de autenticação no heade
 - **Propostas** (`src/app/proposals/`) — gera o share link via `SharedProposalService.generateShareLink`
 - **Lançamentos** (`src/app/transactions/`) — gera o share link via `SharedTransactionService.generateShareLink`
 - **PDF backend** (`functions/src/api/routes/sharedProposals.ts`, `sharedTransactions.ts`) — rotas públicas que retornam dados e geram PDF via Playwright
+
+## Aprovação online (2026-09-25)
+
+O cliente final aprova a proposta pelo próprio link: barra fixa no rodapé
+(`[token]/_components/online-approval-bar.tsx`, fora do PDF por `data-pdf-ui`)
+com nome, CPF/CNPJ e aceite. `POST /v1/share/:token/approve`
+(`functions/.../proposal-online-approval.controller.ts`):
+
+- **Capacidade `onlineApproval`** (Pro e Enterprise). O `GET /v1/share/:token`
+  devolve `onlineApproval: { canApprove, approved, expired, acceptance }`; sem a
+  capacidade, com a proposta vencida, em rascunho ou já aprovada, o botão não
+  aparece.
+- **Mesmas consequências da aprovação no ERP**: lançamentos
+  (`syncApprovedProposalTransactions`), comissões, nota automática "ao aprovar"
+  e entrega no Drive. O autor gravado é `client_online_approval`.
+- **O status gravado cai numa coluna do CRM**: a coluna com
+  `mappedStatus: approved`, senão a primeira `category: won`, senão
+  `"approved"`.
+- **O aceite fica na proposta** (`clientAcceptance`: nome, documento, data, IP
+  e navegador), fora do hash do PDF.
+- Com pagamento online (`onlinePayments` + Asaas), a resposta traz o link de
+  pagamento da entrada (ou da primeira parcela) e o diálogo oferece pagar.
 
 ## Padrões e gotchas
 

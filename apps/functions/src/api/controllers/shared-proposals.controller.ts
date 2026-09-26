@@ -4,6 +4,7 @@ import { resolveUserAndTenant } from "../../lib/auth-helpers";
 import { db } from "../../init";
 import { FieldPath } from "firebase-admin/firestore";
 import { resolveClientIp } from "../../lib/client-ip";
+import { resolveOnlineApprovalState } from "./proposal-online-approval.controller";
 
 type ProductLike = {
   productId?: string;
@@ -406,8 +407,17 @@ export const getSharedProposal = async (req: Request, res: Response) => {
       ).catch((err) => console.error("recordView failed (non-critical)", err));
     }
 
+    // O render do PDF (Playwright) não mostra o bloco de aprovação.
+    const onlineApproval = isPdfGeneratorRequest
+      ? null
+      : await resolveOnlineApprovalState(
+          sharedProposal.tenantId,
+          (proposalData ?? {}) as Record<string, unknown>,
+        );
+
     // Retornar dados da proposta
     return res.status(200).json({
+      onlineApproval,
       success: true,
       proposal: sanitizeSharedProposalPayload(
         proposalSnap.id,
