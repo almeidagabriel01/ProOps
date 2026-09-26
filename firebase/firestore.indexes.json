@@ -1,6 +1,20 @@
 ﻿{
   "indexes": [
     {
+      "collectionGroup": "shared_proposals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "followUpPending",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "firstViewedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "proposals",
       "queryScope": "COLLECTION",
       "fields": [

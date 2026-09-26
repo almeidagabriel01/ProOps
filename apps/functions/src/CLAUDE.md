@@ -109,6 +109,12 @@ Centraliza configuracoes de deploy para evitar divergencias entre funcoes.
 
 Os upserts das partes 1 e 2 vao por um `BulkWriter` (paralelo, com retentativa), fechado num `finally`. A logica fica em `runDueDateCheck(now)`, exportada para teste (`checkDueDates.test.ts`).
 
+**Parte 2b — Follow-up de proposta vista e sem resposta (2026-09-25):**
+- `runProposalFollowUps` (`proposal-follow-up.ts`): links com `followUpPending == true` e `firstViewedAt` ha 3 dias ou mais (indice `shared_proposals(followUpPending, firstViewedAt)`)
+- A primeira abertura do link grava os dois campos (`SharedProposalService.recordView`); links anteriores a mudanca nao tem os campos e nunca entram
+- Proposta ainda aberta (nem aprovada, recusada, rascunho, com aceite, nem em coluna `won`/`lost`) gera notificacao `proposal_follow_up` com id `followup_{sharedProposalId}`; o link e desmarcado em qualquer caso: um aviso por link
+- Falha nao-fatal, como a parte 3
+
 **Parte 3 — Limpeza de sessoes WhatsApp:**
 - Remove documentos de `whatsappSessions` com `expiresAt < (agora - 24h)`
 - Limite de 200 por execucao (para nao travar o cron)

@@ -3,6 +3,7 @@ import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { captureError } from "./lib/observability/error-logger";
+import { runProposalFollowUps } from "./proposal-follow-up";
 
 /**
  * Cloud Function scheduled que roda diariamente para verificar
@@ -180,6 +181,16 @@ export async function runDueDateCheck(now: Date): Promise<void> {
     console.log(
       `Created ${proposalReminders} proposal expiration reminders.`,
     );
+
+    // ================================================================
+    // 2b. FOLLOW-UP — proposta vista há dias e ainda sem resposta
+    // ================================================================
+    try {
+      const followUps = await runProposalFollowUps(now, writer);
+      console.log(`Created ${followUps} proposal follow-up reminders.`);
+    } catch (followUpError) {
+      console.warn("Proposal follow-up failed (non-fatal):", followUpError);
+    }
     console.log(
       `Due date check complete. Total reminders: ${transactionReminders + proposalReminders}.`,
     );

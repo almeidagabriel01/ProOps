@@ -2,7 +2,16 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Bell, Clock, FileText, TrendingUp, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  CheckCircle2,
+  Clock,
+  FileText,
+  MessageCircle,
+  TrendingUp,
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +34,10 @@ function getNotificationIcon(type: NotificationType) {
       return AlertTriangle;
     case NotificationType.PRICE_CHANGE:
       return TrendingUp;
+    case NotificationType.PROPOSAL_FOLLOW_UP:
+      return MessageCircle;
+    case NotificationType.PROPOSAL_APPROVED:
+      return CheckCircle2;
     default:
       return FileText;
   }
@@ -34,6 +47,10 @@ function getNotificationIconClassName(type: NotificationType): string {
   switch (type) {
     case NotificationType.PRICE_CHANGE:
       return "bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400";
+    case NotificationType.PROPOSAL_APPROVED:
+      return "bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400";
+    case NotificationType.PROPOSAL_FOLLOW_UP:
+      return "bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400";
     default:
       return "bg-muted text-muted-foreground";
   }

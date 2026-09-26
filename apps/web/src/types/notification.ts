@@ -1,6 +1,8 @@
 export enum NotificationType {
   PROPOSAL_VIEWED = "proposal_viewed",
   PROPOSAL_APPROVED = "proposal_approved",
+  /** Cliente abriu o link há dias e a proposta segue sem resposta. */
+  PROPOSAL_FOLLOW_UP = "proposal_follow_up",
   TRANSACTION_DUE_REMINDER = "transaction_due_reminder",
   PROPOSAL_EXPIRING = "proposal_expiring",
   SYSTEM = "system",
