@@ -89,11 +89,12 @@ export function HelpPanel({ canOpenTutorial }: HelpPanelProps) {
         onClick={() => setOpen(true)}
         aria-label="Ajuda desta tela"
         title="Ajuda"
-        // Mesma caixa do sol/lua ao lado (w-5 h-5, ícone de 24px centralizado):
-        // um <button> sem tamanho alinhava o ícone pela linha de texto.
-        className="inline-flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+        // Montado igual ao sol/lua do AnimatedThemeToggler (caixa w-5 h-5 com o
+        // ícone no tamanho padrão de 24px, sem centralizar): centralizado, o
+        // "?" ficava 2px acima dos vizinhos.
+        className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
       >
-        <CircleHelp className="h-6 w-6 shrink-0" />
+        <CircleHelp />
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
