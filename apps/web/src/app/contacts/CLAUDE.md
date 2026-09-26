@@ -86,6 +86,7 @@ export type Client = {
   notes?: string;
   types: ClientType[];      // Array — permite ser fornecedor E arquiteto ao mesmo tempo
   commissionPercentage?: number | null;  // Comissão padrão; só para vendedor/arquiteto
+  linkedMemberId?: string | null;        // Vendedor que é da equipe: o membro ligado
   source: ClientSource;     // Origem do cadastro
   sourceId?: string;        // ID da proposta ou lançamento que criou o cliente
   createdAt: string;        // ISO 8601
@@ -140,6 +141,16 @@ entraria só numa delas. Guard: `_components/__tests__/contact-type-selector.tes
 tem nome, telefone, documento, `searchTokens`, regra de Firestore e tela; e como
 `types` sempre foi array, a mesma pessoa pode ser fornecedor e arquiteto. Os dois
 recebem comissão, definida na proposta (ver `Proposal.commissions[]`).
+
+**Vendedor da equipe (`linkedMemberId`, campo "É da equipe?").** O vendedor
+interno é membro (é o "responsável pela venda" da proposta, que conta na meta)
+e também contato vendedor (recebe comissão). Ligar os dois faz a comissão
+entrar sozinha na proposta quando ele é o responsável
+(`lib/contacts/seller-commission.ts`). Só para vendedor e só nos planos com
+metas (`_components/contact-member-link-field.tsx`); o backend recusa membro de
+outra empresa e membro já ligado a outro contato. O campo fica abaixo da
+comissão, com a explicação embaixo do select: a dica no cabeçalho do
+`FormItem` precisa ser curta, porque a linha do rótulo tem altura fixa.
 
 `isCommissionPartner` e a lista dos papéis ficam em
 `src/lib/contacts/commission-partner.ts`, **fora** do `client-service`: aquele
