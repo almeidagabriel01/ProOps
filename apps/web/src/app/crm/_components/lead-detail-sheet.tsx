@@ -277,7 +277,6 @@ export function LeadDetailSheet({
                     aria-label="Tipo de atividade"
                     value={newType}
                     onChange={(e) => setNewType(e.target.value as ActivityType)}
-                    inputSize="sm"
                     disableSort
                   >
                     {Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => (
