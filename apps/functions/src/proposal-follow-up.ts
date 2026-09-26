@@ -1,5 +1,6 @@
 import { db } from "./init";
 import { acceptanceStatus, isChangeRequestOpen } from "./api/services/proposal-online-approval";
+import { NotificationService } from "./api/services/notification.service";
 
 /**
  * Follow-up de proposta vista e não respondida: o cliente abriu o link há
@@ -100,11 +101,18 @@ export async function runProposalFollowUps(
           title: proposal.title as string | undefined,
           clientName: proposal.clientName as string | undefined,
         });
+        const { fields, emailRecipients } = await NotificationService.recipientFields(
+          notification.tenantId,
+          "proposal_follow_up",
+        );
         writer.set(
           db.collection("notifications").doc(`followup_${doc.id}`),
-          { ...notification, isRead: false, createdAt: now.toISOString() },
+          { ...notification, ...fields, isRead: false, createdAt: now.toISOString() },
           { merge: true },
         );
+        // Um aviso por link (o link é desmarcado logo abaixo), então o e-mail
+        // também sai uma vez só.
+        await NotificationService.sendNotificationEmails(notification, emailRecipients);
         created++;
       }
       writer.update(doc.ref, { followUpPending: false });

@@ -285,7 +285,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 |---------|--------|-----------|
 | `users/{uid}` | Auth/Billing | Dados do usuario, status de assinatura |
 | `tenants/{tenantId}` | Multi-tenant | Dados do tenant, config WhatsApp, billing |
-| `notifications` | Notifications | Notificacoes de todos os tipos |
+| `notifications` | Notifications | Notificacoes de todos os tipos, por pessoa (`recipientUids`/`readBy`; ver `api/services/CLAUDE.md`) |
 | `notification_due_toast_claims/{id}` | Notifications | Claim diario de toast (idempotente) |
 | `internal_notify_claims/{id}` | Email | Claim idempotente do email interno de signup (`signup_{uid}`; Admin SDK only) |
 | `email_audit/{id}` | Email | Audit de todo envio via `sendEmail` (status sent/failed, type, messageId) |

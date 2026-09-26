@@ -1,6 +1,7 @@
 import { db } from "./init";
 import { isLeadOpen } from "./api/services/crm-leads";
 import { todayInBrazil } from "./api/services/proposal-online-approval";
+import { NotificationService } from "./api/services/notification.service";
 
 /**
  * Lembrete da próxima ação do CRM: lead com "próxima ação" marcada para hoje e
@@ -66,6 +67,10 @@ export async function runLeadReminders(
   for (const doc of leads.docs) {
     const lead = doc.data();
     if (!lead.tenantId || !isLeadOpen(lead.stage)) continue;
+    const { fields } = await NotificationService.recipientFields(
+      String(lead.tenantId),
+      "lead_reminder",
+    );
     writer.set(
       db.collection("notifications").doc(`lead_${doc.id}_${today}`),
       {
@@ -76,6 +81,7 @@ export async function runLeadReminders(
           nextAction: lead.nextAction as string | undefined,
           ownerName: lead.ownerName as string | undefined,
         }),
+        ...fields,
         isRead: false,
         createdAt,
       },
@@ -92,6 +98,10 @@ export async function runLeadReminders(
   for (const doc of activities.docs) {
     const activity = doc.data();
     if (!activity.tenantId || activity.doneAt) continue;
+    const { fields } = await NotificationService.recipientFields(
+      String(activity.tenantId),
+      "lead_reminder",
+    );
     writer.set(
       db.collection("notifications").doc(`activity_${doc.id}_${today}`),
       {
@@ -102,6 +112,7 @@ export async function runLeadReminders(
           leadId: activity.leadId as string | null,
           clientId: activity.clientId as string | null,
         }),
+        ...fields,
         isRead: false,
         createdAt,
       },

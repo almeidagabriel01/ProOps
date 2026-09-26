@@ -7,6 +7,7 @@ import { tryAutoIssue } from "../services/fiscal/invoice-issue.service";
 import { resolveWalletRef } from "../../lib/finance-helpers";
 import { schedulePayoutTransfer } from "../services/payout-transfer.service";
 import type { TenantAsaasData } from "../services/asaas.service";
+import { NotificationService } from "../services/notification.service";
 
 const PAYMENT_ATTEMPTS_COLLECTION = "payment_attempts";
 const WEBHOOK_EVENTS_COLLECTION = "webhookEvents";
@@ -256,14 +257,12 @@ async function handlePaymentSuccess(
 
   // Notification: write outside transaction (non-critical, best-effort)
   try {
-    await db.collection("notifications").add({
+    await NotificationService.createNotification({
       tenantId,
       type: "transaction_paid_online",
       title: "Pagamento recebido",
       message: "Pagamento via Asaas confirmado para o lançamento.",
       transactionId,
-      isRead: false,
-      createdAt: new Date().toISOString(),
     });
   } catch (notifErr) {
     logger.warn("Asaas webhook: failed to create notification (non-critical)", {

@@ -594,9 +594,20 @@ service cloud.firestore {
                         && belongsToTenant(resource.data.get('tenantId', '')));
     }
 
-    // NOTIFICATIONS - Acesso restrito ao tenant
+    // NOTIFICATIONS - Cada pessoa lê só o que foi endereçado a ela
+    // (`recipientUids`, resolvido na criação pelo catálogo, pelas permissões e
+    // pelas preferências de cada um). Antes valia para a empresa inteira, e um
+    // membro sem acesso ao financeiro lia "pagamento recebido" direto daqui.
+    // A consulta do sino filtra por tenantId e por recipientUids (array-contains),
+    // que é o que deixa esta regra ser provada para uma lista.
+    // O tenant de demonstração (`demo`) é lido pela conta free, só leitura.
     match /notifications/{notificationId} {
-      allow read: if isSuperAdmin() || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow read: if isSuperAdmin()
+                  || isDemoRead(resource.data.tenantId)
+                  || (isAuthenticated()
+                      && request.auth.uid in resource.data.get('recipientUids', [])
+                      && belongsToTenant(resource.data.tenantId)
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Apenas Cloud Functions
     }
 

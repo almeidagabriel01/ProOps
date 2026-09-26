@@ -59,6 +59,7 @@ import {
 import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
 import { getStripe } from "../../stripe/stripeConfig";
 import { detectPriceDrift } from "../../billing/price-drift";
+import { invalidateTenantAudience } from "../services/notification-audience";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -684,7 +685,9 @@ export const updatePermissions = async (req: Request, res: Response) => {
           targetId: actualMemberId,
           reason: `single:${pageId}.${key}=${value}`,
         });
-      }
+      }
+      // Quem recebe cada notificação depende das permissões.
+      invalidateTenantAudience(String(memberData?.tenantId || ""));
       return res.json({ success: true, message: "Permissão atualizada." });
     }
 
@@ -715,7 +718,9 @@ export const updatePermissions = async (req: Request, res: Response) => {
         targetId: actualMemberId,
         reason: "bulk",
       });
-    }
+    }
+    // Quem recebe cada notificação depende das permissões.
+    invalidateTenantAudience(String(memberData?.tenantId || ""));
     return res.json({ success: true, message: "Permissões atualizadas." });
   } catch (error: unknown) {
     const message =

@@ -274,6 +274,7 @@ export interface SeedDemoTenantResult {
   leads: number;
   activities: number;
   projects: number;
+  notifications: number;
 }
 
 export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
@@ -765,6 +766,33 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
       createdAt: isoAt(Math.min(a.offset, -1)),
     });
   });
+
+  // --- Central de notificações -------------------------------------------
+  // A conta free lê o tenant "demo" direto (isDemoRead), sem destinatário:
+  // `recipientUids` fica vazio porque ninguém da empresa de demonstração
+  // existe de verdade. Uma lida e três não lidas, para o sino ter número.
+  const DEMO_NOTIFICATIONS = [
+    { id: "demo_notif_aceite", type: "proposal_accepted", title: "Cliente aceitou a proposta", message: "Bruno Carvalho aceitou \"Segurança e Controle de Acesso\" pelo link. Confirme para gerar o financeiro.", proposalId: "demo_prop_2", offset: 0, read: false },
+    { id: "demo_notif_pago", type: "transaction_paid_online", title: "Pagamento recebido", message: "Pagamento via PIX confirmado para \"Automação residencial: entrada do projeto\".", transactionId: "demo_txn_01", offset: -1, read: false },
+    { id: "demo_notif_vista", type: "proposal_viewed", title: "Proposta visualizada", message: "Carla Menezes abriu \"Som Ambiente Multizona\".", proposalId: "demo_prop_3", offset: -1, read: false },
+    { id: "demo_notif_entrega", type: "project_delivery_accepted", title: "Entrega aceita pelo cliente", message: "Ana Paula Ribeiro aceitou a entrega da obra \"Automação Residencial Completa\".", projectId: "proposal_demo_prop_1", offset: -3, read: true },
+  ] as const;
+
+  DEMO_NOTIFICATIONS.forEach((n) => {
+    batch.set(db.collection("notifications").doc(n.id), {
+      ...tenantTag,
+      type: n.type,
+      title: n.title,
+      message: n.message,
+      ...("proposalId" in n ? { proposalId: n.proposalId } : {}),
+      ...("transactionId" in n ? { transactionId: n.transactionId } : {}),
+      ...("projectId" in n ? { projectId: n.projectId } : {}),
+      recipientUids: [],
+      readBy: [],
+      isRead: n.read,
+      createdAt: isoAt(n.offset),
+    });
+  });
   // ------------------------------------------------------------------------
 
   await batch.commit();
@@ -783,6 +811,7 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     leads: DEMO_LEADS.length,
     activities: DEMO_ACTIVITIES.length,
     projects: DEMO_PROJECTS.length,
+    notifications: DEMO_NOTIFICATIONS.length,
   };
   logger.info("seedDemoTenant complete", { ...result });
   return result;

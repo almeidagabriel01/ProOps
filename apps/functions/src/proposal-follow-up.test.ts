@@ -53,6 +53,17 @@ jest.mock("./init", () => ({
   },
 }));
 
+const sendNotificationEmails = jest.fn();
+jest.mock("./api/services/notification.service", () => ({
+  NotificationService: {
+    recipientFields: async () => ({
+      fields: { recipientUids: ["dono"], readBy: [] },
+      emailRecipients: [{ uid: "dono", email: "dono@empresa.com" }],
+    }),
+    sendNotificationEmails: (...a: unknown[]) => sendNotificationEmails(...a),
+  },
+}));
+
 import {
   FOLLOW_UP_AFTER_DAYS,
   buildFollowUpNotification,
@@ -155,8 +166,18 @@ describe("runProposalFollowUps", () => {
     expect(await runProposalFollowUps(NOW, writer)).toBe(1);
     expect(writer.set).toHaveBeenCalledWith(
       { path: "notifications/followup_s1" },
-      expect.objectContaining({ tenantId: "t1", type: "proposal_follow_up", isRead: false }),
+      expect.objectContaining({
+        tenantId: "t1",
+        type: "proposal_follow_up",
+        isRead: false,
+        recipientUids: ["dono"],
+      }),
       { merge: true },
+    );
+    // Um aviso por link: o e-mail sai junto, uma vez.
+    expect(sendNotificationEmails).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "proposal_follow_up", proposalId: "p1" }),
+      [{ uid: "dono", email: "dono@empresa.com" }],
     );
     expect(writer.update).toHaveBeenCalledWith(
       { path: "shared_proposals/s1" },

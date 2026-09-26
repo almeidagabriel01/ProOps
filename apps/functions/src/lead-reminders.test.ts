@@ -31,6 +31,15 @@ jest.mock("./init", () => ({
   },
 }));
 
+jest.mock("./api/services/notification.service", () => ({
+  NotificationService: {
+    recipientFields: async () => ({
+      fields: { recipientUids: ["dono", "crm"], readBy: [] },
+      emailRecipients: [],
+    }),
+  },
+}));
+
 import { runLeadReminders } from "./lead-reminders";
 
 function fakeWriter() {
@@ -76,6 +85,9 @@ it("usa o dia de Brasília e ignora lead fechado e atividade concluída", async 
     message: "Lead Carla, com Ana.",
     leadId: "l1",
     isRead: false,
+    // Só quem vê o CRM recebe, e o lembrete regravado volta como não lido.
+    recipientUids: ["dono", "crm"],
+    readBy: [],
   });
   expect(sets[1].data).toMatchObject({ type: "lead_reminder", message: "Mandar fotos", leadId: "l1" });
 });

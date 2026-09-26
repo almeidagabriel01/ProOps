@@ -19,6 +19,13 @@ router.get("/", NotificationsController.getNotifications);
 router.get("/unread-count", NotificationsController.getUnreadCount);
 
 /**
+ * GET/PUT /v1/notifications/preferences - Preferências da pessoa (sino e e-mail
+ * por tipo). Antes de `/:id` porque o Express casa por ordem.
+ */
+router.get("/preferences", NotificationsController.getPreferences);
+router.put("/preferences", NotificationsController.updatePreferences);
+
+/**
  * POST /v1/notifications/due-toast/claim - Claim diário de toast por tipo
  */
 router.post("/due-toast/claim", NotificationsController.claimDailyDueToast);
