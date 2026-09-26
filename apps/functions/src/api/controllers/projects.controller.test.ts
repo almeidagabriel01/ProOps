@@ -1,0 +1,347 @@
+/**
+ * Projetos de instalação: permissão própria (pageId projects), isolamento por
+ * empresa, técnico da mesma equipe, checklist que põe a etapa em andamento,
+ * fotos pelo backend com teto de armazenamento e configurações só do admin.
+ */
+
+import type { Request, Response } from "express";
+
+const hasPagePermission = jest.fn();
+const svc = {
+  createProjectFromProposal: jest.fn(),
+  createStandaloneProject: jest.fn(),
+  createProjectShareLink: jest.fn(),
+  deleteProjectPhotos: jest.fn(),
+  isStorageOverQuota: jest.fn(),
+  loadProjectSettings: jest.fn(),
+  saveProjectSettings: jest.fn(),
+  storeProjectPhoto: jest.fn(),
+};
+
+let projects: Record<string, Record<string, unknown>>;
+let docs: Record<string, Record<string, Record<string, unknown>>>;
+const projectUpdates: Array<{ id: string; data: Record<string, unknown> }> = [];
+const projectDeletes: string[] = [];
+
+jest.mock("../../lib/auth-helpers", () => ({
+  hasPagePermission: (...a: unknown[]) => hasPagePermission(...a),
+}));
+
+jest.mock("../../init", () => {
+  const projectRef = (id: string) => ({
+    id,
+    get: async () => ({ exists: !!projects[id], data: () => projects[id] }),
+    update: async (data: Record<string, unknown>) => {
+      projectUpdates.push({ id, data });
+      projects[id] = { ...projects[id], ...data };
+    },
+    delete: async () => {
+      projectDeletes.push(id);
+    },
+  });
+  return {
+    db: {
+      collection: (name: string) => {
+        if (name === "projects") return { doc: projectRef };
+        const col = docs[name] ?? {};
+        return {
+          doc: (id: string) => ({
+            id,
+            get: async () => ({ id, exists: !!col[id], data: () => col[id] }),
+          }),
+        };
+      },
+      runTransaction: async (fn: (t: unknown) => Promise<unknown>) =>
+        fn({
+          get: async (ref: { get: () => Promise<unknown> }) => ref.get(),
+          update: (ref: { id: string }, data: Record<string, unknown>) => {
+            projectUpdates.push({ id: ref.id, data });
+            projects[ref.id] = { ...projects[ref.id], ...data };
+          },
+        }),
+    },
+  };
+});
+
+jest.mock("../services/projects/project.service", () => {
+  const actual = jest.requireActual("../services/projects/project.service");
+  return {
+    PROJECTS_COLLECTION: "projects",
+    projectPhotoPath: actual.projectPhotoPath,
+    loadProjectOfTenant: async (id: string, tenantId: string) => {
+      const data = projects[id];
+      if (!data || data.tenantId !== tenantId) return null;
+      return {
+        ref: {
+          id,
+          update: async (update: Record<string, unknown>) => {
+            projectUpdates.push({ id, data: update });
+            projects[id] = { ...projects[id], ...update };
+          },
+          delete: async () => {
+            projectDeletes.push(id);
+          },
+        },
+        data,
+      };
+    },
+    createProjectFromProposal: (...a: unknown[]) => svc.createProjectFromProposal(...a),
+    createStandaloneProject: (...a: unknown[]) => svc.createStandaloneProject(...a),
+    createProjectShareLink: (...a: unknown[]) => svc.createProjectShareLink(...a),
+    deleteProjectPhotos: (...a: unknown[]) => svc.deleteProjectPhotos(...a),
+    isStorageOverQuota: (...a: unknown[]) => svc.isStorageOverQuota(...a),
+    loadProjectSettings: (...a: unknown[]) => svc.loadProjectSettings(...a),
+    saveProjectSettings: (...a: unknown[]) => svc.saveProjectSettings(...a),
+    storeProjectPhoto: (...a: unknown[]) => svc.storeProjectPhoto(...a),
+  };
+});
+
+import {
+  addChecklistItem,
+  createDeliveryLink,
+  createProject,
+  deleteProject,
+  toggleChecklistItem,
+  updateProject,
+  updateProjectSettings,
+  updateStage,
+  uploadStagePhoto,
+} from "./projects.controller";
+
+function fakeRes() {
+  const res = {
+    statusCode: 200,
+    body: undefined as unknown,
+    status(code: number) {
+      res.statusCode = code;
+      return res;
+    },
+    json(body: unknown) {
+      res.body = body;
+      return res;
+    },
+  };
+  return res as unknown as Response & { statusCode: number; body: Record<string, unknown> };
+}
+
+function fakeReq(params: Record<string, string> = {}, body: unknown = {}, role = "MEMBER") {
+  return {
+    params,
+    body,
+    user: { uid: "u1", tenantId: "t1", role },
+  } as unknown as Request;
+}
+
+const TINY_WEBP = `data:image/webp;base64,${Buffer.from("img").toString("base64")}`;
+
+function stage(over: Record<string, unknown> = {}) {
+  return {
+    id: "s1",
+    name: "Instalação",
+    status: "pending",
+    checklist: [{ id: "i1", text: "Fixar", done: false }],
+    photos: [],
+    completedAt: null,
+    ...over,
+  };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  projectUpdates.length = 0;
+  projectDeletes.length = 0;
+  hasPagePermission.mockResolvedValue(true);
+  svc.isStorageOverQuota.mockResolvedValue(false);
+  svc.storeProjectPhoto.mockResolvedValue("https://storage/foto.webp");
+  svc.createProjectShareLink.mockResolvedValue({ url: "https://erp/share/project/tok", sharedProjectId: "sp1" });
+  svc.saveProjectSettings.mockResolvedValue({ autoCreateOnApproval: false, stageTemplate: [] });
+  projects = {
+    p1: { tenantId: "t1", title: "Casa", stages: [stage()], delivery: { status: "none" } },
+    outro: { tenantId: "t2", title: "Outra empresa", stages: [stage()] },
+  };
+  docs = {
+    users: { u1: { name: "Ana" }, tec: { tenantId: "t1", name: "Carlos Técnico" }, fora: { tenantId: "t2", name: "X" } },
+    proposals: { prop1: { tenantId: "t1", title: "Casa" }, propFora: { tenantId: "t2" } },
+    clients: {},
+  };
+});
+
+describe("permissão e isolamento", () => {
+  it("sem a permissão de Projetos: 403 em toda escrita", async () => {
+    hasPagePermission.mockResolvedValue(false);
+    for (const [handler, req] of [
+      [createProject, fakeReq({}, { title: "Obra" })],
+      [updateProject, fakeReq({ id: "p1" }, { title: "Nova" })],
+      [deleteProject, fakeReq({ id: "p1" })],
+      [updateStage, fakeReq({ id: "p1", stageId: "s1" }, { status: "done" })],
+    ] as const) {
+      const res = fakeRes();
+      await handler(req, res);
+      expect(res.statusCode).toBe(403);
+    }
+    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "projects", "canCreate");
+    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "projects", "canDelete");
+    expect(projectUpdates).toHaveLength(0);
+  });
+
+  it("projeto de outra empresa: 404", async () => {
+    const res = fakeRes();
+    await updateStage(fakeReq({ id: "outro", stageId: "s1" }, { status: "done" }), res);
+    expect(res.statusCode).toBe(404);
+    const res2 = fakeRes();
+    await updateProject(fakeReq({ id: "outro" }, { title: "Invadir" }), res2);
+    expect(res2.statusCode).toBe(404);
+  });
+});
+
+describe("createProject", () => {
+  it("a partir da proposta da empresa: idempotente, 201 quando cria e 200 quando já existia", async () => {
+    svc.createProjectFromProposal.mockResolvedValueOnce({ projectId: "proposal_prop1", created: true });
+    const res = fakeRes();
+    await createProject(fakeReq({}, { proposalId: "prop1" }), res);
+    expect(res.statusCode).toBe(201);
+
+    svc.createProjectFromProposal.mockResolvedValueOnce({ projectId: "proposal_prop1", created: false });
+    const again = fakeRes();
+    await createProject(fakeReq({}, { proposalId: "prop1" }), again);
+    expect(again.statusCode).toBe(200);
+  });
+
+  it("proposta de outra empresa: 404, nada criado", async () => {
+    const res = fakeRes();
+    await createProject(fakeReq({}, { proposalId: "propFora" }), res);
+    expect(res.statusCode).toBe(404);
+    expect(svc.createProjectFromProposal).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateProject", () => {
+  it("técnico da equipe entra com o nome", async () => {
+    const res = fakeRes();
+    await updateProject(fakeReq({ id: "p1" }, { assigneeId: "tec" }), res);
+    expect(res.statusCode).toBe(200);
+    expect(projects.p1).toMatchObject({ assigneeId: "tec", assigneeName: "Carlos Técnico" });
+  });
+
+  it("técnico de outra empresa é recusado", async () => {
+    const res = fakeRes();
+    await updateProject(fakeReq({ id: "p1" }, { assigneeId: "fora" }), res);
+    expect(res.statusCode).toBe(400);
+    expect(projects.p1.assigneeId).toBeUndefined();
+  });
+
+  it("tirar o responsável limpa nome e id", async () => {
+    projects.p1.assigneeId = "tec";
+    projects.p1.assigneeName = "Carlos";
+    const res = fakeRes();
+    await updateProject(fakeReq({ id: "p1" }, { assigneeId: null }), res);
+    expect(projects.p1).toMatchObject({ assigneeId: null, assigneeName: null });
+  });
+});
+
+describe("etapas e checklist", () => {
+  it("marcar o primeiro item põe a etapa pendente em andamento", async () => {
+    const res = fakeRes();
+    await toggleChecklistItem(fakeReq({ id: "p1", stageId: "s1", itemId: "i1" }, { done: true }), res);
+    expect(res.statusCode).toBe(200);
+    const saved = (projects.p1.stages as Array<Record<string, unknown>>)[0];
+    expect(saved.status).toBe("in_progress");
+    expect((saved.checklist as Array<Record<string, unknown>>)[0]).toMatchObject({ done: true, doneBy: "u1" });
+  });
+
+  it("concluir a etapa grava a data", async () => {
+    const res = fakeRes();
+    await updateStage(fakeReq({ id: "p1", stageId: "s1" }, { status: "done" }), res);
+    const saved = (projects.p1.stages as Array<Record<string, unknown>>)[0];
+    expect(saved.status).toBe("done");
+    expect(typeof saved.completedAt).toBe("string");
+  });
+
+  it("incluir item novo e etapa inexistente dá 404", async () => {
+    const res = fakeRes();
+    await addChecklistItem(fakeReq({ id: "p1", stageId: "s1" }, { text: "Testar controle" }), res);
+    expect(res.statusCode).toBe(201);
+    expect((projects.p1.stages as Array<{ checklist: unknown[] }>)[0].checklist).toHaveLength(2);
+
+    const missing = fakeRes();
+    await addChecklistItem(fakeReq({ id: "p1", stageId: "nao" }, { text: "x" }), missing);
+    expect(missing.statusCode).toBe(404);
+  });
+});
+
+describe("uploadStagePhoto", () => {
+  it("guarda no caminho da empresa e anexa à etapa com o autor", async () => {
+    const res = fakeRes();
+    await uploadStagePhoto(fakeReq({ id: "p1", stageId: "s1" }, { dataUrl: TINY_WEBP, caption: "Quadro" }), res);
+    expect(res.statusCode).toBe(201);
+    const path = svc.storeProjectPhoto.mock.calls[0][0].path as string;
+    expect(path).toMatch(/^tenants\/t1\/projects\/p1\/s1\/.+\.webp$/);
+    const photos = (projects.p1.stages as Array<{ photos: Array<Record<string, unknown>> }>)[0].photos;
+    expect(photos[0]).toMatchObject({ caption: "Quadro", uploadedBy: "u1", uploadedByName: "Ana" });
+  });
+
+  it("arquivo que não é imagem é recusado sem subir nada", async () => {
+    const res = fakeRes();
+    await uploadStagePhoto(
+      fakeReq({ id: "p1", stageId: "s1" }, { dataUrl: "data:application/pdf;base64,AAAA" }),
+      res,
+    );
+    expect(res.statusCode).toBe(400);
+    expect(svc.storeProjectPhoto).not.toHaveBeenCalled();
+  });
+
+  it("armazenamento do plano cheio: 402 sem subir", async () => {
+    svc.isStorageOverQuota.mockResolvedValue(true);
+    const res = fakeRes();
+    await uploadStagePhoto(fakeReq({ id: "p1", stageId: "s1" }, { dataUrl: TINY_WEBP }), res);
+    expect(res.statusCode).toBe(402);
+    expect(res.body.code).toBe("STORAGE_QUOTA_EXCEEDED");
+    expect(svc.storeProjectPhoto).not.toHaveBeenCalled();
+  });
+});
+
+describe("deleteProject", () => {
+  it("apaga o projeto e as fotos no Storage", async () => {
+    projects.p1.stages = [stage({ photos: [{ id: "f1", storagePath: "tenants/t1/projects/p1/s1/f1.webp" }] })];
+    const res = fakeRes();
+    await deleteProject(fakeReq({ id: "p1" }), res);
+    expect(projectDeletes).toEqual(["p1"]);
+    expect(svc.deleteProjectPhotos).toHaveBeenCalledWith(["tenants/t1/projects/p1/s1/f1.webp"]);
+  });
+});
+
+describe("createDeliveryLink", () => {
+  it("gera o link e marca a entrega como enviada", async () => {
+    const res = fakeRes();
+    await createDeliveryLink(fakeReq({ id: "p1" }), res);
+    expect(res.body).toEqual({ url: "https://erp/share/project/tok" });
+    expect(projects.p1).toMatchObject({ "delivery.status": "sent", "delivery.sharedProjectId": "sp1" });
+  });
+
+  it("entrega já aceita: 409", async () => {
+    projects.p1.delivery = { status: "accepted" };
+    const res = fakeRes();
+    await createDeliveryLink(fakeReq({ id: "p1" }), res);
+    expect(res.statusCode).toBe(409);
+  });
+});
+
+describe("updateProjectSettings", () => {
+  it("só o administrador da empresa altera", async () => {
+    const member = fakeRes();
+    await updateProjectSettings(fakeReq({}, { autoCreateOnApproval: false }, "MEMBER"), member);
+    expect(member.statusCode).toBe(403);
+    expect(svc.saveProjectSettings).not.toHaveBeenCalled();
+
+    const master = fakeRes();
+    await updateProjectSettings(fakeReq({}, { autoCreateOnApproval: false }, "master"), master);
+    expect(master.statusCode).toBe(200);
+    expect(svc.saveProjectSettings).toHaveBeenCalledWith("t1", { autoCreateOnApproval: false }, "u1");
+  });
+
+  it("roteiro sem etapa nenhuma é recusado", async () => {
+    const res = fakeRes();
+    await updateProjectSettings(fakeReq({}, { stageTemplate: [] }, "MASTER"), res);
+    expect(res.statusCode).toBe(400);
+  });
+});

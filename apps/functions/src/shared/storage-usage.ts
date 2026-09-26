@@ -2,7 +2,7 @@
  * O que conta no armazenamento do plano (`storageQuotaMB`).
  *
  * So o que a empresa SOBE: imagens de produto e servico, imagens e anexos de
- * proposta. Fica de fora o que o sistema gera por conta propria:
+ * proposta, fotos da obra (projetos). Fica de fora o que o sistema gera por conta propria:
  *
  * - `.../pdf/...` (cache do PDF da proposta e do recibo): e regenerado sob
  *   demanda, cobrar por ele seria cobrar por uma otimizacao nossa;
@@ -16,7 +16,7 @@
 
 export const STORAGE_USAGE_COLLECTION = "tenant_storage_usage";
 
-const COUNTED_FOLDERS = new Set(["products", "services", "proposals"]);
+const COUNTED_FOLDERS = new Set(["products", "services", "proposals", "projects"]);
 
 const BYTES_PER_MB = 1024 * 1024;
 

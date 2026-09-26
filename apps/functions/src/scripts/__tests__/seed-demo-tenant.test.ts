@@ -48,6 +48,7 @@ describe("seedDemoTenant", () => {
       transactions: 16,
       leads: 3,
       activities: 3,
+      projects: 1,
     });
   });
 
@@ -55,7 +56,7 @@ describe("seedDemoTenant", () => {
     await seedDemoTenant();
     // The first set() is the tenant doc itself (keyed by id, no tenantId field).
     const [, ...contentWrites] = set.mock.calls;
-    expect(contentWrites.length).toBe(54); // 4+3+3+3+3+11+3 + 2 wallets + 16 transactions + 3 leads + 3 activities
+    expect(contentWrites.length).toBe(55); // 4+3+3+3+3+11+3 + 2 wallets + 16 transactions + 3 leads + 3 activities + 1 project
     for (const [, data] of contentWrites) {
       expect(data.tenantId).toBe(DEMO_TENANT_ID);
     }

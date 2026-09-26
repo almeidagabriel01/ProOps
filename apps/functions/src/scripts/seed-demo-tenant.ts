@@ -273,6 +273,7 @@ export interface SeedDemoTenantResult {
   transactions: number;
   leads: number;
   activities: number;
+  projects: number;
 }
 
 export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
@@ -654,6 +655,71 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
   });
   // ------------------------------------------------------------------------
 
+  // --- Projetos de instalação ---------------------------------------------
+  // A proposta aprovada do demo já virou obra: uma etapa concluída, uma em
+  // andamento e duas pela frente, para a tela de Projetos não abrir vazia.
+  const demoStage = (
+    id: string,
+    name: string,
+    status: "pending" | "in_progress" | "done",
+    items: Array<[string, boolean]>,
+    completedOffset: number | null,
+  ) => ({
+    id,
+    name,
+    status,
+    checklist: items.map(([text, done], i) => ({
+      id: `${id}_item_${i + 1}`,
+      text,
+      done,
+      doneAt: done ? isoAt(completedOffset ?? -1) : null,
+      doneBy: null,
+    })),
+    photos: [],
+    completedAt: status === "done" && completedOffset !== null ? isoAt(completedOffset) : null,
+  });
+
+  const DEMO_PROJECTS = [
+    {
+      id: "proposal_demo_prop_1",
+      proposalId: "demo_prop_1",
+      title: "Automação Residencial Completa",
+      client: DEMO_CLIENTS[0],
+      stages: [
+        demoStage("demo_stage_1", "Infraestrutura", "done", [["Conferir tubulação e caixas", true], ["Passar cabeamento", true], ["Montar o quadro/rack", true]], -6),
+        demoStage("demo_stage_2", "Instalação", "in_progress", [["Instalar os equipamentos", true], ["Ligar e identificar os circuitos", false]], null),
+        demoStage("demo_stage_3", "Configuração", "pending", [["Programar cenas e automações", false], ["Configurar o aplicativo", false], ["Testar ambiente por ambiente", false]], null),
+        demoStage("demo_stage_4", "Entrega", "pending", [["Treinar o cliente", false], ["Registrar fotos finais", false]], null),
+      ],
+    },
+  ] as const;
+
+  DEMO_PROJECTS.forEach((p) => {
+    batch.set(db.collection("projects").doc(p.id), {
+      ...tenantTag,
+      proposalId: p.proposalId,
+      proposalTitle: p.title,
+      proposalCode: null,
+      clientId: p.client.id,
+      clientName: p.client.name,
+      clientPhone: p.client.phone,
+      clientEmail: p.client.email,
+      address: null,
+      title: p.title,
+      status: "active",
+      stages: p.stages,
+      assigneeId: null,
+      assigneeName: "Equipe Demo",
+      startDate: ymd(-8),
+      dueDate: ymd(12),
+      notes: null,
+      delivery: { status: "none", sharedProjectId: null, acceptance: null },
+      createdAt: isoAt(-8),
+      updatedAt: isoAt(-1),
+      createdBy: null,
+    });
+  });
+
   // --- CRM: leads e atividades --------------------------------------------
   // Um lead em cada etapa aberta, para o funil do CRM não abrir vazio no demo.
   // Datas relativas ao seed, como o financeiro; IDs determinísticos.
@@ -716,6 +782,7 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     transactions: DEMO_TRANSACTIONS.length,
     leads: DEMO_LEADS.length,
     activities: DEMO_ACTIVITIES.length,
+    projects: DEMO_PROJECTS.length,
   };
   logger.info("seedDemoTenant complete", { ...result });
   return result;

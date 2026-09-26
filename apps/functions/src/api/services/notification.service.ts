@@ -9,6 +9,7 @@ export type NotificationType =
   | "proposal_viewed"
   | "proposal_accepted"
   | "proposal_changes_requested"
+  | "project_delivery_accepted"
   | "proposal_follow_up"
   | "lead_reminder"
   | "transaction_due_reminder"
@@ -31,6 +32,7 @@ export interface Notification {
   transactionId?: string;
   leadId?: string;
   clientId?: string;
+  projectId?: string;
   isRead: boolean;
   createdAt: string;
   readAt?: string;
@@ -45,6 +47,7 @@ export interface CreateNotificationData {
   proposalId?: string;
   sharedProposalId?: string;
   transactionId?: string;
+  projectId?: string;
 }
 
 export class NotificationService {

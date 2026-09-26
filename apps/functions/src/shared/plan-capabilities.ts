@@ -40,6 +40,10 @@ export type PlanTierId = "free" | "starter" | "pro" | "enterprise";
  * `onlineApproval` e o cliente final aprovar a proposta pelo link
  * compartilhado (aceite com nome e documento). Pro e Enterprise.
  *
+ * `projects` e o acompanhamento da obra depois da venda: projeto (ordem de
+ * servico de instalacao) com etapas, checklist, fotos, tecnico responsavel e
+ * aceite da entrega pelo link. Pro e Enterprise.
+ *
  * `fiscalReceiving` e a recepcao de notas de ENTRADA. Fica fora do add-on
  * fiscal de proposito: cada nota recebida consome uma unidade paga do Focus
  * sem clique de ninguem, entao nao cabe na franquia mensal do add-on.
@@ -55,6 +59,7 @@ export type PlanCapabilityKey =
   | "driveSync"
   | "onlinePayments"
   | "onlineApproval"
+  | "projects"
   | "fiscalReceiving";
 
 export type PlanCapabilities = Record<PlanCapabilityKey, boolean>;
@@ -93,6 +98,7 @@ export const PLAN_CAPABILITY_KEYS: readonly PlanCapabilityKey[] = [
   "driveSync",
   "onlinePayments",
   "onlineApproval",
+  "projects",
   "fiscalReceiving",
 ] as const;
 
@@ -107,6 +113,7 @@ const NO_CAPABILITIES: PlanCapabilities = {
   driveSync: false,
   onlinePayments: false,
   onlineApproval: false,
+  projects: false,
   fiscalReceiving: false,
 };
 
@@ -161,6 +168,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       calendarSync: true,
       driveSync: true,
       onlineApproval: true,
+      projects: true,
     },
     limits: {
       maxProposalsPerMonth: -1,
@@ -190,6 +198,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       driveSync: true,
       onlinePayments: true,
       onlineApproval: true,
+      projects: true,
       fiscalReceiving: true,
     },
     limits: {
@@ -267,6 +276,7 @@ export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   driveSync: "Google Drive",
   onlinePayments: "Pagamento online",
   onlineApproval: "Aceite online da proposta",
+  projects: "Projetos de instalação",
   fiscalReceiving: "Notas de entrada",
 };
 
@@ -321,6 +331,7 @@ export interface PublicPlanFeatures {
   hasDriveSync: boolean;
   hasOnlinePayments: boolean;
   hasOnlineApproval: boolean;
+  hasProjects: boolean;
   hasFiscalReceiving: boolean;
   hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
@@ -347,6 +358,7 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     hasDriveSync: entry.capabilities.driveSync,
     hasOnlinePayments: entry.capabilities.onlinePayments,
     hasOnlineApproval: entry.capabilities.onlineApproval,
+    hasProjects: entry.capabilities.projects,
     hasFiscalReceiving: entry.capabilities.fiscalReceiving,
     hasWhatsApp: entry.capabilities.whatsapp,
     canCustomizeTheme: entry.capabilities.customTheme,

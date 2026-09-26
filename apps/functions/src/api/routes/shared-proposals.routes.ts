@@ -3,6 +3,10 @@ import * as SharedProposalsController from "../controllers/shared-proposals.cont
 import { downloadSharedProposalPdf } from "../controllers/shared-proposal-pdf.controller";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 import {
+  acceptSharedProjectDelivery,
+  getSharedProject,
+} from "../controllers/shared-projects.controller";
+import {
   acceptSharedProposal,
   createSharedProposalPaymentLink,
   requestSharedProposalChanges,
@@ -15,6 +19,13 @@ const router = Router();
  * Sem middleware de autenticação
  */
 router.get("/share/:token", SharedProposalsController.getSharedProposal);
+
+/**
+ * Entrega da obra (projeto de instalação): o cliente confere e aceita. Três
+ * segmentos, então não colide com `/share/:token`.
+ */
+router.get("/share/project/:token", getSharedProject);
+router.post("/share/project/:token/accept", acceptSharedProjectDelivery);
 
 /**
  * Rota pública para baixar PDF de proposta compartilhada via token

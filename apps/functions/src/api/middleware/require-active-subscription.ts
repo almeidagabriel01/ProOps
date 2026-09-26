@@ -67,6 +67,8 @@ const DEMO_READABLE_PREFIXES = [
   // Leads e atividades do CRM (crm.routes.ts)
   "/v1/leads",
   "/v1/activities",
+  // Projetos de instalação (projects.routes.ts)
+  "/v1/projects",
   "/v1/calendar",
   "/v1/notifications",
   // Ambientes, sistemas, campos customizados, opcoes e templates de proposta
