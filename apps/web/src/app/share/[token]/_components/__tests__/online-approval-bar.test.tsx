@@ -15,10 +15,11 @@ vi.mock("@/services/shared-proposal-service", () => ({
 }));
 
 import { OnlineApprovalBar } from "../online-approval-bar";
+import type { OnlineApprovalState } from "@/services/shared-proposal-service";
 
-const OPEN = { canApprove: true, approved: false, expired: false, acceptance: null };
+const OPEN: OnlineApprovalState = { canApprove: true, approved: false, expired: false, acceptance: null };
 
-function renderBar(state = OPEN, onApproved = vi.fn()) {
+function renderBar(state: OnlineApprovalState = OPEN, onApproved = vi.fn()) {
   render(
     <OnlineApprovalBar
       token="tok"

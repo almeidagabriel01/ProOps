@@ -45,6 +45,10 @@ import {
   DRIVE_DELIVERY_PENDING_HINT,
   DRIVE_NOT_CONNECTED_HINT,
 } from "@/lib/proposal-payment";
+import {
+  SendProposalDialog,
+  type SendProposalTarget,
+} from "./_components/send-proposal-dialog";
 import { runUndoableAction } from "@/lib/undoable-action";
 import { toast } from "@/lib/toast";
 import { isDemoReadOnlyError } from "@/lib/api-client";
@@ -240,6 +244,8 @@ export default function ProposalsPage() {
   const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [sharingId, setSharingId] = React.useState<string | null>(null);
+  const [sendTarget, setSendTarget] =
+    React.useState<SendProposalTarget | null>(null);
   const [, setIsGeneratingShareLink] = React.useState(false);
   const [attachmentsProposalId, setAttachmentsProposalId] = React.useState<
     string | null
@@ -302,47 +308,18 @@ export default function ProposalsPage() {
     return Boolean(hasValidTitle && hasValidClient && hasProducts);
   };
 
-  const handleShare = async (proposalId: string) => {
-    setSharingId(proposalId);
+  const handleShare = async (proposal: Proposal) => {
+    setSharingId(proposal.id);
     setIsGeneratingShareLink(true);
     try {
-      const result = await SharedProposalService.generateShareLink(proposalId);
-
-      try {
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(result.shareUrl);
-          toast.success("Link copiado para a área de transferência!");
-        } else {
-          throw new Error("Clipboard API not available");
-        }
-      } catch (clipboardError) {
-        console.warn("Clipboard API failed, trying fallback", clipboardError);
-        try {
-          const textArea = document.createElement("textarea");
-          textArea.value = result.shareUrl;
-          textArea.style.position = "fixed";
-          textArea.style.left = "-999999px";
-          textArea.style.top = "0";
-          document.body.appendChild(textArea);
-          textArea.focus();
-          textArea.select();
-
-          const successful = document.execCommand("copy");
-          textArea.remove();
-
-          if (successful) {
-            toast.success("Link copiado para a área de transferência!");
-          } else {
-            throw new Error("Fallback copy failed");
-          }
-        } catch (fallbackError) {
-          console.error("Fallback copy also failed", fallbackError);
-          toast.warning(
-            "Link gerado, mas não copiado. Por favor, tente novamente.",
-            { autoClose: 5000 },
-          );
-        }
-      }
+      const result = await SharedProposalService.generateShareLink(proposal.id);
+      setSendTarget({
+        url: result.shareUrl,
+        title: proposal.title,
+        clientName: proposal.clientName,
+        clientPhone: proposal.clientPhone,
+        clientEmail: proposal.clientEmail,
+      });
     } catch (error) {
       if (!isDemoReadOnlyError(error)) {
         console.error("Error generating share link:", error);
@@ -1095,7 +1072,7 @@ export default function ProposalsPage() {
                 canGeneratePdf={canGeneratePdf(proposal)}
                 isSharing={sharingId === proposal.id}
                 isDuplicating={duplicatingId === proposal.id}
-                onShare={() => handleShare(proposal.id)}
+                onShare={() => handleShare(proposal)}
                 onDuplicate={() => handleDuplicate(proposal.id)}
                 onAttachments={() => setAttachmentsProposalId(proposal.id)}
               />
@@ -1113,7 +1090,7 @@ export default function ProposalsPage() {
                 isDuplicating={duplicatingId === proposal.id}
                 isDownloading={downloadingId === proposal.id}
                 isEditing={editingId === proposal.id}
-                onShare={() => handleShare(proposal.id)}
+                onShare={() => handleShare(proposal)}
                 onDuplicate={() => handleDuplicate(proposal.id)}
                 onAttachments={() => setAttachmentsProposalId(proposal.id)}
                 showAllActions
@@ -1373,6 +1350,11 @@ export default function ProposalsPage() {
             )}
           </div>
           {renderDialogs()}
+          <SendProposalDialog
+            target={sendTarget}
+            companyName={tenant?.name}
+            onClose={() => setSendTarget(null)}
+          />
         </>
       )}
 
