@@ -32,13 +32,14 @@ const NONE: OnboardingCapabilityMap = {
   projects: false,
   salesGoals: false,
   bookingLink: false,
+  clientPortal: false,
 };
 
 /** O que o `PlanProvider` entrega por tier, sem add-ons. */
 const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabilityMap> = {
   // A conta free destrava financeiro, CRM, projetos e editor de PDF para a
   // demonstração, e deixa fiscal e Drive de fora.
-  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true, bookingLink: true },
+  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true, bookingLink: true, clientPortal: true },
   starter: NONE,
   pro: {
     ...NONE,
@@ -49,6 +50,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     projects: true,
     salesGoals: true,
     bookingLink: true,
+    clientPortal: true,
   },
   enterprise: {
     financial: true,
@@ -62,6 +64,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     projects: true,
     salesGoals: true,
     bookingLink: true,
+    clientPortal: true,
   },
 };
 
@@ -267,6 +270,22 @@ describe("checklist condicional", () => {
   it("nota fiscal na proposta só com o módulo fiscal", () => {
     expect(checklistOf("enterprise", "proposals").join(" ")).toContain("nota fiscal");
     expect(checklistOf("pro", "proposals").join(" ")).not.toContain("nota fiscal");
+  });
+
+  it("portal do cliente em Contatos só com o plano, igual nos dois nichos", () => {
+    expect(checklistOf("pro", "contacts").join(" ")).toContain("portal");
+    expect(checklistOf("enterprise", "contacts").join(" ")).toContain("portal");
+    expect(checklistOf("starter", "contacts").join(" ")).not.toContain("portal");
+    const inNiche = (niche: "automacao_residencial" | "cortinas") =>
+      buildOnboardingSteps({
+        visibleMenuItems: visibleMenu(MASTER, niche),
+        settingsRoutes: SETTINGS_ROUTES,
+        capabilities: PLAN.pro,
+        viewer: MASTER,
+      })
+        .find((step) => step.id === "contacts")
+        ?.checklist.join(" ");
+    expect(inNiche("cortinas")).toBe(inNiche("automacao_residencial"));
   });
 
   it("Integrações lista só o que o plano abre", () => {

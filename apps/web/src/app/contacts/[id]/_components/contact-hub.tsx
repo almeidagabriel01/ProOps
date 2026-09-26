@@ -23,6 +23,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { TasksPanel } from "@/components/features/tasks/tasks-panel";
+import { ClientPortalButton } from "@/components/features/client-portal/client-portal-button";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { ProposalService } from "@/services/proposal-service";
 import { TransactionService, type Transaction } from "@/services/transaction-service";
@@ -214,16 +215,19 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
 
   return (
     <Tabs value={tab} onValueChange={setTab}>
-      <TabsList className="mb-4 w-full max-w-full justify-start overflow-x-auto md:w-auto">
-        <TabsTrigger value="resumo">Resumo</TabsTrigger>
-        {canViewProposals && <TabsTrigger value="propostas">Propostas</TabsTrigger>}
-        {(showFinance || showInvoices) && (
-          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
-        )}
-        {canViewTasks && <TabsTrigger value="tarefas">Tarefas</TabsTrigger>}
-        <TabsTrigger value="anotacoes">Anotações</TabsTrigger>
-        <TabsTrigger value="dados">Dados</TabsTrigger>
-      </TabsList>
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <TabsList className="w-full max-w-full justify-start overflow-x-auto md:w-auto">
+          <TabsTrigger value="resumo">Resumo</TabsTrigger>
+          {canViewProposals && <TabsTrigger value="propostas">Propostas</TabsTrigger>}
+          {(showFinance || showInvoices) && (
+            <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+          )}
+          {canViewTasks && <TabsTrigger value="tarefas">Tarefas</TabsTrigger>}
+          <TabsTrigger value="anotacoes">Anotações</TabsTrigger>
+          <TabsTrigger value="dados">Dados</TabsTrigger>
+        </TabsList>
+        <ClientPortalButton client={client} />
+      </div>
 
       <TabsContent value="resumo" className="space-y-4">
         <div className="grid gap-4 md:grid-cols-3">

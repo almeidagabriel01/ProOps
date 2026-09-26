@@ -153,6 +153,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       projects: plan.hasProjects,
       salesGoals: plan.hasSalesGoals,
       bookingLink: plan.hasBookingLink,
+      clientPortal: plan.hasClientPortal,
     }),
     [
       plan.hasFinancial,
@@ -166,6 +167,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       plan.hasProjects,
       plan.hasSalesGoals,
       plan.hasBookingLink,
+      plan.hasClientPortal,
     ],
   );
 

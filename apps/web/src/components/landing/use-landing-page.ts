@@ -70,6 +70,9 @@ export function buildPlanFeatureList(plan: UserPlan): string[] {
       : null,
     f.hasSalesGoals ? "Metas de vendas da empresa e de cada pessoa da equipe" : null,
     f.hasBookingLink ? "Link de agendamento: o cliente pede a visita pela internet" : null,
+    f.hasClientPortal
+      ? "Portal do cliente: propostas, pagamentos, obra e documentos num link só"
+      : null,
     f.hasOnlinePayments
       ? "Pagamento online: o cliente paga a parcela por Pix ou boleto no link"
       : null,

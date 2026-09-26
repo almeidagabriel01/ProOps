@@ -62,6 +62,10 @@ entra na Agenda (`calendar`) como "a confirmar" (status `pending`), e a Agenda
 ganha o botão "Pedidos de visita" para confirmar ou recusar. Detalhes em
 `settings/CLAUDE.md` e `share/CLAUDE.md`.
 
+O **portal do cliente** também tem duas pontas: o botão "Portal do cliente"
+na ficha do contato (`/contacts/[id]`, ao lado das abas) e a página pública em
+`/share/portal/[token]`. Detalhes em `share/CLAUDE.md`.
+
 ## Três superfícies num projeto só
 
 `proops.com.br`, `erp.proops.com.br` e `app.proops.com.br` são servidos por este

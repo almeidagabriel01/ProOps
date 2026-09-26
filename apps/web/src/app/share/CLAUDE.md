@@ -19,7 +19,8 @@ share/
 ├── [token]/page.tsx              # Proposta compartilhada
 ├── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
 ├── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir e aceitar
-└── visita/[token]/page.tsx       # Link de agendamento: escolher horário e pedir a visita
+├── visita/[token]/page.tsx       # Link de agendamento: escolher horário e pedir a visita
+└── portal/[token]/page.tsx       # Portal do cliente: propostas, pagamentos, obra e notas de um contato
 ```
 
 ## Arquivos-chave
@@ -77,6 +78,8 @@ A resposta pública do backend retorna a proposta/lançamento junto com dados do
 | Aceitar a entrega da obra | `POST` (público) | `SharedProjectService.accept` | `/v1/share/project/:token/accept` |
 | Horários livres do link de agendamento | `GET` (público) | `BookingService.publicView` | `/v1/public/booking/:token` |
 | Pedir a visita | `POST` (público) | `BookingService.submit` | `/v1/public/booking/:token` |
+| Abrir o portal do cliente | `GET` (público) | `ClientPortalService.publicView` | `/v1/share/portal/:token` |
+| Abrir um item do portal | `POST` (público) | `ClientPortalService.openItem` | `/v1/share/portal/:token/open` |
 
 As chamadas públicas usam `callPublicApi` (sem token de autenticação no header), diferentemente do `callApi` padrão.
 
@@ -173,6 +176,29 @@ depois de enviar.
 Guards: `visita/[token]/_components/__tests__/public-booking.test.tsx` e
 `src/__tests__/booking-link-path.test.ts` (o link da configuração e o do e-mail
 caem nesta rota).
+
+## Portal do cliente (`portal/[token]`)
+
+Uma página por contato, com um link fixo que a empresa manda uma vez (Pro e
+Enterprise, `clientPortal`). Regra do backend em `apps/functions/CLAUDE.md`,
+seção Portal do cliente.
+
+- **O portal não substitui as páginas daqui, ele aponta para elas.** Cada item
+  chama `POST .../open`, que devolve o link da proposta, do lançamento ou da
+  obra (criado só nesse clique), e a página navega para lá. Aceitar, pagar e
+  confirmar a entrega continuam onde já estavam.
+- **Nota fiscal abre direto no PDF do Focus**, que dispensa login; não existe
+  página nossa para ela.
+- **`/share/portal/exemplo` é o portal fictício da demonstração**
+  (`lib/client-portal/example.ts`): dado fixo, sem API, e os itens não abrem.
+  A conta free chega nele pelo botão do contato, que não cria link.
+- A empresa gera, troca e desliga o link na ficha do contato
+  (`components/features/client-portal/client-portal-button.tsx`, ao lado das
+  abas), só com a edição de Contatos. "Gerar novo link" derruba o anterior na
+  hora: é o que se faz quando o link foi parar com quem não devia.
+
+Guards: `portal/[token]/_components/__tests__/public-client-portal.test.tsx` e
+`components/features/client-portal/__tests__/client-portal-button.test.tsx`.
 
 ## Padrões e gotchas
 

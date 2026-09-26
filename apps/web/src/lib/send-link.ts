@@ -109,3 +109,21 @@ export function buildChargeMessage(params: {
     ].join("\n\n"),
   };
 }
+
+/** Link do portal: o cliente acompanha tudo o que é dele num lugar só. */
+export function buildPortalMessage(params: {
+  clientName?: string | null;
+  companyName?: string | null;
+  url: string;
+}): { subject: string; message: string } {
+  const company = params.companyName?.trim();
+  return {
+    subject: company ? `Seu portal | ${company}` : "Seu portal",
+    message: [
+      greeting(params.clientName),
+      "Por este link você acompanha tudo o que é seu com a gente: propostas, pagamentos, o andamento da obra e as notas fiscais. Guarde, ele não muda:",
+      params.url,
+      "Qualquer dúvida, é só me chamar.",
+    ].join("\n\n"),
+  };
+}

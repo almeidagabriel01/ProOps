@@ -26,6 +26,10 @@ const m = vi.hoisted(() => ({
 vi.mock("@/components/features/tasks/tasks-panel", () => ({
   TasksPanel: () => <div data-testid="tasks-panel" />,
 }));
+// O botão do portal tem teste próprio; aqui só importa que ele está na ficha.
+vi.mock("@/components/features/client-portal/client-portal-button", () => ({
+  ClientPortalButton: () => <div data-testid="client-portal-button" />,
+}));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => ({ get: (key: string) => (key === "aba" ? m.aba : null) }),
 }));

@@ -162,6 +162,7 @@ export type PlanFeatures = {
   hasProjects: boolean; // Projetos de instalação: etapas, fotos e aceite da entrega (Pro e Enterprise)
   hasSalesGoals: boolean; // Metas de vendas por vendedor e da empresa (Pro e Enterprise)
   hasBookingLink: boolean; // Link público de agendamento de visitas (Pro e Enterprise)
+  hasClientPortal: boolean; // Portal do cliente por link (Pro e Enterprise)
   hasFiscalReceiving: boolean; // Recepção de notas de entrada (Enterprise)
   hasWhatsApp: boolean; // Bot do WhatsApp (Enterprise)
   canCustomizeTheme: boolean; // Can change colors/branding

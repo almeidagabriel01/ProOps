@@ -38,7 +38,8 @@ export type OnboardingCapability =
   | "onlinePayments"
   | "fiscalReceiving"
   | "salesGoals"
-  | "bookingLink";
+  | "bookingLink"
+  | "clientPortal";
 
 export type OnboardingCapabilityMap = Record<OnboardingCapability, boolean>;
 
@@ -172,6 +173,10 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
       {
         text: "Preencha os dados fiscais do cliente para emitir nota sem pendências.",
         requiresCapability: "fiscal",
+      },
+      {
+        text: "Mande ao cliente o link do portal: propostas, pagamentos, obra e documentos dele num lugar só.",
+        requiresCapability: "clientPortal",
       },
     ],
     actionLabel: "Abrir Contatos",

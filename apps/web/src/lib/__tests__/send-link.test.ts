@@ -6,6 +6,7 @@ import {
   buildProposalMessage,
   buildWhatsAppShareHref,
   toWhatsAppNumber,
+  buildPortalMessage,
 } from "../send-link";
 
 describe("toWhatsAppNumber", () => {
@@ -85,5 +86,25 @@ describe("buildDeliveryMessage", () => {
     expect(message).toContain("https://erp/share/project/tok");
     expect(message.split("\n\n")).toHaveLength(4);
     expect(message).not.toContain("—");
+  });
+});
+
+describe("buildPortalMessage", () => {
+  it("chama pelo primeiro nome, diz o que tem no portal e leva o link", () => {
+    const { subject, message } = buildPortalMessage({
+      clientName: "Ana Ribeiro",
+      companyName: "Casa Viva",
+      url: "https://erp.test/share/portal/abc",
+    });
+    expect(subject).toBe("Seu portal | Casa Viva");
+    expect(message).toMatch(/^Olá, Ana!/);
+    expect(message).toMatch(/propostas, pagamentos, o andamento da obra e as notas fiscais/);
+    expect(message).toContain("https://erp.test/share/portal/abc");
+  });
+
+  it("sem empresa nem nome", () => {
+    const { subject, message } = buildPortalMessage({ url: "u" });
+    expect(subject).toBe("Seu portal");
+    expect(message).toMatch(/^Olá!/);
   });
 });
