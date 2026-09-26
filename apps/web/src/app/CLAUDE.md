@@ -25,7 +25,8 @@ Há ~38 segmentos de rota: proposals, contacts, products, transactions, calendar
 automacao-residencial, automation, calendar, checkout-success,
 commissions, contacts, contato, cookies, crm, dashboard, data-deletion,
 decoracao, fale-conosco, forgot-password, institucional, invoices, login,
-manifesto, privacy, products, produtos, profile, projects, proposals, register, reset,
+manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
+register, reset,
 services, settings, share, sobre, solutions, spreadsheets, subscribe,
 subscription-blocked, team, terms, transactions, verify, wallets
 ```
@@ -34,6 +35,14 @@ subscription-blocked, team, terms, transactions, verify, wallets
 **site da empresa** e vivem no route group `(empresa)/`, que não entra na URL.
 `produtos` (português) é a página institucional; `products` (inglês) é a tela
 autenticada de catálogo. São coisas diferentes.
+
+`notifications` é a **central de notificações**: o histórico de cada pessoa e,
+na aba Preferências (`?tab=preferencias`), o que chega no sino e por e-mail.
+Fora do menu (abre pelo "Ver todas" do sino) e sem `pageId`: cada membro tem a
+sua, como o Perfil. A notificação é POR PESSOA desde 2026-09-26: o sino consulta
+`recipientUids array-contains uid`, a leitura vai em `readBy`, e o que cada um
+recebe sai do catálogo (`lib/notifications/catalog.ts`, espelho do backend com
+teste de paridade). Regras no `apps/functions/src/api/services/CLAUDE.md`.
 
 ## Três superfícies num projeto só
 

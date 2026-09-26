@@ -126,6 +126,9 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/crm",
   // Projetos de instalação: o tenant de demonstração tem projetos de exemplo.
   "/projects",
+  // Central de notificações: lê as notificações de exemplo do tenant demo, e
+  // as preferências aparecem só para ver.
+  "/notifications",
   // `/commissions` fica FORA de propósito, pelo mesmo motivo do fiscal: não há
   // dado de demonstração (comissão nasce de proposta aprovada com parceiro), e
   // a tela é `masterOnly` — uma conta free é MEMBER, então nem veria o item no

@@ -4,6 +4,7 @@ import {
   startTransition,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -11,42 +12,60 @@ import { Notification, NotificationType } from "@/types/notification";
 import { NotificationService } from "@/services/notification-service";
 import { toast } from "@/lib/toast";
 import { useNotificationScope } from "@/hooks/useNotificationScope";
+import { useAuth } from "@/providers/auth-provider";
+import {
+  isNotificationRead,
+  markReadFor,
+  resolveNotificationViewer,
+} from "@/lib/notifications/viewer";
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [clearingIds, setClearingIds] = useState<string[]>([]);
   const { scope, scopeKey } = useNotificationScope();
+  const { user } = useAuth();
+
+  const viewer = useMemo(
+    () => resolveNotificationViewer({ uid: user?.id, role: user?.role, scope }),
+    [scope, user?.id, user?.role],
+  );
+  const viewerKey = viewer && scopeKey ? `${scopeKey}:${viewer.mode}:${viewer.uid}` : null;
+  // A conta free só lê as notificações de exemplo: nada é gravado.
+  const isReadOnly = viewer?.mode === "demo";
 
   const notificationsRef = useRef<Notification[]>([]);
-  const activeScopeKeyRef = useRef<string | null>(scopeKey);
+  const activeViewerKeyRef = useRef<string | null>(viewerKey);
   const subscriptionVersionRef = useRef(0);
   const optimisticDeletedIds = useRef<Set<string>>(new Set());
   const clearingIdsRef = useRef<Set<string>>(new Set());
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !isNotificationRead(n, viewer)).length,
+    [notifications, viewer],
+  );
 
   useEffect(() => {
     notificationsRef.current = notifications;
   }, [notifications]);
 
   useEffect(() => {
-    activeScopeKeyRef.current = scopeKey;
-  }, [scopeKey]);
+    activeViewerKeyRef.current = viewerKey;
+  }, [viewerKey]);
 
   useEffect(() => {
-    activeScopeKeyRef.current = scopeKey;
+    activeViewerKeyRef.current = viewerKey;
     optimisticDeletedIds.current = new Set();
     clearingIdsRef.current = new Set();
     notificationsRef.current = [];
     setNotifications([]);
-    setUnreadCount(0);
     setClearingIds([]);
     setIsMarkingAllAsRead(false);
     setIsClearingAll(false);
 
-    if (!scope || !scopeKey) {
+    if (!scope || !viewer || !viewerKey) {
       setIsLoading(false);
       return;
     }
@@ -61,7 +80,7 @@ export function useNotifications() {
     const applyNotifications = (serverNotifications: Notification[]) => {
       if (
         !isActive ||
-        activeScopeKeyRef.current !== scopeKey ||
+        activeViewerKeyRef.current !== viewerKey ||
         subscriptionVersionRef.current !== subscriptionVersion
       ) {
         return;
@@ -77,17 +96,16 @@ export function useNotifications() {
       const nextNotifications = serverNotifications.filter(
         (notification) => !optimisticDeletedIds.current.has(notification.id),
       );
-      const nextUnreadCount = nextNotifications.filter((notification) => !notification.isRead).length;
       const newUnreadNotifications = isInitialLoad
         ? []
         : nextNotifications.filter(
-            (notification) => !notification.isRead && !previousIds.has(notification.id),
+            (notification) =>
+              !isNotificationRead(notification, viewer) && !previousIds.has(notification.id),
           );
 
       startTransition(() => {
         notificationsRef.current = nextNotifications;
         setNotifications(nextNotifications);
-        setUnreadCount(nextUnreadCount);
         setIsLoading(false);
       });
 
@@ -114,88 +132,73 @@ export function useNotifications() {
       isInitialLoad = false;
     };
 
-    const unsubscribe = NotificationService.subscribe(scope, applyNotifications);
+    const unsubscribe = NotificationService.subscribe(scope, viewer, applyNotifications);
 
     return () => {
       isActive = false;
       unsubscribe();
     };
-  }, [scope, scopeKey]);
+    // `viewerKey` resume scope e viewer: resubscrever por identidade de objeto
+    // refaria o listener a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewerKey]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
-    if (!scope || !scopeKey) return;
+    if (!scope || !viewerKey || isReadOnly) return;
 
     const operationScope = scope;
-    const operationScopeKey = scopeKey;
-    const targetNotification = notificationsRef.current.find(
-      (notification) => notification.id === notificationId,
+    const operationViewerKey = viewerKey;
+    const target = notificationsRef.current.find((n) => n.id === notificationId);
+    if (!target || isNotificationRead(target, viewer)) return;
+
+    // Otimista: a lista marca na hora e volta atrás se o servidor recusar.
+    notificationsRef.current = notificationsRef.current.map((n) =>
+      n.id === notificationId ? markReadFor(n, viewer) : n,
     );
+    setNotifications(notificationsRef.current);
 
     try {
       await NotificationService.markAsRead(notificationId, operationScope);
-
-      if (activeScopeKeyRef.current !== operationScopeKey) {
-        return;
-      }
-
-      notificationsRef.current = notificationsRef.current.map((notification) =>
-        notification.id === notificationId
-          ? {
-              ...notification,
-              isRead: true,
-              readAt: new Date().toISOString(),
-            }
-          : notification,
-      );
-
-      setNotifications(notificationsRef.current);
-      if (targetNotification && !targetNotification.isRead) {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      }
     } catch (error) {
       console.error("Error marking notification as read:", error);
+      if (activeViewerKeyRef.current !== operationViewerKey) return;
+      notificationsRef.current = notificationsRef.current.map((n) =>
+        n.id === notificationId ? target : n,
+      );
+      setNotifications(notificationsRef.current);
     }
-  }, [scope, scopeKey]);
+  }, [isReadOnly, scope, viewer, viewerKey]);
 
   const markAllAsRead = useCallback(async () => {
-    if (!scope || !scopeKey || isMarkingAllAsRead) return;
+    if (!scope || !viewerKey || isMarkingAllAsRead || isReadOnly) return;
 
     const operationScope = scope;
-    const operationScopeKey = scopeKey;
+    const operationViewerKey = viewerKey;
 
     try {
       setIsMarkingAllAsRead(true);
       await NotificationService.markAllAsRead(operationScope);
 
-      if (activeScopeKeyRef.current !== operationScopeKey) {
+      if (activeViewerKeyRef.current !== operationViewerKey) {
         return;
       }
 
-      const readAt = new Date().toISOString();
-      notificationsRef.current = notificationsRef.current.map((notification) => ({
-        ...notification,
-        isRead: true,
-        readAt,
-      }));
+      notificationsRef.current = notificationsRef.current.map((n) => markReadFor(n, viewer));
       setNotifications(notificationsRef.current);
-      setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all as read:", error);
     } finally {
-      if (activeScopeKeyRef.current === operationScopeKey) {
+      if (activeViewerKeyRef.current === operationViewerKey) {
         setIsMarkingAllAsRead(false);
       }
     }
-  }, [isMarkingAllAsRead, scope, scopeKey]);
+  }, [isMarkingAllAsRead, isReadOnly, scope, viewer, viewerKey]);
 
   const clearNotification = useCallback(async (notificationId: string) => {
-    if (!scope || !scopeKey || clearingIdsRef.current.has(notificationId)) return;
+    if (!scope || !viewerKey || isReadOnly || clearingIdsRef.current.has(notificationId)) return;
 
     const operationScope = scope;
-    const operationScopeKey = scopeKey;
-    const targetNotification = notificationsRef.current.find(
-      (notification) => notification.id === notificationId,
-    );
+    const operationViewerKey = viewerKey;
 
     try {
       clearingIdsRef.current.add(notificationId);
@@ -204,7 +207,7 @@ export function useNotifications() {
 
       await NotificationService.deleteNotification(notificationId, operationScope);
 
-      if (activeScopeKeyRef.current !== operationScopeKey) {
+      if (activeViewerKeyRef.current !== operationViewerKey) {
         return;
       }
 
@@ -212,25 +215,22 @@ export function useNotifications() {
         (notification) => notification.id !== notificationId,
       );
       setNotifications(notificationsRef.current);
-      if (targetNotification && !targetNotification.isRead) {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      }
     } catch (error) {
       console.error("Error clearing notification:", error);
       optimisticDeletedIds.current.delete(notificationId);
     } finally {
       clearingIdsRef.current.delete(notificationId);
-      if (activeScopeKeyRef.current === operationScopeKey) {
+      if (activeViewerKeyRef.current === operationViewerKey) {
         setClearingIds((prev) => prev.filter((id) => id !== notificationId));
       }
     }
-  }, [scope, scopeKey]);
+  }, [isReadOnly, scope, viewerKey]);
 
   const clearAllNotifications = useCallback(async () => {
-    if (!scope || !scopeKey || isClearingAll) return;
+    if (!scope || !viewerKey || isClearingAll || isReadOnly) return;
 
     const operationScope = scope;
-    const operationScopeKey = scopeKey;
+    const operationViewerKey = viewerKey;
 
     try {
       setIsClearingAll(true);
@@ -240,31 +240,38 @@ export function useNotifications() {
 
       await NotificationService.clearAllNotifications(operationScope);
 
-      if (activeScopeKeyRef.current !== operationScopeKey) {
+      if (activeViewerKeyRef.current !== operationViewerKey) {
         return;
       }
 
       notificationsRef.current = [];
       setNotifications([]);
-      setUnreadCount(0);
     } catch (error) {
       console.error("Error clearing all notifications:", error);
     } finally {
-      if (activeScopeKeyRef.current === operationScopeKey) {
+      if (activeViewerKeyRef.current === operationViewerKey) {
         setIsClearingAll(false);
       }
     }
-  }, [isClearingAll, scope, scopeKey]);
+  }, [isClearingAll, isReadOnly, scope, viewerKey]);
+
+  const isRead = useCallback(
+    (notification: Notification) => isNotificationRead(notification, viewer),
+    [viewer],
+  );
 
   return {
     scope,
     scopeKey,
+    viewer,
+    isReadOnly,
     notifications,
     unreadCount,
     isLoading,
     isMarkingAllAsRead,
     isClearingAll,
     clearingIds,
+    isRead,
     markAsRead,
     markAllAsRead,
     clearNotification,

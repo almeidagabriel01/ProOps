@@ -10,6 +10,11 @@ import {
   NotificationScope,
 } from "@/lib/notifications/scope";
 import { Notification } from "@/types/notification";
+import type { NotificationPreferences } from "@/lib/notifications/catalog";
+import {
+  DEMO_NOTIFICATION_TENANT_ID,
+  type NotificationViewer,
+} from "@/lib/notifications/viewer";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -126,6 +131,26 @@ export const NotificationService = {
     }
   },
 
+  async getPreferences(): Promise<NotificationPreferences> {
+    const response = await callApi<{ preferences: NotificationPreferences }>(
+      "/v1/notifications/preferences",
+      "GET",
+    );
+    return response.preferences ?? {};
+  },
+
+  /** Grava só os tipos enviados; os demais ficam como estão. */
+  async updatePreferences(
+    preferences: NotificationPreferences,
+  ): Promise<NotificationPreferences> {
+    const response = await callApi<{ preferences: NotificationPreferences }>(
+      "/v1/notifications/preferences",
+      "PUT",
+      { preferences },
+    );
+    return response.preferences ?? {};
+  },
+
   async claimDailyDueToast(
     type: "transaction_due_reminder" | "proposal_expiring",
   ): Promise<boolean> {
@@ -144,6 +169,7 @@ export const NotificationService = {
 
   subscribe(
     scope: NotificationScope,
+    viewer: NotificationViewer,
     callback: (notifications: Notification[]) => void,
   ): Unsubscribe {
     // Aba oculta não polla (economia de reads); ao voltar, refetch imediato.
@@ -196,20 +222,32 @@ export const NotificationService = {
 
     try {
       const notificationsRef = collection(db, "notifications");
+      const scopeTenantId = scope.kind === "system" ? "system" : scope.tenantId;
       // limit(50): mesma janela do fallback de polling. Sem o cap, o listener
       // realtime (ativo em TODA página autenticada) re-cobra leitura de todos
       // os docs do tenant a cada mudança — custo cresce sem teto com o volume
       // de notificações.
-      const notificationsQuery = query(
-        notificationsRef,
-        where(
-          "tenantId",
-          "==",
-          scope.kind === "system" ? "system" : scope.tenantId,
-        ),
-        orderBy("createdAt", "desc"),
-        limit(50),
-      );
+      // Por pessoa, a consulta PRECISA filtrar por `recipientUids`: é o que as
+      // rules conseguem provar. Sem o filtro, a lista inteira é recusada.
+      const notificationsQuery =
+        viewer.mode === "recipient"
+          ? query(
+              notificationsRef,
+              where("tenantId", "==", scopeTenantId),
+              where("recipientUids", "array-contains", viewer.uid),
+              orderBy("createdAt", "desc"),
+              limit(50),
+            )
+          : query(
+              notificationsRef,
+              where(
+                "tenantId",
+                "==",
+                viewer.mode === "demo" ? DEMO_NOTIFICATION_TENANT_ID : scopeTenantId,
+              ),
+              orderBy("createdAt", "desc"),
+              limit(50),
+            );
 
       let pollingInterval: ReturnType<typeof setInterval> | null = null;
 

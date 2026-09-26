@@ -271,6 +271,16 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  // Central de notificações: cada pessoa tem a sua, então não há `pageId` que
+  // o master conceda. Sem `requiredPermission`, senão o membro levaria /403 por
+  // uma permissão que a tela de Equipe nunca grava.
+  "/notifications": {
+    pageId: "notifications",
+    slug: "/notifications",
+    name: "Notificações",
+    module: "core",
+    requiresAuth: true,
+  },
 
   // MASTER-only pages
   "/team": {

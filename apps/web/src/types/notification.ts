@@ -15,6 +15,8 @@ export enum NotificationType {
   SYSTEM = "system",
   TRANSACTION_VIEWED = "transaction_viewed",
   PRICE_CHANGE = "price_change",
+  /** Pagamento online (Asaas) confirmado para um lançamento. */
+  TRANSACTION_PAID_ONLINE = "transaction_paid_online",
 }
 
 export interface Notification {
@@ -30,6 +32,11 @@ export interface Notification {
   leadId?: string;
   clientId?: string;
   projectId?: string;
+  /** Quem vê esta notificação (as rules leem este campo). */
+  recipientUids?: string[];
+  /** Quem já leu: a leitura é por pessoa. */
+  readBy?: string[];
+  /** Leitura da empresa inteira: só a visão do superadmin usa. */
   isRead: boolean;
   createdAt: string;
   readAt?: string;
