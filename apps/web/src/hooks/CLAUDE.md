@@ -12,6 +12,8 @@ hooks/
 ├── use-prefers-reduced-motion.ts
 ├── use-record-search.ts   # Busca de propostas e contatos para o Ctrl+K (índice searchTokens)
 ├── use-sort.ts            # Ordenação de listas
+├── use-task-reader.ts     # Como a pessoa lê as tarefas (empresa inteira ou só as dela)
+├── use-tasks.ts           # Tarefas (lista ou de um contato/proposta/lead), pessoas e concluir otimista
 ├── use-window-focus.ts    # Detecção de foco da janela
 ├── useAiChat.ts           # Chat com a IA Lia
 ├── useClientActions.ts    # Ações CRUD de clientes

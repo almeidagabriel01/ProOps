@@ -10,6 +10,10 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
+// O painel de tarefas tem teste próprio; aqui só importa que ele aparece.
+vi.mock("@/components/features/tasks/tasks-panel", () => ({
+  TasksPanel: () => <div data-testid="tasks-panel" />,
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/providers/tenant-provider", () => ({ useTenant: () => ({ tenant: { id: "t1" } }) }));
 vi.mock("@/services/leads-service", () => ({

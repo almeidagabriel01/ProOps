@@ -158,6 +158,8 @@ describe("passos por plano e papel", () => {
   it("Enterprise, master: todas as telas, em ordem de capítulo", () => {
     expect(stepIds("enterprise", MASTER)).toEqual([
       "dashboard",
+      // Tarefas fica no capítulo Visão geral, logo depois do Dashboard.
+      "tasks",
       "proposals",
       "crm",
       "projects",

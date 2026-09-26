@@ -98,6 +98,8 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       // Projetos de instalação: nos dois nichos, com etapas padrão próprias
       // (Infraestrutura, Instalação, Configuração, Entrega).
       projects: true,
+      // Tarefas: iguais nos dois nichos.
+      tasks: true,
     },
     solutionsPage: {
       navigationLabel: "Soluções",
@@ -131,6 +133,8 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       // Projetos de instalação: nos dois nichos, com etapas padrão próprias
       // (Medição, Produção, Instalação, Entrega).
       projects: true,
+      // Tarefas: iguais nos dois nichos.
+      tasks: true,
     },
     solutionsPage: {
       navigationLabel: "Ambientes",

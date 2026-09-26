@@ -22,6 +22,10 @@ const m = vi.hoisted(() => ({
   createNote: vi.fn(),
 }));
 
+// O painel de tarefas tem teste próprio; aqui só importa que ele aparece.
+vi.mock("@/components/features/tasks/tasks-panel", () => ({
+  TasksPanel: () => <div data-testid="tasks-panel" />,
+}));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => ({ get: (key: string) => (key === "aba" ? m.aba : null) }),
 }));

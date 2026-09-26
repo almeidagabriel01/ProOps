@@ -21,6 +21,7 @@ import { Select } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { TasksPanel } from "@/components/features/tasks/tasks-panel";
 import { toast } from "@/lib/toast";
 import { formatCurrency } from "@/utils/format";
 import { useTenant } from "@/providers/tenant-provider";
@@ -269,6 +270,9 @@ export function LeadDetailSheet({
 
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">Atividades</h3>
+            <p className="text-xs text-muted-foreground">
+              O histórico do lead, visto pela equipe. O que fazer, com responsável, vai em Tarefas.
+            </p>
 
             {canEdit && (
               <form onSubmit={handleAddActivity} className="space-y-2 rounded-lg border p-3">
@@ -279,11 +283,15 @@ export function LeadDetailSheet({
                     onChange={(e) => setNewType(e.target.value as ActivityType)}
                     disableSort
                   >
-                    {Object.entries(ACTIVITY_TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
+                    {/* "Tarefa" virou a tela de Tarefas (abaixo): uma só forma de
+                        registrar o que fazer, com responsável e aviso. */}
+                    {Object.entries(ACTIVITY_TYPE_LABELS)
+                      .filter(([value]) => value !== "tarefa")
+                      .map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
                   </Select>
                   <div className="space-y-1">
                     <Label htmlFor="activity-title" className="sr-only">
@@ -351,6 +359,8 @@ export function LeadDetailSheet({
               </ul>
             )}
           </section>
+
+          <TasksPanel context={{ leadId: lead.id, leadName: lead.name }} />
         </div>
 
         <ConfirmDialog

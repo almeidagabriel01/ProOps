@@ -102,7 +102,7 @@ test.describe("PERM-02: a dock só oferece o que o membro pode abrir", () => {
       "CRM",
       "Financeiro",
       "Contatos",
-      "Calendário",
+      "Agenda",
       "Catálogo",
       "Planilhas",
       // e os filhos dos grupos: nenhum pode vazar para a dock como item solto,
@@ -115,6 +115,8 @@ test.describe("PERM-02: a dock só oferece o que o membro pode abrir", () => {
       "Serviços",
       "Soluções",
       "Ambientes",
+      "Calendário",
+      "Tarefas",
     ]) {
       await expect(dock.getByRole("link", { name: label })).toHaveCount(0);
     }

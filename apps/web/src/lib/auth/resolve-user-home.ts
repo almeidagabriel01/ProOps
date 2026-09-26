@@ -6,6 +6,7 @@ export const PAGE_ROUTE_MAP: Record<string, string> = {
   kanban: "/crm",
   proposals: "/proposals",
   projects: "/projects",
+  tasks: "/tasks",
   clients: "/contacts",
   products: "/products",
   services: "/services",
@@ -21,6 +22,7 @@ export const ORDERED_MEMBER_PAGES = [
   "kanban",
   "proposals",
   "projects",
+  "tasks",
   "clients",
   "products",
   "services",
@@ -126,6 +128,8 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/crm",
   // Projetos de instalação: o tenant de demonstração tem projetos de exemplo.
   "/projects",
+  // Tarefas: o tenant de demonstração tem três de exemplo.
+  "/tasks",
   // Central de notificações: lê as notificações de exemplo do tenant demo, e
   // as preferências aparecem só para ver.
   "/notifications",

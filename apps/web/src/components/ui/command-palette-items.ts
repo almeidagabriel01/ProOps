@@ -19,6 +19,7 @@ import {
   Wallet,
   WalletCards,
   Wrench,
+  ListTodo,
 } from "lucide-react";
 
 import type { MenuCapability } from "@/components/layout/navigation-config";
@@ -84,6 +85,15 @@ export const searchItems: SearchItem[] = [
       "visita",
       "evento",
     ],
+  },
+  {
+    id: "tasks",
+    label: "Tarefas",
+    description: "O que fazer, com responsável e prazo",
+    path: "/tasks",
+    icon: ListTodo,
+    requiresView: "tasks",
+    keywords: ["tarefa", "a fazer", "pendência", "lembrete", "responsável", "menção"],
   },
   {
     id: "projects",

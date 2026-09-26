@@ -28,7 +28,7 @@ decoracao, fale-conosco, forgot-password, institucional, invoices, login,
 manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
 register, reset,
 services, settings, share, sobre, solutions, spreadsheets, subscribe,
-subscription-blocked, team, terms, transactions, verify, wallets
+subscription-blocked, tasks, team, terms, transactions, verify, wallets
 ```
 
 `sobre`, `manifesto`, `produtos` e `fale-conosco` são as páginas do
@@ -43,6 +43,18 @@ sua, como o Perfil. A notificação é POR PESSOA desde 2026-09-26: o sino consu
 `recipientUids array-contains uid`, a leitura vai em `readBy`, e o que cada um
 recebe sai do catálogo (`lib/notifications/catalog.ts`, espelho do backend com
 teste de paridade). Regras no `apps/functions/src/api/services/CLAUDE.md`.
+
+`tasks` são as **tarefas**: o "a fazer" com responsável, prazo e @menção, em
+todos os planos, com `pageId` próprio (`tasks`). Ficam no grupo Agenda, com o
+Calendário. A tarefa é DA PESSOA: o membro lê as que criou, as dele e as em que
+foi citado (`audienceUids`, que as rules leem); dono e administradores leem
+todas (`useTaskReader`). Coleção própria `tasks`, e não as atividades do CRM,
+porque o histórico do lead é da equipe e as rules não liberariam uma lista que
+misturasse os dois; por isso o tipo "Tarefa" saiu da criação de atividade, e o
+lead ganhou o painel de tarefas. Aparecem também na ficha do contato (aba
+Tarefas), na proposta ("Nova tarefa") e no Dashboard ("Minhas tarefas de hoje").
+A menção vale pelo que continua escrito (`mentionedUids`): apagar "@Nome"
+desfaz. A leitura é sem `orderBy`, então não precisa de índice composto.
 
 ## Três superfícies num projeto só
 

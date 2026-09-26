@@ -29,8 +29,9 @@ financeiro mais um backfill.
 ## Grupo
 
 Um `MenuItem` com `children` é um grupo: a dock desenha **um** ícone, e as telas
-irmãs reaparecem no seletor do cabeçalho de cada uma delas. Hoje são dois,
-Financeiro e Catálogo.
+irmãs reaparecem no seletor do cabeçalho de cada uma delas. Hoje são três,
+Financeiro, Catálogo e Agenda (Calendário e Tarefas; Tarefas entrou ali para a
+dock continuar com nove ícones).
 
 Um grupo **não declara `href` nem `pageId`**:
 

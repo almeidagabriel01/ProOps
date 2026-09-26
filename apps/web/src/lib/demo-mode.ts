@@ -38,6 +38,7 @@ const DEMO_BLOCKED_MUTATION_PREFIXES = [
   "/v1/leads",
   "/v1/activities",
   "/v1/projects",
+  "/v1/tasks",
 ];
 
 /**

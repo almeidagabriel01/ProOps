@@ -47,6 +47,7 @@ import { formatMonthLabel } from "@/lib/month-key";
 import { useTenant } from "@/providers/tenant-provider";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { FirstStepsCard } from "@/components/onboarding/first-steps-card";
+import { MyTasksCard } from "@/components/features/tasks/my-tasks-card";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -144,6 +145,9 @@ export default function DashboardPage() {
         <div className="max-md:-order-1">
           <QuickActionsCard />
         </div>
+
+        {/* Some quando não há tarefa atrasada nem para hoje. */}
+        <MyTasksCard />
       </div>
 
       {/* Charts (Fluxo de Caixa & Balanço Futuro) */}

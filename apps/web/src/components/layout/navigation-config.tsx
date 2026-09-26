@@ -16,6 +16,7 @@ import {
   CalendarDays,
   Kanban,
   HardHat,
+  ListTodo,
 } from "lucide-react";
 
 /**
@@ -153,9 +154,23 @@ export const menuItems: MenuItem[] = [
   },
   {
     icon: CalendarDays,
-    label: "Calendário",
-    href: "/calendar",
-    pageId: "calendar",
+    label: "Agenda",
+    // O dia a dia de compromissos e do que fazer. Tarefas entrou aqui, e não
+    // como um ícone a mais, para a dock continuar com nove.
+    children: [
+      {
+        icon: CalendarDays,
+        label: "Calendário",
+        href: "/calendar",
+        pageId: "calendar",
+      },
+      {
+        icon: ListTodo,
+        label: "Tarefas",
+        href: "/tasks",
+        pageId: "tasks",
+      },
+    ],
   },
   {
     icon: Blocks,

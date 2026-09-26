@@ -7,9 +7,15 @@
  * as duas divergirem.
  */
 
-export type NotificationAudience = "proposals" | "transactions" | "kanban" | "projects" | "admins";
+export type NotificationAudience =
+  | "proposals"
+  | "transactions"
+  | "kanban"
+  | "projects"
+  | "admins"
+  | "direct";
 
-export type NotificationGroup = "proposals" | "financial" | "crm" | "projects" | "system";
+export type NotificationGroup = "proposals" | "financial" | "crm" | "projects" | "tasks" | "system";
 
 export interface NotificationCatalogEntry {
   label: string;
@@ -117,6 +123,30 @@ export const NOTIFICATION_CATALOG = {
     emailable: false,
     defaultEmail: false,
   },
+  task_assigned: {
+    label: "Tarefa atribuída a você",
+    description: "Alguém da equipe passou uma tarefa para você.",
+    group: "tasks",
+    audience: "direct",
+    emailable: true,
+    defaultEmail: true,
+  },
+  task_mentioned: {
+    label: "Menção numa tarefa",
+    description: "Alguém citou você com @ numa tarefa.",
+    group: "tasks",
+    audience: "direct",
+    emailable: true,
+    defaultEmail: true,
+  },
+  task_reminder: {
+    label: "Tarefa com prazo hoje",
+    description: "Lembrete diário das suas tarefas que vencem no dia.",
+    group: "tasks",
+    audience: "direct",
+    emailable: false,
+    defaultEmail: false,
+  },
 } as const satisfies Record<string, NotificationCatalogEntry>;
 
 export type CatalogNotificationType = keyof typeof NOTIFICATION_CATALOG;
@@ -128,6 +158,7 @@ export const NOTIFICATION_GROUPS: Array<{ id: NotificationGroup; label: string }
   { id: "financial", label: "Financeiro" },
   { id: "crm", label: "CRM" },
   { id: "projects", label: "Projetos" },
+  { id: "tasks", label: "Tarefas" },
   { id: "system", label: "Conta" },
 ];
 
@@ -160,6 +191,8 @@ export function resolveChannelPreference(
 /**
  * Tipos que a pessoa recebe, na mesma regra do backend: o dono e os
  * administradores recebem todos; o membro, os dos módulos que ele pode ver.
+ * Os diretos (tarefa atribuída, menção) valem para qualquer um que possa ser
+ * citado, e isso pede a tela de Tarefas.
  */
 export function visibleNotificationTypes(
   isAdmin: boolean,
@@ -168,6 +201,7 @@ export function visibleNotificationTypes(
   return NOTIFICATION_TYPES.filter((type) => {
     const { audience } = NOTIFICATION_CATALOG[type];
     if (isAdmin) return true;
+    if (audience === "direct") return canView("tasks");
     return audience !== "admins" && canView(audience);
   });
 }

@@ -25,6 +25,7 @@ import {
 import { hasOpenChangeRequest, hasPendingAcceptance } from "@/lib/client-acceptance";
 import { useClientResponses } from "@/hooks/use-client-responses";
 import { ProposalProjectButton } from "@/components/features/projects/proposal-project-button";
+import { NewTaskButton } from "@/components/features/tasks/new-task-button";
 import { formatDateBR } from "@/utils/date-format";
 import { ProposalService } from "@/services/proposal-service";
 import { ProposalDefaults } from "@/lib/proposal-defaults";
@@ -267,6 +268,14 @@ export default function ViewProposalPage() {
         </div>
         <div className="flex items-center gap-2">
           <ProposalProjectButton proposalId={proposalId} proposalStatus={proposal.status} />
+          <NewTaskButton
+            context={{
+              proposalId,
+              proposalTitle: proposal.title,
+              clientId: proposal.clientId || undefined,
+              clientName: proposal.clientName || undefined,
+            }}
+          />
           {canEdit && canAccessEditPdf && (
             <Button
               variant="outline"

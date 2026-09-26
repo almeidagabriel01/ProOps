@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useTenant } from "@/providers/tenant-provider";
 import { usePagePermission } from "@/hooks/usePagePermission";
+import { TasksPanel } from "@/components/features/tasks/tasks-panel";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { ProposalService } from "@/services/proposal-service";
 import { TransactionService, type Transaction } from "@/services/transaction-service";
@@ -64,7 +65,7 @@ const INVOICE_STATUS_LABEL: Record<string, string> = {
   error: "Erro",
 };
 
-const HUB_TABS = ["resumo", "propostas", "financeiro", "anotacoes", "dados"];
+const HUB_TABS = ["resumo", "propostas", "financeiro", "tarefas", "anotacoes", "dados"];
 
 interface ContactHubProps {
   client: Client;
@@ -88,6 +89,7 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
   const { canView: canViewTransactions } = usePagePermission("transactions");
   const { canView: canViewInvoices } = usePagePermission("invoices");
   const { canEdit: canEditClient } = usePagePermission("clients");
+  const { canView: canViewTasks } = usePagePermission("tasks");
 
   const showFinance = hasFinancial && canViewTransactions;
   const showInvoices = hasFiscal && canViewInvoices;
@@ -218,6 +220,7 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
         {(showFinance || showInvoices) && (
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
         )}
+        {canViewTasks && <TabsTrigger value="tarefas">Tarefas</TabsTrigger>}
         <TabsTrigger value="anotacoes">Anotações</TabsTrigger>
         <TabsTrigger value="dados">Dados</TabsTrigger>
       </TabsList>
@@ -546,6 +549,12 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
           onConfirm={deleteNote}
         />
       </TabsContent>
+
+      {canViewTasks && (
+        <TabsContent value="tarefas">
+          <TasksPanel context={{ clientId: client.id, clientName: client.name }} hideHeading />
+        </TabsContent>
+      )}
 
       <TabsContent value="dados">{dataTab}</TabsContent>
     </Tabs>

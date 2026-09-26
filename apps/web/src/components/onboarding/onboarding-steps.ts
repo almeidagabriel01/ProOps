@@ -174,6 +174,19 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     ],
     actionLabel: "Abrir Contatos",
   },
+  "/tasks": {
+    id: "tasks",
+    route: "/tasks",
+    chapter: "overview",
+    description:
+      "O que fazer, quem faz e até quando. Cada pessoa vê as próprias tarefas, e quem for citado com @ recebe o aviso.",
+    checklist: [
+      { text: "Crie uma tarefa e escolha o responsável e o prazo." },
+      { text: "Cite alguém da equipe com @ nos detalhes para avisar." },
+      { text: "Veja as suas tarefas de hoje no Dashboard." },
+    ],
+    actionLabel: "Abrir Tarefas",
+  },
   "/calendar": {
     id: "calendar",
     route: "/calendar",

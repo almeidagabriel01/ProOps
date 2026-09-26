@@ -17,6 +17,12 @@ export enum NotificationType {
   PRICE_CHANGE = "price_change",
   /** Pagamento online (Asaas) confirmado para um lançamento. */
   TRANSACTION_PAID_ONLINE = "transaction_paid_online",
+  /** Alguém atribuiu uma tarefa a você. */
+  TASK_ASSIGNED = "task_assigned",
+  /** Alguém mencionou você numa tarefa. */
+  TASK_MENTIONED = "task_mentioned",
+  /** Tarefa sua com prazo hoje. */
+  TASK_REMINDER = "task_reminder",
 }
 
 export interface Notification {
@@ -32,6 +38,7 @@ export interface Notification {
   leadId?: string;
   clientId?: string;
   projectId?: string;
+  taskId?: string;
   /** Quem vê esta notificação (as rules leem este campo). */
   recipientUids?: string[];
   /** Quem já leu: a leitura é por pessoa. */

@@ -6,7 +6,10 @@ import type { Notification } from "@/types/notification";
  * em `notification-catalog-parity.test.ts`.
  */
 export function notificationLinkPath(
-  n: Pick<Notification, "type" | "proposalId" | "transactionId" | "leadId" | "clientId" | "projectId">,
+  n: Pick<
+    Notification,
+    "type" | "proposalId" | "transactionId" | "leadId" | "clientId" | "projectId" | "taskId"
+  >,
 ): string {
   switch (n.type) {
     case "transaction_due_reminder":
@@ -24,6 +27,10 @@ export function notificationLinkPath(
       return n.proposalId ? `/proposals?ajuste=${n.proposalId}` : "/proposals";
     case "project_delivery_accepted":
       return n.projectId ? `/projects/${n.projectId}` : "/projects";
+    case "task_assigned":
+    case "task_mentioned":
+    case "task_reminder":
+      return n.taskId ? `/tasks?task=${n.taskId}` : "/tasks";
     default:
       return n.proposalId ? `/proposals/${n.proposalId}/view` : "/notifications";
   }
