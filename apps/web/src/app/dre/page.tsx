@@ -19,6 +19,9 @@ import { FinanceReportsService, type DreBasis, type DreResult } from "@/services
 import { DreTable } from "./_components/dre-table";
 import { CategoriesDialog } from "./_components/categories-dialog";
 import { DreSkeleton } from "./_components/dre-skeleton";
+import { ExportMenu } from "@/components/shared/export-menu";
+import { downloadSheet, type SheetFormat } from "@/lib/export/sheet";
+import { buildDreSheet } from "@/lib/finance/dre-export";
 
 const BASIS_OPTIONS: Array<{ value: DreBasis; label: string; hint: string }> = [
   { value: "cash", label: "Caixa", hint: "O que de fato entrou e saiu, pela data do pagamento." },
@@ -76,6 +79,17 @@ export default function DrePage() {
     );
   }
 
+  const exportDre = async (format: SheetFormat) => {
+    if (!dre) return;
+    const sheet = buildDreSheet(dre);
+    await downloadSheet({
+      format,
+      fileName: `dre-${basis === "cash" ? "caixa" : "competencia"}-${range.from}-a-${range.to}`,
+      sheetName: "DRE",
+      ...sheet,
+    });
+  };
+
   const net = dre?.totals.netRevenue.total ?? 0;
   const gross = dre?.totals.grossProfit.total ?? 0;
   const result = dre?.totals.result.total ?? 0;
@@ -88,10 +102,13 @@ export default function DrePage() {
           <p className="mt-1 text-muted-foreground">Quanto sobrou: receitas menos impostos, custos e despesas</p>
           <PageViewSwitcher className="mt-3" />
         </div>
-        <Button type="button" variant="outline" onClick={() => setCategoriesOpen(true)}>
-          <Tags className="mr-2 h-4 w-4" />
-          Categorias
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ExportMenu onExport={exportDre} disabled={!dre || dre.count === 0} />
+          <Button type="button" variant="outline" onClick={() => setCategoriesOpen(true)}>
+            <Tags className="mr-2 h-4 w-4" />
+            Categorias
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

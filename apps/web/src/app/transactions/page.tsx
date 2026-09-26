@@ -22,7 +22,9 @@ import {
   planBulkMarkPaid,
   resolveSelectedTransactions,
 } from "./_lib/bulk-actions";
-import { downloadTransactionsXlsx } from "./_lib/export-transactions-xlsx";
+import { downloadTransactions, downloadTransactionsXlsx } from "./_lib/export-transactions-xlsx";
+import { ExportMenu } from "@/components/shared/export-menu";
+import type { SheetFormat } from "@/lib/export/sheet";
 import {
   parseTransactionFilters,
   serializeTransactionFilters,
@@ -459,6 +461,19 @@ export default function FinancialPage() {
     }
   }, [selectedTransactions, refreshData, afterBulkChange]);
 
+  // Os lançamentos que a lista mostra agora (período e filtros), e não só os
+  // selecionados.
+  const handleExportPeriod = React.useCallback(
+    async (format: SheetFormat) => {
+      await downloadTransactions(
+        buildExportRows(filteredTransactions, wallets),
+        `lancamentos-${getTodayISO()}`,
+        format,
+      );
+    },
+    [filteredTransactions, wallets],
+  );
+
   const handleBulkExport = React.useCallback(async () => {
     try {
       await downloadTransactionsXlsx(
@@ -715,6 +730,14 @@ export default function FinancialPage() {
                   </span>
                 </Button>
               ))}
+
+            {viewMode === "byDueDate" && (
+              <ExportMenu
+                size="lg"
+                onExport={handleExportPeriod}
+                disabled={filteredTransactions.length === 0}
+              />
+            )}
 
             {canCreate && (
               <Button asChild size="lg" className="gap-2 w-full sm:w-auto">

@@ -54,7 +54,8 @@ const STATUS_LABEL: Record<string, string> = {
   overdue: "Atrasado",
 };
 
-export interface ExportRow {
+// `type`, e não `interface`: precisa caber em Record<string, SheetCell>.
+export type ExportRow = {
   descricao: string;
   tipo: string;
   status: string;
@@ -65,7 +66,7 @@ export interface ExportRow {
   contato: string;
   categoria: string;
   parcela: string;
-}
+};
 
 function toDate(value?: string): Date | null {
   if (!value) return null;
