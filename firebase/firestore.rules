@@ -594,6 +594,19 @@ service cloud.firestore {
                         && belongsToTenant(resource.data.get('tenantId', '')));
     }
 
+    // BOOKING - Link de agendamento: expediente, pedidos e a trava por dia.
+    // Tudo pelo backend (o link público resolve a empresa pelo token, e os
+    // pedidos chegam à tela pela API, com a permissão da Agenda).
+    match /booking_settings/{tenantId} {
+      allow read, write: if false;
+    }
+    match /booking_requests/{requestId} {
+      allow read, write: if false;
+    }
+    match /booking_locks/{lockId} {
+      allow read, write: if false;
+    }
+
     // SALES_GOALS - Metas de vendas por mês: lidas e gravadas só pelo backend,
     // que decide quem vê o quê (o membro recebe só o próprio número).
     match /sales_goals/{goalId} {

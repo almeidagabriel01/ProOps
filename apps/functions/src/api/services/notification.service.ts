@@ -40,6 +40,7 @@ export interface Notification {
   clientId?: string;
   projectId?: string;
   taskId?: string;
+  bookingRequestId?: string;
   /** Quem vê esta notificação. As rules leem este campo. */
   recipientUids?: string[];
   /** Quem já leu. A leitura é por pessoa desde a central de notificações. */
@@ -63,6 +64,7 @@ export interface CreateNotificationData {
   clientId?: string;
   projectId?: string;
   taskId?: string;
+  bookingRequestId?: string;
   /** Obrigatório nos tipos diretos (tarefa atribuída, menção): quem é avisado. */
   targetUids?: string[];
 }
@@ -144,7 +146,10 @@ export class NotificationService {
   static async sendNotificationEmails(
     notification: Pick<Notification, "tenantId" | "type" | "title" | "message"> &
       Partial<
-        Pick<Notification, "proposalId" | "transactionId" | "leadId" | "clientId" | "projectId" | "taskId">
+        Pick<
+          Notification,
+          "proposalId" | "transactionId" | "leadId" | "clientId" | "projectId" | "taskId" | "bookingRequestId"
+        >
       >,
     recipients: EmailRecipient[],
   ): Promise<void> {

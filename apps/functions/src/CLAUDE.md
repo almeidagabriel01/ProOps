@@ -310,6 +310,9 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `leads/{id}` | CRM | Oportunidades antes da proposta (`leads.controller.ts`, gate `crm`, pageId `kanban`). Tenant le; escrita so via Cloud Functions |
 | `activities/{id}` | CRM | Atividades de um lead ou contato (`activities.controller.ts`). Tenant le; escrita so via Cloud Functions |
 | `sales_goals/{tenantId}_{YYYY-MM}` | Metas | Meta da empresa (`companyTarget`) e por vendedor (`targets`, uid -> valor) do mes (`sales-goals.controller.ts`, capacidade `salesGoals`). Admin SDK only: o membro recebe so o proprio numero pela API. O progresso soma `closedValue`/`totalValue` das propostas com `approvedAt` no mes (fuso de Brasilia), indice `(tenantId, approvedAt ASC)` |
+| `booking_settings/{tenantId}` | Agendamento | Expediente do link publico (dias, horario, antecedencia, horizonte, tipos de visita) e o `publicToken` do link. Admin SDK only; o link resolve a empresa pelo token (`booking.service.ts`) |
+| `booking_requests/{id}` | Agendamento | Pedido de visita do cliente (`pending` -> `confirmed`/`declined`), com o `eventId` do evento "a confirmar" criado na Agenda. Admin SDK only; a tela le pela API com a permissao da Agenda |
+| `booking_locks/{tenantId}_{dia}` | Agendamento | Trava da transacao do pedido: dois clientes no mesmo horario nao viram duas visitas. Admin SDK only |
 | `tasks/{id}` | Tarefas | "A fazer" com responsavel, ligado ou nao a contato, proposta ou lead (`tasks.controller.ts`, pageId `tasks`, todos os planos). Da PESSOA: as rules leem `audienceUids` (quem criou, responsavel e citados); dono e admins leem todas. Escrita so via Cloud Functions |
 | `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
 | `project_settings/{tenantId}` | Projetos | Criacao automatica na aprovacao e roteiro de etapas. Admin SDK only |

@@ -48,6 +48,10 @@ export type PlanTierId = "free" | "starter" | "pro" | "enterprise";
  * vendedor (membro escolhido na proposta), com o progresso pelo valor das
  * propostas aprovadas no mes da aprovacao. Pro e Enterprise.
  *
+ * `bookingLink` e o link publico de agendamento: o cliente escolhe um horario
+ * livre no expediente da empresa e pede a visita, que a empresa confirma. Pro
+ * e Enterprise.
+ *
  * `fiscalReceiving` e a recepcao de notas de ENTRADA. Fica fora do add-on
  * fiscal de proposito: cada nota recebida consome uma unidade paga do Focus
  * sem clique de ninguem, entao nao cabe na franquia mensal do add-on.
@@ -65,6 +69,7 @@ export type PlanCapabilityKey =
   | "onlineApproval"
   | "projects"
   | "salesGoals"
+  | "bookingLink"
   | "fiscalReceiving";
 
 export type PlanCapabilities = Record<PlanCapabilityKey, boolean>;
@@ -105,6 +110,7 @@ export const PLAN_CAPABILITY_KEYS: readonly PlanCapabilityKey[] = [
   "onlineApproval",
   "projects",
   "salesGoals",
+  "bookingLink",
   "fiscalReceiving",
 ] as const;
 
@@ -121,6 +127,7 @@ const NO_CAPABILITIES: PlanCapabilities = {
   onlineApproval: false,
   projects: false,
   salesGoals: false,
+  bookingLink: false,
   fiscalReceiving: false,
 };
 
@@ -177,6 +184,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       onlineApproval: true,
       projects: true,
       salesGoals: true,
+      bookingLink: true,
     },
     limits: {
       maxProposalsPerMonth: -1,
@@ -208,6 +216,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       onlineApproval: true,
       projects: true,
       salesGoals: true,
+      bookingLink: true,
       fiscalReceiving: true,
     },
     limits: {
@@ -287,6 +296,7 @@ export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   onlineApproval: "Aceite online da proposta",
   projects: "Projetos de instalação",
   salesGoals: "Metas de vendas",
+  bookingLink: "Link de agendamento",
   fiscalReceiving: "Notas de entrada",
 };
 
@@ -343,6 +353,7 @@ export interface PublicPlanFeatures {
   hasOnlineApproval: boolean;
   hasProjects: boolean;
   hasSalesGoals: boolean;
+  hasBookingLink: boolean;
   hasFiscalReceiving: boolean;
   hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
@@ -371,6 +382,7 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     hasOnlineApproval: entry.capabilities.onlineApproval,
     hasProjects: entry.capabilities.projects,
     hasSalesGoals: entry.capabilities.salesGoals,
+    hasBookingLink: entry.capabilities.bookingLink,
     hasFiscalReceiving: entry.capabilities.fiscalReceiving,
     hasWhatsApp: entry.capabilities.whatsapp,
     canCustomizeTheme: entry.capabilities.customTheme,

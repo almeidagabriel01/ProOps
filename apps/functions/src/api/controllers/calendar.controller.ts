@@ -100,7 +100,12 @@ const GoogleCalendarCallbackQuerySchema = z
     message: "code_or_error_required",
   });
 
-type CalendarEventStatus = "scheduled" | "completed" | "canceled";
+/**
+ * `pending` = "a confirmar": o pedido de visita que um cliente fez pelo link de
+ * agendamento. Ocupa o horário (ninguém mais pede o mesmo) e não vai para o
+ * Google Agenda até a empresa confirmar.
+ */
+export type CalendarEventStatus = "scheduled" | "completed" | "canceled" | "pending";
 type GoogleSyncStatus = "disabled" | "synced" | "error" | "removed";
 type GoogleSyncOrigin = "local" | "imported";
 
@@ -116,7 +121,7 @@ interface GoogleSyncMetadata {
   lastError?: string | null;
 }
 
-interface CalendarEventDocument {
+export interface CalendarEventDocument {
   tenantId: string;
   ownerUserId: string;
   createdByUserId: string;
@@ -203,7 +208,8 @@ function normalizeStatus(value: unknown): CalendarEventStatus {
   if (
     normalized === "scheduled" ||
     normalized === "completed" ||
-    normalized === "canceled"
+    normalized === "canceled" ||
+    normalized === "pending"
   ) {
     return normalized;
   }
@@ -947,6 +953,10 @@ export async function syncEventToGoogle(
   if (isGoogleCalendarDisabled()) {
     return buildBaseGoogleSyncMetadata();
   }
+  // Pedido "a confirmar" não vai para o Google: a empresa ainda não aceitou.
+  if (eventData.status === "pending") {
+    return eventData.googleSync || buildBaseGoogleSyncMetadata();
+  }
 
   const attemptedAt = nowIso();
   // /calendar/events nao e gateada por plano (a agenda interna e de todos),
@@ -1434,7 +1444,7 @@ export async function getCalendarEvents(req: Request, res: Response) {
   }
 }
 
-function buildCalendarEventDocument(params: {
+export function buildCalendarEventDocument(params: {
   input: Record<string, unknown>;
   tenantId: string;
   ownerUserId: string;

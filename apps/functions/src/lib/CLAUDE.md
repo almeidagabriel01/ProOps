@@ -476,6 +476,7 @@ aplicaria o gate a API inteira.
 | `/v1/calendar/google/*` | `calendarSync` (a agenda interna fica em todos os planos) |
 | `/v1/drive/*` | `driveSync` |
 | `/v1/sales-goals*` | `salesGoals` (Pro e Enterprise) |
+| `/v1/booking*` | `bookingLink` (Pro e Enterprise). As rotas publicas `/v1/public/booking/:token` nao tem usuario: conferem o plano pela empresa do token (`resolveBookingToken`) |
 
 **Caminhos que nao passam por rota checam a capacidade por conta propria**,
 senao um downgrade nao desliga nada: a fila do Drive (`isDriveConnected` /

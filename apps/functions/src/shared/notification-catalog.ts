@@ -34,6 +34,7 @@ export const NOTIFICATION_TYPES = [
   "task_mentioned",
   "task_reminder",
   "task_updated",
+  "booking_requested",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -43,6 +44,7 @@ export type NotificationAudience =
   | "transactions"
   | "kanban"
   | "projects"
+  | "calendar"
   | "admins"
   | "direct";
 
@@ -72,6 +74,8 @@ export const NOTIFICATION_CATALOG: Record<NotificationType, NotificationCatalogE
   // Lembrete diário: fica no sino, como os outros.
   task_reminder: { audience: "direct", emailable: false, defaultEmail: false },
   task_updated: { audience: "direct", emailable: true, defaultEmail: false },
+  // Cliente novo pedindo visita pelo link: chega também por e-mail.
+  booking_requested: { audience: "calendar", emailable: true, defaultEmail: true },
 };
 
 export function isNotificationType(value: unknown): value is NotificationType {
@@ -112,6 +116,7 @@ export function notificationLinkPath(n: {
   clientId?: string | null;
   projectId?: string | null;
   taskId?: string | null;
+  bookingRequestId?: string | null;
 }): string {
   switch (n.type) {
     case "transaction_due_reminder":
@@ -132,6 +137,8 @@ export function notificationLinkPath(n: {
     case "task_reminder":
     case "task_updated":
       return n.taskId ? `/tasks?task=${n.taskId}` : "/tasks";
+    case "booking_requested":
+      return n.bookingRequestId ? `/calendar?pedido=${n.bookingRequestId}` : "/calendar";
     default:
       return n.proposalId ? `/proposals/${n.proposalId}/view` : "/notifications";
   }

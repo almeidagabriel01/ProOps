@@ -29,6 +29,7 @@ import { crmRoutes } from "./routes/crm.routes";
 import { projectsRoutes } from "./routes/projects.routes";
 import { tasksRoutes } from "./routes/tasks.routes";
 import { salesGoalsRoutes } from "./routes/sales-goals.routes";
+import { bookingRoutes, publicBookingRoutes } from "./routes/booking.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
 import { drivePublicRoutes, driveRoutes } from "./routes/drive.routes";
@@ -452,6 +453,12 @@ app.use("/v1", publicShareLimiter, sharedProposalsRoutes);
 app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
 
+// Link de agendamento: ANTES do `/v1/public` do formulário de contato, que
+// aplica o limite de 5/min a todo o prefixo (abrir o link contaria nele). O
+// pedido (POST) leva o limite estrito e a verificação anti-robô.
+app.post("/v1/public/booking/:token", contactFormLimiter, verifyTurnstileToken);
+app.use("/v1/public/booking", publicShareLimiter, publicBookingRoutes);
+
 app.use("/v1/public", contactFormLimiter, contactRoutes);
 app.use("/v1/public", demoBookingLimiter, demoBookingRoutes);
 
@@ -544,6 +551,7 @@ app.use("/v1", crmRoutes);
 app.use("/v1", projectsRoutes);
 app.use("/v1", tasksRoutes);
 app.use("/v1", salesGoalsRoutes);
+app.use("/v1", bookingRoutes);
 app.use("/v1", calendarRoutes);
 app.use("/v1", driveRoutes);
 app.use("/v1", linkedAccountsRoutes);

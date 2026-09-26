@@ -1088,6 +1088,40 @@ e `apps/web/src/__tests__/proposal-code-preview.test.ts` (a tela tem uma cópia 
 montagem do código para a prévia, e uma divergência prometeria um código
 diferente do que a proposta receberia).
 
+### Link de agendamento (`api/services/booking/`)
+
+O cliente escolhe um horário livre no expediente da empresa e PEDE a visita; a
+empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
+
+- **"A confirmar" é um status da Agenda** (`pending` em `calendar_events`). O
+  pedido já cria o evento: o horário fica ocupado (ninguém mais pede o mesmo),
+  aparece na Agenda com selo próprio e **não vai para o Google Agenda**
+  (`syncEventToGoogle` devolve cedo em `pending`). Confirmar vira `scheduled` e
+  sincroniza; recusar apaga o evento e libera o horário.
+- **Horário livre** = expediente (dias, início e fim, antecedência mínima,
+  horizonte) menos os compromissos da Agenda (`computeAvailableSlots`, puro, em
+  passos de 30 min, sempre em horário de Brasília). Antes de calcular, o link
+  puxa as mudanças do Google Agenda (`syncGoogleEventsToLocalCalendar`, com o
+  limite de frequência dela), então compromisso marcado só no Google também
+  ocupa. A consulta é por `startMs` e olha um dia antes: evento que começou
+  antes e continua ocupa.
+- **O pedido roda numa transação travada pelo dia** (`booking_locks`) que
+  reconsulta a Agenda: dois clientes no mesmo horário não viram duas visitas.
+- **Rota pública** em `/v1/public/booking/:token`, montada ANTES do
+  `/v1/public` do formulário de contato (que limitaria abrir o link a 5/min). O
+  POST leva `contactFormLimiter` e `verifyTurnstileToken`, e um campo escondido
+  (`website`) derruba robô com um "ok" falso. Link desligado, sem plano ou token
+  inexistente dão o mesmo 404.
+- **O cliente recebe e-mail** na confirmação e na recusa (com o recado e o link
+  para escolher outro horário), no template `booking-client.ts`. É o primeiro
+  e-mail da plataforma para alguém de fora: o remetente continua sendo a ProOps,
+  e o texto diz de qual empresa ele é.
+- A empresa é avisada pela central (`booking_requested`, para quem vê a Agenda,
+  e-mail ligado por padrão).
+
+Guards: `booking-model.test.ts`, `booking.controller.test.ts`,
+`booking.routes.gates.test.ts` e `tests/firestore-rules/booking.test.ts`.
+
 ### Vendedor e metas de vendas
 
 A proposta guarda **`sellerId`/`sellerName`** (quem vendeu: membro da empresa,

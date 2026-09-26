@@ -335,6 +335,7 @@ interface Notification {
 | `system` | Repasse do Asaas que falhou, certificado A1 vencendo; e os do superadmin (`tenantId: "system"`) | dono e admins | ligado |
 | `price_change` | Cron `checkPriceChanges` | dono e admins | nao (tem e-mail proprio) |
 | `task_assigned` | Tarefa passada para alguem (`tasks.controller.ts`); quem fez a acao nunca e avisado. O texto NAO leva o prazo: a notificacao e uma foto do momento e ficaria com a data velha na primeira edicao | so o responsavel (`targetUids`) | ligado |
+| `booking_requested` | Cliente pediu visita pelo link de agendamento (`booking.service.ts`) | ve a Agenda (`calendar`) | ligado |
 | `task_updated` | Outra pessoa mudou (ou tirou) o prazo de uma tarefa que ja tinha responsavel; com atribuicao nova na mesma edicao, vale so o `task_assigned` | so o responsavel | pode, desligado |
 | `task_mentioned` | Alguem citado com @ numa tarefa; so quem foi citado AGORA, e nao o responsavel ja avisado | so os citados | ligado |
 | `task_reminder` | Cron `checkDueDates` (2d), tarefa com prazo hoje, id `task_{id}_{dia}` | o responsavel, ou quem criou | nao |
