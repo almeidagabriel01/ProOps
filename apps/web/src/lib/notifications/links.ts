@@ -8,7 +8,14 @@ import type { Notification } from "@/types/notification";
 export function notificationLinkPath(
   n: Pick<
     Notification,
-    "type" | "proposalId" | "transactionId" | "leadId" | "clientId" | "projectId" | "taskId"
+    | "type"
+    | "proposalId"
+    | "transactionId"
+    | "leadId"
+    | "clientId"
+    | "projectId"
+    | "taskId"
+    | "bookingRequestId"
   >,
 ): string {
   switch (n.type) {
@@ -32,6 +39,8 @@ export function notificationLinkPath(
     case "task_reminder":
     case "task_updated":
       return n.taskId ? `/tasks?task=${n.taskId}` : "/tasks";
+    case "booking_requested":
+      return n.bookingRequestId ? `/calendar?pedido=${n.bookingRequestId}` : "/calendar";
     default:
       return n.proposalId ? `/proposals/${n.proposalId}/view` : "/notifications";
   }

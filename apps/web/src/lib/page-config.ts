@@ -262,6 +262,15 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     module: "settings",
     requiresAuth: true,
   },
+  // Link de agendamento: mesmo portão das metas (plano e administrador dentro
+  // da tela), sem requiredPermission.
+  "/settings/booking": {
+    pageId: "settings-booking",
+    slug: "/settings/booking",
+    name: "Link de agendamento",
+    module: "settings",
+    requiresAuth: true,
+  },
   "/settings/fiscal": {
     pageId: "settings-fiscal",
     slug: "/settings/fiscal",

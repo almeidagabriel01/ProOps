@@ -37,7 +37,8 @@ export type OnboardingCapability =
   | "driveSync"
   | "onlinePayments"
   | "fiscalReceiving"
-  | "salesGoals";
+  | "salesGoals"
+  | "bookingLink";
 
 export type OnboardingCapabilityMap = Record<OnboardingCapability, boolean>;
 
@@ -397,6 +398,23 @@ export const SETTINGS_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     masterOnly: true,
     excludeFromDemo: true,
     requiresAnyCapability: ["salesGoals"],
+  },
+  "/settings/booking": {
+    id: "settings-booking",
+    route: "/settings/booking",
+    chapter: "settings",
+    title: "Link de agendamento",
+    description:
+      "Um link para o cliente escolher um horário livre e pedir a visita. O pedido entra na Agenda como a confirmar, e você responde.",
+    checklist: [
+      { text: "Escolha os dias e o horário em que a equipe atende." },
+      { text: "Ajuste os tipos de visita e quanto tempo cada uma leva." },
+      { text: "Ligue o link, copie e mande ao cliente ou ponha no seu site." },
+    ],
+    actionLabel: "Abrir o agendamento",
+    masterOnly: true,
+    excludeFromDemo: true,
+    requiresAnyCapability: ["bookingLink"],
   },
   "/settings/linked-accounts": {
     id: "settings-integrations",

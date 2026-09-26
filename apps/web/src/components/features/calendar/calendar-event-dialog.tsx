@@ -252,6 +252,11 @@ export function CalendarEventDialog({
                 onChange={(event) => onChange("status", event.target.value)}
                 disabled={!canEdit || isSubmitting}
               >
+                {/* "A confirmar" só aparece no pedido que veio do link: quem
+                    responde é o botão Pedidos de visita, não este campo. */}
+                {values.status === "pending" && (
+                  <option value="pending">A confirmar</option>
+                )}
                 <option value="scheduled">Agendado</option>
                 <option value="completed">Concluido</option>
                 <option value="canceled">Cancelado</option>

@@ -152,6 +152,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       fiscalReceiving: plan.hasFiscalReceiving,
       projects: plan.hasProjects,
       salesGoals: plan.hasSalesGoals,
+      bookingLink: plan.hasBookingLink,
     }),
     [
       plan.hasFinancial,
@@ -164,6 +165,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       plan.hasFiscalReceiving,
       plan.hasProjects,
       plan.hasSalesGoals,
+      plan.hasBookingLink,
     ],
   );
 

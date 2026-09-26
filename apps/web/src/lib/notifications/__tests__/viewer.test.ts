@@ -67,7 +67,7 @@ describe("lida por pessoa", () => {
 
 describe("tipos que cada pessoa recebe (e vê nas preferências)", () => {
   it("o dono recebe todos", () => {
-    expect(visibleNotificationTypes(true, () => false)).toHaveLength(16);
+    expect(visibleNotificationTypes(true, () => false)).toHaveLength(17);
   });
 
   it("membro só de propostas não vê financeiro, CRM, projetos nem avisos da conta", () => {

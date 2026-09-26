@@ -1118,6 +1118,14 @@ empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
   e o texto diz de qual empresa ele é.
 - A empresa é avisada pela central (`booking_requested`, para quem vê a Agenda,
   e-mail ligado por padrão).
+- **A página do cliente é `/share/visita/{token}`** no front, sob `/share` para
+  herdar o tratamento de página pública. O e-mail de recusa monta esse caminho;
+  mudar um lado sem o outro quebra o "escolher outro horário" (guard
+  `apps/web/src/__tests__/booking-link-path.test.ts`).
+- O tipo de visita padrão muda por nicho (`defaultVisitTypes`: Medição em
+  cortinas, Visita técnica no resto). O front tem espelho em
+  `NICHE_CONFIGS[*].booking`, só para a demonstração, com teste de paridade em
+  `apps/web/src/lib/booking/__tests__/booking-format.test.ts`.
 
 Guards: `booking-model.test.ts`, `booking.controller.test.ts`,
 `booking.routes.gates.test.ts` e `tests/firestore-rules/booking.test.ts`.

@@ -1,4 +1,8 @@
-export type CalendarEventStatus = "scheduled" | "completed" | "canceled";
+/**
+ * `pending` = "a confirmar": pedido de visita feito pelo link de agendamento,
+ * que a empresa ainda não respondeu. Não vai para o Google Agenda.
+ */
+export type CalendarEventStatus = "scheduled" | "completed" | "canceled" | "pending";
 export type GoogleCalendarSyncStatus =
   | "disabled"
   | "synced"

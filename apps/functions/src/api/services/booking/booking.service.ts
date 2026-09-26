@@ -356,7 +356,7 @@ async function notifyClient(
       when: describeWhen(String(request.date), Number(request.startMin)),
       outcome,
       message,
-      rebookUrl: rebookToken ? `${resolveFrontendAppOrigin()}/visita/${rebookToken}` : null,
+      rebookUrl: rebookToken ? `${resolveFrontendAppOrigin()}/share/visita/${rebookToken}` : null,
     });
     await sendEmail({
       to: String(request.email),

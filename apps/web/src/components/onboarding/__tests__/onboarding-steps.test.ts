@@ -31,13 +31,14 @@ const NONE: OnboardingCapabilityMap = {
   fiscalReceiving: false,
   projects: false,
   salesGoals: false,
+  bookingLink: false,
 };
 
 /** O que o `PlanProvider` entrega por tier, sem add-ons. */
 const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabilityMap> = {
   // A conta free destrava financeiro, CRM, projetos e editor de PDF para a
   // demonstração, e deixa fiscal e Drive de fora.
-  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true },
+  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true, bookingLink: true },
   starter: NONE,
   pro: {
     ...NONE,
@@ -47,6 +48,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     driveSync: true,
     projects: true,
     salesGoals: true,
+    bookingLink: true,
   },
   enterprise: {
     financial: true,
@@ -59,6 +61,7 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     fiscalReceiving: true,
     projects: true,
     salesGoals: true,
+    bookingLink: true,
   },
 };
 
@@ -180,6 +183,7 @@ describe("passos por plano e papel", () => {
       "settings-team",
       "settings-proposals",
       "settings-goals",
+      "settings-booking",
       "settings-integrations",
     ]);
   });
@@ -192,13 +196,14 @@ describe("passos por plano e papel", () => {
     expect(ids).toContain("settings-integrations");
     // Projetos de instalação entram no Pro.
     expect(ids).toContain("projects");
-    // Metas de vendas também.
+    // Metas de vendas e o link de agendamento também.
     expect(ids).toContain("settings-goals");
+    expect(ids).toContain("settings-booking");
   });
 
   it("Starter, master: sem Financeiro nem Integrações", () => {
     const ids = stepIds("starter", MASTER);
-    for (const id of ["transactions", "wallets", "commissions", "invoices", "crm", "projects", "settings-goals", "settings-integrations"]) {
+    for (const id of ["transactions", "wallets", "commissions", "invoices", "crm", "projects", "settings-goals", "settings-booking", "settings-integrations"]) {
       expect(ids).not.toContain(id);
     }
     expect(ids).toContain("settings-team");
@@ -212,7 +217,7 @@ describe("passos por plano e papel", () => {
     expect(ids).toContain("wallets");
     expect(ids).toContain("settings-security");
     expect(ids).toContain("settings-team");
-    for (const id of ["commissions", "invoices", "settings-proposals", "settings-integrations"]) {
+    for (const id of ["commissions", "invoices", "settings-proposals", "settings-booking", "settings-integrations"]) {
       expect(ids).not.toContain(id);
     }
   });

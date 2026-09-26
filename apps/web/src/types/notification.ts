@@ -25,6 +25,8 @@ export enum NotificationType {
   TASK_REMINDER = "task_reminder",
   /** Alguém mudou o prazo de uma tarefa sua. */
   TASK_UPDATED = "task_updated",
+  /** Cliente pediu uma visita pelo link de agendamento. */
+  BOOKING_REQUESTED = "booking_requested",
 }
 
 export interface Notification {
@@ -41,6 +43,7 @@ export interface Notification {
   clientId?: string;
   projectId?: string;
   taskId?: string;
+  bookingRequestId?: string;
   /** Quem vê esta notificação (as rules leem este campo). */
   recipientUids?: string[];
   /** Quem já leu: a leitura é por pessoa. */

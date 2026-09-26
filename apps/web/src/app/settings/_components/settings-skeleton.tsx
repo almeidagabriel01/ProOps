@@ -269,6 +269,53 @@ export function SettingsGoalsSkeleton() {
 }
 
 /**
+ * Card-only skeleton for /settings/booking: the switch header, the weekday
+ * chips, the four hour selects and the visit types.
+ */
+export function BookingCardSkeleton() {
+  return (
+    <Card data-testid="settings-skeleton-booking">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-4 w-full max-w-md" />
+          </div>
+          <Skeleton className="h-5 w-9 rounded-full" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-12 rounded-full" />
+          ))}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-12 w-full rounded-md" />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-12 w-full rounded-md" />
+        <Skeleton className="ml-auto h-10 w-24 rounded-md" />
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Full content skeleton for /settings/booking. */
+export function SettingsBookingSkeleton() {
+  return (
+    <FormContainer>
+      <FormHeaderSkeleton />
+      <BookingCardSkeleton />
+    </FormContainer>
+  );
+}
+
+/**
  * Card-only skeleton for /settings/drive: the "Conta Google" card. The folder
  * card only exists once connected, so the skeleton does not promise it.
  */

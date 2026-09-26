@@ -29,7 +29,7 @@ export interface VisitType {
 
 export interface BookingSettings {
   enabled: boolean;
-  /** O que vai no link (`/visita/{token}`). Nasce ao ligar pela primeira vez. */
+  /** O que vai no link (`/share/visita/{token}`). Nasce ao ligar pela primeira vez. */
   publicToken: string | null;
   /** Dias da semana abertos: 0 = domingo ... 6 = sábado. */
   days: number[];

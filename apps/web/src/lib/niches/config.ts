@@ -49,6 +49,14 @@ export interface NicheConfig {
     workflow: ProposalWorkflow;
   };
   productCatalog: ProductCatalogDefinition;
+  /**
+   * Tipo de visita com que o link de agendamento nasce. Espelho de
+   * `defaultVisitTypes` do backend (booking-model.ts), com teste de paridade;
+   * aqui só serve à demonstração, que não chama a API.
+   */
+  booking: {
+    defaultVisitType: { id: string; label: string; durationMin: number };
+  };
 }
 
 const unitInventoryDefinition: InventoryDefinition = {
@@ -123,6 +131,9 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
       inventory: unitInventoryDefinition,
     },
+    booking: {
+      defaultVisitType: { id: "visita_tecnica", label: "Visita técnica", durationMin: 60 },
+    },
   },
   cortinas: {
     id: "cortinas",
@@ -158,6 +169,9 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       viewTitle: "Visualizar Produto",
       viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
       inventory: meterInventoryDefinition,
+    },
+    booking: {
+      defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
     },
   },
 };

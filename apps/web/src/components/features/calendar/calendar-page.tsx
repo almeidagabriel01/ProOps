@@ -48,6 +48,7 @@ import { useIsMobile, useMediaQuery } from "@/hooks/use-is-mobile";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { CalendarService } from "@/services/calendar-service";
+import { BookingRequestsButton } from "@/components/features/booking/booking-requests-button";
 import type {
   CalendarEvent,
   CalendarEventFormValues,
@@ -61,6 +62,7 @@ import {
 } from "./calendar-event-dialog";
 
 const STATUS_LABELS: Record<CalendarEvent["status"], string> = {
+  pending: "A confirmar",
   scheduled: "Agendado",
   completed: "Concluido",
   canceled: "Cancelado",
@@ -68,8 +70,9 @@ const STATUS_LABELS: Record<CalendarEvent["status"], string> = {
 
 const STATUS_BADGES: Record<
   CalendarEvent["status"],
-  "default" | "success" | "destructive"
+  "default" | "success" | "destructive" | "warning"
 > = {
+  pending: "warning",
   scheduled: "default",
   completed: "success",
   canceled: "destructive",
@@ -414,7 +417,7 @@ export function CalendarPage() {
   });
   const [statusFilter, setStatusFilter] = React.useState<
     CalendarEvent["status"][]
-  >(["scheduled", "completed", "canceled"]);
+  >(["pending", "scheduled", "completed", "canceled"]);
   const [searchTerm, setSearchTerm] = React.useState("");
   const deferredSearch = React.useDeferredValue(searchTerm);
   const [showWeekends, setShowWeekends] = React.useState(true);
@@ -1074,6 +1077,11 @@ export function CalendarPage() {
                         />
                       </Button>
 
+                      <BookingRequestsButton
+                        onChanged={() => void handleManualRefresh()}
+                        highlightId={searchParams.get("pedido")}
+                      />
+
                       {canCreate ? (
                         <Button
                           onClick={() => handleOpenCreateDialog()}
@@ -1087,6 +1095,7 @@ export function CalendarPage() {
                     <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
                       {(
                         [
+                          "pending",
                           "scheduled",
                           "completed",
                           "canceled",

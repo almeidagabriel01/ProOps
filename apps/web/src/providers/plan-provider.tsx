@@ -52,6 +52,7 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   hasOnlineApproval: false,
   hasProjects: false,
   hasSalesGoals: false,
+  hasBookingLink: false,
   hasFiscalReceiving: false,
   hasWhatsApp: false,
   canCustomizeTheme: false,
@@ -101,6 +102,7 @@ export interface PlanContextValue {
   /** Projetos de instalação (Pro e Enterprise). */
   hasProjects: boolean;
   hasSalesGoals: boolean;
+  hasBookingLink: boolean;
   hasFiscal: boolean;
   hasDriveSync: boolean;
   hasCalendarSync: boolean;
@@ -205,6 +207,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           hasOnlineApproval: true,
           hasProjects: true,
           hasSalesGoals: true,
+          hasBookingLink: true,
           hasFiscalReceiving: true,
           hasWhatsApp: true,
           canCustomizeTheme: true,
@@ -234,6 +237,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           hasKanban: true,
           hasProjects: true,
           hasSalesGoals: true,
+          hasBookingLink: true,
           canEditPdfSections: true,
           canCustomizeTheme: true,
           maxPdfTemplates: -1,
@@ -606,6 +610,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       hasKanban: mergedFeatures?.hasKanban ?? false,
       hasProjects: mergedFeatures?.hasProjects ?? false,
       hasSalesGoals: mergedFeatures?.hasSalesGoals ?? false,
+      hasBookingLink: mergedFeatures?.hasBookingLink ?? false,
       hasFiscal: mergedFeatures?.hasFiscal ?? false,
       hasDriveSync: mergedFeatures?.hasDriveSync ?? false,
       hasCalendarSync: mergedFeatures?.hasCalendarSync ?? false,

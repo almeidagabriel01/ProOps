@@ -18,7 +18,8 @@ O middleware do Next.js (`middleware.ts`) deve ter estas rotas explicitamente ex
 share/
 ├── [token]/page.tsx              # Proposta compartilhada
 ├── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
-└── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir e aceitar
+├── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir e aceitar
+└── visita/[token]/page.tsx       # Link de agendamento: escolher horário e pedir a visita
 ```
 
 ## Arquivos-chave
@@ -74,6 +75,8 @@ A resposta pública do backend retorna a proposta/lançamento junto com dados do
 | Link de pagamento da proposta aprovada | `POST` (público) | `SharedProposalService.paymentLink` | `/v1/share/:token/payment-link` |
 | Buscar a entrega da obra | `GET` (público) | `SharedProjectService.get` | `/v1/share/project/:token` |
 | Aceitar a entrega da obra | `POST` (público) | `SharedProjectService.accept` | `/v1/share/project/:token/accept` |
+| Horários livres do link de agendamento | `GET` (público) | `BookingService.publicView` | `/v1/public/booking/:token` |
+| Pedir a visita | `POST` (público) | `BookingService.submit` | `/v1/public/booking/:token` |
 
 As chamadas públicas usam `callPublicApi` (sem token de autenticação no header), diferentemente do `callApi` padrão.
 
@@ -149,6 +152,27 @@ alguém da equipe.
   igualdade). A lista, o quadro e a visualização leem dele, então o selo e o
   diálogo aparecem sem F5; antes de o listener responder, vale o dado da lista
   (`hasPendingAcceptance` / `hasOpenChangeRequest` em `lib/client-acceptance.ts`).
+
+## Link de agendamento (`visita/[token]`)
+
+O cliente escolhe o tipo de visita, o dia e o horário livre, e deixa nome,
+telefone e, se quiser, e-mail, endereço e observação. **O pedido não marca a
+visita**: ele entra na Agenda como "a confirmar" e a empresa responde (regra no
+`apps/functions/CLAUDE.md`, seção Link de agendamento). A tela diz isso antes e
+depois de enviar.
+
+- Mora sob `/share` e não em `/visita` de propósito: herda a árvore sem
+  sessão do `providers.tsx`, o `noindex` e a exceção do redirect do apex, que
+  uma rota nova precisaria repetir em quatro lugares.
+- Só dia com horário livre aparece. Um 409 (alguém pegou o horário no meio do
+  caminho) recarrega os horários e pede outro.
+- Captcha pelo `lib/captcha.ts` (interativo) e um campo isca `website`, fora da
+  árvore acessível, que o backend usa para responder "ok" a robô sem gravar.
+- O botão de envio usa `brandButtonStyle`, como os outros daqui.
+
+Guards: `visita/[token]/_components/__tests__/public-booking.test.tsx` e
+`src/__tests__/booking-link-path.test.ts` (o link da configuração e o do e-mail
+caem nesta rota).
 
 ## Padrões e gotchas
 

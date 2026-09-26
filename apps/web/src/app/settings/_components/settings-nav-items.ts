@@ -1,4 +1,5 @@
 import {
+  CalendarClock,
   CreditCard,
   FileText,
   FolderOpen,
@@ -45,6 +46,12 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
         shortLabel: "Metas",
         href: "/settings/goals",
         icon: Target,
+      },
+      {
+        label: "Link de agendamento",
+        shortLabel: "Agendamento",
+        href: "/settings/booking",
+        icon: CalendarClock,
       },
       {
         label: "Pagamento Online",

@@ -56,6 +56,12 @@ Tarefas), na proposta ("Nova tarefa") e no Dashboard ("Minhas tarefas de hoje").
 A menção vale pelo que continua escrito (`mentionedUids`): apagar "@Nome"
 desfaz. A leitura é sem `orderBy`, então não precisa de índice composto.
 
+O **link de agendamento** tem duas pontas: a configuração em
+`/settings/booking` e a página do cliente em `/share/visita/[token]`. O pedido
+entra na Agenda (`calendar`) como "a confirmar" (status `pending`), e a Agenda
+ganha o botão "Pedidos de visita" para confirmar ou recusar. Detalhes em
+`settings/CLAUDE.md` e `share/CLAUDE.md`.
+
 ## Três superfícies num projeto só
 
 `proops.com.br`, `erp.proops.com.br` e `app.proops.com.br` são servidos por este

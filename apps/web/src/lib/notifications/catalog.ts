@@ -12,10 +12,18 @@ export type NotificationAudience =
   | "transactions"
   | "kanban"
   | "projects"
+  | "calendar"
   | "admins"
   | "direct";
 
-export type NotificationGroup = "proposals" | "financial" | "crm" | "projects" | "tasks" | "system";
+export type NotificationGroup =
+  | "proposals"
+  | "financial"
+  | "crm"
+  | "projects"
+  | "tasks"
+  | "calendar"
+  | "system";
 
 export interface NotificationCatalogEntry {
   label: string;
@@ -155,6 +163,14 @@ export const NOTIFICATION_CATALOG = {
     emailable: true,
     defaultEmail: false,
   },
+  booking_requested: {
+    label: "Pedido de visita pelo link",
+    description: "Um cliente escolheu um horário no link de agendamento.",
+    group: "calendar",
+    audience: "calendar",
+    emailable: true,
+    defaultEmail: true,
+  },
 } as const satisfies Record<string, NotificationCatalogEntry>;
 
 export type CatalogNotificationType = keyof typeof NOTIFICATION_CATALOG;
@@ -167,6 +183,7 @@ export const NOTIFICATION_GROUPS: Array<{ id: NotificationGroup; label: string }
   { id: "crm", label: "CRM" },
   { id: "projects", label: "Projetos" },
   { id: "tasks", label: "Tarefas" },
+  { id: "calendar", label: "Agenda" },
   { id: "system", label: "Conta" },
 ];
 

@@ -20,6 +20,7 @@ src/app/settings/
 ├── fiscal/page.tsx           # Nota fiscal (master) ou "Acesso Restrito"
 ├── proposals/page.tsx        # Numeracao das propostas (master) ou "Acesso Restrito"
 ├── goals/page.tsx            # Metas de vendas (master, Pro e Enterprise) ou "Acesso Restrito"
+├── booking/page.tsx          # Link de agendamento (master, Pro e Enterprise) ou "Acesso Restrito"
 ├── drive/page.tsx            # Google Drive (master) ou "Acesso Restrito"
 ├── linked-accounts/page.tsx  # Contas vinculadas: resumo de todas as integracoes (todos)
 ├── _components/
@@ -51,6 +52,7 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/proposals` | Propostas (numeração e validade padrão) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/goals` | Metas de vendas: a meta do mês da empresa e de cada pessoa da equipe (Pro e Enterprise; sem o plano, `UpgradeRequired`). Na proposta o campo se chama "Responsável pela venda", e não "Vendedor", porque "vendedor" já é o parceiro da comissão | Master (membro vê "Acesso Restrito"; o progresso dele aparece no Dashboard) |
+| Organização | `/settings/booking` | Link de agendamento: expediente (dias, horário, antecedência, horizonte), tipos de visita e o link para copiar (Pro e Enterprise; sem o plano, `UpgradeRequired`). Os pedidos são respondidos na Agenda, no botão "Pedidos de visita" | Master (membro vê "Acesso Restrito"; a conta free vê o padrão do nicho, só para ler, sem chamar a API) |
 | Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/drive` | Google Drive | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/linked-accounts` | Contas vinculadas | Todos veem; ação só para quem pode conectar |
