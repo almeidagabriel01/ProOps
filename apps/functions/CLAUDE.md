@@ -1151,8 +1151,14 @@ as notas fiscais dele. Pro e Enterprise (`clientPortal`).
   `SharedTransactionService.createShareLink` sobrescreve a validade de um link
   existente (inclusive "sem validade"), então o portal reaproveita o link
   válido e só cria um de 30 dias quando não há ou venceu.
-- **O que o cliente vê:** propostas fora do rascunho (aprovada, recusada ou em
-  aberto, lido como `isStatusApproved`), receitas do contato sem a comissão (que
+- **Proposta só depois de ir para o cliente:** na coluna Enviada, Aprovada
+  ou Recusada (lidas como `isStatusApproved`). Rascunho e "Em aberto" nunca
+  aparecem, nem com link gerado. Coluna própria da empresa não diz se a
+  proposta já foi enviada, então ali vale o link externo já gerado
+  (`shared_proposals` com `purpose` diferente de `system_pdf_render`,
+  consultado por `proposalId` em lotes de 30); sem isso, uma empresa que trocou
+  a coluna Enviada por colunas próprias teria o portal sempre vazio.
+- **O que mais o cliente vê:** receitas do contato sem a comissão (que
   tem o `clientId` do PARCEIRO), obras não canceladas com o avanço pelas
   etapas, e notas AUTORIZADAS com o PDF do Focus (que abre sem login). Só o
   primeiro nome do contato.

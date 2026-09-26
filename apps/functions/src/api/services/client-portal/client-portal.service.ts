@@ -15,6 +15,7 @@ import {
   buildPortalProposals,
   firstName,
   portalLinkDocId,
+  proposalsNeedingShareCheck,
   type KanbanStatusInfo,
   type PortalView,
 } from "./client-portal-model";
@@ -156,6 +157,25 @@ function byClient(collection: string, tenantId: string, clientId: string) {
     .get();
 }
 
+/**
+ * Das propostas em coluna que não diz se já foram enviadas, as que a empresa
+ * já compartilhou com o cliente (link externo; o link interno do PDF não
+ * conta). Consulta só por `proposalId`, em lotes de 30, sem índice composto.
+ */
+async function loadSharedProposalIds(tenantId: string, proposalIds: string[]): Promise<Set<string>> {
+  const shared = new Set<string>();
+  for (let i = 0; i < proposalIds.length; i += 30) {
+    const chunk = proposalIds.slice(i, i + 30);
+    const snap = await db.collection("shared_proposals").where("proposalId", "in", chunk).limit(300).get();
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      if (data.tenantId !== tenantId || data.purpose === "system_pdf_render") continue;
+      shared.add(String(data.proposalId));
+    }
+  }
+  return shared;
+}
+
 function todayInBrazil(nowMs: number): string {
   return new Date(nowMs - 3 * 3_600_000).toISOString().slice(0, 10);
 }
@@ -179,6 +199,8 @@ export async function publicPortalView(token: string, nowMs = Date.now()): Promi
     kanban.docs.map((doc) => [doc.id, doc.data() as KanbanStatusInfo]),
   );
   const tenant = tenantSnap.data() ?? {};
+  const proposalDocs = docsOf(proposals);
+  const sharedIds = await loadSharedProposalIds(tenantId, proposalsNeedingShareCheck(proposalDocs, kanbanById));
 
   // Registro de visita, sem travar a página se falhar.
   void db
@@ -194,7 +216,7 @@ export async function publicPortalView(token: string, nowMs = Date.now()): Promi
       primaryColor: (tenant.primaryColor as string | undefined) ?? null,
     },
     client: { firstName: firstName(clientSnap.data()?.name) },
-    proposals: buildPortalProposals(docsOf(proposals), kanbanById),
+    proposals: buildPortalProposals(proposalDocs, kanbanById, sharedIds),
     payments: buildPortalPayments(docsOf(transactions), todayInBrazil(nowMs)),
     canPayOnline: canCharge && tenant.asaasEnabled === true,
     projects: buildPortalProjects(docsOf(projects)),
@@ -227,10 +249,11 @@ export async function openPortalItem(token: string, kind: PortalItemKind, itemId
 
   if (kind === "proposal") {
     const kanban = await db.collection("kanban_statuses").doc(String(data.status ?? "_")).get().catch(() => null);
-    const listed = buildPortalProposals(
-      entry,
-      new Map(kanban?.exists ? [[kanban.id, kanban.data() as KanbanStatusInfo]] : []),
+    const kanbanById = new Map<string, KanbanStatusInfo>(
+      kanban?.exists ? [[kanban.id, kanban.data() as KanbanStatusInfo]] : [],
     );
+    const sharedIds = await loadSharedProposalIds(tenantId, proposalsNeedingShareCheck(entry, kanbanById));
+    const listed = buildPortalProposals(entry, kanbanById, sharedIds);
     if (listed.length === 0) throw new ClientPortalError(404, "Item não encontrado.");
     const link = await SharedProposalService.createShareLink(itemId, tenantId, CLIENT_PORTAL_ACTOR);
     return { url: link.shareUrl };

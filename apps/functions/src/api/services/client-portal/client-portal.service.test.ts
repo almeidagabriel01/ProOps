@@ -13,13 +13,19 @@ function snap(collection: string, id: string) {
   return { id, exists: data !== undefined, data: () => data, ref: { update: jest.fn(async () => undefined) } };
 }
 
-function query(collection: string, filters: Array<[string, unknown]>) {
+type Filter = [string, string, unknown];
+
+function matches(row: Row, [field, op, value]: Filter): boolean {
+  return op === "in" ? (value as unknown[]).includes(row[field]) : row[field] === value;
+}
+
+function query(collection: string, filters: Filter[]) {
   return {
-    where: (field: string, _op: string, value: unknown) => query(collection, [...filters, [field, value]]),
+    where: (field: string, op: string, value: unknown) => query(collection, [...filters, [field, op, value]]),
     limit: () => query(collection, filters),
     get: async () => {
       const docs = Object.entries(store[collection] ?? {})
-        .filter(([, row]) => filters.every(([field, value]) => row[field] === value))
+        .filter(([, row]) => filters.every((filter) => matches(row, filter)))
         .map(([id]) => snap(collection, id));
       return { docs, empty: docs.length === 0 };
     },
@@ -33,7 +39,7 @@ jest.mock("../../../init", () => ({
         get: async () => snap(name, id),
         update: jest.fn(async () => undefined),
       }),
-      where: (field: string, _op: string, value: unknown) => query(name, [[field, value]]),
+      where: (field: string, op: string, value: unknown) => query(name, [[field, op, value]]),
     }),
   },
 }));
@@ -79,6 +85,8 @@ beforeEach(() => {
   store.proposals = {
     p_ana: { tenantId: "alpha", clientId: "ana", status: "sent", title: "Casa", totalValue: 100 },
     p_rascunho: { tenantId: "alpha", clientId: "ana", status: "draft", title: "Rascunho" },
+    p_aberto: { tenantId: "alpha", clientId: "ana", status: "in_progress", title: "Montando" },
+    p_coluna: { tenantId: "alpha", clientId: "ana", status: "col_neg", title: "Negociando" },
     p_bruno: { tenantId: "alpha", clientId: "bruno", status: "sent", title: "Do Bruno" },
     p_outra: { tenantId: "beta", clientId: "ana", status: "sent", title: "Outra empresa" },
   };
@@ -88,7 +96,8 @@ beforeEach(() => {
   };
   store.projects = { o_ana: { tenantId: "alpha", clientId: "ana", status: "active", stages: [] } };
   store.invoices = {};
-  store.kanban_statuses = {};
+  store.kanban_statuses = { col_neg: { tenantId: "alpha", category: "open", label: "Negociação" } };
+  store.shared_proposals = {};
 });
 
 describe("abrir o portal", () => {
@@ -122,6 +131,33 @@ describe("abrir o portal", () => {
 
   it("token malformado nem consulta", async () => {
     await expect(publicPortalView("../x")).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("proposta só depois de ir para o cliente", () => {
+  it("em aberto nunca aparece, nem com link gerado", async () => {
+    store.shared_proposals = { s1: { tenantId: "alpha", proposalId: "p_aberto", purpose: "external_share" } };
+    const view = await publicPortalView(TOKEN);
+    expect(view.proposals.map((p) => p.id)).not.toContain("p_aberto");
+    await expect(openPortalItem(TOKEN, "proposal", "p_aberto")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("coluna própria entra quando a empresa já gerou o link para o cliente", async () => {
+    expect((await publicPortalView(TOKEN)).proposals.map((p) => p.id)).not.toContain("p_coluna");
+    store.shared_proposals = { s1: { tenantId: "alpha", proposalId: "p_coluna", purpose: "external_share" } };
+    expect((await publicPortalView(TOKEN)).proposals.map((p) => p.id)).toContain("p_coluna");
+    await expect(openPortalItem(TOKEN, "proposal", "p_coluna")).resolves.toEqual({
+      url: "https://erp.test/share/prop-token",
+    });
+  });
+
+  it.each([
+    ["link interno do PDF", { tenantId: "alpha", proposalId: "p_coluna", purpose: "system_pdf_render" }],
+    ["link de outra empresa", { tenantId: "beta", proposalId: "p_coluna", purpose: "external_share" }],
+  ])("%s não conta como enviada", async (_name, link) => {
+    store.shared_proposals = { s1: link };
+    expect((await publicPortalView(TOKEN)).proposals.map((p) => p.id)).not.toContain("p_coluna");
+    await expect(openPortalItem(TOKEN, "proposal", "p_coluna")).rejects.toMatchObject({ status: 404 });
   });
 });
 

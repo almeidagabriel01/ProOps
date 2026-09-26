@@ -5,41 +5,61 @@ import {
   buildPortalProposals,
   classifyProposalStatus,
   firstName,
+  proposalsNeedingShareCheck,
 } from "./client-portal-model";
 
-describe("status da proposta no portal", () => {
+describe("onde a proposta está no caminho até o cliente", () => {
   it.each([
     ["approved", undefined, "approved"],
     ["default_2", undefined, "approved"],
     ["rejected", undefined, "rejected"],
     ["default_3", undefined, "rejected"],
+    ["sent", undefined, "sent"],
+    ["default_1", undefined, "sent"],
+    ["in_progress", undefined, "building"],
+    ["default_0", undefined, "building"],
     ["draft", undefined, "draft"],
     ["", undefined, "draft"],
-    ["sent", undefined, "open"],
     ["col1", { mappedStatus: "approved" }, "approved"],
+    ["col1", { mappedStatus: "sent" }, "sent"],
+    ["col1", { mappedStatus: "in_progress" }, "building"],
     ["col1", { category: "lost" }, "rejected"],
     ["col1", { label: "Ganhas" }, "approved"],
+    ["col1", { label: "Enviadas" }, "sent"],
     ["col1", { label: "Rascunho" }, "draft"],
-    ["col1", { label: "Negociação" }, "open"],
+    ["col1", { category: "open", label: "Em aberto" }, "building"],
+    ["col1", { category: "open", label: "Negociação" }, "unknown"],
+    ["col_sem_doc", undefined, "unknown"],
   ] as const)("%s (%j) é %s", (status, kanban, expected) => {
     expect(classifyProposalStatus(status, kanban)).toBe(expected);
   });
 });
 
 describe("propostas", () => {
-  it("rascunho não aparece; aprovada vale o fechado; mais novas primeiro", () => {
-    const list = buildPortalProposals(
-      [
-        { id: "a", data: { status: "draft", title: "Rascunho", createdAt: "2026-09-20" } },
-        { id: "b", data: { status: "sent", title: "Casa", totalValue: 1000, createdAt: "2026-09-10" } },
-        { id: "c", data: { status: "approved", title: "Loja", totalValue: 5000, closedValue: 4500, createdAt: "2026-09-15" } },
-      ],
-      new Map(),
-    );
+  const docs = [
+    { id: "rascunho", data: { status: "draft", title: "Rascunho", createdAt: "2026-09-20" } },
+    { id: "aberto", data: { status: "in_progress", title: "Montando", createdAt: "2026-09-21" } },
+    { id: "enviada", data: { status: "sent", title: "Casa", totalValue: 1000, createdAt: "2026-09-10" } },
+    { id: "aprovada", data: { status: "approved", title: "Loja", totalValue: 5000, closedValue: 4500, createdAt: "2026-09-15" } },
+    { id: "coluna", data: { status: "neg", title: "Negociando", totalValue: 700, createdAt: "2026-09-12" } },
+  ];
+  const kanban = new Map([["neg", { category: "open", label: "Negociação" }]]);
+
+  it("só o que já foi para o cliente: rascunho, em aberto e coluna própria sem link ficam de fora", () => {
+    const list = buildPortalProposals(docs, kanban);
     expect(list.map((p) => [p.id, p.state, p.value])).toEqual([
-      ["c", "approved", 4500],
-      ["b", "open", 1000],
+      ["aprovada", "approved", 4500],
+      ["enviada", "open", 1000],
     ]);
+  });
+
+  it("coluna própria entra quando a empresa já gerou o link; em aberto e rascunho continuam fora", () => {
+    const list = buildPortalProposals(docs, kanban, new Set(["coluna", "aberto", "rascunho"]));
+    expect(list.map((p) => p.id)).toEqual(["aprovada", "coluna", "enviada"]);
+  });
+
+  it("só as de coluna indefinida precisam da consulta do link", () => {
+    expect(proposalsNeedingShareCheck(docs, kanban)).toEqual(["coluna"]);
   });
 });
 
