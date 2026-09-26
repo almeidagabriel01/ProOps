@@ -50,7 +50,10 @@
 
 Página ou item de menu novo precisa declarar `pageId` (permissão de membro),
 `requiresCapability` (plano) e entrar em `DEMO_ACCESSIBLE_PREFIXES` se a conta
-free deve navegá-lo. Checklist completo em `.claude/rules/access-control.md`.
+free deve navegá-lo. Declara também o passo do tutorial em `onboarding-steps.ts`
+(ou o motivo de ficar de fora, em `ROUTES_WITHOUT_OWN_STEP`) e a disponibilidade
+em cada nicho, em `NICHE_CONFIGS`. Checklist completo em
+`.claude/rules/access-control.md`, incluindo a seção "Além do acesso".
 
 ## Next.js App Router
 - Don't call Firebase client SDK from Server Components
