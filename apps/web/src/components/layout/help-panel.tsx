@@ -92,7 +92,7 @@ export function HelpPanel({ canOpenTutorial }: HelpPanelProps) {
         // Montado igual ao sol/lua do AnimatedThemeToggler (caixa w-5 h-5 com o
         // ícone no tamanho padrão de 24px, sem centralizar): centralizado, o
         // "?" ficava 2px acima dos vizinhos.
-        className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+        className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors"
       >
         <CircleHelp />
       </button>
