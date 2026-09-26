@@ -89,9 +89,11 @@ export function HelpPanel({ canOpenTutorial }: HelpPanelProps) {
         onClick={() => setOpen(true)}
         aria-label="Ajuda desta tela"
         title="Ajuda"
-        className="text-muted-foreground hover:text-foreground transition-colors"
+        // Mesma caixa do sol/lua ao lado (w-5 h-5, ícone de 24px centralizado):
+        // um <button> sem tamanho alinhava o ícone pela linha de texto.
+        className="inline-flex h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
       >
-        <CircleHelp className="h-5 w-5" />
+        <CircleHelp className="h-6 w-6 shrink-0" />
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>

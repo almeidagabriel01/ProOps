@@ -38,7 +38,6 @@ import { getUserColor, getInitials } from "@/lib/avatar-utils";
 import { ImpersonationBar } from "@/components/layout/impersonation-bar";
 import { useOptionalOnboarding } from "@/components/onboarding/onboarding-provider";
 import { HelpPanel } from "@/components/layout/help-panel";
-import { ThemeChoice } from "@/components/layout/theme-choice";
 
 const SUPPORT_HREF = buildWhatsAppHref(
   SUPPORT_WHATSAPP_DIGITS,
@@ -138,11 +137,7 @@ export function Header({}: HeaderProps) {
 
       <div className="flex shrink-0 items-center gap-2 md:gap-4">
         <HelpPanel canOpenTutorial={canOpenTutorial} />
-        {/* No celular o tema fica no menu do perfil (ThemeChoice): o "?" da
-            ajuda precisava do espaço. */}
-        <span className="inline-flex max-sm:hidden">
-          <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
-        </span>
+        <AnimatedThemeToggler className="text-muted-foreground hover:text-foreground transition-colors w-5 h-5" />
         <NotificationBell />
         <div className="hidden h-8 w-px bg-border sm:block" />
         <div className="flex items-center gap-3">
@@ -192,8 +187,6 @@ export function Header({}: HeaderProps) {
                   </p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <ThemeChoice />
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => router.push("/profile")}
