@@ -1,3 +1,4 @@
+import { brandButtonStyle } from "@/utils/color-utils";
 import React from "react";
 import { CreditCard } from "lucide-react";
 import { Transaction } from "@/services/transaction-service";
@@ -174,7 +175,7 @@ export function TransactionPdfViewer({
                   data-pay-button
                   onClick={() => onPayInstallment(item.data)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95"
-                  style={{ backgroundColor: primaryColor, color: "#ffffff" }}
+                  style={brandButtonStyle(primaryColor)}
                   aria-label={`Pagar ${formatCurrency(item.data.amount)}`}
                 >
                   <CreditCard className="w-3 h-3" aria-hidden="true" />
@@ -217,7 +218,7 @@ export function TransactionPdfViewer({
                   data-pay-button
                   onClick={() => onPayInstallment(item.data)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95"
-                  style={{ backgroundColor: primaryColor, color: "#ffffff" }}
+                  style={brandButtonStyle(primaryColor)}
                   aria-label={`Pagar ${formatCurrency(item.data.amount)}`}
                 >
                   <CreditCard className="w-3 h-3" aria-hidden="true" />
@@ -256,7 +257,7 @@ export function TransactionPdfViewer({
                   type="button"
                   onClick={() => onPayInstallment(rec)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95"
-                  style={{ backgroundColor: primaryColor, color: "#ffffff" }}
+                  style={brandButtonStyle(primaryColor)}
                   aria-label={`Pagar ${formatCurrency(rec.amount)}`}
                 >
                   <CreditCard className="w-3 h-3" aria-hidden="true" />
@@ -295,7 +296,7 @@ export function TransactionPdfViewer({
                   type="button"
                   onClick={() => onPayInstallment(inst)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95"
-                  style={{ backgroundColor: primaryColor, color: "#ffffff" }}
+                  style={brandButtonStyle(primaryColor)}
                   aria-label={`Pagar ${formatCurrency(inst.amount)}`}
                 >
                   <CreditCard className="w-3 h-3" aria-hidden="true" />
@@ -336,7 +337,7 @@ export function TransactionPdfViewer({
                   type="button"
                   onClick={() => onPayInstallment(ec)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95"
-                  style={{ backgroundColor: primaryColor, color: "#ffffff" }}
+                  style={brandButtonStyle(primaryColor)}
                   aria-label={`Pagar ${formatCurrency(ec.amount)}`}
                 >
                   <CreditCard className="w-3 h-3" aria-hidden="true" />

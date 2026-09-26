@@ -24,7 +24,7 @@ import {
 import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 import { formatDocumento, isDocumentoValido } from "@/lib/format-document";
-import { computePrimaryForeground } from "@/utils/color-utils";
+import { brandButtonStyle } from "@/utils/color-utils";
 import { formatDateBR } from "@/utils/date-format";
 import {
   SharedProposalService,
@@ -45,9 +45,7 @@ interface ProposalResponsePanelProps {
 }
 
 function brandStyle(primaryColor?: string | null): React.CSSProperties {
-  return primaryColor
-    ? { backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) }
-    : { backgroundColor: "var(--primary)", color: "var(--primary-foreground)" };
+  return brandButtonStyle(primaryColor);
 }
 
 function errorMessage(err: unknown, fallback: string): string {

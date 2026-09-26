@@ -68,7 +68,9 @@ A resposta pública do backend retorna a proposta/lançamento junto com dados do
 | Buscar lançamento pelo token | `GET` (público) | `SharedTransactionService.getSharedTransaction` | `/v1/share/transaction/:token` |
 | Download PDF proposta | `GET` (público) | `downloadSharedProposalPdf` | `/v1/share/:token/pdf` |
 | Download PDF recibo | `GET` (público) | `downloadSharedTransactionPdf` | `/v1/share/transaction/:token/pdf` |
-| Aprovar proposta | `POST` (público) | `SharedProposalService.approve` | `/v1/share/:token/approve` |
+| Aceitar proposta | `POST` (público) | `SharedProposalService.accept` | `/v1/share/:token/accept` |
+| Pedir mudanças | `POST` (público) | `SharedProposalService.requestChanges` | `/v1/share/:token/request-changes` |
+| Link de pagamento da proposta aprovada | `POST` (público) | `SharedProposalService.paymentLink` | `/v1/share/:token/payment-link` |
 
 As chamadas públicas usam `callPublicApi` (sem token de autenticação no header), diferentemente do `callApi` padrão.
 
@@ -165,7 +167,7 @@ if (isPrintMode) {
 A página de proposta injeta CSS com `@media print` que oculta elementos `[data-pdf-ui]` (cabeçalho, controles de zoom). Não remova o atributo `data-pdf-ui` dos elementos de UI.
 
 ### Branding do tenant
-O cabeçalho usa `tenant.primaryColor` como fundo do botão de download via inline style, com o texto por `computePrimaryForeground(cor)` (nunca branco fixo: empresa de cor branca some). Se `primaryColor` for `null` ou `undefined`, cai em `var(--primary)` / `var(--primary-foreground)`. Texto ou borda na cor da marca direto sobre o fundo da página (boleto, PIX) passa por `useThemeAdjustedColor`. Guard: `src/__tests__/tenant-color-contrast.test.ts`.
+Todo botão pintado com a cor da empresa (baixar PDF no cabeçalho, aceitar, pagar, e o "Pagar" das parcelas dentro do `TransactionPdfViewer`) usa `brandButtonStyle(cor)` (`utils/color-utils.ts`): texto por `computePrimaryForeground`, nunca branco fixo, e borda cinza quando a cor é quase branca, senão o botão some no papel branco. Foi assim que o "Pagar" do recibo sumiu para uma empresa de cor branca. Sem cor, cai em `var(--primary)` / `var(--primary-foreground)`. Texto ou borda na cor da marca direto sobre o fundo da página (boleto, PIX) passa por `useThemeAdjustedColor`. Guard: `src/__tests__/tenant-color-contrast.test.ts`.
 
 ### Zoom responsivo
 Mobile: calcula escala automática `(window.innerWidth - 32) / 794` para caber o A4 na tela. ResizeObserver ajusta `marginBottom` para corrigir o espaço deixado pelo `transform: scale()`.

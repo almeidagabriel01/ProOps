@@ -17,7 +17,7 @@ import Image from "next/image";
 
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { downloadSharedProposalPdf } from "@/services/pdf/download-shared-proposal-pdf";
-import { computePrimaryForeground } from "@/utils/color-utils";
+import { brandButtonStyle } from "@/utils/color-utils";
 import { Loader } from "@/components/ui/loader";
 import { toast } from "@/lib/toast";
 
@@ -245,18 +245,7 @@ export default function SharedProposalPage() {
             <button
               type="button"
               className="md:hidden shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-md shadow-md flex-none transition-all cursor-pointer hover:opacity-90 hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
-              style={
-                tenant?.primaryColor
-                  ? {
-                      backgroundColor: tenant.primaryColor,
-                      color: computePrimaryForeground(tenant.primaryColor),
-                      borderColor: tenant.primaryColor,
-                    }
-                  : {
-                      backgroundColor: "var(--primary)",
-                      color: "var(--primary-foreground)",
-                    }
-              }
+              style={brandButtonStyle(tenant?.primaryColor)}
               onClick={handleDownloadPdf}
               disabled={isGenerating}
             >
@@ -281,18 +270,7 @@ export default function SharedProposalPage() {
           <button
             type="button"
             className="hidden md:inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold transition-all shadow-sm border border-transparent cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
-            style={
-              tenant?.primaryColor
-                ? {
-                    backgroundColor: tenant.primaryColor,
-                    color: computePrimaryForeground(tenant.primaryColor),
-                    borderColor: tenant.primaryColor,
-                  }
-                : {
-                    backgroundColor: "var(--primary)",
-                    color: "var(--primary-foreground)",
-                  }
-            }
+            style={brandButtonStyle(tenant?.primaryColor)}
             onClick={handleDownloadPdf}
             disabled={isGenerating}
           >

@@ -187,6 +187,38 @@ export function normalizeHex(input: string | null | undefined): string | null {
 }
 
 /**
+ * Estilo de um botão pintado com a cor da empresa. O texto sai do contraste
+ * calculado (nunca branco fixo) e, quando a cor é quase branca, o botão ganha
+ * uma borda cinza: sem ela, um botão branco sobre a página branca some. Sem
+ * cor da empresa, cai no primário do tema.
+ */
+export function brandButtonStyle(color: string | null | undefined): {
+  backgroundColor: string;
+  color: string;
+  borderColor: string;
+  borderWidth: string;
+  borderStyle: string;
+} {
+  const hex = normalizeHex(color);
+  if (!hex) {
+    return {
+      backgroundColor: "var(--primary)",
+      color: "var(--primary-foreground)",
+      borderColor: "transparent",
+      borderWidth: "1px",
+      borderStyle: "solid",
+    };
+  }
+  return {
+    backgroundColor: hex,
+    color: computePrimaryForeground(hex),
+    borderColor: getRelativeLuminance(hex) > 0.85 ? "#d1d5db" : hex,
+    borderWidth: "1px",
+    borderStyle: "solid",
+  };
+}
+
+/**
  * Check if a color is valid hex
  */
 export function isValidHex(hex: string): boolean {
