@@ -49,6 +49,7 @@ import { isDocumentoValido } from "@/lib/format-document";
 import { ClientService } from "@/services/client-service";
 import { useAuth } from "@/providers/auth-provider";
 import { ProposalSellerField } from "./form/proposal-seller-field";
+import { useSellerCommission } from "@/hooks/proposal/use-seller-commission";
 
 interface SimpleProposalFormProps {
   proposalId?: string;
@@ -227,8 +228,17 @@ export function SimpleProposalForm({
   // Demo/free accounts: navigate the steps freely but edit nothing (fields and
   // add/remove controls disabled via FormStepCard's fieldset). Distinct from the
   // `isReadOnly` PROP, which renders a fully static view without the stepper.
-  const { isReadOnly: isDemo } = useTenant();
+  const { isReadOnly: isDemo, tenant } = useTenant();
   const { user } = useAuth();
+  // A comissão do vendedor da equipe acompanha o responsável pela venda.
+  const { changeSeller } = useSellerCommission({
+    tenantId: tenant?.id,
+    isNew: !proposalId,
+    readOnly: isDemo,
+    currentUserId: user?.id,
+    formData,
+    setFormData,
+  });
 
   useBeforeUnloadWarning(
     hasUnsavedProposalWork({
@@ -1140,7 +1150,7 @@ export function SimpleProposalForm({
               <ProposalSellerField
                 value={formData.sellerId}
                 currentUserId={user?.id}
-                onChange={(sellerId) => setFormData((prev) => ({ ...prev, sellerId }))}
+                onChange={changeSeller}
                 disabled={isDemo}
               />
             </div>

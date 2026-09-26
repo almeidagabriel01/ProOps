@@ -36,6 +36,7 @@ import { User, Mail, MapPin, FileText, CheckCircle, CreditCard, Receipt } from "
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { ContactTypeSelector } from "../_components/contact-type-selector";
 import { ContactCommissionField } from "../_components/contact-commission-field";
+import { ContactMemberLinkField } from "../_components/contact-member-link-field";
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import type { ClientType } from "@/services/client-service";
 import { formatDocumento } from "@/lib/format-document";
@@ -107,6 +108,7 @@ export default function NewCustomerPage() {
     document: "",
     types: ["cliente"] as ClientType[],
     commissionPercentage: null as number | null,
+    linkedMemberId: null as string | null,
     fiscal: EMPTY_CLIENT_FISCAL as ClientFiscalValues,
   });
 
@@ -122,7 +124,7 @@ export default function NewCustomerPage() {
       clearFieldError(
         name as Exclude<
           keyof typeof formData,
-          "types" | "commissionPercentage" | "fiscal"
+          "types" | "commissionPercentage" | "linkedMemberId" | "fiscal"
         >,
       );
     }
@@ -145,7 +147,7 @@ export default function NewCustomerPage() {
       validateField(
         name as Exclude<
           keyof typeof formData,
-          "types" | "commissionPercentage" | "fiscal"
+          "types" | "commissionPercentage" | "linkedMemberId" | "fiscal"
         >,
         value,
         formData,
@@ -198,6 +200,8 @@ export default function NewCustomerPage() {
         document: formData.document ? formData.document.replace(/\D/g, "") : undefined,
         types: formData.types,
         commissionPercentage: formData.commissionPercentage,
+        // Só vendedor fica ligado a um membro.
+        linkedMemberId: formData.types.includes("vendedor") ? formData.linkedMemberId : null,
         enderecoFiscal: {
           cep: formData.fiscal.cep.replace(/\D/g, ""),
           logradouro: formData.fiscal.logradouro.trim(),
@@ -349,6 +353,14 @@ export default function NewCustomerPage() {
                 value={formData.commissionPercentage}
                 onChange={(commissionPercentage) =>
                   setFormData((prev) => ({ ...prev, commissionPercentage }))
+                }
+              />
+
+              <ContactMemberLinkField
+                types={formData.types}
+                value={formData.linkedMemberId}
+                onChange={(linkedMemberId) =>
+                  setFormData((prev) => ({ ...prev, linkedMemberId }))
                 }
               />
             </FormGroup>

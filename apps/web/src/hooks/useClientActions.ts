@@ -25,6 +25,7 @@ export interface CreateClientData {
   types?: ClientType[]; // Array to allow both
   /** Comissao padrao do parceiro; `null` = nao informada. */
   commissionPercentage?: number | null;
+  linkedMemberId?: string | null;
   /**
    * Endereco fiscal do destinatario, exigido so pela NF-e. Separado do
    * `address` livre porque a SEFAZ valida logradouro, numero, bairro, UF e o

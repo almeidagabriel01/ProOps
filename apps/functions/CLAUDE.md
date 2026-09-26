@@ -1100,6 +1100,17 @@ pediu como vendedor. O vendedor é conferido contra a empresa
 (`resolveSeller`); um vendedor pedido e inválido recusa com 400. Os três campos
 estão em `PDF_IRRELEVANT_PROPOSAL_FIELDS`: não aparecem no PDF.
 
+**Responsável pela venda x vendedor da comissão.** São duas coisas: o
+responsável é um MEMBRO (conta na meta); o vendedor da comissão é um CONTATO
+(parceiro que recebe). Por isso a tela chama o primeiro de "Responsável pela
+venda". O vendedor interno que também ganha comissão é um contato vendedor com
+`linkedMemberId` (o membro), validado por `validateMemberLink`
+(`api/services/contact-member-link.ts`): o membro precisa ser da empresa e só
+liga a um contato. Com a ligação, a comissão dele entra sozinha na proposta
+quando ele é o responsável (`applySellerCommission`, no front, em
+`lib/contacts/seller-commission.ts`), e sai quando o responsável muda. Arquiteto
+e vendedor externo não são tocados. Só nos planos com metas.
+
 Propostas aprovadas antes do campo: `npx tsx src/scripts/backfill-proposal-approved-at.ts`
 (dry-run; `--apply` grava), que usa o `updatedAt` como data da aprovação. O
 vendedor delas fica vazio de propósito: contam só na meta da empresa.

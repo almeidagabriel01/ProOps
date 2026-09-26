@@ -67,6 +67,8 @@ export type Client = {
    * deixar passar faria a proposta nascer com uma comissao que ninguem escolheu.
    */
   commissionPercentage?: number | null;
+  /** Vendedor que é da equipe: o membro ligado a este contato. */
+  linkedMemberId?: string | null;
 };
 
 export interface PaginatedResult<T> {
