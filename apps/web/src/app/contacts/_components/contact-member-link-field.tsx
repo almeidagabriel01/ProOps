@@ -41,25 +41,29 @@ export function ContactMemberLinkField({ types, value, onChange }: ContactMember
   if (!hasSalesGoals || !isSeller || people.length === 0) return null;
 
   return (
-    <FormItem
-      label="É da equipe?"
-      htmlFor="linkedMemberId"
-      hint="Ligado a um membro, a comissão entra sozinha quando ele é o responsável pela venda"
-    >
-      <Select
-        id="linkedMemberId"
-        aria-label="É da equipe?"
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value || null)}
-        disableSort
-      >
-        <option value="">Não, é vendedor externo</option>
-        {people.map((person) => (
-          <option key={person.id} value={person.id}>
-            Sim: {person.name}
-          </option>
-        ))}
-      </Select>
+    // O cabeçalho do FormItem tem altura fixa (alinha com o vizinho da linha):
+    // a dica ali é curta, e a explicação vai embaixo do campo.
+    <FormItem label="É da equipe?" htmlFor="linkedMemberId" hint="Opcional">
+      <div className="space-y-2">
+        <Select
+          id="linkedMemberId"
+          aria-label="É da equipe?"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value || null)}
+          disableSort
+        >
+          <option value="">Não, é vendedor externo</option>
+          {people.map((person) => (
+            <option key={person.id} value={person.id}>
+              Sim: {person.name}
+            </option>
+          ))}
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Ligado a um membro, a comissão dele entra sozinha na proposta quando ele é o
+          responsável pela venda.
+        </p>
+      </div>
     </FormItem>
   );
 }
