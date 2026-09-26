@@ -31,7 +31,7 @@ function toNumber(value: string | undefined): number {
 }
 
 /**
- * Metas do mês: a da empresa e a de cada vendedor. Deixar em branco é "sem
+ * Metas do mês: a da empresa e a de cada pessoa da equipe. Deixar em branco é "sem
  * meta". Dá para ir para meses futuros e planejar antes.
  */
 export function SalesGoalsCard({ onLoadingChange }: SalesGoalsCardProps) {
@@ -93,7 +93,7 @@ export function SalesGoalsCard({ onLoadingChange }: SalesGoalsCardProps) {
         <div>
           <CardTitle>Metas do mês</CardTitle>
           <CardDescription>
-            Conta o valor das propostas aprovadas no mês, pelo vendedor escolhido em cada uma.
+            Conta o valor das propostas aprovadas no mês, pelo responsável pela venda escolhido em cada uma.
           </CardDescription>
         </div>
         <div className="flex items-center gap-2" role="group" aria-label="Mês das metas">
@@ -141,13 +141,13 @@ export function SalesGoalsCard({ onLoadingChange }: SalesGoalsCardProps) {
               />
               {sumOfPeople > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Soma das metas dos vendedores: {money(sumOfPeople)}
+                  Soma das metas da equipe: {money(sumOfPeople)}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-medium">Por vendedor</p>
+              <p className="text-sm font-medium">Por pessoa da equipe</p>
               <ul className="divide-y rounded-lg border">
                 {people.map((person) => (
                   <li

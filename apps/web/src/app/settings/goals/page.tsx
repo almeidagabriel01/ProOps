@@ -8,9 +8,9 @@ import {
   FormHeaderSkeleton,
 } from "@/components/ui/form-components";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
-import { Skeleton } from "@/components/ui/skeleton";
 import { SalesGoalsCard } from "@/app/settings/_components/sales-goals-card";
 import { useReportSettingsLoading } from "@/app/settings/_components/settings-chrome";
+import { SalesGoalsCardSkeleton } from "@/app/settings/_components/settings-skeleton";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 
@@ -32,7 +32,7 @@ export default function SettingsGoalsPage() {
     return (
       <UpgradeRequired
         feature="Metas de vendas"
-        description="Defina a meta do mês da empresa e de cada vendedor e acompanhe no Dashboard quanto já foi vendido. Disponível a partir do plano Pro."
+        description="Defina a meta do mês da empresa e de cada pessoa da equipe e acompanhe no Dashboard quanto já foi vendido. Disponível a partir do plano Pro."
       />
     );
   }
@@ -44,12 +44,12 @@ export default function SettingsGoalsPage() {
       ) : (
         <FormHeader
           title="Metas de vendas"
-          subtitle="A meta do mês da empresa e de cada vendedor"
+          subtitle="A meta do mês da empresa e de cada pessoa da equipe"
           icon={Target}
         />
       )}
       {permLoading || planLoading ? (
-        <Skeleton className="h-64 w-full rounded-xl" />
+        <SalesGoalsCardSkeleton />
       ) : canConfigure ? (
         <SalesGoalsCard onLoadingChange={setCardLoading} />
       ) : (

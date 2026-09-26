@@ -87,19 +87,20 @@ const DEMO_PROGRESS: GoalProgress = {
   companyCount: 3,
   people: [
     { id: "d1", name: "Equipe Demo", target: 50000, achieved: 41200, count: 2 },
-    { id: "d2", name: "Vendedor de exemplo", target: 30000, achieved: 13100, count: 1 },
+    { id: "d2", name: "Pessoa de exemplo", target: 30000, achieved: 13100, count: 1 },
   ],
   unassignedAchieved: 0,
 };
 
 /**
- * Metas no Dashboard. O dono vê a empresa e cada vendedor; o membro, só o
+ * Metas no Dashboard. O dono vê a empresa e cada pessoa; o membro, só o
  * próprio número (é o que a API devolve para ele).
  */
 export function GoalsProgressCard({ month }: GoalsProgressCardProps) {
   const { hasSalesGoals, isLoading: planLoading } = usePlanLimits();
   const { isDemo, isMaster } = usePermissions();
   const [progress, setProgress] = React.useState<GoalProgress | null>(null);
+  const [failed, setFailed] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -109,12 +110,18 @@ export function GoalsProgressCard({ month }: GoalsProgressCardProps) {
     }
     let cancelled = false;
     setLoading(true);
+    setFailed(false);
     SalesGoalsService.progress(month)
       .then((value) => {
         if (!cancelled) setProgress(value);
       })
-      .catch(() => {
-        if (!cancelled) setProgress(null);
+      .catch((error) => {
+        // Falhar em silêncio escondia o card inteiro, e ninguém sabia por quê.
+        console.warn("[metas] não foi possível carregar o progresso:", error);
+        if (!cancelled) {
+          setProgress(null);
+          setFailed(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -127,10 +134,26 @@ export function GoalsProgressCard({ month }: GoalsProgressCardProps) {
   if (planLoading || !hasSalesGoals) return null;
   if (loading) return <Skeleton className="h-40 w-full rounded-xl" />;
 
+  const title = `Metas de ${formatMonthLabel(month).toLocaleLowerCase("pt-BR")}`;
+
+  if (failed && !isDemo) {
+    return (
+      <Card className="border border-border/50 shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Target className="h-5 w-5" />
+            {title}
+          </CardTitle>
+          <CardDescription>
+            Não foi possível carregar as metas agora. Tente de novo em alguns minutos.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   const data = isDemo ? DEMO_PROGRESS : progress;
   if (!data) return null;
-
-  const title = `Metas de ${formatMonthLabel(month).toLocaleLowerCase("pt-BR")}`;
 
   if (data.scope === "mine") {
     // Membro sem meta e sem venda no mês: nada a mostrar.
@@ -192,7 +215,7 @@ export function GoalsProgressCard({ month }: GoalsProgressCardProps) {
         )}
         {data.unassignedAchieved > 0 && (
           <p className="text-xs text-muted-foreground">
-            {money(data.unassignedAchieved)} em propostas sem vendedor, que contam só na meta da empresa.
+            {money(data.unassignedAchieved)} em propostas sem responsável pela venda, que contam só na meta da empresa.
           </p>
         )}
       </CardContent>

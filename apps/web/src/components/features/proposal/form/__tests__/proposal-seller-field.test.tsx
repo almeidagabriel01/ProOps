@@ -27,20 +27,27 @@ beforeEach(() => {
 });
 
 describe("vendedor da proposta", () => {
-  it("proposta nova mostra quem cria como vendedor", async () => {
+  it("proposta nova mostra quem cria como responsável pela venda", async () => {
     render(<ProposalSellerField value={undefined} currentUserId="eu" onChange={vi.fn()} />);
-    expect(await screen.findByLabelText("Vendedor")).toHaveValue("eu");
+    expect(await screen.findByLabelText("Responsável pela venda")).toHaveValue("eu");
   });
 
-  it("proposta antiga sem vendedor mostra 'Sem vendedor'", async () => {
+  it("não se chama 'Vendedor', que é o nome da comissão no passo de pagamento", async () => {
+    render(<ProposalSellerField value={undefined} currentUserId="eu" onChange={vi.fn()} />);
+    await screen.findByLabelText("Responsável pela venda");
+    expect(screen.queryByText("Vendedor")).toBeNull();
+    expect(screen.getByText(/Não é a\s+comissão/)).toBeInTheDocument();
+  });
+
+  it("proposta antiga sem responsável mostra 'Sem responsável'", async () => {
     render(<ProposalSellerField value={null} currentUserId="eu" onChange={vi.fn()} />);
-    expect(await screen.findByLabelText("Vendedor")).toHaveValue("");
+    expect(await screen.findByLabelText("Responsável pela venda")).toHaveValue("");
   });
 
   it("trocar o vendedor avisa o formulário", async () => {
     const onChange = vi.fn();
     render(<ProposalSellerField value={undefined} currentUserId="eu" onChange={onChange} />);
-    await userEvent.selectOptions(await screen.findByLabelText("Vendedor"), "beto");
+    await userEvent.selectOptions(await screen.findByLabelText("Responsável pela venda"), "beto");
     expect(onChange).toHaveBeenCalledWith("beto");
   });
 

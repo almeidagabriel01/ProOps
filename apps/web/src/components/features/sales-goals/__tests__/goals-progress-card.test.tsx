@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 describe("metas no Dashboard", () => {
-  it("o dono vê a empresa, cada vendedor e o que ficou sem vendedor", async () => {
+  it("o dono vê a empresa, cada pessoa e o que ficou sem responsável", async () => {
     m.progress.mockResolvedValue({
       month: "2026-09",
       scope: "company",
@@ -46,7 +46,7 @@ describe("metas no Dashboard", () => {
     expect(screen.getByText("50%")).toBeInTheDocument();
     // Meta batida passa de 100%.
     expect(screen.getByText("110%")).toBeInTheDocument();
-    expect(screen.getByText(/em propostas sem vendedor/)).toBeInTheDocument();
+    expect(screen.getByText(/em propostas sem responsável pela venda/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Editar metas" })).toHaveAttribute("href", "/settings/goals");
   });
 
@@ -67,6 +67,17 @@ describe("metas no Dashboard", () => {
     await vi.waitFor(() => expect(m.progress).toHaveBeenCalled());
     await vi.waitFor(() => expect(container.querySelector(".animate-pulse")).toBeNull());
     expect(screen.queryByText("Você")).toBeNull();
+  });
+
+  it("falha ao carregar mostra o aviso em vez de sumir (dono e membro)", async () => {
+    m.progress.mockRejectedValue(new Error("FAILED_PRECONDITION"));
+    const { unmount } = render(<GoalsProgressCard month="2026-09" />);
+    expect(await screen.findByText(/Não foi possível carregar as metas/)).toBeInTheDocument();
+    unmount();
+
+    m.perms = { isDemo: false, isMaster: false };
+    render(<GoalsProgressCard month="2026-09" />);
+    expect(await screen.findByText(/Não foi possível carregar as metas/)).toBeInTheDocument();
   });
 
   it("sem o plano, nem chama a API", () => {

@@ -50,7 +50,7 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Organização | `/settings/team` | Equipe | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/proposals` | Propostas (numeração e validade padrão) | Master (membro vê "Acesso Restrito") |
-| Organização | `/settings/goals` | Metas de vendas: a meta do mês da empresa e de cada vendedor (Pro e Enterprise; sem o plano, `UpgradeRequired`) | Master (membro vê "Acesso Restrito"; o progresso dele aparece no Dashboard) |
+| Organização | `/settings/goals` | Metas de vendas: a meta do mês da empresa e de cada pessoa da equipe (Pro e Enterprise; sem o plano, `UpgradeRequired`). Na proposta o campo se chama "Responsável pela venda", e não "Vendedor", porque "vendedor" já é o parceiro da comissão | Master (membro vê "Acesso Restrito"; o progresso dele aparece no Dashboard) |
 | Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/drive` | Google Drive | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/linked-accounts` | Contas vinculadas | Todos veem; ação só para quem pode conectar |

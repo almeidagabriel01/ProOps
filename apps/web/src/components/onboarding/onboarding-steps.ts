@@ -387,11 +387,11 @@ export const SETTINGS_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     chapter: "settings",
     title: "Metas de vendas",
     description:
-      "A meta do mês da empresa e de cada vendedor. O progresso aparece no Dashboard, pelo valor das propostas aprovadas.",
+      "A meta do mês da empresa e de cada pessoa da equipe. O progresso aparece no Dashboard, pelo valor das propostas aprovadas.",
     checklist: [
       { text: "Defina a meta da empresa para este mês." },
-      { text: "Dê a cada vendedor a meta dele; em branco é sem meta." },
-      { text: "Na proposta, confira quem é o vendedor: é para ele que a venda conta." },
+      { text: "Dê a cada pessoa da equipe a meta dela; em branco é sem meta." },
+      { text: "Na proposta, confira o responsável pela venda: é para ele que a venda conta." },
     ],
     actionLabel: "Abrir as metas",
     masterOnly: true,

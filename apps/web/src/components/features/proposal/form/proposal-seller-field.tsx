@@ -15,8 +15,12 @@ interface ProposalSellerFieldProps {
 }
 
 /**
- * Quem vendeu a proposta, para as metas de vendas. Só aparece nos planos com
- * metas; nos outros, o backend grava quem criou e ninguém precisa escolher.
+ * Quem vendeu a proposta, para as metas de vendas. Chamado "Responsável pela
+ * venda", e não "Vendedor", porque o passo de pagamento já tem "vendedor" nas
+ * comissões, que é outra coisa: um contato parceiro que recebe comissão.
+ *
+ * Só aparece nos planos com metas; nos outros, o backend grava quem criou e
+ * ninguém precisa escolher.
  */
 export function ProposalSellerField({ value, currentUserId, onChange, disabled }: ProposalSellerFieldProps) {
   const { hasSalesGoals } = usePlanLimits();
@@ -41,16 +45,16 @@ export function ProposalSellerField({ value, currentUserId, onChange, disabled }
 
   return (
     <div className="space-y-1.5">
-      <Label htmlFor="proposal-seller">Vendedor</Label>
+      <Label htmlFor="proposal-seller">Responsável pela venda</Label>
       <Select
         id="proposal-seller"
-        aria-label="Vendedor"
+        aria-label="Responsável pela venda"
         value={selected}
         onChange={(e) => onChange(e.target.value || null)}
         disabled={disabled}
         disableSort
       >
-        <option value="">Sem vendedor</option>
+        <option value="">Sem responsável</option>
         {people.map((person) => (
           <option key={person.id} value={person.id}>
             {person.id === currentUserId ? `${person.name} (você)` : person.name}
@@ -58,7 +62,9 @@ export function ProposalSellerField({ value, currentUserId, onChange, disabled }
         ))}
       </Select>
       <p className="text-xs text-muted-foreground">
-        A venda conta na meta de quem está aqui, no mês em que a proposta for aprovada.
+        Pessoa da equipe em cuja meta a venda conta, no mês da aprovação. Não é a
+        comissão: vendedor ou arquiteto parceiro que recebe comissão vai no passo
+        de pagamento.
       </p>
     </div>
   );

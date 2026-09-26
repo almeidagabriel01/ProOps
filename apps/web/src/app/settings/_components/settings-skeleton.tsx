@@ -227,6 +227,48 @@ export function SettingsProposalsSkeleton() {
 }
 
 /**
+ * Card-only skeleton for /settings/goals: header with the month switcher, the
+ * company target and one row per team member.
+ */
+export function SalesGoalsCardSkeleton() {
+  return (
+    <Card data-testid="settings-skeleton-goals">
+      <CardHeader>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-full max-w-md" />
+          </div>
+          <Skeleton className="h-8 w-56 rounded-md" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="max-w-xs space-y-2">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-10 w-full rounded-md" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-md" />
+          ))}
+        </div>
+        <Skeleton className="ml-auto h-10 w-36 rounded-md" />
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Full content skeleton for /settings/goals. */
+export function SettingsGoalsSkeleton() {
+  return (
+    <FormContainer>
+      <FormHeaderSkeleton />
+      <SalesGoalsCardSkeleton />
+    </FormContainer>
+  );
+}
+
+/**
  * Card-only skeleton for /settings/drive: the "Conta Google" card. The folder
  * card only exists once connected, so the skeleton does not promise it.
  */
