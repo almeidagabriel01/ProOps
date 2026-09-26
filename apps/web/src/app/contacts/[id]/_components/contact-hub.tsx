@@ -139,7 +139,16 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
 
     if (showInvoices) {
       FiscalService.listInvoices({ clientId: client.id })
-        .then((res) => active && setInvoices({ loading: false, data: res.invoices }))
+        // Filtra de novo aqui: um backend anterior a `?clientId=` ignora o
+        // parâmetro e devolve as notas da empresa inteira.
+        .then(
+          (res) =>
+            active &&
+            setInvoices({
+              loading: false,
+              data: res.invoices.filter((inv) => inv.clientId === client.id),
+            }),
+        )
         .catch(() => active && setInvoices({ loading: false, data: [] }));
     }
 

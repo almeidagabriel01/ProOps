@@ -115,6 +115,23 @@ describe("ContactHub", () => {
     expect(m.getProposalsByClient).not.toHaveBeenCalled();
   });
 
+  it("só mostra as notas do contato, mesmo se o backend devolver as da empresa toda", async () => {
+    m.listInvoices.mockResolvedValue({
+      invoices: [
+        { id: "i1", clientId: "c1", type: "nfe", numero: "101", status: "authorized", valorTotal: 1000, createdAt: "2026-09-01" },
+        { id: "i2", clientId: "outro", type: "nfe", numero: "202", status: "authorized", valorTotal: 500, createdAt: "2026-09-02" },
+        { id: "i3", type: "nfse", numero: "303", status: "authorized", valorTotal: 300, createdAt: "2026-09-03" },
+      ],
+    });
+    render(<ContactHub client={CLIENT} dataTab={<div>form</div>} />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Financeiro" }));
+
+    expect(await screen.findByText(/nº 101/)).toBeInTheDocument();
+    expect(screen.queryByText(/nº 202/)).toBeNull();
+    expect(screen.queryByText(/nº 303/)).toBeNull();
+    expect(m.listInvoices).toHaveBeenCalledWith({ clientId: "c1" });
+  });
+
   it("?aba=dados abre direto no formulário", () => {
     m.aba = "dados";
     render(<ContactHub client={CLIENT} dataTab={<div>formulário</div>} />);
