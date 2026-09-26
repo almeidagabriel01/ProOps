@@ -62,6 +62,10 @@ export function buildAudience(
  * Quem deve ser avisado numa criação ou edição. Quem fez a ação nunca é
  * avisado da própria ação; o responsável novo é avisado pela atribuição (e não
  * também pela menção); menção só avisa quem ainda não estava citado.
+ *
+ * Prazo mudado avisa o responsável que já estava na tarefa. A notificação é
+ * uma foto do momento: o aviso de atribuição não leva o prazo (ficaria velho
+ * na primeira edição), e a mudança chega como aviso próprio.
  */
 export function planTaskNotifications(input: {
   actorUid: string;
@@ -69,7 +73,9 @@ export function planTaskNotifications(input: {
   assigneeId: string | null;
   previousMentionUids: string[];
   mentionUids: string[];
-}): { assigned: string | null; mentioned: string[] } {
+  previousDueAt?: string | null;
+  dueAt?: string | null;
+}): { assigned: string | null; mentioned: string[]; dueChangedFor: string | null } {
   const assigned =
     input.assigneeId &&
     input.assigneeId !== input.previousAssigneeId &&
@@ -80,7 +86,13 @@ export function planTaskNotifications(input: {
   const mentioned = Array.from(new Set(input.mentionUids)).filter(
     (uid) => !before.has(uid) && uid !== input.actorUid && uid !== assigned,
   );
-  return { assigned, mentioned };
+  const dueChanged =
+    input.dueAt !== undefined && (input.dueAt ?? null) !== (input.previousDueAt ?? null);
+  const dueChangedFor =
+    dueChanged && input.assigneeId && input.assigneeId !== input.actorUid && !assigned
+      ? input.assigneeId
+      : null;
+  return { assigned, mentioned, dueChangedFor };
 }
 
 /** "25/09" para a mensagem da notificação. */

@@ -5,6 +5,7 @@ import {
   Clock,
   FileText,
   HardHat,
+  ListTodo,
   MessageCircle,
   MessageSquareWarning,
   TrendingUp,
@@ -32,6 +33,11 @@ export function getNotificationIcon(type: NotificationType) {
       return HardHat;
     case NotificationType.TRANSACTION_PAID_ONLINE:
       return CheckCircle2;
+    case NotificationType.TASK_ASSIGNED:
+    case NotificationType.TASK_MENTIONED:
+    case NotificationType.TASK_REMINDER:
+    case NotificationType.TASK_UPDATED:
+      return ListTodo;
     default:
       return FileText;
   }

@@ -133,17 +133,32 @@ async function notifyTaskPeople(input: {
   actorName: string;
   assigned: string | null;
   mentioned: string[];
+  dueChangedFor?: string | null;
 }) {
-  const due = formatDueShort(input.dueAt);
   try {
     if (input.assigned) {
+      // Sem o prazo no texto: a notificação não acompanha as edições da tarefa,
+      // e um prazo escrito aqui ficaria errado na primeira mudança.
       await NotificationService.createNotification({
         tenantId: input.tenantId,
         type: "task_assigned",
         title: "Nova tarefa para você",
-        message: `${input.actorName} passou para você: "${input.title}"${due ? `, prazo ${due}` : ""}.`,
+        message: `${input.actorName} passou para você: "${input.title}".`,
         taskId: input.taskId,
         targetUids: [input.assigned],
+      });
+    }
+    if (input.dueChangedFor) {
+      const due = formatDueShort(input.dueAt);
+      await NotificationService.createNotification({
+        tenantId: input.tenantId,
+        type: "task_updated",
+        title: "Prazo da tarefa mudou",
+        message: due
+          ? `${input.actorName} mudou o prazo de "${input.title}" para ${due}.`
+          : `${input.actorName} tirou o prazo de "${input.title}".`,
+        taskId: input.taskId,
+        targetUids: [input.dueChangedFor],
       });
     }
     if (input.mentioned.length > 0) {
@@ -254,7 +269,11 @@ export async function updateTask(req: Request, res: Response) {
     const input = parsed.data;
 
     const touchesPeople = input.assigneeId !== undefined || input.mentionUids !== undefined;
-    const peopleList = touchesPeople ? await loadTaskPeople(actor.tenantId) : [];
+    const previousDueAt = (data.dueAt as string | null | undefined) ?? null;
+    const dueChanged = input.dueAt !== undefined && (input.dueAt ?? null) !== previousDueAt;
+    // O nome de quem mexeu entra no aviso, então a equipe é lida também quando
+    // só o prazo muda.
+    const peopleList = touchesPeople || dueChanged ? await loadTaskPeople(actor.tenantId) : [];
     const people = new Map(peopleList.map((p) => [p.id, p.name]));
     const mentionUids =
       input.mentionUids !== undefined
@@ -282,13 +301,15 @@ export async function updateTask(req: Request, res: Response) {
     }
     await ref.update(update);
 
-    if (touchesPeople) {
+    if (touchesPeople || dueChanged) {
       const plan = planTaskNotifications({
         actorUid: actor.uid,
         previousAssigneeId: (data.assigneeId as string | null) ?? null,
         assigneeId,
         previousMentionUids: (data.mentionUids as string[] | undefined) ?? [],
         mentionUids,
+        previousDueAt,
+        dueAt: input.dueAt,
       });
       await notifyTaskPeople({
         tenantId: actor.tenantId,

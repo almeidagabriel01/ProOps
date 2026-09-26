@@ -147,6 +147,14 @@ export const NOTIFICATION_CATALOG = {
     emailable: false,
     defaultEmail: false,
   },
+  task_updated: {
+    label: "Prazo de tarefa alterado",
+    description: "Alguém mudou o prazo de uma tarefa sua.",
+    group: "tasks",
+    audience: "direct",
+    emailable: true,
+    defaultEmail: false,
+  },
 } as const satisfies Record<string, NotificationCatalogEntry>;
 
 export type CatalogNotificationType = keyof typeof NOTIFICATION_CATALOG;

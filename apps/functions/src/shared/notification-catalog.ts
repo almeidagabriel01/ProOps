@@ -33,6 +33,7 @@ export const NOTIFICATION_TYPES = [
   "task_assigned",
   "task_mentioned",
   "task_reminder",
+  "task_updated",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -70,6 +71,7 @@ export const NOTIFICATION_CATALOG: Record<NotificationType, NotificationCatalogE
   task_mentioned: { audience: "direct", emailable: true, defaultEmail: true },
   // Lembrete diário: fica no sino, como os outros.
   task_reminder: { audience: "direct", emailable: false, defaultEmail: false },
+  task_updated: { audience: "direct", emailable: true, defaultEmail: false },
 };
 
 export function isNotificationType(value: unknown): value is NotificationType {
@@ -128,6 +130,7 @@ export function notificationLinkPath(n: {
     case "task_assigned":
     case "task_mentioned":
     case "task_reminder":
+    case "task_updated":
       return n.taskId ? `/tasks?task=${n.taskId}` : "/tasks";
     default:
       return n.proposalId ? `/proposals/${n.proposalId}/view` : "/notifications";

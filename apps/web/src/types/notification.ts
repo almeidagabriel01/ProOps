@@ -23,6 +23,8 @@ export enum NotificationType {
   TASK_MENTIONED = "task_mentioned",
   /** Tarefa sua com prazo hoje. */
   TASK_REMINDER = "task_reminder",
+  /** Alguém mudou o prazo de uma tarefa sua. */
+  TASK_UPDATED = "task_updated",
 }
 
 export interface Notification {

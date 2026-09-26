@@ -230,6 +230,42 @@ describe("enxergar e editar", () => {
   });
 });
 
+describe("prazo editado depois de atribuir (caso relatado)", () => {
+  it("o aviso de atribuição não leva o prazo, e a mudança chega como aviso novo com a data nova", async () => {
+    const created = res();
+    await createTask(req(dono, { title: "Instalar", assigneeId: "beto", dueAt: "2026-09-25" }), created);
+    const taskId = (created.body.task as { id: string }).id;
+
+    const atribuicao = createNotification.mock.calls.find((c) => c[0].type === "task_assigned")?.[0];
+    expect(atribuicao.message).not.toContain("25/09");
+
+    createNotification.mockClear();
+    await updateTask(
+      req(dono, { title: "Instalar", dueAt: "2026-09-30", assigneeId: "beto", mentionUids: [] }, taskId),
+      res(),
+    );
+
+    expect(createNotification).toHaveBeenCalledTimes(1);
+    expect(createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "task_updated",
+        targetUids: ["beto"],
+        taskId,
+        message: expect.stringContaining("30/09"),
+      }),
+    );
+  });
+
+  it("o responsável que muda o próprio prazo não gera aviso", async () => {
+    const created = res();
+    await createTask(req(beto, { title: "Medir", assigneeId: "beto", dueAt: "2026-09-25" }), created);
+    const taskId = (created.body.task as { id: string }).id;
+    createNotification.mockClear();
+    await updateTask(req(beto, { dueAt: "2026-09-28" }, taskId), res());
+    expect(createNotification).not.toHaveBeenCalled();
+  });
+});
+
 describe("excluir", () => {
   beforeEach(() => {
     coll("tasks").set("k1", {

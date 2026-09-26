@@ -30,6 +30,7 @@ export function notificationLinkPath(
     case "task_assigned":
     case "task_mentioned":
     case "task_reminder":
+    case "task_updated":
       return n.taskId ? `/tasks?task=${n.taskId}` : "/tasks";
     default:
       return n.proposalId ? `/proposals/${n.proposalId}/view` : "/notifications";
