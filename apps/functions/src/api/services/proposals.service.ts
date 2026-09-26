@@ -4,6 +4,7 @@ import { sanitizeText, sanitizeRichText } from "../../utils/sanitize";
 import { buildSearchTokens, matchesAllWords, parseSearchQuery } from "../../lib/search-tokens";
 import { INDEXED_SEARCH_SCAN_LIMIT, sortDocsByField } from "../../lib/indexed-search";
 import { productRefsFields } from "../../lib/proposal-product-refs";
+import { resolveSeller } from "./sales-goals";
 
 // ===== Interfaces =====
 
@@ -231,6 +232,9 @@ export async function createProposal(
     primaryEnvironment: "",
     searchTokens: buildSearchTokens(title, clientName),
     createdById: uid,
+    // Metas de vendas: quem pediu à Lia é o vendedor, como na tela.
+    ...(await resolveSeller(tenantId, uid).catch(() => ({ sellerId: null, sellerName: null }))),
+    approvedAt: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -343,6 +347,9 @@ export async function updateProposalStatus(
     status: newStatus,
     updatedAt: Timestamp.now(),
   };
+  // Metas de vendas: a venda conta no mês da aprovação, venha ela da tela ou
+  // da Lia. As transições daqui só entram em aprovada, nunca saem dela.
+  if (newStatus === "approved") safeUpdate.approvedAt = new Date().toISOString();
 
   if (reason) safeUpdate.rejectionReason = sanitizeText(reason);
 

@@ -57,9 +57,13 @@ import {
   allocateProposalNumberInTransaction,
   readNumberingStateInTransaction,
 } from "../services/proposal-numbering.service";
+import { approvalTimestampUpdate, resolveSeller } from "../services/sales-goals";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
+  // Vendedor da proposta (metas de vendas): membro da empresa, conferido no
+  // controller. Ausente na criação, é quem criou.
+  sellerId: z.string().max(128).nullable().optional(),
   clientId: z.string().max(100).optional(),
   clientName: z.string().max(200).trim().optional().or(z.literal("")),
   clientEmail: z.string().max(254).optional().or(z.literal("")),
@@ -1080,6 +1084,26 @@ export const createProposal = async (req: Request, res: Response) => {
       }
     }
 
+    // Vendedor: o escolhido, ou quem criou. Só um vendedor pedido e inválido
+    // recusa a criação; um padrão que não confere (superadmin criando em nome
+    // da empresa) só deixa a proposta sem vendedor.
+    const requestedSellerId =
+      typeof input.sellerId === "string" && input.sellerId ? input.sellerId : null;
+    let seller: { sellerId: string | null; sellerName: string | null } = {
+      sellerId: null,
+      sellerName: null,
+    };
+    try {
+      seller = await resolveSeller(userCompanyId, requestedSellerId ?? userId);
+    } catch {
+      if (requestedSellerId) {
+        return res.status(400).json({ message: "Vendedor inválido para esta empresa." });
+      }
+    }
+    // Proposta que já nasce aprovada conta na meta do mês em que foi criada.
+    const approvedOnCreate =
+      !isDraft && (await isStatusApproved(input.status as string | undefined, userCompanyId));
+
     let proposalId: string;
     let createdProposal: { id: string; data: Record<string, unknown> };
     try {
@@ -1280,6 +1304,9 @@ export const createProposal = async (req: Request, res: Response) => {
           attachments: sanitizedAttachments,
           createdById: userId,
           createdByName: userData?.name || "Usuário",
+          sellerId: seller.sellerId,
+          sellerName: seller.sellerName,
+          approvedAt: approvedOnCreate ? now.toDate().toISOString() : null,
           companyId: userCompanyId,
           tenantId: userCompanyId,
           createdAt: now,
@@ -1561,6 +1588,8 @@ export const updateProposal = async (req: Request, res: Response) => {
       "commissions",
       // Attachments
       "attachments",
+      // Vendedor (metas de vendas); conferido abaixo
+      "sellerId",
     ];
 
     fields.forEach((f) => {
@@ -1578,8 +1607,20 @@ export const updateProposal = async (req: Request, res: Response) => {
         safeUpdate[f] = sanitizeProposalCommissionsInput(updateData[f]);
         return;
       }
+      if (f === "sellerId") return; // resolvido abaixo, com o nome
       safeUpdate[f] = updateData[f];
     });
+
+    if (typeof updateData.sellerId !== "undefined") {
+      try {
+        Object.assign(
+          safeUpdate,
+          await resolveSeller(proposalTenantId, (updateData.sellerId as string | null) || null),
+        );
+      } catch {
+        return res.status(400).json({ message: "Vendedor inválido para esta empresa." });
+      }
+    }
 
     // Keep indexed search tokens in sync when title/clientName change
     if (
@@ -1627,6 +1668,21 @@ export const updateProposal = async (req: Request, res: Response) => {
           : Math.max(0, computedTotal);
     }
 
+    // Aprovação decidida ANTES da escrita: a data da aprovação (metas de vendas)
+    // entra na mesma gravação do status.
+    const isCurrentlyApproved = await isStatusApproved(
+      proposalData?.status as string | undefined,
+      proposalTenantId,
+    );
+    const willBeApproved =
+      updateData.status !== undefined
+        ? await isStatusApproved(updateData.status as string, proposalTenantId)
+        : isCurrentlyApproved;
+    Object.assign(
+      safeUpdate,
+      approvalTimestampUpdate(isCurrentlyApproved, willBeApproved, new Date().toISOString()),
+    );
+
     await timed("proposalWriteMs", () => proposalRef.update(safeUpdate));
 
     if (removedAttachmentPaths.length > 0) {
@@ -1638,15 +1694,6 @@ export const updateProposal = async (req: Request, res: Response) => {
     }
 
     // Criar receita automaticamente quando a proposta for aprovada
-    const isCurrentlyApproved = await isStatusApproved(
-      proposalData?.status as string | undefined,
-      proposalTenantId,
-    );
-    const willBeApproved =
-      updateData.status !== undefined
-        ? await isStatusApproved(updateData.status as string, proposalTenantId)
-        : isCurrentlyApproved;
-
     const isBeingApproved = willBeApproved && !isCurrentlyApproved;
 
     // Projeto de instalação na aprovação (Pro e Enterprise): conforme a

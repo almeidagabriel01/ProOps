@@ -309,6 +309,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `client_notes/{id}` | Contatos | Anotacoes da ficha do contato (`client-notes.controller.ts`). Tenant le; escrita so via Cloud Functions |
 | `leads/{id}` | CRM | Oportunidades antes da proposta (`leads.controller.ts`, gate `crm`, pageId `kanban`). Tenant le; escrita so via Cloud Functions |
 | `activities/{id}` | CRM | Atividades de um lead ou contato (`activities.controller.ts`). Tenant le; escrita so via Cloud Functions |
+| `sales_goals/{tenantId}_{YYYY-MM}` | Metas | Meta da empresa (`companyTarget`) e por vendedor (`targets`, uid -> valor) do mes (`sales-goals.controller.ts`, capacidade `salesGoals`). Admin SDK only: o membro recebe so o proprio numero pela API. O progresso soma `closedValue`/`totalValue` das propostas com `approvedAt` no mes (fuso de Brasilia), indice `(tenantId, approvedAt ASC)` |
 | `tasks/{id}` | Tarefas | "A fazer" com responsavel, ligado ou nao a contato, proposta ou lead (`tasks.controller.ts`, pageId `tasks`, todos os planos). Da PESSOA: as rules leem `audienceUids` (quem criou, responsavel e citados); dono e admins leem todas. Escrita so via Cloud Functions |
 | `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
 | `project_settings/{tenantId}` | Projetos | Criacao automatica na aprovacao e roteiro de etapas. Admin SDK only |

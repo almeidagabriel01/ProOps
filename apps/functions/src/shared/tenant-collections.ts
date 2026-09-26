@@ -36,6 +36,7 @@ export const TENANT_PURGE_BY_FIELD = [
   "projects",
   "shared_projects",
   "tasks",
+  "sales_goals",
   "calendar_events",
   "calendar_integrations",
   "shared_proposals",

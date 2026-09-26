@@ -475,6 +475,7 @@ aplicaria o gate a API inteira.
 | `/v1/asaas/*` | `financial` **e** `onlinePayments` (Enterprise ou add-on) |
 | `/v1/calendar/google/*` | `calendarSync` (a agenda interna fica em todos os planos) |
 | `/v1/drive/*` | `driveSync` |
+| `/v1/sales-goals*` | `salesGoals` (Pro e Enterprise) |
 
 **Caminhos que nao passam por rota checam a capacidade por conta propria**,
 senao um downgrade nao desliga nada: a fila do Drive (`isDriveConnected` /

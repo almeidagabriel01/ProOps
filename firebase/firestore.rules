@@ -594,6 +594,12 @@ service cloud.firestore {
                         && belongsToTenant(resource.data.get('tenantId', '')));
     }
 
+    // SALES_GOALS - Metas de vendas por mês: lidas e gravadas só pelo backend,
+    // que decide quem vê o quê (o membro recebe só o próprio número).
+    match /sales_goals/{goalId} {
+      allow read, write: if false;
+    }
+
     // TASKS - Tarefa é da pessoa: lê quem criou, o responsável e quem foi
     // citado (`audienceUids`); dono e administradores leem todas. A lista do
     // membro filtra por tenantId e audienceUids (array-contains), que é o que

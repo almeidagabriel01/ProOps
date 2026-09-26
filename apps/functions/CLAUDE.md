@@ -1088,6 +1088,26 @@ e `apps/web/src/__tests__/proposal-code-preview.test.ts` (a tela tem uma cópia 
 montagem do código para a prévia, e uma divergência prometeria um código
 diferente do que a proposta receberia).
 
+### Vendedor e metas de vendas
+
+A proposta guarda **`sellerId`/`sellerName`** (quem vendeu: membro da empresa,
+padrão quem criou, editável no formulário) e **`approvedAt`** (ISO UTC). O
+`approvedAt` é gravado na transição para aprovada e apagado na saída
+(`approvalTimestampUpdate`, em `api/services/sales-goals.ts`), na MESMA
+escrita do status: por isso `updateProposal` decide a aprovação antes de
+gravar. A Lia (`updateProposalStatus`) grava a data também, e cria proposta com
+quem pediu como vendedor. O vendedor é conferido contra a empresa
+(`resolveSeller`); um vendedor pedido e inválido recusa com 400. Os três campos
+estão em `PDF_IRRELEVANT_PROPOSAL_FIELDS`: não aparecem no PDF.
+
+Propostas aprovadas antes do campo: `npx tsx src/scripts/backfill-proposal-approved-at.ts`
+(dry-run; `--apply` grava), que usa o `updatedAt` como data da aprovação. O
+vendedor delas fica vazio de propósito: contam só na meta da empresa.
+
+**Achado de passagem, não corrigido:** `updateProposalStatus` (Lia) grava o
+status direto e NÃO passa pelo `updateProposal`, então aprovar pela Lia não
+gera os lançamentos, não cria o projeto nem entrega no Drive.
+
 ### Comissão de vendedor e arquiteto
 
 Comissão **espelha o cronograma de pagamento do cliente**: se ele paga 60% de

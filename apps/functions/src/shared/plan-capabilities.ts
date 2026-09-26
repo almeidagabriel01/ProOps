@@ -44,6 +44,10 @@ export type PlanTierId = "free" | "starter" | "pro" | "enterprise";
  * servico de instalacao) com etapas, checklist, fotos, tecnico responsavel e
  * aceite da entrega pelo link. Pro e Enterprise.
  *
+ * `salesGoals` sao as metas de vendas: meta mensal da empresa e de cada
+ * vendedor (membro escolhido na proposta), com o progresso pelo valor das
+ * propostas aprovadas no mes da aprovacao. Pro e Enterprise.
+ *
  * `fiscalReceiving` e a recepcao de notas de ENTRADA. Fica fora do add-on
  * fiscal de proposito: cada nota recebida consome uma unidade paga do Focus
  * sem clique de ninguem, entao nao cabe na franquia mensal do add-on.
@@ -60,6 +64,7 @@ export type PlanCapabilityKey =
   | "onlinePayments"
   | "onlineApproval"
   | "projects"
+  | "salesGoals"
   | "fiscalReceiving";
 
 export type PlanCapabilities = Record<PlanCapabilityKey, boolean>;
@@ -99,6 +104,7 @@ export const PLAN_CAPABILITY_KEYS: readonly PlanCapabilityKey[] = [
   "onlinePayments",
   "onlineApproval",
   "projects",
+  "salesGoals",
   "fiscalReceiving",
 ] as const;
 
@@ -114,6 +120,7 @@ const NO_CAPABILITIES: PlanCapabilities = {
   onlinePayments: false,
   onlineApproval: false,
   projects: false,
+  salesGoals: false,
   fiscalReceiving: false,
 };
 
@@ -169,6 +176,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       driveSync: true,
       onlineApproval: true,
       projects: true,
+      salesGoals: true,
     },
     limits: {
       maxProposalsPerMonth: -1,
@@ -199,6 +207,7 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       onlinePayments: true,
       onlineApproval: true,
       projects: true,
+      salesGoals: true,
       fiscalReceiving: true,
     },
     limits: {
@@ -277,6 +286,7 @@ export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   onlinePayments: "Pagamento online",
   onlineApproval: "Aceite online da proposta",
   projects: "Projetos de instalação",
+  salesGoals: "Metas de vendas",
   fiscalReceiving: "Notas de entrada",
 };
 
@@ -332,6 +342,7 @@ export interface PublicPlanFeatures {
   hasOnlinePayments: boolean;
   hasOnlineApproval: boolean;
   hasProjects: boolean;
+  hasSalesGoals: boolean;
   hasFiscalReceiving: boolean;
   hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
@@ -359,6 +370,7 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     hasOnlinePayments: entry.capabilities.onlinePayments,
     hasOnlineApproval: entry.capabilities.onlineApproval,
     hasProjects: entry.capabilities.projects,
+    hasSalesGoals: entry.capabilities.salesGoals,
     hasFiscalReceiving: entry.capabilities.fiscalReceiving,
     hasWhatsApp: entry.capabilities.whatsapp,
     canCustomizeTheme: entry.capabilities.customTheme,

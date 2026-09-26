@@ -120,6 +120,11 @@ export const PDF_IRRELEVANT_PROPOSAL_FIELDS = new Set([
   "clientAcceptanceHistory",
   "clientChangeRequest",
   "clientChangeRequestHistory",
+  // Metas de vendas: quem vendeu e quando foi aprovada. Não aparecem no PDF,
+  // e sem isto trocar o vendedor refazia o PDF e reentregava no Drive.
+  "sellerId",
+  "sellerName",
+  "approvedAt",
 ]);
 
 function buildVersionHash(

@@ -41,6 +41,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "driveSync",
           "onlineApproval",
           "projects",
+          "salesGoals",
         ],
       ],
       [
@@ -57,6 +58,7 @@ describe("PLAN_CATALOG — matriz alvo", () => {
           "onlinePayments",
           "onlineApproval",
           "projects",
+          "salesGoals",
           "fiscalReceiving",
         ],
       ],
@@ -95,6 +97,8 @@ describe("PLAN_CATALOG — matriz alvo", () => {
     expect(PLAN_CATALOG.enterprise.capabilities.projects).toBe(true);
     expect(buildPublicPlanFeatures("pro").hasProjects).toBe(true);
     expect(buildPublicPlanFeatures("starter").hasProjects).toBe(false);
+    expect(buildPublicPlanFeatures("pro").hasSalesGoals).toBe(true);
+    expect(buildPublicPlanFeatures("starter").hasSalesGoals).toBe(false);
   });
 
   it("planilhas: Starter 5, Pro 50, Enterprise ilimitado", () => {
