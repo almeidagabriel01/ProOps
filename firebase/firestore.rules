@@ -445,6 +445,18 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions
     }
 
+    // Leads e atividades do CRM (Onda 2): leitura direta pelo client, como o
+    // resto do CRM; escrita so pela API (permissao kanban + capacidade crm).
+    match /leads/{leadId} {
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false; // Managed by Cloud Functions
+    }
+
+    match /activities/{activityId} {
+      allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
+      allow write: if false; // Managed by Cloud Functions
+    }
+
     match /kanban_statuses/{statusId} {
       allow read: if isSuperAdmin() || isDemoRead(resource.data.tenantId) || (isAuthenticated() && belongsToTenant(resource.data.tenantId) && tenantSubscriptionAllowsRead(resource.data.tenantId));
       allow write: if false; // Managed by Cloud Functions

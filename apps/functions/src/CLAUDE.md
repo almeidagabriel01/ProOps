@@ -115,6 +115,11 @@ Os upserts das partes 1 e 2 vao por um `BulkWriter` (paralelo, com retentativa),
 - Proposta ainda aberta (nem aprovada, recusada, rascunho, com aceite, nem em coluna `won`/`lost`) gera notificacao `proposal_follow_up` com id `followup_{sharedProposalId}`; o link e desmarcado em qualquer caso: um aviso por link
 - Falha nao-fatal, como a parte 3
 
+**Parte 2c — Lembretes do CRM (2026-09-25):**
+- `runLeadReminders` (`lead-reminders.ts`): leads com `nextActionAt` igual a hoje (fuso de Brasilia) e etapa aberta, e atividades com `dueAt` hoje sem `doneAt`
+- Notificacao `lead_reminder` com id `lead_{leadId}_{dia}` / `activity_{activityId}_{dia}`; consultas por igualdade num campo so (indice automatico)
+- Falha nao-fatal
+
 **Parte 3 — Limpeza de sessoes WhatsApp:**
 - Remove documentos de `whatsappSessions` com `expiresAt < (agora - 24h)`
 - Limite de 200 por execucao (para nao travar o cron)
@@ -297,6 +302,8 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
 | `mfa_sessions/{uid}_{auth_time}` | Auth (2FA WhatsApp) | Login que passou pelo codigo do WhatsApp (ou por codigo de recuperacao). Exigido pela API e pelas rules de quem tem o WhatsApp ativo (`lib/whatsapp-mfa-session.ts`). `expiresAt` Timestamp, 30 dias. Admin SDK only |
 | `client_notes/{id}` | Contatos | Anotacoes da ficha do contato (`client-notes.controller.ts`). Tenant le; escrita so via Cloud Functions |
+| `leads/{id}` | CRM | Oportunidades antes da proposta (`leads.controller.ts`, gate `crm`, pageId `kanban`). Tenant le; escrita so via Cloud Functions |
+| `activities/{id}` | CRM | Atividades de um lead ou contato (`activities.controller.ts`). Tenant le; escrita so via Cloud Functions |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |

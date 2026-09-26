@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Bell,
+  CalendarClock,
   CheckCircle2,
   Clock,
   FileText,
@@ -36,6 +37,8 @@ function getNotificationIcon(type: NotificationType) {
       return TrendingUp;
     case NotificationType.PROPOSAL_FOLLOW_UP:
       return MessageCircle;
+    case NotificationType.LEAD_REMINDER:
+      return CalendarClock;
     case NotificationType.PROPOSAL_APPROVED:
       return CheckCircle2;
     default:
@@ -51,6 +54,8 @@ function getNotificationIconClassName(type: NotificationType): string {
       return "bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400";
     case NotificationType.PROPOSAL_FOLLOW_UP:
       return "bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400";
+    case NotificationType.LEAD_REMINDER:
+      return "bg-violet-100 dark:bg-violet-950 text-violet-600 dark:text-violet-400";
     default:
       return "bg-muted text-muted-foreground";
   }
@@ -61,6 +66,9 @@ function getNotificationLink(notification: Notification): string | undefined {
     case NotificationType.TRANSACTION_DUE_REMINDER:
     case NotificationType.TRANSACTION_VIEWED:
       return "/transactions";
+    case NotificationType.LEAD_REMINDER:
+      if (notification.leadId) return `/crm?tab=leads&lead=${notification.leadId}`;
+      return notification.clientId ? `/contacts/${notification.clientId}` : "/crm?tab=leads";
     case NotificationType.PROPOSAL_EXPIRING:
       return notification.proposalId
         ? `/proposals/${notification.proposalId}/view`

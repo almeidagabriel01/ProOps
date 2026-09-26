@@ -46,6 +46,7 @@ import {
 } from "./form";
 import { ProposalLoadingState } from "@/components/features/proposal/proposal-loading-state";
 import { isDocumentoValido } from "@/lib/format-document";
+import { ClientService } from "@/services/client-service";
 
 interface SimpleProposalFormProps {
   proposalId?: string;
@@ -696,6 +697,30 @@ export function SimpleProposalForm({
       }));
     }
   };
+
+  // Proposta nova aberta a partir de um lead convertido ou da ficha do
+  // contato (`?clientId=`): já nasce com o contato escolhido.
+  const prefillClientId = proposalId ? null : searchParams.get("clientId");
+  const prefillDoneRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!prefillClientId || prefillDoneRef.current || isLoading || selectedClientId) return;
+    prefillDoneRef.current = true;
+    ClientService.getClientById(prefillClientId)
+      .then((client) => {
+        if (!client) return;
+        handleClientChange({
+          clientId: client.id,
+          clientName: client.name,
+          clientEmail: client.email,
+          clientPhone: client.phone,
+          clientAddress: client.address,
+          isNew: false,
+        });
+      })
+      .catch(() => undefined);
+    // handleClientChange é recriada a cada render; o ref garante uma execução só.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillClientId, isLoading, selectedClientId]);
 
   // Handle adding new system
   const handleAddNewSystem = (sistema: ProposalSistema | null) => {

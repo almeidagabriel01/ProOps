@@ -4,6 +4,7 @@ import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { captureError } from "./lib/observability/error-logger";
 import { runProposalFollowUps } from "./proposal-follow-up";
+import { runLeadReminders } from "./lead-reminders";
 
 /**
  * Cloud Function scheduled que roda diariamente para verificar
@@ -190,6 +191,16 @@ export async function runDueDateCheck(now: Date): Promise<void> {
       console.log(`Created ${followUps} proposal follow-up reminders.`);
     } catch (followUpError) {
       console.warn("Proposal follow-up failed (non-fatal):", followUpError);
+    }
+
+    // ================================================================
+    // 2c. CRM — próxima ação do lead e atividade com prazo hoje
+    // ================================================================
+    try {
+      const leadReminders = await runLeadReminders(now, writer);
+      console.log(`Created ${leadReminders} CRM reminders.`);
+    } catch (leadReminderError) {
+      console.warn("CRM reminders failed (non-fatal):", leadReminderError);
     }
     console.log(
       `Due date check complete. Total reminders: ${transactionReminders + proposalReminders}.`,

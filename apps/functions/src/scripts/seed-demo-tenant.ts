@@ -271,6 +271,8 @@ export interface SeedDemoTenantResult {
   proposals: number;
   wallets: number;
   transactions: number;
+  leads: number;
+  activities: number;
 }
 
 export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
@@ -652,6 +654,53 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
   });
   // ------------------------------------------------------------------------
 
+  // --- CRM: leads e atividades --------------------------------------------
+  // Um lead em cada etapa aberta, para o funil do CRM não abrir vazio no demo.
+  // Datas relativas ao seed, como o financeiro; IDs determinísticos.
+  const DEMO_LEADS = [
+    { id: "demo_lead_carla", name: "Carla Mendes", phone: "11988880001", source: "instagram", stage: "novo", estimatedValue: 18000, nextAction: "Ligar para entender o projeto", nextActionOffset: 1 },
+    { id: "demo_lead_diego", name: "Diego Sampaio", phone: "11988880002", source: "indicacao", stage: "contato", estimatedValue: 42000, nextAction: "Agendar visita técnica", nextActionOffset: 0 },
+    { id: "demo_lead_studio", name: "Studio Arq Lima", company: "Studio Arq Lima", phone: "11988880003", source: "arquiteto", stage: "qualificado", estimatedValue: 95000, nextAction: "Enviar proposta da cobertura", nextActionOffset: 3 },
+  ] as const;
+
+  DEMO_LEADS.forEach((l, i) => {
+    batch.set(db.collection("leads").doc(l.id), {
+      ...tenantTag,
+      name: l.name,
+      phone: l.phone,
+      ...("company" in l ? { company: l.company } : {}),
+      source: l.source,
+      stage: l.stage,
+      estimatedValue: l.estimatedValue,
+      nextAction: l.nextAction,
+      nextActionAt: ymd(l.nextActionOffset),
+      ownerName: "Equipe Demo",
+      createdAt: isoAt(-(i + 2)),
+      updatedAt: isoAt(-(i + 1)),
+    });
+  });
+
+  const DEMO_ACTIVITIES = [
+    { id: "demo_activity_diego_1", leadId: "demo_lead_diego", type: "ligacao", title: "Primeiro contato: quer automatizar iluminação e cortinas da sala", offset: -2, done: true },
+    { id: "demo_activity_studio_1", leadId: "demo_lead_studio", type: "reuniao", title: "Reunião com a arquiteta sobre o projeto da cobertura", offset: -3, done: true },
+    { id: "demo_activity_studio_2", leadId: "demo_lead_studio", type: "tarefa", title: "Montar proposta com cinema e climatização", offset: 3, done: false },
+  ] as const;
+
+  DEMO_ACTIVITIES.forEach((a) => {
+    batch.set(db.collection("activities").doc(a.id), {
+      ...tenantTag,
+      leadId: a.leadId,
+      clientId: null,
+      type: a.type,
+      title: a.title,
+      dueAt: a.done ? null : ymd(a.offset),
+      doneAt: a.done ? isoAt(a.offset) : null,
+      createdByName: "Equipe Demo",
+      createdAt: isoAt(Math.min(a.offset, -1)),
+    });
+  });
+  // ------------------------------------------------------------------------
+
   await batch.commit();
 
   const result: SeedDemoTenantResult = {
@@ -665,6 +714,8 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     proposals: proposals.length,
     wallets: DEMO_WALLETS.length,
     transactions: DEMO_TRANSACTIONS.length,
+    leads: DEMO_LEADS.length,
+    activities: DEMO_ACTIVITIES.length,
   };
   logger.info("seedDemoTenant complete", { ...result });
   return result;

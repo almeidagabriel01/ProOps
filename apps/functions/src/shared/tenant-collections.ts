@@ -31,6 +31,8 @@ export const TENANT_PURGE_BY_FIELD = [
   "purchased_addons",
   "kanban_statuses",
   "client_notes",
+  "leads",
+  "activities",
   "calendar_events",
   "calendar_integrations",
   "shared_proposals",

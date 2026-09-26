@@ -9,6 +9,7 @@ export type NotificationType =
   | "proposal_viewed"
   | "proposal_approved"
   | "proposal_follow_up"
+  | "lead_reminder"
   | "transaction_due_reminder"
   | "proposal_expiring"
   | "system"
@@ -27,6 +28,8 @@ export interface Notification {
   proposalId?: string;
   sharedProposalId?: string;
   transactionId?: string;
+  leadId?: string;
+  clientId?: string;
   isRead: boolean;
   createdAt: string;
   readAt?: string;

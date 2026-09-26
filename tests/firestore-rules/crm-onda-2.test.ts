@@ -17,7 +17,7 @@ import * as path from "path";
 let testEnv: RulesTestEnvironment;
 const ALPHA = "tenant-alpha";
 const BETA = "tenant-beta";
-const COLLECTIONS = ["client_notes"];
+const COLLECTIONS = ["client_notes", "leads", "activities"];
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({

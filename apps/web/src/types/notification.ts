@@ -3,6 +3,8 @@ export enum NotificationType {
   PROPOSAL_APPROVED = "proposal_approved",
   /** Cliente abriu o link há dias e a proposta segue sem resposta. */
   PROPOSAL_FOLLOW_UP = "proposal_follow_up",
+  /** Próxima ação de um lead ou atividade do CRM com prazo hoje. */
+  LEAD_REMINDER = "lead_reminder",
   TRANSACTION_DUE_REMINDER = "transaction_due_reminder",
   PROPOSAL_EXPIRING = "proposal_expiring",
   SYSTEM = "system",
@@ -20,6 +22,8 @@ export interface Notification {
   proposalId?: string;
   sharedProposalId?: string;
   transactionId?: string;
+  leadId?: string;
+  clientId?: string;
   isRead: boolean;
   createdAt: string;
   readAt?: string;

@@ -340,7 +340,7 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
               title="Nenhuma proposta para este contato"
               action={
                 <Button asChild size="sm">
-                  <Link href="/proposals/new">Nova proposta</Link>
+                  <Link href={`/proposals/new?clientId=${encodeURIComponent(client.id)}`}>Nova proposta</Link>
                 </Button>
               }
             />
