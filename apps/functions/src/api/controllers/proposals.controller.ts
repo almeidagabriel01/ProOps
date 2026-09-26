@@ -35,7 +35,7 @@ import { buildSearchTokens } from "../../lib/search-tokens";
 import { productRefsFields } from "../../lib/proposal-product-refs";
 import { logger, recordPhase } from "../../lib/logger";
 import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
-import { maybeCreateProjectOnApproval } from "../services/projects/project.service";
+import { resolveProjectOnApproval } from "../services/projects/project.service";
 import {
   isAcceptancePending,
   isChangeRequestOpen,
@@ -1649,11 +1649,12 @@ export const updateProposal = async (req: Request, res: Response) => {
 
     const isBeingApproved = willBeApproved && !isCurrentlyApproved;
 
-    // Projeto de instalação nasce na aprovação (Pro e Enterprise, e a empresa
-    // pode desligar). Idempotente pelo id; nunca derruba a aprovação.
-    let projectCreated: { projectId: string; created: boolean } | null = null;
+    // Projeto de instalação na aprovação (Pro e Enterprise): conforme a
+    // empresa configurou, cria, pergunta (padrão) ou não faz nada. Nunca
+    // derruba a aprovação.
+    let projectOutcome: { createdProjectId: string | null; suggest: boolean } | null = null;
     if (isBeingApproved) {
-      projectCreated = await maybeCreateProjectOnApproval({
+      projectOutcome = await resolveProjectOnApproval({
         tenantId: proposalTenantId,
         proposalId: id,
         proposal: { ...proposalData, ...safeUpdate },
@@ -2145,8 +2146,10 @@ export const updateProposal = async (req: Request, res: Response) => {
       message: "Proposta atualizada.",
       driveDeliveryQueued,
       driveNotConnected,
-      // Projeto de instalação criado agora pela aprovação (para a tela avisar).
-      projectCreated: projectCreated?.created ? projectCreated.projectId : null,
+      // Projeto de instalação: criado agora (modo "sempre") ou a perguntar
+      // se a venda tem instalação (modo padrão). A tela avisa ou pergunta.
+      projectCreated: projectOutcome?.createdProjectId ?? null,
+      projectSuggested: projectOutcome?.suggest ?? false,
     });
   } catch (error: unknown) {
     const err = error as Error;

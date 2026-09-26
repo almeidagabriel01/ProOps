@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 import { hasOpenChangeRequest, hasPendingAcceptance } from "@/lib/client-acceptance";
+import { announceProjectOnApproval } from "@/lib/project-on-approval";
 import { useClientResponses } from "@/hooks/use-client-responses";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, Search, ListFilter, Kanban } from "lucide-react";
@@ -443,10 +444,11 @@ export function ProposalKanbanTab() {
       adjustColumnTotals(fromKey, toKey);
 
       try {
-        await ProposalService.updateProposal(itemId, { status: newStatus });
+        const result = await ProposalService.updateProposal(itemId, { status: newStatus });
         toast.success(`Status alterado para "${targetColumn.label}".`, {
           title: "Status atualizado",
         });
+        announceProjectOnApproval(result, proposal);
         // Mesmo convite da lista: arrastar para a coluna de ganho é aprovar.
         if (pendingPreview) {
           void promptAfterApproval(

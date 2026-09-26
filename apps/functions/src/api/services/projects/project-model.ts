@@ -68,9 +68,18 @@ export interface StageTemplate {
   checklist: string[];
 }
 
+/**
+ * O que acontece com o projeto quando a proposta é aprovada:
+ * - `ask`: a tela pergunta se a venda tem instalação (padrão). Nem toda venda
+ *   é obra: quem só vende produto não quer um projeto a cada aprovação.
+ * - `always`: cria sozinho.
+ * - `never`: só pelo botão na proposta.
+ */
+export const PROJECT_ON_APPROVAL = ["ask", "always", "never"] as const;
+export type ProjectOnApproval = (typeof PROJECT_ON_APPROVAL)[number];
+
 export interface ProjectSettings {
-  /** Cria o projeto sozinho quando a proposta é aprovada. */
-  autoCreateOnApproval: boolean;
+  onApproval: ProjectOnApproval;
   /** Etapas com que todo projeto novo nasce. Vazio = padrão do nicho. */
   stageTemplate: StageTemplate[];
 }
@@ -117,20 +126,23 @@ export function defaultTemplateForNiche(niche: unknown): StageTemplate[] {
 }
 
 export function defaultProjectSettings(niche: unknown): ProjectSettings {
-  return { autoCreateOnApproval: true, stageTemplate: defaultTemplateForNiche(niche) };
+  return { onApproval: "ask", stageTemplate: defaultTemplateForNiche(niche) };
 }
 
 /** Configuração gravada por cima do padrão do nicho. */
 export function resolveProjectSettings(
-  stored: Partial<ProjectSettings> | undefined | null,
+  stored: (Partial<ProjectSettings> & { autoCreateOnApproval?: unknown }) | undefined | null,
   niche: unknown,
 ): ProjectSettings {
   const base = defaultProjectSettings(niche);
+  const onApproval: ProjectOnApproval = PROJECT_ON_APPROVAL.includes(stored?.onApproval as ProjectOnApproval)
+    ? (stored?.onApproval as ProjectOnApproval)
+    : // A primeira versão guardava um liga/desliga; desligado continua "nunca".
+      stored?.autoCreateOnApproval === false
+      ? "never"
+      : base.onApproval;
   return {
-    autoCreateOnApproval:
-      typeof stored?.autoCreateOnApproval === "boolean"
-        ? stored.autoCreateOnApproval
-        : base.autoCreateOnApproval,
+    onApproval,
     stageTemplate:
       Array.isArray(stored?.stageTemplate) && stored.stageTemplate.length > 0
         ? stored.stageTemplate
@@ -217,7 +229,7 @@ export const StageTemplateSchema = z
 
 export const ProjectSettingsSchema = z
   .object({
-    autoCreateOnApproval: z.boolean().optional(),
+    onApproval: z.enum(PROJECT_ON_APPROVAL).optional(),
     stageTemplate: z.array(StageTemplateSchema).min(1, "Mantenha ao menos uma etapa.").max(MAX_STAGES).optional(),
   })
   .strict();

@@ -43,7 +43,7 @@ jest.mock("../../../init", () => {
 import {
   buildProjectShareUrl,
   createProjectFromProposal,
-  maybeCreateProjectOnApproval,
+  resolveProjectOnApproval,
 } from "./project.service";
 
 const PROPOSAL = {
@@ -91,30 +91,42 @@ describe("createProjectFromProposal", () => {
   });
 });
 
-describe("maybeCreateProjectOnApproval", () => {
-  it("plano sem projetos (Starter): não cria", async () => {
+describe("resolveProjectOnApproval", () => {
+  const call = () =>
+    resolveProjectOnApproval({ tenantId: "t1", proposalId: "p1", proposal: PROPOSAL, uid: "u1" });
+
+  it("plano sem projetos (Starter): nem cria nem pergunta", async () => {
     tenantHasCapability.mockResolvedValue(false);
-    expect(await maybeCreateProjectOnApproval({ tenantId: "t1", proposalId: "p1", proposal: PROPOSAL, uid: "u1" })).toBeNull();
+    expect(await call()).toEqual({ createdProjectId: null, suggest: false });
     expect(sets).toHaveLength(0);
     expect(tenantHasCapability).toHaveBeenCalledWith("t1", "projects");
   });
 
-  it("empresa desligou a criação automática: não cria", async () => {
-    settingsDoc = { autoCreateOnApproval: false };
-    expect(await maybeCreateProjectOnApproval({ tenantId: "t1", proposalId: "p1", proposal: PROPOSAL, uid: "u1" })).toBeNull();
+  it("padrão (perguntar): não cria, pede para a tela perguntar", async () => {
+    expect(await call()).toEqual({ createdProjectId: null, suggest: true });
     expect(sets).toHaveLength(0);
   });
 
-  it("com o plano e ligado (padrão): cria", async () => {
-    const result = await maybeCreateProjectOnApproval({ tenantId: "t1", proposalId: "p1", proposal: PROPOSAL, uid: "u1" });
-    expect(result).toEqual({ projectId: "proposal_p1", created: true });
+  it("perguntar, mas a obra já existe (reaprovação): não pergunta de novo", async () => {
+    store.proposal_p1 = { tenantId: "t1" };
+    expect(await call()).toEqual({ createdProjectId: null, suggest: false });
   });
 
-  it("erro ao criar não derruba a aprovação", async () => {
+  it("sempre: cria e devolve o id", async () => {
+    settingsDoc = { onApproval: "always" };
+    expect(await call()).toEqual({ createdProjectId: "proposal_p1", suggest: false });
+    expect(sets).toHaveLength(1);
+  });
+
+  it("nunca: nada", async () => {
+    settingsDoc = { onApproval: "never" };
+    expect(await call()).toEqual({ createdProjectId: null, suggest: false });
+    expect(sets).toHaveLength(0);
+  });
+
+  it("erro não derruba a aprovação", async () => {
     tenantHasCapability.mockRejectedValue(new Error("boom"));
-    await expect(
-      maybeCreateProjectOnApproval({ tenantId: "t1", proposalId: "p1", proposal: PROPOSAL, uid: "u1" }),
-    ).resolves.toBeNull();
+    await expect(call()).resolves.toEqual({ createdProjectId: null, suggest: false });
   });
 });
 

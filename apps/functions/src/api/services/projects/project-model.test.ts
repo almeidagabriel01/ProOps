@@ -34,18 +34,26 @@ describe("etapas padrão por nicho", () => {
 });
 
 describe("resolveProjectSettings", () => {
-  it("sem nada gravado: cria na aprovação e usa o roteiro do nicho", () => {
+  it("sem nada gravado: pergunta na aprovação e usa o roteiro do nicho", () => {
     const s = resolveProjectSettings(undefined, "cortinas");
-    expect(s.autoCreateOnApproval).toBe(true);
+    expect(s.onApproval).toBe("ask");
     expect(s.stageTemplate[0].name).toBe("Medição");
   });
 
-  it("o que a empresa gravou vence, inclusive desligar a criação automática", () => {
-    const s = resolveProjectSettings(
-      { autoCreateOnApproval: false, stageTemplate: [{ name: "Única", checklist: [] }] },
-      "automacao_residencial",
-    );
-    expect(s).toEqual({ autoCreateOnApproval: false, stageTemplate: [{ name: "Única", checklist: [] }] });
+  it("o que a empresa gravou vence", () => {
+    for (const mode of ["ask", "always", "never"] as const) {
+      const s = resolveProjectSettings(
+        { onApproval: mode, stageTemplate: [{ name: "Única", checklist: [] }] },
+        "automacao_residencial",
+      );
+      expect(s).toEqual({ onApproval: mode, stageTemplate: [{ name: "Única", checklist: [] }] });
+    }
+  });
+
+  it("configuração da primeira versão (liga/desliga): desligado vira nunca, ligado vira perguntar", () => {
+    expect(resolveProjectSettings({ autoCreateOnApproval: false }, "cortinas").onApproval).toBe("never");
+    expect(resolveProjectSettings({ autoCreateOnApproval: true }, "cortinas").onApproval).toBe("ask");
+    expect(resolveProjectSettings({ onApproval: "qualquer" as never }, "cortinas").onApproval).toBe("ask");
   });
 
   it("roteiro gravado vazio não deixa o projeto nascer sem etapa", () => {

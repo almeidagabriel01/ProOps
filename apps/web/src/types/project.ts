@@ -64,7 +64,10 @@ export interface StageTemplate {
   checklist: string[];
 }
 
+/** Na aprovação: perguntar se tem instalação (padrão), criar sempre ou nunca. */
+export type ProjectOnApproval = "ask" | "always" | "never";
+
 export interface ProjectSettings {
-  autoCreateOnApproval: boolean;
+  onApproval: ProjectOnApproval;
   stageTemplate: StageTemplate[];
 }

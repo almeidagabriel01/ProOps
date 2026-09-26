@@ -134,29 +134,48 @@ export async function createStandaloneProject(params: {
   return ref.id;
 }
 
+export interface ProjectOnApprovalOutcome {
+  /** Id do projeto criado agora (modo `always`). */
+  createdProjectId: string | null;
+  /** A tela deve perguntar se a venda tem instalação (modo `ask`, sem projeto ainda). */
+  suggest: boolean;
+}
+
+const NOTHING: ProjectOnApprovalOutcome = { createdProjectId: null, suggest: false };
+
 /**
- * Chamado quando uma proposta vira aprovada. Só cria se o plano tem projetos e
- * a empresa não desligou a criação automática. Nunca lança: a aprovação já
- * aconteceu, e o projeto é conveniência, não parte da venda.
+ * Chamado quando uma proposta vira aprovada. Com o plano, segue o modo da
+ * empresa: `always` cria, `ask` devolve o convite para a tela perguntar,
+ * `never` não faz nada. Nunca lança: a aprovação já aconteceu, e o projeto é
+ * conveniência, não parte da venda.
  */
-export async function maybeCreateProjectOnApproval(params: {
+export async function resolveProjectOnApproval(params: {
   tenantId: string;
   proposalId: string;
   proposal: Record<string, unknown>;
   uid: string;
-}): Promise<{ projectId: string; created: boolean } | null> {
+}): Promise<ProjectOnApprovalOutcome> {
   try {
-    if (!(await tenantHasCapability(params.tenantId, "projects"))) return null;
+    if (!(await tenantHasCapability(params.tenantId, "projects"))) return NOTHING;
     const settings = await loadProjectSettings(params.tenantId);
-    if (!settings.autoCreateOnApproval) return null;
-    return await createProjectFromProposal({ ...params, settings });
+    if (settings.onApproval === "never") return NOTHING;
+    if (settings.onApproval === "always") {
+      const result = await createProjectFromProposal({ ...params, settings });
+      return { createdProjectId: result.created ? result.projectId : null, suggest: false };
+    }
+    // Perguntar só faz sentido se a obra ainda não existe (reaprovar não pergunta de novo).
+    const existing = await db
+      .collection(PROJECTS_COLLECTION)
+      .doc(projectIdForProposal(params.proposalId))
+      .get();
+    return { createdProjectId: null, suggest: !existing.exists };
   } catch (error) {
-    logger.warn("project_auto_create_failed", {
+    logger.warn("project_on_approval_failed", {
       tenantId: params.tenantId,
       proposalId: params.proposalId,
       error: error instanceof Error ? error.message : String(error),
     });
-    return null;
+    return NOTHING;
   }
 }
 

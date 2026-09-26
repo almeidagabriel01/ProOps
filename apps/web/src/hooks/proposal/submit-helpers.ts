@@ -10,6 +10,7 @@ import {
   DRIVE_NOT_CONNECTED_HINT,
 } from "@/lib/proposal-payment";
 import { toast } from '@/lib/toast';
+import { announceProjectOnApproval } from "@/lib/project-on-approval";
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import {
   getChargeableQuantityFromPricingDetails,
@@ -294,6 +295,9 @@ export async function updateProposal(
   } else if (result?.driveNotConnected) {
     toast.info(DRIVE_NOT_CONNECTED_HINT);
   }
+  // O formulário navega logo depois de salvar: quem avisa (ou pergunta) sobre
+  // o projeto da obra é o host no shell, que sobrevive à troca de página.
+  announceProjectOnApproval(result, { id: proposalId, title: formData.title });
 }
 
 // Prepare proposal data for creation

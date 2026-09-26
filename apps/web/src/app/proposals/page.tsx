@@ -51,6 +51,7 @@ import {
   pickApprovedColumnId,
 } from "@/lib/client-acceptance";
 import { useClientResponses } from "@/hooks/use-client-responses";
+import { announceProjectOnApproval } from "@/lib/project-on-approval";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
 import {
@@ -712,15 +713,7 @@ export default function ProposalsPage() {
         );
         // A entrega no Drive saiu da request e roda num cron: sem o aviso,
         // quem aprova e vai direto na pasta do cliente acha que falhou.
-        if (result?.projectCreated) {
-          const projectId = result.projectCreated;
-          toast.success("Projeto de instalação criado para acompanhar a obra.", {
-            duration: 8000,
-            // O sileo recolhe o toast 2s antes do fim, escondendo o botão.
-            autopilot: { expand: 150, collapse: 7700 },
-            button: { title: "Abrir", onClick: () => router.push(`/projects/${projectId}`) },
-          });
-        }
+        announceProjectOnApproval(result, proposal);
         if (result?.driveDeliveryQueued) {
           toast.info(DRIVE_DELIVERY_PENDING_HINT);
         } else if (result?.driveNotConnected) {
@@ -752,7 +745,6 @@ export default function ProposalsPage() {
       }
     },
     [
-      router,
       proposals,
       getStatusLabel,
       kanbanColumns,
@@ -823,8 +815,9 @@ export default function ProposalsPage() {
           ? (column.mappedStatus as ProposalStatus)
           : (approvedColumnId as ProposalStatus);
       try {
-        await ProposalService.updateProposal(acceptanceTarget.id, { status });
+        const result = await ProposalService.updateProposal(acceptanceTarget.id, { status });
         toast.success("Aprovação confirmada.");
+        announceProjectOnApproval(result, acceptanceTarget);
         ok = true;
       } catch (error) {
         toast.error(

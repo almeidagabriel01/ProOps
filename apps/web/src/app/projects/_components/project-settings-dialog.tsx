@@ -13,11 +13,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import { ProjectsService } from "@/services/projects-service";
-import type { StageTemplate } from "@/types/project";
+import type { ProjectOnApproval, StageTemplate } from "@/types/project";
+
+const ON_APPROVAL_OPTIONS: Array<{ value: ProjectOnApproval; label: string }> = [
+  { value: "ask", label: "Perguntar se a venda tem instalação" },
+  { value: "always", label: "Criar o projeto sempre" },
+  { value: "never", label: "Nunca criar (só pelo botão na proposta)" },
+];
 
 interface ProjectSettingsDialogProps {
   open: boolean;
@@ -54,7 +60,7 @@ export function toStageTemplate(stages: EditableStage[]): StageTemplate[] {
 export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDialogProps) {
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const [autoCreate, setAutoCreate] = React.useState(true);
+  const [onApproval, setOnApproval] = React.useState<ProjectOnApproval>("ask");
   const [stages, setStages] = React.useState<EditableStage[]>([]);
 
   React.useEffect(() => {
@@ -64,7 +70,7 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
     ProjectsService.getSettings()
       .then((settings) => {
         if (cancelled) return;
-        setAutoCreate(settings.autoCreateOnApproval);
+        setOnApproval(settings.onApproval);
         setStages(toEditable(settings.stageTemplate));
       })
       .catch((error) => {
@@ -95,7 +101,7 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
   const save = async () => {
     setSaving(true);
     try {
-      await ProjectsService.saveSettings({ autoCreateOnApproval: autoCreate, stageTemplate: template });
+      await ProjectsService.saveSettings({ onApproval, stageTemplate: template });
       toast.success("Configurações salvas. Valem para os próximos projetos.");
       onOpenChange(false);
     } catch (error) {
@@ -119,14 +125,24 @@ export function ProjectSettingsDialog({ open, onOpenChange }: ProjectSettingsDia
           <p className="py-8 text-center text-sm text-muted-foreground">Carregando...</p>
         ) : (
           <div className="space-y-6">
-            <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
-              <div>
-                <Label htmlFor="project-auto-create">Criar o projeto ao aprovar a proposta</Label>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Desligado, o projeto só nasce pelo botão na proposta aprovada.
-                </p>
-              </div>
-              <Switch id="project-auto-create" checked={autoCreate} onCheckedChange={setAutoCreate} />
+            <div className="space-y-1.5 rounded-lg border p-4">
+              <Label htmlFor="project-on-approval">Quando a proposta for aprovada</Label>
+              <Select
+                id="project-on-approval"
+                value={onApproval}
+                onChange={(e) => setOnApproval(e.target.value as ProjectOnApproval)}
+                disableSort
+              >
+                {ON_APPROVAL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Nem toda venda é obra: perguntando, quem só vende produto não ganha um projeto a
+                cada aprovação.
+              </p>
             </div>
 
             <div className="space-y-3">

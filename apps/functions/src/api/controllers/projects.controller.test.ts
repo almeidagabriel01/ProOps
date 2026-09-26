@@ -175,7 +175,7 @@ beforeEach(() => {
   svc.isStorageOverQuota.mockResolvedValue(false);
   svc.storeProjectPhoto.mockResolvedValue("https://storage/foto.webp");
   svc.createProjectShareLink.mockResolvedValue({ url: "https://erp/share/project/tok", sharedProjectId: "sp1" });
-  svc.saveProjectSettings.mockResolvedValue({ autoCreateOnApproval: false, stageTemplate: [] });
+  svc.saveProjectSettings.mockResolvedValue({ onApproval: "never", stageTemplate: [] });
   projects = {
     p1: { tenantId: "t1", title: "Casa", stages: [stage()], delivery: { status: "none" } },
     outro: { tenantId: "t2", title: "Outra empresa", stages: [stage()] },
@@ -379,14 +379,14 @@ describe("listProjectAssignees", () => {
 describe("updateProjectSettings", () => {
   it("só o administrador da empresa altera", async () => {
     const member = fakeRes();
-    await updateProjectSettings(fakeReq({}, { autoCreateOnApproval: false }, "MEMBER"), member);
+    await updateProjectSettings(fakeReq({}, { onApproval: "never" }, "MEMBER"), member);
     expect(member.statusCode).toBe(403);
     expect(svc.saveProjectSettings).not.toHaveBeenCalled();
 
     const master = fakeRes();
-    await updateProjectSettings(fakeReq({}, { autoCreateOnApproval: false }, "master"), master);
+    await updateProjectSettings(fakeReq({}, { onApproval: "never" }, "master"), master);
     expect(master.statusCode).toBe(200);
-    expect(svc.saveProjectSettings).toHaveBeenCalledWith("t1", { autoCreateOnApproval: false }, "u1");
+    expect(svc.saveProjectSettings).toHaveBeenCalledWith("t1", { onApproval: "never" }, "u1");
   });
 
   it("roteiro sem etapa nenhuma é recusado", async () => {

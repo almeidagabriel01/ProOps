@@ -189,8 +189,10 @@ export type UpdateProposalResult = {
    * duas coisas que a tela não tem em mãos no momento do salvamento.
    */
   driveNotConnected?: boolean;
-  /** Id do projeto de instalação que a aprovação acabou de criar (Pro e Enterprise). */
+  /** Id do projeto de instalação que a aprovação acabou de criar (modo "sempre"). */
   projectCreated?: string | null;
+  /** A aprovação pede para perguntar se a venda tem instalação (modo padrão). */
+  projectSuggested?: boolean;
 };
 
 export const ProposalService = {
