@@ -33,6 +33,13 @@ describe("É da equipe?", () => {
     expect(onChange).toHaveBeenCalledWith("u-ana");
   });
 
+  it("o rótulo fica sozinho na linha, sem dica ao lado (senão quebra em duas linhas)", async () => {
+    render(<ContactMemberLinkField types={["vendedor"]} value={null} onChange={vi.fn()} />);
+    const label = await screen.findByText("É da equipe?");
+    expect(label.parentElement?.children).toHaveLength(1);
+    expect(screen.getByText(/a comissão dele entra sozinha/)).toBeInTheDocument();
+  });
+
   it("arquiteto e cliente não têm o campo: são parceiros externos", () => {
     const { container, rerender } = render(
       <ContactMemberLinkField types={["arquiteto"]} value={null} onChange={vi.fn()} />,

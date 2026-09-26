@@ -149,8 +149,9 @@ entrar sozinha na proposta quando ele é o responsável
 (`lib/contacts/seller-commission.ts`). Só para vendedor e só nos planos com
 metas (`_components/contact-member-link-field.tsx`); o backend recusa membro de
 outra empresa e membro já ligado a outro contato. O campo fica abaixo da
-comissão, com a explicação embaixo do select: a dica no cabeçalho do
-`FormItem` precisa ser curta, porque a linha do rótulo tem altura fixa.
+comissão, SEM dica no cabeçalho do `FormItem` e com a explicação embaixo do
+select: a linha do rótulo tem altura fixa e divide a largura com a dica, e
+qualquer texto ali quebrava "É da equipe?" em duas linhas.
 
 `isCommissionPartner` e a lista dos papéis ficam em
 `src/lib/contacts/commission-partner.ts`, **fora** do `client-service`: aquele

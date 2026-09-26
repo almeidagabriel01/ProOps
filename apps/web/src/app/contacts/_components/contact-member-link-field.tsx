@@ -41,9 +41,10 @@ export function ContactMemberLinkField({ types, value, onChange }: ContactMember
   if (!hasSalesGoals || !isSeller || people.length === 0) return null;
 
   return (
-    // O cabeçalho do FormItem tem altura fixa (alinha com o vizinho da linha):
-    // a dica ali é curta, e a explicação vai embaixo do campo.
-    <FormItem label="É da equipe?" htmlFor="linkedMemberId" hint="Opcional">
+    // Sem dica no cabeçalho: a linha do rótulo tem altura fixa e divide a
+    // largura com a dica, e qualquer texto ali quebrava "É da equipe?" em duas
+    // linhas. A explicação vai embaixo do campo.
+    <FormItem label="É da equipe?" htmlFor="linkedMemberId">
       <div className="space-y-2">
         <Select
           id="linkedMemberId"
