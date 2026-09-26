@@ -7,8 +7,10 @@
  * se as duas divergirem.
  *
  * `audience` é o `pageId` que a pessoa precisa poder VER para receber o tipo
- * (a mesma chave da tela de Equipe, nunca uma inventada), ou `admins` para o
- * que só o dono e os administradores recebem.
+ * (a mesma chave da tela de Equipe, nunca uma inventada), `admins` para o que
+ * só o dono e os administradores recebem, ou `direct` para o que é endereçado
+ * a pessoas escolhidas por quem criou (tarefa atribuída, menção): ali quem
+ * recebe é só quem foi citado, e a notificação exige a lista de destinatários.
  *
  * Os lembretes diários (vencimento, proposta expirando, CRM) não saem por
  * e-mail: repetem todo dia enquanto a pendência existir, e um e-mail por item
@@ -28,6 +30,9 @@ export const NOTIFICATION_TYPES = [
   "transaction_paid_online",
   "system",
   "price_change",
+  "task_assigned",
+  "task_mentioned",
+  "task_reminder",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -37,7 +42,8 @@ export type NotificationAudience =
   | "transactions"
   | "kanban"
   | "projects"
-  | "admins";
+  | "admins"
+  | "direct";
 
 export interface NotificationCatalogEntry {
   audience: NotificationAudience;
@@ -60,6 +66,10 @@ export const NOTIFICATION_CATALOG: Record<NotificationType, NotificationCatalogE
   system: { audience: "admins", emailable: true, defaultEmail: true },
   // O aviso de preço já tem e-mail próprio, com os valores e o prazo.
   price_change: { audience: "admins", emailable: false, defaultEmail: false },
+  task_assigned: { audience: "direct", emailable: true, defaultEmail: true },
+  task_mentioned: { audience: "direct", emailable: true, defaultEmail: true },
+  // Lembrete diário: fica no sino, como os outros.
+  task_reminder: { audience: "direct", emailable: false, defaultEmail: false },
 };
 
 export function isNotificationType(value: unknown): value is NotificationType {
@@ -99,6 +109,7 @@ export function notificationLinkPath(n: {
   leadId?: string | null;
   clientId?: string | null;
   projectId?: string | null;
+  taskId?: string | null;
 }): string {
   switch (n.type) {
     case "transaction_due_reminder":
@@ -114,6 +125,10 @@ export function notificationLinkPath(n: {
       return n.proposalId ? `/proposals?ajuste=${n.proposalId}` : "/proposals";
     case "project_delivery_accepted":
       return n.projectId ? `/projects/${n.projectId}` : "/projects";
+    case "task_assigned":
+    case "task_mentioned":
+    case "task_reminder":
+      return n.taskId ? `/tasks?task=${n.taskId}` : "/tasks";
     default:
       return n.proposalId ? `/proposals/${n.proposalId}/view` : "/notifications";
   }

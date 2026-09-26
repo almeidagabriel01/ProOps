@@ -120,6 +120,11 @@ Os upserts das partes 1 e 2 vao por um `BulkWriter` (paralelo, com retentativa),
 - Notificacao `lead_reminder` com id `lead_{leadId}_{dia}` / `activity_{activityId}_{dia}`; consultas por igualdade num campo so (indice automatico)
 - Falha nao-fatal
 
+**Parte 2d — Tarefas com prazo hoje (2026-09-26):**
+- `runTaskReminders` (`task-reminders.ts`): tarefas com `dueAt` igual a hoje (fuso de Brasilia) e sem `doneAt`
+- Notificacao `task_reminder` com id `task_{taskId}_{dia}`, para o responsavel ou, sem ele, para quem criou
+- Falha nao-fatal
+
 **Parte 3 — Limpeza de sessoes WhatsApp:**
 - Remove documentos de `whatsappSessions` com `expiresAt < (agora - 24h)`
 - Limite de 200 por execucao (para nao travar o cron)
@@ -304,6 +309,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `client_notes/{id}` | Contatos | Anotacoes da ficha do contato (`client-notes.controller.ts`). Tenant le; escrita so via Cloud Functions |
 | `leads/{id}` | CRM | Oportunidades antes da proposta (`leads.controller.ts`, gate `crm`, pageId `kanban`). Tenant le; escrita so via Cloud Functions |
 | `activities/{id}` | CRM | Atividades de um lead ou contato (`activities.controller.ts`). Tenant le; escrita so via Cloud Functions |
+| `tasks/{id}` | Tarefas | "A fazer" com responsavel, ligado ou nao a contato, proposta ou lead (`tasks.controller.ts`, pageId `tasks`, todos os planos). Da PESSOA: as rules leem `audienceUids` (quem criou, responsavel e citados); dono e admins leem todas. Escrita so via Cloud Functions |
 | `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
 | `project_settings/{tenantId}` | Projetos | Criacao automatica na aprovacao e roteiro de etapas. Admin SDK only |
 | `shared_projects/{id}` | Projetos | Link publico da entrega (token). Admin SDK only |

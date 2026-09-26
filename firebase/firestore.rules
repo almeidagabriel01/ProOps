@@ -594,6 +594,22 @@ service cloud.firestore {
                         && belongsToTenant(resource.data.get('tenantId', '')));
     }
 
+    // TASKS - Tarefa é da pessoa: lê quem criou, o responsável e quem foi
+    // citado (`audienceUids`); dono e administradores leem todas. A lista do
+    // membro filtra por tenantId e audienceUids (array-contains), que é o que
+    // deixa a regra ser provada; a do administrador, só por tenantId.
+    // Escrita só pelo backend (tasks.controller.ts).
+    match /tasks/{taskId} {
+      allow read: if isSuperAdmin()
+                  || isDemoRead(resource.data.tenantId)
+                  || (isAuthenticated()
+                      && belongsToTenant(resource.data.tenantId)
+                      && tenantSubscriptionAllowsRead(resource.data.tenantId)
+                      && (hasTenantAdminRole()
+                          || request.auth.uid in resource.data.get('audienceUids', [])));
+      allow write: if false;
+    }
+
     // NOTIFICATIONS - Cada pessoa lê só o que foi endereçado a ela
     // (`recipientUids`, resolvido na criação pelo catálogo, pelas permissões e
     // pelas preferências de cada um). Antes valia para a empresa inteira, e um

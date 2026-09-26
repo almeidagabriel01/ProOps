@@ -5,6 +5,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { captureError } from "./lib/observability/error-logger";
 import { runProposalFollowUps } from "./proposal-follow-up";
 import { runLeadReminders } from "./lead-reminders";
+import { runTaskReminders } from "./task-reminders";
 import { NotificationService } from "./api/services/notification.service";
 
 /**
@@ -202,6 +203,16 @@ export async function runDueDateCheck(now: Date): Promise<void> {
       console.log(`Created ${leadReminders} CRM reminders.`);
     } catch (leadReminderError) {
       console.warn("CRM reminders failed (non-fatal):", leadReminderError);
+    }
+
+    // ================================================================
+    // 2d. Tarefas com prazo hoje
+    // ================================================================
+    try {
+      const taskReminders = await runTaskReminders(now, writer);
+      console.log(`Created ${taskReminders} task reminders.`);
+    } catch (taskReminderError) {
+      console.warn("Task reminders failed (non-fatal):", taskReminderError);
     }
     console.log(
       `Due date check complete. Total reminders: ${transactionReminders + proposalReminders}.`,

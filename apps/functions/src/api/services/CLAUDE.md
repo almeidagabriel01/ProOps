@@ -262,7 +262,9 @@ todos. Agora cada documento carrega **`recipientUids`** e **`readBy`**:
 
 - **Quem recebe** sai de `shared/notification-catalog.ts` (`NOTIFICATION_CATALOG`):
   cada tipo declara o `pageId` que a pessoa precisa VER (`proposals`,
-  `transactions`, `kanban`, `projects`) ou `admins` (so dono e administradores).
+  `transactions`, `kanban`, `projects`), `admins` (so dono e administradores)
+  ou `direct` (tarefa atribuida, mencao, lembrete de tarefa): ai quem recebe e
+  so quem veio em `targetUids`, e so se for pessoa da empresa.
   `notification-audience.ts` cruza isso com as permissoes e as preferencias de
   cada pessoa (`resolveRecipients`, pura e testada), com cache de 60s por
   instancia (`loadTenantAudience`), limpo ao salvar preferencia ou permissao.
@@ -332,6 +334,9 @@ interface Notification {
 | `transaction_paid_online` | Webhook do Asaas | ve lancamentos | ligado |
 | `system` | Repasse do Asaas que falhou, certificado A1 vencendo; e os do superadmin (`tenantId: "system"`) | dono e admins | ligado |
 | `price_change` | Cron `checkPriceChanges` | dono e admins | nao (tem e-mail proprio) |
+| `task_assigned` | Tarefa passada para alguem (`tasks.controller.ts`); quem fez a acao nunca e avisado | so o responsavel (`targetUids`) | ligado |
+| `task_mentioned` | Alguem citado com @ numa tarefa; so quem foi citado AGORA, e nao o responsavel ja avisado | so os citados | ligado |
+| `task_reminder` | Cron `checkDueDates` (2d), tarefa com prazo hoje, id `task_{id}_{dia}` | o responsavel, ou quem criou | nao |
 
 ### Metodos publicos
 

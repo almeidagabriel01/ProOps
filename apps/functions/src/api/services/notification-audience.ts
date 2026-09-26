@@ -41,19 +41,28 @@ function normalizeRole(value: unknown): string {
   return String(value || "").trim().toUpperCase();
 }
 
-/** Pura: decide os destinatários de um tipo entre as pessoas da empresa. */
+/**
+ * Pura: decide os destinatários de um tipo entre as pessoas da empresa.
+ *
+ * Tipo `direct` (tarefa atribuída, menção) vai só para `targetUids`, e só para
+ * quem é de fato da empresa: um uid qualquer na lista não vira destinatário.
+ */
 export function resolveRecipients(
   members: AudienceMember[],
   type: NotificationType,
+  targetUids?: string[],
 ): NotificationRecipients {
   const { audience } = NOTIFICATION_CATALOG[type];
   const recipientUids: string[] = [];
   const emailRecipients: Array<{ uid: string; email: string }> = [];
+  const targets = new Set(targetUids ?? []);
 
   for (const member of members) {
     const canSee =
-      member.isAdmin ||
-      (audience !== "admins" && member.permissions[audience]?.canView === true);
+      audience === "direct"
+        ? targets.has(member.uid)
+        : member.isAdmin ||
+          (audience !== "admins" && member.permissions[audience]?.canView === true);
     if (!canSee) continue;
 
     const channel = resolveChannelPreference(member.preferences, type);
@@ -128,8 +137,9 @@ export function invalidateTenantAudience(tenantId: string): void {
 export async function resolveTenantRecipients(
   tenantId: string,
   type: NotificationType,
+  targetUids?: string[],
 ): Promise<NotificationRecipients> {
-  return resolveRecipients(await loadTenantAudience(tenantId), type);
+  return resolveRecipients(await loadTenantAudience(tenantId), type, targetUids);
 }
 
 /** Só para teste. */

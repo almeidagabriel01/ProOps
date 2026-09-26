@@ -90,3 +90,28 @@ describe("preferências", () => {
     });
   });
 });
+
+describe("avisos diretos (tarefa atribuída, menção)", () => {
+  it("vão só para quem foi citado, sem olhar o módulo", () => {
+    expect(resolveRecipients(equipe, "task_assigned", ["vendedor"]).recipientUids).toEqual(["vendedor"]);
+  });
+
+  it("o dono não recebe a menção de outra pessoa", () => {
+    expect(resolveRecipients(equipe, "task_mentioned", ["financeiro"]).recipientUids).toEqual([
+      "financeiro",
+    ]);
+  });
+
+  it("uid que não é da empresa não vira destinatário", () => {
+    expect(resolveRecipients(equipe, "task_assigned", ["intruso"]).recipientUids).toEqual([]);
+  });
+
+  it("sem lista de destinatários, ninguém", () => {
+    expect(resolveRecipients(equipe, "task_assigned").recipientUids).toEqual([]);
+  });
+
+  it("atribuição sai por e-mail por padrão; o lembrete diário não", () => {
+    expect(resolveRecipients(equipe, "task_assigned", ["vendedor"]).emailRecipients).toHaveLength(1);
+    expect(resolveRecipients(equipe, "task_reminder", ["vendedor"]).emailRecipients).toEqual([]);
+  });
+});

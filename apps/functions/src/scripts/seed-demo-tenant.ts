@@ -275,6 +275,7 @@ export interface SeedDemoTenantResult {
   activities: number;
   projects: number;
   notifications: number;
+  tasks: number;
 }
 
 export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
@@ -750,7 +751,6 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
   const DEMO_ACTIVITIES = [
     { id: "demo_activity_diego_1", leadId: "demo_lead_diego", type: "ligacao", title: "Primeiro contato: quer automatizar iluminação e cortinas da sala", offset: -2, done: true },
     { id: "demo_activity_studio_1", leadId: "demo_lead_studio", type: "reuniao", title: "Reunião com a arquiteta sobre o projeto da cobertura", offset: -3, done: true },
-    { id: "demo_activity_studio_2", leadId: "demo_lead_studio", type: "tarefa", title: "Montar proposta com cinema e climatização", offset: 3, done: false },
   ] as const;
 
   DEMO_ACTIVITIES.forEach((a) => {
@@ -774,8 +774,8 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
   const DEMO_NOTIFICATIONS = [
     { id: "demo_notif_aceite", type: "proposal_accepted", title: "Cliente aceitou a proposta", message: "Bruno Carvalho aceitou \"Segurança e Controle de Acesso\" pelo link. Confirme para gerar o financeiro.", proposalId: "demo_prop_2", offset: 0, read: false },
     { id: "demo_notif_pago", type: "transaction_paid_online", title: "Pagamento recebido", message: "Pagamento via PIX confirmado para \"Automação residencial: entrada do projeto\".", transactionId: "demo_txn_01", offset: -1, read: false },
-    { id: "demo_notif_vista", type: "proposal_viewed", title: "Proposta visualizada", message: "Carla Menezes abriu \"Som Ambiente Multizona\".", proposalId: "demo_prop_3", offset: -1, read: false },
-    { id: "demo_notif_entrega", type: "project_delivery_accepted", title: "Entrega aceita pelo cliente", message: "Ana Paula Ribeiro aceitou a entrega da obra \"Automação Residencial Completa\".", projectId: "proposal_demo_prop_1", offset: -3, read: true },
+    { id: "demo_notif_vista", type: "proposal_viewed", title: "Proposta visualizada", message: "Condomínio Jardins abriu \"Som Ambiente Multizona\".", proposalId: "demo_prop_3", offset: -1, read: false },
+    { id: "demo_notif_entrega", type: "project_delivery_accepted", title: "Entrega aceita pelo cliente", message: "Ana Ribeiro aceitou a entrega da obra \"Automação Residencial Completa\".", projectId: "proposal_demo_prop_1", offset: -3, read: true },
   ] as const;
 
   DEMO_NOTIFICATIONS.forEach((n) => {
@@ -791,6 +791,45 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
       readBy: [],
       isRead: n.read,
       createdAt: isoAt(n.offset),
+    });
+  });
+
+  // --- Tarefas ------------------------------------------------------------
+  // Lidas pela conta free direto do tenant "demo" (isDemoRead), então sem
+  // `audienceUids`. Uma para hoje ligada à proposta aprovada, uma ligada ao
+  // lead (o "a fazer" do CRM virou tarefa) e uma concluída.
+  const DEMO_TASKS = [
+    { id: "demo_task_instalacao", title: "Confirmar a data da instalação com Ana Ribeiro", dueOffset: 0, done: false, clientId: DEMO_CLIENTS[0].id, clientName: DEMO_CLIENTS[0].name, proposalId: "demo_prop_1", proposalTitle: "Automação Residencial Completa" },
+    { id: "demo_task_studio", title: "Montar proposta com cinema e climatização", dueOffset: 3, done: false, leadId: "demo_lead_studio", leadName: "Studio Arq Lima" },
+    { id: "demo_task_fotos", title: "Enviar ao cliente as fotos da infraestrutura", dueOffset: -2, done: true, clientId: DEMO_CLIENTS[0].id, clientName: DEMO_CLIENTS[0].name },
+  ] as const;
+
+  // A atividade "tarefa" do lead virou a tarefa acima; num tenant já semeado
+  // ela continuaria aparecendo duplicada no histórico do lead.
+  batch.delete(db.collection("activities").doc("demo_activity_studio_2"));
+
+  DEMO_TASKS.forEach((t) => {
+    batch.set(db.collection("tasks").doc(t.id), {
+      ...tenantTag,
+      title: t.title,
+      notes: null,
+      dueAt: ymd(t.dueOffset),
+      assigneeId: null,
+      assigneeName: "Equipe Demo",
+      mentionUids: [],
+      audienceUids: [],
+      clientId: "clientId" in t ? t.clientId : null,
+      clientName: "clientName" in t ? t.clientName : null,
+      proposalId: "proposalId" in t ? t.proposalId : null,
+      proposalTitle: "proposalTitle" in t ? t.proposalTitle : null,
+      leadId: "leadId" in t ? t.leadId : null,
+      leadName: "leadName" in t ? t.leadName : null,
+      doneAt: t.done ? isoAt(t.dueOffset) : null,
+      doneBy: null,
+      createdBy: null,
+      createdByName: "Equipe Demo",
+      createdAt: isoAt(Math.min(t.dueOffset, 0) - 1),
+      updatedAt: isoAt(Math.min(t.dueOffset, 0) - 1),
     });
   });
   // ------------------------------------------------------------------------
@@ -812,6 +851,7 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     activities: DEMO_ACTIVITIES.length,
     projects: DEMO_PROJECTS.length,
     notifications: DEMO_NOTIFICATIONS.length,
+    tasks: DEMO_TASKS.length,
   };
   logger.info("seedDemoTenant complete", { ...result });
   return result;

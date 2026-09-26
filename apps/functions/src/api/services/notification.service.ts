@@ -39,6 +39,7 @@ export interface Notification {
   leadId?: string;
   clientId?: string;
   projectId?: string;
+  taskId?: string;
   /** Quem vê esta notificação. As rules leem este campo. */
   recipientUids?: string[];
   /** Quem já leu. A leitura é por pessoa desde a central de notificações. */
@@ -61,6 +62,9 @@ export interface CreateNotificationData {
   leadId?: string;
   clientId?: string;
   projectId?: string;
+  taskId?: string;
+  /** Obrigatório nos tipos diretos (tarefa atribuída, menção): quem é avisado. */
+  targetUids?: string[];
 }
 
 /**
@@ -119,11 +123,16 @@ export class NotificationService {
   static async recipientFields(
     tenantId: string,
     type: NotificationType,
+    targetUids?: string[],
   ): Promise<{ fields: { recipientUids: string[]; readBy: string[] }; emailRecipients: EmailRecipient[] }> {
     if (tenantId === SYSTEM_TENANT_ID) {
       return { fields: { recipientUids: [], readBy: [] }, emailRecipients: [] };
     }
-    const { recipientUids, emailRecipients } = await resolveTenantRecipients(tenantId, type);
+    const { recipientUids, emailRecipients } = await resolveTenantRecipients(
+      tenantId,
+      type,
+      targetUids,
+    );
     return { fields: { recipientUids, readBy: [] }, emailRecipients };
   }
 
@@ -134,7 +143,9 @@ export class NotificationService {
    */
   static async sendNotificationEmails(
     notification: Pick<Notification, "tenantId" | "type" | "title" | "message"> &
-      Partial<Pick<Notification, "proposalId" | "transactionId" | "leadId" | "clientId" | "projectId">>,
+      Partial<
+        Pick<Notification, "proposalId" | "transactionId" | "leadId" | "clientId" | "projectId" | "taskId">
+      >,
     recipients: EmailRecipient[],
   ): Promise<void> {
     if (recipients.length === 0 || !NOTIFICATION_CATALOG[notification.type]?.emailable) return;
@@ -178,9 +189,14 @@ export class NotificationService {
     data: CreateNotificationData,
   ): Promise<Notification> {
     try {
-      const { fields, emailRecipients } = await this.recipientFields(data.tenantId, data.type);
+      const { targetUids, ...rest } = data;
+      const { fields, emailRecipients } = await this.recipientFields(
+        data.tenantId,
+        data.type,
+        targetUids,
+      );
       const notification: Omit<Notification, "id"> = {
-        ...data,
+        ...rest,
         ...fields,
         isRead: false,
         createdAt: new Date().toISOString(),
