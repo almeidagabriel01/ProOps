@@ -222,7 +222,9 @@ export function ContactHub({ client, dataTab }: ContactHubProps) {
           {(showFinance || showInvoices) && (
             <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           )}
-          {canViewTasks && <TabsTrigger value="tarefas">Tarefas</TabsTrigger>}
+          {/* "Próximas ações", e não "Tarefas": a tarefa é de alguém da equipe
+              e o contato é só o assunto. O valor segue "tarefas" pelo ?aba=. */}
+          {canViewTasks && <TabsTrigger value="tarefas">Próximas ações</TabsTrigger>}
           <TabsTrigger value="anotacoes">Anotações</TabsTrigger>
           <TabsTrigger value="dados">Dados</TabsTrigger>
         </TabsList>

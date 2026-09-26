@@ -271,7 +271,7 @@ export function LeadDetailSheet({
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">Atividades</h3>
             <p className="text-xs text-muted-foreground">
-              O histórico do lead, visto pela equipe. O que fazer, com responsável, vai em Tarefas.
+              O histórico do lead, visto pela equipe. O que fazer, com responsável, vai em Próximas ações.
             </p>
 
             {canEdit && (

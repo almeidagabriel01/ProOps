@@ -140,6 +140,14 @@ describe("ContactHub", () => {
     expect(m.listInvoices).toHaveBeenCalledWith({ clientId: "c1" });
   });
 
+  it("as tarefas sobre o contato ficam em \"Próximas ações\", não em \"Tarefas\"", async () => {
+    allow("proposals", "transactions", "invoices", "clients", "tasks");
+    render(<ContactHub client={CLIENT} dataTab={<div>formulário</div>} />);
+    expect(screen.queryByRole("tab", { name: "Tarefas" })).toBeNull();
+    await userEvent.click(screen.getByRole("tab", { name: "Próximas ações" }));
+    expect(screen.getByTestId("tasks-panel")).toBeInTheDocument();
+  });
+
   it("?aba=dados abre direto no formulário", () => {
     m.aba = "dados";
     render(<ContactHub client={CLIENT} dataTab={<div>formulário</div>} />);

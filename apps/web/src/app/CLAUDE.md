@@ -52,7 +52,9 @@ todas (`useTaskReader`). Coleção própria `tasks`, e não as atividades do CRM
 porque o histórico do lead é da equipe e as rules não liberariam uma lista que
 misturasse os dois; por isso o tipo "Tarefa" saiu da criação de atividade, e o
 lead ganhou o painel de tarefas. Aparecem também na ficha do contato (aba
-Tarefas), na proposta ("Nova tarefa") e no Dashboard ("Minhas tarefas de hoje").
+"Próximas ações", e não "Tarefas": a tarefa é de alguém da equipe e o contato
+é só o assunto; o mesmo título no painel do lead), na proposta ("Nova tarefa")
+e no Dashboard ("Minhas tarefas de hoje").
 A menção vale pelo que continua escrito (`mentionedUids`): apagar "@Nome"
 desfaz. A leitura é sem `orderBy`, então não precisa de índice composto.
 

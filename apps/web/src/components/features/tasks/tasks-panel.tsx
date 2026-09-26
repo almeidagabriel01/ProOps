@@ -13,13 +13,14 @@ import { TaskRow } from "./task-row";
 
 interface TasksPanelProps {
   context: TaskContext;
-  /** Esconde o título quando a aba em volta já diz "Tarefas". */
+  /** Esconde o título quando a aba em volta já diz "Próximas ações". */
   hideHeading?: boolean;
 }
 
 /**
  * As tarefas de um contato, proposta ou lead, com o "Nova tarefa" já ligado a
- * ele. Some para quem não abre a tela de Tarefas.
+ * ele. Some para quem não abre a tela de Tarefas. O título é "Próximas ações"
+ * porque a tarefa é de alguém da equipe; o contato ou lead é só o assunto.
  */
 export function TasksPanel({ context, hideHeading }: TasksPanelProps) {
   const { canView, canCreate, canEdit, canDelete } = usePagePermission("tasks");
@@ -36,7 +37,7 @@ export function TasksPanel({ context, hideHeading }: TasksPanelProps) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        {!hideHeading && <h3 className="text-sm font-semibold">Tarefas</h3>}
+        {!hideHeading && <h3 className="text-sm font-semibold">Próximas ações</h3>}
         {canCreate && (
           <Button
             size="sm"
@@ -55,7 +56,7 @@ export function TasksPanel({ context, hideHeading }: TasksPanelProps) {
       ) : tasks.length === 0 ? (
         <div className="flex items-center gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
           <ListTodo className="h-4 w-4 shrink-0" />
-          Nenhuma tarefa ainda.
+          Nenhuma próxima ação ainda.
         </div>
       ) : (
         <ul className="divide-y rounded-lg border">
