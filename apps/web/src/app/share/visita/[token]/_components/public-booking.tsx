@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Loader } from "@/components/ui/loader";
 import { Textarea } from "@/components/ui/textarea";
 import { getCaptchaToken, isCaptchaConfigured, mountCaptcha } from "@/lib/captcha";
@@ -299,12 +300,10 @@ export function PublicBooking({ token }: PublicBookingProps) {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="booking-phone">Telefone (WhatsApp)</Label>
-                      <Input
+                      <PhoneInput
                         id="booking-phone"
-                        type="tel"
                         inputMode="tel"
                         autoComplete="tel"
-                        maxLength={30}
                         value={form.phone}
                         onChange={(e) => setForm({ ...form, phone: e.target.value })}
                       />

@@ -279,6 +279,7 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
                       })
                     }
                     disableSort
+                    className="w-28"
                   >
                     {DURATIONS.map((d) => (
                       <option key={d} value={d}>

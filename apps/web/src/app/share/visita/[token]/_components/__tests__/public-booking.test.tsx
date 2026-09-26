@@ -76,7 +76,7 @@ describe("link público de agendamento", () => {
         date: "2026-09-28",
         startMin: 600,
         name: "Carla",
-        phone: "11988887777",
+        phone: "(11) 98888-7777",
         email: undefined,
         address: undefined,
         notes: undefined,
@@ -86,6 +86,17 @@ describe("link público de agendamento", () => {
     );
     expect(await screen.findByText("Pedido enviado")).toBeInTheDocument();
     expect(screen.getByText(/vai confirmar o horário com você por telefone/)).toBeInTheDocument();
+  });
+
+  it("o telefone ganha a máscara enquanto a pessoa digita", async () => {
+    render(<PublicBooking token="tok12345" />);
+    await userEvent.click(await screen.findByRole("button", { name: "10:00" }));
+    const phone = screen.getByLabelText("Telefone (WhatsApp)");
+    await userEvent.type(phone, "1133334444");
+    expect(phone).toHaveValue("(11) 3333-4444");
+    await userEvent.clear(phone);
+    await userEvent.type(phone, "11988887777999");
+    expect(phone).toHaveValue("(11) 98888-7777");
   });
 
   it("trocar de dia mostra os horários daquele dia", async () => {
