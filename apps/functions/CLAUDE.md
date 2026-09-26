@@ -1095,8 +1095,8 @@ padrão quem criou, editável no formulário) e **`approvedAt`** (ISO UTC). O
 `approvedAt` é gravado na transição para aprovada e apagado na saída
 (`approvalTimestampUpdate`, em `api/services/sales-goals.ts`), na MESMA
 escrita do status: por isso `updateProposal` decide a aprovação antes de
-gravar. A Lia (`updateProposalStatus`) grava a data também, e cria proposta com
-quem pediu como vendedor. O vendedor é conferido contra a empresa
+gravar. A Lia passa pelo mesmo `updateProposal` (abaixo), e cria proposta com quem
+pediu como vendedor. O vendedor é conferido contra a empresa
 (`resolveSeller`); um vendedor pedido e inválido recusa com 400. Os três campos
 estão em `PDF_IRRELEVANT_PROPOSAL_FIELDS`: não aparecem no PDF.
 
@@ -1104,9 +1104,14 @@ Propostas aprovadas antes do campo: `npx tsx src/scripts/backfill-proposal-appro
 (dry-run; `--apply` grava), que usa o `updatedAt` como data da aprovação. O
 vendedor delas fica vazio de propósito: contam só na meta da empresa.
 
-**Achado de passagem, não corrigido:** `updateProposalStatus` (Lia) grava o
-status direto e NÃO passa pelo `updateProposal`, então aprovar pela Lia não
-gera os lançamentos, não cria o projeto nem entrega no Drive.
+**A Lia muda status pelo mesmo `updateProposal` da tela**
+(`changeProposalStatusAsUser`, em `api/controllers/proposal-status-internal.ts`,
+que monta uma request interna com a identidade de quem pediu). Até 2026-09-26
+ela gravava o status direto no Firestore, e aprovar pela Lia não gerava os
+lançamentos, não criava o projeto, não entregava no Drive e não gravava a data
+da aprovação. As regras de transição dela (rascunho -> enviada -> aprovada ou
+recusada) seguem em `validateProposalStatusChange`. **Não volte a gravar status
+fora do `updateProposal`**: toda consequência da aprovação mora nele.
 
 ### Comissão de vendedor e arquiteto
 

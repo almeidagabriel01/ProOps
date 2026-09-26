@@ -312,12 +312,18 @@ const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
   sent: ["approved", "rejected"],
 };
 
-export async function updateProposalStatus(
+/**
+ * Confere se a Lia pode levar a proposta a este status. Só valida: quem grava é
+ * `changeProposalStatusAsUser` (controllers/proposal-status-internal.ts), pelo
+ * mesmo `updateProposal` da tela. Gravar direto aqui pulava o financeiro, o
+ * projeto da obra, a entrega no Drive e a data da aprovação.
+ */
+export async function validateProposalStatusChange(
   proposalId: string,
   newStatus: string,
   tenantId: string,
   reason?: string,
-): Promise<{ id: string; oldStatus: string; newStatus: string }> {
+): Promise<{ oldStatus: string }> {
   const snap = await db.collection("proposals").doc(proposalId).get();
 
   if (!snap.exists) {
@@ -343,19 +349,15 @@ export async function updateProposalStatus(
     throw new Error("Motivo é obrigatório para rejeitar uma proposta.");
   }
 
-  const safeUpdate: Record<string, unknown> = {
-    status: newStatus,
-    updatedAt: Timestamp.now(),
-  };
-  // Metas de vendas: a venda conta no mês da aprovação, venha ela da tela ou
-  // da Lia. As transições daqui só entram em aprovada, nunca saem dela.
-  if (newStatus === "approved") safeUpdate.approvedAt = new Date().toISOString();
+  return { oldStatus };
+}
 
-  if (reason) safeUpdate.rejectionReason = sanitizeText(reason);
-
-  await db.collection("proposals").doc(proposalId).update(safeUpdate);
-
-  return { id: proposalId, oldStatus, newStatus };
+/** O motivo da recusa não passa pelo `updateProposal` (fora da allowlist). */
+export async function saveRejectionReason(proposalId: string, reason: string): Promise<void> {
+  await db
+    .collection("proposals")
+    .doc(proposalId)
+    .update({ rejectionReason: sanitizeText(reason), updatedAt: Timestamp.now() });
 }
 
 export async function deleteProposal(
