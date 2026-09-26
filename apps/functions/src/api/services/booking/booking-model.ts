@@ -16,8 +16,6 @@ export const BOOKING_SETTINGS_COLLECTION = "booking_settings";
 export const BOOKING_REQUESTS_COLLECTION = "booking_requests";
 export const BOOKING_LOCKS_COLLECTION = "booking_locks";
 
-/** Passo entre os horários oferecidos. */
-export const SLOT_STEP_MIN = 30;
 const BRAZIL_OFFSET_MIN = 180;
 const DAY_MS = 86_400_000;
 
@@ -200,10 +198,15 @@ export function computeAvailableSlots(params: {
     const date = addDaysToDate(today, offset);
     if (!open.has(weekdayOf(date))) continue;
     const starts: number[] = [];
+    // O passo é a própria duração: visita de 1h é oferecida de hora em hora a
+    // partir do início do expediente (08:00, 09:00, ...). Com passo fixo de
+    // 30 min a visita de 1h aparecia também às 08:30, 09:30, e a agenda da
+    // equipe virava uma colcha de meias horas. O horário ocupado sai da grade,
+    // sem deslocar os outros.
     for (
       let start = settings.startMin;
       start + durationMin <= settings.endMin;
-      start += SLOT_STEP_MIN
+      start += durationMin
     ) {
       const startMs = brazilToUtcMs(date, start);
       if (startMs < earliestMs) continue;

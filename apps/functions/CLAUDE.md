@@ -1100,7 +1100,7 @@ empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
   sincroniza; recusar apaga o evento e libera o horário.
 - **Horário livre** = expediente (dias, início e fim, antecedência mínima,
   horizonte) menos os compromissos da Agenda (`computeAvailableSlots`, puro, em
-  passos de 30 min, sempre em horário de Brasília). Antes de calcular, o link
+  passos do tamanho da visita: a de 1h vai de hora em hora; sempre em horário de Brasília). Antes de calcular, o link
   puxa as mudanças do Google Agenda (`syncGoogleEventsToLocalCalendar`, com o
   limite de frequência dela), então compromisso marcado só no Google também
   ocupa. A consulta é por `startMs` e olha um dia antes: evento que começou

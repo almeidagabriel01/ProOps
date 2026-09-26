@@ -29,7 +29,7 @@ describe("horário de Brasília", () => {
 });
 
 describe("horários livres", () => {
-  it("só dias abertos do expediente, em passos de 30 minutos, com a visita inteira dentro", () => {
+  it("só dias abertos do expediente, com a visita inteira dentro", () => {
     const slots = computeAvailableSlots({ settings: base, durationMin: 60, busy: [], nowMs: NOW });
     expect(slots.map((d) => d.date)).toEqual([
       "2026-09-25",
@@ -38,8 +38,26 @@ describe("horários livres", () => {
       "2026-09-30",
       "2026-10-01",
     ]);
-    // 09:00 a 12:00, visita de 1h: a última começa às 11:00.
-    expect(slots[0].starts).toEqual([540, 570, 600, 630, 660]);
+    // 09:00 a 12:00, visita de 1h: de hora em hora, a última às 11:00.
+    expect(slots[0].starts).toEqual([540, 600, 660]);
+  });
+
+  it("o passo entre os horários é a duração da visita", () => {
+    const at = (durationMin: number) =>
+      computeAvailableSlots({ settings: base, durationMin, busy: [], nowMs: NOW })[0].starts;
+    // Visita de 1h não aparece às 09:30 nem às 10:30.
+    expect(at(60)).not.toContain(570);
+    expect(at(30)).toEqual([540, 570, 600, 630, 660, 690]);
+    expect(at(90)).toEqual([540, 630]);
+    // Visita de 2h: a das 11:00 passaria do fim do expediente (12:00).
+    expect(at(120)).toEqual([540]);
+  });
+
+  it("compromisso fora da grade derruba só o horário que ele toca, sem deslocar os outros", () => {
+    const busy = [{ startMs: brazilToUtcMs("2026-09-25", 570), endMs: brazilToUtcMs("2026-09-25", 600) }];
+    const slots = computeAvailableSlots({ settings: base, durationMin: 60, busy, nowMs: NOW });
+    // Compromisso das 09:30 às 10:00: cai o das 09:00; os outros seguem na hora cheia.
+    expect(slots[0].starts).toEqual([600, 660]);
   });
 
   it("respeita a antecedência mínima", () => {
@@ -56,7 +74,7 @@ describe("horários livres", () => {
   it("não oferece horário que encosta num compromisso da Agenda", () => {
     const busy = [{ startMs: brazilToUtcMs("2026-09-25", 600), endMs: brazilToUtcMs("2026-09-25", 660) }];
     const slots = computeAvailableSlots({ settings: base, durationMin: 60, busy, nowMs: NOW });
-    // Compromisso das 10:00 às 11:00: caem 09:30, 10:00 e 10:30.
+    // Compromisso das 10:00 às 11:00: cai o das 10:00.
     expect(slots[0].starts).toEqual([540, 660]);
   });
 
