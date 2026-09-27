@@ -100,7 +100,8 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   { declaration: TOOL_DEFINITIONS.update_crm_status,     capability: "crm",       minRole: "member", module: "crm" , permission: { pageId: "kanban", action: "canEdit" } },
 
   // ─── WhatsApp (Enterprise) ────────────────────────────────────────────────
-  { declaration: TOOL_DEFINITIONS.send_whatsapp_message, capability: "whatsapp",  minRole: "admin", module: "whatsapp" , permission: null },
+  // send_whatsapp_message volta ao registro quando o envio pela Lia existir:
+  // hoje o handler sempre falha, e oferecer a ferramenta so gera promessa vazia.
 ];
 
 /**

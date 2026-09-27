@@ -207,6 +207,9 @@ test.describe("AI-05: Inactive module causes Lia to refuse", () => {
 
     // When whatsappEnabled=false, buildAvailableTools() filters out send_whatsapp_message.
     // Gemini never receives the tool declaration, so it cannot call it.
+    // While the Lia cannot actually send WhatsApp, the tool is out of TOOL_REGISTRY
+    // entirely, so this only proves it is never called; module gating is exercised
+    // again once the tool returns to the registry.
     // The response will be a natural language message indicating the action is unavailable.
     expect(whatsappToolCalled).toBe(false);
 

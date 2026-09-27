@@ -39,7 +39,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   request_confirmation: {
     name: "request_confirmation",
     description:
-      "OBRIGATÓRIO antes de qualquer ação financeira (create_transaction, transfer_between_wallets, pay_installment), ação destrutiva (DELETE) ou edição em massa (>10 registros). Envia um pedido de confirmação para o usuário via frontend. Só prossiga com a ação após receber confirmed=true no próximo turno. NUNCA execute operações financeiras ou delete sem chamar esta tool primeiro.",
+      "Pede ao usuário, na tela, que confirme uma ação antes de ela ser executada. Chame antes de create_transaction, transfer_between_wallets, pay_installment, de qualquer exclusão e de edições em mais de 10 registros: sem confirmação, essas ferramentas devolvem erro. Depois de chamar, encerre a resposta e aguarde; se o usuário confirmar, o pedido original volta autorizado e a ação pode ser executada.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -125,7 +125,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   create_proposal: {
     name: "create_proposal",
     description:
-      "Cria uma nova proposta comercial. IMPORTANTE: Verifique o limite de propostas na seção \"Limites e uso atual\" ANTES de chamar esta tool. Se o limite foi atingido, informe o usuário sem chamar a tool.",
+      "Cria uma nova proposta comercial. Antes, confira o limite de propostas do plano em get_tenant_summary; se ele foi atingido, informe o usuário sem chamar esta tool.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -246,7 +246,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   delete_proposal: {
     name: "delete_proposal",
     description:
-      "Deleta uma proposta permanentemente. OBRIGATÓRIO: Chame request_confirmation ANTES desta tool. Só execute se confirmed=true foi recebido no turno atual.",
+      "Deleta uma proposta permanentemente. Exige confirmação do usuário: chame request_confirmation antes; sem ela, esta ferramenta devolve erro.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -315,7 +315,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   create_contact: {
     name: "create_contact",
     description:
-      "Cria um novo cliente/contato. IMPORTANTE: Verifique o limite de clientes antes de chamar.",
+      "Cria um novo cliente/contato. Antes, confira o limite de contatos do plano em get_tenant_summary.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -398,7 +398,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   delete_contact: {
     name: "delete_contact",
     description:
-      "Deleta um contato/cliente permanentemente. OBRIGATÓRIO: Chame request_confirmation ANTES desta tool. Só execute se confirmed=true foi recebido no turno atual.",
+      "Deleta um contato/cliente permanentemente. Exige confirmação do usuário: chame request_confirmation antes; sem ela, esta ferramenta devolve erro.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -523,7 +523,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   delete_product: {
     name: "delete_product",
     description:
-      "Deleta um produto do catálogo permanentemente. OBRIGATÓRIO: Chame request_confirmation ANTES desta tool. Só execute se confirmed=true foi recebido no turno atual.",
+      "Deleta um produto do catálogo permanentemente. Exige confirmação do usuário: chame request_confirmation antes; sem ela, esta ferramenta devolve erro.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -578,7 +578,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   create_transaction: {
     name: "create_transaction",
     description:
-      "Cria uma transação financeira de entrada (receita) ou saída (despesa).",
+      "Cria um lançamento financeiro de entrada (receita) ou saída (despesa), numa carteira existente (walletId vem de list_wallets). Exige confirmação do usuário: chame request_confirmation antes; sem ela, esta ferramenta devolve erro.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -666,7 +666,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
 
   transfer_between_wallets: {
     name: "transfer_between_wallets",
-    description: "Transfere valor entre duas carteiras do tenant.",
+    description: "Transfere um valor de uma carteira para outra da mesma empresa. Exige confirmação do usuário: chame request_confirmation antes; sem ela, esta ferramenta devolve erro.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -694,7 +694,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   delete_transaction: {
     name: "delete_transaction",
     description:
-      "Deleta uma transação financeira permanentemente. OBRIGATÓRIO: Chame request_confirmation ANTES desta tool. Só execute se confirmed=true foi recebido no turno atual.",
+      "Deleta uma transação financeira permanentemente. Exige confirmação do usuário: chame request_confirmation antes; sem ela, esta ferramenta devolve erro.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -711,7 +711,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
 
   pay_installment: {
     name: "pay_installment",
-    description: "Marca uma parcela específica de uma transação como paga.",
+    description: "Marca como paga uma parcela específica de um lançamento parcelado, o que movimenta o saldo da carteira. Exige confirmação do usuário: chame request_confirmation antes; sem ela, esta ferramenta devolve erro.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -755,7 +755,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   update_crm_status: {
     name: "update_crm_status",
     description:
-      "Move uma proposta para outra coluna do pipeline CRM/Kanban.",
+      "Move uma proposta no funil do CRM mudando o status dela, pelas mesmas transições de update_proposal_status (draft→sent, sent→approved, sent→rejected). Aprovar cria os lançamentos financeiros da proposta.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -765,7 +765,9 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
         },
         newStatusId: {
           type: SchemaType.STRING,
-          description: "ID da coluna de destino no kanban",
+          format: "enum",
+          enum: ["sent", "approved", "rejected"],
+          description: "Novo status da proposta",
         },
       },
       required: ["proposalId", "newStatusId"],

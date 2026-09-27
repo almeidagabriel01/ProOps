@@ -44,3 +44,22 @@ describe("buildSystemPrompt — escaping dos campos do tenant (prompt injection 
     expect(userLine).toBe("- Nome: XYz");
   });
 });
+
+describe("buildSystemPrompt — o que muda por mensagem fica no fim", () => {
+  it("o trecho antes de '# Contexto desta conversa' nao muda com uso, usuario ou pagina", () => {
+    const stablePart = (prompt: string) =>
+      prompt.slice(0, prompt.indexOf("# Contexto desta conversa"));
+
+    const a = buildSystemPrompt(baseCtx);
+    const b = buildSystemPrompt({
+      ...baseCtx,
+      userName: "Maria",
+      userRole: "MEMBER",
+      currentPath: "/transactions",
+      aiUsage: { messagesUsed: 42, messagesLimit: 100 },
+    });
+
+    expect(a.indexOf("# Contexto desta conversa")).toBeGreaterThan(0);
+    expect(stablePart(b)).toBe(stablePart(a));
+  });
+});
