@@ -812,15 +812,70 @@ export function isSameImportedCalendarEvent(
 }
 
 /**
+ * Id do documento de um evento importado do Google, derivado do evento.
+ *
+ * A tela da agenda busca dois períodos ao mesmo tempo (o mês e os próximos
+ * compromissos), e cada busca roda a sincronização. As duas viam o evento como
+ * novo e cada uma criava um documento com id aleatório: o mesmo compromisso
+ * aparecia duas vezes. Com o id derivado, as duas gravam no MESMO documento.
+ */
+export function importedCalendarEventDocId(params: {
+  tenantId: string;
+  calendarId: string;
+  externalEventId: string;
+}): string {
+  const digest = crypto
+    .createHash("sha256")
+    .update(`${params.tenantId}|${params.calendarId}|${params.externalEventId}`)
+    .digest("hex")
+    .slice(0, 40);
+  return `gcal_${digest}`;
+}
+
+type LinkedCalendarEvent = { id: string; data: CalendarEventDocument };
+
+/**
+ * Qual das cópias de um mesmo evento do Google fica: a de id derivado, depois
+ * a que tem vínculo com outra tela (obra, agendamento) ou nasceu na ProOps,
+ * depois a mais antiga.
+ */
+function pickCalendarEventToKeep(
+  copies: LinkedCalendarEvent[],
+  deterministicId: string,
+): LinkedCalendarEvent {
+  const rank = (copy: LinkedCalendarEvent) => {
+    if (copy.id === deterministicId) return 0;
+    const links = pickEventLinks(copy.data);
+    if (links.projectId || links.bookingRequestId) return 1;
+    if (copy.data.googleSync?.origin !== "imported") return 2;
+    return 3;
+  };
+  return [...copies].sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      String(a.data.createdAt || "").localeCompare(String(b.data.createdAt || "")) ||
+      a.id.localeCompare(b.id),
+  )[0];
+}
+
+/**
  * Eventos locais já ligados aos eventos que o Google devolveu, buscados pelos
  * ids externos (`in`, em lotes de 30). Antes lia TODOS os eventos do tenant a
  * cada sincronização, e o custo crescia com o histórico da agenda.
+ *
+ * Devolve também as cópias a mais do mesmo evento (a duplicação acima), para a
+ * sincronização apagá-las. Só entra cópia importada e sem vínculo: uma que
+ * nasceu na ProOps ou está ligada a uma obra não é apagada por aqui.
  */
 async function listGoogleLinkedCalendarEventsByExternalId(params: {
   tenantId: string;
+  calendarId: string;
   externalEventIds: string[];
-}): Promise<Map<string, { id: string; data: CalendarEventDocument }>> {
-  const eventsByExternalId = new Map<string, { id: string; data: CalendarEventDocument }>();
+}): Promise<{
+  eventsByExternalId: Map<string, LinkedCalendarEvent>;
+  duplicateIds: string[];
+}> {
+  const copiesByExternalId = new Map<string, LinkedCalendarEvent[]>();
   const ids = Array.from(new Set(params.externalEventIds.filter(Boolean)));
   const chunks: string[][] = [];
   for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
@@ -846,13 +901,39 @@ async function listGoogleLinkedCalendarEventsByExternalId(params: {
       return;
     }
 
-    eventsByExternalId.set(externalEventId, {
-      id: doc.id,
-      data,
+    const copies = copiesByExternalId.get(externalEventId) || [];
+    if (!copies.some((copy) => copy.id === doc.id)) {
+      copies.push({ id: doc.id, data });
+    }
+    copiesByExternalId.set(externalEventId, copies);
+  });
+
+  const eventsByExternalId = new Map<string, LinkedCalendarEvent>();
+  const duplicateIds: string[] = [];
+  copiesByExternalId.forEach((copies, externalEventId) => {
+    const keep = pickCalendarEventToKeep(
+      copies,
+      importedCalendarEventDocId({
+        tenantId: params.tenantId,
+        calendarId: params.calendarId,
+        externalEventId,
+      }),
+    );
+    eventsByExternalId.set(externalEventId, keep);
+    copies.forEach((copy) => {
+      const links = pickEventLinks(copy.data);
+      if (
+        copy.id !== keep.id &&
+        copy.data.googleSync?.origin === "imported" &&
+        !links.projectId &&
+        !links.bookingRequestId
+      ) {
+        duplicateIds.push(copy.id);
+      }
     });
   });
 
-  return eventsByExternalId;
+  return { eventsByExternalId, duplicateIds };
 }
 
 export async function syncGoogleEventsToLocalCalendar(params: {
@@ -921,10 +1002,12 @@ export async function syncGoogleEventsToLocalCalendar(params: {
       return;
     }
 
-    const localEventsByExternalId = await listGoogleLinkedCalendarEventsByExternalId({
-      tenantId: params.tenantId,
-      externalEventIds: googleEvents.map((event) => String(event.id || "").trim()),
-    });
+    const { eventsByExternalId: localEventsByExternalId, duplicateIds } =
+      await listGoogleLinkedCalendarEventsByExternalId({
+        tenantId: params.tenantId,
+        calendarId: integration.calendarId,
+        externalEventIds: googleEvents.map((event) => String(event.id || "").trim()),
+      });
 
     const writes: Array<{
       ref: FirebaseFirestore.DocumentReference;
@@ -964,9 +1047,16 @@ export async function syncGoogleEventsToLocalCalendar(params: {
         return;
       }
 
-      const docRef = existing
-        ? db.collection(CALENDAR_EVENTS_COLLECTION).doc(existing.id)
-        : db.collection(CALENDAR_EVENTS_COLLECTION).doc();
+      const docRef = db
+        .collection(CALENDAR_EVENTS_COLLECTION)
+        .doc(
+          existing?.id ||
+            importedCalendarEventDocId({
+              tenantId: params.tenantId,
+              calendarId: integration.calendarId,
+              externalEventId,
+            }),
+        );
 
       writes.push({ ref: docRef, data: nextDocument });
     });
@@ -976,6 +1066,14 @@ export async function syncGoogleEventsToLocalCalendar(params: {
       const batch = db.batch();
       writes.slice(i, i + 400).forEach(({ ref, data }) => {
         batch.set(ref, data, { merge: false });
+      });
+      await batch.commit();
+    }
+
+    for (let i = 0; i < duplicateIds.length; i += 400) {
+      const batch = db.batch();
+      duplicateIds.slice(i, i + 400).forEach((id) => {
+        batch.delete(db.collection(CALENDAR_EVENTS_COLLECTION).doc(id));
       });
       await batch.commit();
     }

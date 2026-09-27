@@ -124,6 +124,16 @@ O callback OAuth (`/v1/calendar/google/callback`) é público pois o Google redi
 
 **Inbound (Google → local):** ao listar eventos (`GET /v1/calendar/events`), `syncGoogleEventsToLocalCalendar()` é executado se a última sincronização foi há mais de 15 segundos (`GOOGLE_INBOUND_SYNC_MIN_INTERVAL_MS`). Busca eventos do Google no mesmo range de datas e upserta localmente.
 
+Evento importado nasce com id **derivado** do evento
+(`importedCalendarEventDocId`: `gcal_` + sha256 de tenant, agenda e id do
+Google). A tela busca o mês e os próximos compromissos ao mesmo tempo, as duas
+buscas sincronizam, e com id aleatório cada uma criava o seu documento: o
+mesmo compromisso aparecia duas vezes (visto em produção em 2026-09-27). A
+sincronização também apaga as cópias que já existiam, mantendo a de id
+derivado, depois a ligada a obra ou agendamento, depois a que nasceu na
+ProOps, depois a mais antiga; só apaga cópia importada e sem vínculo. Guard:
+`calendar.controller.inbound-sync.test.ts`.
+
 **Resolução de integração (`getGoogleIntegration()`):**
 1. Tenta buscar diretamente por `calendar_integrations/{tenantId}` (formato novo)
 2. Se não encontrar, faz query por `tenantId + provider + enabled` (formato legado)
