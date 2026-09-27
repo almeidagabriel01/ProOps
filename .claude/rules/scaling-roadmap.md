@@ -313,9 +313,10 @@ true`) em **todos** os 7 handlers destrutivos. LangGraph puxa `@langchain/core`
 para dentro do bundle e desfaz o `await import()` que existe justamente para
 manter `@google/genai` e `groq-sdk` fora do cold start.
 
-**Antes de qualquer discussão sobre LangGraph:** extrair as ~120 linhas do loop
-de tool-calling duplicadas no branch de fallback Groq de `ai/chat.route.ts`.
-É `extract function`, e é o que realmente incomoda naquele arquivo.
+O laço de tool-calling é um só, `ai/tool-loop.ts` (`runToolLoop`), usado pelo
+provedor principal e pelo fallback do Groq. Antes eram duas cópias em
+`ai/chat.route.ts`, e a do fallback perdeu o `confirmationToken`; o guard é
+`ai/chat.route.fallback.test.ts`.
 
 ---
 

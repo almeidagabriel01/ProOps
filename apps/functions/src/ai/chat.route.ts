@@ -14,7 +14,8 @@ import { buildSystemPrompt } from "./context-builder";
 import { buildAvailableTools } from "./tools/index";
 import { loadPagePermissions } from "../lib/auth-helpers";
 import { executeToolCall, type ToolCallContext } from "./tools/executor";
-import type { ToolFeedback } from "./providers/index";
+import type { AiChatSession } from "./providers/index";
+import { runToolLoop } from "./tool-loop";
 import { validateConfirmationToken } from "./security/confirmation-token";
 import { classifyProviderError } from "./provider-error";
 import { startAiTrace, type AiTraceStatus } from "./trace";
@@ -292,10 +293,26 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
       res.write(data);
     };
 
-    /**
-     * Core tool-calling loop using the provider abstraction.
-     * Handles multi-round tool execution up to MAX_TOOL_ROUNDS.
-     */
+    // Mesmo laço para o provedor principal e para o fallback do Groq: a cópia
+    // que existia no fallback divergiu e perdeu o confirmationToken.
+    const runSessionLoop = async (session: AiChatSession): Promise<void> => {
+      const { confirmationPending } = await runToolLoop({
+        session,
+        message,
+        tenantId: user.tenantId,
+        runTool,
+        write: (chunk) => writeSSE(`data: ${JSON.stringify(chunk)}\n\n`),
+        onText: (content) => {
+          fullResponseText += content;
+        },
+        onTotalTokens: (tokens) => {
+          totalTokens = tokens;
+        },
+      });
+      if (confirmationPending) skipIncrement = true;
+    };
+
+    /** Provider selection + the shared tool-calling loop. */
     const runProviderLoop = async (
       providerGeminiKey?: string,
       providerGroqKey?: string,
@@ -315,80 +332,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
         modelName: modelSelection.modelName,
       });
 
-      const MAX_TOOL_ROUNDS = 5;
-      const MAX_TOOL_CALLS_PER_ROUND = 10;
-      let toolRound = 0;
-      let currentInput: string | ToolFeedback[] = message;
-
-      while (toolRound < MAX_TOOL_ROUNDS) {
-        let pendingToolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
-
-        for await (const event of session.streamTurn(currentInput)) {
-          if (event.type === "text") {
-            fullResponseText += event.content;
-            const sseChunk: AiChatChunk = { type: "text", content: event.content };
-            writeSSE(`data: ${JSON.stringify(sseChunk)}\n\n`);
-          } else if (event.type === "thinking") {
-            const thinkingChunk: AiChatChunk = { type: "thinking" };
-            writeSSE(`data: ${JSON.stringify(thinkingChunk)}\n\n`);
-          } else if (event.type === "tool_calls") {
-            pendingToolCalls = event.calls;
-          } else if (event.type === "done") {
-            totalTokens = event.totalTokens;
-          }
-        }
-
-        // Safety cap: prevent runaway tool execution per round
-        if (pendingToolCalls.length > MAX_TOOL_CALLS_PER_ROUND) {
-          logger.warn(`AI tool calls per round capped (${pendingToolCalls.length} → ${MAX_TOOL_CALLS_PER_ROUND})`, {
-            tenantId: user.tenantId,
-          });
-          pendingToolCalls = pendingToolCalls.slice(0, MAX_TOOL_CALLS_PER_ROUND);
-        }
-
-        if (pendingToolCalls.length === 0) break;
-
-        const toolFeedbacks: ToolFeedback[] = [];
-        let exitLoop = false;
-
-        for (const tc of pendingToolCalls) {
-          const toolCallChunk: AiChatChunk = {
-            type: "tool_call",
-            toolCall: { name: tc.name, args: tc.args },
-          };
-          writeSSE(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
-
-          const result = await runTool(tc.name, tc.args);
-
-          const toolResultChunk: AiChatChunk = {
-            type: "tool_result",
-            toolResult: {
-              name: tc.name,
-              result: result.data,
-              requiresConfirmation: result.requiresConfirmation,
-              confirmationToken: result.confirmationToken,
-              confirmationData: result.confirmationData,
-            },
-          };
-          writeSSE(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
-
-          if (result.requiresConfirmation) {
-            skipIncrement = true;
-            exitLoop = true;
-            break;
-          }
-
-          const rawData = result.success ? (result.data ?? { status: "ok" }) : { error: result.error ?? "unknown error" };
-          // Gemini's function_response.response uses google.protobuf.Struct which only accepts JSON objects, not arrays
-          const responseObj: object = Array.isArray(rawData) ? { items: rawData } : (rawData as object);
-
-          toolFeedbacks.push({ name: tc.name, response: responseObj });
-        }
-
-        if (exitLoop) break;
-        currentInput = toolFeedbacks;
-        toolRound++;
-      }
+      await runSessionLoop(session);
     };
 
     // 10. Run the provider loop
@@ -422,70 +366,7 @@ router.post("/chat", async (req: Request, res: Response): Promise<void> => {
           modelName: modelSelection.modelName,
         });
 
-        const MAX_TOOL_ROUNDS = 5;
-        let toolRound = 0;
-        let currentInput: string | ToolFeedback[] = message;
-
-        while (toolRound < MAX_TOOL_ROUNDS) {
-          let pendingToolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
-
-          for await (const event of session.streamTurn(currentInput)) {
-            if (event.type === "text") {
-              fullResponseText += event.content;
-              const sseChunk: AiChatChunk = { type: "text", content: event.content };
-              writeSSE(`data: ${JSON.stringify(sseChunk)}\n\n`);
-            } else if (event.type === "thinking") {
-              const thinkingChunk: AiChatChunk = { type: "thinking" };
-              writeSSE(`data: ${JSON.stringify(thinkingChunk)}\n\n`);
-            } else if (event.type === "tool_calls") {
-              pendingToolCalls = event.calls;
-            } else if (event.type === "done") {
-              totalTokens = event.totalTokens;
-            }
-          }
-
-          if (pendingToolCalls.length === 0) break;
-
-          const toolFeedbacks: ToolFeedback[] = [];
-          let exitLoop = false;
-
-          for (const tc of pendingToolCalls) {
-            const toolCallChunk: AiChatChunk = {
-              type: "tool_call",
-              toolCall: { name: tc.name, args: tc.args },
-            };
-            writeSSE(`data: ${JSON.stringify(toolCallChunk)}\n\n`);
-
-            const result = await runTool(tc.name, tc.args);
-
-            const toolResultChunk: AiChatChunk = {
-              type: "tool_result",
-              toolResult: {
-                name: tc.name,
-                result: result.data,
-                requiresConfirmation: result.requiresConfirmation,
-                confirmationData: result.confirmationData,
-              },
-            };
-            writeSSE(`data: ${JSON.stringify(toolResultChunk)}\n\n`);
-
-            if (result.requiresConfirmation) {
-              skipIncrement = true;
-              exitLoop = true;
-              break;
-            }
-
-            const rawData = result.success ? (result.data ?? { status: "ok" }) : { error: result.error ?? "unknown error" };
-            // Gemini's function_response.response uses google.protobuf.Struct which only accepts JSON objects, not arrays
-            const responseObj: object = Array.isArray(rawData) ? { items: rawData } : (rawData as object);
-
-            toolFeedbacks.push({ name: tc.name, response: responseObj });
-          }
-
-          if (exitLoop) break;
-          currentInput = toolFeedbacks;
-          toolRound++;
-        }
+        await runSessionLoop(session);
       } else {
         throw primaryError;
       }

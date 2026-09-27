@@ -46,7 +46,7 @@ export function buildSystemPrompt(ctx: SystemPromptContext): string {
       : "";
 
   const contextualHint = ctx.currentPath
-    ? `\n# Página atual do usuário\nO usuário está na rota: ${ctx.currentPath}\nAdapte suas sugestões iniciais ao contexto desta página.`
+    ? `\n# Página atual do usuário\nO usuário está na rota: ${escapePromptField(ctx.currentPath)}\nAdapte suas sugestões iniciais ao contexto desta página.`
     : "";
 
   return `# Identidade
