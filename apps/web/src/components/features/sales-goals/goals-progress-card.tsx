@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { Target } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePermissions } from "@/providers/permissions-provider";
 import { formatMonthLabel } from "@/lib/month-key";
@@ -132,7 +131,9 @@ export function GoalsProgressCard({ month }: GoalsProgressCardProps) {
   }, [hasSalesGoals, isDemo, month]);
 
   if (planLoading || !hasSalesGoals) return null;
-  if (loading) return <Skeleton className="h-40 w-full rounded-xl" />;
+  // Sem "carregando": sem meta no mês o card some, e um bloco que aparece e
+  // some empurra o que vem abaixo (deslocamento de layout).
+  if (loading) return null;
 
   const title = `Metas de ${formatMonthLabel(month).toLocaleLowerCase("pt-BR")}`;
 

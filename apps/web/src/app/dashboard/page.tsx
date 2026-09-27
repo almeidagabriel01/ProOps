@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import {
   Card,
   CardContent,
@@ -45,6 +47,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatMonthLabel } from "@/lib/month-key";
 
 import { useTenant } from "@/providers/tenant-provider";
+import { usePermissions } from "@/providers/permissions-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { FirstStepsCard } from "@/components/onboarding/first-steps-card";
 import { MyTasksCard } from "@/components/features/tasks/my-tasks-card";
@@ -74,6 +78,24 @@ export default function DashboardPage() {
     loading,
     isLoading,
   } = useDashboardData();
+  const { isLoading: planLoading } = usePlanLimits();
+  const { isLoading: permissionsLoading } = usePermissions();
+  const [tasksLoading, setTasksLoading] = React.useState(true);
+  const [waitedEnough, setWaitedEnough] = React.useState(false);
+
+  // A parte de cima (saldo, alertas, ações rápidas, tarefas e gráficos) aparece
+  // de uma vez, como antes dos blocos independentes: cada um que chegava
+  // sozinho mudava de tamanho ou sumia (o "carregando" dos alertas e das
+  // tarefas some quando não há nada) e empurrava os vizinhos, e o CLS do
+  // Dashboard passou de 0,1 no CI. A página fica montada e escondida por baixo
+  // do esqueleto, para as tarefas já carregarem; o que fica abaixo da dobra
+  // continua chegando por bloco. Os 6s são a saída se algo nunca responder.
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setWaitedEnough(true), 6000);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const topReady =
+    waitedEnough || (!loading.finance && !planLoading && !permissionsLoading && !tasksLoading);
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -89,7 +111,12 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+    <>
+    {!topReady && <DashboardSkeleton />}
+    <div
+      hidden={!topReady}
+      className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10"
+    >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
@@ -148,7 +175,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Some quando não há tarefa atrasada nem para hoje. */}
-        <MyTasksCard />
+        <MyTasksCard onLoadingChange={setTasksLoading} />
       </div>
 
       {/* Charts (Fluxo de Caixa & Balanço Futuro) */}
@@ -258,5 +285,6 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

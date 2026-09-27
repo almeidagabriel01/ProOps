@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { ListTodo } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { useTasks } from "@/hooks/use-tasks";
 import { isMyTask, sortOpenTasks, taskBucket, todayInBrazil } from "@/lib/tasks/tasks";
@@ -14,18 +13,32 @@ import { TaskRow } from "./task-row";
 
 const MAX_ROWS = 5;
 
+interface MyTasksCardProps {
+  /**
+   * O Dashboard espera as tarefas antes de mostrar a parte de cima, para o
+   * card não aparecer (ou um "carregando" sumir) empurrando os gráficos.
+   */
+  onLoadingChange?: (loading: boolean) => void;
+}
+
 /**
  * "Minhas tarefas" no Dashboard: as atrasadas e as de hoje de quem está
  * olhando. Não aparece sem nada para fazer, nem para quem não abre Tarefas.
+ * Sem "carregando" próprio: um bloco que some quando não há tarefa é
+ * deslocamento de layout na certa.
  */
-export function MyTasksCard() {
+export function MyTasksCard({ onLoadingChange }: MyTasksCardProps = {}) {
   const { canView, canEdit, canDelete } = usePagePermission("tasks");
   const { reader, isDemo, tasks, loading, people, upsert, removeLocal, toggleDone } = useTasks();
   const [selected, setSelected] = React.useState<Task | null>(null);
   const today = React.useMemo(() => todayInBrazil(), []);
+  const pending = !canView ? false : !reader ? true : loading;
 
-  if (!canView || !reader) return null;
-  if (loading) return <Skeleton className="h-32 w-full rounded-xl" />;
+  React.useEffect(() => {
+    onLoadingChange?.(pending);
+  }, [onLoadingChange, pending]);
+
+  if (!canView || !reader || loading) return null;
 
   const due = sortOpenTasks(
     tasks.filter((t) => {
