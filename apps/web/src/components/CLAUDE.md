@@ -89,6 +89,15 @@ ou se algum `<Loader>` tentar se dimensionar por classe.
 Exclusão com "Desfazer" é `runUndoableAction` (`lib/undoable-action.ts`): a
 tela já mostra o resultado e a gravação só acontece depois da janela do toast.
 
+O toast é do sileo, que desenha o toast inteiro como `<button>` com a ação num
+`<a>` lá dentro: para o leitor de tela o "Desfazer" não existia. O
+`ToastProvider` corrige a semântica de cada toast que entra
+(`lib/toast-a11y.ts`: grupo fora da tabulação, desenho em SVG oculto, ação como
+botão que responde ao Espaço). A correção é de atributos, e não um patch na
+biblioteca, porque o sileo fica no `node_modules` da raiz e o `patch-package`
+do web não o alcança. Guards: `lib/__tests__/toast-a11y.test.ts` e o E2E do
+Desfazer em `proposals/proposal-crud.spec.ts`, que acha o botão pelo papel.
+
 ## Data
 
 O seletor de data do projeto é o `DatePicker` (`ui/date-picker.tsx`), **nunca**

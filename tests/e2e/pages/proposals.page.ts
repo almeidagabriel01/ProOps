@@ -280,12 +280,10 @@ export class ProposalsPage {
       .first()
       .waitFor({ state: "hidden", timeout: 10000 });
 
-    // The sileo toast is itself a <button> with the action button nested inside,
-    // and a button's content is presentational in the accessibility tree:
-    // getByRole("button", { name: "Desfazer" }) never matches it.
-    await this.page
-      .locator("[data-sileo-button]", { hasText: /^desfazer$/i })
-      .click();
+    // By role on purpose: the sileo toast is a <button> with the action nested
+    // inside, invisible to assistive tech until lib/toast-a11y.ts fixes the
+    // semantics. This lookup fails if that fix stops being applied.
+    await this.page.getByRole("button", { name: /^desfazer$/i }).click();
   }
 
   /**
