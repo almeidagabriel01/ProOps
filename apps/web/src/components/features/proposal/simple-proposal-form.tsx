@@ -21,6 +21,7 @@ import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { useTenant } from "@/providers/tenant-provider";
+import { getNicheConfig } from "@/lib/niches/config";
 import { useBeforeUnloadWarning } from "@/hooks/use-before-unload-warning";
 import { hasUnsavedProposalWork } from "@/hooks/proposal/unsaved-proposal";
 import { FormContainer } from "@/components/ui/form-components";
@@ -230,6 +231,11 @@ export function SimpleProposalForm({
   // add/remove controls disabled via FormStepCard's fieldset). Distinct from the
   // `isReadOnly` PROP, which renders a fully static view without the stepper.
   const { isReadOnly: isDemo, tenant } = useTenant();
+  const groupsStepCopy = React.useMemo(
+    () => getNicheConfig(tenant?.niche).proposal.groupsStep,
+    [tenant?.niche],
+  );
+  const titlePlaceholder = getNicheConfig(tenant?.niche).proposal.titlePlaceholder;
   const { hasSalesGoals } = usePlanLimits();
   const { user } = useAuth();
   // A comissão do vendedor da equipe acompanha o responsável pela venda.
@@ -502,11 +508,9 @@ export function SimpleProposalForm({
     // Check if there are products in formData
     if (!currentFormData.products || currentFormData.products.length === 0) {
       const field = groupedByEnvironment ? "sistemas" : "products";
-      const message = isAutomacaoNiche
-        ? "Selecione pelo menos 1 sistema de automação com produtos"
-        : isEnvironmentProposal
-          ? "Selecione pelo menos 1 ambiente com produtos"
-          : "Selecione pelo menos 1 produto";
+      const message = groupedByEnvironment
+        ? groupsStepCopy.emptySelectionError
+        : "Selecione pelo menos 1 produto";
       setFieldError(field, message);
       toast.error(message);
       return false;
@@ -570,6 +574,7 @@ export function SimpleProposalForm({
 
     return true;
   }, [
+    groupsStepCopy,
     isAutomacaoNiche,
     isEnvironmentProposal,
     setFieldError,
@@ -581,7 +586,7 @@ export function SimpleProposalForm({
     const currentFormData = formDataRef.current;
 
     if (!currentFormData.products || currentFormData.products.length === 0) {
-      const message = "Selecione pelo menos 1 ambiente com produtos";
+      const message = groupsStepCopy.emptySelectionError;
       setFieldError("sistemas", message);
       toast.error(message);
       return false;
@@ -618,7 +623,7 @@ export function SimpleProposalForm({
 
     clearFieldError("sistemas");
     return true;
-  }, [clearFieldError, selectedSistemas, setFieldError]);
+  }, [clearFieldError, groupsStepCopy, selectedSistemas, setFieldError]);
 
   // Validação do Step 3 (Payment)
   const validateStep3 = React.useCallback((): boolean => {
@@ -1047,11 +1052,21 @@ export function SimpleProposalForm({
     router.push("/proposals");
   };
 
-  const steps = isAutomacaoNiche
-    ? stepsAutomation
-    : isEnvironmentProposal
-      ? stepsEnvironment
-      : stepsDefault;
+  const steps = (
+    isAutomacaoNiche
+      ? stepsAutomation
+      : isEnvironmentProposal
+        ? stepsEnvironment
+        : stepsDefault
+  ).map((step) =>
+    step.id === "systems" || step.id === "environments"
+      ? {
+          ...step,
+          title: groupsStepCopy.stepTitle,
+          description: groupsStepCopy.stepDescription,
+        }
+      : step,
+  );
 
   // Map step validators for StepWizard
   // MUST be before any conditional returns to maintain hook order
@@ -1143,6 +1158,7 @@ export function SimpleProposalForm({
               newClientDocument={newClientDocument}
               onNewClientDocumentChange={setNewClientDocument}
               isExistingProposal={!!proposalId}
+              titlePlaceholder={titlePlaceholder}
               onPracaChange={(proposalPraca) =>
                 setFormData((prev) => ({ ...prev, proposalPraca }))
               }
@@ -1173,15 +1189,17 @@ export function SimpleProposalForm({
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold">
-                      Soluções de Automação
+                      {groupsStepCopy.heading}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Adicione as soluções da proposta
+                      {groupsStepCopy.subheading}
                     </p>
                   </div>
                 </div>
 
                 <ProposalSystemsSection
+                  heading={groupsStepCopy.heading}
+                  description={groupsStepCopy.cardDescription}
                   selectedSistemas={selectedSistemas}
                   selectedProducts={selectedProducts}
                   products={products}
@@ -1217,9 +1235,11 @@ export function SimpleProposalForm({
                     <Layers className="w-6 h-6 text-amber-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">Ambientes</h3>
+                    <h3 className="text-lg font-semibold">
+                      {groupsStepCopy.heading}
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      Selecione os ambientes desejados na proposta
+                      {groupsStepCopy.subheading}
                     </p>
                   </div>
                 </div>

@@ -255,6 +255,25 @@ describe("passos por plano e papel", () => {
     expect(ids).not.toContain("commissions");
   });
 
+  it("o nicho troca a descrição de um passo sem mexer nos outros", () => {
+    const build = (stepDescriptions?: Partial<Record<string, string>>) =>
+      buildOnboardingSteps({
+        visibleMenuItems: visibleMenu(MASTER),
+        settingsRoutes: SETTINGS_ROUTES,
+        capabilities: PLAN.pro,
+        viewer: MASTER,
+        stepDescriptions,
+      });
+    const base = build();
+    const custom = build({ solutions: "Kits prontos de câmeras e alarme." });
+    expect(custom.find((step) => step.id === "solutions")?.description).toBe(
+      "Kits prontos de câmeras e alarme.",
+    );
+    expect(custom.find((step) => step.id === "products")?.description).toBe(
+      base.find((step) => step.id === "products")?.description,
+    );
+  });
+
   it("nicho cortinas troca Soluções por Ambientes", () => {
     const ids = stepIds("pro", MASTER, "cortinas");
     expect(ids).toContain("ambientes");

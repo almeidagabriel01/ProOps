@@ -83,6 +83,19 @@ export interface PdfDefinition {
   groupSubtotalOptionLabel: string;
 }
 
+/**
+ * Textos do passo em que a proposta ganha os grupos (soluções ou ambientes).
+ */
+export interface ProposalGroupsStepCopy {
+  stepTitle: string;
+  stepDescription: string;
+  heading: string;
+  subheading: string;
+  /** Descrição do card de grupos no fluxo por sistema. */
+  cardDescription: string;
+  emptySelectionError: string;
+}
+
 export interface NicheConfig {
   id: TenantNiche;
   label: string;
@@ -98,9 +111,20 @@ export interface NicheConfig {
     lineFormat: ProposalLineFormat;
     /** Preço da linha editável dentro da proposta. */
     allowLinePriceEditing: boolean;
+    titlePlaceholder: string;
+    groupsStep: ProposalGroupsStepCopy;
   };
   pdf: PdfDefinition;
   productCatalog: ProductCatalogDefinition;
+  /**
+   * Descrição de passo do tutorial trocada pelo nicho, por id de passo
+   * (`onboarding-steps.ts`). Sem entrada, vale o texto do template.
+   */
+  onboardingStepDescriptions: Partial<Record<string, string>>;
+  /** Cor do nicho no gráfico de distribuição do painel do superadmin. */
+  analyticsColor: string;
+  /** Complemento de "empresas de ..." no dado estruturado da landing. */
+  seoAudience: string;
   /**
    * Tipo de visita com que o link de agendamento nasce. Espelho de
    * `defaultVisitTypes` do backend (booking-model.ts), com teste de paridade;
@@ -152,6 +176,8 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
   automacao_residencial: {
     id: "automacao_residencial",
     label: "Automação Residencial",
+    analyticsColor: "#6366f1",
+    seoAudience: "automação residencial",
     pageAvailability: {
       solutions: true,
       ambientes: false,
@@ -175,6 +201,15 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       workflow: "automation",
       lineFormat: "multiplier",
       allowLinePriceEditing: false,
+      titlePlaceholder: "Ex: Automação Residencial - Casa Silva",
+      groupsStep: {
+        stepTitle: "Soluções",
+        stepDescription: "Automação",
+        heading: "Soluções de Automação",
+        subheading: "Adicione as soluções da proposta",
+        cardDescription: "Adicione uma ou mais soluções de automação à proposta",
+        emptySelectionError: "Selecione pelo menos 1 sistema de automação com produtos",
+      },
     },
     pdf: {
       singleEnvironmentLayout: false,
@@ -196,6 +231,7 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
       inventory: unitInventoryDefinition,
     },
+    onboardingStepDescriptions: {},
     booking: {
       defaultVisitType: { id: "visita_tecnica", label: "Visita técnica", durationMin: 60 },
     },
@@ -203,6 +239,8 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
   cortinas: {
     id: "cortinas",
     label: "Cortinas",
+    analyticsColor: "#f59e0b",
+    seoAudience: "cortinas e persianas",
     pageAvailability: {
       solutions: false,
       ambientes: true,
@@ -227,6 +265,15 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       workflow: "environment",
       lineFormat: "labeled",
       allowLinePriceEditing: true,
+      titlePlaceholder: "Ex: Automação Residencial - Casa Silva",
+      groupsStep: {
+        stepTitle: "Ambientes",
+        stepDescription: "Selecionar ambientes",
+        heading: "Ambientes",
+        subheading: "Selecione os ambientes desejados na proposta",
+        cardDescription: "Adicione um ou mais ambientes à proposta",
+        emptySelectionError: "Selecione pelo menos 1 ambiente com produtos",
+      },
     },
     pdf: {
       singleEnvironmentLayout: true,
@@ -248,6 +295,7 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
       inventory: meterInventoryDefinition,
     },
+    onboardingStepDescriptions: {},
     booking: {
       defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
     },

@@ -44,6 +44,8 @@ interface ProposalClientSectionProps {
    * na criacao e nao muda depois.
    */
   isExistingProposal?: boolean;
+  /** Exemplo de título, que muda por nicho. */
+  titlePlaceholder?: string;
   onFormChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
@@ -82,6 +84,7 @@ export function ProposalClientSection({
   onDefaultValidUntil,
   addressSibling,
   isExistingProposal = false,
+  titlePlaceholder = "Ex: Automação Residencial - Casa Silva",
   onFormChange,
   onClientChange,
 }: ProposalClientSectionProps) {
@@ -220,7 +223,7 @@ export function ProposalClientSection({
             name="title"
             value={formData.title}
             onChange={onFormChange}
-            placeholder="Ex: Automação Residencial - Casa Silva"
+            placeholder={titlePlaceholder}
             icon={<FileText className="w-4 h-4" />}
             required
             className={errors.title ? "border-destructive" : ""}

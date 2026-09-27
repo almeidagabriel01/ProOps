@@ -509,6 +509,11 @@ export interface BuildOnboardingStepsParams {
   settingsRoutes: string[];
   capabilities: OnboardingCapabilityMap;
   viewer: OnboardingViewer;
+  /**
+   * Descrição do passo trocada pelo nicho (`onboardingStepDescriptions` da
+   * config), por id de passo. Sem entrada, vale a do template.
+   */
+  stepDescriptions?: Partial<Record<string, string>>;
 }
 
 function isTemplateAvailable(
@@ -531,13 +536,14 @@ function toStep(
   template: OnboardingStepTemplate,
   fallbackTitle: string,
   capabilities: OnboardingCapabilityMap,
+  description: string,
 ): OnboardingStep {
   return {
     id: template.id,
     route: template.route,
     chapter: template.chapter,
     title: template.title ?? fallbackTitle,
-    description: template.description,
+    description,
     checklist: template.checklist
       .filter(
         (item) =>
@@ -553,6 +559,7 @@ export function buildOnboardingSteps({
   settingsRoutes,
   capabilities,
   viewer,
+  stepDescriptions = {},
 }: BuildOnboardingStepsParams): OnboardingStep[] {
   const steps: OnboardingStep[] = [];
   const seen = new Set<string>();
@@ -561,7 +568,14 @@ export function buildOnboardingSteps({
     if (!template || seen.has(template.id)) return;
     if (!isTemplateAvailable(template, capabilities, viewer)) return;
     seen.add(template.id);
-    steps.push(toStep(template, label, capabilities));
+    steps.push(
+      toStep(
+        template,
+        label,
+        capabilities,
+        stepDescriptions[template.id] ?? template.description,
+      ),
+    );
   };
 
   for (const leaf of flattenMenuItems(visibleMenuItems)) {

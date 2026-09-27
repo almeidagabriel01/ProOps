@@ -57,6 +57,9 @@ import {
 } from "@/lib/proposal-hide-zero-qty-storage";
 
 interface ProposalSystemsSectionProps {
+  /** Título e descrição do card, que mudam por nicho. */
+  heading: string;
+  description: string;
   selectedSistemas: ProposalSistema[];
   selectedProducts: ProposalProduct[];
   products: Array<Product | Service>;
@@ -112,6 +115,8 @@ interface ProposalSystemsSectionProps {
 }
 
 export function ProposalSystemsSection({
+  heading,
+  description,
   selectedSistemas,
   selectedProducts,
   products,
@@ -281,9 +286,7 @@ export function ProposalSystemsSection({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-2">
             <Cpu className="w-5 h-5 shrink-0" />
-            <CardTitle className="text-lg sm:text-2xl">
-              Soluções de Automação
-            </CardTitle>
+            <CardTitle className="text-lg sm:text-2xl">{heading}</CardTitle>
           </div>
           {visibleProducts.length > 0 && (
             <ProposalFinancialSummarySmall
@@ -293,9 +296,7 @@ export function ProposalSystemsSection({
           )}
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <CardDescription>
-            Adicione uma ou mais soluções de automação à proposta
-          </CardDescription>
+          <CardDescription>{description}</CardDescription>
           <Button
             variant="ghost"
             size="sm"

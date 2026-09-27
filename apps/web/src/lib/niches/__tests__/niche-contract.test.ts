@@ -6,6 +6,7 @@ import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
 import { NICHE_CONFIGS, NICHE_PAGE_KEYS, getNicheConfig } from "@/lib/niches/config";
 import { TENANT_NICHES } from "@/lib/niches/niche-ids";
 import { NICHE_LABELS } from "@/types";
+import { NICHOS_PRONTOS, SEGMENTOS } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 /**
  * O contrato de um nicho: tudo que precisa existir para ele funcionar de ponta
@@ -54,5 +55,17 @@ describe.each([...TENANT_NICHES])("contrato do nicho %s", (niche) => {
     if (defaultProductMode !== "standard") {
       expect(dimensionModes).toContain(defaultProductMode);
     }
+  });
+});
+
+describe("site da empresa lista os nichos prontos", () => {
+  // O site só pode prometer o que o produto tem: um nicho ligado aqui entra lá,
+  // e um nicho que saiu daqui sai de lá.
+  it("NICHOS_PRONTOS tem um item por nicho", () => {
+    expect(NICHOS_PRONTOS).toHaveLength(TENANT_NICHES.length);
+  });
+
+  it("os segmentos marcados como prontos são os nichos", () => {
+    expect(SEGMENTOS.filter((segmento) => segmento.pronto)).toHaveLength(TENANT_NICHES.length);
   });
 });

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { AdminService, TenantBillingInfo } from "@/services/admin-service";
 import { useAuth } from "@/providers/auth-provider";
 import { StripeService } from "@/services/stripe-service";
+import { NICHE_LABELS } from "@/types";
+import { isTenantNiche } from "@/lib/niches/niche-ids";
 
 export interface AnalyticsKPIs {
   // Business revenue metrics
@@ -114,11 +116,6 @@ const STATUS_LABELS: Record<string, string> = {
   canceled: "Cancelado",
   free: "Gratuito",
   inactive: "Inativo",
-};
-
-const NICHE_LABELS: Record<string, string> = {
-  automacao_residencial: "Automação Residencial",
-  cortinas: "Cortinas",
 };
 
 function getMonthKey(dateStr: string): string {
@@ -459,7 +456,7 @@ function computeNicheDistribution(tenants: TenantBillingInfo[]): NicheDistributi
 
   return Object.entries(map).map(([name, count]) => ({
     name,
-    label: NICHE_LABELS[name] ?? name,
+    label: isTenantNiche(name) ? NICHE_LABELS[name] : name,
     count,
   }));
 }
