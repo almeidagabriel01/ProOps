@@ -102,35 +102,37 @@ test.describe("Auth Registration", () => {
   });
 
   // REG-09: vindo da landing de um nicho, a empresa nasce nesse nicho
-  test("REG-09: /register?nicho=cortinas creates the tenant in that niche", async ({ page }) => {
-    const registerPage = new RegisterPage(page);
-    const timestamp = Date.now();
-    const testEmail = `reg-nicho-${timestamp}@gmail.com`;
-    const testPassword = "TestReg1234!";
+  for (const niche of ["cortinas", "seguranca_eletronica"] as const) {
+    test(`REG-09: /register?nicho=${niche} creates the tenant in that niche`, async ({ page }) => {
+      const registerPage = new RegisterPage(page);
+      const timestamp = Date.now();
+      const testEmail = `reg-${niche}-${timestamp}@gmail.com`;
+      const testPassword = "TestReg1234!";
 
-    await registerPage.goto("?nicho=cortinas");
-    await registerPage.isLoaded();
-    await registerPage.fillStep1({
-      name: `Teste Nicho ${timestamp}`,
-      email: testEmail,
-      password: testPassword,
-      phone: "11987654321",
+      await registerPage.goto(`?nicho=${niche}`);
+      await registerPage.isLoaded();
+      await registerPage.fillStep1({
+        name: `Teste Nicho ${timestamp}`,
+        email: testEmail,
+        password: testPassword,
+        phone: "11987654321",
+      });
+      await expect(page.locator("#niche")).toHaveValue(niche);
+      await registerPage.fillStep2({ companyName: `Empresa Nicho ${timestamp}` });
+      await registerPage.submitStep3();
+      await registerPage.waitForHomeRedirect();
+
+      const { localId: uid } = await signInWithEmailPassword(testEmail, testPassword);
+      const db = getTestDb();
+      let tenantDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+      for (let i = 0; i < 10; i++) {
+        tenantDoc = await db.collection("tenants").doc(`tenant_${uid}`).get();
+        if (tenantDoc.exists) break;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      expect(tenantDoc?.data()?.["niche"]).toBe(niche);
     });
-    await expect(page.locator("#niche")).toHaveValue("cortinas");
-    await registerPage.fillStep2({ companyName: `Empresa Nicho ${timestamp}` });
-    await registerPage.submitStep3();
-    await registerPage.waitForHomeRedirect();
-
-    const { localId: uid } = await signInWithEmailPassword(testEmail, testPassword);
-    const db = getTestDb();
-    let tenantDoc: FirebaseFirestore.DocumentSnapshot | null = null;
-    for (let i = 0; i < 10; i++) {
-      tenantDoc = await db.collection("tenants").doc(`tenant_${uid}`).get();
-      if (tenantDoc.exists) break;
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
-    expect(tenantDoc?.data()?.["niche"]).toBe("cortinas");
-  });
+  }
 
   // REG-03: Dashboard access
   test("REG-03: new tenant lands on '/dashboard' after registration (free-tier demo home)", async ({
