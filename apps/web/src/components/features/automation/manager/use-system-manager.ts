@@ -6,6 +6,8 @@ import { AmbienteService } from "@/services/ambiente-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { useWindowFocus } from "@/hooks/use-window-focus";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, pick } from "@/lib/niches/vocabulary";
 
 interface UseSystemManagerProps {
   isOpen: boolean;
@@ -23,6 +25,7 @@ export function useSystemManager({
   onDataChange,
 }: UseSystemManagerProps) {
   const { tenant } = useTenant();
+  const v = useNicheVocabulary();
 
   // Data State
   const [sistemas, setSistemas] = useState<Sistema[]>([]);
@@ -182,10 +185,12 @@ export function useSystemManager({
         await loadData();
       }
 
-      toast.success("Ambiente vinculado!");
+      toast.success(
+        `${cap(v.place.singular)} ${pick(v.place, "vinculado", "vinculada")}!`,
+      );
       onDataChange?.();
     } catch {
-      toast.error("Erro ao vincular ambiente");
+      toast.error(`Erro ao vincular ${v.place.singular}`);
     }
   };
 
@@ -225,10 +230,12 @@ export function useSystemManager({
       }
 
       setEnvironmentToDelete(null);
-      toast.success("Ambiente desvinculado!");
+      toast.success(
+        `${cap(v.place.singular)} ${pick(v.place, "desvinculado", "desvinculada")}!`,
+      );
       onDataChange?.();
     } catch {
-      toast.error("Erro ao desvincular ambiente");
+      toast.error(`Erro ao desvincular ${v.place.singular}`);
     }
   };
 

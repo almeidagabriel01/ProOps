@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { PageUnavailableState } from "@/components/shared/page-unavailable-state";
 import { getNicheConfig } from "@/lib/niches/config";
+import { cap, nele, nenhum, novo, o, pick, primeiro } from "@/lib/niches/vocabulary";
 import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -71,6 +72,7 @@ export default function AmbientesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nicheConfig = getNicheConfig(tenant?.niche);
+  const v = nicheConfig.vocabulary;
 
   // Only available for cortinas niche (environment workflow)
   const isAvailable = nicheConfig.proposal.workflow === "environment";
@@ -103,12 +105,12 @@ export default function AmbientesPage() {
         setAmbientes(data);
       } catch (error) {
         console.error("Error loading ambientes", error);
-        toast.error("Erro ao carregar ambientes");
+        toast.error(`Erro ao carregar ${v.place.plural}`);
       } finally {
         if (!silent) setIsLoading(false);
       }
     },
-    [tenant?.id],
+    [tenant?.id, v],
   );
 
   React.useEffect(() => {
@@ -147,10 +149,12 @@ export default function AmbientesPage() {
       await AmbienteService.deleteAmbiente(deleteTargetId);
       // Optimistic removal from local state
       setAmbientes((prev) => prev.filter((a) => a.id !== deleteTargetId));
-      toast.success("Ambiente removido com sucesso!");
+      toast.success(
+        `${cap(v.place.singular)} ${pick(v.place, "removido", "removida")} com sucesso!`,
+      );
     } catch (error) {
       console.error("Error deleting ambiente:", error);
-      toast.error("Erro ao excluir ambiente. Tente novamente.");
+      toast.error(`Erro ao excluir ${v.place.singular}. Tente novamente.`);
     } finally {
       setIsDeleting(false);
       setDeleteTargetId(null);
@@ -162,7 +166,7 @@ export default function AmbientesPage() {
     return (
       <PageUnavailableState
         title="Página indisponível para este nicho"
-        description={`O nicho ${nicheConfig.label} não utiliza o módulo de ambientes.`}
+        description={`O nicho ${nicheConfig.label} não utiliza este módulo.`}
         ctaHref="/products"
         ctaLabel="Ir para Catálogo"
       />
@@ -211,11 +215,10 @@ export default function AmbientesPage() {
       >
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Ambientes
+            {nicheConfig.solutionsPage.pageTitle}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie os ambientes e configure os produtos padrões de cada
-            espaço.
+            {nicheConfig.solutionsPage.pageDescription}
           </p>
           <PageViewSwitcher className="mt-3" />
         </div>
@@ -233,7 +236,8 @@ export default function AmbientesPage() {
               className="gap-2"
               disabled={isLoading}
             >
-              <Plus className="w-5 h-5" /> Novo Ambiente
+              <Plus className="w-5 h-5" /> {cap(novo(v.place))}{" "}
+              {cap(v.place.singular)}
             </Button>
           </motion.div>
         )}
@@ -256,15 +260,15 @@ export default function AmbientesPage() {
                 <Home className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold mb-2">
-                Nenhum ambiente cadastrado
+                {`${cap(nenhum(v.place))} ${v.place.singular} ${pick(v.place, "cadastrado", "cadastrada")}`}
               </h3>
               <p className="text-muted-foreground text-center mb-6 max-w-md">
-                Crie ambientes como Sala, Quarto, Escritório para usar nas suas
-                propostas de cortinas.
+                {`Crie ${v.place.plural} como ${v.placeExamples} para usar nas suas propostas.`}
               </p>
               {canCreate && (
                 <Button className="gap-2" onClick={() => openEditor("new")}>
-                  <Plus className="w-4 h-4" /> Criar primeiro ambiente
+                  <Plus className="w-4 h-4" /> Criar {primeiro(v.place)}{" "}
+                  {v.place.singular}
                 </Button>
               )}
             </CardContent>
@@ -309,11 +313,11 @@ export default function AmbientesPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Ambiente</AlertDialogTitle>
+            <AlertDialogTitle>
+              Excluir {cap(v.place.singular)}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação é irreversível. O ambiente será excluído
-              permanentemente, juntamente com todos os produtos configurados
-              nele.
+              {`Esta ação é irreversível. ${cap(o(v.place))} ${v.place.singular} será ${pick(v.place, "excluído", "excluída")} permanentemente, juntamente com todos os produtos configurados ${nele(v.place)}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

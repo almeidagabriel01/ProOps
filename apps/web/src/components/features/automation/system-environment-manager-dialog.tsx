@@ -25,6 +25,8 @@ import { useSystemManager } from "./manager/use-system-manager";
 import { SystemPanel } from "./manager/system-panel";
 import { SystemHeader } from "./manager/system-header";
 import { EnvironmentList } from "./manager/environment-list";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, ele, este, neste, seus, um } from "@/lib/niches/vocabulary";
 
 interface SystemEnvironmentManagerDialogProps {
   isOpen: boolean;
@@ -46,6 +48,7 @@ export function SystemEnvironmentManagerDialog({
   onAction,
   allowDelete = true,
 }: SystemEnvironmentManagerDialogProps) {
+  const v = useNicheVocabulary();
   const { state, actions } = useSystemManager({
     isOpen,
     managedSistemas,
@@ -58,10 +61,11 @@ export function SystemEnvironmentManagerDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[800px] h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
         <div className="sr-only">
-          <DialogTitle>Gerenciador de Soluções e Ambientes</DialogTitle>
+          <DialogTitle>
+            Gerenciador de {cap(v.group.plural)} e {cap(v.place.plural)}
+          </DialogTitle>
           <DialogDescription>
-            Gerencie suas soluções de automação, vincule ambientes e configure
-            produtos padrão para cada ambiente.
+            {`Gerencie ${seus(v.group)} ${v.group.plural}, vincule ${v.place.plural} e configure produtos padrão para cada ${v.place.singular}.`}
           </DialogDescription>
         </div>
         {state.isLoading ? (
@@ -100,7 +104,9 @@ export function SystemEnvironmentManagerDialog({
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
                     <Cpu className="w-12 h-12 mb-4" />
-                    <p>Selecione uma solução para gerenciar</p>
+                    <p>
+                      Selecione {um(v.group)} {v.group.singular} para gerenciar
+                    </p>
                   </div>
                 )}
               </div>
@@ -118,11 +124,11 @@ export function SystemEnvironmentManagerDialog({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Desvincular Ambiente</AlertDialogTitle>
+            <AlertDialogTitle>
+              Desvincular {cap(v.place.singular)}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja remover este ambiente desta solução? A
-              configuração de produtos para este ambiente nesta solução será
-              perdida.
+              {`Tem certeza que deseja desvincular ${este(v.place)} ${v.place.singular}? A configuração de produtos feita para ${ele(v.place)} ${neste(v.group)} ${v.group.singular} será perdida.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

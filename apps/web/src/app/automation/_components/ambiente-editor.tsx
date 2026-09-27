@@ -38,6 +38,7 @@ import { useWindowFocus } from "@/hooks/use-window-focus";
 import { AIFieldButton } from "@/components/shared/ai-field-button";
 import { getNicheConfig } from "@/lib/niches/config";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { cap, deste, do_, este, novo, pick } from "@/lib/niches/vocabulary";
 import {
   formatItemQuantity,
   normalizeItemQuantity,
@@ -119,6 +120,7 @@ export function AmbienteEditor({
 }: AmbienteEditorProps) {
   const { tenant } = useTenant();
   const nicheConfig = useCurrentNicheConfig();
+  const v = nicheConfig.vocabulary;
   const inventoryConfig = getNicheConfig(tenant?.niche).productCatalog.inventory;
   const allowDecimalProductQuantity = inventoryConfig.step < 1;
   const [isSaving, setIsSaving] = React.useState(false);
@@ -256,7 +258,9 @@ export function AmbienteEditor({
           description: description.trim(),
           defaultProducts: normalizedSelectedProducts,
         });
-        toast.success("Ambiente atualizado!");
+        toast.success(
+          `${cap(v.place.singular)} ${pick(v.place, "atualizado", "atualizada")}!`,
+        );
         onSave(ambiente.id);
       } else {
         const nextOrder = await AmbienteService.getNextOrder(tenant.id);
@@ -270,12 +274,12 @@ export function AmbienteEditor({
           createdAt: new Date().toISOString(),
         });
 
-        toast.success("Ambiente criado!");
+        toast.success(`${cap(v.place.singular)} ${pick(v.place, "criado", "criada")}!`);
         onSave(createdAmbiente.id);
       }
     } catch (error) {
       console.error("Error saving ambiente", error);
-      toast.error("Erro ao salvar ambiente");
+      toast.error(`Erro ao salvar ${v.place.singular}`);
     } finally {
       setIsSaving(false);
     }
@@ -469,9 +473,9 @@ export function AmbienteEditor({
           </Button>
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-xs font-medium text-muted-foreground uppercase tracking-widest">
-              Editor do Ambiente
+              Editor {do_(v.place)} {cap(v.place.singular)}
             </span>
-            <h2 className="truncate text-lg sm:text-xl font-bold">{name || "Novo Ambiente"}</h2>
+            <h2 className="truncate text-lg sm:text-xl font-bold">{name || `${cap(novo(v.place))} ${cap(v.place.singular)}`}</h2>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 max-sm:w-full">
@@ -517,7 +521,7 @@ export function AmbienteEditor({
                 <Input
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="Ex: Sala, Quarto, Escritório"
+                  placeholder={`Ex: ${v.placeExamples}`}
                   className="bg-muted/30"
                 />
               </div>
@@ -528,7 +532,11 @@ export function AmbienteEditor({
                     field="product.description"
                     context={() => ({ name, niche: nicheConfig.id })}
                     onGenerated={(value) => setDescription(value)}
-                    disabledReason={!name ? "Preencha o nome do ambiente primeiro" : undefined}
+                    disabledReason={
+                      !name
+                        ? `Preencha o nome ${do_(v.place)} ${v.place.singular} primeiro`
+                        : undefined
+                    }
                   />
                 </div>
                 <Textarea
@@ -574,11 +582,11 @@ export function AmbienteEditor({
                     <Package className="w-5 h-5 text-primary" />
                     Produtos e Serviços:
                     <span className="text-muted-foreground font-normal">
-                      {name || "Novo ambiente"}
+                      {name || `${cap(novo(v.place))} ${v.place.singular}`}
                     </span>
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Gerencie os itens padrão deste ambiente.
+                    Gerencie os itens padrão {deste(v.place)} {v.place.singular}.
                   </p>
                 </div>
                 <Badge variant="outline" className="px-3 py-1 h-7">
@@ -677,7 +685,8 @@ export function AmbienteEditor({
                   </div>
                   <h3 className="text-xl font-semibold mb-2">Lista Vazia</h3>
                   <p className="text-base text-center max-w-xs text-muted-foreground">
-                    Use a busca acima para adicionar itens a este ambiente.
+                    Use a busca acima para adicionar itens a {este(v.place)}{" "}
+                    {v.place.singular}.
                   </p>
                 </div>
               ) : (

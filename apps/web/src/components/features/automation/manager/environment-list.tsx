@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, Home, Trash2, ExternalLink } from "lucide-react";
 import { Ambiente } from "@/types/automation";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, pick } from "@/lib/niches/vocabulary";
 
 interface EnvironmentListProps {
   activeSystemId: string;
@@ -16,10 +18,11 @@ export function EnvironmentList({
   onUnlink,
   allowDelete = true,
 }: EnvironmentListProps) {
+  const v = useNicheVocabulary();
   return (
     <div>
       <h3 className="font-medium mb-3 flex items-center justify-between">
-        Ambientes Vinculados
+        {cap(v.place.plural)} {pick(v.place, "Vinculados", "Vinculadas")}
       </h3>
 
       <div className="grid gap-3">
@@ -82,7 +85,7 @@ export function EnvironmentList({
               href={`/solutions?editSistemaId=${activeSystemId}`}
               target="_blank"
             >
-              <Plus className="w-4 h-4 mr-2" /> Adicionar Ambiente
+              <Plus className="w-4 h-4 mr-2" /> Adicionar {cap(v.place.singular)}
             </a>
           </Button>
         </div>

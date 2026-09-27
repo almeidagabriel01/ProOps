@@ -133,9 +133,14 @@ Quando `mode === "environment"` (nicho `cortinas`):
 - O tab param na URL é sempre `ambientes`
 
 Quando `mode === "automation"` (nicho `automacao_residencial`):
-- Duas abas: "Soluções" e "Ambientes Globais"
+- Duas abas: "Soluções" e "Ambientes Globais" (em segurança eletrônica, "Sistemas" e "Áreas Globais")
 - Tab padrão é "sistemas"
 - Permite criar/editar Sistemas com ambientes aninhados
+
+Texto de tela que fala do local (ambiente) ou do grupo (solução) sai do
+vocabulário do nicho, `useNicheVocabulary()` com os helpers de concordância de
+`lib/niches/vocabulary.ts`, e não de literal. Vale para a página, os editores,
+as listas e os diálogos de `components/features/automation/`.
 
 ## Padrões e gotchas
 

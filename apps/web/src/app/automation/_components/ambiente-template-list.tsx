@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Home, Pencil, Trash2, ArrowRight, Package } from "lucide-react";
 import { m as motion } from "motion/react";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, deste, nenhum, pick, primeiro, seu } from "@/lib/niches/vocabulary";
 
 interface AmbienteTemplateListProps {
   ambientes: Ambiente[];
@@ -24,16 +26,18 @@ export function AmbienteTemplateList({
   canEdit = true,
   canDelete = true,
 }: AmbienteTemplateListProps) {
+  const v = useNicheVocabulary();
   if (ambientes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl bg-muted/50">
         <div className="bg-background p-4 rounded-full shadow-sm mb-4">
           <Home className="w-8 h-8 text-muted-foreground" />
         </div>
-        <h3 className="text-lg font-semibold">Nenhum ambiente encontrado</h3>
+        <h3 className="text-lg font-semibold">
+          {`${cap(nenhum(v.place))} ${v.place.singular} ${pick(v.place, "encontrado", "encontrada")}`}
+        </h3>
         <p className="text-muted-foreground max-w-sm mt-2 mb-6">
-          Comece criando seu primeiro ambiente para configurar produtos,
-          quantidades e status usados nas propostas.
+          {`Comece criando ${seu(v.place)} ${primeiro(v.place)} ${v.place.singular} para configurar produtos, quantidades e status usados nas propostas.`}
         </p>
       </div>
     );
@@ -70,7 +74,8 @@ export function AmbienteTemplateList({
                       </p>
                     ) : (
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                        Configure os itens padrão deste ambiente.
+                        Configure os itens padrão {deste(v.place)}{" "}
+                        {v.place.singular}.
                       </p>
                     )}
                   </div>

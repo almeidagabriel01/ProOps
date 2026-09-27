@@ -13,6 +13,8 @@ import {
   compareCatalogDisplayItem,
   compareConfiguredDisplayItem,
 } from "@/lib/sort-text";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, do_, este, nenhum, pick } from "@/lib/niches/vocabulary";
 
 interface SistemaInfoSectionProps {
   name: string;
@@ -27,19 +29,20 @@ export function SistemaInfoSection({
   onNameChange,
   onDescriptionChange,
 }: SistemaInfoSectionProps) {
+  const v = useNicheVocabulary();
   return (
     <div className="space-y-4 p-4 rounded-xl bg-muted/30 border">
       <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-        Informações da Solução
+        Informações {do_(v.group)} {cap(v.group.singular)}
       </h3>
       <div className="space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="name" className="text-sm">
-            Nome da Solução *
+            Nome {do_(v.group)} {cap(v.group.singular)} *
           </Label>
           <Input
             id="name"
-            placeholder="Ex: Iluminação, Áudio, Wifi..."
+            placeholder={`Ex: ${v.groupExamples}...`}
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
             className="h-11"
@@ -53,7 +56,7 @@ export function SistemaInfoSection({
           </Label>
           <Textarea
             id="description"
-            placeholder="Descreva o que esta solução inclui..."
+            placeholder={`Descreva o que ${este(v.group)} ${v.group.singular} inclui...`}
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}
             rows={2}
@@ -76,14 +79,15 @@ export function AmbienteSelectorSection({
   selectedAmbientes,
   onToggle,
 }: AmbienteSelectorSectionProps) {
+  const v = useNicheVocabulary();
   return (
     <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
       <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-        Ambientes Disponíveis
+        {cap(v.place.plural)} Disponíveis
       </h3>
       {ambientes.length === 0 ? (
         <p className="text-sm text-muted-foreground py-2">
-          Nenhum ambiente cadastrado. Crie ambientes primeiro.
+          {`${cap(nenhum(v.place))} ${v.place.singular} ${pick(v.place, "cadastrado", "cadastrada")}. Crie ${v.place.plural} primeiro.`}
         </p>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -142,6 +146,7 @@ export function ProductSelectorSection({
   onRemoveProduct,
   onUpdateQuantity,
 }: ProductSelectorSectionProps) {
+  const v = useNicheVocabulary();
   const filteredProducts = products
     .filter(
       (p) =>
@@ -159,7 +164,7 @@ export function ProductSelectorSection({
   return (
     <div className="space-y-3 p-4 rounded-xl bg-muted/30 border">
       <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-        Produtos da Solução
+        Produtos {do_(v.group)} {cap(v.group.singular)}
       </h3>
 
       {/* Selected Products - Grid Layout */}
