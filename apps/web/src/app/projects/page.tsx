@@ -15,6 +15,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { toast } from "@/lib/toast";
 import { ProjectsService } from "@/services/projects-service";
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import type { Project } from "@/types/project";
 import { ProjectsSkeleton } from "./_components/projects-skeleton";
 import { ProjectCard } from "./_components/project-card";
@@ -96,6 +97,7 @@ export default function ProjectsPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Cada obra depois da venda: etapas, fotos e a entrega aceita pelo cliente.
           </p>
+          <PageViewSwitcher className="mt-3" />
         </div>
         <div className="flex flex-wrap gap-2">
           {writable && isMaster && (

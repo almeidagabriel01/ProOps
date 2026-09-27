@@ -170,8 +170,9 @@ describe("passos por plano e papel", () => {
       // Tarefas fica no capítulo Visão geral, logo depois do Dashboard.
       "tasks",
       "proposals",
-      "crm",
+      // Projetos segue Propostas no menu (mesmo grupo), antes do CRM.
       "projects",
+      "crm",
       "contacts",
       "calendar",
       "products",

@@ -29,10 +29,16 @@ financeiro mais um backfill.
 ## Grupo
 
 Um `MenuItem` com `children` é um grupo: a dock desenha **um** ícone, e as telas
-irmãs reaparecem no seletor do cabeçalho de cada uma delas. Hoje são dois,
-Financeiro e Catálogo. Tela de uso diário não entra em grupo: Tarefas chegou a
-ficar num grupo "Agenda" com o Calendário e ninguém a achava atrás do seletor,
-então voltou a ter ícone próprio.
+irmãs reaparecem no seletor do cabeçalho de cada uma delas. Hoje são três:
+Propostas (Propostas e Projetos, o caminho da venda até a obra), Financeiro e
+Catálogo. Tela de uso diário não entra em grupo: Tarefas chegou a ficar num
+grupo "Agenda" com o Calendário e ninguém a achava atrás do seletor, então
+voltou a ter ícone próprio.
+
+O grupo de Propostas tem o mesmo rótulo do primeiro filho, e sem capacidade
+própria: Propostas é de todo plano, e Projetos (Pro e Enterprise) coroa sozinho
+no seletor. Para quem não tem Projetos (membro sem a permissão), sobra um filho
+e o ícone vira a própria tela de Propostas, sem seletor.
 
 Um grupo **não declara `href` nem `pageId`**:
 

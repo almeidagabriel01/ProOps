@@ -52,10 +52,19 @@ describe("menuItems", () => {
     }
   });
 
-  it("a dock oferece 10 destinos de topo", () => {
-    // Projetos (obra depois da venda) entrou de topo, ao lado do CRM; Tarefas,
-    // ao lado do Calendário.
-    expect(menuItems).toHaveLength(10);
+  it("a dock oferece 9 destinos de topo", () => {
+    // Tarefas entrou de topo, ao lado do Calendário. Projetos (obra depois da
+    // venda) mora no grupo de Propostas, com o seletor no cabeçalho.
+    expect(menuItems).toHaveLength(9);
+  });
+
+  it("Propostas é grupo com Projetos, e só Projetos pede plano", () => {
+    const group = menuItems.find((item) => item.label === "Propostas");
+    expect(group?.requiresCapability).toBeUndefined();
+    expect(group?.children?.map((c) => [c.href, c.requiresCapability])).toEqual([
+      ["/proposals", undefined],
+      ["/projects", "projects"],
+    ]);
   });
 
   it("grupo nao declara href nem pageId proprios", () => {

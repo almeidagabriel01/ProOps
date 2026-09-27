@@ -12,8 +12,12 @@ Onda 3 do roadmap de UX (2026-09-26).
 | 2 | Plano | capacidade `projects`: Pro e Enterprise. Sem add-on no Starter |
 | 3 | Demo | sim, só leitura: o seed põe um projeto em andamento no tenant `demo` |
 | 4 | Rules | `projects`: leitura do tenant (e `isDemoRead`), escrita só pela API. `project_settings` e `shared_projects`: nenhum acesso do cliente |
-| 5 | Tutorial | passo `/projects` no capítulo Vendas, depois do CRM |
+| 5 | Tutorial | passo `/projects` no capítulo Vendas, logo depois de Propostas (segue a ordem do menu) |
 | 6 | Nichos | nos dois, mesmo nome. Muda só o roteiro padrão: automação nasce com Infraestrutura, Instalação, Configuração e Entrega; cortinas com Medição, Produção, Instalação e Entrega |
+
+**Na navegação** (revisto em 2026-09-27) Projetos não tem ícone próprio na
+dock: mora no grupo de Propostas, com o seletor "Propostas | Projetos" no
+cabeçalho das duas telas. Ver `components/layout/CLAUDE.md`, seção Grupo.
 
 Outras decisões: na aprovação a ProOps **pergunta se a venda tem instalação**
 (nem toda venda é obra; revisto em 2026-09-26, a primeira versão criava

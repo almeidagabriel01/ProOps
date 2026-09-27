@@ -63,6 +63,7 @@ import {
   type SendProposalTarget,
 } from "./_components/send-proposal-dialog";
 import { runUndoableAction } from "@/lib/undoable-action";
+import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import { toast } from "@/lib/toast";
 import { isDemoReadOnlyError } from "@/lib/api-client";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
@@ -1376,6 +1377,7 @@ export default function ProposalsPage() {
                 <p className="text-muted-foreground mt-1">
                   Gerencie suas propostas comerciais
                 </p>
+                <PageViewSwitcher className="mt-3" />
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                 {canViewCrm &&

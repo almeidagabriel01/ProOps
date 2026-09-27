@@ -85,8 +85,24 @@ export const menuItems: MenuItem[] = [
   {
     icon: FilePenLine,
     label: "Propostas",
-    href: "/proposals",
-    pageId: "proposals",
+    // O caminho da venda: a proposta aprovada vira a obra. Projetos é tela de
+    // acompanhamento, e com ícone próprio pesava na dock ao lado de Tarefas.
+    // Sem capacidade no grupo: Propostas é de todo plano, Projetos coroa sozinho.
+    children: [
+      {
+        icon: FilePenLine,
+        label: "Propostas",
+        href: "/proposals",
+        pageId: "proposals",
+      },
+      {
+        icon: HardHat,
+        label: "Projetos",
+        href: "/projects",
+        pageId: "projects",
+        requiresCapability: "projects",
+      },
+    ],
   },
   {
     icon: Kanban,
@@ -94,13 +110,6 @@ export const menuItems: MenuItem[] = [
     href: "/crm",
     pageId: "kanban",
     requiresCapability: "crm",
-  },
-  {
-    icon: HardHat,
-    label: "Projetos",
-    href: "/projects",
-    pageId: "projects",
-    requiresCapability: "projects",
   },
   {
     icon: Wallet,

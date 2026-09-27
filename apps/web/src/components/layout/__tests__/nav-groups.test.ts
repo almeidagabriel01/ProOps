@@ -167,12 +167,14 @@ describe("flattenMenuItems", () => {
 
     expect(new Set(hrefs).size).toBe(hrefs.length);
 
-    const groupLabels = menuItems
-      .filter((item) => item.children)
-      .map((item) => item.label);
-    for (const label of groupLabels) {
-      expect(leaves.some((leaf) => leaf.label === label)).toBe(false);
-    }
+    // Pela contagem, não pelo rótulo: o grupo de Propostas tem o mesmo rótulo
+    // do primeiro filho, e o grupo em si nunca é folha.
+    const expected = menuItems.reduce(
+      (total, item) => total + (item.children ? item.children.length : 1),
+      0,
+    );
+    expect(leaves).toHaveLength(expected);
+    expect(leaves.every((leaf) => typeof leaf.href === "string")).toBe(true);
   });
 
   it("filho sem capacidade própria herda a do pai", () => {

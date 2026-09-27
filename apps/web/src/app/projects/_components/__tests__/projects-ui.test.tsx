@@ -38,6 +38,7 @@ vi.mock("@/providers/auth-provider", () => ({ useAuth: () => ({ user: { id: "u1"
 vi.mock("@/providers/permissions-provider", () => ({ usePermissions: () => ({ isMaster: m.isMaster }) }));
 vi.mock("@/hooks/usePlanLimits", () => ({ usePlanLimits: () => m.plan }));
 vi.mock("@/hooks/usePagePermission", () => ({ usePagePermission: () => m.perms }));
+vi.mock("@/components/layout/page-view-switcher", () => ({ PageViewSwitcher: () => null }));
 vi.mock("@/lib/image-downscale", () => ({ downscaleCatalogImage: async (f: File) => f }));
 vi.mock("@/services/projects-service", () => ({
   ProjectsService: {
