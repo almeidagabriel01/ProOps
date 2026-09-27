@@ -529,7 +529,7 @@ export function getProductPricingSummary(product: ProductPricingSource): string 
       getProductBasePrice(product),
       getProductMarkup(product),
     );
-    return `R$ ${sellingPrice.toFixed(2)} / m2`;
+    return `R$ ${sellingPrice.toFixed(2)} / m²`;
   }
 
   if (pricingModel.mode === "curtain_height") {
@@ -603,7 +603,7 @@ export function getProposalProductMeasurementLabel(
   }
 
   if (details.mode === "curtain_height") {
-    return `Largura ${formatMeters(details.width)} | Altura ate ${formatMeters(
+    return `Largura ${formatMeters(details.width)} | Altura até ${formatMeters(
       details.maxHeight,
     )}`;
   }
@@ -625,7 +625,7 @@ export function getProposalProductUnitLabel(
   const details = normalizeProposalPricingDetails(product.pricingDetails);
 
   if (details.mode === "curtain_meter") {
-    return "m2";
+    return "m²";
   }
 
   if (details.mode === "curtain_height") {

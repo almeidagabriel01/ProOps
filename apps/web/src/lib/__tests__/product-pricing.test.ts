@@ -104,7 +104,7 @@ describe("quantidade cobrada e painéis", () => {
   });
 });
 
-describe("rótulos (estado de hoje)", () => {
+describe("rótulos", () => {
   it("resumo de preço do catálogo", () => {
     expect(getProductPricingSummary({ price: 100, markup: 0 })).toBe("R$ 100.00");
     expect(getProductPricingSummary({ price: 100, markup: 0, pricingModel: { mode: "curtain_width" } })).toBe("R$ 100.00 / m larg.");
@@ -117,6 +117,18 @@ describe("rótulos (estado de hoje)", () => {
     ).toBe("1,2 m x 2,5 m");
     expect(getProposalProductMeasurementLabel({ pricingDetails: { mode: "curtain_width", width: 3, panels: 1 } })).toBe("Largura 3 m");
     expect(getProposalProductMeasurementLabel({ quantity: 2, pricingDetails: { mode: "standard" } })).toBe("Qtd. 2");
+  });
+
+  it("texto que vai para o PDF do cliente sai acentuado", () => {
+    expect(getProductPricingSummary({ price: 100, markup: 0, pricingModel: { mode: "curtain_meter" } })).toBe("R$ 100.00 / m²");
+    expect(
+      getProposalProductMeasurementLabel({
+        pricingDetails: { mode: "curtain_height", width: 2, tierId: "t1", maxHeight: 2.8, panels: 1 },
+      }),
+    ).toBe("Largura 2 m | Altura até 2,8 m");
+    expect(
+      getProposalProductUnitLabel({ pricingDetails: { mode: "curtain_meter", width: 1, height: 1, area: 1, panels: 1 } }),
+    ).toBe("m²");
   });
 
   it("unidade da linha", () => {

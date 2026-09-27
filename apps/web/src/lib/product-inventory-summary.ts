@@ -35,7 +35,16 @@ function roundBalance(value: number): number {
   return Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
 }
 
-export function summarizeCurtainInventoryBalance(
+/**
+ * Saldo do estoque de um catálogo com produtos por medida.
+ *
+ * Produto sem estoque fica de fora em qualquer modo. Até 2026-09 o produto por
+ * medida sem estoque contava como 1 m, e o por faixa de altura multiplicava o
+ * estoque pela SOMA das faixas: com 5 faixas, o saldo saía 5 vezes maior. A
+ * faixa de altura agora vale pelo preço da faixa mais baixa, o piso do que o
+ * estoque rende; o intervalo de preços continua no detalhe do produto.
+ */
+export function summarizeDimensionInventoryBalance(
   products: Product[],
 ): ProductInventoryBalanceSummary {
   const summary: ProductInventoryBalanceSummary = {
@@ -50,14 +59,13 @@ export function summarizeCurtainInventoryBalance(
     const pricingModel = normalizeProductPricingModel(product.pricingModel);
     const pricingMode = getProductPricingMode(product);
     const inventoryAmount = Math.max(0, getProductInventoryValue(product));
-    const dimensionMultiplier = inventoryAmount > 0 ? inventoryAmount : 1;
+
+    if (inventoryAmount <= 0) {
+      summary.skippedProducts += 1;
+      return;
+    }
 
     if (pricingMode === "standard") {
-      if (inventoryAmount <= 0) {
-        summary.skippedProducts += 1;
-        return;
-      }
-
       const basePrice = getProductBasePrice(product);
       const sellingPrice = calculateSellingPrice(
         basePrice,
@@ -72,27 +80,22 @@ export function summarizeCurtainInventoryBalance(
 
     if (pricingModel.mode === "curtain_height" && pricingModel.tiers.length > 0) {
       const representativeTier = getHeightTierById(product);
-      const totalTierBasePrice = pricingModel.tiers.reduce(
-        (sum, tier) => sum + tier.basePrice,
-        0,
-      );
-      const totalTierSellingPrice = pricingModel.tiers.reduce(
-        (sum, tier) =>
-          sum + calculateSellingPrice(tier.basePrice, tier.markup),
-        0,
-      );
+      const floorTier = pricingModel.tiers[0];
+      const floorCost = inventoryAmount * floorTier.basePrice;
+      const floorRevenue =
+        inventoryAmount * calculateSellingPrice(floorTier.basePrice, floorTier.markup);
       const sellingPrices = pricingModel.tiers.map((tier) =>
         calculateSellingPrice(tier.basePrice, tier.markup),
       );
 
-      summary.cost += dimensionMultiplier * totalTierBasePrice;
-      summary.revenue += dimensionMultiplier * totalTierSellingPrice;
+      summary.cost += floorCost;
+      summary.revenue += floorRevenue;
       summary.consideredProducts += 1;
 
       summary.heightTierInsights.push({
         productId: product.id,
         productName: product.name,
-        inventoryAmount: dimensionMultiplier,
+        inventoryAmount,
         representativeTier,
         tierCount: pricingModel.tiers.length,
         minHeight: pricingModel.tiers[0]?.maxHeight || 0,
@@ -100,8 +103,8 @@ export function summarizeCurtainInventoryBalance(
           pricingModel.tiers[pricingModel.tiers.length - 1]?.maxHeight || 0,
         minSellingPrice: Math.min(...sellingPrices),
         maxSellingPrice: Math.max(...sellingPrices),
-        cost: dimensionMultiplier * totalTierBasePrice,
-        revenue: dimensionMultiplier * totalTierSellingPrice,
+        cost: floorCost,
+        revenue: floorRevenue,
       });
       return;
     }
@@ -111,8 +114,8 @@ export function summarizeCurtainInventoryBalance(
       basePrice,
       getProductMarkup(product),
     );
-    summary.cost += dimensionMultiplier * basePrice;
-    summary.revenue += dimensionMultiplier * sellingPrice;
+    summary.cost += inventoryAmount * basePrice;
+    summary.revenue += inventoryAmount * sellingPrice;
     summary.consideredProducts += 1;
   });
 

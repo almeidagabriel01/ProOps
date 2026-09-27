@@ -74,7 +74,7 @@ describe("rodapé da linha de produto no PDF", () => {
   });
 
   it("cortinas: produto por medida mostra a medida e o preço por unidade de medida", () => {
-    expect(text(byArea, "cortinas", true)).toBe("Qtd. 1 | 1,2 m x 2,5 m x R$ 150,00 / m2 R$ 450,00");
+    expect(text(byArea, "cortinas", true)).toBe("Qtd. 1 | 1,2 m x 2,5 m x R$ 150,00 / m² R$ 450,00");
     expect(text(byArea, "cortinas", true, false)).toBe("Qtd. 1 R$ 450,00");
     expect(text(byArea, "cortinas", false)).toBe("Qtd: 1 | 1,2 m x 2,5 m");
   });
