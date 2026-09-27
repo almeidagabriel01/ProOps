@@ -1,4 +1,9 @@
 import type { TenantNiche } from "@/types";
+import type {
+  DimensionPricingMode,
+  ProductPricingMode,
+  ProposalLineFormat,
+} from "@/lib/product-pricing";
 
 export type InventoryUnit = "unit" | "meter";
 export type ProposalWorkflow = "automation" | "catalog" | "environment";
@@ -22,6 +27,11 @@ export interface InventoryDefinition {
 }
 
 export interface ProductCatalogDefinition {
+  /**
+   * `stock`: coluna de estoque na lista e saldo por unidade. `dimension_balance`:
+   * sem a coluna, com os cards de saldo por medida.
+   */
+  inventoryView: "stock" | "dimension_balance";
   singularLabel: string;
   pluralLabel: string;
   newTitle: string;
@@ -47,14 +57,49 @@ export interface SolutionsPageDefinition {
 export const NICHE_PAGE_KEYS = ["solutions", "ambientes", "projects", "tasks"] as const;
 export type NichePageKey = (typeof NICHE_PAGE_KEYS)[number];
 
+/**
+ * Como o nicho cobra. Os modos por medida (ids históricos `curtain_*`, que
+ * ficam gravados em produtos e propostas) só aparecem no cadastro de produto
+ * do nicho que os lista.
+ */
+export interface PricingDefinition {
+  dimensionModes: readonly DimensionPricingMode[];
+  /** Modo com que um produto novo nasce. */
+  defaultProductMode: ProductPricingMode;
+}
+
+export interface PdfDefinition {
+  /**
+   * Grupo com um ambiente só vira o próprio ambiente no cabeçalho do PDF
+   * (proposta por ambiente, em que cada grupo é um cômodo).
+   */
+  singleEnvironmentLayout: boolean;
+  /**
+   * Cabeçalho de cada ambiente dentro do grupo. Desligado, a opção de
+   * subtotal por ambiente também some da tela.
+   */
+  showEnvironmentHeaders: boolean;
+  groupSubtotalLabel: string;
+  groupSubtotalOptionLabel: string;
+}
+
 export interface NicheConfig {
   id: TenantNiche;
   label: string;
   pageAvailability: Record<NichePageKey, boolean>;
   solutionsPage: SolutionsPageDefinition;
+  pricing: PricingDefinition;
   proposal: {
     workflow: ProposalWorkflow;
+    /**
+     * `multiplier`: "2x R$ 10,00". `labeled`: "Qtd. 2 x R$ 10,00", com a
+     * medida quando o produto é por medida e o serviço só com o valor.
+     */
+    lineFormat: ProposalLineFormat;
+    /** Preço da linha editável dentro da proposta. */
+    allowLinePriceEditing: boolean;
   };
+  pdf: PdfDefinition;
   productCatalog: ProductCatalogDefinition;
   /**
    * Tipo de visita com que o link de agendamento nasce. Espelho de
@@ -122,10 +167,23 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       pageDescription: "Central de gerenciamento de soluções e ambientes.",
       mode: "automation",
     },
+    pricing: {
+      dimensionModes: [],
+      defaultProductMode: "standard",
+    },
     proposal: {
       workflow: "automation",
+      lineFormat: "multiplier",
+      allowLinePriceEditing: false,
+    },
+    pdf: {
+      singleEnvironmentLayout: false,
+      showEnvironmentHeaders: true,
+      groupSubtotalLabel: "Subtotal da Solução:",
+      groupSubtotalOptionLabel: "Mostrar subtotal por solução",
     },
     productCatalog: {
+      inventoryView: "stock",
       singularLabel: "Produto",
       pluralLabel: "Produtos",
       newTitle: "Novo Produto",
@@ -161,10 +219,23 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
         "Gerencie os ambientes e configure os produtos padrões de cada espaço.",
       mode: "environment",
     },
+    pricing: {
+      dimensionModes: ["curtain_meter", "curtain_height", "curtain_width"],
+      defaultProductMode: "curtain_meter",
+    },
     proposal: {
       workflow: "environment",
+      lineFormat: "labeled",
+      allowLinePriceEditing: true,
+    },
+    pdf: {
+      singleEnvironmentLayout: true,
+      showEnvironmentHeaders: false,
+      groupSubtotalLabel: "Subtotal do Ambiente:",
+      groupSubtotalOptionLabel: "Mostrar subtotais por ambiente",
     },
     productCatalog: {
+      inventoryView: "dimension_balance",
       singularLabel: "Produto",
       pluralLabel: "Produtos",
       newTitle: "Novo Produto",

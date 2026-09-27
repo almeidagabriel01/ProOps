@@ -157,8 +157,9 @@ export function ProposalEnvironmentsSection({
   onToggleStatus,
 }: ProposalEnvironmentsSectionProps) {
   const { tenant } = useTenant();
-  const inventoryConfig = getNicheConfig(tenant?.niche).productCatalog.inventory;
-  const allowCurtainProductPriceEditing = tenant?.niche === "cortinas";
+  const nicheConfig = getNicheConfig(tenant?.niche);
+  const inventoryConfig = nicheConfig.productCatalog.inventory;
+  const allowLinePriceEditing = nicheConfig.proposal.allowLinePriceEditing;
   const isMeterMode = inventoryConfig.mode === "meter";
   const quantityStep = inventoryConfig.step;
   const zeroQuantityLabel = isMeterMode ? "Ocultar metr. 0" : "Ocultar qtd. 0";
@@ -292,7 +293,7 @@ export function ProposalEnvironmentsSection({
                   onUpdatePricingDetails={onUpdateProductPricingDetails}
                   onUpdatePrice={onUpdateProductPrice}
                   onResetPrice={onResetProductPrice}
-                  allowProductPriceEditing={allowCurtainProductPriceEditing}
+                  allowProductPriceEditing={allowLinePriceEditing}
                   onAddExtraProduct={onAddExtraProductToAmbiente}
                   onRemoveProduct={onRemoveProduct}
                   onToggleStatus={onToggleStatus}

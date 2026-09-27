@@ -109,7 +109,8 @@ export default function ProductsPage() {
   >(null);
 
   const isFiltering = searchTerm.trim() !== "";
-  const isCurtainNiche = nicheConfig.id === "cortinas";
+  const showsDimensionBalance =
+    nicheConfig.productCatalog.inventoryView === "dimension_balance";
   const [importOpen, setImportOpen] = useState(false);
   // A planilha segue o nicho: em metros (e com "preço por") onde o estoque é
   // por metragem.
@@ -368,7 +369,7 @@ export default function ProductsPage() {
     : [];
 
   const productToDelete = (allProducts ?? []).find((p) => p.id === deleteId);
-  const hideInventoryColumn = nicheConfig.id === "cortinas";
+  const hideInventoryColumn = showsDimensionBalance;
   
   const columns: DataTableColumn<Product>[] = [
     {
@@ -576,7 +577,7 @@ export default function ProductsPage() {
               />
             </div>
 
-            {isCurtainNiche ? (
+            {showsDimensionBalance ? (
               <div className="grid gap-4 md:grid-cols-2">
                 <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-amber-500 bg-linear-to-br from-background to-amber-50/30 dark:to-amber-950/10 hover:border-amber-500/50">
                   <CardContent className="flex items-start justify-between gap-4 p-6">

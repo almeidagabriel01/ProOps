@@ -6,9 +6,10 @@ import {
   getProposalLineUnitSellingPrice,
   getProposalProductMeasurementLabel,
   getProposalProductUnitLabel,
-  isCortinasDimensionProductLine,
-  isCortinasNeutralServiceLine,
+  isDimensionProductLine,
+  isNeutralServiceLine,
 } from "@/lib/product-pricing";
+import { getNicheConfig } from "@/lib/niches/config";
 import { PdfItemTypeBadge } from "./pdf-item-type-badge";
 import { PdfProduct } from "./pdf-sistema-types";
 import { Package, Wrench } from "lucide-react";
@@ -132,7 +133,7 @@ export function PdfAmbienteTag({
   );
 }
 
-export function hasCortinasAwareProductFooterContent({
+export function hasProductLineFooterContent({
   product,
   tenantNiche,
   showProductPrices,
@@ -147,10 +148,8 @@ export function hasCortinasAwareProductFooterContent({
 }): boolean {
   if (showProductPrices) return true;
 
-  const isDimensionProduct = isCortinasDimensionProductLine(
-    tenantNiche,
-    product,
-  );
+  const { lineFormat } = getNicheConfig(tenantNiche).proposal;
+  const isDimensionProduct = isDimensionProductLine(product);
 
   if (isDimensionProduct) {
     const measurementLabel = showProductMeasurements
@@ -163,7 +162,7 @@ export function hasCortinasAwareProductFooterContent({
     return Boolean(measurementLabel || quantityLabel);
   }
 
-  if (isCortinasNeutralServiceLine(tenantNiche, product)) return false;
+  if (isNeutralServiceLine(lineFormat, product)) return false;
 
   const shouldShowQuantity =
     showProductQuantities !== false && !isDimensionProduct;
@@ -173,9 +172,10 @@ export function hasCortinasAwareProductFooterContent({
 }
 
 /**
- * Rodape de preco/medida para cards de sistema e extras (nicho cortinas).
+ * Rodapé de preço/medida da linha, nos cards de sistema e nos extras. O
+ * formato vem de `proposal.lineFormat` do nicho.
  */
-export function PdfCortinasAwareProductFooter({
+export function PdfProductLineFooter({
   product,
   tenantNiche,
   showProductPrices,
@@ -196,12 +196,10 @@ export function PdfCortinasAwareProductFooter({
 }) {
   const legacyUnit =
     product.quantity > 0 ? product.total / product.quantity : product.unitPrice;
-  const isCortinasProduct =
-    tenantNiche === "cortinas" && product.itemType !== "service";
-  const isDimensionProduct = isCortinasDimensionProductLine(
-    tenantNiche,
-    product,
-  );
+  const { lineFormat } = getNicheConfig(tenantNiche).proposal;
+  const isLabeledProduct =
+    lineFormat === "labeled" && product.itemType !== "service";
+  const isDimensionProduct = isDimensionProductLine(product);
 
   const shouldShowQuantity = showProductQuantities !== false;
   const quantityLabel = formatProposalProductDisplayQuantity(product);
@@ -257,7 +255,7 @@ export function PdfCortinasAwareProductFooter({
       );
     }
 
-    if (isCortinasNeutralServiceLine(tenantNiche, product)) {
+    if (isNeutralServiceLine(lineFormat, product)) {
       const sellingPrice = getProposalLineUnitSellingPrice(product);
       return (
         <>
@@ -274,7 +272,7 @@ export function PdfCortinasAwareProductFooter({
       );
     }
 
-    if (isCortinasProduct) {
+    if (isLabeledProduct) {
       const sellingPrice = getProposalLineUnitSellingPrice(product);
       return (
         <>
@@ -325,7 +323,7 @@ export function PdfCortinasAwareProductFooter({
   }
 
   if (shouldShowQuantity) {
-    if (isCortinasProduct) {
+    if (isLabeledProduct) {
       return (
         <span className="text-xs text-gray-600">{`Qtd: ${quantityLabel}`}</span>
       );
@@ -431,7 +429,7 @@ export function PdfSistemaProductCard({
           </p>
         )}
 
-        {hasCortinasAwareProductFooterContent({
+        {hasProductLineFooterContent({
           product,
           tenantNiche,
           showProductPrices: settings.showProductPrices,
@@ -451,7 +449,7 @@ export function PdfSistemaProductCard({
                 lineHeight: "1.2",
               }}
             >
-              <PdfCortinasAwareProductFooter
+              <PdfProductLineFooter
                 product={product}
                 tenantNiche={tenantNiche}
                 showProductPrices={settings.showProductPrices}

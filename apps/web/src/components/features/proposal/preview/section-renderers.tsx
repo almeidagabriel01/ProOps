@@ -13,7 +13,7 @@ import {
   formatProposalProductDisplayQuantity,
   getProposalLineUnitSellingPrice,
   getProposalProductMeasurementLabel,
-  isCortinasDimensionProductLine,
+  isDimensionProductLine,
 } from "@/lib/product-pricing";
 
 // ============================================
@@ -72,7 +72,6 @@ export function ProductTableSection({
   section,
   proposal,
   primaryColor,
-  tenantNiche,
 }: ProductTableSectionProps) {
   const products = proposal?.products || [];
   const sistemas = proposal?.sistemas || [];
@@ -103,8 +102,8 @@ export function ProductTableSection({
     const hasQuantityProducts = items.length > 0;
     const showQuantity = pdfSettings.showProductQuantities !== false && hasQuantityProducts;
     
-    const hasDimensionProducts = items.some(item => isCortinasDimensionProductLine(tenantNiche, item));
-    const showMeasurements = tenantNiche === "cortinas" && pdfSettings.showProductMeasurements !== false && hasDimensionProducts;
+    const hasDimensionProducts = items.some(item => isDimensionProductLine(item));
+    const showMeasurements = pdfSettings.showProductMeasurements !== false && hasDimensionProducts;
 
     const showMiddleColumn = showQuantity || showMeasurements;
     const showPriceColumn = pdfSettings.showProductPrices !== false;
@@ -170,7 +169,7 @@ export function ProductTableSection({
           </thead>
           <tbody>
             {items.map((item, i) => {
-              const isDimension = isCortinasDimensionProductLine(tenantNiche, item);
+              const isDimension = isDimensionProductLine(item);
               
               return (
                 <tr

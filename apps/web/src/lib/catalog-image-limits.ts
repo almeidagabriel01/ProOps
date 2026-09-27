@@ -6,15 +6,25 @@
 
 export type CatalogItemType = "product" | "service";
 
-export const CORTINAS_PRODUCT_IMAGE_LIMIT = 3;
 export const DEFAULT_CATALOG_IMAGE_LIMIT = 1;
+
+/**
+ * Imagens por PRODUTO em cada nicho (serviço sempre tem uma). A chave é o id
+ * do nicho; nicho fora do mapa fica com o padrão.
+ */
+export const PRODUCT_IMAGE_LIMIT_BY_NICHE: Readonly<Record<string, number>> = {
+  automacao_residencial: DEFAULT_CATALOG_IMAGE_LIMIT,
+  cortinas: 3,
+};
 
 export function resolveCatalogImageLimit(input: {
   niche: string | null | undefined;
   itemType: CatalogItemType;
 }): number {
-  if (input.itemType === "product" && input.niche === "cortinas") {
-    return CORTINAS_PRODUCT_IMAGE_LIMIT;
+  if (input.itemType !== "product" || !input.niche) {
+    return DEFAULT_CATALOG_IMAGE_LIMIT;
   }
-  return DEFAULT_CATALOG_IMAGE_LIMIT;
+  return Object.prototype.hasOwnProperty.call(PRODUCT_IMAGE_LIMIT_BY_NICHE, input.niche)
+    ? PRODUCT_IMAGE_LIMIT_BY_NICHE[input.niche]
+    : DEFAULT_CATALOG_IMAGE_LIMIT;
 }

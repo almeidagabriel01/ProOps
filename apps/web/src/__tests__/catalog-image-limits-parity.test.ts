@@ -8,7 +8,7 @@ import { TENANT_NICHES } from "@/lib/niches/niche-ids";
  * divergiram, a tela aceitava a 3ª foto e o backend recusava ao salvar.
  */
 describe("limite de imagens por item: front e backend iguais", () => {
-  const nichos = [...TENANT_NICHES, "", null, undefined, "outro"];
+  const nichos = [...TENANT_NICHES, "", null, undefined, "outro", "constructor"];
   const tipos = ["product", "service"] as const;
   for (const niche of nichos) {
     for (const itemType of tipos) {

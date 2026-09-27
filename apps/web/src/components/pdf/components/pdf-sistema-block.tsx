@@ -16,21 +16,20 @@ import {
   shouldCountInPdfTotals,
 } from "../product-visibility";
 import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
+import { getNicheConfig } from "@/lib/niches/config";
 
-function shouldUseCurtinasEnvironmentLayout(
+function shouldUseSingleEnvironmentLayout(
   tenantNiche: TenantNiche | null | undefined,
   sistema: PdfSistema,
 ): boolean {
   return (
-    tenantNiche === "cortinas" &&
+    getNicheConfig(tenantNiche).pdf.singleEnvironmentLayout &&
     resolveSistemaAmbientes(sistema).length === 1
   );
 }
 
 function getSistemaSubtotalLabel(tenantNiche?: TenantNiche | null): string {
-  return tenantNiche === "cortinas"
-    ? "Subtotal do Ambiente:"
-    : "Subtotal da Solução:";
+  return getNicheConfig(tenantNiche).pdf.groupSubtotalLabel;
 }
 
 function PdfSistemaHead({
@@ -57,17 +56,17 @@ function PdfSistemaHead({
   iconPaddingRight: string;
 }) {
   const ambientes = resolveSistemaAmbientes(sistema);
-  const useCurtinasEnvironmentLayout = shouldUseCurtinasEnvironmentLayout(
+  const useSingleEnvironmentLayout = shouldUseSingleEnvironmentLayout(
     tenantNiche,
     sistema,
   );
-  const displayTitle = useCurtinasEnvironmentLayout
+  const displayTitle = useSingleEnvironmentLayout
     ? ambientes[0]?.ambienteName || sistema.sistemaName
     : sistema.sistemaName;
 
   return (
     <div>
-      {useCurtinasEnvironmentLayout ? (
+      {useSingleEnvironmentLayout ? (
         <table
           style={{
             width: "auto",
@@ -310,7 +309,7 @@ export function PdfSistemaBlock({
 
             return (
               <div key={currentInstanceId}>
-                {tenantNiche !== "cortinas" && (
+                {getNicheConfig(tenantNiche).pdf.showEnvironmentHeaders && (
                   <PdfAmbienteHeader
                     ambienteName={amb.ambienteName || "Ambiente"}
                     primaryColor={primaryColor}
@@ -530,7 +529,7 @@ export function PdfAmbienteHeader({
   standalone?: boolean;
   description?: string;
 }) {
-  if (tenantNiche === "cortinas") {
+  if (!getNicheConfig(tenantNiche).pdf.showEnvironmentHeaders) {
     return null;
   }
 

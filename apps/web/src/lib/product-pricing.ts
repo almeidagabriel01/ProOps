@@ -1,12 +1,15 @@
 "use client";
 
-import type { TenantNiche } from "@/types";
-
 export type ProductPricingMode =
   | "standard"
   | "curtain_meter"
   | "curtain_height"
   | "curtain_width";
+
+/** Modos de preço por medida. `curtain_meter` é histórico: cobra por ÁREA (m²). */
+export type DimensionPricingMode = Exclude<ProductPricingMode, "standard">;
+
+export type ProposalLineFormat = "multiplier" | "labeled";
 
 export interface CurtainHeightTier {
   id: string;
@@ -678,36 +681,25 @@ export function formatProposalProductDisplayQuantity(
   });
 }
 
-export function isCortinasNiche(
-  tenantNiche: TenantNiche | null | undefined,
-): boolean {
-  return tenantNiche === "cortinas";
-}
-
 /**
- * Cortinas PDF/UI: produto com preco por dimensao (medida em vez de "Nx").
+ * Produto cobrado por medida: a linha mostra a medida em vez de "Nx". Vem do
+ * dado (o modo gravado na linha), não do nicho.
  */
-export function isCortinasDimensionProductLine(
-  tenantNiche: TenantNiche | null | undefined,
-  product: {
-    itemType?: "product" | "service";
-    pricingDetails?: ProposalProductPricingDetails | null;
-  },
-): boolean {
-  if (!isCortinasNiche(tenantNiche)) return false;
+export function isDimensionProductLine(product: {
+  itemType?: "product" | "service";
+  pricingDetails?: ProposalProductPricingDetails | null;
+}): boolean {
   if (product.itemType === "service") return false;
   const mode = normalizeProposalPricingDetails(product.pricingDetails).mode;
   return isDimensionPricingMode(mode);
 }
 
-/**
- * Cortinas: servico - linha sem prefixo "Nx", so valor unitario neutro.
- */
-export function isCortinasNeutralServiceLine(
-  tenantNiche: TenantNiche | null | undefined,
+/** Serviço no formato rotulado: linha sem "Nx", só o valor unitário. */
+export function isNeutralServiceLine(
+  lineFormat: ProposalLineFormat,
   product: { itemType?: "product" | "service" },
 ): boolean {
-  return isCortinasNiche(tenantNiche) && product.itemType === "service";
+  return lineFormat === "labeled" && product.itemType === "service";
 }
 
 /** Preco de venda por unidade (produto com markup; servico = unitPrice). */

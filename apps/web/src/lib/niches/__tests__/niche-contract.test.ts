@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_STAGE_TEMPLATES } from "../../../../../functions/src/api/services/projects/project-model";
 import { DEFAULT_VISIT_TYPE_BY_NICHE } from "../../../../../functions/src/api/services/booking/booking-model";
+import { PRODUCT_IMAGE_LIMIT_BY_NICHE } from "@/lib/catalog-image-limits";
 import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
 import { NICHE_CONFIGS, NICHE_PAGE_KEYS, getNicheConfig } from "@/lib/niches/config";
 import { TENANT_NICHES } from "@/lib/niches/niche-ids";
@@ -42,5 +43,16 @@ describe.each([...TENANT_NICHES])("contrato do nicho %s", (niche) => {
   it("tem etapas de obra e tipo de visita próprios no backend", () => {
     expect(DEFAULT_STAGE_TEMPLATES[niche]?.length).toBeGreaterThan(0);
     expect(DEFAULT_VISIT_TYPE_BY_NICHE[niche]?.label).toBeTruthy();
+  });
+
+  it("declara quantas imagens um produto aceita", () => {
+    expect(PRODUCT_IMAGE_LIMIT_BY_NICHE[niche]).toBeGreaterThan(0);
+  });
+
+  it("modo de produto padrão coerente com os modos por medida do nicho", () => {
+    const { dimensionModes, defaultProductMode } = NICHE_CONFIGS[niche].pricing;
+    if (defaultProductMode !== "standard") {
+      expect(dimensionModes).toContain(defaultProductMode);
+    }
   });
 });
