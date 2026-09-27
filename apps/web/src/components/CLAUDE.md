@@ -215,7 +215,9 @@ e vírgula do Excel em português).
 ## Multi-niche
 Para features que variam por nicho de negócio, use `useCurrentNicheConfig()` do hook
 em `src/hooks/useCurrentNicheConfig.ts`. Nichos: `automacao_residencial` | `cortinas` | `seguranca_eletronica`.
-Nunca hardcodar strings de nicho em componentes genéricos.
+Nunca hardcodar strings de nicho em componentes genéricos. "Ambiente" e "solução"
+em texto de tela saem do vocabulário (`useNicheVocabulary()`); no PDF e no `/share`,
+de `getNicheConfig(tenantNiche).vocabulary`. Ver `lib/niches/CLAUDE.md`.
 
 ## Antes de criar um componente novo
 1. Verificar `ui/` — pode já existir um primitivo Shadcn

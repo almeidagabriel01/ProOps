@@ -45,6 +45,8 @@ lib/
   que também lê o `firestore.rules`, está em `__tests__/niche-registry-parity.test.ts`)
 - Usar `useCurrentNicheConfig()` no frontend ou helpers de nicho no backend
 - **Nunca** fazer `if (niche === 'cortinas')` espalhado pelo código — use os helpers
+- Uma pasta por nicho (`niches/definitions/<id>/`), vocabulário com concordância
+  (`niches/vocabulary.ts`) e o roteiro para adicionar um nicho: `niches/CLAUDE.md`
 
 ### Permissions (`permissions/pages.ts`)
 - `PERMISSION_PAGES` é a **fonte única** dos `pageId` do sistema de permissões:

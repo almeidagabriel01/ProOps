@@ -223,7 +223,10 @@ ids and demo tenants. One test (`niche-registry-parity.test.ts`) keeps the three
 is the registry's key type, so every table that varies by niche is a `Record` that fails to compile when a
 niche is missing. A company's niche is chosen at signup and never changes, not even by the superadmin
 (rules, `PUT /v1/tenants` and the admin panel all refuse it; `scripts/backfill-tenant-niche.ts` fills
-tenants that predate the lock). `lib/niches/__tests__/niche-contract.test.ts` lists what every niche must declare.
+tenants that predate the lock). Each niche has a folder `apps/web/src/lib/niches/definitions/<id>/`
+(screen config with the domain vocabulary, and landing copy) and a demo dataset in
+`apps/functions/src/scripts/demo/datasets/<id>.ts`. **To add a niche, follow `apps/web/src/lib/niches/CLAUDE.md`**:
+every step has the compiler or a test enforcing it.
 
 ## Responsividade
 

@@ -453,10 +453,11 @@ empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
   herdar o tratamento de página pública. O e-mail de recusa monta esse caminho;
   mudar um lado sem o outro quebra o "escolher outro horário" (guard
   `apps/web/src/__tests__/booking-link-path.test.ts`).
-- O tipo de visita padrão muda por nicho (`defaultVisitTypes`: Medição em
-  cortinas, Visita técnica no resto). O front tem espelho em
-  `NICHE_CONFIGS[*].booking`, só para a demonstração, com teste de paridade em
-  `apps/web/src/lib/booking/__tests__/booking-format.test.ts`.
+- O tipo de visita padrão muda por nicho (`defaultVisitType` em
+  `NICHE_REGISTRY`, `shared/niches.ts`: Medição em persianas, Vistoria técnica
+  em segurança, Visita técnica em automação). O front espelha no registro dele
+  (`apps/web/src/lib/niches/registry.ts`), só para a demonstração, com paridade
+  em `apps/web/src/__tests__/niche-registry-parity.test.ts`.
 
 O evento guarda `bookingRequestId`, e desde 2026-09-27 ele sobrevive a uma
 edição na Agenda: a edição regrava o documento sem merge, e os vínculos com
