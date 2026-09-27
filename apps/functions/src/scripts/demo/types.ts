@@ -202,8 +202,6 @@ export interface DemoFormat {
   pricing: { kind: "catalog" } | { kind: "legacyFlatMarkup"; markup: number };
   /** Arredondar o total da proposta em centavos. */
   totalInCents: boolean;
-  /** Gravar primarySystem e primaryEnvironment. */
-  writePrimaryFields: boolean;
 }
 
 export interface SeedDemoResult {

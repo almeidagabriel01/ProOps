@@ -157,6 +157,5 @@ export const cortinasDemo: DemoDataset = {
     proposalLineId: "byIndex",
     pricing: { kind: "catalog" },
     totalInCents: true,
-    writePrimaryFields: true,
   },
 };

@@ -154,6 +154,5 @@ export const segurancaEletronicaDemo: DemoDataset = {
     proposalLineId: "byProduct",
     pricing: { kind: "catalog" },
     totalInCents: true,
-    writePrimaryFields: true,
   },
 };

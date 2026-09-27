@@ -163,6 +163,5 @@ export const automacaoResidencialDemo: DemoDataset = {
     proposalLineId: "byProduct",
     pricing: { kind: "legacyFlatMarkup", markup: 30 },
     totalInCents: false,
-    writePrimaryFields: false,
   },
 };

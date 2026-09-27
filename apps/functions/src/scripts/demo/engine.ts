@@ -1,4 +1,5 @@
 import { productRefsFields } from "../../lib/proposal-product-refs";
+import { computeProposalSortFields } from "../../lib/proposal-sort-fields";
 import { calculateProposalProductPricing } from "../../shared/dimension-pricing";
 import type {
   DemoDataset,
@@ -38,7 +39,6 @@ export function catalogFormat(): DemoFormat {
     proposalLineId: "byProduct",
     pricing: { kind: "catalog" },
     totalInCents: true,
-    writePrimaryFields: true,
   };
 }
 
@@ -358,12 +358,8 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
       sistemas,
       sections: [],
       totalValue,
-      ...(format.writePrimaryFields
-        ? {
-            primarySystem: sistemas[0]?.sistemaName ?? "",
-            primaryEnvironment: sistemas[0]?.ambienteName ?? "",
-          }
-        : {}),
+      // Campos de ordenação da lista, pela mesma derivação do app.
+      ...computeProposalSortFields({ sistemas }),
       // Validade distante: o cron de vencimento nunca avisa sobre a demonstração.
       validUntil: new Date(Date.UTC(2035, 0, 1)).toISOString(),
       searchTokens: buildSearchTokens(prop.title, c.name),
