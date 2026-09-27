@@ -39,6 +39,8 @@ let integration: Record<string, unknown>;
 let localEvents: Stored[];
 const eventQueries: unknown[][][] = [];
 const written: Array<Record<string, unknown>> = [];
+const writtenIds: string[] = [];
+const deletedIds: string[] = [];
 
 jest.mock("../../init", () => {
   const eventsCollection = () => {
@@ -72,7 +74,11 @@ jest.mock("../../init", () => {
         };
       },
       batch: () => ({
-        set: (_ref: unknown, data: Record<string, unknown>) => written.push(data),
+        set: (ref: { id: string }, data: Record<string, unknown>) => {
+          writtenIds.push(ref.id);
+          written.push(data);
+        },
+        delete: (ref: { id: string }) => deletedIds.push(ref.id),
         commit: async () => undefined,
       }),
     },
@@ -80,6 +86,7 @@ jest.mock("../../init", () => {
 });
 
 import {
+  importedCalendarEventDocId,
   isSameImportedCalendarEvent,
   syncGoogleEventsToLocalCalendar,
 } from "./calendar.controller";
@@ -108,6 +115,8 @@ beforeEach(() => {
   localEvents = [];
   eventQueries.length = 0;
   written.length = 0;
+  writtenIds.length = 0;
+  deletedIds.length = 0;
   decryptToken.mockClear();
   eventsList.mockReset();
   mirror.mockClear();
@@ -205,4 +214,99 @@ it("visita de obra mudada no Google mantém o vínculo e muda a data da etapa", 
       schedule: expect.objectContaining({ startMs: Date.parse("2026-09-10T15:00:00-03:00") }),
     }),
   );
+});
+
+describe("evento importado não duplica", () => {
+  const idDe = (externalEventId: string) =>
+    importedCalendarEventDocId({ tenantId: "t1", calendarId: "primary", externalEventId });
+
+  function importado(id: string, externalEventId: string, extra: Record<string, unknown> = {}) {
+    return {
+      id,
+      data: {
+        tenantId: "t1",
+        title: "Entrevista",
+        createdAt: "2026-09-27T16:08:58.000Z",
+        googleSync: { provider: "google", origin: "imported", externalEventId },
+        ...extra,
+      },
+    };
+  }
+
+  it("duas sincronizações simultâneas gravam o MESMO documento", async () => {
+    // O caso real: a tela busca o mês e os próximos compromissos ao mesmo
+    // tempo, e as duas buscas viam o evento como novo.
+    eventsList.mockResolvedValue({ data: { items: [googleEvent("g1")] } });
+
+    await Promise.all([
+      syncGoogleEventsToLocalCalendar(RANGE),
+      syncGoogleEventsToLocalCalendar({ ...RANGE, endMs: Date.parse("2026-12-01") }),
+    ]);
+
+    expect(writtenIds).toEqual([idDe("g1"), idDe("g1")]);
+  });
+
+  it("o id muda por empresa e por evento", () => {
+    expect(idDe("g1")).not.toBe(idDe("g2"));
+    expect(idDe("g1")).not.toBe(
+      importedCalendarEventDocId({ tenantId: "t2", calendarId: "primary", externalEventId: "g1" }),
+    );
+    expect(idDe("g1")).toMatch(/^gcal_[0-9a-f]{40}$/);
+  });
+
+  it("evento já importado com id antigo continua no mesmo documento", async () => {
+    localEvents = [importado("antigo-1", "g1")];
+    eventsList.mockResolvedValue({ data: { items: [googleEvent("g1", "Mudou no Google")] } });
+
+    await syncGoogleEventsToLocalCalendar(RANGE);
+
+    expect(writtenIds).toEqual(["antigo-1"]);
+    expect(deletedIds).toEqual([]);
+  });
+
+  it("apaga a cópia a mais e mantém a mais antiga", async () => {
+    localEvents = [
+      importado("copia-b", "g1", { createdAt: "2026-09-27T16:08:58.473Z" }),
+      importado("copia-a", "g1", { createdAt: "2026-09-27T16:08:58.272Z" }),
+    ];
+    eventsList.mockResolvedValue({ data: { items: [googleEvent("g1")] } });
+
+    await syncGoogleEventsToLocalCalendar(RANGE);
+
+    expect(deletedIds).toEqual(["copia-b"]);
+    expect(writtenIds).not.toContain("copia-b");
+  });
+
+  it("prefere a cópia de id derivado", async () => {
+    localEvents = [
+      importado("copia-antiga", "g1", { createdAt: "2026-01-01T00:00:00.000Z" }),
+      importado(idDe("g1"), "g1", { createdAt: "2026-09-27T00:00:00.000Z" }),
+    ];
+    eventsList.mockResolvedValue({ data: { items: [googleEvent("g1")] } });
+
+    await syncGoogleEventsToLocalCalendar(RANGE);
+
+    expect(deletedIds).toEqual(["copia-antiga"]);
+  });
+
+  it("nunca apaga cópia ligada a obra ou agendamento, nem a que nasceu na ProOps", async () => {
+    localEvents = [
+      importado("da-obra", "g1", { projectId: "p1", createdAt: "2026-09-27T17:00:00.000Z" }),
+      importado("importada", "g1", { createdAt: "2026-09-27T10:00:00.000Z" }),
+      {
+        id: "da-proops",
+        data: {
+          tenantId: "t1",
+          createdAt: "2026-09-27T09:00:00.000Z",
+          googleSync: { provider: "google", origin: "local", externalEventId: "g1" },
+        },
+      },
+      importado("do-agendamento", "g1", { bookingRequestId: "b1" }),
+    ];
+    eventsList.mockResolvedValue({ data: { items: [googleEvent("g1")] } });
+
+    await syncGoogleEventsToLocalCalendar(RANGE);
+
+    expect(deletedIds).toEqual(["importada"]);
+  });
 });
