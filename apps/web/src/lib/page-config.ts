@@ -155,6 +155,22 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  "/projects": {
+    pageId: "projects",
+    slug: "/projects",
+    name: "Projetos",
+    module: "projects",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
+  "/tasks": {
+    pageId: "tasks",
+    slug: "/tasks",
+    name: "Tarefas",
+    module: "tasks",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
   "/calendar": {
     pageId: "calendar",
     slug: "/calendar",
@@ -184,6 +200,23 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiredPermission: "view",
     masterOnly: true,
   },
+  // DRE: relatório sobre os lançamentos, com a mesma permissão deles.
+  "/dre": {
+    pageId: "transactions",
+    slug: "/dre",
+    name: "DRE",
+    module: "financial",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
+  "/cash-flow": {
+    pageId: "transactions",
+    slug: "/cash-flow",
+    name: "Fluxo de caixa",
+    module: "financial",
+    requiresAuth: true,
+    requiredPermission: "view",
+  },
   // Visão do grupo Financeiro: alcançada pelo seletor no cabeçalho das telas
   // irmãs. O gate da navegação vem de filterChildren, este é o da URL direta.
   "/wallets": {
@@ -194,13 +227,17 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     requiresAuth: true,
     requiredPermission: "view",
   },
+  // A raiz só redireciona para /settings/team. `requiredPermission` aqui
+  // pedia a chave "settings", que a tela de Equipe nunca grava: todo membro
+  // levava 403 ao clicar em "Configurações" no menu do avatar, embora as
+  // seções abaixo sejam abertas a todos (cada uma mostra o próprio "Acesso
+  // Restrito").
   "/settings": {
     pageId: "settings",
     slug: "/settings",
     name: "Configurações",
     module: "settings",
     requiresAuth: true,
-    requiredPermission: "view",
   },
   // Settings sub-tabs. Intentionally NOT masterOnly and WITHOUT requiredPermission
   // so any authenticated user can open the page and see the in-page "Acesso
@@ -233,6 +270,24 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     module: "settings",
     requiresAuth: true,
   },
+  // Metas: o portão (plano e administrador) fica dentro da tela, como na
+  // numeração. Sem requiredPermission, senão o membro levaria /403.
+  "/settings/goals": {
+    pageId: "settings-goals",
+    slug: "/settings/goals",
+    name: "Metas de vendas",
+    module: "settings",
+    requiresAuth: true,
+  },
+  // Link de agendamento: mesmo portão das metas (plano e administrador dentro
+  // da tela), sem requiredPermission.
+  "/settings/booking": {
+    pageId: "settings-booking",
+    slug: "/settings/booking",
+    name: "Link de agendamento",
+    module: "settings",
+    requiresAuth: true,
+  },
   "/settings/fiscal": {
     pageId: "settings-fiscal",
     slug: "/settings/fiscal",
@@ -262,6 +317,16 @@ export const PAGE_CONFIG: Record<string, PageConfig> = {
     module: "core",
     requiresAuth: true,
     requiredPermission: "view",
+  },
+  // Central de notificações: cada pessoa tem a sua, então não há `pageId` que
+  // o master conceda. Sem `requiredPermission`, senão o membro levaria /403 por
+  // uma permissão que a tela de Equipe nunca grava.
+  "/notifications": {
+    pageId: "notifications",
+    slug: "/notifications",
+    name: "Notificações",
+    module: "core",
+    requiresAuth: true,
   },
 
   // MASTER-only pages

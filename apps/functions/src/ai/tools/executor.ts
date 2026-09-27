@@ -27,6 +27,7 @@ import {
   payInstallmentForAi,
 } from "../../api/services/transaction-ai.service";
 import * as walletsService from "../../api/services/wallets.service";
+import { changeProposalStatusAsUser } from "../../api/controllers/proposal-status-internal";
 
 // ─── Phone normalization ─────────────────────────────────────────────────────
 
@@ -299,10 +300,12 @@ const HANDLERS: Record<string, ToolHandler> = {
   },
 
   update_proposal_status: async (args, ctx) => {
-    const result = await proposalsService.updateProposalStatus(
+    // Pelo mesmo caminho da tela: aprovar pela Lia gera o financeiro, o projeto
+    // e a entrega no Drive, como aprovar pela lista.
+    const result = await changeProposalStatusAsUser(
+      { uid: ctx.uid, role: ctx.role, tenantId: ctx.tenantId },
       args.proposalId as string,
       args.newStatus as string,
-      ctx.tenantId,
       args.reason as string | undefined,
     );
     return { success: true, data: result };
@@ -570,10 +573,10 @@ const HANDLERS: Record<string, ToolHandler> = {
   },
 
   update_crm_status: async (args, ctx) => {
-    const result = await proposalsService.updateProposalStatus(
+    const result = await changeProposalStatusAsUser(
+      { uid: ctx.uid, role: ctx.role, tenantId: ctx.tenantId },
       args.proposalId as string,
       args.newStatusId as string,
-      ctx.tenantId,
     );
     return { success: true, data: result };
   },

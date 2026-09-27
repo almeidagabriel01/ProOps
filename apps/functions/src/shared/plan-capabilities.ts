@@ -37,6 +37,25 @@ export type PlanTierId = "free" | "starter" | "pro" | "enterprise";
  * Ate 2026-09 ele vinha junto do `financial`; separou para ser nativo so no
  * Enterprise e vendido como add-on nos demais.
  *
+ * `onlineApproval` e o cliente final aprovar a proposta pelo link
+ * compartilhado (aceite com nome e documento). Pro e Enterprise.
+ *
+ * `projects` e o acompanhamento da obra depois da venda: projeto (ordem de
+ * servico de instalacao) com etapas, checklist, fotos, tecnico responsavel e
+ * aceite da entrega pelo link. Pro e Enterprise.
+ *
+ * `salesGoals` sao as metas de vendas: meta mensal da empresa e de cada
+ * vendedor (membro escolhido na proposta), com o progresso pelo valor das
+ * propostas aprovadas no mes da aprovacao. Pro e Enterprise.
+ *
+ * `bookingLink` e o link publico de agendamento: o cliente escolhe um horario
+ * livre no expediente da empresa e pede a visita, que a empresa confirma. Pro
+ * e Enterprise.
+ *
+ * `clientPortal` e o portal do cliente: uma pagina por contato, aberta por um
+ * link fixo e revogavel, com as propostas, os pagamentos, a obra e os
+ * documentos dele. Pro e Enterprise.
+ *
  * `fiscalReceiving` e a recepcao de notas de ENTRADA. Fica fora do add-on
  * fiscal de proposito: cada nota recebida consome uma unidade paga do Focus
  * sem clique de ninguem, entao nao cabe na franquia mensal do add-on.
@@ -51,6 +70,11 @@ export type PlanCapabilityKey =
   | "calendarSync"
   | "driveSync"
   | "onlinePayments"
+  | "onlineApproval"
+  | "projects"
+  | "salesGoals"
+  | "bookingLink"
+  | "clientPortal"
   | "fiscalReceiving";
 
 export type PlanCapabilities = Record<PlanCapabilityKey, boolean>;
@@ -88,6 +112,11 @@ export const PLAN_CAPABILITY_KEYS: readonly PlanCapabilityKey[] = [
   "calendarSync",
   "driveSync",
   "onlinePayments",
+  "onlineApproval",
+  "projects",
+  "salesGoals",
+  "bookingLink",
+  "clientPortal",
   "fiscalReceiving",
 ] as const;
 
@@ -101,6 +130,11 @@ const NO_CAPABILITIES: PlanCapabilities = {
   calendarSync: false,
   driveSync: false,
   onlinePayments: false,
+  onlineApproval: false,
+  projects: false,
+  salesGoals: false,
+  bookingLink: false,
+  clientPortal: false,
   fiscalReceiving: false,
 };
 
@@ -154,6 +188,11 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       customTheme: true,
       calendarSync: true,
       driveSync: true,
+      onlineApproval: true,
+      projects: true,
+      salesGoals: true,
+      bookingLink: true,
+      clientPortal: true,
     },
     limits: {
       maxProposalsPerMonth: -1,
@@ -182,6 +221,11 @@ export const PLAN_CATALOG: Record<PlanTierId, PlanCatalogEntry> = {
       calendarSync: true,
       driveSync: true,
       onlinePayments: true,
+      onlineApproval: true,
+      projects: true,
+      salesGoals: true,
+      bookingLink: true,
+      clientPortal: true,
       fiscalReceiving: true,
     },
     limits: {
@@ -258,6 +302,11 @@ export const CAPABILITY_LABELS: Record<PlanCapabilityKey, string> = {
   calendarSync: "Google Agenda",
   driveSync: "Google Drive",
   onlinePayments: "Pagamento online",
+  onlineApproval: "Aceite online da proposta",
+  projects: "Projetos de instalação",
+  salesGoals: "Metas de vendas",
+  bookingLink: "Link de agendamento",
+  clientPortal: "Portal do cliente",
   fiscalReceiving: "Notas de entrada",
 };
 
@@ -311,6 +360,11 @@ export interface PublicPlanFeatures {
   hasCalendarSync: boolean;
   hasDriveSync: boolean;
   hasOnlinePayments: boolean;
+  hasOnlineApproval: boolean;
+  hasProjects: boolean;
+  hasSalesGoals: boolean;
+  hasBookingLink: boolean;
+  hasClientPortal: boolean;
   hasFiscalReceiving: boolean;
   hasWhatsApp: boolean;
   canCustomizeTheme: boolean;
@@ -336,6 +390,11 @@ export function buildPublicPlanFeatures(tier: PlanTierId): PublicPlanFeatures {
     hasCalendarSync: entry.capabilities.calendarSync,
     hasDriveSync: entry.capabilities.driveSync,
     hasOnlinePayments: entry.capabilities.onlinePayments,
+    hasOnlineApproval: entry.capabilities.onlineApproval,
+    hasProjects: entry.capabilities.projects,
+    hasSalesGoals: entry.capabilities.salesGoals,
+    hasBookingLink: entry.capabilities.bookingLink,
+    hasClientPortal: entry.capabilities.clientPortal,
     hasFiscalReceiving: entry.capabilities.fiscalReceiving,
     hasWhatsApp: entry.capabilities.whatsapp,
     canCustomizeTheme: entry.capabilities.customTheme,

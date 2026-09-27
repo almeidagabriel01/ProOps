@@ -22,6 +22,11 @@ export interface ProposalNumberingConfig {
   nextNumber: number;
   /** Ano do `nextNumber`, usado só quando `resetYearly`. */
   year: number;
+  /**
+   * Dias de validade sugeridos na proposta nova. Opcional porque um backend
+   * anterior ao campo não o devolve; a tela só o envia quando ele veio.
+   */
+  defaultValidityDays?: number;
 }
 
 export const ProposalNumberingService = {

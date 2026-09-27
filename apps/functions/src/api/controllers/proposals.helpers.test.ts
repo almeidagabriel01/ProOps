@@ -4,7 +4,7 @@ jest.mock("../../init", () => ({
   adminApp: {},
 }));
 
-import { buildApprovedProposalTransactionDrafts } from "./proposals.helpers";
+import { buildApprovedProposalTransactionDrafts, syncedTransactionCategory } from "./proposals.helpers";
 
 const BASE_PARAMS = {
   proposalId: "test-proposal-1",
@@ -290,5 +290,42 @@ describe("buildApprovedProposalTransactionDrafts", () => {
     expect(drafts).toHaveLength(2);
     expect(drafts[0].proposalGroupId).toBe("proposal_test-proposal-1");
     expect(drafts[1].proposalGroupId).toBe("proposal_test-proposal-1");
+  });
+});
+
+describe("categoria das receitas da proposta", () => {
+  test("entrada, parcelas e saldo nascem em Propostas", () => {
+    const { drafts } = buildApprovedProposalTransactionDrafts({
+      ...BASE_PARAMS,
+      proposalData: makeProposalData({
+        downPaymentEnabled: true,
+        downPaymentType: "fixed",
+        downPaymentValue: 200,
+        installmentsEnabled: true,
+        installmentsCount: 2,
+        installmentValue: 400,
+      }),
+    });
+    const incomes = drafts.filter((d) => d.type === "income");
+    expect(incomes.length).toBeGreaterThan(1);
+    expect(new Set(incomes.map((d) => d.category))).toEqual(new Set(["Propostas"]));
+  });
+
+  test("a vista tambem", () => {
+    const { drafts } = buildApprovedProposalTransactionDrafts({
+      ...BASE_PARAMS,
+      proposalData: makeProposalData({}),
+    });
+    expect(drafts[0].category).toBe("Propostas");
+  });
+
+  test("editar a proposta aprovada mantem a categoria escolhida a mao na receita", () => {
+    expect(syncedTransactionCategory({ category: "Propostas", isCommission: false }, { category: "Projetos" })).toBe("Projetos");
+    expect(syncedTransactionCategory({ category: "Propostas" }, { category: "  " })).toBe("Propostas");
+    expect(syncedTransactionCategory({ category: "Propostas" }, {})).toBe("Propostas");
+  });
+
+  test("a comissao segue o rascunho, mesmo com outra categoria gravada", () => {
+    expect(syncedTransactionCategory({ category: "Comissao", isCommission: true }, { category: "Outra" })).toBe("Comissao");
   });
 });

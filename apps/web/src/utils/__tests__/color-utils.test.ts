@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  brandButtonStyle,
   computePrimaryForeground,
   ensureDarkModeContrast,
   ensureLightModeContrast,
@@ -58,5 +59,34 @@ describe("contraste da cor da empresa com o tema", () => {
     expect(computePrimaryForeground(ensureLightModeContrast("#ffffff"))).toBe(
       "#ffffff",
     );
+  });
+});
+
+describe("brandButtonStyle", () => {
+  it("empresa de cor branca: texto escuro e borda cinza para o botão não sumir no papel branco", () => {
+    for (const white of ["#ffffff", "#FFF", "fff", "#fafafa"]) {
+      const style = brandButtonStyle(white);
+      expect(style.color).toBe("#1f2937");
+      expect(style.borderColor).toBe("#d1d5db");
+      expect(getContrastRatio(style.color, style.backgroundColor)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("cor escura: texto branco e borda da própria cor", () => {
+    const style = brandButtonStyle("#0a0a0a");
+    expect(style).toMatchObject({ backgroundColor: "#0a0a0a", color: "#ffffff", borderColor: "#0a0a0a" });
+  });
+
+  it("cor clara que não é branca (amarelo): texto escuro", () => {
+    expect(brandButtonStyle("#facc15").color).toBe("#1f2937");
+  });
+
+  it("sem cor ou cor inválida: primário do tema", () => {
+    for (const value of [undefined, null, "", "azul"]) {
+      expect(brandButtonStyle(value)).toMatchObject({
+        backgroundColor: "var(--primary)",
+        color: "var(--primary-foreground)",
+      });
+    }
   });
 });

@@ -54,6 +54,7 @@ import {
   getInvoice,
   issueInvoice,
   listInvoices,
+  listInvoicesByClient,
   correctInvoice,
   replayInvoiceNotification,
   refreshInvoice,
@@ -1145,10 +1146,13 @@ export const listInvoicesHandler = async (req: Request, res: Response): Promise<
     const ctx = await requireInvoiceAccess(req, res, "canView");
     if (!ctx) return;
 
-    const invoices = await listInvoices(ctx.tenantId, {
-      limit: Math.min(Number(req.query.limit) || 50, 200),
-      status: text(req.query.status as string) || undefined,
-    });
+    const clientId = text(req.query.clientId as string);
+    const invoices = clientId
+      ? await listInvoicesByClient(ctx.tenantId, clientId)
+      : await listInvoices(ctx.tenantId, {
+          limit: Math.min(Number(req.query.limit) || 50, 200),
+          status: text(req.query.status as string) || undefined,
+        });
 
     res.status(200).json({ invoices });
   } catch (error) {

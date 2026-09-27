@@ -1,4 +1,5 @@
 import { db } from "../../init";
+import { PROPOSAL_INCOME_CATEGORY } from "../services/finance-reports/dre-model";
 import {
   buildCommissionDrafts,
   buildCommissionTransactionKey,
@@ -45,6 +46,21 @@ export type ProposalLinkedTransactionDraft = {
   commissionPercentage?: number;
   commissionSourceKey?: string;
 };
+
+/**
+ * A categoria que a sincronizacao da proposta aprovada grava num lancamento
+ * que ja existe. A da RECEITA escolhida a mao fica: editar a proposta nao pode
+ * desfazer a classificacao do DRE. A da comissao e sempre a do rascunho
+ * ("Comissao").
+ */
+export function syncedTransactionCategory(
+  draft: Pick<ProposalLinkedTransactionDraft, "category" | "isCommission">,
+  existing: { category?: unknown },
+): string | null {
+  if (draft.isCommission) return draft.category ?? null;
+  const own = typeof existing.category === "string" ? existing.category.trim() : "";
+  return own || draft.category || null;
+}
 
 export function normalizeProposalTransactionTitle(value: unknown): string {
   return String(value || "").trim() || "Proposta";
@@ -154,7 +170,7 @@ export function buildApprovedProposalTransactionDrafts(params: {
       clientName,
       proposalId,
       proposalGroupId,
-      category: null,
+      category: PROPOSAL_INCOME_CATEGORY,
       wallet: proposalData.downPaymentWallet
         ? String(proposalData.downPaymentWallet)
         : defaultWalletName,
@@ -197,7 +213,7 @@ export function buildApprovedProposalTransactionDrafts(params: {
         clientName,
         proposalId,
         proposalGroupId,
-        category: null,
+        category: PROPOSAL_INCOME_CATEGORY,
         wallet: walletName,
         isDownPayment: false,
         isInstallment: true,
@@ -237,7 +253,7 @@ export function buildApprovedProposalTransactionDrafts(params: {
       clientName,
       proposalId,
       proposalGroupId,
-      category: null,
+      category: PROPOSAL_INCOME_CATEGORY,
       wallet: settlementWallet,
       isDownPayment: false,
       isInstallment: false,

@@ -84,4 +84,19 @@ describe("cor da empresa com contraste na tela", () => {
 
     expect(infratores).toEqual([]);
   });
+  /**
+   * Botão com fundo da marca e texto branco fixo some quando a empresa é
+   * branca. Foi o caso do "Pagar" no recibo compartilhado: o botão estava lá,
+   * branco sobre branco. Vale também dentro de `components/pdf/`, porque o
+   * botão é interface (`data-pdf-ui`), não sai impresso. Use `brandButtonStyle`.
+   */
+  it("fundo da marca nunca vem com texto branco fixo", () => {
+    const fixedWhite =
+      /backgroundColor:\s*(?:tenant\??\.)?primaryColor[^}]*?color:\s*"#fff(?:fff)?"/;
+    const infratores = walk(SRC)
+      .filter((file) => fixedWhite.test(fs.readFileSync(file, "utf8")))
+      .map(rel);
+
+    expect(infratores).toEqual([]);
+  });
 });

@@ -27,11 +27,17 @@ import {
   FormItem,
   FormStatic,
 } from "@/components/ui/form-components";
+import { ContactHub } from "./_components/contact-hub";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
 import { User, Mail, MapPin, FileText, AlertCircle, CheckCircle, Receipt, CreditCard } from "lucide-react";
 import { ContactTypeSelector } from "../_components/contact-type-selector";
 import { ContactCommissionField } from "../_components/contact-commission-field";
+import {
+  ContactMemberLinkField,
+  showsMemberLink,
+} from "../_components/contact-member-link-field";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { isCommissionPartner } from "@/lib/contacts/commission-partner";
 import { EntityLoadingState } from "@/components/shared/entity-loading-state";
 import { formatDocumento } from "@/lib/format-document";
@@ -49,6 +55,10 @@ const sourceLabels: Record<string, { label: string; color: string }> = {
   financial: {
     label: "Via Financeiro",
     color: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+  },
+  import: {
+    label: "Via Planilha",
+    color: "bg-slate-500/10 text-slate-600 border-slate-500/20",
   },
 };
 
@@ -89,6 +99,7 @@ interface EditCustomerFormData {
   document: string;
   types: CustomerType[];
   commissionPercentage: number | null;
+  linkedMemberId: string | null;
   fiscal: ClientFiscalValues;
 }
 
@@ -102,12 +113,14 @@ const buildCustomerFormSnapshot = (formData: EditCustomerFormData): string =>
     document: formData.document,
     types: [...formData.types].sort(),
     commissionPercentage: formData.commissionPercentage,
+    linkedMemberId: formData.linkedMemberId,
     // Sem isto, editar só um campo fiscal não marcaria o formulário como sujo
     // e o botão de salvar continuaria desabilitado.
     fiscal: formData.fiscal,
   });
 
 export default function EditCustomerPage() {
+  const { hasSalesGoals } = usePlanLimits();
   const router = useRouter();
   const params = useParams();
   const clientId = params.id as string;
@@ -148,6 +161,7 @@ export default function EditCustomerPage() {
     document: "",
     types: ["cliente"],
     commissionPercentage: null,
+    linkedMemberId: null,
     fiscal: EMPTY_CLIENT_FISCAL,
   });
   const [initialSnapshot, setInitialSnapshot] = React.useState<string | null>(
@@ -169,6 +183,7 @@ export default function EditCustomerPage() {
             document: data.document ? formatDocumento(data.document) : "",
             types: data.types || ["cliente"],
             commissionPercentage: data.commissionPercentage ?? null,
+            linkedMemberId: data.linkedMemberId ?? null,
             fiscal: {
               cep: data.enderecoFiscal?.cep ?? "",
               logradouro: data.enderecoFiscal?.logradouro ?? "",
@@ -215,7 +230,7 @@ export default function EditCustomerPage() {
       clearFieldError(
         name as Exclude<
           keyof typeof formData,
-          "types" | "fiscal" | "commissionPercentage"
+          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId"
         >,
       );
     }
@@ -238,7 +253,7 @@ export default function EditCustomerPage() {
       validateField(
         name as Exclude<
           keyof typeof formData,
-          "types" | "fiscal" | "commissionPercentage"
+          "types" | "fiscal" | "commissionPercentage" | "linkedMemberId"
         >,
         value,
         formData,
@@ -295,6 +310,7 @@ export default function EditCustomerPage() {
         document: formData.document ? formData.document.replace(/\D/g, "") : undefined,
         types: formData.types,
         commissionPercentage: formData.commissionPercentage,
+        linkedMemberId: formData.types.includes("vendedor") ? formData.linkedMemberId : null,
         enderecoFiscal: {
           cep: formData.fiscal.cep.replace(/\D/g, ""),
           logradouro: formData.fiscal.logradouro.trim(),
@@ -360,8 +376,8 @@ export default function EditCustomerPage() {
     return (
       <FormContainer>
         <FormHeader
-          title="Detalhes do Cliente"
-          subtitle={`Visualizando dados de "${formData.name}"`}
+          title={formData.name || "Contato"}
+          subtitle="Ficha do contato: propostas, financeiro e histórico"
           icon={User}
           onBack={() => router.push("/contacts")}
           badge={
@@ -373,6 +389,9 @@ export default function EditCustomerPage() {
           }
         />
 
+        <ContactHub
+          client={client}
+          dataTab={
         <StepWizard steps={customerSteps} allowClickAhead>
           {/* Step 1: Basic Info */}
           <FormStepCard>
@@ -474,6 +493,8 @@ export default function EditCustomerPage() {
             />
           </FormStepCard>
         </StepWizard>
+          }
+        />
       </FormContainer>
     );
   }
@@ -481,8 +502,8 @@ export default function EditCustomerPage() {
   return (
     <FormContainer>
       <FormHeader
-        title="Editar Contato"
-        subtitle={`Atualize as informações de "${formData.name}"`}
+        title={formData.name || "Contato"}
+        subtitle="Ficha do contato: propostas, financeiro e histórico"
         icon={User}
         onBack={() => router.push("/contacts")}
         badge={
@@ -494,6 +515,9 @@ export default function EditCustomerPage() {
         }
       />
 
+      <ContactHub
+        client={client}
+        dataTab={
       <StepWizard steps={customerSteps} allowClickAhead>
         {/* Step 1: Basic Info + Contact */}
         <FormStepCard>
@@ -519,24 +543,37 @@ export default function EditCustomerPage() {
               }
             />
 
-            <FormItem
-              label="Nome Completo"
-              htmlFor="name"
-              required
-              error={errors.name}
-            >
-              <Input
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                placeholder="Nome completo ou razão social"
-                icon={<User className="w-4 h-4" />}
-                className={errors.name ? "border-destructive" : ""}
+            {/* Vendedor nos planos com metas: "É da equipe?" divide a linha com o
+                nome. Nos outros casos o nome ocupa a linha toda. */}
+            <FormGroup>
+              <FormItem
+                label="Nome Completo"
+                htmlFor="name"
                 required
+                error={errors.name}
+                className={showsMemberLink(formData.types, hasSalesGoals) ? "" : "sm:col-span-2"}
+              >
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Nome completo ou razão social"
+                  icon={<User className="w-4 h-4" />}
+                  className={errors.name ? "border-destructive" : ""}
+                  required
+                />
+              </FormItem>
+
+              <ContactMemberLinkField
+                types={formData.types}
+                value={formData.linkedMemberId}
+                onChange={(linkedMemberId) =>
+                  setFormData((prev) => ({ ...prev, linkedMemberId }))
+                }
               />
-            </FormItem>
+            </FormGroup>
 
             <FormGroup>
               <FormItem label="Email" htmlFor="email" error={errors.email}>
@@ -600,6 +637,7 @@ export default function EditCustomerPage() {
                   setFormData((prev) => ({ ...prev, commissionPercentage }))
                 }
               />
+
             </FormGroup>
 
             <FormItem label="Endereço Completo" htmlFor="address">
@@ -706,6 +744,8 @@ export default function EditCustomerPage() {
           />
         </FormStepCard>
       </StepWizard>
+        }
+      />
     </FormContainer>
   );
 }

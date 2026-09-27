@@ -49,6 +49,11 @@ const FREE_PLAN_FEATURES: PlanFeatures = {
   hasCalendarSync: false,
   hasDriveSync: false,
   hasOnlinePayments: false,
+  hasOnlineApproval: false,
+  hasProjects: false,
+  hasSalesGoals: false,
+  hasBookingLink: false,
+  hasClientPortal: false,
   hasFiscalReceiving: false,
   hasWhatsApp: false,
   canCustomizeTheme: false,
@@ -95,6 +100,11 @@ export interface PlanContextValue {
   trialInfo: TrialInfo;
   hasFinancial: boolean;
   hasKanban: boolean;
+  /** Projetos de instalação (Pro e Enterprise). */
+  hasProjects: boolean;
+  hasSalesGoals: boolean;
+  hasBookingLink: boolean;
+  hasClientPortal: boolean;
   hasFiscal: boolean;
   hasDriveSync: boolean;
   hasCalendarSync: boolean;
@@ -196,6 +206,11 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           hasCalendarSync: true,
           hasDriveSync: true,
           hasOnlinePayments: true,
+          hasOnlineApproval: true,
+          hasProjects: true,
+          hasSalesGoals: true,
+          hasBookingLink: true,
+          hasClientPortal: true,
           hasFiscalReceiving: true,
           hasWhatsApp: true,
           canCustomizeTheme: true,
@@ -223,6 +238,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
           ...FREE_PLAN_FEATURES,
           hasFinancial: true,
           hasKanban: true,
+          hasProjects: true,
+          hasSalesGoals: true,
+          hasBookingLink: true,
+          hasClientPortal: true,
           canEditPdfSections: true,
           canCustomizeTheme: true,
           maxPdfTemplates: -1,
@@ -593,6 +612,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       trialInfo,
       hasFinancial: mergedFeatures?.hasFinancial ?? false,
       hasKanban: mergedFeatures?.hasKanban ?? false,
+      hasProjects: mergedFeatures?.hasProjects ?? false,
+      hasSalesGoals: mergedFeatures?.hasSalesGoals ?? false,
+      hasBookingLink: mergedFeatures?.hasBookingLink ?? false,
+      hasClientPortal: mergedFeatures?.hasClientPortal ?? false,
       hasFiscal: mergedFeatures?.hasFiscal ?? false,
       hasDriveSync: mergedFeatures?.hasDriveSync ?? false,
       hasCalendarSync: mergedFeatures?.hasCalendarSync ?? false,

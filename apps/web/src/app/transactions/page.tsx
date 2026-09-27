@@ -3,6 +3,7 @@
 import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
@@ -10,7 +11,25 @@ import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
 import { usePagePermission } from "@/hooks/usePagePermission";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { Transaction } from "@/services/transaction-service";
+import { Transaction, TransactionService } from "@/services/transaction-service";
+import { toast } from "@/lib/toast";
+import { getTodayISO } from "@/utils/date-utils";
+import { BulkActionsBar } from "./_components/bulk-actions-bar";
+import {
+  BULK_DELETE_MAX,
+  buildExportRows,
+  planBulkDelete,
+  planBulkMarkPaid,
+  resolveSelectedTransactions,
+} from "./_lib/bulk-actions";
+import { downloadTransactions, downloadTransactionsXlsx } from "./_lib/export-transactions-xlsx";
+import { ExportMenu } from "@/components/shared/export-menu";
+import type { SheetFormat } from "@/lib/export/sheet";
+import {
+  parseTransactionFilters,
+  serializeTransactionFilters,
+} from "./_lib/filters-url";
+import { replaceUrlSearchParams } from "@/lib/url-state";
 import { Crown, Kanban, Plus, Search, Wallet, X } from "lucide-react";
 import { formatCurrency } from "@/utils/format";
 import { useFinancialData } from "./_hooks/useFinancialData";
@@ -44,6 +63,12 @@ export default function FinancialPage() {
   const upgradeModal = useUpgradeModal();
   const canAccessCrm = hasKanban || user?.role === "superadmin";
   const premiumColor = useThemePrimaryColor();
+  // Filtros lidos do endereço uma vez, na entrada: voltar de um lançamento
+  // aberto ou recarregar a página devolve a lista como estava.
+  const searchParams = useSearchParams();
+  const [initialUrlFilters] = React.useState(() =>
+    parseTransactionFilters(new URLSearchParams(searchParams.toString())),
+  );
   const {
     summary,
     isLoading: dataLoading,
@@ -70,6 +95,7 @@ export default function FinancialPage() {
     filteredTransactions,
     totalWalletBalance,
     deleteTransactionGroup,
+    deleteTransactionsBulk,
     updateGroupStatus,
     updateExtraCostStatus,
     updateTransaction,
@@ -78,7 +104,33 @@ export default function FinancialPage() {
     transactions,
     refreshData,
     wallets,
-  } = useFinancialData();
+  } = useFinancialData(initialUrlFilters);
+
+  React.useEffect(() => {
+    replaceUrlSearchParams(
+      serializeTransactionFilters({
+        searchTerm,
+        filterType,
+        filterStatus,
+        filterWallet,
+        filterStartDate,
+        filterEndDate,
+        filterDateType,
+        sortBy,
+        viewMode,
+      }),
+    );
+  }, [
+    searchTerm,
+    filterType,
+    filterStatus,
+    filterWallet,
+    filterStartDate,
+    filterEndDate,
+    filterDateType,
+    sortBy,
+    viewMode,
+  ]);
 
   // Fonte da aba Agrupados: resumos de transaction_groups + avulsos paginados,
   // membros lazy — independente do filtro de data (2026-07-06).
@@ -86,6 +138,30 @@ export default function FinancialPage() {
     tenantId: tenant?.id,
     enabled: viewMode === "grouped" && hasFinancial,
   });
+  // Exclusões ainda dentro da janela de "Desfazer": a aba Agrupados lê resumos
+  // do servidor, que só mudam depois da gravação, então a tela esconde o que
+  // o usuário já excluiu. Chaves: `group:{id}` e `tx:{id}`.
+  const [pendingDeleteKeys, setPendingDeleteKeys] = React.useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const visibleGroupSummaries = React.useMemo(
+    () =>
+      pendingDeleteKeys.size === 0
+        ? grouped.groupSummaries
+        : grouped.groupSummaries.filter(
+            (summary) => !pendingDeleteKeys.has(summary.groupKey),
+          ),
+    [grouped.groupSummaries, pendingDeleteKeys],
+  );
+  const visibleStandalone = React.useMemo(
+    () =>
+      pendingDeleteKeys.size === 0
+        ? grouped.standalone
+        : grouped.standalone.filter(
+            (t) => !pendingDeleteKeys.has(`tx:${t.id}`),
+          ),
+    [grouped.standalone, pendingDeleteKeys],
+  );
   const groupedRefreshTimerRef = React.useRef<ReturnType<
     typeof setTimeout
   > | null>(null);
@@ -145,7 +221,6 @@ export default function FinancialPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [transactionToDelete, setTransactionToDelete] =
     React.useState<Transaction | null>(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
 
   // Selection state
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
@@ -319,7 +394,7 @@ export default function FinancialPage() {
     if (viewMode !== "grouped") return transactions;
     const byId = new Map<string, Transaction>();
     for (const t of [
-      ...grouped.standalone,
+      ...visibleStandalone,
       ...grouped.getAllCachedMembers(),
       ...transactions,
     ]) {
@@ -331,10 +406,111 @@ export default function FinancialPage() {
   }, [
     viewMode,
     transactions,
-    grouped.standalone,
+    visibleStandalone,
     grouped.getAllCachedMembers,
     grouped.membersVersion,
   ]);
+
+  // Ações em massa sobre a seleção (marcar como pago, exportar, excluir).
+  const selectedTransactions = React.useMemo(
+    () => resolveSelectedTransactions(selectionPool, selectedIds),
+    [selectionPool, selectedIds],
+  );
+  const bulkDeletePlan = React.useMemo(
+    () => planBulkDelete(selectedTransactions),
+    [selectedTransactions],
+  );
+  const payableCount = React.useMemo(
+    () => selectedTransactions.filter((t) => t.status !== "paid").length,
+    [selectedTransactions],
+  );
+  const [isBulkBusy, setIsBulkBusy] = React.useState(false);
+
+  const afterBulkChange = React.useCallback(() => {
+    if (viewMode === "grouped") scheduleGroupedRefresh();
+  }, [viewMode, scheduleGroupedRefresh]);
+
+  const handleBulkMarkPaid = React.useCallback(async () => {
+    const chunks = planBulkMarkPaid(selectedTransactions);
+    const total = chunks.reduce((sum, ids) => sum + ids.length, 0);
+    if (total === 0) return;
+    setIsBulkBusy(true);
+    try {
+      for (const ids of chunks) {
+        await TransactionService.updateTransactionsStatusBatch(ids, "paid");
+      }
+      toast.success(
+        total === 1
+          ? "1 lançamento marcado como pago."
+          : `${total} lançamentos marcados como pagos.`,
+        { title: "Lançamentos atualizados" },
+      );
+      setSelectedIds(new Set());
+    } catch (error) {
+      console.error("Error marking transactions as paid:", error);
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível marcar os lançamentos como pagos.",
+        { title: "Erro ao atualizar" },
+      );
+    } finally {
+      await refreshData(true);
+      afterBulkChange();
+      setIsBulkBusy(false);
+    }
+  }, [selectedTransactions, refreshData, afterBulkChange]);
+
+  // Os lançamentos que a lista mostra agora (período e filtros), e não só os
+  // selecionados.
+  const handleExportPeriod = React.useCallback(
+    async (format: SheetFormat) => {
+      await downloadTransactions(
+        buildExportRows(filteredTransactions, wallets),
+        `lancamentos-${getTodayISO()}`,
+        format,
+      );
+    },
+    [filteredTransactions, wallets],
+  );
+
+  const handleBulkExport = React.useCallback(async () => {
+    try {
+      await downloadTransactionsXlsx(
+        buildExportRows(selectedTransactions, wallets),
+        `lancamentos-${getTodayISO()}.xlsx`,
+      );
+    } catch (error) {
+      console.error("Error exporting transactions:", error);
+      toast.error("Não foi possível gerar a planilha.", {
+        title: "Erro ao exportar",
+      });
+    }
+  }, [selectedTransactions, wallets]);
+
+  const handleBulkDelete = React.useCallback(() => {
+    const { deletable } = bulkDeletePlan;
+    if (deletable.length > BULK_DELETE_MAX) {
+      toast.error(
+        `Selecione até ${BULK_DELETE_MAX} lançamentos para excluir de uma vez.`,
+        { title: "Seleção grande demais" },
+      );
+      return;
+    }
+    const hiddenKeys = deletable.map((t) => `tx:${t.id}`);
+    const setHidden = (hidden: boolean) =>
+      setPendingDeleteKeys((prev) => {
+        const next = new Set(prev);
+        hiddenKeys.forEach((key) => (hidden ? next.add(key) : next.delete(key)));
+        return next;
+      });
+    setHidden(true);
+    setSelectedIds(new Set());
+    void deleteTransactionsBulk(deletable, {
+      onCommitted: afterBulkChange,
+      onReverted: () => setHidden(false),
+    });
+  }, [bulkDeletePlan, deleteTransactionsBulk, afterBulkChange]);
 
   // Calculate selection summary - use ALL transactions, not just filtered
   const selectionSummary = React.useMemo(() => {
@@ -401,7 +577,7 @@ export default function FinancialPage() {
       pendingIncome: 0,
       pendingExpense: 0,
     };
-    filterGroupSummaries(grouped.groupSummaries, filters, wallets).forEach(
+    filterGroupSummaries(visibleGroupSummaries, filters, wallets).forEach(
       (s) => {
         if (s.type === "income") {
           result.totalIncome += s.paidTotal;
@@ -412,7 +588,7 @@ export default function FinancialPage() {
         }
       },
     );
-    filterStandaloneTransactions(grouped.standalone, filters, wallets).forEach(
+    filterStandaloneTransactions(visibleStandalone, filters, wallets).forEach(
       (t) => {
         const add = (amount: number, paid: boolean) => {
           if (t.type === "income") {
@@ -432,8 +608,8 @@ export default function FinancialPage() {
     return result;
   }, [
     viewMode,
-    grouped.groupSummaries,
-    grouped.standalone,
+    visibleGroupSummaries,
+    visibleStandalone,
     searchTerm,
     filterType,
     filterStatus,
@@ -475,12 +651,29 @@ export default function FinancialPage() {
   const confirmDelete = async () => {
     if (!transactionToDelete) return;
 
-    setIsDeleting(true);
-    await deleteTransactionGroup(transactionToDelete);
-    if (viewMode === "grouped") scheduleGroupedRefresh();
-    setIsDeleting(false);
+    const groupId =
+      transactionToDelete.installmentGroupId ||
+      transactionToDelete.recurringGroupId;
+    const hiddenKey = groupId ? `group:${groupId}` : `tx:${transactionToDelete.id}`;
+    const setHidden = (hidden: boolean) =>
+      setPendingDeleteKeys((prev) => {
+        const next = new Set(prev);
+        if (hidden) next.add(hiddenKey);
+        else next.delete(hiddenKey);
+        return next;
+      });
+
+    setHidden(true);
     setDeleteDialogOpen(false);
     setTransactionToDelete(null);
+    await deleteTransactionGroup(transactionToDelete, {
+      // Depois de gravado, o resumo some do servidor; a chave continua no
+      // conjunto só para a linha não piscar antes do refetch.
+      onCommitted: () => {
+        if (viewMode === "grouped") scheduleGroupedRefresh();
+      },
+      onReverted: () => setHidden(false),
+    });
   };
 
   const handleViewModeChange = (mode: "grouped" | "byDueDate") => {
@@ -537,6 +730,14 @@ export default function FinancialPage() {
                   </span>
                 </Button>
               ))}
+
+            {viewMode === "byDueDate" && (
+              <ExportMenu
+                size="lg"
+                onExport={handleExportPeriod}
+                disabled={filteredTransactions.length === 0}
+              />
+            )}
 
             {canCreate && (
               <Button asChild size="lg" className="gap-2 w-full sm:w-auto">
@@ -632,11 +833,24 @@ export default function FinancialPage() {
         onViewModeChange={handleViewModeChange}
       />
 
+      <BulkActionsBar
+        selectedCount={selectedTransactions.length}
+        payableCount={payableCount}
+        deletableCount={bulkDeletePlan.deletable.length}
+        skippedProposalCount={bulkDeletePlan.skippedProposal.length}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        isBusy={isBulkBusy}
+        onMarkPaid={handleBulkMarkPaid}
+        onExport={handleBulkExport}
+        onDelete={handleBulkDelete}
+      />
+
       {/* Transactions List */}
       {viewMode === "grouped" ? (
         <GroupedTransactionsView
-          groupSummaries={grouped.groupSummaries}
-          standalone={grouped.standalone}
+          groupSummaries={visibleGroupSummaries}
+          standalone={visibleStandalone}
           isLoading={grouped.isLoading}
           isLoadingMore={grouped.isLoadingMore}
           hasMore={grouped.hasMore}
@@ -754,7 +968,7 @@ export default function FinancialPage() {
         onOpenChange={setDeleteDialogOpen}
         transaction={transactionToDelete}
         onConfirm={confirmDelete}
-        isDeleting={isDeleting}
+        isDeleting={false}
       />
 
       <UpgradeModal

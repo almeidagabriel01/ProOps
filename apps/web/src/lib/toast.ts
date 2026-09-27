@@ -112,11 +112,11 @@ toastFn.error = (content: unknown, options?: ToastOptions) => {
 };
 
 toastFn.warn = (content: unknown, options?: ToastOptions) => {
-  return sileo.warning(getToastConfig("Atencao", "warning", content, options));
+  return sileo.warning(getToastConfig("Atenção", "warning", content, options));
 };
 
 toastFn.warning = (content: unknown, options?: ToastOptions) => {
-  return sileo.warning(getToastConfig("Atencao", "warning", content, options));
+  return sileo.warning(getToastConfig("Atenção", "warning", content, options));
 };
 
 toastFn.info = (content: unknown, options?: ToastOptions) => {

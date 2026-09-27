@@ -13,6 +13,7 @@ import {
   type CoverLogoSettings,
 } from "@/types/pdf.types";
 import { formatDateBR } from "@/utils/date-format";
+import { computePrimaryForeground, normalizeHex } from "@/utils/color-utils";
 
 interface PdfCoverPageProps {
   theme: ThemeType;
@@ -339,6 +340,11 @@ export function PdfCoverPage({
     backgroundColor: "#ffffff", // Ensure opaque base
   };
 
+  // Texto sobre o fundo da cor da empresa (temas moderno, ousado e livre). O
+  // fundo continua com a cor exata da marca; só o texto sai do contraste, senão
+  // uma empresa de cor clara (branca) imprime a capa com título invisível.
+  const onBrand = computePrimaryForeground(normalizeHex(primaryColor) ?? "#000000");
+
   switch (theme) {
     case "modern":
       return (
@@ -370,7 +376,7 @@ export function PdfCoverPage({
           )}
           {positionedLogo}
           {/* Header with logo */}
-          <div className="relative z-10 flex justify-between items-start text-white">
+          <div className="relative z-10 flex justify-between items-start" style={{ color: onBrand }}>
             <div className="text-2xl font-bold">{tenant?.name}</div>
             {inlineLogo && (
               <img
@@ -392,7 +398,7 @@ export function PdfCoverPage({
           {coverElements && coverElements.length > 0 ? (
             renderCoverElements(
               coverElements,
-              "#ffffff",
+              onBrand,
               proposal.clientName,
               coverTitle,
               validUntil || "",
@@ -400,7 +406,7 @@ export function PdfCoverPage({
               tenant?.name,
             )
           ) : (
-            <div className="relative z-10 flex flex-col h-full text-white">
+            <div className="relative z-10 flex flex-col h-full" style={{ color: onBrand }}>
               <div className="flex-1 flex flex-col justify-center">
                 <div className="text-lg uppercase tracking-[0.2em] opacity-80 mb-4">
                   Proposta Comercial
@@ -577,7 +583,7 @@ export function PdfCoverPage({
           style={{
             ...coverStyle,
             backgroundColor: primaryColor,
-            color: "#ffffff",
+            color: onBrand,
           }}
         >
           <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-black opacity-10" />
@@ -595,7 +601,7 @@ export function PdfCoverPage({
             />
           )}
           {positionedLogo}
-          <div className="relative z-10 flex flex-col h-full text-white">
+          <div className="relative z-10 flex flex-col h-full" style={{ color: onBrand }}>
             <div className="flex justify-between items-start">
               <div className="text-2xl font-black">{tenant?.name}</div>
               {inlineLogo && (
@@ -618,7 +624,7 @@ export function PdfCoverPage({
               <div className="text-7xl font-black leading-none mb-4">
                 {coverTitle}
               </div>
-              <div className="text-xl font-semibold opacity-90 border-l-4 border-white pl-4">
+              <div className="text-xl font-semibold opacity-90 border-l-4 pl-4" style={{ borderColor: onBrand }}>
                 {proposal.clientName}
               </div>
             </div>
@@ -784,7 +790,7 @@ export function PdfCoverPage({
           {coverElements && coverElements.length > 0 ? (
             renderCoverElements(
               coverElements,
-              "#ffffff",
+              onBrand,
               proposal.clientName,
               coverTitle,
               validUntil || "",
@@ -793,7 +799,7 @@ export function PdfCoverPage({
             )
           ) : (
             // Fallback minimalista se não houver elementos
-            <div className="relative z-10 flex flex-col h-full text-white items-center justify-center text-center">
+            <div className="relative z-10 flex flex-col h-full items-center justify-center text-center" style={{ color: onBrand }}>
               <div className="text-lg opacity-60 mb-4">
                 Configure os elementos da capa no editor
               </div>

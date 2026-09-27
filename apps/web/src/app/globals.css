@@ -710,6 +710,22 @@ html.theme-transitioning * {
   justify-content: center;
 }
 
+/* Toast com botão (ex.: "Desfazer"): texto em cima e o botão centralizado
+   embaixo. Em linha, o margin-top do sileo deixava o botão desalinhado e
+   colado no fim da frase. */
+[data-sileo-viewport] [data-sileo-description]:has([data-sileo-button]) {
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+[data-sileo-viewport] [data-sileo-button] {
+  margin-top: 0;
+  height: 2rem;
+  padding: 0 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 /* Kanban scrollbar */
 .kanban-scrollbar::-webkit-scrollbar {
   width: 6px;

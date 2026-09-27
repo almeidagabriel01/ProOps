@@ -937,7 +937,7 @@ export function useEditTransaction() {
         );
       }
 
-      toast.success(`Lancamento ${transactionLabel} atualizado com sucesso.`, {
+      toast.success(`Lançamento ${transactionLabel} atualizado com sucesso.`, {
         title: "Sucesso ao editar",
       });
       router.push("/transactions");
@@ -946,7 +946,7 @@ export function useEditTransaction() {
       const errorMessage =
         error instanceof Error && error.message.trim()
           ? error.message.trim()
-          : "Falha inesperada ao editar o lancamento.";
+          : "Falha inesperada ao editar o lançamento.";
       toast.error(
         `Não foi possível editar o lançamento ${transactionLabel}. Detalhes: ${errorMessage}`,
         { title: "Erro ao editar" },

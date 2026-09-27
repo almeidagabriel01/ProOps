@@ -1,4 +1,8 @@
-export type CalendarEventStatus = "scheduled" | "completed" | "canceled";
+/**
+ * `pending` = "a confirmar": pedido de visita feito pelo link de agendamento,
+ * que a empresa ainda não respondeu. Não vai para o Google Agenda.
+ */
+export type CalendarEventStatus = "scheduled" | "completed" | "canceled" | "pending";
 export type GoogleCalendarSyncStatus =
   | "disabled"
   | "synced"
@@ -39,6 +43,12 @@ export interface CalendarEvent {
   googleSync: GoogleCalendarSyncMetadata;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Visita de uma etapa da obra. Mudar a data aqui muda a da etapa; o vínculo
+   * só é criado pela tela de Projetos.
+   */
+  projectId?: string | null;
+  projectStageId?: string | null;
 }
 
 export interface CalendarEventFormValues {

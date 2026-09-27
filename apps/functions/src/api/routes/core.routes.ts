@@ -10,6 +10,11 @@ import {
   deleteService,
 } from "../controllers/services.controller";
 import {
+  importClientsHandler,
+  importProductsHandler,
+  importServicesHandler,
+} from "../controllers/import.controller";
+import {
   createClient,
   updateClient,
   deleteClient,
@@ -24,6 +29,10 @@ import {
   updateProposalNumbering,
 } from "../controllers/proposal-numbering.controller";
 import { downloadProposalPdf } from "../controllers/proposal-pdf.controller";
+import {
+  discardClientAcceptance,
+  resolveClientChangeRequest,
+} from "../controllers/proposal-online-approval.controller";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 import {
   createSpreadsheet,
@@ -35,6 +44,11 @@ import { updateTenant } from "../controllers/tenants.controller";
 
 import { pingSession } from "../controllers/session.controller";
 
+import {
+  createClientNote,
+  deleteClientNote,
+  listClientNotes,
+} from "../controllers/client-notes.controller";
 const router = Router();
 
 // A plataforma abriu autenticada (login ou sessao que ja existia): alimenta o
@@ -43,18 +57,25 @@ router.post("/session/ping", pingSession);
 
 // Products
 router.post("/products", createProduct);
+// Importação por planilha: antes das rotas /:id.
+router.post("/products/import", importProductsHandler);
 router.put("/products/:id", updateProduct);
 router.delete("/products/:id", deleteProduct);
 
 // Services
 router.post("/services", createService);
+router.post("/services/import", importServicesHandler);
 router.put("/services/:id", updateService);
 router.delete("/services/:id", deleteService);
 
 // Clients
 router.post("/clients", createClient);
+router.post("/clients/import", importClientsHandler);
 router.put("/clients/:id", updateClient);
 router.delete("/clients/:id", deleteClient);
+router.get("/clients/:id/notes", listClientNotes);
+router.post("/clients/:id/notes", createClientNote);
+router.delete("/clients/:id/notes/:noteId", deleteClientNote);
 
 // Proposals
 // A numeracao vem ANTES de `/proposals/:id`: o Express casa por ordem, e
@@ -63,6 +84,10 @@ router.get("/proposals/numbering", getProposalNumbering);
 router.put("/proposals/numbering", updateProposalNumbering);
 router.post("/proposals", createProposal);
 router.put("/proposals/:id", updateProposal);
+// Aceite do cliente pelo link: a empresa descarta para ajustar. Confirmar é
+// mudar a proposta para aprovada, pelo PUT acima.
+router.post("/proposals/:id/acceptance/discard", discardClientAcceptance);
+router.post("/proposals/:id/change-request/resolve", resolveClientChangeRequest);
 router.delete("/proposals/:id", deleteProposal);
 router.get("/proposals/:id/pdf", pdfRateLimiter, downloadProposalPdf);
 router.post("/spreadsheets", createSpreadsheet);

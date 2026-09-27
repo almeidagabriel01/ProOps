@@ -12,6 +12,13 @@ import * as LucideIcons from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MonthStatsProps {
+  /**
+   * Período nas frases: `of` ("deste mês", "de agosto de 2026") e `in`
+   * ("neste mês", "em agosto de 2026").
+   */
+  period?: { of: string; in: string };
+  /** Classe de cada card (o Dashboard passa a do layout em colunas). */
+  cardClassName?: string;
   currentMonthStats: {
     expensesByCategory: Record<string, number>;
     incomeByWallet: Record<string, number>;
@@ -19,7 +26,11 @@ interface MonthStatsProps {
   };
 }
 
-export function MonthStats({ currentMonthStats }: MonthStatsProps) {
+export function MonthStats({
+  currentMonthStats,
+  period = { of: "deste mês", in: "neste mês" },
+  cardClassName,
+}: MonthStatsProps) {
   const { expensesByCategory, incomeByWallet, expensesByWallet } =
     currentMonthStats;
 
@@ -38,18 +49,20 @@ export function MonthStats({ currentMonthStats }: MonthStatsProps) {
   );
 
   return (
-    <div className="grid gap-6 grid-cols-1">
+    // `contents`: os dois cards entram direto na grade do Dashboard, lado a
+    // lado, com a altura da linha; o conteúdo vazio fica centralizado nela.
+    <div className="contents">
       {/* Categories Breakdown */}
-      <Card>
+      <Card className={cardClassName}>
         <CardHeader>
           <CardTitle className="text-lg">Despesas por Categoria</CardTitle>
-          <CardDescription>Principais gastos deste mês</CardDescription>
+          <CardDescription>Principais gastos {period.of}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col">
           {expenseCategories.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+            <div className="flex flex-1 flex-col items-center justify-center py-8 text-center text-muted-foreground">
               <LucideIcons.PieChart className="w-10 h-10 mb-2 opacity-20" />
-              <p>Nenhuma despesa registrada este mês</p>
+              <p>Nenhuma despesa paga {period.in}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -80,16 +93,16 @@ export function MonthStats({ currentMonthStats }: MonthStatsProps) {
       </Card>
 
       {/* Wallet Activity */}
-      <Card>
+      <Card className={cardClassName}>
         <CardHeader>
           <CardTitle className="text-lg">Movimentação por Carteira</CardTitle>
-          <CardDescription>Entradas e saídas deste mês</CardDescription>
+          <CardDescription>Entradas e saídas {period.of}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col">
           {walletActivity.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+            <div className="flex flex-1 flex-col items-center justify-center py-8 text-center text-muted-foreground">
               <LucideIcons.ArrowRightLeft className="w-10 h-10 mb-2 opacity-20" />
-              <p>Nenhuma movimentação registrada este mês</p>
+              <p>Nenhuma movimentação paga {period.in}</p>
             </div>
           ) : (
             <div className="space-y-4">

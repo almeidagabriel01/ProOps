@@ -5,7 +5,11 @@ import { useParams, useSearchParams } from "next/navigation";
 import { AlertCircle, FileText, FileDown, ZoomIn, ZoomOut } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { SharedProposalService } from "@/services/shared-proposal-service";
+import {
+  SharedProposalService,
+  type OnlineApprovalState,
+} from "@/services/shared-proposal-service";
+import { ProposalResponsePanel } from "./_components/proposal-response-panel";
 import { Proposal } from "@/types/proposal";
 import { Tenant, ProposalTemplate } from "@/types";
 import { ProposalPdfViewer } from "@/components/pdf/proposal-pdf-viewer";
@@ -13,8 +17,9 @@ import Image from "next/image";
 
 import { ProposalDefaults } from "@/lib/proposal-defaults";
 import { downloadSharedProposalPdf } from "@/services/pdf/download-shared-proposal-pdf";
-import { computePrimaryForeground } from "@/utils/color-utils";
+import { brandButtonStyle } from "@/utils/color-utils";
 import { Loader } from "@/components/ui/loader";
+import { toast } from "@/lib/toast";
 
 export default function SharedProposalPage() {
   const params = useParams();
@@ -31,6 +36,8 @@ export default function SharedProposalPage() {
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = React.useState(0);
   const [isGenerating, setIsGenerating] = React.useState(false);
+  const [onlineApproval, setOnlineApproval] =
+    React.useState<OnlineApprovalState | null>(null);
 
   const handleDownloadPdf = React.useCallback(async () => {
     if (!token) return;
@@ -39,7 +46,7 @@ export default function SharedProposalPage() {
       await downloadSharedProposalPdf(token, proposal?.title);
     } catch (err) {
       console.error("Error downloading shared PDF:", err);
-      alert("Erro ao baixar PDF. Tente novamente.");
+      toast.error("Erro ao baixar PDF. Tente novamente.");
     } finally {
       setIsGenerating(false);
     }
@@ -87,6 +94,7 @@ export default function SharedProposalPage() {
         setIsLoading(true);
         const data = await SharedProposalService.getSharedProposal(token);
         setProposal(data.proposal);
+        setOnlineApproval(data.onlineApproval);
         const tenantData = data.tenant as Tenant;
         setTenant(tenantData);
 
@@ -237,18 +245,7 @@ export default function SharedProposalPage() {
             <button
               type="button"
               className="md:hidden shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-md shadow-md flex-none transition-all cursor-pointer hover:opacity-90 hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
-              style={
-                tenant?.primaryColor
-                  ? {
-                      backgroundColor: tenant.primaryColor,
-                      color: computePrimaryForeground(tenant.primaryColor),
-                      borderColor: tenant.primaryColor,
-                    }
-                  : {
-                      backgroundColor: "var(--primary)",
-                      color: "var(--primary-foreground)",
-                    }
-              }
+              style={brandButtonStyle(tenant?.primaryColor)}
               onClick={handleDownloadPdf}
               disabled={isGenerating}
             >
@@ -273,18 +270,7 @@ export default function SharedProposalPage() {
           <button
             type="button"
             className="hidden md:inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-md text-sm font-bold transition-all shadow-sm border border-transparent cursor-pointer hover:brightness-110 hover:shadow-md active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
-            style={
-              tenant?.primaryColor
-                ? {
-                    backgroundColor: tenant.primaryColor,
-                    color: computePrimaryForeground(tenant.primaryColor),
-                    borderColor: tenant.primaryColor,
-                  }
-                : {
-                    backgroundColor: "var(--primary)",
-                    color: "var(--primary-foreground)",
-                  }
-            }
+            style={brandButtonStyle(tenant?.primaryColor)}
             onClick={handleDownloadPdf}
             disabled={isGenerating}
           >
@@ -300,7 +286,17 @@ export default function SharedProposalPage() {
 
       {/* PDF View Area */}
       <main className="flex-1 w-full bg-muted/20 overflow-hidden flex flex-col relative">
-        <div className="container mx-auto px-4 py-4 w-full flex justify-center">
+        <div className="container mx-auto px-4 py-4 w-full flex flex-col items-center gap-3">
+          {onlineApproval && (
+            <ProposalResponsePanel
+              token={token}
+              state={onlineApproval}
+              tenantName={tenant?.name || "a empresa"}
+              primaryColor={tenant?.primaryColor}
+              onStateChange={setOnlineApproval}
+              className="max-w-[794px]"
+            />
+          )}
           <div
             data-pdf-ui
             className="w-full max-w-[794px] flex items-center justify-between bg-card border rounded-lg p-2 shadow-sm z-10"
@@ -332,7 +328,7 @@ export default function SharedProposalPage() {
           </div>
         </div>
 
-        <div className="w-full flex-1 overflow-auto px-4 sm:px-8 pb-32 pt-4 flex justify-center">
+        <div className="w-full flex-1 overflow-auto px-4 sm:px-8 pb-8 pt-4 flex justify-center">
           <div
             id="shared-proposal-preview-content"
             ref={contentRef}
@@ -359,7 +355,22 @@ export default function SharedProposalPage() {
             />
           </div>
         </div>
+        {onlineApproval && (
+          <div className="container mx-auto px-4 pb-12 w-full flex justify-center">
+            <ProposalResponsePanel
+              token={token}
+              state={onlineApproval}
+              tenantName={tenant?.name || "a empresa"}
+              primaryColor={tenant?.primaryColor}
+              onStateChange={setOnlineApproval}
+              position="end"
+              className="max-w-[794px]"
+            />
+          </div>
+        )}
       </main>
+
+
     </div>
   );
 }

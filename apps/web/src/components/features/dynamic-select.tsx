@@ -118,6 +118,18 @@ export const DynamicSelect = React.forwardRef<DynamicSelectHandle, DynamicSelect
       [handleCreateOption, imperativeName, imperativeOnChange],
     );
 
+    // O valor gravado aparece mesmo quando não está na lista (texto antigo,
+    // opção excluída, lista guardada de antes de uma importação). Sem isso o
+    // campo abria em branco e, sendo obrigatório, forçava escolher de novo.
+    const currentValue = typeof props.value === "string" ? props.value.trim() : "";
+    const selectOptions = React.useMemo(() => {
+      const list = options.map((opt) => ({ value: opt.label, label: opt.label }));
+      if (currentValue && !list.some((o) => o.value === currentValue)) {
+        list.push({ value: currentValue, label: currentValue });
+      }
+      return list;
+    }, [options, currentValue]);
+
     return (
       <div className={cn("space-y-2", className)}>
         <div className="flex items-center justify-between">
@@ -137,10 +149,7 @@ export const DynamicSelect = React.forwardRef<DynamicSelectHandle, DynamicSelect
         </div>
 
         <SearchableSelect
-          options={options.map((opt) => ({
-            value: opt.label,
-            label: opt.label,
-          }))}
+          options={selectOptions}
           value={typeof props.value === "string" ? props.value : ""}
           onValueChange={(val) => {
             const event = {

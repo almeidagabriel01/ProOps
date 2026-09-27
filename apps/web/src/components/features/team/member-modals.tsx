@@ -119,7 +119,7 @@ export function EditMemberModal({
     if (!normalizedEmail) {
       nextErrors.email = "E-mail é obrigatório";
     } else if (!EMAIL_REGEX.test(normalizedEmail)) {
-      nextErrors.email = "Email invalido";
+      nextErrors.email = "E-mail inválido";
     }
 
     if (password && password.length < 6) {

@@ -137,7 +137,7 @@ function GoogleSetupContent() {
 
       if (!ALLOWED_TYPES.includes(file.type)) {
         setError(
-          "O arquivo deve ser uma imagem valida (JPEG, PNG, GIF, WebP ou SVG).",
+          "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
         );
         e.target.value = "";
         return;
@@ -169,7 +169,7 @@ function GoogleSetupContent() {
 
     const firebaseUser = auth.currentUser;
     if (!firebaseUser) {
-      setError("Sua sessao expirou. Entre novamente com Google.");
+      setError("Sua sessão expirou. Entre novamente com Google.");
       router.replace(getLoginTarget());
       return;
     }
@@ -314,7 +314,7 @@ function GoogleSetupContent() {
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">
-                {userName || "Usuario Google"}
+                {userName || "Usuário Google"}
               </p>
               <p className="text-xs text-muted-foreground">{userEmail}</p>
             </div>
@@ -452,7 +452,7 @@ function GoogleSetupContent() {
                   onBeforeNext={validateCompanyStep}
                   isSubmitting={isSubmitting}
                   submitDisabled={!canSubmit}
-                  submitLabel="Concluir Configuracao"
+                  submitLabel="Concluir Configuração"
                 />
               </div>
             </StepCard>

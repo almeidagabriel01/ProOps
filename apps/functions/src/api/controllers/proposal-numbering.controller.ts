@@ -5,7 +5,9 @@ import {
   MAX_NUMBERING_DIGITS,
   MAX_PRACAS,
   MAX_PRACA_LENGTH,
+  MAX_PROPOSAL_VALIDITY_DAYS,
   MIN_NUMBERING_DIGITS,
+  MIN_PROPOSAL_VALIDITY_DAYS,
 } from "./proposal-numbering";
 import {
   readNumberingConfig,
@@ -32,6 +34,12 @@ const NumberingConfigSchema = z
     defaultPraca: z.string().max(MAX_PRACA_LENGTH * 2).nullable().optional(),
     nextNumber: z.number().int().min(1).max(9_999_999).optional(),
     year: z.number().int().min(1970).max(9999).optional(),
+    defaultValidityDays: z
+      .number()
+      .int()
+      .min(MIN_PROPOSAL_VALIDITY_DAYS)
+      .max(MAX_PROPOSAL_VALIDITY_DAYS)
+      .optional(),
   })
   .strict();
 

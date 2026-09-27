@@ -122,6 +122,35 @@ describe("sanitizeNumberingConfig", () => {
     // O caso real: o cliente ja emitiu 185 propostas fora do ERP.
     expect(sanitizeNumberingConfig({ nextNumber: 186 }).nextNumber).toBe(186);
   });
+
+  it("sugere 30 dias de validade quando nada foi configurado", () => {
+    // Documento gravado antes do campo existir: a proposta nova ainda nasce
+    // com validade preenchida.
+    expect(sanitizeNumberingConfig(undefined).defaultValidityDays).toBe(30);
+    expect(
+      sanitizeNumberingConfig({ enabled: true, nextNumber: 10 })
+        .defaultValidityDays,
+    ).toBe(30);
+  });
+
+  it("guarda a validade configurada pela empresa", () => {
+    expect(
+      sanitizeNumberingConfig({ defaultValidityDays: 15 }).defaultValidityDays,
+    ).toBe(15);
+  });
+
+  it("prende a validade entre 1 e 365 dias", () => {
+    expect(
+      sanitizeNumberingConfig({ defaultValidityDays: 0 }).defaultValidityDays,
+    ).toBe(1);
+    expect(
+      sanitizeNumberingConfig({ defaultValidityDays: 5000 }).defaultValidityDays,
+    ).toBe(365);
+    expect(
+      sanitizeNumberingConfig({ defaultValidityDays: "abc" })
+        .defaultValidityDays,
+    ).toBe(30);
+  });
 });
 
 describe("allocateNextNumber", () => {

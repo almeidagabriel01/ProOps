@@ -11,6 +11,8 @@ import {
   SettingsSecuritySkeleton,
   SettingsPaymentsSkeleton,
   SettingsProposalsSkeleton,
+  SettingsGoalsSkeleton,
+  SettingsBookingSkeleton,
   SettingsFiscalSkeleton,
   SettingsDriveSkeleton,
   SettingsLinkedAccountsSkeleton,
@@ -29,6 +31,11 @@ import { WalletsSkeleton } from "@/app/wallets/_components/wallets-skeleton";
 import { SpreadsheetsSkeleton } from "@/app/spreadsheets/_components/spreadsheets-skeleton";
 import { SpreadsheetEditorSkeleton } from "@/app/spreadsheets/[id]/_components/spreadsheet-editor-skeleton";
 import { KanbanSkeleton } from "@/app/crm/_components/kanban-skeleton";
+import { InvoicesSkeleton } from "@/app/invoices/_components/invoices-skeleton";
+import { CommissionsSkeleton } from "@/app/commissions/_components/commissions-skeleton";
+import { DreSkeleton } from "@/app/dre/_components/dre-skeleton";
+import { CashFlowSkeleton } from "@/app/cash-flow/_components/cash-flow-skeleton";
+import { CalendarSkeleton } from "@/app/calendar/_components/calendar-skeleton";
 import { useTenant } from "@/providers/tenant-provider";
 import { isPageEnabledForNiche } from "@/lib/niches/config";
 
@@ -38,10 +45,12 @@ function SpinnerFallback({ message: _message }: { message?: string } = {}) {
   return <FullPageLoading />;
 }
 
-function SettingsSectionSkeleton({ pathname }: { pathname: string }) {
+export function SettingsSectionSkeleton({ pathname }: { pathname: string }) {
   if (pathname.startsWith("/settings/security")) return <SettingsSecuritySkeleton />;
   if (pathname.startsWith("/settings/payments")) return <SettingsPaymentsSkeleton />;
   if (pathname.startsWith("/settings/proposals")) return <SettingsProposalsSkeleton />;
+  if (pathname.startsWith("/settings/goals")) return <SettingsGoalsSkeleton />;
+  if (pathname.startsWith("/settings/booking")) return <SettingsBookingSkeleton />;
   if (pathname.startsWith("/settings/fiscal")) return <SettingsFiscalSkeleton />;
   if (pathname.startsWith("/settings/drive")) return <SettingsDriveSkeleton />;
   if (pathname.startsWith("/settings/linked-accounts")) {
@@ -150,6 +159,26 @@ export function RouteContentSkeleton({ pathname }: { pathname: string }) {
 
   if (pathname.startsWith("/crm")) {
     return <KanbanSkeleton />;
+  }
+
+  if (pathname.startsWith("/invoices")) {
+    return <InvoicesSkeleton />;
+  }
+
+  if (pathname.startsWith("/commissions")) {
+    return <CommissionsSkeleton />;
+  }
+
+  if (pathname.startsWith("/dre")) {
+    return <DreSkeleton />;
+  }
+
+  if (pathname.startsWith("/cash-flow")) {
+    return <CashFlowSkeleton />;
+  }
+
+  if (pathname.startsWith("/calendar")) {
+    return <CalendarSkeleton />;
   }
 
   return <DashboardSkeleton />;

@@ -127,7 +127,7 @@ function createDefaultSections(
     sections.push({
       id: createRuntimeId(),
       type: "payment-terms",
-      content: "Condicoes de Pagamento",
+      content: "Condições de Pagamento",
       columnWidth: 100,
       styles: {
         fontSize: "14px",
@@ -360,7 +360,7 @@ function hydrateSections(
       return {
         ...section,
         content: hasDynamicPaymentOptions
-          ? "Condicoes de Pagamento"
+          ? "Condições de Pagamento"
           : resolvePaymentTermsSectionContent(section.content, paymentTerms),
         columnWidth: 100,
       };
@@ -424,7 +424,7 @@ function normalizeCoverElements(elements: CoverElement[]): CoverElement[] {
       id: createRuntimeId(),
       type: "valid-until",
       content: "",
-      prefix: "Valido ate",
+      prefix: "Válido até",
       suffix: "",
       x: 50,
       y: 90,

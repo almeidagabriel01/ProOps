@@ -62,6 +62,17 @@ export function buildPlanFeatureList(plan: UserPlan): string[] {
     f.hasKanban ? "CRM Kanban" : null,
     f.hasFiscal ? "Emissão de NF-e e NFS-e" : null,
     f.hasFiscalReceiving ? "Recebimento das notas dos fornecedores" : null,
+    f.hasOnlineApproval
+      ? "Aceite online: o cliente aceita a proposta pelo link"
+      : null,
+    f.hasProjects
+      ? "Projetos de instalação: etapas, fotos e aceite da entrega"
+      : null,
+    f.hasSalesGoals ? "Metas de vendas da empresa e de cada pessoa da equipe" : null,
+    f.hasBookingLink ? "Link de agendamento: o cliente pede a visita pela internet" : null,
+    f.hasClientPortal
+      ? "Portal do cliente: propostas, pagamentos, obra e documentos num link só"
+      : null,
     f.hasOnlinePayments
       ? "Pagamento online: o cliente paga a parcela por Pix ou boleto no link"
       : null,
@@ -131,7 +142,7 @@ export function useLandingPage() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      toast.success("Voce saiu da sua conta.", {
+      toast.success("Você saiu da sua conta.", {
         title: "Logout realizado",
       });
     } catch {

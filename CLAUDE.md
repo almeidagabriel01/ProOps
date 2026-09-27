@@ -17,28 +17,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Only do this as a side effect of a change the user asked for. **Never** edit docs proactively or rewrite content the user did not ask you to touch — fix only what your change made inaccurate.
 - This rule does not apply to vendored/installed tooling: `.claude/gsd-*`, `.claude/get-shit-done/`, `.claude/skills/` (installed plugins), and stale copies under `.worktrees/`. Leave those alone.
 
-## Módulo ou Funcionalidade Nova — as quatro perguntas
+## Módulo ou Funcionalidade Nova — as seis perguntas
 
-**Antes de escrever a primeira linha de um módulo ou funcionalidade nova,
-responda as quatro — e, se a resposta não estiver no pedido, PERGUNTE ao
-usuário em vez de escolher sozinho.** Nenhuma delas tem default seguro; as
-quatro falham em silêncio.
+**Antes de escrever a primeira linha de um módulo, tela ou funcionalidade nova,
+responda as seis e, se a resposta não estiver no pedido, PERGUNTE ao usuário em
+vez de escolher sozinho, com as seis juntas numa pergunta só.** Nenhuma delas
+tem default seguro; todas falham em silêncio.
 
 1. **Permissão de membro** — qual `pageId`? O que um membro sem permissão vê?
 2. **Plano** — quais planos abrem isto? É vendável como add-on?
 3. **Conta free / modo demo** — uma conta gratuita navega isto em
    somente-leitura, ou o módulo fica fora do demo?
 4. **Firestore rules** — a coleção nova tem regra? (DENY-by-default)
+5. **Onboarding:** a tela entra no tutorial? Se entra, em qual capítulo e com
+   qual checklist; se não entra, por quê (o motivo vai para
+   `ROUTES_WITHOUT_OWN_STEP`).
+6. **Nichos:** como fica em cada nicho de `TenantNiche` (hoje
+   `automacao_residencial` e `cortinas`)? Aparece nos dois? Algum texto ou
+   rótulo muda? Algum comportamento muda (catálogo por unidade ou por metro,
+   fluxo da proposta, PDF)? Pergunte pelo tipo, não por uma lista decorada: um
+   nicho novo não pode ficar de fora.
 
 O checklist executável de cada uma, com os arquivos exatos a tocar e os testes
-exigidos, está em **`.claude/rules/access-control.md`**. Siga-o — não confie na
-memória.
+exigidos, está em **`.claude/rules/access-control.md`**: as quatro camadas de
+acesso e, na seção "Além do acesso", onboarding e nichos. Siga-o — não confie
+na memória.
 
-O histórico do projeto tem um caso real de cada falha: uma chave de permissão
-fantasma fechou o módulo financeiro para todo membro; fiscal, calendário e
-Asaas nasceram sem gate de plano e ficaram meses abertos para qualquer
-assinante; e cinco prefixos mortos na lista de leitura do demo quebravam
-Soluções, Ambientes e o formulário de proposta para toda conta free.
+O histórico do projeto tem um caso real de cada falha de acesso: uma chave de
+permissão fantasma fechou o módulo financeiro para todo membro; fiscal,
+calendário e Asaas nasceram sem gate de plano e ficaram meses abertos para
+qualquer assinante; e cinco prefixos mortos na lista de leitura do demo
+quebravam Soluções, Ambientes e o formulário de proposta para toda conta free.
+As duas perguntas novas falham do mesmo jeito: um passo do tutorial sem gate de
+plano ou de demo apresenta uma tela que a conta não abre, e o tenant de
+demonstração é só de automação, sem teste que cubra os dois nichos, então uma
+quebra em cortinas só aparece quando o cliente reclama.
 
 ## Bug Fix Policy
 
@@ -163,7 +176,7 @@ qualquer chamada HTTP direta passava.
 Matriz atual: **Starter** sem módulo premium nativo (compra `financial`, `crm`,
 `fiscal`, `online_payments` e `pdf_editor_*` como add-on; o pagamento online no
 Starter exige o financeiro); **Pro** com financeiro, editor de PDF, cores,
-Google Agenda e Google Drive (compra `crm`, `fiscal` e `online_payments`);
+Google Agenda, Google Drive, aceite online da proposta pelo link, projetos de instalação, metas de vendas, link de agendamento e portal do cliente (compra `crm`, `fiscal` e `online_payments`);
 **Enterprise** com tudo, mais CRM, Notas Fiscais sem franquia, recepção de notas
 de entrada, Pagamento Online e WhatsApp. O add-on fiscal emite até 100 notas por
 mês e não inclui a recepção. Planilhas: 5 / 50 / ilimitado. Add-ons somam por
@@ -299,6 +312,7 @@ a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
 Detailed documentation per module lives in CLAUDE.md files within each folder:
 - Navegação (dock, tab bar, seletor de visão): `apps/web/src/components/layout/CLAUDE.md`
 - Financial module (frontend): `apps/web/src/app/transactions/CLAUDE.md`
+- Projetos de instalação (obra depois da venda): `apps/web/src/app/projects/CLAUDE.md`
 - Financial module (backend): `apps/functions/CLAUDE.md`
 - Backend services: `apps/functions/src/api/services/CLAUDE.md`
 - Backend middleware: `apps/functions/src/api/middleware/CLAUDE.md`

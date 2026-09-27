@@ -1,3 +1,4 @@
+import type { ClientAcceptance, ClientChangeRequest } from "@/lib/client-acceptance";
 import { PdfDisplaySettings } from "./pdf-display-settings";
 import { ProposalProductPricingDetails } from "@/lib/product-pricing";
 
@@ -145,6 +146,11 @@ export interface Proposal {
    * como `downPaymentWallet` e `installmentsWallet` tambem nao entram.
    */
   commissions?: ProposalCommission[];
+  /** Quem vendeu (metas de vendas). Padrão: quem criou. */
+  sellerId?: string | null;
+  sellerName?: string | null;
+  /** Quando foi aprovada (ISO). Apagado se a proposta sair de aprovada. */
+  approvedAt?: string | null;
 
   /**
    * Numeracao da proposta, quando a empresa liga a funcionalidade em
@@ -160,6 +166,14 @@ export interface Proposal {
   proposalYear?: number | null;
   proposalPraca?: string | null;
   proposalCode?: string | null;
+
+  /**
+   * Aceite do cliente pelo link. Pendente até a empresa confirmar a aprovação
+   * (ver `lib/client-acceptance.ts`). Gravado só pelo backend.
+   */
+  clientAcceptance?: ClientAcceptance | null;
+  /** Pedido de mudanças do cliente pelo link. Gravado só pelo backend. */
+  clientChangeRequest?: ClientChangeRequest | null;
 
   // Flattened fields for sorting
   primarySystem?: string;

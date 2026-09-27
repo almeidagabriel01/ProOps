@@ -26,6 +26,8 @@ const BLOQUEADAS = [
   "/crm",
   "/transactions",
   "/wallets",
+  "/dre",
+  "/cash-flow",
   "/invoices",
   "/calendar",
 ];
@@ -103,6 +105,7 @@ test.describe("PERM-02: a dock só oferece o que o membro pode abrir", () => {
       "Financeiro",
       "Contatos",
       "Calendário",
+      "Tarefas",
       "Catálogo",
       "Planilhas",
       // e os filhos dos grupos: nenhum pode vazar para a dock como item solto,

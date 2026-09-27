@@ -127,8 +127,8 @@ export function BottomDock() {
   }, [clearHideTimeout, clearTopIdleTimeout]);
 
   // Regra de visibilidade por scroll:
-  // - no topo absoluto: sempre visÃ­vel
-  // - rolou um pouco: oculta e sÃ³ reaparece pelo hot zone no rodapÃ©
+  // - no topo absoluto: sempre visível
+  // - rolou um pouco: oculta e só reaparece pelo hot zone no rodapé
   React.useEffect(() => {
     if (!hasHover) {
       setIsAtTop(true);
@@ -171,7 +171,7 @@ export function BottomDock() {
   React.useEffect(() => {
     if (!hasHover) return;
 
-    // SÃ³ aplica no topo e quando estiver visÃ­vel
+    // Só aplica no topo e quando estiver visível
     if (!isAtTop || !isVisible) {
       clearTopIdleTimeout();
       return;
@@ -194,7 +194,7 @@ export function BottomDock() {
     };
   }, [hasHover, isAtTop, isVisible, isDockInteracting, clearTopIdleTimeout]);
 
-  // Ao navegar e não estar no topo, jÃ¡ oculta.
+  // Ao navegar e não estar no topo, já oculta.
   React.useEffect(() => {
     if (!hasHover) return;
     if (isAtTop) return;

@@ -15,13 +15,22 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { isDemoReadOnlyError } from "@/lib/api-client";
 import { SharedTransactionService } from "@/services/shared-transaction-service";
+import { ClientService } from "@/services/client-service";
 import { Loader } from "@/components/ui/loader";
+import { SendLinkPanel } from "@/components/shared/send-link-panel";
+import { buildChargeMessage } from "@/lib/send-link";
+import { useTenant } from "@/providers/tenant-provider";
 
 interface ShareLinkModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transactionId: string;
   transactionDescription: string;
+  /** Para a mensagem de cobrança e para achar o telefone/e-mail do contato. */
+  amount?: number;
+  dueDate?: string;
+  clientId?: string;
+  clientName?: string;
 }
 
 type ExpireDays = 15 | 30 | 60 | 90 | 180 | 365 | null;
@@ -84,10 +93,58 @@ export function ShareLinkModal({
   onOpenChange,
   transactionId,
   transactionDescription,
+  amount,
+  dueDate,
+  clientId,
+  clientName,
 }: ShareLinkModalProps) {
+  const { tenant } = useTenant();
   const [selectedDays, setSelectedDays] = React.useState<ExpireDays>(30);
+  // Depois de gerado, o modal vira o painel de envio (WhatsApp, e-mail, copiar).
+  const [shareUrl, setShareUrl] = React.useState<string | null>(null);
+  const [contact, setContact] = React.useState<{
+    phone?: string;
+    email?: string;
+  }>({});
   const [isLoading, setIsLoading] = React.useState(false);
   const [isCopying, setIsCopying] = React.useState(false);
+
+  const chargeMessage = React.useMemo(
+    () =>
+      shareUrl
+        ? buildChargeMessage({
+            clientName,
+            description: transactionDescription,
+            amount,
+            dueDate,
+            companyName: tenant?.name,
+            url: shareUrl,
+          })
+        : null,
+    [shareUrl, clientName, transactionDescription, amount, dueDate, tenant?.name],
+  );
+
+  React.useEffect(() => {
+    if (!open) {
+      setShareUrl(null);
+      return;
+    }
+    if (!clientId) {
+      setContact({});
+      return;
+    }
+    let active = true;
+    ClientService.getClientById(clientId)
+      .then((client) => {
+        if (active) setContact({ phone: client?.phone, email: client?.email });
+      })
+      .catch(() => {
+        if (active) setContact({});
+      });
+    return () => {
+      active = false;
+    };
+  }, [open, clientId]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -123,14 +180,11 @@ export function ShareLinkModal({
         await copyToClipboard(result.shareUrl);
         toast.success("Link copiado!");
       } catch {
-        toast.warning(
-          "Link gerado, mas não copiado. Por favor, não mude de aba enquanto gera o link.",
-          { autoClose: 5000 },
-        );
+        // O painel de envio mostra o link e tem o próprio botão de copiar.
       }
 
       setIsCopying(false);
-      onOpenChange(false);
+      setShareUrl(result.shareUrl);
     } catch (error) {
       if (!isDemoReadOnlyError(error)) {
         toast.error("Erro ao gerar link. Tente novamente.");
@@ -147,14 +201,22 @@ export function ShareLinkModal({
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
               <Share2 className="h-4 w-4 text-primary" />
             </div>
-            Compartilhar lançamento
+            {shareUrl ? "Enviar cobrança" : "Compartilhar lançamento"}
           </DialogTitle>
           <DialogDescription className="line-clamp-1 pl-[42px]">
             {transactionDescription}
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
+        {shareUrl && chargeMessage ? (
+          <SendLinkPanel
+            url={shareUrl}
+            subject={chargeMessage.subject}
+            defaultMessage={chargeMessage.message}
+            phone={contact.phone}
+            email={contact.email}
+          />
+        ) : isLoading ? (
           <OptionsSkeleton />
         ) : (
           <div className="space-y-3 py-1">
@@ -237,6 +299,7 @@ export function ShareLinkModal({
           </div>
         )}
 
+        {!shareUrl && (
         <DialogFooter>
           <Button
             type="button"
@@ -261,11 +324,12 @@ export function ShareLinkModal({
             ) : (
               <>
                 <Copy className="mr-2 h-4 w-4" />
-                Copiar link
+                Gerar link
               </>
             )}
           </Button>
         </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

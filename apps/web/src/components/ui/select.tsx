@@ -59,10 +59,19 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const containerRef = React.useRef<HTMLDivElement>(null);
     const portalContentRef = React.useRef<HTMLDivElement>(null);
     const [isMounted, setIsMounted] = React.useState(false);
-    const [fixedCoords, setFixedCoords] = React.useState({
+    const [fixedCoords, setFixedCoords] = React.useState<{
+      top: number;
+      left: number | null;
+      right: number | null;
+      width: number;
+      maxWidth: number;
+      maxHeight: number;
+    }>({
       top: 0,
       left: 0,
+      right: null,
       width: 0,
+      maxWidth: 0,
       maxHeight: 250,
     });
 
@@ -138,10 +147,22 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         // Use available space, but cap at 250px max and minimum 100px
         const calculatedMaxHeight = Math.min(Math.max(spaceBelow, 100), 250);
 
+        // A lista tem no mínimo a largura do campo e cresce até caber a
+        // opção mais longa: presa à largura do campo, um select estreito
+        // cortava as opções ("1..." no lugar de "1h30"). Campo perto da
+        // borda direita abre alinhado pela direita, para não sair da tela.
+        const viewportWidth = window.innerWidth;
+        const edge = 8;
+        const opensLeftward = rect.left + Math.max(rect.width, 240) > viewportWidth - edge;
         setFixedCoords({
           top: rect.bottom + 4,
-          left: rect.left,
+          left: opensLeftward ? null : rect.left,
+          right: opensLeftward ? viewportWidth - rect.right : null,
           width: rect.width,
+          maxWidth: Math.max(
+            rect.width,
+            opensLeftward ? rect.right - edge : viewportWidth - rect.left - edge,
+          ),
           maxHeight: calculatedMaxHeight,
         });
         setIsOpen(true);
@@ -239,8 +260,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           style={{
             position: "fixed",
             top: fixedCoords.top,
-            left: fixedCoords.left,
-            width: fixedCoords.width,
+            left: fixedCoords.left ?? undefined,
+            right: fixedCoords.right ?? undefined,
+            minWidth: fixedCoords.width,
+            width: "max-content",
+            maxWidth: fixedCoords.maxWidth,
             zIndex: 99999,
             pointerEvents: "auto", // Explicitly allow events
           }}

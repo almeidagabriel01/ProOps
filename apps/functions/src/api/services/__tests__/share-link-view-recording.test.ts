@@ -222,3 +222,66 @@ describe("Share-link view recording: array capado + viewCount", () => {
     expect(txnUpdate).not.toHaveBeenCalled();
   });
 });
+
+describe("Share-link view recording: primeira abertura marca o follow-up", () => {
+  function stubProposalCollections() {
+    const docStub = makeDocStub();
+    const proposalDocStub = {
+      get: jest.fn().mockResolvedValue({
+        exists: true,
+        data: () => ({ title: "Casa", tenantId: "tenant-1" }),
+      }),
+    };
+    dbMock.collection.mockImplementation((name: string) =>
+      name === "proposals"
+        ? { doc: jest.fn().mockReturnValue(proposalDocStub) }
+        : { doc: jest.fn().mockReturnValue(docStub) },
+    );
+  }
+
+  function setupTransactionWith(data: Record<string, unknown>) {
+    const txnUpdate = jest.fn();
+    dbMock.runTransaction.mockImplementation(
+      async (fn: (txn: unknown) => Promise<void>) => {
+        await fn({
+          get: jest.fn().mockResolvedValue({ exists: true, data: () => data }),
+          update: txnUpdate,
+        });
+      },
+    );
+    return txnUpdate;
+  }
+
+  test("primeira visualização grava firstViewedAt e followUpPending", async () => {
+    stubProposalCollections();
+    const txnUpdate = setupTransactionWith({ viewerInfo: [] });
+
+    await SharedProposalService.recordView("sp-1", "tenant-1", "prop-1", {
+      ip: "203.0.113.1",
+      userAgent: "Mozilla/5.0",
+    });
+
+    const payload = txnUpdate.mock.calls[0][1] as UpdatePayload;
+    expect(payload.firstViewedAt).toEqual(expect.any(String));
+    expect(payload.firstViewedAt).toBe(payload.viewedAt);
+    expect(payload.followUpPending).toBe(true);
+  });
+
+  test("visualizações seguintes não reabrem o follow-up", async () => {
+    stubProposalCollections();
+    const txnUpdate = setupTransactionWith({
+      viewerInfo: [],
+      firstViewedAt: "2026-09-01T00:00:00.000Z",
+      followUpPending: false,
+    });
+
+    await SharedProposalService.recordView("sp-1", "tenant-1", "prop-1", {
+      ip: "203.0.113.1",
+      userAgent: "Mozilla/5.0",
+    });
+
+    const payload = txnUpdate.mock.calls[0][1] as UpdatePayload;
+    expect(payload).not.toHaveProperty("firstViewedAt");
+    expect(payload).not.toHaveProperty("followUpPending");
+  });
+});

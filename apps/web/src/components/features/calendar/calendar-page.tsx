@@ -48,6 +48,7 @@ import { useIsMobile, useMediaQuery } from "@/hooks/use-is-mobile";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { CalendarService } from "@/services/calendar-service";
+import { BookingRequestsButton } from "@/components/features/booking/booking-requests-button";
 import type {
   CalendarEvent,
   CalendarEventFormValues,
@@ -61,6 +62,7 @@ import {
 } from "./calendar-event-dialog";
 
 const STATUS_LABELS: Record<CalendarEvent["status"], string> = {
+  pending: "A confirmar",
   scheduled: "Agendado",
   completed: "Concluido",
   canceled: "Cancelado",
@@ -68,8 +70,9 @@ const STATUS_LABELS: Record<CalendarEvent["status"], string> = {
 
 const STATUS_BADGES: Record<
   CalendarEvent["status"],
-  "default" | "success" | "destructive"
+  "default" | "success" | "destructive" | "warning"
 > = {
+  pending: "warning",
   scheduled: "default",
   completed: "success",
   canceled: "destructive",
@@ -229,7 +232,7 @@ function GoogleCalendarCompanyCard(props: {
             Google Agenda da empresa
           </p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Sincronizacao central da agenda operacional com a conta Google
+            Sincronização central da agenda operacional com a conta Google
             principal.
           </p>
         </div>
@@ -322,7 +325,7 @@ function GoogleCalendarCompanyCard(props: {
             </Button>
           ) : (
             <div className="rounded-[22px] border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-              Peca para um usuario master conectar a agenda da empresa.
+              Peça para um usuário master conectar a agenda da empresa.
             </div>
           )}
         </>
@@ -349,7 +352,7 @@ function UpcomingEventsCard(props: {
       <div className="calendar-panel-scrollbar mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
         {props.events.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-            Nenhum compromisso visivel neste recorte.
+            Nenhum compromisso visível neste recorte.
           </div>
         ) : (
           props.events.map((event) => (
@@ -414,7 +417,7 @@ export function CalendarPage() {
   });
   const [statusFilter, setStatusFilter] = React.useState<
     CalendarEvent["status"][]
-  >(["scheduled", "completed", "canceled"]);
+  >(["pending", "scheduled", "completed", "canceled"]);
   const [searchTerm, setSearchTerm] = React.useState("");
   const deferredSearch = React.useDeferredValue(searchTerm);
   const [showWeekends, setShowWeekends] = React.useState(true);
@@ -724,7 +727,7 @@ export function CalendarPage() {
     try {
       await CalendarService.deleteEvent(activeEvent.id);
       removeEvent(activeEvent.id);
-      toast.success("Compromisso excluido.");
+      toast.success("Compromisso excluído.");
       setDialogOpen(false);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao excluir.");
@@ -736,7 +739,7 @@ export function CalendarPage() {
   async function handleGoogleConnect() {
     if (!GOOGLE_CALENDAR_SYNC_ENABLED) {
       toast.info(
-        "A integracao com Google Agenda esta temporariamente desabilitada.",
+        "A integração com Google Agenda está temporariamente desabilitada.",
       );
       return;
     }
@@ -948,7 +951,7 @@ export function CalendarPage() {
                       icon={<CalendarRange className="h-3.5 w-3.5" />}
                     />
                     <CalendarStatPill
-                      label="Concluidos"
+                      label="Concluídos"
                       value={stats.completed}
                       icon={<CheckCircle2 className="h-3.5 w-3.5" />}
                       tone="success"
@@ -1074,6 +1077,11 @@ export function CalendarPage() {
                         />
                       </Button>
 
+                      <BookingRequestsButton
+                        onChanged={() => void handleManualRefresh()}
+                        highlightId={searchParams.get("pedido")}
+                      />
+
                       {canCreate ? (
                         <Button
                           onClick={() => handleOpenCreateDialog()}
@@ -1087,6 +1095,7 @@ export function CalendarPage() {
                     <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
                       {(
                         [
+                          "pending",
                           "scheduled",
                           "completed",
                           "canceled",

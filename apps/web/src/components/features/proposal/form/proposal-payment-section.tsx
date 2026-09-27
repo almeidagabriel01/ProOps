@@ -187,14 +187,14 @@ export function ProposalPaymentSection({
           </Label>
         </div>
         <p className="text-sm text-muted-foreground">
-          Esse texto aparece no PDF em Condicoes de Pagamento para {contextLabel}.
+          Esse texto aparece no PDF em Condições de Pagamento para {contextLabel}.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
         <div className="field-gap">
           <div className="min-h-5">
-            <Label htmlFor={presetId}>Opcao</Label>
+            <Label htmlFor={presetId}>Opção</Label>
           </div>
           <Select
             id={presetId}
@@ -645,7 +645,7 @@ export function ProposalPaymentSection({
               fieldValue: formData.downPaymentMethod || "",
               customInputId: "downPaymentMethod",
               customInputName: "downPaymentMethod",
-              customInputLabel: "Descricao personalizada da entrada",
+              customInputLabel: "Descrição personalizada da entrada",
               placeholder: "Ex: Entrada via PIX",
               contextLabel: "a entrada",
             })}
@@ -804,7 +804,7 @@ export function ProposalPaymentSection({
               fieldValue: formData.installmentsPaymentMethod || "",
               customInputId: "installmentsPaymentMethod",
               customInputName: "installmentsPaymentMethod",
-              customInputLabel: "Descricao personalizada das parcelas",
+              customInputLabel: "Descrição personalizada das parcelas",
               placeholder: "Ex: Parcelas no boleto",
               contextLabel: "as parcelas",
             })}

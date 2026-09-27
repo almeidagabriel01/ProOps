@@ -35,6 +35,10 @@ const DEMO_BLOCKED_MUTATION_PREFIXES = [
   "/v1/transactions",
   "/v1/wallets",
   "/v1/kanban",
+  "/v1/leads",
+  "/v1/activities",
+  "/v1/projects",
+  "/v1/tasks",
 ];
 
 /**

@@ -7,7 +7,7 @@ import { getStripe } from "./stripe/stripeConfig";
 import { detectPriceDrift } from "./billing/price-drift";
 import { sendEmail } from "./services/email/send-email";
 import { renderPriceChangeEmail } from "./services/email/templates/price-change";
-import type { NotificationType } from "./api/services/notification.service";
+import { NotificationService, type NotificationType } from "./api/services/notification.service";
 import { paginateQuery } from "./lib/cron-iteration";
 
 const PRICE_CHANGE_NOTIFY_DAYS = 30;
@@ -43,10 +43,12 @@ async function upsertPriceChangeNotification(data: {
 }): Promise<void> {
   const type: NotificationType = "price_change";
   const notificationRef = db.collection("notifications").doc(data.notificationId);
+  const { fields } = await NotificationService.recipientFields(data.tenantId, type);
   await notificationRef.set(
     {
       tenantId: data.tenantId,
       type,
+      ...fields,
       title: data.title,
       message: data.message,
       isRead: false,

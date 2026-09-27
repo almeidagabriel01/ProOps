@@ -24,6 +24,19 @@ import {
   getShareLinkInfo,
 } from "../controllers/shared-transactions.controller";
 import { downloadTransactionPdf } from "../controllers/transaction-pdf.controller";
+import {
+  createTransactionCategory,
+  deleteTransactionCategory,
+  getDre,
+  getTransactionCategories,
+  updateTransactionCategory,
+} from "../controllers/finance-reports.controller";
+import {
+  createAccountantLinkHandler,
+  getAccountantLinkHandler,
+  revokeAccountantLinkHandler,
+  rotateAccountantLinkHandler,
+} from "../controllers/accountant.controller";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 import { requirePlanCapability } from "../middleware/require-plan-capability";
 
@@ -43,6 +56,18 @@ router.get("/transactions/summary", getTransactionsSummary);
 // Relatorio mensal de comissoes. Tambem antes das rotas /:id, e sob
 // /transactions para herdar o gate de plano e o prefixo do modo demo.
 router.get("/transactions/commissions", getCommissionReport);
+// DRE e categorias (com o grupo do DRE de cada uma): sob /transactions pelo
+// mesmo motivo, e antes das rotas /:id.
+router.get("/transactions/dre", getDre);
+router.get("/transactions/categories", getTransactionCategories);
+router.post("/transactions/categories", createTransactionCategory);
+router.put("/transactions/categories/:id", updateTransactionCategory);
+router.delete("/transactions/categories/:id", deleteTransactionCategory);
+// Link do contador (só dono e administradores).
+router.get("/transactions/accountant-link", getAccountantLinkHandler);
+router.post("/transactions/accountant-link", createAccountantLinkHandler);
+router.post("/transactions/accountant-link/rotate", rotateAccountantLinkHandler);
+router.delete("/transactions/accountant-link", revokeAccountantLinkHandler);
 router.post("/transactions", createTransaction);
 router.post("/transactions/:id/share-link", createTransactionShareLink);
 router.get("/transactions/:id/share-link", getShareLinkInfo);

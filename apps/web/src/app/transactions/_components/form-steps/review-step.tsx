@@ -2,16 +2,15 @@
 
 import * as React from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { ClientSelect } from "@/components/features/client-select";
 import { FormItem } from "@/components/ui/form-components";
 import { formatCurrency } from "@/utils/format";
 import { formatDateBR } from "@/utils/date-format";
 import { FormErrors } from "@/hooks/useFormValidation";
-import { TrendingUp, TrendingDown, User, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { TransactionFormData } from "../../_hooks/useTransactionForm";
 import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 import { statusConfig } from "../../_constants/config";
+import { TransactionClientField } from "./transaction-client-field";
 interface ReviewStepProps {
   formData: TransactionFormData;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
@@ -24,6 +23,8 @@ interface ReviewStepProps {
   totalOverride?: number;
   installmentNumber?: number;
   recurringEditScope?: "single" | "series";
+  /** Falso quando o cliente já foi pedido num passo anterior. */
+  showClient?: boolean;
 }
 
 export function ReviewStep({
@@ -34,6 +35,7 @@ export function ReviewStep({
   totalOverride,
   installmentNumber,
   recurringEditScope,
+  showClient = true,
 }: ReviewStepProps) {
   const { wallets } = useWalletsData();
   const isIncome = formData.type === "income";
@@ -333,27 +335,13 @@ export function ReviewStep({
         </div>
       </div>
 
-      {/* Client */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <User className="w-4 h-4 text-muted-foreground" />
-          <Label className="text-sm font-medium">
-            {isIncome ? "Cliente" : "Fornecedor"}{" "}
-            {isIncome && <span className="text-destructive">*</span>}
-          </Label>
-        </div>
-        <ClientSelect
-          value={formData.clientName}
-          clientId={formData.clientId}
-          onChange={onClientChange}
-          error={!!errors.clientId || !!errors.clientName}
+      {showClient && (
+        <TransactionClientField
+          formData={formData}
+          onClientChange={onClientChange}
+          errors={errors}
         />
-        {(errors.clientId || errors.clientName) && (
-          <p className="text-sm text-destructive">
-            {errors.clientId || errors.clientName}
-          </p>
-        )}
-      </div>
+      )}
 
       {/* Notes */}
       <FormItem label="Observações" htmlFor="notes">

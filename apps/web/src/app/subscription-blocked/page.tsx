@@ -138,7 +138,7 @@ function SubscriptionBlockedContent() {
             variant="outline"
             className="w-full"
             onClick={() =>
-              (window.location.href = "mailto:suporte@softcode.com.br")
+              (window.location.href = "mailto:gestao@proops.com.br")
             }
           >
             <Mail className="h-4 w-4 mr-2" />

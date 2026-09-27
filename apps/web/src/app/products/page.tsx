@@ -13,6 +13,7 @@ import {
   Wallet,
   TrendingUp,
 } from "lucide-react";
+import { runUndoableAction } from "@/lib/undoable-action";
 import { toast } from "@/lib/toast";
 import { ProductsTableSkeleton } from "./_components/products-table-skeleton";
 import { normalize } from "@/utils/text";
@@ -43,6 +44,9 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ProductsSkeleton } from "./_components/products-skeleton";
+import { ImportButton, ImportDialog } from "@/components/features/import/import-dialog";
+import { OptionService } from "@/services/option-service";
+import { productFields } from "@/lib/import/import-fields";
 import { formatCurrency } from "@/utils/format";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import {
@@ -99,12 +103,25 @@ export default function ProductsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTableLoading, setIsTableLoading] = useState(true);
   const resetRef = useRef<(() => void) | null>(null);
+  const refreshRef = useRef<(() => void) | null>(null);
   const updateItemsRef = useRef<
     ((updater: (items: Product[]) => Product[]) => void) | null
   >(null);
 
   const isFiltering = searchTerm.trim() !== "";
   const isCurtainNiche = nicheConfig.id === "cortinas";
+  const [importOpen, setImportOpen] = useState(false);
+  // A planilha segue o nicho: em metros (e com "preço por") onde o estoque é
+  // por metragem.
+  const importPerMeter = nicheConfig.productCatalog.inventory.mode === "meter";
+  const importFields = useMemo(
+    () =>
+      productFields({
+        inventoryLabel: nicheConfig.productCatalog.inventory.formLabel,
+        perMeter: importPerMeter,
+      }),
+    [nicheConfig.productCatalog.inventory.formLabel, importPerMeter],
+  );
   const curtainInventorySummary = useMemo(
     () => summarizeCurtainInventoryBalance(allProducts ?? []),
     [allProducts],
@@ -212,6 +229,18 @@ export default function ProductsPage() {
     void refreshHasAnyProducts();
   }, [refreshHasAnyProducts]);
 
+  // Depois de importar: o catálogo guardado é descartado e relido.
+  const reloadAfterImport = useCallback(() => {
+    if (!tenant) return;
+    ProductService.invalidateTenantCache(tenant.id);
+    // A importação cria categorias e fabricantes novos na lista da empresa.
+    OptionService.invalidate(tenant.id, "product_categories");
+    OptionService.invalidate(tenant.id, "product_manufacturers");
+    void refreshHasAnyProducts();
+    refreshRef.current?.();
+    void ProductService.getProducts(tenant.id).then(setAllProducts).catch(() => undefined);
+  }, [tenant, refreshHasAnyProducts]);
+
   useEffect(() => {
     if (!tenant) {
       setAllProducts(null);
@@ -288,25 +317,43 @@ export default function ProductsPage() {
         return;
       }
 
-      const success = await deleteProduct(deleteId, selectedProduct?.name);
-      if (success) {
-        const remainingProducts =
-          allProducts?.filter((p) => p.id !== deleteId) ?? null;
-        const hasRemainingProducts = await refreshHasAnyProducts();
-
-        if (!hasRemainingProducts) {
-          setAllProducts([]);
-        } else {
-          const removedId = deleteId;
-          updateItemsRef.current?.((items) =>
-            items.filter((p) => p.id !== removedId),
-          );
-          if (remainingProducts) {
-            setAllProducts(remainingProducts);
-          }
-        }
-      }
+      // A exclusão só vai ao servidor depois da janela de "Desfazer": o
+      // produto sai da lista agora, e desfazer é recarregar a lista.
+      const removedId = deleteId;
+      const previousProducts = allProducts;
+      updateItemsRef.current?.((items) =>
+        items.filter((p) => p.id !== removedId),
+      );
+      setAllProducts((prev) => prev?.filter((p) => p.id !== removedId) ?? prev);
       setDeleteId(null);
+
+      const restoreList = () => {
+        if (previousProducts) setAllProducts(previousProducts);
+        void refreshHasAnyProducts();
+        refreshRef.current?.();
+      };
+
+      runUndoableAction({
+        message: `Produto ${productLabel} excluído.`,
+        title: "Produto excluído",
+        commit: async () => {
+          await deleteProduct(removedId);
+          await refreshHasAnyProducts();
+        },
+        onUndo: restoreList,
+        onCommitError: (error) => {
+          console.error("Error deleting product:", error);
+          const message =
+            error instanceof Error && error.message.trim()
+              ? error.message.trim()
+              : "Falha ao excluir produto.";
+          toast.error(
+            `Não foi possível excluir o produto ${productLabel}. Detalhes: ${message}`,
+            { title: "Erro ao excluir" },
+          );
+          restoreList();
+        },
+      });
     } catch (error) {
       console.error("Error deleting product:", error);
     } finally {
@@ -458,8 +505,8 @@ export default function ProductsPage() {
           <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
           <AlertDialogDescription>
             Tem certeza que deseja excluir o produto{" "}
-            <strong>{productToDelete?.name}</strong>? Essa ação não pode ser
-            desfeita.
+            <strong>{productToDelete?.name}</strong>? Depois de excluir, você
+            tem alguns segundos para desfazer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -508,7 +555,8 @@ export default function ProductsPage() {
                 <PageViewSwitcher className="mt-3" />
               </div>
               {canCreate && (
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <ImportButton onClick={() => setImportOpen(true)} />
                   <Link href="/products/new" className="block w-full sm:w-auto">
                     <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Plus className="w-5 h-5" />
@@ -517,6 +565,15 @@ export default function ProductsPage() {
                   </Link>
                 </div>
               )}
+              <ImportDialog
+                kind="products"
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                noun={{ singular: "produto", plural: "produtos" }}
+                fields={importFields}
+                allowPerMeter={importPerMeter}
+                onImported={reloadAfterImport}
+              />
             </div>
 
             {isCurtainNiche ? (
@@ -740,6 +797,7 @@ export default function ProductsPage() {
                 fetchPage={fetchPage}
                 fetchEnabled={!!tenant}
                 onResetRef={resetRef}
+                onRefreshRef={refreshRef}
                 onUpdateItemsRef={updateItemsRef}
                 batchSize={12}
                 minWidth="800px"

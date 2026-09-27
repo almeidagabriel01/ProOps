@@ -72,6 +72,7 @@ describe("NotificationService.subscribe", () => {
 
     const unsubscribe = NotificationService.subscribe(
       { kind: "tenant", tenantId: "t1" } as never,
+      { uid: "u1", mode: "recipient" },
       () => undefined,
     );
 
@@ -82,6 +83,34 @@ describe("NotificationService.subscribe", () => {
       ),
     );
     expect(queryWithLimit).toBeDefined();
+    unsubscribe();
+  });
+
+  it("por pessoa, filtra pelos destinatarios (e o que as rules conseguem provar)", async () => {
+    const { NotificationService } = await import("../notification-service");
+
+    const unsubscribe = NotificationService.subscribe(
+      { kind: "tenant", tenantId: "t1" } as never,
+      { uid: "u1", mode: "recipient" },
+      () => undefined,
+    );
+
+    expect(captured.whereArgs).toContainEqual(["tenantId", "==", "t1"]);
+    expect(captured.whereArgs).toContainEqual(["recipientUids", "array-contains", "u1"]);
+    unsubscribe();
+  });
+
+  it("conta free le as notificacoes de exemplo do tenant demo, sem filtro de destinatario", async () => {
+    const { NotificationService } = await import("../notification-service");
+
+    const unsubscribe = NotificationService.subscribe(
+      { kind: "tenant", tenantId: "tenant_free" } as never,
+      { uid: "free-1", mode: "demo" },
+      () => undefined,
+    );
+
+    expect(captured.whereArgs).toContainEqual(["tenantId", "==", "demo"]);
+    expect(captured.whereArgs.some((w) => w[0] === "recipientUids")).toBe(false);
     unsubscribe();
   });
 });

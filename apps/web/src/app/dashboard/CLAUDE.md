@@ -2,7 +2,7 @@
 
 ## Propósito
 
-O Dashboard é a tela inicial do sistema após o login. Exibe um resumo executivo do negócio em tempo real: saldo financeiro, alertas de vencimentos, fluxo de caixa projetado, balanço futuro, estatísticas de propostas e clientes, e atividade recente.
+O Dashboard é a tela inicial do sistema após o login. Exibe um resumo executivo do negócio em tempo real: saldo financeiro, alertas de vencimentos, fluxo de caixa projetado, balanço futuro, o resultado do mês escolhido (vendas, metas, comissões e gastos), as propostas que pedem ação e a atividade recente.
 
 Toda a rota é um Client Component (`'use client'`) porque depende de hooks de estado (`useDashboardData`, `useAuth`, `useTenant`).
 
@@ -18,12 +18,26 @@ O hook `useDashboardData` (`src/hooks/useDashboardData.ts`) é a única fonte de
 | `TransactionService` | `getSummary(tenantId)` | Resumo financeiro agregado (totalIncome, totalExpense, pendentes) |
 | `ProposalService` | `getRecentProposals(tenantId, 5)` | Só as 5 propostas mais recentes (`createdAt desc` + `limit`) |
 | `ProposalService` | `countProposals` / `countProposalsByStatuses` | Contagens de proposta via aggregation — sets de status derivados das colunas do kanban (`buildProposalStatusSets`) |
-| `ClientService` | `countClients` / `countClientsCreatedBetween` | Contagens de cliente via aggregation. `createdAt` é MISTO no banco (Timestamp e string ISO) — a contagem por período soma 2 counts, um por representação |
 | `WalletService` | `getWallets(tenantId)` | Carteiras ativas |
 | `TransactionService` | `getCommissionReport(tenantId, "")` | Comissões a pagar no mês corrente, agregadas no backend (uma chamada, não full-fetch). Resolve `null` na conta demo e também num erro: o painel inteiro não cai porque as comissões falharam |
 | `KanbanService` | `getStatuses(tenantId)` | Colunas do kanban para montar os sets de status das contagens |
 
 As contagens de proposta rodam numa 2ª etapa (dependem das colunas do kanban).
+O hook expõe os status abertos (`openProposalStatuses`) para os dois cards de
+propostas, que têm hooks próprios em `hooks/use-dashboard-sales.ts`:
+
+| Hook | O que traz |
+|------|------------|
+| `useSalesSummary` | Aprovadas no mês e no anterior (`getApprovedBetween`, janela de `approvedAt` no fuso de Brasília, índice das Metas) e a soma do que está em negociação (`sumProposalsByStatuses`, agregação `sum("totalValue")`, contagem à parte) |
+| `useProposalAttention` | Aceites e pedidos de mudança (o listener de `useClientResponses`), validade nos próximos 7 dias (`getExpiringProposals`) e sem movimento há 7 dias (`getStaleProposals`, `updatedAt` Timestamp) |
+
+"Em negociação" são os status abertos menos rascunho e `in_progress`
+(`negotiationStatuses`): a proposta que está com o cliente. O valor vendido
+usa `soldValue` (fechado, senão total) e a janela `monthWindowUtc`, espelhos de
+`functions/src/shared/` com paridade em `lib/sales/__tests__/`: "Vendido" tem
+que bater com o progresso da meta. Os cards de Propostas e Clientes saíram em
+2026-09-27 (números soltos, sem ação); os componentes continuam só na demo da
+landing.
 Guard de regressão: `services/__tests__/dashboard-counts.test.ts`. Não
 reintroduzir `getProposals`/`getClients` (full fetch) neste hook.
 
@@ -39,8 +53,7 @@ rawData (useState — já vem pronto do servidor)
   ├── wallets[]
   ├── proposalStats      — aprovadas/pendentes/total/conversão (aggregation counts)
   ├── recentProposals    — últimas 5 (query com limit)
-  ├── totalClients       — aggregation count
-  └── newClientsThisMonth — aggregation count por período
+  └── openProposalStatuses — status abertos do kanban (base dos cards de propostas)
 
 computed (useMemo sobre rawData — só derivados de transações/carteiras)
   ├── chartData          — receitas/despesas dos próximos 6 meses
@@ -73,18 +86,23 @@ Usa as colunas do kanban para mapear o status dinâmico de cada proposta:
 ```
 page.tsx (DashboardPage)
   ├── Header (saudação + saldo atual)
-  ├── AlertsCard
-  ├── QuickActionsCard
+  ├── AlertsCard / QuickActionsCard / MyTasksCard
   ├── Grid 2 colunas (Charts)
   │   ├── SimpleBarChart — Fluxo de Caixa (6 meses)
   │   └── FutureBalanceChart — Balanço Futuro (3/6/12 meses)
-  ├── Grid 2 colunas
-  │   ├── RecentProposalsList — últimas 5 propostas
-  │   └── MonthStats — breakdown do mês atual
-  ├── CommissionsPanel — comissões a pagar no mês (some quando não há nenhuma)
-  ├── Grid 2 colunas (Stats)
-  │   ├── ProposalStatsCard — donut chart de propostas
-  │   └── ClientsStatsCard — total e novos clientes
+  ├── Resultado do mês (título + MonthSwitcher; tudo aqui segue o mês escolhido)
+  │   ├── SalesSummaryCard — vendido, em negociação, conversão, ticket médio
+  │   └── Grade em LINHAS, cada uma com a altura do maior card dela
+  │       ├── Linha 1: GoalsProgressCard | CommissionsPanel (somem sem dado;
+  │       │   sobrando um, ocupa a largura toda; sem nenhum, a linha some
+  │       │   pelo `:empty`)
+  │       └── Linha 2: MonthStats, despesas por categoria | carteiras
+  │           (`contents`: os dois cards entram direto na grade)
+  │       Colunas (fixas ou balanceadas) deixavam vão fora dos cards quando
+  │       as alturas não batiam; o dono do produto recusou as duas.
+  ├── Grid 2 colunas (só com permissão de ver propostas)
+  │   ├── ProposalAttentionCard — o que pede ação nas propostas
+  │   └── RecentProposalsList — últimas 5 propostas
   └── RecentTransactionsList — últimas 5 transações
 ```
 
@@ -95,9 +113,11 @@ page.tsx (DashboardPage)
 | `metric-cards.tsx` | `FinancialMetricCards`, `AlertsCard` | Cards financeiros e alertas de vencimento |
 | `future-balance-chart.tsx` | `FutureBalanceChart` | LineChart (Recharts) com seletor de período (3/6/12 meses) |
 | `month-stats.tsx` | `MonthStats` | Barra de progresso por categoria + movimentação por carteira |
+| `sales-summary-card.tsx` | `SalesSummaryCard` | Vendas do mês; exemplo fixo na demonstração |
+| `proposal-attention-card.tsx` | `ProposalAttentionCard` | Aceite a confirmar, pedido de mudança, validade vencendo e paradas, cada linha com o link de agir; exemplo fixo na demonstração |
 | `commissions-panel.tsx` | `CommissionsPanel` | Quanto pagar a cada vendedor e arquiteto no mês, com link para `/commissions`. Renderiza `null` sem comissões, então não tem bloco no skeleton |
 | `recent-lists.tsx` | `RecentTransactionsList`, `RecentProposalsList` | Listas de atividade recente |
-| `stats-cards.tsx` | `QuickActionsCard`, `ProposalStatsCard`, `ClientsStatsCard` | Ações rápidas e estatísticas com PieChart (Recharts) |
+| `stats-cards.tsx` | `QuickActionsCard`, `ProposalStatsCard`, `ClientsStatsCard` | Ações rápidas; os dois cards de estatística só na demo da landing |
 | `wallets-grid.tsx` | `WalletsGrid` | Grade de carteiras (exportado no barrel mas não usado em `page.tsx` atualmente) |
 | `dashboard-skeleton.tsx` | `DashboardSkeleton` | Skeleton de carregamento completo da página |
 | `index.ts` | barrel export | Re-exporta todos os componentes acima |
@@ -107,7 +127,6 @@ page.tsx (DashboardPage)
 - **Recharts** — todos os gráficos do dashboard usam Recharts:
   - `SimpleBarChart` (em `src/components/charts/simple-bar-chart.tsx`) — BarChart para fluxo de caixa
   - `LineChart` dentro de `FutureBalanceChart` — projeção de balanço
-  - `PieChart` / `Pie` dentro de `ProposalStatsCard` — distribuição de propostas (donut)
 
 ---
 
@@ -141,6 +160,11 @@ transações (backlog do audit).
 - `QuickActionsCard` usa `usePagePermission` para mostrar apenas os atalhos que o usuário pode criar (`canCreate`). Membros sem permissão de criação em proposals/transactions/clients/products não veem os respectivos cards de ação rápida.
 - O módulo financeiro (`hasFinancial`) é verificado via `usePlanLimits` — se o plano não incluir financeiro, o atalho de "Novo Lançamento" fica oculto.
 - Superadmin sem tenant selecionado vê `<SelectTenantState />` em vez do dashboard.
+- **Vendas do mês** é número da empresa: só dono e administradores, como nas
+  Metas (`canSeeCompanySales`). O membro com acesso a propostas vê o "Precisa
+  de atenção" e as últimas propostas; sem esse acesso, a linha inteira some.
+- **Demonstração:** as propostas do tenant `demo` são de janeiro, então os dois
+  cards de propostas mostram um exemplo fixo, rotulado, como o card de Metas.
 
 ---
 
@@ -154,7 +178,6 @@ transações (backlog do audit).
 | `src/components/charts/simple-bar-chart.tsx` | BarChart de fluxo de caixa (Recharts) |
 | `src/services/transaction-service.ts` | `getTransactions`, `getSummary` |
 | `src/services/proposal-service.ts` | `getProposals` |
-| `src/services/client-service.ts` | `getClients` |
 | `src/services/wallet-service.ts` | `getWallets` |
 | `src/services/kanban-service.ts` | `getStatuses`, `getDefaultProposalColumns` |
 

@@ -18,8 +18,8 @@ import { ZapOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 
-// A bolha usa react-markdown + remark: chunk prÃ³prio, carregado sÃ³ quando hÃ¡
-// mensagem para mostrar (o container fica montado em toda pÃ¡gina autenticada).
+// A bolha usa react-markdown + remark: chunk próprio, carregado só quando há
+// mensagem para mostrar (o container fica montado em toda página autenticada).
 const LiaMessageBubble = dynamic(
   () => import("./lia-message-bubble").then((m) => m.LiaMessageBubble),
   { ssr: false },
@@ -97,7 +97,7 @@ export function LiaContainer() {
   const pathname = usePathname();
 
   const chat = useAiChat();
-  // Conversa salva sÃ³ Ã© carregada depois da primeira abertura do painel.
+  // Conversa salva só é carregada depois da primeira abertura do painel.
   const [hasOpened, setHasOpened] = useState(false);
   useEffect(() => {
     if (chat.isOpen) setHasOpened(true);
@@ -110,8 +110,8 @@ export function LiaContainer() {
   const showNearLimitBanner = usage.isNearLimit && !usage.isAtLimit && !nearLimitDismissed;
 
   const [view, setView] = useState<"chat" | "history">("chat");
-  // Lista de conversas sÃ³ quando a aba de histÃ³rico estÃ¡ aberta: antes eram 30
-  // documentos completos baixados em toda pÃ¡gina autenticada.
+  // Lista de conversas só quando a aba de histórico está aberta: antes eram 30
+  // documentos completos baixados em toda página autenticada.
   const history = useLiaHistory(session.persistHistory && view === "history");
 
   const routeConfig = getRouteConfig(pathname);
@@ -167,7 +167,7 @@ export function LiaContainer() {
   }, [chat]);
 
   const handleToggleHistory = useCallback(() => {
-    // Entrar no histÃ³rico liga o useLiaHistory, que busca a lista sozinho.
+    // Entrar no histórico liga o useLiaHistory, que busca a lista sozinho.
     setView((v) => (v === "chat" ? "history" : "chat"));
   }, []);
 

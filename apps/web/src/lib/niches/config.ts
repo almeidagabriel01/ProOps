@@ -49,6 +49,14 @@ export interface NicheConfig {
     workflow: ProposalWorkflow;
   };
   productCatalog: ProductCatalogDefinition;
+  /**
+   * Tipo de visita com que o link de agendamento nasce. Espelho de
+   * `defaultVisitTypes` do backend (booking-model.ts), com teste de paridade;
+   * aqui só serve à demonstração, que não chama a API.
+   */
+  booking: {
+    defaultVisitType: { id: string; label: string; durationMin: number };
+  };
 }
 
 const unitInventoryDefinition: InventoryDefinition = {
@@ -95,6 +103,11 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     pageAvailability: {
       solutions: true,
       ambientes: false,
+      // Projetos de instalação: nos dois nichos, com etapas padrão próprias
+      // (Infraestrutura, Instalação, Configuração, Entrega).
+      projects: true,
+      // Tarefas: iguais nos dois nichos.
+      tasks: true,
     },
     solutionsPage: {
       navigationLabel: "Soluções",
@@ -118,6 +131,9 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
       inventory: unitInventoryDefinition,
     },
+    booking: {
+      defaultVisitType: { id: "visita_tecnica", label: "Visita técnica", durationMin: 60 },
+    },
   },
   cortinas: {
     id: "cortinas",
@@ -125,6 +141,11 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     pageAvailability: {
       solutions: false,
       ambientes: true,
+      // Projetos de instalação: nos dois nichos, com etapas padrão próprias
+      // (Medição, Produção, Instalação, Entrega).
+      projects: true,
+      // Tarefas: iguais nos dois nichos.
+      tasks: true,
     },
     solutionsPage: {
       navigationLabel: "Ambientes",
@@ -148,6 +169,9 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       viewTitle: "Visualizar Produto",
       viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
       inventory: meterInventoryDefinition,
+    },
+    booking: {
+      defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
     },
   },
 };

@@ -6,6 +6,9 @@ import {
   collection,
   doc,
   getCountFromServer,
+  getAggregateFromServer,
+  sum,
+  Timestamp,
   getDocs,
   getDoc,
   query,
@@ -155,7 +158,7 @@ export function computeProposalSortFields(data: DocumentData): {
   };
 }
 
-function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
+export function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
   const data = d.data();
   return {
     id: d.id,
@@ -189,6 +192,10 @@ export type UpdateProposalResult = {
    * duas coisas que a tela não tem em mãos no momento do salvamento.
    */
   driveNotConnected?: boolean;
+  /** Id do projeto de instalação que a aprovação acabou de criar (modo "sempre"). */
+  projectCreated?: string | null;
+  /** A aprovação pede para perguntar se a venda tem instalação (modo padrão). */
+  projectSuggested?: boolean;
 };
 
 export const ProposalService = {
@@ -267,6 +274,120 @@ export const ProposalService = {
     return total;
   },
 
+  /**
+   * Propostas aprovadas na janela [start, end) de `approvedAt` (ISO UTC), para
+   * as vendas do mês no Dashboard. Índice (tenantId, approvedAt), o mesmo das
+   * Metas. O teto protege a tela; um mês com mais vendas que isso é raro.
+   */
+  getApprovedBetween: async (
+    tenantId: string,
+    start: string,
+    end: string,
+    max = 500,
+  ): Promise<Proposal[]> => {
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("approvedAt", ">=", start),
+        where("approvedAt", "<", end),
+        orderBy("approvedAt", "asc"),
+        limit(max),
+      ),
+    );
+    return snap.docs.map(mapProposalDoc);
+  },
+
+  /**
+   * Quantas propostas estão nos status e quanto somam (`totalValue`), por
+   * agregação: não baixa as propostas. Chunks de 30 (limite do "in").
+   */
+  sumProposalsByStatuses: async (
+    tenantId: string,
+    statuses: string[],
+  ): Promise<{ count: number; total: number }> => {
+    const unique = Array.from(new Set(statuses.filter(Boolean)));
+    const CHUNK = 30;
+    const result = { count: 0, total: 0 };
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const q = query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("status", "in", unique.slice(i, i + CHUNK)),
+      );
+      // Contagem e soma em chamadas separadas: juntas no mesmo agregado, a
+      // contagem voltou 0 no emulador para propostas sem `totalValue`.
+      const [counted, summed] = await Promise.all([
+        getCountFromServer(q),
+        getAggregateFromServer(q, { total: sum("totalValue") }),
+      ]);
+      result.count += counted.data().count;
+      result.total += Number(summed.data().total) || 0;
+    }
+    return result;
+  },
+
+  /**
+   * Propostas nos status com validade entre dois dias ("AAAA-MM-DD", inclusive).
+   * `validUntil` é gravado como dia ou como ISO, e o sufixo pega os dois.
+   * Índice (tenantId, status, validUntil).
+   */
+  getExpiringProposals: async (
+    tenantId: string,
+    statuses: string[],
+    fromDay: string,
+    toDay: string,
+    max = 50,
+  ): Promise<Proposal[]> => {
+    const unique = Array.from(new Set(statuses.filter(Boolean)));
+    const CHUNK = 30;
+    const found: Proposal[] = [];
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const snap = await getDocs(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("status", "in", unique.slice(i, i + CHUNK)),
+          where("validUntil", ">=", fromDay),
+          where("validUntil", "<=", `${toDay}\uf8ff`),
+          orderBy("validUntil", "asc"),
+          limit(max),
+        ),
+      );
+      found.push(...snap.docs.map(mapProposalDoc));
+    }
+    return found;
+  },
+
+  /**
+   * Propostas nos status sem alteração desde `before` (`updatedAt`), as mais
+   * antigas primeiro. Índice (tenantId, status, updatedAt).
+   */
+  getStaleProposals: async (
+    tenantId: string,
+    statuses: string[],
+    before: Date,
+    max = 50,
+  ): Promise<Proposal[]> => {
+    const unique = Array.from(new Set(statuses.filter(Boolean)));
+    const CHUNK = 30;
+    const found: Proposal[] = [];
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const snap = await getDocs(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("status", "in", unique.slice(i, i + CHUNK)),
+          where("updatedAt", "<", Timestamp.fromDate(before)),
+          orderBy("updatedAt", "asc"),
+          limit(max),
+        ),
+      );
+      found.push(...snap.docs.map(mapProposalDoc));
+    }
+    return found;
+  },
+
   /** Últimas N propostas por createdAt desc — dashboard não baixa mais a coleção. */
   getRecentProposals: async (
     tenantId: string,
@@ -288,10 +409,14 @@ export const ProposalService = {
     pageSize: number = 12,
     cursor?: QueryDocumentSnapshot<DocumentData> | null,
     sortConfig?: { key: string; direction: "asc" | "desc" } | null,
+    status?: string | null,
   ): Promise<PaginatedResult<Proposal>> => {
     try {
       const sortField = sortConfig?.key || "createdAt";
       const sortDirection = sortConfig?.direction || "desc";
+      // Filtro de status da lista: índices (tenantId, status, campo) existem
+      // para todo campo ordenável da tela em firestore.indexes.json.
+      const statusFilter = status ? [where("status", "==", status)] : [];
 
       // primarySystem/primaryEnvironment são desnormalizados no doc
       // (computeProposalSortFields + backfill-proposal-sort-fields) — o sort
@@ -301,6 +426,7 @@ export const ProposalService = {
         ? query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
+            ...statusFilter,
             orderBy(sortField, sortDirection),
             startAfter(cursor),
             limit(pageSize + 1),
@@ -308,6 +434,7 @@ export const ProposalService = {
         : query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
+            ...statusFilter,
             orderBy(sortField, sortDirection),
             limit(pageSize + 1),
           );
@@ -364,6 +491,31 @@ export const ProposalService = {
     });
   },
 
+  /**
+   * Propostas de um contato, para a ficha 360. Só igualdades (tenantId,
+   * clientId): o Firestore resolve por mesclagem de índices, sem composto.
+   * A ordem (mais recente primeiro) é feita aqui.
+   */
+  getProposalsByClient: async (
+    tenantId: string,
+    clientId: string,
+    max = 50,
+  ): Promise<Proposal[]> => {
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("clientId", "==", clientId),
+        limit(max),
+      ),
+    );
+    return snap.docs
+      .map(mapProposalDoc)
+      .sort((a, b) =>
+        String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")),
+      );
+  },
+
   getProposalById: async (id: string): Promise<Proposal | null> => {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
@@ -411,6 +563,18 @@ export const ProposalService = {
       console.error("Error creating proposal:", error);
       throw error;
     }
+  },
+
+  /** Encerra o pedido de mudanças do cliente sem editar a proposta. */
+  resolveChangeRequest: async (id: string): Promise<void> => {
+    await callApi(`/v1/proposals/${id}/change-request/resolve`, "POST");
+    notifyListeners();
+  },
+
+  /** Descarta o aceite pendente do cliente para ajustar a proposta. */
+  discardClientAcceptance: async (id: string): Promise<void> => {
+    await callApi(`/v1/proposals/${id}/acceptance/discard`, "POST");
+    notifyListeners();
   },
 
   updateProposal: async (

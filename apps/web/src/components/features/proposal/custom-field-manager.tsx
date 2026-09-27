@@ -18,6 +18,8 @@ import { CustomFieldService } from "@/services/custom-field-service"
 import { useTenant } from "@/providers/tenant-provider"
 import { ALLOWED_TYPES } from "@/services/storage-service"
 import { Plus, Trash2, Image as ImageIcon, Settings } from "lucide-react"
+import { toast } from "@/lib/toast";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 export function CustomFieldManager() {
     const { tenant } = useTenant()
@@ -26,6 +28,8 @@ export function CustomFieldManager() {
     const [selectedType, setSelectedType] = React.useState<CustomFieldType | null>(null)
     const [newTypeName, setNewTypeName] = React.useState("")
     const [newItemLabel, setNewItemLabel] = React.useState("")
+    const [typeIdToDelete, setTypeIdToDelete] = React.useState<string | null>(null)
+    const [isDeletingType, setIsDeletingType] = React.useState(false)
 
     React.useEffect(() => {
         if (tenant) {
@@ -45,11 +49,20 @@ export function CustomFieldManager() {
         setNewTypeName("")
     }
 
-    const handleDeleteType = async (id: string) => {
-        if (confirm("Tem certeza que deseja excluir este tipo de campo e todos os seus itens?")) {
+    const handleDeleteType = async () => {
+        const id = typeIdToDelete
+        if (!id) return
+        setIsDeletingType(true)
+        try {
             await CustomFieldService.deleteCustomFieldType(id)
             setFieldTypes(prev => prev.filter(t => t.id !== id))
             if (selectedType?.id === id) setSelectedType(null)
+            setTypeIdToDelete(null)
+        } catch (error) {
+            console.error("Error deleting custom field type:", error)
+            toast.error("Erro ao excluir o tipo de campo")
+        } finally {
+            setIsDeletingType(false)
         }
     }
 
@@ -109,7 +122,15 @@ export function CustomFieldManager() {
     }
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <>
+        <Dialog
+            open={isOpen}
+            onOpenChange={(open) => {
+                // Radix fecha o Dialog quando o AlertDialog de confirmação monta.
+                if (!open && typeIdToDelete !== null) return
+                setIsOpen(open)
+            }}
+        >
             <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                     <Settings className="w-4 h-4" />
@@ -168,7 +189,7 @@ export function CustomFieldManager() {
                                             className="h-6 w-6 text-destructive"
                                             onClick={(e) => {
                                                 e.stopPropagation()
-                                                handleDeleteType(type.id)
+                                                setTypeIdToDelete(type.id)
                                             }}
                                         >
                                             <Trash2 className="w-3 h-3" />
@@ -228,6 +249,18 @@ export function CustomFieldManager() {
                 </div>
             </DialogContent>
         </Dialog>
+        <ConfirmDialog
+            open={typeIdToDelete !== null}
+            onOpenChange={(open) => !open && setTypeIdToDelete(null)}
+            title="Excluir tipo de campo"
+            description="O tipo de campo e todos os seus itens serão excluídos."
+            confirmLabel="Excluir"
+            pendingLabel="Excluindo..."
+            destructive
+            isPending={isDeletingType}
+            onConfirm={handleDeleteType}
+        />
+        </>
     )
 }
 
@@ -264,7 +297,7 @@ function ItemCard({ item, onDelete, onImageUpload }: ItemCardProps) {
                                 const file = e.target.files?.[0]
                                 if (file) {
                                     if (!ALLOWED_TYPES.includes(file.type)) {
-                                        alert("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
+                                        toast.error("O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).");
                                         e.target.value = "";
                                         return;
                                     }

@@ -3,6 +3,7 @@ import { db } from "../../init";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "../../lib/logger";
 import { AsaasService, TenantAsaasData } from "./asaas.service";
+import { NotificationService } from "./notification.service";
 
 const PAYOUT_ATTEMPTS_COLLECTION = "payout_attempts";
 const MAX_RETRY_COUNT = 5;
@@ -204,27 +205,17 @@ async function notifyPayoutFailed(
   reason: string,
 ): Promise<void> {
   try {
-    const tenantUsersSnap = await db
-      .collection("users")
-      .where("tenantId", "==", tenantId)
-      .where("role", "in", ["admin", "master"])
-      .limit(1)
-      .get();
-    const masterUid = tenantUsersSnap.empty ? undefined : tenantUsersSnap.docs[0].id;
-
+    // Tipo "system" vai só para o dono e os administradores (catálogo).
     const formattedAmount = amount.toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    await db.collection("notifications").add({
+    await NotificationService.createNotification({
       tenantId,
-      ...(masterUid ? { userId: masterUid } : {}),
       type: "system",
       title: "Falha ao transferir recebimento para sua conta",
       message: `O valor de R$ ${formattedAmount} não pôde ser transferido para sua chave PIX. Motivo: ${reason}. Verifique as configurações em Configurações > Asaas.`,
       transactionId,
-      isRead: false,
-      createdAt: new Date().toISOString(),
     });
   } catch (notifErr) {
     logger.warn("notifyPayoutFailed: could not create notification", {

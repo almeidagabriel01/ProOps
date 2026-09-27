@@ -39,6 +39,8 @@ import { NotificationService } from "./notification.service";
 import type { NotificationScope } from "../helpers/notification-scope";
 
 const scope = { kind: "tenant", tenantId: "tenant-1" } as unknown as NotificationScope;
+// Visão da empresa inteira (superadmin): o caminho antigo, com `isRead`.
+const companyView = { uid: "super-1", perRecipient: false };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -51,7 +53,7 @@ describe("NotificationService.getUnreadCount", () => {
   it("uses count() aggregation instead of fetching documents", async () => {
     countGetMock.mockResolvedValue({ data: () => ({ count: 7 }) });
 
-    const count = await NotificationService.getUnreadCount(scope);
+    const count = await NotificationService.getUnreadCount(scope, companyView);
 
     expect(count).toBe(7);
     expect(queryMock.count).toHaveBeenCalledTimes(1);
@@ -70,7 +72,7 @@ describe("NotificationService.markAllAsRead", () => {
     queryGetMock.mockResolvedValueOnce(page1).mockResolvedValueOnce(page2);
     batchCommitMock.mockResolvedValue(undefined);
 
-    await NotificationService.markAllAsRead(scope);
+    await NotificationService.markAllAsRead(scope, companyView);
 
     expect(limitMock).toHaveBeenCalledWith(400);
     expect(queryGetMock).toHaveBeenCalledTimes(2);
@@ -81,7 +83,7 @@ describe("NotificationService.markAllAsRead", () => {
   it("stops immediately when there is nothing unread", async () => {
     queryGetMock.mockResolvedValue({ empty: true, size: 0, docs: [] });
 
-    await NotificationService.markAllAsRead(scope);
+    await NotificationService.markAllAsRead(scope, companyView);
 
     expect(batchCommitMock).not.toHaveBeenCalled();
   });

@@ -6,6 +6,7 @@ import {
   flattenMenuItems,
   menuItems,
   resolveGroupTarget,
+  type MenuCapability,
   type MenuCapabilityMap,
   type MenuItem,
   type SubMenuItem,
@@ -18,10 +19,10 @@ import {
  */
 
 const CAPS = {
-  starter: { financial: false, crm: false, fiscal: false },
-  starterComAddonFinancial: { financial: true, crm: false, fiscal: false },
-  pro: { financial: true, crm: false, fiscal: false },
-  enterprise: { financial: true, crm: true, fiscal: true },
+  starter: { financial: false, crm: false, fiscal: false, projects: false },
+  starterComAddonFinancial: { financial: true, crm: false, fiscal: false, projects: false },
+  pro: { financial: true, crm: false, fiscal: false, projects: true },
+  enterprise: { financial: true, crm: true, fiscal: true, projects: true },
 } satisfies Record<string, MenuCapabilityMap>;
 
 const LANCAMENTOS: SubMenuItem = {
@@ -76,7 +77,7 @@ const CATALOGO: MenuItem = {
  * efetiva mesmo quando o plano a satisfaz.
  */
 function estaCoroado(
-  target: { requiresCapability?: "financial" | "crm" | "fiscal" } | null,
+  target: { requiresCapability?: MenuCapability } | null,
   capabilities: MenuCapabilityMap,
 ): boolean {
   if (!target?.requiresCapability) return false;
@@ -166,12 +167,14 @@ describe("flattenMenuItems", () => {
 
     expect(new Set(hrefs).size).toBe(hrefs.length);
 
-    const groupLabels = menuItems
-      .filter((item) => item.children)
-      .map((item) => item.label);
-    for (const label of groupLabels) {
-      expect(leaves.some((leaf) => leaf.label === label)).toBe(false);
-    }
+    // Pela contagem, não pelo rótulo: o grupo de Propostas tem o mesmo rótulo
+    // do primeiro filho, e o grupo em si nunca é folha.
+    const expected = menuItems.reduce(
+      (total, item) => total + (item.children ? item.children.length : 1),
+      0,
+    );
+    expect(leaves).toHaveLength(expected);
+    expect(leaves.every((leaf) => typeof leaf.href === "string")).toBe(true);
   });
 
   it("filho sem capacidade própria herda a do pai", () => {

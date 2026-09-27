@@ -277,8 +277,16 @@ export class SharedProposalService {
           if (!snap.exists) return;
           const current =
             (snap.data()?.viewerInfo as ViewerInfo[] | undefined) ?? [];
+          const nowIso = new Date().toISOString();
+          // Primeira abertura: marca o link para o follow-up do cron
+          // (proposal-follow-up.ts), que avisa a empresa se o cliente viu e
+          // não respondeu em alguns dias.
+          const firstView = snap.data()?.firstViewedAt
+            ? {}
+            : { firstViewedAt: nowIso, followUpPending: true };
           txn.update(docRef, {
-            viewedAt: new Date().toISOString(),
+            ...firstView,
+            viewedAt: nowIso,
             viewerInfo: [...current, viewerInfo].slice(
               -MAX_VIEWER_INFO_ENTRIES,
             ),

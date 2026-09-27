@@ -22,18 +22,51 @@ Há ~38 segmentos de rota: proposals, contacts, products, transactions, calendar
 ## Rotas existentes
 ```
 403, actions, addon-success, admin, agendar, ambientes, aplicativo, api, auth,
-automacao-residencial, automation, calendar, checkout-success,
-commissions, contacts, contato, cookies, crm, dashboard, data-deletion,
+automacao-residencial, automation, calendar, cash-flow, checkout-success,
+commissions, contacts, contato, cookies, crm, dashboard, data-deletion, dre,
 decoracao, fale-conosco, forgot-password, institucional, invoices, login,
-manifesto, privacy, products, produtos, profile, proposals, register, reset,
+manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
+register, reset,
 services, settings, share, sobre, solutions, spreadsheets, subscribe,
-subscription-blocked, team, terms, transactions, verify, wallets
+subscription-blocked, tasks, team, terms, transactions, verify, wallets
 ```
 
 `sobre`, `manifesto`, `produtos` e `fale-conosco` são as páginas do
 **site da empresa** e vivem no route group `(empresa)/`, que não entra na URL.
 `produtos` (português) é a página institucional; `products` (inglês) é a tela
 autenticada de catálogo. São coisas diferentes.
+
+`notifications` é a **central de notificações**: o histórico de cada pessoa e,
+na aba Preferências (`?tab=preferencias`), o que chega no sino e por e-mail.
+Fora do menu (abre pelo "Ver todas" do sino) e sem `pageId`: cada membro tem a
+sua, como o Perfil. A notificação é POR PESSOA desde 2026-09-26: o sino consulta
+`recipientUids array-contains uid`, a leitura vai em `readBy`, e o que cada um
+recebe sai do catálogo (`lib/notifications/catalog.ts`, espelho do backend com
+teste de paridade). Regras no `apps/functions/src/api/services/CLAUDE.md`.
+
+`tasks` são as **tarefas**: o "a fazer" com responsável, prazo e @menção, em
+todos os planos, com `pageId` próprio (`tasks`) e ícone próprio na dock, ao
+lado do Calendário. A tarefa é DA PESSOA: o membro lê as que criou, as dele e as em que
+foi citado (`audienceUids`, que as rules leem); dono e administradores leem
+todas (`useTaskReader`). Coleção própria `tasks`, e não as atividades do CRM,
+porque o histórico do lead é da equipe e as rules não liberariam uma lista que
+misturasse os dois; por isso o tipo "Tarefa" saiu da criação de atividade, e o
+lead ganhou o painel de tarefas. Aparecem também na ficha do contato (aba
+"Próximas ações", e não "Tarefas": a tarefa é de alguém da equipe e o contato
+é só o assunto; o mesmo título no painel do lead), na proposta ("Nova tarefa")
+e no Dashboard ("Minhas tarefas de hoje").
+A menção vale pelo que continua escrito (`mentionedUids`): apagar "@Nome"
+desfaz. A leitura é sem `orderBy`, então não precisa de índice composto.
+
+O **link de agendamento** tem duas pontas: a configuração em
+`/settings/booking` e a página do cliente em `/share/visita/[token]`. O pedido
+entra na Agenda (`calendar`) como "a confirmar" (status `pending`), e a Agenda
+ganha o botão "Pedidos de visita" para confirmar ou recusar. Detalhes em
+`settings/CLAUDE.md` e `share/CLAUDE.md`.
+
+O **portal do cliente** também tem duas pontas: o botão "Portal do cliente"
+na ficha do contato (`/contacts/[id]`, ao lado das abas) e a página pública em
+`/share/portal/[token]`. Detalhes em `share/CLAUDE.md`.
 
 ## Três superfícies num projeto só
 

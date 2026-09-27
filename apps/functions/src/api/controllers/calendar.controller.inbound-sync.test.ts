@@ -19,6 +19,11 @@ jest.mock("../../lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+const mirror = jest.fn(async () => undefined);
+jest.mock("../services/projects/project-schedule-store", () => ({
+  mirrorStageScheduleFromEvent: (...a: unknown[]) => mirror(...(a as [])),
+}));
+
 const eventsList = jest.fn();
 jest.mock("@googleapis/calendar", () => ({
   calendar: () => ({ events: { list: (...a: unknown[]) => eventsList(...a) } }),
@@ -105,6 +110,7 @@ beforeEach(() => {
   written.length = 0;
   decryptToken.mockClear();
   eventsList.mockReset();
+  mirror.mockClear();
 });
 
 it("dentro do throttle não decifra o token nem chama o Google", async () => {
@@ -166,4 +172,37 @@ it("isSameImportedCalendarEvent ignora só os carimbos de sincronização", () =
   } as never;
   expect(isSameImportedCalendarEvent(base, sameButLater)).toBe(true);
   expect(isSameImportedCalendarEvent(base, removed)).toBe(false);
+});
+
+it("visita de obra mudada no Google mantém o vínculo e muda a data da etapa", async () => {
+  eventsList.mockResolvedValue({ data: { items: [googleEvent("g1")] } });
+  await syncGoogleEventsToLocalCalendar(RANGE);
+  // O evento local é a visita da obra; no Google ela foi para as 15h.
+  localEvents = [{ id: "ev-obra", data: { ...written[0], projectId: "p1", projectStageId: "s1" } }];
+  written.length = 0;
+  integration.lastInboundSyncAt = null;
+  eventsList.mockResolvedValue({
+    data: {
+      items: [
+        {
+          ...googleEvent("g1"),
+          start: { dateTime: "2026-09-10T15:00:00-03:00" },
+          end: { dateTime: "2026-09-10T16:00:00-03:00" },
+        },
+      ],
+    },
+  });
+
+  await syncGoogleEventsToLocalCalendar(RANGE);
+
+  expect(written).toHaveLength(1);
+  expect(written[0]).toMatchObject({ projectId: "p1", projectStageId: "s1" });
+  expect(mirror).toHaveBeenCalledWith(
+    expect.objectContaining({
+      projectId: "p1",
+      stageId: "s1",
+      eventId: "ev-obra",
+      schedule: expect.objectContaining({ startMs: Date.parse("2026-09-10T15:00:00-03:00") }),
+    }),
+  );
 });

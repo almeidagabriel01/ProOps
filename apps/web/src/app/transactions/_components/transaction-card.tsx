@@ -706,6 +706,10 @@ export function TransactionCard({
         onOpenChange={setShareModalOpen}
         transactionId={transaction.id}
         transactionDescription={transaction.description || "Lançamento"}
+        amount={transaction.amount}
+        dueDate={transaction.dueDate || transaction.date}
+        clientId={transaction.isCommission ? undefined : transaction.clientId}
+        clientName={transaction.isCommission ? undefined : transaction.clientName}
       />
       {partialPaymentTransaction && (
         <PartialPaymentDialog

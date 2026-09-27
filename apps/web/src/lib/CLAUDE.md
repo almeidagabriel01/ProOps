@@ -16,7 +16,7 @@ lib/
 ├── plans/                   # Limites e permissões por plano (Free, Pro, etc.)
 ├── site/                    # Política de host: qual das 3 superfícies e o SEO de cada uma
 ├── permissions/             # Fonte única dos pageIds do sistema de permissões
-├── notifications/           # Helpers do sistema de notificações
+├── notifications/           # Catálogo, link, leitor (por pessoa) e escopo das notificações
 ├── validations/             # Funções de validação reutilizáveis
 └── [utils].ts               # Helpers específicos (product-pricing, proposal-payment, etc.)
 ```

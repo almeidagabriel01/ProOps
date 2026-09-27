@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { PdfSection } from "../pdf-section-editor";
+import { toast } from "@/lib/toast";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level pure helpers — no React, no side-effects, easy to test
@@ -123,7 +124,7 @@ function createDefaultPaymentTermsSection(): PdfSection {
   return {
     id: crypto.randomUUID(),
     type: "payment-terms",
-    content: "Condicoes de Pagamento",
+    content: "Condições de Pagamento",
     columnWidth: 100,
     styles: {
       fontSize: "14px",
@@ -438,11 +439,11 @@ export function usePdfSectionEditor({
 
   const addSection = (type: PdfSection["type"]) => {
     if (type === "product-table") {
-      alert("Este bloco e fixo e ja existe na proposta.");
+      toast.warn("Este bloco é fixo e já existe na proposta.");
       return;
     }
     if (type === "payment-terms") {
-      alert("Este bloco e gerenciado automaticamente.");
+      toast.warn("Este bloco é gerenciado automaticamente.");
       return;
     }
 
@@ -543,7 +544,7 @@ export function usePdfSectionEditor({
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("A imagem da seção deve ter no máximo 2MB.");
+      toast.error("A imagem da seção deve ter no máximo 2MB.");
       e.target.value = "";
       return;
     }

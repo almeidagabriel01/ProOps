@@ -22,10 +22,15 @@ import type {
 export type { MenuCapabilityMap };
 
 export function useMenuCapabilities(): MenuCapabilityMap {
-  const { hasFinancial, hasKanban, hasFiscal } = usePlanLimits();
+  const { hasFinancial, hasKanban, hasFiscal, hasProjects } = usePlanLimits();
   return React.useMemo(
-    () => ({ financial: hasFinancial, crm: hasKanban, fiscal: hasFiscal }),
-    [hasFinancial, hasKanban, hasFiscal],
+    () => ({
+      financial: hasFinancial,
+      crm: hasKanban,
+      fiscal: hasFiscal,
+      projects: hasProjects,
+    }),
+    [hasFinancial, hasKanban, hasFiscal, hasProjects],
   );
 }
 
@@ -53,6 +58,11 @@ const CAPABILITY_COPY: Record<
     requiredPlan: "enterprise",
     description:
       "Emita NF-e e NFS-e direto da proposta aprovada. Contrate como add-on ou tenha incluído no plano Enterprise.",
+  },
+  projects: {
+    requiredPlan: "pro",
+    description:
+      "Acompanhe cada obra depois da venda: etapas, checklist, fotos, técnico responsável e o aceite do cliente na entrega.",
   },
 };
 

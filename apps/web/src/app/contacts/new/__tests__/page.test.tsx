@@ -21,6 +21,10 @@ import userEvent from "@testing-library/user-event";
 const push = vi.fn();
 const createClient = vi.fn().mockResolvedValue({ success: true, clientId: "c1" });
 
+// "É da equipe?" busca a equipe na API de metas; aqui não importa.
+vi.mock("@/services/sales-goals-service", () => ({
+  SalesGoalsService: { sellers: vi.fn().mockResolvedValue([]) },
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, refresh: vi.fn() }),
 }));

@@ -5,7 +5,7 @@ import { db } from "../../init";
 import { SharedProposalService } from "./shared-proposal.service";
 import { renderPageToPdfBuffer, resolveAppBaseUrl } from "./core-pdf.service";
 
-const PDF_TEMPLATE_VERSION = "proposal-pdf-v8-playwright";
+const PDF_TEMPLATE_VERSION = "proposal-pdf-v9-playwright";
 const PDF_GENERATION_LOCK_TIMEOUT_MS = 2 * 60 * 1000;
 const PDF_LOCK_WAIT_ATTEMPTS = 6;
 const PDF_LOCK_WAIT_INTERVAL_MS = 1_500;
@@ -114,6 +114,17 @@ export const PDF_IRRELEVANT_PROPOSAL_FIELDS = new Set([
   // que já entra no hash. Listado aqui para o backfill não invalidar o cache.
   "productRefs",
   "productRefsIndexed",
+  // Aceite do cliente pelo link: registro de quem aceitou (e os aceites
+  // anteriores), não conteúdo do documento. Sem isto o aceite invalidava o PDF.
+  "clientAcceptance",
+  "clientAcceptanceHistory",
+  "clientChangeRequest",
+  "clientChangeRequestHistory",
+  // Metas de vendas: quem vendeu e quando foi aprovada. Não aparecem no PDF,
+  // e sem isto trocar o vendedor refazia o PDF e reentregava no Drive.
+  "sellerId",
+  "sellerName",
+  "approvedAt",
 ]);
 
 function buildVersionHash(

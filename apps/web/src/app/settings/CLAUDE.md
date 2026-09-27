@@ -19,6 +19,8 @@ src/app/settings/
 ├── payments/page.tsx         # Asaas (master) ou "Acesso Restrito" (não-master)
 ├── fiscal/page.tsx           # Nota fiscal (master) ou "Acesso Restrito"
 ├── proposals/page.tsx        # Numeracao das propostas (master) ou "Acesso Restrito"
+├── goals/page.tsx            # Metas de vendas (master, Pro e Enterprise) ou "Acesso Restrito"
+├── booking/page.tsx          # Link de agendamento (master, Pro e Enterprise) ou "Acesso Restrito"
 ├── drive/page.tsx            # Google Drive (master) ou "Acesso Restrito"
 ├── linked-accounts/page.tsx  # Contas vinculadas: resumo de todas as integracoes (todos)
 ├── _components/
@@ -48,7 +50,9 @@ Os itens são agrupados por categoria na sidebar — grupo **Conta** (pessoal) e
 | Conta | `/settings/security` | Verificação em dois fatores | Todos |
 | Organização | `/settings/team` | Equipe | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/payments` | Pagamento Online (Asaas) | Master (membro vê "Acesso Restrito") |
-| Organização | `/settings/proposals` | Propostas (numeração) | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/proposals` | Propostas (numeração e validade padrão) | Master (membro vê "Acesso Restrito") |
+| Organização | `/settings/goals` | Metas de vendas: a meta do mês da empresa e de cada pessoa da equipe (Pro e Enterprise; sem o plano, `UpgradeRequired`). Na proposta o campo se chama "Responsável pela venda", e não "Vendedor", porque "vendedor" já é o parceiro da comissão | Master (membro vê "Acesso Restrito"; o progresso dele aparece no Dashboard) |
+| Organização | `/settings/booking` | Link de agendamento: expediente (dias, horário, antecedência, horizonte), tipos de visita e o link para copiar (Pro e Enterprise; sem o plano, `UpgradeRequired`). Os pedidos são respondidos na Agenda, no botão "Pedidos de visita" | Master (membro vê "Acesso Restrito"; a conta free vê o padrão do nicho, só para ler, sem chamar a API) |
 | Organização | `/settings/fiscal` | Notas Fiscais (Focus NFe) | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/drive` | Google Drive | Master (membro vê "Acesso Restrito") |
 | Organização | `/settings/linked-accounts` | Contas vinculadas | Todos veem; ação só para quem pode conectar |
@@ -61,6 +65,7 @@ A rota legada `/team` faz `redirect("/settings/team")`. O conteúdo de equipe vi
 Pré-requisitos de acesso (não remover ao mexer aqui):
 - `proxy.ts` **não** deve voltar a redirecionar `/settings/team` → `/team`.
 - `/settings` está na allowlist do plano free (`resolve-user-home.ts`) para preservar o 2FA do free.
+- A raiz `/settings` **não** tem `requiredPermission` em `page-config.ts`. Tinha, com a chave "settings", que a tela de Equipe nunca grava, e todo membro levava 403 ao clicar em "Configurações" no menu do avatar (corrigido em 2026-09-26; guard em `lib/__tests__/page-config.test.ts`).
 
 ---
 
@@ -257,6 +262,11 @@ entregue no Drive (`0018926SP_casa_do_mauricio.pdf`). Detalhes da regra em
 - **"Próximo número" é o campo perigoso.** É editável para quem já numerava
   fora do ERP continuar a sequência, e a tela diz com todas as letras que
   voltar atrás repete um código já entregue a um cliente.
+- **A validade padrão da proposta mora no mesmo card**, fora da chave da
+  numeração (vale com ela desligada). O campo só aparece quando o GET devolve
+  `defaultValidityDays`; com backend antigo ele some e a chave não é enviada.
+  O formulário aplica o valor em `ProposalClientSection` (`onDefaultValidUntil`),
+  só em proposta nova e só com o campo vazio (`lib/proposal-validity.ts`).
 - A prévia do código é montada no cliente (`lib/proposal-numbering.ts`) para
   não pedir o servidor a cada tecla; a paridade com o backend tem guard em
   `src/__tests__/proposal-code-preview.test.ts`.
