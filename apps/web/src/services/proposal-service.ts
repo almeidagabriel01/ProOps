@@ -6,6 +6,9 @@ import {
   collection,
   doc,
   getCountFromServer,
+  getAggregateFromServer,
+  sum,
+  Timestamp,
   getDocs,
   getDoc,
   query,
@@ -269,6 +272,120 @@ export const ProposalService = {
       total += snap.data().count;
     }
     return total;
+  },
+
+  /**
+   * Propostas aprovadas na janela [start, end) de `approvedAt` (ISO UTC), para
+   * as vendas do mês no Dashboard. Índice (tenantId, approvedAt), o mesmo das
+   * Metas. O teto protege a tela; um mês com mais vendas que isso é raro.
+   */
+  getApprovedBetween: async (
+    tenantId: string,
+    start: string,
+    end: string,
+    max = 500,
+  ): Promise<Proposal[]> => {
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("approvedAt", ">=", start),
+        where("approvedAt", "<", end),
+        orderBy("approvedAt", "asc"),
+        limit(max),
+      ),
+    );
+    return snap.docs.map(mapProposalDoc);
+  },
+
+  /**
+   * Quantas propostas estão nos status e quanto somam (`totalValue`), por
+   * agregação: não baixa as propostas. Chunks de 30 (limite do "in").
+   */
+  sumProposalsByStatuses: async (
+    tenantId: string,
+    statuses: string[],
+  ): Promise<{ count: number; total: number }> => {
+    const unique = Array.from(new Set(statuses.filter(Boolean)));
+    const CHUNK = 30;
+    const result = { count: 0, total: 0 };
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const q = query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("status", "in", unique.slice(i, i + CHUNK)),
+      );
+      // Contagem e soma em chamadas separadas: juntas no mesmo agregado, a
+      // contagem voltou 0 no emulador para propostas sem `totalValue`.
+      const [counted, summed] = await Promise.all([
+        getCountFromServer(q),
+        getAggregateFromServer(q, { total: sum("totalValue") }),
+      ]);
+      result.count += counted.data().count;
+      result.total += Number(summed.data().total) || 0;
+    }
+    return result;
+  },
+
+  /**
+   * Propostas nos status com validade entre dois dias ("AAAA-MM-DD", inclusive).
+   * `validUntil` é gravado como dia ou como ISO, e o sufixo pega os dois.
+   * Índice (tenantId, status, validUntil).
+   */
+  getExpiringProposals: async (
+    tenantId: string,
+    statuses: string[],
+    fromDay: string,
+    toDay: string,
+    max = 50,
+  ): Promise<Proposal[]> => {
+    const unique = Array.from(new Set(statuses.filter(Boolean)));
+    const CHUNK = 30;
+    const found: Proposal[] = [];
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const snap = await getDocs(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("status", "in", unique.slice(i, i + CHUNK)),
+          where("validUntil", ">=", fromDay),
+          where("validUntil", "<=", `${toDay}\uf8ff`),
+          orderBy("validUntil", "asc"),
+          limit(max),
+        ),
+      );
+      found.push(...snap.docs.map(mapProposalDoc));
+    }
+    return found;
+  },
+
+  /**
+   * Propostas nos status sem alteração desde `before` (`updatedAt`), as mais
+   * antigas primeiro. Índice (tenantId, status, updatedAt).
+   */
+  getStaleProposals: async (
+    tenantId: string,
+    statuses: string[],
+    before: Date,
+    max = 50,
+  ): Promise<Proposal[]> => {
+    const unique = Array.from(new Set(statuses.filter(Boolean)));
+    const CHUNK = 30;
+    const found: Proposal[] = [];
+    for (let i = 0; i < unique.length; i += CHUNK) {
+      const snap = await getDocs(
+        query(
+          collection(db, COLLECTION_NAME),
+          where("tenantId", "==", tenantId),
+          where("status", "in", unique.slice(i, i + CHUNK)),
+          where("updatedAt", "<", Timestamp.fromDate(before)),
+          orderBy("updatedAt", "asc"),
+          limit(max),
+        ),
+      );
+      found.push(...snap.docs.map(mapProposalDoc));
+    }
+    return found;
   },
 
   /** Últimas N propostas por createdAt desc — dashboard não baixa mais a coleção. */

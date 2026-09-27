@@ -7,7 +7,6 @@ import {
   type CommissionReport,
 } from "@/services/transaction-service";
 import { ProposalService, Proposal } from "@/services/proposal-service";
-import { ClientService } from "@/services/client-service";
 import { WalletService } from "@/services/wallet-service";
 import { Wallet } from "@/types";
 import {
@@ -39,7 +38,6 @@ interface ProposalStats {
 export interface DashboardLoading {
   finance: boolean;
   proposals: boolean;
-  clients: boolean;
   month: boolean;
 }
 
@@ -102,10 +100,8 @@ export function useDashboardData() {
   const [proposalsData, setProposalsData] = React.useState({
     proposalStats: { approved: 0, pending: 0, total: 0, conversionRate: 0 } as ProposalStats,
     recentProposals: [] as Proposal[],
-  });
-  const [clientsData, setClientsData] = React.useState({
-    totalClients: 0,
-    newClientsThisMonth: 0,
+    /** Status abertos do kanban; a faixa de vendas e a atenção partem deles. */
+    openProposalStatuses: null as string[] | null,
   });
   const [monthData, setMonthData] = React.useState({
     // Lançamentos de um mês que não é o corrente (buscados à parte).
@@ -115,7 +111,6 @@ export function useDashboardData() {
   const [loading, setLoading] = React.useState<DashboardLoading>({
     finance: true,
     proposals: true,
-    clients: true,
     month: true,
   });
   const setGroupLoading = (group: keyof DashboardLoading, value: boolean) =>
@@ -125,7 +120,7 @@ export function useDashboardData() {
   // buscar, e nenhum bloco pode ficar preso no skeleton.
   React.useEffect(() => {
     if (!isTenantLoading && !tenantId) {
-      setLoading({ finance: false, proposals: false, clients: false, month: false });
+      setLoading({ finance: false, proposals: false, month: false });
     }
   }, [isTenantLoading, tenantId]);
 
@@ -207,36 +202,13 @@ export function useDashboardData() {
           setProposalsData({
             proposalStats: { approved, pending, total, conversionRate },
             recentProposals,
+            openProposalStatuses: statusSets.open,
           });
         }
       } catch (error) {
         console.error("Error fetching dashboard proposals:", error);
       } finally {
         if (!cancelled) setGroupLoading("proposals", false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, isTenantLoading]);
-
-  // Clientes: total e novos no mês corrente (contagens por aggregation).
-  React.useEffect(() => {
-    if (isTenantLoading || !tenantId) return;
-    let cancelled = false;
-    setGroupLoading("clients", true);
-    (async () => {
-      try {
-        const { start, end } = monthBounds(toMonthKey(new Date()));
-        const [totalClients, newClientsThisMonth] = await Promise.all([
-          ClientService.countClients(tenantId),
-          ClientService.countClientsCreatedBetween(tenantId, start, end),
-        ]);
-        if (!cancelled) setClientsData({ totalClients, newClientsThisMonth });
-      } catch (error) {
-        console.error("Error fetching dashboard clients:", error);
-      } finally {
-        if (!cancelled) setGroupLoading("clients", false);
       }
     })();
     return () => {
@@ -308,7 +280,6 @@ export function useDashboardData() {
     wallets: finance.wallets,
     transactions: finance.transactions,
     ...proposalsData,
-    ...clientsData,
     currentMonthStats: monthStats,
     commissionReport: monthData.commissionReport,
     selectedMonth,

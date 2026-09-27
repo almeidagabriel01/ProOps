@@ -31,16 +31,18 @@ export function DashboardSkeleton() {
         <div className="h-[380px] rounded-2xl bg-muted" />
       </div>
 
-      {/* Recent Proposals + Month Stats */}
+      {/* Resultado do mês: título + seletor, vendas, metas | resumo */}
+      <div className="h-9 w-64 rounded bg-muted" />
+      <div className="h-44 rounded-2xl bg-muted" />
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="h-72 rounded-2xl bg-muted" />
         <div className="h-72 rounded-2xl bg-muted" />
       </div>
 
-      {/* Stats: Proposals + Clients */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="h-64 rounded-2xl bg-muted" />
-        <div className="h-64 rounded-2xl bg-muted" />
+      {/* Precisa de atenção + Últimas propostas */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="h-72 rounded-2xl bg-muted" />
+        <div className="h-72 rounded-2xl bg-muted" />
       </div>
 
       {/* Recent Transactions */}

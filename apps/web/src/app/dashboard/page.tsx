@@ -19,8 +19,6 @@ import {
   RecentTransactionsList,
   RecentProposalsList,
   QuickActionsCard,
-  ProposalStatsCard,
-  ClientsStatsCard,
   MonthStats,
   CommissionsPanel,
 } from "./_components";
@@ -53,12 +51,16 @@ import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { FirstStepsCard } from "@/components/onboarding/first-steps-card";
 import { MyTasksCard } from "@/components/features/tasks/my-tasks-card";
 import { GoalsProgressCard } from "@/components/features/sales-goals/goals-progress-card";
+import { usePagePermission } from "@/hooks/usePagePermission";
+import { useProposalAttention, useSalesSummary } from "@/hooks/use-dashboard-sales";
+import { canSeeCompanySales } from "@/lib/sales/dashboard-sales";
+import { SalesSummaryCard } from "./_components/sales-summary-card";
+import { ProposalAttentionCard } from "./_components/proposal-attention-card";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { tenantOwner, tenant } = useTenant();
   const {
-    totalClients,
     chartData,
     futureBalances,
     proposalStats,
@@ -66,7 +68,6 @@ export default function DashboardPage() {
     overdueAmount,
     upcomingDue,
     upcomingDueAmount,
-    newClientsThisMonth,
     recentTransactions,
     recentProposals,
     balance,
@@ -75,11 +76,25 @@ export default function DashboardPage() {
     selectedMonth,
     setSelectedMonth,
     isCurrentMonth,
+    openProposalStatuses,
     loading,
     isLoading,
   } = useDashboardData();
   const { isLoading: planLoading } = usePlanLimits();
-  const { isLoading: permissionsLoading } = usePermissions();
+  const { isLoading: permissionsLoading, isMaster, isDemo } = usePermissions();
+  const { canView: canViewProposals } = usePagePermission("proposals");
+  const showSales = canSeeCompanySales({ canViewProposals, isMaster, isDemo });
+  const sales = useSalesSummary(
+    tenant?.id,
+    selectedMonth,
+    openProposalStatuses,
+    showSales && !isDemo,
+  );
+  const attention = useProposalAttention(
+    tenant?.id,
+    openProposalStatuses,
+    canViewProposals && !isDemo,
+  );
   const [tasksLoading, setTasksLoading] = React.useState(true);
   const [waitedEnough, setWaitedEnough] = React.useState(false);
 
@@ -223,58 +238,63 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Recents & Walkthroughs */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {loading.proposals ? (
-          <Skeleton className="h-80 rounded-xl" />
-        ) : (
-          <RecentProposalsList proposals={recentProposals} />
+      {/* O mês escolhido: vendas, metas, comissões e o resumo de gastos seguem
+          o seletor daqui. Os gráficos acima são projeção, não dependem dele. */}
+      <section className="space-y-6" aria-labelledby="dashboard-month-title">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+          <h2 id="dashboard-month-title" className="text-lg font-semibold tracking-tight">
+            Resultado do mês
+          </h2>
+          <MonthSwitcher
+            month={selectedMonth}
+            isCurrentMonth={isCurrentMonth}
+            onChange={setSelectedMonth}
+          />
+        </div>
+
+        {showSales && (
+          <SalesSummaryCard
+            month={selectedMonth}
+            summary={sales.summary}
+            conversionRate={proposalStats.conversionRate}
+            loading={sales.loading || loading.proposals}
+            isDemo={isDemo}
+          />
         )}
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-muted-foreground">
-              Resumo do mês
-            </h2>
-            <MonthSwitcher
-              month={selectedMonth}
-              isCurrentMonth={isCurrentMonth}
-              onChange={setSelectedMonth}
-            />
+
+        {/* Metas e comissões de um lado, o resumo do mês do outro. Os dois
+            primeiros somem quando não há o que mostrar, e aí o resumo ocupa a
+            largura toda (a coluna da esquerda vazia some pelo :empty). */}
+        <div className="grid gap-6 lg:grid-cols-2 lg:has-[>[data-slot=month-left]:empty]:grid-cols-1">
+          <div data-slot="month-left" className="space-y-6 empty:hidden">
+            <GoalsProgressCard month={selectedMonth} />
+            {!loading.month && <CommissionsPanel report={commissionReport} />}
           </div>
-          {loading.month ? (
+          <div className="@container">
+            {loading.month ? (
+              <Skeleton className="h-80 rounded-xl" />
+            ) : (
+              <MonthStats currentMonthStats={currentMonthStats} period={period} />
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Propostas: o que pede ação agora e as mais recentes. */}
+      {canViewProposals && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ProposalAttentionCard
+            result={attention.result}
+            loading={attention.loading || loading.proposals}
+            isDemo={isDemo}
+          />
+          {loading.proposals ? (
             <Skeleton className="h-80 rounded-xl" />
           ) : (
-            <MonthStats currentMonthStats={currentMonthStats} period={period} />
+            <RecentProposalsList proposals={recentProposals} />
           )}
         </div>
-      </div>
-
-      {/* Metas do mês escolhido acima (Pro e Enterprise); some sem plano */}
-      <GoalsProgressCard month={selectedMonth} />
-
-      {/* Comissões a pagar no mês — some sozinho quando não há nenhuma */}
-      {!loading.month && <CommissionsPanel report={commissionReport} />}
-
-      {/* Stats row */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="flex-1">
-          {loading.proposals ? (
-            <Skeleton className="h-64 rounded-xl" />
-          ) : (
-            <ProposalStatsCard stats={proposalStats} />
-          )}
-        </div>
-        <div className="flex-1">
-          {loading.clients ? (
-            <Skeleton className="h-64 rounded-xl" />
-          ) : (
-            <ClientsStatsCard
-              totalClients={totalClients}
-              newClientsThisMonth={newClientsThisMonth}
-            />
-          )}
-        </div>
-      </div>
+      )}
 
       {/* Recent Activity (Remaining) */}
       <div className="grid gap-6">

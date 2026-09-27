@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { db } from "../../init";
+import { soldValue } from "../../shared/sold-value";
+import { monthWindowUtc } from "../../shared/sales-month";
 
 /**
  * Metas de vendas (Pro e Enterprise).
@@ -32,19 +34,7 @@ export function goalsDocId(tenantId: string, month: string): string {
   return `${tenantId}_${month}`;
 }
 
-/**
- * Início e fim do mês no fuso de Brasília, em ISO UTC (é assim que
- * `approvedAt` é gravado). Sem horário de verão desde 2019, então −03:00 fixo.
- */
-export function monthWindowUtc(month: string): { start: string; end: string } {
-  const [year, m] = month.split("-").map(Number);
-  const next = m === 12 ? { y: year + 1, m: 1 } : { y: year, m: m + 1 };
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return {
-    start: `${year}-${pad(m)}-01T03:00:00.000Z`,
-    end: `${next.y}-${pad(next.m)}-01T03:00:00.000Z`,
-  };
-}
+export { monthWindowUtc };
 
 /**
  * O que a mudança de status faz com a data da aprovação: grava na entrada em
@@ -60,13 +50,8 @@ export function approvalTimestampUpdate(
   return {};
 }
 
-/** Valor vendido: o valor fechado, quando houver, senão o total. */
-export function soldValue(proposal: { closedValue?: unknown; totalValue?: unknown }): number {
-  const closed = Number(proposal.closedValue);
-  if (Number.isFinite(closed) && closed > 0) return closed;
-  const total = Number(proposal.totalValue);
-  return Number.isFinite(total) && total > 0 ? total : 0;
-}
+// Puro e em shared/ porque o Dashboard do front espelha a mesma conta.
+export { soldValue };
 
 /**
  * O vendedor precisa ser pessoa da empresa. Devolve id e nome para gravar na
