@@ -1,6 +1,5 @@
 import type { TenantBillingInfo } from "@/services/admin-service";
 import type { TenantFormData } from "@/components/admin/tenant-dialog";
-import type { TenantNiche } from "@/types";
 
 /**
  * O que salvar ao editar uma empresa no painel, comparando o formulario com o
@@ -16,7 +15,6 @@ export interface TenantSavePlan {
     name: string;
     primaryColor: string;
     logoUrl: string;
-    niche: TenantNiche;
     whatsappEnabled: boolean;
   }> | null;
   planChange: string | null;
@@ -48,9 +46,6 @@ export function buildTenantSavePlan(
   }
   if ((form.logoUrl || "") !== (editing.tenant.logoUrl || "")) {
     tenantUpdate.logoUrl = form.logoUrl || "";
-  }
-  if (form.niche !== (editing.tenant.niche || "automacao_residencial")) {
-    tenantUpdate.niche = form.niche;
   }
   if (Boolean(form.whatsappEnabled) !== Boolean(editing.tenant.whatsappEnabled)) {
     tenantUpdate.whatsappEnabled = Boolean(form.whatsappEnabled);

@@ -4,7 +4,7 @@ import {
   assertFails,
   assertSucceeds,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, updateDoc } from "firebase/firestore";
+import { deleteField, doc, setDoc, updateDoc } from "firebase/firestore";
 import { readFileSync } from "fs";
 import * as path from "path";
 
@@ -13,7 +13,7 @@ import * as path from "path";
  * unica validacao do nicho nesse caminho. Antes aceitavam qualquer texto, e o
  * master podia trocar o nicho da propria empresa: um nicho desconhecido vira
  * automacao em silencio, e trocar deixa produto, proposta e obra no formato do
- * nicho antigo.
+ * nicho antigo. O nicho nunca muda depois do cadastro, nem pelo superadmin.
  */
 
 let testEnv: RulesTestEnvironment;
@@ -90,7 +90,30 @@ describe("tenants: troca de nicho", () => {
     await assertSucceeds(updateDoc(doc(masterDb(), "tenants", "t-a"), { name: "Novo nome" }));
   });
 
-  test("superadmin troca o nicho", async () => {
-    await assertSucceeds(updateDoc(doc(superAdminDb(), "tenants", "t-a"), { niche: "cortinas" }));
+  test("superadmin tambem nao troca o nicho", async () => {
+    await assertFails(updateDoc(doc(superAdminDb(), "tenants", "t-a"), { niche: "cortinas" }));
+  });
+
+  test("superadmin nao apaga o nicho", async () => {
+    await assertFails(updateDoc(doc(superAdminDb(), "tenants", "t-a"), { niche: deleteField() }));
+  });
+
+  test("superadmin nao grava o campo legado tenantNiche", async () => {
+    await assertFails(updateDoc(doc(superAdminDb(), "tenants", "t-a"), { tenantNiche: "cortinas" }));
+  });
+
+  test("superadmin edita o resto mantendo o nicho", async () => {
+    await assertSucceeds(updateDoc(doc(superAdminDb(), "tenants", "t-a"), { name: "Outro nome" }));
+    await assertSucceeds(
+      updateDoc(doc(superAdminDb(), "tenants", "t-a"), { niche: "automacao_residencial", name: "X" }),
+    );
+  });
+
+  test("superadmin cria empresa so com nicho que existe", async () => {
+    await assertSucceeds(
+      setDoc(doc(superAdminDb(), "tenants", "t-novo"), { name: "Nova", niche: "seguranca_eletronica" }),
+    );
+    await assertFails(setDoc(doc(superAdminDb(), "tenants", "t-outro"), { name: "Nova", niche: "x" }));
+    await assertFails(setDoc(doc(superAdminDb(), "tenants", "t-sem"), { name: "Nova" }));
   });
 });

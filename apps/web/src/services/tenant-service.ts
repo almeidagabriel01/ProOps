@@ -2,7 +2,6 @@ import { db } from "@/lib/firebase";
 import { callApi } from "@/lib/api-client";
 import {
   collection,
-  addDoc,
   doc,
   getDocs,
   getDoc,
@@ -38,14 +37,6 @@ export const TenantService = {
         return null;
       }
     });
-  },
-
-  createTenant: async (tenant: Omit<Tenant, "id">): Promise<Tenant> => {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-      ...tenant,
-      createdAt: new Date().toISOString(),
-    });
-    return { id: docRef.id, ...tenant };
   },
 
   updateTenant: async (id: string, tenant: Partial<Tenant>): Promise<void> => {

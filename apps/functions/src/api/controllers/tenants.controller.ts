@@ -3,7 +3,6 @@ import { canCustomizeTheme, canUsePdfEditor, sameJsonValue } from "../../lib/cat
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
-import { isTenantNiche } from "../../shared/niches";
 
 // Update Tenant
 export const updateTenant = async (req: Request, res: Response) => {
@@ -51,14 +50,15 @@ export const updateTenant = async (req: Request, res: Response) => {
       "transactionStatusOrder",
     ];
 
-    // O nicho so muda pelo superadmin: trocar deixa produto, proposta e etapas
-    // de obra no formato do nicho antigo. O master que reenvia o valor atual
-    // (formulario da organizacao) e ignorado, nao recusado.
     if (isSuperAdmin) {
-      allowedFields.push("whatsappEnabled", "niche");
-      if (updateData.niche !== undefined && !isTenantNiche(updateData.niche)) {
-        return res.status(400).json({ message: "Nicho inválido." });
-      }
+      allowedFields.push("whatsappEnabled");
+    }
+
+    // O nicho nunca muda depois do cadastro, nem pelo superadmin: a empresa
+    // inteira (catálogo, proposta, obra) segue o formato dele. Reenviar o
+    // valor atual é ignorado; pedir outro é recusado.
+    if (updateData.niche !== undefined && updateData.niche !== tenantSnap.data()?.niche) {
+      return res.status(409).json({ message: "O nicho da empresa não muda depois do cadastro." });
     }
     const safeUpdate: Record<string, unknown> = {
       updatedAt: Timestamp.now(),

@@ -219,8 +219,9 @@ renamed, only the label changes). Logic in `apps/web/src/lib/niches/`. The tenan
 the id in `niche`. The list of ids lives in three places kept equal by a parity test
 (`apps/functions/src/shared/niches.ts`, `apps/web/src/lib/niches/niche-ids.ts` and `isKnownTenantNiche` in
 `firestore.rules`); backend tables that vary by niche are `Record<TenantNicheId, ...>`, so a new niche
-that misses one does not compile. Only the superadmin changes a tenant's niche (API validates; rules
-block the master). `lib/niches/__tests__/niche-contract.test.ts` lists what every niche must declare.
+that misses one does not compile. A company's niche is chosen at signup and never changes, not even by the superadmin
+(rules, `PUT /v1/tenants` and the admin panel all refuse it; `scripts/backfill-tenant-niche.ts` fills
+tenants that predate the lock). `lib/niches/__tests__/niche-contract.test.ts` lists what every niche must declare.
 
 ## Responsividade
 

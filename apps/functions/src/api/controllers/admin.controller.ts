@@ -61,6 +61,7 @@ import { getStripe } from "../../stripe/stripeConfig";
 import { detectPriceDrift } from "../../billing/price-drift";
 import { invalidateTenantAudience } from "../services/notification-audience";
 import { isTenantNiche } from "../../shared/niches";
+import { getTenantDocCached } from "../../lib/tenant-doc-cache";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -2420,6 +2421,18 @@ export const copyTenantData = async (req: Request, res: Response) => {
       await assertTenantExists(targetTenantId);
     } catch {
       return res.status(400).json({ message: "Empresa de origem ou destino inexistente." });
+    }
+    // O catálogo tem o formato do nicho (produto por medida, ambientes de
+    // persianas, sistemas de segurança), e o nicho de uma empresa nunca muda:
+    // copiar entre nichos diferentes deixaria dado que o destino não sabe usar.
+    const [sourceTenant, targetTenant] = await Promise.all([
+      getTenantDocCached(sourceTenantId),
+      getTenantDocCached(targetTenantId),
+    ]);
+    if (sourceTenant.data?.niche !== targetTenant.data?.niche) {
+      return res
+        .status(400)
+        .json({ message: "Origem e destino precisam ser empresas do mesmo nicho." });
     }
 
     const allCollections = ["products", "services", "ambientes", "sistemas"];

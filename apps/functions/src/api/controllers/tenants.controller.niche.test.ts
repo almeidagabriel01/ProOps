@@ -1,9 +1,8 @@
 /**
  * O nicho muda como a empresa inteira funciona: produto por unidade ou por
- * medida, proposta por sistema ou por ambiente, etapas de obra. Trocar deixa
- * os dados no formato do nicho antigo, entao so o superadmin troca, e so para
- * um nicho que existe. Antes o master trocava para qualquer texto, e um nicho
- * desconhecido virava automacao em silencio.
+ * medida, proposta por sistema ou por ambiente, etapas de obra. Por isso ele
+ * nasce no cadastro e nunca muda, nem pelo superadmin. Reenviar o valor atual
+ * (o formulário da organização faz isso) continua salvando o resto.
  */
 
 const update = jest.fn(async (_data: Record<string, unknown>) => undefined);
@@ -45,33 +44,33 @@ beforeEach(() => {
 });
 
 describe("updateTenant: nicho", () => {
-  it("master nao troca o nicho (o campo e ignorado, o resto grava)", async () => {
-    const r = await call({ name: "Novo nome", niche: "cortinas" });
-    expect(r.status).not.toHaveBeenCalled();
-    expect(written()).toMatchObject({ name: "Novo nome" });
-    expect(written()).not.toHaveProperty("niche");
-  });
-
   it("master reenviando o nicho atual continua salvando", async () => {
     const r = await call({ name: "X", niche: "automacao_residencial" });
     expect(r.status).not.toHaveBeenCalled();
     expect(written()).not.toHaveProperty("niche");
   });
 
-  it("superadmin troca para um nicho que existe", async () => {
-    superAdmin = true;
-    const r = await call({ niche: "cortinas" });
-    expect(r.status).not.toHaveBeenCalled();
-    expect(written()).toMatchObject({ niche: "cortinas" });
+  it("master pedindo outro nicho leva 409 e nada é gravado", async () => {
+    const r = await call({ name: "Novo nome", niche: "cortinas" });
+    expect(r.status).toHaveBeenCalledWith(409);
+    expect(update).not.toHaveBeenCalled();
   });
 
-  it.each(["", "decoracao", "CORTINAS", 42, null])(
-    "superadmin com nicho invalido (%p) leva 400 e nada e gravado",
+  it.each(["cortinas", "seguranca_eletronica", "", "decoracao", null])(
+    "superadmin também não troca o nicho (%p leva 409)",
     async (niche) => {
       superAdmin = true;
       const r = await call({ niche });
-      expect(r.status).toHaveBeenCalledWith(400);
+      expect(r.status).toHaveBeenCalledWith(409);
       expect(update).not.toHaveBeenCalled();
     },
   );
+
+  it("superadmin reenviando o nicho atual salva o resto", async () => {
+    superAdmin = true;
+    const r = await call({ name: "X", niche: "automacao_residencial" });
+    expect(r.status).not.toHaveBeenCalled();
+    expect(written()).toMatchObject({ name: "X" });
+    expect(written()).not.toHaveProperty("niche");
+  });
 });
