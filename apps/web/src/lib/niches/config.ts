@@ -163,9 +163,9 @@ const meterInventoryDefinition: InventoryDefinition = {
   formInitialLabel: "Metragem Inicial",
   readOnlyLabel: "Metragem",
   pageDescription:
-    "Gerencie o catálogo de cortinas, a metragem disponível e os preços.",
+    "Gerencie o catálogo de persianas, cortinas e toldos, a metragem disponível e os preços.",
   emptyStateDescription:
-    "Cadastre seus tecidos, modelos ou kits para controlar a metragem disponível e montar propostas.",
+    "Cadastre tecidos, lonas, modelos e motores para controlar a metragem disponível e montar propostas.",
   costBalanceLabel: "Saldo de custo em metragem",
   revenueBalanceLabel: "Saldo com markup em metragem",
   lowValueThreshold: 10,
@@ -238,9 +238,9 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
   },
   cortinas: {
     id: "cortinas",
-    label: "Cortinas",
+    label: "Persianas e Toldos",
     analyticsColor: "#f59e0b",
-    seoAudience: "cortinas e persianas",
+    seoAudience: "persianas, cortinas e toldos",
     pageAvailability: {
       solutions: false,
       ambientes: true,
@@ -265,7 +265,7 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       workflow: "environment",
       lineFormat: "labeled",
       allowLinePriceEditing: true,
-      titlePlaceholder: "Ex: Automação Residencial - Casa Silva",
+      titlePlaceholder: "Ex: Persianas motorizadas - Apto 302",
       groupsStep: {
         stepTitle: "Ambientes",
         stepDescription: "Selecionar ambientes",
@@ -287,7 +287,7 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       pluralLabel: "Produtos",
       newTitle: "Novo Produto",
       newSubtitle:
-        "Adicione um novo item ao catálogo de cortinas com preço, acabamento e metragem.",
+        "Adicione um novo item ao catálogo de persianas, cortinas e toldos com preço, acabamento e metragem.",
       editTitle: "Editar Produto",
       editSubtitle: (productName) =>
         `Atualize as informações de "${productName}"`,

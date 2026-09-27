@@ -56,7 +56,7 @@ export const MAX_OUTPUT_TOKENS: Record<GenerateFieldRequestField, number> = {
 
 const NICHE_LABELS: Record<TenantNicheId, string> = {
   automacao_residencial: "automação residencial",
-  cortinas: "decoração de interiores (cortinas, persianas, papéis de parede)",
+  cortinas: "persianas, cortinas, toldos e pergolados",
 };
 
 function nicheLabel(niche: string): string {

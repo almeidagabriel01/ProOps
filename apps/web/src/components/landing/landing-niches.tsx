@@ -34,10 +34,10 @@ const NICHES: Niche[] = [
     index: "02",
     icon: Layers,
     eyebrow: "Pacote pronto",
-    title: "Decoração de Interiores",
+    title: "Persianas e Toldos",
     description:
-      "Crie propostas com cálculo automático por m², largura ou altura. Catálogo de tecidos, persianas e papéis de parede integrado.",
-    features: ["Cálculo por medidas", "Tecidos e persianas", "Orçamento automático"],
+      "Propostas por ambiente com preço por m², por largura ou por faixa de altura. Catálogo de tecidos, lonas e motores com fotos.",
+    features: ["Preço por medida", "Proposta por ambiente", "Obra da medição à entrega"],
     href: "/decoracao",
   },
   {

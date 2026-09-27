@@ -128,12 +128,20 @@ export const DEFAULT_STAGE_TEMPLATES: Record<TenantNicheId, StageTemplate[]> = {
   cortinas: [
     {
       name: "Medição",
-      checklist: ["Medir vãos e altura", "Confirmar tecidos e acionamento"],
+      checklist: [
+        "Medir vãos e altura",
+        "Conferir a alvenaria e o ponto elétrico",
+        "Confirmar tecido, lona e acionamento",
+      ],
     },
     { name: "Produção", checklist: ["Enviar pedido", "Conferir peças recebidas"] },
     {
       name: "Instalação",
-      checklist: ["Fixar trilhos e suportes", "Instalar as cortinas", "Regular e testar o acionamento"],
+      checklist: [
+        "Fixar trilhos, suportes e braços",
+        "Instalar persianas, cortinas e toldos",
+        "Regular e testar o acionamento",
+      ],
     },
     { name: "Entrega", checklist: ["Orientar o cliente", "Registrar fotos finais"] },
   ],

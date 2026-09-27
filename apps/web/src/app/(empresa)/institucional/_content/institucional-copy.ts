@@ -416,7 +416,7 @@ export interface Segmento {
 
 export const SEGMENTOS: readonly Segmento[] = [
   { id: "automacao", nome: "Automação residencial", pronto: true },
-  { id: "cortinas", nome: "Cortinas e decoração", pronto: true },
+  { id: "cortinas", nome: "Persianas e toldos", pronto: true },
   { id: "marcenaria", nome: "Marcenaria" },
   { id: "paisagismo", nome: "Paisagismo" },
   { id: "piscinas", nome: "Piscinas" },
@@ -433,7 +433,7 @@ export const SEGMENTOS: readonly Segmento[] = [
  */
 export const NICHOS_PRONTOS = [
   { rotulo: "Automação residencial", estado: "pronto" },
-  { rotulo: "Cortinas e decoração", estado: "pronto" },
+  { rotulo: "Persianas e toldos", estado: "pronto" },
 ] as const;
 
 /**

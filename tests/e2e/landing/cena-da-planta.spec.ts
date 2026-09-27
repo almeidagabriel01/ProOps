@@ -132,7 +132,7 @@ test.describe("LANDING-CENA-01: o nicho do exemplo", () => {
     await expect(rotulo("marcenaria")).toHaveText("Armário planejado");
     await expect(rotulo("automacao")).toBeHidden();
 
-    await abas.getByRole("button", { name: "Cortinas e decoração" }).click();
+    await abas.getByRole("button", { name: "Persianas e toldos" }).click();
     await expect(rotulo("cortinas")).toHaveText("Cortina blackout, trilho motorizado");
     // A conta não muda com o nicho: o que troca é o vocabulário.
     await expect(page.locator("[data-folha] li").first()).toContainText("6.850,00");

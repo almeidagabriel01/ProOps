@@ -225,15 +225,15 @@ export const NICHOS: readonly Nicho[] = [
   },
   {
     id: "cortinas",
-    rotulo: "Cortinas e decoração",
-    nota: "Cálculo por medida, catálogo de tecidos: o outro pacote pronto.",
+    rotulo: "Persianas e toldos",
+    nota: "Preço por medida, proposta por ambiente: o outro pacote pronto.",
     rotulos: [
       "Cortina blackout, trilho motorizado",
       "Persiana rolô dupla visão",
-      "Papel de parede",
+      "Toldo retrátil motorizado",
       "Cortina de linho, trilho suíço",
       "Persiana romana",
-      "Tapete e almofadas sob medida",
+      "Pergolado com cobertura retrátil",
     ],
   },
   {

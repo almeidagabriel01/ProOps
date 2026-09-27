@@ -9,21 +9,20 @@ import { NicheLandingPage } from "@/components/landing/niche/niche-landing-page"
 import { canonicalFor } from "@/lib/site/host-seo";
 
 export const metadata: Metadata = {
-  title: "ERP para Decoração: cortinas, persianas e papéis de parede",
-  description:
-    "ProOps é o ERP para lojas de decoração. Propostas com cálculo automático de metros, CRM, financeiro e WhatsApp integrados.",
+  title: NICHE_LANDING_CONFIG.cortinas.seo.metadataTitle,
+  description: NICHE_LANDING_CONFIG.cortinas.seo.metadataDescription,
   keywords: [
-    "ERP decoração",
-    "sistema gestão loja cortinas",
     "ERP persianas",
+    "sistema para empresa de toldos",
+    "sistema gestão loja cortinas",
+    "orçamento de persianas por m²",
     "software proposta decoração",
-    "sistema decoração interiores",
   ],
   alternates: { canonical: canonicalFor("erp", "/decoracao") },
   openGraph: {
-    title: "ERP para Decoração | ProOps",
+    title: "ERP para Persianas e Toldos | ProOps",
     description:
-      "Sistema completo para lojas de decoração: propostas com medidas, CRM, financeiro e WhatsApp.",
+      "Propostas por ambiente com preço por medida, obra, CRM e financeiro para empresas de persianas, cortinas e toldos.",
     url: canonicalFor("erp", "/decoracao"),
   },
 };
@@ -35,7 +34,7 @@ export default function DecoracaoPage() {
       <BreadcrumbJsonLd
         items={[
           { name: "Início", url: "/" },
-          { name: "Decoração", url: "/decoracao" },
+          { name: NICHE_LANDING_CONFIG.cortinas.seo.breadcrumb, url: "/decoracao" },
         ]}
       />
       <FAQPageJsonLd items={NICHE_LANDING_CONFIG.cortinas.faq} />

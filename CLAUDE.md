@@ -214,7 +214,8 @@ virada do apex, com o checklist de consoles e o que ela custa em SEO e em
 sessão, está em `.claude/rules/virada-dos-dominios.md`.
 
 ### Multi-Niche Support
-Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/`. The tenant doc stores
+Niches: `automacao_residencial` | `cortinas` (shown as "Persianas e Toldos": the id is persisted and never
+renamed, only the label changes). Logic in `apps/web/src/lib/niches/`. The tenant doc stores
 the id in `niche`. The list of ids lives in three places kept equal by a parity test
 (`apps/functions/src/shared/niches.ts`, `apps/web/src/lib/niches/niche-ids.ts` and `isKnownTenantNiche` in
 `firestore.rules`); backend tables that vary by niche are `Record<TenantNicheId, ...>`, so a new niche
