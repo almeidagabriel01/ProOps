@@ -96,11 +96,14 @@ export interface DemoTransaction {
   recurringGroupId?: string;
 }
 
-export interface DemoStage {
-  id: string;
-  name: string;
+/**
+ * Andamento de uma etapa da obra de exemplo. Nome e checklist vêm do roteiro
+ * do nicho (`stageTemplate` em `NICHE_REGISTRY`), na mesma ordem.
+ */
+export interface DemoStageProgress {
   status: "pending" | "in_progress" | "done";
-  items: Array<[string, boolean]>;
+  /** Quantos itens do checklist, do início, estão feitos. */
+  doneItems: number;
   completedOffset: number | null;
 }
 
@@ -108,7 +111,8 @@ export interface DemoDataset {
   niche: TenantNicheId;
   tenantId: string;
   tenant: { slug: string; primaryColor: string };
-  optionIdPrefix: string;
+  /** Prefixo dos ids que o motor monta (options e etapas da obra). */
+  idPrefix: string;
   products: DemoProduct[];
   services: DemoService[];
   clients: DemoClient[];
@@ -134,8 +138,9 @@ export interface DemoDataset {
     startOffset: number;
     dueOffset: number;
     createdOffset: number;
-    stages: DemoStage[];
-    visit: { eventId: string; stageId: string; dayOffset: number; hours: number; color: string };
+    /** Uma entrada por etapa do roteiro do nicho. */
+    stageProgress: DemoStageProgress[];
+    visit: { eventId: string; stageIndex: number; dayOffset: number; hours: number; color: string };
   };
   leads: Array<{
     id: string;
@@ -182,26 +187,6 @@ export interface DemoDataset {
   }>;
   /** Documentos de versões antigas da demonstração que não existem mais. */
   legacyDeletes?: string[];
-  /**
-   * Formato herdado dos seeds antigos, explícito para o motor reproduzi-los
-   * byte a byte. Novos datasets usam o padrão: `catalogFormat()`.
-   */
-  format: DemoFormat;
-}
-
-export interface DemoFormat {
-  /** `${productId}_li` ou `${ambienteId}_li_${n}`. */
-  ambienteLineId: "byProduct" | "byIndex";
-  /** Linha do ambiente leva a quantidade e as medidas calculadas. */
-  ambienteLinePricing: boolean;
-  /** `${productId}_li` ou `${sistemaId}-${ambienteId}_li_${n}`. */
-  sistemaLineId?: "byProduct" | "byInstanceIndex";
-  /** `${instanceId}_${productId}` ou `${instanceId}_${n}`. */
-  proposalLineId: "byProduct" | "byIndex";
-  /** Preço pelo catálogo, ou o markup único e o arredondamento do seed antigo de automação. */
-  pricing: { kind: "catalog" } | { kind: "legacyFlatMarkup"; markup: number };
-  /** Arredondar o total da proposta em centavos. */
-  totalInCents: boolean;
 }
 
 export interface SeedDemoResult {

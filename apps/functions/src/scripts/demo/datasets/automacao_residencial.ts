@@ -28,12 +28,12 @@ export const automacaoResidencialDemo: DemoDataset = {
   niche: "automacao_residencial",
   tenantId: NICHE_REGISTRY.automacao_residencial.demoTenantId,
   tenant: { slug: "proops-demo", primaryColor: "#4f46e5" },
-  optionIdPrefix: "demo",
+  idPrefix: "demo",
   products: [
-    { id: P.central, name: "Central de Automação Smart Hub", description: "Controlador central para integrar iluminação, climatização e segurança.", price: 2490, category: "Automação", manufacturer: "SmartHome", inventoryValue: 12 },
-    { id: P.sensor, name: "Sensor de Presença Wireless", description: "Sensor de movimento sem fio com alcance de 8 metros.", price: 189, category: "Sensores", manufacturer: "SensorTech", inventoryValue: 60 },
-    { id: P.lock, name: "Fechadura Digital Biométrica", description: "Fechadura com leitor de digital, senha e desbloqueio por app.", price: 1290, category: "Segurança", manufacturer: "SecureLock", inventoryValue: 20 },
-    { id: P.speaker, name: "Caixa de Som Embutida", description: "Alto-falante de teto para som ambiente multizona.", price: 640, category: "Áudio", manufacturer: "AudioPro", inventoryValue: 35 },
+    { id: P.central, name: "Central de Automação Smart Hub", description: "Controlador central para integrar iluminação, climatização e segurança.", price: 2490, markup: 30, category: "Automação", manufacturer: "SmartHome", inventoryValue: 12 },
+    { id: P.sensor, name: "Sensor de Presença Wireless", description: "Sensor de movimento sem fio com alcance de 8 metros.", price: 189, markup: 30, category: "Sensores", manufacturer: "SensorTech", inventoryValue: 60 },
+    { id: P.lock, name: "Fechadura Digital Biométrica", description: "Fechadura com leitor de digital, senha e desbloqueio por app.", price: 1290, markup: 30, category: "Segurança", manufacturer: "SecureLock", inventoryValue: 20 },
+    { id: P.speaker, name: "Caixa de Som Embutida", description: "Alto-falante de teto para som ambiente multizona.", price: 640, markup: 30, category: "Áudio", manufacturer: "AudioPro", inventoryValue: 35 },
   ],
   services: [
     { id: "demo_svc_install", name: "Instalação e Comissionamento", description: "Instalação completa dos equipamentos e testes de comissionamento.", price: 850, category: "Instalação" },
@@ -125,13 +125,13 @@ export const automacaoResidencialDemo: DemoDataset = {
     startOffset: -8,
     dueOffset: 12,
     createdOffset: -8,
-    stages: [
-      { id: "demo_stage_1", name: "Infraestrutura", status: "done", items: [["Conferir tubulação e caixas", true], ["Passar cabeamento", true], ["Montar o quadro/rack", true]], completedOffset: -6 },
-      { id: "demo_stage_2", name: "Instalação", status: "in_progress", items: [["Instalar os equipamentos", true], ["Ligar e identificar os circuitos", false]], completedOffset: null },
-      { id: "demo_stage_3", name: "Configuração", status: "pending", items: [["Programar cenas e automações", false], ["Configurar o aplicativo", false], ["Testar ambiente por ambiente", false]], completedOffset: null },
-      { id: "demo_stage_4", name: "Entrega", status: "pending", items: [["Treinar o cliente", false], ["Registrar fotos finais", false]], completedOffset: null },
+    stageProgress: [
+      { status: "done", doneItems: 3, completedOffset: -6 },
+      { status: "in_progress", doneItems: 1, completedOffset: null },
+      { status: "pending", doneItems: 0, completedOffset: null },
+      { status: "pending", doneItems: 0, completedOffset: null },
     ],
-    visit: { eventId: "demo_event_obra_configuracao", stageId: "demo_stage_3", dayOffset: 2, hours: 3, color: "#0891b2" },
+    visit: { eventId: "demo_event_obra_configuracao", stageIndex: 2, dayOffset: 2, hours: 3, color: "#0891b2" },
   },
   leads: [
     { id: "demo_lead_carla", name: "Carla Mendes", phone: "11988880001", source: "instagram", stage: "novo", estimatedValue: 18000, nextAction: "Ligar para entender o projeto", nextActionOffset: 1 },
@@ -156,12 +156,4 @@ export const automacaoResidencialDemo: DemoDataset = {
   // A atividade "tarefa" do lead virou a tarefa acima; num tenant já semeado
   // ela continuaria aparecendo duplicada no histórico do lead.
   legacyDeletes: ["activities/demo_activity_studio_2"],
-  format: {
-    ambienteLineId: "byProduct",
-    ambienteLinePricing: false,
-    sistemaLineId: "byProduct",
-    proposalLineId: "byProduct",
-    pricing: { kind: "legacyFlatMarkup", markup: 30 },
-    totalInCents: false,
-  },
 };

@@ -1,12 +1,11 @@
 import { productRefsFields } from "../../lib/proposal-product-refs";
 import { computeProposalSortFields } from "../../lib/proposal-sort-fields";
 import { calculateProposalProductPricing } from "../../shared/dimension-pricing";
+import { NICHE_REGISTRY } from "../../shared/niches";
 import type {
   DemoDataset,
-  DemoFormat,
   DemoLine,
   DemoProduct,
-  DemoStage,
   SeedDemoResult,
 } from "./types";
 
@@ -29,18 +28,6 @@ export interface BuildDemoOptions {
 /** Datas fixas: re-semear e ordenar por createdAt é determinístico. */
 const BASE_MS = Date.UTC(2026, 0, 1, 12, 0, 0);
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Formato padrão para dataset novo: preço pelo catálogo e ids por posição. */
-export function catalogFormat(): DemoFormat {
-  return {
-    ambienteLineId: "byIndex",
-    ambienteLinePricing: true,
-    sistemaLineId: "byInstanceIndex",
-    proposalLineId: "byProduct",
-    pricing: { kind: "catalog" },
-    totalInCents: true,
-  };
-}
 
 function buildSearchTokens(...parts: Array<string | undefined>): string[] {
   const tokens = new Set<string>();
@@ -86,22 +73,10 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     if (!found) throw new Error(`Demo ${ds.niche}: contato ${id} não existe no dataset.`);
     return found;
   };
-  const { format } = ds;
 
-  /** Preço da linha: pelo catálogo, ou o markup único do seed antigo. */
+  /** Preço da linha pelo mesmo cálculo da tela. */
   const priceLine = (line: DemoLine) => {
     const p = product(line.productId);
-    if (format.pricing.kind === "legacyFlatMarkup") {
-      const quantity = line.quantity ?? 0;
-      const markup = format.pricing.markup;
-      return {
-        quantity,
-        unitPrice: p.price,
-        markup,
-        total: Math.round(p.price * quantity * (1 + markup / 100)),
-        pricingDetails: { mode: "standard" } as const,
-      };
-    }
     const pricing = calculateProposalProductPricing({
       price: p.price,
       markup: p.markup,
@@ -204,11 +179,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
       icon: a.icon,
       order: a.order,
       defaultProducts: a.lines.map((line, index) =>
-        templateLine(
-          line,
-          format.ambienteLineId === "byProduct" ? `${line.productId}_li` : `${a.id}_li_${index + 1}`,
-          format.ambienteLinePricing,
-        ),
+        templateLine(line, `${a.id}_li_${index + 1}`, true),
       ),
       createdAt: ts(i),
       updatedAt: ts(i),
@@ -219,13 +190,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     const ambientes = sys.ambientes.map((amb) => ({
       ambienteId: amb.ambienteId,
       products: amb.lines.map((line, index) =>
-        templateLine(
-          line,
-          format.sistemaLineId === "byInstanceIndex"
-            ? `${sys.id}-${amb.ambienteId}_li_${index + 1}`
-            : `${line.productId}_li`,
-          false,
-        ),
+        templateLine(line, `${sys.id}-${amb.ambienteId}_li_${index + 1}`, false),
       ),
     }));
     const ambienteIds = ambientes.map((a) => a.ambienteId);
@@ -254,7 +219,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     ...manufacturerLabels.map((label) => ({ type: "product_manufacturers", label })),
   ];
   optionDocs.forEach((opt, i) => {
-    set(`options/${ds.optionIdPrefix}_opt_${opt.type}_${i}`, {
+    set(`options/${ds.idPrefix}_opt_${opt.type}_${i}`, {
       ...tenantTag,
       type: opt.type,
       label: opt.label,
@@ -272,8 +237,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
       const p = product(line.productId);
       const priced = priceLine(line);
       lineItems.push({
-        lineItemId:
-          format.proposalLineId === "byProduct" ? `${instanceId}_${p.id}` : `${instanceId}_${index + 1}`,
+        lineItemId: `${instanceId}_${index + 1}`,
         productId: p.id,
         itemType: "product",
         productName: p.name,
@@ -343,7 +307,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
           });
 
     const rawTotal = lineItems.reduce((sum, li) => sum + (li.total as number), 0);
-    const totalValue = format.totalInCents ? Math.round(rawTotal * 100) / 100 : rawTotal;
+    const totalValue = Math.round(rawTotal * 100) / 100;
     const c = client(prop.clientId);
 
     set(`proposals/${prop.id}`, {
@@ -447,24 +411,38 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     endMs: visitEnd.getTime(),
   };
 
-  const stageDoc = (stage: DemoStage) => {
+  // Nome e checklist das etapas vêm do roteiro do nicho, o mesmo com que a
+  // obra de uma empresa real nasce.
+  const template = NICHE_REGISTRY[ds.niche].stageTemplate;
+  if (project.stageProgress.length !== template.length) {
+    throw new Error(`Demo ${ds.niche}: o andamento tem ${project.stageProgress.length} etapas e o roteiro tem ${template.length}.`);
+  }
+  const stageId = (index: number) => `${ds.idPrefix}_stage_${index + 1}`;
+  const stages = template.map((stage, index) => {
+    const progress = project.stageProgress[index];
+    const id = stageId(index);
     const base = {
-      id: stage.id,
+      id,
       name: stage.name,
-      status: stage.status,
-      checklist: stage.items.map(([text, done], i) => ({
-        id: `${stage.id}_item_${i + 1}`,
-        text,
-        done,
-        doneAt: done ? isoAt(stage.completedOffset ?? -1) : null,
-        doneBy: null,
-      })),
+      status: progress.status,
+      checklist: stage.checklist.map((text, i) => {
+        const done = i < progress.doneItems;
+        return {
+          id: `${id}_item_${i + 1}`,
+          text,
+          done,
+          doneAt: done ? isoAt(progress.completedOffset ?? -1) : null,
+          doneBy: null,
+        };
+      }),
       photos: [],
       completedAt:
-        stage.status === "done" && stage.completedOffset !== null ? isoAt(stage.completedOffset) : null,
+        progress.status === "done" && progress.completedOffset !== null
+          ? isoAt(progress.completedOffset)
+          : null,
     };
-    return stage.id === project.visit.stageId ? { ...base, schedule: visit } : base;
-  };
+    return index === project.visit.stageIndex ? { ...base, schedule: visit } : base;
+  });
 
   set(`projects/${projectId}`, {
     ...tenantTag,
@@ -478,7 +456,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     address: null,
     title: projectProposal.title,
     status: "active",
-    stages: project.stages.map(stageDoc),
+    stages,
     assigneeId: null,
     assigneeName: "Equipe Demo",
     startDate: ymd(project.startOffset),
@@ -490,7 +468,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     createdBy: null,
   });
 
-  const scheduledStage = project.stages.find((s) => s.id === project.visit.stageId);
+  const scheduledStage = template[project.visit.stageIndex];
   if (!scheduledStage) throw new Error(`Demo ${ds.niche}: a visita aponta para etapa inexistente.`);
   set(`calendar_events/${project.visit.eventId}`, {
     ...tenantTag,
@@ -511,7 +489,7 @@ export function buildDemoDocs(ds: DemoDataset, opts: BuildDemoOptions): DemoWrit
     endMs: visit.endMs,
     googleSync: { enabled: false, provider: "google", status: "disabled" },
     projectId,
-    projectStageId: project.visit.stageId,
+    projectStageId: stageId(project.visit.stageIndex),
     createdAt: isoAt(-1),
     updatedAt: isoAt(-1),
   });

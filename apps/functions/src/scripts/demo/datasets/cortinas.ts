@@ -22,7 +22,7 @@ export const cortinasDemo: DemoDataset = {
   niche: "cortinas",
   tenantId: NICHE_REGISTRY.cortinas.demoTenantId,
   tenant: { slug: "proops-demo-persianas", primaryColor: "#b45309" },
-  optionIdPrefix: "demo_cort",
+  idPrefix: "demo_cort",
   products: [
     { id: P.rolo, name: "Persiana Rolô Blackout", description: "Tecido blackout em rolo, cobrado por metro quadrado do vão.", price: 180, markup: 60, category: "Persianas", manufacturer: "Tecidos Aurora", inventoryValue: 120, pricingModel: { mode: "curtain_meter" } },
     {
@@ -125,13 +125,13 @@ export const cortinasDemo: DemoDataset = {
     startOffset: -9,
     dueOffset: 10,
     createdOffset: -9,
-    stages: [
-      { id: "demo_cort_stage_1", name: "Medição", status: "done", items: [["Medir vãos e altura", true], ["Confirmar tecidos e acionamento", true]], completedOffset: -8 },
-      { id: "demo_cort_stage_2", name: "Produção", status: "in_progress", items: [["Enviar pedido", true], ["Conferir peças recebidas", false]], completedOffset: null },
-      { id: "demo_cort_stage_3", name: "Instalação", status: "pending", items: [["Fixar trilhos e suportes", false], ["Instalar as cortinas", false], ["Regular e testar o acionamento", false]], completedOffset: null },
-      { id: "demo_cort_stage_4", name: "Entrega", status: "pending", items: [["Orientar o cliente", false], ["Registrar fotos finais", false]], completedOffset: null },
+    stageProgress: [
+      { status: "done", doneItems: 3, completedOffset: -8 },
+      { status: "in_progress", doneItems: 1, completedOffset: null },
+      { status: "pending", doneItems: 0, completedOffset: null },
+      { status: "pending", doneItems: 0, completedOffset: null },
     ],
-    visit: { eventId: "demo_cort_event_instalacao", stageId: "demo_cort_stage_3", dayOffset: 3, hours: 2, color: "#b45309" },
+    visit: { eventId: "demo_cort_event_instalacao", stageIndex: 2, dayOffset: 3, hours: 2, color: "#b45309" },
   },
   leads: [
     { id: "demo_cort_lead_helena", name: "Helena Prado", phone: "11988881001", source: "instagram", stage: "novo", estimatedValue: 6500, nextAction: "Agendar a medição", nextActionOffset: 1 },
@@ -151,11 +151,4 @@ export const cortinasDemo: DemoDataset = {
     { id: "demo_cort_task_pedido", title: "Conferir a chegada dos motores do pedido da Marina", dueOffset: 0, done: false, clientId: "demo_cort_client_marina", clientName: "Marina Costa", proposalId: "demo_cort_prop_1", proposalTitle: "Apartamento Marina: sala e suíte" },
     { id: "demo_cort_task_amostras", title: "Separar amostras de lona para a Pousada Vento Sul", dueOffset: 2, done: false, leadId: "demo_cort_lead_pousada", leadName: "Pousada Vento Sul" },
   ],
-  format: {
-    ambienteLineId: "byIndex",
-    ambienteLinePricing: true,
-    proposalLineId: "byIndex",
-    pricing: { kind: "catalog" },
-    totalInCents: true,
-  },
 };

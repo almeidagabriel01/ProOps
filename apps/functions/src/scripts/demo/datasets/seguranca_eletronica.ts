@@ -30,7 +30,7 @@ export const segurancaEletronicaDemo: DemoDataset = {
   niche: "seguranca_eletronica",
   tenantId: NICHE_REGISTRY.seguranca_eletronica.demoTenantId,
   tenant: { slug: "proops-demo-seguranca", primaryColor: "#dc2626" },
-  optionIdPrefix: "demo_seg",
+  idPrefix: "demo_seg",
   products: [
     { id: P.camera, name: "Câmera Bullet Full HD 2MP", description: "Câmera externa com infravermelho de 30 m e proteção IP67.", price: 260, markup: 60, category: "CFTV", manufacturer: "VisionTec", inventoryValue: 48 },
     { id: P.nvr, name: "Gravador NVR 8 Canais", description: "Gravador de rede com HD de 2 TB e acesso remoto pelo aplicativo.", price: 980, markup: 45, category: "CFTV", manufacturer: "VisionTec", inventoryValue: 10 },
@@ -120,14 +120,14 @@ export const segurancaEletronicaDemo: DemoDataset = {
     startOffset: -9,
     dueOffset: 9,
     createdOffset: -9,
-    stages: [
-      { id: "demo_seg_stage_1", name: "Levantamento", status: "done", items: [["Mapear os pontos de câmera e sensores", true], ["Definir a rota dos cabos e a energia", true], ["Confirmar o local do gravador e da central", true]], completedOffset: -8 },
-      { id: "demo_seg_stage_2", name: "Infraestrutura", status: "done", items: [["Passar tubulação e cabeamento", true], ["Montar o rack ou a caixa do gravador", true]], completedOffset: -4 },
-      { id: "demo_seg_stage_3", name: "Instalação", status: "in_progress", items: [["Instalar câmeras, sensores e central", true], ["Instalar fechaduras, leitores e cerca, se houver", false]], completedOffset: null },
-      { id: "demo_seg_stage_4", name: "Configuração", status: "pending", items: [["Configurar gravação e acesso remoto no aplicativo", false], ["Cadastrar zonas, usuários e biometrias", false], ["Testar cada ponto", false]], completedOffset: null },
-      { id: "demo_seg_stage_5", name: "Entrega", status: "pending", items: [["Treinar o cliente", false], ["Entregar senhas e o termo de entrega", false], ["Registrar fotos finais", false]], completedOffset: null },
+    stageProgress: [
+      { status: "done", doneItems: 3, completedOffset: -8 },
+      { status: "done", doneItems: 2, completedOffset: -4 },
+      { status: "in_progress", doneItems: 1, completedOffset: null },
+      { status: "pending", doneItems: 0, completedOffset: null },
+      { status: "pending", doneItems: 0, completedOffset: null },
     ],
-    visit: { eventId: "demo_seg_event_configuracao", stageId: "demo_seg_stage_4", dayOffset: 2, hours: 3, color: "#dc2626" },
+    visit: { eventId: "demo_seg_event_configuracao", stageIndex: 3, dayOffset: 2, hours: 3, color: "#dc2626" },
   },
   leads: [
     { id: "demo_seg_lead_clinica", name: "Clínica Sorriso", company: "Clínica Sorriso", phone: "11988882001", source: "indicacao", stage: "novo", estimatedValue: 9800, nextAction: "Agendar a vistoria técnica", nextActionOffset: 1 },
@@ -147,12 +147,4 @@ export const segurancaEletronicaDemo: DemoDataset = {
     { id: "demo_seg_task_config", title: "Levar o notebook para configurar o gravador do condomínio", dueOffset: 2, done: false, clientId: "demo_seg_client_condominio", clientName: "Condomínio Vila Verde", proposalId: "demo_seg_prop_1", proposalTitle: "Condomínio Vila Verde: CFTV e acesso" },
     { id: "demo_seg_task_proposta", title: "Montar proposta de 16 câmeras para o galpão", dueOffset: 1, done: false, leadId: "demo_seg_lead_galpao", leadName: "Galpão Logística Sul" },
   ],
-  format: {
-    ambienteLineId: "byIndex",
-    ambienteLinePricing: false,
-    sistemaLineId: "byInstanceIndex",
-    proposalLineId: "byProduct",
-    pricing: { kind: "catalog" },
-    totalInCents: true,
-  },
 };
