@@ -549,6 +549,24 @@
       ]
     },
     {
+      "collectionGroup": "proposals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tenantId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "totalValue",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
