@@ -29,13 +29,29 @@ const ROWS: Row[] = [
   { kind: "subtotal", key: "result", label: "Resultado do período", final: true },
 ];
 
-function Amount({ value, negative, strong }: { value: number; negative?: boolean; strong?: boolean }) {
+function Amount({
+  value,
+  negative,
+  strong,
+  total,
+}: {
+  value: number;
+  negative?: boolean;
+  strong?: boolean;
+  /**
+   * A coluna Total: em negrito e presa à direita, visível mesmo quando os
+   * meses rolam. O fundo é o da linha, sólido, senão o texto que rola por
+   * baixo aparece através dela.
+   */
+  total?: "bg-card" | "bg-muted";
+}) {
   const shown = negative && value !== 0 ? -value : value;
   return (
     <td
       className={cn(
-        "whitespace-nowrap px-3 py-2 text-right tabular-nums",
-        strong && "font-semibold",
+        "min-w-[120px] whitespace-nowrap px-3 py-2 text-right tabular-nums",
+        (strong || total) && "font-semibold",
+        total && cn("sticky right-0 z-10 border-l", total),
         shown < 0 && "text-destructive",
         value === 0 && "text-muted-foreground",
       )}
@@ -63,18 +79,20 @@ export function DreTable({ dre }: DreTableProps) {
     });
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-card">
-      <table className="w-full min-w-max text-sm">
+    // O cartão abraça a tabela: com poucos meses ela não estica até a borda
+    // (o valor ficava longe do nome da linha), e com muitos rola por dentro.
+    <div className="w-fit max-w-full overflow-x-auto rounded-xl border bg-card">
+      <table className="min-w-max text-sm">
         <thead>
-          <tr className="border-b bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-            <th className="sticky left-0 z-10 bg-muted/40 px-3 py-2 text-left font-medium">Linha</th>
+          <tr className="border-b bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="sticky left-0 z-10 min-w-[240px] bg-muted px-3 py-2 text-left font-medium">Linha</th>
             {showMonths &&
               dre.months.map((m) => (
                 <th key={m} className="px-3 py-2 text-right font-medium">
                   {formatMonthShort(m)}
                 </th>
               ))}
-            <th className="px-3 py-2 text-right font-medium">Total</th>
+            <th className="sticky right-0 z-10 border-l bg-muted px-3 py-2 text-right font-medium">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -84,13 +102,13 @@ export function DreTable({ dre }: DreTableProps) {
               return (
                 <tr
                   key={row.key}
-                  className={cn("border-b bg-muted/20", row.final && "bg-primary/5 text-base")}
+                  className={cn("border-b bg-muted", row.final && "text-base")}
                 >
-                  <th scope="row" className="sticky left-0 z-10 bg-inherit px-3 py-2 text-left font-semibold">
+                  <th scope="row" className="sticky left-0 z-10 bg-muted px-3 py-2 text-left font-semibold">
                     = {row.label}
                   </th>
                   {showMonths && dre.months.map((m) => <Amount key={m} value={values.byMonth[m] ?? 0} strong />)}
-                  <Amount value={values.total} strong />
+                  <Amount value={values.total} strong total="bg-muted" />
                 </tr>
               );
             }
@@ -123,7 +141,7 @@ export function DreTable({ dre }: DreTableProps) {
                   </th>
                   {showMonths &&
                     dre.months.map((m) => <Amount key={m} value={block.byMonth[m] ?? 0} negative={negative} />)}
-                  <Amount value={block.total} negative={negative} />
+                  <Amount value={block.total} negative={negative} total="bg-card" />
                 </tr>
                 {isOpen &&
                   block.categories.map((line) => (
@@ -133,7 +151,7 @@ export function DreTable({ dre }: DreTableProps) {
                       </th>
                       {showMonths &&
                         dre.months.map((m) => <Amount key={m} value={line.byMonth[m] ?? 0} negative={negative} />)}
-                      <Amount value={line.total} negative={negative} />
+                      <Amount value={line.total} negative={negative} total="bg-card" />
                     </tr>
                   ))}
               </React.Fragment>

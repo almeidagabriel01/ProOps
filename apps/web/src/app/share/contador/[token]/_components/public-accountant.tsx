@@ -402,7 +402,9 @@ export function PublicAccountant({ token }: PublicAccountantProps) {
 
   return (
     <div className="min-h-screen bg-muted/30 px-4 py-8 md:py-12">
-      <div className="mx-auto max-w-5xl space-y-6">
+      {/* Largo de propósito: o DRE tem uma coluna por mês, e com 1024px a
+          coluna Total já saía da tela em 6 meses num monitor comum. */}
+      <div className="mx-auto max-w-[1600px] space-y-6">
         {example && (
           <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
             Este é um exemplo, com dados fictícios. Com o financeiro no plano, o contador recebe o link da sua empresa.
