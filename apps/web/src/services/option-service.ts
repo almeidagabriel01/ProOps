@@ -71,4 +71,13 @@ export const OptionService = {
   deleteOption: async (id: string): Promise<void> => {
       await callApi(`/v1/aux/options/${id}`, "DELETE");
   },
+
+  /**
+   * Esquece a lista guardada (5 min) de um tipo. Quem cria opções por outro
+   * caminho, como a importação por planilha, chama isto para o seletor não
+   * abrir com a lista de antes.
+   */
+  invalidate: (tenantId: string, type: string) => {
+    _optionsCache.invalidate(`${tenantId}:${type}`);
+  },
 };

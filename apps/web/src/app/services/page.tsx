@@ -35,6 +35,7 @@ import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ServicesSkeleton } from "./_components/services-skeleton";
 import { ImportButton, ImportDialog } from "@/components/features/import/import-dialog";
+import { OptionService } from "@/services/option-service";
 import { SERVICE_FIELDS } from "@/lib/import/import-fields";
 
 export default function ServicesPage() {
@@ -87,6 +88,8 @@ export default function ServicesPage() {
   const [importOpen, setImportOpen] = useState(false);
   // Depois de importar: a lista e o "tem algum serviço" relidos.
   const reloadAfterImport = useCallback(() => {
+    // A importação cria categorias novas na lista da empresa.
+    if (tenant) OptionService.invalidate(tenant.id, "product_categories");
     void refreshHasAnyServices();
     refreshRef.current?.();
     if (tenant && allServices) {

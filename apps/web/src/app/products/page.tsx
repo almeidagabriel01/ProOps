@@ -45,6 +45,7 @@ import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ProductsSkeleton } from "./_components/products-skeleton";
 import { ImportButton, ImportDialog } from "@/components/features/import/import-dialog";
+import { OptionService } from "@/services/option-service";
 import { productFields } from "@/lib/import/import-fields";
 import { formatCurrency } from "@/utils/format";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
@@ -232,6 +233,9 @@ export default function ProductsPage() {
   const reloadAfterImport = useCallback(() => {
     if (!tenant) return;
     ProductService.invalidateTenantCache(tenant.id);
+    // A importação cria categorias e fabricantes novos na lista da empresa.
+    OptionService.invalidate(tenant.id, "product_categories");
+    OptionService.invalidate(tenant.id, "product_manufacturers");
     void refreshHasAnyProducts();
     refreshRef.current?.();
     void ProductService.getProducts(tenant.id).then(setAllProducts).catch(() => undefined);
