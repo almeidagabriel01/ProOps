@@ -193,9 +193,13 @@ regra geral está em `apps/web/src/lib/CLAUDE.md`, seção Multi-niche.
 - [ ] Backend: não há config central de nicho. Regra de negócio que mude por
       nicho no servidor precisa de espelho no front com teste de paridade, no
       padrão de `catalog-image-limits`.
-- [ ] O tenant de demonstração é só `automacao_residencial`, então navegar a
-      demo nunca exercita cortinas. O comportamento de cada nicho precisa de
-      teste próprio.
+- [ ] Cada nicho tem a própria demonstração: `DEMO_TENANT_IDS`
+      (`apps/functions/src/shared/demo-tenant.ts`, espelho em
+      `apps/web/src/lib/demo-tenants.ts` e em `isDemoRead` nas rules, com
+      paridade em `demo-tenants-parity.test.ts`), escolhida pelo nicho da
+      conta free. Nicho novo entra no mapa e ganha um seed (`scripts/seed-demo-*.ts`,
+      chamado pelo POST `/internal/admin/seed-demo-tenant`). Navegar a demo
+      não substitui o teste do comportamento de cada nicho.
 
 ---
 

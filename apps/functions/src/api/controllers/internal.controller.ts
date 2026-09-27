@@ -608,8 +608,8 @@ export const cleanupTrialFieldsManual = async (
 };
 
 /**
- * Seeds (or re-seeds) the shared read-only `demo` tenant used by the
- * free-tier demo mode. Idempotent.
+ * Seeds (or re-seeds) the read-only demo tenants used by the free-tier demo
+ * mode, one per niche (`shared/demo-tenant.ts`). Idempotent.
  *
  * Header: x-cron-secret must match CRON_SECRET.
  */
@@ -625,8 +625,12 @@ export const seedDemoTenantManual = async (
     }
 
     const { seedDemoTenant } = await import("../../scripts/seed-demo-tenant");
-    const result = await seedDemoTenant();
-    logger.info("[seedDemoTenant manual] completed", { ...result });
+    const { seedDemoCortinasTenant } = await import("../../scripts/seed-demo-cortinas");
+    const result = {
+      automacao_residencial: await seedDemoTenant(),
+      cortinas: await seedDemoCortinasTenant(),
+    };
+    logger.info("[seedDemoTenant manual] completed", { niches: Object.keys(result) });
     return res.json(result);
   } catch (error) {
     logger.error("[seedDemoTenant manual] failed", {

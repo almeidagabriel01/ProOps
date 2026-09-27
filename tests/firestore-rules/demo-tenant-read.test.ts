@@ -20,6 +20,8 @@ import * as path from 'path';
 let testEnv: RulesTestEnvironment;
 
 const DEMO = 'demo';
+// Uma demonstração por nicho: a de persianas e toldos tem o próprio tenant.
+const DEMO_CORTINAS = 'demo-cortinas';
 const DEMO_COLLECTIONS = [
   'products',
   'services',
@@ -68,6 +70,7 @@ beforeEach(async () => {
   // Demo docs + a real other-tenant doc in every demo collection.
   for (const coll of DEMO_COLLECTIONS) {
     await seedDoc(coll, `demo-${coll}`, { tenantId: DEMO, name: 'Demo item' });
+    await seedDoc(coll, `demo-cortinas-${coll}`, { tenantId: DEMO_CORTINAS, name: 'Demo item' });
     await seedDoc(coll, `other-${coll}`, { tenantId: 'tenant-paid', name: 'Real item' });
   }
 });
@@ -110,6 +113,17 @@ describe('demo dataset read access', () => {
     }
   });
 
+  test('free-tier user CAN read the demo of every niche', async () => {
+    for (const coll of DEMO_COLLECTIONS) {
+      await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-cortinas-${coll}`)));
+    }
+  });
+
+  test('a tenant id that only looks like a demo is not readable', async () => {
+    await seedDoc('products', 'fake-demo', { tenantId: 'demo-falso', name: 'Real item' });
+    await assertFails(getDoc(doc(freeDb(), 'products', 'fake-demo')));
+  });
+
   test('unauthenticated user CANNOT read demo docs', async () => {
     await assertFails(getDoc(doc(unauthedDb(), 'products', 'demo-products')));
   });
@@ -127,6 +141,12 @@ describe('demo dataset is read-only', () => {
   test('free-tier user CANNOT write a demo doc', async () => {
     await assertFails(
       setDoc(doc(freeDb(), 'products', 'demo-products'), { tenantId: DEMO, name: 'hacked' }),
+    );
+  });
+
+  test('free-tier user CANNOT write the niche demo either', async () => {
+    await assertFails(
+      setDoc(doc(freeDb(), 'products', 'demo-cortinas-products'), { tenantId: DEMO_CORTINAS, name: 'hacked' }),
     );
   });
 

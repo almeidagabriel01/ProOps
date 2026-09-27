@@ -50,8 +50,10 @@ qualquer assinante; e cinco prefixos mortos na lista de leitura do demo
 quebravam Soluções, Ambientes e o formulário de proposta para toda conta free.
 As duas perguntas novas falham do mesmo jeito: um passo do tutorial sem gate de
 plano ou de demo apresenta uma tela que a conta não abre, e o tenant de
-demonstração é só de automação, sem teste que cubra os dois nichos, então uma
-quebra em cortinas só aparece quando o cliente reclama.
+demonstração foi por muito tempo só de automação, sem teste que cobrisse os
+dois nichos, então uma quebra em cortinas só aparecia quando o cliente
+reclamava. Hoje há uma demonstração por nicho (`DEMO_TENANT_IDS`), e nicho novo
+precisa da sua.
 
 ## Bug Fix Policy
 

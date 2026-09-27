@@ -16,6 +16,8 @@ export type NotificationViewerMode = "recipient" | "company" | "demo";
 export interface NotificationViewer {
   uid: string;
   mode: NotificationViewerMode;
+  /** Só no modo `demo`: o tenant de demonstração do nicho da conta. */
+  demoTenantId?: string;
 }
 
 export const DEMO_NOTIFICATION_TENANT_ID = "demo";
@@ -24,13 +26,21 @@ export function resolveNotificationViewer(input: {
   uid: string | null | undefined;
   role: string | null | undefined;
   scope: NotificationScope | null;
+  /** Tenant de demonstração que a conta free navega (o do nicho dela). */
+  demoTenantId?: string | null;
 }): NotificationViewer | null {
   if (!input.uid || !input.scope) return null;
   const role = String(input.role || "").trim().toLowerCase();
   if (role === "superadmin" || input.scope.kind === "system") {
     return { uid: input.uid, mode: "company" };
   }
-  if (role === "free") return { uid: input.uid, mode: "demo" };
+  if (role === "free") {
+    return {
+      uid: input.uid,
+      mode: "demo",
+      demoTenantId: input.demoTenantId || DEMO_NOTIFICATION_TENANT_ID,
+    };
+  }
   return { uid: input.uid, mode: "recipient" };
 }
 

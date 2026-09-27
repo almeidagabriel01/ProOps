@@ -13,6 +13,7 @@ import { NotificationService } from "@/services/notification-service";
 import { toast } from "@/lib/toast";
 import { useNotificationScope } from "@/hooks/useNotificationScope";
 import { useAuth } from "@/providers/auth-provider";
+import { useTenant } from "@/providers/tenant-provider";
 import {
   isNotificationRead,
   markReadFor,
@@ -26,13 +27,23 @@ export function useNotifications() {
   const [isClearingAll, setIsClearingAll] = useState(false);
   const [clearingIds, setClearingIds] = useState<string[]>([]);
   const { scope, scopeKey } = useNotificationScope();
+  const { tenant, isDemo: isDemoTenant } = useTenant();
   const { user } = useAuth();
 
   const viewer = useMemo(
-    () => resolveNotificationViewer({ uid: user?.id, role: user?.role, scope }),
-    [scope, user?.id, user?.role],
+    () =>
+      resolveNotificationViewer({
+        uid: user?.id,
+        role: user?.role,
+        scope,
+        demoTenantId: isDemoTenant ? tenant?.id : null,
+      }),
+    [scope, user?.id, user?.role, isDemoTenant, tenant?.id],
   );
-  const viewerKey = viewer && scopeKey ? `${scopeKey}:${viewer.mode}:${viewer.uid}` : null;
+  const viewerKey =
+    viewer && scopeKey
+      ? `${scopeKey}:${viewer.mode}:${viewer.uid}:${viewer.demoTenantId ?? ""}`
+      : null;
   // A conta free só lê as notificações de exemplo: nada é gravado.
   const isReadOnly = viewer?.mode === "demo";
 

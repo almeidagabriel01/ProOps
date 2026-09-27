@@ -506,8 +506,8 @@ para tirar da lista.
   caixa, conta só se pago, na data de caixa do lançamento.
 - **Até 12 meses por consulta**, 10.000 lançamentos por consulta (`truncated`
   avisa se bater no teto). Horário de Brasília (UTC-3) na virada do mês.
-- **A conta free lê o DRE e as categorias do tenant `demo`**
-  (`shared/demo-tenant.ts`): as chamadas da API usam o tenant da própria conta,
+- **A conta free lê o DRE e as categorias do tenant de demonstração do nicho
+  dela** (`demoTenantIdForNiche`, em `shared/demo-tenant.ts`): as chamadas da API usam o tenant da própria conta,
   que está vazio, e os dados de exemplo já são legíveis por ela pelas rules.
   Escrever continua bloqueado.
 

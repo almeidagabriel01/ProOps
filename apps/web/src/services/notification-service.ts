@@ -243,7 +243,9 @@ export const NotificationService = {
               where(
                 "tenantId",
                 "==",
-                viewer.mode === "demo" ? DEMO_NOTIFICATION_TENANT_ID : scopeTenantId,
+                viewer.mode === "demo"
+                  ? (viewer.demoTenantId ?? DEMO_NOTIFICATION_TENANT_ID)
+                  : scopeTenantId,
               ),
               orderBy("createdAt", "desc"),
               limit(50),

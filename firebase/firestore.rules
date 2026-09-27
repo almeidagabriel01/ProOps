@@ -269,8 +269,11 @@ service cloud.firestore {
       return niche in ['automacao_residencial', 'cortinas'];
     }
 
+    // Tenants de demonstracao, um por nicho. Lista espelhada de
+    // apps/functions/src/shared/demo-tenant.ts, comparada em
+    // apps/web/src/__tests__/demo-tenants-parity.test.ts.
     function isDemoRead(resourceTenantId) {
-      return isAuthenticated() && resourceTenantId == 'demo';
+      return isAuthenticated() && resourceTenantId in ['demo', 'demo-cortinas'];
     }
 
     /**
