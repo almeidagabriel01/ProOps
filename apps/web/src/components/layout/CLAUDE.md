@@ -82,6 +82,13 @@ Os guards cobrem 1, 4 e 5: `navigation-config.test.ts`,
 grupo, decidiria também **para onde o ícone aponta**, e um clique rápido iria
 para a página errada.
 
+O `PageViewSwitcher` herda esse `[]`, mas a página costuma abrir antes de plano
+e permissões chegarem. Por isso, enquanto carregam, ele **reserva a própria
+altura** quando a rota é visão de um grupo do menu (`routeBelongsToGroup`, antes
+de qualquer gate). Sem isso o seletor chegava depois e empurrava a tela 52px: foi
+o CLS de 0,11 em `/products` que reprovou o job de performance. Guard:
+`__tests__/page-view-switcher.loading.test.tsx`.
+
 ## As três superfícies
 
 `BottomDock` de `md` para cima, `MobileTabBar` + `MobileNavSheet` abaixo. A tab

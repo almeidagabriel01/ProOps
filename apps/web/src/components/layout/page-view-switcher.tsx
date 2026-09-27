@@ -8,6 +8,7 @@ import {
   resolveCapabilityRestriction,
   useMenuCapabilities,
 } from "@/components/layout/capability-gate";
+import { menuItems, type MenuItem } from "@/components/layout/navigation-config";
 import {
   useActiveGroup,
   type DockEntryView,
@@ -15,7 +16,32 @@ import {
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { useThemePrimaryColor } from "@/hooks/useThemePrimaryColor";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/providers/permissions-provider";
+
+const WRAPPER_CLASSES = cn(
+  "-mx-4 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0 md:pb-0",
+  "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+);
+
+/**
+ * A rota é visão de um grupo do menu, antes de qualquer gate. Serve só para
+ * reservar o lugar do seletor enquanto plano e permissões carregam.
+ */
+export function routeBelongsToGroup(
+  pathname: string,
+  items: MenuItem[] = menuItems,
+): boolean {
+  return items.some(
+    (item) =>
+      (item.children?.length ?? 0) >= 2 &&
+      item.children!.some(
+        (child) =>
+          pathname === child.href || pathname.startsWith(child.href + "/"),
+      ),
+  );
+}
 
 /**
  * Alterna entre as telas de um grupo da navegação, no cabeçalho da página.
@@ -42,8 +68,25 @@ export function PageViewSwitcher({ className }: PageViewSwitcherProps) {
   const upgradeModal = useUpgradeModal();
   const premiumColor = useThemePrimaryColor();
   const group = useActiveGroup(pathname);
+  const { isLoading: isPlanLoading } = usePlanLimits();
+  const { isLoading: arePermissionsLoading } = usePermissions();
 
-  if (!group) return null;
+  if (!group) {
+    // A navegação não desenha grupo enquanto plano e permissões carregam, e a
+    // página costuma abrir antes disso. Sem reservar a altura, o seletor
+    // chegava depois e empurrava a tela 52px para baixo (CLS no CI).
+    if ((isPlanLoading || arePermissionsLoading) && routeBelongsToGroup(pathname)) {
+      return (
+        <div className={cn(WRAPPER_CLASSES, className)} aria-hidden="true">
+          <div
+            data-testid="page-view-switcher-placeholder"
+            className="h-10 w-56 rounded-xl bg-muted/60 animate-pulse"
+          />
+        </div>
+      );
+    }
+    return null;
+  }
 
   const renderIcon = (view: DockEntryView) => {
     const { restricted } = resolveCapabilityRestriction(
@@ -88,13 +131,7 @@ export function PageViewSwitcher({ className }: PageViewSwitcherProps) {
         no celular), em vez de encolher o rótulo: ícone sozinho não distingue
         "Lançamentos" de "Comissões".
       */}
-      <div
-        className={cn(
-          "-mx-4 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0 md:pb-0",
-          "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          className,
-        )}
-      >
+      <div className={cn(WRAPPER_CLASSES, className)}>
         <SegmentedControl
           id={`Visões de ${group.label}`}
           value={group.activeHref ?? group.views[0].href}
