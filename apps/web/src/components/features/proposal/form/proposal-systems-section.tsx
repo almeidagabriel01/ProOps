@@ -46,6 +46,16 @@ import { ProposalFinancialSummarySmall } from "./proposal-financial-summary-smal
 import { SystemEnvironmentManagerDialog } from "@/components/features/automation/system-environment-manager-dialog";
 import { Settings } from "lucide-react";
 import { useWindowFocus } from "@/hooks/use-window-focus";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import {
+  cap,
+  deste,
+  neste,
+  no,
+  o,
+  outro,
+  primeiro,
+} from "@/lib/niches/vocabulary";
 import {
   compareCatalogDisplayItem,
   compareConfiguredDisplayItem,
@@ -145,6 +155,7 @@ export function ProposalSystemsSection({
   // it is treated as the "Pending Selector State" and NOT rendered as a Card.
   const lastSystem = selectedSistemas[selectedSistemas.length - 1];
   const isLastSystemPending = lastSystem && !lastSystem.sistemaId;
+  const { place, group } = useNicheVocabulary();
 
   const [isManagerOpen, setIsManagerOpen] = React.useState(false);
   const [hideZeroQtyByEnvironment, setHideZeroQtyByEnvironment] =
@@ -212,7 +223,7 @@ export function ProposalSystemsSection({
       // Duplicate detected - show toast and reset only this selection
       import("@/lib/toast").then(({ toast }) => {
         toast.warning(
-          `O sistema "${newValue.sistemaName}" já foi adicionado ao ambiente "${newValue.ambienteName}". Escolha outro sistema ou ambiente.`,
+          `${cap(o(group))} ${group.singular} "${newValue.sistemaName}" já está ${no(place)} ${place.singular} "${newValue.ambienteName}". Escolha ${outro(group)} ${group.singular} ou ${outro(place)} ${place.singular}.`,
         );
       });
 
@@ -399,8 +410,8 @@ export function ProposalSystemsSection({
         <div className="mt-4">
           <p className="text-sm text-muted-foreground mb-3 text-center">
             {renderedSistemas.length === 0 && !pendingSelectorValue
-              ? "Selecione a primeira solução para esta proposta"
-              : "+ Adicionar outra solução"}
+              ? `Selecione ${o(group)} ${primeiro(group)} ${group.singular} para esta proposta`
+              : `+ Adicionar ${outro(group)} ${group.singular}`}
           </p>
           <SistemaSelectorComponent
             key={selectorKey}
@@ -523,6 +534,8 @@ function SystemCard({
   );
   const isCardExpanded = manualExpanded ?? !isMobile;
   const itemCount = sistemaProducts.length;
+  const { place, group } = useNicheVocabulary();
+  const placeFallbackName = cap(place.singular);
 
   return (
     <div
@@ -563,7 +576,7 @@ function SystemCard({
                   ? sistema.ambientes
                   : [
                       {
-                        ambienteName: sistema.ambienteName || "Ambiente",
+                        ambienteName: sistema.ambienteName || placeFallbackName,
                         ambienteId: sistema.ambienteId,
                       },
                     ]
@@ -608,16 +621,16 @@ function SystemCard({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    title="Remover solução"
+                    title={`Remover ${group.singular}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Remover Solução</AlertDialogTitle>
+                    <AlertDialogTitle>Remover {cap(group.singular)}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Tem certeza que deseja remover a solução{" "}
+                      Tem certeza que deseja remover {o(group)} {group.singular}{" "}
                       <strong>{sistema.sistemaName}</strong> (
                       {sistema.ambienteName}
                       ) desta proposta?
@@ -630,7 +643,7 @@ function SystemCard({
                       className="bg-destructive hover:bg-destructive/90"
                       onClick={onRemove}
                     >
-                      Remover Solução
+                      Remover {cap(group.singular)}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -697,7 +710,7 @@ function SystemCard({
           ? sistema.ambientes
           : [
               {
-                ambienteName: sistema.ambienteName || "Ambiente",
+                ambienteName: sistema.ambienteName || placeFallbackName,
                 ambienteId: sistema.ambienteId,
                 description: undefined,
               },
@@ -760,20 +773,20 @@ function SystemCard({
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      title="Remover ambiente"
+                      title={`Remover ${place.singular}`}
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Remover Ambiente</AlertDialogTitle>
+                      <AlertDialogTitle>Remover {cap(place.singular)}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Tem certeza que deseja remover o ambiente{" "}
-                        <strong>{amb.ambienteName}</strong> deste sistema?
+                        Tem certeza que deseja remover {o(place)} {place.singular}{" "}
+                        <strong>{amb.ambienteName}</strong>?
                         <br />
-                        Todos os produtos associados a este ambiente serão
-                        removidos da proposta.
+                        Os produtos {deste(place)} {place.singular} saem da
+                        proposta.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -784,7 +797,7 @@ function SystemCard({
                           onDeleteEnvironment(amb.ambienteId || "")
                         }
                       >
-                        Remover Ambiente
+                        Remover {cap(place.singular)}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -836,7 +849,7 @@ function SystemCard({
                   <p className="text-sm text-muted-foreground text-center py-2">
                     {scopeProducts.length > 0 && hideZeroQty
                       ? `Todos os produtos com quantidade 0 estao ocultos (${hiddenProductsCount})`
-                      : "Nenhum produto neste ambiente"}
+                      : `Nenhum produto ${neste(place)} ${place.singular}`}
                   </p>
                 )}
 
@@ -910,6 +923,7 @@ function ProductRow({
     (product.unitPrice || 0).toString(),
   );
   const [isEditingPrice, setIsEditingPrice] = React.useState(false);
+  const { group } = useNicheVocabulary();
 
   React.useEffect(() => {
     setMarkup(product.markup || 0);
@@ -1210,7 +1224,8 @@ function ProductRow({
             <AlertDialogTitle>Remover Produto</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja remover o produto{" "}
-              <strong>{product.productName}</strong> deste sistema?
+              <strong>{product.productName}</strong> {deste(group)}{" "}
+              {group.singular}?
               <br />
               <span className="text-sm text-muted-foreground mt-2 block">
                 Esta ação remove o produto apenas desta proposta.

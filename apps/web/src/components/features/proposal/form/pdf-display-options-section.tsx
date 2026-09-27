@@ -140,7 +140,7 @@ export function PdfDisplayOptionsSection({
             />
             {nicheConfig.pdf.showEnvironmentHeaders && (
               <CheckboxOption
-                label="Mostrar subtotais por ambiente"
+                label={`Mostrar subtotais por ${nicheConfig.vocabulary.place.singular}`}
                 checked={settings.showEnvironmentSubtotals}
                 onChange={(value) =>
                   updateSetting("showEnvironmentSubtotals", value)

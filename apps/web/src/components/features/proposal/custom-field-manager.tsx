@@ -20,9 +20,13 @@ import { ALLOWED_TYPES } from "@/services/storage-service"
 import { Plus, Trash2, Image as ImageIcon, Settings } from "lucide-react"
 import { toast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap } from "@/lib/niches/vocabulary";
+import { hierarchicalFieldTerms } from "./section-builder/constants";
 
 export function CustomFieldManager() {
     const { tenant } = useTenant()
+    const { primary, secondary } = hierarchicalFieldTerms(useNicheVocabulary())
     const [fieldTypes, setFieldTypes] = React.useState<CustomFieldType[]>([])
     const [isOpen, setIsOpen] = React.useState(false)
     const [selectedType, setSelectedType] = React.useState<CustomFieldType | null>(null)
@@ -141,7 +145,7 @@ export function CustomFieldManager() {
                 <DialogHeader>
                     <DialogTitle>Gerenciar Campos Personalizados</DialogTitle>
                     <DialogDescription>
-                        Crie tipos de campos específicos para sua empresa (ex: Ambiente, Sistema)
+                        Crie tipos de campos específicos para sua empresa (ex: {cap(primary.singular)}, {cap(secondary.singular)})
                     </DialogDescription>
                 </DialogHeader>
 

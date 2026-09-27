@@ -22,6 +22,7 @@ import type {
   CoverLogoSettings,
 } from "@/types/pdf.types";
 import { generateProposalPaymentTerms } from "@/lib/proposal-payment";
+import { PRODUCT_TABLE_SECTION_MARKER } from "@/lib/proposal-product-table-section";
 
 // Re-exportados para retrocompatibilidade com importadores existentes.
 export type {
@@ -113,7 +114,7 @@ function createDefaultSections(
   sections.push({
     id: createRuntimeId(),
     type: "product-table",
-    content: "Sistemas / Ambientes / Produtos",
+    content: PRODUCT_TABLE_SECTION_MARKER,
     columnWidth: 100,
     styles: {
       fontSize: "14px",
@@ -254,7 +255,7 @@ function ensureCanonicalSectionStructure(sections: PdfSection[]): PdfSection[] {
   ) || {
     id: createRuntimeId(),
     type: "product-table" as const,
-    content: "Sistemas / Ambientes / Produtos",
+    content: PRODUCT_TABLE_SECTION_MARKER,
     columnWidth: 100,
     styles: {
       fontSize: "14px",

@@ -17,6 +17,13 @@ import {
 import { PdfSection } from "../pdf-section-editor";
 import { SectionContentEditor } from "./section-content-editor";
 import type { PdfSectionProposalContext } from "./content-editor/section-editors";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import type { NicheVocabulary } from "@/lib/niches/vocabulary";
+import {
+  productTableSectionContents,
+  productTableSectionLabel,
+  productTableSectionShortName,
+} from "@/lib/proposal-product-table-section";
 
 const normalizeText = (value?: string) =>
   (value || "")
@@ -87,7 +94,10 @@ const getSectionIcon = (type: PdfSection["type"]) => {
   }
 };
 
-const getSectionLabel = (type: PdfSection["type"]) => {
+const getSectionLabel = (
+  type: PdfSection["type"],
+  vocabulary: NicheVocabulary,
+) => {
   switch (type) {
     case "title":
       return "Título";
@@ -96,7 +106,7 @@ const getSectionLabel = (type: PdfSection["type"]) => {
     case "image":
       return "Imagem";
     case "product-table":
-      return "Sistemas / Ambientes / Produtos";
+      return productTableSectionLabel(vocabulary);
     case "payment-terms":
       return "Condições de Pagamento";
     case "divider":
@@ -131,6 +141,12 @@ export function SectionCard({
   onDrop,
   onDragEnd,
 }: SectionCardProps) {
+  const vocabulary = useNicheVocabulary();
+  // O `content` do bloco de produtos é um marcador gravado, não texto de tela.
+  const previewContent =
+    section.type === "product-table"
+      ? productTableSectionLabel(vocabulary)
+      : section.content;
   const isProductsLinkSection =
     section.type === "product-table" ||
     isScopeProductsIntro(section) ||
@@ -220,7 +236,7 @@ export function SectionCard({
             {/* Top Row: Type */}
             <div className="flex items-center gap-2">
               <span className="font-medium text-sm truncate text-foreground">
-                {getSectionLabel(section.type)}
+                {getSectionLabel(section.type, vocabulary)}
               </span>
               {isProductsLinkSection && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary text-secondary-foreground whitespace-nowrap">
@@ -245,17 +261,17 @@ export function SectionCard({
               section.type !== "image" &&
               section.content ? (
                 <span className="truncate max-w-[200px] xl:max-w-xs">
-                  {section.content}
+                  {previewContent}
                 </span>
               ) : section.type === "product-table" ? (
                 <span className="italic opacity-70">
-                  Bloco com sistemas, ambientes e produtos (vinculado ao texto
-                  introdutório)
+                  Bloco com {productTableSectionContents(vocabulary)} (vinculado
+                  ao texto introdutório)
                 </span>
               ) : isScopeProductsIntro(section) ? (
                 <span className="italic opacity-70">
-                  Texto introdutório vinculado ao bloco de
-                  Produtos/Sistemas/Ambientes
+                  Texto introdutório vinculado ao bloco de{" "}
+                  {productTableSectionShortName(vocabulary)}
                 </span>
               ) : section.type === "payment-terms" ? (
                 <span className="italic opacity-70">

@@ -22,6 +22,7 @@ import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { useTenant } from "@/providers/tenant-provider";
 import { getNicheConfig } from "@/lib/niches/config";
+import { ao, cap, do_, este, no, o, pick } from "@/lib/niches/vocabulary";
 import { useBeforeUnloadWarning } from "@/hooks/use-before-unload-warning";
 import { hasUnsavedProposalWork } from "@/hooks/proposal/unsaved-proposal";
 import { FormContainer } from "@/components/ui/form-components";
@@ -66,7 +67,8 @@ const stepsAutomation = [
     description: "Dados do contato",
     icon: User,
   },
-  { id: "systems", title: "Soluções", description: "Automação", icon: Cpu },
+  // Título e descrição vêm de `groupsStep`, do nicho (ver `steps` abaixo).
+  { id: "systems", title: "", description: "", icon: Cpu },
   {
     id: "payment",
     title: "Pagamento",
@@ -130,8 +132,9 @@ const stepsEnvironment = [
   },
   {
     id: "environments",
-    title: "Ambientes",
-    description: "Selecionar ambientes",
+    // Título e descrição vêm de `groupsStep`, do nicho (ver `steps` abaixo).
+    title: "",
+    description: "",
     icon: Layers,
   },
   {
@@ -236,6 +239,10 @@ export function SimpleProposalForm({
     [tenant?.niche],
   );
   const titlePlaceholder = getNicheConfig(tenant?.niche).proposal.titlePlaceholder;
+  const vocabulary = React.useMemo(
+    () => getNicheConfig(tenant?.niche).vocabulary,
+    [tenant?.niche],
+  );
   const { hasSalesGoals } = usePlanLimits();
   const { user } = useAuth();
   // A comissão do vendedor da equipe acompanha o responsável pela venda.
@@ -526,7 +533,8 @@ export function SimpleProposalForm({
             : [
                 {
                   ambienteId: sistema.ambienteId,
-                  ambienteName: sistema.ambienteName || "Ambiente",
+                  ambienteName:
+                    sistema.ambienteName || cap(vocabulary.place.singular),
                 },
               ];
 
@@ -546,7 +554,8 @@ export function SimpleProposalForm({
           });
 
           if (activeProducts.length === 0 && environmentProducts.length > 0) {
-            const errorMessage = `O sistema "${sistema.sistemaName}" - Ambiente "${ambiente.ambienteName}" não possui nenhum produto ativo com quantidade maior que 0.`;
+            const { place, group } = vocabulary;
+            const errorMessage = `${cap(o(place))} ${place.singular} "${ambiente.ambienteName}", ${no(group)} ${group.singular} "${sistema.sistemaName}", não possui nenhum produto ativo com quantidade maior que 0.`;
             setFieldError("sistemas", errorMessage);
             toast.error(errorMessage, { autoClose: 5000 });
             return false;
@@ -575,6 +584,7 @@ export function SimpleProposalForm({
     return true;
   }, [
     groupsStepCopy,
+    vocabulary,
     isAutomacaoNiche,
     isEnvironmentProposal,
     setFieldError,
@@ -599,7 +609,8 @@ export function SimpleProposalForm({
           : [
               {
                 ambienteId: sistema.ambienteId,
-                ambienteName: sistema.ambienteName || "Ambiente",
+                ambienteName:
+                  sistema.ambienteName || cap(vocabulary.place.singular),
               },
             ];
 
@@ -613,7 +624,8 @@ export function SimpleProposalForm({
         );
 
         if (activeProducts.length === 0 && environmentProducts.length > 0) {
-          const errorMessage = `O ambiente "${ambiente.ambienteName}" não possui nenhum produto ativo com quantidade maior que 0.`;
+          const { place } = vocabulary;
+          const errorMessage = `${cap(o(place))} ${place.singular} "${ambiente.ambienteName}" não possui nenhum produto ativo com quantidade maior que 0.`;
           setFieldError("sistemas", errorMessage);
           toast.error(errorMessage, { autoClose: 5000 });
           return false;
@@ -623,7 +635,13 @@ export function SimpleProposalForm({
 
     clearFieldError("sistemas");
     return true;
-  }, [clearFieldError, groupsStepCopy, selectedSistemas, setFieldError]);
+  }, [
+    clearFieldError,
+    groupsStepCopy,
+    vocabulary,
+    selectedSistemas,
+    setFieldError,
+  ]);
 
   // Validação do Step 3 (Payment)
   const validateStep3 = React.useCallback((): boolean => {
@@ -792,7 +810,7 @@ export function SimpleProposalForm({
         existingSystem.ambienteId === newAmbiente.ambienteId
       ) {
         toast.error(
-          `O ambiente "${newAmbiente.ambienteName}" já foi adicionado ao sistema "${existingSystem.sistemaName}".`,
+          `${cap(o(vocabulary.place))} ${vocabulary.place.singular} "${newAmbiente.ambienteName}" já faz parte ${do_(vocabulary.group)} ${vocabulary.group.singular} "${existingSystem.sistemaName}".`,
         );
         setSelectorKey((prev) => prev + 1);
         return;
@@ -866,7 +884,7 @@ export function SimpleProposalForm({
       }
 
       toast.success(
-        `Ambiente "${newAmbiente.ambienteName}" adicionado ao sistema "${existingSystem.sistemaName}".`,
+        `${cap(vocabulary.place.singular)} "${newAmbiente.ambienteName}" ${pick(vocabulary.place, "adicionado", "adicionada")} ${ao(vocabulary.group)} ${vocabulary.group.singular} "${existingSystem.sistemaName}".`,
       );
     } else {
       // Create new system entry
@@ -905,7 +923,7 @@ export function SimpleProposalForm({
 
     if (alreadySelected) {
       toast.error(
-        `O ambiente "${ambiente.name}" já foi adicionado à proposta.`,
+        `${cap(o(vocabulary.place))} ${vocabulary.place.singular} "${ambiente.name}" já foi ${pick(vocabulary.place, "adicionado", "adicionada")} à proposta.`,
       );
       return;
     }
@@ -940,7 +958,9 @@ export function SimpleProposalForm({
     });
 
     if (exists) {
-      toast.error("Este sistema já existe na proposta.");
+      toast.error(
+        `${cap(este(vocabulary.group))} ${vocabulary.group.singular} já existe na proposta.`,
+      );
       return;
     }
 

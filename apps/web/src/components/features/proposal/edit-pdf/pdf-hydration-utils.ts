@@ -4,6 +4,7 @@ import {
   DEFAULT_PROPOSAL_PAYMENT_METHOD,
   generateProposalPaymentTerms,
 } from "@/lib/proposal-payment";
+import { PRODUCT_TABLE_SECTION_MARKER } from "@/lib/proposal-product-table-section";
 
 export const generatePaymentTerms = (proposal: Proposal): string =>
   generateProposalPaymentTerms(proposal, { bullet: "•" });
@@ -96,7 +97,7 @@ function createProductTableSection(): PdfSection {
   return {
     id: crypto.randomUUID(),
     type: "product-table",
-    content: "Sistemas / Ambientes / Produtos",
+    content: PRODUCT_TABLE_SECTION_MARKER,
     columnWidth: 100,
     styles: {
       fontSize: "14px",
@@ -136,7 +137,7 @@ function ensureProductTableExists(sections: PdfSection[]): PdfSection[] {
     if (!firstProductTable) {
       firstProductTable = {
         ...section,
-        content: "Sistemas / Ambientes / Produtos",
+        content: PRODUCT_TABLE_SECTION_MARKER,
         columnWidth: 100,
       };
     }

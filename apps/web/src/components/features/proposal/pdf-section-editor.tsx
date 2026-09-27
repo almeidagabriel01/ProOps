@@ -15,6 +15,7 @@ export type {
 } from "@/types/pdf.types";
 import type { PdfSection, CoverElement } from "@/types/pdf.types";
 import type { PdfSectionProposalContext } from "./pdf-editor/content-editor/section-editors";
+import { PRODUCT_TABLE_SECTION_MARKER } from "@/lib/proposal-product-table-section";
 
 // Helper to create default cover elements
 export function createDefaultCoverElements(): CoverElement[] {
@@ -453,7 +454,7 @@ export function createDefaultSections(
     id: crypto.randomUUID(),
     groupId: scopeGroupId,
     type: "product-table",
-    content: "Sistemas / Ambientes / Produtos",
+    content: PRODUCT_TABLE_SECTION_MARKER,
     columnWidth: 100,
     styles: {
       fontSize: "14px",

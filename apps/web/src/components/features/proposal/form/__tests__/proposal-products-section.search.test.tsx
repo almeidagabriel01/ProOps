@@ -7,11 +7,22 @@
 
 import "@testing-library/jest-dom/vitest";
 import * as React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProposalProductsSection } from "../proposal-products-section";
 import type { Product } from "@/services/product-service";
+import { NICHE_CONFIGS } from "@/lib/niches/config";
+import type { NicheVocabulary } from "@/lib/niches/vocabulary";
+
+// O hook real lê o tenant, e o provider arrasta a inicialização do Firebase.
+const vocabularyRef = vi.hoisted(() => ({
+  current: null as NicheVocabulary | null,
+}));
+vi.mock("@/hooks/useNicheVocabulary", () => ({
+  useNicheVocabulary: () =>
+    vocabularyRef.current ?? NICHE_CONFIGS.automacao_residencial.vocabulary,
+}));
 
 const produto = (id: string, name: string, extra: Partial<Product> = {}) =>
   ({
@@ -70,5 +81,27 @@ describe("ProposalProductsSection: busca", () => {
   it("não mostra a busca quando todos os itens já estão nas soluções", () => {
     renderSection(catalogo, new Set(["1", "2"]));
     expect(screen.queryByLabelText(/buscar itens/i)).toBeNull();
+  });
+});
+
+describe("ProposalProductsSection: vocabulário do nicho", () => {
+  afterEach(() => {
+    vocabularyRef.current = null;
+  });
+
+  it("em automação, os itens extras ficam fora das soluções", () => {
+    vocabularyRef.current = NICHE_CONFIGS.automacao_residencial.vocabulary;
+    renderSection([produto("1", "Módulo de Iluminação")]);
+    expect(
+      screen.getByText("Selecione itens que NÃO fazem parte das soluções acima"),
+    ).toBeInTheDocument();
+  });
+
+  it("em segurança, fora dos sistemas", () => {
+    vocabularyRef.current = NICHE_CONFIGS.seguranca_eletronica.vocabulary;
+    renderSection([produto("1", "Câmera bullet")]);
+    expect(
+      screen.getByText("Selecione itens que NÃO fazem parte dos sistemas acima"),
+    ).toBeInTheDocument();
   });
 });

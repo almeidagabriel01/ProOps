@@ -17,6 +17,12 @@ import {
 } from "../product-visibility";
 import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
 import { getNicheConfig } from "@/lib/niches/config";
+import { cap } from "@/lib/niches/vocabulary";
+
+/** Nome do local sem nome ("Ambiente", "Área"), pelo nicho da proposta. */
+function getPlaceFallbackName(tenantNiche?: TenantNiche | null): string {
+  return cap(getNicheConfig(tenantNiche).vocabulary.place.singular);
+}
 
 function shouldUseSingleEnvironmentLayout(
   tenantNiche: TenantNiche | null | undefined,
@@ -24,7 +30,8 @@ function shouldUseSingleEnvironmentLayout(
 ): boolean {
   return (
     getNicheConfig(tenantNiche).pdf.singleEnvironmentLayout &&
-    resolveSistemaAmbientes(sistema).length === 1
+    resolveSistemaAmbientes(sistema, getPlaceFallbackName(tenantNiche))
+      .length === 1
   );
 }
 
@@ -55,7 +62,10 @@ function PdfSistemaHead({
   iconColumnWidth: string;
   iconPaddingRight: string;
 }) {
-  const ambientes = resolveSistemaAmbientes(sistema);
+  const ambientes = resolveSistemaAmbientes(
+    sistema,
+    getPlaceFallbackName(tenantNiche),
+  );
   const useSingleEnvironmentLayout = shouldUseSingleEnvironmentLayout(
     tenantNiche,
     sistema,
@@ -255,7 +265,8 @@ export function PdfSistemaBlock({
   tenantNiche,
 }: PdfSistemaBlockProps) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
-  const ambientes = resolveSistemaAmbientes(sistema);
+  const placeFallbackName = getPlaceFallbackName(tenantNiche);
+  const ambientes = resolveSistemaAmbientes(sistema, placeFallbackName);
   const productsForTotals = products.filter((product) =>
     shouldCountInPdfTotals(product),
   );
@@ -311,7 +322,7 @@ export function PdfSistemaBlock({
               <div key={currentInstanceId}>
                 {getNicheConfig(tenantNiche).pdf.showEnvironmentHeaders && (
                   <PdfAmbienteHeader
-                    ambienteName={amb.ambienteName || "Ambiente"}
+                    ambienteName={amb.ambienteName || placeFallbackName}
                     primaryColor={primaryColor}
                     tenantNiche={tenantNiche}
                     className={index > 0 ? "border-t border-dashed" : ""}

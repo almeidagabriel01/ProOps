@@ -42,6 +42,18 @@ import {
 import { getPrimaryAmbiente } from "@/lib/sistema-migration-utils";
 import { getEnvironmentSelectionInstanceId } from "@/lib/proposal-environment-utils";
 import { getNicheConfig } from "@/lib/niches/config";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import {
+  cap,
+  deste,
+  neste,
+  nenhum,
+  o,
+  outro,
+  pick,
+  primeiro,
+  um,
+} from "@/lib/niches/vocabulary";
 import { cn } from "@/lib/utils";
 import { computePrimaryForeground } from "@/utils/color-utils";
 import {
@@ -158,6 +170,8 @@ export function ProposalEnvironmentsSection({
 }: ProposalEnvironmentsSectionProps) {
   const { tenant } = useTenant();
   const nicheConfig = getNicheConfig(tenant?.niche);
+  const groupsStepCopy = nicheConfig.proposal.groupsStep;
+  const { place } = nicheConfig.vocabulary;
   const inventoryConfig = nicheConfig.productCatalog.inventory;
   const allowLinePriceEditing = nicheConfig.proposal.allowLinePriceEditing;
   const isMeterMode = inventoryConfig.mode === "meter";
@@ -219,7 +233,7 @@ export function ProposalEnvironmentsSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Layers className="w-5 h-5" />
-            <CardTitle>Ambientes</CardTitle>
+            <CardTitle>{groupsStepCopy.heading}</CardTitle>
           </div>
           {visibleProducts.length > 0 && (
             <ProposalFinancialSummarySmall
@@ -229,9 +243,7 @@ export function ProposalEnvironmentsSection({
           )}
         </div>
         <div className="flex items-center justify-between">
-          <CardDescription>
-            Adicione um ou mais ambientes à proposta
-          </CardDescription>
+          <CardDescription>{groupsStepCopy.cardDescription}</CardDescription>
           <Button
             variant="ghost"
             size="sm"
@@ -307,11 +319,13 @@ export function ProposalEnvironmentsSection({
           <div className="flex items-center gap-2">
             <Plus className="w-4 h-4 text-primary" />
             <Label className="text-sm font-semibold text-primary">
-              Adicionar Ambiente à Proposta
+              Adicionar {cap(place.singular)} à Proposta
             </Label>
           </div>
           <p className="text-xs text-muted-foreground">
-            Selecione um ambiente cadastrado para adicionar seus produtos à proposta.
+            Selecione {um(place)} {place.singular}{" "}
+            {pick(place, "cadastrado", "cadastrada")} para adicionar seus
+            produtos à proposta.
           </p>
           <SearchableSelect
             id="proposal-environment-select"
@@ -327,14 +341,14 @@ export function ProposalEnvironmentsSection({
               label: ambiente.name,
               description: ambiente.description || undefined,
             }))}
-            placeholder="Selecione um ambiente..."
+            placeholder={`Selecione ${um(place)} ${place.singular}...`}
             searchPlaceholder={
               selectedSistemas.length === 0
-                ? "Buscar o primeiro ambiente..."
-                : "Buscar outro ambiente..."
+                ? `Buscar ${o(place)} ${primeiro(place)} ${place.singular}...`
+                : `Buscar ${outro(place)} ${place.singular}...`
             }
-            emptyMessage="Nenhum ambiente disponível"
-            noResultsMessage="Nenhum ambiente encontrado"
+            emptyMessage={`${cap(nenhum(place))} ${place.singular} disponível`}
+            noResultsMessage={`${cap(nenhum(place))} ${place.singular} ${pick(place, "encontrado", "encontrada")}`}
           />
           <div className="flex items-center justify-end">
             <Button
@@ -345,7 +359,7 @@ export function ProposalEnvironmentsSection({
               onClick={onManageAmbientes}
             >
               <Settings className="w-3.5 h-3.5" />
-              Gerenciar Ambientes
+              Gerenciar {cap(place.plural)}
             </Button>
           </div>
         </div>
@@ -449,6 +463,7 @@ function EnvironmentCard({
   onRemoveProduct,
   onToggleStatus,
 }: EnvironmentCardProps) {
+  const { place } = useNicheVocabulary();
   const visibleProducts = hideZeroQty
     ? ambienteProducts.filter((product) => Number(product.quantity || 0) !== 0)
     : ambienteProducts;
@@ -516,16 +531,16 @@ function EnvironmentCard({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    title="Remover ambiente"
+                    title={`Remover ${place.singular}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Remover Ambiente</AlertDialogTitle>
+                    <AlertDialogTitle>Remover {cap(place.singular)}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Tem certeza que deseja remover o ambiente{" "}
+                      Tem certeza que deseja remover {o(place)} {place.singular}{" "}
                       <strong>{ambienteName}</strong> desta proposta?
                     </AlertDialogDescription>
                   </AlertDialogHeader>
@@ -535,7 +550,7 @@ function EnvironmentCard({
                       className="bg-destructive hover:bg-destructive/90"
                       onClick={onRemove}
                     >
-                      Remover Ambiente
+                      Remover {cap(place.singular)}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -607,7 +622,7 @@ function EnvironmentCard({
               <p className="text-sm text-muted-foreground text-center py-2">
                 {ambienteProducts.length > 0 && hideZeroQty
                   ? `Todos os produtos com ${quantityStep < 1 ? "metragem" : "quantidade"} 0 estão ocultos (${hiddenProductsCount})`
-                  : "Nenhum produto neste ambiente"}
+                  : `Nenhum produto ${neste(place)} ${place.singular}`}
               </p>
             )}
 
@@ -695,6 +710,7 @@ function EnvironmentProductRow({
   onRemoveProduct,
   onToggleStatus,
 }: EnvironmentProductRowProps) {
+  const { place } = useNicheVocabulary();
   const itemType = product.itemType || "product";
   const lineItemId = product.lineItemId;
   const isService = itemType === "service";
@@ -1246,7 +1262,8 @@ function EnvironmentProductRow({
               <AlertDialogTitle>Remover Produto</AlertDialogTitle>
               <AlertDialogDescription>
                 Tem certeza que deseja remover o produto{" "}
-                <strong>{product.productName}</strong> deste ambiente?
+                <strong>{product.productName}</strong> {deste(place)}{" "}
+                {place.singular}?
                 <br />
                 <span className="mt-2 block text-sm text-muted-foreground">
                   Esta ação remove o produto apenas desta proposta.
