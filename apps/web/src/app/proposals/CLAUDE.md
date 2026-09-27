@@ -52,7 +52,7 @@ O fluxo completo é: criar proposta em wizard multi-etapas → salvar → visual
 | `src/services/proposal-service.ts`                               | CRUD de propostas no Firestore + event bus + paginação                                                               |
 | `src/services/proposal-template-service.ts`                      | CRUD de templates de proposta via backend                                                                            |
 | `src/services/shared-proposal-service.ts`                        | Geração de share link + busca pública via token                                                                      |
-| `src/services/pdf/download-proposal-pdf.ts`                      | Download autenticado via `POST /v1/proposals/{id}/pdf`                                                               |
+| `src/services/pdf/download-proposal-pdf.ts`                      | Download autenticado via `GET /v1/proposals/{id}/pdf`                                                                |
 | `src/services/pdf/download-shared-proposal-pdf.ts`               | Download público via `GET /v1/share/{token}/pdf`                                                                     |
 | `src/lib/niches/config.ts`                                       | `getNicheConfig()` — determina `proposalWorkflow` por nicho                                                          |
 | `src/types/proposal.ts`                                          | Interfaces `Proposal`, `ProposalProduct`, `ProposalSystemInstance`, `ProposalAmbienteInstance`, `ProposalAttachment` |

@@ -41,7 +41,7 @@ Não existem sub-rotas de detalhe. Todas as operações (criar, editar, transfer
 | Skeletons | `_components/wallets-skeleton.tsx` | Skeleton full-page e skeleton do grid |
 | Estados vazios | `_components/wallets-empty-states.tsx` | `WalletsEmptyState` e `WalletsNoResults` |
 | Componente global | `src/components/features/wallet-select.tsx` | Select reutilizável com criação inline; usado em forms de transação e proposta |
-| Tipos | `src/types/index.ts` linha 288+ | `Wallet`, `WalletType`, `WalletTransaction`, `WalletTransactionType` |
+| Tipos | `src/types/index.ts` | `Wallet`, `WalletType`, `WalletTransaction`, `WalletTransactionType` |
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Contexto
 Rotas e layouts do App Router. Cada pasta é um segmento de URL.
-Há ~38 segmentos de rota: proposals, contacts, products, transactions, calendar, crm, dashboard, team, settings, profile, admin, auth, subscription, além de rotas públicas/marketing (agendar, contato, automacao-residencial, decoracao, solutions, services) e legais (privacy, terms, cookies, data-deletion), etc.
+Segmentos de rota: proposals, contacts, products, transactions, calendar, crm, dashboard, team, settings, profile, admin, auth, subscription, além de rotas públicas/marketing (agendar, contato, automacao-residencial, decoracao, solutions, services) e legais (privacy, terms, cookies, data-deletion), etc.
 
 ## Regras desta pasta
 
@@ -17,11 +17,11 @@ Há ~38 segmentos de rota: proposals, contacts, products, transactions, calendar
 - `export const metadata` em toda page pública
 - Server Component sempre que possível (sem eventos, sem hooks, sem browser APIs)
 - `'use client'` apenas quando necessário — justificar no código se não for óbvio
-- Proteção de rotas via `middleware.ts` na raiz (cookie `__session`)
+- Proteção de rotas via `src/proxy.ts` (cookie `__session`)
 
 ## Rotas existentes
 ```
-403, actions, addon-success, admin, agendar, ambientes, aplicativo, api, auth,
+403, admin, agendar, ambientes, aplicativo, api, auth,
 automacao-residencial, automation, calendar, cash-flow, checkout-success,
 commissions, contacts, contato, cookies, crm, dashboard, data-deletion, dre,
 decoracao, fale-conosco, forgot-password, institucional, invoices, login,
@@ -119,7 +119,7 @@ recomeçava. Nada falhava: a URL trocava e o conteúdo estava certo. **Não dê
 `src/__tests__/site-da-empresa-uma-casca.test.ts`.
 
 ## Rotas de API (`src/app/api/`)
-Subdivisões: `admin/`, `auth/`, `backend/`, `dev/`, `internal/`, `members/`, `proposals/`
+Subdivisões: `auth/`, `backend/`, `dev/`, `mercadopago/`
 
 O proxy principal está em `src/app/api/backend/` — encaminha para Cloud Functions.
 **Nunca** criar lógica de negócio sensível em Route Handlers — use Cloud Functions.

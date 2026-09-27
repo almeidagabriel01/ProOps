@@ -145,7 +145,7 @@ npm run security:scan                  # npm audit (runtime + functions)
 - **Google Drive** — entrega o PDF da proposta na pasta do cliente, no Drive do tenant.
   Só de ida (nada é lido), escopo `drive.file` (não sensível). Consentimento separado do
   Calendar, mesmo app OAuth. A pasta é criada por nós — sem Picker, sem chave de API, sem
-  variável pública. Config em `/settings/drive`. Detalhes em `apps/functions/CLAUDE.md`.
+  variável pública. Config em `/settings/drive`. Detalhes em `apps/functions/src/api/services/drive/CLAUDE.md`.
 - **AI/Lia** — Google Gemini + Groq. Module: `apps/functions/src/ai/`. Rate-limited per user.
 - **PDF** — Playwright/Chromium headless, rate-limited (5 req/60s per user)
 - **Google Calendar** — via `@googleapis/calendar` + `@googleapis/oauth2` (lazy-loaded)
@@ -316,5 +316,7 @@ Detailed documentation per module lives in CLAUDE.md files within each folder:
 - Projetos de instalação (obra depois da venda): `apps/web/src/app/projects/CLAUDE.md`
 - Financial module (backend): `apps/functions/CLAUDE.md`
 - Backend services: `apps/functions/src/api/services/CLAUDE.md`
+- Fiscal (NF-e, NFS-e, notas de entrada): `apps/functions/src/api/services/fiscal/CLAUDE.md`
+- Google Drive (entrega da proposta): `apps/functions/src/api/services/drive/CLAUDE.md`
 - Backend middleware: `apps/functions/src/api/middleware/CLAUDE.md`
 - CI/CD, GitHub Secrets, workflows: `.claude/rules/ci-cd.md`

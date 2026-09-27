@@ -10,7 +10,7 @@ O fluxo é: o usuário autenticado gera um link de compartilhamento dentro do si
 
 Rotas completamente públicas — sem autenticação, sem Firebase Auth, sem middleware de proteção. O único controle de acesso é o token na URL, que expira no backend.
 
-O middleware do Next.js (`middleware.ts`) deve ter estas rotas explicitamente excluídas da proteção de sessão.
+O proxy do Next.js (`src/proxy.ts`) deve ter estas rotas explicitamente excluídas da proteção de sessão.
 
 ## Estrutura de rotas
 
@@ -28,7 +28,7 @@ share/
 
 | Arquivo | Responsabilidade |
 |---------|-----------------|
-| `share/[token]/page.tsx` | Exibe proposta em formato PDF via `ProposalPdfViewer`. Modo `?print=1` para captura Puppeteer. |
+| `share/[token]/page.tsx` | Exibe proposta em formato PDF via `ProposalPdfViewer`. Modo `?print=1` para captura Playwright. |
 | `share/transaction/[token]/page.tsx` | Exibe lançamento financeiro via `TransactionPdfViewer`. Modo `?print=1` semelhante. |
 | `src/services/shared-proposal-service.ts` | Gera link + busca proposta pelo token público |
 | `src/services/shared-transaction-service.ts` | Gera link + busca lançamento pelo token público |
@@ -88,7 +88,7 @@ As chamadas públicas usam `callPublicApi` (sem token de autenticação no heade
 
 - **Propostas** (`src/app/proposals/`) — gera o share link via `SharedProposalService.generateShareLink`
 - **Lançamentos** (`src/app/transactions/`) — gera o share link via `SharedTransactionService.generateShareLink`
-- **PDF backend** (`functions/src/api/routes/sharedProposals.ts`, `sharedTransactions.ts`) — rotas públicas que retornam dados e geram PDF via Playwright
+- **PDF backend** (`functions/src/api/routes/shared-proposals.routes.ts`, `shared-transactions.routes.ts`) — rotas públicas que retornam dados e geram PDF via Playwright
 
 ## Aceite online (2026-09-25, revisto em 2026-09-26)
 
@@ -240,7 +240,7 @@ if (isPrintMode) {
 }
 ```
 
-### CSS print para Puppeteer
+### CSS print para Playwright
 A página de proposta injeta CSS com `@media print` que oculta elementos `[data-pdf-ui]` (cabeçalho, controles de zoom). Não remova o atributo `data-pdf-ui` dos elementos de UI.
 
 ### Branding do tenant
