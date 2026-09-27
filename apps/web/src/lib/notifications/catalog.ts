@@ -239,7 +239,9 @@ export function visibleNotificationTypes(
   canView: (pageId: string) => boolean,
 ): CatalogNotificationType[] {
   return NOTIFICATION_TYPES.filter((type) => {
-    const { audience, directPageId } = NOTIFICATION_CATALOG[type];
+    // Pelo tipo geral: o catálogo é `as const`, e só a visita da obra declara
+    // `directPageId`.
+    const { audience, directPageId }: NotificationCatalogEntry = NOTIFICATION_CATALOG[type];
     if (isAdmin) return true;
     if (audience === "direct") return canView(directPageId ?? "tasks");
     return audience !== "admins" && canView(audience);
