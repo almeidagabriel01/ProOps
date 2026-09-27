@@ -40,8 +40,9 @@ lib/
 
 ### Multi-niche (`niches/`)
 - Toda lógica que varia por nicho de negócio fica aqui
-- Nichos: `automacao_residencial` | `cortinas` | `seguranca_eletronica`. Os ids vêm de `niche-ids.ts` (cópia de
-  `apps/functions/src/shared/niches.ts`, com teste de paridade que também lê o `firestore.rules`)
+- Nichos: `automacao_residencial` | `cortinas` | `seguranca_eletronica`. Os ids vêm de `registry.ts` (espelho de
+  `NICHE_REGISTRY` em `apps/functions/src/shared/niches.ts`, com rótulo e caminho da landing; a paridade,
+  que também lê o `firestore.rules`, está em `__tests__/niche-registry-parity.test.ts`)
 - Usar `useCurrentNicheConfig()` no frontend ou helpers de nicho no backend
 - **Nunca** fazer `if (niche === 'cortinas')` espalhado pelo código — use os helpers
 

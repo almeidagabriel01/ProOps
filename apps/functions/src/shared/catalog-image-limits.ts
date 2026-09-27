@@ -3,9 +3,9 @@
  * cortinas mostram o tecido de vários ângulos, automação usa uma foto do
  * equipamento. Igual em todos os planos.
  *
- * Arquivo puro, sem import, para ser lido pelo backend (guard nas rotas) e
- * comparado com a cópia do front (`apps/web/src/lib/catalog-image-limits.ts`)
- * em `apps/web/src/__tests__/catalog-image-limits-parity.test.ts`.
+ * O número de cada nicho vem de `NICHE_REGISTRY` (`./niches`). O front aplica a
+ * mesma regra (`apps/web/src/lib/catalog-image-limits.ts`), e a paridade é
+ * garantida por `apps/web/src/__tests__/niche-registry-parity.test.ts`.
  *
  * Até 2026-09 o limite ficava em `PLAN_CATALOG` (2 no Starter, 3 no Pro e no
  * Enterprise), enquanto a tela aplicava esta regra de nicho: o plano prometia
@@ -13,28 +13,23 @@
  * salvar a 3ª foto que a tela tinha aceitado.
  */
 
+import { isTenantNiche, mapNiches, type TenantNicheId } from "./niches";
+
 export type CatalogItemType = "product" | "service";
 
 export const DEFAULT_CATALOG_IMAGE_LIMIT = 1;
 
-/**
- * Imagens por PRODUTO em cada nicho (serviço sempre tem uma). A chave é o id
- * do nicho; nicho fora do mapa fica com o padrão.
- */
-export const PRODUCT_IMAGE_LIMIT_BY_NICHE: Readonly<Record<string, number>> = {
-  automacao_residencial: DEFAULT_CATALOG_IMAGE_LIMIT,
-  cortinas: 3,
-  seguranca_eletronica: DEFAULT_CATALOG_IMAGE_LIMIT,
-};
+/** Imagens por PRODUTO em cada nicho (serviço sempre tem uma). */
+export const PRODUCT_IMAGE_LIMIT_BY_NICHE: Record<TenantNicheId, number> = mapNiches(
+  (entry) => entry.productImageLimit,
+);
 
 export function resolveCatalogImageLimit(input: {
   niche: string | null | undefined;
   itemType: CatalogItemType;
 }): number {
-  if (input.itemType !== "product" || !input.niche) {
+  if (input.itemType !== "product" || !isTenantNiche(input.niche)) {
     return DEFAULT_CATALOG_IMAGE_LIMIT;
   }
-  return Object.prototype.hasOwnProperty.call(PRODUCT_IMAGE_LIMIT_BY_NICHE, input.niche)
-    ? PRODUCT_IMAGE_LIMIT_BY_NICHE[input.niche]
-    : DEFAULT_CATALOG_IMAGE_LIMIT;
+  return PRODUCT_IMAGE_LIMIT_BY_NICHE[input.niche];
 }

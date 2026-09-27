@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { isTenantNiche, type TenantNicheId } from "../../../shared/niches";
+import {
+  mapNiches,
+  nicheEntry,
+  type StageTemplate,
+  type TenantNicheId,
+} from "../../../shared/niches";
 import { isValidCpfOrCnpj } from "../../../lib/br-document";
 
 /**
@@ -81,10 +86,7 @@ export interface ProjectDelivery {
   acceptance: DeliveryAcceptance | null;
 }
 
-export interface StageTemplate {
-  name: string;
-  checklist: string[];
-}
+export type { StageTemplate };
 
 /**
  * O que acontece com o projeto quando a proposta é aprovada:
@@ -106,84 +108,12 @@ export interface ProjectSettings {
  * Roteiro padrão por nicho. A empresa ajusta em Configurações; enquanto não
  * ajustar, vale este. Não é regra de produto, é ponto de partida.
  */
-export const DEFAULT_STAGE_TEMPLATES: Record<TenantNicheId, StageTemplate[]> = {
-  automacao_residencial: [
-    {
-      name: "Infraestrutura",
-      checklist: ["Conferir tubulação e caixas", "Passar cabeamento", "Montar o quadro/rack"],
-    },
-    {
-      name: "Instalação",
-      checklist: ["Instalar os equipamentos", "Ligar e identificar os circuitos"],
-    },
-    {
-      name: "Configuração",
-      checklist: ["Programar cenas e automações", "Configurar o aplicativo", "Testar ambiente por ambiente"],
-    },
-    {
-      name: "Entrega",
-      checklist: ["Treinar o cliente", "Limpar e organizar a obra", "Registrar fotos finais"],
-    },
-  ],
-  cortinas: [
-    {
-      name: "Medição",
-      checklist: [
-        "Medir vãos e altura",
-        "Conferir a alvenaria e o ponto elétrico",
-        "Confirmar tecido, lona e acionamento",
-      ],
-    },
-    { name: "Produção", checklist: ["Enviar pedido", "Conferir peças recebidas"] },
-    {
-      name: "Instalação",
-      checklist: [
-        "Fixar trilhos, suportes e braços",
-        "Instalar persianas, cortinas e toldos",
-        "Regular e testar o acionamento",
-      ],
-    },
-    { name: "Entrega", checklist: ["Orientar o cliente", "Registrar fotos finais"] },
-  ],
-  seguranca_eletronica: [
-    {
-      name: "Levantamento",
-      checklist: [
-        "Mapear os pontos de câmera e sensores",
-        "Definir a rota dos cabos e a energia",
-        "Confirmar o local do gravador e da central",
-      ],
-    },
-    {
-      name: "Infraestrutura",
-      checklist: ["Passar tubulação e cabeamento", "Montar o rack ou a caixa do gravador"],
-    },
-    {
-      name: "Instalação",
-      checklist: [
-        "Instalar câmeras, sensores e central",
-        "Instalar fechaduras, leitores e cerca, se houver",
-      ],
-    },
-    {
-      name: "Configuração",
-      checklist: [
-        "Configurar gravação e acesso remoto no aplicativo",
-        "Cadastrar zonas, usuários e biometrias",
-        "Testar cada ponto",
-      ],
-    },
-    {
-      name: "Entrega",
-      checklist: ["Treinar o cliente", "Entregar senhas e o termo de entrega", "Registrar fotos finais"],
-    },
-  ],
-};
+export const DEFAULT_STAGE_TEMPLATES: Record<TenantNicheId, StageTemplate[]> = mapNiches(
+  (entry) => entry.stageTemplate,
+);
 
 export function defaultTemplateForNiche(niche: unknown): StageTemplate[] {
-  return isTenantNiche(niche)
-    ? DEFAULT_STAGE_TEMPLATES[niche]
-    : DEFAULT_STAGE_TEMPLATES.automacao_residencial;
+  return nicheEntry(niche).stageTemplate;
 }
 
 export function defaultProjectSettings(niche: unknown): ProjectSettings {

@@ -1,18 +1,15 @@
-import { isTenantNiche, type TenantNicheId } from "@/lib/niches/niche-ids";
+import { mapNiches, nicheEntry, type TenantNicheId } from "@/lib/niches/registry";
 
 /**
- * Cópia do front de `apps/functions/src/shared/demo-tenant.ts`: o tenant de
- * demonstração de cada nicho. A paridade com o backend e com o
- * `firestore.rules` é garantida por `src/__tests__/demo-tenants-parity.test.ts`.
+ * O tenant de demonstração de cada nicho, do registro (`lib/niches/registry.ts`,
+ * espelho de `apps/functions/src/shared/niches.ts`).
  */
-export const DEMO_TENANT_IDS: Record<TenantNicheId, string> = {
-  automacao_residencial: "demo",
-  cortinas: "demo-cortinas",
-  seguranca_eletronica: "demo-seguranca",
-};
+export const DEMO_TENANT_IDS: Record<TenantNicheId, string> = mapNiches(
+  (entry) => entry.demoTenantId,
+);
 
 export const DEMO_TENANT_ID = DEMO_TENANT_IDS.automacao_residencial;
 
 export function demoTenantIdForNiche(niche: unknown): string {
-  return isTenantNiche(niche) ? DEMO_TENANT_IDS[niche] : DEMO_TENANT_ID;
+  return nicheEntry(niche).demoTenantId;
 }

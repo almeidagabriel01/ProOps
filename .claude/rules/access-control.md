@@ -178,9 +178,11 @@ regra geral está em `apps/web/src/lib/CLAUDE.md`, seção Multi-niche.
       A chave nova entra em `NICHE_PAGE_KEYS`: o tipo exige que todo nicho a
       declare, porque uma chave ausente contaria como habilitada e abriria a
       tela em silêncio.
-- [ ] **Nicho novo** (não tela nova): o id entra nas três listas que
-      `niche-ids-parity.test.ts` compara (backend, front e `firestore.rules`),
-      e `lib/niches/__tests__/niche-contract.test.ts` diz o que mais falta.
+- [ ] **Nicho novo** (não tela nova): uma entrada em `NICHE_REGISTRY` do
+      backend (`apps/functions/src/shared/niches.ts`, a fonte), outra no
+      espelho do front (`apps/web/src/lib/niches/registry.ts`) e o id nas duas
+      listas do `firestore.rules`. `niche-registry-parity.test.ts` compara os
+      três, e `lib/niches/__tests__/niche-contract.test.ts` diz o que mais falta.
 - [ ] Menu: se a chave de nicho diferir da de permissão, o item declara
       `availabilityPageId` em `navigation-config.tsx`, como Ambientes faz. O
       único gate de nicho da navegação é `useNavigationItems`.
@@ -190,13 +192,13 @@ regra geral está em `apps/web/src/lib/CLAUDE.md`, seção Multi-niche.
 - [ ] Texto ou comportamento diferente por nicho vira campo em `NicheConfig`,
       lido por `useCurrentNicheConfig()`. Nunca `if (niche === "cortinas")` no
       componente.
-- [ ] Backend: não há config central de nicho. Regra de negócio que mude por
-      nicho no servidor precisa de espelho no front com teste de paridade, no
-      padrão de `catalog-image-limits`.
-- [ ] Cada nicho tem a própria demonstração: `DEMO_TENANT_IDS`
-      (`apps/functions/src/shared/demo-tenant.ts`, espelho em
-      `apps/web/src/lib/demo-tenants.ts` e em `isDemoRead` nas rules, com
-      paridade em `demo-tenants-parity.test.ts`), escolhida pelo nicho da
+- [ ] Backend: o que muda por nicho no servidor é campo de `NICHE_REGISTRY`
+      (`apps/functions/src/shared/niches.ts`, puro, sem import). Se o front
+      também usa, o campo entra no espelho (`lib/niches/registry.ts`) e na
+      paridade.
+- [ ] Cada nicho tem a própria demonstração: `demoTenantId` no registro
+      (derivado em `DEMO_TENANT_IDS`, e no `isDemoRead` das rules, com
+      paridade em `niche-registry-parity.test.ts`), escolhida pelo nicho da
       conta free. Nicho novo entra no mapa e ganha um seed (`scripts/seed-demo-*.ts`,
       chamado pelo POST `/internal/admin/seed-demo-tenant`). Navegar a demo
       não substitui o teste do comportamento de cada nicho.

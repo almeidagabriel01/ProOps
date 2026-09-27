@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { TENANT_NICHES } from "@/lib/niches/registry";
 
 /**
  * Comportamento por nicho vem da config (`NICHE_CONFIGS`, lida por
@@ -17,8 +18,10 @@ const ROOTS = [
   path.resolve(__dirname, "../../../functions/src"),
 ];
 
-const NICHE_COMPARISON =
-  /[=!]==?\s*["'](automacao_residencial|cortinas)["']|["'](automacao_residencial|cortinas)["']\s*[=!]==?/;
+const IDS = TENANT_NICHES.join("|");
+const NICHE_COMPARISON = new RegExp(
+  String.raw`[=!]==?\s*["'](${IDS})["']|["'](${IDS})["']\s*[=!]==?`,
+);
 
 function walk(dir: string, out: string[] = []): string[] {
   if (!fs.existsSync(dir)) return out;

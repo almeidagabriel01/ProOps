@@ -1,4 +1,5 @@
 import type { TenantNiche } from "@/types";
+import { NICHE_REGISTRY } from "@/lib/niches/registry";
 import type {
   DimensionPricingMode,
   ProductPricingMode,
@@ -175,7 +176,7 @@ const meterInventoryDefinition: InventoryDefinition = {
 export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
   automacao_residencial: {
     id: "automacao_residencial",
-    label: "Automação Residencial",
+    label: NICHE_REGISTRY.automacao_residencial.label,
     analyticsColor: "#6366f1",
     seoAudience: "automação residencial",
     pageAvailability: {
@@ -233,12 +234,12 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     },
     onboardingStepDescriptions: {},
     booking: {
-      defaultVisitType: { id: "visita_tecnica", label: "Visita técnica", durationMin: 60 },
+      defaultVisitType: NICHE_REGISTRY.automacao_residencial.defaultVisitType,
     },
   },
   cortinas: {
     id: "cortinas",
-    label: "Persianas e Toldos",
+    label: NICHE_REGISTRY.cortinas.label,
     analyticsColor: "#f59e0b",
     seoAudience: "persianas, cortinas e toldos",
     pageAvailability: {
@@ -297,12 +298,12 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
     },
     onboardingStepDescriptions: {},
     booking: {
-      defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
+      defaultVisitType: NICHE_REGISTRY.cortinas.defaultVisitType,
     },
   },
   seguranca_eletronica: {
     id: "seguranca_eletronica",
-    label: "Segurança Eletrônica",
+    label: NICHE_REGISTRY.seguranca_eletronica.label,
     analyticsColor: "#dc2626",
     seoAudience: "segurança eletrônica",
     pageAvailability: {
@@ -362,7 +363,7 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
         "Kits prontos, como oito câmeras com gravador ou um alarme monitorado, com os produtos de cada área já definidos.",
     },
     booking: {
-      defaultVisitType: { id: "vistoria_tecnica", label: "Vistoria técnica", durationMin: 60 },
+      defaultVisitType: NICHE_REGISTRY.seguranca_eletronica.defaultVisitType,
     },
   },
 };

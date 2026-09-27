@@ -1,19 +1,15 @@
 /**
- * Cópia do front de `apps/functions/src/shared/niches.ts`: os ids de nicho que
- * a plataforma aceita. A paridade com o backend e com o `firestore.rules` é
- * garantida por `src/__tests__/niche-ids-parity.test.ts`.
+ * Os ids de nicho e os helpers do cadastro. A lista vem do registro
+ * (`lib/niches/registry.ts`); este arquivo continua existindo porque é o ponto
+ * de import de quem só precisa do id.
  */
-export const TENANT_NICHES = [
-  "automacao_residencial",
-  "cortinas",
-  "seguranca_eletronica",
-] as const;
-
-export type TenantNicheId = (typeof TENANT_NICHES)[number];
-
-export function isTenantNiche(value: unknown): value is TenantNicheId {
-  return typeof value === "string" && (TENANT_NICHES as readonly string[]).includes(value);
-}
+export {
+  DEFAULT_NICHE,
+  TENANT_NICHES,
+  isTenantNiche,
+  type TenantNicheId,
+} from "@/lib/niches/registry";
+import { DEFAULT_NICHE, isTenantNiche, type TenantNicheId } from "@/lib/niches/registry";
 
 /** Parâmetro da URL do cadastro que traz o nicho da landing de origem. */
 export const SIGNUP_NICHE_PARAM = "nicho";
@@ -24,7 +20,7 @@ export const SIGNUP_NICHE_PARAM = "nicho";
  * valor não é um nicho.
  */
 export function signupNicheFromParam(value: string | null | undefined): TenantNicheId {
-  return isTenantNiche(value) ? value : "automacao_residencial";
+  return isTenantNiche(value) ? value : DEFAULT_NICHE;
 }
 
 export function signupHrefForNiche(niche: TenantNicheId): string {

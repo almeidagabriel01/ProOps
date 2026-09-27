@@ -216,10 +216,12 @@ sessão, está em `.claude/rules/virada-dos-dominios.md`.
 ### Multi-Niche Support
 Niches: `automacao_residencial` | `cortinas` | `seguranca_eletronica` (`cortinas` is shown as "Persianas e Toldos": the id is persisted and never
 renamed, only the label changes). Logic in `apps/web/src/lib/niches/`. The tenant doc stores
-the id in `niche`. The list of ids lives in three places kept equal by a parity test
-(`apps/functions/src/shared/niches.ts`, `apps/web/src/lib/niches/niche-ids.ts` and `isKnownTenantNiche` in
-`firestore.rules`); backend tables that vary by niche are `Record<TenantNicheId, ...>`, so a new niche
-that misses one does not compile. A company's niche is chosen at signup and never changes, not even by the superadmin
+the id in `niche`. The source is `NICHE_REGISTRY` in `apps/functions/src/shared/niches.ts` (pure, no
+imports: demo tenant, image limit, visit type, stage template, AI label); the front mirrors the fields it
+uses in `apps/web/src/lib/niches/registry.ts` (plus label and landing path), and `firestore.rules` lists the
+ids and demo tenants. One test (`niche-registry-parity.test.ts`) keeps the three equal. `TenantNicheId`
+is the registry's key type, so every table that varies by niche is a `Record` that fails to compile when a
+niche is missing. A company's niche is chosen at signup and never changes, not even by the superadmin
 (rules, `PUT /v1/tenants` and the admin panel all refuse it; `scripts/backfill-tenant-niche.ts` fills
 tenants that predate the lock). `lib/niches/__tests__/niche-contract.test.ts` lists what every niche must declare.
 

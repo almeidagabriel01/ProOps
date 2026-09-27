@@ -1,31 +1,26 @@
+import { isTenantNiche, mapNiches, type TenantNicheId } from "@/lib/niches/registry";
+
 /**
- * Cópia do front de `apps/functions/src/shared/catalog-image-limits.ts`: o
- * limite de imagens por item do catálogo depende do nicho, não do plano. A
- * paridade é garantida por `src/__tests__/catalog-image-limits-parity.test.ts`.
+ * O limite de imagens por item do catálogo depende do nicho, não do plano. Vem
+ * do registro (`lib/niches/registry.ts`, espelho do backend), e a regra é a
+ * mesma de `apps/functions/src/shared/catalog-image-limits.ts`.
  */
 
 export type CatalogItemType = "product" | "service";
 
 export const DEFAULT_CATALOG_IMAGE_LIMIT = 1;
 
-/**
- * Imagens por PRODUTO em cada nicho (serviço sempre tem uma). A chave é o id
- * do nicho; nicho fora do mapa fica com o padrão.
- */
-export const PRODUCT_IMAGE_LIMIT_BY_NICHE: Readonly<Record<string, number>> = {
-  automacao_residencial: DEFAULT_CATALOG_IMAGE_LIMIT,
-  cortinas: 3,
-  seguranca_eletronica: DEFAULT_CATALOG_IMAGE_LIMIT,
-};
+/** Imagens por PRODUTO em cada nicho (serviço sempre tem uma). */
+export const PRODUCT_IMAGE_LIMIT_BY_NICHE: Record<TenantNicheId, number> = mapNiches(
+  (entry) => entry.productImageLimit,
+);
 
 export function resolveCatalogImageLimit(input: {
   niche: string | null | undefined;
   itemType: CatalogItemType;
 }): number {
-  if (input.itemType !== "product" || !input.niche) {
+  if (input.itemType !== "product" || !isTenantNiche(input.niche)) {
     return DEFAULT_CATALOG_IMAGE_LIMIT;
   }
-  return Object.prototype.hasOwnProperty.call(PRODUCT_IMAGE_LIMIT_BY_NICHE, input.niche)
-    ? PRODUCT_IMAGE_LIMIT_BY_NICHE[input.niche]
-    : DEFAULT_CATALOG_IMAGE_LIMIT;
+  return PRODUCT_IMAGE_LIMIT_BY_NICHE[input.niche];
 }
