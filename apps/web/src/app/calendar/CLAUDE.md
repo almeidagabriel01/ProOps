@@ -27,6 +27,14 @@ src/types/
 
 ---
 
+## Visita de obra
+
+Evento com `projectId`/`projectStageId` é a visita de uma etapa de obra,
+criado pela tela de Projetos (nunca pela Agenda: o backend não aceita o
+vínculo no corpo). O diálogo avisa e leva à obra ("Abrir obra"), e mover,
+cancelar ou excluir o evento aqui muda a data que a obra mostra. Ver
+`app/projects/CLAUDE.md`.
+
 ## Biblioteca de Calendário
 
 O componente usa **FullCalendar** (`@fullcalendar/react`) com os seguintes plugins:

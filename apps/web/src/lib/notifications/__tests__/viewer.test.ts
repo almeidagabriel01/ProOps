@@ -67,7 +67,7 @@ describe("lida por pessoa", () => {
 
 describe("tipos que cada pessoa recebe (e vê nas preferências)", () => {
   it("o dono recebe todos", () => {
-    expect(visibleNotificationTypes(true, () => false)).toHaveLength(17);
+    expect(visibleNotificationTypes(true, () => false)).toHaveLength(18);
   });
 
   it("membro só de propostas não vê financeiro, CRM, projetos nem avisos da conta", () => {
@@ -82,6 +82,14 @@ describe("tipos que cada pessoa recebe (e vê nas preferências)", () => {
   it("tarefa atribuída e menção aparecem para quem abre Tarefas", () => {
     const tipos = visibleNotificationTypes(false, (pageId) => pageId === "tasks");
     expect(tipos).toEqual(["task_assigned", "task_mentioned", "task_reminder", "task_updated"]);
+  });
+
+  it("a visita da obra aparece para quem abre Projetos, não para quem só abre Tarefas", () => {
+    expect(visibleNotificationTypes(false, (pageId) => pageId === "projects")).toEqual([
+      "project_delivery_accepted",
+      "project_visit_scheduled",
+    ]);
+    expect(visibleNotificationTypes(false, (pageId) => pageId === "tasks")).not.toContain("project_visit_scheduled");
   });
 
   it("membro do financeiro vê os tipos do financeiro", () => {

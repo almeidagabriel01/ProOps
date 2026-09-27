@@ -20,6 +20,30 @@ export interface ProjectPhoto {
   uploadedByName?: string | null;
 }
 
+/**
+ * Data marcada da etapa: espelho do evento da Agenda ligado a ela. A data mora
+ * no evento; mover na Agenda (ou no Google) muda o que a obra mostra.
+ */
+export interface StageSchedule {
+  eventId: string;
+  isAllDay: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  startMs: number;
+  endMs: number;
+}
+
+/** O que o agendamento manda: horário ou dia inteiro. */
+export interface StageScheduleInput {
+  isAllDay: boolean;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export interface ProjectStage {
   id: string;
   name: string;
@@ -27,6 +51,8 @@ export interface ProjectStage {
   checklist: ProjectChecklistItem[];
   photos: ProjectPhoto[];
   completedAt: string | null;
+  /** Ausente nas etapas criadas antes do agendamento existir. */
+  schedule?: StageSchedule | null;
 }
 
 export interface ProjectDelivery {

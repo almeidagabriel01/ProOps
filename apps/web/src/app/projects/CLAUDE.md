@@ -72,6 +72,25 @@ e contam no armazenamento do plano.
 - **Configurações** ("Configurar etapas", só o administrador) ficam num
   diálogo da própria lista, não em `/settings`: são a criação automática e o
   roteiro de etapas. Mudar o roteiro não mexe nos projetos que já existem.
+- **Visita da etapa na Agenda** (2026-09-27). Cada etapa tem "Marcar visita"
+  (data, hora e duração, ou dia inteiro), com a permissão de editar Projetos, e
+  não a da Agenda: é quem cuida da obra que marca. Vira um evento em
+  `calendar_events` com `projectId`/`projectStageId`, título "Etapa: obra", o
+  endereço da obra e o link para ela, e vai para o Google Agenda como qualquer
+  outro. **A data mora no evento**: a etapa guarda só o espelho
+  (`stage.schedule`), regravado em todo caminho que escreve o evento (marcar
+  pela obra, editar ou excluir na Agenda, mudança vinda do Google;
+  `mirrorStageScheduleFromEvent` só mexe se a etapa ainda aponta para aquele
+  evento). O espelho existe porque o técnico pode não ter a Agenda, e porque o
+  cliente vê a data na página da entrega e a próxima visita no portal.
+  Cancelar na Agenda tira a data da etapa. O técnico da obra recebe
+  `project_visit_scheduled` (direto, e-mail ligado) quando a visita é nova ou
+  muda de horário, se não foi ele quem marcou. Excluir a obra apaga as visitas
+  da Agenda. O vínculo nunca vem do corpo da requisição da Agenda
+  (`pickEventLinks` só herda do evento existente). Rotas:
+  `PUT|DELETE /v1/projects/:id/stages/:stageId/schedule`. Mesmas seis respostas
+  do módulo: Pro e Enterprise, demonstração com uma visita de exemplo (seed),
+  sem coleção nova, item no tutorial do passo Projetos, igual nos dois nichos.
 - **Entrega:** `POST /v1/projects/:id/delivery-link` gera (ou reaproveita) o
   link `/share/project/{token}`, enviado pelo WhatsApp ou e-mail da empresa. O
   cliente confere etapas, checklist e fotos (sem notas internas nem ids da
@@ -84,17 +103,17 @@ e contam no armazenamento do plano.
 |---|---|
 | `page.tsx` | Lista com filtro (em andamento, meus, concluídos, todos) |
 | `[id]/page.tsx` | A obra: andamento, situação, responsável, datas, etapas, entrega, observações |
-| `_components/stage-card.tsx` | Etapa: situação, checklist, fotos |
+| `_components/stage-card.tsx` | Etapa: situação, visita, checklist, fotos |
+| `_components/stage-schedule-dialog.tsx` | Marcar ou remarcar a visita da etapa |
+| `lib/projects/stage-schedule.ts` | Formato da data e montagem do envio (obra, entrega e portal) |
 | `_components/delivery-card.tsx` | Link de entrega e o aceite |
 | `_components/project-settings-dialog.tsx` | Criação automática e roteiro de etapas |
 | `_lib/projects.ts` | Rótulos, progresso (espelha o backend), filtros, atraso |
 | `components/features/projects/proposal-project-button.tsx` | Atalho na proposta |
 | `app/share/project/[token]/` | Página pública da entrega |
-| Backend | `api/services/projects/`, `api/controllers/projects.controller.ts`, `shared-projects.controller.ts`, `api/routes/projects.routes.ts` |
+| Backend | `api/services/projects/` (a visita em `project-schedule.ts`, puro, e `project-schedule-store.ts`), `api/controllers/projects.controller.ts`, `shared-projects.controller.ts`, `api/routes/projects.routes.ts` |
 
 ## Pendente de propósito
 
-- Evento da agenda ligado ao projeto (visita, instalação). O portal do cliente
-  já mostra o andamento da obra (Onda 4).
 - Documento em PDF da obra: nem ordem de serviço para o técnico, nem termo de
   entrega. O aceite da entrega fica registrado pelo link (nome, data, IP).

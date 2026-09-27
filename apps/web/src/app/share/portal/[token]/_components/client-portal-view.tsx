@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader } from "@/components/ui/loader";
 import { formatCurrency } from "@/utils/format";
 import { formatDateBR } from "@/utils/date-format";
+import { formatStageSchedule } from "@/lib/projects/stage-schedule";
 import { brandButtonStyle } from "@/utils/color-utils";
 import type { PortalItemKind, PortalView } from "@/services/client-portal-service";
 
@@ -207,6 +208,12 @@ export function ClientPortalView({ view, onOpen, example = false }: ClientPortal
                         style={{ width: `${Math.round((p.stagesDone / p.stagesTotal) * 100)}%` }}
                       />
                     </div>
+                  )}
+                  {p.nextVisit && (
+                    <p className="mt-2 text-sm">
+                      <span className="text-muted-foreground">Próxima visita ({p.nextVisit.stageName}): </span>
+                      <span className="font-medium">{formatStageSchedule(p.nextVisit)}</span>
+                    </p>
                   )}
                 </div>
                 {action("project", p.id, "Acompanhar")}

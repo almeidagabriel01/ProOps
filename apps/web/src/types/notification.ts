@@ -6,6 +6,8 @@ export enum NotificationType {
   PROPOSAL_CHANGES_REQUESTED = "proposal_changes_requested",
   /** O cliente aceitou a entrega da obra pelo link. */
   PROJECT_DELIVERY_ACCEPTED = "project_delivery_accepted",
+  /** Marcaram ou remarcaram a visita de uma etapa de uma obra sua. */
+  PROJECT_VISIT_SCHEDULED = "project_visit_scheduled",
   /** Cliente abriu o link há dias e a proposta segue sem resposta. */
   PROPOSAL_FOLLOW_UP = "proposal_follow_up",
   /** Próxima ação de um lead ou atividade do CRM com prazo hoje. */

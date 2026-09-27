@@ -342,6 +342,7 @@ export default function ProjectDetailPage() {
               stage={stage}
               index={index}
               canEdit={canEdit}
+              assigneeName={project.assigneeName}
               onToggleItem={(itemId, done) => toggleItem(stage.id, itemId, done)}
               onStageStatus={(status) => setStageStatus(stage.id, status)}
             />

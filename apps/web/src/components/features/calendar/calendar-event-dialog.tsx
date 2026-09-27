@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Clock3,
+  HardHat,
   MapPin,
   NotebookPen,
   Palette,
@@ -227,6 +229,20 @@ export function CalendarEventDialog({
         </DialogHeader>
 
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+          {event?.projectId && (
+            <div className="flex flex-col gap-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <p className="flex items-center gap-2">
+                <HardHat className="h-4 w-4 shrink-0 text-sky-600" />
+                Visita de uma obra: mudar a data aqui muda também na obra.
+              </p>
+              <Link
+                href={`/projects/${event.projectId}`}
+                className="shrink-0 font-medium text-sky-700 underline-offset-4 hover:underline dark:text-sky-400"
+              >
+                Abrir obra
+              </Link>
+            </div>
+          )}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="md:col-span-2">
               <div className="field-gap">

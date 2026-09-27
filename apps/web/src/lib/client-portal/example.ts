@@ -7,6 +7,22 @@ import type { PortalView } from "@/services/client-portal-service";
  */
 export const EXAMPLE_PORTAL_TOKEN = "exemplo";
 
+/** Visita do exemplo: daqui a 3 dias, das 09:00 às 12:00, para nunca ficar no passado. */
+function exampleVisit() {
+  const start = new Date();
+  start.setDate(start.getDate() + 3);
+  start.setHours(9, 0, 0, 0);
+  const end = new Date(start.getTime() + 3 * 60 * 60 * 1000);
+  return {
+    stageName: "Configuração",
+    isAllDay: false,
+    startsAt: start.toISOString(),
+    endsAt: end.toISOString(),
+    startDate: null,
+    endDate: null,
+  };
+}
+
 export const EXAMPLE_PORTAL: PortalView = {
   company: { name: "Sua empresa", logoUrl: null, primaryColor: null },
   client: { firstName: "Ana" },
@@ -37,7 +53,15 @@ export const EXAMPLE_PORTAL: PortalView = {
   ],
   canPayOnline: true,
   projects: [
-    { id: "ex-o1", title: "Automação da sala e do home theater", status: "active", stagesDone: 2, stagesTotal: 4, deliveryAccepted: false },
+    {
+      id: "ex-o1",
+      title: "Automação da sala e do home theater",
+      status: "active",
+      stagesDone: 2,
+      stagesTotal: 4,
+      deliveryAccepted: false,
+      nextVisit: exampleVisit(),
+    },
   ],
   invoices: [
     { id: "ex-n1", type: "nfse", number: "58", amount: 6133.34, issuedAt: "2026-08-15T12:00:00.000Z", pdfUrl: "" },

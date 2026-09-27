@@ -33,6 +33,7 @@ export function notificationLinkPath(
     case "proposal_changes_requested":
       return n.proposalId ? `/proposals?ajuste=${n.proposalId}` : "/proposals";
     case "project_delivery_accepted":
+    case "project_visit_scheduled":
       return n.projectId ? `/projects/${n.projectId}` : "/projects";
     case "task_assigned":
     case "task_mentioned":

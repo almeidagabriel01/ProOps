@@ -1,18 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { Camera, CheckCircle2, Circle, Plus, Trash2, X } from "lucide-react";
+import { CalendarDays, Camera, CheckCircle2, Circle, Plus, Trash2, X } from "lucide-react";
 import { Loader } from "@/components/ui/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/lib/toast";
 import { downscaleCatalogImage } from "@/lib/image-downscale";
+import { formatStageSchedule } from "@/lib/projects/stage-schedule";
 import { ProjectsService } from "@/services/projects-service";
 import type { ProjectStage, StageStatus } from "@/types/project";
 import { STAGE_STATUS_LABELS } from "../_lib/projects";
+import { StageScheduleDialog } from "./stage-schedule-dialog";
 
 /** Limite do backend para a foto já reduzida (`PHOTO_MAX_BYTES`). */
 export const PHOTO_MAX_BYTES = 700 * 1024;
@@ -31,6 +34,8 @@ interface StageCardProps {
   stage: ProjectStage;
   index: number;
   canEdit: boolean;
+  /** Quem cuida da obra: é avisado quando a visita é marcada. */
+  assigneeName?: string | null;
   /** Marca ou desmarca o item. A tela mostra na hora; o servidor confirma depois. */
   onToggleItem: (itemId: string, done: boolean) => void;
   /** Troca a situação da etapa, também com resposta imediata. */
@@ -42,8 +47,18 @@ interface StageCardProps {
  * então a tela não mantém cópia própria das etapas: o técnico marca o item no
  * celular e o escritório vê na hora.
  */
-export function StageCard({ projectId, stage, index, canEdit, onToggleItem, onStageStatus }: StageCardProps) {
+export function StageCard({
+  projectId,
+  stage,
+  index,
+  canEdit,
+  assigneeName = null,
+  onToggleItem,
+  onStageStatus,
+}: StageCardProps) {
   const [newItem, setNewItem] = React.useState("");
+  const [scheduleOpen, setScheduleOpen] = React.useState(false);
+  const [unscheduleOpen, setUnscheduleOpen] = React.useState(false);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [uploading, setUploading] = React.useState(0);
   const fileInput = React.useRef<HTMLInputElement>(null);
@@ -131,6 +146,72 @@ export function StageCard({ projectId, stage, index, canEdit, onToggleItem, onSt
           <span className="text-sm text-muted-foreground">{STAGE_STATUS_LABELS[stage.status]}</span>
         )}
       </div>
+
+      {/* A visita da etapa: a data mora no evento da Agenda e volta pelo
+          listener do projeto, inclusive quando alguém a arrasta na Agenda. */}
+      {(stage.schedule || (canEdit && stage.status !== "done")) && (
+        <div className="flex flex-col gap-2 rounded-lg bg-muted/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-center gap-2 text-sm">
+            <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+            {stage.schedule ? (
+              <span>
+                <span className="text-muted-foreground">Visita marcada: </span>
+                <span className="font-medium">{formatStageSchedule(stage.schedule)}</span>
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Sem visita marcada</span>
+            )}
+          </p>
+          {canEdit && (
+            <div className="flex gap-2">
+              {stage.schedule && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setUnscheduleOpen(true)}
+                  disabled={busy === "unschedule"}
+                >
+                  Desmarcar
+                </Button>
+              )}
+              <Button type="button" size="sm" variant="outline" onClick={() => setScheduleOpen(true)}>
+                {stage.schedule ? "Remarcar" : "Marcar visita"}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {canEdit && (
+        <>
+          <StageScheduleDialog
+            open={scheduleOpen}
+            onOpenChange={setScheduleOpen}
+            projectId={projectId}
+            stage={stage}
+            assigneeName={assigneeName}
+          />
+          <ConfirmDialog
+            open={unscheduleOpen}
+            onOpenChange={setUnscheduleOpen}
+            title={`Desmarcar ${stage.name}?`}
+            description="A visita sai da Agenda (e do Google Agenda, se estiver conectado)."
+            confirmLabel="Desmarcar"
+            pendingLabel="Desmarcando..."
+            destructive
+            isPending={busy === "unschedule"}
+            onConfirm={async () => {
+              await run(
+                "unschedule",
+                () => ProjectsService.unscheduleStage(projectId, stage.id),
+                "Erro ao desmarcar a visita.",
+              );
+              setUnscheduleOpen(false);
+            }}
+          />
+        </>
+      )}
 
       <ul className="space-y-2">
         {stage.checklist.map((item) => (

@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { callApi, callPublicApi } from "@/lib/api-client";
+import type { ScheduleLike } from "@/lib/projects/stage-schedule";
 import type {
   Project,
   ProjectChecklistItem,
@@ -20,6 +21,8 @@ import type {
   ProjectSettings,
   ProjectStage,
   ProjectStatus,
+  StageSchedule,
+  StageScheduleInput,
   StageStatus,
 } from "@/types/project";
 
@@ -112,6 +115,14 @@ export const ProjectsService = {
   updateStage: (id: string, stageId: string, input: { name?: string; status?: StageStatus }) =>
     callApi<{ stage: ProjectStage }>(`/v1/projects/${id}/stages/${stageId}`, "PUT", input),
 
+  /** Marca (ou remarca) a visita da etapa: vira um evento na Agenda. */
+  scheduleStage: (id: string, stageId: string, input: StageScheduleInput) =>
+    callApi<{ schedule: StageSchedule | null }>(`/v1/projects/${id}/stages/${stageId}/schedule`, "PUT", input),
+
+  /** Desmarca a visita: o evento sai da Agenda (e do Google). */
+  unscheduleStage: (id: string, stageId: string) =>
+    callApi<{ success: boolean }>(`/v1/projects/${id}/stages/${stageId}/schedule`, "DELETE"),
+
   addChecklistItem: (id: string, stageId: string, text: string) =>
     callApi<{ item: ProjectChecklistItem }>(`/v1/projects/${id}/stages/${stageId}/checklist`, "POST", { text }),
 
@@ -166,6 +177,8 @@ export interface SharedProjectView {
     name: string;
     status: StageStatus;
     completedAt: string | null;
+    /** Data marcada da visita, sem o id do evento da Agenda. */
+    schedule?: ScheduleLike | null;
     checklist: Array<{ id: string; text: string; done: boolean }>;
     photos: Array<{ id: string; url: string; caption: string | null }>;
   }>;

@@ -99,6 +99,34 @@ describe("portal do cliente", () => {
     expect(await screen.findByText("Link indisponível")).toBeInTheDocument();
   });
 
+  it("mostra a próxima visita da obra", async () => {
+    const start = new Date(2026, 9, 21, 8).toISOString();
+    const end = new Date(2026, 9, 21, 11).toISOString();
+    m.view.mockResolvedValue(
+      makeView({
+        projects: [
+          {
+            id: "o1",
+            title: "Obra da loja",
+            status: "active",
+            stagesDone: 1,
+            stagesTotal: 4,
+            deliveryAccepted: false,
+            nextVisit: { stageName: "Instalação", isAllDay: false, startsAt: start, endsAt: end, startDate: null, endDate: null },
+          },
+        ],
+      }),
+    );
+    render(<PublicClientPortal token="tok123456789abcdef" navigate={vi.fn()} />);
+    expect(await screen.findByText("Próxima visita (Instalação):")).toBeInTheDocument();
+    expect(screen.getByText("qua, 21/10, 08:00 às 11:00")).toBeInTheDocument();
+  });
+
+  it("o exemplo da demonstração mostra uma visita marcada", () => {
+    render(<PublicClientPortal token="exemplo" navigate={vi.fn()} />);
+    expect(screen.getByText("Próxima visita (Configuração):")).toBeInTheDocument();
+  });
+
   it("o exemplo da demonstração não chama a API nem abre item", async () => {
     const navigate = vi.fn();
     render(<PublicClientPortal token="exemplo" navigate={navigate} />);

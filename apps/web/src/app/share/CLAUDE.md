@@ -18,7 +18,7 @@ O middleware do Next.js (`middleware.ts`) deve ter estas rotas explicitamente ex
 share/
 ├── [token]/page.tsx              # Proposta compartilhada
 ├── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
-├── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir e aceitar
+├── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir, ver a data das visitas e aceitar
 ├── visita/[token]/page.tsx       # Link de agendamento: escolher horário e pedir a visita
 ├── portal/[token]/page.tsx       # Portal do cliente: propostas, pagamentos, obra e notas de um contato
 └── contador/[token]/page.tsx     # Link do contador: DRE, lançamentos e notas da empresa, só leitura
@@ -188,6 +188,8 @@ seção Portal do cliente.
   chama `POST .../open`, que devolve o link da proposta, do lançamento ou da
   obra (criado só nesse clique), e a página navega para lá. Aceitar, pagar e
   confirmar a entrega continuam onde já estavam.
+- **A obra mostra a próxima visita marcada** (`nextVisit`: etapa não concluída,
+  a data mais próxima que ainda não passou), sem o id do evento da Agenda.
 - **Nota fiscal abre direto no PDF do Focus**, que dispensa login; não existe
   página nossa para ela.
 - **`/share/portal/exemplo` é o portal fictício da demonstração**

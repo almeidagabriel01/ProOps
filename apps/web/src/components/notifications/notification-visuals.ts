@@ -39,6 +39,7 @@ export function getNotificationIcon(type: NotificationType) {
     case NotificationType.TASK_UPDATED:
       return ListTodo;
     case NotificationType.BOOKING_REQUESTED:
+    case NotificationType.PROJECT_VISIT_SCHEDULED:
       return CalendarClock;
     default:
       return FileText;

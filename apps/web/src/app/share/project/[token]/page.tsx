@@ -3,11 +3,12 @@
 import * as React from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { AlertCircle, CheckCircle2, Circle } from "lucide-react";
+import { AlertCircle, CalendarDays, CheckCircle2, Circle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
+import { formatStageSchedule } from "@/lib/projects/stage-schedule";
 import {
   SharedProjectService,
   type SharedProjectTenant,
@@ -130,6 +131,13 @@ export default function SharedProjectPage() {
                 </p>
                 <span className="text-xs text-muted-foreground">{STAGE_LABEL[stage.status]}</span>
               </div>
+              {stage.schedule && stage.status !== "done" && (
+                <p className="flex items-center gap-2 text-sm">
+                  <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="text-muted-foreground">Visita marcada:</span>
+                  <span className="font-medium">{formatStageSchedule(stage.schedule)}</span>
+                </p>
+              )}
               {stage.checklist.length > 0 && (
                 <ul className="space-y-1 text-sm">
                   {stage.checklist.map((item) => (

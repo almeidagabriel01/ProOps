@@ -1,5 +1,6 @@
 "use client";
 
+import type { ScheduleLike } from "@/lib/projects/stage-schedule";
 import { callApi, callPublicApi } from "@/lib/api-client";
 
 export interface ClientPortalLink {
@@ -41,6 +42,8 @@ export interface PortalView {
     stagesDone: number;
     stagesTotal: number;
     deliveryAccepted: boolean;
+    /** A próxima visita marcada na obra, se houver. */
+    nextVisit?: (ScheduleLike & { stageName: string }) | null;
   }>;
   invoices: Array<{
     id: string;

@@ -43,6 +43,12 @@ export interface CalendarEvent {
   googleSync: GoogleCalendarSyncMetadata;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Visita de uma etapa da obra. Mudar a data aqui muda a da etapa; o vínculo
+   * só é criado pela tela de Projetos.
+   */
+  projectId?: string | null;
+  projectStageId?: string | null;
 }
 
 export interface CalendarEventFormValues {

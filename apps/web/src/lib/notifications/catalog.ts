@@ -32,6 +32,11 @@ export interface NotificationCatalogEntry {
   audience: NotificationAudience;
   emailable: boolean;
   defaultEmail: boolean;
+  /**
+   * Só nos diretos: a tela sem a qual a pessoa nunca é destinatária (e o tipo
+   * nem aparece nas preferências dela). Padrão: Tarefas.
+   */
+  directPageId?: string;
 }
 
 export const NOTIFICATION_CATALOG = {
@@ -82,6 +87,16 @@ export const NOTIFICATION_CATALOG = {
     audience: "projects",
     emailable: true,
     defaultEmail: true,
+  },
+  project_visit_scheduled: {
+    label: "Visita da obra marcada",
+    description: "Marcaram ou remarcaram uma etapa de uma obra sua.",
+    group: "projects",
+    audience: "direct",
+    emailable: true,
+    defaultEmail: true,
+    // Vai para o técnico da obra, que precisa enxergar Projetos.
+    directPageId: "projects",
   },
   lead_reminder: {
     label: "Lembrete do CRM",
@@ -216,17 +231,17 @@ export function resolveChannelPreference(
 /**
  * Tipos que a pessoa recebe, na mesma regra do backend: o dono e os
  * administradores recebem todos; o membro, os dos módulos que ele pode ver.
- * Os diretos (tarefa atribuída, menção) valem para qualquer um que possa ser
- * citado, e isso pede a tela de Tarefas.
+ * Os diretos (tarefa atribuída, menção, visita da obra) valem para quem pode
+ * ser o destinatário: a tela de Tarefas, ou a de Projetos no caso da visita.
  */
 export function visibleNotificationTypes(
   isAdmin: boolean,
   canView: (pageId: string) => boolean,
 ): CatalogNotificationType[] {
   return NOTIFICATION_TYPES.filter((type) => {
-    const { audience } = NOTIFICATION_CATALOG[type];
+    const { audience, directPageId } = NOTIFICATION_CATALOG[type];
     if (isAdmin) return true;
-    if (audience === "direct") return canView("tasks");
+    if (audience === "direct") return canView(directPageId ?? "tasks");
     return audience !== "admins" && canView(audience);
   });
 }
