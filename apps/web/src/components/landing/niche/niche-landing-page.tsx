@@ -45,7 +45,7 @@ export function NicheLandingPage({ slug }: NicheLandingPageProps) {
           sectionSubtitle={config.modulesSection.subtitle}
         />
         <NicheFaq faq={config.faq} />
-        <NicheCta cta={config.cta} />
+        <NicheCta cta={config.cta} signupHref={config.hero.primaryCta.href} />
       </main>
 
       <LandingFooter />

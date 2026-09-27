@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { NicheLandingConfig } from "@/components/landing/niche/types";
 import type { TenantNiche } from "@/types";
+import { signupHrefForNiche } from "@/lib/niches/niche-ids";
 
 export const NICHE_LANDING_CONFIG: Record<TenantNiche, NicheLandingConfig> = {
   automacao_residencial: {
@@ -24,7 +25,7 @@ export const NICHE_LANDING_CONFIG: Record<TenantNiche, NicheLandingConfig> = {
       titleHighlight: "Automação Residencial",
       subtitle:
         "A ProOps tem um pacote pronto para integradores e empresas de automação residencial: gestão de propostas, CRM, financeiro e agenda integrados em um só lugar.",
-      primaryCta: { label: "Começar agora", href: "/register" },
+      primaryCta: { label: "Começar agora", href: signupHrefForNiche("automacao_residencial") },
       secondaryCta: { label: "Fazer login", href: "/login" },
     },
     features: [
@@ -153,7 +154,7 @@ export const NICHE_LANDING_CONFIG: Record<TenantNiche, NicheLandingConfig> = {
       titleHighlight: "Lojas de Decoração",
       subtitle:
         "A ProOps tem um pacote pronto para lojas de cortinas, persianas e papéis de parede: propostas com cálculo automático de metros, catálogo de tecidos, CRM e financeiro integrados.",
-      primaryCta: { label: "Começar agora", href: "/register" },
+      primaryCta: { label: "Começar agora", href: signupHrefForNiche("cortinas") },
       secondaryCta: { label: "Fazer login", href: "/login" },
     },
     features: [

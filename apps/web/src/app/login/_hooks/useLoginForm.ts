@@ -31,6 +31,7 @@ import { toast } from "@/lib/toast";
 import { sanitizeInternalPath } from "@/lib/auth/sanitize-internal-path";
 import { ALLOWED_TYPES } from "@/services/storage-service";
 import { TenantNiche } from "@/types";
+import { SIGNUP_NICHE_PARAM, signupNicheFromParam } from "@/lib/niches/niche-ids";
 
 type AuthMode = "login" | "register" | "forgot";
 const AUTH_MODES: AuthMode[] = ["login", "register", "forgot"];
@@ -167,6 +168,7 @@ interface UseLoginFormReturn {
 }
 
 export function useLoginForm(): UseLoginFormReturn {
+  const searchParams = useSearchParams();
   // Login fields
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -179,8 +181,8 @@ export function useLoginForm(): UseLoginFormReturn {
   const [companyName, setCompanyName] = React.useState("");
   const [companyColor, setCompanyColor] = React.useState("#8b5cf6");
   const [companyLogo, setCompanyLogo] = React.useState("");
-  const [companyNiche, setCompanyNiche] = React.useState<TenantNiche>(
-    "automacao_residencial",
+  const [companyNiche, setCompanyNiche] = React.useState<TenantNiche>(() =>
+    signupNicheFromParam(searchParams.get(SIGNUP_NICHE_PARAM)),
   );
 
   const [error, setError] = React.useState("");
@@ -348,7 +350,6 @@ export function useLoginForm(): UseLoginFormReturn {
     useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   // Derive initial mode from current path, then keep it in local state
   // so that switching modes does NOT cause a route navigation (which would

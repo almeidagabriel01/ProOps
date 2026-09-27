@@ -7,9 +7,11 @@ import type { NicheLandingConfig } from "./types";
 
 interface NicheCtaProps {
   cta: NicheLandingConfig["cta"];
+  /** Cadastro com o nicho da landing já escolhido. */
+  signupHref: string;
 }
 
-export function NicheCta({ cta }: NicheCtaProps) {
+export function NicheCta({ cta, signupHref }: NicheCtaProps) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 40 }}
@@ -46,7 +48,7 @@ export function NicheCta({ cta }: NicheCtaProps) {
           transition={{ duration: 0.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-wrap items-center justify-center gap-4"
         >
-          <LandingButton href="/register" variant="solid" size="lg">
+          <LandingButton href={signupHref} variant="solid" size="lg">
             Criar conta
           </LandingButton>
 
