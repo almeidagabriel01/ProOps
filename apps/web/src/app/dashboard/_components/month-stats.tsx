@@ -49,8 +49,8 @@ export function MonthStats({
   );
 
   return (
-    // `contents`: os dois cards entram direto no layout em colunas do
-    // Dashboard, ao lado de Metas e Comissões, e se equilibram com eles.
+    // `contents`: os dois cards entram direto na grade do Dashboard, lado a
+    // lado, com a altura da linha; o conteúdo vazio fica centralizado nela.
     <div className="contents">
       {/* Categories Breakdown */}
       <Card className={cardClassName}>
@@ -58,9 +58,9 @@ export function MonthStats({
           <CardTitle className="text-lg">Despesas por Categoria</CardTitle>
           <CardDescription>Principais gastos {period.of}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col">
           {expenseCategories.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+            <div className="flex flex-1 flex-col items-center justify-center py-8 text-center text-muted-foreground">
               <LucideIcons.PieChart className="w-10 h-10 mb-2 opacity-20" />
               <p>Nenhuma despesa paga {period.in}</p>
             </div>
@@ -98,9 +98,9 @@ export function MonthStats({
           <CardTitle className="text-lg">Movimentação por Carteira</CardTitle>
           <CardDescription>Entradas e saídas {period.of}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-1 flex-col">
           {walletActivity.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+            <div className="flex flex-1 flex-col items-center justify-center py-8 text-center text-muted-foreground">
               <LucideIcons.ArrowRightLeft className="w-10 h-10 mb-2 opacity-20" />
               <p>Nenhuma movimentação paga {period.in}</p>
             </div>

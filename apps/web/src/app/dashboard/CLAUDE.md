@@ -92,12 +92,14 @@ page.tsx (DashboardPage)
   │   └── FutureBalanceChart — Balanço Futuro (3/6/12 meses)
   ├── Resultado do mês (título + MonthSwitcher; tudo aqui segue o mês escolhido)
   │   ├── SalesSummaryCard — vendido, em negociação, conversão, ticket médio
-  │   └── Colunas balanceadas (`lg:columns-2`, cards com `break-inside-avoid`)
-  │       ├── GoalsProgressCard, CommissionsPanel (somem sem dado; o invólucro
-  │       │   vazio some por `:empty`)
-  │       └── MonthStats — despesas por categoria e carteiras (`contents`: os
-  │           dois cards entram direto nas colunas). Colunas fixas deixavam
-  │           um vão embaixo de uma meta curta ao lado dos dois cards de resumo
+  │   └── Grade em LINHAS, cada uma com a altura do maior card dela
+  │       ├── Linha 1: GoalsProgressCard | CommissionsPanel (somem sem dado;
+  │       │   sobrando um, ocupa a largura toda; sem nenhum, a linha some
+  │       │   pelo `:empty`)
+  │       └── Linha 2: MonthStats, despesas por categoria | carteiras
+  │           (`contents`: os dois cards entram direto na grade)
+  │       Colunas (fixas ou balanceadas) deixavam vão fora dos cards quando
+  │       as alturas não batiam; o dono do produto recusou as duas.
   ├── Grid 2 colunas (só com permissão de ver propostas)
   │   ├── ProposalAttentionCard — o que pede ação nas propostas
   │   └── RecentProposalsList — últimas 5 propostas

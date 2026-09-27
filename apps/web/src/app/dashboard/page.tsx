@@ -57,9 +57,6 @@ import { canSeeCompanySales } from "@/lib/sales/dashboard-sales";
 import { SalesSummaryCard } from "./_components/sales-summary-card";
 import { ProposalAttentionCard } from "./_components/proposal-attention-card";
 
-/** Card do bloco do mês: não parte entre colunas e guarda o espaço de baixo. */
-const MONTH_CARD = "mb-6 break-inside-avoid";
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const { tenantOwner, tenant } = useTenant();
@@ -265,25 +262,28 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Metas, comissões e o resumo do mês em colunas que se equilibram
-            pela altura: com colunas fixas, uma meta curta ao lado de dois
-            cards de resumo deixava um vão embaixo. Metas e comissões somem
-            sem dado (o invólucro vazio some junto), e os cards do resumo
-            ocupam o espaço. */}
-        <div className="gap-6 lg:columns-2">
-          <div className={`${MONTH_CARD} empty:hidden`}>
+        {/* Em linhas, e não em colunas: cada linha tem a altura do maior
+            card dela, então não sobra vão fora dos cards. Com colunas, uma
+            meta curta ao lado dos dois cards de resumo deixava um buraco
+            embaixo, e colunas balanceadas só diminuíam o buraco.
+            Linha 1: Metas e Comissões (somem sem dado; sobrando uma, ela ocupa
+            a largura toda; sem nenhuma, a linha some pelo :empty).
+            Linha 2: Despesas por categoria e Carteiras. */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 empty:hidden lg:col-span-2 lg:grid-cols-2 lg:[&:has(>:only-child)]:grid-cols-1">
             <GoalsProgressCard month={selectedMonth} />
-          </div>
-          <div className={`${MONTH_CARD} empty:hidden`}>
             {!loading.month && <CommissionsPanel report={commissionReport} />}
           </div>
           {loading.month ? (
-            <Skeleton className={`${MONTH_CARD} h-80 rounded-xl`} />
+            <>
+              <Skeleton className="h-64 rounded-xl" />
+              <Skeleton className="h-64 rounded-xl" />
+            </>
           ) : (
             <MonthStats
               currentMonthStats={currentMonthStats}
               period={period}
-              cardClassName={MONTH_CARD}
+              cardClassName="flex flex-col"
             />
           )}
         </div>
