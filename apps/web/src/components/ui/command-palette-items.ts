@@ -24,7 +24,11 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import type { MenuCapability } from "@/components/layout/navigation-config";
+import {
+  nicheMenuLabel,
+  type MenuCapability,
+} from "@/components/layout/navigation-config";
+import type { NicheConfig } from "@/lib/niches/config-types";
 
 /**
  * Os destinos que o command palette oferece.
@@ -350,3 +354,35 @@ export const searchItems: SearchItem[] = [
     masterOnly: true,
   },
 ];
+
+/**
+ * `searchItems` com o texto do nicho. Soluções e Ambientes mudam de nome por
+ * nicho ("Sistemas" e "Áreas" em segurança) e a paleta tem que dizer o mesmo
+ * que o menu, então o rótulo sai de `nicheMenuLabel`, a mesma fonte da
+ * navegação. O `id` fica: a paleta filtra por ele, e ele é a chave de nicho.
+ */
+export function searchItemsForNiche(
+  niche: Pick<NicheConfig, "vocabulary" | "solutionsPage">,
+): SearchItem[] {
+  const { place, group } = niche.vocabulary;
+  return searchItems.map((item) => {
+    const label = nicheMenuLabel(item.path, niche);
+    if (!label) return item;
+    const isPlace = item.path === "/ambientes";
+    const nicheTerm = isPlace ? place : group;
+    return {
+      ...item,
+      label,
+      description: isPlace
+        ? `Gerenciar ${place.plural} e produtos padrões`
+        : `Gerenciar ${group.plural} e templates`,
+      keywords: [
+        ...new Set([
+          ...(item.keywords ?? []),
+          nicheTerm.singular,
+          nicheTerm.plural,
+        ]),
+      ],
+    };
+  });
+}

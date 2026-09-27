@@ -2,6 +2,8 @@ import { Settings, Eye, UserPlus, Edit3, Trash2 } from "lucide-react";
 import { StepNavigation } from "@/components/ui/step-wizard";
 import { PermissionToggle } from "../permission-toggle";
 import { AVAILABLE_PAGES, Permission } from "../team-types";
+import { useTenant } from "@/providers/tenant-provider";
+import { getPermissionPageName } from "@/lib/permissions/pages";
 
 interface PermissionsStepProps {
   customPermissions: Record<string, Permission>;
@@ -20,6 +22,7 @@ export function PermissionsStep({
   onSubmit,
   isSubmitting,
 }: PermissionsStepProps) {
+  const { tenant } = useTenant();
   return (
     <>
       <div className="space-y-6">
@@ -44,7 +47,9 @@ export function PermissionsStep({
           <div className="p-4 space-y-1 bg-card max-h-[400px] overflow-y-auto">
             {Object.entries(customPermissions).map(([page, perms]) => {
               const pageInfo = AVAILABLE_PAGES.find((p) => p.id === page);
-              const pageName = pageInfo?.name || page;
+              const pageName = pageInfo
+                ? getPermissionPageName(pageInfo, tenant?.niche)
+                : page;
               const isViewOnly = pageInfo?.viewOnly || false;
 
               // Skip Financial module if tenant doesn't have access

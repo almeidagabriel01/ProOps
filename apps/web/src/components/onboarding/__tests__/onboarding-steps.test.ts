@@ -4,13 +4,14 @@ import {
   filterVisibleChildren,
   flattenMenuItems,
   menuItems,
+  nicheMenuLabel,
   type MenuItem,
 } from "@/components/layout/navigation-config";
 import { flattenSettingsNavItems } from "@/app/settings/_components/settings-nav-items";
 import {
   getNicheConfig,
-  getSolutionsPageConfig,
   isPageEnabledForNiche,
+  NICHE_CONFIGS,
 } from "@/lib/niches/config";
 import { TENANT_NICHES } from "@/lib/niches/niche-ids";
 import type { TenantNiche } from "@/types";
@@ -19,6 +20,7 @@ import {
   chapterProgress,
   matchStepForPath,
   MENU_STEP_TEMPLATES,
+  resolveOnboardingText,
   ROUTES_WITHOUT_OWN_STEP,
   SETTINGS_STEP_TEMPLATES,
   type OnboardingCapabilityMap,
@@ -107,11 +109,10 @@ function visibleMenu(
       item.children
         ? {
             ...item,
-            children: filterVisibleChildren(item, nav).map((child) =>
-              child.href === "/solutions"
-                ? { ...child, label: getSolutionsPageConfig(niche).navigationLabel }
-                : child,
-            ),
+            children: filterVisibleChildren(item, nav).map((child) => ({
+              ...child,
+              label: nicheMenuLabel(child.href, getNicheConfig(niche)) ?? child.label,
+            })),
           }
         : item,
     );
@@ -168,11 +169,19 @@ describe("cobertura do tutorial", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("nenhum texto usa travessão", () => {
-    const textos = [
-      ...Object.values(MENU_STEP_TEMPLATES),
-      ...Object.values(SETTINGS_STEP_TEMPLATES),
-    ].flatMap((t) => [t.title ?? "", t.description, t.actionLabel, ...t.checklist.map((i) => i.text)]);
+  it("nenhum texto usa travessão, em nenhum nicho", () => {
+    const textos = TENANT_NICHES.flatMap((niche) => {
+      const { vocabulary } = NICHE_CONFIGS[niche];
+      return [
+        ...Object.values(MENU_STEP_TEMPLATES),
+        ...Object.values(SETTINGS_STEP_TEMPLATES),
+      ].flatMap((t) => [
+        t.title ?? "",
+        t.description,
+        resolveOnboardingText(t.actionLabel, vocabulary),
+        ...t.checklist.map((i) => resolveOnboardingText(i.text, vocabulary)),
+      ]);
+    });
     expect(textos.filter((texto) => texto.includes("—"))).toEqual([]);
   });
 });
@@ -305,6 +314,75 @@ describe("passos por plano e papel", () => {
     const ids = stepIds("pro", MASTER, "cortinas");
     expect(ids).toContain("ambientes");
     expect(ids).not.toContain("solutions");
+  });
+});
+
+describe("vocabulário do nicho no passo", () => {
+  const stepIn = (niche: TenantNiche, id: string, withVocabulary = true) =>
+    buildOnboardingSteps({
+      visibleMenuItems: visibleMenu(MASTER, niche),
+      settingsRoutes: SETTINGS_ROUTES,
+      capabilities: PLAN.pro,
+      viewer: MASTER,
+      stepDescriptions: getNicheConfig(niche).onboardingStepDescriptions,
+      vocabulary: withVocabulary ? getNicheConfig(niche).vocabulary : undefined,
+    }).find((step) => step.id === id);
+
+  it("automação continua falando de soluções e ambientes", () => {
+    const solutions = stepIn("automacao_residencial", "solutions");
+    expect(solutions?.title).toBe("Soluções");
+    expect(solutions?.actionLabel).toBe("Abrir Soluções");
+    expect(solutions?.checklist).toEqual([
+      "Monte a solução uma vez. Os produtos padrão ficam separados por ambiente.",
+      "Na proposta, adicione a solução inteira em vez de item por item.",
+      "Ajuste as quantidades por projeto sem mexer no modelo.",
+    ]);
+  });
+
+  it("sem vocabulário, vale o de automação", () => {
+    expect(stepIn("automacao_residencial", "solutions", false)).toEqual(
+      stepIn("automacao_residencial", "solutions"),
+    );
+  });
+
+  it("segurança eletrônica: botão e checklist falam de sistemas e áreas", () => {
+    const solutions = stepIn("seguranca_eletronica", "solutions");
+    expect(solutions?.title).toBe("Sistemas");
+    expect(solutions?.actionLabel).toBe("Abrir Sistemas");
+    expect(solutions?.checklist).toEqual([
+      "Monte o sistema uma vez. Os produtos padrão ficam separados por área.",
+      "Na proposta, adicione o sistema inteiro em vez de item por item.",
+      "Ajuste as quantidades por projeto sem mexer no modelo.",
+    ]);
+    const texto = [solutions?.actionLabel, ...(solutions?.checklist ?? [])].join(" ");
+    expect(texto).not.toMatch(/soluç|ambiente/i);
+  });
+
+  it("cortinas: o passo de Ambientes fala de ambientes", () => {
+    const ambientes = stepIn("cortinas", "ambientes");
+    expect(ambientes?.title).toBe("Ambientes");
+    expect(ambientes?.actionLabel).toBe("Abrir Ambientes");
+    expect(ambientes?.checklist).toEqual([
+      "Cadastre os ambientes mais comuns do seu dia a dia.",
+      "Associe os produtos padrão de cada ambiente.",
+      "Reaproveite os ambientes ao montar uma proposta nova.",
+    ]);
+  });
+
+  it("o passo de Ambientes concorda com um local feminino", () => {
+    const ambientes = buildOnboardingSteps({
+      visibleMenuItems: visibleMenu(MASTER, "cortinas"),
+      settingsRoutes: SETTINGS_ROUTES,
+      capabilities: PLAN.pro,
+      viewer: MASTER,
+      vocabulary: getNicheConfig("seguranca_eletronica").vocabulary,
+    }).find((step) => step.id === "ambientes");
+    expect(ambientes?.actionLabel).toBe("Abrir Áreas");
+    expect(ambientes?.checklist).toEqual([
+      "Cadastre as áreas mais comuns do seu dia a dia.",
+      "Associe os produtos padrão de cada área.",
+      "Reaproveite as áreas ao montar uma proposta nova.",
+    ]);
   });
 });
 

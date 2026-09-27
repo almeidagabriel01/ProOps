@@ -374,7 +374,7 @@ export function ProductFormNew({
                   <Input
                     id="name"
                     name="name"
-                    placeholder="Ex: Cortina wave premium"
+                    placeholder={nicheConfig.vocabulary.productNamePlaceholder}
                     value={formData.name}
                     onChange={handleChange}
                     onBlur={handleBlur}

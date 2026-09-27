@@ -19,6 +19,9 @@
  * Ao adicionar um módulo, acrescente aqui primeiro e depois ligue as quatro.
  */
 
+import type { TenantNiche } from "@/types";
+import { getSolutionsPageConfig } from "@/lib/niches/config";
+
 export type PermissionAction = "canView" | "canCreate" | "canEdit" | "canDelete";
 
 export interface PermissionPage {
@@ -101,6 +104,20 @@ const PAGE_BY_ID = new Map(PERMISSION_PAGES.map((page) => [page.id, page]));
 
 export function getPermissionPage(pageId: string): PermissionPage | undefined {
   return PAGE_BY_ID.get(pageId);
+}
+
+/**
+ * O nome que as telas de Equipe mostram. O pageId "solutions" gateia Soluções
+ * e Ambientes, e o nome acompanha o do menu no nicho da empresa ("Sistemas" em
+ * segurança, "Ambientes" em persianas). Só o rótulo muda: o `id` gravado em
+ * `users/{uid}/permissions` é o mesmo em todo nicho.
+ */
+export function getPermissionPageName(
+  page: PermissionPage,
+  niche?: TenantNiche | null,
+): string {
+  if (page.id === "solutions") return getSolutionsPageConfig(niche).navigationLabel;
+  return page.name;
 }
 
 /**

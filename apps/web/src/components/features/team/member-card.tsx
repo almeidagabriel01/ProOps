@@ -23,6 +23,8 @@ import {
   ResetMfaDialog,
 } from "./member-modals";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useTenant } from "@/providers/tenant-provider";
+import { getPermissionPageName } from "@/lib/permissions/pages";
 
 interface MemberCardProps {
   member: TeamMember;
@@ -49,6 +51,7 @@ export function MemberCard({
   const [showDelete, setShowDelete] = React.useState(false);
   const [showResetMfa, setShowResetMfa] = React.useState(false);
   const { hasFinancial } = usePlanLimits();
+  const { tenant } = useTenant();
 
   return (
     <>
@@ -138,7 +141,7 @@ export function MemberCard({
                 return (
                   <PagePermissionRow
                     key={page.id}
-                    page={page}
+                    page={{ ...page, name: getPermissionPageName(page, tenant?.niche) }}
                     permission={
                       member.permissions[page.id] || { canView: false }
                     }

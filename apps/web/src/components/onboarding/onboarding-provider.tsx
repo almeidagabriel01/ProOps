@@ -119,7 +119,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const { user, refreshUser } = useAuth();
   const { isMaster } = usePermissions();
   const { isDemo, tenant } = useTenant();
-  const stepDescriptions = getNicheConfig(tenant?.niche).onboardingStepDescriptions;
+  const { onboardingStepDescriptions: stepDescriptions, vocabulary } = getNicheConfig(
+    tenant?.niche,
+  );
   const plan = usePlanLimits();
   const { visibleMenuItems } = useNavigationItems();
   const isMobile = useIsMobile();
@@ -181,8 +183,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         capabilities,
         viewer: { isMaster, isDemo },
         stepDescriptions,
+        vocabulary,
       }),
-    [visibleMenuItems, capabilities, isMaster, isDemo, stepDescriptions],
+    [visibleMenuItems, capabilities, isMaster, isDemo, stepDescriptions, vocabulary],
   );
 
   const state = localState;

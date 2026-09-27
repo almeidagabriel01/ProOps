@@ -21,6 +21,9 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+import type { NicheConfig } from "@/lib/niches/config-types";
+import { cap } from "@/lib/niches/vocabulary";
+
 /**
  * Capacidade de plano exigida por um item de menu. Os nomes são os mesmos do
  * catálogo do backend (`PlanCapabilityKey`), que é quem bloqueia de verdade.
@@ -235,6 +238,24 @@ export const menuItems: MenuItem[] = [
     pageId: "spreadsheets",
   },
 ];
+
+/**
+ * O rótulo que o nicho dá a um destino, ou `undefined` para manter o de
+ * `menuItems`. Soluções e Ambientes falam do grupo e do local da proposta, que
+ * mudam por nicho ("Sistemas" e "Áreas" em segurança).
+ *
+ * Um lugar só porque três superfícies precisam dizer o mesmo nome: a navegação
+ * (`useNavigationItems`, que alimenta dock, tab bar e seletor de visão), o
+ * tutorial (que herda o rótulo do menu) e a paleta de comandos.
+ */
+export function nicheMenuLabel(
+  href: string,
+  niche: Pick<NicheConfig, "vocabulary" | "solutionsPage">,
+): string | undefined {
+  if (href === "/solutions") return niche.solutionsPage.navigationLabel;
+  if (href === "/ambientes") return cap(niche.vocabulary.place.plural);
+  return undefined;
+}
 
 export function lightenColor(hex: string, percent: number): string {
   const num = parseInt(hex.replace("#", ""), 16);

@@ -21,6 +21,7 @@ import {
   getProductPricingSummary,
 } from "@/lib/product-pricing";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { no } from "@/lib/niches/vocabulary";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 
@@ -174,6 +175,8 @@ export function ProductPricingStep({
 }: ProductPricingStepProps) {
   const nicheConfig = useCurrentNicheConfig();
   const { dimensionModes } = nicheConfig.pricing;
+  const { place } = nicheConfig.vocabulary;
+  const measureHelper = `Informada na proposta e ${no(place)} ${place.singular}`;
   const basePrice = parseFormNumber(formData.price);
   const markupValue = parseFormNumber(formData.markup);
   const sellingPrice = calculateSellingPrice(basePrice, markupValue);
@@ -444,11 +447,11 @@ export function ProductPricingStep({
             <FormGroup cols={2}>
               <StaticMeasureField
                 label="Largura"
-                helper="Informada na proposta e no ambiente"
+                helper={measureHelper}
               />
               <StaticMeasureField
                 label="Altura"
-                helper="Informada na proposta e no ambiente"
+                helper={measureHelper}
               />
             </FormGroup>
 
@@ -526,7 +529,7 @@ export function ProductPricingStep({
 
             <StaticMeasureField
               label="Largura"
-              helper="Informada na proposta e no ambiente"
+              helper={measureHelper}
             />
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -709,7 +712,7 @@ export function ProductPricingStep({
 
                       <StaticMeasureField
                         label="Largura"
-                        helper="Informada na proposta e no ambiente"
+                        helper={measureHelper}
                       />
                     </FormGroup>
 

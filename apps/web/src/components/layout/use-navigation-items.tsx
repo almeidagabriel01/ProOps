@@ -7,20 +7,18 @@ import { useTenant } from "@/providers/tenant-provider";
 import {
   filterVisibleChildren,
   menuItems,
+  nicheMenuLabel,
   type MenuItem,
   type SubMenuItem,
 } from "@/components/layout/navigation-config";
-import {
-  getSolutionsPageConfig,
-  isPageEnabledForNiche,
-} from "@/lib/niches/config";
+import { getNicheConfig, isPageEnabledForNiche } from "@/lib/niches/config";
 
 export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
   const { hasPermission, isMaster } = usePermissions();
   const { tenant, isDemo } = useTenant();
 
   const visibleMenuItems = React.useMemo(() => {
-    const solutionsConfig = getSolutionsPageConfig(tenant?.niche);
+    const nicheConfig = getNicheConfig(tenant?.niche);
     const viewer = {
       isMaster,
       isDemo,
@@ -31,13 +29,12 @@ export function useNavigationItems(): { visibleMenuItems: MenuItem[] } {
 
     const filterChildren = (item: MenuItem): SubMenuItem[] =>
       filterVisibleChildren(item, viewer)
-        // O rótulo de /solutions vem do nicho. Mora aqui, e não no map de nível
-        // superior, porque Soluções é filho do Catálogo.
-        .map((child) =>
-          child.href === "/solutions"
-            ? { ...child, label: solutionsConfig.navigationLabel }
-            : child,
-        );
+        // Os rótulos de /solutions e /ambientes vêm do nicho. Moram aqui, e não
+        // no map de nível superior, porque os dois são filhos do Catálogo.
+        .map((child) => {
+          const label = nicheMenuLabel(child.href, nicheConfig);
+          return label ? { ...child, label } : child;
+        });
 
     return menuItems
       .filter((item) => {
