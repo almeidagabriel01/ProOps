@@ -17,6 +17,8 @@ interface MonthStatsProps {
    * ("neste mês", "em agosto de 2026").
    */
   period?: { of: string; in: string };
+  /** Classe de cada card (o Dashboard passa a do layout em colunas). */
+  cardClassName?: string;
   currentMonthStats: {
     expensesByCategory: Record<string, number>;
     incomeByWallet: Record<string, number>;
@@ -27,6 +29,7 @@ interface MonthStatsProps {
 export function MonthStats({
   currentMonthStats,
   period = { of: "deste mês", in: "neste mês" },
+  cardClassName,
 }: MonthStatsProps) {
   const { expensesByCategory, incomeByWallet, expensesByWallet } =
     currentMonthStats;
@@ -46,9 +49,11 @@ export function MonthStats({
   );
 
   return (
-    <div className="grid gap-6 grid-cols-1 @3xl:grid-cols-2">
+    // `contents`: os dois cards entram direto no layout em colunas do
+    // Dashboard, ao lado de Metas e Comissões, e se equilibram com eles.
+    <div className="contents">
       {/* Categories Breakdown */}
-      <Card>
+      <Card className={cardClassName}>
         <CardHeader>
           <CardTitle className="text-lg">Despesas por Categoria</CardTitle>
           <CardDescription>Principais gastos {period.of}</CardDescription>
@@ -88,7 +93,7 @@ export function MonthStats({
       </Card>
 
       {/* Wallet Activity */}
-      <Card>
+      <Card className={cardClassName}>
         <CardHeader>
           <CardTitle className="text-lg">Movimentação por Carteira</CardTitle>
           <CardDescription>Entradas e saídas {period.of}</CardDescription>

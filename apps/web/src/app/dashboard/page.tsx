@@ -57,6 +57,9 @@ import { canSeeCompanySales } from "@/lib/sales/dashboard-sales";
 import { SalesSummaryCard } from "./_components/sales-summary-card";
 import { ProposalAttentionCard } from "./_components/proposal-attention-card";
 
+/** Card do bloco do mês: não parte entre colunas e guarda o espaço de baixo. */
+const MONTH_CARD = "mb-6 break-inside-avoid";
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { tenantOwner, tenant } = useTenant();
@@ -262,21 +265,27 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Metas e comissões de um lado, o resumo do mês do outro. Os dois
-            primeiros somem quando não há o que mostrar, e aí o resumo ocupa a
-            largura toda (a coluna da esquerda vazia some pelo :empty). */}
-        <div className="grid gap-6 lg:grid-cols-2 lg:has-[>[data-slot=month-left]:empty]:grid-cols-1">
-          <div data-slot="month-left" className="space-y-6 empty:hidden">
+        {/* Metas, comissões e o resumo do mês em colunas que se equilibram
+            pela altura: com colunas fixas, uma meta curta ao lado de dois
+            cards de resumo deixava um vão embaixo. Metas e comissões somem
+            sem dado (o invólucro vazio some junto), e os cards do resumo
+            ocupam o espaço. */}
+        <div className="gap-6 lg:columns-2">
+          <div className={`${MONTH_CARD} empty:hidden`}>
             <GoalsProgressCard month={selectedMonth} />
+          </div>
+          <div className={`${MONTH_CARD} empty:hidden`}>
             {!loading.month && <CommissionsPanel report={commissionReport} />}
           </div>
-          <div className="@container">
-            {loading.month ? (
-              <Skeleton className="h-80 rounded-xl" />
-            ) : (
-              <MonthStats currentMonthStats={currentMonthStats} period={period} />
-            )}
-          </div>
+          {loading.month ? (
+            <Skeleton className={`${MONTH_CARD} h-80 rounded-xl`} />
+          ) : (
+            <MonthStats
+              currentMonthStats={currentMonthStats}
+              period={period}
+              cardClassName={MONTH_CARD}
+            />
+          )}
         </div>
       </section>
 
