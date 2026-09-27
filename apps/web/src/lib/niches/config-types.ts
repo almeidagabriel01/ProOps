@@ -72,6 +72,13 @@ export interface PricingDefinition {
   dimensionModes: readonly DimensionPricingMode[];
   /** Modo com que um produto novo nasce. */
   defaultProductMode: ProductPricingMode;
+  /**
+   * Nome, descrição e título de regra de um modo, trocados pelo nicho. Sem
+   * entrada, vale o padrão de `lib/pricing/dimension-mode-labels.ts`.
+   */
+  modeLabels?: Partial<
+    Record<DimensionPricingMode, Partial<{ short: string; description: string; ruleTitle: string }>>
+  >;
 }
 
 export interface PdfDefinition {

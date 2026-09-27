@@ -56,6 +56,7 @@ import {
   normalizeProposalPricingDetails,
 } from "@/lib/product-pricing";
 import { createLineItemId, ensureAmbienteProductLineItemId } from "@/lib/proposal-product";
+import { dimensionModeLabel } from "@/lib/pricing/dimension-mode-labels";
 
 interface AmbienteEditorProps {
   ambiente: Ambiente | null;
@@ -805,7 +806,7 @@ export function AmbienteEditor({
                                       variant="outline"
                                       className="h-auto shrink-0 px-2 py-0.5 text-[10px]"
                                     >
-                                      Por metragem
+                                      {dimensionModeLabel(nicheConfig.pricing, "curtain_meter").short}
                                     </Badge>
                                   )}
                                   {isCurtainHeight && (
@@ -813,7 +814,7 @@ export function AmbienteEditor({
                                       variant="outline"
                                       className="h-auto shrink-0 px-2 py-0.5 text-[10px]"
                                     >
-                                      Por altura
+                                      {dimensionModeLabel(nicheConfig.pricing, "curtain_height").short}
                                     </Badge>
                                   )}
                                   {isCurtainWidth && (
@@ -821,7 +822,7 @@ export function AmbienteEditor({
                                       variant="outline"
                                       className="h-auto shrink-0 px-2 py-0.5 text-[10px]"
                                     >
-                                      Por largura
+                                      {dimensionModeLabel(nicheConfig.pricing, "curtain_width").short}
                                     </Badge>
                                   )}
                                   {isQuantityPricedProduct && (

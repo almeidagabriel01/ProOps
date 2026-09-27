@@ -75,6 +75,8 @@ import {
   getProductPricingSummary,
 } from "@/lib/product-pricing";
 import { resetProposalProductPriceToDefault } from "@/lib/proposal-product";
+import { dimensionModeLabel } from "@/lib/pricing/dimension-mode-labels";
+import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -711,6 +713,7 @@ function EnvironmentProductRow({
   onToggleStatus,
 }: EnvironmentProductRowProps) {
   const { place } = useNicheVocabulary();
+  const { pricing } = useCurrentNicheConfig();
   const itemType = product.itemType || "product";
   const lineItemId = product.lineItemId;
   const isService = itemType === "service";
@@ -1170,17 +1173,17 @@ function EnvironmentProductRow({
               </Badge>
               {isCurtainMeter && (
                 <Badge variant="outline" className="h-auto shrink-0 px-2 py-0.5 text-[10px]">
-                  Por metragem
+                  {dimensionModeLabel(pricing, "curtain_meter").short}
                 </Badge>
               )}
               {isCurtainHeight && (
                 <Badge variant="outline" className="h-auto shrink-0 px-2 py-0.5 text-[10px]">
-                  Por altura
+                  {dimensionModeLabel(pricing, "curtain_height").short}
                 </Badge>
               )}
               {isCurtainWidth && (
                 <Badge variant="outline" className="h-auto shrink-0 px-2 py-0.5 text-[10px]">
-                  Por largura
+                  {dimensionModeLabel(pricing, "curtain_width").short}
                 </Badge>
               )}
               {isQuantityPricedProduct && (

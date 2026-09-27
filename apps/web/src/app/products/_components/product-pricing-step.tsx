@@ -24,6 +24,8 @@ import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
 import { no } from "@/lib/niches/vocabulary";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
+import { dimensionModeLabel } from "@/lib/pricing/dimension-mode-labels";
+import type { DimensionPricingMode } from "@/lib/product-pricing";
 
 interface ProductPricingStepProps {
   entityType: "product" | "service";
@@ -175,6 +177,8 @@ export function ProductPricingStep({
 }: ProductPricingStepProps) {
   const nicheConfig = useCurrentNicheConfig();
   const { dimensionModes } = nicheConfig.pricing;
+  const modeLabel = (mode: DimensionPricingMode) =>
+    dimensionModeLabel(nicheConfig.pricing, mode);
   const { place } = nicheConfig.vocabulary;
   const measureHelper = `Informada na proposta e ${no(place)} ${place.singular}`;
   const basePrice = parseFormNumber(formData.price);
@@ -273,8 +277,8 @@ export function ProductPricingStep({
               <PricingModeButton
                 active={isCurtainMeterMode}
                 icon={<Scissors className="h-5 w-5" />}
-                title="Por metragem"
-                description="Usa largura x altura x preço com markup na proposta."
+                title={modeLabel("curtain_meter").short}
+                description={modeLabel("curtain_meter").description}
                 onClick={() => onPricingModeChange("curtain_meter")}
               />
             )}
@@ -282,8 +286,8 @@ export function ProductPricingStep({
               <PricingModeButton
                 active={isCurtainHeightMode}
                 icon={<Layers3 className="h-5 w-5" />}
-                title="Por altura"
-                description="Usa faixa de altura e multiplica pela largura preenchida na proposta."
+                title={modeLabel("curtain_height").short}
+                description={modeLabel("curtain_height").description}
                 onClick={() => onPricingModeChange("curtain_height")}
               />
             )}
@@ -291,8 +295,8 @@ export function ProductPricingStep({
               <PricingModeButton
                 active={isCurtainWidthMode}
                 icon={<Ruler className="h-5 w-5" />}
-                title="Por largura"
-                description="Usa apenas largura e multiplica pelo preço com markup na proposta."
+                title={modeLabel("curtain_width").short}
+                description={modeLabel("curtain_width").description}
                 onClick={() => onPricingModeChange("curtain_width")}
               />
             )}
@@ -396,7 +400,7 @@ export function ProductPricingStep({
         </PricingSection>
       ) : isCurtainMeterMode ? (
         <PricingSection
-          title="Regra por metragem"
+          title={modeLabel("curtain_meter").ruleTitle}
           description="Defina o preço bruto por metro quadrado e o markup. Largura e altura serão preenchidas quando o produto for usado."
           badge={
             <div className="rounded-xl bg-muted/40 px-4 py-3">
@@ -479,7 +483,7 @@ export function ProductPricingStep({
         </PricingSection>
       ) : isCurtainWidthMode ? (
         <PricingSection
-          title="Regra por largura linear"
+          title={modeLabel("curtain_width").ruleTitle}
           description="Defina o preço bruto por metro linear e o markup. A largura será preenchida quando o produto for usado."
           badge={
             <div className="rounded-xl bg-muted/40 px-4 py-3">
@@ -647,7 +651,7 @@ export function ProductPricingStep({
         </PricingSection>
       ) : (
         <PricingSection
-          title="Faixas por altura"
+          title={modeLabel("curtain_height").ruleTitle}
           description="Crie uma faixa para cada altura máxima. Cada faixa usa preço bruto, markup e largura preenchida depois na proposta."
           badge={
             <Button type="button" variant="outline" onClick={onAddHeightPricingTier}>
