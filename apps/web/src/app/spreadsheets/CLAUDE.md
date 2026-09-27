@@ -10,7 +10,7 @@ O editor utiliza **UniverJS** (`@univerjs/presets`), uma engine de planilhas ope
 
 Usuários autenticados com tenant ativo. Superadmin sem tenant selecionado vê o estado `SelectTenantState`.
 
-Não há granularidade fina por permissão (qualquer usuário do tenant pode criar/editar/excluir).
+Permissão por página: `usePagePermission("spreadsheets")` na tela e `checkPermission` no controller.
 
 ## Estrutura de rotas
 

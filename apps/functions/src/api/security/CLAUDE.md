@@ -204,7 +204,7 @@ O módulo resolve o hostname via DNS **antes** de retornar aprovação. Mesmo qu
 
 ### Onde é Usado
 
-Atualmente consumido pelo `proxy.controller.ts` (endpoint `/v1/aux/proxy-image`) para validar URLs de imagens externas antes de fazer proxy. Deve ser usado em qualquer futuro endpoint que aceite URLs fornecidas pelo cliente.
+Consumido hoje por `api/services/whatsapp/whatsapp.utils.ts`. `proxyImage` existe em `proxy.controller.ts`, mas nenhuma rota o monta. Deve ser usado em qualquer futuro endpoint que aceite URLs fornecidas pelo cliente.
 
 ### Regras ao Modificar
 

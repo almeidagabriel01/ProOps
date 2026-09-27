@@ -272,7 +272,7 @@ describe("executeToolCall — superadmin em modo somente leitura", () => {
 
   test("toda ferramenta de escrita do registro e classificada como escrita", () => {
     const writes = TOOL_REGISTRY.filter((e) => isMutatingTool(e)).map((e) => e.declaration.name);
-    expect(writes).toEqual(expect.arrayContaining(["send_whatsapp_message", "delete_proposal"]));
+    expect(writes).toEqual(expect.arrayContaining(["create_transaction", "delete_proposal"]));
     expect(writes).not.toContain("list_proposals");
     expect(writes).not.toContain("request_confirmation");
   });

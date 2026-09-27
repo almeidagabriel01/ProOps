@@ -13,8 +13,10 @@ types/
 ├── notification.ts       # Tipos de notificações
 ├── observability.ts      # Tipos de observabilidade/erros
 ├── plan.ts               # Tipos de planos e features
+├── project.ts            # Tipos de projetos de instalação (obra depois da venda)
 ├── proposal.ts           # Tipos de propostas e items
 ├── shared-proposal.ts    # Tipos de propostas compartilhadas (públicas)
+├── task.ts               # Tipos de tarefas
 ├── pdf.types.ts          # Tipos para geração/exibição de PDF
 ├── pdf-display-settings.ts
 └── declarations.d.ts     # Declarações de módulos externos
@@ -46,11 +48,8 @@ export interface NomeDominio {
 ```
 
 ## Multi-niche
-Para tipos que variam por nicho, usar union discriminada:
-```typescript
-export type NicheConfig = AutomacaoConfig | CortinasConfig
-// com campo discriminante: type: 'automacao_residencial' | 'cortinas'
-```
+`NicheConfig` é interface em `lib/niches/config.ts`, com `id: TenantNiche`. O que
+muda por nicho vira campo dela, lido por `useCurrentNicheConfig()`.
 
 ## Ao adicionar novos tipos
 1. Verificar se já existe tipo similar nos arquivos acima

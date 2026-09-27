@@ -7,6 +7,11 @@
 | Arquivo | Responsabilidade |
 |---------|-----------------|
 | `_hooks/useFinancialData.ts` | Estado central: transactions, wallets, filtros, optimistic updates |
+| `_hooks/useEditTransaction.ts` | Carrega e submete edição de lançamento/grupo |
+| `_hooks/useTransactionForm.ts` | Criação de lançamentos |
+| `_components/transaction-card.tsx` | Exibe lançamentos em cards agrupados |
+| `_components/transaction-filters.tsx` | Filtros da listagem |
+| `src/components/features/wallet-select.tsx` | Seletor de carteira (usado em todos os forms) |
 
 ## Escopo de leitura por período (2026-07-06) — só aba Lista
 
@@ -109,11 +114,6 @@ zerando o status. O padrão de cada filtro não aparece no endereço, e
 `status=todos` é a escolha explícita de ver todos na Lista
 (`_lib/filters-url.ts`). O tenant chegar depois do primeiro render não conta
 como troca de empresa, senão o status do endereço seria apagado.
-| `_hooks/useEditTransaction.ts` | Carrega e submete edição de lançamento/grupo |
-| `_hooks/useTransactionForm.ts` | Criação de lançamentos |
-| `_components/transaction-card.tsx` | Exibe lançamentos em cards agrupados |
-| `_components/transaction-filters.tsx` | Filtros da listagem |
-| `src/components/features/wallet-select.tsx` | Seletor de carteira (usado em todos os forms) |
 
 ## Migração ID vs NAME (CRÍTICO)
 

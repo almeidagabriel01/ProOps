@@ -7,7 +7,7 @@ URLs de Cloud Functions diretamente nem acessam Firestore diretamente.
 
 ## Services existentes
 ```
-services/                       # 33 services
+services/
 ├── addon-service.ts          # Add-ons de planos
 ├── admin-service.ts          # Operações de admin
 ├── ai-service.ts             # Chat/IA Lia
@@ -46,17 +46,16 @@ services/                       # 33 services
 
 ## Padrão de service
 ```typescript
-import { apiClient } from '@/lib/api-client'
+import { callApi } from '@/lib/api-client'
 import type { TipoRequest, TipoResponse } from '@/types'
 
+// callApi prefixa a base do proxy (/api/backend) e envia o token do usuario
 export async function nomeOperacao(params: TipoRequest): Promise<TipoResponse> {
-  const { data } = await apiClient.post('/api/backend/[rota]', params)
-  return data
+  return callApi<TipoResponse>('v1/[rota]', 'POST', params)
 }
 
 export async function buscarRecurso(id: string): Promise<TipoResponse> {
-  const { data } = await apiClient.get(`/api/backend/[rota]/${id}`)
-  return data
+  return callApi<TipoResponse>(`v1/[rota]/${id}`)
 }
 ```
 

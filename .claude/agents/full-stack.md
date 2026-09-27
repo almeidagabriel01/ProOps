@@ -17,13 +17,16 @@ tools: Read, Write, Edit, Bash
 - Revisão geral de código
 - Mudanças em tipos TypeScript compartilhados
 
-## Antes do fluxo: as quatro perguntas de acesso
+## Antes do fluxo: as seis perguntas de módulo novo
 
 Feature nova do zero é exatamente o caso em que os gaps entram. Responda —
 ou **pergunte ao usuário** — antes de codar: **permissão de membro** (`pageId`),
 **plano** (qual capacidade, qual tier, add-on?), **conta free/modo demo** (a
-conta gratuita navega isto?) e **Firestore rules** (coleção nova precisa de
-regra). Checklist executável em `.claude/rules/access-control.md`.
+conta gratuita navega isto?), **Firestore rules** (coleção nova precisa de
+regra), **onboarding** (a tela entra no tutorial, ou o motivo vai para
+`ROUTES_WITHOUT_OWN_STEP`?) e **nichos** (como fica em cada `TenantNiche`?).
+Checklist executável em `.claude/rules/access-control.md`, incluindo a seção
+"Além do acesso".
 
 ## Fluxo de trabalho
 1. **Tipos primeiro** — define interfaces em `src/types/` e `apps/functions/src/shared/`

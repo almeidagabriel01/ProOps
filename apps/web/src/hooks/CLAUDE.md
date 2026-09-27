@@ -3,7 +3,7 @@
 ## Responsabilidade
 React hooks customizados que encapsulam lógica reutilizável de dados e UI.
 
-## Hooks existentes (33 + subpasta proposal/)
+## Hooks existentes (+ subpasta proposal/)
 ```
 hooks/
 ├── proposal/              # Hooks específicos de propostas (subpasta)
@@ -18,7 +18,6 @@ hooks/
 ├── useAiChat.ts           # Chat com a IA Lia
 ├── useClientActions.ts    # Ações CRUD de clientes
 ├── useCreateMember.ts     # Criação de membros da equipe (reexporta getDefaultPermissions de lib/permissions/pages)
-├── useCreateProposal.ts   # Criação de propostas
 ├── useCurrentNicheConfig.ts # Config do nicho atual do tenant
 ├── useDashboardData.ts    # Dados do dashboard, em quatro grupos com carregamento próprio (cálculos em lib/dashboard-metrics.ts)
 ├── useDisplayTenant.ts    # Tenant exibido (superadmin impersonation)
@@ -33,7 +32,6 @@ hooks/
 ├── useNotificationScope.ts
 ├── useNotifications.ts    # Sistema de notificações
 ├── usePagePermission.ts   # Verificação de permissões por página (pageId de lib/permissions/pages)
-├── usePageTitle.ts        # Título dinâmico da página
 ├── usePlanChange.ts       # Mudança de plano
 ├── usePlanLimits.ts       # Verificação de limites do plano
 ├── usePlanUsage.ts        # Uso atual do plano
@@ -83,6 +81,6 @@ export function use[Recurso](params: Params) {
 
 ## Providers disponíveis para consumir
 - `useAuth()` — usuário atual, login/logout
-- `useTenant()` — dados do tenant ativo, `tenantNiche`
+- `useTenant()` — dados do tenant ativo, `tenant.niche`
 - `usePermissions()` — permissões por role do usuário
 - `useTheme()` — dark/light mode (next-themes)

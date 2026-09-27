@@ -73,7 +73,7 @@ Não há sub-rota de API aqui — todas as mutações passam por `/api/backend/`
 Definido em `src/services/client-service.ts`:
 
 ```typescript
-export type ClientSource = "manual" | "proposal" | "financial";
+export type ClientSource = "manual" | "proposal" | "financial" | "import";
 export type ClientType  = "cliente" | "fornecedor" | "vendedor" | "arquiteto";
 
 export type Client = {

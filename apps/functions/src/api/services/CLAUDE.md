@@ -11,9 +11,9 @@
 | `notification-audience.ts` | Quem recebe cada tipo (catalogo + permissoes + preferencias) |
 | `shared-proposal.service.ts` | Criacao e resolucao de share links de propostas |
 | `shared-transactions.service.ts` | Criacao e resolucao de share links de lancamentos |
-| `transaction.service.ts` | Logica de negocio de lancamentos financeiros (~1350 linhas) |
+| `transaction.service.ts` | Logica de negocio de lancamentos financeiros |
 | `pdf-filename.ts` | Helpers para construcao de nomes e Content-Disposition de PDF |
-| `whatsapp/` | Servicos do bot WhatsApp (ver `whatsapp.CLAUDE.md`) |
+| `whatsapp/` | Servicos do bot WhatsApp (ver `../controllers/whatsapp.CLAUDE.md`) |
 
 ---
 
@@ -194,7 +194,7 @@ Ready selector: `[data-pdf-products-ready="1"]` (atributo setado pelo componente
 
 ## `transaction-pdf.service.ts` — PDF de recibo
 
-**`PDF_TEMPLATE_VERSION = "receipt-pdf-v2-playwright"`**
+**`PDF_TEMPLATE_VERSION`** (constante em `transaction-pdf.service.ts`)
 
 Mesma arquitetura de cache/lock da proposta, mas mais simples:
 - Sem lock (recibos tem menos concorrencia)
@@ -235,7 +235,7 @@ Nesses endpoints o token **e** a autenticacao — nao requerem Bearer token.
 
 ## PDF Rate Limiter (`pdf-rate-limiter.ts`)
 
-Middleware in-memory (por instancia do Cloud Function):
+Middleware sobre `createRateLimiter` (`lib/rate-limit/express-limiter`):
 
 ```
 Janela: 60 segundos (deslizante)
@@ -246,9 +246,7 @@ Limite: 5 requisicoes por janela por usuario (uid) ou IP
 - Endpoints publicos (sem uid): chave = `ip:<resolveClientIp>` (`lib/client-ip.ts`: IP repassado pelo proxy com segredo, senão o ÚLTIMO valor do x-forwarded-for)
 - HTTP 429 com header `Retry-After: <segundos>` e corpo `{ code: "PDF_RATE_LIMIT_EXCEEDED" }`
 
-**Atencao:** Em ambientes com multiplas instancias Cloud Run, o rate limit e por instancia. Para enforcement global use Firebase App Check ou Cloud Armor.
-
-Limpeza automatica do mapa a cada 60s via `setInterval(...).unref()`.
+**Atencao:** em memoria por instancia hoje; Redis com `RATE_LIMIT_STORE=redis` (ver `api/middleware/CLAUDE.md`).
 
 ---
 

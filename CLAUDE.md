@@ -93,7 +93,7 @@ Region: `southamerica-east1`. Firebase projects: `erp-softcode` (dev), `erp-soft
 ### Frontend (`apps/web/`)
 ```bash
 npm run dev           # Next.js dev server
-npm run build         # Production build (standalone)
+npm run build         # Production build
 npm run lint          # ESLint
 ```
 
@@ -119,7 +119,8 @@ npm run test:functions:integration     # Jest (backend, integração) — sobe o
 npm run test:e2e                       # Playwright E2E desktop (requires emulators)
 npx playwright test --config=tests/playwright.config.ts --project=mobile-chrome   # E2E mobile (Pixel 5)
 npm run test:rules                     # Firestore + Storage security rules (Jest; emuladores firestore,storage)
-npm run security:scan                  # OWASP ZAP baseline
+npm run test:security                  # OWASP ZAP baseline
+npm run security:scan                  # npm audit (runtime + functions)
 ```
 
 ## Architecture
@@ -133,7 +134,7 @@ npm run security:scan                  # OWASP ZAP baseline
 - Firestore rules are DENY-by-default. Stale-claims fallback reads `users/{uid}`.
 
 ### Key Integrations
-- **Stripe** — subscriptions, plan enforcement, overage billing. Webhook: `/stripe/stripeWebhook`
+- **Stripe** — subscriptions, plan enforcement, overage billing. Webhook: função HTTP própria `stripeWebhook` (`apps/functions/src/stripe/stripeWebhook.ts`), fora do monolito
 - **WhatsApp** — webhooks, monthly overage cron (days 1–3 of the month, 03:00 AM BRT; idempotent). Webhook: `/webhooks/whatsapp`
 - **Asaas** — payment processing (PIX/boleto/card) for shared-transaction payments. Webhook: `/webhooks/asaas/:tenantId`; public payment API mounted at `/v1`. (Replaced the former MercadoPago webhook.)
 - **Nota Fiscal** — Focus NFe, provedor único de NF-e e NFS-e. Atrás da interface
@@ -144,7 +145,7 @@ npm run security:scan                  # OWASP ZAP baseline
 - **Google Drive** — entrega o PDF da proposta na pasta do cliente, no Drive do tenant.
   Só de ida (nada é lido), escopo `drive.file` (não sensível). Consentimento separado do
   Calendar, mesmo app OAuth. A pasta é criada por nós — sem Picker, sem chave de API, sem
-  variável pública. Config em `/settings/drive`. Detalhes em `apps/functions/CLAUDE.md`.
+  variável pública. Config em `/settings/drive`. Detalhes em `apps/functions/src/api/services/drive/CLAUDE.md`.
 - **AI/Lia** — Google Gemini + Groq. Module: `apps/functions/src/ai/`. Rate-limited per user.
 - **PDF** — Playwright/Chromium headless, rate-limited (5 req/60s per user)
 - **Google Calendar** — via `@googleapis/calendar` + `@googleapis/oauth2` (lazy-loaded)
@@ -272,14 +273,14 @@ a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
 │   │   └── src/
 │   │       ├── app/          # App Router (30+ segments) + api/backend/ proxy
 │   │       ├── components/   # ui/(Shadcn), admin, auth, lia, features, shared...
-│   │       ├── hooks/        # Data-fetching + UI hooks (34, + proposal/ subfolder)
+│   │       ├── hooks/        # Data-fetching + UI hooks (+ proposal/ subfolder)
 │   │       ├── providers/    # Auth, Tenant, Permissions, Theme, Plan
-│   │       ├── services/     # Client-side API calls → /api/backend/* (33)
-│   │       ├── lib/          # Firebase init, niches/, plan limits
+│   │       ├── services/     # Client-side API calls → /api/backend/*
+│   │       ├── lib/          # Firebase init, niches/, permissions/, site/
 │   │       └── types/        # TypeScript interfaces
 │   └── functions/    # Firebase Cloud Functions V2 (Express monolith)
 │       └── src/
-│           ├── api/          # controllers/(36), routes/(24), middleware/, services/, security/
+│           ├── api/          # controllers/, routes/, middleware/, services/, security/
 │           ├── ai/           # Lia AI module (Gemini, Groq, rate limiter, tools)
 │           ├── billing/      # Billing queue, price-drift reconciliation
 │           ├── services/     # Email (Resend), Zoom, WhatsApp billing
@@ -315,5 +316,7 @@ Detailed documentation per module lives in CLAUDE.md files within each folder:
 - Projetos de instalação (obra depois da venda): `apps/web/src/app/projects/CLAUDE.md`
 - Financial module (backend): `apps/functions/CLAUDE.md`
 - Backend services: `apps/functions/src/api/services/CLAUDE.md`
+- Fiscal (NF-e, NFS-e, notas de entrada): `apps/functions/src/api/services/fiscal/CLAUDE.md`
+- Google Drive (entrega da proposta): `apps/functions/src/api/services/drive/CLAUDE.md`
 - Backend middleware: `apps/functions/src/api/middleware/CLAUDE.md`
 - CI/CD, GitHub Secrets, workflows: `.claude/rules/ci-cd.md`

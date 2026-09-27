@@ -176,8 +176,6 @@ transações (backlog do audit).
 | `src/app/dashboard/_components/` | Todos os componentes visuais do dashboard |
 | `src/hooks/useDashboardData.ts` | Hook central — fetch paralelo + computações derivadas |
 | `src/components/charts/simple-bar-chart.tsx` | BarChart de fluxo de caixa (Recharts) |
-| `src/services/transaction-service.ts` | `getTransactions`, `getSummary` |
-| `src/services/proposal-service.ts` | `getProposals` |
 | `src/services/wallet-service.ts` | `getWallets` |
 | `src/services/kanban-service.ts` | `getStatuses`, `getDefaultProposalColumns` |
 

@@ -115,5 +115,5 @@ A edição abre como substituto de toda a página (não modal), com URL atualiza
 ### `solutions/page.tsx` — redirect no useEffect
 O redirect de `cortinas` para `/ambientes` acontece num `useEffect` (client-side), não em `redirect()` server-side. Isso significa que há um flash de `PageUnavailableState` antes do redirect se o tenant ainda estiver carregando. O `isLoading` do `useTenant` protege parcialmente isso.
 
-### Remoção otimista no delete
-`/ambientes/page.tsx` remove o item do estado local imediatamente ao confirmar a exclusão (`setAmbientes(prev => prev.filter(...))`), antes de aguardar confirmação do backend. Se o backend falhar, o dado some da lista mas não foi excluído — o `loadData` não é chamado em caso de erro para evitar recarregar toda a lista.
+### Remoção local no delete
+`/ambientes/page.tsx` remove o item do estado local (`setAmbientes(prev => prev.filter(...))`) depois de o backend confirmar a exclusão, sem chamar `loadData`, para evitar recarregar toda a lista. Se o backend falhar, o item continua na lista e a tela mostra um toast de erro.

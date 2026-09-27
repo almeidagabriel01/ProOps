@@ -159,19 +159,15 @@ Isso garante que a mesma transacao nao gera multiplas notificacoes a cada execuc
 ### 2. `checkStripeSubscriptions` — Sync diario de assinaturas Stripe
 
 **Arquivo:** `apps/functions/src/checkStripeSubscriptions.ts`
-**Schedule:** `every 24 hours`
+**Schedule:** `"0 3 * * *"` (diariamente as 03:00 BRT)
 **Timeout:** 540 segundos (9 minutos)
 **Memory:** 512MiB
 
 #### O que faz
 
-> **Atualizado em 2026-09-25:** o cron percorre `tenants` com `subscriptionStatus != "free"` por paginas e com prazo de 420s, continuando no dia seguinte de onde parou (`cron_cursors/checkStripeSubscriptions`, via `runRotatingCursor` em `lib/cron-iteration.ts`), e enfileira `enqueueTenantSync` por tenant. Antes lia todos de uma vez e, acima de ~1.800 tenants, estourava os 540s sempre no mesmo ponto. O `reconcileAddons` usa o mesmo cursor (`cron_cursors/reconcileAddons`). A descricao abaixo e do fluxo antigo.
+> **Atualizado em 2026-09-25:** o cron percorre `tenants` com `subscriptionStatus != "free"` por paginas e com prazo de 420s, continuando no dia seguinte de onde parou (`cron_cursors/checkStripeSubscriptions`, via `runRotatingCursor` em `lib/cron-iteration.ts`), e enfileira `enqueueTenantSync` por tenant. Antes lia todos de uma vez e, acima de ~1.800 tenants, estourava os 540s sempre no mesmo ponto. O `reconcileAddons` usa o mesmo cursor (`cron_cursors/reconcileAddons`).
 
-1. Chama `runStripeSync(LIMIT=200, startAfterId, dryRun=false)` em loop paginado
-2. `runStripeSync` (em `stripeHelpers.ts`) itera todos os usuarios com `stripeSubscriptionId`, recupera a subscription no Stripe e compara o status
-3. Se houve mudanca de status: atualiza `users/{uid}` e `tenants/{tenantId}` no Firestore
-4. Continua paginando ate `hasMore === false`
-5. Apos o sync completo: cria ou atualiza notificacao `system` para todos os superadmins
+Ao fim de cada execucao: cria ou atualiza notificacao `system` para todos os superadmins.
 
 #### Notificacao para superadmins
 
@@ -266,7 +262,7 @@ O mes pode ser passado via `body.month` ou `query.month`. Formato: `YYYY-MM`.
 
 Remove:
 - Arquivos PDF do Firebase Storage que nao tem mais documento Firestore correspondente
-- Documentos de shared links expirados (`sharedProposals`, `sharedTransactions`)
+- Documentos de shared links expirados (`shared_proposals`, `shared_transactions`)
 
 ---
 
@@ -326,8 +322,8 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `wallets/{walletId}` | Financeiro | Carteiras com saldo desnormalizado |
 | `cron_cursors/{cronId}` | Crons | Onde um cron longo parou (`runRotatingCursor`): `checkStripeSubscriptions`, `reconcileAddons`. Admin SDK only |
 | `transaction_group_sync/{groupDocId}` | Financeiro | `readTime` em que cada resumo de `transaction_groups` se baseou; ordena e coalesce os recalculos do `onTransactionTotals`. Admin SDK only |
-| `sharedProposals/{token}` | Share Links | Links publicos de propostas |
-| `sharedTransactions/{token}` | Share Links | Links publicos de lancamentos |
+| `shared_proposals/{id}` | Share Links | Links publicos de propostas (id automatico; o token e campo) |
+| `shared_transactions/{id}` | Share Links | Links publicos de lancamentos (id automatico; o token e campo) |
 | `fiscal_settings/{tenantId}` | Fiscal | Config do emitente (CNPJ, IE/IM, regime, serie/numeracao, senha do certificado cifrada em KMS). Admin SDK only |
 | `invoices/{invoiceId}` | Fiscal | Notas emitidas. Tenant LE (UI acompanha por onSnapshot); escrita so via Cloud Functions |
 | `received_invoices/{tenantId}_{chave}` | Fiscal | Notas de ENTRADA (emitidas contra o CNPJ). Tenant le; escrita so via Cloud Functions |

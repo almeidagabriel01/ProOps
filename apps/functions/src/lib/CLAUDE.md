@@ -179,9 +179,8 @@ Busca `users/{userId}/permissions/{permissionDoc}` e retorna `data[requiredField
 
 **Docs de permissao conhecidos** — a lista canonica vive no frontend, em
 `apps/web/src/lib/permissions/pages.ts` (`PERMISSION_PAGES`), que e a MESMA
-consumida pelas duas telas da area de Equipe: `dashboard`, `kanban`,
-`proposals`, `clients` (+ `customers` legado), `products`, `services`,
-`spreadsheets`, `calendar`, `solutions`, `transactions`, `wallet`, `invoices`.
+consumida pelas duas telas da area de Equipe. Consulte a lista la; ela nao e
+copiada aqui.
 
 **Nunca inventar uma chave aqui.** `checkFinancialPermission` lia um doc
 `financial` cravado no codigo que nenhum caminho de escrita jamais criou — a
@@ -201,8 +200,8 @@ usam este. Guard: `__tests__/has-page-permission.test.ts`.
 ### `loadPagePermissions(claims)` / `resolvePagePermission(...)`
 
 Le a subcolecao inteira numa consulta, para quem avalia VARIAS paginas na
-mesma request — a Lia, que monta a lista de 29 ferramentas por turno. Com
-`checkPermission` seriam ~29 leituras.
+mesma request — a Lia, que monta a lista de ferramentas por turno. Com
+`checkPermission` seria uma leitura por ferramenta.
 
 ### `normalizePagePermission(perms)`
 
@@ -265,20 +264,10 @@ billing do superadmin exibia um numero diferente do que bloqueava o tenant.
 
 ### Duas metades: limites e capacidades
 
-```typescript
-// "quantos ainda posso criar?" — enforceTenantPlanLimit
-type PlanLimitFeature =
-  | "maxProposalsPerMonth"
-  | "maxWallets"
-  | "maxUsers"
-  | "storageQuotaMB"
-  | "maxSpreadsheets"
-
-// "este plano abre este modulo?" — requirePlanCapability
-type PlanCapabilityKey =
-  | "financial" | "crm" | "fiscal"
-  | "pdfEditor" | "customTheme" | "whatsapp" | "calendarSync"
-```
+- "quantos ainda posso criar?": `PlanLimitFeature` em `lib/tenant-plan-policy.ts`,
+  aplicado por `enforceTenantPlanLimit`.
+- "este plano abre este modulo?": `PlanCapabilityKey` em `shared/plan-capabilities.ts`,
+  aplicado por `requirePlanCapability`.
 
 A segunda metade **nao existia**. `PlanLimitFeature` era fechado em 5 chaves
 numericas, entao modulo novo nao tinha onde declarar seu tier minimo — e foi

@@ -9,11 +9,11 @@ Nenhum outro lugar do projeto deve importar Firebase SDKs diretamente — use os
 lib/
 ├── firebase.ts              # Firebase client SDK init (auth, firestore, storage)
 ├── firebase-admin.ts        # Firebase Admin SDK (server-side: API routes, middleware)
-├── api-client.ts            # Axios client configurado para /api/backend/*
+├── api-client.ts            # cliente `fetch` (`callApi`, `callPublicApi`) para /api/backend/*
 ├── firestore-error.ts       # Tratamento de erros Firestore
 ├── auth/                    # Helpers de autenticação (verificação de token, session)
 ├── niches/                  # Lógica multi-niche (automacao_residencial | cortinas)
-├── plans/                   # Limites e permissões por plano (Free, Pro, etc.)
+├── plans/                   # Rótulo de plano (`plan-label.ts`)
 ├── site/                    # Política de host: qual das 3 superfícies e o SEO de cada uma
 ├── permissions/             # Fonte única dos pageIds do sistema de permissões
 ├── notifications/           # Catálogo, link, leitor (por pessoa) e escopo das notificações
@@ -34,9 +34,9 @@ lib/
 - **NUNCA** importar em Client Components ou código que vai para o browser bundle
 
 ### API Client (`api-client.ts`)
-- Axios pré-configurado para chamadas ao backend via `/api/backend/*`
+- Cliente `fetch` (`callApi`, `callPublicApi`) para chamadas ao backend via `/api/backend/*`
 - Toda chamada do frontend ao backend passa por aqui
-- Inclui interceptors de auth (adiciona Bearer token automaticamente)
+- `callApi` adiciona o Bearer token automaticamente
 
 ### Multi-niche (`niches/`)
 - Toda lógica que varia por nicho de negócio fica aqui
@@ -119,11 +119,6 @@ lib/
   navegáveis e fora do índice, e entram no índice no dia da virada.
 - `app-brand.ts` isola `APP_NAME`, já que o nome do aplicativo ainda não está
   decidido.
-
-### Plans (`plans/`)
-- Limites por plano (número de propostas, usuários, produtos, etc.)
-- Verificar limites antes de criar novos recursos
-- Atualizar quando novos planos forem adicionados
 
 ## O que NÃO colocar aqui
 - Componentes React → `src/components/`

@@ -18,7 +18,8 @@ Membros sem role `MASTER` veem uma tela de "Acesso Restrito" ao acessar esta rot
 
 | Caminho | Responsabilidade |
 |---------|-----------------|
-| `src/app/team/page.tsx` | Página principal — fetch de membros, controle de permissões, listagem |
+| `src/app/team/page.tsx` | Só redireciona para `/settings/team` |
+| `src/components/features/team/team-management.tsx` | Página principal (`TeamManagement`): fetch de membros, controle de permissões, listagem |
 | `src/app/team/_components/team-skeleton.tsx` | Skeleton de carregamento |
 | `src/components/features/team/` | Todos os componentes e hooks da feature |
 | `src/hooks/useCreateMember.ts` | Hook para criar membro via API |
@@ -37,7 +38,7 @@ O sistema tem dois roles reais:
 
 | Role | Valor no Firestore | Descrição |
 |------|--------------------|-----------|
-| MASTER | `"MASTER"` (ou legados: `"admin"`, `"superadmin"`) | Dono da empresa. Acesso total irrestrito a todas as páginas e ações. |
+| MASTER | `"MASTER"` (ou legados: `"admin"`, `"superadmin"`, `"WK"`) | Dono da empresa. Acesso total irrestrito a todas as páginas e ações. |
 | MEMBER | `"MEMBER"` (ou legados: `"user"`, `"free"`) | Membro da equipe. Acesso somente às páginas e ações explicitamente permitidas. |
 
 A função `normalizeRole()` em `permissions-provider.tsx` faz o mapeamento de roles legados para o formato atual.
@@ -71,20 +72,8 @@ criação, e as Notas Fiscais em nenhuma das duas — o que deixava `/invoices`
 permanentemente em `/403` para todo membro. Guard:
 `src/lib/permissions/__tests__/pages.test.ts`.
 
-| `id` (pageId) | Nome exibido | Observação |
-|---------------|--------------|------------|
-| `dashboard` | Dashboard | `viewOnly` — sem create/edit/delete |
-| `kanban` | CRM | rota `/crm` |
-| `proposals` | Propostas | também gateia custom_fields, options e proposal_templates |
-| `clients` | Clientes | rota `/contacts` |
-| `products` | Produtos | — |
-| `services` | Serviços | — |
-| `spreadsheets` | Planilhas | — |
-| `calendar` | Calendario | — |
-| `solutions` | Soluções | também gateia `/ambientes`, sistemas e ambientes |
-| `transactions` | Lançamentos (Financeiro) | `requiresFinancial` |
-| `wallet` | Carteira (Financeiro) | `requiresFinancial` — rota `/wallets` |
-| `invoices` | Notas Fiscais (Financeiro) | `requiresFinancial` — emissão E notas de entrada |
+Os ids, nomes e flags (`viewOnly`, `requiresFinancial`) estão em
+`PERMISSION_PAGES`; a lista não é copiada aqui.
 
 As páginas marcadas `requiresFinancial` são ocultadas nas duas telas quando o
 plano do tenant não inclui o módulo financeiro. **Não repetir a lista de ids
@@ -101,7 +90,7 @@ de Equipe grava e que nenhuma delas lê é um toggle decorativo — foi o caso d
 | Camada | Onde | O que faz |
 |---|---|---|
 | Rota | `lib/page-config.ts` + `auth/protected-route.tsx` | `/403` sem a permissão da página |
-| Navegação | `layout/use-navigation-items.tsx`, ou o **botão** que leva à tela quando ela não está na dock (Carteiras em `/transactions`, CRM em `/proposals`) | esconde o destino |
+| Navegação | `layout/use-navigation-items.tsx` (Carteiras no grupo Financeiro, CRM com item próprio na dock), ou o **botão** que leva à tela quando ela não está na dock | esconde o destino |
 | UI | `hooks/usePagePermission.ts` | esconde criar/editar/excluir |
 | Backend | `checkPermission` / `hasPagePermission` / `checkFinancialPermission` | 403 na API |
 
@@ -212,11 +201,11 @@ Antes de submeter, `usePlanLimits` é consultado. Se o limite de membros do plan
 Ao alterar um toggle em `PagePermissionRow`, o fluxo é:
 
 1. `MemberCard` chama `onUpdatePermission(memberId, pageId, key, value)`
-2. `TeamPage` delega para `updateSinglePermission` de `useUpdatePermissions`
+2. `TeamManagement` delega para `updateSinglePermission` de `useUpdatePermissions`
 3. Chamada: `PUT /v1/admin/members/permissions` com `{ targetUserId, pageId, key, value, mode: "single" }`
 4. Em caso de sucesso, o estado local `members` é atualizado otimisticamente
 
-Regra de cascata: ao desativar `canView`, os campos `canCreate`, `canEdit` e `canDelete` são automaticamente zerados (lógica no `updatePermission` de `page.tsx`).
+Regra de cascata: ao desativar `canView`, os campos `canCreate`, `canEdit` e `canDelete` são automaticamente zerados (lógica no `updatePermission` de `team-management.tsx`).
 
 ---
 

@@ -4,11 +4,7 @@ Documentação da infraestrutura de middleware do Express monolith.
 
 ## Arquivos
 
-| Arquivo | Responsabilidade |
-|---------|-----------------|
-| `auth.ts` | Middleware de autenticação Firebase ID Token |
-| `pdf-rate-limiter.ts` | Rate limiting específico para geração de PDF |
-| `impersonation.ts` | "Acessar Painel" do superadmin: tenant da empresa vista + modo somente leitura |
+Um arquivo por middleware; liste a pasta. Os documentados aqui são `auth.ts` (autenticação Firebase ID Token), `impersonation.ts` ("Acessar Painel" do superadmin: tenant da empresa vista + modo somente leitura) e `pdf-rate-limiter.ts` (rate limiting específico para geração de PDF).
 
 > A **última vez online** da empresa (`tenant_presence/{tenantId}.lastSeenAt`) NÃO é gravada
 > aqui: ela vem de `POST /v1/session/ping`, que o frontend chama quando a
@@ -28,8 +24,10 @@ Documentação da infraestrutura de middleware do Express monolith.
 // Posição no pipeline do Express (api/index.ts):
 app.use(publicRoutes...);        // rotas públicas primeiro
 app.use(validateFirebaseIdToken); // barreira de autenticação
+app.use(resolveImpersonation);    // superadmin no "Acessar Painel"
+app.use(requireActiveSubscription); // free vs pagante
 app.use(protectedLimiter);        // rate limiter protegido
-app.use(protectedRoutes...);      // rotas protegidas
+app.use(protectedRoutes...);      // rotas protegidas; requirePlanCapability montado por prefixo nos routers
 ```
 
 ### Rotas que Bypassam Auth
@@ -55,10 +53,10 @@ Rotas públicas adicionais são registradas **antes** do middleware no `api/inde
 ```
 Request → OPTIONS? → next()
        → /share/*? → next()
-       → shouldRequireStrictClaims()
+       → shouldRequireStrictClaimsInMiddleware()
        → resolveAuthContextFromRequest()
            ├── Verifica token Firebase ID com Admin SDK
-           ├── Extrai custom claims (tenantId, role, masterId, isSuperAdmin)
+           ├── Extrai custom claims (tenantId, role, masterId); isSuperAdmin é derivado de role
            └── Stale claims fallback (ver abaixo)
        → req.user = authContext
        → hasRequiredClaims?
@@ -81,7 +79,8 @@ O flag `hasRequiredClaims` em `AuthContext` indica se os claims estavam completo
 | `tenantId` | `string` | Sim (para rotas protegidas) | Isolamento multi-tenant |
 | `role` | `string` | Sim (para rotas protegidas) | Controle de acesso por função |
 | `masterId` | `string` | Não | Identifica master de sub-usuários |
-| `isSuperAdmin` | `boolean` | Não | Acesso cross-tenant para admins internos |
+
+`isSuperAdmin` não é claim: `AuthContext` o deriva de `role === "SUPERADMIN"` (`evaluateAuthContextInvariants` em `lib/auth-context.ts`). Dá acesso cross-tenant para admins internos.
 
 ### req.user (AuthContext)
 
@@ -203,15 +202,14 @@ Com o store default (memory), o limite é **por instância** do Cloud Run — su
 
 ### Onde é Usado
 
-Aplicado nas rotas de geração de PDF dentro de `finance.routes.ts` e `core.routes.ts`. Verificar os arquivos de rotas para localizar os pontos exatos de aplicação:
+Aplicado nas rotas de geração de PDF dentro de `finance.routes.ts`, `core.routes.ts`, `shared-proposals.routes.ts`, `shared-transactions.routes.ts` e `pdfApp.ts`. Verificar os arquivos de rotas para localizar os pontos exatos de aplicação:
 
 ```typescript
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
-router.get("/proposals/:id/pdf", pdfRateLimiter, generateProposalPdf);
+router.get("/proposals/:id/pdf", pdfRateLimiter, downloadProposalPdf);
 ```
 
 ### Regras ao Modificar
 
 - Aumentar o limite pode degradar a disponibilidade da instância Cloud Run (CPU/RAM)
 - Não usar este limiter para rotas não-PDF — usar o sistema de rate limiting geral em `lib/rate-limit/`
-- Se trocar para rate limiting distribuído (Redis), migrar para `lib/rate-limit/factory.ts` em vez de editar este arquivo

@@ -22,7 +22,7 @@ das quatro tem default seguro, e o projeto já teve um incidente de cada.
 - Route order matters: public routes → `validateFirebaseIdToken` → `resolveImpersonation` (superadmin vendo outra empresa) → `requireActiveSubscription` (free vs pagante) → rate limiters → `requirePlanCapability` (gate de módulo) → protected routes
 - `req.user` is typed as `AuthContext` with: `uid`, `tenantId`, `role`, `masterId`, `isSuperAdmin`, `hasRequiredClaims`
 - Never trust `tenantId` from the request body — always use `req.user.tenantId`
-- Custom claims: `tenantId`, `role`, `masterId`, `isSuperAdmin`
+- Custom claims: `tenantId`, `role`, `masterId` (`isSuperAdmin` é derivado de `role === "SUPERADMIN"` em `lib/auth-context.ts`)
 - Stale-claims fallback: middleware fetches `users/{uid}` doc when claims are incomplete — don't bypass this
 
 ## Firestore Queries
@@ -52,7 +52,7 @@ das quatro tem default seguro, e o projeto já teve um incidente de cada.
 - AI module has its own route registration separate from main `api/routes/`
 
 ## Payment Webhooks
-- **Stripe**: `/stripe/stripeWebhook` — signature verified, manages subscriptions and plan enforcement
+- **Stripe**: função HTTP própria `stripeWebhook` (`src/stripe/stripeWebhook.ts`), fora do monolito; signature verified, manages subscriptions and plan enforcement
 - **Asaas**: `/webhooks/asaas/:tenantId` — `asaas-webhook.controller.ts`; public payment API in `asaas.controller.ts` mounted at `/v1`. (Replaced the former MercadoPago webhook, which was removed.)
 - **WhatsApp**: `/webhooks/whatsapp` — verify token from `WHATSAPP_VERIFY_TOKEN`
 - All webhooks: validate signature/token before processing, reject with 400 on failure

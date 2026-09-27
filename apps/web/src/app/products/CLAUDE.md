@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Catálogo de produtos do tenant. Permite cadastrar, editar, excluir e visualizar produtos que são usados em propostas comerciais. O módulo suporta dois tipos de entidade — **produto** e **serviço** — mas ambos compartilham o mesmo formulário (`ProductFormNew`) e hook (`useProductForm`). A rota `/services` e `/ambientes` reusam esses componentes com `entityType` diferente.
+Catálogo de produtos do tenant. Permite cadastrar, editar, excluir e visualizar produtos que são usados em propostas comerciais. O módulo suporta dois tipos de entidade — **produto** e **serviço** — e ambos usam o hook `useProductForm`. Produto usa o formulário `ProductFormNew`; a rota `/services` tem formulário próprio (`service-form.tsx`) e reusa só o hook, com `entityType` diferente.
 
 ---
 
@@ -10,7 +10,7 @@ Catálogo de produtos do tenant. Permite cadastrar, editar, excluir e visualizar
 
 ```
 /products                  → lista paginada + cards de estoque
-/products/new              → wizard de criação (4 etapas)
+/products/new              → wizard de criação (5 etapas)
 /products/[id]             → edição ou visualização read-only (depende de permissão canEdit)
 ```
 

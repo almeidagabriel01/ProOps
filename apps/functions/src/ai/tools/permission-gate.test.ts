@@ -34,7 +34,6 @@ describe("toda ferramenta de dominio declara a permissao que exige", () => {
     "get_tenant_summary",
     "search_help",
     "request_confirmation",
-    "send_whatsapp_message",
   ]);
 
   it.each(

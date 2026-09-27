@@ -69,12 +69,11 @@ describe("gate de plano das ferramentas da Lia", () => {
     for (const name of CRM_TOOLS) expect(tools).not.toContain(name);
   });
 
-  it("Enterprise ve tudo, CRM e WhatsApp inclusive", () => {
+  it("Enterprise ve tudo, CRM inclusive", () => {
     const tools = toolNamesFor("enterprise");
     for (const name of [...FINANCIAL_TOOLS, ...CRM_TOOLS]) {
       expect(tools).toContain(name);
     }
-    expect(tools).toContain("send_whatsapp_message");
   });
 
   it("o add-on financeiro abre as ferramentas para um Starter", () => {
@@ -89,12 +88,11 @@ describe("gate de plano das ferramentas da Lia", () => {
     for (const name of CRM_TOOLS) expect(tools).toContain(name);
   });
 
-  it("WhatsApp exige plano E a flag do tenant", () => {
+  it("o envio de WhatsApp fica fora enquanto o handler nao envia nada", () => {
+    // A ferramenta prometia enviar e sempre devolvia erro. Ate o envio existir,
+    // nem o Enterprise com o WhatsApp ligado a recebe.
     expect(
-      toolNamesFor("enterprise", [], "ADMIN", { whatsappEnabled: false }),
+      toolNamesFor("enterprise", [], "ADMIN", { whatsappEnabled: true }),
     ).not.toContain("send_whatsapp_message");
-    expect(toolNamesFor("pro", [], "ADMIN", { whatsappEnabled: true })).not.toContain(
-      "send_whatsapp_message",
-    );
   });
 });

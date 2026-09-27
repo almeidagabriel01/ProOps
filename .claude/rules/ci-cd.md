@@ -17,8 +17,8 @@ E2E, performance, and ZAP run **only in test-suite** — never on every push.
 |---|---|---|
 | **Push Checks** | `push-checks.yml` | Every push except `main` (skips `*.md`, `docs/**`) |
 | **Test Suite** | `test-suite.yml` | PRs to `main`/`develop` + `merge_group` (skips `*.md`, `docs/**`) |
-| **Deploy Staging** | `deploy-functions.yml` | Push to `develop` with changes in `apps/functions/`, `firestore.rules`, `firebase.json` — plus `workflow_dispatch` for a manual redeploy |
-| **Deploy Production** | `deploy-production.yml` | Every push to `main` |
+| **Deploy Staging** | `deploy-functions.yml` | Push to `develop` with changes in `apps/functions/`, `firebase/firestore.rules`, `firebase/firestore.indexes.json`, `firebase/storage.rules`, `firebase.json`; plus `workflow_dispatch` for a manual redeploy |
+| **Deploy Production** | `deploy-production.yml` | Push to `main` with backend changes (path filter in the workflow) |
 | **Dependency Review** | `dependency-review.yml` | PR with changes to `package.json` |
 | **Stale** | `stale.yml` | Mondays 9h UTC |
 
@@ -62,6 +62,7 @@ Runs on PRs and Merge Queue events:
 - `firestore-rules` — Jest security rules (reusable)
 - `e2e` — Playwright E2E **sharded across 4 parallel runners** (`--shard=N/4`), ~7 min
 - `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`), **em 2 shards** (`--shard=N/2`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.
+- `e2e-financial`: Playwright em `tests/e2e/financial`, **2 shards**, em paralelo com `e2e`. Artefatos `playwright-report-financial-shard<N>-<run>`.
 - `performance` — Core Web Vitals + API baseline. Roda **em paralelo** com o E2E: sobe os próprios emuladores e não usa nada dele.
 - `lighthouse` — throttled-mobile Lighthouse perf budget on a production build, **dividido em 3 shards paralelos** (3 URLs cada). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. Gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed` (um job em matriz falha se qualquer shard falhar).
 - `security` — OWASP ZAP baseline. Roda **em paralelo** com o E2E: faz o próprio build e `npm start`. Esperar os shards (como era até 2026-09-23) só somava ~8 min de relógio.
@@ -83,8 +84,9 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   routes (CLS 0). The CI now measures that real number.
 - Asserts use `assertMatrix` (median of 3): all routes — `largest-contentful-paint`
   ≤ 4000ms (warn), `cumulative-layout-shift` ≤ 0.1 (**error**), `first-contentful-paint`
-  ≤ 2500ms (warn). `total-blocking-time` ≤ 800ms is a hard **error** on the 4 secondary
-  routes but a **warn on `/` only** — the home hero is a scroll-pinned GSAP timeline that
+  ≤ 2500ms (warn). `total-blocking-time` ≤ 800ms is a hard **error** on every route
+  without its own entry; `/institucional`, `/sobre` and `/produtos` have the entries
+  described below, and `/` is a **warn**: the home hero is a scroll-pinned GSAP timeline that
   must hydrate synchronously (deferring it flashes first paint), and under real CPU
   throttling that costs ~3s TBT, an accepted animation-bound floor.
 - **History (how the LCP was actually fixed — don't re-chase dead ends):** the heroes used
@@ -309,9 +311,10 @@ Do NOT add `push-gate` (push-checks.yml) as a required status check for PRs — 
 
 ## Auto-Deploy
 
-`deploy-functions.yml` triggers when push has changes in `apps/functions/`, `firestore.rules`, `storage.rules`, or `firebase.json`:
-- Push to `develop` → deploy to `erp-softcode` (environment: **staging**)
-- Push to `main` → deploy to `erp-softcode-prod` (environment: **production**)
+- `deploy-functions.yml`: push to `develop` → `erp-softcode` (environment: **staging**).
+- `deploy-production.yml`: push to `main` → `erp-softcode-prod` (environment: **production**).
+
+Os dois filtram por caminho; a lista exata está no `on.push.paths` de cada workflow.
 
 Frontend (Next.js) is deployed automatically by Vercel — no workflow needed.
 
