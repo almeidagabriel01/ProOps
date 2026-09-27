@@ -101,6 +101,14 @@ tenha desativado antes de trocar de aba; Agrupados SEMPRE entra limpo (todos).
 Mudanças do usuário valem só enquanto permanece na aba. Não reintroduzir
 persistência em localStorage (as chaves `transactions:filterStatus*` legadas
 são removidas no mount). Testes: `_hooks/__tests__/useFinancialFilters.test.ts`.
+
+**Filtros no endereço (2026-09-25)** não contrariam a regra acima: o endereço
+não é persistência entre sessões, é o estado da página aberta. Voltar de um
+lançamento ou recarregar devolve a lista como estava; trocar de aba continua
+zerando o status. O padrão de cada filtro não aparece no endereço, e
+`status=todos` é a escolha explícita de ver todos na Lista
+(`_lib/filters-url.ts`). O tenant chegar depois do primeiro render não conta
+como troca de empresa, senão o status do endereço seria apagado.
 | `_hooks/useEditTransaction.ts` | Carrega e submete edição de lançamento/grupo |
 | `_hooks/useTransactionForm.ts` | Criação de lançamentos |
 | `_components/transaction-card.tsx` | Exibe lançamentos em cards agrupados |
@@ -192,6 +200,65 @@ O relatório por parceiro fica em `/commissions`, alimentado por
 `GET /v1/transactions/commissions`. Ele é `masterOnly` no menu, mas **as
 despesas de comissão continuam visíveis nesta lista** para quem tem permissão
 de Lançamentos: escondê-las daqui exigiria filtrar a lista, e é decisão à parte.
+
+## Exclusão com "Desfazer" e ações em massa (2026-09-25)
+
+- **Excluir não grava na hora.** `deleteTransactionGroup` e
+  `deleteTransactionsBulk` tiram as linhas da lista e ajustam as carteiras de
+  forma otimista; o `DELETE` só vai ao servidor depois da janela do toast
+  (`lib/undoable-action.ts`, 6s). "Desfazer" é um `fetchData(true)`: o servidor
+  não mudou. Fechar a aba dentro da janela pede confirmação do navegador.
+- **Aba Agrupados** lê resumos do servidor, que só mudam depois da gravação.
+  Por isso a página guarda `pendingDeleteKeys` (`group:{id}` e `tx:{id}`) e
+  filtra `visibleGroupSummaries`/`visibleStandalone`.
+- **Ações em massa** (`_components/bulk-actions-bar.tsx`, regra pura em
+  `_lib/bulk-actions.ts`): marcar como pago pelo `status-batch` (lotes de 200,
+  o teto do backend), exportar `.xlsx` (exceljs por import dinâmico) e excluir
+  (até 100, uma chamada por lançamento). A seleção também guarda ids de custo
+  extra, que ficam de fora. Lançamento de proposta não é excluído em massa, pela
+  mesma regra do diálogo individual. Toda ação que grava confirma com a
+  contagem, porque a lista por vencimento começa com tudo selecionado.
+
+## Categorias e DRE (2026-09-26)
+
+- **A categoria virou lista da empresa**, cada uma num grupo do DRE (Receita
+  bruta, Outras receitas, Impostos e deduções, Custos, Despesas operacionais,
+  Outras despesas). O campo do formulário é
+  `_components/form-steps/transaction-category-field.tsx`: busca separada por
+  receita e despesa, e quem pode criar lançamento cria categoria digitando. O
+  lançamento **continua guardando o nome** (`category`), então busca, cartão e
+  exportação seguem iguais; um nome antigo fora da lista aparece e é gravado
+  como está.
+- A lista vem de `GET /v1/transactions/categories` (semeada no backend com as
+  categorias que a empresa já usava) e fica guardada no módulo
+  (`hooks/use-transaction-categories.ts`): formulário e DRE leem a mesma cópia.
+- **O DRE é a rota `/dre`**, no grupo Financeiro, com o pageId de Lançamentos
+  (quem vê lançamentos vê o resultado) e a capacidade `financial`. Caixa é o
+  padrão; competência numa chave. Regra do cálculo no `apps/functions/CLAUDE.md`,
+  seção DRE e categorias. A gestão das categorias (grupo, renomear, excluir)
+  fica no botão "Categorias" da própria tela (`app/dre/_components/`).
+- A conta free vê o DRE do tenant de demonstração pela API, e as categorias
+  só para ver.
+- **Link do contador:** botão na tela do DRE, só para dono e administradores.
+  Abre `/share/contador/[token]` (ver `app/share/CLAUDE.md`).
+
+## Fluxo de caixa projetado (2026-09-26)
+
+- **Rota `/cash-flow`**, no grupo Financeiro, com o pageId de Lançamentos e a
+  capacidade `financial`, como o DRE. Lê do Firestore o saldo das carteiras
+  ativas e os lançamentos em aberto (`TransactionService.getOpenTransactions`,
+  com teto de 5.000), o mesmo caminho do Dashboard, então funciona na
+  demonstração sem backend novo.
+- **A conta é pura** (`lib/finance/cash-flow.ts`) e roda no navegador: mexer no
+  cenário recalcula na hora. O cenário mexe só no que está a RECEBER (a
+  porcentagem que entra e os dias de atraso); o que está a pagar entra inteiro,
+  no vencimento; vencido dos dois lados conta como hoje. Padrões: pessimista
+  80% e 30 dias, realista 95% e 15, otimista 100% no vencimento. O ajuste de
+  cada pessoa fica no navegador dela (localStorage), não é dado da empresa.
+- **Limite conhecido, o mesmo do Dashboard:** custo extra pendente de um
+  lançamento já pago não entra, porque a consulta traz só lançamentos
+  pendentes ou vencidos. Recorrência só entra quando os lançamentos dela já
+  existem.
 
 ## Race conditions e guards (frontend)
 

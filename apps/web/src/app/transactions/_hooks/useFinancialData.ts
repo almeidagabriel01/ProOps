@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { toast } from "@/lib/toast";
+import { runUndoableAction } from "@/lib/undoable-action";
 import {
   ExtraCost,
   Transaction,
@@ -26,6 +27,7 @@ import {
 import { normalize } from "@/utils/text";
 import { useOptimisticWallets } from "./useOptimisticWallets";
 import { useFinancialFilters } from "./useFinancialFilters";
+import type { TransactionFiltersState } from "../_lib/filters-url";
 
 const syncExtraCostsStatus = (
   extraCosts: ExtraCost[] | undefined,
@@ -146,7 +148,14 @@ interface UseFinancialDataReturn {
   filteredTransactions: Transaction[];
   totalWalletBalance: number;
   deleteTransaction: (transaction: Transaction) => Promise<boolean>;
-  deleteTransactionGroup: (transaction: Transaction) => Promise<boolean>;
+  deleteTransactionGroup: (
+    transaction: Transaction,
+    callbacks?: { onCommitted?: () => void; onReverted?: () => void },
+  ) => Promise<boolean>;
+  deleteTransactionsBulk: (
+    targets: Transaction[],
+    callbacks?: { onCommitted?: () => void; onReverted?: () => void },
+  ) => Promise<boolean>;
   updateTransactionStatus: (
     transaction: Transaction,
     newStatus: Transaction["status"],
@@ -176,7 +185,10 @@ interface UseFinancialDataReturn {
   wallets: Wallet[];
 }
 
-export function useFinancialData(): UseFinancialDataReturn {
+export function useFinancialData(
+  /** Filtros lidos do endereço na entrada da tela. */
+  initialFilters: Partial<TransactionFiltersState> = {},
+): UseFinancialDataReturn {
   const { tenant } = useTenant();
   const { hasFinancial, isLoading: isPlanLoading } = usePlanLimits();
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
@@ -205,7 +217,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     setViewMode,
     filteredTransactions,
     totalWalletBalance,
-  } = useFinancialFilters(transactions, wallets);
+  } = useFinancialFilters(transactions, wallets, "byDueDate", initialFilters);
 
   const {
     applyOptimisticWalletUpdate,
@@ -433,7 +445,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         await fetchData(true);
 
         toast.success(
-          `Lancamento ${transactionLabel} foi excluido com sucesso.`,
+          `Lançamento ${transactionLabel} foi excluído com sucesso.`,
           {
             title: "Sucesso ao excluir",
           },
@@ -455,9 +467,15 @@ export function useFinancialData(): UseFinancialDataReturn {
     [fetchData, applyOptimisticWalletUpdate],
   );
 
-  // Delete all installments in a group
+  // Delete all installments in a group (or a single transaction when it has
+  // no group). The rows leave the list and the wallets are adjusted right away;
+  // the delete only reaches the server after the "Desfazer" window, and undoing
+  // reloads list and wallets from the server, where nothing changed.
   const deleteTransactionGroup = React.useCallback(
-    async (transaction: Transaction): Promise<boolean> => {
+    async (
+      transaction: Transaction,
+      callbacks?: { onCommitted?: () => void; onReverted?: () => void },
+    ): Promise<boolean> => {
       const groupId = transaction.installmentGroupId || transaction.recurringGroupId;
       // Lock on the group ID (or the single transaction ID) to prevent double-click races.
       const lockKey = groupId || transaction.id;
@@ -465,60 +483,73 @@ export function useFinancialData(): UseFinancialDataReturn {
       updatingIdsRef.current.add(lockKey);
 
       const transactionLabel = formatTransactionLabel(transaction);
-
-      try {
-        if (groupId) {
-          const groupTransactions = transactions.filter(
+      const groupTransactions = groupId
+        ? transactions.filter(
             (t) => (t.installmentGroupId || t.recurringGroupId) === groupId,
-          );
+          )
+        : [transaction];
 
-          await TransactionService.deleteTransactionGroup(groupId);
-
-          // Batch optimistic update: single setWallets call = single re-render (BUG-9).
-          // Pass newTx with no wallet so calculateWalletImpacts returns 0 for it,
-          // effectively reverting only the paid transactions' wallet impact.
-          applyOptimisticWalletUpdateBatch(
-            groupTransactions.map((t) => ({
-              oldTx: t,
-              newTx: { ...t, wallet: undefined, status: "pending" as TransactionStatus },
-            })),
-          );
-          const groupIds = new Set(groupTransactions.map((t) => t.id));
-          setTransactions((prev) => prev.filter((t) => !groupIds.has(t.id)));
-
-          toast.success(
-            `${groupTransactions.length} lançamentos vinculados a ${transactionLabel} foram excluídos com sucesso.`,
-            { title: "Sucesso ao excluir" },
-          );
-        } else {
-          // Single transaction
-          await TransactionService.deleteTransaction(transaction.id);
-          applyOptimisticWalletUpdate(transaction, undefined);
-          setTransactions((prev) => prev.filter((t) => t.id !== transaction.id));
-          toast.success(
-            `Lancamento ${transactionLabel} foi excluido com sucesso.`,
-            { title: "Sucesso ao excluir" },
-          );
-        }
-
-        // Refresh truth from server (background)
-        await fetchData(true);
-
-        return true;
-      } catch (error) {
-        console.error("Error deleting transaction group:", error);
-        const errorMessage = getErrorMessage(
-          error,
-          "Falha inesperada ao excluir os lançamentos.",
+      if (groupId) {
+        // Batch optimistic update: single setWallets call = single re-render (BUG-9).
+        // Pass newTx with no wallet so calculateWalletImpacts returns 0 for it,
+        // effectively reverting only the paid transactions' wallet impact.
+        applyOptimisticWalletUpdateBatch(
+          groupTransactions.map((t) => ({
+            oldTx: t,
+            newTx: { ...t, wallet: undefined, status: "pending" as TransactionStatus },
+          })),
         );
-        toast.error(
-          `Não foi possível excluir os lançamentos vinculados a ${transactionLabel}. Detalhes: ${errorMessage}`,
-          { title: "Erro ao excluir" },
-        );
-        return false;
-      } finally {
-        updatingIdsRef.current.delete(lockKey);
+      } else {
+        applyOptimisticWalletUpdate(transaction, undefined);
       }
+      const removedIds = new Set(groupTransactions.map((t) => t.id));
+      removedIds.add(transaction.id);
+      setTransactions((prev) => prev.filter((t) => !removedIds.has(t.id)));
+
+      const restore = () => {
+        void fetchData(true);
+        callbacks?.onReverted?.();
+      };
+
+      runUndoableAction({
+        message:
+          groupId && groupTransactions.length > 1
+            ? `${groupTransactions.length} lançamentos vinculados a ${transactionLabel} excluídos.`
+            : `Lançamento ${transactionLabel} excluído.`,
+        title: "Lançamento excluído",
+        commit: async () => {
+          try {
+            if (groupId) {
+              await TransactionService.deleteTransactionGroup(groupId);
+            } else {
+              await TransactionService.deleteTransaction(transaction.id);
+            }
+            // Refresh truth from server (background)
+            await fetchData(true);
+            callbacks?.onCommitted?.();
+          } finally {
+            updatingIdsRef.current.delete(lockKey);
+          }
+        },
+        onUndo: () => {
+          updatingIdsRef.current.delete(lockKey);
+          restore();
+        },
+        onCommitError: (error) => {
+          console.error("Error deleting transaction group:", error);
+          const errorMessage = getErrorMessage(
+            error,
+            "Falha inesperada ao excluir os lançamentos.",
+          );
+          toast.error(
+            `Não foi possível excluir os lançamentos vinculados a ${transactionLabel}. Detalhes: ${errorMessage}`,
+            { title: "Erro ao excluir" },
+          );
+          restore();
+        },
+      });
+
+      return true;
     },
     [
       transactions,
@@ -526,6 +557,75 @@ export function useFinancialData(): UseFinancialDataReturn {
       applyOptimisticWalletUpdateBatch,
       applyOptimisticWalletUpdate,
     ],
+  );
+
+  // Bulk delete from the selection. Same model as the single delete: rows and
+  // wallets change now, the server only after the "Desfazer" window. One call
+  // per transaction, in sequence, so a refusal stops at the first failure
+  // instead of leaving a half-applied batch hidden from the user.
+  const deleteTransactionsBulk = React.useCallback(
+    async (
+      targets: Transaction[],
+      callbacks?: { onCommitted?: () => void; onReverted?: () => void },
+    ): Promise<boolean> => {
+      if (targets.length === 0) return false;
+      const ids = targets.map((t) => t.id);
+      if (ids.some((id) => updatingIdsRef.current.has(id))) return false;
+      ids.forEach((id) => updatingIdsRef.current.add(id));
+      const release = () => ids.forEach((id) => updatingIdsRef.current.delete(id));
+
+      applyOptimisticWalletUpdateBatch(
+        targets.map((t) => ({
+          oldTx: t,
+          newTx: { ...t, wallet: undefined, status: "pending" as TransactionStatus },
+        })),
+      );
+      const removedIds = new Set(ids);
+      setTransactions((prev) => prev.filter((t) => !removedIds.has(t.id)));
+
+      const restore = () => {
+        void fetchData(true);
+        callbacks?.onReverted?.();
+      };
+
+      runUndoableAction({
+        message:
+          targets.length === 1
+            ? `Lançamento ${formatTransactionLabel(targets[0])} excluído.`
+            : `${targets.length} lançamentos excluídos.`,
+        title: "Lançamentos excluídos",
+        commit: async () => {
+          try {
+            for (const id of ids) {
+              await TransactionService.deleteTransaction(id);
+            }
+            await fetchData(true);
+            callbacks?.onCommitted?.();
+          } finally {
+            release();
+          }
+        },
+        onUndo: () => {
+          release();
+          restore();
+        },
+        onCommitError: (error) => {
+          console.error("Error deleting transactions in bulk:", error);
+          const errorMessage = getErrorMessage(
+            error,
+            "Falha inesperada ao excluir os lançamentos.",
+          );
+          toast.error(
+            `A exclusão em massa parou no meio. Os lançamentos que já tinham sido excluídos continuam excluídos. Detalhes: ${errorMessage}`,
+            { title: "Erro ao excluir" },
+          );
+          restore();
+        },
+      });
+
+      return true;
+    },
+    [fetchData, applyOptimisticWalletUpdateBatch],
   );
 
   // Update single transaction status
@@ -602,7 +702,7 @@ export function useFinancialData(): UseFinancialDataReturn {
         );
 
         toast.success(
-          `Lancamento ${transactionLabel} atualizado com sucesso.`,
+          `Lançamento ${transactionLabel} atualizado com sucesso.`,
           {
             title: "Sucesso ao editar",
           },
@@ -891,6 +991,7 @@ export function useFinancialData(): UseFinancialDataReturn {
     filteredTransactions,
     totalWalletBalance,
     deleteTransaction,
+    deleteTransactionsBulk,
     deleteTransactionGroup,
     updateTransactionStatus,
     updateTransaction,

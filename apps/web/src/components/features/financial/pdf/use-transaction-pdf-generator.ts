@@ -36,7 +36,7 @@ export function useTransactionPdfGenerator({
     setIsGenerating(true);
     try {
       if (!transaction?.id) {
-        toast.error("Erro ao localizar dados do lancamento para gerar o PDF.");
+        toast.error("Erro ao localizar dados do lançamento para gerar o PDF.");
         return;
       }
 

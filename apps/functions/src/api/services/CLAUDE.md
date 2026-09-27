@@ -7,7 +7,8 @@
 | `core-pdf.service.ts` | Renderizacao PDF via Playwright — base para todos os PDFs |
 | `proposal-pdf.service.ts` | PDF de proposta: cache, lock, storage, versionamento |
 | `transaction-pdf.service.ts` | PDF de recibo de lancamento financeiro |
-| `notification.service.ts` | CRUD de notificacoes no Firestore |
+| `notification.service.ts` | Notificacoes por pessoa: destinatarios, leitura, limpeza e aviso por e-mail |
+| `notification-audience.ts` | Quem recebe cada tipo (catalogo + permissoes + preferencias) |
 | `shared-proposal.service.ts` | Criacao e resolucao de share links de propostas |
 | `shared-transactions.service.ts` | Criacao e resolucao de share links de lancamentos |
 | `transaction.service.ts` | Logica de negocio de lancamentos financeiros (~1350 linhas) |
@@ -128,7 +129,7 @@ PDF_RENDER_ASSET_TIMEOUT_MS = 20_000  // timeout do seletor de readiness
 
 ### Versioning e cache
 
-**`PDF_TEMPLATE_VERSION = "proposal-pdf-v5-playwright"`**
+**`PDF_TEMPLATE_VERSION = "proposal-pdf-v9-playwright"`**
 
 Ao mudar o template HTML/CSS de proposta, incrementar esta string para invalidar todos os caches em producao.
 
@@ -136,7 +137,7 @@ O hash de versao (`versionHash`) e calculado com SHA-256 sobre:
 
 ```
 {
-  templateVersion: "proposal-pdf-v5-playwright",
+  templateVersion: "proposal-pdf-v9-playwright",
   proposalId: string,
   proposal: { ...proposalData sem campos pdf/lock/timestamps },
   tenant: { name, primaryColor, logoUrl, niche, proposalDefaults }
@@ -253,20 +254,65 @@ Limpeza automatica do mapa a cada 60s via `setInterval(...).unref()`.
 
 ## Notifications (`notification.service.ts`)
 
+### Por pessoa, desde a central de notificacoes (2026-09-26)
+
+Ate a central, toda notificacao valia para a empresa inteira: um membro sem
+acesso ao financeiro via "pagamento recebido", e a leitura de um marcava para
+todos. Agora cada documento carrega **`recipientUids`** e **`readBy`**:
+
+- **Quem recebe** sai de `shared/notification-catalog.ts` (`NOTIFICATION_CATALOG`):
+  cada tipo declara o `pageId` que a pessoa precisa VER (`proposals`,
+  `transactions`, `kanban`, `projects`), `admins` (so dono e administradores)
+  ou `direct` (tarefa atribuida, mencao, lembrete de tarefa): ai quem recebe e
+  so quem veio em `targetUids`, e so se for pessoa da empresa.
+  `notification-audience.ts` cruza isso com as permissoes e as preferencias de
+  cada pessoa (`resolveRecipients`, pura e testada), com cache de 60s por
+  instancia (`loadTenantAudience`), limpo ao salvar preferencia ou permissao.
+- **As rules leem `recipientUids`.** A consulta do sino e
+  `tenantId == X` + `recipientUids array-contains uid` + `orderBy createdAt desc`
+  (indice proprio). Documento sem `recipientUids` nao e lido por ninguem da
+  empresa: por isso existe `scripts/backfill-notification-recipients.ts`.
+- **Leitura e limpeza sao da pessoa.** Marcar como lida faz `arrayUnion` em
+  `readBy`; limpar tira a pessoa de `recipientUids`, e o documento so e apagado
+  com o ultimo destinatario.
+- **O superadmin continua na visao da empresa** (`NotificationViewer.perRecipient
+  = false`): escopo `system`, ou vendo uma empresa pelo painel. Ali valem
+  `isRead` e a exclusao do documento, como antes.
+- **Quem grava por conta propria** (crons com id fixo e `BulkWriter`) pede os
+  campos a `NotificationService.recipientFields(tenantId, type)`. Lembrete
+  regravado leva `readBy: []` e volta como nao lido para todos, como o
+  `isRead: false` fazia.
+- **Aviso por e-mail** (`sendNotificationEmails`, template
+  `services/email/templates/notification.ts`): na hora, para quem ligou o tipo.
+  Os lembretes diarios (vencimento, proposta expirando, CRM) nao saem por e-mail,
+  porque repetem todo dia; o aviso de preco tambem nao, porque ja tem e-mail
+  proprio. Nunca lanca, e e aguardado (Cloud Run). O link do e-mail e o mesmo do
+  sino (`notificationLinkPath`).
+- **Preferencias** em `users/{uid}.preferences.notifications`
+  (`{ [tipo]: { inApp?, email? } }`), lidas e gravadas por
+  `GET/PUT /v1/notifications/preferences`. O padrao mora no catalogo: sino ligado
+  em tudo; e-mail ligado so em aceite do cliente, pedido de ajuste, pagamento
+  online, entrega aceita e avisos do sistema.
+
+**Tipo novo:** entra em `NOTIFICATION_CATALOG` (e na copia do front,
+`apps/web/src/lib/notifications/catalog.ts`; o teste de paridade falha se
+divergirem) e e criado por `createNotification` ou com `recipientFields`. Um
+`db.collection("notifications").add(...)` direto nasce sem destinatario e
+ninguem o ve.
+
 ### Colecao `notifications`
 
 ```typescript
 interface Notification {
   id: string
-  tenantId: string
-  userId?: string            // se undefined: visivel para todo o tenant
-  type: NotificationType
+  tenantId: string           // "system" = superadmins
+  type: NotificationType     // catalogo em shared/notification-catalog.ts
   title: string
   message: string
-  proposalId?: string        // referencia opcional
-  sharedProposalId?: string
-  transactionId?: string
-  isRead: boolean
+  proposalId?, sharedProposalId?, transactionId?, leadId?, clientId?, projectId?
+  recipientUids?: string[]   // quem ve (as rules leem este campo)
+  readBy?: string[]          // quem ja leu
+  isRead: boolean            // so a visao da empresa (superadmin) usa
   createdAt: string          // ISO string
   readAt?: string
 }
@@ -274,27 +320,39 @@ interface Notification {
 
 ### Tipos de notificacao
 
-| Tipo | Origem |
-|------|--------|
-| `proposal_viewed` | Quando cliente visualiza proposta compartilhada |
-| `proposal_approved` | Quando proposta e aprovada |
-| `transaction_due_reminder` | Cron `checkDueDates` — lancamento vencendo em 3 dias |
-| `proposal_expiring` | Cron `checkDueDates` — proposta vencendo em 3 dias |
-| `system` | Cron `checkStripeSubscriptions` — notificacoes de sistema para superadmins |
-| `transaction_viewed` | Quando lancamento compartilhado e visualizado |
+| Tipo | Origem | Quem recebe | E-mail (padrao) |
+|------|--------|-------------|-----------------|
+| `proposal_viewed` | Cliente abre a proposta compartilhada | ve propostas | pode, desligado |
+| `proposal_accepted` | Cliente aceita pelo link (`proposal-online-approval.controller.ts`) | ve propostas | ligado |
+| `proposal_changes_requested` | Cliente pede mudancas pelo link | ve propostas | ligado |
+| `proposal_follow_up` | Cron `checkDueDates` (2b), uma vez por link | ve propostas | pode, desligado |
+| `proposal_expiring` | Cron `checkDueDates`, diario | ve propostas | nao |
+| `project_delivery_accepted` | Cliente aceita a entrega (`shared-projects.controller.ts`) | ve projetos | ligado |
+| `lead_reminder` | Cron `checkDueDates` (2c), diario | ve o CRM (`kanban`) | nao |
+| `transaction_due_reminder` | Cron `checkDueDates`, diario | ve lancamentos | nao |
+| `transaction_viewed` | Lancamento compartilhado visualizado | ve lancamentos | pode, desligado |
+| `transaction_paid_online` | Webhook do Asaas | ve lancamentos | ligado |
+| `system` | Repasse do Asaas que falhou, certificado A1 vencendo; e os do superadmin (`tenantId: "system"`) | dono e admins | ligado |
+| `price_change` | Cron `checkPriceChanges` | dono e admins | nao (tem e-mail proprio) |
+| `task_assigned` | Tarefa passada para alguem (`tasks.controller.ts`); quem fez a acao nunca e avisado. O texto NAO leva o prazo: a notificacao e uma foto do momento e ficaria com a data velha na primeira edicao | so o responsavel (`targetUids`) | ligado |
+| `booking_requested` | Cliente pediu visita pelo link de agendamento (`booking.service.ts`) | ve a Agenda (`calendar`) | ligado |
+| `task_updated` | Outra pessoa mudou (ou tirou) o prazo de uma tarefa que ja tinha responsavel; com atribuicao nova na mesma edicao, vale so o `task_assigned` | so o responsavel | pode, desligado |
+| `task_mentioned` | Alguem citado com @ numa tarefa; so quem foi citado AGORA, e nao o responsavel ja avisado | so os citados | ligado |
+| `task_reminder` | Cron `checkDueDates` (2d), tarefa com prazo hoje, id `task_{id}_{dia}` | o responsavel, ou quem criou | nao |
 
 ### Metodos publicos
 
+Todos os de leitura e escrita recebem `scope` e `viewer` (`{ uid, perRecipient }`).
+
 | Metodo | Descricao |
 |--------|-----------|
-| `createNotification(data)` | Cria nova notificacao |
-| `getNotifications(scope, { limit, offset, unreadOnly })` | Lista com paginacao |
-| `markAsRead(notificationId, scope)` | Marca como lida |
-| `markAllAsRead(scope)` | Marca todas como lidas em lotes paginados de 400 (`limit` + loop) |
-| `deleteNotification(notificationId, scope)` | Remove uma notificacao |
-| `clearAllNotifications(scope)` | Remove todas em batches de 400 |
-| `getUnreadCount(scope)` | Conta nao lidas via aggregation `count()` (1 leitura cobrada por 1000 docs; endpoint polado — nunca voltar a buscar documentos) |
-| `findActiveReminders(tenantId, type, resourceId, resourceField)` | Busca lembretes ativos |
+| `createNotification(data)` | Resolve destinatarios, grava e manda os e-mails |
+| `recipientFields(tenantId, type)` | Destinatarios para quem grava por conta propria |
+| `sendNotificationEmails(notification, recipients)` | Aviso por e-mail; nunca lanca |
+| `getNotifications(scope, viewer, { limit, offset, unreadOnly })` | Lista; por pessoa, `unreadOnly` filtra depois da consulta |
+| `markAsRead` / `markAllAsRead` | Por pessoa: `readBy`. Empresa: `isRead` |
+| `deleteNotification` / `clearAllNotifications` | Por pessoa: sai de `recipientUids`. Empresa: apaga |
+| `getUnreadCount(scope, viewer)` | Por pessoa: conta nas 50 mais recentes. Empresa: aggregation `count()` |
 | `claimDailyDueToast(tenantId, type, userId)` | Claim idempotente para toast diario |
 
 ### NotificationScope
@@ -317,41 +375,29 @@ Todos requerem autenticacao. Montados em `/v1/notifications`.
 
 | Metodo | Caminho | Descricao |
 |--------|---------|-----------|
-| `GET` | `/` | Lista notificacoes (`limit`, `offset`, `unreadOnly`) |
+| `GET` | `/` | Lista notificacoes (`limit` ate 100, `offset`, `unreadOnly`) |
 | `GET` | `/unread-count` | Contador de nao lidas |
+| `GET` | `/preferences` | Preferencias da pessoa (so o que ela escolheu) |
+| `PUT` | `/preferences` | Grava por cima so os tipos enviados; recusa tipo fora do catalogo |
 | `POST` | `/due-toast/claim` | Claim diario de toast (`type` no body) |
-| `DELETE` | `/clear-all` | Remove todas |
+| `DELETE` | `/clear-all` | Limpa a central da pessoa |
 | `PUT` | `/:id/read` | Marca como lida |
-| `DELETE` | `/:id` | Remove uma |
+| `DELETE` | `/:id` | Tira da central da pessoa |
 | `PUT` | `/mark-all-read` | Marca todas como lidas |
+
+`/preferences` e montado antes de `/:id`: o Express casa por ordem. Guards:
+`notification-audience.test.ts`, `notification.per-recipient.test.ts`,
+`notifications.preferences.test.ts` e `tests/firestore-rules/notifications.test.ts`.
 
 ---
 
 ## Indice Firestore necessario para notificacoes
 
-A query de listagem usa `where("tenantId", "==", ...)` + `orderBy("createdAt", "desc")` — requer indice composto:
-
-```json
-{
-  "collectionGroup": "notifications",
-  "fields": [
-    { "fieldPath": "tenantId", "order": "ASCENDING" },
-    { "fieldPath": "createdAt", "order": "DESCENDING" }
-  ]
-}
-```
-
-Com filtro `isRead == false`:
-```json
-{
-  "collectionGroup": "notifications",
-  "fields": [
-    { "fieldPath": "tenantId", "order": "ASCENDING" },
-    { "fieldPath": "isRead", "order": "ASCENDING" },
-    { "fieldPath": "createdAt", "order": "DESCENDING" }
-  ]
-}
-```
+- `tenantId` + `recipientUids` (array-contains) + `createdAt DESC`: o sino e a
+  central de cada pessoa.
+- `tenantId` + `createdAt DESC`: a visao da empresa (superadmin) e o tenant de
+  demonstracao.
+- `isRead` + `tenantId` + `createdAt DESC`: `unreadOnly` na visao da empresa.
 
 Verificar `firestore.indexes.json` — indices precisam ser criados no console antes de usar em producao.
 

@@ -73,7 +73,7 @@ export function generateProposalPaymentTerms(
     const percentage =
       total > 0 ? Math.round((downPaymentValue / total) * 100) : 0;
     lines.push(
-      `${bullet} Entrada: ${formatCurrency(downPaymentValue)} (${percentage}%) na aprovacao via ${getProposalDownPaymentMethod(proposal)}`,
+      `${bullet} Entrada: ${formatCurrency(downPaymentValue)} (${percentage}%) na aprovação via ${getProposalDownPaymentMethod(proposal)}`,
     );
   }
 

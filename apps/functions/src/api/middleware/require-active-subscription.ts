@@ -64,6 +64,13 @@ const DEMO_READABLE_PREFIXES = [
   "/v1/wallets",
   "/v1/spreadsheets",
   "/v1/kanban",
+  // Leads e atividades do CRM (crm.routes.ts)
+  "/v1/leads",
+  "/v1/activities",
+  // Projetos de instalação (projects.routes.ts)
+  "/v1/projects",
+  // Tarefas (tasks.routes.ts): a lista é lida no Firestore; aqui só /people
+  "/v1/tasks",
   "/v1/calendar",
   "/v1/notifications",
   // Ambientes, sistemas, campos customizados, opcoes e templates de proposta

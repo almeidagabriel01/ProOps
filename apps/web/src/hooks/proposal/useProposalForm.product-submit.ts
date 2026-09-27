@@ -480,12 +480,12 @@ export function useProposalFormProductSubmit(
     }
 
     if (formData.downPaymentEnabled && !formData.downPaymentDueDate) {
-      toast.error("Data da entrada Ã© obrigatÃ³ria.");
+      toast.error("Data da entrada é obrigatória.");
       return false;
     }
 
     if (formData.installmentsEnabled && !formData.firstInstallmentDate) {
-      toast.error("Data de vencimento da primeira parcela Ã© obrigatÃ³ria.");
+      toast.error("Data de vencimento da primeira parcela é obrigatória.");
       return false;
     }
 

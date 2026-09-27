@@ -109,6 +109,22 @@ Centraliza configuracoes de deploy para evitar divergencias entre funcoes.
 
 Os upserts das partes 1 e 2 vao por um `BulkWriter` (paralelo, com retentativa), fechado num `finally`. A logica fica em `runDueDateCheck(now)`, exportada para teste (`checkDueDates.test.ts`).
 
+**Parte 2b — Follow-up de proposta vista e sem resposta (2026-09-25):**
+- `runProposalFollowUps` (`proposal-follow-up.ts`): links com `followUpPending == true` e `firstViewedAt` ha 3 dias ou mais (indice `shared_proposals(followUpPending, firstViewedAt)`)
+- A primeira abertura do link grava os dois campos (`SharedProposalService.recordView`); links anteriores a mudanca nao tem os campos e nunca entram
+- Proposta ainda aberta (nem aprovada, recusada, rascunho, com aceite pendente ou confirmado, nem em coluna `won`/`lost`) gera notificacao `proposal_follow_up` com id `followup_{sharedProposalId}`; o link e desmarcado em qualquer caso: um aviso por link
+- Falha nao-fatal, como a parte 3
+
+**Parte 2c — Lembretes do CRM (2026-09-25):**
+- `runLeadReminders` (`lead-reminders.ts`): leads com `nextActionAt` igual a hoje (fuso de Brasilia) e etapa aberta, e atividades com `dueAt` hoje sem `doneAt`
+- Notificacao `lead_reminder` com id `lead_{leadId}_{dia}` / `activity_{activityId}_{dia}`; consultas por igualdade num campo so (indice automatico)
+- Falha nao-fatal
+
+**Parte 2d — Tarefas com prazo hoje (2026-09-26):**
+- `runTaskReminders` (`task-reminders.ts`): tarefas com `dueAt` igual a hoje (fuso de Brasilia) e sem `doneAt`
+- Notificacao `task_reminder` com id `task_{taskId}_{dia}`, para o responsavel ou, sem ele, para quem criou
+- Falha nao-fatal
+
 **Parte 3 — Limpeza de sessoes WhatsApp:**
 - Remove documentos de `whatsappSessions` com `expiresAt < (agora - 24h)`
 - Limite de 200 por execucao (para nao travar o cron)
@@ -274,7 +290,7 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 |---------|--------|-----------|
 | `users/{uid}` | Auth/Billing | Dados do usuario, status de assinatura |
 | `tenants/{tenantId}` | Multi-tenant | Dados do tenant, config WhatsApp, billing |
-| `notifications` | Notifications | Notificacoes de todos os tipos |
+| `notifications` | Notifications | Notificacoes de todos os tipos, por pessoa (`recipientUids`/`readBy`; ver `api/services/CLAUDE.md`) |
 | `notification_due_toast_claims/{id}` | Notifications | Claim diario de toast (idempotente) |
 | `internal_notify_claims/{id}` | Email | Claim idempotente do email interno de signup (`signup_{uid}`; Admin SDK only) |
 | `email_audit/{id}` | Email | Audit de todo envio via `sendEmail` (status sent/failed, type, messageId) |
@@ -290,6 +306,20 @@ Funcao HTTP separada (nao faz parte do monolito `api`):
 | `tenant_purge_jobs/{tenantId}` | Admin | Job de exclusao definitiva de empresa. Escrita so pelo backend; superadmin com MFA le o progresso |
 | `ai_traces/{id}` | IA (Lia) | Um doc por turno: provider, modelo, status, tokens, latencia, ferramentas (`{name, ok, ms}`). Sem args nem conteudo de mensagem. TTL 30 dias via `expiresAt` |
 | `mfa_sessions/{uid}_{auth_time}` | Auth (2FA WhatsApp) | Login que passou pelo codigo do WhatsApp (ou por codigo de recuperacao). Exigido pela API e pelas rules de quem tem o WhatsApp ativo (`lib/whatsapp-mfa-session.ts`). `expiresAt` Timestamp, 30 dias. Admin SDK only |
+| `client_notes/{id}` | Contatos | Anotacoes da ficha do contato (`client-notes.controller.ts`). Tenant le; escrita so via Cloud Functions |
+| `leads/{id}` | CRM | Oportunidades antes da proposta (`leads.controller.ts`, gate `crm`, pageId `kanban`). Tenant le; escrita so via Cloud Functions |
+| `activities/{id}` | CRM | Atividades de um lead ou contato (`activities.controller.ts`). Tenant le; escrita so via Cloud Functions |
+| `sales_goals/{tenantId}_{YYYY-MM}` | Metas | Meta da empresa (`companyTarget`) e por vendedor (`targets`, uid -> valor) do mes (`sales-goals.controller.ts`, capacidade `salesGoals`). Admin SDK only: o membro recebe so o proprio numero pela API. O progresso soma `closedValue`/`totalValue` das propostas com `approvedAt` no mes (fuso de Brasilia), indice `(tenantId, approvedAt ASC)` |
+| `booking_settings/{tenantId}` | Agendamento | Expediente do link publico (dias, horario, antecedencia, horizonte, tipos de visita) e o `publicToken` do link. Admin SDK only; o link resolve a empresa pelo token (`booking.service.ts`) |
+| `booking_requests/{id}` | Agendamento | Pedido de visita do cliente (`pending` -> `confirmed`/`declined`), com o `eventId` do evento "a confirmar" criado na Agenda. Admin SDK only; a tela le pela API com a permissao da Agenda |
+| `booking_locks/{tenantId}_{dia}` | Agendamento | Trava da transacao do pedido: dois clientes no mesmo horario nao viram duas visitas. Admin SDK only |
+| `client_portal_links/{tenantId}_{clientId}` | Portal do cliente | Link do portal de um contato (`token`, `viewCount`, `lastViewedAt`). Admin SDK only: o token abre propostas, pagamentos e obra do contato sem login (`client-portal.service.ts`) |
+| `transaction_categories/{tenantId}` | Financeiro | Categorias de lancamento da empresa, cada uma num grupo do DRE (`items`). Admin SDK only: a tela le e grava pela API (`finance-reports.controller.ts`), com a permissao de Lancamentos |
+| `accountant_links/{tenantId}` | Financeiro | Link do contador (`token`, `viewCount`, `lastViewedAt`). Admin SDK only: o token abre o financeiro e as notas da empresa sem login (`accountant.service.ts`) |
+| `tasks/{id}` | Tarefas | "A fazer" com responsavel, ligado ou nao a contato, proposta ou lead (`tasks.controller.ts`, pageId `tasks`, todos os planos). Da PESSOA: as rules leem `audienceUids` (quem criou, responsavel e citados); dono e admins leem todas. Escrita so via Cloud Functions |
+| `projects/{id}` | Projetos | Obra depois da venda (etapas, checklist, fotos, entrega). Id `proposal_{proposalId}` quando nasce da proposta. Tenant le; escrita so via Cloud Functions |
+| `project_settings/{tenantId}` | Projetos | Criacao automatica na aprovacao e roteiro de etapas. Admin SDK only |
+| `shared_projects/{id}` | Projetos | Link publico da entrega (token). Admin SDK only |
 | `proposal_counters/{tenantId}` | Propostas | Configuracao e contador da numeracao (o codigo `0018926SP`). Admin SDK only |
 | `proposals/{proposalId}` | Propostas | Propostas (com `pdf.storagePath` e `pdfGenerationLock`) |
 | `transactions/{transactionId}` | Financeiro | Lancamentos financeiros |

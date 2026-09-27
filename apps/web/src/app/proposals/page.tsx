@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,16 +33,36 @@ import {
   Palette,
   Pencil,
   Kanban,
+  ShieldCheck,
+  MessageSquareWarning,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { replaceUrlSearchParams } from "@/lib/url-state";
+import { proposalStatusFilterOptions } from "@/lib/proposal-status-filter";
 import { ProposalsSkeleton } from "./_components/proposals-skeleton";
+import { ClientAcceptanceDialog } from "./_components/client-acceptance-dialog";
+import { ClientChangeRequestDialog } from "./_components/client-change-request-dialog";
+import {
+  hasOpenChangeRequest,
+  hasPendingAcceptance,
+  isAcceptancePending,
+  isChangeRequestOpen,
+  pickApprovedColumnId,
+} from "@/lib/client-acceptance";
+import { useClientResponses } from "@/hooks/use-client-responses";
+import { announceProjectOnApproval } from "@/lib/project-on-approval";
 import { ProposalsTableSkeleton } from "./_components/proposals-table-skeleton";
 import { normalize } from "@/utils/text";
-import { Spinner } from "@/components/ui/spinner";
 import {
   DRIVE_DELIVERY_PENDING_HINT,
   DRIVE_NOT_CONNECTED_HINT,
 } from "@/lib/proposal-payment";
+import {
+  SendProposalDialog,
+  type SendProposalTarget,
+} from "./_components/send-proposal-dialog";
+import { runUndoableAction } from "@/lib/undoable-action";
 import { toast } from "@/lib/toast";
 import { isDemoReadOnlyError } from "@/lib/api-client";
 import { UpgradeModal, useUpgradeModal } from "@/components/ui/upgrade-modal";
@@ -138,9 +158,33 @@ export default function ProposalsPage() {
   const premiumColor = useThemePrimaryColor();
   const [proposals, setProposals] = React.useState<Proposal[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
-  const [searchTerm, setSearchTerm] = React.useState("");
+  // Busca e status vivem também no endereço: voltar da proposta aberta ou
+  // recarregar a página mantém a lista como estava.
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = React.useState(
+    () => searchParams.get("q") ?? "",
+  );
+  const [statusFilter, setStatusFilter] = React.useState(
+    () => searchParams.get("status") ?? "",
+  );
+  React.useEffect(() => {
+    replaceUrlSearchParams({
+      q: searchTerm.trim() || null,
+      status: statusFilter || null,
+    });
+  }, [searchTerm, statusFilter]);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = React.useState(false);
+  // Aceite do cliente em revisão. Vem do endereço (`?aceite=<id>`) quando a
+  // pessoa chega pela notificação, ou do selo na coluna de status.
+  const [acceptanceId, setAcceptanceId] = React.useState<string | null>(
+    () => searchParams.get("aceite"),
+  );
+  const [acceptanceFallback, setAcceptanceFallback] = React.useState<Proposal | null>(null);
+  const [changeRequestId, setChangeRequestId] = React.useState<string | null>(
+    () => searchParams.get("ajuste"),
+  );
+  // Aceites e pedidos de mudança em aberto, ao vivo: chegam com a tela aberta.
+  const clientResponses = useClientResponses(tenant?.id);
   const [updatingStatusId, setUpdatingStatusId] = React.useState<string | null>(
     null,
   );
@@ -224,6 +268,8 @@ export default function ProposalsPage() {
   const [duplicatingId, setDuplicatingId] = React.useState<string | null>(null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [sharingId, setSharingId] = React.useState<string | null>(null);
+  const [sendTarget, setSendTarget] =
+    React.useState<SendProposalTarget | null>(null);
   const [, setIsGeneratingShareLink] = React.useState(false);
   const [attachmentsProposalId, setAttachmentsProposalId] = React.useState<
     string | null
@@ -240,7 +286,7 @@ export default function ProposalsPage() {
     closeGaps: closeFiscalGaps,
   } = useIssueInvoice();
   const invoicePrompt = useProposalInvoicePrompt();
-  const { promptAfterApproval, startPreview } = invoicePrompt;
+  const { promptAfterApproval, startPreview, dismiss: dismissInvoicePrompt } = invoicePrompt;
   const [isAwaitingPendingSave, setIsAwaitingPendingSave] =
     React.useState(true);
   // Cache for attachments to prevent fetchProposals from overwriting local updates
@@ -286,47 +332,18 @@ export default function ProposalsPage() {
     return Boolean(hasValidTitle && hasValidClient && hasProducts);
   };
 
-  const handleShare = async (proposalId: string) => {
-    setSharingId(proposalId);
+  const handleShare = async (proposal: Proposal) => {
+    setSharingId(proposal.id);
     setIsGeneratingShareLink(true);
     try {
-      const result = await SharedProposalService.generateShareLink(proposalId);
-
-      try {
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(result.shareUrl);
-          toast.success("Link copiado para a área de transferência!");
-        } else {
-          throw new Error("Clipboard API not available");
-        }
-      } catch (clipboardError) {
-        console.warn("Clipboard API failed, trying fallback", clipboardError);
-        try {
-          const textArea = document.createElement("textarea");
-          textArea.value = result.shareUrl;
-          textArea.style.position = "fixed";
-          textArea.style.left = "-999999px";
-          textArea.style.top = "0";
-          document.body.appendChild(textArea);
-          textArea.focus();
-          textArea.select();
-
-          const successful = document.execCommand("copy");
-          textArea.remove();
-
-          if (successful) {
-            toast.success("Link copiado para a área de transferência!");
-          } else {
-            throw new Error("Fallback copy failed");
-          }
-        } catch (fallbackError) {
-          console.error("Fallback copy also failed", fallbackError);
-          toast.warning(
-            "Link gerado, mas não copiado. Por favor, tente novamente.",
-            { autoClose: 5000 },
-          );
-        }
-      }
+      const result = await SharedProposalService.generateShareLink(proposal.id);
+      setSendTarget({
+        url: result.shareUrl,
+        title: proposal.title,
+        clientName: proposal.clientName,
+        clientPhone: proposal.clientPhone,
+        clientEmail: proposal.clientEmail,
+      });
     } catch (error) {
       if (!isDemoReadOnlyError(error)) {
         console.error("Error generating share link:", error);
@@ -344,18 +361,24 @@ export default function ProposalsPage() {
     sortConfig,
   } = useSort(proposals);
 
-  // Filter proposals based on search term
+  // Filter proposals based on search term (and the status filter, when set)
   const filteredProposals = React.useMemo(() => {
     if (!isFiltering) return [];
 
     const term = normalize(searchTerm);
     return sortedProposals.filter(
       (proposal) =>
-        normalize(proposal.title).includes(term) ||
-        normalize(proposal.clientName || "").includes(term) ||
-        normalize(getStatusLabel(proposal.status)).includes(term),
+        (!statusFilter || proposal.status === statusFilter) &&
+        (normalize(proposal.title).includes(term) ||
+          normalize(proposal.clientName || "").includes(term) ||
+          normalize(getStatusLabel(proposal.status)).includes(term)),
     );
-  }, [sortedProposals, searchTerm, isFiltering, getStatusLabel]);
+  }, [sortedProposals, searchTerm, isFiltering, getStatusLabel, statusFilter]);
+
+  const statusFilterOptions = React.useMemo(
+    () => proposalStatusFilterOptions(kanbanColumns),
+    [kanbanColumns],
+  );
 
   /* isPageLoading is now false for search to prevent table blink. We use isLoading for Input spinner. */
   const isPageLoading = false;
@@ -474,15 +497,16 @@ export default function ProposalsPage() {
               direction: sortConfig.direction || "asc",
             }
           : null,
+        statusFilter || null,
       );
     },
-    [tenant, sortConfig],
+    [tenant, sortConfig, statusFilter],
   );
 
-  // Reset pagination when sort changes
+  // Reset pagination when sort or status filter changes
   React.useEffect(() => {
     resetRef.current?.();
-  }, [sortConfig]);
+  }, [sortConfig, statusFilter]);
 
   const fetchProposals = React.useCallback(async () => {
     if (tenant) {
@@ -553,51 +577,48 @@ export default function ProposalsPage() {
       ? `"${proposal.title.trim()}"`
       : `ID ${deleteId}`;
 
-    setIsDeleting(true);
-    try {
-      await ProposalService.deleteProposal(deleteId);
-      const remainingProposals = proposals.filter((p) => p.id !== deleteId);
-
-      // Bug 3 Fix: Optimistically update the empty-state flag immediately when
-      // the last proposal is removed. Firestore may serve cached results for the
-      // verification query, causing the empty-state card to never appear without
-      // a page reload. By setting hasAnyProposals=false right now (before the
-      // async check), the UI transitions instantly to the empty state.
-      if (remainingProposals.length === 0) {
-        setHasAnyProposals(false);
-        setProposals([]);
-      }
-
-      // Secondary verification against Firestore to ensure consistency
-      // (handles edge cases like concurrent deletes from another session).
-      const hasRemainingProposals = await refreshHasAnyProposals();
-
-      if (!hasRemainingProposals) {
-        setProposals([]);
-      } else {
-        const removedId = deleteId;
-        updateItemsRef.current?.((items) =>
-          items.filter((p) => p.id !== removedId),
-        );
-        setProposals(remainingProposals);
-      }
-      toast.success(`Proposta ${proposalLabel} foi excluida com sucesso.`, {
-        title: "Sucesso ao excluir",
-      });
-    } catch (error) {
-      console.error(error);
-      const errorMessage =
-        error instanceof Error && error.message.trim()
-          ? error.message.trim()
-          : "Falha inesperada ao excluir a proposta.";
-      toast.error(
-        `Não foi possível excluir a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
-        { title: "Erro ao excluir" },
-      );
-    } finally {
-      setIsDeleting(false);
-      setDeleteId(null);
+    // A exclusão só vai para o servidor depois da janela de "Desfazer": a
+    // proposta sai da lista agora, e desfazer é recarregar a lista, porque o
+    // documento continua lá.
+    const removedId = deleteId;
+    const remainingProposals = proposals.filter((p) => p.id !== removedId);
+    updateItemsRef.current?.((items) =>
+      items.filter((p) => p.id !== removedId),
+    );
+    setProposals(remainingProposals);
+    if (remainingProposals.length === 0) {
+      setHasAnyProposals(false);
     }
+    setDeleteId(null);
+
+    const restoreList = () => {
+      void refreshHasAnyProposals();
+      refreshRef.current?.();
+    };
+
+    runUndoableAction({
+      message: `Proposta ${proposalLabel} excluída.`,
+      title: "Proposta excluída",
+      commit: async () => {
+        await ProposalService.deleteProposal(removedId);
+        // Secondary verification against Firestore to ensure consistency
+        // (handles edge cases like concurrent deletes from another session).
+        await refreshHasAnyProposals();
+      },
+      onUndo: restoreList,
+      onCommitError: (error) => {
+        console.error(error);
+        const errorMessage =
+          error instanceof Error && error.message.trim()
+            ? error.message.trim()
+            : "Falha inesperada ao excluir a proposta.";
+        toast.error(
+          `Não foi possível excluir a proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
+          { title: "Erro ao excluir" },
+        );
+        restoreList();
+      },
+    });
   };
 
   const handleDuplicate = React.useCallback(
@@ -692,6 +713,7 @@ export default function ProposalsPage() {
         );
         // A entrega no Drive saiu da request e roda num cron: sem o aviso,
         // quem aprova e vai direto na pasta do cliente acha que falhou.
+        announceProjectOnApproval(result, proposal);
         if (result?.driveDeliveryQueued) {
           toast.info(DRIVE_DELIVERY_PENDING_HINT);
         } else if (result?.driveNotConnected) {
@@ -706,7 +728,11 @@ export default function ProposalsPage() {
             pendingPreview,
           );
         }
+        return true;
       } catch (error) {
+        // A consulta de emissão guardou a vez na fila de diálogos; sem
+        // aprovação não há convite, então solta.
+        if (pendingPreview) dismissInvoicePrompt();
         console.error("Error updating status:", error);
         const errorMessage =
           error instanceof Error && error.message.trim()
@@ -716,6 +742,7 @@ export default function ProposalsPage() {
           `Não foi possível alterar o status da proposta ${proposalLabel}. Detalhes: ${errorMessage}`,
           { title: "Erro ao editar" },
         );
+        return false;
       } finally {
         setUpdatingStatusId(null);
       }
@@ -727,9 +754,138 @@ export default function ProposalsPage() {
       isProposalApproved,
       promptAfterApproval,
       startPreview,
+      dismissInvoicePrompt,
       canIssueInvoice,
     ],
   );
+
+  // A notificação pode apontar para uma proposta fora da página carregada.
+  const acceptanceFromList = acceptanceId
+    ? clientResponses.acceptances.get(acceptanceId) ??
+      proposals.find((p) => p.id === acceptanceId) ??
+      null
+    : null;
+  React.useEffect(() => {
+    if (!acceptanceId || acceptanceFromList) return;
+    let cancelled = false;
+    ProposalService.getProposalById(acceptanceId)
+      .then((found) => {
+        if (!cancelled) setAcceptanceFallback(found);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [acceptanceId, acceptanceFromList]);
+  const acceptanceCandidate =
+    acceptanceFromList ??
+    (acceptanceFallback?.id === acceptanceId ? acceptanceFallback : null);
+  const acceptanceTarget =
+    acceptanceCandidate && isAcceptancePending(acceptanceCandidate)
+      ? acceptanceCandidate
+      : null;
+
+  const closeAcceptance = React.useCallback(() => {
+    setAcceptanceId(null);
+    replaceUrlSearchParams({ aceite: null });
+  }, []);
+
+  const markAcceptanceResolved = React.useCallback(
+    (proposalId: string, status: "confirmed" | "discarded") => {
+      const resolve = (p: Proposal) =>
+        p.id === proposalId && p.clientAcceptance
+          ? { ...p, clientAcceptance: { ...p.clientAcceptance, status } }
+          : p;
+      setProposals((prev) => prev.map(resolve));
+      updateItemsRef.current?.((items) => items.map(resolve));
+    },
+    [],
+  );
+
+  const confirmAcceptance = React.useCallback(async () => {
+    if (!acceptanceTarget) return;
+    // Confirmar é o mesmo caminho de mudar o status para aprovada: o backend
+    // gera os lançamentos, entrega no Drive e marca o aceite como confirmado.
+    const approvedColumnId = pickApprovedColumnId(kanbanColumns);
+    let ok: boolean | undefined;
+    if (proposals.some((p) => p.id === acceptanceTarget.id)) {
+      ok = await handleStatusChange(acceptanceTarget.id, approvedColumnId);
+    } else {
+      // Fora da página carregada: sem a linha, a troca de status da lista
+      // não tem o que atualizar, então grava direto.
+      const column = kanbanColumns.find((c) => c.id === approvedColumnId);
+      const status =
+        column?.id.startsWith("default_") && column.mappedStatus
+          ? (column.mappedStatus as ProposalStatus)
+          : (approvedColumnId as ProposalStatus);
+      try {
+        const result = await ProposalService.updateProposal(acceptanceTarget.id, { status });
+        toast.success("Aprovação confirmada.");
+        announceProjectOnApproval(result, acceptanceTarget);
+        ok = true;
+      } catch (error) {
+        toast.error(
+          error instanceof Error && error.message
+            ? error.message
+            : "Não foi possível confirmar a aprovação.",
+        );
+        ok = false;
+      }
+    }
+    // Falhou: o toast de erro já apareceu e o diálogo fica aberto.
+    if (!ok) throw new Error("STATUS_CHANGE_FAILED");
+    markAcceptanceResolved(acceptanceTarget.id, "confirmed");
+  }, [acceptanceTarget, handleStatusChange, kanbanColumns, markAcceptanceResolved, proposals]);
+
+  const adjustAcceptance = React.useCallback(async () => {
+    if (!acceptanceTarget) return;
+    try {
+      await ProposalService.discardClientAcceptance(acceptanceTarget.id);
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível descartar o aceite.",
+      );
+      throw error;
+    }
+    markAcceptanceResolved(acceptanceTarget.id, "discarded");
+    toast.info("Aceite descartado. Ajuste a proposta e reenvie o link para o cliente aceitar de novo.");
+    router.push(`/proposals/${acceptanceTarget.id}`);
+  }, [acceptanceTarget, markAcceptanceResolved, router]);
+
+  const changeRequestTarget = (() => {
+    if (!changeRequestId) return null;
+    const found =
+      clientResponses.changeRequests.get(changeRequestId) ??
+      proposals.find((p) => p.id === changeRequestId);
+    return found && isChangeRequestOpen(found) ? found : null;
+  })();
+
+  const closeChangeRequest = React.useCallback(() => {
+    setChangeRequestId(null);
+    replaceUrlSearchParams({ ajuste: null });
+  }, []);
+
+  const editForChangeRequest = React.useCallback(() => {
+    if (!changeRequestTarget) return;
+    router.push(`/proposals/${changeRequestTarget.id}`);
+  }, [changeRequestTarget, router]);
+
+  const resolveChangeRequest = React.useCallback(async () => {
+    if (!changeRequestTarget) return;
+    try {
+      await ProposalService.resolveChangeRequest(changeRequestTarget.id);
+      toast.success("Pedido de mudanças encerrado.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Não foi possível encerrar o pedido.",
+      );
+      throw error;
+    }
+  }, [changeRequestTarget]);
 
   const proposalToDelete = sortedProposals.find((p) => p.id === deleteId);
   const columns: DataTableColumn<Proposal>[] = React.useMemo(
@@ -846,6 +1002,26 @@ export default function ProposalsPage() {
               >
                 {getStatusLabel(proposal.status)}
               </Badge>
+            )}
+            {hasPendingAcceptance(proposal, clientResponses) && (
+              <button
+                type="button"
+                onClick={() => setAcceptanceId(proposal.id)}
+                className="mt-1 flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+              >
+                <ShieldCheck className="h-3 w-3" />
+                Aceite do cliente
+              </button>
+            )}
+            {hasOpenChangeRequest(proposal, clientResponses) && (
+              <button
+                type="button"
+                onClick={() => setChangeRequestId(proposal.id)}
+                className="mt-1 flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-700 hover:bg-orange-500/20 dark:text-orange-400"
+              >
+                <MessageSquareWarning className="h-3 w-3" />
+                Ajuste solicitado
+              </button>
             )}
           </div>
         ),
@@ -1075,7 +1251,7 @@ export default function ProposalsPage() {
                 canGeneratePdf={canGeneratePdf(proposal)}
                 isSharing={sharingId === proposal.id}
                 isDuplicating={duplicatingId === proposal.id}
-                onShare={() => handleShare(proposal.id)}
+                onShare={() => handleShare(proposal)}
                 onDuplicate={() => handleDuplicate(proposal.id)}
                 onAttachments={() => setAttachmentsProposalId(proposal.id)}
               />
@@ -1093,7 +1269,7 @@ export default function ProposalsPage() {
                 isDuplicating={duplicatingId === proposal.id}
                 isDownloading={downloadingId === proposal.id}
                 isEditing={editingId === proposal.id}
-                onShare={() => handleShare(proposal.id)}
+                onShare={() => handleShare(proposal)}
                 onDuplicate={() => handleDuplicate(proposal.id)}
                 onAttachments={() => setAttachmentsProposalId(proposal.id)}
                 showAllActions
@@ -1137,6 +1313,7 @@ export default function ProposalsPage() {
       getStatusColor,
       getStatusLabel,
       kanbanColumns,
+      clientResponses,
     ],
   );
 
@@ -1144,9 +1321,7 @@ export default function ProposalsPage() {
     <AlertDialog
       open={!!deleteId}
       onOpenChange={(open) => {
-        if (!isDeleting) {
-          if (!open) setDeleteId(null);
-        }
+        if (!open) setDeleteId(null);
       }}
     >
       <AlertDialogContent>
@@ -1154,19 +1329,17 @@ export default function ProposalsPage() {
           <AlertDialogTitle>Excluir Proposta</AlertDialogTitle>
           <AlertDialogDescription>
             Tem certeza que deseja excluir a proposta{" "}
-            <strong>{proposalToDelete?.title}</strong>? Esta ação não pode ser
-            desfeita.
+            <strong>{proposalToDelete?.title}</strong>? Depois de excluir, você
+            tem alguns segundos para desfazer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             className="bg-destructive hover:bg-destructive/90 gap-2"
-            disabled={isDeleting}
           >
-            {isDeleting && <Spinner className="w-4 h-4 text-white" />}
-            {isDeleting ? "Excluindo..." : "Excluir"}
+            Excluir
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -1255,19 +1428,36 @@ export default function ProposalsPage() {
 
             {/* Search */}
             {hasAnyProposals !== false && (
-              <div className="max-w-md">
-                <Input
-                  placeholder="Buscar por título, contato ou status..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  icon={
-                    isFiltering && isLoading ? (
-                      <Loader size="sm" />
-                    ) : (
-                      <Search className="w-4 h-4" />
-                    )
-                  }
-                />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="w-full sm:max-w-md sm:flex-1">
+                  <Input
+                    placeholder="Buscar por título, contato ou status..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    icon={
+                      isFiltering && isLoading ? (
+                        <Loader size="sm" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )
+                    }
+                  />
+                </div>
+                <div className="w-full sm:w-56">
+                  <Select
+                    aria-label="Filtrar por status"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    disableSort
+                  >
+                    <option value="">Todos os status</option>
+                    {statusFilterOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
             )}
 
@@ -1340,6 +1530,27 @@ export default function ProposalsPage() {
             )}
           </div>
           {renderDialogs()}
+          <ClientChangeRequestDialog
+            proposalTitle={changeRequestTarget?.title?.trim() || "sem título"}
+            request={changeRequestTarget?.clientChangeRequest ?? null}
+            canDecide={canEdit && !isReadOnly}
+            onClose={closeChangeRequest}
+            onEdit={editForChangeRequest}
+            onResolve={resolveChangeRequest}
+          />
+          <ClientAcceptanceDialog
+            proposalTitle={acceptanceTarget?.title?.trim() || "sem título"}
+            acceptance={acceptanceTarget?.clientAcceptance ?? null}
+            canDecide={canEdit && !isReadOnly}
+            onClose={closeAcceptance}
+            onConfirm={confirmAcceptance}
+            onAdjust={adjustAcceptance}
+          />
+          <SendProposalDialog
+            target={sendTarget}
+            companyName={tenant?.name}
+            onClose={() => setSendTarget(null)}
+          />
         </>
       )}
 

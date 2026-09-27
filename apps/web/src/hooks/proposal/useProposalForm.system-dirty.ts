@@ -290,7 +290,7 @@ export function useProposalFormSystemDirty(
       initialEssentialSnapshot = buildEssentialFormSnapshot(initialData);
     } catch (e) {
       console.error("Error parsing initial snapshot for dirty detection:", e);
-      toast.error("Erro ao verificar alteracoes no formulario");
+      toast.error("Erro ao verificar alterações no formulário");
       setIsDirty(false);
       return;
     }

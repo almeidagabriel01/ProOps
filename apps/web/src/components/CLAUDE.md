@@ -78,6 +78,26 @@ da altura do texto. `className` serve para margem e cor, não para tamanho.
 Guard: `src/__tests__/loader-consistency.test.ts` falha se `Loader2` reaparecer
 ou se algum `<Loader>` tentar se dimensionar por classe.
 
+## Componentes compartilhados de estado (`shared/`)
+
+| Componente | Quando usar |
+|---|---|
+| `ConfirmDialog` | Toda confirmação. `window.confirm()`/`alert()` são proibidos na interface (guard `no-native-dialogs.test.ts`); aviso simples é `toast` |
+| `EmptyState` | Lista ou bloco sem nada: ícone, o que falta e a ação que resolve |
+| `RouteError` | O `error.tsx` de cada módulo. Reporta ao pipeline de observabilidade (o boundary do Next captura antes do `window`) e oferece tentar de novo, início e suporte. Guard `route-error-boundaries.test.ts`: destino novo do menu precisa do seu `error.tsx` |
+
+Exclusão com "Desfazer" é `runUndoableAction` (`lib/undoable-action.ts`): a
+tela já mostra o resultado e a gravação só acontece depois da janela do toast.
+
+O toast é do sileo, que desenha o toast inteiro como `<button>` com a ação num
+`<a>` lá dentro: para o leitor de tela o "Desfazer" não existia. O
+`ToastProvider` corrige a semântica de cada toast que entra
+(`lib/toast-a11y.ts`: grupo fora da tabulação, desenho em SVG oculto, ação como
+botão que responde ao Espaço). A correção é de atributos, e não um patch na
+biblioteca, porque o sileo fica no `node_modules` da raiz e o `patch-package`
+do web não o alcança. Guards: `lib/__tests__/toast-a11y.test.ts` e o E2E do
+Desfazer em `proposals/proposal-crud.spec.ts`, que acha o botão pelo papel.
+
 ## Data
 
 O seletor de data do projeto é o `DatePicker` (`ui/date-picker.tsx`), **nunca**
@@ -173,6 +193,18 @@ para elementos da página, então não quebra quando um layout muda.
 - `welcomeSeenAt` e `firstStepsDismissedAt` sobrevivem a recomeçar o tour. O
   backend reconstrói o objeto campo a campo (`normalizeOnboardingPayload`):
   campo novo no estado precisa entrar lá, senão é descartado sem erro.
+
+## Importar planilha (`features/import/`)
+
+`ImportDialog` é o importar de Contatos, Produtos e Serviços: arquivo (.xlsx ou
+.csv, com modelo para baixar), ligação das colunas (feita sozinha pelo nome,
+em `lib/import/import-fields.ts`) e prévia antes de gravar. Para quem assina a
+prévia é a do servidor (`dryRun`, que acha os repetidos); na demonstração é a
+validação do navegador, e o último passo leva aos planos. A regra do backend
+está no `apps/functions/CLAUDE.md`, seção Importação por planilha. A planilha
+de produtos segue o nicho: coluna de metragem e "preço por" onde o estoque é em
+metros. Leitor de planilha em `lib/import/read-sheet.ts` (o CSV detecta o ponto
+e vírgula do Excel em português).
 
 ## Nomenclatura
 - Arquivo: `nome-componente.tsx` (kebab-case)

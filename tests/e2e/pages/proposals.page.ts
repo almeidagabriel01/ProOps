@@ -1,4 +1,4 @@
-import type { Page, Locator } from "@playwright/test";
+import { expect, type Page, type Locator } from "@playwright/test";
 
 /**
  * Page Object Model for the proposals list page (/proposals).
@@ -55,7 +55,7 @@ export class ProposalsPage {
    * Creates a proposal through the full browser UI wizard.
    *
    * For tenant-alpha (niche: automacao_residencial), the wizard has 5 steps:
-   * 1. Contato — fills title, client, phone, validUntil
+   * 1. Contato — fills title, client, phone (validUntil arrives prefilled)
    * 2. Soluções — selects a sistema and ambiente from SearchableSelect dropdowns
    * 3. Pagamento — skipped (no payment options enabled by default)
    * 4. PDF — skipped (default settings)
@@ -95,18 +95,13 @@ export class ProposalsPage {
     const phoneInput = this.page.locator('#clientPhone');
     await phoneInput.fill('(11) 99999-9999');
 
-    // Fill validUntil date via the custom DatePicker component.
-    // The field renders a hidden <input type="hidden" id="validUntil"> and a visible
-    // <button> trigger. Clicking the trigger opens a calendar popover; clicking "Hoje"
-    // picks today's date (valid — not in the past).
-    const validUntilTrigger = this.page.getByRole("button", { name: /selecionar data/i });
-    await validUntilTrigger.click();
-    // Click "Hoje" in the calendar footer to select today's date
-    const hojeButton = this.page.getByRole("button", { name: /hoje/i });
-    await hojeButton.waitFor({ state: "visible", timeout: 5000 });
-    // Use JS click via evaluate — works even when the element is outside the CI viewport
-    // (position:fixed popovers are not scrollable into view in headless).
-    await hojeButton.evaluate((el) => (el as HTMLElement).click());
+    // "Válida até" já vem preenchida: hoje + a validade padrão da empresa
+    // (30 dias quando a configuração não foi tocada, o caso do seed). O campo
+    // é obrigatório, e antes cada proposta exigia uma ida ao calendário.
+    await expect(this.page.locator("#validUntil")).toHaveValue(
+      defaultValidUntilISO(30),
+      { timeout: 10000 },
+    );
 
     // Click "Próximo" to advance to step 2
     await this.page.getByRole("button", { name: /próximo/i }).click();
@@ -239,16 +234,56 @@ export class ProposalsPage {
     await deleteMenuItem.waitFor({ state: "visible", timeout: 5000 });
     await deleteMenuItem.click();
 
-    // Confirm the AlertDialog
+    // Confirm the AlertDialog. The DELETE only reaches the server after the
+    // "Desfazer" window (~6s), so wait for it: otherwise the test ends with the
+    // proposal still in the database.
+    const deleteRequest = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        /\/v1\/proposals\/[^/]+$/.test(new URL(response.url()).pathname),
+      { timeout: 20000 },
+    );
     const confirmButton = this.page.getByRole("button", { name: /^excluir$/i });
     await confirmButton.waitFor({ state: "visible", timeout: 8000 });
     await confirmButton.click();
 
-    // Wait for proposal to disappear from the list
-    const proposalText = this.page.getByText(title, { exact: false }).first();
-    await proposalText.waitFor({ state: "hidden", timeout: 10000 }).catch(() => {
-      // Acceptable: item may already be gone before waitFor
-    });
+    // The row leaves the list right away (the toast also carries the title,
+    // so look for the link, not any text).
+    await this.page
+      .getByRole("link", { name: title })
+      .first()
+      .waitFor({ state: "hidden", timeout: 10000 });
+    await deleteRequest;
+  }
+
+  /**
+   * Deletes through the UI and clicks "Desfazer" before the undo window ends.
+   * Nothing is sent to the server; the proposal comes back to the list.
+   */
+  async deleteProposalAndUndo(title: string): Promise<void> {
+    const row = this.page.locator("div").filter({
+      has: this.page.getByRole("link", { name: title }),
+    }).filter({
+      has: this.page.getByRole("button", { name: /mais ações/i }),
+    }).last();
+
+    await row.getByRole("button", { name: /mais ações/i }).click();
+    const deleteMenuItem = this.page.locator("div, button, li").filter({
+      hasText: /^excluir$/i,
+    }).last();
+    await deleteMenuItem.waitFor({ state: "visible", timeout: 5000 });
+    await deleteMenuItem.click();
+
+    await this.page.getByRole("button", { name: /^excluir$/i }).click();
+    await this.page
+      .getByRole("link", { name: title })
+      .first()
+      .waitFor({ state: "hidden", timeout: 10000 });
+
+    // By role on purpose: the sileo toast is a <button> with the action nested
+    // inside, invisible to assistive tech until lib/toast-a11y.ts fixes the
+    // semantics. This lookup fails if that fix stops being applied.
+    await this.page.getByRole("button", { name: /^desfazer$/i }).click();
   }
 
   /**
@@ -295,4 +330,13 @@ export class ProposalsPage {
 
     return "";
   }
+}
+
+/** Hoje + `days`, em data local, no formato do campo (`YYYY-MM-DD`). */
+function defaultValidUntilISO(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
 }

@@ -1081,7 +1081,7 @@ function EnvironmentProductRow({
     : "";
   const priceUnitLabel = getProposalProductUnitLabel(product);
   const priceSuffix = isCurtainMeter
-    ? " /mÂ²"
+    ? " /m²"
     : isCurtainHeight
       ? " /m larg."
       : isCurtainWidth

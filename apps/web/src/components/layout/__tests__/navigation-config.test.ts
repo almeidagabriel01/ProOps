@@ -52,8 +52,10 @@ describe("menuItems", () => {
     }
   });
 
-  it("a dock oferece 8 destinos de topo", () => {
-    expect(menuItems).toHaveLength(8);
+  it("a dock oferece 10 destinos de topo", () => {
+    // Projetos (obra depois da venda) entrou de topo, ao lado do CRM; Tarefas,
+    // ao lado do Calendário.
+    expect(menuItems).toHaveLength(10);
   });
 
   it("grupo nao declara href nem pageId proprios", () => {

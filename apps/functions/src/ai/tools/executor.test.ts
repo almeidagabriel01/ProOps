@@ -20,10 +20,13 @@ jest.mock("../../api/services/proposals.service", () => ({
   getProposal: jest.fn().mockResolvedValue({}),
   createProposal: jest.fn().mockResolvedValue({ id: "p-1" }),
   updateProposal: jest.fn().mockResolvedValue({}),
-  updateProposalStatus: jest.fn().mockResolvedValue({}),
   deleteProposal: jest.fn().mockResolvedValue({}),
 }));
 
+const changeProposalStatusAsUser = jest.fn().mockResolvedValue({ id: "p1" });
+jest.mock("../../api/controllers/proposal-status-internal", () => ({
+  changeProposalStatusAsUser: (...a: unknown[]) => changeProposalStatusAsUser(...a),
+}));
 jest.mock("../../api/services/contacts.service", () => ({
   listContacts: jest.fn().mockResolvedValue({ contacts: [] }),
   getContact: jest.fn().mockResolvedValue({}),
@@ -272,5 +275,23 @@ describe("executeToolCall — superadmin em modo somente leitura", () => {
     expect(writes).toEqual(expect.arrayContaining(["send_whatsapp_message", "delete_proposal"]));
     expect(writes).not.toContain("list_proposals");
     expect(writes).not.toContain("request_confirmation");
+  });
+});
+
+describe("executeToolCall — mudança de status pelo caminho da tela", () => {
+  test("aprovar pela Lia usa o updateProposal (financeiro, projeto, Drive), como quem pediu", async () => {
+    changeProposalStatusAsUser.mockClear();
+    const result = await executeToolCall(
+      "update_proposal_status",
+      { proposalId: "p1", newStatus: "approved" },
+      adminCtx,
+    );
+    expect(result.success).toBe(true);
+    expect(changeProposalStatusAsUser).toHaveBeenCalledWith(
+      { uid: "uid-admin", role: "ADMIN", tenantId: "tenant-a" },
+      "p1",
+      "approved",
+      undefined,
+    );
   });
 });

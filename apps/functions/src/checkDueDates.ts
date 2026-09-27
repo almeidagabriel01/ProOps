@@ -3,6 +3,10 @@ import { db } from "./init";
 import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { captureError } from "./lib/observability/error-logger";
+import { runProposalFollowUps } from "./proposal-follow-up";
+import { runLeadReminders } from "./lead-reminders";
+import { runTaskReminders } from "./task-reminders";
+import { NotificationService } from "./api/services/notification.service";
 
 /**
  * Cloud Function scheduled que roda diariamente para verificar
@@ -116,7 +120,7 @@ export async function runDueDateCheck(now: Date): Promise<void> {
           : `"${description}"${amount ? ` (${amount})` : ""} vence em ${formattedDueDate}. Lembre-se de atualizar o status.`;
       }
 
-      upsertDueReminderNotification(writer, {
+      await upsertDueReminderNotification(writer, {
         tenantId,
         type: "transaction_due_reminder",
         title,
@@ -160,7 +164,7 @@ export async function runDueDateCheck(now: Date): Promise<void> {
 
       const formattedValidUntil = formatDateBR(validUntil);
 
-      upsertDueReminderNotification(writer, {
+      await upsertDueReminderNotification(writer, {
         tenantId,
         type: "proposal_expiring",
         title: isExpired
@@ -180,6 +184,36 @@ export async function runDueDateCheck(now: Date): Promise<void> {
     console.log(
       `Created ${proposalReminders} proposal expiration reminders.`,
     );
+
+    // ================================================================
+    // 2b. FOLLOW-UP — proposta vista há dias e ainda sem resposta
+    // ================================================================
+    try {
+      const followUps = await runProposalFollowUps(now, writer);
+      console.log(`Created ${followUps} proposal follow-up reminders.`);
+    } catch (followUpError) {
+      console.warn("Proposal follow-up failed (non-fatal):", followUpError);
+    }
+
+    // ================================================================
+    // 2c. CRM — próxima ação do lead e atividade com prazo hoje
+    // ================================================================
+    try {
+      const leadReminders = await runLeadReminders(now, writer);
+      console.log(`Created ${leadReminders} CRM reminders.`);
+    } catch (leadReminderError) {
+      console.warn("CRM reminders failed (non-fatal):", leadReminderError);
+    }
+
+    // ================================================================
+    // 2d. Tarefas com prazo hoje
+    // ================================================================
+    try {
+      const taskReminders = await runTaskReminders(now, writer);
+      console.log(`Created ${taskReminders} task reminders.`);
+    } catch (taskReminderError) {
+      console.warn("Task reminders failed (non-fatal):", taskReminderError);
+    }
     console.log(
       `Due date check complete. Total reminders: ${transactionReminders + proposalReminders}.`,
     );
@@ -247,7 +281,7 @@ function formatDateBR(dateStr: string): string {
   return `${day}/${month}/${year}`;
 }
 
-function upsertDueReminderNotification(
+async function upsertDueReminderNotification(
   writer: FirebaseFirestore.BulkWriter,
   data: {
   tenantId: string;
@@ -259,7 +293,7 @@ function upsertDueReminderNotification(
   proposalId?: string;
   transactionId?: string;
   },
-): void {
+): Promise<void> {
   const {
     tenantId,
     type,
@@ -273,6 +307,8 @@ function upsertDueReminderNotification(
 
   const stableDocId = `due_${tenantId}_${type}_${resourceField}_${resourceId}`;
   const notificationRef = db.collection("notifications").doc(stableDocId);
+  // Regravar zera a leitura (`readBy: []`): é um lembrete diário.
+  const { fields } = await NotificationService.recipientFields(tenantId, type);
 
   // Falha já é registrada (e retentada) pelo onWriteError do writer; o catch
   // só impede que a promise rejeitada vire unhandled rejection.
@@ -283,6 +319,7 @@ function upsertDueReminderNotification(
       type,
       title,
       message,
+      ...fields,
       isRead: false,
       readAt: FieldValue.delete(),
       createdAt: new Date().toISOString(),

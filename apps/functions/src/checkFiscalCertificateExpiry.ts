@@ -4,6 +4,7 @@ import { SCHEDULE_OPTIONS } from "./deploymentConfig";
 import { logger } from "./lib/logger";
 import { daysUntil } from "./api/services/fiscal/fiscal-settings.service";
 import { paginateQuery } from "./lib/cron-iteration";
+import { NotificationService } from "./api/services/notification.service";
 
 /**
  * Avisa antes de o certificado digital A1 vencer.
@@ -81,21 +82,30 @@ export const checkFiscalCertificateExpiry = onSchedule(
         const { title, message } = buildMessage(remaining);
 
         // Escrita direta com ID estavel: NotificationService.createNotification
-        // usa .add() e geraria uma notificacao nova a cada execucao.
-        await db
-          .collection("notifications")
-          .doc(`fiscal_cert_${tenantId}_${suffix}`)
-          .set(
-            {
-              tenantId,
-              type: "system",
-              title,
-              message,
+        // usa .add() e geraria uma notificacao nova a cada execucao. `create`
+        // (e nao `set`) para o e-mail sair uma vez por marco, mesmo que o cron
+        // rode de novo no mesmo dia.
+        const { fields, emailRecipients } = await NotificationService.recipientFields(
+          tenantId,
+          "system",
+        );
+        const notification = { tenantId, type: "system" as const, title, message };
+        try {
+          await db
+            .collection("notifications")
+            .doc(`fiscal_cert_${tenantId}_${suffix}`)
+            .create({
+              ...notification,
+              ...fields,
               isRead: false,
               createdAt: new Date().toISOString(),
-            },
-            { merge: true },
-          );
+            });
+        } catch (error) {
+          const code = (error as { code?: number | string })?.code;
+          if (code === 6 || code === "already-exists") continue;
+          throw error;
+        }
+        await NotificationService.sendNotificationEmails(notification, emailRecipients);
 
         notified += 1;
       }

@@ -36,7 +36,10 @@ export type OnboardingCapability =
   | "calendarSync"
   | "driveSync"
   | "onlinePayments"
-  | "fiscalReceiving";
+  | "fiscalReceiving"
+  | "salesGoals"
+  | "bookingLink"
+  | "clientPortal";
 
 export type OnboardingCapabilityMap = Record<OnboardingCapability, boolean>;
 
@@ -145,6 +148,19 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     ],
     actionLabel: "Abrir o CRM",
   },
+  "/projects": {
+    id: "projects",
+    route: "/projects",
+    chapter: "sales",
+    description:
+      "Depois da venda, a obra: a proposta aprovada vira projeto com as etapas da sua empresa, do início ao aceite da entrega.",
+    checklist: [
+      { text: "Abra o projeto criado na aprovação e escolha o técnico responsável." },
+      { text: "Marque o checklist de cada etapa e anexe as fotos da obra." },
+      { text: "Com tudo pronto, envie o link para o cliente aceitar a entrega." },
+    ],
+    actionLabel: "Abrir Projetos",
+  },
   "/contacts": {
     id: "contacts",
     route: "/contacts",
@@ -153,13 +169,31 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
       "Clientes, fornecedores, vendedores e arquitetos num cadastro só, que alimenta propostas, financeiro e comissões.",
     checklist: [
       { text: "Busque pelo início do nome ou do telefone e filtre pelo tipo de contato." },
+      { text: "Veio de outro sistema? Importe os contatos da planilha em Importar." },
       { text: "Marque vendedores e arquitetos com o percentual de comissão de cada um." },
       {
         text: "Preencha os dados fiscais do cliente para emitir nota sem pendências.",
         requiresCapability: "fiscal",
       },
+      {
+        text: "Mande ao cliente o link do portal: propostas, pagamentos, obra e documentos dele num lugar só.",
+        requiresCapability: "clientPortal",
+      },
     ],
     actionLabel: "Abrir Contatos",
+  },
+  "/tasks": {
+    id: "tasks",
+    route: "/tasks",
+    chapter: "overview",
+    description:
+      "O que fazer, quem faz e até quando. Cada pessoa vê as próprias tarefas, e quem for citado com @ recebe o aviso.",
+    checklist: [
+      { text: "Crie uma tarefa e escolha o responsável e o prazo." },
+      { text: "Cite alguém da equipe com @ nos detalhes para avisar." },
+      { text: "Veja as suas tarefas de hoje no Dashboard." },
+    ],
+    actionLabel: "Abrir Tarefas",
   },
   "/calendar": {
     id: "calendar",
@@ -186,6 +220,7 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
       "Os produtos que você vende, com preço, fotos e estoque, prontos para entrar numa proposta em poucos cliques.",
     checklist: [
       { text: "Cadastre o produto com custo, markup, preço de venda e fotos." },
+      { text: "Já tem o catálogo numa planilha? Traga tudo de uma vez em Importar." },
       { text: "Edite preço, estoque e fotos sempre que precisar." },
       {
         text: "Informe o NCM do produto (a Lia sugere um) para emitir NF-e.",
@@ -202,6 +237,7 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
       "A mão de obra e os serviços que acompanham a venda, como instalação, programação e manutenção.",
     checklist: [
       { text: "Cadastre cada serviço com descrição e valor padrão." },
+      { text: "Já tem a lista numa planilha? Traga tudo de uma vez em Importar." },
       { text: "Use os serviços junto com os produtos na mesma proposta." },
       {
         text: "Informe o código da LC 116 e a alíquota de ISS para emitir NFS-e.",
@@ -277,6 +313,33 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     actionLabel: "Abrir Comissões",
     // Não há comissão no dado de demonstração: a tela abriria vazia.
     excludeFromDemo: true,
+  },
+  "/dre": {
+    id: "dre",
+    route: "/dre",
+    chapter: "financial",
+    description:
+      "Quanto sobrou em cada mês: receitas menos impostos, custos e despesas, pelas categorias dos lançamentos.",
+    checklist: [
+      { text: "Em Categorias, diga em que linha do DRE cada categoria entra." },
+      { text: "Caixa mostra o que foi pago; competência, o que foi lançado no mês." },
+      { text: "Categorize os lançamentos para o resultado sair certo." },
+      { text: "Mande ao contador o link de leitura (Link do contador), sem criar usuário para ele." },
+    ],
+    actionLabel: "Abrir o DRE",
+  },
+  "/cash-flow": {
+    id: "cash-flow",
+    route: "/cash-flow",
+    chapter: "financial",
+    description:
+      "Quanto você vai ter em caixa nos próximos meses: o saldo das carteiras, mais o que está a receber, menos o que está a pagar.",
+    checklist: [
+      { text: "Compare os cenários pessimista, realista e otimista." },
+      { text: "Ajuste quanto do que está a receber entra, e com quanto atraso." },
+      { text: "Veja o mês em que o saldo fica mais baixo antes de assumir um gasto." },
+    ],
+    actionLabel: "Abrir o fluxo de caixa",
   },
   "/invoices": {
     id: "invoices",
@@ -354,6 +417,40 @@ export const SETTINGS_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     masterOnly: true,
     excludeFromDemo: true,
   },
+  "/settings/goals": {
+    id: "settings-goals",
+    route: "/settings/goals",
+    chapter: "settings",
+    title: "Metas de vendas",
+    description:
+      "A meta do mês da empresa e de cada pessoa da equipe. O progresso aparece no Dashboard, pelo valor das propostas aprovadas.",
+    checklist: [
+      { text: "Defina a meta da empresa para este mês." },
+      { text: "Dê a cada pessoa da equipe a meta dela; em branco é sem meta." },
+      { text: "Na proposta, confira o responsável pela venda: é para ele que a venda conta." },
+    ],
+    actionLabel: "Abrir as metas",
+    masterOnly: true,
+    excludeFromDemo: true,
+    requiresAnyCapability: ["salesGoals"],
+  },
+  "/settings/booking": {
+    id: "settings-booking",
+    route: "/settings/booking",
+    chapter: "settings",
+    title: "Link de agendamento",
+    description:
+      "Um link para o cliente escolher um horário livre e pedir a visita. O pedido entra na Agenda como a confirmar, e você responde.",
+    checklist: [
+      { text: "Escolha os dias e o horário em que a equipe atende." },
+      { text: "Ajuste os tipos de visita e quanto tempo cada uma leva." },
+      { text: "Ligue o link, copie e mande ao cliente ou ponha no seu site." },
+    ],
+    actionLabel: "Abrir o agendamento",
+    masterOnly: true,
+    excludeFromDemo: true,
+    requiresAnyCapability: ["bookingLink"],
+  },
   "/settings/linked-accounts": {
     id: "settings-integrations",
     route: "/settings/linked-accounts",
@@ -394,6 +491,8 @@ export const ROUTES_WITHOUT_OWN_STEP: Record<string, string> = {
   "/settings/payments": "Apresentado dentro do passo Integrações.",
   "/settings/fiscal": "Apresentado dentro do passo Integrações.",
   "/settings/drive": "Apresentado dentro do passo Integrações.",
+  "/notifications":
+    "Fora do menu: abre pelo \"Ver todas\" do sino, e as preferências são uma aba da própria central.",
 };
 
 export interface OnboardingViewer {

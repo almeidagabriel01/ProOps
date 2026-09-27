@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { db } from "../../init";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { resolveUserAndTenant, checkPermission } from "../../lib/auth-helpers";
+import { memberLinkErrorMessage, validateMemberLink } from "../services/contact-member-link";
 import {
   enforceTenantPlanLimit,
   getTenantClientsUsage,
@@ -61,6 +62,8 @@ const CreateClientSchema = z.object({
   types: z.array(z.string().max(50)).max(10).optional(),
   /** Comissao padrao do parceiro. `null` limpa; nunca 0 por omissao. */
   commissionPercentage: z.number().min(0).max(100).nullable().optional(),
+  /** Vendedor que é da equipe: o membro ligado a este contato. */
+  linkedMemberId: z.string().max(128).nullable().optional(),
   source: z.string().max(50).trim().optional(),
   sourceId: z.string().max(100).trim().optional().nullable(),
   targetTenantId: z.string().max(100).optional(),
@@ -77,6 +80,7 @@ const UpdateClientSchema = z.object({
   types: z.array(z.string().max(50)).max(10).optional(),
   /** Comissao padrao do parceiro. `null` limpa; nunca 0 por omissao. */
   commissionPercentage: z.number().min(0).max(100).nullable().optional(),
+  linkedMemberId: z.string().max(128).nullable().optional(),
   ...ClientFiscalFields,
 });
 
@@ -233,6 +237,16 @@ export const createClient = async (req: Request, res: Response) => {
       });
     }
 
+    if (input.linkedMemberId) {
+      try {
+        await validateMemberLink(targetTenantId, input.linkedMemberId);
+      } catch (error) {
+        const message = memberLinkErrorMessage(error);
+        if (message) return res.status(400).json({ message });
+        throw error;
+      }
+    }
+
     // Transaction
     const clientId = await db.runTransaction(async (transaction) => {
       const companyRef = db.collection("companies").doc(targetTenantId);
@@ -273,6 +287,7 @@ export const createClient = async (req: Request, res: Response) => {
       if (input.notes) clientData.notes = input.notes;
       if (input.commissionPercentage != null)
         clientData.commissionPercentage = input.commissionPercentage;
+      if (input.linkedMemberId) clientData.linkedMemberId = input.linkedMemberId;
 
       const enderecoFiscal = compactEnderecoFiscal(input.enderecoFiscal);
       if (enderecoFiscal) clientData.enderecoFiscal = enderecoFiscal;
@@ -397,6 +412,24 @@ export const updateClient = async (req: Request, res: Response) => {
     if (updateData.commissionPercentage !== undefined) {
       safeUpdate.commissionPercentage =
         updateData.commissionPercentage ?? FieldValue.delete();
+    }
+    if (updateData.linkedMemberId !== undefined) {
+      if (updateData.linkedMemberId) {
+        try {
+          await validateMemberLink(
+            String(clientData?.tenantId ?? tenantId),
+            updateData.linkedMemberId,
+            id,
+          );
+        } catch (error) {
+          const message = memberLinkErrorMessage(error);
+          if (message) return res.status(400).json({ message });
+          throw error;
+        }
+        safeUpdate.linkedMemberId = updateData.linkedMemberId;
+      } else {
+        safeUpdate.linkedMemberId = FieldValue.delete();
+      }
     }
 
     if (updateData.enderecoFiscal !== undefined) {

@@ -17,6 +17,8 @@ import {
   Layers,
   Building2,
   FileText,
+  ShieldCheck,
+  MessageSquareWarning,
 } from "lucide-react";
 import { formatDateBR, isDateBeforeTodayBR } from "@/utils/date-format";
 
@@ -45,6 +47,10 @@ interface ProposalKanbanCardProps {
   validUntil?: string;
   productCount?: number;
   status?: ProposalStatus;
+  /** O cliente aceitou pelo link e a empresa ainda não confirmou. */
+  awaitingAcceptanceConfirmation?: boolean;
+  /** O cliente pediu mudanças pelo link e o pedido segue aberto. */
+  changesRequested?: boolean;
   isDragging?: boolean;
 }
 
@@ -55,6 +61,8 @@ export function ProposalKanbanCard({
   createdAt,
   validUntil,
   productCount,
+  awaitingAcceptanceConfirmation,
+  changesRequested,
   isDragging,
 }: ProposalKanbanCardProps) {
   const isExpired = isDatePast(validUntil);
@@ -82,6 +90,20 @@ export function ProposalKanbanCard({
           </span>
         )}
       </div>
+
+      {awaitingAcceptanceConfirmation && (
+        <p className="mb-2 inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+          <ShieldCheck className="h-3 w-3" />
+          Aceite do cliente: confirme
+        </p>
+      )}
+
+      {changesRequested && (
+        <p className="mb-2 inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-700 dark:text-orange-400">
+          <MessageSquareWarning className="h-3 w-3" />
+          Ajuste solicitado
+        </p>
+      )}
 
       {/* Client */}
       {clientName && (

@@ -25,7 +25,7 @@ export const hydrateSections = (
       return {
         ...s,
         content: hasDynamicPaymentOptions
-          ? "CondiÃ§Ãµes de Pagamento"
+          ? "Condições de Pagamento"
           : s.content || paymentTerms,
         columnWidth: 100,
       };
@@ -66,7 +66,7 @@ function createPaymentTermsSection(): PdfSection {
   return {
     id: crypto.randomUUID(),
     type: "payment-terms",
-    content: "CondiÃ§Ãµes de Pagamento",
+    content: "Condições de Pagamento",
     columnWidth: 100,
     styles: {
       fontSize: "14px",
@@ -122,7 +122,7 @@ function ensureProductTableExists(sections: PdfSection[]): PdfSection[] {
     if (section.type === "payment-terms") {
       baseSections.push({
         ...section,
-        content: "CondiÃ§Ãµes de Pagamento",
+        content: "Condições de Pagamento",
         columnWidth: 100,
       });
       return;

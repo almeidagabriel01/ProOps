@@ -24,6 +24,15 @@ export const MAX_NUMBERING_DIGITS = 10;
 export const MAX_PRACAS = 30;
 export const MAX_PRACA_LENGTH = 8;
 
+/**
+ * Validade que a proposta nova ja traz preenchida (hoje + N dias). O campo e
+ * obrigatorio no formulario, e sem um padrao toda proposta custava uma ida ao
+ * calendario. 30 e o prazo que o texto de exemplo do PDF sempre prometeu.
+ */
+export const DEFAULT_PROPOSAL_VALIDITY_DAYS = 30;
+export const MIN_PROPOSAL_VALIDITY_DAYS = 1;
+export const MAX_PROPOSAL_VALIDITY_DAYS = 365;
+
 export type ProposalNumberingConfig = {
   /** Nasce desligada: quem nao pediu numeracao nao ganha um codigo no titulo. */
   enabled: boolean;
@@ -42,6 +51,8 @@ export type ProposalNumberingConfig = {
   nextNumber: number;
   /** Ano do `nextNumber`, usado so quando `resetYearly`. */
   year: number;
+  /** Dias de validade sugeridos na proposta nova. */
+  defaultValidityDays: number;
 };
 
 export const DEFAULT_NUMBERING_CONFIG: ProposalNumberingConfig = {
@@ -52,6 +63,7 @@ export const DEFAULT_NUMBERING_CONFIG: ProposalNumberingConfig = {
   defaultPraca: null,
   nextNumber: 1,
   year: new Date().getFullYear(),
+  defaultValidityDays: DEFAULT_PROPOSAL_VALIDITY_DAYS,
 };
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -111,6 +123,12 @@ export function sanitizeNumberingConfig(
     defaultPraca: defaultPraca && pracas.includes(defaultPraca) ? defaultPraca : null,
     nextNumber: clampInt(raw.nextNumber, 1, Number.MAX_SAFE_INTEGER, 1),
     year: clampInt(raw.year, 1970, 9999, new Date().getFullYear()),
+    defaultValidityDays: clampInt(
+      raw.defaultValidityDays,
+      MIN_PROPOSAL_VALIDITY_DAYS,
+      MAX_PROPOSAL_VALIDITY_DAYS,
+      DEFAULT_PROPOSAL_VALIDITY_DAYS,
+    ),
   };
 }
 

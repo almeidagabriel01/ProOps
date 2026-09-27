@@ -17,11 +17,22 @@ a tab bar do celular, o sheet e o seletor de cabeçalho leem todos o mesmo
 precisa ser plano, e existe um guard (`navigation-surfaces-parity.test.ts`) que
 afirma que ele não perdeu nenhum destino do menu.
 
+Além dos destinos, o palette acha **registros**: propostas e contatos, pelo
+índice `searchTokens` (`hooks/use-record-search.ts`, no máximo duas consultas
+com `limit` por termo, debounce de 250ms). Cada tipo só é buscado com o
+`view` da página dele (`proposals`, `clients`). Os registros abertos por ali
+viram "Recentes", mostrados com o campo vazio (`lib/command-palette-recents.ts`,
+localStorage por usuário). Lançamentos ficam de fora: a coleção não tem
+`searchTokens`, e indexá-la exige mexer em todo caminho de escrita do
+financeiro mais um backfill.
+
 ## Grupo
 
 Um `MenuItem` com `children` é um grupo: a dock desenha **um** ícone, e as telas
 irmãs reaparecem no seletor do cabeçalho de cada uma delas. Hoje são dois,
-Financeiro e Catálogo.
+Financeiro e Catálogo. Tela de uso diário não entra em grupo: Tarefas chegou a
+ficar num grupo "Agenda" com o Calendário e ninguém a achava atrás do seletor,
+então voltou a ter ícone próprio.
 
 Um grupo **não declara `href` nem `pageId`**:
 
@@ -71,6 +82,13 @@ Os guards cobrem 1, 4 e 5: `navigation-config.test.ts`,
 grupo, decidiria também **para onde o ícone aponta**, e um clique rápido iria
 para a página errada.
 
+O `PageViewSwitcher` herda esse `[]`, mas a página costuma abrir antes de plano
+e permissões chegarem. Por isso, enquanto carregam, ele **reserva a própria
+altura** quando a rota é visão de um grupo do menu (`routeBelongsToGroup`, antes
+de qualquer gate). Sem isso o seletor chegava depois e empurrava a tela 52px: foi
+o CLS de 0,11 em `/products` que reprovou o job de performance. Guard:
+`__tests__/page-view-switcher.loading.test.tsx`.
+
 ## As três superfícies
 
 `BottomDock` de `md` para cima, `MobileTabBar` + `MobileNavSheet` abaixo. A tab
@@ -86,3 +104,12 @@ Item bloqueado por plano vira `<button>` com coroa e abre o `UpgradeModal`, em
 vez de `<Link>`. É `resolveCapabilityRestriction` (`capability-gate.ts`), e o
 seletor de cabeçalho usa exatamente o mesmo caminho, para uma visão bloqueada se
 comportar igual ao ícone bloqueado.
+
+## Cabeçalho: ajuda e suporte
+
+- **"?" (`help-panel.tsx`)** abre um painel com o texto do tutorial da tela
+  atual (`matchedStep` do onboarding), o tutorial por capítulo e o suporte
+  humano (WhatsApp de suporte e e-mail). Tela nova do menu ganha ajuda de graça
+  ao ganhar o passo em `onboarding-steps.ts`.
+- **"Falar com o suporte"** no menu do perfil é o WhatsApp de SUPORTE; o item
+  "WhatsApp" logo acima é o bot da Lia.

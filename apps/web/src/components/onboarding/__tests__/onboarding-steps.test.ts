@@ -29,13 +29,17 @@ const NONE: OnboardingCapabilityMap = {
   driveSync: false,
   onlinePayments: false,
   fiscalReceiving: false,
+  projects: false,
+  salesGoals: false,
+  bookingLink: false,
+  clientPortal: false,
 };
 
 /** O que o `PlanProvider` entrega por tier, sem add-ons. */
 const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabilityMap> = {
-  // A conta free destrava financeiro, CRM e editor de PDF para a demonstração,
-  // e deixa fiscal e Drive de fora.
-  free: { ...NONE, financial: true, crm: true, pdfEditor: true },
+  // A conta free destrava financeiro, CRM, projetos e editor de PDF para a
+  // demonstração, e deixa fiscal e Drive de fora.
+  free: { ...NONE, financial: true, crm: true, pdfEditor: true, projects: true, salesGoals: true, bookingLink: true, clientPortal: true },
   starter: NONE,
   pro: {
     ...NONE,
@@ -43,6 +47,10 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     pdfEditor: true,
     calendarSync: true,
     driveSync: true,
+    projects: true,
+    salesGoals: true,
+    bookingLink: true,
+    clientPortal: true,
   },
   enterprise: {
     financial: true,
@@ -53,6 +61,10 @@ const PLAN: Record<"free" | "starter" | "pro" | "enterprise", OnboardingCapabili
     driveSync: true,
     onlinePayments: true,
     fiscalReceiving: true,
+    projects: true,
+    salesGoals: true,
+    bookingLink: true,
+    clientPortal: true,
   },
 };
 
@@ -155,8 +167,11 @@ describe("passos por plano e papel", () => {
   it("Enterprise, master: todas as telas, em ordem de capítulo", () => {
     expect(stepIds("enterprise", MASTER)).toEqual([
       "dashboard",
+      // Tarefas fica no capítulo Visão geral, logo depois do Dashboard.
+      "tasks",
       "proposals",
       "crm",
+      "projects",
       "contacts",
       "calendar",
       "products",
@@ -165,11 +180,15 @@ describe("passos por plano e papel", () => {
       "transactions",
       "wallets",
       "commissions",
+      "dre",
+      "cash-flow",
       "invoices",
       "spreadsheets",
       "settings-security",
       "settings-team",
       "settings-proposals",
+      "settings-goals",
+      "settings-booking",
       "settings-integrations",
     ]);
   });
@@ -179,12 +198,19 @@ describe("passos por plano e papel", () => {
     expect(ids).not.toContain("crm");
     expect(ids).not.toContain("invoices");
     expect(ids).toContain("commissions");
+    expect(ids).toContain("dre");
+    expect(ids).toContain("cash-flow");
     expect(ids).toContain("settings-integrations");
+    // Projetos de instalação entram no Pro.
+    expect(ids).toContain("projects");
+    // Metas de vendas e o link de agendamento também.
+    expect(ids).toContain("settings-goals");
+    expect(ids).toContain("settings-booking");
   });
 
   it("Starter, master: sem Financeiro nem Integrações", () => {
     const ids = stepIds("starter", MASTER);
-    for (const id of ["transactions", "wallets", "commissions", "invoices", "crm", "settings-integrations"]) {
+    for (const id of ["transactions", "wallets", "commissions", "dre", "cash-flow", "invoices", "crm", "projects", "settings-goals", "settings-booking", "settings-integrations"]) {
       expect(ids).not.toContain(id);
     }
     expect(ids).toContain("settings-team");
@@ -193,11 +219,15 @@ describe("passos por plano e papel", () => {
   it("conta free: módulos da demonstração, sem Comissões, Notas e telas vazias", () => {
     const ids = stepIds("free", DEMO);
     expect(ids).toContain("crm");
+    expect(ids).toContain("projects");
     expect(ids).toContain("transactions");
     expect(ids).toContain("wallets");
+    // O DRE da demonstração lê o exemplo do tenant demo.
+    expect(ids).toContain("dre");
+    expect(ids).toContain("cash-flow");
     expect(ids).toContain("settings-security");
     expect(ids).toContain("settings-team");
-    for (const id of ["commissions", "invoices", "settings-proposals", "settings-integrations"]) {
+    for (const id of ["commissions", "invoices", "settings-proposals", "settings-booking", "settings-integrations"]) {
       expect(ids).not.toContain(id);
     }
   });
@@ -249,6 +279,22 @@ describe("checklist condicional", () => {
     expect(checklistOf("pro", "proposals").join(" ")).not.toContain("nota fiscal");
   });
 
+  it("portal do cliente em Contatos só com o plano, igual nos dois nichos", () => {
+    expect(checklistOf("pro", "contacts").join(" ")).toContain("portal");
+    expect(checklistOf("enterprise", "contacts").join(" ")).toContain("portal");
+    expect(checklistOf("starter", "contacts").join(" ")).not.toContain("portal");
+    const inNiche = (niche: "automacao_residencial" | "cortinas") =>
+      buildOnboardingSteps({
+        visibleMenuItems: visibleMenu(MASTER, niche),
+        settingsRoutes: SETTINGS_ROUTES,
+        capabilities: PLAN.pro,
+        viewer: MASTER,
+      })
+        .find((step) => step.id === "contacts")
+        ?.checklist.join(" ");
+    expect(inNiche("cortinas")).toBe(inNiche("automacao_residencial"));
+  });
+
   it("Integrações lista só o que o plano abre", () => {
     const pro = checklistOf("pro", "settings-integrations").join(" ");
     expect(pro).toContain("Google Drive");
@@ -286,8 +332,8 @@ describe("matchStepForPath", () => {
     const contacts = steps.find((step) => step.id === "contacts")!;
     expect(chapterProgress(steps, contacts)).toEqual({
       label: "Vendas",
-      position: 3,
-      total: 4,
+      position: 4,
+      total: 5,
     });
   });
 });

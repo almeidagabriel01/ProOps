@@ -1,10 +1,12 @@
 import {
+  CalendarClock,
   CreditCard,
   FileText,
   FolderOpen,
   Hash,
   Link2,
   ShieldCheck,
+  Target,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -39,6 +41,18 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
     items: [
       { label: "Equipe", href: "/settings/team", icon: Users },
       { label: "Propostas", href: "/settings/proposals", icon: Hash },
+      {
+        label: "Metas de vendas",
+        shortLabel: "Metas",
+        href: "/settings/goals",
+        icon: Target,
+      },
+      {
+        label: "Link de agendamento",
+        shortLabel: "Agendamento",
+        href: "/settings/booking",
+        icon: CalendarClock,
+      },
       {
         label: "Pagamento Online",
         shortLabel: "Pagamento",

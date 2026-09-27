@@ -22,6 +22,7 @@ const sourceConfig: Record<
   manual: { label: "Manual", variant: "default" },
   proposal: { label: "Proposta", variant: "success" },
   financial: { label: "Financeiro", variant: "warning" },
+  import: { label: "Planilha", variant: "outline" },
 };
 
 const typeConfig: Record<
@@ -139,7 +140,7 @@ export const createColumns = ({
             vendedor na casa do cliente, no celular. */}
         <OpenDriveFolderButton clientId={client.id} iconOnly />
         {canEdit && (
-          <Link href={`/contacts/${client.id}`}>
+          <Link href={`/contacts/${client.id}?aba=dados`}>
             <Button
               variant="ghost"
               size="icon"

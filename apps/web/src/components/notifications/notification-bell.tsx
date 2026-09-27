@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Bell, Clock, FileText, TrendingUp, X } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,45 +14,22 @@ import {
 import { useNotifications } from "@/hooks/useNotifications";
 import { useTenant } from "@/providers/tenant-provider";
 import { Notification, NotificationType } from "@/types/notification";
-import { formatDateBR } from "@/utils/date-format";
+import { formatNotificationTime } from "@/lib/notifications/format-time";
 import { Loader } from "@/components/ui/loader";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { notificationLinkPath } from "@/lib/notifications/links";
+import {
+  getNotificationIcon,
+  getNotificationIconClassName,
+} from "./notification-visuals";
 
-function getNotificationIcon(type: NotificationType) {
-  switch (type) {
-    case NotificationType.TRANSACTION_DUE_REMINDER:
-      return Clock;
-    case NotificationType.PROPOSAL_EXPIRING:
-      return AlertTriangle;
-    case NotificationType.PRICE_CHANGE:
-      return TrendingUp;
-    default:
-      return FileText;
-  }
-}
-
-function getNotificationIconClassName(type: NotificationType): string {
-  switch (type) {
-    case NotificationType.PRICE_CHANGE:
-      return "bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400";
-    default:
-      return "bg-muted text-muted-foreground";
-  }
-}
-
+/**
+ * Link da notificação no sino. Sem tela própria (a central é o destino
+ * padrão), o sino expande a mensagem no lugar em vez de navegar.
+ */
 function getNotificationLink(notification: Notification): string | undefined {
-  switch (notification.type) {
-    case NotificationType.TRANSACTION_DUE_REMINDER:
-    case NotificationType.TRANSACTION_VIEWED:
-      return "/transactions";
-    case NotificationType.PROPOSAL_EXPIRING:
-      return notification.proposalId
-        ? `/proposals/${notification.proposalId}/view`
-        : "/proposals";
-    default:
-      return notification.proposalId
-        ? `/proposals/${notification.proposalId}/view`
-        : undefined;
-  }
+  const path = notificationLinkPath(notification);
+  return path === "/notifications" ? undefined : path;
 }
 
 function NotificationListSkeleton() {
@@ -74,6 +52,7 @@ function NotificationListSkeleton() {
 export function NotificationBell() {
   const router = useRouter();
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+  const [confirmClearAllOpen, setConfirmClearAllOpen] = React.useState(false);
   const { isGlobalLoading } = useTenant();
   const {
     scopeKey,
@@ -83,6 +62,8 @@ export function NotificationBell() {
     isMarkingAllAsRead,
     isClearingAll,
     clearingIds,
+    isRead,
+    isReadOnly,
     markAsRead,
     markAllAsRead,
     clearNotification,
@@ -99,8 +80,8 @@ export function NotificationBell() {
     notification: Notification,
     linkHref?: string,
   ) => {
-    if (!notification.isRead) {
-      await markAsRead(notification.id);
+    if (!isRead(notification)) {
+      void markAsRead(notification.id);
     }
 
     if (linkHref) {
@@ -119,33 +100,17 @@ export function NotificationBell() {
     });
   };
 
-  const formatTime = (timestamp: string) => {
-    try {
-      const date = new Date(timestamp);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      if (diffMins < 1) return "agora";
-      if (diffMins < 60) return `ha ${diffMins}min`;
-      if (diffHours < 24) return `ha ${diffHours}h`;
-      if (diffDays < 7) return `ha ${diffDays}d`;
-      return formatDateBR(date);
-    } catch {
-      return "";
-    }
-  };
+  const formatTime = (timestamp: string) => formatNotificationTime(timestamp);
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
           className="relative"
-          title="Notificacoes"
+          title="Notificações"
         >
           <Bell className="w-5 h-5 transition-opacity opacity-100" />
           {!showLoadingState && unreadCount > 0 && (
@@ -161,8 +126,16 @@ export function NotificationBell() {
 
       <DropdownMenuContent align="end" className="w-[24rem] p-0">
         <div className="p-3 border-b space-y-2">
-          <h3 className="font-semibold">Notificacoes</h3>
-          {!showLoadingState && notifications.length > 0 && (
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-semibold">Notificações</h3>
+            <Link
+              href="/notifications"
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Ver todas
+            </Link>
+          </div>
+          {!showLoadingState && !isReadOnly && notifications.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               {unreadCount > 0 && (
                 <Button
@@ -194,7 +167,7 @@ export function NotificationBell() {
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
-                  clearAllNotifications();
+                  setConfirmClearAllOpen(true);
                 }}
                 className="text-xs h-7 px-2"
               >
@@ -217,7 +190,7 @@ export function NotificationBell() {
           ) : notifications.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              Nenhuma notificacao
+              Nenhuma notificação
             </div>
           ) : (
             notifications.map((notification) => {
@@ -251,7 +224,7 @@ export function NotificationBell() {
                           <p className="font-medium text-sm">
                             {notification.title}
                           </p>
-                          {!notification.isRead && (
+                          {!isRead(notification) && (
                             <div className="w-2 h-2 rounded-full bg-foreground/60 flex-shrink-0 mt-1.5" />
                           )}
                         </div>
@@ -290,11 +263,12 @@ export function NotificationBell() {
                     </div>
                   </div>
 
+                  {!isReadOnly && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 mt-0.5"
-                    title="Remover notificacao"
+                    title="Remover notificação"
                     disabled={clearingIds.includes(notification.id)}
                     onClick={(event) => {
                       event.preventDefault();
@@ -308,6 +282,7 @@ export function NotificationBell() {
                       <X className="w-3.5 h-3.5" />
                     )}
                   </Button>
+                  )}
                 </div>
               );
             })
@@ -315,5 +290,20 @@ export function NotificationBell() {
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
+    <ConfirmDialog
+      open={confirmClearAllOpen}
+      onOpenChange={(open) => !isClearingAll && setConfirmClearAllOpen(open)}
+      title="Limpar todas as notificações?"
+      description="Todas as notificações saem da sua lista. As outras pessoas da equipe continuam com as delas."
+      confirmLabel="Limpar tudo"
+      pendingLabel="Limpando..."
+      destructive
+      isPending={isClearingAll}
+      onConfirm={async () => {
+        await clearAllNotifications();
+        setConfirmClearAllOpen(false);
+      }}
+    />
+    </>
   );
 }

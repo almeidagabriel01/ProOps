@@ -163,7 +163,11 @@ describe('SEC-BILLING-01: Active subscription allows reads', () => {
     async (coll) => {
       await seedDoc('users', 'uid-active', { tenantId: 'tenant-active', role: 'MASTER' });
       await seedDoc('tenants', 'tenant-active', { subscriptionStatus: 'active' });
-      await seedDoc(coll, 'doc-active', { tenantId: 'tenant-active' });
+      // Notificação é por pessoa: só o destinatário lê (notifications.test.ts).
+      await seedDoc(coll, 'doc-active', {
+        tenantId: 'tenant-active',
+        ...(coll === 'notifications' ? { recipientUids: ['uid-active'] } : {}),
+      });
       await assertSucceeds(getDoc(doc(activeDb(), coll, 'doc-active')));
     },
   );
@@ -203,7 +207,11 @@ describe('SEC-BILLING-02: Canceled subscription blocks tenant-scoped reads', () 
   test.each(collectionsWithTenantId)(
     '%s: canceled tenant read is denied',
     async (coll) => {
-      await seedDoc(coll, 'doc-canceled', { tenantId: 'tenant-canceled' });
+      // Com o destinatário certo, para a negação provar o bloqueio de cobrança.
+      await seedDoc(coll, 'doc-canceled', {
+        tenantId: 'tenant-canceled',
+        ...(coll === 'notifications' ? { recipientUids: ['uid-canceled'] } : {}),
+      });
       await assertFails(getDoc(doc(canceledDb(), coll, 'doc-canceled')));
     },
   );

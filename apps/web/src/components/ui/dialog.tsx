@@ -40,6 +40,9 @@ const DialogContent = React.forwardRef<
             className={cn(
                 // Linha original, intocada — é o que vale de sm para cima.
                 "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
+                // Coluna única que pode encolher: sem isto um texto sem quebra (um link
+                // longo) esticava a coluna implícita do grid para fora da caixa.
+                "grid-cols-[minmax(0,1fr)]",
                 // Abaixo de sm vira bottom sheet: ancorado no rodapé, largura
                 // total, altura limitada a 90svh e rolagem própria — sem isso um
                 // diálogo alto sai da tela sem como rolar. Tudo em max-sm: para

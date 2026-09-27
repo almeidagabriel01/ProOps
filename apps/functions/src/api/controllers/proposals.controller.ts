@@ -1,3 +1,5 @@
+import { PROPOSAL_INCOME_CATEGORY } from "../services/finance-reports/dre-model";
+import { syncedTransactionCategory } from "./proposals.helpers";
 import { Request, Response } from "express";
 import { db } from "../../init";
 import { tryAutoIssue } from "../services/fiscal/invoice-issue.service";
@@ -35,6 +37,14 @@ import { buildSearchTokens } from "../../lib/search-tokens";
 import { productRefsFields } from "../../lib/proposal-product-refs";
 import { logger, recordPhase } from "../../lib/logger";
 import { PDF_IRRELEVANT_PROPOSAL_FIELDS } from "../services/proposal-pdf.service";
+import { resolveProjectOnApproval } from "../services/projects/project.service";
+import {
+  isAcceptancePending,
+  isChangeRequestOpen,
+  isStatusClosedWithoutApproval,
+  resolveAcceptanceOnSave,
+  resolveChangeRequestOnSave,
+} from "../services/proposal-online-approval";
 import {
   normalizeProposalTransactionTitle,
   resolveDefaultWalletNameForTenant,
@@ -49,9 +59,13 @@ import {
   allocateProposalNumberInTransaction,
   readNumberingStateInTransaction,
 } from "../services/proposal-numbering.service";
+import { approvalTimestampUpdate, resolveSeller } from "../services/sales-goals";
 
 const CreateProposalSchema = z.object({
   title: z.string().max(300).trim().optional(),
+  // Vendedor da proposta (metas de vendas): membro da empresa, conferido no
+  // controller. Ausente na criação, é quem criou.
+  sellerId: z.string().max(128).nullable().optional(),
   clientId: z.string().max(100).optional(),
   clientName: z.string().max(200).trim().optional().or(z.literal("")),
   clientEmail: z.string().max(254).optional().or(z.literal("")),
@@ -306,7 +320,7 @@ function normalizeStatusIdentifier(value: unknown): string {
     .toLowerCase();
 }
 
-async function isStatusApproved(
+export async function isStatusApproved(
   statusId: string | undefined | null,
   tenantId?: string | null,
 ): Promise<boolean> {
@@ -694,7 +708,7 @@ async function deleteStorageObjectsBestEffort(
   );
 }
 
-async function syncApprovedProposalTransactions(params: {
+export async function syncApprovedProposalTransactions(params: {
   proposalId: string;
   proposalTenantId: string;
   proposalData: Record<string, unknown>;
@@ -896,7 +910,7 @@ async function syncApprovedProposalTransactions(params: {
       notes: draft.notes,
       // Campos de comissao: sem eles, mudar o percentual reescreveria o valor
       // e deixaria `commissionPercentage` mostrando o numero antigo.
-      category: draft.category ?? null,
+      category: syncedTransactionCategory(draft, existingData),
       isCommission: draft.isCommission ?? false,
       commissionContactId: draft.commissionContactId ?? null,
       commissionContactName: draft.commissionContactName ?? null,
@@ -1071,6 +1085,26 @@ export const createProposal = async (req: Request, res: Response) => {
         targetMasterRef = db.collection("users").doc(ownerDoc.id);
       }
     }
+
+    // Vendedor: o escolhido, ou quem criou. Só um vendedor pedido e inválido
+    // recusa a criação; um padrão que não confere (superadmin criando em nome
+    // da empresa) só deixa a proposta sem vendedor.
+    const requestedSellerId =
+      typeof input.sellerId === "string" && input.sellerId ? input.sellerId : null;
+    let seller: { sellerId: string | null; sellerName: string | null } = {
+      sellerId: null,
+      sellerName: null,
+    };
+    try {
+      seller = await resolveSeller(userCompanyId, requestedSellerId ?? userId);
+    } catch {
+      if (requestedSellerId) {
+        return res.status(400).json({ message: "Vendedor inválido para esta empresa." });
+      }
+    }
+    // Proposta que já nasce aprovada conta na meta do mês em que foi criada.
+    const approvedOnCreate =
+      !isDraft && (await isStatusApproved(input.status as string | undefined, userCompanyId));
 
     let proposalId: string;
     let createdProposal: { id: string; data: Record<string, unknown> };
@@ -1272,6 +1306,9 @@ export const createProposal = async (req: Request, res: Response) => {
           attachments: sanitizedAttachments,
           createdById: userId,
           createdByName: userData?.name || "Usuário",
+          sellerId: seller.sellerId,
+          sellerName: seller.sellerName,
+          approvedAt: approvedOnCreate ? now.toDate().toISOString() : null,
           companyId: userCompanyId,
           tenantId: userCompanyId,
           createdAt: now,
@@ -1553,6 +1590,8 @@ export const updateProposal = async (req: Request, res: Response) => {
       "commissions",
       // Attachments
       "attachments",
+      // Vendedor (metas de vendas); conferido abaixo
+      "sellerId",
     ];
 
     fields.forEach((f) => {
@@ -1570,8 +1609,20 @@ export const updateProposal = async (req: Request, res: Response) => {
         safeUpdate[f] = sanitizeProposalCommissionsInput(updateData[f]);
         return;
       }
+      if (f === "sellerId") return; // resolvido abaixo, com o nome
       safeUpdate[f] = updateData[f];
     });
+
+    if (typeof updateData.sellerId !== "undefined") {
+      try {
+        Object.assign(
+          safeUpdate,
+          await resolveSeller(proposalTenantId, (updateData.sellerId as string | null) || null),
+        );
+      } catch {
+        return res.status(400).json({ message: "Vendedor inválido para esta empresa." });
+      }
+    }
 
     // Keep indexed search tokens in sync when title/clientName change
     if (
@@ -1619,6 +1670,21 @@ export const updateProposal = async (req: Request, res: Response) => {
           : Math.max(0, computedTotal);
     }
 
+    // Aprovação decidida ANTES da escrita: a data da aprovação (metas de vendas)
+    // entra na mesma gravação do status.
+    const isCurrentlyApproved = await isStatusApproved(
+      proposalData?.status as string | undefined,
+      proposalTenantId,
+    );
+    const willBeApproved =
+      updateData.status !== undefined
+        ? await isStatusApproved(updateData.status as string, proposalTenantId)
+        : isCurrentlyApproved;
+    Object.assign(
+      safeUpdate,
+      approvalTimestampUpdate(isCurrentlyApproved, willBeApproved, new Date().toISOString()),
+    );
+
     await timed("proposalWriteMs", () => proposalRef.update(safeUpdate));
 
     if (removedAttachmentPaths.length > 0) {
@@ -1630,16 +1696,64 @@ export const updateProposal = async (req: Request, res: Response) => {
     }
 
     // Criar receita automaticamente quando a proposta for aprovada
-    const isCurrentlyApproved = await isStatusApproved(
-      proposalData?.status as string | undefined,
-      proposalTenantId,
-    );
-    const willBeApproved =
-      updateData.status !== undefined
-        ? await isStatusApproved(updateData.status as string, proposalTenantId)
-        : isCurrentlyApproved;
-
     const isBeingApproved = willBeApproved && !isCurrentlyApproved;
+
+    // Projeto de instalação na aprovação (Pro e Enterprise): conforme a
+    // empresa configurou, cria, pergunta (padrão) ou não faz nada. Nunca
+    // derruba a aprovação.
+    let projectOutcome: { createdProjectId: string | null; suggest: boolean } | null = null;
+    if (isBeingApproved) {
+      projectOutcome = await resolveProjectOnApproval({
+        tenantId: proposalTenantId,
+        proposalId: id,
+        proposal: { ...proposalData, ...safeUpdate },
+        uid: userId,
+      });
+    }
+
+    // Aceite do cliente pelo link, ainda pendente: confirmar é aprovar a
+    // proposta (este mesmo caminho, da lista, do quadro ou do formulário), e
+    // editar o que o cliente viu anula o aceite, porque ele aceitou outra versão.
+    // O pedido de mudanças aberto se resolve do mesmo jeito: editar o conteúdo
+    // é atender, e aprovar ou fechar encerra a conversa.
+    const hasPendingAcceptance = isAcceptancePending(proposalData?.clientAcceptance);
+    const hasOpenChangeRequest = isChangeRequestOpen(proposalData?.clientChangeRequest);
+    if (hasPendingAcceptance || hasOpenChangeRequest) {
+      const statusChanged =
+        updateData.status !== undefined && updateData.status !== proposalData?.status;
+      const closedWithoutApproval =
+        statusChanged &&
+        (await isStatusClosedWithoutApproval(String(updateData.status), proposalTenantId));
+      const proposalAfter = { ...proposalData, ...safeUpdate };
+      const resolvedAt = new Date().toISOString();
+      const responseUpdate: Record<string, unknown> = {};
+
+      const nextAcceptance = resolveAcceptanceOnSave({
+        acceptance: proposalData?.clientAcceptance,
+        proposalAfter,
+        isBeingApproved,
+        closedWithoutApproval,
+      });
+      if (nextAcceptance) {
+        responseUpdate["clientAcceptance.status"] = nextAcceptance;
+        responseUpdate["clientAcceptance.resolvedAt"] = resolvedAt;
+        responseUpdate["clientAcceptance.resolvedBy"] = userId;
+      }
+      const nextChangeRequest = resolveChangeRequestOnSave({
+        request: proposalData?.clientChangeRequest,
+        proposalAfter,
+        isBeingApproved,
+        closedWithoutApproval,
+      });
+      if (nextChangeRequest) {
+        responseUpdate["clientChangeRequest.status"] = nextChangeRequest;
+        responseUpdate["clientChangeRequest.resolvedAt"] = resolvedAt;
+        responseUpdate["clientChangeRequest.resolvedBy"] = userId;
+      }
+      if (Object.keys(responseUpdate).length > 0) {
+        await proposalRef.update(responseUpdate);
+      }
+    }
 
     // Remover receita se sair de aprovada (Rascunho/Enviada)
     const isBeingReverted =
@@ -1909,7 +2023,7 @@ export const updateProposal = async (req: Request, res: Response) => {
               clientName: mergedData.clientName || null,
               proposalId: id,
               proposalGroupId: installData.proposalGroupId || null,
-              category: null,
+              category: PROPOSAL_INCOME_CATEGORY,
               wallet:
                 mergedData.downPaymentWallet ||
                 installData.wallet ||
@@ -2081,6 +2195,10 @@ export const updateProposal = async (req: Request, res: Response) => {
       message: "Proposta atualizada.",
       driveDeliveryQueued,
       driveNotConnected,
+      // Projeto de instalação: criado agora (modo "sempre") ou a perguntar
+      // se a venda tem instalação (modo padrão). A tela avisa ou pergunta.
+      projectCreated: projectOutcome?.createdProjectId ?? null,
+      projectSuggested: projectOutcome?.suggest ?? false,
     });
   } catch (error: unknown) {
     const err = error as Error;

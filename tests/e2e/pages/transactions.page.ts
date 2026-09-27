@@ -1,4 +1,4 @@
-import type { Page, Locator } from "@playwright/test";
+import { expect, type Page, type Locator } from "@playwright/test";
 
 /**
  * Data shape for creating a transaction through the UI wizard.
@@ -104,9 +104,9 @@ export class TransactionsPage {
    * Creates a transaction through the full 4-step browser UI wizard.
    *
    * Step 0 (Type): Click income or expense type card, then "Próximo".
-   * Step 1 (Details): Fill description and date, then "Próximo".
-   * Step 2 (Payment): Fill amount, dueDate (income only), wallet, then "Próximo".
-   * Step 3 (Review): Select client (income only), optionally fill notes, then "Salvar Lançamento".
+   * Step 1 (Details): Fill description, date and client (income only), then "Próximo".
+   * Step 2 (Payment): Fill amount and wallet (dueDate arrives prefilled), then "Próximo".
+   * Step 3 (Review): Optionally fill notes, then "Salvar Lançamento".
    *
    * Navigation uses sequential "Próximo" button clicks per D-02 (not step indicator jumps).
    */
@@ -139,34 +139,9 @@ export class TransactionsPage {
     // Open DatePicker for "date" field and select Hoje
     await this._clickDatePickerHoje("date");
 
-    // Advance to Step 2
-    await this.page.getByRole("button", { name: /próximo/i }).click();
-
-    // --- Step 2: Payment ---
-    // CurrencyInput ignores onChange — only responds to keyboard digit events.
-    // Convert decimal amount (e.g. "1500.00") to cent digit string (e.g. "150000").
-    const amountInput = this.page.locator("#amount");
-    await amountInput.waitFor({ state: "visible", timeout: 10000 });
-    await amountInput.click();
-    const centDigits = String(Math.round(parseFloat(data.amount) * 100));
-    await amountInput.pressSequentially(centDigits);
-    await amountInput.blur();
-
-    // Income requires dueDate ("Vencimento (Valor à Vista)")
-    if (data.type === "income") {
-      await this._clickDatePickerHoje("dueDate");
-    }
-
-    // Select wallet via WalletSelect (native <select> element with name="wallet")
-    const walletSelect = this.page.locator('select[name="wallet"]');
-    await walletSelect.waitFor({ state: "visible", timeout: 10000 });
-    await walletSelect.selectOption({ label: walletName });
-
-    // Advance to Step 3
-    await this.page.getByRole("button", { name: /próximo/i }).click();
-
-    // --- Step 3: Review ---
-    // Income transactions require a client (schema validation: "Cliente é obrigatório para receitas")
+    // Income transactions require a client (schema validation: "Cliente é obrigatório
+    // para receitas"). It is asked in this step, so a missing client blocks here and
+    // not only at submit.
     if (clientName) {
       const clientInput = this.page.getByPlaceholder("Digite ou selecione um cliente...");
       await clientInput.waitFor({ state: "visible", timeout: 10000 });
@@ -184,6 +159,35 @@ export class TransactionsPage {
       }).last();
       await clientOption.click();
     }
+
+    // Advance to Step 2
+    await this.page.getByRole("button", { name: /próximo/i }).click();
+
+    // --- Step 2: Payment ---
+    // CurrencyInput ignores onChange — only responds to keyboard digit events.
+    // Convert decimal amount (e.g. "1500.00") to cent digit string (e.g. "150000").
+    const amountInput = this.page.locator("#amount");
+    await amountInput.waitFor({ state: "visible", timeout: 10000 });
+    await amountInput.click();
+    const centDigits = String(Math.round(parseFloat(data.amount) * 100));
+    await amountInput.pressSequentially(centDigits);
+    await amountInput.blur();
+
+    // Income requires dueDate ("Vencimento (Valor à Vista)"). It follows the "Data"
+    // chosen in the previous step (today) until the user sets a different one.
+    if (data.type === "income") {
+      await expect(this.page.locator("input#dueDate")).toHaveValue(todayISO());
+    }
+
+    // Select wallet via WalletSelect (native <select> element with name="wallet")
+    const walletSelect = this.page.locator('select[name="wallet"]');
+    await walletSelect.waitFor({ state: "visible", timeout: 10000 });
+    await walletSelect.selectOption({ label: walletName });
+
+    // Advance to Step 3
+    await this.page.getByRole("button", { name: /próximo/i }).click();
+
+    // --- Step 3: Review ---
 
     // Optionally fill notes
     if (data.notes) {
@@ -306,16 +310,29 @@ export class TransactionsPage {
     const deleteButton = card.getByTitle("Excluir");
     await deleteButton.click();
 
-    // Confirm the AlertDialog
+    // Confirm the AlertDialog. The DELETE only reaches the server after the
+    // "Desfazer" window (~6s), so wait for it: otherwise the test ends with the
+    // transaction still in the database.
+    const deleteRequest = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "DELETE" &&
+        /\/v1\/transactions\/(group\/)?[^/]+$/.test(new URL(response.url()).pathname),
+      { timeout: 20000 },
+    );
     const confirmButton = this.page.getByRole("button", { name: /sim, excluir/i });
     await confirmButton.waitFor({ state: "visible", timeout: 8000 });
     await confirmButton.click();
 
-    // Wait for the transaction to disappear
-    await this.page.waitForTimeout(500);
-    const transactionText = this.page.getByText(description, { exact: false });
-    await transactionText.waitFor({ state: "hidden", timeout: 10000 }).catch(() => {
-      // Acceptable: item may already be removed before waitFor completes
-    });
+    // The card leaves the list right away.
+    await card.waitFor({ state: "hidden", timeout: 10000 });
+    await deleteRequest;
   }
+}
+
+/** Hoje em data local, no formato do campo (`YYYY-MM-DD`). */
+function todayISO(): string {
+  const date = new Date();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
 }

@@ -1067,6 +1067,13 @@ por ano e por cidade.
   criação; um PUT do cliente não renumera proposta nenhuma.
 - **A praça pedida só vale se estiver na lista da empresa**, senão cai na
   padrão. Sigla livre produziria um código que a própria empresa não reconhece.
+- **A mesma configuração guarda a validade padrão da proposta**
+  (`defaultValidityDays`, 1 a 365, padrão 30). O formulário preenche "Válida
+  até" com hoje + esse número na proposta nova, e ela vale mesmo com a
+  numeração desligada. Pegou carona neste doc porque o GET já é lido pelo
+  formulário e escrito pelo master na mesma tela. A tela só envia o campo
+  quando o GET o devolveu: o schema é `.strict()`, e um front publicado antes
+  do backend quebraria o salvamento da numeração com 400.
 - `GET /v1/proposals/numbering` é liberado a quem enxerga propostas (o
   formulário precisa da lista de praças); `PUT` é só do master. As duas são
   montadas **antes** de `/proposals/:id` em `core.routes.ts` — o Express casa
@@ -1080,6 +1087,237 @@ Guards: `proposal-numbering.test.ts`, `proposal-numbering.service.test.ts`,
 e `apps/web/src/__tests__/proposal-code-preview.test.ts` (a tela tem uma cópia da
 montagem do código para a prévia, e uma divergência prometeria um código
 diferente do que a proposta receberia).
+
+### Link de agendamento (`api/services/booking/`)
+
+O cliente escolhe um horário livre no expediente da empresa e PEDE a visita; a
+empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
+
+- **"A confirmar" é um status da Agenda** (`pending` em `calendar_events`). O
+  pedido já cria o evento: o horário fica ocupado (ninguém mais pede o mesmo),
+  aparece na Agenda com selo próprio e **não vai para o Google Agenda**
+  (`syncEventToGoogle` devolve cedo em `pending`). Confirmar vira `scheduled` e
+  sincroniza; recusar apaga o evento e libera o horário.
+- **Horário livre** = expediente (dias, início e fim, antecedência mínima,
+  horizonte) menos os compromissos da Agenda (`computeAvailableSlots`, puro, em
+  passos do tamanho da visita: a de 1h vai de hora em hora; sempre em horário de Brasília). Antes de calcular, o link
+  puxa as mudanças do Google Agenda (`syncGoogleEventsToLocalCalendar`, com o
+  limite de frequência dela), então compromisso marcado só no Google também
+  ocupa. A consulta é por `startMs` e olha um dia antes: evento que começou
+  antes e continua ocupa.
+- **O pedido roda numa transação travada pelo dia** (`booking_locks`) que
+  reconsulta a Agenda: dois clientes no mesmo horário não viram duas visitas.
+- **Rota pública** em `/v1/public/booking/:token`, montada ANTES do
+  `/v1/public` do formulário de contato (que limitaria abrir o link a 5/min). O
+  POST leva `contactFormLimiter` e `verifyTurnstileToken`, e um campo escondido
+  (`website`) derruba robô com um "ok" falso. Link desligado, sem plano ou token
+  inexistente dão o mesmo 404.
+- **O cliente recebe e-mail** na confirmação e na recusa (com o recado e o link
+  para escolher outro horário), no template `booking-client.ts`. É o primeiro
+  e-mail da plataforma para alguém de fora: o remetente continua sendo a ProOps,
+  e o texto diz de qual empresa ele é.
+- A empresa é avisada pela central (`booking_requested`, para quem vê a Agenda,
+  e-mail ligado por padrão).
+- **A página do cliente é `/share/visita/{token}`** no front, sob `/share` para
+  herdar o tratamento de página pública. O e-mail de recusa monta esse caminho;
+  mudar um lado sem o outro quebra o "escolher outro horário" (guard
+  `apps/web/src/__tests__/booking-link-path.test.ts`).
+- O tipo de visita padrão muda por nicho (`defaultVisitTypes`: Medição em
+  cortinas, Visita técnica no resto). O front tem espelho em
+  `NICHE_CONFIGS[*].booking`, só para a demonstração, com teste de paridade em
+  `apps/web/src/lib/booking/__tests__/booking-format.test.ts`.
+
+Guards: `booking-model.test.ts`, `booking.controller.test.ts`,
+`booking.routes.gates.test.ts` e `tests/firestore-rules/booking.test.ts`.
+
+### DRE e categorias de lançamento (`api/services/finance-reports/`)
+
+O DRE sai dos lançamentos, agrupados pela categoria, e cada categoria pertence
+a um grupo do DRE escolhido pela empresa. Rotas sob `/v1/transactions` (gate
+`financial`, leitura do demo), com a permissão de Lançamentos: ver para ler,
+criar para cadastrar categoria, editar para renomear ou mudar o grupo, excluir
+para tirar da lista.
+
+- **Grupos** (`DRE_GROUPS`): receita em Receita bruta ou Outras receitas;
+  despesa em Impostos e deduções, Custos, Despesas operacionais ou Outras
+  despesas. Subtotais: receita líquida, lucro bruto, resultado operacional e
+  resultado do período.
+- **A lista é um doc por empresa** (`transaction_categories/{tenantId}`, Admin
+  SDK only), semeado na primeira leitura com as categorias que os lançamentos
+  já usavam (as 5.000 mais recentes, grupo sugerido pelo nome) e as padrão que
+  faltarem. `create` e não `set`, para duas abas não semearem duas vezes.
+- **O lançamento continua guardando o NOME** da categoria (`category`), e o DRE
+  casa pelo nome normalizado (sem acento, caixa ou espaço sobrando). Renomear
+  leva o nome novo aos lançamentos do mesmo tipo, em lotes de 400. Nome que não
+  está na lista (texto antigo, a "Comissao" automática, categoria excluída) vai
+  para o grupo padrão do tipo: receita em Receita bruta, despesa em Despesas
+  operacionais. Vazio vira "Sem categoria".
+- **Receita de proposta nasce em "Propostas"** (`PROPOSAL_INCOME_CATEGORY`,
+  gravada por `buildApprovedProposalTransactionDrafts` e pela entrada criada
+  na edição). As que nasceram antes, sem categoria, contam como "Propostas" no
+  DRE sem regravar nada (receita com `proposalId`, fora a comissão). A
+  sincronização da proposta aprovada **não apaga mais a categoria escolhida à
+  mão** numa receita (`syncedTransactionCategory`); a da comissão segue sempre
+  "Comissao". Toda lista ganha "Propostas" na primeira leitura
+  (`withProposalCategory`), para a empresa poder mudar o grupo dela.
+- O grupo sugerido na lista inicial casa sigla de imposto (ISS, DAS, ICMS...)
+  só como palavra inteira: "Comissao" contém "iss" e caía em impostos.
+- **Caixa (padrão) e competência.** Competência usa a `date` do lançamento,
+  pago ou não, com todo custo extra. Caixa usa o `paidAt`, mas **o lançamento
+  que já nasce pago não tem `paidAt`** (ele só é gravado quando o status MUDA
+  para pago), então a data de caixa é o `paidAt` ou, sem ele, a `date`. Por
+  isso o caixa faz duas consultas, por `date` e por `paidAt`, ambas com índice
+  que já existia, e junta pelo id. Custo extra herda tipo e categoria e, no
+  caixa, conta só se pago, na data de caixa do lançamento.
+- **Até 12 meses por consulta**, 10.000 lançamentos por consulta (`truncated`
+  avisa se bater no teto). Horário de Brasília (UTC-3) na virada do mês.
+- **A conta free lê o DRE e as categorias do tenant `demo`**
+  (`shared/demo-tenant.ts`): as chamadas da API usam o tenant da própria conta,
+  que está vazio, e os dados de exemplo já são legíveis por ela pelas rules.
+  Escrever continua bloqueado.
+
+Guards: `dre-model.test.ts`, `transaction-categories.test.ts`,
+`finance-reports.controller.test.ts` e
+`tests/firestore-rules/transaction-categories.test.ts`.
+
+### Link do contador (`api/services/accountant/`)
+
+Leitura sem login do financeiro da empresa, para o contador: DRE (caixa e
+competência), lançamentos do período, notas emitidas e notas de entrada, com
+o contador escolhendo os meses (até 12 por vez). Um link por empresa, em
+`accountant_links/{tenantId}` (Admin SDK only), gerado, trocado e desligado
+**só pelo dono e pelos administradores** em `/v1/transactions/accountant-link`
+(gate `financial`). Não conta no limite de usuários.
+
+- **Rotas públicas em `/v1/share/accountant/:token`**, montadas antes dos
+  `app.use("/v1", ...)` como o portal do cliente, e sempre `no-store`. Token
+  inexistente ou empresa sem o financeiro dão 404. Notas emitidas só com
+  `fiscal`, notas de entrada só com `fiscalReceiving`.
+- **O arquivo da nota** sai por `.../documents/:source/:id?kind=pdf|xml`:
+  primeiro a cópia do nosso Storage (a de entrada só existe lá), senão
+  redireciona para o endereço do provedor. O tipo vai na **query** porque o
+  proxy do Next manda todo caminho terminado em `/pdf` para a função de PDF.
+  Confere que a nota é da empresa do link e que está autorizada ou cancelada.
+- Os lançamentos são os que têm a data OU o pagamento no período (a união do
+  DRE em caixa). Sai o nome da carteira, nunca o id; nada de caminho de
+  Storage na resposta.
+
+Guards: `accountant-model.test.ts`, `accountant.service.test.ts` (a fronteira
+do token), `accountant.controller.test.ts` e
+`tests/firestore-rules/accountant-links.test.ts`.
+
+### Importação por planilha (`api/services/import/`)
+
+`POST /v1/clients/import`, `/v1/products/import` e `/v1/services/import`
+(`import.controller.ts`), com até 500 linhas por chamada, já com as colunas
+ligadas aos campos pela tela. Mesma permissão de criar do cadastro manual
+(`clients` | `products` | `services`, `canCreate`) e mesmos tetos de plano
+(`maxClients`; `maxProducts` soma produtos e serviços), conferidos para o
+lote inteiro com `incrementBy`.
+
+- **`dryRun`** só valida e marca repetido, para a prévia; sem ele, grava as
+  linhas válidas e responde, linha a linha, o que entrou, o que era repetido e
+  o que tinha erro. A conta free nunca chega aqui (é POST): a prévia dela é só
+  a validação do navegador.
+- **Repetido não entra** (decisão do produto): contato com o mesmo CPF/CNPJ,
+  e-mail ou telefone (com ou sem 55) de um que já existe ou de uma linha
+  anterior da planilha; produto ou serviço com o mesmo nome. Nada que já está
+  no ERP é alterado.
+- A validação (`import-model.ts`, pura) segue a do cadastro manual: CPF/CNPJ
+  pelo dígito verificador, e-mail, preço maior que zero. Número aceita o
+  formato de planilha brasileira ("R$ 1.234,50", "12,5%").
+- O documento gravado é o mesmo do cadastro manual: `searchTokens` do contato,
+  `usage.clients`/`usage.products` no dono e em `companies`, em lotes de 400.
+  Contato importado leva `source: "import"`.
+- **Categoria e fabricante que vierem na planilha entram na lista da empresa**
+  (`options`, `product_categories`/`product_manufacturers`), senão o seletor
+  do cadastro não os mostraria.
+- **Produto por metro** (`pricingModel: curtain_meter`, estoque em metros) só
+  quando a tela manda `allowPerMeter`, e ela manda pelo nicho (cortinas). O
+  backend continua sem conhecer o nicho.
+
+Guards: `import-model.test.ts` e `import.controller.test.ts`.
+
+### Portal do cliente (`api/services/client-portal/`)
+
+Uma página por CONTATO, aberta por link fixo e revogável
+(`/share/portal/{token}` no front), com as propostas, os pagamentos, a obra e
+as notas fiscais dele. Pro e Enterprise (`clientPortal`).
+
+- **Um link por contato**, em `client_portal_links/{tenantId}_{clientId}`
+  (Admin SDK only). Criar devolve o existente; "gerar novo" troca o token e o
+  anterior para de abrir na hora; desligar apaga o doc. A empresa lê e grava
+  por `/v1/client-portal/:clientId/link`, com a permissão de Contatos
+  (`clients`: ver para ler o link, editar para criar, trocar ou desligar).
+- **Abrir o portal é leitura pura.** Ele não cria link nenhum: cada item leva
+  à página pública que já existe (proposta, lançamento, obra), e o link dela só
+  é obtido ou criado quando o cliente clica (`POST /v1/share/portal/:token/open`,
+  `openPortalItem`). Antes de criar, confere que o item é daquela empresa E
+  daquele contato, e que o portal o listaria: rascunho, comissão e obra
+  cancelada não abrem por ali.
+- **O link do lançamento que a empresa já mandou fica como está.**
+  `SharedTransactionService.createShareLink` sobrescreve a validade de um link
+  existente (inclusive "sem validade"), então o portal reaproveita o link
+  válido e só cria um de 30 dias quando não há ou venceu.
+- **Proposta só depois de ir para o cliente:** na coluna Enviada, Aprovada
+  ou Recusada (lidas como `isStatusApproved`). Rascunho e "Em aberto" nunca
+  aparecem, nem com link gerado. Coluna própria da empresa não diz se a
+  proposta já foi enviada, então ali vale o link externo já gerado
+  (`shared_proposals` com `purpose` diferente de `system_pdf_render`,
+  consultado por `proposalId` em lotes de 30); sem isso, uma empresa que trocou
+  a coluna Enviada por colunas próprias teria o portal sempre vazio.
+- **O que mais o cliente vê:** receitas do contato sem a comissão (que
+  tem o `clientId` do PARCEIRO), obras não canceladas com o avanço pelas
+  etapas, e notas AUTORIZADAS com o PDF do Focus (que abre sem login). Só o
+  primeiro nome do contato.
+- **Token inexistente, empresa sem o plano, ou contato apagado ou de outra
+  empresa dão o mesmo 404**, como no agendamento.
+- **Rota pública montada em `/v1/share/portal`, antes dos `app.use("/v1", ...)`
+  dos links públicos**: sob `/v1/share` ela herda a liberação da autenticação,
+  e com prefixo próprio não passa três vezes pelo `publicShareLimiter`. A
+  resposta vai com `Cache-Control: no-store`.
+- As consultas por contato usam duas igualdades (`tenantId`, `clientId`) sem
+  `orderBy`: não pedem índice composto. A ordenação é no código.
+
+Guards: `client-portal-model.test.ts`, `client-portal.service.test.ts` (a
+fronteira do contato), `client-portal.controller.test.ts`,
+`client-portal.routes.gates.test.ts` e `tests/firestore-rules/client-portal.test.ts`.
+
+### Vendedor e metas de vendas
+
+A proposta guarda **`sellerId`/`sellerName`** (quem vendeu: membro da empresa,
+padrão quem criou, editável no formulário) e **`approvedAt`** (ISO UTC). O
+`approvedAt` é gravado na transição para aprovada e apagado na saída
+(`approvalTimestampUpdate`, em `api/services/sales-goals.ts`), na MESMA
+escrita do status: por isso `updateProposal` decide a aprovação antes de
+gravar. A Lia passa pelo mesmo `updateProposal` (abaixo), e cria proposta com quem
+pediu como vendedor. O vendedor é conferido contra a empresa
+(`resolveSeller`); um vendedor pedido e inválido recusa com 400. Os três campos
+estão em `PDF_IRRELEVANT_PROPOSAL_FIELDS`: não aparecem no PDF.
+
+**Responsável pela venda x vendedor da comissão.** São duas coisas: o
+responsável é um MEMBRO (conta na meta); o vendedor da comissão é um CONTATO
+(parceiro que recebe). Por isso a tela chama o primeiro de "Responsável pela
+venda". O vendedor interno que também ganha comissão é um contato vendedor com
+`linkedMemberId` (o membro), validado por `validateMemberLink`
+(`api/services/contact-member-link.ts`): o membro precisa ser da empresa e só
+liga a um contato. Com a ligação, a comissão dele entra sozinha na proposta
+quando ele é o responsável (`applySellerCommission`, no front, em
+`lib/contacts/seller-commission.ts`), e sai quando o responsável muda. Arquiteto
+e vendedor externo não são tocados. Só nos planos com metas.
+
+Propostas aprovadas antes do campo: `npx tsx src/scripts/backfill-proposal-approved-at.ts`
+(dry-run; `--apply` grava), que usa o `updatedAt` como data da aprovação. O
+vendedor delas fica vazio de propósito: contam só na meta da empresa.
+
+**A Lia muda status pelo mesmo `updateProposal` da tela**
+(`changeProposalStatusAsUser`, em `api/controllers/proposal-status-internal.ts`,
+que monta uma request interna com a identidade de quem pediu). Até 2026-09-26
+ela gravava o status direto no Firestore, e aprovar pela Lia não gerava os
+lançamentos, não criava o projeto, não entregava no Drive e não gravava a data
+da aprovação. As regras de transição dela (rascunho -> enviada -> aprovada ou
+recusada) seguem em `validateProposalStatusChange`. **Não volte a gravar status
+fora do `updateProposal`**: toda consequência da aprovação mora nele.
 
 ### Comissão de vendedor e arquiteto
 

@@ -570,6 +570,25 @@ export async function listInvoicesByProposal(
   return snap.docs.map((doc) => doc.data() as InvoiceDocument);
 }
 
+/**
+ * Notas de um contato (ficha 360). Duas igualdades sem `orderBy`, como a de
+ * proposta: índices de campo único bastam, e a ordem é feita aqui.
+ */
+export async function listInvoicesByClient(
+  tenantId: string,
+  clientId: string,
+): Promise<InvoiceDocument[]> {
+  const snap = await db
+    .collection(COLLECTION)
+    .where("tenantId", "==", tenantId)
+    .where("clientId", "==", clientId)
+    .limit(50)
+    .get();
+  return snap.docs
+    .map((doc) => doc.data() as InvoiceDocument)
+    .sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")));
+}
+
 /** Cancels an authorized document. Justification length is validated by the caller. */
 export async function cancelInvoice(
   invoiceId: string,

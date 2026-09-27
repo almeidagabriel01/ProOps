@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "@/lib/toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   TransactionService,
   TransactionType,
@@ -15,6 +15,8 @@ import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { transactionSchema } from "@/lib/validations";
 import { useWalletsData } from "@/app/wallets/_hooks/useWalletsData";
 import { getTodayISO } from "@/utils/date-utils";
+import { resolveInitialTransactionType } from "../_lib/initial-transaction-type";
+import { dueDateAfterDateChange } from "../_lib/due-date-follows-date";
 
 export type PaymentMode = "total" | "installmentValue";
 
@@ -139,14 +141,18 @@ interface UseTransactionFormReturn {
 
 export function useTransactionForm(): UseTransactionFormReturn {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { tenant } = useTenant();
   const { canCreate, isLoading: permLoading } =
     usePagePermission("transactions");
   const { createClient } = useClientActions();
   const [formData, setFormData] = React.useState<TransactionFormData>(() => {
+    const today = getTodayISO();
     return {
       ...initialFormData,
-      date: getTodayISO(),
+      type: resolveInitialTransactionType(searchParams.get("type")),
+      date: today,
+      dueDate: today,
     };
   });
   const [isSaving, setIsSaving] = React.useState(false);
@@ -410,6 +416,9 @@ export function useTransactionForm(): UseTransactionFormReturn {
       ...prev,
       [name]:
         type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      ...(name === "date" && {
+        dueDate: dueDateAfterDateChange(prev, value),
+      }),
     }));
     // Clear error when user starts typing
     if (errors[name as keyof typeof errors]) {
@@ -459,7 +468,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
     setIsSaving(true);
     const transactionLabel = formData.description.trim()
       ? `"${formData.description.trim()}"`
-      : "sem descricao";
+      : "sem descrição";
 
     try {
       let clientId = formData.clientId;
@@ -588,7 +597,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
             : undefined,
       });
 
-      toast.success(`Lancamento ${transactionLabel} criado com sucesso.`, {
+      toast.success(`Lançamento ${transactionLabel} criado com sucesso.`, {
         title: "Sucesso ao criar",
       });
       router.push("/transactions");
@@ -597,7 +606,7 @@ export function useTransactionForm(): UseTransactionFormReturn {
       const errorMessage =
         error instanceof Error && error.message.trim()
           ? error.message.trim()
-          : "Falha inesperada ao criar o lancamento.";
+          : "Falha inesperada ao criar o lançamento.";
       toast.error(
         `Não foi possível criar o lançamento ${transactionLabel}. Detalhes: ${errorMessage}`,
         { title: "Erro ao criar" },

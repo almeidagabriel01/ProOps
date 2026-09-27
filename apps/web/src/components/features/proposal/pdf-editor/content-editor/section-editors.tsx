@@ -19,6 +19,7 @@ import {
   MarkdownEditor,
   type MarkdownEditorHandle,
 } from "./markdown-editor";
+import { toast } from "@/lib/toast";
 
 export interface PdfSectionProposalContext {
   title?: string;
@@ -419,7 +420,7 @@ export function ImageEditor({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file && !ALLOWED_TYPES.includes(file.type)) {
-                    alert(
+                    toast.error(
                       "O arquivo deve ser uma imagem válida (JPEG, PNG, GIF, WebP ou SVG).",
                     );
                     e.target.value = "";

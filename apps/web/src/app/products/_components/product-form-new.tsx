@@ -330,7 +330,7 @@ export function ProductFormNew({
                   <Input
                     id="name"
                     name="name"
-                    placeholder="Ex: Instalacao e configuracao"
+                    placeholder="Ex: Instalação e configuração"
                     value={formData.name}
                     onChange={handleChange}
                     onBlur={handleBlur}

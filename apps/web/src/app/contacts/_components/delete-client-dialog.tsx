@@ -35,7 +35,7 @@ export function DeleteClientDialog({
           <AlertDialogTitle>Excluir Cliente</AlertDialogTitle>
           <AlertDialogDescription>
             Tem certeza que deseja excluir o cliente{" "}
-            <strong>{client.name}</strong>? Essa ação não pode ser desfeita.
+            <strong>{client.name}</strong>? Depois de excluir, você tem alguns segundos para desfazer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -1,0 +1,80 @@
+"use client";
+
+import * as React from "react";
+import { FormItem } from "@/components/ui/form-components";
+import { Select } from "@/components/ui/select";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { SalesGoalsService, type SalesGoalsPerson } from "@/services/sales-goals-service";
+import type { ClientType } from "@/services/client-service";
+
+/**
+ * Se o campo aparece. A página usa isto para decidir o layout (ao lado do
+ * nome, dividindo a linha, ou o nome ocupando a linha toda): o campo não pode
+ * sumir depois de a linha já ter sido dividida.
+ */
+export function showsMemberLink(types: ClientType[], hasSalesGoals: boolean): boolean {
+  return hasSalesGoals && types.includes("vendedor");
+}
+
+interface ContactMemberLinkFieldProps {
+  types: ClientType[];
+  value: string | null;
+  onChange: (memberId: string | null) => void;
+}
+
+/**
+ * "É da equipe?": liga o contato vendedor a um membro. É o que faz a comissão
+ * dele entrar sozinha na proposta quando ele é o responsável pela venda.
+ *
+ * Só para vendedor (o arquiteto é parceiro externo) e só nos planos com metas,
+ * onde existe o responsável pela venda. O vendedor externo fica em "Não".
+ */
+export function ContactMemberLinkField({ types, value, onChange }: ContactMemberLinkFieldProps) {
+  const { hasSalesGoals } = usePlanLimits();
+  const visible = showsMemberLink(types, hasSalesGoals);
+  const [people, setPeople] = React.useState<SalesGoalsPerson[]>([]);
+
+  React.useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    SalesGoalsService.sellers()
+      .then((list) => {
+        if (!cancelled) setPeople(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    // Sem dica no cabeçalho: a linha do rótulo tem altura fixa e divide a
+    // largura com a dica, e qualquer texto ali quebrava "É da equipe?" em duas
+    // linhas. A explicação vai embaixo do campo.
+    <FormItem label="É da equipe?" htmlFor="linkedMemberId">
+      <div className="space-y-2">
+        <Select
+          id="linkedMemberId"
+          aria-label="É da equipe?"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value || null)}
+          disabled={people.length === 0}
+          disableSort
+        >
+          <option value="">Não, é vendedor externo</option>
+          {people.map((person) => (
+            <option key={person.id} value={person.id}>
+              Sim: {person.name}
+            </option>
+          ))}
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Ligado a um membro, a comissão dele entra sozinha na proposta quando ele é o
+          responsável pela venda.
+        </p>
+      </div>
+    </FormItem>
+  );
+}

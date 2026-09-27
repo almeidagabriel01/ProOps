@@ -14,8 +14,10 @@ import { ProposalProduct } from "@/services/proposal-service";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
 import { Badge } from "@/components/ui/badge";
-import { Package, Plus, Minus } from "lucide-react";
+import { Package, Plus, Minus, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { compareCatalogDisplayItem } from "@/lib/sort-text";
+import { filterCatalogItems } from "@/lib/catalog-search";
 
 interface ProposalProductsSectionProps {
   products: Array<Product | Service>;
@@ -47,6 +49,8 @@ export function ProposalProductsSection({
   onNavigateToProducts,
   onToggleStatus,
 }: ProposalProductsSectionProps) {
+  const [searchTerm, setSearchTerm] = React.useState("");
+
   if (products.length === 0) {
     return (
       <Card>
@@ -76,6 +80,7 @@ export function ProposalProductsSection({
   const availableProducts = [...products]
     .filter((product) => !systemProductIds.has(product.id))
     .sort(compareCatalogDisplayItem);
+  const visibleProducts = filterCatalogItems(availableProducts, searchTerm);
 
   return (
     <Card>
@@ -88,9 +93,25 @@ export function ProposalProductsSection({
           Selecione itens que NÃO fazem parte dos sistemas acima
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {availableProducts.length > 0 && (
+          <div className="sm:max-w-md">
+            <Input
+              placeholder="Buscar por nome, categoria ou fabricante..."
+              aria-label="Buscar itens do catálogo"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              icon={<Search className="w-4 h-4" />}
+            />
+          </div>
+        )}
+        {searchTerm.trim() && visibleProducts.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Nenhum item encontrado para &quot;{searchTerm.trim()}&quot;.
+          </p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {availableProducts.map((product) => {
+          {visibleProducts.map((product) => {
             const selected = extraProducts.find(
               (p) =>
                 p.productId === product.id &&

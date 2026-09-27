@@ -190,7 +190,8 @@ describe("card do tour", () => {
       fireEvent.click(screen.getByTestId("onboarding-next"));
     });
     expect(updateOnboarding.mock.calls[0][0].completedStepIds).toEqual(["dashboard"]);
-    expect(push).toHaveBeenCalledWith("/proposals");
+    // Depois do Dashboard vem Tarefas, no mesmo capítulo (Visão geral).
+    expect(push).toHaveBeenCalledWith("/tasks");
   });
 
   it("reconhece a tela numa rota aninhada", () => {

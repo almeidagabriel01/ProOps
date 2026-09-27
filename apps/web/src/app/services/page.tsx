@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Plus, Search, Edit, Trash2, Wrench } from "lucide-react";
+import { runUndoableAction } from "@/lib/undoable-action";
 import { toast } from "@/lib/toast";
 import { ServicesTableSkeleton } from "./_components/services-table-skeleton";
 import { normalize } from "@/utils/text";
@@ -33,6 +34,9 @@ import { usePagePermission } from "@/hooks/usePagePermission";
 import { useSort } from "@/hooks/use-sort";
 import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { ServicesSkeleton } from "./_components/services-skeleton";
+import { ImportButton, ImportDialog } from "@/components/features/import/import-dialog";
+import { OptionService } from "@/services/option-service";
+import { SERVICE_FIELDS } from "@/lib/import/import-fields";
 
 export default function ServicesPage() {
   const { tenant, isLoading: tenantLoading } = useTenant();
@@ -47,6 +51,10 @@ export default function ServicesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isTableLoading, setIsTableLoading] = useState(true);
   const resetRef = useRef<(() => void) | null>(null);
+  const refreshRef = useRef<(() => void) | null>(null);
+  const updateItemsRef = useRef<
+    ((updater: (items: Service[]) => Service[]) => void) | null
+  >(null);
 
   const isFiltering = searchTerm.trim() !== "";
 
@@ -76,6 +84,18 @@ export default function ServicesPage() {
   useEffect(() => {
     void refreshHasAnyServices();
   }, [refreshHasAnyServices]);
+
+  const [importOpen, setImportOpen] = useState(false);
+  // Depois de importar: a lista e o "tem algum serviço" relidos.
+  const reloadAfterImport = useCallback(() => {
+    // A importação cria categorias novas na lista da empresa.
+    if (tenant) OptionService.invalidate(tenant.id, "product_categories");
+    void refreshHasAnyServices();
+    refreshRef.current?.();
+    if (tenant && allServices) {
+      void ServiceService.getServices(tenant.id).then(setAllServices).catch(() => undefined);
+    }
+  }, [tenant, allServices, refreshHasAnyServices]);
 
   useEffect(() => {
     if (!isFiltering || !tenant) {
@@ -154,22 +174,45 @@ export default function ServicesPage() {
         return;
       }
 
-      const success = await deleteService(deleteId, selectedService?.name);
-      if (success) {
-        const remainingServices =
-          allServices?.filter((service) => service.id !== deleteId) ?? null;
-        const hasRemainingServices = await refreshHasAnyServices();
-
-        if (!hasRemainingServices) {
-          setAllServices([]);
-        } else {
-          resetRef.current?.();
-          if (remainingServices) {
-            setAllServices(remainingServices);
-          }
-        }
-      }
+      // A exclusão só vai ao servidor depois da janela de "Desfazer": o
+      // serviço sai da lista agora, e desfazer é recarregar a lista.
+      const removedId = deleteId;
+      const previousServices = allServices;
+      updateItemsRef.current?.((items) =>
+        items.filter((service) => service.id !== removedId),
+      );
+      setAllServices(
+        (prev) => prev?.filter((service) => service.id !== removedId) ?? prev,
+      );
       setDeleteId(null);
+
+      const restoreList = () => {
+        if (previousServices) setAllServices(previousServices);
+        void refreshHasAnyServices();
+        refreshRef.current?.();
+      };
+
+      runUndoableAction({
+        message: `Serviço ${serviceLabel} excluído.`,
+        title: "Serviço excluído",
+        commit: async () => {
+          await deleteService(removedId);
+          await refreshHasAnyServices();
+        },
+        onUndo: restoreList,
+        onCommitError: (error) => {
+          console.error("Error deleting service:", error);
+          const message =
+            error instanceof Error && error.message.trim()
+              ? error.message.trim()
+              : "Falha ao excluir serviço.";
+          toast.error(
+            `Não foi possível excluir o serviço ${serviceLabel}. Detalhes: ${message}`,
+            { title: "Erro ao excluir" },
+          );
+          restoreList();
+        },
+      });
     } catch (error) {
       console.error("Error deleting service:", error);
     } finally {
@@ -299,7 +342,7 @@ export default function ServicesPage() {
           <AlertDialogDescription>
             {"Tem certeza que deseja excluir o serviço "}
             <strong>{serviceToDelete?.name}</strong>
-            {"? Essa ação não pode ser desfeita."}
+            {"? Depois de excluir, você tem alguns segundos para desfazer."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -348,7 +391,8 @@ export default function ServicesPage() {
                 <PageViewSwitcher className="mt-3" />
               </div>
               {canCreate && (
-                <div className="flex gap-2 w-full sm:w-auto">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <ImportButton onClick={() => setImportOpen(true)} />
                   <Link href="/services/new" className="block w-full sm:w-auto">
                     <Button size="lg" className="gap-2 w-full sm:w-auto">
                       <Plus className="w-5 h-5" />
@@ -357,6 +401,14 @@ export default function ServicesPage() {
                   </Link>
                 </div>
               )}
+              <ImportDialog
+                kind="services"
+                open={importOpen}
+                onOpenChange={setImportOpen}
+                noun={{ singular: "serviço", plural: "serviços" }}
+                fields={SERVICE_FIELDS}
+                onImported={reloadAfterImport}
+              />
             </div>
 
             {hasAnyServices !== false && (
@@ -420,6 +472,8 @@ export default function ServicesPage() {
                 sortConfig={sortConfig}
                 fetchEnabled={!!tenant}
                 onResetRef={resetRef}
+                onRefreshRef={refreshRef}
+                onUpdateItemsRef={updateItemsRef}
                 batchSize={12}
                 minWidth="800px"
                 loadingSkeleton={<ServicesTableSkeleton />}

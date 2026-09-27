@@ -21,7 +21,8 @@ import { productRefsFields } from "../lib/proposal-product-refs";
  * cron-secret endpoint POST /internal/admin/seed-demo-tenant).
  */
 
-export const DEMO_TENANT_ID = "demo";
+import { DEMO_TENANT_ID } from "../shared/demo-tenant";
+export { DEMO_TENANT_ID };
 
 // Fixed base date so re-runs and orderBy(createdAt) are deterministic.
 const BASE_MS = Date.UTC(2026, 0, 1, 12, 0, 0);
@@ -271,6 +272,11 @@ export interface SeedDemoTenantResult {
   proposals: number;
   wallets: number;
   transactions: number;
+  leads: number;
+  activities: number;
+  projects: number;
+  notifications: number;
+  tasks: number;
 }
 
 export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
@@ -570,11 +576,11 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
 
   const DEMO_TRANSACTIONS: DemoTxn[] = [
     // Receitas
-    { id: "demo_txn_01", type: "income", description: "Automação residencial: entrada do projeto", amount: 8500, status: "paid", walletId: "demo_wallet_main", dateOffset: -10, dueOffset: -10, paid: true, clientName: "Ana Paula Ribeiro" },
-    { id: "demo_txn_02", type: "income", description: "Manutenção preventiva: contrato mensal", amount: 5000, status: "paid", walletId: "demo_wallet_cash", dateOffset: -4, dueOffset: -4, paid: true, clientName: "Carla Menezes" },
-    { id: "demo_txn_03", type: "income", description: "Cortinas motorizadas: instalação", amount: 12000, status: "paid", walletId: "demo_wallet_main", dateOffset: -25, dueOffset: -25, paid: true, clientName: "Bruno Carvalho" },
-    { id: "demo_txn_04", type: "income", description: "Saldo do projeto de automação", amount: 9500, status: "pending", walletId: "demo_wallet_main", dateOffset: -2, dueOffset: 5, clientName: "Carla Menezes" },
-    { id: "demo_txn_05", type: "income", description: "Parcela em atraso", amount: 4200, status: "overdue", walletId: "demo_wallet_main", dateOffset: -20, dueOffset: -8, clientName: "Bruno Carvalho" },
+    { id: "demo_txn_01", type: "income", description: "Automação residencial: entrada do projeto", amount: 8500, status: "paid", walletId: "demo_wallet_main", dateOffset: -10, dueOffset: -10, paid: true, clientName: "Ana Paula Ribeiro", category: "Projetos" },
+    { id: "demo_txn_02", type: "income", description: "Manutenção preventiva: contrato mensal", amount: 5000, status: "paid", walletId: "demo_wallet_cash", dateOffset: -4, dueOffset: -4, paid: true, clientName: "Carla Menezes", category: "Manutenção" },
+    { id: "demo_txn_03", type: "income", description: "Cortinas motorizadas: instalação", amount: 12000, status: "paid", walletId: "demo_wallet_main", dateOffset: -25, dueOffset: -25, paid: true, clientName: "Bruno Carvalho", category: "Instalação" },
+    { id: "demo_txn_04", type: "income", description: "Saldo do projeto de automação", amount: 9500, status: "pending", walletId: "demo_wallet_main", dateOffset: -2, dueOffset: 5, clientName: "Carla Menezes", category: "Projetos" },
+    { id: "demo_txn_05", type: "income", description: "Parcela em atraso", amount: 4200, status: "overdue", walletId: "demo_wallet_main", dateOffset: -20, dueOffset: -8, clientName: "Bruno Carvalho", category: "Instalação" },
     // Despesas
     { id: "demo_txn_06", type: "expense", description: "Compra de equipamentos KNX", amount: 3200, status: "paid", walletId: "demo_wallet_main", dateOffset: -8, dueOffset: -8, paid: true, category: "Fornecedores" },
     { id: "demo_txn_07", type: "expense", description: "Mão de obra: instalação", amount: 1500, status: "paid", walletId: "demo_wallet_cash", dateOffset: -3, dueOffset: -3, paid: true, category: "Operacional" },
@@ -582,9 +588,9 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     { id: "demo_txn_09", type: "expense", description: "Lote de sensores de presença", amount: 2800, status: "pending", walletId: "demo_wallet_main", dateOffset: -1, dueOffset: 6, category: "Fornecedores" },
     { id: "demo_txn_10", type: "expense", description: "Assinatura de software de projeto", amount: 1800, status: "pending", walletId: "demo_wallet_main", dateOffset: -1, dueOffset: 18, category: "Serviços" },
     // Receita parcelada 3x — projeto de automação da Ana (1ª paga, 2 pendentes)
-    { id: "demo_txn_11", type: "income", description: "Automação Residência Ana: projeto (parcelado)", amount: 4000, status: "paid", walletId: "demo_wallet_main", dateOffset: -30, dueOffset: -30, paid: true, clientName: "Ana Paula Ribeiro", isInstallment: true, installmentCount: 3, installmentNumber: 1, installmentGroupId: "demo_inst_income_1" },
-    { id: "demo_txn_12", type: "income", description: "Automação Residência Ana: projeto (parcelado)", amount: 4000, status: "pending", walletId: "demo_wallet_main", dateOffset: -30, dueOffset: 2, clientName: "Ana Paula Ribeiro", isInstallment: true, installmentCount: 3, installmentNumber: 2, installmentGroupId: "demo_inst_income_1" },
-    { id: "demo_txn_13", type: "income", description: "Automação Residência Ana: projeto (parcelado)", amount: 4000, status: "pending", walletId: "demo_wallet_main", dateOffset: -30, dueOffset: 32, clientName: "Ana Paula Ribeiro", isInstallment: true, installmentCount: 3, installmentNumber: 3, installmentGroupId: "demo_inst_income_1" },
+    { id: "demo_txn_11", type: "income", description: "Automação Residência Ana: projeto (parcelado)", amount: 4000, status: "paid", walletId: "demo_wallet_main", dateOffset: -30, dueOffset: -30, paid: true, clientName: "Ana Paula Ribeiro", category: "Projetos", isInstallment: true, installmentCount: 3, installmentNumber: 1, installmentGroupId: "demo_inst_income_1" },
+    { id: "demo_txn_12", type: "income", description: "Automação Residência Ana: projeto (parcelado)", amount: 4000, status: "pending", walletId: "demo_wallet_main", dateOffset: -30, dueOffset: 2, clientName: "Ana Paula Ribeiro", category: "Projetos", isInstallment: true, installmentCount: 3, installmentNumber: 2, installmentGroupId: "demo_inst_income_1" },
+    { id: "demo_txn_13", type: "income", description: "Automação Residência Ana: projeto (parcelado)", amount: 4000, status: "pending", walletId: "demo_wallet_main", dateOffset: -30, dueOffset: 32, clientName: "Ana Paula Ribeiro", category: "Projetos", isInstallment: true, installmentCount: 3, installmentNumber: 3, installmentGroupId: "demo_inst_income_1" },
     // Despesa parcelada 3x — compra de equipamentos (1ª paga, 2 pendentes)
     { id: "demo_txn_14", type: "expense", description: "Compra de equipamentos: parcelado", amount: 1500, status: "paid", walletId: "demo_wallet_main", dateOffset: -25, dueOffset: -25, paid: true, category: "Fornecedores", isInstallment: true, installmentCount: 3, installmentNumber: 1, installmentGroupId: "demo_inst_expense_1" },
     { id: "demo_txn_15", type: "expense", description: "Compra de equipamentos: parcelado", amount: 1500, status: "pending", walletId: "demo_wallet_main", dateOffset: -25, dueOffset: 8, category: "Fornecedores", isInstallment: true, installmentCount: 3, installmentNumber: 2, installmentGroupId: "demo_inst_expense_1" },
@@ -616,6 +622,23 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
       createdAt: ts(0),
       updatedAt: ts(0),
     });
+  });
+
+  // Categorias do DRE: cada nome usado acima, no grupo dele.
+  batch.set(db.collection("transaction_categories").doc(DEMO_TENANT_ID), {
+    ...tenantTag,
+    items: [
+      { id: "demo_cat_propostas", name: "Propostas", kind: "income", group: "revenue" },
+      { id: "demo_cat_projetos", name: "Projetos", kind: "income", group: "revenue" },
+      { id: "demo_cat_instalacao", name: "Instalação", kind: "income", group: "revenue" },
+      { id: "demo_cat_manutencao", name: "Manutenção", kind: "income", group: "revenue" },
+      { id: "demo_cat_fornecedores", name: "Fornecedores", kind: "expense", group: "cost" },
+      { id: "demo_cat_operacional", name: "Operacional", kind: "expense", group: "cost" },
+      { id: "demo_cat_marketing", name: "Marketing", kind: "expense", group: "operating" },
+      { id: "demo_cat_servicos", name: "Serviços", kind: "expense", group: "operating" },
+      { id: "demo_cat_impostos", name: "Impostos", kind: "expense", group: "deduction" },
+    ],
+    seededAt: ts(0),
   });
 
   DEMO_TRANSACTIONS.forEach((t) => {
@@ -652,6 +675,183 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
   });
   // ------------------------------------------------------------------------
 
+  // --- Projetos de instalação ---------------------------------------------
+  // A proposta aprovada do demo já virou obra: uma etapa concluída, uma em
+  // andamento e duas pela frente, para a tela de Projetos não abrir vazia.
+  const demoStage = (
+    id: string,
+    name: string,
+    status: "pending" | "in_progress" | "done",
+    items: Array<[string, boolean]>,
+    completedOffset: number | null,
+  ) => ({
+    id,
+    name,
+    status,
+    checklist: items.map(([text, done], i) => ({
+      id: `${id}_item_${i + 1}`,
+      text,
+      done,
+      doneAt: done ? isoAt(completedOffset ?? -1) : null,
+      doneBy: null,
+    })),
+    photos: [],
+    completedAt: status === "done" && completedOffset !== null ? isoAt(completedOffset) : null,
+  });
+
+  const DEMO_PROJECTS = [
+    {
+      id: "proposal_demo_prop_1",
+      proposalId: "demo_prop_1",
+      title: "Automação Residencial Completa",
+      client: DEMO_CLIENTS[0],
+      stages: [
+        demoStage("demo_stage_1", "Infraestrutura", "done", [["Conferir tubulação e caixas", true], ["Passar cabeamento", true], ["Montar o quadro/rack", true]], -6),
+        demoStage("demo_stage_2", "Instalação", "in_progress", [["Instalar os equipamentos", true], ["Ligar e identificar os circuitos", false]], null),
+        demoStage("demo_stage_3", "Configuração", "pending", [["Programar cenas e automações", false], ["Configurar o aplicativo", false], ["Testar ambiente por ambiente", false]], null),
+        demoStage("demo_stage_4", "Entrega", "pending", [["Treinar o cliente", false], ["Registrar fotos finais", false]], null),
+      ],
+    },
+  ] as const;
+
+  DEMO_PROJECTS.forEach((p) => {
+    batch.set(db.collection("projects").doc(p.id), {
+      ...tenantTag,
+      proposalId: p.proposalId,
+      proposalTitle: p.title,
+      proposalCode: null,
+      clientId: p.client.id,
+      clientName: p.client.name,
+      clientPhone: p.client.phone,
+      clientEmail: p.client.email,
+      address: null,
+      title: p.title,
+      status: "active",
+      stages: p.stages,
+      assigneeId: null,
+      assigneeName: "Equipe Demo",
+      startDate: ymd(-8),
+      dueDate: ymd(12),
+      notes: null,
+      delivery: { status: "none", sharedProjectId: null, acceptance: null },
+      createdAt: isoAt(-8),
+      updatedAt: isoAt(-1),
+      createdBy: null,
+    });
+  });
+
+  // --- CRM: leads e atividades --------------------------------------------
+  // Um lead em cada etapa aberta, para o funil do CRM não abrir vazio no demo.
+  // Datas relativas ao seed, como o financeiro; IDs determinísticos.
+  const DEMO_LEADS = [
+    { id: "demo_lead_carla", name: "Carla Mendes", phone: "11988880001", source: "instagram", stage: "novo", estimatedValue: 18000, nextAction: "Ligar para entender o projeto", nextActionOffset: 1 },
+    { id: "demo_lead_diego", name: "Diego Sampaio", phone: "11988880002", source: "indicacao", stage: "contato", estimatedValue: 42000, nextAction: "Agendar visita técnica", nextActionOffset: 0 },
+    { id: "demo_lead_studio", name: "Studio Arq Lima", company: "Studio Arq Lima", phone: "11988880003", source: "arquiteto", stage: "qualificado", estimatedValue: 95000, nextAction: "Enviar proposta da cobertura", nextActionOffset: 3 },
+  ] as const;
+
+  DEMO_LEADS.forEach((l, i) => {
+    batch.set(db.collection("leads").doc(l.id), {
+      ...tenantTag,
+      name: l.name,
+      phone: l.phone,
+      ...("company" in l ? { company: l.company } : {}),
+      source: l.source,
+      stage: l.stage,
+      estimatedValue: l.estimatedValue,
+      nextAction: l.nextAction,
+      nextActionAt: ymd(l.nextActionOffset),
+      ownerName: "Equipe Demo",
+      createdAt: isoAt(-(i + 2)),
+      updatedAt: isoAt(-(i + 1)),
+    });
+  });
+
+  const DEMO_ACTIVITIES = [
+    { id: "demo_activity_diego_1", leadId: "demo_lead_diego", type: "ligacao", title: "Primeiro contato: quer automatizar iluminação e cortinas da sala", offset: -2, done: true },
+    { id: "demo_activity_studio_1", leadId: "demo_lead_studio", type: "reuniao", title: "Reunião com a arquiteta sobre o projeto da cobertura", offset: -3, done: true },
+  ] as const;
+
+  DEMO_ACTIVITIES.forEach((a) => {
+    batch.set(db.collection("activities").doc(a.id), {
+      ...tenantTag,
+      leadId: a.leadId,
+      clientId: null,
+      type: a.type,
+      title: a.title,
+      dueAt: a.done ? null : ymd(a.offset),
+      doneAt: a.done ? isoAt(a.offset) : null,
+      createdByName: "Equipe Demo",
+      createdAt: isoAt(Math.min(a.offset, -1)),
+    });
+  });
+
+  // --- Central de notificações -------------------------------------------
+  // A conta free lê o tenant "demo" direto (isDemoRead), sem destinatário:
+  // `recipientUids` fica vazio porque ninguém da empresa de demonstração
+  // existe de verdade. Uma lida e três não lidas, para o sino ter número.
+  const DEMO_NOTIFICATIONS = [
+    { id: "demo_notif_aceite", type: "proposal_accepted", title: "Cliente aceitou a proposta", message: "Bruno Carvalho aceitou \"Segurança e Controle de Acesso\" pelo link. Confirme para gerar o financeiro.", proposalId: "demo_prop_2", offset: 0, read: false },
+    { id: "demo_notif_pago", type: "transaction_paid_online", title: "Pagamento recebido", message: "Pagamento via PIX confirmado para \"Automação residencial: entrada do projeto\".", transactionId: "demo_txn_01", offset: -1, read: false },
+    { id: "demo_notif_vista", type: "proposal_viewed", title: "Proposta visualizada", message: "Condomínio Jardins abriu \"Som Ambiente Multizona\".", proposalId: "demo_prop_3", offset: -1, read: false },
+    { id: "demo_notif_entrega", type: "project_delivery_accepted", title: "Entrega aceita pelo cliente", message: "Ana Ribeiro aceitou a entrega da obra \"Automação Residencial Completa\".", projectId: "proposal_demo_prop_1", offset: -3, read: true },
+  ] as const;
+
+  DEMO_NOTIFICATIONS.forEach((n) => {
+    batch.set(db.collection("notifications").doc(n.id), {
+      ...tenantTag,
+      type: n.type,
+      title: n.title,
+      message: n.message,
+      ...("proposalId" in n ? { proposalId: n.proposalId } : {}),
+      ...("transactionId" in n ? { transactionId: n.transactionId } : {}),
+      ...("projectId" in n ? { projectId: n.projectId } : {}),
+      recipientUids: [],
+      readBy: [],
+      isRead: n.read,
+      createdAt: isoAt(n.offset),
+    });
+  });
+
+  // --- Tarefas ------------------------------------------------------------
+  // Lidas pela conta free direto do tenant "demo" (isDemoRead), então sem
+  // `audienceUids`. Uma para hoje ligada à proposta aprovada, uma ligada ao
+  // lead (o "a fazer" do CRM virou tarefa) e uma concluída.
+  const DEMO_TASKS = [
+    { id: "demo_task_instalacao", title: "Confirmar a data da instalação com Ana Ribeiro", dueOffset: 0, done: false, clientId: DEMO_CLIENTS[0].id, clientName: DEMO_CLIENTS[0].name, proposalId: "demo_prop_1", proposalTitle: "Automação Residencial Completa" },
+    { id: "demo_task_studio", title: "Montar proposta com cinema e climatização", dueOffset: 3, done: false, leadId: "demo_lead_studio", leadName: "Studio Arq Lima" },
+    { id: "demo_task_fotos", title: "Enviar ao cliente as fotos da infraestrutura", dueOffset: -2, done: true, clientId: DEMO_CLIENTS[0].id, clientName: DEMO_CLIENTS[0].name },
+  ] as const;
+
+  // A atividade "tarefa" do lead virou a tarefa acima; num tenant já semeado
+  // ela continuaria aparecendo duplicada no histórico do lead.
+  batch.delete(db.collection("activities").doc("demo_activity_studio_2"));
+
+  DEMO_TASKS.forEach((t) => {
+    batch.set(db.collection("tasks").doc(t.id), {
+      ...tenantTag,
+      title: t.title,
+      notes: null,
+      dueAt: ymd(t.dueOffset),
+      assigneeId: null,
+      assigneeName: "Equipe Demo",
+      mentionUids: [],
+      audienceUids: [],
+      clientId: "clientId" in t ? t.clientId : null,
+      clientName: "clientName" in t ? t.clientName : null,
+      proposalId: "proposalId" in t ? t.proposalId : null,
+      proposalTitle: "proposalTitle" in t ? t.proposalTitle : null,
+      leadId: "leadId" in t ? t.leadId : null,
+      leadName: "leadName" in t ? t.leadName : null,
+      doneAt: t.done ? isoAt(t.dueOffset) : null,
+      doneBy: null,
+      createdBy: null,
+      createdByName: "Equipe Demo",
+      createdAt: isoAt(Math.min(t.dueOffset, 0) - 1),
+      updatedAt: isoAt(Math.min(t.dueOffset, 0) - 1),
+    });
+  });
+  // ------------------------------------------------------------------------
+
   await batch.commit();
 
   const result: SeedDemoTenantResult = {
@@ -665,6 +865,11 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     proposals: proposals.length,
     wallets: DEMO_WALLETS.length,
     transactions: DEMO_TRANSACTIONS.length,
+    leads: DEMO_LEADS.length,
+    activities: DEMO_ACTIVITIES.length,
+    projects: DEMO_PROJECTS.length,
+    notifications: DEMO_NOTIFICATIONS.length,
+    tasks: DEMO_TASKS.length,
   };
   logger.info("seedDemoTenant complete", { ...result });
   return result;

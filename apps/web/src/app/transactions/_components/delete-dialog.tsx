@@ -65,13 +65,13 @@ export function DeleteTransactionDialog({
                 <strong>
                   todas as suas {transaction?.installmentCount} parcelas
                 </strong>
-                ? Esta ação não pode ser desfeita.
+                ? Depois de excluir, você tem alguns segundos para desfazer.
               </>
             ) : (
               <>
                 Tem certeza que deseja excluir o lançamento{" "}
-                <strong>&quot;{transaction?.description}&quot;</strong>? Esta
-                ação não pode ser desfeita.
+                <strong>&quot;{transaction?.description}&quot;</strong>? Depois
+                de excluir, você tem alguns segundos para desfazer.
               </>
             )}
           </AlertDialogDescription>

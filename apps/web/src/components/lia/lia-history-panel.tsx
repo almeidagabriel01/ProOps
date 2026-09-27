@@ -63,7 +63,7 @@ export function LiaHistoryPanel({
           </p>
         </div>
         <Button asChild size="sm" variant="default">
-          <Link href="/profile?section=plan">Fazer upgrade</Link>
+          <Link href="/profile?tab=billing">Fazer upgrade</Link>
         </Button>
       </div>
     );

@@ -21,6 +21,8 @@ import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { useTenant } from "@/providers/tenant-provider";
+import { useBeforeUnloadWarning } from "@/hooks/use-before-unload-warning";
+import { hasUnsavedProposalWork } from "@/hooks/proposal/unsaved-proposal";
 import { FormContainer } from "@/components/ui/form-components";
 import { StepWizard, StepNavigation } from "@/components/ui/step-wizard";
 import { FormStepCard } from "@/components/ui/form-step-card";
@@ -44,6 +46,11 @@ import {
 } from "./form";
 import { ProposalLoadingState } from "@/components/features/proposal/proposal-loading-state";
 import { isDocumentoValido } from "@/lib/format-document";
+import { ClientService } from "@/services/client-service";
+import { useAuth } from "@/providers/auth-provider";
+import { ProposalSellerField } from "./form/proposal-seller-field";
+import { useSellerCommission } from "@/hooks/proposal/use-seller-commission";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 
 interface SimpleProposalFormProps {
   proposalId?: string;
@@ -209,10 +216,43 @@ export function SimpleProposalForm({
     removeAmbienteFromSistema,
   } = useProposalForm({ proposalId });
 
+  // Só preenche se o campo continua vazio: a configuração chega depois do
+  // primeiro render, e o usuário pode ter escolhido uma data nesse meio tempo.
+  const applyDefaultValidUntil = React.useCallback(
+    (validUntil: string) =>
+      setFormData((prev) =>
+        prev.validUntil ? prev : { ...prev, validUntil },
+      ),
+    [setFormData],
+  );
+
   // Demo/free accounts: navigate the steps freely but edit nothing (fields and
   // add/remove controls disabled via FormStepCard's fieldset). Distinct from the
   // `isReadOnly` PROP, which renders a fully static view without the stepper.
-  const { isReadOnly: isDemo } = useTenant();
+  const { isReadOnly: isDemo, tenant } = useTenant();
+  const { hasSalesGoals } = usePlanLimits();
+  const { user } = useAuth();
+  // A comissão do vendedor da equipe acompanha o responsável pela venda.
+  const { changeSeller } = useSellerCommission({
+    tenantId: tenant?.id,
+    isNew: !proposalId,
+    readOnly: isDemo,
+    currentUserId: user?.id,
+    formData,
+    setFormData,
+  });
+
+  useBeforeUnloadWarning(
+    hasUnsavedProposalWork({
+      proposalId,
+      isDirty,
+      isSaving,
+      isReadOnly: isDemo,
+      formData,
+      selectedClientId,
+      selectedSistemasCount: selectedSistemas.length,
+    }),
+  );
 
   // State for unsaved changes modal
   const [showUnsavedModal, setShowUnsavedModal] = React.useState(false);
@@ -673,6 +713,30 @@ export function SimpleProposalForm({
     }
   };
 
+  // Proposta nova aberta a partir de um lead convertido ou da ficha do
+  // contato (`?clientId=`): já nasce com o contato escolhido.
+  const prefillClientId = proposalId ? null : searchParams.get("clientId");
+  const prefillDoneRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!prefillClientId || prefillDoneRef.current || isLoading || selectedClientId) return;
+    prefillDoneRef.current = true;
+    ClientService.getClientById(prefillClientId)
+      .then((client) => {
+        if (!client) return;
+        handleClientChange({
+          clientId: client.id,
+          clientName: client.name,
+          clientEmail: client.email,
+          clientPhone: client.phone,
+          clientAddress: client.address,
+          isNew: false,
+        });
+      })
+      .catch(() => undefined);
+    // handleClientChange é recriada a cada render; o ref garante uma execução só.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillClientId, isLoading, selectedClientId]);
+
   // Handle adding new system
   const handleAddNewSystem = (sistema: ProposalSistema | null) => {
     if (!sistema) return;
@@ -836,7 +900,7 @@ export function SimpleProposalForm({
 
     if (alreadySelected) {
       toast.error(
-        `O ambiente "${ambiente.name}" jÃ¡ foi adicionado Ã  proposta.`,
+        `O ambiente "${ambiente.name}" já foi adicionado à proposta.`,
       );
       return;
     }
@@ -871,7 +935,7 @@ export function SimpleProposalForm({
     });
 
     if (exists) {
-      alert("Este sistema já existe na proposta.");
+      toast.error("Este sistema já existe na proposta.");
       return;
     }
 
@@ -1081,6 +1145,17 @@ export function SimpleProposalForm({
               isExistingProposal={!!proposalId}
               onPracaChange={(proposalPraca) =>
                 setFormData((prev) => ({ ...prev, proposalPraca }))
+              }
+              onDefaultValidUntil={applyDefaultValidUntil}
+              addressSibling={
+                hasSalesGoals ? (
+                  <ProposalSellerField
+                    value={formData.sellerId}
+                    currentUserId={user?.id}
+                    onChange={changeSeller}
+                    disabled={isDemo}
+                  />
+                ) : undefined
               }
             />
           </div>

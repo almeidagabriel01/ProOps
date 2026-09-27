@@ -11,6 +11,16 @@ cliente reclama — ou quando alguém audita meses depois.
 | 3 | Uma conta **free** (modo demo) enxerga isto? | as três listas de demo |
 | 4 | As **Firestore rules** cobrem a coleção nova? | `firebase/firestore.rules` |
 
+Além delas, toda tela nova responde mais duas, que não são camadas de acesso
+mas seguem a mesma regra (nenhuma tem default seguro, e se o pedido não
+responder, pergunte ao usuário junto com as quatro). O checklist delas está em
+[Além do acesso](#além-do-acesso-onboarding-e-nichos):
+
+| # | Pergunta | Quem responde |
+|---|---|---|
+| 5 | A tela entra no **tutorial** de onboarding? | `onboarding-steps.ts` |
+| 6 | Como fica em cada **nicho** de `TenantNiche`? | `NICHE_CONFIGS` |
+
 **Nenhuma delas tem default seguro.** As quatro falham abertas ou fechadas em
 silêncio, e o histórico do projeto tem um caso real de cada:
 
@@ -132,6 +142,59 @@ por `FREE_TIER_FORBIDDEN` antes do gate de plano, que é o comportamento certo.
 
 ---
 
+## Além do acesso: onboarding e nichos
+
+### 5. Onboarding
+
+**Decida:** a tela entra no tutorial? Em qual capítulo, com qual checklist? O
+contrato completo está em `apps/web/src/components/CLAUDE.md`, seção
+Onboarding.
+
+- [ ] Template em `apps/web/src/components/onboarding/onboarding-steps.ts`:
+      `MENU_STEP_TEMPLATES` para tela do dock, `SETTINGS_STEP_TEMPLATES` para
+      `/settings/*`. O template é indexado pela rota e declara `chapter` (um
+      dos `ONBOARDING_CHAPTERS`).
+- [ ] Se a tela fica de fora, ela entra em `ROUTES_WITHOUT_OWN_STEP` com o
+      motivo. Sem isso o bloco "cobertura do tutorial" de
+      `onboarding-steps.test.ts` reprova.
+- [ ] Gates do passo: `masterOnly`, `excludeFromDemo` (a mesma decisão da
+      pergunta 3) e `requiresAnyCapability` (a mesma da pergunta 2). Item de
+      checklist que dependa de plano declara `requiresCapability`. Folha de
+      menu com `requiresCapability` já sai do tour sozinha; passo de
+      Configurações não, ele precisa do gate no template.
+- [ ] Capacidade que o tutorial ainda não conhece: acrescentar em
+      `OnboardingCapability` e no mapa montado em `onboarding-provider.tsx`.
+- [ ] Sem `title`, o passo herda o rótulo do menu, que já muda por nicho. O
+      painel de ajuda ("?") reaproveita o texto do passo sem código extra.
+
+### 6. Nichos
+
+**Decida:** a tela aparece em cada nicho de `TenantNiche` (hoje
+`automacao_residencial` e `cortinas`)? Algum texto ou comportamento muda? A
+regra geral está em `apps/web/src/lib/CLAUDE.md`, seção Multi-niche.
+
+- [ ] Disponibilidade em `NICHE_CONFIGS[*].pageAvailability`
+      (`apps/web/src/lib/niches/config.ts`), **declarada em todos os nichos**.
+      Uma chave ausente conta como habilitada, então esquecer um nicho abre a
+      tela nele em silêncio.
+- [ ] Menu: se a chave de nicho diferir da de permissão, o item declara
+      `availabilityPageId` em `navigation-config.tsx`, como Ambientes faz. O
+      único gate de nicho da navegação é `useNavigationItems`.
+- [ ] A paleta de comandos (`components/ui/command-palette.tsx`) filtra por
+      conta própria, pelo id do item, e esse id tem que bater com a chave de
+      nicho.
+- [ ] Texto ou comportamento diferente por nicho vira campo em `NicheConfig`,
+      lido por `useCurrentNicheConfig()`. Nunca `if (niche === "cortinas")` no
+      componente.
+- [ ] Backend: não há config central de nicho. Regra de negócio que mude por
+      nicho no servidor precisa de espelho no front com teste de paridade, no
+      padrão de `catalog-image-limits`.
+- [ ] O tenant de demonstração é só `automacao_residencial`, então navegar a
+      demo nunca exercita cortinas. O comportamento de cada nicho precisa de
+      teste próprio.
+
+---
+
 ## Testes exigidos
 
 A Bug Fix Policy do `CLAUDE.md` vale aqui inteira. O mínimo para módulo novo:
@@ -142,6 +205,8 @@ A Bug Fix Policy do `CLAUDE.md` vale aqui inteira. O mínimo para módulo novo:
 | Permissão | `tests/e2e/permissions/` | membro sem o `pageId` é negado na API, não só na tela |
 | Demo | `tests/e2e/plans/demo-mode.spec.ts` | a conta free lê o que deve e não escreve nada |
 | Catálogo | `apps/functions/src/shared/__tests__/plan-capabilities.test.ts` | a matriz alvo, literal |
+| Onboarding | `apps/web/src/components/onboarding/__tests__/onboarding-steps.test.ts` | o passo aparece ou some por plano, papel e nicho |
+| Nicho | teste da tela, ou a matriz de `onboarding-steps.test.ts` | a tela aparece ou some, e o texto muda, em cada nicho de `TenantNiche` |
 
 E2E de plano roda com `TENANT_PLAN_CAPABILITY_MODE=enforce` (ligado no
 `global-setup`). Em `monitor` um teste aceitaria 200 e passaria sem provar nada.

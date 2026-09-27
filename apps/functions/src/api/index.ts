@@ -25,6 +25,13 @@ import { whatsappRoutes } from "./routes/whatsapp.routes";
 import { whatsappMfaRoutes } from "./routes/whatsapp-mfa.routes";
 import { recoveryCodesRoutes } from "./routes/recovery-codes.routes";
 import { kanbanRoutes } from "./routes/kanban.routes";
+import { crmRoutes } from "./routes/crm.routes";
+import { projectsRoutes } from "./routes/projects.routes";
+import { tasksRoutes } from "./routes/tasks.routes";
+import { salesGoalsRoutes } from "./routes/sales-goals.routes";
+import { bookingRoutes, publicBookingRoutes } from "./routes/booking.routes";
+import { clientPortalRoutes, publicClientPortalRoutes } from "./routes/client-portal.routes";
+import { publicAccountantRoutes } from "./routes/accountant.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
 import { drivePublicRoutes, driveRoutes } from "./routes/drive.routes";
@@ -443,10 +450,24 @@ app.use(
 app.use("/v1", publicGeneralLimiter, calendarPublicRoutes);
 app.use("/v1", publicGeneralLimiter, drivePublicRoutes);
 
+// Portal do cliente: com prefixo próprio e ANTES dos `app.use("/v1", ...)`
+// abaixo, cujo limitador roda em todo caminho de /v1 (a página contaria três
+// vezes). Sob /v1/share, herda a liberação da autenticação.
+app.use("/v1/share/portal", publicShareLimiter, publicClientPortalRoutes);
+// Link do contador: pelo mesmo motivo do portal, prefixo próprio antes dos
+// `app.use("/v1", ...)`.
+app.use("/v1/share/accountant", publicShareLimiter, publicAccountantRoutes);
+
 // Public shared links
 app.use("/v1", publicShareLimiter, sharedProposalsRoutes);
 app.use("/v1", publicShareLimiter, sharedTransactionsRoutes);
 app.use("/v1", publicShareLimiter, paymentPublicRoutes);
+
+// Link de agendamento: ANTES do `/v1/public` do formulário de contato, que
+// aplica o limite de 5/min a todo o prefixo (abrir o link contaria nele). O
+// pedido (POST) leva o limite estrito e a verificação anti-robô.
+app.post("/v1/public/booking/:token", contactFormLimiter, verifyTurnstileToken);
+app.use("/v1/public/booking", publicShareLimiter, publicBookingRoutes);
 
 app.use("/v1/public", contactFormLimiter, contactRoutes);
 app.use("/v1/public", demoBookingLimiter, demoBookingRoutes);
@@ -536,6 +557,12 @@ app.use("/v1/auth/recovery-codes/verify", recoveryCodesVerifyLimiter);
 app.use("/v1/auth/recovery-codes", recoveryCodesRoutes);
 app.use("/v1/aux", auxiliaryRoutes);
 app.use("/v1", kanbanRoutes);
+app.use("/v1", crmRoutes);
+app.use("/v1", projectsRoutes);
+app.use("/v1", tasksRoutes);
+app.use("/v1", salesGoalsRoutes);
+app.use("/v1", bookingRoutes);
+app.use("/v1", clientPortalRoutes);
 app.use("/v1", calendarRoutes);
 app.use("/v1", driveRoutes);
 app.use("/v1", linkedAccountsRoutes);

@@ -110,7 +110,7 @@ export function ProposalNumberingCard({
     try {
       const salvo = await ProposalNumberingService.update(config);
       setConfig(salvo);
-      toast.success("Numeração salva.");
+      toast.success("Configurações das propostas salvas.");
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -313,6 +313,37 @@ export function ProposalNumberingCard({
               </div>
             )}
           </div>
+        </CardContent>
+      )}
+
+      {config.defaultValidityDays !== undefined && (
+        <CardContent className="space-y-2 border-t border-border/60 pt-6">
+          <label
+            htmlFor="proposal-validity-days"
+            className="text-sm font-medium text-foreground"
+          >
+            Validade padrão da proposta (dias)
+          </label>
+          <Input
+            id="proposal-validity-days"
+            type="number"
+            min={1}
+            max={365}
+            value={config.defaultValidityDays}
+            onChange={(e) =>
+              patch({
+                defaultValidityDays: Math.min(
+                  365,
+                  Math.max(1, Math.floor(Number(e.target.value)) || 1),
+                ),
+              })
+            }
+            className="sm:max-w-40"
+          />
+          <p className="text-xs text-muted-foreground">
+            A proposta nova já vem com a validade preenchida: hoje mais esse
+            número de dias. Dá para trocar a data em cada proposta.
+          </p>
         </CardContent>
       )}
 

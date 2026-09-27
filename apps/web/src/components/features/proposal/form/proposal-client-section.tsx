@@ -22,6 +22,7 @@ import {
   hasProposalNumbering,
 } from "./proposal-numbering-field";
 import { useProposalNumbering } from "@/hooks/useProposalNumbering";
+import { defaultProposalValidUntil } from "@/lib/proposal-validity";
 
 interface ProposalClientSectionProps {
   formData: Partial<Proposal>;
@@ -46,6 +47,16 @@ interface ProposalClientSectionProps {
   onFormChange: (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => void;
+  /**
+   * Recebe a validade sugerida (hoje + dias configurados) quando a proposta é
+   * nova e o campo ainda está vazio.
+   */
+  onDefaultValidUntil?: (validUntil: string) => void;
+  /**
+   * Campo que divide a linha com o Endereço (o responsável pela venda, nos
+   * planos com metas). Sem ele, o Endereço ocupa a linha toda.
+   */
+  addressSibling?: React.ReactNode;
   onClientChange: (data: {
     clientId?: string;
     clientName: string;
@@ -68,6 +79,8 @@ export function ProposalClientSection({
   newClientDocument = "",
   onNewClientDocumentChange,
   onPracaChange,
+  onDefaultValidUntil,
+  addressSibling,
   isExistingProposal = false,
   onFormChange,
   onClientChange,
@@ -79,7 +92,24 @@ export function ProposalClientSection({
    * faltou na primeira versão, e a praça caiu sozinha numa quarta célula, com
    * dois terços de linha vazia ao lado.
    */
-  const { config: numberingConfig } = useProposalNumbering();
+  const { config: numberingConfig, isLoading: numberingLoading } =
+    useProposalNumbering();
+
+  const precisaValidadePadrao =
+    !isExistingProposal && !isReadOnly && !formData.validUntil;
+  React.useEffect(() => {
+    if (!precisaValidadePadrao || numberingLoading || !onDefaultValidUntil) {
+      return;
+    }
+    onDefaultValidUntil(
+      defaultProposalValidUntil(numberingConfig?.defaultValidityDays),
+    );
+  }, [
+    precisaValidadePadrao,
+    numberingLoading,
+    numberingConfig?.defaultValidityDays,
+    onDefaultValidUntil,
+  ]);
   const mostraNumeracao = hasProposalNumbering(
     numberingConfig,
     formData.proposalCode,
@@ -162,6 +192,19 @@ export function ProposalClientSection({
       </FormSection>
     );
   }
+
+  const addressField = (
+    <FormItem label="Endereço" htmlFor="clientAddress">
+      <Input
+        id="clientAddress"
+        name="clientAddress"
+        value={formData.clientAddress || ""}
+        onChange={onFormChange}
+        placeholder="Endereço completo do cliente"
+        icon={<MapPin className="w-4 h-4" />}
+      />
+    </FormItem>
+  );
 
   const content = (
     <>
@@ -336,16 +379,14 @@ export function ProposalClientSection({
         </FormGroup>
       )}
 
-      <FormItem label="Endereço" htmlFor="clientAddress">
-        <Input
-          id="clientAddress"
-          name="clientAddress"
-          value={formData.clientAddress || ""}
-          onChange={onFormChange}
-          placeholder="Endereço completo do cliente"
-          icon={<MapPin className="w-4 h-4" />}
-        />
-      </FormItem>
+      {addressSibling ? (
+        <FormGroup cols={2}>
+          {addressField}
+          {addressSibling}
+        </FormGroup>
+      ) : (
+        addressField
+      )}
     </>
   );
 

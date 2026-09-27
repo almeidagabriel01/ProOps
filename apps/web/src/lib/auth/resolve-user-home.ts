@@ -5,6 +5,8 @@ import { HARD_BLOCKED_STATUSES } from "./subscription-blocked-statuses";
 export const PAGE_ROUTE_MAP: Record<string, string> = {
   kanban: "/crm",
   proposals: "/proposals",
+  projects: "/projects",
+  tasks: "/tasks",
   clients: "/contacts",
   products: "/products",
   services: "/services",
@@ -19,6 +21,8 @@ export const PAGE_ROUTE_MAP: Record<string, string> = {
 export const ORDERED_MEMBER_PAGES = [
   "kanban",
   "proposals",
+  "projects",
+  "tasks",
   "clients",
   "products",
   "services",
@@ -121,7 +125,18 @@ const DEMO_ACCESSIBLE_PREFIXES = [
   "/spreadsheets",
   "/transactions",
   "/wallets",
+  // DRE: lê pela API o exemplo do tenant de demonstração.
+  "/dre",
+  // Fluxo de caixa: lê do Firestore os lançamentos e carteiras de exemplo.
+  "/cash-flow",
   "/crm",
+  // Projetos de instalação: o tenant de demonstração tem projetos de exemplo.
+  "/projects",
+  // Tarefas: o tenant de demonstração tem três de exemplo.
+  "/tasks",
+  // Central de notificações: lê as notificações de exemplo do tenant demo, e
+  // as preferências aparecem só para ver.
+  "/notifications",
   // `/commissions` fica FORA de propósito, pelo mesmo motivo do fiscal: não há
   // dado de demonstração (comissão nasce de proposta aprovada com parceiro), e
   // a tela é `masterOnly` — uma conta free é MEMBER, então nem veria o item no

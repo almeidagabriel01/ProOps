@@ -16,9 +16,32 @@ Clientes podem ser criados de três formas:
 ```
 /contacts              → Listagem paginada com busca e filtro de tipo
 /contacts/new          → Formulário de criação (StepWizard em 3 passos)
-/contacts/[id]         → Formulário de edição / visualização somente leitura
-                         (StepWizard em 3 passos, os MESMOS da criação)
+/contacts/[id]         → Ficha 360 do contato (abas). A aba "Dados" é o
+                         formulário de edição / somente leitura (StepWizard em
+                         3 passos, os MESMOS da criação). `?aba=dados` abre
+                         direto nela: é o que o "Editar" da lista usa.
 ```
+
+## Ficha 360 (`[id]/_components/contact-hub.tsx`, 2026-09-25)
+
+Abas: **Resumo** (contato, totais de propostas e do financeiro, últimas
+anotações), **Propostas**, **Financeiro** (lançamentos e notas fiscais),
+**Anotações** e **Dados**.
+
+- **Cada aba segue a permissão e o plano da tela dela.** Propostas exige
+  `proposals.canView`; lançamentos exigem o módulo financeiro no plano e
+  `transactions.canView`; notas exigem `hasFiscal` e `invoices.canView`. Sem a
+  permissão a aba some e a consulta nem é feita: um membro sem financeiro não
+  vê valores de lançamento pelo contato.
+- Consultas por contato com duas igualdades (`tenantId`, `clientId`), sem
+  índice composto, ordenadas no cliente: `ProposalService.getProposalsByClient`,
+  `TransactionService.getTransactionsByClient` (comissões de fora: nelas o
+  `clientId` é o parceiro) e `GET /v1/fiscal/invoices?clientId=`.
+- **Anotações** vivem em `client_notes`, gravadas só pelo backend
+  (`GET/POST /v1/clients/:id/notes`, `DELETE .../:noteId`), com a permissão de
+  contatos: `canView` lê, `canEdit` escreve e apaga. Todos os planos. Índice
+  `(tenantId, clientId, createdAt desc)`.
+- A agenda não aparece: `calendar_events` não tem `clientId`.
 
 Não há sub-rota de API aqui — todas as mutações passam por `/api/backend/` (proxy → Cloud Functions).
 
@@ -63,6 +86,7 @@ export type Client = {
   notes?: string;
   types: ClientType[];      // Array — permite ser fornecedor E arquiteto ao mesmo tempo
   commissionPercentage?: number | null;  // Comissão padrão; só para vendedor/arquiteto
+  linkedMemberId?: string | null;        // Vendedor que é da equipe: o membro ligado
   source: ClientSource;     // Origem do cadastro
   sourceId?: string;        // ID da proposta ou lançamento que criou o cliente
   createdAt: string;        // ISO 8601
@@ -117,6 +141,20 @@ entraria só numa delas. Guard: `_components/__tests__/contact-type-selector.tes
 tem nome, telefone, documento, `searchTokens`, regra de Firestore e tela; e como
 `types` sempre foi array, a mesma pessoa pode ser fornecedor e arquiteto. Os dois
 recebem comissão, definida na proposta (ver `Proposal.commissions[]`).
+
+**Vendedor da equipe (`linkedMemberId`, campo "É da equipe?").** O vendedor
+interno é membro (é o "responsável pela venda" da proposta, que conta na meta)
+e também contato vendedor (recebe comissão). Ligar os dois faz a comissão
+entrar sozinha na proposta quando ele é o responsável
+(`lib/contacts/seller-commission.ts`). Só para vendedor e só nos planos com
+metas (`_components/contact-member-link-field.tsx`); o backend recusa membro de
+outra empresa e membro já ligado a outro contato. O campo divide a linha com
+o Nome (`showsMemberLink` decide o layout na página, e o campo não some
+enquanto a equipe carrega, só fica desabilitado), SEM dica no cabeçalho do
+`FormItem` e com a explicação embaixo do select: a linha do rótulo tem altura
+fixa e divide a largura com a dica, e qualquer texto ali quebrava "É da equipe?"
+em duas linhas. Na proposta, o "Responsável pela venda" divide a linha com o
+Endereço pelo mesmo motivo (`addressSibling` de `ProposalClientSection`).
 
 `isCommissionPartner` e a lista dos papéis ficam em
 `src/lib/contacts/commission-partner.ts`, **fora** do `client-service`: aquele

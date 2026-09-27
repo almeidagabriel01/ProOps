@@ -91,7 +91,7 @@ export default function NewTransactionPage() {
     await handleSubmit(fakeEvent);
   };
 
-  // Step 2 validation: Description, date are required.
+  // Step 2 validation: description, date and (for income) client are required.
   const validateStep2 = (): boolean => {
     let isValid = true;
 
@@ -101,6 +101,14 @@ export default function NewTransactionPage() {
     }
     if (!formData.date) {
       setFieldError("date", "Data é obrigatória");
+      isValid = false;
+    }
+    if (
+      formData.type === "income" &&
+      !formData.clientId &&
+      !formData.clientName.trim()
+    ) {
+      setFieldError("clientId", "Cliente é obrigatório para receitas");
       isValid = false;
     }
 
@@ -238,6 +246,7 @@ export default function NewTransactionPage() {
             formData={formData}
             onChange={handleChange}
             onBlur={handleBlur}
+            onClientChange={handleClientChange}
             errors={errors}
           />
           <StepNavigation onBeforeNext={validateStep2} />
@@ -263,6 +272,7 @@ export default function NewTransactionPage() {
             onChange={handleChange}
             onClientChange={handleClientChange}
             errors={errors}
+            showClient={false}
           />
           <StepNavigation
             onSubmit={handleFormSubmit}

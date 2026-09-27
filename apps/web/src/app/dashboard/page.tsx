@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+
 import {
   Card,
   CardContent,
@@ -40,10 +42,17 @@ const FutureBalanceChart = dynamic(
   },
 );
 import { DashboardSkeleton } from "./_components/dashboard-skeleton";
+import { MonthSwitcher } from "./_components/month-switcher";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatMonthLabel } from "@/lib/month-key";
 
 import { useTenant } from "@/providers/tenant-provider";
+import { usePermissions } from "@/providers/permissions-provider";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
 import { FirstStepsCard } from "@/components/onboarding/first-steps-card";
+import { MyTasksCard } from "@/components/features/tasks/my-tasks-card";
+import { GoalsProgressCard } from "@/components/features/sales-goals/goals-progress-card";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -63,19 +72,51 @@ export default function DashboardPage() {
     balance,
     currentMonthStats,
     commissionReport,
+    selectedMonth,
+    setSelectedMonth,
+    isCurrentMonth,
+    loading,
     isLoading,
   } = useDashboardData();
+  const { isLoading: planLoading } = usePlanLimits();
+  const { isLoading: permissionsLoading } = usePermissions();
+  const [tasksLoading, setTasksLoading] = React.useState(true);
+  const [waitedEnough, setWaitedEnough] = React.useState(false);
+
+  // A parte de cima (saldo, alertas, ações rápidas, tarefas e gráficos) aparece
+  // de uma vez, como antes dos blocos independentes: cada um que chegava
+  // sozinho mudava de tamanho ou sumia (o "carregando" dos alertas e das
+  // tarefas some quando não há nada) e empurrava os vizinhos, e o CLS do
+  // Dashboard passou de 0,1 no CI. A página fica montada e escondida por baixo
+  // do esqueleto, para as tarefas já carregarem; o que fica abaixo da dobra
+  // continua chegando por bloco. Os 6s são a saída se algo nunca responder.
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setWaitedEnough(true), 6000);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const topReady =
+    waitedEnough || (!loading.finance && !planLoading && !permissionsLoading && !tasksLoading);
 
   if (isLoading) {
     return <DashboardSkeleton />;
   }
+
+  const monthLabel = formatMonthLabel(selectedMonth).toLocaleLowerCase("pt-BR");
+  const period = isCurrentMonth
+    ? { of: "deste mês", in: "neste mês" }
+    : { of: `de ${monthLabel}`, in: `em ${monthLabel}` };
 
   if (!tenant && user?.role === "superadmin") {
     return <SelectTenantState />;
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+    <>
+    {!topReady && <DashboardSkeleton />}
+    <div
+      hidden={!topReady}
+      className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10"
+    >
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
@@ -99,11 +140,15 @@ export default function DashboardPage() {
                 Saldo Atual
               </span>
             </div>
-            <div
-              className={`text-2xl font-bold tracking-tight ${balance >= 0 ? "text-emerald-500" : "text-rose-500"}`}
-            >
-              {formatCurrency(balance)}
-            </div>
+            {loading.finance ? (
+              <Skeleton className="h-8 w-36 md:ml-auto" />
+            ) : (
+              <div
+                className={`text-2xl font-bold tracking-tight ${balance >= 0 ? "text-emerald-500" : "text-rose-500"}`}
+              >
+                {formatCurrency(balance)}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -111,16 +156,27 @@ export default function DashboardPage() {
       {/* Primeiros passos (conta nova, some quando tudo estiver feito) */}
       <FirstStepsCard />
 
-      {/* Alerts */}
-      <AlertsCard
-        overdueCount={overdueTransactions.length}
-        overdueAmount={overdueAmount}
-        upcomingDueCount={upcomingDue.length}
-        upcomingDueAmount={upcomingDueAmount}
-      />
+      {/* Alertas e ações rápidas. No celular as ações vêm primeiro: são o que
+          se usa todo dia, e os alertas empurravam os botões para baixo. */}
+      <div className="flex flex-col gap-8">
+        {loading.finance ? (
+          <Skeleton className="h-24 w-full rounded-xl" />
+        ) : (
+          <AlertsCard
+            overdueCount={overdueTransactions.length}
+            overdueAmount={overdueAmount}
+            upcomingDueCount={upcomingDue.length}
+            upcomingDueAmount={upcomingDueAmount}
+          />
+        )}
 
-      {/* Quick Actions */}
-      <QuickActionsCard />
+        <div className="max-md:-order-1">
+          <QuickActionsCard />
+        </div>
+
+        {/* Some quando não há tarefa atrasada nem para hoje. */}
+        <MyTasksCard onLoadingChange={setTasksLoading} />
+      </div>
 
       {/* Charts (Fluxo de Caixa & Balanço Futuro) */}
       <div className="grid lg:grid-cols-2 gap-6">
@@ -151,40 +207,84 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="flex-1 p-0 pb-4 min-h-[300px]">
-            <SimpleBarChart data={chartData} />
+            {loading.finance ? (
+              <Skeleton className="mx-6 h-[260px]" />
+            ) : (
+              <SimpleBarChart data={chartData} />
+            )}
           </CardContent>
         </Card>
 
         {/* Future Balances (Chart) - NEW */}
-        <FutureBalanceChart data={futureBalances} />
+        {loading.finance ? (
+          <Skeleton className="h-full min-h-[380px] rounded-xl" />
+        ) : (
+          <FutureBalanceChart data={futureBalances} />
+        )}
       </div>
 
       {/* Recents & Walkthroughs */}
       <div className="grid lg:grid-cols-2 gap-6">
-        <RecentProposalsList proposals={recentProposals} />
-        <MonthStats currentMonthStats={currentMonthStats} />
+        {loading.proposals ? (
+          <Skeleton className="h-80 rounded-xl" />
+        ) : (
+          <RecentProposalsList proposals={recentProposals} />
+        )}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-muted-foreground">
+              Resumo do mês
+            </h2>
+            <MonthSwitcher
+              month={selectedMonth}
+              isCurrentMonth={isCurrentMonth}
+              onChange={setSelectedMonth}
+            />
+          </div>
+          {loading.month ? (
+            <Skeleton className="h-80 rounded-xl" />
+          ) : (
+            <MonthStats currentMonthStats={currentMonthStats} period={period} />
+          )}
+        </div>
       </div>
 
+      {/* Metas do mês escolhido acima (Pro e Enterprise); some sem plano */}
+      <GoalsProgressCard month={selectedMonth} />
+
       {/* Comissões a pagar no mês — some sozinho quando não há nenhuma */}
-      <CommissionsPanel report={commissionReport} />
+      {!loading.month && <CommissionsPanel report={commissionReport} />}
 
       {/* Stats row */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="flex-1">
-          <ProposalStatsCard stats={proposalStats} />
+          {loading.proposals ? (
+            <Skeleton className="h-64 rounded-xl" />
+          ) : (
+            <ProposalStatsCard stats={proposalStats} />
+          )}
         </div>
         <div className="flex-1">
-          <ClientsStatsCard
-            totalClients={totalClients}
-            newClientsThisMonth={newClientsThisMonth}
-          />
+          {loading.clients ? (
+            <Skeleton className="h-64 rounded-xl" />
+          ) : (
+            <ClientsStatsCard
+              totalClients={totalClients}
+              newClientsThisMonth={newClientsThisMonth}
+            />
+          )}
         </div>
       </div>
 
       {/* Recent Activity (Remaining) */}
       <div className="grid gap-6">
-        <RecentTransactionsList transactions={recentTransactions} />
+        {loading.finance ? (
+          <Skeleton className="h-72 rounded-xl" />
+        ) : (
+          <RecentTransactionsList transactions={recentTransactions} />
+        )}
       </div>
     </div>
+    </>
   );
 }

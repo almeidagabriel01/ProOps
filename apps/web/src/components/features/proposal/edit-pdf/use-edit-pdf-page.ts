@@ -674,7 +674,7 @@ export function useEditPdfPage() {
       const sanitizedSettings = cleanForFirestore(currentSettingsObj);
       const payloadSize = JSON.stringify(sanitizedSettings).length;
       if (payloadSize > 950000) {
-        alert(
+        toast.error(
           `O documento está muito grande (${Math.round(payloadSize / 1024)}KB). O limite do banco de dados é 1MB. Por favor, reduza o tamanho das imagens ou remova algumas.`,
         );
         setIsSaving(false);
@@ -695,7 +695,7 @@ export function useEditPdfPage() {
       }
     } catch (error) {
       console.error(error);
-      alert("Erro ao salvar");
+      toast.error("Erro ao salvar");
     } finally {
       if (!suppressLoading) setIsSaving(false);
     }
@@ -711,7 +711,7 @@ export function useEditPdfPage() {
       await downloadProposalPdfFromBackend(proposal!.id, proposal!.title);
     } catch (error) {
       console.error(error);
-      alert("Erro ao gerar PDF");
+      toast.error("Erro ao gerar PDF");
     } finally {
       setIsGenerating(false);
     }

@@ -1,11 +1,19 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Toaster } from "sileo";
 import { useTheme } from "next-themes";
+import { observeToastAccessibility } from "@/lib/toast-a11y";
 
 export function ToastProvider() {
   const { resolvedTheme } = useTheme();
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // O sileo aninha a ação dentro de um <button>; ver lib/toast-a11y.ts.
+  useEffect(() => {
+    if (!rootRef.current) return;
+    return observeToastAccessibility(rootRef.current);
+  }, []);
 
   // SSR-safe mount detection: server snapshot returns false, client returns true.
   // Avoids setState-in-effect pattern and correctly handles SSR/hydration.
@@ -20,7 +28,7 @@ export function ToastProvider() {
   const currentTheme = mounted && resolvedTheme === "dark" ? "dark" : "light";
 
   return (
-    <div data-theme={currentTheme} className={currentTheme}>
+    <div ref={rootRef} data-theme={currentTheme} className={currentTheme}>
       <Toaster key={currentTheme} theme={currentTheme} position="top-center" />
     </div>
   );

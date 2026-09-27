@@ -247,6 +247,22 @@ interface SharedProposal {
 
 ---
 
+## Lista: busca, status e exclusão (2026-09-25)
+
+- **Busca e status ficam no endereço** (`?q=` e `?status=`), gravados por
+  `replaceUrlSearchParams` (`lib/url-state.ts`): voltar de uma proposta aberta
+  devolve a lista filtrada.
+- **O filtro de status é server-side** (`getProposalsPaginated(..., status)`).
+  Cada campo ordenável da tela tem índice `(tenantId, status, campo)` em
+  `firestore.indexes.json`. **Deploy dos índices antes do front**: sem eles,
+  filtrar e ordenar por validade, solução ou ambiente dá erro de índice.
+  Coluna ordenável nova precisa do índice com `status` também.
+- O valor do filtro é o que a mudança de status grava: `mappedStatus` nas
+  colunas padrão (`default_*`) e o `id` nas personalizadas
+  (`lib/proposal-status-filter.ts`).
+- **Excluir tem "Desfazer"**: a proposta sai da lista na hora e o `DELETE` só
+  vai ao servidor depois da janela do toast (`lib/undoable-action.ts`).
+
 ## Lógica de Negócio
 
 ### Status e transições

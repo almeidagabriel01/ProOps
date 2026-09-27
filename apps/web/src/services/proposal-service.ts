@@ -155,7 +155,7 @@ export function computeProposalSortFields(data: DocumentData): {
   };
 }
 
-function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
+export function mapProposalDoc(d: QueryDocumentSnapshot<DocumentData>): Proposal {
   const data = d.data();
   return {
     id: d.id,
@@ -189,6 +189,10 @@ export type UpdateProposalResult = {
    * duas coisas que a tela não tem em mãos no momento do salvamento.
    */
   driveNotConnected?: boolean;
+  /** Id do projeto de instalação que a aprovação acabou de criar (modo "sempre"). */
+  projectCreated?: string | null;
+  /** A aprovação pede para perguntar se a venda tem instalação (modo padrão). */
+  projectSuggested?: boolean;
 };
 
 export const ProposalService = {
@@ -288,10 +292,14 @@ export const ProposalService = {
     pageSize: number = 12,
     cursor?: QueryDocumentSnapshot<DocumentData> | null,
     sortConfig?: { key: string; direction: "asc" | "desc" } | null,
+    status?: string | null,
   ): Promise<PaginatedResult<Proposal>> => {
     try {
       const sortField = sortConfig?.key || "createdAt";
       const sortDirection = sortConfig?.direction || "desc";
+      // Filtro de status da lista: índices (tenantId, status, campo) existem
+      // para todo campo ordenável da tela em firestore.indexes.json.
+      const statusFilter = status ? [where("status", "==", status)] : [];
 
       // primarySystem/primaryEnvironment são desnormalizados no doc
       // (computeProposalSortFields + backfill-proposal-sort-fields) — o sort
@@ -301,6 +309,7 @@ export const ProposalService = {
         ? query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
+            ...statusFilter,
             orderBy(sortField, sortDirection),
             startAfter(cursor),
             limit(pageSize + 1),
@@ -308,6 +317,7 @@ export const ProposalService = {
         : query(
             collection(db, COLLECTION_NAME),
             where("tenantId", "==", tenantId),
+            ...statusFilter,
             orderBy(sortField, sortDirection),
             limit(pageSize + 1),
           );
@@ -364,6 +374,31 @@ export const ProposalService = {
     });
   },
 
+  /**
+   * Propostas de um contato, para a ficha 360. Só igualdades (tenantId,
+   * clientId): o Firestore resolve por mesclagem de índices, sem composto.
+   * A ordem (mais recente primeiro) é feita aqui.
+   */
+  getProposalsByClient: async (
+    tenantId: string,
+    clientId: string,
+    max = 50,
+  ): Promise<Proposal[]> => {
+    const snap = await getDocs(
+      query(
+        collection(db, COLLECTION_NAME),
+        where("tenantId", "==", tenantId),
+        where("clientId", "==", clientId),
+        limit(max),
+      ),
+    );
+    return snap.docs
+      .map(mapProposalDoc)
+      .sort((a, b) =>
+        String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")),
+      );
+  },
+
   getProposalById: async (id: string): Promise<Proposal | null> => {
     try {
       const docRef = doc(db, COLLECTION_NAME, id);
@@ -411,6 +446,18 @@ export const ProposalService = {
       console.error("Error creating proposal:", error);
       throw error;
     }
+  },
+
+  /** Encerra o pedido de mudanças do cliente sem editar a proposta. */
+  resolveChangeRequest: async (id: string): Promise<void> => {
+    await callApi(`/v1/proposals/${id}/change-request/resolve`, "POST");
+    notifyListeners();
+  },
+
+  /** Descarta o aceite pendente do cliente para ajustar a proposta. */
+  discardClientAcceptance: async (id: string): Promise<void> => {
+    await callApi(`/v1/proposals/${id}/acceptance/discard`, "POST");
+    notifyListeners();
   },
 
   updateProposal: async (

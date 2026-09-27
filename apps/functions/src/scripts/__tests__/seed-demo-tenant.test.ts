@@ -5,13 +5,14 @@
  */
 
 const set = jest.fn();
+const del = jest.fn();
 const commit = jest.fn().mockResolvedValue(undefined);
 const doc = jest.fn((id: string) => ({ id }));
 const collection = jest.fn((name: string) => ({ doc: (id: string) => doc(`${name}/${id}`) }));
 
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: () => ({
-    batch: () => ({ set, commit }),
+    batch: () => ({ set, delete: del, commit }),
     collection: (name: string) => collection(name),
   }),
   Timestamp: {
@@ -46,6 +47,11 @@ describe("seedDemoTenant", () => {
       proposals: 3,
       wallets: 2,
       transactions: 16,
+      leads: 3,
+      activities: 2,
+      projects: 1,
+      notifications: 4,
+      tasks: 3,
     });
   });
 
@@ -53,7 +59,7 @@ describe("seedDemoTenant", () => {
     await seedDemoTenant();
     // The first set() is the tenant doc itself (keyed by id, no tenantId field).
     const [, ...contentWrites] = set.mock.calls;
-    expect(contentWrites.length).toBe(48); // 4+3+3+3+3+11+3 + 2 wallets + 16 transactions
+    expect(contentWrites.length).toBe(61); // 4+3+3+3+3+11+3 + 2 wallets + 16 transactions + 3 leads + 2 activities + 1 project + 4 notifications + 3 tasks
     for (const [, data] of contentWrites) {
       expect(data.tenantId).toBe(DEMO_TENANT_ID);
     }

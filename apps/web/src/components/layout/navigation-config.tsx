@@ -15,6 +15,10 @@ import {
   Home,
   CalendarDays,
   Kanban,
+  HardHat,
+  ListTodo,
+  BarChart3,
+  TrendingUp,
 } from "lucide-react";
 
 /**
@@ -27,7 +31,7 @@ import {
  * morto, e o CRM não tinha entrada de menu alguma: só era alcançado pelo
  * command palette, por botões soltos ou por URL direta.
  */
-export type MenuCapability = "financial" | "crm" | "fiscal";
+export type MenuCapability = "financial" | "crm" | "fiscal" | "projects";
 
 /**
  * Quais capacidades o plano do tenant abre. Mora aqui, e não em
@@ -92,6 +96,13 @@ export const menuItems: MenuItem[] = [
     requiresCapability: "crm",
   },
   {
+    icon: HardHat,
+    label: "Projetos",
+    href: "/projects",
+    pageId: "projects",
+    requiresCapability: "projects",
+  },
+  {
     icon: Wallet,
     label: "Financeiro",
     // Sem href e sem pageId: o destino sai de resolveGroupTarget, e "financial"
@@ -126,6 +137,21 @@ export const menuItems: MenuItem[] = [
         masterOnly: true,
       },
       {
+        icon: BarChart3,
+        label: "DRE",
+        href: "/dre",
+        // Mesmo pageId de Lançamentos: o DRE é um relatório sobre eles, e
+        // quem vê os lançamentos vê o resultado (decisão do produto).
+        pageId: "transactions",
+      },
+      {
+        icon: TrendingUp,
+        label: "Fluxo de caixa",
+        href: "/cash-flow",
+        // Projeção sobre os lançamentos em aberto: mesma permissão deles.
+        pageId: "transactions",
+      },
+      {
         icon: FileText,
         label: "Notas Fiscais",
         href: "/invoices",
@@ -148,6 +174,14 @@ export const menuItems: MenuItem[] = [
     label: "Calendário",
     href: "/calendar",
     pageId: "calendar",
+  },
+  {
+    // Ícone próprio, e não num grupo com o Calendário: é tela de uso diário, e
+    // escondida atrás do seletor do cabeçalho ninguém a achava.
+    icon: ListTodo,
+    label: "Tarefas",
+    href: "/tasks",
+    pageId: "tasks",
   },
   {
     icon: Blocks,

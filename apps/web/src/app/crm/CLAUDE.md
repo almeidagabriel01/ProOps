@@ -4,8 +4,9 @@
 
 Visualização em **quadro Kanban** das propostas e lançamentos financeiros do tenant. Permite arrastar itens entre colunas para alterar status. É um **add-on de plano** — requer `hasKanban === true` em `usePlanLimits()` para ser acessível (exceto superadmin).
 
-Dois modos de uso:
+Três modos de uso:
 - **Quadro de Propostas** — pipelines customizáveis com colunas salvas no Firestore (`kanban_statuses`)
+- **Quadro de Leads** — a oportunidade ANTES da proposta, em etapas fixas (ver "Leads e atividades")
 - **Quadro de Lançamentos** — colunas fixas (Pendente / Atrasado / Pago) com ordem customizável salva no tenant
 
 ---
@@ -13,8 +14,10 @@ Dois modos de uso:
 ## Estrutura de rotas
 
 ```
-/crm                        → Página principal com Tabs (propostas | lançamentos)
+/crm                        → Página principal com Tabs (propostas | leads | lançamentos)
 /crm?tab=transactions       → Abre diretamente na aba de lançamentos
+/crm?tab=leads              → Abre na aba de leads
+/crm?tab=leads&lead=<id>    → Abre a ficha do lead (link do lembrete no sino)
 /crm?scope=proposals        → Modo "scoped": exibe só o quadro de propostas sem as tabs
 /crm?scope=transactions     → Modo "scoped": exibe só o quadro de lançamentos sem as tabs
 ```
@@ -39,6 +42,39 @@ O parâmetro `scope` bloqueia a troca de abas — usado quando a página CRM é 
 | `src/services/kanban-service.ts` | CRUD de `kanban_statuses` + defaults |
 | `src/services/kanban-board-service.ts` | Queries paginadas por coluna (propostas/lançamentos) + contagem via aggregation |
 | `src/app/transactions/_hooks/useTransactionStatuses.ts` | Lê e reordena colunas fixas de lançamentos (salva no tenant) |
+
+---
+
+## Leads e atividades (Onda 2, 2026-09-25)
+
+Quem pediu contato e ainda não tem proposta: origem, valor estimado, próxima ação
+com data e uma linha do tempo de atividades (ligação, visita, reunião, tarefa...).
+
+As quatro camadas de acesso, decididas pelo dono do produto:
+
+| Camada | Decisão |
+|---|---|
+| Permissão | a mesma do CRM: pageId `kanban` (ver/criar/editar/excluir) |
+| Plano | junto do CRM: `requirePlanCapability("crm")` em `/leads` e `/activities` (`crm.routes.ts`) |
+| Demo | sim, só leitura: o seed põe 3 leads e 3 atividades no tenant `demo` |
+| Rules | `leads` e `activities`: leitura do tenant (e `isDemoRead`), escrita só pela API |
+
+- **Leitura direta no Firestore, escrita pela API** (`services/leads-service.ts`), como
+  o resto do CRM. É o que faz a conta free enxergar o tenant `demo`: a API responde com
+  o tenant da CONTA, que não tem dado nenhum.
+- **Etapas fixas** (`_lib/leads.ts`): Novo, Em contato, Qualificado, Convertido,
+  Perdido. O funil de propostas já é personalizável; personalizar os dois dobraria a
+  configuração sem ganho.
+- **"Convertido" só pela conversão.** `POST /v1/leads/:id/convert` cria o contato
+  (com o teto `maxClients` do plano e a permissão de criar contato), ou reaproveita o
+  já ligado, e marca o lead. Arrastar para a coluna abre a confirmação da conversão; o
+  PUT recusa `stage: "convertido"` num lead sem contato. Depois a tela segue para
+  `/proposals/new?clientId=...`, que já abre com o contato escolhido (o mesmo link da
+  ficha 360).
+- **Lembrete:** o cron `checkDueDates` (parte 2c, `lead-reminders.ts`) cria a
+  notificação `lead_reminder` no dia da próxima ação de lead aberto e no prazo de
+  atividade não concluída, um aviso por item e dia.
+- Excluir o lead apaga as atividades dele junto.
 
 ---
 

@@ -7,7 +7,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { detectPriceDrift } from "../../billing/price-drift";
 import { sendEmail } from "../../services/email/send-email";
 import { renderPriceChangeEmail } from "../../services/email/templates/price-change";
-import type { NotificationType } from "../services/notification.service";
+import { NotificationService, type NotificationType } from "../services/notification.service";
 import { clearTenantPlanCache } from "../../lib/tenant-plan-policy";
 
 import {
@@ -164,10 +164,12 @@ async function upsertPriceChangeNotificationInternal(data: {
 }): Promise<void> {
   const type: NotificationType = "price_change";
   const notificationRef = db.collection("notifications").doc(data.notificationId);
+  const { fields } = await NotificationService.recipientFields(data.tenantId, type);
   await notificationRef.set(
     {
       tenantId: data.tenantId,
       type,
+      ...fields,
       title: data.title,
       message: data.message,
       isRead: false,

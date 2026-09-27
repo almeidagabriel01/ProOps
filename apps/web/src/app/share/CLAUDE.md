@@ -17,7 +17,11 @@ O middleware do Next.js (`middleware.ts`) deve ter estas rotas explicitamente ex
 ```
 share/
 ├── [token]/page.tsx              # Proposta compartilhada
-└── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
+├── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
+├── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir e aceitar
+├── visita/[token]/page.tsx       # Link de agendamento: escolher horário e pedir a visita
+├── portal/[token]/page.tsx       # Portal do cliente: propostas, pagamentos, obra e notas de um contato
+└── contador/[token]/page.tsx     # Link do contador: DRE, lançamentos e notas da empresa, só leitura
 ```
 
 ## Arquivos-chave
@@ -68,6 +72,15 @@ A resposta pública do backend retorna a proposta/lançamento junto com dados do
 | Buscar lançamento pelo token | `GET` (público) | `SharedTransactionService.getSharedTransaction` | `/v1/share/transaction/:token` |
 | Download PDF proposta | `GET` (público) | `downloadSharedProposalPdf` | `/v1/share/:token/pdf` |
 | Download PDF recibo | `GET` (público) | `downloadSharedTransactionPdf` | `/v1/share/transaction/:token/pdf` |
+| Aceitar proposta | `POST` (público) | `SharedProposalService.accept` | `/v1/share/:token/accept` |
+| Pedir mudanças | `POST` (público) | `SharedProposalService.requestChanges` | `/v1/share/:token/request-changes` |
+| Link de pagamento da proposta aprovada | `POST` (público) | `SharedProposalService.paymentLink` | `/v1/share/:token/payment-link` |
+| Buscar a entrega da obra | `GET` (público) | `SharedProjectService.get` | `/v1/share/project/:token` |
+| Aceitar a entrega da obra | `POST` (público) | `SharedProjectService.accept` | `/v1/share/project/:token/accept` |
+| Horários livres do link de agendamento | `GET` (público) | `BookingService.publicView` | `/v1/public/booking/:token` |
+| Pedir a visita | `POST` (público) | `BookingService.submit` | `/v1/public/booking/:token` |
+| Abrir o portal do cliente | `GET` (público) | `ClientPortalService.publicView` | `/v1/share/portal/:token` |
+| Abrir um item do portal | `POST` (público) | `ClientPortalService.openItem` | `/v1/share/portal/:token/open` |
 
 As chamadas públicas usam `callPublicApi` (sem token de autenticação no header), diferentemente do `callApi` padrão.
 
@@ -76,6 +89,138 @@ As chamadas públicas usam `callPublicApi` (sem token de autenticação no heade
 - **Propostas** (`src/app/proposals/`) — gera o share link via `SharedProposalService.generateShareLink`
 - **Lançamentos** (`src/app/transactions/`) — gera o share link via `SharedTransactionService.generateShareLink`
 - **PDF backend** (`functions/src/api/routes/sharedProposals.ts`, `sharedTransactions.ts`) — rotas públicas que retornam dados e geram PDF via Playwright
+
+## Aceite online (2026-09-25, revisto em 2026-09-26)
+
+O cliente final ACEITA a proposta pelo próprio link, com nome, CPF/CNPJ e
+aceite. `POST /v1/share/:token/accept`
+(`functions/.../proposal-online-approval.controller.ts`).
+
+**Onde fica:** `[token]/_components/proposal-response-panel.tsx`, um painel em
+fluxo normal ACIMA do documento e repetido no FIM dele (o do fim só aparece
+quando há o que fazer). A primeira versão era uma barra fixa no rodapé e
+cobria o PDF. Fora do PDF por `data-pdf-ui`.
+
+**O aceite não aprova.** A primeira versão aprovava direto do link, com
+lançamentos, Drive e cobrança do sinal. O dono do produto trocou por aceite +
+confirmação: uma proposta aceita às vezes ainda precisa de ajuste, e desfazer
+lançamento é justamente o que o ERP protege. Quem mexe no financeiro é sempre
+alguém da equipe.
+
+- **Capacidade `onlineApproval`** (Pro e Enterprise). O `GET /v1/share/:token`
+  devolve `onlineApproval: { canApprove, approved, expired, awaitingConfirmation,
+  acceptance }`. Sem a capacidade, vencida, em rascunho, já aprovada ou com
+  aceite pendente, o formulário não aparece; com aceite pendente a barra diz
+  "a empresa vai confirmar".
+- **O aceite fica na proposta** (`clientAcceptance`: nome, documento, data, IP,
+  navegador, `status` e `contentHash`), fora do hash do PDF. Aceites anteriores
+  vão para `clientAcceptanceHistory`. O link público nunca devolve esses campos
+  (allowlist de `sanitizeSharedProposalPayload`).
+- **Estados:** `pending` → `confirmed` (a empresa aprovou) | `discarded` (a
+  empresa descartou para ajustar, ou recusou a proposta) | `invalidated` (a
+  proposta mudou depois do aceite). Aceite antigo sem `status` conta como
+  confirmado. Depois de descartado ou anulado, o cliente aceita de novo pelo
+  mesmo link.
+- **Confirmar é aprovar pelo caminho de sempre** (`PUT /v1/proposals/:id` com a
+  coluna aprovada, da lista, do quadro ou do formulário): lançamentos, Drive e
+  convite de nota vêm dali, e o `updateProposal` marca o aceite como
+  confirmado. Não existe endpoint de "confirmar".
+- **Editar o que o cliente viu anula o aceite.** `proposalContentHash` usa os
+  mesmos campos do PDF (`PDF_IRRELEVANT_PROPOSAL_FIELDS`), tratando vazio, nulo
+  e ausente como iguais, porque o formulário reenvia todos os campos. Se a
+  empresa edita e aprova no mesmo salvamento, a aprovação vale, mas o aceite
+  fica `invalidated`: o cliente aceitou outra versão.
+- **Ajustar:** `POST /v1/proposals/:id/acceptance/discard` (permissão de editar
+  propostas).
+- **No ERP:** selo "Aceite do cliente" na lista (abre
+  `_components/client-acceptance-dialog.tsx` em `/proposals`), no card do CRM e
+  um aviso na visualização. A notificação `proposal_accepted` leva a
+  `/proposals?aceite=<id>`, que abre o diálogo.
+- **Sem cobrança no aceite.** Depois que a empresa confirma, o GET devolve
+  `payment: { label }` ("Pagar entrada" ou "Pagar parcela") quando há receita
+  em aberto e a empresa recebe online (`onlinePayments` + Asaas ligado). O
+  botão chama `POST /v1/share/:token/payment-link`, que reaproveita o link
+  público do lançamento (`SharedTransactionService.createShareLink`, que já
+  devolve o link existente). Entrada primeiro; senão a próxima parcela.
+- **Solicitar mudanças** (`POST /v1/share/:token/request-changes`): o cliente
+  diz o que não ficou como o combinado, com justificativa obrigatória (10 a
+  2.000 caracteres; nome opcional). Grava `clientChangeRequest` (`open` |
+  `resolved`, com `contentHash`; os anteriores em `clientChangeRequestHistory`)
+  e notifica `proposal_changes_requested`, que leva a `/proposals?ajuste=<id>`.
+  O pedido se resolve sozinho quando a empresa salva a proposta com conteúdo
+  diferente, aprova ou recusa; ou pelo "Marcar como resolvido"
+  (`POST /v1/proposals/:id/change-request/resolve`). Com o pedido aberto, o
+  cliente ainda pode aceitar, mas não abre outro pedido.
+- **Ao vivo no ERP:** `hooks/use-client-responses.ts` escuta, em tempo real,
+  só as propostas com aceite pendente ou pedido aberto (duas consultas por
+  igualdade). A lista, o quadro e a visualização leem dele, então o selo e o
+  diálogo aparecem sem F5; antes de o listener responder, vale o dado da lista
+  (`hasPendingAcceptance` / `hasOpenChangeRequest` em `lib/client-acceptance.ts`).
+
+## Link de agendamento (`visita/[token]`)
+
+O cliente escolhe o tipo de visita, o dia e o horário livre, e deixa nome,
+telefone e, se quiser, e-mail, endereço e observação. **O pedido não marca a
+visita**: ele entra na Agenda como "a confirmar" e a empresa responde (regra no
+`apps/functions/CLAUDE.md`, seção Link de agendamento). A tela diz isso antes e
+depois de enviar.
+
+- Mora sob `/share` e não em `/visita` de propósito: herda a árvore sem
+  sessão do `providers.tsx`, o `noindex` e a exceção do redirect do apex, que
+  uma rota nova precisaria repetir em quatro lugares.
+- Só dia com horário livre aparece. Um 409 (alguém pegou o horário no meio do
+  caminho) recarrega os horários e pede outro.
+- Captcha pelo `lib/captcha.ts` (interativo) e um campo isca `website`, fora da
+  árvore acessível, que o backend usa para responder "ok" a robô sem gravar.
+- O botão de envio usa `brandButtonStyle`, como os outros daqui.
+
+Guards: `visita/[token]/_components/__tests__/public-booking.test.tsx` e
+`src/__tests__/booking-link-path.test.ts` (o link da configuração e o do e-mail
+caem nesta rota).
+
+## Portal do cliente (`portal/[token]`)
+
+Uma página por contato, com um link fixo que a empresa manda uma vez (Pro e
+Enterprise, `clientPortal`). Regra do backend em `apps/functions/CLAUDE.md`,
+seção Portal do cliente.
+
+- **O portal não substitui as páginas daqui, ele aponta para elas.** Cada item
+  chama `POST .../open`, que devolve o link da proposta, do lançamento ou da
+  obra (criado só nesse clique), e a página navega para lá. Aceitar, pagar e
+  confirmar a entrega continuam onde já estavam.
+- **Nota fiscal abre direto no PDF do Focus**, que dispensa login; não existe
+  página nossa para ela.
+- **`/share/portal/exemplo` é o portal fictício da demonstração**
+  (`lib/client-portal/example.ts`): dado fixo, sem API, e os itens não abrem.
+  A conta free chega nele pelo botão do contato, que não cria link.
+- A empresa gera, troca e desliga o link na ficha do contato
+  (`components/features/client-portal/client-portal-button.tsx`, ao lado das
+  abas), só com a edição de Contatos. "Gerar novo link" derruba o anterior na
+  hora: é o que se faz quando o link foi parar com quem não devia.
+
+Guards: `portal/[token]/_components/__tests__/public-client-portal.test.tsx` e
+`components/features/client-portal/__tests__/client-portal-button.test.tsx`.
+
+## Link do contador (`contador/[token]`)
+
+O financeiro da empresa em leitura para o contador, sem login e sem contar
+como usuário: DRE (caixa e competência), lançamentos, notas emitidas e notas
+de entrada, cada aba com exportação em Excel e CSV. O contador escolhe o
+período (os prontos do DRE ou um mês específico dos últimos 12); abre no mês
+passado, que é o que ele costuma fechar. Regra do backend no
+`apps/functions/CLAUDE.md`, seção Link do contador.
+
+- As abas de nota seguem o plano da empresa (`sections` do backend).
+- PDF e XML das notas são links para `.../documents/...?kind=`, com o tipo na
+  query, nunca no fim do caminho: o proxy manda caminho terminado em `/pdf`
+  para a função de PDF.
+- O link é gerado no botão "Link do contador" da tela do DRE
+  (`app/dre/_components/accountant-link-button.tsx`), só por dono e
+  administradores. `/share/contador/exemplo` é a versão fictícia da
+  demonstração (`lib/accountant/example.ts`), sem API e sem link de arquivo.
+
+Guards: `contador/[token]/_components/__tests__/public-accountant.test.tsx` e
+`app/dre/__tests__/accountant-link-button.test.tsx`.
 
 ## Padrões e gotchas
 
@@ -97,7 +242,7 @@ if (isPrintMode) {
 A página de proposta injeta CSS com `@media print` que oculta elementos `[data-pdf-ui]` (cabeçalho, controles de zoom). Não remova o atributo `data-pdf-ui` dos elementos de UI.
 
 ### Branding do tenant
-O cabeçalho usa `tenant.primaryColor` como fundo do botão de download via inline style, com o texto por `computePrimaryForeground(cor)` (nunca branco fixo: empresa de cor branca some). Se `primaryColor` for `null` ou `undefined`, cai em `var(--primary)` / `var(--primary-foreground)`. Texto ou borda na cor da marca direto sobre o fundo da página (boleto, PIX) passa por `useThemeAdjustedColor`. Guard: `src/__tests__/tenant-color-contrast.test.ts`.
+Todo botão pintado com a cor da empresa (baixar PDF no cabeçalho, aceitar, pagar, e o "Pagar" das parcelas dentro do `TransactionPdfViewer`) usa `brandButtonStyle(cor)` (`utils/color-utils.ts`): texto por `computePrimaryForeground`, nunca branco fixo, e borda cinza quando a cor é quase branca, senão o botão some no papel branco. Foi assim que o "Pagar" do recibo sumiu para uma empresa de cor branca. Sem cor, cai em `var(--primary)` / `var(--primary-foreground)`. Texto ou borda na cor da marca direto sobre o fundo da página (boleto, PIX) passa por `useThemeAdjustedColor`. Guard: `src/__tests__/tenant-color-contrast.test.ts`.
 
 ### Zoom responsivo
 Mobile: calcula escala automática `(window.innerWidth - 32) / 794` para caber o A4 na tela. ResizeObserver ajusta `marginBottom` para corrigir o espaço deixado pelo `transform: scale()`.

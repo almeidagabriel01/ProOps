@@ -19,6 +19,7 @@ import {
   getGroupedTransactionKey,
   getDateString,
 } from "../_lib/financial-utils";
+import type { TransactionFiltersState } from "../_lib/filters-url";
 
 const DEFAULT_FILTER_STATUS: TransactionStatus[] = ["pending", "overdue"];
 
@@ -33,30 +34,40 @@ export function useFinancialFilters(
   transactions: Transaction[],
   wallets: Wallet[],
   initialViewMode: "grouped" | "byDueDate" = "byDueDate",
+  /** Filtros lidos do endereço (voltar/recarregar); o resto fica no padrão. */
+  initial: Partial<TransactionFiltersState> = {},
 ) {
   const { tenant } = useTenant();
   const tenantId = tenant?.id;
+  const startViewMode = initial.viewMode ?? initialViewMode;
 
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const [searchTerm, setSearchTerm] = React.useState(initial.searchTerm ?? "");
   const [filterType, setFilterType] = React.useState<TransactionType | "all">(
-    "all",
+    initial.filterType ?? "all",
   );
   const [viewMode, setViewMode] = React.useState<"grouped" | "byDueDate">(
-    initialViewMode,
+    startViewMode,
   );
   const [filterStatus, setFilterStatus] = React.useState<TransactionStatus[]>(
-    () => defaultStatusForViewMode(initialViewMode),
+    () => initial.filterStatus ?? defaultStatusForViewMode(startViewMode),
   );
 
   // O filtro de status é LIGADO À ABA, sem persistência (spec 2026-07-06):
   // Lista SEMPRE entra com [pending, overdue] (mesmo que o usuário tenha
   // desativado antes de sair); Agrupados SEMPRE entra limpo (todos). Mudanças
   // do usuário valem só enquanto ele permanece na aba.
-  const prevViewModeRef = React.useRef<"grouped" | "byDueDate">(initialViewMode);
+  const prevViewModeRef = React.useRef<"grouped" | "byDueDate">(startViewMode);
   const hydratedTenantRef = React.useRef<string | undefined>(tenantId);
   React.useEffect(() => {
-    const tenantChanged = hydratedTenantRef.current !== tenantId;
+    // O tenant chegar depois do primeiro render (undefined → id) não é troca
+    // de empresa: zerar ali apagaria o status que veio do endereço.
+    const tenantChanged =
+      hydratedTenantRef.current !== undefined &&
+      hydratedTenantRef.current !== tenantId;
     const viewModeChanged = prevViewModeRef.current !== viewMode;
+    if (hydratedTenantRef.current === undefined) {
+      hydratedTenantRef.current = tenantId;
+    }
     if (!tenantChanged && !viewModeChanged) return;
 
     hydratedTenantRef.current = tenantId;
@@ -75,13 +86,21 @@ export function useFinancialFilters(
     }
   }, [tenantId]);
 
-  const [filterWallet, setFilterWallet] = React.useState<string>("");
-  const [filterStartDate, setFilterStartDate] = React.useState<string>("");
-  const [filterEndDate, setFilterEndDate] = React.useState<string>("");
+  const [filterWallet, setFilterWallet] = React.useState<string>(
+    initial.filterWallet ?? "",
+  );
+  const [filterStartDate, setFilterStartDate] = React.useState<string>(
+    initial.filterStartDate ?? "",
+  );
+  const [filterEndDate, setFilterEndDate] = React.useState<string>(
+    initial.filterEndDate ?? "",
+  );
   const [filterDateType, setFilterDateType] = React.useState<
     "date" | "dueDate"
-  >("dueDate");
-  const [sortBy, setSortBy] = React.useState<"date" | "created">("created");
+  >(initial.filterDateType ?? "dueDate");
+  const [sortBy, setSortBy] = React.useState<"date" | "created">(
+    initial.sortBy ?? "created",
+  );
 
   const filteredTransactions = React.useMemo(() => {
     const effectiveTransactions: Transaction[] = [];

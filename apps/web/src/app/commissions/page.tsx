@@ -4,6 +4,7 @@ import { PageViewSwitcher } from "@/components/layout/page-view-switcher";
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeRequired } from "@/components/ui/upgrade-required";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
@@ -157,17 +158,11 @@ export default function CommissionsPage() {
       )}
 
       {!isLoading && !error && report && report.partners.length === 0 && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-10 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
-            <Handshake className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <p className="font-medium">Nenhuma comissão neste mês</p>
-          <p className="max-w-md text-sm text-muted-foreground">
-            As comissões aparecem aqui quando uma proposta com vendedor ou
-            arquiteto é aprovada. Elas seguem o mesmo cronograma de pagamento do
-            cliente.
-          </p>
-        </div>
+        <EmptyState
+          icon={Handshake}
+          title="Nenhuma comissão neste mês"
+          description="As comissões aparecem aqui quando uma proposta com vendedor ou arquiteto é aprovada. Elas seguem o mesmo cronograma de pagamento do cliente."
+        />
       )}
 
       {!isLoading && !error && report && report.partners.length > 0 && (

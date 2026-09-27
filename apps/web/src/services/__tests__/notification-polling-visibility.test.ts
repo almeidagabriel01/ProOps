@@ -55,6 +55,7 @@ describe("notification polling visibility guard", () => {
 
     const unsubscribe = NotificationService.subscribe(
       { kind: "tenant", tenantId: "t1" } as never,
+      { uid: "u1", mode: "recipient" },
       () => undefined,
     );
 
