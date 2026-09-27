@@ -1,9 +1,20 @@
 import type { NicheConfig } from "../../config-types";
+import { groupsStepFor, pdfCopyFor, solutionsPageFor } from "../../copy-builders";
+import { term, type NicheVocabulary } from "../../vocabulary";
 import { NICHE_REGISTRY } from "../../registry";
 import { unitInventoryDefinition } from "../../inventory-definitions";
 
+const vocabulary: NicheVocabulary = {
+  place: term("ambiente", "ambientes", "m"),
+  group: term("solução", "soluções", "f"),
+  placeExamples: "Sala, Quarto, Cozinha",
+  groupExamples: "Iluminação, Áudio, Wi-Fi",
+  productNamePlaceholder: "Ex: Central de automação",
+};
+
 /** Configuração de tela do nicho. */
 export const nicheConfig: NicheConfig = {
+  vocabulary,
   id: "automacao_residencial",
   label: NICHE_REGISTRY.automacao_residencial.label,
   analyticsColor: "#6366f1",
@@ -17,12 +28,7 @@ export const nicheConfig: NicheConfig = {
     // Tarefas: iguais nos dois nichos.
     tasks: true,
   },
-  solutionsPage: {
-    navigationLabel: "Soluções",
-    pageTitle: "Soluções",
-    pageDescription: "Central de gerenciamento de soluções e ambientes.",
-    mode: "automation",
-  },
+  solutionsPage: solutionsPageFor(vocabulary, "automation"),
   pricing: {
     dimensionModes: [],
     defaultProductMode: "standard",
@@ -32,21 +38,13 @@ export const nicheConfig: NicheConfig = {
     lineFormat: "multiplier",
     allowLinePriceEditing: false,
     titlePlaceholder: "Ex: Automação Residencial - Casa Silva",
-    groupsStep: {
-      stepTitle: "Soluções",
+    groupsStep: groupsStepFor(vocabulary, {
       stepDescription: "Automação",
       heading: "Soluções de Automação",
-      subheading: "Adicione as soluções da proposta",
       cardDescription: "Adicione uma ou mais soluções de automação à proposta",
-      emptySelectionError: "Selecione pelo menos 1 sistema de automação com produtos",
-    },
+    }),
   },
-  pdf: {
-    singleEnvironmentLayout: false,
-    showEnvironmentHeaders: true,
-    groupSubtotalLabel: "Subtotal da Solução:",
-    groupSubtotalOptionLabel: "Mostrar subtotal por solução",
-  },
+  pdf: pdfCopyFor(vocabulary, { singleEnvironmentLayout: false, showEnvironmentHeaders: true }),
   productCatalog: {
     inventoryView: "stock",
     singularLabel: "Produto",

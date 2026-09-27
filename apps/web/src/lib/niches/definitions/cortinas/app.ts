@@ -1,9 +1,21 @@
 import type { NicheConfig } from "../../config-types";
+import { groupsStepFor, pdfCopyFor, solutionsPageFor } from "../../copy-builders";
+import { term, type NicheVocabulary } from "../../vocabulary";
 import { NICHE_REGISTRY } from "../../registry";
 import { meterInventoryDefinition } from "../../inventory-definitions";
 
+const vocabulary: NicheVocabulary = {
+  place: term("ambiente", "ambientes", "m"),
+  // A proposta é por ambiente: cada grupo é o próprio cômodo.
+  group: term("ambiente", "ambientes", "m"),
+  placeExamples: "Sala, Quarto, Varanda",
+  groupExamples: "Sala, Quarto, Varanda",
+  productNamePlaceholder: "Ex: Cortina wave premium",
+};
+
 /** Configuração de tela do nicho. */
 export const nicheConfig: NicheConfig = {
+  vocabulary,
   id: "cortinas",
   label: NICHE_REGISTRY.cortinas.label,
   analyticsColor: "#f59e0b",
@@ -17,13 +29,9 @@ export const nicheConfig: NicheConfig = {
     // Tarefas: iguais nos dois nichos.
     tasks: true,
   },
-  solutionsPage: {
-    navigationLabel: "Ambientes",
-    pageTitle: "Ambientes",
-    pageDescription:
-      "Gerencie os ambientes e configure os produtos padrões de cada espaço.",
-    mode: "environment",
-  },
+  solutionsPage: solutionsPageFor(vocabulary, "environment", {
+    pageDescription: "Gerencie os ambientes e configure os produtos padrões de cada espaço.",
+  }),
   pricing: {
     dimensionModes: ["curtain_meter", "curtain_height", "curtain_width"],
     defaultProductMode: "curtain_meter",
@@ -33,21 +41,12 @@ export const nicheConfig: NicheConfig = {
     lineFormat: "labeled",
     allowLinePriceEditing: true,
     titlePlaceholder: "Ex: Persianas motorizadas - Apto 302",
-    groupsStep: {
-      stepTitle: "Ambientes",
+    groupsStep: groupsStepFor(vocabulary, {
       stepDescription: "Selecionar ambientes",
-      heading: "Ambientes",
       subheading: "Selecione os ambientes desejados na proposta",
-      cardDescription: "Adicione um ou mais ambientes à proposta",
-      emptySelectionError: "Selecione pelo menos 1 ambiente com produtos",
-    },
+    }),
   },
-  pdf: {
-    singleEnvironmentLayout: true,
-    showEnvironmentHeaders: false,
-    groupSubtotalLabel: "Subtotal do Ambiente:",
-    groupSubtotalOptionLabel: "Mostrar subtotais por ambiente",
-  },
+  pdf: pdfCopyFor(vocabulary, { singleEnvironmentLayout: true, showEnvironmentHeaders: false }),
   productCatalog: {
     inventoryView: "dimension_balance",
     singularLabel: "Produto",

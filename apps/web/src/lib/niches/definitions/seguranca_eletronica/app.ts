@@ -1,9 +1,20 @@
 import type { NicheConfig } from "../../config-types";
+import { groupsStepFor, pdfCopyFor, solutionsPageFor } from "../../copy-builders";
+import { term, type NicheVocabulary } from "../../vocabulary";
 import { NICHE_REGISTRY } from "../../registry";
 import { unitInventoryDefinition } from "../../inventory-definitions";
 
+const vocabulary: NicheVocabulary = {
+  place: term("área", "áreas", "f"),
+  group: term("sistema", "sistemas", "m"),
+  placeExamples: "Portaria, Garagem, Perímetro",
+  groupExamples: "CFTV, Alarme, Controle de acesso",
+  productNamePlaceholder: "Ex: Câmera bullet Full HD",
+};
+
 /** Configuração de tela do nicho. */
 export const nicheConfig: NicheConfig = {
+  vocabulary,
   id: "seguranca_eletronica",
   label: NICHE_REGISTRY.seguranca_eletronica.label,
   analyticsColor: "#dc2626",
@@ -16,12 +27,7 @@ export const nicheConfig: NicheConfig = {
     projects: true,
     tasks: true,
   },
-  solutionsPage: {
-    navigationLabel: "Sistemas",
-    pageTitle: "Sistemas",
-    pageDescription: "Central de gerenciamento de sistemas e áreas.",
-    mode: "automation",
-  },
+  solutionsPage: solutionsPageFor(vocabulary, "automation"),
   pricing: {
     dimensionModes: [],
     defaultProductMode: "standard",
@@ -31,21 +37,14 @@ export const nicheConfig: NicheConfig = {
     lineFormat: "multiplier",
     allowLinePriceEditing: false,
     titlePlaceholder: "Ex: CFTV e alarme - Condomínio Jardim",
-    groupsStep: {
-      stepTitle: "Sistemas",
+    groupsStep: groupsStepFor(vocabulary, {
       stepDescription: "Segurança",
       heading: "Sistemas de Segurança",
-      subheading: "Adicione os sistemas da proposta",
       cardDescription: "Adicione um ou mais sistemas de segurança à proposta",
       emptySelectionError: "Selecione pelo menos 1 sistema de segurança com produtos",
-    },
+    }),
   },
-  pdf: {
-    singleEnvironmentLayout: false,
-    showEnvironmentHeaders: true,
-    groupSubtotalLabel: "Subtotal do Sistema:",
-    groupSubtotalOptionLabel: "Mostrar subtotal por sistema",
-  },
+  pdf: pdfCopyFor(vocabulary, { singleEnvironmentLayout: false, showEnvironmentHeaders: true }),
   productCatalog: {
     inventoryView: "stock",
     singularLabel: "Produto",

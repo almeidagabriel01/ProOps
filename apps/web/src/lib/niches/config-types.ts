@@ -9,6 +9,7 @@ import type {
   ProposalLineFormat,
 } from "@/lib/product-pricing";
 import type { AttentionResult } from "@/lib/sales/proposal-attention";
+import type { NicheVocabulary } from "./vocabulary";
 
 export type InventoryUnit = "unit" | "meter";
 export type ProposalWorkflow = "automation" | "catalog" | "environment";
@@ -104,6 +105,8 @@ export interface ProposalGroupsStepCopy {
 export interface NicheConfig {
   id: TenantNiche;
   label: string;
+  /** Local e grupo do domínio, com gênero (`lib/niches/vocabulary.ts`). */
+  vocabulary: NicheVocabulary;
   pageAvailability: Record<NichePageKey, boolean>;
   solutionsPage: SolutionsPageDefinition;
   pricing: PricingDefinition;
