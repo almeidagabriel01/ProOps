@@ -66,6 +66,8 @@ export interface CatalogItemDocument {
   origem?: number;
   situacaoTributaria?: string;
   inventoryUnit?: string;
+  /** Modo de preço do produto; `curtain_meter` cobra por m². */
+  pricingModel?: { mode?: string };
   codigoLc116?: string;
   codigoTributacaoMunicipio?: string;
   aliquotaIss?: number;
@@ -153,7 +155,7 @@ export function resolveLineTotal(item: ProposalItem): number {
   return quantity * unitPrice * (1 + markup / 100);
 }
 
-function buildProductItem(
+export function buildProductItem(
   item: ProposalItem,
   catalog: CatalogItemDocument | undefined,
   regime: FiscalTaxRegime,
@@ -171,7 +173,10 @@ function buildProductItem(
     cest: text(catalog?.cest).replace(/\D/g, "") || undefined,
     cfop,
     origem: normalizeOrigem(catalog?.origem),
-    unidadeComercial: deriveUnidadeComercial(catalog?.inventoryUnit),
+    unidadeComercial: deriveUnidadeComercial(
+      catalog?.inventoryUnit,
+      catalog?.pricingModel?.mode,
+    ),
     quantidade,
     // A SEFAZ valida quantidade × unitário contra o total da linha, então o
     // unitário é derivado do total e não o contrário.

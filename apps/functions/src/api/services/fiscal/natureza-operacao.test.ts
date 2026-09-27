@@ -111,6 +111,20 @@ describe("deriveUnidadeComercial", () => {
   it("cai em UN para valor ausente ou desconhecido", () => {
     expect(deriveUnidadeComercial(undefined)).toBe("UN");
     expect(deriveUnidadeComercial("caixa")).toBe("UN");
+    expect(deriveUnidadeComercial("constructor")).toBe("UN");
+  });
+
+  it("produto cobrado por área sai em M2, mesmo com estoque em metros", () => {
+    // O produto curtain_meter guarda o estoque em "meter", mas a quantidade da
+    // linha é largura x altura x painéis: a nota saía em "M" com valor de m².
+    expect(deriveUnidadeComercial("meter", "curtain_meter")).toBe("M2");
+    expect(deriveUnidadeComercial(undefined, "curtain_meter")).toBe("M2");
+  });
+
+  it("largura e faixa de altura continuam em metro linear", () => {
+    expect(deriveUnidadeComercial("meter", "curtain_width")).toBe("M");
+    expect(deriveUnidadeComercial("meter", "curtain_height")).toBe("M");
+    expect(deriveUnidadeComercial("unit", "standard")).toBe("UN");
   });
 });
 

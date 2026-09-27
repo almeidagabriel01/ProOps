@@ -3,7 +3,7 @@ jest.mock("../../../lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { deriveIndicadorIe, resolveLineTotal } from "./invoice-assembly.service";
+import { buildProductItem, deriveIndicadorIe, resolveLineTotal } from "./invoice-assembly.service";
 
 describe("resolveLineTotal", () => {
   it("prefere o total já negociado da linha", () => {
@@ -55,5 +55,36 @@ describe("deriveIndicadorIe", () => {
     // Marcar CNPJ como contribuinte sem ter a IE em mãos geraria rejeição por
     // inscrição ausente — quem é contribuinte é declarado no cadastro.
     expect(deriveIndicadorIe("11222333000181", undefined)).toBe("nao_contribuinte");
+  });
+});
+
+describe("buildProductItem: unidade comercial", () => {
+  const linha = { productId: "p1", productName: "Persiana", quantity: 6, total: 900 };
+
+  it("produto por área (m²) sai em M2", () => {
+    const item = buildProductItem(
+      linha,
+      { inventoryUnit: "meter", pricingModel: { mode: "curtain_meter" } },
+      "simples_nacional" as never,
+      "5102",
+    );
+    expect(item.unidadeComercial).toBe("M2");
+    expect(item.quantidade).toBe(6);
+    expect(item.valorUnitario).toBe(150);
+  });
+
+  it("produto por largura sai em M", () => {
+    const item = buildProductItem(
+      linha,
+      { inventoryUnit: "meter", pricingModel: { mode: "curtain_width" } },
+      "simples_nacional" as never,
+      "5102",
+    );
+    expect(item.unidadeComercial).toBe("M");
+  });
+
+  it("produto comum sai em UN", () => {
+    const item = buildProductItem(linha, { inventoryUnit: "unit" }, "simples_nacional" as never, "5102");
+    expect(item.unidadeComercial).toBe("UN");
   });
 });
