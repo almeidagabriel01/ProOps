@@ -50,6 +50,7 @@ export type BookingRequestStatus = "pending" | "confirmed" | "declined";
 export const DEFAULT_VISIT_TYPE_BY_NICHE: Record<TenantNicheId, VisitType> = {
   automacao_residencial: { id: "visita_tecnica", label: "Visita técnica", durationMin: 60 },
   cortinas: { id: "medicao", label: "Medição", durationMin: 60 },
+  seguranca_eletronica: { id: "vistoria_tecnica", label: "Vistoria técnica", durationMin: 60 },
 };
 
 /** Os tipos de visita começam pelo nicho, e a empresa edita. */

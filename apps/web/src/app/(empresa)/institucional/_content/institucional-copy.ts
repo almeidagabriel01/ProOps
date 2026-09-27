@@ -434,6 +434,7 @@ export const SEGMENTOS: readonly Segmento[] = [
 export const NICHOS_PRONTOS = [
   { rotulo: "Automação residencial", estado: "pronto" },
   { rotulo: "Persianas e toldos", estado: "pronto" },
+  { rotulo: "Segurança eletrônica", estado: "pronto" },
 ] as const;
 
 /**

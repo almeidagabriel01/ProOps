@@ -8,6 +8,7 @@ import { isTenantNiche, type TenantNicheId } from "@/lib/niches/niche-ids";
 export const DEMO_TENANT_IDS: Record<TenantNicheId, string> = {
   automacao_residencial: "demo",
   cortinas: "demo-cortinas",
+  seguranca_eletronica: "demo-seguranca",
 };
 
 export const DEMO_TENANT_ID = DEMO_TENANT_IDS.automacao_residencial;

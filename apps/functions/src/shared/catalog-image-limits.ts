@@ -24,6 +24,7 @@ export const DEFAULT_CATALOG_IMAGE_LIMIT = 1;
 export const PRODUCT_IMAGE_LIMIT_BY_NICHE: Readonly<Record<string, number>> = {
   automacao_residencial: DEFAULT_CATALOG_IMAGE_LIMIT,
   cortinas: 3,
+  seguranca_eletronica: DEFAULT_CATALOG_IMAGE_LIMIT,
 };
 
 export function resolveCatalogImageLimit(input: {

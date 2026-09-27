@@ -12,7 +12,7 @@ lib/
 ├── api-client.ts            # cliente `fetch` (`callApi`, `callPublicApi`) para /api/backend/*
 ├── firestore-error.ts       # Tratamento de erros Firestore
 ├── auth/                    # Helpers de autenticação (verificação de token, session)
-├── niches/                  # Lógica multi-niche (automacao_residencial | cortinas)
+├── niches/                  # Lógica multi-niche (automacao_residencial | cortinas | seguranca_eletronica)
 ├── plans/                   # Rótulo de plano (`plan-label.ts`)
 ├── site/                    # Política de host: qual das 3 superfícies e o SEO de cada uma
 ├── permissions/             # Fonte única dos pageIds do sistema de permissões
@@ -40,7 +40,7 @@ lib/
 
 ### Multi-niche (`niches/`)
 - Toda lógica que varia por nicho de negócio fica aqui
-- Nichos: `automacao_residencial` | `cortinas`. Os ids vêm de `niche-ids.ts` (cópia de
+- Nichos: `automacao_residencial` | `cortinas` | `seguranca_eletronica`. Os ids vêm de `niche-ids.ts` (cópia de
   `apps/functions/src/shared/niches.ts`, com teste de paridade que também lê o `firestore.rules`)
 - Usar `useCurrentNicheConfig()` no frontend ou helpers de nicho no backend
 - **Nunca** fazer `if (niche === 'cortinas')` espalhado pelo código — use os helpers

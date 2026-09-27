@@ -6,6 +6,7 @@ export type TenantNiche = TenantNicheId;
 export const NICHE_LABELS: Record<TenantNiche, string> = {
   automacao_residencial: "Automação Residencial",
   cortinas: "Persianas e Toldos",
+  seguranca_eletronica: "Segurança Eletrônica",
 };
 
 export type Tenant = {

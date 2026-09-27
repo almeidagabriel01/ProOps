@@ -170,7 +170,7 @@ Onboarding.
 ### 6. Nichos
 
 **Decida:** a tela aparece em cada nicho de `TenantNiche` (hoje
-`automacao_residencial` e `cortinas`)? Algum texto ou comportamento muda? A
+`automacao_residencial`, `cortinas` e `seguranca_eletronica`)? Algum texto ou comportamento muda? A
 regra geral está em `apps/web/src/lib/CLAUDE.md`, seção Multi-niche.
 
 - [ ] Disponibilidade em `NICHE_CONFIGS[*].pageAvailability`

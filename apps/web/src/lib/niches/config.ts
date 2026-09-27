@@ -300,6 +300,71 @@ export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
       defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
     },
   },
+  seguranca_eletronica: {
+    id: "seguranca_eletronica",
+    label: "Segurança Eletrônica",
+    analyticsColor: "#dc2626",
+    seoAudience: "segurança eletrônica",
+    pageAvailability: {
+      solutions: true,
+      ambientes: false,
+      // Projetos de instalação com etapas próprias (Levantamento,
+      // Infraestrutura, Instalação, Configuração, Entrega).
+      projects: true,
+      tasks: true,
+    },
+    solutionsPage: {
+      navigationLabel: "Sistemas",
+      pageTitle: "Sistemas",
+      pageDescription: "Central de gerenciamento de sistemas e áreas.",
+      mode: "automation",
+    },
+    pricing: {
+      dimensionModes: [],
+      defaultProductMode: "standard",
+    },
+    proposal: {
+      workflow: "automation",
+      lineFormat: "multiplier",
+      allowLinePriceEditing: false,
+      titlePlaceholder: "Ex: CFTV e alarme - Condomínio Jardim",
+      groupsStep: {
+        stepTitle: "Sistemas",
+        stepDescription: "Segurança",
+        heading: "Sistemas de Segurança",
+        subheading: "Adicione os sistemas da proposta",
+        cardDescription: "Adicione um ou mais sistemas de segurança à proposta",
+        emptySelectionError: "Selecione pelo menos 1 sistema de segurança com produtos",
+      },
+    },
+    pdf: {
+      singleEnvironmentLayout: false,
+      showEnvironmentHeaders: true,
+      groupSubtotalLabel: "Subtotal do Sistema:",
+      groupSubtotalOptionLabel: "Mostrar subtotal por sistema",
+    },
+    productCatalog: {
+      inventoryView: "stock",
+      singularLabel: "Produto",
+      pluralLabel: "Produtos",
+      newTitle: "Novo Produto",
+      newSubtitle:
+        "Adicione um novo equipamento ao seu catálogo com todas as informações necessárias.",
+      editTitle: "Editar Produto",
+      editSubtitle: (productName) =>
+        `Atualize as informações de "${productName}"`,
+      viewTitle: "Visualizar Produto",
+      viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
+      inventory: unitInventoryDefinition,
+    },
+    onboardingStepDescriptions: {
+      solutions:
+        "Kits prontos, como oito câmeras com gravador ou um alarme monitorado, com os produtos de cada área já definidos.",
+    },
+    booking: {
+      defaultVisitType: { id: "vistoria_tecnica", label: "Vistoria técnica", durationMin: 60 },
+    },
+  },
 };
 
 const DEFAULT_NICHE: TenantNiche = "automacao_residencial";

@@ -7,7 +7,11 @@ import {
   type MenuItem,
 } from "@/components/layout/navigation-config";
 import { flattenSettingsNavItems } from "@/app/settings/_components/settings-nav-items";
-import { isPageEnabledForNiche } from "@/lib/niches/config";
+import {
+  getNicheConfig,
+  getSolutionsPageConfig,
+  isPageEnabledForNiche,
+} from "@/lib/niches/config";
 import { TENANT_NICHES } from "@/lib/niches/niche-ids";
 import type { TenantNiche } from "@/types";
 import {
@@ -100,7 +104,16 @@ function visibleMenu(
       return true;
     })
     .map((item) =>
-      item.children ? { ...item, children: filterVisibleChildren(item, nav) } : item,
+      item.children
+        ? {
+            ...item,
+            children: filterVisibleChildren(item, nav).map((child) =>
+              child.href === "/solutions"
+                ? { ...child, label: getSolutionsPageConfig(niche).navigationLabel }
+                : child,
+            ),
+          }
+        : item,
     );
 }
 
@@ -272,6 +285,20 @@ describe("passos por plano e papel", () => {
     expect(custom.find((step) => step.id === "products")?.description).toBe(
       base.find((step) => step.id === "products")?.description,
     );
+  });
+
+  it("segurança eletrônica chama Soluções de Sistemas, com o texto do nicho", () => {
+    const steps = buildOnboardingSteps({
+      visibleMenuItems: visibleMenu(MASTER, "seguranca_eletronica"),
+      settingsRoutes: SETTINGS_ROUTES,
+      capabilities: PLAN.pro,
+      viewer: MASTER,
+      stepDescriptions: getNicheConfig("seguranca_eletronica").onboardingStepDescriptions,
+    });
+    const solutions = steps.find((step) => step.id === "solutions");
+    expect(solutions?.title).toBe("Sistemas");
+    expect(solutions?.description).toMatch(/câmeras/);
+    expect(steps.map((step) => step.id)).not.toContain("ambientes");
   });
 
   it("nicho cortinas troca Soluções por Ambientes", () => {

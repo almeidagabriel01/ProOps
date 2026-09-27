@@ -65,7 +65,11 @@ describe("site da empresa lista os nichos prontos", () => {
     expect(NICHOS_PRONTOS).toHaveLength(TENANT_NICHES.length);
   });
 
-  it("os segmentos marcados como prontos são os nichos", () => {
-    expect(SEGMENTOS.filter((segmento) => segmento.pronto)).toHaveLength(TENANT_NICHES.length);
+  it("a prancheta não marca como pronto mais segmentos do que existem", () => {
+    // A prancheta do herói só ganha um segmento com o desenho dele; um nicho
+    // pode estar pronto antes de ter prancha, mas nunca o contrário.
+    expect(SEGMENTOS.filter((segmento) => segmento.pronto).length).toBeLessThanOrEqual(
+      TENANT_NICHES.length,
+    );
   });
 });

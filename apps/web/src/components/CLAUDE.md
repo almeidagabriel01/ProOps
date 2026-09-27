@@ -214,7 +214,7 @@ e vírgula do Excel em português).
 
 ## Multi-niche
 Para features que variam por nicho de negócio, use `useCurrentNicheConfig()` do hook
-em `src/hooks/useCurrentNicheConfig.ts`. Nichos: `automacao_residencial` | `cortinas`.
+em `src/hooks/useCurrentNicheConfig.ts`. Nichos: `automacao_residencial` | `cortinas` | `seguranca_eletronica`.
 Nunca hardcodar strings de nicho em componentes genéricos.
 
 ## Antes de criar um componente novo

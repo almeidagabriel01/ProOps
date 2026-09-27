@@ -26,6 +26,7 @@ export const PUBLIC_MARKETING_ROUTES = [
   "/",
   "/automacao-residencial",
   "/decoracao",
+  "/seguranca-eletronica",
   "/contato",
   "/agendar",
   // The two host-routed sites. `proops.com.br/` and `app.proops.com.br/` are

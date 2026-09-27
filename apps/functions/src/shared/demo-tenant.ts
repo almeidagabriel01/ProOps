@@ -13,6 +13,7 @@ import { isTenantNiche, type TenantNicheId } from "./niches";
 export const DEMO_TENANT_IDS: Record<TenantNicheId, string> = {
   automacao_residencial: "demo",
   cortinas: "demo-cortinas",
+  seguranca_eletronica: "demo-seguranca",
 };
 
 /** O de automação, que também é o de quem não tem nicho reconhecido. */

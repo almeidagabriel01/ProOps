@@ -3,7 +3,11 @@
  * a plataforma aceita. A paridade com o backend e com o `firestore.rules` é
  * garantida por `src/__tests__/niche-ids-parity.test.ts`.
  */
-export const TENANT_NICHES = ["automacao_residencial", "cortinas"] as const;
+export const TENANT_NICHES = [
+  "automacao_residencial",
+  "cortinas",
+  "seguranca_eletronica",
+] as const;
 
 export type TenantNicheId = (typeof TENANT_NICHES)[number];
 

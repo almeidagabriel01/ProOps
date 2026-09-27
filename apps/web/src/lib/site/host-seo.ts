@@ -49,6 +49,7 @@ const ROTAS: Record<Surface, SitemapRoute[]> = {
       priority: 0.9,
     },
     { path: "/decoracao", changeFrequency: "monthly", priority: 0.9 },
+    { path: "/seguranca-eletronica", changeFrequency: "monthly", priority: 0.9 },
     { path: "/contato", changeFrequency: "yearly", priority: 0.5 },
     { path: "/agendar", changeFrequency: "yearly", priority: 0.5 },
   ],

@@ -10,7 +10,11 @@
  * O id é gravado no tenant e não muda depois: `cortinas` continua `cortinas`
  * mesmo que o rótulo mostrado mude.
  */
-export const TENANT_NICHES = ["automacao_residencial", "cortinas"] as const;
+export const TENANT_NICHES = [
+  "automacao_residencial",
+  "cortinas",
+  "seguranca_eletronica",
+] as const;
 
 export type TenantNicheId = (typeof TENANT_NICHES)[number];
 

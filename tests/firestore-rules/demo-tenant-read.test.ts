@@ -22,6 +22,7 @@ let testEnv: RulesTestEnvironment;
 const DEMO = 'demo';
 // Uma demonstração por nicho: a de persianas e toldos tem o próprio tenant.
 const DEMO_CORTINAS = 'demo-cortinas';
+const DEMO_SEGURANCA = 'demo-seguranca';
 const DEMO_COLLECTIONS = [
   'products',
   'services',
@@ -71,6 +72,7 @@ beforeEach(async () => {
   for (const coll of DEMO_COLLECTIONS) {
     await seedDoc(coll, `demo-${coll}`, { tenantId: DEMO, name: 'Demo item' });
     await seedDoc(coll, `demo-cortinas-${coll}`, { tenantId: DEMO_CORTINAS, name: 'Demo item' });
+    await seedDoc(coll, `demo-seguranca-${coll}`, { tenantId: DEMO_SEGURANCA, name: 'Demo item' });
     await seedDoc(coll, `other-${coll}`, { tenantId: 'tenant-paid', name: 'Real item' });
   }
 });
@@ -116,6 +118,7 @@ describe('demo dataset read access', () => {
   test('free-tier user CAN read the demo of every niche', async () => {
     for (const coll of DEMO_COLLECTIONS) {
       await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-cortinas-${coll}`)));
+      await assertSucceeds(getDoc(doc(freeDb(), coll, `demo-seguranca-${coll}`)));
     }
   });
 

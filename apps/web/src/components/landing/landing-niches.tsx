@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { ArrowRight, Cpu, Layers, MoveHorizontal, PenLine } from "lucide-react";
+import { ArrowRight, Cpu, Layers, MoveHorizontal, PenLine, ShieldCheck } from "lucide-react";
 import { m as motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
@@ -41,15 +41,25 @@ const NICHES: Niche[] = [
     href: "/decoracao",
   },
   {
-    // O terceiro cartão não é um pacote: é o convite. Sem ele a galeria diz,
-    // sem querer, que a ProOps atende dois segmentos, e quem vende outro tipo
-    // de projeto fecha a aba antes de falar com alguém.
     index: "03",
+    icon: ShieldCheck,
+    eyebrow: "Pacote pronto",
+    title: "Segurança Eletrônica",
+    description:
+      "Proposta por sistema e área para CFTV, alarme e controle de acesso, obra por etapas e mensalidades no financeiro.",
+    features: ["Kits por sistema", "Obra da vistoria à entrega", "Mensalidades no financeiro"],
+    href: "/seguranca-eletronica",
+  },
+  {
+    // O último cartão não é um pacote: é o convite. Sem ele a galeria diz,
+    // sem querer, que a ProOps atende só os segmentos prontos, e quem vende
+    // outro tipo de projeto fecha a aba antes de falar com alguém.
+    index: "04",
     icon: PenLine,
     eyebrow: "Configurado para você",
     title: "O seu segmento",
     description:
-      "Vende projeto e não é nenhum dos dois? A base é a mesma: a ProOps configura catálogo, campos da proposta, etapas do funil e unidade de medida para a sua operação.",
+      "Vende projeto e não é nenhum deles? A base é a mesma: a ProOps configura catálogo, campos da proposta, etapas do funil e unidade de medida para a sua operação.",
     features: ["Catálogo do seu negócio", "Campos e etapas sob medida", "Sem trocar de sistema"],
     href: "/contato",
   },
@@ -64,13 +74,13 @@ function IntroPanel() {
     <div className="flex h-full w-screen shrink-0 flex-col justify-center px-6 md:px-16 lg:px-24">
       <SectionHeading
         align="left"
-        eyebrow="Dois pacotes prontos, e o seu"
+        eyebrow="Três pacotes prontos, e o seu"
         title={
           <>
             Feito para o seu <Accent>nicho</Accent>
           </>
         }
-        description="Automação e decoração já vêm prontas. Qualquer outro negócio que venda projeto é configurado na mesma base, e não em outro sistema."
+        description="Automação, persianas e toldos e segurança eletrônica já vêm prontos. Qualquer outro negócio que venda projeto é configurado na mesma base, e não em outro sistema."
       />
       <div className="mt-10 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/45">
         <MoveHorizontal className="h-4 w-4" />

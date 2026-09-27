@@ -145,6 +145,39 @@ export const DEFAULT_STAGE_TEMPLATES: Record<TenantNicheId, StageTemplate[]> = {
     },
     { name: "Entrega", checklist: ["Orientar o cliente", "Registrar fotos finais"] },
   ],
+  seguranca_eletronica: [
+    {
+      name: "Levantamento",
+      checklist: [
+        "Mapear os pontos de câmera e sensores",
+        "Definir a rota dos cabos e a energia",
+        "Confirmar o local do gravador e da central",
+      ],
+    },
+    {
+      name: "Infraestrutura",
+      checklist: ["Passar tubulação e cabeamento", "Montar o rack ou a caixa do gravador"],
+    },
+    {
+      name: "Instalação",
+      checklist: [
+        "Instalar câmeras, sensores e central",
+        "Instalar fechaduras, leitores e cerca, se houver",
+      ],
+    },
+    {
+      name: "Configuração",
+      checklist: [
+        "Configurar gravação e acesso remoto no aplicativo",
+        "Cadastrar zonas, usuários e biometrias",
+        "Testar cada ponto",
+      ],
+    },
+    {
+      name: "Entrega",
+      checklist: ["Treinar o cliente", "Entregar senhas e o termo de entrega", "Registrar fotos finais"],
+    },
+  ],
 };
 
 export function defaultTemplateForNiche(niche: unknown): StageTemplate[] {

@@ -266,14 +266,14 @@ service cloud.firestore {
     // Ids de nicho aceitos. Lista espelhada de apps/functions/src/shared/niches.ts,
     // comparada em apps/web/src/__tests__/niche-ids-parity.test.ts.
     function isKnownTenantNiche(niche) {
-      return niche in ['automacao_residencial', 'cortinas'];
+      return niche in ['automacao_residencial', 'cortinas', 'seguranca_eletronica'];
     }
 
     // Tenants de demonstracao, um por nicho. Lista espelhada de
     // apps/functions/src/shared/demo-tenant.ts, comparada em
     // apps/web/src/__tests__/demo-tenants-parity.test.ts.
     function isDemoRead(resourceTenantId) {
-      return isAuthenticated() && resourceTenantId in ['demo', 'demo-cortinas'];
+      return isAuthenticated() && resourceTenantId in ['demo', 'demo-cortinas', 'demo-seguranca'];
     }
 
     /**
