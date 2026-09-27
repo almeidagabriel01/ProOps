@@ -3,6 +3,7 @@ import { canCustomizeTheme, canUsePdfEditor, sameJsonValue } from "../../lib/cat
 import { db } from "../../init";
 import { Timestamp } from "firebase-admin/firestore";
 import { resolveUserAndTenant } from "../../lib/auth-helpers";
+import { isTenantNiche } from "../../shared/niches";
 
 // Update Tenant
 export const updateTenant = async (req: Request, res: Response) => {
@@ -44,15 +45,20 @@ export const updateTenant = async (req: Request, res: Response) => {
     // Only allow safe fields to be updated
     const allowedFields = [
       "name",
-      "niche",
       "primaryColor",
       "logoUrl",
       "proposalDefaults",
       "transactionStatusOrder",
     ];
 
+    // O nicho so muda pelo superadmin: trocar deixa produto, proposta e etapas
+    // de obra no formato do nicho antigo. O master que reenvia o valor atual
+    // (formulario da organizacao) e ignorado, nao recusado.
     if (isSuperAdmin) {
-      allowedFields.push("whatsappEnabled");
+      allowedFields.push("whatsappEnabled", "niche");
+      if (updateData.niche !== undefined && !isTenantNiche(updateData.niche)) {
+        return res.status(400).json({ message: "Nicho inválido." });
+      }
     }
     const safeUpdate: Record<string, unknown> = {
       updatedAt: Timestamp.now(),

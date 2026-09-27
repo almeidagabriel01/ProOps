@@ -13,11 +13,9 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import type { NicheLandingConfig } from "@/components/landing/niche/types";
+import type { TenantNiche } from "@/types";
 
-export const NICHE_LANDING_CONFIG: Record<
-  "automacao_residencial" | "cortinas",
-  NicheLandingConfig
-> = {
+export const NICHE_LANDING_CONFIG: Record<TenantNiche, NicheLandingConfig> = {
   automacao_residencial: {
     slug: "automacao_residencial",
     hero: {

@@ -175,8 +175,12 @@ regra geral está em `apps/web/src/lib/CLAUDE.md`, seção Multi-niche.
 
 - [ ] Disponibilidade em `NICHE_CONFIGS[*].pageAvailability`
       (`apps/web/src/lib/niches/config.ts`), **declarada em todos os nichos**.
-      Uma chave ausente conta como habilitada, então esquecer um nicho abre a
-      tela nele em silêncio.
+      A chave nova entra em `NICHE_PAGE_KEYS`: o tipo exige que todo nicho a
+      declare, porque uma chave ausente contaria como habilitada e abriria a
+      tela em silêncio.
+- [ ] **Nicho novo** (não tela nova): o id entra nas três listas que
+      `niche-ids-parity.test.ts` compara (backend, front e `firestore.rules`),
+      e `lib/niches/__tests__/niche-contract.test.ts` diz o que mais falta.
 - [ ] Menu: se a chave de nicho diferir da de permissão, o item declara
       `availabilityPageId` em `navigation-config.tsx`, como Ambientes faz. O
       único gate de nicho da navegação é `useNavigationItems`.

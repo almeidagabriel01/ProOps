@@ -147,4 +147,21 @@ describe("createTenant", () => {
     await run({ planId: "starter", currentPeriodEnd: "2020-01-01", subscriptionStatus: "active" });
     expect(userDoc()).toMatchObject({ subscriptionStatus: "canceled" });
   });
+
+  it("nicho que nao existe e recusado antes de criar a conta", async () => {
+    for (const niche of [undefined, "", "decoracao", "automacao"]) {
+      txSets.length = 0;
+      const res = await run({ planId: "free", niche });
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(txSets).toHaveLength(0);
+    }
+  });
+
+  it("o nicho valido e gravado no tenant e em companies", async () => {
+    const res = await run({ planId: "free", niche: "automacao_residencial" });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(tenantDoc()).toMatchObject({ niche: "automacao_residencial" });
+    const company = txSets.find((s) => s.path.startsWith("companies/"))?.data;
+    expect(company).toMatchObject({ niche: "automacao_residencial" });
+  });
 });

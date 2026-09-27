@@ -60,6 +60,7 @@ import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
 import { getStripe } from "../../stripe/stripeConfig";
 import { detectPriceDrift } from "../../billing/price-drift";
 import { invalidateTenantAudience } from "../services/notification-audience";
+import { isTenantNiche } from "../../shared/niches";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -685,7 +686,8 @@ export const updatePermissions = async (req: Request, res: Response) => {
           targetId: actualMemberId,
           reason: `single:${pageId}.${key}=${value}`,
         });
-      }
+      }
+
       // Quem recebe cada notificação depende das permissões.
       invalidateTenantAudience(String(memberData?.tenantId || ""));
       return res.json({ success: true, message: "Permissão atualizada." });
@@ -718,7 +720,8 @@ export const updatePermissions = async (req: Request, res: Response) => {
         targetId: actualMemberId,
         reason: "bulk",
       });
-    }
+    }
+
     // Quem recebe cada notificação depende das permissões.
     invalidateTenantAudience(String(memberData?.tenantId || ""));
     return res.json({ success: true, message: "Permissões atualizadas." });
@@ -1666,6 +1669,12 @@ export const createTenant = async (req: Request, res: Response) => {
       });
     }
 
+    // Nicho fora da lista virava automação em silêncio em toda tela.
+    const niche = body.niche;
+    if (!isTenantNiche(niche)) {
+      return res.status(400).json({ message: "Nicho inválido." });
+    }
+
     try {
       await auth.getUserByEmail(adminEmailValidation.normalizedEmail);
       return res.status(409).json({ message: "Este email já está em uso." });
@@ -1728,7 +1737,7 @@ export const createTenant = async (req: Request, res: Response) => {
         slug: sanitizeSlug(body.slug || tenantName),
         primaryColor: String(body.primaryColor || "#3b82f6"),
         logoUrl: String(body.logoUrl || ""),
-        niche: String(body.niche || ""),
+        niche,
         // whatsappEnabled is always false at creation time; it is recomputed via
         // tenantPlanAllowsWhatsApp() after the transaction to ensure eligibility
         // rules are enforced rather than accepting an arbitrary caller value.
@@ -1748,7 +1757,7 @@ export const createTenant = async (req: Request, res: Response) => {
           name: tenantName,
           primaryColor: String(body.primaryColor || "#3b82f6"),
           logoUrl: String(body.logoUrl || ""),
-          niche: String(body.niche || ""),
+          niche,
           whatsappEnabled: false,
           usage: {
             users: 0,

@@ -8,6 +8,7 @@ import {
 } from "@/components/layout/navigation-config";
 import { flattenSettingsNavItems } from "@/app/settings/_components/settings-nav-items";
 import { isPageEnabledForNiche } from "@/lib/niches/config";
+import { TENANT_NICHES } from "@/lib/niches/niche-ids";
 import type { TenantNiche } from "@/types";
 import {
   buildOnboardingSteps,
@@ -284,7 +285,7 @@ describe("checklist condicional", () => {
     expect(checklistOf("pro", "contacts").join(" ")).toContain("portal");
     expect(checklistOf("enterprise", "contacts").join(" ")).toContain("portal");
     expect(checklistOf("starter", "contacts").join(" ")).not.toContain("portal");
-    const inNiche = (niche: "automacao_residencial" | "cortinas") =>
+    const inNiche = (niche: TenantNiche) =>
       buildOnboardingSteps({
         visibleMenuItems: visibleMenu(MASTER, niche),
         settingsRoutes: SETTINGS_ROUTES,
@@ -293,7 +294,9 @@ describe("checklist condicional", () => {
       })
         .find((step) => step.id === "contacts")
         ?.checklist.join(" ");
-    expect(inNiche("cortinas")).toBe(inNiche("automacao_residencial"));
+    for (const niche of TENANT_NICHES) {
+      expect(inNiche(niche)).toBe(inNiche("automacao_residencial"));
+    }
   });
 
   it("Integrações lista só o que o plano abre", () => {

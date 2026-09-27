@@ -263,6 +263,12 @@ service cloud.firestore {
      * read `||` chain so this cheap field comparison short-circuits before the
      * expensive tenantSubscriptionAllowsRead get()/exists() lookups.
      */
+    // Ids de nicho aceitos. Lista espelhada de apps/functions/src/shared/niches.ts,
+    // comparada em apps/web/src/__tests__/niche-ids-parity.test.ts.
+    function isKnownTenantNiche(niche) {
+      return niche in ['automacao_residencial', 'cortinas'];
+    }
+
     function isDemoRead(resourceTenantId) {
       return isAuthenticated() && resourceTenantId == 'demo';
     }
@@ -532,15 +538,18 @@ service cloud.firestore {
                           'niche',
                           'createdAt',
                           'updatedAt',
-                        ]));
-      // UPDATE: Super admin can update any field, tenant owner (master) can update safe fields
+                        ])
+                        && isKnownTenantNiche(request.resource.data.get('niche', '')));
+      // UPDATE: Super admin can update any field, tenant owner (master) can update safe fields.
+      // O nicho fica de fora: trocar deixa produto, proposta e obra no formato
+      // do nicho antigo, entao so o superadmin troca (pela API, que valida).
       allow update: if isSuperAdmin()
                     || (isAuthenticated()
                         && belongsToTenant(tenantId)
                         && hasTenantAdminRole()
                         && request.resource.data.get('tenantId', tenantId) == tenantId
                         && resource.data.get('tenantId', tenantId) == request.resource.data.get('tenantId', tenantId)
-                        && onlyUpdatesFields(['name', 'niche', 'primaryColor', 'logoUrl', 'updatedAt']));
+                        && onlyUpdatesFields(['name', 'primaryColor', 'logoUrl', 'updatedAt']));
       // DELETE: Only super admin can delete tenants
       allow delete: if isSuperAdmin();
 

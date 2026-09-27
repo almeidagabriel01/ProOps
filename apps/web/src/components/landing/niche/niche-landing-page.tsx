@@ -9,6 +9,7 @@ import { useLandingPage } from "@/components/landing/use-landing-page";
 import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { NicheHero } from "./niche-hero";
 import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
+import type { TenantNiche } from "@/types";
 
 // Abaixo da dobra: code-split com next/dynamic (ssr: true), HTML preservado.
 const NicheFeatures = dynamic(() =>
@@ -24,7 +25,7 @@ const LandingFooter = dynamic(() =>
 );
 
 interface NicheLandingPageProps {
-  slug: "automacao_residencial" | "cortinas";
+  slug: TenantNiche;
 }
 
 export function NicheLandingPage({ slug }: NicheLandingPageProps) {

@@ -1,7 +1,7 @@
-// Nichos disponíveis no sistema
-export type TenantNiche =
-  | "automacao_residencial"
-  | "cortinas";
+import type { TenantNicheId } from "@/lib/niches/niche-ids";
+
+// Nichos disponíveis no sistema (lista única em lib/niches/niche-ids.ts)
+export type TenantNiche = TenantNicheId;
 
 export const NICHE_LABELS: Record<TenantNiche, string> = {
   automacao_residencial: "Automação Residencial",

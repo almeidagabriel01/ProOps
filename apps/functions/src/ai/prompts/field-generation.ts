@@ -1,5 +1,6 @@
-// Niche values mirroring src/types/index.ts TenantNiche (kept local to avoid cross-project deps)
-type NicheKey = "automacao_residencial" | "cortinas" | (string & {});
+import { isTenantNiche, type TenantNicheId } from "../../shared/niches";
+
+type NicheKey = TenantNicheId | (string & {});
 
 // Discriminated union of all supported field generation requests
 export type GenerateFieldRequest =
@@ -53,13 +54,13 @@ export const MAX_OUTPUT_TOKENS: Record<GenerateFieldRequestField, number> = {
   "service.description": 200,
 };
 
-const NICHE_LABELS: Record<string, string> = {
+const NICHE_LABELS: Record<TenantNicheId, string> = {
   automacao_residencial: "automação residencial",
   cortinas: "decoração de interiores (cortinas, persianas, papéis de parede)",
 };
 
 function nicheLabel(niche: string): string {
-  return NICHE_LABELS[niche] ?? niche;
+  return isTenantNiche(niche) ? NICHE_LABELS[niche] : niche;
 }
 
 // Patterns that suggest prompt injection attempts

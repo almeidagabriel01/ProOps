@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { isTenantNiche, type TenantNicheId } from "../../../shared/niches";
 import { isValidCpfOrCnpj } from "../../../lib/br-document";
 
 /**
@@ -105,7 +106,7 @@ export interface ProjectSettings {
  * Roteiro padrão por nicho. A empresa ajusta em Configurações; enquanto não
  * ajustar, vale este. Não é regra de produto, é ponto de partida.
  */
-export const DEFAULT_STAGE_TEMPLATES: Record<string, StageTemplate[]> = {
+export const DEFAULT_STAGE_TEMPLATES: Record<TenantNicheId, StageTemplate[]> = {
   automacao_residencial: [
     {
       name: "Infraestrutura",
@@ -139,7 +140,9 @@ export const DEFAULT_STAGE_TEMPLATES: Record<string, StageTemplate[]> = {
 };
 
 export function defaultTemplateForNiche(niche: unknown): StageTemplate[] {
-  return DEFAULT_STAGE_TEMPLATES[String(niche || "")] ?? DEFAULT_STAGE_TEMPLATES.automacao_residencial;
+  return isTenantNiche(niche)
+    ? DEFAULT_STAGE_TEMPLATES[niche]
+    : DEFAULT_STAGE_TEMPLATES.automacao_residencial;
 }
 
 export function defaultProjectSettings(niche: unknown): ProjectSettings {

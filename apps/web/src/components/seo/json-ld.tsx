@@ -1,5 +1,6 @@
 import { APEX_URL } from "@/lib/site/surfaces";
 import { origemDe } from "@/lib/site/host-seo";
+import type { TenantNiche } from "@/types";
 
 /**
  * Onde o ERP mora, para o dado estruturado dele.
@@ -34,13 +35,13 @@ export const ORGANIZACAO_REF = {
 } as const;
 
 interface SoftwareApplicationJsonLdProps {
-  niche?: "automacao_residencial" | "cortinas";
+  niche?: TenantNiche;
 }
 
 export function SoftwareApplicationJsonLd({
   niche,
 }: SoftwareApplicationJsonLdProps = {}) {
-  const nicheNames: Record<string, string> = {
+  const nicheNames: Record<TenantNiche, string> = {
     automacao_residencial: "automação residencial",
     cortinas: "cortinas e persianas",
   };

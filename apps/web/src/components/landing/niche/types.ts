@@ -1,7 +1,8 @@
 import type React from "react";
+import type { TenantNiche } from "@/types";
 
 export interface NicheLandingConfig {
-  slug: "automacao_residencial" | "cortinas";
+  slug: TenantNiche;
   hero: {
     eyebrow: string;
     title: string;

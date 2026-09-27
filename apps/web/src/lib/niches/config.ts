@@ -40,10 +40,17 @@ export interface SolutionsPageDefinition {
   mode: SolutionsPageMode;
 }
 
+/**
+ * Páginas que ligam e desligam por nicho. Todo nicho declara todas: uma chave
+ * ausente contaria como ligada e abriria a tela em silêncio.
+ */
+export const NICHE_PAGE_KEYS = ["solutions", "ambientes", "projects", "tasks"] as const;
+export type NichePageKey = (typeof NICHE_PAGE_KEYS)[number];
+
 export interface NicheConfig {
   id: TenantNiche;
   label: string;
-  pageAvailability: Partial<Record<string, boolean>>;
+  pageAvailability: Record<NichePageKey, boolean>;
   solutionsPage: SolutionsPageDefinition;
   proposal: {
     workflow: ProposalWorkflow;
@@ -192,9 +199,9 @@ export function isPageEnabledForNiche(
 ): boolean {
   if (!pageId) return true;
 
-  const config = getNicheConfig(niche);
-  const pageState = config.pageAvailability[pageId];
-  return pageState !== false;
+  const availability: Partial<Record<string, boolean>> =
+    getNicheConfig(niche).pageAvailability;
+  return availability[pageId] !== false;
 }
 
 export function getSolutionsPageConfig(
