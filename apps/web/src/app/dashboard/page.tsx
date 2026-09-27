@@ -45,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatMonthLabel } from "@/lib/month-key";
 
 import { useTenant } from "@/providers/tenant-provider";
+import { getNicheConfig } from "@/lib/niches/config";
 import { usePermissions } from "@/providers/permissions-provider";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { SelectTenantState } from "@/components/shared/select-tenant-state";
@@ -296,6 +297,7 @@ export default function DashboardPage() {
             result={attention.result}
             loading={attention.loading || loading.proposals}
             isDemo={isDemo}
+            demoExample={getNicheConfig(tenant?.niche).demoAttention}
           />
           {loading.proposals ? (
             <Skeleton className="h-80 rounded-xl" />

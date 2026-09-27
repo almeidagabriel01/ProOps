@@ -40,6 +40,11 @@ jest.mock("../services/finance-reports/dre.service", () => {
   return { DreError, buildDre: (...a: unknown[]) => svc.buildDre(...a) };
 });
 
+const accountNiche: { value: unknown } = { value: "automacao_residencial" };
+jest.mock("../../lib/tenant-doc-cache", () => ({
+  getTenantDocCached: async () => ({ exists: true, data: { niche: accountNiche.value } }),
+}));
+
 const hasPagePermission = jest.fn();
 jest.mock("../../lib/auth-helpers", () => ({
   hasPagePermission: (...a: unknown[]) => hasPagePermission(...a),
@@ -147,6 +152,19 @@ describe("conta free (demonstração)", () => {
     await getTransactionCategories(req({}, "free"), res());
     expect(svc.listCategories).toHaveBeenCalledWith("demo");
     expect(hasPagePermission).not.toHaveBeenCalled();
+  });
+
+  it("a demonstração é a do nicho da conta", async () => {
+    accountNiche.value = "cortinas";
+    svc.listCategories.mockClear();
+    await getTransactionCategories(req({}, "free"), res());
+    expect(svc.listCategories).toHaveBeenCalledWith("demo-cortinas");
+
+    accountNiche.value = "nicho-que-nao-existe";
+    svc.listCategories.mockClear();
+    await getTransactionCategories(req({}, "free"), res());
+    expect(svc.listCategories).toHaveBeenCalledWith("demo");
+    accountNiche.value = "automacao_residencial";
   });
 
   it("não escreve", async () => {

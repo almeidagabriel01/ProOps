@@ -21,14 +21,17 @@ import {
   getProductPricingSummary,
 } from "@/lib/product-pricing";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { no } from "@/lib/niches/vocabulary";
 import { Product } from "@/services/product-service";
 import { Service } from "@/services/service-service";
+import { dimensionModeLabel } from "@/lib/pricing/dimension-mode-labels";
+import type { DimensionPricingMode } from "@/lib/product-pricing";
 
 interface ProductPricingStepProps {
   entityType: "product" | "service";
   formData: ProductFormData;
   errors: FormErrors<ProductFormData>;
-  isCurtainNiche: boolean;
+  allowsDimensionPricing: boolean;
   isReadOnly?: boolean;
   initialData?: Product | Service;
   onChange: (
@@ -162,7 +165,7 @@ export function ProductPricingStep({
   entityType,
   formData,
   errors,
-  isCurtainNiche,
+  allowsDimensionPricing,
   isReadOnly = false,
   initialData,
   onChange,
@@ -173,19 +176,24 @@ export function ProductPricingStep({
   onRemoveHeightPricingTier,
 }: ProductPricingStepProps) {
   const nicheConfig = useCurrentNicheConfig();
+  const { dimensionModes } = nicheConfig.pricing;
+  const modeLabel = (mode: DimensionPricingMode) =>
+    dimensionModeLabel(nicheConfig.pricing, mode);
+  const { place } = nicheConfig.vocabulary;
+  const measureHelper = `Informada na proposta e ${no(place)} ${place.singular}`;
   const basePrice = parseFormNumber(formData.price);
   const markupValue = parseFormNumber(formData.markup);
   const sellingPrice = calculateSellingPrice(basePrice, markupValue);
   const isCurtainMeterMode =
-    isCurtainNiche && formData.pricingMode === "curtain_meter";
+    allowsDimensionPricing && formData.pricingMode === "curtain_meter";
   const isCurtainHeightMode =
-    isCurtainNiche && formData.pricingMode === "curtain_height";
+    allowsDimensionPricing && formData.pricingMode === "curtain_height";
   const isCurtainWidthMode =
-    isCurtainNiche && formData.pricingMode === "curtain_width";
+    allowsDimensionPricing && formData.pricingMode === "curtain_width";
   const isCurtainQuantityMode =
-    isCurtainNiche && formData.pricingMode === "standard";
+    allowsDimensionPricing && formData.pricingMode === "standard";
   const shouldShowInventoryField =
-    entityType === "product" && (!isCurtainNiche || isCurtainQuantityMode);
+    entityType === "product" && (!allowsDimensionPricing || isCurtainQuantityMode);
   const inventoryReadOnlyLabel = isCurtainQuantityMode
     ? "Estoque"
     : nicheConfig.productCatalog.inventory.readOnlyLabel;
@@ -252,7 +260,7 @@ export function ProductPricingStep({
 
   return (
     <div className="space-y-6">
-      {isCurtainNiche && (
+      {allowsDimensionPricing && (
         <div className="space-y-3">
           <div className="text-sm font-medium text-foreground">
             Modelo de precificação
@@ -265,27 +273,33 @@ export function ProductPricingStep({
               description="Usa quantidade, preço unitário e markup, como um produto padrão."
               onClick={() => onPricingModeChange("standard")}
             />
-            <PricingModeButton
-              active={isCurtainMeterMode}
-              icon={<Scissors className="h-5 w-5" />}
-              title="Por metragem"
-              description="Usa largura x altura x preço com markup na proposta."
-              onClick={() => onPricingModeChange("curtain_meter")}
-            />
-            <PricingModeButton
-              active={isCurtainHeightMode}
-              icon={<Layers3 className="h-5 w-5" />}
-              title="Por altura"
-              description="Usa faixa de altura e multiplica pela largura preenchida na proposta."
-              onClick={() => onPricingModeChange("curtain_height")}
-            />
-            <PricingModeButton
-              active={isCurtainWidthMode}
-              icon={<Ruler className="h-5 w-5" />}
-              title="Por largura"
-              description="Usa apenas largura e multiplica pelo preço com markup na proposta."
-              onClick={() => onPricingModeChange("curtain_width")}
-            />
+            {dimensionModes.includes("curtain_meter") && (
+              <PricingModeButton
+                active={isCurtainMeterMode}
+                icon={<Scissors className="h-5 w-5" />}
+                title={modeLabel("curtain_meter").short}
+                description={modeLabel("curtain_meter").description}
+                onClick={() => onPricingModeChange("curtain_meter")}
+              />
+            )}
+            {dimensionModes.includes("curtain_height") && (
+              <PricingModeButton
+                active={isCurtainHeightMode}
+                icon={<Layers3 className="h-5 w-5" />}
+                title={modeLabel("curtain_height").short}
+                description={modeLabel("curtain_height").description}
+                onClick={() => onPricingModeChange("curtain_height")}
+              />
+            )}
+            {dimensionModes.includes("curtain_width") && (
+              <PricingModeButton
+                active={isCurtainWidthMode}
+                icon={<Ruler className="h-5 w-5" />}
+                title={modeLabel("curtain_width").short}
+                description={modeLabel("curtain_width").description}
+                onClick={() => onPricingModeChange("curtain_width")}
+              />
+            )}
           </div>
           {errors.heightPricingTiers && (
             <p className="text-sm text-destructive">{errors.heightPricingTiers}</p>
@@ -293,7 +307,7 @@ export function ProductPricingStep({
         </div>
       )}
 
-      {!isCurtainNiche ? (
+      {!allowsDimensionPricing ? (
         <PricingSection
           title="Regra de precificação"
           description="Defina o preço base do produto e a margem de lucro (markup)."
@@ -386,7 +400,7 @@ export function ProductPricingStep({
         </PricingSection>
       ) : isCurtainMeterMode ? (
         <PricingSection
-          title="Regra por metragem"
+          title={modeLabel("curtain_meter").ruleTitle}
           description="Defina o preço bruto por metro quadrado e o markup. Largura e altura serão preenchidas quando o produto for usado."
           badge={
             <div className="rounded-xl bg-muted/40 px-4 py-3">
@@ -437,11 +451,11 @@ export function ProductPricingStep({
             <FormGroup cols={2}>
               <StaticMeasureField
                 label="Largura"
-                helper="Informada na proposta e no ambiente"
+                helper={measureHelper}
               />
               <StaticMeasureField
                 label="Altura"
-                helper="Informada na proposta e no ambiente"
+                helper={measureHelper}
               />
             </FormGroup>
 
@@ -469,7 +483,7 @@ export function ProductPricingStep({
         </PricingSection>
       ) : isCurtainWidthMode ? (
         <PricingSection
-          title="Regra por largura linear"
+          title={modeLabel("curtain_width").ruleTitle}
           description="Defina o preço bruto por metro linear e o markup. A largura será preenchida quando o produto for usado."
           badge={
             <div className="rounded-xl bg-muted/40 px-4 py-3">
@@ -519,7 +533,7 @@ export function ProductPricingStep({
 
             <StaticMeasureField
               label="Largura"
-              helper="Informada na proposta e no ambiente"
+              helper={measureHelper}
             />
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -637,7 +651,7 @@ export function ProductPricingStep({
         </PricingSection>
       ) : (
         <PricingSection
-          title="Faixas por altura"
+          title={modeLabel("curtain_height").ruleTitle}
           description="Crie uma faixa para cada altura máxima. Cada faixa usa preço bruto, markup e largura preenchida depois na proposta."
           badge={
             <Button type="button" variant="outline" onClick={onAddHeightPricingTier}>
@@ -702,7 +716,7 @@ export function ProductPricingStep({
 
                       <StaticMeasureField
                         label="Largura"
-                        helper="Informada na proposta e no ambiente"
+                        helper={measureHelper}
                       />
                     </FormGroup>
 

@@ -44,7 +44,6 @@ export const updateTenant = async (req: Request, res: Response) => {
     // Only allow safe fields to be updated
     const allowedFields = [
       "name",
-      "niche",
       "primaryColor",
       "logoUrl",
       "proposalDefaults",
@@ -53,6 +52,13 @@ export const updateTenant = async (req: Request, res: Response) => {
 
     if (isSuperAdmin) {
       allowedFields.push("whatsappEnabled");
+    }
+
+    // O nicho nunca muda depois do cadastro, nem pelo superadmin: a empresa
+    // inteira (catálogo, proposta, obra) segue o formato dele. Reenviar o
+    // valor atual é ignorado; pedir outro é recusado.
+    if (updateData.niche !== undefined && updateData.niche !== tenantSnap.data()?.niche) {
+      return res.status(409).json({ message: "O nicho da empresa não muda depois do cadastro." });
     }
     const safeUpdate: Record<string, unknown> = {
       updatedAt: Timestamp.now(),

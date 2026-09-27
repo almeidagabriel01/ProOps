@@ -4,6 +4,8 @@ import { ProposalSistema } from "@/types/automation";
 import { ProposalWorkflow } from "@/lib/niches/config";
 import { ProductRow } from "./product-row";
 import { compareConfiguredDisplayItem } from "@/lib/sort-text";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap } from "@/lib/niches/vocabulary";
 
 interface SystemGroupRowsProps {
   selectedSistemas: ProposalSistema[];
@@ -20,6 +22,7 @@ export function SystemGroupRows({
   isProductInactive,
   mode,
 }: SystemGroupRowsProps) {
+  const { place } = useNicheVocabulary();
   return (
     <>
       {selectedSistemas.map((sistema, sistemaIdx) => {
@@ -30,7 +33,8 @@ export function SystemGroupRows({
               ? [
                   {
                     ambienteId: sistema.ambienteId,
-                    ambienteName: sistema.ambienteName || "Ambiente",
+                    ambienteName:
+                      sistema.ambienteName || cap(place.singular),
                   },
                 ]
               : [];

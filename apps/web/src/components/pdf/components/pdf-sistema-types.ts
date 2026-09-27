@@ -52,14 +52,22 @@ export function resolvePdfDisplaySettings(
   return { ...defaultPdfDisplaySettings, ...pdfDisplaySettings };
 }
 
-export function resolveSistemaAmbientes(sistema: PdfSistema): PdfAmbiente[] {
+/**
+ * Os locais do grupo. `placeFallbackName` nomeia o local de uma seleção
+ * legada sem nome ("Ambiente", "Área"): vem do vocabulário do nicho, que o
+ * chamador resolve pelo `tenantNiche` (o PDF roda sem TenantProvider).
+ */
+export function resolveSistemaAmbientes(
+  sistema: PdfSistema,
+  placeFallbackName: string,
+): PdfAmbiente[] {
   if (sistema.ambientes && sistema.ambientes.length > 0) {
     return sistema.ambientes;
   }
 
   return [
     {
-      ambienteName: sistema.ambienteName || "Ambiente",
+      ambienteName: sistema.ambienteName || placeFallbackName,
       ambienteId: sistema.ambienteId,
     },
   ];

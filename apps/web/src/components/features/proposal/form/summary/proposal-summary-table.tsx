@@ -9,6 +9,7 @@ import { ProductRow } from "./product-row";
 import { SystemGroupRows } from "./system-group-rows";
 import { SummaryFooter } from "./summary-footer";
 import { compareConfiguredDisplayItem } from "@/lib/sort-text";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
 
 interface ProposalSummaryTableProps {
   selectedProducts: ProposalProduct[];
@@ -47,10 +48,8 @@ export function ProposalSummaryTable({
     .sort(compareConfiguredDisplayItem);
   const usesGroupedRows =
     proposalWorkflow === "automation" || proposalWorkflow === "environment";
-  const extraItemsLabel =
-    proposalWorkflow === "automation"
-      ? "Produtos Extras (não vinculados a sistemas)"
-      : "Produtos Extras (não vinculados a ambientes)";
+  const { group } = useNicheVocabulary();
+  const extraItemsLabel = `Produtos Extras (não vinculados a ${group.plural})`;
 
   const isProductInactive = (product: ProposalProduct) => {
     const catalogProduct = products.find(

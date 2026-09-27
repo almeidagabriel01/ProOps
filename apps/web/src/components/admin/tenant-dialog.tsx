@@ -325,9 +325,12 @@ export function TenantDialog({
                     <Label htmlFor="niche" className="mb-3 block">
                       Nicho
                     </Label>
+                    {/* O nicho nasce no cadastro e nunca muda: na edição
+                        ele só aparece. */}
                     <Select
                       id="niche"
                       value={formData.niche}
+                      disabled={Boolean(initialData)}
                       onChange={(e) =>
                         setFormData({
                           ...formData,

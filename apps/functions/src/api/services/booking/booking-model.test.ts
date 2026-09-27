@@ -133,6 +133,7 @@ describe("tipos de visita", () => {
   it("começam pelo nicho", () => {
     expect(defaultVisitTypes("cortinas")[0].label).toBe("Medição");
     expect(defaultVisitTypes("automacao_residencial")[0].label).toBe("Visita técnica");
+    expect(defaultVisitTypes("seguranca_eletronica")[0].label).toBe("Vistoria técnica");
   });
 
   it("id a partir do nome, sem repetir", () => {

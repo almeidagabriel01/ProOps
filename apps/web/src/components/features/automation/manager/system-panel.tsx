@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Cpu, Menu, Plus } from "lucide-react";
 import { Sistema } from "@/types/automation";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, novo } from "@/lib/niches/vocabulary";
 
 interface SystemPanelProps {
   sistemas: Sistema[];
@@ -19,6 +21,7 @@ export function SystemPanel({
   isMobileMenuOpen,
   onCloseMobileMenu,
 }: SystemPanelProps) {
+  const v = useNicheVocabulary();
   return (
     <>
       <div
@@ -29,7 +32,7 @@ export function SystemPanel({
       >
         <div className="p-4 border-b flex items-center justify-between bg-muted/10">
           <h3 className="font-semibold flex items-center gap-2">
-            <Cpu className="w-4 h-4" /> Soluções
+            <Cpu className="w-4 h-4" /> {cap(v.group.plural)}
           </h3>
           <Button
             size="icon"
@@ -68,7 +71,8 @@ export function SystemPanel({
             className="w-full justify-start gap-2 text-muted-foreground"
           >
             <a href="/solutions?editSistemaId=new" target="_blank">
-              <Plus className="w-3 h-3" /> Nova Solução
+              <Plus className="w-3 h-3" /> {cap(novo(v.group))}{" "}
+              {cap(v.group.singular)}
             </a>
           </Button>
         </div>

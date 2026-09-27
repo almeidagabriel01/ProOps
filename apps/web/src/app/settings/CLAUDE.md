@@ -182,7 +182,7 @@ O `tenantOwner` (usuário admin do tenant) também é exposto pelo provider e us
 
 - Qualquer usuário autenticado do tenant pode **ler** os dados do tenant (via `useTenant()`).
 - Somente `isMaster === true` (role `admin`) pode **editar** via `OrganizationForm`.
-- Configurações críticas (niche, WhatsApp, limites do plano) só são alteráveis pelo `superadmin` via `/admin`.
+- Configurações críticas (WhatsApp, limites do plano) só são alteráveis pelo `superadmin` via `/admin`. O nicho não muda nunca, nem por ele.
 - As regras do Firestore (`firestore.rules`) impõem isolamento por `tenantId` — um tenant nunca acessa dados de outro.
 
 ---

@@ -22,6 +22,7 @@ import { toast } from "@/lib/toast";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { useWindowFocus } from "@/hooks/use-window-focus";
 import { getNicheConfig } from "@/lib/niches/config";
+import { cap, do_, este, pick } from "@/lib/niches/vocabulary";
 import {
   formatItemQuantity,
   normalizeItemQuantity,
@@ -50,7 +51,9 @@ export function AmbienteProductsDialog({
   ...props
 }: AmbienteProductsDialogProps) {
   const { tenant } = useTenant();
-  const inventoryConfig = getNicheConfig(tenant?.niche).productCatalog.inventory;
+  const nicheConfig = getNicheConfig(tenant?.niche);
+  const inventoryConfig = nicheConfig.productCatalog.inventory;
+  const v = nicheConfig.vocabulary;
   const allowDecimalProductQuantity = inventoryConfig.step < 1;
 
   const [selectedProducts, setSelectedProducts] = React.useState<
@@ -219,7 +222,7 @@ export function AmbienteProductsDialog({
         await AmbienteService.updateAmbiente(ambiente.id, updatedData);
       }
 
-      toast.success("Itens do ambiente salvos!");
+      toast.success(`Itens ${do_(v.place)} ${v.place.singular} salvos!`);
       onSave?.();
       onClose();
     } catch (error) {
@@ -250,12 +253,12 @@ export function AmbienteProductsDialog({
         <div className="p-6 border-b shrink-0">
           <DialogHeader>
             <DialogTitle>
-              Itens Padrao - {ambiente?.name || "Ambiente"}
+              Itens Padrao - {ambiente?.name || cap(v.place.singular)}
             </DialogTitle>
             <DialogDescription>
               Configure os produtos e serviços que serão adicionados
-              automaticamente quando este ambiente for selecionado em uma
-              proposta.
+              automaticamente quando {este(v.place)} {v.place.singular} for{" "}
+              {pick(v.place, "selecionado", "selecionada")} em uma proposta.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -442,7 +445,8 @@ export function AmbienteProductsDialog({
                     Nenhum item configurado
                   </p>
                   <p className="text-center text-sm opacity-70">
-                    Use a busca acima para adicionar itens a este ambiente
+                    Use a busca acima para adicionar itens a {este(v.place)}{" "}
+                    {v.place.singular}
                   </p>
                 </div>
               )}

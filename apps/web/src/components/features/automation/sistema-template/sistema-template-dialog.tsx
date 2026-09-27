@@ -16,6 +16,8 @@ import { useSistemaForm } from "./useSistemaForm";
 import { Spinner } from "@/components/ui/spinner";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { SistemaInfoSection, AmbienteSelectorSection } from "./sections";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, o, os } from "@/lib/niches/vocabulary";
 
 interface SistemaTemplateDialogProps {
   isOpen: boolean;
@@ -42,6 +44,8 @@ export function SistemaTemplateDialog({
   ambientes: managedAmbientes,
   onAction,
 }: SistemaTemplateDialogProps) {
+  const v = useNicheVocabulary();
+  const createGroupLabel = `Criar ${cap(v.group.singular)}`;
   const {
     name,
     setName,
@@ -72,10 +76,13 @@ export function SistemaTemplateDialog({
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">
-            {isEditing ? "Editar Solução" : "Novo Template de Solução"}
+            {isEditing
+              ? `Editar ${cap(v.group.singular)}`
+              : `Novo Template de ${cap(v.group.singular)}`}
           </DialogTitle>
           <DialogDescription>
-            Configure a solução com descrição e produtos padrão.
+            Configure {o(v.group)} {v.group.singular} com descrição e produtos
+            padrão.
           </DialogDescription>
         </DialogHeader>
 
@@ -104,9 +111,7 @@ export function SistemaTemplateDialog({
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800">
               <p className="font-medium mb-1">ℹ️ Configuração de Produtos</p>
               <p>
-                Os produtos agora são configurados diretamente em cada Ambiente.
-                Vincule os ambientes acima e depois configure seus produtos no
-                menu de Ambientes.
+                {`Os produtos agora são configurados diretamente em cada ${cap(v.place.singular)}. Vincule ${os(v.place)} ${v.place.plural} acima e depois configure seus produtos no menu de ${cap(v.place.plural)}.`}
               </p>
             </div>
           </div>
@@ -140,7 +145,7 @@ export function SistemaTemplateDialog({
                   ? "Salvando..."
                   : isEditing
                     ? "Salvar Alterações"
-                    : "Criar Sistema"}
+                    : createGroupLabel}
               </Button>
             </>
           ) : (
@@ -162,7 +167,7 @@ export function SistemaTemplateDialog({
                   ? "Salvando..."
                   : isEditing
                     ? "Salvar Alterações"
-                    : "Criar Solução"}
+                    : createGroupLabel}
               </Button>
             </>
           )}

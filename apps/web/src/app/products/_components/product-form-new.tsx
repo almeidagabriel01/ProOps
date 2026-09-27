@@ -111,7 +111,7 @@ export function ProductFormNew({
 }: ProductFormNewProps) {
   const router = useRouter();
   const nicheConfig = useCurrentNicheConfig();
-  const isCurtainNiche = nicheConfig.id === "cortinas";
+  const allowsDimensionPricing = nicheConfig.pricing.dimensionModes.length > 0;
   const {
     formData,
     imageUrls,
@@ -146,10 +146,10 @@ export function ProductFormNew({
   const sellingPrice = calculateSellingPrice(basePrice, markupValue);
   const isCurtainQuantityProduct =
     entityType === "product" &&
-    isCurtainNiche &&
+    allowsDimensionPricing &&
     formData.pricingMode === "standard";
   const shouldShowInventorySummary =
-    entityType === "product" && (!isCurtainNiche || isCurtainQuantityProduct);
+    entityType === "product" && (!allowsDimensionPricing || isCurtainQuantityProduct);
   const inventoryReadOnlyLabel = isCurtainQuantityProduct
     ? "Estoque"
     : nicheConfig.productCatalog.inventory.readOnlyLabel;
@@ -250,7 +250,7 @@ export function ProductFormNew({
             entityType={entityType}
             formData={formData}
             errors={errors}
-            isCurtainNiche={isCurtainNiche}
+            allowsDimensionPricing={allowsDimensionPricing}
             isReadOnly
             initialData={initialData}
             onChange={handleChange}
@@ -374,7 +374,7 @@ export function ProductFormNew({
                   <Input
                     id="name"
                     name="name"
-                    placeholder="Ex: Cortina wave premium"
+                    placeholder={nicheConfig.vocabulary.productNamePlaceholder}
                     value={formData.name}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -476,7 +476,7 @@ export function ProductFormNew({
               entityType={entityType}
               formData={formData}
               errors={errors}
-              isCurtainNiche={isCurtainNiche}
+              allowsDimensionPricing={allowsDimensionPricing}
               initialData={initialData}
               onChange={handleChange}
               onBlur={handleBlur}

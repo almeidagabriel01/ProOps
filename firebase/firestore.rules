@@ -263,8 +263,24 @@ service cloud.firestore {
      * read `||` chain so this cheap field comparison short-circuits before the
      * expensive tenantSubscriptionAllowsRead get()/exists() lookups.
      */
+    // Ids de nicho aceitos. Lista espelhada de apps/functions/src/shared/niches.ts,
+    // comparada em apps/web/src/__tests__/niche-ids-parity.test.ts.
+    function isKnownTenantNiche(niche) {
+      return niche in ['automacao_residencial', 'cortinas', 'seguranca_eletronica'];
+    }
+
+    // Tenants de demonstracao, um por nicho. Lista espelhada de
+    // apps/functions/src/shared/demo-tenant.ts, comparada em
+    // apps/web/src/__tests__/demo-tenants-parity.test.ts.
+    // O nicho (e o campo legado tenantNiche) de uma empresa nao muda depois
+    // de gravado. Campo ausente conta como null dos dois lados.
+    function tenantNicheUnchanged() {
+      return request.resource.data.get('niche', null) == resource.data.get('niche', null)
+             && request.resource.data.get('tenantNiche', null) == resource.data.get('tenantNiche', null);
+    }
+
     function isDemoRead(resourceTenantId) {
-      return isAuthenticated() && resourceTenantId == 'demo';
+      return isAuthenticated() && resourceTenantId in ['demo', 'demo-cortinas', 'demo-seguranca'];
     }
 
     /**
@@ -519,8 +535,9 @@ service cloud.firestore {
       allow read: if isSuperAdmin()
                   || belongsToTenant(tenantId)
                   || isBootstrapTenant(tenantId);
-      // CREATE: Super admin can create any tenant, users can only create their own (self-registration)
-      allow create: if isSuperAdmin()
+      // CREATE: Super admin can create any tenant, users can only create their own (self-registration).
+      // Nos dois casos a empresa nasce com um nicho que existe.
+      allow create: if (isSuperAdmin() && isKnownTenantNiche(request.resource.data.get('niche', '')))
                     || (isBootstrapTenant(tenantId)
                         && request.resource.data.get('tenantId', tenantId) == tenantId
                         && request.resource.data.keys().hasOnly([
@@ -532,15 +549,18 @@ service cloud.firestore {
                           'niche',
                           'createdAt',
                           'updatedAt',
-                        ]));
-      // UPDATE: Super admin can update any field, tenant owner (master) can update safe fields
-      allow update: if isSuperAdmin()
+                        ])
+                        && isKnownTenantNiche(request.resource.data.get('niche', '')));
+      // UPDATE: Super admin can update any field but the niche; tenant owner (master) can update safe fields.
+      // O nicho nunca muda depois do cadastro, nem pelo superadmin: a empresa
+      // inteira (catalogo, proposta, obra, demonstracao) segue o formato dele.
+      allow update: if (isSuperAdmin() && tenantNicheUnchanged())
                     || (isAuthenticated()
                         && belongsToTenant(tenantId)
                         && hasTenantAdminRole()
                         && request.resource.data.get('tenantId', tenantId) == tenantId
                         && resource.data.get('tenantId', tenantId) == request.resource.data.get('tenantId', tenantId)
-                        && onlyUpdatesFields(['name', 'niche', 'primaryColor', 'logoUrl', 'updatedAt']));
+                        && onlyUpdatesFields(['name', 'primaryColor', 'logoUrl', 'updatedAt']));
       // DELETE: Only super admin can delete tenants
       allow delete: if isSuperAdmin();
 

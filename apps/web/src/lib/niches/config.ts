@@ -1,189 +1,26 @@
 import type { TenantNiche } from "@/types";
+import { DEFAULT_NICHE, isTenantNiche } from "./registry";
+import type { InventoryDefinition, NicheConfig, SolutionsPageDefinition } from "./config-types";
+import { nicheConfig as automacaoResidencial } from "./definitions/automacao_residencial/app";
+import { nicheConfig as cortinas } from "./definitions/cortinas/app";
+import { nicheConfig as segurancaEletronica } from "./definitions/seguranca_eletronica/app";
 
-export type InventoryUnit = "unit" | "meter";
-export type ProposalWorkflow = "automation" | "catalog" | "environment";
-export type SolutionsPageMode = "automation" | "environment";
+export * from "./config-types";
 
-export interface InventoryDefinition {
-  mode: InventoryUnit;
-  unitLabel: string;
-  unitSuffix: string;
-  priceSuffix: string;
-  tableHeader: string;
-  formLabel: string;
-  formInitialLabel: string;
-  readOnlyLabel: string;
-  pageDescription: string;
-  emptyStateDescription: string;
-  costBalanceLabel: string;
-  revenueBalanceLabel: string;
-  lowValueThreshold: number;
-  step: number;
-}
-
-export interface ProductCatalogDefinition {
-  singularLabel: string;
-  pluralLabel: string;
-  newTitle: string;
-  newSubtitle: string;
-  editTitle: string;
-  editSubtitle: (productName: string) => string;
-  viewTitle: string;
-  viewSubtitle: (productName: string) => string;
-  inventory: InventoryDefinition;
-}
-
-export interface SolutionsPageDefinition {
-  navigationLabel: string;
-  pageTitle: string;
-  pageDescription: string;
-  mode: SolutionsPageMode;
-}
-
-export interface NicheConfig {
-  id: TenantNiche;
-  label: string;
-  pageAvailability: Partial<Record<string, boolean>>;
-  solutionsPage: SolutionsPageDefinition;
-  proposal: {
-    workflow: ProposalWorkflow;
-  };
-  productCatalog: ProductCatalogDefinition;
-  /**
-   * Tipo de visita com que o link de agendamento nasce. Espelho de
-   * `defaultVisitTypes` do backend (booking-model.ts), com teste de paridade;
-   * aqui só serve à demonstração, que não chama a API.
-   */
-  booking: {
-    defaultVisitType: { id: string; label: string; durationMin: number };
-  };
-}
-
-const unitInventoryDefinition: InventoryDefinition = {
-  mode: "unit",
-  unitLabel: "unidades",
-  unitSuffix: "un",
-  priceSuffix: "",
-  tableHeader: "Estoque",
-  formLabel: "Estoque",
-  formInitialLabel: "Estoque Inicial",
-  readOnlyLabel: "Estoque",
-  pageDescription: "Gerencie o catálogo de produtos, estoque e preços.",
-  emptyStateDescription:
-    "Cadastre seus produtos para gerenciar estoque e criar propostas.",
-  costBalanceLabel: "Saldo de custo em estoque",
-  revenueBalanceLabel: "Saldo com markup em estoque",
-  lowValueThreshold: 10,
-  step: 1,
-};
-
-const meterInventoryDefinition: InventoryDefinition = {
-  mode: "meter",
-  unitLabel: "metros",
-  unitSuffix: "m",
-  priceSuffix: "/ m",
-  tableHeader: "Metragem",
-  formLabel: "Metragem",
-  formInitialLabel: "Metragem Inicial",
-  readOnlyLabel: "Metragem",
-  pageDescription:
-    "Gerencie o catálogo de cortinas, a metragem disponível e os preços.",
-  emptyStateDescription:
-    "Cadastre seus tecidos, modelos ou kits para controlar a metragem disponível e montar propostas.",
-  costBalanceLabel: "Saldo de custo em metragem",
-  revenueBalanceLabel: "Saldo com markup em metragem",
-  lowValueThreshold: 10,
-  step: 0.01,
-};
-
+/**
+ * A configuração de tela de cada nicho, uma pasta por nicho em
+ * `lib/niches/definitions/<id>/`. O `Record` faz o compilador cobrar a pasta de
+ * um nicho novo.
+ */
 export const NICHE_CONFIGS: Record<TenantNiche, NicheConfig> = {
-  automacao_residencial: {
-    id: "automacao_residencial",
-    label: "Automação Residencial",
-    pageAvailability: {
-      solutions: true,
-      ambientes: false,
-      // Projetos de instalação: nos dois nichos, com etapas padrão próprias
-      // (Infraestrutura, Instalação, Configuração, Entrega).
-      projects: true,
-      // Tarefas: iguais nos dois nichos.
-      tasks: true,
-    },
-    solutionsPage: {
-      navigationLabel: "Soluções",
-      pageTitle: "Soluções",
-      pageDescription: "Central de gerenciamento de soluções e ambientes.",
-      mode: "automation",
-    },
-    proposal: {
-      workflow: "automation",
-    },
-    productCatalog: {
-      singularLabel: "Produto",
-      pluralLabel: "Produtos",
-      newTitle: "Novo Produto",
-      newSubtitle:
-        "Adicione um novo produto ao seu catálogo com todas as informações necessárias.",
-      editTitle: "Editar Produto",
-      editSubtitle: (productName) =>
-        `Atualize as informações de "${productName}"`,
-      viewTitle: "Visualizar Produto",
-      viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
-      inventory: unitInventoryDefinition,
-    },
-    booking: {
-      defaultVisitType: { id: "visita_tecnica", label: "Visita técnica", durationMin: 60 },
-    },
-  },
-  cortinas: {
-    id: "cortinas",
-    label: "Cortinas",
-    pageAvailability: {
-      solutions: false,
-      ambientes: true,
-      // Projetos de instalação: nos dois nichos, com etapas padrão próprias
-      // (Medição, Produção, Instalação, Entrega).
-      projects: true,
-      // Tarefas: iguais nos dois nichos.
-      tasks: true,
-    },
-    solutionsPage: {
-      navigationLabel: "Ambientes",
-      pageTitle: "Ambientes",
-      pageDescription:
-        "Gerencie os ambientes e configure os produtos padrões de cada espaço.",
-      mode: "environment",
-    },
-    proposal: {
-      workflow: "environment",
-    },
-    productCatalog: {
-      singularLabel: "Produto",
-      pluralLabel: "Produtos",
-      newTitle: "Novo Produto",
-      newSubtitle:
-        "Adicione um novo item ao catálogo de cortinas com preço, acabamento e metragem.",
-      editTitle: "Editar Produto",
-      editSubtitle: (productName) =>
-        `Atualize as informações de "${productName}"`,
-      viewTitle: "Visualizar Produto",
-      viewSubtitle: (productName) => `Detalhes do produto "${productName}"`,
-      inventory: meterInventoryDefinition,
-    },
-    booking: {
-      defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
-    },
-  },
+  automacao_residencial: automacaoResidencial,
+  cortinas: cortinas,
+  seguranca_eletronica: segurancaEletronica,
 };
 
-const DEFAULT_NICHE: TenantNiche = "automacao_residencial";
-
+/** Nicho desconhecido (ou vindo de um doc antigo) é tratado como automação. */
 export function getNicheConfig(niche?: TenantNiche | null): NicheConfig {
-  if (!niche) {
-    return NICHE_CONFIGS[DEFAULT_NICHE];
-  }
-
-  return NICHE_CONFIGS[niche] || NICHE_CONFIGS[DEFAULT_NICHE];
+  return NICHE_CONFIGS[isTenantNiche(niche) ? niche : DEFAULT_NICHE];
 }
 
 export function isPageEnabledForNiche(
@@ -192,9 +29,9 @@ export function isPageEnabledForNiche(
 ): boolean {
   if (!pageId) return true;
 
-  const config = getNicheConfig(niche);
-  const pageState = config.pageAvailability[pageId];
-  return pageState !== false;
+  const availability: Partial<Record<string, boolean>> =
+    getNicheConfig(niche).pageAvailability;
+  return availability[pageId] !== false;
 }
 
 export function getSolutionsPageConfig(

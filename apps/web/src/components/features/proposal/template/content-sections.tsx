@@ -7,9 +7,10 @@ import {
   getProposalLineUnitSellingPrice,
   getProposalProductMeasurementLabel,
   getProposalProductUnitLabel,
-  isCortinasDimensionProductLine,
-  isCortinasNeutralServiceLine,
+  isDimensionProductLine,
+  isNeutralServiceLine,
 } from "@/lib/product-pricing";
+import { getNicheConfig } from "@/lib/niches/config";
 
 interface ProductsSectionProps {
   proposal: Partial<Proposal>;
@@ -65,7 +66,7 @@ export function ProductsSection({
                 </div>
                 <div className="text-right flex-shrink-0">
                   <div className="text-sm text-gray-500">
-                    {isCortinasDimensionProductLine(tenantNiche, product) ? (
+                    {isDimensionProductLine(product) ? (
                       <>
                         {getProposalProductMeasurementLabel(product)} x{" "}
                         {formatCurrency(
@@ -73,7 +74,10 @@ export function ProductsSection({
                         )}{" "}
                         / {getProposalProductUnitLabel(product)}
                       </>
-                    ) : isCortinasNeutralServiceLine(tenantNiche, product) ? (
+                    ) : isNeutralServiceLine(
+                        getNicheConfig(tenantNiche).proposal.lineFormat,
+                        product,
+                      ) ? (
                       formatCurrency(getProposalLineUnitSellingPrice(product))
                     ) : (
                       <>

@@ -12,7 +12,7 @@ lib/
 ├── api-client.ts            # cliente `fetch` (`callApi`, `callPublicApi`) para /api/backend/*
 ├── firestore-error.ts       # Tratamento de erros Firestore
 ├── auth/                    # Helpers de autenticação (verificação de token, session)
-├── niches/                  # Lógica multi-niche (automacao_residencial | cortinas)
+├── niches/                  # Lógica multi-niche (automacao_residencial | cortinas | seguranca_eletronica)
 ├── plans/                   # Rótulo de plano (`plan-label.ts`)
 ├── site/                    # Política de host: qual das 3 superfícies e o SEO de cada uma
 ├── permissions/             # Fonte única dos pageIds do sistema de permissões
@@ -40,9 +40,13 @@ lib/
 
 ### Multi-niche (`niches/`)
 - Toda lógica que varia por nicho de negócio fica aqui
-- Nichos: `automacao_residencial` | `cortinas`
+- Nichos: `automacao_residencial` | `cortinas` | `seguranca_eletronica`. Os ids vêm de `registry.ts` (espelho de
+  `NICHE_REGISTRY` em `apps/functions/src/shared/niches.ts`, com rótulo e caminho da landing; a paridade,
+  que também lê o `firestore.rules`, está em `__tests__/niche-registry-parity.test.ts`)
 - Usar `useCurrentNicheConfig()` no frontend ou helpers de nicho no backend
 - **Nunca** fazer `if (niche === 'cortinas')` espalhado pelo código — use os helpers
+- Uma pasta por nicho (`niches/definitions/<id>/`), vocabulário com concordância
+  (`niches/vocabulary.ts`) e o roteiro para adicionar um nicho: `niches/CLAUDE.md`
 
 ### Permissions (`permissions/pages.ts`)
 - `PERMISSION_PAGES` é a **fonte única** dos `pageId` do sistema de permissões:

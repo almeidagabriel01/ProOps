@@ -55,6 +55,12 @@ function form(overrides: Partial<TenantFormData> = {}): TenantFormData {
 }
 
 describe("buildTenantSavePlan", () => {
+  it("nunca grava o nicho: ele nasce no cadastro e não muda", () => {
+    const plan = buildTenantSavePlan(item(), form({ niche: "seguranca_eletronica", name: "Outro" }));
+    expect(plan.tenantUpdate).toEqual({ name: "Outro" });
+    expect(plan.tenantUpdate).not.toHaveProperty("niche");
+  });
+
   it("renomear uma empresa Stripe NAO toca assinatura (o bug que a rebaixava)", () => {
     const plan = buildTenantSavePlan(
       item({ billingManagedBy: "stripe" }),

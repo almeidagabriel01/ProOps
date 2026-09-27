@@ -91,7 +91,7 @@ O que pode ser editado pelo master:
 | `primaryColor` | hex string | Color picker + input de texto |
 | `logoUrl` | imagem Base64 | Max 2MB, tipos: JPEG, PNG, GIF, WebP, SVG |
 
-O campo `niche` é exibido como read-only (somente alterável pelo superadmin).
+O campo `niche` é exibido como read-only: o nicho nasce no cadastro e nunca muda, nem pelo superadmin.
 
 Persiste via `TenantService.updateTenant()` → `PUT /v1/tenants/:id`.
 

@@ -1,12 +1,9 @@
-// Nichos disponíveis no sistema
-export type TenantNiche =
-  | "automacao_residencial"
-  | "cortinas";
+import { mapNiches, type TenantNicheId } from "@/lib/niches/registry";
 
-export const NICHE_LABELS: Record<TenantNiche, string> = {
-  automacao_residencial: "Automação Residencial",
-  cortinas: "Cortinas",
-};
+// Nichos disponíveis no sistema (registro em lib/niches/registry.ts)
+export type TenantNiche = TenantNicheId;
+
+export const NICHE_LABELS: Record<TenantNiche, string> = mapNiches((entry) => entry.label);
 
 export type Tenant = {
   id: string;

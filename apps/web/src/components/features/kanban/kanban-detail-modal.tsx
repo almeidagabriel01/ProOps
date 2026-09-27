@@ -11,9 +11,10 @@ import {
   getProposalLineUnitSellingPrice,
   getProposalProductMeasurementLabel,
   getProposalProductUnitLabel,
-  isCortinasDimensionProductLine,
-  isCortinasNeutralServiceLine,
+  isDimensionProductLine,
+  isNeutralServiceLine,
 } from "@/lib/product-pricing";
+import { getNicheConfig } from "@/lib/niches/config";
 import { useTenant } from "@/providers/tenant-provider";
 import { Transaction, TransactionStatus } from "@/services/transaction-service";
 import { ProposalService } from "@/services/proposal-service";
@@ -83,7 +84,7 @@ function KanbanProposalProductLineDetail({
   product: ProposalProduct;
   tenantNiche: TenantNiche | null | undefined;
 }) {
-  if (isCortinasDimensionProductLine(tenantNiche, product)) {
+  if (isDimensionProductLine(product)) {
     return (
       <>
         {getProposalProductMeasurementLabel(product)} x{" "}
@@ -92,7 +93,7 @@ function KanbanProposalProductLineDetail({
       </>
     );
   }
-  if (isCortinasNeutralServiceLine(tenantNiche, product)) {
+  if (isNeutralServiceLine(getNicheConfig(tenantNiche).proposal.lineFormat, product)) {
     return <>{formatCurrency(getProposalLineUnitSellingPrice(product))}</>;
   }
   return (

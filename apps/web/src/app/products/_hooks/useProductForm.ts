@@ -17,7 +17,8 @@ import {
 } from "@/services/storage-service";
 import { useFormValidation, FormErrors } from "@/hooks/useFormValidation";
 import { productSchema, serviceSchema } from "@/lib/validations";
-import { parseInventoryValue } from "@/lib/niches/config";
+import { getNicheConfig, parseInventoryValue } from "@/lib/niches/config";
+import type { TenantNiche } from "@/types";
 import {
   CurtainHeightTier,
   ProductPricingMode,
@@ -126,19 +127,17 @@ function normalizeInitialInventoryValue(value: unknown): string {
 }
 
 function resolveCatalogInventoryUnit(
-  niche: string | undefined,
+  niche: TenantNiche | undefined,
   entityType: CatalogEntityType,
   pricingMode: ProductPricingMode,
 ): "unit" | "meter" {
-  if (entityType !== "product") {
-    return niche === "cortinas" ? "meter" : "unit";
-  }
-
-  if (niche === "cortinas" && pricingMode === "standard") {
+  // Produto cobrado por quantidade conta estoque em unidade em qualquer nicho;
+  // o resto segue a unidade do catálogo do nicho.
+  if (entityType === "product" && pricingMode === "standard") {
     return "unit";
   }
 
-  return niche === "cortinas" ? "meter" : "unit";
+  return getNicheConfig(niche).productCatalog.inventory.mode;
 }
 
 function createHeightPricingTierFormData(
@@ -168,10 +167,10 @@ function createHeightPricingTierFormData(
 function getInitialPricingMode(
   initialData: CatalogItem | undefined,
   entityType: CatalogEntityType,
-  niche?: string,
+  niche?: TenantNiche,
 ): ProductPricingMode {
   if (entityType !== "product" || !initialData || !("manufacturer" in initialData)) {
-    return niche === "cortinas" ? "curtain_meter" : "standard";
+    return getNicheConfig(niche).pricing.defaultProductMode;
   }
 
   return getProductPricingMode(initialData);

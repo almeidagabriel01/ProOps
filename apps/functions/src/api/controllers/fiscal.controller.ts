@@ -783,7 +783,10 @@ export const issueInvoiceHandler = async (req: Request, res: Response): Promise<
         cfop:
           type === "nfe" ? deriveCfop(natureza, settings.endereco.uf, ufDestinatario) : "",
         origem: normalizeOrigem(item.origem),
-        unidadeComercial: deriveUnidadeComercial(text(item.inventoryUnit)),
+        unidadeComercial: deriveUnidadeComercial(
+          text(item.inventoryUnit),
+          text(item.pricingMode),
+        ),
         ...buildSituacaoTributaria(settings.regimeTributario, text(item.situacaoTributaria)),
       })),
       service: service as never,

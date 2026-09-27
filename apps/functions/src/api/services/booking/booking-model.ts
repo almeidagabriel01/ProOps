@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { mapNiches, nicheEntry, type TenantNicheId, type VisitType } from "../../../shared/niches";
 
 /**
  * Link público de agendamento (capacidade `bookingLink`, Pro e Enterprise).
@@ -19,11 +20,7 @@ export const BOOKING_LOCKS_COLLECTION = "booking_locks";
 const BRAZIL_OFFSET_MIN = 180;
 const DAY_MS = 86_400_000;
 
-export interface VisitType {
-  id: string;
-  label: string;
-  durationMin: number;
-}
+export type { VisitType };
 
 export interface BookingSettings {
   enabled: boolean;
@@ -45,11 +42,14 @@ export interface BookingSettings {
 
 export type BookingRequestStatus = "pending" | "confirmed" | "declined";
 
+/** Tipo de visita com que o link nasce, por nicho. A empresa edita depois. */
+export const DEFAULT_VISIT_TYPE_BY_NICHE: Record<TenantNicheId, VisitType> = mapNiches(
+  (entry) => entry.defaultVisitType,
+);
+
 /** Os tipos de visita começam pelo nicho, e a empresa edita. */
 export function defaultVisitTypes(niche: unknown): VisitType[] {
-  return niche === "cortinas"
-    ? [{ id: "medicao", label: "Medição", durationMin: 60 }]
-    : [{ id: "visita_tecnica", label: "Visita técnica", durationMin: 60 }];
+  return [{ ...nicheEntry(niche).defaultVisitType }];
 }
 
 export function defaultBookingSettings(niche: unknown): BookingSettings {

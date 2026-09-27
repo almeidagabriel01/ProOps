@@ -1,6 +1,8 @@
 "use client";
 
 import { RouteError } from "@/components/shared/route-error";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { os } from "@/lib/niches/vocabulary";
 
 export default function Error({
   error,
@@ -9,5 +11,6 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  return <RouteError error={error} reset={reset} moduleName="as soluções" />;
+  const v = useNicheVocabulary();
+  return <RouteError error={error} reset={reset} moduleName={`${os(v.group)} ${v.group.plural}`} />;
 }

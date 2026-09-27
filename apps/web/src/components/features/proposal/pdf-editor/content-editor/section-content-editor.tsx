@@ -12,6 +12,8 @@ import {
   ImageEditor,
 } from "./section-editors";
 import type { PdfSectionProposalContext } from "./section-editors";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { productTableSectionShortName } from "@/lib/proposal-product-table-section";
 
 const normalizeText = (value?: string) =>
   (value || "")
@@ -62,6 +64,7 @@ export function SectionContentEditor({
   updateStyle,
   handleImageUpload,
 }: SectionContentEditorProps) {
+  const vocabulary = useNicheVocabulary();
   const showProductsLinkHint =
     section.type === "product-table" || isScopeProductsIntro(section);
 
@@ -77,8 +80,9 @@ export function SectionContentEditor({
     <div className="space-y-4">
       {showProductsLinkHint && (
         <div className="p-3 rounded-md border bg-muted/40 text-xs text-muted-foreground">
-          Este bloco é vinculado ao conteúdo de Produtos/Sistemas/Ambientes para
-          facilitar a organização visual no PDF.
+          Este bloco é vinculado ao conteúdo de{" "}
+          {productTableSectionShortName(vocabulary)} para facilitar a
+          organização visual no PDF.
         </div>
       )}
 

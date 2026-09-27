@@ -59,6 +59,7 @@ import {
 import { useWindowFocus } from "@/hooks/use-window-focus";
 import { AIFieldButton } from "@/components/shared/ai-field-button";
 import { useCurrentNicheConfig } from "@/hooks/useCurrentNicheConfig";
+import { cap, do_, este, neste, nenhum, novo, outros, pick, um } from "@/lib/niches/vocabulary";
 
 interface SistemaEditorProps {
   sistema: Sistema | null;
@@ -106,6 +107,7 @@ export function SistemaEditor({
 }: SistemaEditorProps) {
   const { tenant } = useTenant();
   const nicheConfig = useCurrentNicheConfig();
+  const v = nicheConfig.vocabulary;
   const [isSaving, setIsSaving] = React.useState(false);
 
   // Form State
@@ -202,7 +204,9 @@ export function SistemaEditor({
         setIsCreatingAmbiente(false);
         setNewAmbienteName(""); // Clear input
         setPendingAmbienteCreationId(null); // Clear pending state
-        toast.success("Ambiente criado e adicionado!");
+        toast.success(
+          `${cap(v.place.singular)} ${pick(v.place, "criado e adicionado", "criada e adicionada")}!`,
+        );
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -289,18 +293,20 @@ export function SistemaEditor({
 
       if (sistema?.id) {
         await SistemaService.updateSistema(sistema.id, payload);
-        toast.success("Solução atualizada!");
+        toast.success(
+          `${cap(v.group.singular)} ${pick(v.group, "atualizado", "atualizada")}!`,
+        );
         onSave(sistema.id);
       } else {
         const newSystem = await SistemaService.createSistema(
           payload as unknown as Omit<Sistema, "id">,
         );
-        toast.success("Solução criada!");
+        toast.success(`${cap(v.group.singular)} ${pick(v.group, "criado", "criada")}!`);
         onSave(newSystem.id); // Pass the new ID back
       }
     } catch (e) {
       console.error(e);
-      toast.error("Erro ao salvar solução");
+      toast.error(`Erro ao salvar ${v.group.singular}`);
     } finally {
       setIsSaving(false);
     }
@@ -361,7 +367,7 @@ export function SistemaEditor({
       // Waiting for data consistency.
     } catch (error) {
       console.error("Error creating ambiente:", error);
-      toast.error("Erro ao criar ambiente");
+      toast.error(`Erro ao criar ${v.place.singular}`);
       setIsSubmittingAmbiente(false); // Only stop loading on error
     }
   };
@@ -514,9 +520,9 @@ export function SistemaEditor({
           </Button>
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-xs font-medium text-muted-foreground uppercase tracking-widest">
-              Editor da Solução
+              Editor {do_(v.group)} {cap(v.group.singular)}
             </span>
-            <h2 className="truncate text-lg sm:text-xl font-bold">{name || "Nova Solução"}</h2>
+            <h2 className="truncate text-lg sm:text-xl font-bold">{name || `${cap(novo(v.group))} ${cap(v.group.singular)}`}</h2>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 max-sm:w-full">
@@ -562,7 +568,7 @@ export function SistemaEditor({
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Iluminação"
+                  placeholder={`Ex: ${v.groupExamples.split(",")[0].trim()}`}
                   className="bg-muted/30"
                 />
               </div>
@@ -573,7 +579,11 @@ export function SistemaEditor({
                     field="product.description"
                     context={() => ({ name, niche: nicheConfig.id })}
                     onGenerated={(value) => setDescription(value)}
-                    disabledReason={!name ? "Preencha o nome da solução primeiro" : undefined}
+                    disabledReason={
+                      !name
+                        ? `Preencha o nome ${do_(v.group)} ${v.group.singular} primeiro`
+                        : undefined
+                    }
                   />
                 </div>
                 <Textarea
@@ -591,7 +601,7 @@ export function SistemaEditor({
           <Card className="flex-1 flex flex-col">
             <CardHeader className="py-4 flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
-                <Home className="w-4 h-4 text-primary" /> Ambientes
+                <Home className="w-4 h-4 text-primary" /> {cap(v.place.plural)}
               </CardTitle>
 
               <div className="contents" inert={isReadOnly || undefined}>
@@ -606,18 +616,18 @@ export function SistemaEditor({
                   align="end"
                   className="w-56 max-h-80 overflow-y-auto"
                 >
-                  <DropdownMenuLabel>Ambientes Globais</DropdownMenuLabel>
+                  <DropdownMenuLabel>{cap(v.place.plural)} Globais</DropdownMenuLabel>
                   <DropdownMenuItem
                     className="text-primary font-medium focus:text-primary focus:bg-primary/10 cursor-pointer"
                     onClick={() => setIsCreatingAmbiente(true)}
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Criar Novo Ambiente
+                    Criar {cap(novo(v.place))} {cap(v.place.singular)}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {allAmbientes.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground text-center">
-                      Cadastre ambientes na tela anterior ou crie um novo.
+                      {`Cadastre ${v.place.plural} na tela anterior ou crie ${um(v.place)} ${novo(v.place)}.`}
                     </div>
                   ) : (
                     allAmbientes.map((amb) => {
@@ -648,7 +658,7 @@ export function SistemaEditor({
                 {configAmbientes.length === 0 && (
                   <div className="py-8 text-center text-muted-foreground text-sm">
                     <BoxSelect className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                    Nenhum ambiente vinculado.
+                    {`${cap(nenhum(v.place))} ${v.place.singular} ${pick(v.place, "vinculado", "vinculada")}.`}
                   </div>
                 )}
                 <AnimatePresence>
@@ -684,7 +694,8 @@ export function SistemaEditor({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">
-                            {def?.name || "Ambiente Removido/Novo"}
+                            {def?.name ||
+                              `${cap(v.place.singular)} ${pick(v.place, "Removido/Novo", "Removida/Nova")}`}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {conf.products.length} produtos
@@ -731,11 +742,13 @@ export function SistemaEditor({
                       <Package className="w-5 h-5 text-primary" />
                       Produtos e Serviços:{" "}
                       <span className="text-muted-foreground font-normal">
-                        {activeAmbienteDef?.name || "Ambiente recém-criado"}
+                        {activeAmbienteDef?.name ||
+                          `${cap(v.place.singular)} ${pick(v.place, "recém-criado", "recém-criada")}`}
                       </span>
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Gerencie os itens automáticos para este ambiente.
+                      Gerencie os itens automáticos para {este(v.place)}{" "}
+                      {v.place.singular}.
                     </p>
                   </div>
                   <Badge variant="outline" className="px-3 py-1 h-7">
@@ -750,7 +763,7 @@ export function SistemaEditor({
                     htmlFor="env-description"
                     className="text-xs font-medium text-muted-foreground/80 ml-1"
                   >
-                    Descrição do Ambiente no PDF (Opcional)
+                    Descrição {do_(v.place)} {cap(v.place.singular)} no PDF (Opcional)
                   </Label>
                   <Input
                     id="env-description"
@@ -758,7 +771,7 @@ export function SistemaEditor({
                     onChange={(e) =>
                       handleUpdateAmbienteDescription(e.target.value)
                     }
-                    placeholder={`Ex: Descrição técnica para ${activeAmbienteDef?.name || "este ambiente"}...`}
+                    placeholder={`Ex: Descrição técnica para ${activeAmbienteDef?.name || `${este(v.place)} ${v.place.singular}`}...`}
                     className="bg-muted/30 border-muted-foreground/20 focus:bg-background transition-all"
                   />
                 </div>
@@ -856,7 +869,8 @@ export function SistemaEditor({
                     </div>
                     <h3 className="text-xl font-semibold mb-2">Lista Vazia</h3>
                     <p className="text-base text-center max-w-xs text-muted-foreground">
-                      Use a pesquisa acima para adicionar itens a este ambiente.
+                      Use a pesquisa acima para adicionar itens a{" "}
+                      {este(v.place)} {v.place.singular}.
                     </p>
                   </div>
                 ) : (
@@ -981,11 +995,10 @@ export function SistemaEditor({
                 <Home className="w-10 h-10 text-primary" />
               </div>
               <h3 className="text-2xl font-bold tracking-tight mb-2">
-                Selecione um Ambiente
+                Selecione {um(v.place)} {cap(v.place.singular)}
               </h3>
               <p className="text-muted-foreground max-w-sm mb-8">
-                Escolha um ambiente na lista lateral ou adicione um novo para
-                começar a configurar os produtos.
+                {`Escolha ${um(v.place)} ${v.place.singular} na lista lateral ou adicione ${um(v.place)} ${novo(v.place)} para começar a configurar os produtos.`}
               </p>
             </div>
           )}
@@ -996,20 +1009,21 @@ export function SistemaEditor({
       <Dialog open={isCreatingAmbiente} onOpenChange={setIsCreatingAmbiente}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Criar Novo Ambiente</DialogTitle>
+            <DialogTitle>
+              Criar {cap(novo(v.place))} {cap(v.place.singular)}
+            </DialogTitle>
             <DialogDescription>
-              Crie um novo ambiente global para utilizar nesta e em outras
-              soluções.
+              {`Crie ${um(v.place)} ${novo(v.place)} ${v.place.singular} global para utilizar ${neste(v.group)} e em ${outros(v.group)} ${v.group.plural}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center space-x-2 py-4">
             <div className="grid flex-1 gap-2">
               <Label htmlFor="new-ambiente-name" className="sr-only">
-                Nome do Ambiente
+                Nome {do_(v.place)} {cap(v.place.singular)}
               </Label>
               <Input
                 id="new-ambiente-name"
-                placeholder="Ex: Sala de Cinema, Varanda Gourmet"
+                placeholder={`Ex: ${v.placeExamples}`}
                 value={newAmbienteName}
                 onChange={(e) => setNewAmbienteName(e.target.value)}
                 onKeyDown={(e) => {
@@ -1032,7 +1046,7 @@ export function SistemaEditor({
               disabled={!newAmbienteName.trim() || isSubmittingAmbiente}
             >
               {isSubmittingAmbiente && <Spinner className="mr-2 h-4 w-4" />}
-              Criar Ambiente
+              Criar {cap(v.place.singular)}
             </Button>
           </DialogFooter>
         </DialogContent>

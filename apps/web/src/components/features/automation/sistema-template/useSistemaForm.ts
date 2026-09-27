@@ -10,6 +10,8 @@ import { useTenant } from "@/providers/tenant-provider";
 import { toast } from '@/lib/toast';
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { useWindowFocus } from "@/hooks/use-window-focus";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, pick } from "@/lib/niches/vocabulary";
 
 interface UseSistemaFormProps {
   isOpen: boolean;
@@ -54,6 +56,7 @@ export function useSistemaForm({
   onAction,
 }: UseSistemaFormProps) {
   const { tenant } = useTenant();
+  const v = useNicheVocabulary();
 
   // Form state
   const [name, setName] = React.useState("");
@@ -294,7 +297,7 @@ export function useSistemaForm({
           });
           const savedSistema = { id: editingSistema.id, ...sistemaData };
           onSave?.(savedSistema);
-          toast.success("Sistema atualizado!");
+          toast.success(`${cap(v.group.singular)} ${pick(v.group, "atualizado", "atualizada")}!`);
         } else {
           const tempId = `temp-${Date.now()}`;
           await onAction({
@@ -305,7 +308,7 @@ export function useSistemaForm({
           });
           const savedSistema = { id: tempId, ...sistemaData };
           onSave?.(savedSistema);
-          toast.success("Sistema criado!");
+          toast.success(`${cap(v.group.singular)} ${pick(v.group, "criado", "criada")}!`);
         }
         onClose();
       } else {
@@ -314,10 +317,10 @@ export function useSistemaForm({
         if (isEditing && editingSistema) {
           await SistemaService.updateSistema(editingSistema.id, sistemaData);
           savedSistema = { id: editingSistema.id, ...sistemaData };
-          toast.success("Sistema atualizado com sucesso!");
+          toast.success(`${cap(v.group.singular)} ${pick(v.group, "atualizado", "atualizada")} com sucesso!`);
         } else {
           savedSistema = await SistemaService.createSistema(sistemaData);
-          toast.success("Sistema criado com sucesso!");
+          toast.success(`${cap(v.group.singular)} ${pick(v.group, "criado", "criada")} com sucesso!`);
         }
 
         onSave?.(savedSistema);
@@ -325,7 +328,7 @@ export function useSistemaForm({
       }
     } catch (error) {
       console.error("Error saving sistema:", error);
-      toast.error("Erro ao salvar sistema");
+      toast.error(`Erro ao salvar ${v.group.singular}`);
     } finally {
       setIsSaving(false);
     }

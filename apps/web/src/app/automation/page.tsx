@@ -49,6 +49,8 @@ import {
 } from "@/lib/niches/config";
 import { Loader } from "@/components/ui/loader";
 import { useScrollContainer } from "@/providers/scroll-container-provider";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, nele, novo, o, pick, todos, os, seus } from "@/lib/niches/vocabulary";
 
 interface LocalLazyOptions {
   batchSize: number;
@@ -271,6 +273,7 @@ export default function AutomationAdminPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const solutionsPageConfig = getSolutionsPageConfig(tenant?.niche);
+  const v = useNicheVocabulary();
   const isEnvironmentOnlyMode = solutionsPageConfig.mode === "environment";
 
   const tabParam = searchParams.get("tab");
@@ -414,7 +417,7 @@ export default function AutomationAdminPage() {
     return (
       <PageUnavailableState
         title="Página indisponível para este nicho"
-        description={`O nicho ${getNicheConfig(tenant?.niche).label} não utiliza o módulo de soluções de automação.`}
+        description={`O nicho ${getNicheConfig(tenant?.niche).label} não utiliza este módulo.`}
         ctaHref="/products"
         ctaLabel="Ir para Catálogo"
       />
@@ -490,7 +493,7 @@ export default function AutomationAdminPage() {
                 onClick={() => setEditingAmbienteId("new")}
                 className="gap-2"
               >
-                <Plus className="w-5 h-5" /> Novo Ambiente
+                <Plus className="w-5 h-5" /> {cap(novo(v.place))} {cap(v.place.singular)}
               </Button>
             </motion.div>
           )}
@@ -610,14 +613,14 @@ export default function AutomationAdminPage() {
               className="px-6 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all gap-2"
             >
               <Box className="w-4 h-4" />
-              Soluções
+              {cap(v.group.plural)}
             </TabsTrigger>
             <TabsTrigger
               value="ambientes"
               className="px-6 py-2.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all gap-2"
             >
               <Layers className="w-4 h-4" />
-              Ambientes Globais
+              {cap(v.place.plural)} Globais
             </TabsTrigger>
           </TabsList>
 
@@ -634,7 +637,8 @@ export default function AutomationAdminPage() {
                   onClick={() => setEditingSistemaId("new")}
                   className="gap-2 w-full sm:w-auto"
                 >
-                  <Plus className="w-5 h-5" /> Nova Solução
+                  <Plus className="w-5 h-5" /> {cap(novo(v.group))}{" "}
+                  {cap(v.group.singular)}
                 </Button>
               </motion.div>
             )}
@@ -697,11 +701,10 @@ export default function AutomationAdminPage() {
                 <div className="space-y-1">
                   <CardTitle className="text-xl flex items-center gap-2">
                     <Layers className="w-5 h-5 text-primary" />
-                    Gerenciar Ambientes
+                    Gerenciar {cap(v.place.plural)}
                   </CardTitle>
                   <CardDescription>
-                    Crie ambientes padronizados (ex: Sala, Quarto) para usar em
-                    todas as suas soluções.
+                    {`Crie ${v.place.plural} ${pick(v.place, "padronizados", "padronizadas")} (ex: ${v.placeExamples}) para usar em ${todos(v.group)} ${os(v.group)} ${seus(v.group)} ${v.group.plural}.`}
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -755,13 +758,13 @@ export default function AutomationAdminPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {deleteTarget?.type === "ambiente"
-                ? "Excluir Ambiente"
-                : "Excluir Solução"}
+                ? `Excluir ${cap(v.place.singular)}`
+                : `Excluir ${cap(v.group.singular)}`}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget?.type === "ambiente"
-                ? "Esta ação é irreversível. O ambiente será excluído permanentemente, juntamente com todos os produtos configurados nele."
-                : "Esta ação é irreversível. A solução será excluída permanentemente, juntamente com todas as suas configurações em ambientes."}
+                ? `Esta ação é irreversível. ${cap(o(v.place))} ${v.place.singular} será ${pick(v.place, "excluído", "excluída")} permanentemente, juntamente com todos os produtos configurados ${nele(v.place)}.`
+                : `Esta ação é irreversível. ${cap(o(v.group))} ${v.group.singular} será ${pick(v.group, "excluído", "excluída")} permanentemente, juntamente com todas as suas configurações em ${v.place.plural}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -778,10 +781,14 @@ export default function AutomationAdminPage() {
                 try {
                   if (deleteTarget.type === "ambiente") {
                     await AmbienteService.deleteAmbiente(deleteTarget.id);
-                    toast.success("Ambiente removido com sucesso!");
+                    toast.success(
+                      `${cap(v.place.singular)} ${pick(v.place, "removido", "removida")} com sucesso!`,
+                    );
                   } else {
                     await SistemaService.deleteSistema(deleteTarget.id);
-                    toast.success("Solução removida com sucesso!");
+                    toast.success(
+                      `${cap(v.group.singular)} ${pick(v.group, "removido", "removida")} com sucesso!`,
+                    );
                   }
                   loadData(true);
                   setDeleteTarget(null);
@@ -789,8 +796,8 @@ export default function AutomationAdminPage() {
                   console.error("Error deleting entity:", error);
                   toast.error(
                     deleteTarget.type === "ambiente"
-                      ? "Erro ao excluir ambiente."
-                      : "Erro ao excluir solução.",
+                      ? `Erro ao excluir ${v.place.singular}.`
+                      : `Erro ao excluir ${v.group.singular}.`,
                   );
                 } finally {
                   setIsDeleting(false);

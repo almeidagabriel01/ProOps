@@ -9,6 +9,13 @@ import {
   Layers,
   GitBranch,
 } from "lucide-react";
+import { getNicheConfig } from "@/lib/niches/config";
+import {
+  cap,
+  term,
+  type NicheVocabulary,
+  type Term,
+} from "@/lib/niches/vocabulary";
 
 export interface SectionTypeConfig {
   type: ProposalSectionType;
@@ -17,7 +24,33 @@ export interface SectionTypeConfig {
   description: string;
 }
 
-export const sectionTypes: SectionTypeConfig[] = [
+/**
+ * Os dois níveis do campo hierárquico: o local e o grupo do nicho. Quando o
+ * nicho usa o mesmo termo para os dois (persianas, em que cada grupo é o
+ * próprio ambiente), o segundo nível vira "produto" para não repetir.
+ */
+export function hierarchicalFieldTerms(v: NicheVocabulary): {
+  primary: Term;
+  secondary: Term;
+} {
+  return {
+    primary: v.place,
+    secondary:
+      v.group.plural === v.place.plural
+        ? term("produto", "produtos", "m")
+        : v.group,
+  };
+}
+
+/** Tipos de seção com o rótulo do campo hierárquico no vocabulário do nicho. */
+export function getSectionTypes(v: NicheVocabulary): SectionTypeConfig[] {
+  const { primary, secondary } = hierarchicalFieldTerms(v);
+  return buildSectionTypes(
+    `${cap(primary.singular)} + ${cap(secondary.singular)}`,
+  );
+}
+
+const buildSectionTypes = (hierarchicalLabel: string): SectionTypeConfig[] => [
   {
     type: "header",
     label: "Cabeçalho",
@@ -56,7 +89,7 @@ export const sectionTypes: SectionTypeConfig[] = [
   },
   {
     type: "hierarchical-field",
-    label: "Ambiente + Sistema",
+    label: hierarchicalLabel,
     icon: <GitBranch className="w-4 h-4" />,
     description: "Campos vinculados",
   },
@@ -67,6 +100,11 @@ export const sectionTypes: SectionTypeConfig[] = [
     description: "Linha divisória",
   },
 ];
+
+/** Os tipos no vocabulário do nicho padrão; na tela, use `getSectionTypes`. */
+export const sectionTypes: SectionTypeConfig[] = getSectionTypes(
+  getNicheConfig(null).vocabulary,
+);
 
 export interface TableItem {
   id: string;
@@ -91,7 +129,11 @@ export interface ParsedContent {
   entries?: { id: string; environmentItemId: string; systemItems: string[] }[];
 }
 
-export function getDefaultTitle(type: ProposalSectionType): string {
+export function getDefaultTitle(
+  type: ProposalSectionType,
+  vocabulary: NicheVocabulary = getNicheConfig(null).vocabulary,
+): string {
+  const { primary, secondary } = hierarchicalFieldTerms(vocabulary);
   const titles: Record<ProposalSectionType, string> = {
     header: "Título",
     text: "Descrição",
@@ -99,7 +141,7 @@ export function getDefaultTitle(type: ProposalSectionType): string {
     image: "Imagem",
     list: "Lista",
     "custom-field": "Campo Personalizado",
-    "hierarchical-field": "Ambientes e Sistemas",
+    "hierarchical-field": `${cap(primary.plural)} e ${cap(secondary.plural)}`,
     "product-table": "Tabela de Produtos",
     separator: "",
   };

@@ -10,6 +10,9 @@ import { CustomFieldService } from "@/services/custom-field-service";
 import { useTenant } from "@/providers/tenant-provider";
 import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { CustomFieldManager } from "./custom-field-manager";
+import { hierarchicalFieldTerms } from "./section-builder/constants";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap } from "@/lib/niches/vocabulary";
 import Image from "next/image";
 
 interface EnvironmentSystem {
@@ -36,6 +39,7 @@ export function HierarchicalFieldSection({
   onUpdate,
 }: HierarchicalFieldSectionProps) {
   const { tenant } = useTenant();
+  const { primary, secondary } = hierarchicalFieldTerms(useNicheVocabulary());
   const [fieldTypes, setFieldTypes] = React.useState<CustomFieldType[]>([]);
   const [environmentType, setEnvironmentType] =
     React.useState<CustomFieldType | null>(null);
@@ -133,7 +137,7 @@ export function HierarchicalFieldSection({
       {/* Type Selectors */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Tipo Principal (ex: Ambiente)</Label>
+          <Label>Tipo Principal (ex: {cap(primary.singular)})</Label>
           <Select
             value={content.environmentTypeId || ""}
             onChange={(e) => handleEnvironmentTypeChange(e.target.value)}
@@ -147,7 +151,7 @@ export function HierarchicalFieldSection({
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Tipo Secundário (ex: Sistema)</Label>
+          <Label>Tipo Secundário (ex: {cap(secondary.singular)})</Label>
           <Select
             value={content.systemTypeId || ""}
             onChange={(e) => handleSystemTypeChange(e.target.value)}

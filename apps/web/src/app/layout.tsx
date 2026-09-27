@@ -135,6 +135,8 @@ export const metadata: Metadata = {
   keywords: [
     "ERP automação residencial",
     "ERP cortinas",
+    "ERP persianas e toldos",
+    "ERP segurança eletrônica",
     "sistema gestão de serviços",
     "propostas comerciais",
     "CRM kanban",

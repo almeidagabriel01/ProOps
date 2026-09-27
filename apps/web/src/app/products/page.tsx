@@ -61,11 +61,11 @@ import {
   getProductPricingSummary,
 } from "@/lib/product-pricing";
 import {
-  summarizeCurtainInventoryBalance,
+  summarizeDimensionInventoryBalance,
   type ProductInventoryBalanceSummary,
 } from "@/lib/product-inventory-summary";
 
-function buildCurtainBalanceTooltipContent(
+function buildDimensionBalanceTooltipContent(
   summary: ProductInventoryBalanceSummary,
   variant: "cost" | "revenue",
 ) {
@@ -74,14 +74,12 @@ function buildCurtainBalanceTooltipContent(
 
   return (
     <div className="max-w-[220px] text-left text-[11px] leading-4">
-      <p>Catálogo: soma todos os produtos.</p>
-      <p>Qtd: estoque x {valueLabel}</p>
-      <p>Metragem: soma o preço por m²</p>
-      <p>Largura: soma o preço por m larg.</p>
-      <p>Altura: soma todas as faixas cadastradas</p>
-      {summary.heightTierInsights.length > 0 && (
+      <p>Catálogo: soma os produtos com estoque.</p>
+      <p>Cada produto: estoque x {valueLabel}.</p>
+      <p>Faixa de altura: pelo preço da faixa mais baixa.</p>
+      {summary.skippedProducts > 0 && (
         <p className="mt-1 text-background/80">
-          Produtos dimensionais entram mesmo sem medida da proposta.
+          Produtos sem estoque ficam de fora.
         </p>
       )}
     </div>
@@ -109,7 +107,8 @@ export default function ProductsPage() {
   >(null);
 
   const isFiltering = searchTerm.trim() !== "";
-  const isCurtainNiche = nicheConfig.id === "cortinas";
+  const showsDimensionBalance =
+    nicheConfig.productCatalog.inventoryView === "dimension_balance";
   const [importOpen, setImportOpen] = useState(false);
   // A planilha segue o nicho: em metros (e com "preço por") onde o estoque é
   // por metragem.
@@ -122,8 +121,8 @@ export default function ProductsPage() {
       }),
     [nicheConfig.productCatalog.inventory.formLabel, importPerMeter],
   );
-  const curtainInventorySummary = useMemo(
-    () => summarizeCurtainInventoryBalance(allProducts ?? []),
+  const dimensionInventorySummary = useMemo(
+    () => summarizeDimensionInventoryBalance(allProducts ?? []),
     [allProducts],
   );
   const inventoryBalances = useMemo(
@@ -368,7 +367,7 @@ export default function ProductsPage() {
     : [];
 
   const productToDelete = (allProducts ?? []).find((p) => p.id === deleteId);
-  const hideInventoryColumn = nicheConfig.id === "cortinas";
+  const hideInventoryColumn = showsDimensionBalance;
   
   const columns: DataTableColumn<Product>[] = [
     {
@@ -576,7 +575,7 @@ export default function ProductsPage() {
               />
             </div>
 
-            {isCurtainNiche ? (
+            {showsDimensionBalance ? (
               <div className="grid gap-4 md:grid-cols-2">
                 <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-l-4 border-l-amber-500 bg-linear-to-br from-background to-amber-50/30 dark:to-amber-950/10 hover:border-amber-500/50">
                   <CardContent className="flex items-start justify-between gap-4 p-6">
@@ -586,8 +585,8 @@ export default function ProductsPage() {
                           {inventoryConfig.costBalanceLabel}
                         </p>
                         <Tooltip
-                          content={buildCurtainBalanceTooltipContent(
-                            curtainInventorySummary,
+                          content={buildDimensionBalanceTooltipContent(
+                            dimensionInventorySummary,
                             "cost",
                           )}
                           className="max-w-[220px] whitespace-normal rounded-2xl px-3 py-2 text-xs leading-5"
@@ -612,11 +611,11 @@ export default function ProductsPage() {
                             Calculando...
                           </span>
                         ) : (
-                          formatCurrency(curtainInventorySummary.cost)
+                          formatCurrency(dimensionInventorySummary.cost)
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Saldo unico consolidado do catalogo.
+                        Saldo único consolidado do catálogo.
                       </p>
                     </div>
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
@@ -633,8 +632,8 @@ export default function ProductsPage() {
                           {inventoryConfig.revenueBalanceLabel}
                         </p>
                         <Tooltip
-                          content={buildCurtainBalanceTooltipContent(
-                            curtainInventorySummary,
+                          content={buildDimensionBalanceTooltipContent(
+                            dimensionInventorySummary,
                             "revenue",
                           )}
                           className="max-w-[220px] whitespace-normal rounded-2xl px-3 py-2 text-xs leading-5"
@@ -659,11 +658,11 @@ export default function ProductsPage() {
                             Calculando...
                           </span>
                         ) : (
-                          formatCurrency(curtainInventorySummary.revenue)
+                          formatCurrency(dimensionInventorySummary.revenue)
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Saldo unico consolidado do catalogo.
+                        Saldo único consolidado do catálogo.
                       </p>
                     </div>
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">

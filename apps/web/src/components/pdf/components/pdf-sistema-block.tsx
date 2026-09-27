@@ -16,21 +16,27 @@ import {
   shouldCountInPdfTotals,
 } from "../product-visibility";
 import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
+import { getNicheConfig } from "@/lib/niches/config";
+import { cap } from "@/lib/niches/vocabulary";
 
-function shouldUseCurtinasEnvironmentLayout(
+/** Nome do local sem nome ("Ambiente", "Área"), pelo nicho da proposta. */
+function getPlaceFallbackName(tenantNiche?: TenantNiche | null): string {
+  return cap(getNicheConfig(tenantNiche).vocabulary.place.singular);
+}
+
+function shouldUseSingleEnvironmentLayout(
   tenantNiche: TenantNiche | null | undefined,
   sistema: PdfSistema,
 ): boolean {
   return (
-    tenantNiche === "cortinas" &&
-    resolveSistemaAmbientes(sistema).length === 1
+    getNicheConfig(tenantNiche).pdf.singleEnvironmentLayout &&
+    resolveSistemaAmbientes(sistema, getPlaceFallbackName(tenantNiche))
+      .length === 1
   );
 }
 
 function getSistemaSubtotalLabel(tenantNiche?: TenantNiche | null): string {
-  return tenantNiche === "cortinas"
-    ? "Subtotal do Ambiente:"
-    : "Subtotal da Solução:";
+  return getNicheConfig(tenantNiche).pdf.groupSubtotalLabel;
 }
 
 function PdfSistemaHead({
@@ -56,18 +62,21 @@ function PdfSistemaHead({
   iconColumnWidth: string;
   iconPaddingRight: string;
 }) {
-  const ambientes = resolveSistemaAmbientes(sistema);
-  const useCurtinasEnvironmentLayout = shouldUseCurtinasEnvironmentLayout(
+  const ambientes = resolveSistemaAmbientes(
+    sistema,
+    getPlaceFallbackName(tenantNiche),
+  );
+  const useSingleEnvironmentLayout = shouldUseSingleEnvironmentLayout(
     tenantNiche,
     sistema,
   );
-  const displayTitle = useCurtinasEnvironmentLayout
+  const displayTitle = useSingleEnvironmentLayout
     ? ambientes[0]?.ambienteName || sistema.sistemaName
     : sistema.sistemaName;
 
   return (
     <div>
-      {useCurtinasEnvironmentLayout ? (
+      {useSingleEnvironmentLayout ? (
         <table
           style={{
             width: "auto",
@@ -256,7 +265,8 @@ export function PdfSistemaBlock({
   tenantNiche,
 }: PdfSistemaBlockProps) {
   const settings = resolvePdfDisplaySettings(pdfDisplaySettings);
-  const ambientes = resolveSistemaAmbientes(sistema);
+  const placeFallbackName = getPlaceFallbackName(tenantNiche);
+  const ambientes = resolveSistemaAmbientes(sistema, placeFallbackName);
   const productsForTotals = products.filter((product) =>
     shouldCountInPdfTotals(product),
   );
@@ -310,9 +320,9 @@ export function PdfSistemaBlock({
 
             return (
               <div key={currentInstanceId}>
-                {tenantNiche !== "cortinas" && (
+                {getNicheConfig(tenantNiche).pdf.showEnvironmentHeaders && (
                   <PdfAmbienteHeader
-                    ambienteName={amb.ambienteName || "Ambiente"}
+                    ambienteName={amb.ambienteName || placeFallbackName}
                     primaryColor={primaryColor}
                     tenantNiche={tenantNiche}
                     className={index > 0 ? "border-t border-dashed" : ""}
@@ -530,7 +540,7 @@ export function PdfAmbienteHeader({
   standalone?: boolean;
   description?: string;
 }) {
-  if (tenantNiche === "cortinas") {
+  if (!getNicheConfig(tenantNiche).pdf.showEnvironmentHeaders) {
     return null;
   }
 

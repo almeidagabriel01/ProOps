@@ -5,6 +5,8 @@ import { buildSearchTokens, matchesAllWords, parseSearchQuery } from "../../lib/
 import { INDEXED_SEARCH_SCAN_LIMIT, sortDocsByField } from "../../lib/indexed-search";
 import { productRefsFields } from "../../lib/proposal-product-refs";
 import { resolveSeller } from "./sales-goals";
+import { sanitizeProposalProductsInput } from "./proposal-products-sanitize";
+import type { LiaProposalLine } from "../../ai/tools/proposal-items";
 
 // ===== Interfaces =====
 
@@ -37,13 +39,8 @@ export interface ProposalDoc {
 export interface CreateProposalParams {
   clientId: string;
   title?: string;
-  items: Array<{
-    productId?: string;
-    name: string;
-    quantity: number;
-    price: number;
-    description?: string;
-  }>;
+  /** Linhas já precificadas pelo catálogo (`buildLiaProposalLine`). */
+  items: LiaProposalLine[];
   notes?: string;
   validUntil?: string;
   discount?: number;
@@ -54,13 +51,7 @@ export interface UpdateProposalParams {
   notes?: string;
   validUntil?: string;
   discount?: number;
-  items?: Array<{
-    productId?: string;
-    name: string;
-    quantity: number;
-    price: number;
-    description?: string;
-  }>;
+  items?: LiaProposalLine[];
 }
 
 // ===== Service Functions =====
@@ -178,6 +169,27 @@ export async function getProposal(
   } as ProposalDoc;
 }
 
+/**
+ * Linhas no formato do formulário da proposta, pela mesma limpeza que a tela
+ * atravessa ao salvar.
+ */
+export function toProposalProducts(lines: LiaProposalLine[]): Record<string, unknown>[] {
+  return sanitizeProposalProductsInput(
+    lines.map((line, index) => ({
+      ...line,
+      lineItemId: `lia-item-${index + 1}`,
+      itemType: "product",
+      status: "active",
+      productName: sanitizeText(line.productName),
+      productDescription: line.productDescription ? sanitizeRichText(line.productDescription) : "",
+    })),
+  );
+}
+
+export function sumProductTotals(products: Record<string, unknown>[]): number {
+  return products.reduce((sum, product) => sum + (Number(product.total) || 0), 0);
+}
+
 export async function createProposal(
   params: CreateProposalParams,
   tenantId: string,
@@ -196,17 +208,8 @@ export async function createProposal(
     }
   }
 
-  // Map items to products format and calculate total
-  const products = params.items.map((item) => ({
-    productId: item.productId || null,
-    name: sanitizeText(item.name),
-    quantity: item.quantity,
-    price: item.price,
-    description: item.description ? sanitizeRichText(item.description) : "",
-    subtotal: item.quantity * item.price,
-  }));
-
-  const subtotal = products.reduce((sum, p) => sum + p.subtotal, 0);
+  const products = toProposalProducts(params.items);
+  const subtotal = sumProductTotals(products);
   const discount = params.discount || 0;
   const totalValue = Math.max(0, subtotal - (subtotal * discount) / 100);
 
@@ -284,16 +287,8 @@ export async function updateProposal(
   if (updates.discount !== undefined) safeUpdate.discount = updates.discount;
 
   if (updates.items !== undefined) {
-    const products = updates.items.map((item) => ({
-      productId: item.productId || null,
-      name: sanitizeText(item.name),
-      quantity: item.quantity,
-      price: item.price,
-      description: item.description ? sanitizeRichText(item.description) : "",
-      subtotal: item.quantity * item.price,
-    }));
-
-    const subtotal = products.reduce((sum, p) => sum + p.subtotal, 0);
+    const products = toProposalProducts(updates.items);
+    const subtotal = sumProductTotals(products);
     const discount = (updates.discount ?? data.discount ?? 0) as number;
     const totalValue = Math.max(0, subtotal - (subtotal * discount) / 100);
 

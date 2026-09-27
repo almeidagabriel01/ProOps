@@ -1,45 +1,9 @@
 import type { Metadata } from "next";
-import {
-  SoftwareApplicationJsonLd,
-  BreadcrumbJsonLd,
-  FAQPageJsonLd,
-} from "@/components/seo/json-ld";
-import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
-import { NicheLandingPage } from "@/components/landing/niche/niche-landing-page";
-import { canonicalFor } from "@/lib/site/host-seo";
+import { NicheLandingRoute } from "@/components/landing/niche/niche-landing-route";
+import { buildNicheLandingMetadata } from "@/lib/landing/niche-landing-metadata";
 
-export const metadata: Metadata = {
-  title: "ERP para Decoração: cortinas, persianas e papéis de parede",
-  description:
-    "ProOps é o ERP para lojas de decoração. Propostas com cálculo automático de metros, CRM, financeiro e WhatsApp integrados.",
-  keywords: [
-    "ERP decoração",
-    "sistema gestão loja cortinas",
-    "ERP persianas",
-    "software proposta decoração",
-    "sistema decoração interiores",
-  ],
-  alternates: { canonical: canonicalFor("erp", "/decoracao") },
-  openGraph: {
-    title: "ERP para Decoração | ProOps",
-    description:
-      "Sistema completo para lojas de decoração: propostas com medidas, CRM, financeiro e WhatsApp.",
-    url: canonicalFor("erp", "/decoracao"),
-  },
-};
+export const metadata: Metadata = buildNicheLandingMetadata("cortinas");
 
 export default function DecoracaoPage() {
-  return (
-    <>
-      <SoftwareApplicationJsonLd niche="cortinas" />
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Início", url: "/" },
-          { name: "Decoração", url: "/decoracao" },
-        ]}
-      />
-      <FAQPageJsonLd items={NICHE_LANDING_CONFIG.cortinas.faq} />
-      <NicheLandingPage slug="cortinas" />
-    </>
-  );
+  return <NicheLandingRoute niche="cortinas" />;
 }

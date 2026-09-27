@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Menu, Pencil } from "lucide-react";
 import { Sistema } from "@/types/automation";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { deste, os, um } from "@/lib/niches/vocabulary";
 
 interface SystemHeaderProps {
   selectedSistema: Sistema | null;
@@ -11,6 +13,7 @@ export function SystemHeader({
   selectedSistema,
   onOpenMobileMenu,
 }: SystemHeaderProps) {
+  const v = useNicheVocabulary();
   return (
     <div className="p-6 pr-12 border-b flex items-start justify-between gap-4 relative">
       <div>
@@ -43,12 +46,13 @@ export function SystemHeader({
             </div>
           ) : (
             <h2 className="text-xl font-bold text-muted-foreground">
-              Selecione uma solução
+              Selecione {um(v.group)} {v.group.singular}
             </h2>
           )}
         </div>
         <p className="text-sm text-muted-foreground ml-8 md:ml-0">
-          Gerencie os ambientes e produtos desta solução.
+          Gerencie {os(v.place)} {v.place.plural} e produtos {deste(v.group)}{" "}
+          {v.group.singular}.
         </p>
       </div>
     </div>

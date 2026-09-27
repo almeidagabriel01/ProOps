@@ -3,6 +3,14 @@ import {
   type MenuCapability,
   type MenuItem,
 } from "@/components/layout/navigation-config";
+import { NICHE_CONFIGS } from "@/lib/niches/config";
+import {
+  cap,
+  o,
+  os,
+  pick,
+  type NicheVocabulary,
+} from "@/lib/niches/vocabulary";
 
 /**
  * O roteiro do tutorial: quais telas ele apresenta, em que ordem e com que
@@ -63,8 +71,21 @@ export const ONBOARDING_CHAPTERS: Record<
   settings: { label: "Configurações", order: 5 },
 };
 
+/**
+ * Texto que fala do local ou do grupo da proposta ("ambiente", "solução") e
+ * por isso sai do vocabulário do nicho. Texto fixo continua sendo string.
+ */
+export type OnboardingText = string | ((vocabulary: NicheVocabulary) => string);
+
+export function resolveOnboardingText(
+  text: OnboardingText,
+  vocabulary: NicheVocabulary,
+): string {
+  return typeof text === "function" ? text(vocabulary) : text;
+}
+
 export interface OnboardingChecklistItem {
-  text: string;
+  text: OnboardingText;
   /** O item só aparece quando o plano abre esta capacidade. */
   requiresCapability?: OnboardingCapability;
 }
@@ -77,7 +98,7 @@ export interface OnboardingStepTemplate {
   title?: string;
   description: string;
   checklist: OnboardingChecklistItem[];
-  actionLabel: string;
+  actionLabel: OnboardingText;
   /** Some para membro. Os itens do MENU já chegam filtrados; isto é para Configurações. */
   masterOnly?: boolean;
   /** Some na conta free: a tela não tem o que demonstrar em somente leitura. */
@@ -255,11 +276,17 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     description:
       "Pacotes prontos, como um sistema de iluminação ou de áudio, com os produtos de cada ambiente já definidos.",
     checklist: [
-      { text: "Monte o sistema uma vez, com os ambientes e os produtos padrão de cada um." },
-      { text: "Na proposta, adicione o sistema inteiro em vez de item por item." },
+      {
+        text: ({ group, place }) =>
+          `Monte ${o(group)} ${group.singular} uma vez. Os produtos padrão ficam separados por ${place.singular}.`,
+      },
+      {
+        text: ({ group }) =>
+          `Na proposta, adicione ${o(group)} ${group.singular} ${pick(group, "inteiro", "inteira")} em vez de item por item.`,
+      },
       { text: "Ajuste as quantidades por projeto sem mexer no modelo." },
     ],
-    actionLabel: "Abrir Soluções",
+    actionLabel: ({ group }) => `Abrir ${cap(group.plural)}`,
   },
   "/ambientes": {
     id: "ambientes",
@@ -268,11 +295,11 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
     description:
       "Os ambientes que se repetem nos seus projetos, como sala, quarto e varanda, com os produtos que costumam ir em cada um.",
     checklist: [
-      { text: "Cadastre os ambientes mais comuns do seu dia a dia." },
-      { text: "Associe os produtos padrão de cada ambiente." },
-      { text: "Reaproveite os ambientes ao montar uma proposta nova." },
+      { text: ({ place }) => `Cadastre ${os(place)} ${place.plural} mais comuns do seu dia a dia.` },
+      { text: ({ place }) => `Associe os produtos padrão de cada ${place.singular}.` },
+      { text: ({ place }) => `Reaproveite ${os(place)} ${place.plural} ao montar uma proposta nova.` },
     ],
-    actionLabel: "Abrir Ambientes",
+    actionLabel: ({ place }) => `Abrir ${cap(place.plural)}`,
   },
   "/transactions": {
     id: "transactions",
@@ -509,6 +536,16 @@ export interface BuildOnboardingStepsParams {
   settingsRoutes: string[];
   capabilities: OnboardingCapabilityMap;
   viewer: OnboardingViewer;
+  /**
+   * Descrição do passo trocada pelo nicho (`onboardingStepDescriptions` da
+   * config), por id de passo. Sem entrada, vale a do template.
+   */
+  stepDescriptions?: Partial<Record<string, string>>;
+  /**
+   * Vocabulário do nicho (`NicheConfig.vocabulary`), de onde saem o botão e o
+   * checklist dos passos que falam do local e do grupo. Sem ele, o de automação.
+   */
+  vocabulary?: NicheVocabulary;
 }
 
 function isTemplateAvailable(
@@ -531,20 +568,22 @@ function toStep(
   template: OnboardingStepTemplate,
   fallbackTitle: string,
   capabilities: OnboardingCapabilityMap,
+  description: string,
+  vocabulary: NicheVocabulary,
 ): OnboardingStep {
   return {
     id: template.id,
     route: template.route,
     chapter: template.chapter,
     title: template.title ?? fallbackTitle,
-    description: template.description,
+    description,
     checklist: template.checklist
       .filter(
         (item) =>
           !item.requiresCapability || capabilities[item.requiresCapability],
       )
-      .map((item) => item.text),
-    actionLabel: template.actionLabel,
+      .map((item) => resolveOnboardingText(item.text, vocabulary)),
+    actionLabel: resolveOnboardingText(template.actionLabel, vocabulary),
   };
 }
 
@@ -553,6 +592,8 @@ export function buildOnboardingSteps({
   settingsRoutes,
   capabilities,
   viewer,
+  stepDescriptions = {},
+  vocabulary = NICHE_CONFIGS.automacao_residencial.vocabulary,
 }: BuildOnboardingStepsParams): OnboardingStep[] {
   const steps: OnboardingStep[] = [];
   const seen = new Set<string>();
@@ -561,7 +602,15 @@ export function buildOnboardingSteps({
     if (!template || seen.has(template.id)) return;
     if (!isTemplateAvailable(template, capabilities, viewer)) return;
     seen.add(template.id);
-    steps.push(toStep(template, label, capabilities));
+    steps.push(
+      toStep(
+        template,
+        label,
+        capabilities,
+        stepDescriptions[template.id] ?? template.description,
+        vocabulary,
+      ),
+    );
   };
 
   for (const leaf of flattenMenuItems(visibleMenuItems)) {

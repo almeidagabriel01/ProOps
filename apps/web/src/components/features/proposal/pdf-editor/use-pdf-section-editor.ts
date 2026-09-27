@@ -3,6 +3,7 @@
 import * as React from "react";
 import { PdfSection } from "../pdf-section-editor";
 import { toast } from "@/lib/toast";
+import { PRODUCT_TABLE_SECTION_MARKER } from "@/lib/proposal-product-table-section";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-level pure helpers — no React, no side-effects, easy to test
@@ -107,7 +108,7 @@ function createDefaultProductTableSection(): PdfSection {
   return {
     id: crypto.randomUUID(),
     type: "product-table",
-    content: "Sistemas / Ambientes / Produtos",
+    content: PRODUCT_TABLE_SECTION_MARKER,
     columnWidth: 100,
     styles: {
       fontSize: "14px",
@@ -179,7 +180,7 @@ function normalizeSections(sections: PdfSection[]): PdfSection[] {
       if (firstProductTable) continue;
       firstProductTable = {
         ...section,
-        content: "Sistemas / Ambientes / Produtos",
+        content: PRODUCT_TABLE_SECTION_MARKER,
         columnWidth: 100,
       };
       continue;
@@ -248,7 +249,7 @@ function needsNormalization(sections: PdfSection[]): boolean {
 
   const [pt] = productTables;
 
-  if (pt.content !== "Sistemas / Ambientes / Produtos") return true;
+  if (pt.content !== PRODUCT_TABLE_SECTION_MARKER) return true;
   if (pt.columnWidth !== 100) return true;
   if (!pt.groupId) return true;
 
@@ -301,10 +302,10 @@ function repairColumnLayout(sections: PdfSection[]): PdfSection[] {
   return sections.map((section, index) => {
     if (section.type === "product-table") {
       const needsFix =
-        section.content !== "Sistemas / Ambientes / Produtos" ||
+        section.content !== PRODUCT_TABLE_SECTION_MARKER ||
         section.columnWidth !== 100;
       return needsFix
-        ? { ...section, content: "Sistemas / Ambientes / Produtos", columnWidth: 100 }
+        ? { ...section, content: PRODUCT_TABLE_SECTION_MARKER, columnWidth: 100 }
         : section;
     }
 

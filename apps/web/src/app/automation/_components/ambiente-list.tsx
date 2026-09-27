@@ -31,6 +31,8 @@ import {
 import { m as motion, AnimatePresence } from "motion/react";
 import { AmbienteProductsDialog } from "@/components/features/automation/ambiente-products-dialog";
 import { Loader } from "@/components/ui/loader";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, do_, este, nenhum, novo, o, pick, seus } from "@/lib/niches/vocabulary";
 
 interface AmbienteListProps {
   ambientes: Ambiente[];
@@ -48,13 +50,17 @@ export function AmbienteList({
   ambientes,
   onUpdate,
   enableProductTemplates = false,
-  helperText = "Adicione ambientes globais para serem utilizados em suas soluções.",
+  helperText,
   isReadOnly = false,
   canCreate = true,
   canEdit = true,
   canDelete = true,
 }: AmbienteListProps) {
   const { tenant } = useTenant();
+  const v = useNicheVocabulary();
+  const resolvedHelperText =
+    helperText ??
+    `Adicione ${v.place.plural} globais para serem ${pick(v.place, "utilizados", "utilizadas")} em ${seus(v.group)} ${v.group.plural}.`;
 
   const [newAmbienteName, setNewAmbienteName] = React.useState("");
   const [isCreating, setIsCreating] = React.useState(false);
@@ -85,11 +91,13 @@ export function AmbienteList({
         createdAt: new Date().toISOString(),
       });
       setNewAmbienteName("");
-      toast.success("Ambiente criado com sucesso!");
+      toast.success(
+        `${cap(v.place.singular)} ${pick(v.place, "criado", "criada")} com sucesso!`,
+      );
       onUpdate();
     } catch (error) {
       console.error("Error creating ambiente:", error);
-      toast.error("Erro ao criar ambiente");
+      toast.error(`Erro ao criar ${v.place.singular}`);
     } finally {
       setIsCreating(false);
     }
@@ -110,11 +118,13 @@ export function AmbienteList({
       await AmbienteService.updateAmbiente(id, { name: editingName.trim() });
       setEditingId(null);
       setEditingName("");
-      toast.success("Ambiente atualizado!");
+      toast.success(
+        `${cap(v.place.singular)} ${pick(v.place, "atualizado", "atualizada")}!`,
+      );
       onUpdate();
     } catch (error) {
       console.error("Error updating ambiente:", error);
-      toast.error("Erro ao atualizar ambiente");
+      toast.error(`Erro ao atualizar ${v.place.singular}`);
     } finally {
       setIsUpdating(false);
     }
@@ -125,11 +135,13 @@ export function AmbienteList({
     setIsDeleting(true);
     try {
       await AmbienteService.deleteAmbiente(deletingId);
-      toast.success("Ambiente excluído!");
+      toast.success(
+        `${cap(v.place.singular)} ${pick(v.place, "excluído", "excluída")}!`,
+      );
       onUpdate();
     } catch (error) {
       console.error("Error deleting ambiente:", error);
-      toast.error("Erro ao excluir ambiente");
+      toast.error(`Erro ao excluir ${v.place.singular}`);
     } finally {
       setIsDeleting(false);
       setDeletingId(null);
@@ -154,7 +166,7 @@ export function AmbienteList({
           <Input
             id="new-ambiente-input"
             className="h-12 w-96 text-base shadow-sm border-muted-foreground/20 focus-visible:ring-primary/20"
-            placeholder="Nome do novo ambiente (ex: Sala de Estar)"
+            placeholder={`Nome ${do_(v.place)} ${novo(v.place)} ${v.place.singular} (ex: ${v.placeExamples.split(",")[0].trim()})`}
             value={newAmbienteName}
             onChange={(e) => setNewAmbienteName(e.target.value)}
             onKeyDown={(e) => {
@@ -176,7 +188,7 @@ export function AmbienteList({
             )}
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground mt-2 px-1">{helperText}</p>
+        <p className="text-sm text-muted-foreground mt-2 px-1">{resolvedHelperText}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -297,7 +309,9 @@ export function AmbienteList({
         {ambientes.length === 0 && (
           <div className="col-span-full py-12 text-center text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
             <LayoutGrid className="mx-auto h-12 w-12 text-muted-foreground/20 mb-3" />
-            <p>Nenhum ambiente encontrado.</p>
+            <p>
+              {`${cap(nenhum(v.place))} ${v.place.singular} ${pick(v.place, "encontrado", "encontrada")}.`}
+            </p>
           </div>
         )}
       </div>
@@ -305,12 +319,12 @@ export function AmbienteList({
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Ambiente?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir {cap(v.place.singular)}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação removerá o ambiente &quot;
+              Esta ação removerá {o(v.place)} {v.place.singular} &quot;
               {ambientes.find((a) => a.id === deletingId)?.name}&quot; da lista
-              global. Soluções que usam este ambiente podem ficar com
-              referências quebradas.
+              global. {cap(v.group.plural)} que usam {este(v.place)}{" "}
+              {v.place.singular} podem ficar com referências quebradas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

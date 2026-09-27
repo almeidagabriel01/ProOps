@@ -31,6 +31,8 @@ import { toast } from '@/lib/toast';
 ;
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
 import { Loader } from "@/components/ui/loader";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, este, nenhum, os, pick } from "@/lib/niches/vocabulary";
 
 interface AmbienteManagerDialogProps {
   isOpen: boolean;
@@ -48,6 +50,7 @@ export function AmbienteManagerDialog({
   onAction,
 }: AmbienteManagerDialogProps) {
   const { tenant } = useTenant();
+  const v = useNicheVocabulary();
   const [ambientes, setAmbientes] = React.useState<Ambiente[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isCreating, setIsCreating] = React.useState(false);
@@ -83,11 +86,11 @@ export function AmbienteManagerDialog({
     } catch (error) {
       console.error("Error loading ambientes:", error);
       setAmbientes([]);
-      toast.error("Erro ao carregar ambientes");
+      toast.error(`Erro ao carregar ${v.place.plural}`);
     } finally {
       setIsLoading(false);
     }
-  }, [tenant?.id, managedAmbientes]);
+  }, [tenant?.id, managedAmbientes, v]);
 
   // Bug 2 Fix: When managedAmbientes prop updates (e.g. after a product save
   // in managed mode), sync selectedAmbienteForProducts with the freshly-updated
@@ -134,7 +137,7 @@ export function AmbienteManagerDialog({
         setNewAmbienteName("");
         // No need to loadAmbientes(), parent updates props
         onAmbientesChange?.();
-        toast.success("Ambiente adicionado!");
+        toast.success(`${cap(v.place.singular)} ${pick(v.place, "adicionado", "adicionada")}!`);
       } else {
         // Direct Mode
         const nextOrder = await AmbienteService.getNextOrder(tenant.id);
@@ -148,11 +151,11 @@ export function AmbienteManagerDialog({
         setNewAmbienteName("");
         await loadAmbientes();
         onAmbientesChange?.();
-        toast.success("Ambiente criado com sucesso!");
+        toast.success(`${cap(v.place.singular)} ${pick(v.place, "criado", "criada")} com sucesso!`);
       }
     } catch (error) {
       console.error("Error creating ambiente:", error);
-      toast.error("Erro ao criar ambiente");
+      toast.error(`Erro ao criar ${v.place.singular}`);
     } finally {
       setIsCreating(false);
     }
@@ -176,16 +179,16 @@ export function AmbienteManagerDialog({
         });
         // loadAmbientes() not needed if managed
         onAmbientesChange?.();
-        toast.success("Ambiente removido!");
+        toast.success(`${cap(v.place.singular)} ${pick(v.place, "removido", "removida")}!`);
       } else {
         await AmbienteService.deleteAmbiente(deletingId);
         await loadAmbientes();
         onAmbientesChange?.();
-        toast.success("Ambiente excluído com sucesso!");
+        toast.success(`${cap(v.place.singular)} ${pick(v.place, "excluído", "excluída")} com sucesso!`);
       }
     } catch (error) {
       console.error("Error deleting ambiente:", error);
-      toast.error("Erro ao excluir ambiente");
+      toast.error(`Erro ao excluir ${v.place.singular}`);
     } finally {
       setIsDeleting(false);
       setDeleteConfirmOpen(false);
@@ -221,7 +224,7 @@ export function AmbienteManagerDialog({
         setEditingName("");
         // managed update
         onAmbientesChange?.({ id, name: newName });
-        toast.success("Ambiente atualizado!");
+        toast.success(`${cap(v.place.singular)} ${pick(v.place, "atualizado", "atualizada")}!`);
       } else {
         await AmbienteService.updateAmbiente(id, { name: newName });
         setEditingId(null);
@@ -229,11 +232,11 @@ export function AmbienteManagerDialog({
         await loadAmbientes();
         // Pass the updated ambiente info so parent can sync selectedSistemas
         onAmbientesChange?.({ id, name: newName });
-        toast.success("Ambiente atualizado com sucesso!");
+        toast.success(`${cap(v.place.singular)} ${pick(v.place, "atualizado", "atualizada")} com sucesso!`);
       }
     } catch (error) {
       console.error("Error updating ambiente:", error);
-      toast.error("Erro ao atualizar ambiente");
+      toast.error(`Erro ao atualizar ${v.place.singular}`);
     } finally {
       setUpdatingId(null);
     }
@@ -284,9 +287,9 @@ export function AmbienteManagerDialog({
       >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Gerenciar Ambientes</DialogTitle>
+            <DialogTitle>Gerenciar {cap(v.place.plural)}</DialogTitle>
             <DialogDescription>
-              Adicione os ambientes da casa: Sala, Quarto, Cozinha, etc.
+              {`Adicione ${os(v.place)} ${v.place.plural}: ${v.placeExamples}, etc.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -295,7 +298,7 @@ export function AmbienteManagerDialog({
             <div className="flex gap-2 items-center">
               <div className="flex-1">
                 <Input
-                  placeholder="Ex: Sala, Quarto, Cozinha..."
+                  placeholder={`Ex: ${v.placeExamples}...`}
                   value={newAmbienteName}
                   onChange={(e) => setNewAmbienteName(e.target.value)}
                   onKeyDown={(e) => {
@@ -328,7 +331,9 @@ export function AmbienteManagerDialog({
               ) : ambientes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Home className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  <p>Nenhum ambiente cadastrado.</p>
+                  <p>
+                    {`${cap(nenhum(v.place))} ${v.place.singular} ${pick(v.place, "cadastrado", "cadastrada")}.`}
+                  </p>
                   <p className="text-sm">Digite o nome acima e clique em +</p>
                 </div>
               ) : (
@@ -442,8 +447,8 @@ export function AmbienteManagerDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir este ambiente? Esta ação não pode
-              ser desfeita.
+              Tem certeza que deseja excluir {este(v.place)} {v.place.singular}?
+              Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -190,10 +190,18 @@ const UNIT_MAP: Record<string, string> = {
 /**
  * Maps the catalogue's `inventoryUnit` to a fiscal unit.
  * Anything unrecognized falls back to `UN`, the safe generic.
+ *
+ * O modo de preço vence o estoque quando cobra por ÁREA: o produto
+ * `curtain_meter` guarda o estoque em metros, mas a quantidade da linha é
+ * largura × altura × painéis, em m². Com "M" a nota saía com a unidade errada.
  */
-export function deriveUnidadeComercial(inventoryUnit: string | undefined): string {
+export function deriveUnidadeComercial(
+  inventoryUnit: string | undefined,
+  pricingMode?: string,
+): string {
+  if (String(pricingMode || "").trim() === "curtain_meter") return "M2";
   const key = String(inventoryUnit || "").trim().toLowerCase();
-  return UNIT_MAP[key] || "UN";
+  return Object.prototype.hasOwnProperty.call(UNIT_MAP, key) ? UNIT_MAP[key] : "UN";
 }
 
 /** Origem da mercadoria: 0 nacional … 8 nacional com conteúdo de importação > 70%. */

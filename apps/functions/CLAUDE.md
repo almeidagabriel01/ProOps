@@ -453,10 +453,11 @@ empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
   herdar o tratamento de página pública. O e-mail de recusa monta esse caminho;
   mudar um lado sem o outro quebra o "escolher outro horário" (guard
   `apps/web/src/__tests__/booking-link-path.test.ts`).
-- O tipo de visita padrão muda por nicho (`defaultVisitTypes`: Medição em
-  cortinas, Visita técnica no resto). O front tem espelho em
-  `NICHE_CONFIGS[*].booking`, só para a demonstração, com teste de paridade em
-  `apps/web/src/lib/booking/__tests__/booking-format.test.ts`.
+- O tipo de visita padrão muda por nicho (`defaultVisitType` em
+  `NICHE_REGISTRY`, `shared/niches.ts`: Medição em persianas, Vistoria técnica
+  em segurança, Visita técnica em automação). O front espelha no registro dele
+  (`apps/web/src/lib/niches/registry.ts`), só para a demonstração, com paridade
+  em `apps/web/src/__tests__/niche-registry-parity.test.ts`.
 
 O evento guarda `bookingRequestId`, e desde 2026-09-27 ele sobrevive a uma
 edição na Agenda: a edição regrava o documento sem merge, e os vínculos com
@@ -506,8 +507,8 @@ para tirar da lista.
   caixa, conta só se pago, na data de caixa do lançamento.
 - **Até 12 meses por consulta**, 10.000 lançamentos por consulta (`truncated`
   avisa se bater no teto). Horário de Brasília (UTC-3) na virada do mês.
-- **A conta free lê o DRE e as categorias do tenant `demo`**
-  (`shared/demo-tenant.ts`): as chamadas da API usam o tenant da própria conta,
+- **A conta free lê o DRE e as categorias do tenant de demonstração do nicho
+  dela** (`demoTenantIdForNiche`, em `shared/demo-tenant.ts`): as chamadas da API usam o tenant da própria conta,
   que está vazio, e os dados de exemplo já são legíveis por ela pelas rules.
   Escrever continua bloqueado.
 

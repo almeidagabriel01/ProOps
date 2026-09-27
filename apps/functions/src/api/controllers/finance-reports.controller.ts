@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { logger } from "../../lib/logger";
 import { hasPagePermission } from "../../lib/auth-helpers";
-import { DEMO_TENANT_ID } from "../../shared/demo-tenant";
+import { demoTenantIdForNiche } from "../../shared/demo-tenant";
+import { getTenantDocCached } from "../../lib/tenant-doc-cache";
 import { DRE_GROUPS, type DreGroup } from "../services/finance-reports/dre-model";
 import { DreError, buildDre } from "../services/finance-reports/dre.service";
 import {
@@ -33,7 +34,10 @@ class ForbiddenError extends Error {}
 async function requireTransactions(req: Request, action: Action): Promise<string> {
   if (String(req.user?.role || "").toLowerCase() === "free") {
     if (action !== "canView") throw new ForbiddenError("Conta de demonstração: somente leitura.");
-    return DEMO_TENANT_ID;
+    // A demonstração é a do nicho da conta.
+    const accountTenantId = req.user?.tenantId;
+    const account = accountTenantId ? await getTenantDocCached(accountTenantId) : null;
+    return demoTenantIdForNiche(account?.data?.niche);
   }
   const tenantId = req.user?.tenantId;
   if (!tenantId) throw new ForbiddenError("Tenant não identificado.");

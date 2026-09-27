@@ -125,7 +125,7 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
   create_proposal: {
     name: "create_proposal",
     description:
-      "Cria uma nova proposta comercial. Antes, confira o limite de propostas do plano em get_tenant_summary; se ele foi atingido, informe o usuário sem chamar esta tool.",
+      "Cria uma nova proposta comercial. O preço de cada item vem do catálogo, com o markup do produto; não informe valor. Produto cobrado por medida precisa de largura (e altura, quando é por área ou faixa de altura) em vez de quantidade. Antes, confira o limite de propostas do plano em get_tenant_summary; se ele foi atingido, informe o usuário sem chamar esta tool.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -150,18 +150,28 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
               },
               quantity: {
                 type: SchemaType.NUMBER,
-                description: "Quantidade",
+                description: "Quantidade (produto vendido por unidade)",
               },
-              unitPrice: {
+              width: {
                 type: SchemaType.NUMBER,
-                description: "Preço unitário em reais (ex: 1500.00)",
+                description:
+                  "Largura em metros, para produto cobrado por medida (área, largura ou faixa de altura)",
+              },
+              height: {
+                type: SchemaType.NUMBER,
+                description:
+                  "Altura em metros, para produto cobrado por área ou por faixa de altura",
+              },
+              panels: {
+                type: SchemaType.NUMBER,
+                description: "Número de painéis ou folhas do produto por medida (padrão 1)",
               },
               description: {
                 type: SchemaType.STRING,
                 description: "Descrição do item (opcional)",
               },
             },
-            required: ["productId", "quantity", "unitPrice"],
+            required: ["productId"],
           },
         },
         notes: {
@@ -203,10 +213,12 @@ export const TOOL_DEFINITIONS: Record<string, FunctionDeclaration> = {
             properties: {
               productId: { type: SchemaType.STRING },
               quantity: { type: SchemaType.NUMBER },
-              unitPrice: { type: SchemaType.NUMBER },
+              width: { type: SchemaType.NUMBER, description: "Largura em metros (produto por medida)" },
+              height: { type: SchemaType.NUMBER, description: "Altura em metros (produto por área ou faixa)" },
+              panels: { type: SchemaType.NUMBER },
               description: { type: SchemaType.STRING },
             },
-            required: ["productId", "quantity", "unitPrice"],
+            required: ["productId"],
           },
         },
         notes: { type: SchemaType.STRING },

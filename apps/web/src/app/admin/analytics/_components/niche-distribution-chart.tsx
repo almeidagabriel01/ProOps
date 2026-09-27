@@ -9,16 +9,14 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { NicheDistributionItem } from "../_hooks/useAnalyticsData";
+import { NICHE_CONFIGS } from "@/lib/niches/config";
+import { isTenantNiche } from "@/lib/niches/niche-ids";
 
 interface NicheDistributionChartProps {
   data: NicheDistributionItem[];
 }
 
-const NICHE_COLORS: Record<string, string> = {
-  automacao_residencial: "#6366f1",
-  cortinas: "#f59e0b",
-  outros: "#6b7280",
-};
+const OTHER_NICHE_COLOR = "#6b7280";
 
 interface TooltipProps {
   active?: boolean;
@@ -41,7 +39,11 @@ function CustomTooltip({ active, payload }: TooltipProps) {
 export function NicheDistributionChart({ data }: NicheDistributionChartProps) {
   const displayData = data.map((d) => ({
     ...d,
-    color: NICHE_COLORS[d.name] ?? "#9ca3af",
+    color: isTenantNiche(d.name)
+      ? NICHE_CONFIGS[d.name].analyticsColor
+      : d.name === "outros"
+        ? OTHER_NICHE_COLOR
+        : "#9ca3af",
     displayLabel: d.label,
   }));
 

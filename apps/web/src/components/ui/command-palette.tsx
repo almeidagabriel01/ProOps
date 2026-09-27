@@ -14,7 +14,7 @@ import { useUpgradeModal } from "@/components/ui/upgrade-modal";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useTenant } from "@/providers/tenant-provider";
 import { useAuth } from "@/providers/auth-provider";
-import { isPageEnabledForNiche } from "@/lib/niches/config";
+import { getNicheConfig, isPageEnabledForNiche } from "@/lib/niches/config";
 import { normalize } from "@/utils/text";
 import { useRecordSearch } from "@/hooks/use-record-search";
 import {
@@ -23,7 +23,7 @@ import {
   type RecentRecord,
 } from "@/lib/command-palette-recents";
 import {
-  searchItems,
+  searchItemsForNiche,
   type SearchItem,
 } from "@/components/ui/command-palette-items";
 
@@ -96,9 +96,15 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
   const hasTerm = searchTerm.trim().length > 0;
 
+  // Rótulos de Soluções e Ambientes no nome do nicho, iguais aos do menu.
+  const nicheSearchItems = React.useMemo(
+    () => searchItemsForNiche(getNicheConfig(tenant?.niche)),
+    [tenant?.niche],
+  );
+
   // Filter items based on search term and user permissions
   const filteredItems = React.useMemo(() => {
-    return searchItems.filter((item) => {
+    return nicheSearchItems.filter((item) => {
       // Check permission restrictions
       if (!isPageEnabledForNiche(tenant?.niche, item.id)) return false;
       if (item.masterOnly && !isMaster) return false;
@@ -130,7 +136,7 @@ export function CommandPalette({ className }: CommandPaletteProps) {
 
       return matchesLabel || matchesDescription || matchesKeywords;
     });
-  }, [searchTerm, isMaster, hasPermission, tenant?.niche]);
+  }, [searchTerm, isMaster, hasPermission, tenant?.niche, nicheSearchItems]);
 
   const entries = React.useMemo<PaletteEntry[]>(() => {
     if (!hasTerm) {

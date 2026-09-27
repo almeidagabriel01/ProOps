@@ -17,8 +17,8 @@ export class RegisterPage {
     this.companyNameInput = page.locator("#companyName");
   }
 
-  async goto(): Promise<void> {
-    await this.page.goto("/register");
+  async goto(query = ""): Promise<void> {
+    await this.page.goto(`/register${query}`);
   }
 
   async isLoaded(): Promise<boolean> {

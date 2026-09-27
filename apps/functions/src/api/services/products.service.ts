@@ -17,6 +17,8 @@ export interface ProductDoc {
   name: string;
   description?: string;
   price?: number;
+  markup?: number | string;
+  pricingModel?: unknown;
   category?: string;
   manufacturer?: string;
   status: string;

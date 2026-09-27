@@ -54,6 +54,11 @@ jest.mock("../../../lib/tenant-resolution", () => ({
   assertTenantExists: (id: string) => assertTenantExists(id),
 }));
 
+const tenantNiches: Record<string, string> = {};
+jest.mock("../../../lib/tenant-doc-cache", () => ({
+  getTenantDocCached: async (id: string) => ({ exists: true, data: { niche: tenantNiches[id] } }),
+}));
+
 const auditAdminAction = jest.fn(async () => undefined);
 jest.mock("../../../lib/admin-audit", () => ({
   auditAdminAction: (...args: unknown[]) => auditAdminAction(...(args as [])),
@@ -99,6 +104,8 @@ beforeEach(() => {
   assertTenantExists.mockReset().mockResolvedValue(undefined);
   auditAdminAction.mockClear();
   for (const key of Object.keys(store)) delete store[key];
+  tenantNiches.src = "cortinas";
+  tenantNiches.dst = "cortinas";
   store.products = [
     { id: "p-src", data: { tenantId: "src", name: "Cortina" } },
     { id: "p-old", data: { tenantId: "dst", name: "Antigo" } },
@@ -130,6 +137,14 @@ describe("copyTenantData", () => {
       "super_admin_copy_data",
       expect.objectContaining({ tenantId: "dst", targetId: "src" }),
     );
+  });
+
+  it("nichos diferentes: 400 sem copiar nem apagar nada", async () => {
+    tenantNiches.dst = "automacao_residencial";
+    const res = await run({ sourceTenantId: "src", targetTenantId: "dst", replace: true });
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(setRefs).toEqual([]);
+    expect(deletedRefs).toEqual([]);
   });
 
   it("com replace: apaga so os antigos do destino, depois da copia", async () => {

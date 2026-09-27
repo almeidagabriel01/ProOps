@@ -18,6 +18,8 @@ import { useTenant } from "@/providers/tenant-provider";
 import { SystemEnvironmentManagerDialog } from "./system-environment-manager-dialog";
 import { SistemaTemplateDialog } from "./sistema-template-dialog";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, um } from "@/lib/niches/vocabulary";
 import {
   createProposalSistema,
   getPrimaryAmbiente,
@@ -52,6 +54,8 @@ export function SistemaSelector({
   selectedSistemas,
 }: SistemaSelectorProps) {
   const { tenant } = useTenant();
+  const v = useNicheVocabulary();
+  const selectGroupFirst = `Selecione ${um(v.group)} ${v.group.singular} primeiro`;
 
   // Data
   const [ambientes, setAmbientes] = React.useState<Ambiente[]>([]);
@@ -311,7 +315,7 @@ export function SistemaSelector({
       {/* 1. Sistema Selection (First) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Solução</Label>
+          <Label>{cap(v.group.singular)}</Label>
         </div>
         <div className="flex gap-2">
           <div className="flex-1 relative">
@@ -325,8 +329,8 @@ export function SistemaSelector({
                 value: sistema.id,
                 label: sistema.name,
               }))}
-              placeholder="Selecione uma solução..."
-              searchPlaceholder="Buscar solução..."
+              placeholder={`Selecione ${um(v.group)} ${v.group.singular}...`}
+              searchPlaceholder={`Buscar ${v.group.singular}...`}
             />
           </div>
 
@@ -341,7 +345,7 @@ export function SistemaSelector({
                   setIsSistemaDialogOpen(true);
                 }
               }}
-              title="Editar Solução"
+              title={`Editar ${cap(v.group.singular)}`}
             >
               <Pencil className="h-4 w-4" />
             </Button>
@@ -352,7 +356,7 @@ export function SistemaSelector({
       {/* 2. Ambiente Selection (Second, Filtered) */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label>Ambiente</Label>
+          <Label>{cap(v.place.singular)}</Label>
         </div>
         <div className="relative">
           <SearchableSelect
@@ -367,13 +371,13 @@ export function SistemaSelector({
             }))}
             placeholder={
               selectedSistemaId
-                ? "Selecione um ambiente..."
-                : "Selecione uma solução primeiro"
+                ? `Selecione ${um(v.place)} ${v.place.singular}...`
+                : selectGroupFirst
             }
             searchPlaceholder={
               selectedSistemaId
-                ? "Buscar ambiente..."
-                : "Selecione uma solução primeiro"
+                ? `Buscar ${v.place.singular}...`
+                : selectGroupFirst
             }
           />
         </div>

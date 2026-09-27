@@ -21,6 +21,8 @@ import { LimitReachedModal } from "@/components/ui/limit-reached-modal";
 import { UnsavedChangesModal } from "@/components/ui/unsaved-changes-modal";
 import { useProposalForm } from "@/hooks/proposal/useProposalForm";
 import { useTenant } from "@/providers/tenant-provider";
+import { getNicheConfig } from "@/lib/niches/config";
+import { ao, cap, do_, este, no, o, pick } from "@/lib/niches/vocabulary";
 import { useBeforeUnloadWarning } from "@/hooks/use-before-unload-warning";
 import { hasUnsavedProposalWork } from "@/hooks/proposal/unsaved-proposal";
 import { FormContainer } from "@/components/ui/form-components";
@@ -65,7 +67,8 @@ const stepsAutomation = [
     description: "Dados do contato",
     icon: User,
   },
-  { id: "systems", title: "Soluções", description: "Automação", icon: Cpu },
+  // Título e descrição vêm de `groupsStep`, do nicho (ver `steps` abaixo).
+  { id: "systems", title: "", description: "", icon: Cpu },
   {
     id: "payment",
     title: "Pagamento",
@@ -129,8 +132,9 @@ const stepsEnvironment = [
   },
   {
     id: "environments",
-    title: "Ambientes",
-    description: "Selecionar ambientes",
+    // Título e descrição vêm de `groupsStep`, do nicho (ver `steps` abaixo).
+    title: "",
+    description: "",
     icon: Layers,
   },
   {
@@ -230,6 +234,15 @@ export function SimpleProposalForm({
   // add/remove controls disabled via FormStepCard's fieldset). Distinct from the
   // `isReadOnly` PROP, which renders a fully static view without the stepper.
   const { isReadOnly: isDemo, tenant } = useTenant();
+  const groupsStepCopy = React.useMemo(
+    () => getNicheConfig(tenant?.niche).proposal.groupsStep,
+    [tenant?.niche],
+  );
+  const titlePlaceholder = getNicheConfig(tenant?.niche).proposal.titlePlaceholder;
+  const vocabulary = React.useMemo(
+    () => getNicheConfig(tenant?.niche).vocabulary,
+    [tenant?.niche],
+  );
   const { hasSalesGoals } = usePlanLimits();
   const { user } = useAuth();
   // A comissão do vendedor da equipe acompanha o responsável pela venda.
@@ -502,11 +515,9 @@ export function SimpleProposalForm({
     // Check if there are products in formData
     if (!currentFormData.products || currentFormData.products.length === 0) {
       const field = groupedByEnvironment ? "sistemas" : "products";
-      const message = isAutomacaoNiche
-        ? "Selecione pelo menos 1 sistema de automação com produtos"
-        : isEnvironmentProposal
-          ? "Selecione pelo menos 1 ambiente com produtos"
-          : "Selecione pelo menos 1 produto";
+      const message = groupedByEnvironment
+        ? groupsStepCopy.emptySelectionError
+        : "Selecione pelo menos 1 produto";
       setFieldError(field, message);
       toast.error(message);
       return false;
@@ -522,7 +533,8 @@ export function SimpleProposalForm({
             : [
                 {
                   ambienteId: sistema.ambienteId,
-                  ambienteName: sistema.ambienteName || "Ambiente",
+                  ambienteName:
+                    sistema.ambienteName || cap(vocabulary.place.singular),
                 },
               ];
 
@@ -542,7 +554,8 @@ export function SimpleProposalForm({
           });
 
           if (activeProducts.length === 0 && environmentProducts.length > 0) {
-            const errorMessage = `O sistema "${sistema.sistemaName}" - Ambiente "${ambiente.ambienteName}" não possui nenhum produto ativo com quantidade maior que 0.`;
+            const { place, group } = vocabulary;
+            const errorMessage = `${cap(o(place))} ${place.singular} "${ambiente.ambienteName}", ${no(group)} ${group.singular} "${sistema.sistemaName}", não possui nenhum produto ativo com quantidade maior que 0.`;
             setFieldError("sistemas", errorMessage);
             toast.error(errorMessage, { autoClose: 5000 });
             return false;
@@ -570,6 +583,8 @@ export function SimpleProposalForm({
 
     return true;
   }, [
+    groupsStepCopy,
+    vocabulary,
     isAutomacaoNiche,
     isEnvironmentProposal,
     setFieldError,
@@ -581,7 +596,7 @@ export function SimpleProposalForm({
     const currentFormData = formDataRef.current;
 
     if (!currentFormData.products || currentFormData.products.length === 0) {
-      const message = "Selecione pelo menos 1 ambiente com produtos";
+      const message = groupsStepCopy.emptySelectionError;
       setFieldError("sistemas", message);
       toast.error(message);
       return false;
@@ -594,7 +609,8 @@ export function SimpleProposalForm({
           : [
               {
                 ambienteId: sistema.ambienteId,
-                ambienteName: sistema.ambienteName || "Ambiente",
+                ambienteName:
+                  sistema.ambienteName || cap(vocabulary.place.singular),
               },
             ];
 
@@ -608,7 +624,8 @@ export function SimpleProposalForm({
         );
 
         if (activeProducts.length === 0 && environmentProducts.length > 0) {
-          const errorMessage = `O ambiente "${ambiente.ambienteName}" não possui nenhum produto ativo com quantidade maior que 0.`;
+          const { place } = vocabulary;
+          const errorMessage = `${cap(o(place))} ${place.singular} "${ambiente.ambienteName}" não possui nenhum produto ativo com quantidade maior que 0.`;
           setFieldError("sistemas", errorMessage);
           toast.error(errorMessage, { autoClose: 5000 });
           return false;
@@ -618,7 +635,13 @@ export function SimpleProposalForm({
 
     clearFieldError("sistemas");
     return true;
-  }, [clearFieldError, selectedSistemas, setFieldError]);
+  }, [
+    clearFieldError,
+    groupsStepCopy,
+    vocabulary,
+    selectedSistemas,
+    setFieldError,
+  ]);
 
   // Validação do Step 3 (Payment)
   const validateStep3 = React.useCallback((): boolean => {
@@ -787,7 +810,7 @@ export function SimpleProposalForm({
         existingSystem.ambienteId === newAmbiente.ambienteId
       ) {
         toast.error(
-          `O ambiente "${newAmbiente.ambienteName}" já foi adicionado ao sistema "${existingSystem.sistemaName}".`,
+          `${cap(o(vocabulary.place))} ${vocabulary.place.singular} "${newAmbiente.ambienteName}" já faz parte ${do_(vocabulary.group)} ${vocabulary.group.singular} "${existingSystem.sistemaName}".`,
         );
         setSelectorKey((prev) => prev + 1);
         return;
@@ -861,7 +884,7 @@ export function SimpleProposalForm({
       }
 
       toast.success(
-        `Ambiente "${newAmbiente.ambienteName}" adicionado ao sistema "${existingSystem.sistemaName}".`,
+        `${cap(vocabulary.place.singular)} "${newAmbiente.ambienteName}" ${pick(vocabulary.place, "adicionado", "adicionada")} ${ao(vocabulary.group)} ${vocabulary.group.singular} "${existingSystem.sistemaName}".`,
       );
     } else {
       // Create new system entry
@@ -900,7 +923,7 @@ export function SimpleProposalForm({
 
     if (alreadySelected) {
       toast.error(
-        `O ambiente "${ambiente.name}" já foi adicionado à proposta.`,
+        `${cap(o(vocabulary.place))} ${vocabulary.place.singular} "${ambiente.name}" já foi ${pick(vocabulary.place, "adicionado", "adicionada")} à proposta.`,
       );
       return;
     }
@@ -935,7 +958,9 @@ export function SimpleProposalForm({
     });
 
     if (exists) {
-      toast.error("Este sistema já existe na proposta.");
+      toast.error(
+        `${cap(este(vocabulary.group))} ${vocabulary.group.singular} já existe na proposta.`,
+      );
       return;
     }
 
@@ -1047,11 +1072,21 @@ export function SimpleProposalForm({
     router.push("/proposals");
   };
 
-  const steps = isAutomacaoNiche
-    ? stepsAutomation
-    : isEnvironmentProposal
-      ? stepsEnvironment
-      : stepsDefault;
+  const steps = (
+    isAutomacaoNiche
+      ? stepsAutomation
+      : isEnvironmentProposal
+        ? stepsEnvironment
+        : stepsDefault
+  ).map((step) =>
+    step.id === "systems" || step.id === "environments"
+      ? {
+          ...step,
+          title: groupsStepCopy.stepTitle,
+          description: groupsStepCopy.stepDescription,
+        }
+      : step,
+  );
 
   // Map step validators for StepWizard
   // MUST be before any conditional returns to maintain hook order
@@ -1143,6 +1178,7 @@ export function SimpleProposalForm({
               newClientDocument={newClientDocument}
               onNewClientDocumentChange={setNewClientDocument}
               isExistingProposal={!!proposalId}
+              titlePlaceholder={titlePlaceholder}
               onPracaChange={(proposalPraca) =>
                 setFormData((prev) => ({ ...prev, proposalPraca }))
               }
@@ -1173,15 +1209,17 @@ export function SimpleProposalForm({
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold">
-                      Soluções de Automação
+                      {groupsStepCopy.heading}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Adicione as soluções da proposta
+                      {groupsStepCopy.subheading}
                     </p>
                   </div>
                 </div>
 
                 <ProposalSystemsSection
+                  heading={groupsStepCopy.heading}
+                  description={groupsStepCopy.cardDescription}
                   selectedSistemas={selectedSistemas}
                   selectedProducts={selectedProducts}
                   products={products}
@@ -1217,9 +1255,11 @@ export function SimpleProposalForm({
                     <Layers className="w-6 h-6 text-amber-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">Ambientes</h3>
+                    <h3 className="text-lg font-semibold">
+                      {groupsStepCopy.heading}
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      Selecione os ambientes desejados na proposta
+                      {groupsStepCopy.subheading}
                     </p>
                   </div>
                 </div>

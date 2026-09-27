@@ -21,6 +21,7 @@ import { AuthLayout } from "@/app/login/_components/auth-layout";
 import { m as motion } from "motion/react";
 import Image from "next/image";
 import { Loader } from "@/components/ui/loader";
+import { SIGNUP_NICHE_PARAM, signupNicheFromParam } from "@/lib/niches/niche-ids";
 
 function GoogleSetupContent() {
   const router = useRouter();
@@ -62,8 +63,8 @@ function GoogleSetupContent() {
   const [companyName, setCompanyName] = useState("");
   const [companyColor, setCompanyColor] = useState("#8b5cf6");
   const [companyLogo, setCompanyLogo] = useState("");
-  const [companyNiche, setCompanyNiche] = useState<TenantNiche>(
-    "automacao_residencial",
+  const [companyNiche, setCompanyNiche] = useState<TenantNiche>(() =>
+    signupNicheFromParam(searchParams.get(SIGNUP_NICHE_PARAM)),
   );
 
   const canSubmit = useMemo(

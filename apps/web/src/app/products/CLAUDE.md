@@ -116,7 +116,7 @@ A variação de UI por nicho é controlada via `useCurrentNicheConfig()` (que l�
 |-------|--------------|
 | Inventário | Metro (`"meter"`), step 0.01 |
 | Coluna tabela | Coluna de inventário **oculta** (`hideInventoryColumn = true`) |
-| Card de saldo | Usa `summarizeCurtainInventoryBalance()` — lógica por modo de precificação |
+| Card de saldo | Usa `summarizeDimensionInventoryBalance()` — lógica por modo de precificação |
 | Modos de precificação | Seletor com 4 opções (ver abaixo) |
 | Limite de imagens | 3 por produto |
 | Fabricante | Campo obrigatório no formulário |
@@ -164,7 +164,7 @@ cost     = Σ (inventoryValue × getProductBasePrice(p))
 withMarkup = Σ (inventoryValue × calculateSellingPrice(basePrice, markup))
 ```
 
-Para `cortinas`, usa `summarizeCurtainInventoryBalance()` — que trata cada modo separadamente. Produtos dimensionais com inventário zero usam `dimensionMultiplier = 1` (entram no saldo mesmo sem metragem cadastrada).
+Nos nichos com `productCatalog.inventoryView === "dimension_balance"`, usa `summarizeDimensionInventoryBalance()`, que trata cada modo separadamente. Produto sem estoque fica de fora em qualquer modo, e o produto por faixa de altura vale pelo preço da faixa mais baixa (antes a soma das faixas multiplicava o saldo pelo número de faixas).
 
 ---
 

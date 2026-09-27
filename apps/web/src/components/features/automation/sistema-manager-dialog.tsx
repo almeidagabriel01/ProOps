@@ -19,6 +19,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { MasterDataAction } from "@/hooks/proposal/useMasterDataTransaction";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, do_, pick } from "@/lib/niches/vocabulary";
 
 interface SistemaManagerDialogProps {
   isOpen: boolean;
@@ -44,6 +46,7 @@ export function SistemaManagerDialog({
   onAction,
 }: SistemaManagerDialogProps) {
   const { tenant } = useTenant();
+  const v = useNicheVocabulary();
   const [sistemas, setSistemas] = React.useState<Sistema[]>([]);
   const [ambientes, setAmbientes] = React.useState<Ambiente[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -112,7 +115,9 @@ export function SistemaManagerDialog({
           id: sistema.id,
         });
         onSistemasChange?.();
-        toast.success("Solução removida!");
+        toast.success(
+          `${cap(v.group.singular)} ${pick(v.group, "removido", "removida")}!`,
+        );
       } else {
         await SistemaService.deleteSistema(sistema.id);
         await loadData();
@@ -120,7 +125,7 @@ export function SistemaManagerDialog({
       }
     } catch (error) {
       console.error("Error deleting sistema:", error);
-      toast.error("Erro ao excluir solução");
+      toast.error(`Erro ao excluir ${v.group.singular}`);
     } finally {
       setDeletingId(null);
       setSistemaToDelete(null);
@@ -147,9 +152,12 @@ export function SistemaManagerDialog({
     >
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Gerenciar Templates da Solução</DialogTitle>
+          <DialogTitle>
+            Gerenciar Templates {do_(v.group)} {cap(v.group.singular)}
+          </DialogTitle>
           <DialogDescription>
-            Visualize, edite ou exclua os templates da solução criados.
+            Visualize, edite ou exclua os templates {do_(v.group)}{" "}
+            {v.group.singular} criados.
           </DialogDescription>
         </DialogHeader>
 
@@ -175,7 +183,9 @@ export function SistemaManagerDialog({
           ) : sistemas.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p>Nenhum template da solução criado.</p>
+              <p>
+                Nenhum template {do_(v.group)} {v.group.singular} criado.
+              </p>
               <p className="text-sm">
                 Clique em &quot;Novo Template&quot; para criar.
               </p>
@@ -256,8 +266,8 @@ export function SistemaManagerDialog({
     <ConfirmDialog
       open={sistemaToDelete !== null}
       onOpenChange={(open) => !open && !deletingId && setSistemaToDelete(null)}
-      title="Excluir template da solução"
-      description={`O template da solução "${sistemaToDelete?.name ?? ""}" será excluído.`}
+      title={`Excluir template ${do_(v.group)} ${v.group.singular}`}
+      description={`O template ${do_(v.group)} ${v.group.singular} "${sistemaToDelete?.name ?? ""}" será excluído.`}
       confirmLabel="Excluir"
       pendingLabel="Excluindo..."
       destructive

@@ -8,8 +8,8 @@ import {
   defaultPdfDisplaySettings,
 } from "@/types/pdf-display-settings";
 import {
-  hasCortinasAwareProductFooterContent,
-  PdfCortinasAwareProductFooter,
+  hasProductLineFooterContent,
+  PdfProductLineFooter,
 } from "./pdf-sistema-primitives";
 
 interface ProductData {
@@ -140,7 +140,7 @@ export function PdfProductRow({
           )}
         </div>
 
-        {hasCortinasAwareProductFooterContent({
+        {hasProductLineFooterContent({
           product,
           tenantNiche,
           showProductPrices: settings.showProductPrices,
@@ -151,7 +151,7 @@ export function PdfProductRow({
             <div className="text-sm text-gray-400" />
             <div className="text-right">
               <div className="inline-flex flex-col items-end">
-                <PdfCortinasAwareProductFooter
+                <PdfProductLineFooter
                   product={product}
                   tenantNiche={tenantNiche}
                   showProductPrices={settings.showProductPrices}

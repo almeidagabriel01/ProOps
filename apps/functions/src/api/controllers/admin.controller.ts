@@ -60,6 +60,8 @@ import { syncTenantPlanBillingSnapshot } from "../../stripe/stripeWebhook";
 import { getStripe } from "../../stripe/stripeConfig";
 import { detectPriceDrift } from "../../billing/price-drift";
 import { invalidateTenantAudience } from "../services/notification-audience";
+import { isTenantNiche } from "../../shared/niches";
+import { getTenantDocCached } from "../../lib/tenant-doc-cache";
 
 export function normalizePhoneNumber(value: unknown): string {
   return normalizeBrazilPhoneNumber(value);
@@ -685,7 +687,8 @@ export const updatePermissions = async (req: Request, res: Response) => {
           targetId: actualMemberId,
           reason: `single:${pageId}.${key}=${value}`,
         });
-      }
+      }
+
       // Quem recebe cada notificação depende das permissões.
       invalidateTenantAudience(String(memberData?.tenantId || ""));
       return res.json({ success: true, message: "Permissão atualizada." });
@@ -718,7 +721,8 @@ export const updatePermissions = async (req: Request, res: Response) => {
         targetId: actualMemberId,
         reason: "bulk",
       });
-    }
+    }
+
     // Quem recebe cada notificação depende das permissões.
     invalidateTenantAudience(String(memberData?.tenantId || ""));
     return res.json({ success: true, message: "Permissões atualizadas." });
@@ -1666,6 +1670,12 @@ export const createTenant = async (req: Request, res: Response) => {
       });
     }
 
+    // Nicho fora da lista virava automação em silêncio em toda tela.
+    const niche = body.niche;
+    if (!isTenantNiche(niche)) {
+      return res.status(400).json({ message: "Nicho inválido." });
+    }
+
     try {
       await auth.getUserByEmail(adminEmailValidation.normalizedEmail);
       return res.status(409).json({ message: "Este email já está em uso." });
@@ -1728,7 +1738,7 @@ export const createTenant = async (req: Request, res: Response) => {
         slug: sanitizeSlug(body.slug || tenantName),
         primaryColor: String(body.primaryColor || "#3b82f6"),
         logoUrl: String(body.logoUrl || ""),
-        niche: String(body.niche || ""),
+        niche,
         // whatsappEnabled is always false at creation time; it is recomputed via
         // tenantPlanAllowsWhatsApp() after the transaction to ensure eligibility
         // rules are enforced rather than accepting an arbitrary caller value.
@@ -1748,7 +1758,7 @@ export const createTenant = async (req: Request, res: Response) => {
           name: tenantName,
           primaryColor: String(body.primaryColor || "#3b82f6"),
           logoUrl: String(body.logoUrl || ""),
-          niche: String(body.niche || ""),
+          niche,
           whatsappEnabled: false,
           usage: {
             users: 0,
@@ -2411,6 +2421,18 @@ export const copyTenantData = async (req: Request, res: Response) => {
       await assertTenantExists(targetTenantId);
     } catch {
       return res.status(400).json({ message: "Empresa de origem ou destino inexistente." });
+    }
+    // O catálogo tem o formato do nicho (produto por medida, ambientes de
+    // persianas, sistemas de segurança), e o nicho de uma empresa nunca muda:
+    // copiar entre nichos diferentes deixaria dado que o destino não sabe usar.
+    const [sourceTenant, targetTenant] = await Promise.all([
+      getTenantDocCached(sourceTenantId),
+      getTenantDocCached(targetTenantId),
+    ]);
+    if (sourceTenant.data?.niche !== targetTenant.data?.niche) {
+      return res
+        .status(400)
+        .json({ message: "Origem e destino precisam ser empresas do mesmo nicho." });
     }
 
     const allCollections = ["products", "services", "ambientes", "sistemas"];

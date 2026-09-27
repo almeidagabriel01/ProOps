@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/providers/permissions-provider";
 import { useTenant } from "@/providers/tenant-provider";
+import { getNicheConfig } from "@/lib/niches/config";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useNavigationItems } from "@/components/layout/use-navigation-items";
@@ -117,7 +118,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const { user, refreshUser } = useAuth();
   const { isMaster } = usePermissions();
-  const { isDemo } = useTenant();
+  const { isDemo, tenant } = useTenant();
+  const { onboardingStepDescriptions: stepDescriptions, vocabulary } = getNicheConfig(
+    tenant?.niche,
+  );
   const plan = usePlanLimits();
   const { visibleMenuItems } = useNavigationItems();
   const isMobile = useIsMobile();
@@ -178,8 +182,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         settingsRoutes: SETTINGS_ROUTES,
         capabilities,
         viewer: { isMaster, isDemo },
+        stepDescriptions,
+        vocabulary,
       }),
-    [visibleMenuItems, capabilities, isMaster, isDemo],
+    [visibleMenuItems, capabilities, isMaster, isDemo, stepDescriptions, vocabulary],
   );
 
   const state = localState;

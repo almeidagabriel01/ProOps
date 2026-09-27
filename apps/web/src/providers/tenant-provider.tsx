@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Tenant, User } from "@/types"; // Keep Type
+import { Tenant, TenantNiche, User } from "@/types"; // Keep Type
 import { TenantService, invalidateTenantCache } from "@/services/tenant-service";
 import { useAuth } from "@/providers/auth-provider";
 import {
@@ -32,20 +32,23 @@ import {
   computePrimaryForeground,
   normalizeHex,
 } from "@/utils/color-utils";
-
-// Fixed id of the shared read-only demo dataset a free account browses.
-export const DEMO_TENANT_ID = "demo";
+import { demoTenantIdForNiche } from "@/lib/demo-tenants";
+import { isTenantNiche } from "@/lib/niches/niche-ids";
 
 // Synthetic tenant used as the DATA tenant for free/demo accounts. No Firestore
 // read is needed (the demo tenant doc itself is not exposed to free reads — only
-// its data collections are). niche = automacao_residencial so "Soluções" renders.
-const DEMO_TENANT: Tenant = {
-  id: DEMO_TENANT_ID,
-  name: "ProOps Demo",
-  slug: "proops-demo",
-  niche: "automacao_residencial",
-  primaryColor: "#4f46e5",
-} as Tenant;
+// its data collections are). There is one demo dataset per niche, chosen by the
+// niche of the account, so the menu and the data match what the account sells.
+function demoTenantFor(niche: TenantNiche | null | undefined): Tenant {
+  const resolvedNiche: TenantNiche = isTenantNiche(niche) ? niche : "automacao_residencial";
+  return {
+    id: demoTenantIdForNiche(resolvedNiche),
+    name: "ProOps Demo",
+    slug: "proops-demo",
+    niche: resolvedNiche,
+    primaryColor: "#4f46e5",
+  } as Tenant;
+}
 
 interface TenantContextType {
   tenant: Tenant | null;
@@ -277,10 +280,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     // the data-fetching services query the demo collections, while billing and
     // identity stay on the real tenant (exposed via accountTenantId below).
     if (user?.role?.toLowerCase() === "free") {
-      setTenant(DEMO_TENANT);
+      // O nicho vem do tenant da própria conta (legível por ela).
+      let accountNiche: TenantNiche | undefined;
+      if (user.tenantId) {
+        try {
+          accountNiche = (await TenantService.getTenantById(user.tenantId))?.niche;
+        } catch {
+          accountNiche = undefined;
+        }
+      }
+      const demoTenant = demoTenantFor(accountNiche);
+      setTenant(demoTenant);
       setTenantOwner(null);
       setTenantOwnerPlanName(null);
-      currentTenantIdRef.current = DEMO_TENANT_ID;
+      currentTenantIdRef.current = demoTenant.id;
       lastResolvedContextKeyRef.current = contextKey;
       setIsLoading(false);
       return;

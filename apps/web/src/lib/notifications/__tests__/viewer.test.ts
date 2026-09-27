@@ -31,6 +31,12 @@ describe("quem está olhando", () => {
 
   it("conta free lê a demonstração", () => {
     expect(resolveNotificationViewer({ uid: "f", role: "free", scope: tenantScope })?.mode).toBe("demo");
+    // A demonstração é a do nicho da conta; sem ela, a de automação.
+    expect(
+      resolveNotificationViewer({ uid: "f", role: "free", scope: tenantScope, demoTenantId: "demo-cortinas" })
+        ?.demoTenantId,
+    ).toBe("demo-cortinas");
+    expect(resolveNotificationViewer({ uid: "f", role: "free", scope: tenantScope })?.demoTenantId).toBe("demo");
   });
 
   it("sem usuário ou sem escopo, ninguém", () => {

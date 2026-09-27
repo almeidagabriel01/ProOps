@@ -1,7 +1,8 @@
 import type React from "react";
+import type { TenantNiche } from "@/types";
 
 export interface NicheLandingConfig {
-  slug: "automacao_residencial" | "cortinas";
+  slug: TenantNiche;
   hero: {
     eyebrow: string;
     title: string;
@@ -32,5 +33,16 @@ export interface NicheLandingConfig {
     metadataTitle: string;
     metadataDescription: string;
     breadcrumb: string;
+    keywords: string[];
+    ogTitle: string;
+    ogDescription: string;
+  };
+  /** Cartão do nicho na galeria de pacotes da home do ERP. */
+  gallery: {
+    icon: React.ComponentType<{ className?: string }>;
+    eyebrow: string;
+    title: string;
+    description: string;
+    features: string[];
   };
 }

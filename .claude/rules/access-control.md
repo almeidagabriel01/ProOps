@@ -170,13 +170,23 @@ Onboarding.
 ### 6. Nichos
 
 **Decida:** a tela aparece em cada nicho de `TenantNiche` (hoje
-`automacao_residencial` e `cortinas`)? Algum texto ou comportamento muda? A
+`automacao_residencial`, `cortinas` e `seguranca_eletronica`)? Algum texto ou comportamento muda? A
 regra geral está em `apps/web/src/lib/CLAUDE.md`, seção Multi-niche.
 
 - [ ] Disponibilidade em `NICHE_CONFIGS[*].pageAvailability`
       (`apps/web/src/lib/niches/config.ts`), **declarada em todos os nichos**.
-      Uma chave ausente conta como habilitada, então esquecer um nicho abre a
-      tela nele em silêncio.
+      A chave nova entra em `NICHE_PAGE_KEYS`: o tipo exige que todo nicho a
+      declare, porque uma chave ausente contaria como habilitada e abriria a
+      tela em silêncio.
+- [ ] **Nicho novo** (não tela nova): siga o roteiro de
+      `apps/web/src/lib/niches/CLAUDE.md` (registro do backend, espelho do
+      front e rules, pasta `definitions/<id>/`, dataset de demonstração, página
+      fina e menções de marketing). Cada passo tem um teste ou o compilador
+      cobrando.
+- [ ] Texto de tela que fala do local da obra ou do grupo da proposta usa o
+      vocabulário do nicho (`useNicheVocabulary()`, ou
+      `getNicheConfig(tenantNiche).vocabulary` no PDF), nunca "ambiente" ou
+      "solução" escritos à mão. Guard: `no-hardcoded-vocabulary.test.ts`.
 - [ ] Menu: se a chave de nicho diferir da de permissão, o item declara
       `availabilityPageId` em `navigation-config.tsx`, como Ambientes faz. O
       único gate de nicho da navegação é `useNavigationItems`.
@@ -186,12 +196,19 @@ regra geral está em `apps/web/src/lib/CLAUDE.md`, seção Multi-niche.
 - [ ] Texto ou comportamento diferente por nicho vira campo em `NicheConfig`,
       lido por `useCurrentNicheConfig()`. Nunca `if (niche === "cortinas")` no
       componente.
-- [ ] Backend: não há config central de nicho. Regra de negócio que mude por
-      nicho no servidor precisa de espelho no front com teste de paridade, no
-      padrão de `catalog-image-limits`.
-- [ ] O tenant de demonstração é só `automacao_residencial`, então navegar a
-      demo nunca exercita cortinas. O comportamento de cada nicho precisa de
-      teste próprio.
+- [ ] Backend: o que muda por nicho no servidor é campo de `NICHE_REGISTRY`
+      (`apps/functions/src/shared/niches.ts`, puro, sem import). Se o front
+      também usa, o campo entra no espelho (`lib/niches/registry.ts`) e na
+      paridade.
+- [ ] Cada nicho tem a própria demonstração: `demoTenantId` no registro
+      (derivado em `DEMO_TENANT_IDS`, e no `isDemoRead` das rules, com
+      paridade em `niche-registry-parity.test.ts`), escolhida pelo nicho da
+      conta free. Nicho novo ganha um dataset em
+      `apps/functions/src/scripts/demo/datasets/<id>.ts` (só dados; o motor
+      `scripts/demo/engine.ts` monta os documentos, e `DEMO_DATASETS` é um
+      `Record` que o compilador cobra), semeado pelo POST
+      `/internal/admin/seed-demo-tenant`. Navegar a demo não substitui o teste
+      do comportamento de cada nicho.
 
 ---
 

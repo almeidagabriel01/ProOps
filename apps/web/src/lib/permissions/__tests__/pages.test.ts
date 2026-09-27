@@ -3,6 +3,7 @@ import {
   PERMISSION_PAGES,
   getAssignablePages,
   getPermissionPage,
+  getPermissionPageName,
 } from "../pages";
 import { getDefaultPermissions } from "@/lib/permissions/pages";
 import { AVAILABLE_PAGES } from "@/components/features/team/team-types";
@@ -90,5 +91,25 @@ describe("presets de papel", () => {
   it("página viewOnly nunca recebe criar/editar/excluir", () => {
     const perms = getDefaultPermissions("admin", true);
     expect(perms.dashboard).toEqual({ canView: true });
+  });
+});
+
+describe("nome da página nas telas de Equipe, por nicho", () => {
+  const solutions = getPermissionPage("solutions")!;
+
+  it("segue o rótulo do menu em cada nicho, com o mesmo id", () => {
+    expect(getPermissionPageName(solutions, "automacao_residencial")).toBe("Soluções");
+    expect(getPermissionPageName(solutions, "seguranca_eletronica")).toBe("Sistemas");
+    expect(getPermissionPageName(solutions, "cortinas")).toBe("Ambientes");
+    expect(solutions.id).toBe("solutions");
+  });
+
+  it("sem nicho, vale o padrão", () => {
+    expect(getPermissionPageName(solutions, undefined)).toBe("Soluções");
+  });
+
+  it("as outras páginas não mudam de nome", () => {
+    const products = getPermissionPage("products")!;
+    expect(getPermissionPageName(products, "seguranca_eletronica")).toBe(products.name);
   });
 });

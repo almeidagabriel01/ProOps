@@ -94,7 +94,8 @@ describe("canonical", () => {
           continue;
         }
         const fonte = fs.readFileSync(arquivo, "utf8");
-        if (!fonte.includes("alternates")) {
+        // A landing de nicho declara o canonical pelo builder, testado à parte.
+        if (!fonte.includes("alternates") && !fonte.includes("buildNicheLandingMetadata(")) {
           semCanonical.push(
             `${surface} ${rota.path} (${path.basename(arquivo)})`,
           );

@@ -1,5 +1,7 @@
 import { APEX_URL } from "@/lib/site/surfaces";
 import { origemDe } from "@/lib/site/host-seo";
+import type { TenantNiche } from "@/types";
+import { NICHE_CONFIGS } from "@/lib/niches/config";
 
 /**
  * Onde o ERP mora, para o dado estruturado dele.
@@ -34,19 +36,14 @@ export const ORGANIZACAO_REF = {
 } as const;
 
 interface SoftwareApplicationJsonLdProps {
-  niche?: "automacao_residencial" | "cortinas";
+  niche?: TenantNiche;
 }
 
 export function SoftwareApplicationJsonLd({
   niche,
 }: SoftwareApplicationJsonLdProps = {}) {
-  const nicheNames: Record<string, string> = {
-    automacao_residencial: "automação residencial",
-    cortinas: "cortinas e persianas",
-  };
-
   const description = niche
-    ? `ProOps para empresas de ${nicheNames[niche]}: propostas, CRM, financeiro, agenda e WhatsApp. ERP que adapta-se ao seu negócio.`
+    ? `ProOps para empresas de ${NICHE_CONFIGS[niche].seoAudience}: propostas, CRM, financeiro, agenda e WhatsApp. ERP que adapta-se ao seu negócio.`
     : "ERP completo para empresas de serviço: propostas, CRM, financeiro, agenda e WhatsApp integrados.";
 
   const data = {

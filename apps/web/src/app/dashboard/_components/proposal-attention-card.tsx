@@ -6,11 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { AttentionReason, AttentionResult } from "@/lib/sales/proposal-attention";
+import { NICHE_CONFIGS } from "@/lib/niches/config";
 
 interface ProposalAttentionCardProps {
   result: AttentionResult | null;
   loading: boolean;
   isDemo?: boolean;
+  /**
+   * O exemplo mostrado na demonstração, que não tem o que pedir atenção de
+   * verdade. Vem da config do nicho (`demoAttention`), com propostas do
+   * dataset de demonstração daquele nicho.
+   */
+  demoExample?: AttentionResult;
 }
 
 const REASON_LABEL: Record<AttentionReason, { one: string; many: string }> = {
@@ -29,36 +36,18 @@ const REASON_TONE: Record<AttentionReason, string> = {
 
 const REASONS: AttentionReason[] = ["acceptance", "change_request", "expiring", "stale"];
 
-/** A demonstração não tem o que pedir atenção de verdade: mostra um exemplo. */
-export const DEMO_ATTENTION: AttentionResult = {
-  items: [
-    {
-      id: "demo_prop_2",
-      title: "Segurança e Controle de Acesso",
-      clientName: "Cliente de exemplo",
-      reason: "acceptance",
-      detail: "Aceite do cliente a confirmar",
-      href: "/proposals/demo_prop_2/view",
-    },
-    {
-      id: "demo_prop_3",
-      title: "Som Ambiente Multizona",
-      clientName: "Cliente de exemplo",
-      reason: "expiring",
-      detail: "Vence em 3 dias",
-      href: "/proposals/demo_prop_3/view",
-    },
-  ],
-  counts: { acceptance: 1, change_request: 0, expiring: 1, stale: 0 },
-  total: 2,
-};
 
 /**
  * O que nas propostas pede ação agora: aceite a confirmar, pedido de mudança,
  * validade vencendo e proposta parada. Cada linha leva ao lugar de agir.
  */
-export function ProposalAttentionCard({ result, loading, isDemo }: ProposalAttentionCardProps) {
-  const data = isDemo ? DEMO_ATTENTION : result;
+export function ProposalAttentionCard({
+  result,
+  loading,
+  isDemo,
+  demoExample = NICHE_CONFIGS.automacao_residencial.demoAttention,
+}: ProposalAttentionCardProps) {
+  const data = isDemo ? demoExample : result;
 
   return (
     <Card className="h-full border border-border/50 shadow-md">

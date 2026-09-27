@@ -13,7 +13,8 @@ import {
   ChevronDown,
   GripVertical,
 } from "lucide-react";
-import { sectionTypes, getDefaultTitle, getDefaultContent } from "./constants";
+import { getSectionTypes, getDefaultTitle, getDefaultContent } from "./constants";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
 import { SectionEditor } from "./section-editor";
 
 interface SectionBuilderProps {
@@ -22,11 +23,16 @@ interface SectionBuilderProps {
 }
 
 export function SectionBuilder({ sections, onChange }: SectionBuilderProps) {
+  const vocabulary = useNicheVocabulary();
+  const sectionTypes = React.useMemo(
+    () => getSectionTypes(vocabulary),
+    [vocabulary],
+  );
   const addSection = (type: ProposalSectionType) => {
     const newSection: ProposalSection = {
       id: crypto.randomUUID(),
       type,
-      title: getDefaultTitle(type),
+      title: getDefaultTitle(type, vocabulary),
       content: getDefaultContent(type),
       order: sections.length,
     };

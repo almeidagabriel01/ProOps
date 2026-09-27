@@ -33,7 +33,7 @@ tem default seguro; todas falham em silêncio.
    qual checklist; se não entra, por quê (o motivo vai para
    `ROUTES_WITHOUT_OWN_STEP`).
 6. **Nichos:** como fica em cada nicho de `TenantNiche` (hoje
-   `automacao_residencial` e `cortinas`)? Aparece nos dois? Algum texto ou
+   `automacao_residencial`, `cortinas` e `seguranca_eletronica`)? Aparece em todos? Algum texto ou
    rótulo muda? Algum comportamento muda (catálogo por unidade ou por metro,
    fluxo da proposta, PDF)? Pergunte pelo tipo, não por uma lista decorada: um
    nicho novo não pode ficar de fora.
@@ -50,8 +50,10 @@ qualquer assinante; e cinco prefixos mortos na lista de leitura do demo
 quebravam Soluções, Ambientes e o formulário de proposta para toda conta free.
 As duas perguntas novas falham do mesmo jeito: um passo do tutorial sem gate de
 plano ou de demo apresenta uma tela que a conta não abre, e o tenant de
-demonstração é só de automação, sem teste que cubra os dois nichos, então uma
-quebra em cortinas só aparece quando o cliente reclama.
+demonstração foi por muito tempo só de automação, sem teste que cobrisse os
+dois nichos, então uma quebra em cortinas só aparecia quando o cliente
+reclamava. Hoje há uma demonstração por nicho (`DEMO_TENANT_IDS`), e nicho novo
+precisa da sua.
 
 ## Bug Fix Policy
 
@@ -212,7 +214,19 @@ virada do apex, com o checklist de consoles e o que ela custa em SEO e em
 sessão, está em `.claude/rules/virada-dos-dominios.md`.
 
 ### Multi-Niche Support
-Niches: `automacao_residencial` | `cortinas`. Logic in `apps/web/src/lib/niches/`. Uses `tenantNiche` on tenant documents.
+Niches: `automacao_residencial` | `cortinas` | `seguranca_eletronica` (`cortinas` is shown as "Persianas e Toldos": the id is persisted and never
+renamed, only the label changes). Logic in `apps/web/src/lib/niches/`. The tenant doc stores
+the id in `niche`. The source is `NICHE_REGISTRY` in `apps/functions/src/shared/niches.ts` (pure, no
+imports: demo tenant, image limit, visit type, stage template, AI label); the front mirrors the fields it
+uses in `apps/web/src/lib/niches/registry.ts` (plus label and landing path), and `firestore.rules` lists the
+ids and demo tenants. One test (`niche-registry-parity.test.ts`) keeps the three equal. `TenantNicheId`
+is the registry's key type, so every table that varies by niche is a `Record` that fails to compile when a
+niche is missing. A company's niche is chosen at signup and never changes, not even by the superadmin
+(rules, `PUT /v1/tenants` and the admin panel all refuse it; `scripts/backfill-tenant-niche.ts` fills
+tenants that predate the lock). Each niche has a folder `apps/web/src/lib/niches/definitions/<id>/`
+(screen config with the domain vocabulary, and landing copy) and a demo dataset in
+`apps/functions/src/scripts/demo/datasets/<id>.ts`. **To add a niche, follow `apps/web/src/lib/niches/CLAUDE.md`**:
+every step has the compiler or a test enforcing it.
 
 ## Responsividade
 

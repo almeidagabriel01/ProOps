@@ -4,6 +4,7 @@ import * as React from "react";
 import { Settings2 } from "lucide-react";
 import { Proposal } from "@/types/proposal";
 import { useTenant } from "@/providers/tenant-provider";
+import { getNicheConfig } from "@/lib/niches/config";
 import {
   PdfDisplaySettings,
   defaultPdfDisplaySettings,
@@ -60,7 +61,8 @@ export function PdfDisplayOptionsSection({
   setFormData,
 }: PdfDisplayOptionsSectionProps) {
   const { tenant } = useTenant();
-  const isCortinasNiche = tenant?.niche === "cortinas";
+  const nicheConfig = getNicheConfig(tenant?.niche);
+  const allowsDimensionPricing = nicheConfig.pricing.dimensionModes.length > 0;
 
   const settings: PdfDisplaySettings = {
     ...defaultPdfDisplaySettings,
@@ -122,7 +124,7 @@ export function PdfDisplayOptionsSection({
               checked={settings.showProductPrices}
               onChange={(value) => updateSetting("showProductPrices", value)}
             />
-            {isCortinasNiche && (
+            {allowsDimensionPricing && (
               <CheckboxOption
                 label="Mostrar largura e altura"
                 checked={settings.showProductMeasurements}
@@ -132,17 +134,13 @@ export function PdfDisplayOptionsSection({
               />
             )}
             <CheckboxOption
-              label={
-                isCortinasNiche
-                  ? "Mostrar subtotais por ambiente"
-                  : "Mostrar subtotal por solução"
-              }
+              label={nicheConfig.pdf.groupSubtotalOptionLabel}
               checked={settings.showSubtotals}
               onChange={(value) => updateSetting("showSubtotals", value)}
             />
-            {!isCortinasNiche && (
+            {nicheConfig.pdf.showEnvironmentHeaders && (
               <CheckboxOption
-                label="Mostrar subtotais por ambiente"
+                label={`Mostrar subtotais por ${nicheConfig.vocabulary.place.singular}`}
                 checked={settings.showEnvironmentSubtotals}
                 onChange={(value) =>
                   updateSetting("showEnvironmentSubtotals", value)

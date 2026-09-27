@@ -18,6 +18,8 @@ import { Package, Plus, Minus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { compareCatalogDisplayItem } from "@/lib/sort-text";
 import { filterCatalogItems } from "@/lib/catalog-search";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { dos } from "@/lib/niches/vocabulary";
 
 interface ProposalProductsSectionProps {
   products: Array<Product | Service>;
@@ -50,6 +52,8 @@ export function ProposalProductsSection({
   onToggleStatus,
 }: ProposalProductsSectionProps) {
   const [searchTerm, setSearchTerm] = React.useState("");
+  const { group } = useNicheVocabulary();
+  const extraItemsDescription = `Selecione itens que NÃO fazem parte ${dos(group)} ${group.plural} acima`;
 
   if (products.length === 0) {
     return (
@@ -59,9 +63,7 @@ export function ProposalProductsSection({
             <Package className="w-5 h-5" />
             Itens Extras (Produtos/Serviços)
           </CardTitle>
-          <CardDescription>
-            Selecione itens que NÃO fazem parte dos sistemas acima
-          </CardDescription>
+          <CardDescription>{extraItemsDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
@@ -89,9 +91,7 @@ export function ProposalProductsSection({
           <Package className="w-5 h-5" />
           Itens Extras (Produtos/Serviços)
         </CardTitle>
-        <CardDescription>
-          Selecione itens que NÃO fazem parte dos sistemas acima
-        </CardDescription>
+        <CardDescription>{extraItemsDescription}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {availableProducts.length > 0 && (

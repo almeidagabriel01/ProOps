@@ -15,6 +15,7 @@ import {
 } from "./product-visibility";
 import { generateProposalPaymentTerms } from "@/lib/proposal-payment";
 import { compareConfiguredDisplayItemWithExtras } from "@/lib/sort-text";
+import { getNicheConfig } from "@/lib/niches/config";
 export type { ContentItem } from "@/components/pdf/pdf-helpers";
 import {
   PdfDisplaySettings,
@@ -490,7 +491,7 @@ export function buildContentItems(
 
       // Add environments and their products
       envsWithProducts.forEach((group, index) => {
-        if (tenantNiche !== "cortinas") {
+        if (getNicheConfig(tenantNiche).pdf.showEnvironmentHeaders) {
           items.push({
             type: "ambiente-header",
             id: generateId("ambiente-header"),

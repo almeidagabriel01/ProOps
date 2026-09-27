@@ -33,7 +33,7 @@ export default function SolutionsPage() {
     return (
       <PageUnavailableState
         title="Página indisponível para este nicho"
-        description={`O nicho ${nicheLabel} não utiliza o módulo de soluções de automação.`}
+        description={`O nicho ${nicheLabel} não utiliza este módulo.`}
         ctaHref="/products"
         ctaLabel="Ir para Catálogo"
       />

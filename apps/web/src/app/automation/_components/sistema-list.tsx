@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Trash2, Box, Cpu, ArrowRight } from "lucide-react";
 import { m as motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
+import { useNicheVocabulary } from "@/hooks/useNicheVocabulary";
+import { cap, count, nenhum, pick, primeiro, seu } from "@/lib/niches/vocabulary";
 
 interface SistemaListProps {
   sistemas: Sistema[];
@@ -24,16 +26,18 @@ export function SistemaList({
   canEdit = true,
   canDelete = true,
 }: SistemaListProps) {
+  const v = useNicheVocabulary();
   if (sistemas.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-xl bg-muted/50">
         <div className="bg-background p-4 rounded-full shadow-sm mb-4">
           <Box className="w-8 h-8 text-muted-foreground" />
         </div>
-        <h3 className="text-lg font-semibold">Nenhuma solução encontrada</h3>
+        <h3 className="text-lg font-semibold">
+          {`${cap(nenhum(v.group))} ${v.group.singular} ${pick(v.group, "encontrado", "encontrada")}`}
+        </h3>
         <p className="text-muted-foreground max-w-sm mt-2 mb-6">
-          Comece criando sua primeira solução de automação para configurar
-          ambientes e produtos.
+          {`Comece criando ${seu(v.group)} ${primeiro(v.group)} ${v.group.singular} para configurar ${v.place.plural} e produtos.`}
         </p>
       </div>
     );
@@ -72,8 +76,7 @@ export function SistemaList({
 
             <div className="flex items-center justify-between pt-2">
               <Badge variant="secondary" className="font-normal">
-                {sistema.ambientes.length}{" "}
-                {sistema.ambientes.length === 1 ? "ambiente" : "ambientes"}
+                {count(v.place, sistema.ambientes.length)}
               </Badge>
 
               <div
