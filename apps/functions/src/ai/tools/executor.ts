@@ -28,6 +28,7 @@ import {
 } from "../../api/services/transaction-ai.service";
 import * as walletsService from "../../api/services/wallets.service";
 import { changeProposalStatusAsUser } from "../../api/controllers/proposal-status-internal";
+import { buildLiaProposalLine, type LiaProposalItemInput } from "./proposal-items";
 
 // ─── Phone normalization ─────────────────────────────────────────────────────
 
@@ -131,38 +132,24 @@ type ToolHandler = (
 
 // ─── Helpers for proposal item mapping ───────────────────────────────────────
 
-/** AI tool items use productId+unitPrice; service uses name+price. Resolves product names. */
+/**
+ * Itens da Lia viram linhas precificadas pelo catálogo: o preço vem sempre do
+ * produto (com markup e, se for o caso, medidas), nunca do modelo.
+ */
 async function resolveProposalItems(
   rawItems: unknown[],
   tenantId: string,
 ): Promise<proposalsService.CreateProposalParams["items"]> {
   return Promise.all(
     rawItems.map(async (item) => {
-      const i = item as Record<string, unknown>;
-      const productId = i.productId as string | undefined;
-      let name = "";
-
-      let price: number = (i.unitPrice as number) ?? 0;
-
-      if (productId) {
-        try {
-          const product = await productsService.getProduct(productId, tenantId);
-          name = product.name;
-          // Always use catalog price — model cannot override product pricing
-          price = typeof product.price === "number" ? product.price : price;
-        } catch {
-          // Product not found — reject instead of using arbitrary model-supplied price
-          throw new Error(`Produto com ID "${productId}" não encontrado para este tenant. Verifique o ID antes de criar a proposta.`);
-        }
+      const input = item as LiaProposalItemInput;
+      let product: productsService.ProductDoc;
+      try {
+        product = await productsService.getProduct(input.productId, tenantId);
+      } catch {
+        throw new Error(`Produto com ID "${input.productId}" não encontrado para este tenant. Verifique o ID antes de criar a proposta.`);
       }
-
-      return {
-        productId,
-        name,
-        quantity: i.quantity as number,
-        price,
-        description: i.description as string | undefined,
-      };
+      return buildLiaProposalLine(product, input);
     }),
   );
 }

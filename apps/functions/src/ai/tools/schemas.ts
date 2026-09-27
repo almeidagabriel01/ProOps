@@ -52,10 +52,14 @@ export const ListProductsArgsSchema = z.object({
   direction: SORT_DIRECTION,
 });
 
+// O preço vem do catálogo; o modelo não informa valor. Produto cobrado por
+// medida pede largura (e altura, por área ou faixa) no lugar da quantidade.
 const ProposalItemSchema = z.object({
   productId: z.string().min(1),
-  quantity: z.number().positive("Quantidade deve ser maior que zero."),
-  unitPrice: z.number().positive("Preço unitário deve ser maior que zero."),
+  quantity: z.number().positive("Quantidade deve ser maior que zero.").optional(),
+  width: z.number().positive("Largura deve ser maior que zero.").max(100).optional(),
+  height: z.number().positive("Altura deve ser maior que zero.").max(100).optional(),
+  panels: z.number().int().min(1).max(99).optional(),
   description: z.string().max(500).trim().optional(),
 });
 

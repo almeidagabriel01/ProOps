@@ -295,3 +295,31 @@ describe("executeToolCall — mudança de status pelo caminho da tela", () => {
     );
   });
 });
+
+describe("executeToolCall: create_proposal precifica pelo catálogo", () => {
+  test("a linha sai no formato da tela, com o markup do produto", async () => {
+    const products = require("../../api/services/products.service");
+    const proposals = require("../../api/services/proposals.service");
+    products.getProduct.mockResolvedValueOnce({ name: "Câmera", price: 200, markup: "50" });
+    proposals.createProposal.mockClear();
+
+    const result = await executeToolCall(
+      "create_proposal",
+      { clientId: "c1", title: "CFTV", items: [{ productId: "pr-1", quantity: 4 }] },
+      { ...adminCtx, confirmed: true },
+    );
+
+    expect(result.success).toBe(true);
+    const [params] = proposals.createProposal.mock.calls[0];
+    expect(params.items).toEqual([
+      expect.objectContaining({
+        productId: "pr-1",
+        productName: "Câmera",
+        quantity: 4,
+        unitPrice: 200,
+        markup: 50,
+        total: 1200,
+      }),
+    ]);
+  });
+});
