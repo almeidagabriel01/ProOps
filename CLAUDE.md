@@ -93,7 +93,7 @@ Region: `southamerica-east1`. Firebase projects: `erp-softcode` (dev), `erp-soft
 ### Frontend (`apps/web/`)
 ```bash
 npm run dev           # Next.js dev server
-npm run build         # Production build (standalone)
+npm run build         # Production build
 npm run lint          # ESLint
 ```
 
@@ -119,7 +119,8 @@ npm run test:functions:integration     # Jest (backend, integração) — sobe o
 npm run test:e2e                       # Playwright E2E desktop (requires emulators)
 npx playwright test --config=tests/playwright.config.ts --project=mobile-chrome   # E2E mobile (Pixel 5)
 npm run test:rules                     # Firestore + Storage security rules (Jest; emuladores firestore,storage)
-npm run security:scan                  # OWASP ZAP baseline
+npm run test:security                  # OWASP ZAP baseline
+npm run security:scan                  # npm audit (runtime + functions)
 ```
 
 ## Architecture
@@ -133,7 +134,7 @@ npm run security:scan                  # OWASP ZAP baseline
 - Firestore rules are DENY-by-default. Stale-claims fallback reads `users/{uid}`.
 
 ### Key Integrations
-- **Stripe** — subscriptions, plan enforcement, overage billing. Webhook: `/stripe/stripeWebhook`
+- **Stripe** — subscriptions, plan enforcement, overage billing. Webhook: função HTTP própria `stripeWebhook` (`apps/functions/src/stripe/stripeWebhook.ts`), fora do monolito
 - **WhatsApp** — webhooks, monthly overage cron (days 1–3 of the month, 03:00 AM BRT; idempotent). Webhook: `/webhooks/whatsapp`
 - **Asaas** — payment processing (PIX/boleto/card) for shared-transaction payments. Webhook: `/webhooks/asaas/:tenantId`; public payment API mounted at `/v1`. (Replaced the former MercadoPago webhook.)
 - **Nota Fiscal** — Focus NFe, provedor único de NF-e e NFS-e. Atrás da interface
@@ -272,14 +273,14 @@ a chave principal; `sm` (640px) onde ajuda. Regras ao mexer em UI autenticada:
 │   │   └── src/
 │   │       ├── app/          # App Router (30+ segments) + api/backend/ proxy
 │   │       ├── components/   # ui/(Shadcn), admin, auth, lia, features, shared...
-│   │       ├── hooks/        # Data-fetching + UI hooks (34, + proposal/ subfolder)
+│   │       ├── hooks/        # Data-fetching + UI hooks (+ proposal/ subfolder)
 │   │       ├── providers/    # Auth, Tenant, Permissions, Theme, Plan
-│   │       ├── services/     # Client-side API calls → /api/backend/* (33)
-│   │       ├── lib/          # Firebase init, niches/, plan limits
+│   │       ├── services/     # Client-side API calls → /api/backend/*
+│   │       ├── lib/          # Firebase init, niches/, permissions/, site/
 │   │       └── types/        # TypeScript interfaces
 │   └── functions/    # Firebase Cloud Functions V2 (Express monolith)
 │       └── src/
-│           ├── api/          # controllers/(36), routes/(24), middleware/, services/, security/
+│           ├── api/          # controllers/, routes/, middleware/, services/, security/
 │           ├── ai/           # Lia AI module (Gemini, Groq, rate limiter, tools)
 │           ├── billing/      # Billing queue, price-drift reconciliation
 │           ├── services/     # Email (Resend), Zoom, WhatsApp billing

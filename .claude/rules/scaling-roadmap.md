@@ -146,9 +146,9 @@ Não dá para fazer por código: exigem login interativo e permissão de billing
 
 ### 3.1 Ligar o rate limit distribuído
 
-Hoje `RATE_LIMIT_STORE` não está setado em nenhum `.env`, então os **4**
-limitadores (`api/index.ts` global, `ai/rate-limiter.ts`, `pdf-rate-limiter.ts`,
-`ai/field-gen-rate-limiter.ts`) contam em memória, **por instância**. Com
+Hoje `RATE_LIMIT_STORE` não está setado em nenhum `.env`, então todo limitador
+criado por `lib/rate-limit/` (o global de `api/index.ts`, os dois da Lia, o de
+PDF e os dois de pagamento público) conta em memória, **por instância**. Com
 `maxInstances` de 10 (monolito) e 5 (pdf), o limite real é o configurado
 multiplicado pelo número de instâncias: o teto de PDF de 5/min vira ~25/min, o
 da Lia de 20/min vira ~200/min.

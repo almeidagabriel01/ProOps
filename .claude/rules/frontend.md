@@ -58,4 +58,4 @@ em cada nicho, em `NICHE_CONFIGS`. Checklist completo em
 ## Next.js App Router
 - Don't call Firebase client SDK from Server Components
 - Add `'use client'` directive to any component using `useState`, `useEffect`, or browser APIs
-- Protect routes via `middleware.ts` which reads `__session` cookie — don't re-implement auth checks in page components
+- Protect routes via `src/proxy.ts`, which reads the `__session` cookie; don't re-implement auth checks in page components

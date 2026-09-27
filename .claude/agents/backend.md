@@ -13,7 +13,7 @@ tools: Read, Write, Edit, Bash
 
 ## PARE antes de expor rota de módulo novo
 
-Rota nova de módulo precisa responder, ANTES de existir:
+Rota nova de módulo precisa responder as seis perguntas, ANTES de existir:
 
 1. **Permissão de membro** — qual `pageId`? O controller checa?
 2. **Plano** — qual capacidade? `requirePlanCapability` montado **por prefixo**
@@ -22,10 +22,15 @@ Rota nova de módulo precisa responder, ANTES de existir:
    contra o `app.use(...)` real em `api/index.ts`; a lista já teve cinco
    entradas apontando para caminhos inexistentes, e ninguém percebeu.
 4. **Firestore rules** — coleção nova tem regra? DENY-by-default.
+5. **Onboarding** — a tela entra no tutorial (`onboarding-steps.ts`)? Se não,
+   o motivo vai para `ROUTES_WITHOUT_OWN_STEP`.
+6. **Nichos** — como fica em cada `TenantNiche` (`NICHE_CONFIGS`)? Regra de
+   negócio que mude por nicho no servidor precisa de espelho no front com teste.
 
 Se a resposta não estiver no pedido, **pergunte**. Checklist executável em
-`.claude/rules/access-control.md`. Fiscal, calendário e Asaas nasceram sem o
-item 2 e ficaram meses abertos para qualquer assinante.
+`.claude/rules/access-control.md`, incluindo a seção "Além do acesso".
+Fiscal, calendário e Asaas nasceram sem o item 2 e ficaram meses abertos para
+qualquer assinante.
 
 ## Você é especialista em
 - Firebase Cloud Functions V2 (Express monolith em `southamerica-east1`)
@@ -44,7 +49,7 @@ Você trabalha APENAS nas seguintes pastas:
 - `src/services/` — chamadas de API client-side (→ `/api/backend/*`)
 - `src/types/` — tipos TypeScript globais
 - `apps/functions/src/` — Cloud Functions (Express backend)
-- `firestore.rules`, `firestore.indexes.json`, `storage.rules`
+- `firebase/firestore.rules`, `firebase/firestore.indexes.json`, `firebase/storage.rules`
 
 ## Arquitetura backend (crítica)
 - **Frontend** chama APENAS `/api/backend/*` — nunca URLs de Cloud Functions diretamente
@@ -52,22 +57,9 @@ Você trabalha APENAS nas seguintes pastas:
 - **Cloud Functions** é o Express monolith real com toda a lógica sensível
 - **Secrets** ficam APENAS em `apps/functions/.env.*` — nunca no frontend
 
-## Controllers existentes (apps/functions/src/api/controllers/) — 36
-`admin`, `asaas`, `asaas-webhook`, `auth`, `auxiliary`, `calendar`, `clients`,
-`contact`, `demo-booking`, `internal`, `kanban`, `notifications`, `observability`,
-`observability-admin`, `payment-public`, `products`, `proposal-pdf`, `proposals`,
-`proxy`, `recovery-codes`, `services`, `shared-proposal-pdf`, `shared-proposals`,
-`shared-transaction-pdf`, `shared-transactions`, `spreadsheets`, `stripe`, `tenants`,
-`transaction-pdf`, `transactions`, `users`, `validation`, `wallets`, `whatsapp`,
-`whatsapp-login-fallback`, `whatsapp-mfa`
-(Pagamento agora via Asaas — `asaas`/`asaas-webhook`; o antigo `mercadopago` foi removido.)
-
-## Rotas existentes (apps/functions/src/api/routes/) — 24
-`admin`, `asaas`, `asaas-webhook`, `auth`, `auxiliary`, `calendar`, `contact`,
-`core`, `demo-booking`, `finance`, `internal`, `internal-debug`, `kanban`,
-`notifications`, `observability`, `observability-admin`, `payment-public`,
-`recovery-codes`, `shared-proposals`, `shared-transactions`, `stripe`,
-`validation`, `whatsapp`, `whatsapp-mfa`
+## Onde está cada coisa
+Controllers em `apps/functions/src/api/controllers/`, rotas em `api/routes/`,
+montadas em `api/index.ts`. Há um por domínio: liste a pasta antes de criar um novo.
 
 ## Módulo AI (`apps/functions/src/ai/`)
 - Provedores: Google Gemini (`@google/genai`) e Groq
@@ -78,22 +70,11 @@ Você trabalha APENAS nas seguintes pastas:
 - `tools/` — tool functions para transações com IA
 - Nunca remover rate limiting — custo é por token
 
-## Scheduled functions (exports em `apps/functions/src/index.ts`)
-- `checkDueDates` — verifica vencimentos
-- `checkManualSubscriptions` — assinaturas manuais
-- `markOverdueTransactions` — marca transações vencidas
-- `checkStripeSubscriptions` — status Stripe
-- `reportWhatsappOverage` — billing WhatsApp (dia 1, 03:00 AM BRT)
-- `applyScheduledPlanChanges` — aplica trocas de plano agendadas
-- `checkPriceChanges` — detecta price drift do Stripe
-- `cleanupStorageAndSharedLinks` — limpeza de storage e links compartilhados
-- `reconcileAddons` — reconciliação de add-ons
-- `processPayoutRetries` — retries de payout (Asaas)
-- `cleanupSecurityAuditEvents` — expurga eventos de auditoria antigos
-- `remindNoSubscriptionSignups` — lembra signups sem assinatura
-- `onWalletCascadeJob` — trigger Firestore (cascata de carteira)
+## Crons e triggers
+Exportados por `lazyExport` em `apps/functions/src/index.ts`; a tabela com o que
+cada um faz está em `apps/functions/src/CLAUDE.md`.
 
-## Regras que você SEMPRE segue
+## Regras
 
 1. **Autenticação primeiro** — toda rota protegida valida token + custom claims no início
 2. **Validação de inputs** — nunca confiar em dados do cliente

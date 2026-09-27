@@ -19,9 +19,13 @@ tools: Read, Write, Edit, Bash
    upsell) e página com `UpgradeRequired`, no padrão de `app/wallets/page.tsx`.
 3. **Conta free / demo** — a rota entra em `DEMO_ACCESSIBLE_PREFIXES`
    (`lib/auth/resolve-user-home.ts`)? Sem isso, redirect para `/`.
+4. **Onboarding** — a tela entra no tutorial (`onboarding-steps.ts`)? Se não,
+   o motivo vai para `ROUTES_WITHOUT_OWN_STEP`.
+5. **Nichos** — disponibilidade declarada em todos os nichos de
+   `NICHE_CONFIGS`; texto que muda por nicho vira campo em `NicheConfig`.
 
 Se a resposta não estiver no pedido, **pergunte**. Checklist executável em
-`.claude/rules/access-control.md`.
+`.claude/rules/access-control.md`, incluindo a seção "Além do acesso".
 
 > `requiresEnterprise` chegou a ser lido em seis lugares e declarado em item
 > NENHUM: o CRM ficou sem entrada de menu, alcançável só por URL. Declarar o
@@ -37,12 +41,13 @@ Se a resposta não estiver no pedido, **pergunte**. Checklist executável em
 - FullCalendar, DnD Kit, Recharts, UniverJS (spreadsheets)
 
 ## Seu escopo neste projeto
-Você trabalha APENAS nas seguintes pastas:
+Você trabalha nestas pastas:
 - `src/app/` — rotas e layouts (EXCETO `src/app/api/`)
 - `src/components/` — componentes React (EXCETO `src/components/ui/` — não editar Shadcn gerado)
 - `src/hooks/` — hooks customizados
 - `src/providers/` — Auth, Theme, Tenant, Permissions providers
-- `src/styles/` — estilos globais
+- `src/lib/` — só o que a feature exige (permissões, rotas de demo, nichos, onboarding)
+- `src/app/globals.css` — estilos globais
 
 ## Providers disponíveis (contexto global)
 - `auth-provider.tsx` — Firebase Auth state, usuário atual
@@ -50,12 +55,12 @@ Você trabalha APENAS nas seguintes pastas:
 - `permissions-provider.tsx` — permissões por role
 - `theme-provider.tsx` — dark/light mode via next-themes
 
-## Regras que você SEMPRE segue
+## Regras
 
 1. **Server Component por padrão** — só adiciona `'use client'` quando necessário (eventos, hooks, browser APIs)
 2. **Props tipadas** com interface explícita antes de implementar
 3. **Nunca importar Firebase SDK** em componentes — use os hooks de `src/hooks/` ou services de `src/services/`
-4. **Verificar existência** antes de criar: há ~25 componentes Shadcn em `src/components/ui/` e domínios em `src/components/`
+4. **Verificar existência** antes de criar: `src/components/ui/` e as pastas de domínio em `src/components/`
 5. **Acessibilidade básica**: `alt` em imagens, `aria-label` em ícones interativos
 6. **Loading + error + empty states** em toda operação assíncrona
 7. **Multi-tenant**: sempre considerar `tenantNiche` para rendering condicional (`automacao_residencial` | `cortinas`)
@@ -79,22 +84,5 @@ export function NomeComponente({ ...props }: NomeComponenteProps) {
 }
 ```
 
-## Estrutura de componentes existentes
-```
-src/components/
-├── ui/           # Shadcn/ui — NÃO editar manualmente
-├── admin/        # Componentes de administração
-├── auth/         # Login, registro, recuperação de senha
-├── branding/     # Logo, identidade visual
-├── charts/       # Gráficos (Recharts)
-├── features/     # Features específicas do produto
-├── landing/      # Página de landing
-├── layout/       # Shell, nav, sidebar
-├── legal/        # Termos, privacidade
-├── notifications/# Sistema de notificações
-├── onboarding/   # Fluxo de onboarding
-├── pdf/          # Componentes de PDF (server-side via Playwright)
-├── profile/      # Perfil do usuário
-├── shared/       # Componentes verdadeiramente genéricos
-└── team/         # Gestão de equipe
-```
+## Estrutura de componentes
+Mapa das pastas em `apps/web/src/components/CLAUDE.md`.

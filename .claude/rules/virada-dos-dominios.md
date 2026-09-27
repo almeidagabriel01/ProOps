@@ -58,9 +58,8 @@ O usuário free também deixa de ser mandado para a raiz e passa a ir para a
 landing do ERP (`erpHomeUrl`), senão ele cai na página da empresa: sem login,
 sem planos e sem nada para clicar.
 
-**Atualize junto** o E2E `superficies/host-routing.spec.ts`, que hoje afirma "o
-apex ainda serve o ERP". Ele é o guard de que a fase foi aditiva, e tem que
-mudar no mesmo commit que a torna falsa.
+O E2E `superficies/host-routing.spec.ts` é o guard da virada: ele afirma que o
+apex serve a institucional. Num rollback, ele muda no mesmo commit.
 
 ## As páginas da empresa
 
@@ -258,10 +257,9 @@ aplicativo, também `noindex`.
 
 ### C. No dia, e nesta ordem
 
-- [ ] **1. Trocar `APEX_SURFACE` para `"institucional"`** e atualizar o E2E
-      `superficies/host-routing.spec.ts`, que hoje afirma que o apex ainda serve
-      o ERP, no mesmo commit. O commit segue o caminho de qualquer outro: PR para
-      `develop` e, de lá, para `main`.
+- [x] **1. Trocar `APEX_SURFACE` para `"institucional"`** e atualizar o E2E
+      `superficies/host-routing.spec.ts` no mesmo commit. O commit segue o
+      caminho de qualquer outro: PR para `develop` e, de lá, para `main`.
 - [ ] **2. Esperar o deploy de Production da Vercel terminar** e conferir que
       `www.proops.com.br/` mostra a página da empresa.
 - [ ] **2b. Vercel → Domains:** primeiro `proops.com.br` → *Connect to an

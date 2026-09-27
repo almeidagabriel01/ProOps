@@ -3,7 +3,7 @@
 Vou investigar o problema sistematicamente usando o método científico.
 
 ## Passo 1 — Coleta de informações
-Cole aqui:
+Se o pedido ainda não trouxe, peça:
 - Mensagem de erro exata (completa, incluindo stack trace)
 - Onde ocorre: browser console, Firebase Functions log, terminal?
 - Quando ocorre: sempre, às vezes, em condição específica?
