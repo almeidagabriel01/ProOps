@@ -33,5 +33,16 @@ export interface NicheLandingConfig {
     metadataTitle: string;
     metadataDescription: string;
     breadcrumb: string;
+    keywords: string[];
+    ogTitle: string;
+    ogDescription: string;
+  };
+  /** Cartão do nicho na galeria de pacotes da home do ERP. */
+  gallery: {
+    icon: React.ComponentType<{ className?: string }>;
+    eyebrow: string;
+    title: string;
+    description: string;
+    features: string[];
   };
 }

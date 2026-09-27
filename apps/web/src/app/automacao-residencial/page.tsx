@@ -1,47 +1,9 @@
 import type { Metadata } from "next";
-import {
-  SoftwareApplicationJsonLd,
-  BreadcrumbJsonLd,
-  FAQPageJsonLd,
-} from "@/components/seo/json-ld";
-import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
-import { NicheLandingPage } from "@/components/landing/niche/niche-landing-page";
-import { canonicalFor } from "@/lib/site/host-seo";
+import { NicheLandingRoute } from "@/components/landing/niche/niche-landing-route";
+import { buildNicheLandingMetadata } from "@/lib/landing/niche-landing-metadata";
 
-export const metadata: Metadata = {
-  title: "ERP para Automação Residencial: propostas, projetos e gestão",
-  description:
-    "ProOps é o sistema ERP especializado para empresas de automação residencial. Gerencie propostas comerciais com PDF profissional, CRM, financeiro, agenda e WhatsApp em uma plataforma integrada.",
-  keywords: [
-    "ERP automação residencial",
-    "sistema gestão automação residencial",
-    "software proposta automação residencial",
-    "CRM integradores",
-    "ERP integradores AV",
-    "gestão projetos automação",
-    "proposta comercial automação residencial",
-  ],
-  alternates: { canonical: canonicalFor("erp", "/automacao-residencial") },
-  openGraph: {
-    title: "ERP para Automação Residencial | ProOps",
-    description:
-      "Sistema completo para integradores: propostas em PDF, CRM, financeiro, agenda e WhatsApp integrados.",
-    url: canonicalFor("erp", "/automacao-residencial"),
-  },
-};
+export const metadata: Metadata = buildNicheLandingMetadata("automacao_residencial");
 
 export default function AutomacaoResidencialPage() {
-  return (
-    <>
-      <SoftwareApplicationJsonLd niche="automacao_residencial" />
-      <BreadcrumbJsonLd
-        items={[
-          { name: "Início", url: "/" },
-          { name: "Automação Residencial", url: "/automacao-residencial" },
-        ]}
-      />
-      <FAQPageJsonLd items={NICHE_LANDING_CONFIG.automacao_residencial.faq} />
-      <NicheLandingPage slug="automacao_residencial" />
-    </>
-  );
+  return <NicheLandingRoute niche="automacao_residencial" />;
 }

@@ -20,6 +20,7 @@ export const PLACEHOLDER = false;
 // cópia, e a que ninguém lembraria de trocar.
 export { WHATSAPP_HREF } from "@/components/landing/_shared/whatsapp";
 import { WHATSAPP_HREF as WPP } from "@/components/landing/_shared/whatsapp";
+import { NICHE_REGISTRY, TENANT_NICHES } from "@/lib/niches/registry";
 
 export interface Principio {
   titulo: string;
@@ -359,13 +360,13 @@ export const CANAIS: Canal[] = [
  * A cena é uma prancheta no escuro, e uma luz que o visitante carrega: onde ela
  * passa aparece o desenho de um ofício, e o último é uma folha em branco com o
  * nome dele. `SEGMENTOS` não é uma lista de nichos atendidos, e a nota diz
- * isso: dois vêm prontos (os que existem em `lib/niches/config.ts`), o resto é
- * configurado. Acrescentar um nome aqui é dizer que aquele negócio vende
+ * isso: alguns vêm prontos (os do registro de nichos,
+ * `lib/niches/registry.ts`), o resto é configurado. Acrescentar um nome aqui é dizer que aquele negócio vende
  * projeto, e não que ele já tem pacote.
  */
 export const HEROI_RAIZ = {
   titulo: ["Software de gestão", "para quem vende", "projeto."],
-  lead: "A ProOps nasceu em novembro de 2025 dentro de uma empresa que vende projeto, e virou produto depois de provada no uso diário. Dois segmentos já vêm prontos; para o resto, a gente configura.",
+  lead: "A ProOps nasceu em novembro de 2025 dentro de uma empresa que vende projeto, e virou produto depois de provada no uso diário. Os segmentos mais comuns já vêm prontos; para o resto, a gente configura.",
   lanterna: {
     convite: "Leve a luz pela prancheta",
     conviteToque: "A luz passeia pela prancheta",
@@ -427,15 +428,16 @@ export const SEGMENTOS: readonly Segmento[] = [
 /**
  * Os segmentos que já vêm configurados no produto, e o estado de cada um.
  *
- * Espelha `lib/niches/config.ts`, que é a fonte do que o sistema realmente
- * tem hoje. Ao ligar um nicho novo lá, ele entra aqui; até lá, a página não
- * pode prometer que ele existe.
+ * Sai do registro de nichos (`lib/niches/registry.ts`), que é a fonte do que o
+ * sistema realmente tem: um nicho novo aparece aqui sozinho, e a página nunca
+ * promete um que não existe.
  */
-export const NICHOS_PRONTOS = [
-  { rotulo: "Automação residencial", estado: "pronto" },
-  { rotulo: "Persianas e toldos", estado: "pronto" },
-  { rotulo: "Segurança eletrônica", estado: "pronto" },
-] as const;
+export const NICHOS_PRONTOS = TENANT_NICHES.map((niche) => {
+  const label = NICHE_REGISTRY[niche].label;
+  // "Persianas e Toldos" vira "Persianas e toldos", no tom da página.
+  const rotulo = label.charAt(0) + label.slice(1).toLowerCase();
+  return { rotulo, estado: "pronto" as const };
+});
 
 /**
  * O que muda de um segmento para o outro. É a parte verificável da frase "a

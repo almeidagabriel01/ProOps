@@ -16,6 +16,7 @@
  */
 
 import { resolveSurface } from "@/lib/site/surfaces";
+import { NICHE_LANDING_PATHS } from "@/lib/niches/registry";
 
 /**
  * Public MARKETING pages: reachable with NO auth AND rendered without the ERP
@@ -24,9 +25,8 @@ import { resolveSurface } from "@/lib/site/surfaces";
  */
 export const PUBLIC_MARKETING_ROUTES = [
   "/",
-  "/automacao-residencial",
-  "/decoracao",
-  "/seguranca-eletronica",
+  // As landings dos nichos vêm do registro: um nicho novo fica público sozinho.
+  ...NICHE_LANDING_PATHS,
   "/contato",
   "/agendar",
   // The two host-routed sites. `proops.com.br/` and `app.proops.com.br/` are

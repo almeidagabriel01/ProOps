@@ -192,8 +192,8 @@ export const ITENS: readonly Item[] = [
  * os cômodos, os preços e as cortinas que descem são os mesmos, e a cena não
  * precisa ser remontada quando alguém troca de aba.
  *
- * `marcenaria` está aqui de propósito, e é o ponto todo: ela não é um dos dois
- * nichos configurados hoje (`lib/niches/config.ts`), é o exemplo de um nicho
+ * `marcenaria` está aqui de propósito, e é o ponto todo: ela não é um dos
+ * nichos configurados hoje (`lib/niches/registry.ts`), é o exemplo de um nicho
  * NOVO, adaptado para a operação de quem chega. Quem vende projeto e não vende
  * automação nem cortina precisa se ver na página antes de acreditar na frase.
  */
@@ -226,7 +226,7 @@ export const NICHOS: readonly Nicho[] = [
   {
     id: "cortinas",
     rotulo: "Persianas e toldos",
-    nota: "Preço por medida, proposta por ambiente: o outro pacote pronto.",
+    nota: "Preço por medida, proposta por ambiente: outro pacote pronto.",
     rotulos: [
       "Cortina blackout, trilho motorizado",
       "Persiana rolô dupla visão",

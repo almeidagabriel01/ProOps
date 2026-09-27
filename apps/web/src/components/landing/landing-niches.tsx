@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { ArrowRight, Cpu, Layers, MoveHorizontal, PenLine, ShieldCheck } from "lucide-react";
+import { ArrowRight, MoveHorizontal, PenLine } from "lucide-react";
+import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
+import { NICHE_REGISTRY, TENANT_NICHES } from "@/lib/niches/registry";
 import { m as motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
@@ -19,42 +21,21 @@ type Niche = {
   href: string;
 };
 
+/**
+ * Um cartão por nicho pronto, na ordem do registro, e por último o convite.
+ * O texto do cartão mora na pasta do nicho (`gallery` em `landing.ts`).
+ */
+const PACKAGE_CARDS: Omit<Niche, "index">[] = TENANT_NICHES.map((niche) => ({
+  ...NICHE_LANDING_CONFIG[niche].gallery,
+  href: NICHE_REGISTRY[niche].landingPath,
+}));
+
 const NICHES: Niche[] = [
-  {
-    index: "01",
-    icon: Cpu,
-    eyebrow: "Pacote pronto",
-    title: "Automação Residencial",
-    description:
-      "Gerencie projetos de automação com catálogo de produtos, sistemas por ambiente e propostas técnicas em PDF profissional.",
-    features: ["Catálogo de produtos", "Sistemas por ambiente", "PDF técnico"],
-    href: "/automacao-residencial",
-  },
-  {
-    index: "02",
-    icon: Layers,
-    eyebrow: "Pacote pronto",
-    title: "Persianas e Toldos",
-    description:
-      "Propostas por ambiente com preço por m², por largura ou por faixa de altura. Catálogo de tecidos, lonas e motores com fotos.",
-    features: ["Preço por medida", "Proposta por ambiente", "Obra da medição à entrega"],
-    href: "/decoracao",
-  },
-  {
-    index: "03",
-    icon: ShieldCheck,
-    eyebrow: "Pacote pronto",
-    title: "Segurança Eletrônica",
-    description:
-      "Proposta por sistema e área para CFTV, alarme e controle de acesso, obra por etapas e mensalidades no financeiro.",
-    features: ["Kits por sistema", "Obra da vistoria à entrega", "Mensalidades no financeiro"],
-    href: "/seguranca-eletronica",
-  },
+  ...PACKAGE_CARDS,
   {
     // O último cartão não é um pacote: é o convite. Sem ele a galeria diz,
     // sem querer, que a ProOps atende só os segmentos prontos, e quem vende
     // outro tipo de projeto fecha a aba antes de falar com alguém.
-    index: "04",
     icon: PenLine,
     eyebrow: "Configurado para você",
     title: "O seu segmento",
@@ -63,7 +44,7 @@ const NICHES: Niche[] = [
     features: ["Catálogo do seu negócio", "Campos e etapas sob medida", "Sem trocar de sistema"],
     href: "/contato",
   },
-];
+].map((card, i) => ({ ...card, index: String(i + 1).padStart(2, "0") }));
 
 /* ===================================================================== */
 /* Painéis                                                               */
@@ -74,13 +55,13 @@ function IntroPanel() {
     <div className="flex h-full w-screen shrink-0 flex-col justify-center px-6 md:px-16 lg:px-24">
       <SectionHeading
         align="left"
-        eyebrow="Três pacotes prontos, e o seu"
+        eyebrow="Pacotes prontos, e o seu"
         title={
           <>
             Feito para o seu <Accent>nicho</Accent>
           </>
         }
-        description="Automação, persianas e toldos e segurança eletrônica já vêm prontos. Qualquer outro negócio que venda projeto é configurado na mesma base, e não em outro sistema."
+        description="Cada pacote já vem pronto para o seu ramo. Qualquer outro negócio que venda projeto é configurado na mesma base, e não em outro sistema."
       />
       <div className="mt-10 inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/45">
         <MoveHorizontal className="h-4 w-4" />

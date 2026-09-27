@@ -22,6 +22,7 @@ import {
   shouldNoIndexHost,
   type Surface,
 } from "./surfaces";
+import { NICHE_LANDING_PATHS } from "@/lib/niches/registry";
 
 type ChangeFrequency =
   "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
@@ -43,13 +44,12 @@ const ROTAS: Record<Surface, SitemapRoute[]> = {
   ],
   erp: [
     { path: "/", changeFrequency: "weekly", priority: 1 },
-    {
-      path: "/automacao-residencial",
-      changeFrequency: "monthly",
+    // As landings dos nichos vêm do registro: um nicho novo entra no sitemap sozinho.
+    ...NICHE_LANDING_PATHS.map((path) => ({
+      path,
+      changeFrequency: "monthly" as const,
       priority: 0.9,
-    },
-    { path: "/decoracao", changeFrequency: "monthly", priority: 0.9 },
-    { path: "/seguranca-eletronica", changeFrequency: "monthly", priority: 0.9 },
+    })),
     { path: "/contato", changeFrequency: "yearly", priority: 0.5 },
     { path: "/agendar", changeFrequency: "yearly", priority: 0.5 },
   ],
