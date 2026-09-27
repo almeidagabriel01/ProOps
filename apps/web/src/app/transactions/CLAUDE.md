@@ -239,6 +239,8 @@ de Lançamentos: escondê-las daqui exigiria filtrar a lista, e é decisão à p
   fica no botão "Categorias" da própria tela (`app/dre/_components/`).
 - A conta free vê o DRE do tenant de demonstração pela API, e as categorias
   só para ver.
+- **Link do contador:** botão na tela do DRE, só para dono e administradores.
+  Abre `/share/contador/[token]` (ver `app/share/CLAUDE.md`).
 
 ## Fluxo de caixa projetado (2026-09-26)
 

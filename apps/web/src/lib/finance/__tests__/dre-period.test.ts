@@ -32,3 +32,17 @@ describe("períodos do DRE", () => {
     expect(marginOf(10, 0)).toBeNull();
   });
 });
+
+describe("período do contador", () => {
+  it("os prontos e cada um dos últimos 12 meses", async () => {
+    const { periodChoices, monthsInRange } = await import("../dre-period");
+    const choices = periodChoices(MEIO_DO_ANO);
+    expect(choices.find((c) => c.value === "last_month")?.range).toEqual({ from: "2026-08", to: "2026-08" });
+    const months = choices.filter((c) => c.value.startsWith("month:"));
+    expect(months).toHaveLength(12);
+    expect(months[0]).toEqual({ value: "month:2026-09", label: "Mês: set/26", range: { from: "2026-09", to: "2026-09" } });
+    expect(months.at(-1)?.range).toEqual({ from: "2025-10", to: "2025-10" });
+    expect(monthsInRange("2025-11", "2026-02")).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
+    expect(monthsInRange("2026-03", "2026-01")).toEqual([]);
+  });
+});

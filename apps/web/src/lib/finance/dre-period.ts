@@ -57,3 +57,31 @@ export function marginOf(value: number, revenue: number): number | null {
   if (!revenue) return null;
   return Math.round((value / revenue) * 1000) / 10;
 }
+
+export interface PeriodChoice {
+  value: string;
+  label: string;
+  range: { from: string; to: string };
+}
+
+/**
+ * O que o contador escolhe: os períodos prontos e cada um dos últimos 12
+ * meses, porque o trabalho dele é fechar um mês específico.
+ */
+export function periodChoices(nowMs = Date.now()): PeriodChoice[] {
+  const presets = DRE_PERIOD_OPTIONS.map((o) => ({ value: o.value, label: o.label, range: presetRange(o.value, nowMs) }));
+  const { year, month } = currentBrazilMonth(nowMs);
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const key = monthKey(year, month - i);
+    return { value: `month:${key}`, label: `Mês: ${formatMonthShort(key)}`, range: { from: key, to: key } };
+  });
+  return [...presets, ...months];
+}
+
+/** Os meses de `from` a `to`, inclusive. */
+export function monthsInRange(from: string, to: string): string[] {
+  const [fy, fm] = from.split("-").map(Number);
+  const [ty, tm] = to.split("-").map(Number);
+  const count = Math.min(Math.max((ty - fy) * 12 + (tm - fm) + 1, 0), 24);
+  return Array.from({ length: count }, (_, i) => monthKey(fy, fm + i));
+}

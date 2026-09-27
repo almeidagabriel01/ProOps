@@ -127,3 +127,20 @@ export function buildPortalMessage(params: {
     ].join("\n\n"),
   };
 }
+
+/** Link do contador: leitura do financeiro, sem login. */
+export function buildAccountantMessage(params: {
+  companyName?: string | null;
+  url: string;
+}): { subject: string; message: string } {
+  const company = params.companyName?.trim();
+  return {
+    subject: company ? `Acesso ao financeiro | ${company}` : "Acesso ao financeiro",
+    message: [
+      "Olá!",
+      "Por este link você acompanha o nosso financeiro: DRE, lançamentos e notas fiscais, mês a mês, com exportação para Excel. É só leitura e não precisa de senha:",
+      params.url,
+      "Qualquer dúvida, é só me chamar.",
+    ].join("\n\n"),
+  };
+}

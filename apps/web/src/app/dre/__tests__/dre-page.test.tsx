@@ -19,6 +19,8 @@ vi.mock("@/hooks/usePagePermission", () => ({ usePagePermission: () => m.perm })
 vi.mock("@/providers/tenant-provider", () => ({ useTenant: () => ({ tenant: { id: "t1" }, isLoading: false }) }));
 vi.mock("@/providers/auth-provider", () => ({ useAuth: () => ({ user: { role: "admin" } }) }));
 vi.mock("@/components/layout/page-view-switcher", () => ({ PageViewSwitcher: () => null }));
+// O botão do contador tem teste próprio.
+vi.mock("../_components/accountant-link-button", () => ({ AccountantLinkButton: () => null }));
 vi.mock("@/components/ui/upgrade-required", () => ({
   UpgradeRequired: ({ feature }: { feature: string }) => <div>upgrade {feature}</div>,
 }));

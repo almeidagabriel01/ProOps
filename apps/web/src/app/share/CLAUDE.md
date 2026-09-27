@@ -20,7 +20,8 @@ share/
 ├── transaction/[token]/page.tsx  # Lançamento financeiro compartilhado
 ├── project/[token]/page.tsx      # Entrega da obra (projeto de instalação): conferir e aceitar
 ├── visita/[token]/page.tsx       # Link de agendamento: escolher horário e pedir a visita
-└── portal/[token]/page.tsx       # Portal do cliente: propostas, pagamentos, obra e notas de um contato
+├── portal/[token]/page.tsx       # Portal do cliente: propostas, pagamentos, obra e notas de um contato
+└── contador/[token]/page.tsx     # Link do contador: DRE, lançamentos e notas da empresa, só leitura
 ```
 
 ## Arquivos-chave
@@ -199,6 +200,27 @@ seção Portal do cliente.
 
 Guards: `portal/[token]/_components/__tests__/public-client-portal.test.tsx` e
 `components/features/client-portal/__tests__/client-portal-button.test.tsx`.
+
+## Link do contador (`contador/[token]`)
+
+O financeiro da empresa em leitura para o contador, sem login e sem contar
+como usuário: DRE (caixa e competência), lançamentos, notas emitidas e notas
+de entrada, cada aba com exportação em Excel e CSV. O contador escolhe o
+período (os prontos do DRE ou um mês específico dos últimos 12); abre no mês
+passado, que é o que ele costuma fechar. Regra do backend no
+`apps/functions/CLAUDE.md`, seção Link do contador.
+
+- As abas de nota seguem o plano da empresa (`sections` do backend).
+- PDF e XML das notas são links para `.../documents/...?kind=`, com o tipo na
+  query, nunca no fim do caminho: o proxy manda caminho terminado em `/pdf`
+  para a função de PDF.
+- O link é gerado no botão "Link do contador" da tela do DRE
+  (`app/dre/_components/accountant-link-button.tsx`), só por dono e
+  administradores. `/share/contador/exemplo` é a versão fictícia da
+  demonstração (`lib/accountant/example.ts`), sem API e sem link de arquivo.
+
+Guards: `contador/[token]/_components/__tests__/public-accountant.test.tsx` e
+`app/dre/__tests__/accountant-link-button.test.tsx`.
 
 ## Padrões e gotchas
 

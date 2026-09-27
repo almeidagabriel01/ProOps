@@ -19,6 +19,7 @@ import { FinanceReportsService, type DreBasis, type DreResult } from "@/services
 import { DreTable } from "./_components/dre-table";
 import { CategoriesDialog } from "./_components/categories-dialog";
 import { DreSkeleton } from "./_components/dre-skeleton";
+import { AccountantLinkButton } from "./_components/accountant-link-button";
 import { ExportMenu } from "@/components/shared/export-menu";
 import { downloadSheet, type SheetFormat } from "@/lib/export/sheet";
 import { buildDreSheet } from "@/lib/finance/dre-export";
@@ -103,6 +104,7 @@ export default function DrePage() {
           <PageViewSwitcher className="mt-3" />
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          <AccountantLinkButton />
           <ExportMenu onExport={exportDre} disabled={!dre || dre.count === 0} />
           <Button type="button" variant="outline" onClick={() => setCategoriesOpen(true)}>
             <Tags className="mr-2 h-4 w-4" />

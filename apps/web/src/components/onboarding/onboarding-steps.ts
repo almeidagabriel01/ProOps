@@ -324,6 +324,7 @@ export const MENU_STEP_TEMPLATES: Record<string, OnboardingStepTemplate> = {
       { text: "Em Categorias, diga em que linha do DRE cada categoria entra." },
       { text: "Caixa mostra o que foi pago; competência, o que foi lançado no mês." },
       { text: "Categorize os lançamentos para o resultado sair certo." },
+      { text: "Mande ao contador o link de leitura (Link do contador), sem criar usuário para ele." },
     ],
     actionLabel: "Abrir o DRE",
   },

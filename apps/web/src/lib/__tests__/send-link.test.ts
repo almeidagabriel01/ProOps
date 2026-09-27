@@ -7,6 +7,7 @@ import {
   buildWhatsAppShareHref,
   toWhatsAppNumber,
   buildPortalMessage,
+  buildAccountantMessage,
 } from "../send-link";
 
 describe("toWhatsAppNumber", () => {
@@ -106,5 +107,15 @@ describe("buildPortalMessage", () => {
     const { subject, message } = buildPortalMessage({ url: "u" });
     expect(subject).toBe("Seu portal");
     expect(message).toMatch(/^Olá!/);
+  });
+});
+
+describe("buildAccountantMessage", () => {
+  it("diz o que tem, que é só leitura, e leva o link", () => {
+    const { subject, message } = buildAccountantMessage({ companyName: "Casa Viva", url: "https://erp.test/share/contador/x" });
+    expect(subject).toBe("Acesso ao financeiro | Casa Viva");
+    expect(message).toMatch(/DRE, lançamentos e notas fiscais/);
+    expect(message).toMatch(/só leitura/);
+    expect(message).toContain("https://erp.test/share/contador/x");
   });
 });
