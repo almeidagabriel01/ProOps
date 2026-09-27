@@ -199,9 +199,12 @@ regra geral está em `apps/web/src/lib/CLAUDE.md`, seção Multi-niche.
 - [ ] Cada nicho tem a própria demonstração: `demoTenantId` no registro
       (derivado em `DEMO_TENANT_IDS`, e no `isDemoRead` das rules, com
       paridade em `niche-registry-parity.test.ts`), escolhida pelo nicho da
-      conta free. Nicho novo entra no mapa e ganha um seed (`scripts/seed-demo-*.ts`,
-      chamado pelo POST `/internal/admin/seed-demo-tenant`). Navegar a demo
-      não substitui o teste do comportamento de cada nicho.
+      conta free. Nicho novo ganha um dataset em
+      `apps/functions/src/scripts/demo/datasets/<id>.ts` (só dados; o motor
+      `scripts/demo/engine.ts` monta os documentos, e `DEMO_DATASETS` é um
+      `Record` que o compilador cobra), semeado pelo POST
+      `/internal/admin/seed-demo-tenant`. Navegar a demo não substitui o teste
+      do comportamento de cada nicho.
 
 ---
 

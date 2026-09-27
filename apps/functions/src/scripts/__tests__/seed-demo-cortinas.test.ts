@@ -17,8 +17,13 @@ jest.mock("firebase-admin/firestore", () => ({
 }));
 jest.mock("../../lib/logger", () => ({ logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() } }));
 
-import { seedDemoCortinasTenant, DEMO_CORTINAS_TENANT_ID } from "../seed-demo-cortinas";
+
 import { DEMO_TENANT_IDS } from "../../shared/demo-tenant";
+import { seedDemo } from "../demo/seed";
+import { DEMO_DATASETS } from "../demo/datasets";
+
+const DEMO_CORTINAS_TENANT_ID = DEMO_TENANT_IDS.cortinas;
+const seedDemoCortinasTenant = () => seedDemo(DEMO_DATASETS.cortinas);
 
 type Written = { path: string; data: Record<string, unknown> };
 const written = (): Written[] =>

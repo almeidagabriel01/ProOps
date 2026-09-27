@@ -624,14 +624,8 @@ export const seedDemoTenantManual = async (
       return res.status(401).send("Unauthorized");
     }
 
-    const { seedDemoTenant } = await import("../../scripts/seed-demo-tenant");
-    const { seedDemoCortinasTenant } = await import("../../scripts/seed-demo-cortinas");
-    const { seedDemoSegurancaTenant } = await import("../../scripts/seed-demo-seguranca");
-    const result = {
-      automacao_residencial: await seedDemoTenant(),
-      cortinas: await seedDemoCortinasTenant(),
-      seguranca_eletronica: await seedDemoSegurancaTenant(),
-    };
+    const { seedAllDemos } = await import("../../scripts/demo/seed");
+    const result = await seedAllDemos();
     logger.info("[seedDemoTenant manual] completed", { niches: Object.keys(result) });
     return res.json(result);
   } catch (error) {

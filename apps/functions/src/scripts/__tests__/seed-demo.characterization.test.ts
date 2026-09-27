@@ -1,5 +1,5 @@
 /**
- * Caracterização dos seeds de demonstração: fixa, documento por documento, o
+ * Caracterização das demonstrações: fixa, documento por documento, o
  * que cada seed grava, em dois instantes (um fim de mês perto da meia-noite
  * UTC e um dia comum), porque as datas relativas saem de `new Date()`.
  *
@@ -24,14 +24,15 @@ jest.mock("firebase-admin/firestore", () => ({
 }));
 jest.mock("../../lib/logger", () => ({ logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn() } }));
 
-import { seedDemoTenant } from "../seed-demo-tenant";
-import { seedDemoCortinasTenant } from "../seed-demo-cortinas";
-import { seedDemoSegurancaTenant } from "../seed-demo-seguranca";
+import { seedDemo } from "../demo/seed";
+import { DEMO_DATASETS } from "../demo/datasets";
 
+// Os três seeds antigos viraram datasets do motor único; a saída continua a
+// mesma que eles gravavam (este snapshot foi gerado com o código antigo).
 const SEEDS = {
-  automacao_residencial: seedDemoTenant,
-  cortinas: seedDemoCortinasTenant,
-  seguranca_eletronica: seedDemoSegurancaTenant,
+  automacao_residencial: () => seedDemo(DEMO_DATASETS.automacao_residencial),
+  cortinas: () => seedDemo(DEMO_DATASETS.cortinas),
+  seguranca_eletronica: () => seedDemo(DEMO_DATASETS.seguranca_eletronica),
 } as const;
 
 const INSTANTS = ["2026-03-31T23:30:00.000Z", "2026-07-15T14:00:00.000Z"];
