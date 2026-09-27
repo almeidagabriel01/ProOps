@@ -5,7 +5,9 @@ import { PRODUCT_IMAGE_LIMIT_BY_NICHE } from "@/lib/catalog-image-limits";
 import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
 import { NICHE_CONFIGS, NICHE_PAGE_KEYS, getNicheConfig } from "@/lib/niches/config";
 import { TENANT_NICHES } from "@/lib/niches/niche-ids";
+import { NICHE_REGISTRY } from "@/lib/niches/registry";
 import { NICHE_LABELS } from "@/types";
+import { DEMO_DATASETS } from "../../../../../functions/src/scripts/demo/datasets";
 import { NICHOS_PRONTOS, SEGMENTOS } from "@/app/(empresa)/institucional/_content/institucional-copy";
 
 /**
@@ -71,5 +73,22 @@ describe("site da empresa lista os nichos prontos", () => {
     expect(SEGMENTOS.filter((segmento) => segmento.pronto).length).toBeLessThanOrEqual(
       TENANT_NICHES.length,
     );
+  });
+});
+
+describe.each([...TENANT_NICHES])("demonstração do nicho %s", (niche) => {
+  const dataset = DEMO_DATASETS[niche];
+
+  it("usa o tenant de demonstração do registro", () => {
+    expect(dataset.niche).toBe(niche);
+    expect(dataset.tenantId).toBe(NICHE_REGISTRY[niche].demoTenantId);
+  });
+
+  it("o exemplo do card de atenção aponta para propostas da demonstração do nicho", () => {
+    const proposals = new Map(dataset.proposals.items.map((p) => [p.id, p.title]));
+    for (const item of NICHE_CONFIGS[niche].demoAttention.items) {
+      expect(proposals.get(item.id), `${item.id} não está no dataset de ${niche}`).toBe(item.title);
+      expect(item.href).toBe(`/proposals/${item.id}/view`);
+    }
   });
 });
