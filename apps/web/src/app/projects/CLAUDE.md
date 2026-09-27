@@ -94,5 +94,7 @@ e contam no armazenamento do plano.
 
 ## Pendente de propósito
 
-- Evento da agenda ligado ao projeto (visita, instalação) e o portal do cliente
-  com o andamento: ficam para a Onda 4.
+- Evento da agenda ligado ao projeto (visita, instalação). O portal do cliente
+  já mostra o andamento da obra (Onda 4).
+- Documento em PDF da obra: nem ordem de serviço para o técnico, nem termo de
+  entrega. O aceite da entrega fica registrado pelo link (nome, data, IP).
