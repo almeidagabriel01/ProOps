@@ -79,10 +79,11 @@ export function DreTable({ dre }: DreTableProps) {
     });
 
   return (
-    // O cartão abraça a tabela: com poucos meses ela não estica até a borda
-    // (o valor ficava longe do nome da linha), e com muitos rola por dentro.
-    <div className="w-fit max-w-full overflow-x-auto rounded-xl border bg-card">
-      <table className="min-w-max text-sm">
+    // Largura fixa: a tabela ocupa sempre a largura da página, com qualquer
+    // quantidade de meses (decisão do produto); passando dela, rola por dentro,
+    // com Linha e Total presos nas pontas.
+    <div className="w-full overflow-x-auto rounded-xl border bg-card">
+      <table className="w-full min-w-max text-sm">
         <thead>
           <tr className="border-b bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <th className="sticky left-0 z-10 min-w-[240px] bg-muted px-3 py-2 text-left font-medium">Linha</th>
