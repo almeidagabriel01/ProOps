@@ -16,6 +16,8 @@ import {
   buildRefreshTokenStorageFields,
 } from "../../lib/token-source";
 import { encryptToken, decryptToken } from "../../lib/token-encryption";
+import { stageScheduleFromEvent } from "../services/projects/project-schedule";
+import { mirrorStageScheduleFromEvent } from "../services/projects/project-schedule-store";
 
 // Pacotes scoped (@googleapis/calendar + @googleapis/oauth2) substituem o
 // metapackage `googleapis` (~60MB instalado, ~0.9s de require — carregava a
@@ -141,6 +143,51 @@ export interface CalendarEventDocument {
   googleSync: GoogleSyncMetadata;
   createdAt: string;
   updatedAt: string;
+  /** Evento de uma etapa da obra (ver `project-schedule.ts`). */
+  projectId?: string | null;
+  projectStageId?: string | null;
+  /** Pedido de visita que originou o evento (link de agendamento). */
+  bookingRequestId?: string | null;
+}
+
+/** Vínculos do evento com outras telas; nunca vêm do corpo da requisição. */
+export interface CalendarEventLinks {
+  projectId?: string | null;
+  projectStageId?: string | null;
+  bookingRequestId?: string | null;
+}
+
+/**
+ * Os vínculos que atravessam a regravação do evento. A edição na Agenda e a
+ * sincronização com o Google remontam o documento campo a campo e gravam sem
+ * merge: sem isto, mover o evento de uma obra na Agenda apagava o vínculo com
+ * ela, e o mesmo já acontecia com o `bookingRequestId` do link de agendamento.
+ */
+export function pickEventLinks(source: CalendarEventLinks | undefined | null): CalendarEventLinks {
+  const links: CalendarEventLinks = {};
+  if (source?.projectId) {
+    links.projectId = source.projectId;
+    links.projectStageId = source.projectStageId ?? null;
+  }
+  if (source?.bookingRequestId) links.bookingRequestId = source.bookingRequestId;
+  return links;
+}
+
+/** Evento de etapa de obra: a etapa espelha a data dele. */
+async function mirrorProjectStage(eventId: string, event: CalendarEventDocument | null, previous: CalendarEventDocument) {
+  if (!previous.projectId || !previous.projectStageId) return;
+  try {
+    await mirrorStageScheduleFromEvent({
+      tenantId: previous.tenantId,
+      projectId: previous.projectId,
+      stageId: previous.projectStageId,
+      eventId,
+      schedule: event ? stageScheduleFromEvent(eventId, event) : null,
+    });
+  } catch (error) {
+    // A Agenda já gravou; a data da obra se corrige no próximo agendamento.
+    console.error("[CalendarController] Error mirroring project stage schedule:", error);
+  }
 }
 
 interface GoogleCalendarIntegrationDocument {
@@ -728,6 +775,7 @@ function buildCalendarEventDocumentFromGoogleEvent(params: {
     }),
     createdAt: params.existing?.createdAt || syncedAt,
     updatedAt: syncedAt,
+    ...pickEventLinks(params.existing),
   };
 }
 
@@ -932,6 +980,11 @@ export async function syncGoogleEventsToLocalCalendar(params: {
       await batch.commit();
     }
 
+    // Visita de obra mudada no Google: a data da etapa acompanha.
+    for (const { ref, data } of writes) {
+      if (data.projectId) await mirrorProjectStage(ref.id, data, data);
+    }
+
     await persistGoogleIntegrationStatus(integrationRecord.id, {
       lastInboundSyncAt: nowIso(),
       lastSuccessfulSyncAt: nowIso(),
@@ -1102,7 +1155,7 @@ export async function syncEventToGoogle(
   }
 }
 
-async function deleteEventFromGoogleIfNeeded(eventData: CalendarEventDocument) {
+export async function deleteEventFromGoogleIfNeeded(eventData: CalendarEventDocument) {
   if (isGoogleCalendarDisabled()) {
     return;
   }
@@ -1450,6 +1503,8 @@ export function buildCalendarEventDocument(params: {
   ownerUserId: string;
   actingUserId: string;
   existing?: CalendarEventDocument;
+  /** Só para quem cria o evento por outra tela (a obra); a edição herda do existente. */
+  links?: CalendarEventLinks;
 }): CalendarEventDocument {
   const title = String(params.input.title || "").trim();
   if (!title) {
@@ -1518,10 +1573,11 @@ export function buildCalendarEventDocument(params: {
     googleSync: params.existing?.googleSync || buildBaseGoogleSyncMetadata(),
     createdAt,
     updatedAt: nowIso(),
+    ...pickEventLinks(params.links ?? params.existing),
   };
 }
 
-function getValidationMessage(error: unknown): string {
+export function getValidationMessage(error: unknown): string {
   const code = error instanceof Error ? error.message : "";
 
   switch (code) {
@@ -1939,6 +1995,7 @@ export async function updateCalendarEvent(req: Request, res: Response) {
     };
 
     await docRef.set(persistedEvent, { merge: false });
+    await mirrorProjectStage(id, persistedEvent, existingData);
 
     return res.json({
       success: true,
@@ -1999,6 +2056,7 @@ export async function deleteCalendarEvent(req: Request, res: Response) {
 
     await deleteEventFromGoogleIfNeeded(existingData);
     await docRef.delete();
+    await mirrorProjectStage(id, null, existingData);
 
     return res.status(204).send();
   } catch (error) {

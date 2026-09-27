@@ -699,6 +699,24 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
     completedAt: status === "done" && completedOffset !== null ? isoAt(completedOffset) : null,
   });
 
+  // Visita marcada na etapa de Configuração, daqui a 2 dias, 09:00 às 12:00
+  // de Brasília: a obra mostra a data e a Agenda mostra o evento ligado a ela.
+  const demoVisitStart = new Date(now);
+  demoVisitStart.setUTCDate(demoVisitStart.getUTCDate() + 2);
+  demoVisitStart.setUTCHours(12, 0, 0, 0);
+  const demoVisitEnd = new Date(demoVisitStart.getTime() + 3 * 60 * 60 * 1000);
+  const DEMO_VISIT_EVENT_ID = "demo_event_obra_configuracao";
+  const demoVisit = {
+    eventId: DEMO_VISIT_EVENT_ID,
+    isAllDay: false,
+    startsAt: demoVisitStart.toISOString(),
+    endsAt: demoVisitEnd.toISOString(),
+    startDate: null,
+    endDate: null,
+    startMs: demoVisitStart.getTime(),
+    endMs: demoVisitEnd.getTime(),
+  };
+
   const DEMO_PROJECTS = [
     {
       id: "proposal_demo_prop_1",
@@ -708,7 +726,10 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
       stages: [
         demoStage("demo_stage_1", "Infraestrutura", "done", [["Conferir tubulação e caixas", true], ["Passar cabeamento", true], ["Montar o quadro/rack", true]], -6),
         demoStage("demo_stage_2", "Instalação", "in_progress", [["Instalar os equipamentos", true], ["Ligar e identificar os circuitos", false]], null),
-        demoStage("demo_stage_3", "Configuração", "pending", [["Programar cenas e automações", false], ["Configurar o aplicativo", false], ["Testar ambiente por ambiente", false]], null),
+        {
+          ...demoStage("demo_stage_3", "Configuração", "pending", [["Programar cenas e automações", false], ["Configurar o aplicativo", false], ["Testar ambiente por ambiente", false]], null),
+          schedule: demoVisit,
+        },
         demoStage("demo_stage_4", "Entrega", "pending", [["Treinar o cliente", false], ["Registrar fotos finais", false]], null),
       ],
     },
@@ -738,6 +759,31 @@ export async function seedDemoTenant(): Promise<SeedDemoTenantResult> {
       updatedAt: isoAt(-1),
       createdBy: null,
     });
+  });
+
+  batch.set(db.collection("calendar_events").doc(DEMO_VISIT_EVENT_ID), {
+    ...tenantTag,
+    ownerUserId: "demo",
+    createdByUserId: "demo",
+    updatedByUserId: "demo",
+    title: `Configuração: ${DEMO_PROJECTS[0].title}`,
+    description: `Cliente: ${DEMO_PROJECTS[0].client.name}
+Técnico: Equipe Demo`,
+    location: null,
+    status: "scheduled",
+    color: "#0891b2",
+    isAllDay: false,
+    startsAt: demoVisit.startsAt,
+    endsAt: demoVisit.endsAt,
+    startDate: null,
+    endDate: null,
+    startMs: demoVisit.startMs,
+    endMs: demoVisit.endMs,
+    googleSync: { enabled: false, provider: "google", status: "disabled" },
+    projectId: DEMO_PROJECTS[0].id,
+    projectStageId: "demo_stage_3",
+    createdAt: isoAt(-1),
+    updatedAt: isoAt(-1),
   });
 
   // --- CRM: leads e atividades --------------------------------------------

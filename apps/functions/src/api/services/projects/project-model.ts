@@ -39,6 +39,21 @@ export interface StagePhoto {
   uploadedByName: string | null;
 }
 
+/**
+ * Data agendada da etapa: espelho do evento da Agenda (a data mora no evento;
+ * ver `project-schedule.ts`).
+ */
+export interface StageSchedule {
+  eventId: string;
+  isAllDay: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  startMs: number;
+  endMs: number;
+}
+
 export interface ProjectStage {
   id: string;
   name: string;
@@ -46,6 +61,8 @@ export interface ProjectStage {
   checklist: ChecklistItem[];
   photos: StagePhoto[];
   completedAt: string | null;
+  /** Ausente nas etapas criadas antes do agendamento existir. */
+  schedule?: StageSchedule | null;
 }
 
 export interface DeliveryAcceptance {

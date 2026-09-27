@@ -1127,6 +1127,10 @@ empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
   `NICHE_CONFIGS[*].booking`, só para a demonstração, com teste de paridade em
   `apps/web/src/lib/booking/__tests__/booking-format.test.ts`.
 
+O evento guarda `bookingRequestId`, e desde 2026-09-27 ele sobrevive a uma
+edição na Agenda: a edição regrava o documento sem merge, e os vínculos com
+outras telas (este e o da obra, `projectId`) passam por `pickEventLinks`.
+
 Guards: `booking-model.test.ts`, `booking.controller.test.ts`,
 `booking.routes.gates.test.ts` e `tests/firestore-rules/booking.test.ts`.
 

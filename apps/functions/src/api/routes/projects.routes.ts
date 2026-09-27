@@ -6,6 +6,8 @@ import {
   deleteChecklistItem,
   deleteProject,
   deleteStagePhoto,
+  scheduleStage,
+  unscheduleStage,
   getProjectSettings,
   listProjectAssignees,
   toggleChecklistItem,
@@ -34,6 +36,8 @@ router.delete("/projects/:id", deleteProject);
 router.post("/projects/:id/delivery-link", createDeliveryLink);
 
 router.put("/projects/:id/stages/:stageId", updateStage);
+router.put("/projects/:id/stages/:stageId/schedule", scheduleStage);
+router.delete("/projects/:id/stages/:stageId/schedule", unscheduleStage);
 router.post("/projects/:id/stages/:stageId/checklist", addChecklistItem);
 router.put("/projects/:id/stages/:stageId/checklist/:itemId", toggleChecklistItem);
 router.delete("/projects/:id/stages/:stageId/checklist/:itemId", deleteChecklistItem);

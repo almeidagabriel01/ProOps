@@ -59,6 +59,8 @@ it.each([
   ["DELETE", "/projects/p1/stages/s1/checklist/i1", "deleteChecklistItem"],
   ["POST", "/projects/p1/stages/s1/photos", "uploadStagePhoto"],
   ["DELETE", "/projects/p1/stages/s1/photos/f1", "deleteStagePhoto"],
+  ["PUT", "/projects/p1/stages/s1/schedule", "scheduleStage"],
+  ["DELETE", "/projects/p1/stages/s1/schedule", "unscheduleStage"],
 ])("%s %s exige a capacidade projects e chega no handler certo", async (method, path, handler) => {
   hits.length = 0;
   const res = await fetch(`${base}${path}`, { method });

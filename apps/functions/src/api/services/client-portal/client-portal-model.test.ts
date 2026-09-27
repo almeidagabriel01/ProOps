@@ -112,8 +112,46 @@ describe("obra e notas", () => {
       },
     ]);
     expect(list).toEqual([
-      { id: "y", title: "Casa", status: "active", stagesDone: 1, stagesTotal: 3, deliveryAccepted: false },
+      { id: "y", title: "Casa", status: "active", stagesDone: 1, stagesTotal: 3, deliveryAccepted: false, nextVisit: null },
     ]);
+  });
+
+  it("mostra a próxima visita marcada, sem o id do evento da Agenda", () => {
+    const now = Date.parse("2026-10-15T12:00:00.000Z");
+    const at = (iso: string) => ({
+      eventId: "ev-interno",
+      isAllDay: false,
+      startsAt: iso,
+      endsAt: new Date(Date.parse(iso) + 3 * 3600_000).toISOString(),
+      startDate: null,
+      endDate: null,
+      startMs: Date.parse(iso),
+      endMs: Date.parse(iso) + 3 * 3600_000,
+    });
+    const [project] = buildPortalProjects(
+      [
+        {
+          id: "y",
+          data: {
+            title: "Casa",
+            status: "active",
+            stages: [
+              { name: "Medição", status: "done", schedule: at("2026-10-16T11:00:00.000Z") },
+              { name: "Instalação", status: "pending", schedule: at("2026-10-20T11:00:00.000Z") },
+            ],
+          },
+        },
+      ],
+      now,
+    );
+    expect(project.nextVisit).toEqual({
+      stageName: "Instalação",
+      isAllDay: false,
+      startsAt: "2026-10-20T11:00:00.000Z",
+      endsAt: "2026-10-20T14:00:00.000Z",
+      startDate: null,
+      endDate: null,
+    });
   });
 
   it("só nota autorizada com PDF https", () => {

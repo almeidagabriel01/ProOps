@@ -1,3 +1,6 @@
+import { nextScheduledStage, publicSchedule } from "../projects/project-schedule";
+import type { ProjectStage, StageSchedule } from "../projects/project-model";
+
 /**
  * Portal do cliente (capacidade `clientPortal`, Pro e Enterprise): uma página
  * por CONTATO, aberta por um link fixo e revogável, com as propostas, os
@@ -50,6 +53,15 @@ export interface PortalProject {
   stagesDone: number;
   stagesTotal: number;
   deliveryAccepted: boolean;
+  /** A próxima visita marcada na obra (medição, instalação...), se houver. */
+  nextVisit: {
+    stageName: string;
+    isAllDay: boolean;
+    startsAt: string | null;
+    endsAt: string | null;
+    startDate: string | null;
+    endDate: string | null;
+  } | null;
 }
 
 export interface PortalInvoice {
@@ -202,7 +214,20 @@ export function buildPortalPayments(docs: Doc[], today: string): PortalPayment[]
 }
 
 /** Obra cancelada some; o resto mostra o avanço pelas etapas concluídas. */
-export function buildPortalProjects(docs: Doc[]): PortalProject[] {
+function portalNextVisit(stages: Array<Record<string, unknown>>, nowMs: number): PortalProject["nextVisit"] {
+  const next = nextScheduledStage(
+    stages.map((stage) => ({
+      name: String(stage?.name ?? "Etapa"),
+      status: stage?.status as ProjectStage["status"],
+      schedule: (stage?.schedule as StageSchedule | null | undefined) ?? null,
+    })),
+    nowMs,
+  );
+  const schedule = next ? publicSchedule(next.schedule) : null;
+  return next && schedule ? { stageName: next.stageName, ...schedule } : null;
+}
+
+export function buildPortalProjects(docs: Doc[], nowMs: number = Date.now()): PortalProject[] {
   const result: PortalProject[] = [];
   for (const { id, data } of docs) {
     if (data.status === "canceled") continue;
@@ -215,6 +240,7 @@ export function buildPortalProjects(docs: Doc[]): PortalProject[] {
       stagesDone: stages.filter((s) => s?.status === "done").length,
       stagesTotal: stages.length,
       deliveryAccepted: delivery.status === "accepted",
+      nextVisit: portalNextVisit(stages, nowMs),
     });
   }
   return result;

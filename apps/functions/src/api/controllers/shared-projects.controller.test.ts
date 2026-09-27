@@ -115,6 +115,32 @@ describe("GET /v1/share/project/:token", () => {
     expect(res.body.tenant).toMatchObject({ name: "Casa Inteligente" });
   });
 
+  it("mostra a data marcada da etapa, sem o id do evento da Agenda", async () => {
+    (project!.stages as Array<Record<string, unknown>>).push({
+      id: "s2",
+      name: "Configuração",
+      status: "pending",
+      completedAt: null,
+      checklist: [],
+      photos: [],
+      schedule: {
+        eventId: "ev-agenda-interno",
+        isAllDay: false,
+        startsAt: "2026-10-20T11:00:00.000Z",
+        endsAt: "2026-10-20T14:00:00.000Z",
+        startDate: null,
+        endDate: null,
+        startMs: Date.parse("2026-10-20T11:00:00.000Z"),
+        endMs: Date.parse("2026-10-20T14:00:00.000Z"),
+      },
+    });
+    const res = fakeRes();
+    await getSharedProject(fakeReq(), res);
+    const json = JSON.stringify(res.body);
+    expect(json).toContain("2026-10-20T11:00:00.000Z");
+    expect(json).not.toContain("ev-agenda-interno");
+  });
+
   it("token inválido: 404; expirado: 410", async () => {
     mocks.resolveProjectShareToken.mockResolvedValueOnce(null);
     const res = fakeRes();

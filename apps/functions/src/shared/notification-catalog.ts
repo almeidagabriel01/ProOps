@@ -24,6 +24,7 @@ export const NOTIFICATION_TYPES = [
   "proposal_follow_up",
   "proposal_expiring",
   "project_delivery_accepted",
+  "project_visit_scheduled",
   "lead_reminder",
   "transaction_due_reminder",
   "transaction_viewed",
@@ -69,6 +70,8 @@ export const NOTIFICATION_CATALOG: Record<NotificationType, NotificationCatalogE
   system: { audience: "admins", emailable: true, defaultEmail: true },
   // O aviso de preço já tem e-mail próprio, com os valores e o prazo.
   price_change: { audience: "admins", emailable: false, defaultEmail: false },
+  // Visita de uma etapa da obra marcada ou remarcada: vai para o técnico.
+  project_visit_scheduled: { audience: "direct", emailable: true, defaultEmail: true },
   task_assigned: { audience: "direct", emailable: true, defaultEmail: true },
   task_mentioned: { audience: "direct", emailable: true, defaultEmail: true },
   // Lembrete diário: fica no sino, como os outros.
@@ -131,6 +134,7 @@ export function notificationLinkPath(n: {
     case "proposal_changes_requested":
       return n.proposalId ? `/proposals?ajuste=${n.proposalId}` : "/proposals";
     case "project_delivery_accepted":
+    case "project_visit_scheduled":
       return n.projectId ? `/projects/${n.projectId}` : "/projects";
     case "task_assigned":
     case "task_mentioned":

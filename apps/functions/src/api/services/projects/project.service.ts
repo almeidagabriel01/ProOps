@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getStorage } from "firebase-admin/storage";
 import { db } from "../../../init";
+import { publicSchedule } from "./project-schedule";
 import { logger } from "../../../lib/logger";
 import { tenantHasCapability } from "../../../lib/tenant-capabilities";
 import { resolveFrontendAppUrl } from "../../../lib/frontend-app-url";
@@ -311,6 +312,7 @@ export function toClientProjectView(project: Record<string, unknown>) {
       name: stage.name,
       status: stage.status,
       completedAt: stage.completedAt,
+      schedule: publicSchedule(stage.schedule),
       checklist: stage.checklist.map((item) => ({ id: item.id, text: item.text, done: item.done })),
       photos: stage.photos.map((photo) => ({ id: photo.id, url: photo.url, caption: photo.caption })),
     })),

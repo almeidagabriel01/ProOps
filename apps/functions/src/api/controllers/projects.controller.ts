@@ -6,6 +6,22 @@ import { hasPagePermission } from "../../lib/auth-helpers";
 import { isTenantAdminRole } from "../../lib/auth-context";
 import { isStatusApproved } from "./proposals.controller";
 import {
+  buildCalendarEventDocument,
+  deleteEventFromGoogleIfNeeded,
+  getValidationMessage,
+  syncEventToGoogle,
+  type CalendarEventDocument,
+} from "./calendar.controller";
+import { NotificationService } from "../services/notification.service";
+import { resolveFrontendAppOrigin } from "../../lib/frontend-app-url";
+import {
+  ScheduleStageSchema,
+  scheduleChanged,
+  scheduleEventDescription,
+  scheduleEventTitle,
+  stageScheduleFromEvent,
+} from "../services/projects/project-schedule";
+import {
   ChecklistItemSchema,
   ChecklistToggleSchema,
   CreateProjectSchema,
@@ -20,6 +36,7 @@ import {
   type ProjectDelivery,
   type ProjectStage,
   type StagePhoto,
+  type StageSchedule,
 } from "../services/projects/project-model";
 import {
   PROJECTS_COLLECTION,
@@ -193,9 +210,14 @@ export async function deleteProject(req: Request, res: Response) {
     const found = await loadProjectOfTenant(req.params.id, tenantId);
     if (!found) return res.status(404).json({ message: "Projeto não encontrado." });
 
-    const photos = ((found.data.stages as ProjectStage[]) ?? []).flatMap((s) => s.photos ?? []);
+    const stages = (found.data.stages as ProjectStage[]) ?? [];
+    const photos = stages.flatMap((s) => s.photos ?? []);
     await found.ref.delete();
     await deleteProjectPhotos(photos.map((p) => p.storagePath));
+    // As visitas agendadas da obra saem da Agenda (e do Google) junto.
+    for (const eventId of stages.map((s) => s.schedule?.eventId).filter(Boolean) as string[]) {
+      await removeScheduleEvent(eventId, tenantId);
+    }
     return res.json({ success: true });
   } catch (error) {
     return fail(res, error, "Erro ao excluir o projeto.", "project_delete_failed");
@@ -400,6 +422,155 @@ export async function createDeliveryLink(req: Request, res: Response) {
     return res.json({ url: link.url });
   } catch (error) {
     return fail(res, error, "Erro ao gerar o link de entrega.", "project_delivery_link_failed");
+  }
+}
+
+const CALENDAR_EVENTS_COLLECTION = "calendar_events";
+/** Mesma cor para toda visita de obra, entre as seis da Agenda. */
+const SCHEDULE_EVENT_COLOR = "#0891b2";
+const SCHEDULE_VALIDATION_ERRORS = new Set([
+  "TITLE_REQUIRED",
+  "TITLE_TOO_LONG",
+  "INVALID_DATE",
+  "INVALID_DATETIME",
+  "INVALID_DATE_RANGE",
+  "INVALID_TIME_RANGE",
+]);
+
+/** Apaga o evento de uma visita (e a cópia no Google), se ainda for do tenant. */
+async function removeScheduleEvent(eventId: string, tenantId: string): Promise<void> {
+  const ref = db.collection(CALENDAR_EVENTS_COLLECTION).doc(eventId);
+  const snap = await ref.get();
+  const data = snap.data() as CalendarEventDocument | undefined;
+  if (!snap.exists || data?.tenantId !== tenantId) return;
+  await deleteEventFromGoogleIfNeeded(data);
+  await ref.delete();
+}
+
+function formatVisitWhen(schedule: StageSchedule): string {
+  if (schedule.isAllDay && schedule.startDate) {
+    const [y, m, d] = schedule.startDate.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  return new Date(schedule.startMs).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * PUT /v1/projects/:id/stages/:stageId/schedule
+ *
+ * Agenda (ou remarca) a etapa: cria ou atualiza o evento da Agenda ligado a
+ * ela e grava o espelho na etapa. Pede editar Projetos, não a Agenda: é quem
+ * cuida da obra que marca a visita.
+ */
+export async function scheduleStage(req: Request, res: Response) {
+  const parsed = ScheduleStageSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: firstIssue(parsed.error) });
+  try {
+    const { tenantId, uid } = await requireProjectAccess(req, "canEdit");
+    const found = await loadProjectOfTenant(req.params.id, tenantId);
+    if (!found) return res.status(404).json({ message: "Projeto não encontrado." });
+    const project = found.data;
+    const stages = (project.stages as ProjectStage[]) ?? [];
+    const stage = stages[findStage(stages, req.params.stageId)];
+
+    const previous = stage.schedule ?? null;
+    let existing: CalendarEventDocument | undefined;
+    if (previous?.eventId) {
+      const snap = await db.collection(CALENDAR_EVENTS_COLLECTION).doc(previous.eventId).get();
+      const data = snap.data() as CalendarEventDocument | undefined;
+      if (snap.exists && data?.tenantId === tenantId) existing = data;
+    }
+    const eventRef =
+      existing && previous
+        ? db.collection(CALENDAR_EVENTS_COLLECTION).doc(previous.eventId)
+        : db.collection(CALENDAR_EVENTS_COLLECTION).doc();
+
+    let event: CalendarEventDocument;
+    try {
+      event = buildCalendarEventDocument({
+        input: {
+          ...parsed.data,
+          title: scheduleEventTitle(stage.name, String(project.title ?? "Obra")),
+          description: scheduleEventDescription({
+            clientName: project.clientName as string | null,
+            clientPhone: project.clientPhone as string | null,
+            assigneeName: project.assigneeName as string | null,
+            projectUrl: new URL(`/projects/${found.ref.id}`, resolveFrontendAppOrigin()).toString(),
+          }),
+          location: (project.address as string | null) ?? null,
+          status: "scheduled",
+          color: existing?.color ?? SCHEDULE_EVENT_COLOR,
+        },
+        tenantId,
+        ownerUserId: existing?.ownerUserId ?? uid,
+        actingUserId: uid,
+        existing,
+        links: { projectId: found.ref.id, projectStageId: stage.id },
+      });
+    } catch (error) {
+      if (error instanceof Error && SCHEDULE_VALIDATION_ERRORS.has(error.message)) {
+        return res.status(400).json({ message: getValidationMessage(error) });
+      }
+      throw error;
+    }
+
+    const googleSync = await syncEventToGoogle(eventRef.id, event);
+    await eventRef.set({ ...event, googleSync }, { merge: false });
+
+    const schedule = stageScheduleFromEvent(eventRef.id, event);
+    await mutateStages(found.ref.id, tenantId, (current) => {
+      const index = findStage(current, stage.id);
+      const copy = [...current];
+      copy[index] = { ...current[index], schedule };
+      return { stages: copy, result: null };
+    });
+
+    const assigneeId = project.assigneeId as string | null;
+    if (schedule && assigneeId && assigneeId !== uid && scheduleChanged(previous, schedule)) {
+      try {
+        const actor = (await userName(uid)) ?? "Alguém da equipe";
+        await NotificationService.createNotification({
+          tenantId,
+          type: "project_visit_scheduled",
+          title: previous ? "Visita remarcada" : "Visita agendada",
+          message: `${actor} marcou ${stage.name} em ${String(project.title ?? "Obra")} para ${formatVisitWhen(schedule)}.`,
+          projectId: found.ref.id,
+          targetUids: [assigneeId],
+        });
+      } catch (error) {
+        logger.warn("project_schedule_notify_failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return res.json({ schedule });
+  } catch (error) {
+    return fail(res, error, "Erro ao agendar a etapa.", "project_stage_schedule_failed");
+  }
+}
+
+/** DELETE /v1/projects/:id/stages/:stageId/schedule: desmarca a visita. */
+export async function unscheduleStage(req: Request, res: Response) {
+  try {
+    const { tenantId } = await requireProjectAccess(req, "canEdit");
+    const eventId = await mutateStages(req.params.id, tenantId, (current) => {
+      const index = findStage(current, req.params.stageId);
+      const copy = [...current];
+      const removed = current[index].schedule?.eventId ?? null;
+      copy[index] = { ...current[index], schedule: null };
+      return { stages: copy, result: removed };
+    });
+    if (eventId) await removeScheduleEvent(eventId, tenantId);
+    return res.json({ success: true });
+  } catch (error) {
+    return fail(res, error, "Erro ao desmarcar a visita.", "project_stage_unschedule_failed");
   }
 }
 

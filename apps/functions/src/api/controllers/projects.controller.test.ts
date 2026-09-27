@@ -22,6 +22,27 @@ let projects: Record<string, Record<string, unknown>>;
 let docs: Record<string, Record<string, Record<string, unknown>>>;
 const projectUpdates: Array<{ id: string; data: Record<string, unknown> }> = [];
 const projectDeletes: string[] = [];
+const docSets: Array<{ collection: string; id: string; data: Record<string, unknown> }> = [];
+const docDeletes: Array<{ collection: string; id: string }> = [];
+let autoId = 0;
+
+const googleSync = { enabled: false, provider: "google", status: "disabled" };
+const syncEventToGoogle = jest.fn();
+const deleteEventFromGoogleIfNeeded = jest.fn();
+jest.mock("./calendar.controller", () => ({
+  ...jest.requireActual("./calendar.controller"),
+  syncEventToGoogle: (...a: unknown[]) => syncEventToGoogle(...a),
+  deleteEventFromGoogleIfNeeded: (...a: unknown[]) => deleteEventFromGoogleIfNeeded(...a),
+}));
+
+const createNotification = jest.fn();
+jest.mock("../services/notification.service", () => ({
+  NotificationService: { createNotification: (...a: unknown[]) => createNotification(...a) },
+}));
+
+jest.mock("../../lib/frontend-app-url", () => ({
+  resolveFrontendAppOrigin: () => "https://erp.test",
+}));
 
 const isStatusApproved = jest.fn();
 jest.mock("./proposals.controller", () => ({
@@ -64,10 +85,21 @@ jest.mock("../../init", () => {
         };
         return {
           ...q,
-          doc: (id: string) => ({
-            id,
-            get: async () => ({ id, exists: !!col[id], data: () => col[id] }),
-          }),
+          doc: (given?: string) => {
+            const id = given ?? `auto_${++autoId}`;
+            return {
+              id,
+              get: async () => ({ id, exists: !!docs[name]?.[id], data: () => docs[name]?.[id] }),
+              set: async (data: Record<string, unknown>) => {
+                docs[name] = { ...(docs[name] ?? {}), [id]: data };
+                docSets.push({ collection: name, id, data });
+              },
+              delete: async () => {
+                delete docs[name]?.[id];
+                docDeletes.push({ collection: name, id });
+              },
+            };
+          },
         };
       },
       runTransaction: async (fn: (t: unknown) => Promise<unknown>) =>
@@ -121,7 +153,9 @@ import {
   createProject,
   deleteProject,
   listProjectAssignees,
+  scheduleStage,
   toggleChecklistItem,
+  unscheduleStage,
   updateProject,
   updateProjectSettings,
   updateStage,
@@ -170,6 +204,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   projectUpdates.length = 0;
   projectDeletes.length = 0;
+  docSets.length = 0;
+  docDeletes.length = 0;
+  syncEventToGoogle.mockResolvedValue(googleSync);
+  deleteEventFromGoogleIfNeeded.mockResolvedValue(undefined);
+  createNotification.mockResolvedValue({ id: "n1" });
   hasPagePermission.mockResolvedValue(true);
   isStatusApproved.mockResolvedValue(true);
   svc.isStorageOverQuota.mockResolvedValue(false);
@@ -393,5 +432,134 @@ describe("updateProjectSettings", () => {
     const res = fakeRes();
     await updateProjectSettings(fakeReq({}, { stageTemplate: [] }, "MASTER"), res);
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("agendar a etapa", () => {
+  const visit = { isAllDay: false, startsAt: "2026-10-20T11:00:00.000Z", endsAt: "2026-10-20T14:00:00.000Z" };
+
+  beforeEach(() => {
+    projects.p1 = {
+      ...projects.p1,
+      address: "Rua X, 123",
+      clientName: "Ana Ribeiro",
+      assigneeId: "tec",
+      assigneeName: "Carlos Técnico",
+    };
+  });
+
+  it("cria o evento da Agenda ligado à obra e à etapa, e espelha a data na etapa", async () => {
+    const res = fakeRes();
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, visit), res);
+
+    expect(res.statusCode).toBe(200);
+    const event = docSets.find((w) => w.collection === "calendar_events");
+    expect(event?.data).toMatchObject({
+      tenantId: "t1",
+      title: "Instalação: Casa",
+      location: "Rua X, 123",
+      status: "scheduled",
+      projectId: "p1",
+      projectStageId: "s1",
+      startsAt: visit.startsAt,
+      endsAt: visit.endsAt,
+      googleSync,
+    });
+    expect(String(event?.data.description)).toContain("https://erp.test/projects/p1");
+    const stages = projects.p1.stages as Array<Record<string, unknown>>;
+    expect(stages[0].schedule).toMatchObject({ eventId: event?.id, startsAt: visit.startsAt });
+    expect(res.body.schedule).toMatchObject({ eventId: event?.id });
+  });
+
+  it("avisa o técnico da obra quando outra pessoa marca", async () => {
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, visit), fakeRes());
+    expect(createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: "t1",
+        type: "project_visit_scheduled",
+        title: "Visita agendada",
+        projectId: "p1",
+        targetUids: ["tec"],
+      }),
+    );
+  });
+
+  it("o próprio técnico marcando não avisa a si mesmo", async () => {
+    projects.p1.assigneeId = "u1";
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, visit), fakeRes());
+    expect(createNotification).not.toHaveBeenCalled();
+  });
+
+  it("remarcar reaproveita o mesmo evento; o aviso só sai se a data mudou", async () => {
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, visit), fakeRes());
+    const firstId = docSets[0].id;
+    createNotification.mockClear();
+
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, visit), fakeRes());
+    expect(docSets[1].id).toBe(firstId);
+    expect(createNotification).not.toHaveBeenCalled();
+
+    const later = { ...visit, startsAt: "2026-10-21T11:00:00.000Z", endsAt: "2026-10-21T14:00:00.000Z" };
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, later), fakeRes());
+    expect(docSets[2].id).toBe(firstId);
+    expect(createNotification).toHaveBeenCalledWith(expect.objectContaining({ title: "Visita remarcada" }));
+  });
+
+  it("dia inteiro também vale", async () => {
+    const res = fakeRes();
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, { isAllDay: true, startDate: "2026-10-20" }), res);
+    expect(res.statusCode).toBe(200);
+    expect(docSets[0].data).toMatchObject({ isAllDay: true, startDate: "2026-10-20", endDate: "2026-10-21" });
+  });
+
+  it("fim antes do início: 400 sem gravar nada", async () => {
+    const res = fakeRes();
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, { ...visit, endsAt: "2026-10-20T10:00:00.000Z" }), res);
+    expect(res.statusCode).toBe(400);
+    expect(docSets).toHaveLength(0);
+    expect(projectUpdates).toHaveLength(0);
+  });
+
+  it("sem editar Projetos: 403; obra de outra empresa: 404; etapa que não existe: 404", async () => {
+    hasPagePermission.mockResolvedValueOnce(false);
+    const denied = fakeRes();
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, visit), denied);
+    expect(denied.statusCode).toBe(403);
+    expect(hasPagePermission).toHaveBeenCalledWith(expect.anything(), "projects", "canEdit");
+
+    const other = fakeRes();
+    await scheduleStage(fakeReq({ id: "outro", stageId: "s1" }, visit), other);
+    expect(other.statusCode).toBe(404);
+
+    const missing = fakeRes();
+    await scheduleStage(fakeReq({ id: "p1", stageId: "nada" }, visit), missing);
+    expect(missing.statusCode).toBe(404);
+    expect(docSets).toHaveLength(0);
+  });
+
+  it("não aceita vínculo vindo do corpo da requisição", async () => {
+    const res = fakeRes();
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, { ...visit, projectId: "outro" }), res);
+    expect(res.statusCode).toBe(400);
+    expect(docSets).toHaveLength(0);
+  });
+
+  it("desmarcar tira a data da etapa e apaga o evento (e a cópia no Google)", async () => {
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, visit), fakeRes());
+    const eventId = docSets[0].id;
+
+    const res = fakeRes();
+    await unscheduleStage(fakeReq({ id: "p1", stageId: "s1" }), res);
+    expect(res.statusCode).toBe(200);
+    expect((projects.p1.stages as Array<Record<string, unknown>>)[0].schedule).toBeNull();
+    expect(docDeletes).toContainEqual({ collection: "calendar_events", id: eventId });
+    expect(deleteEventFromGoogleIfNeeded).toHaveBeenCalledTimes(1);
+  });
+
+  it("excluir a obra apaga as visitas dela na Agenda", async () => {
+    await scheduleStage(fakeReq({ id: "p1", stageId: "s1" }, visit), fakeRes());
+    const eventId = docSets[0].id;
+    await deleteProject(fakeReq({ id: "p1" }), fakeRes());
+    expect(docDeletes).toContainEqual({ collection: "calendar_events", id: eventId });
   });
 });
