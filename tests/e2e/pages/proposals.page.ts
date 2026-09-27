@@ -280,7 +280,12 @@ export class ProposalsPage {
       .first()
       .waitFor({ state: "hidden", timeout: 10000 });
 
-    await this.page.getByRole("button", { name: /^desfazer$/i }).click();
+    // The sileo toast is itself a <button> with the action button nested inside,
+    // and a button's content is presentational in the accessibility tree:
+    // getByRole("button", { name: "Desfazer" }) never matches it.
+    await this.page
+      .locator("[data-sileo-button]", { hasText: /^desfazer$/i })
+      .click();
   }
 
   /**
