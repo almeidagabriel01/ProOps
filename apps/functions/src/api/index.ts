@@ -31,6 +31,7 @@ import { tasksRoutes } from "./routes/tasks.routes";
 import { salesGoalsRoutes } from "./routes/sales-goals.routes";
 import { bookingRoutes, publicBookingRoutes } from "./routes/booking.routes";
 import { clientPortalRoutes, publicClientPortalRoutes } from "./routes/client-portal.routes";
+import { publicAccountantRoutes } from "./routes/accountant.routes";
 import { validationRoutes } from "./routes/validation.routes";
 import { calendarPublicRoutes, calendarRoutes } from "./routes/calendar.routes";
 import { drivePublicRoutes, driveRoutes } from "./routes/drive.routes";
@@ -453,6 +454,9 @@ app.use("/v1", publicGeneralLimiter, drivePublicRoutes);
 // abaixo, cujo limitador roda em todo caminho de /v1 (a página contaria três
 // vezes). Sob /v1/share, herda a liberação da autenticação.
 app.use("/v1/share/portal", publicShareLimiter, publicClientPortalRoutes);
+// Link do contador: pelo mesmo motivo do portal, prefixo próprio antes dos
+// `app.use("/v1", ...)`.
+app.use("/v1/share/accountant", publicShareLimiter, publicAccountantRoutes);
 
 // Public shared links
 app.use("/v1", publicShareLimiter, sharedProposalsRoutes);

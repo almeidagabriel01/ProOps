@@ -31,6 +31,12 @@ import {
   getTransactionCategories,
   updateTransactionCategory,
 } from "../controllers/finance-reports.controller";
+import {
+  createAccountantLinkHandler,
+  getAccountantLinkHandler,
+  revokeAccountantLinkHandler,
+  rotateAccountantLinkHandler,
+} from "../controllers/accountant.controller";
 import { pdfRateLimiter } from "../middleware/pdf-rate-limiter";
 import { requirePlanCapability } from "../middleware/require-plan-capability";
 
@@ -57,6 +63,11 @@ router.get("/transactions/categories", getTransactionCategories);
 router.post("/transactions/categories", createTransactionCategory);
 router.put("/transactions/categories/:id", updateTransactionCategory);
 router.delete("/transactions/categories/:id", deleteTransactionCategory);
+// Link do contador (só dono e administradores).
+router.get("/transactions/accountant-link", getAccountantLinkHandler);
+router.post("/transactions/accountant-link", createAccountantLinkHandler);
+router.post("/transactions/accountant-link/rotate", rotateAccountantLinkHandler);
+router.delete("/transactions/accountant-link", revokeAccountantLinkHandler);
 router.post("/transactions", createTransaction);
 router.post("/transactions/:id/share-link", createTransactionShareLink);
 router.get("/transactions/:id/share-link", getShareLinkInfo);

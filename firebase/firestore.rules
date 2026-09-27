@@ -622,6 +622,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ACCOUNTANT_LINKS - Link do contador, um por empresa. O token abre o
+    // financeiro e as notas da empresa sem login: ninguém o lê pelo SDK, nem
+    // o dono (a tela usa a API, só para dono e administradores).
+    match /accountant_links/{tenantId} {
+      allow read, write: if false;
+    }
+
     // SALES_GOALS - Metas de vendas por mês: lidas e gravadas só pelo backend,
     // que decide quem vê o quê (o membro recebe só o próprio número).
     match /sales_goals/{goalId} {

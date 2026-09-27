@@ -42,6 +42,7 @@ export const TENANT_PURGE_BY_FIELD = [
   "booking_locks",
   "client_portal_links",
   "transaction_categories",
+  "accountant_links",
   "calendar_events",
   "calendar_integrations",
   "shared_proposals",

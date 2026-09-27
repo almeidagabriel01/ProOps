@@ -1180,6 +1180,32 @@ Guards: `dre-model.test.ts`, `transaction-categories.test.ts`,
 `finance-reports.controller.test.ts` e
 `tests/firestore-rules/transaction-categories.test.ts`.
 
+### Link do contador (`api/services/accountant/`)
+
+Leitura sem login do financeiro da empresa, para o contador: DRE (caixa e
+competência), lançamentos do período, notas emitidas e notas de entrada, com
+o contador escolhendo os meses (até 12 por vez). Um link por empresa, em
+`accountant_links/{tenantId}` (Admin SDK only), gerado, trocado e desligado
+**só pelo dono e pelos administradores** em `/v1/transactions/accountant-link`
+(gate `financial`). Não conta no limite de usuários.
+
+- **Rotas públicas em `/v1/share/accountant/:token`**, montadas antes dos
+  `app.use("/v1", ...)` como o portal do cliente, e sempre `no-store`. Token
+  inexistente ou empresa sem o financeiro dão 404. Notas emitidas só com
+  `fiscal`, notas de entrada só com `fiscalReceiving`.
+- **O arquivo da nota** sai por `.../documents/:source/:id?kind=pdf|xml`:
+  primeiro a cópia do nosso Storage (a de entrada só existe lá), senão
+  redireciona para o endereço do provedor. O tipo vai na **query** porque o
+  proxy do Next manda todo caminho terminado em `/pdf` para a função de PDF.
+  Confere que a nota é da empresa do link e que está autorizada ou cancelada.
+- Os lançamentos são os que têm a data OU o pagamento no período (a união do
+  DRE em caixa). Sai o nome da carteira, nunca o id; nada de caminho de
+  Storage na resposta.
+
+Guards: `accountant-model.test.ts`, `accountant.service.test.ts` (a fronteira
+do token), `accountant.controller.test.ts` e
+`tests/firestore-rules/accountant-links.test.ts`.
+
 ### Importação por planilha (`api/services/import/`)
 
 `POST /v1/clients/import`, `/v1/products/import` e `/v1/services/import`

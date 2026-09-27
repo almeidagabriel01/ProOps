@@ -15,17 +15,17 @@ export class DreError extends Error {
   }
 }
 
-function lastDayOf(month: string): string {
+export function lastDayOf(month: string): string {
   const [y, m] = month.split("-").map(Number);
   return `${month}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, "0")}`;
 }
 
 /** Início do mês em Brasília (03:00 UTC), em ISO. */
-function brazilMonthStartIso(month: string): string {
+export function brazilMonthStartIso(month: string): string {
   return `${month}-01T03:00:00.000Z`;
 }
 
-function nextMonth(month: string): string {
+export function nextMonth(month: string): string {
   const [y, m] = month.split("-").map(Number);
   return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
 }
@@ -45,7 +45,7 @@ export function validateRange(from: string, to: string): void {
  * pelo `paidAt` (o que foi pago no período mas lançado antes); a conta de que
  * mês cada um cai fica no `computeDre`. Os dois índices já existem.
  */
-async function loadTransactions(tenantId: string, from: string, to: string, basis: DreBasis) {
+export async function loadTransactions(tenantId: string, from: string, to: string, basis: DreBasis) {
   const byDate = db
     .collection("transactions")
     .where("tenantId", "==", tenantId)
