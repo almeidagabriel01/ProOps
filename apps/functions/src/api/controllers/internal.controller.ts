@@ -626,9 +626,11 @@ export const seedDemoTenantManual = async (
 
     const { seedDemoTenant } = await import("../../scripts/seed-demo-tenant");
     const { seedDemoCortinasTenant } = await import("../../scripts/seed-demo-cortinas");
+    const { seedDemoSegurancaTenant } = await import("../../scripts/seed-demo-seguranca");
     const result = {
       automacao_residencial: await seedDemoTenant(),
       cortinas: await seedDemoCortinasTenant(),
+      seguranca_eletronica: await seedDemoSegurancaTenant(),
     };
     logger.info("[seedDemoTenant manual] completed", { niches: Object.keys(result) });
     return res.json(result);
