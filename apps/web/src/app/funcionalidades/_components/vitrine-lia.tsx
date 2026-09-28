@@ -37,7 +37,7 @@ function Cena() {
       .fromTo(
         q('[data-mk="status-pago"]'),
         { autoAlpha: 0, scale: 0.7 },
-        { autoAlpha: 1, scale: 1, duration: 0.45, ease: "back.out(2.2)" },
+        { autoAlpha: 1, scale: 1, duration: 0.45, ease: "expo.out" },
         "<",
       )
       .fromTo(q('[data-mk="linha-alvo"]'), { backgroundColor: "rgba(127,127,127,0.14)" }, { backgroundColor: "rgba(127,127,127,0)", duration: 1.2, ease: "power1.out" }, "<")

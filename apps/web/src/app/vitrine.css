@@ -672,11 +672,12 @@
     color: var(--tinta-destaque);
   }
   .destaque-barra {
-    height: 0;
-    transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: scaleY(0);
+    transform-origin: top center;
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .destaque[data-ativo] .destaque-barra {
-    height: calc(100% - 4.5rem);
+    transform: scaleY(1);
   }
   .destaque-corpo {
     grid-template-rows: 0fr;
@@ -760,7 +761,7 @@
   animation: destaque-some 0.2s ease 1.75s both;
 }
 .destaque-camada[data-ativo] [data-mk="status-pago"] {
-  animation: destaque-surge 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 1.75s both;
+  animation: destaque-surge 0.4s cubic-bezier(0.16, 1, 0.3, 1) 1.75s both;
 }
 .destaque-camada[data-ativo] [data-mk="resposta"] {
   animation: destaque-surge 0.5s cubic-bezier(0.22, 1, 0.36, 1) 2.05s both;

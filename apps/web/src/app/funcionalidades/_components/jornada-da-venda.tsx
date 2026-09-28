@@ -283,13 +283,13 @@ function PalcoAnimado({ etapas }: { etapas: readonly EtapaDemo[] }) {
     tl.fromTo(
       q('[data-tela-cliente="recibo"] [data-mk="status-pago"]'),
       { autoAlpha: 0, scale: 0.8 },
-      { autoAlpha: 1, scale: 1, duration: 0.25, ease: "back.out(2)" },
+      { autoAlpha: 1, scale: 1, duration: 0.3, ease: "expo.out" },
       4.15,
     );
     tl.fromTo(
       q('[data-tela-erp="nota"] [data-mk="carimbo"]'),
       { autoAlpha: 0, scale: 1.8, rotate: -18 },
-      { autoAlpha: 1, scale: 1, rotate: -6, duration: 0.3, ease: "back.out(1.6)" },
+      { autoAlpha: 1, scale: 1, rotate: -6, duration: 0.35, ease: "expo.out" },
       5.1,
     );
     tl.to({}, { duration: 0.5 }, PASSOS.length - 0.5);
