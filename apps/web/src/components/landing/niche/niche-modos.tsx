@@ -1,5 +1,8 @@
 import React from "react";
 
+import type { Captura } from "@/lib/landing/capturas";
+
+import { CapturaDoErp } from "../_shared/captura-do-erp";
 import { Accent } from "../_shared/section-heading";
 
 import type { NicheLandingConfig } from "./types";
@@ -7,6 +10,8 @@ import type { NicheLandingConfig } from "./types";
 interface NicheModosProps {
   secao: NicheLandingConfig["modulesSection"];
   modulos: NicheLandingConfig["modules"];
+  /** O print do catálogo desse nicho no ERP. */
+  captura: Captura;
 }
 
 /**
@@ -15,7 +20,7 @@ interface NicheModosProps {
  * leitura é de especificação, uma por vez. Nos nichos com preço por medida,
  * cada linha é um modo de cobrança (o mesmo que dá nome às abas da cena).
  */
-export function NicheModos({ secao, modulos }: NicheModosProps) {
+export function NicheModos({ secao, modulos, captura }: NicheModosProps) {
   return (
     <section className="border-t border-black/10 bg-white py-24 dark:border-white/10 dark:bg-neutral-950 md:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -50,6 +55,10 @@ export function NicheModos({ secao, modulos }: NicheModosProps) {
             );
           })}
         </div>
+        <figure className="vt-revela mt-16">
+          <CapturaDoErp captura={captura} sizes="(min-width: 1280px) 1232px, 100vw" />
+          <figcaption className="mt-4 text-sm text-black/55 dark:text-white/55">O catálogo no ERP, com preço e estoque de cada item. Tela real, com dados de exemplo.</figcaption>
+        </figure>
       </div>
     </section>
   );

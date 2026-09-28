@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { calcularItem, calcularProposta, faixaParaAltura, somar } from "@/lib/landing/proposta-de-exemplo";
+import { calcularItem, faixaParaAltura, somar } from "@/lib/landing/proposta-de-exemplo";
 
 describe("proposta de exemplo", () => {
   it("por área: largura x altura x painéis x preço com markup", () => {
@@ -56,22 +56,7 @@ describe("proposta de exemplo", () => {
     expect(item.total).toBe(720);
   });
 
-  it("subtotais e total fecham ao centavo", () => {
-    const proposta = calcularProposta({
-      titulo: "t",
-      cliente: "c",
-      grupos: [
-        {
-          nome: "Sala",
-          itens: [{ descricao: "a", produto: { price: 0.1, markup: 0, pricingModel: { mode: "standard" } } }],
-        },
-        {
-          nome: "Quarto",
-          itens: [{ descricao: "b", produto: { price: 0.2, markup: 0, pricingModel: { mode: "standard" } } }],
-        },
-      ],
-    });
-    expect(proposta.total).toBe(0.3);
+  it("a soma fecha ao centavo", () => {
     expect(somar([0.1, 0.2])).toBe(0.3);
   });
 });

@@ -2,67 +2,94 @@ import { test, expect } from "@playwright/test";
 import { coletaErrosDeHidratacao } from "../helpers/erros-de-hidratacao";
 
 /**
- * FUNCIONALIDADES: a lista do que o ERP faz e a página de cada funcionalidade.
+ * FUNCIONALIDADES: a seção da home, a página com todas em cards e a página de
+ * cada uma.
  *
- * O conteúdo (qual recurso pertence a qual funcionalidade, os selos de plano)
- * tem os próprios testes de unidade em
- * `apps/web/src/lib/landing/funcionalidades/__tests__`. Aqui o que se mede é o
- * que só um navegador vê: a lista abre sem sessão, cada linha leva à página
- * certa (inclusive clicando fora do título), a home e as landings de nicho
- * levam às mesmas páginas, um slug inventado é 404 e nada disso tem erro de
- * hidratação.
+ * O conteúdo (qual recurso pertence a qual funcionalidade, os selos de plano,
+ * os prints) tem testes de unidade em `apps/web/src/lib/landing`. Aqui o que
+ * se mede é o que só um navegador vê: a navbar rola até a seção da home em vez
+ * de abrir outra página, cada item e cada card levam à página certa (o card
+ * inteiro é clicável), o print de verdade aparece no topo da página, um slug
+ * inventado é 404 e nada disso tem erro de hidratação.
  */
 
 const TOTAL_DE_FUNCIONALIDADES = 15;
 
-test.describe("FUNCIONALIDADES: a lista", () => {
+test.describe("FUNCIONALIDADES: a seção da home", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test("abre sem login, com uma linha por funcionalidade e o plano de cada uma", async ({ page }) => {
-    await page.goto("/funcionalidades");
+  test("'Funcionalidades' na navbar rola até a seção, sem sair da home", async ({ page }) => {
+    await page.goto("/");
+    const link = page.getByRole("navigation").getByRole("link", { name: "Funcionalidades", exact: true }).first();
+    await expect(link).toHaveAttribute("href", "#recursos");
+    // A pílula do centro aparece com a rolagem.
+    await page.mouse.wheel(0, 600);
+    await link.click();
+    await expect(page).toHaveURL(/\/#recursos$/);
+    await expect(page.locator("#recursos")).toBeInViewport();
+  });
+
+  test("cita cinco funcionalidades, cada uma levando à página dela", async ({ page }) => {
+    await page.goto("/");
+    const recursos = page.locator("#recursos");
+    await recursos.scrollIntoViewIfNeeded();
+    await expect(recursos.locator('ol a[href^="/funcionalidades/"]')).toHaveCount(5);
+    await recursos.getByRole("link", { name: /^Pós-venda por link/ }).click();
+    await expect(page).toHaveURL(/\/funcionalidades\/pos-venda$/);
+  });
+
+  test("'Ver todas as funcionalidades' abre a página com todas", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("#recursos").getByRole("link", { name: "Ver todas as funcionalidades" }).click();
     await expect(page).toHaveURL(/\/funcionalidades$/);
+  });
+});
+
+test.describe("FUNCIONALIDADES: a página com todas", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("um card por funcionalidade, cada um com o print da tela e o plano", async ({ page }) => {
+    await page.goto("/funcionalidades");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Tudo o que a ProOps faz");
-    const linhas = page.locator("main ol > li").filter({ has: page.locator('a[href^="/funcionalidades/"]') });
-    await expect(linhas).toHaveCount(TOTAL_DE_FUNCIONALIDADES);
-    const semPlano = await linhas.evaluateAll((els) =>
+    const cards = page.locator("main li").filter({ has: page.locator('a[href^="/funcionalidades/"]') });
+    await expect(cards).toHaveCount(TOTAL_DE_FUNCIONALIDADES);
+    const semPrint = await cards.evaluateAll((els) =>
+      els.filter((el) => !el.querySelector('img[src*="capturas"], img[srcset*="capturas"]')).length,
+    );
+    expect(semPrint).toBe(0);
+    const semPlano = await cards.evaluateAll((els) =>
       els.filter((el) => !/plano|Profissional|Enterprise|Starter/.test(el.textContent ?? "")).length,
     );
     expect(semPlano).toBe(0);
   });
 
-  test("clicar na linha, fora do título, abre a página da funcionalidade", async ({ page }) => {
+  test("clicar no card, fora do título, abre a página da funcionalidade", async ({ page }) => {
     await page.goto("/funcionalidades");
-    const linha = page.locator("main ol > li").filter({ has: page.getByRole("link", { name: "Financeiro", exact: true }) });
-    // O título cobre a linha com um ::after, então é ele que recebe o clique
+    const card = page.locator("main li").filter({ has: page.getByRole("link", { name: "Financeiro", exact: true }) });
+    // O título cobre o card com um ::after, então é ele que recebe o clique
     // dado sobre a explicação; `force` pula a checagem de alvo do Playwright,
     // que esperaria o próprio parágrafo receber o evento.
-    await linha.getByText("Você só dá baixa").click({ force: true });
+    await card.getByText("Você só dá baixa").click({ force: true });
     await expect(page).toHaveURL(/\/funcionalidades\/financeiro$/);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("O financeiro nasce da venda");
-  });
-
-  test("a navbar leva à lista e marca o item", async ({ page }) => {
-    await page.goto("/decoracao");
-    const link = page.getByRole("navigation").getByRole("link", { name: "Funcionalidades" }).first();
-    await expect(link).toHaveAttribute("href", "/funcionalidades");
-    await page.goto("/funcionalidades");
-    await expect(
-      page.getByRole("navigation").getByRole("link", { name: "Funcionalidades" }).first(),
-    ).toHaveAttribute("aria-current", "page");
   });
 });
 
 test.describe("FUNCIONALIDADES: a página de cada uma", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test("mostra como funciona e os recursos incluídos, cada um com o plano", async ({ page }) => {
+  test("abre com o nome, o print de verdade e os recursos incluídos", async ({ page }) => {
     await page.goto("/funcionalidades/financeiro");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Financeiro");
+    const print = page.getByRole("img", { name: /Lançamentos da ProOps/ });
+    await expect(print).toBeVisible();
+    expect(await print.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     await expect(page.getByRole("heading", { name: /Como funciona/ })).toBeVisible();
     for (const id of ["lancamentos", "carteiras", "comissoes", "painel"]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
     }
     await expect(page.locator("#lancamentos")).toContainText("Profissional");
-    await page.getByRole("link", { name: "Todas as funcionalidades", exact: true }).click();
+    // O primeiro é o do topo da página; o rodapé também tem um.
+    await page.getByRole("link", { name: "Todas as funcionalidades", exact: true }).first().click();
     await expect(page).toHaveURL(/\/funcionalidades$/);
   });
 
@@ -80,18 +107,6 @@ test.describe("FUNCIONALIDADES: a página de cada uma", () => {
   test("slug fora da lista é 404", async ({ page }) => {
     const resposta = await page.goto("/funcionalidades/nao-existe");
     expect(resposta?.status()).toBe(404);
-  });
-});
-
-test.describe("FUNCIONALIDADES: de onde se chega", () => {
-  test.use({ viewport: { width: 1280, height: 800 } });
-
-  test("um destaque da home abre a página dele", async ({ page }) => {
-    await page.goto("/");
-    const recursos = page.locator("#recursos");
-    await recursos.scrollIntoViewIfNeeded();
-    await recursos.getByRole("link", { name: "Pós-venda por link", exact: true }).click();
-    await expect(page).toHaveURL(/\/funcionalidades\/pos-venda$/);
   });
 
   test("o bloco da plataforma numa landing de nicho abre a mesma página", async ({ page }) => {

@@ -11,7 +11,7 @@ import { BreadcrumbJsonLd, FAQPageJsonLd, SoftwareApplicationJsonLd } from "@/co
 import { FUNCIONALIDADES, GRUPOS_DE_FUNCIONALIDADES } from "@/lib/landing/funcionalidades";
 import { canonicalFor } from "@/lib/site/host-seo";
 
-import { LinhaDeFuncionalidade } from "./_components/linha-de-funcionalidade";
+import { CardDeFuncionalidade } from "./_components/card-de-funcionalidade";
 import { FAQ_FUNCIONALIDADES } from "./_content/faq";
 
 const DESCRICAO =
@@ -29,10 +29,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * A lista do que o ERP faz: uma linha por funcionalidade, com a explicação
- * curta e o plano, agrupadas na ordem de uma venda. Cada linha abre a página
- * da funcionalidade (`[slug]/page.tsx`), onde mora o detalhe. Montada no
- * servidor: a única ilha é a navbar.
+ * Tudo o que o ERP faz, em cards com o print de verdade de cada tela, o nome,
+ * a explicação curta e o plano, agrupados na ordem de uma venda. Cada card abre
+ * a página da funcionalidade (`[slug]/page.tsx`), onde mora o detalhe. Montada
+ * no servidor: a única ilha é a navbar.
  */
 export default function FuncionalidadesPage() {
   return (
@@ -62,8 +62,8 @@ export default function FuncionalidadesPage() {
               style={{ "--hero-delay": "0.12s" } as CSSProperties}
             >
               <p className="max-w-2xl text-lg leading-relaxed text-black/60 dark:text-white/60">
-                {FUNCIONALIDADES.length} funcionalidades, cada uma com uma explicação curta e o plano que a libera.
-                Clique numa delas para ver como funciona, a tela do ERP e o que vem incluído.
+                {FUNCIONALIDADES.length} funcionalidades, cada uma com a tela de verdade do ERP e o plano que a
+                libera. Clique numa delas para ver como funciona e o que vem incluído.
               </p>
               <nav aria-label="Grupos de funcionalidades" className="flex flex-wrap gap-2">
                 {GRUPOS_DE_FUNCIONALIDADES.map((g) => (
@@ -86,22 +86,22 @@ export default function FuncionalidadesPage() {
               key={grupo.id}
               id={grupo.id}
               aria-labelledby={`${grupo.id}-titulo`}
-              className="scroll-mt-28 pt-12 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12 lg:pt-16"
+              className="scroll-mt-28 border-black/10 dark:border-white/10 [&:not(:first-child)]:mt-16 [&:not(:first-child)]:border-t [&:not(:first-child)]:pt-16"
             >
-              <div className="lg:sticky lg:top-28 lg:self-start">
+              <div className="flex flex-col gap-2 md:flex-row md:items-baseline md:gap-6">
                 <h2
                   id={`${grupo.id}-titulo`}
                   className="[font-family:var(--font-pdf-montserrat)] text-2xl font-bold tracking-[-0.02em] text-black dark:text-white md:text-3xl"
                 >
                   {grupo.titulo}
                 </h2>
-                <p className="mt-2 text-[15px] leading-relaxed text-black/55 dark:text-white/55">{grupo.resumo}</p>
+                <p className="text-[15px] leading-relaxed text-black/55 dark:text-white/55">{grupo.resumo}</p>
               </div>
-              <ol className="mt-6 border-b border-black/10 dark:border-white/10 lg:mt-0">
+              <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {FUNCIONALIDADES.filter((f) => f.grupo === grupo.id).map((f) => (
-                  <LinhaDeFuncionalidade key={f.slug} funcionalidade={f} />
+                  <CardDeFuncionalidade key={f.slug} funcionalidade={f} />
                 ))}
-              </ol>
+              </ul>
             </section>
           ))}
         </div>

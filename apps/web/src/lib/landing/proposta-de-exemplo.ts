@@ -38,18 +38,6 @@ export interface ItemDeExemplo {
   medidas?: { largura?: number; altura?: number; paineis?: number; faixaId?: string };
 }
 
-export interface GrupoDeExemplo {
-  /** O local ou o sistema, no vocabulário do nicho ("Sala", "CFTV"). */
-  nome: string;
-  itens: readonly ItemDeExemplo[];
-}
-
-export interface PropostaDeExemplo {
-  titulo: string;
-  cliente: string;
-  grupos: readonly GrupoDeExemplo[];
-}
-
 export interface ItemCalculado {
   descricao: string;
   medida: string;
@@ -121,14 +109,6 @@ export function faixaParaAltura(
 ): string {
   const ordenadas = [...faixas].sort((a, b) => a.maxHeight - b.maxHeight);
   return (ordenadas.find((f) => altura <= f.maxHeight) ?? ordenadas[ordenadas.length - 1])?.id ?? "";
-}
-
-export function calcularProposta(proposta: PropostaDeExemplo) {
-  const grupos = proposta.grupos.map((grupo) => {
-    const itens = grupo.itens.map(calcularItem);
-    return { nome: grupo.nome, itens, subtotal: somar(itens.map((i) => i.total)) };
-  });
-  return { ...proposta, grupos, total: somar(grupos.map((g) => g.subtotal)) };
 }
 
 /** Soma em centavos, para 0,1 + 0,2 não virar 0,30000000000000004 na tela. */

@@ -35,15 +35,17 @@ Cada passo diz o que o cobra. Nenhum passo depende de lembrar.
    e `landing.ts`. A landing é um template só
    (`components/landing/niche/niche-landing-page.tsx`, de servidor), e o que a
    torna do nicho é este arquivo: `acento` (a cor sobre a base preto e branco),
-   `hero.provas`, `dores` (antes e depois), `propostaExemplo` (itens com
-   produto e medidas; o total sai do motor de preço, nunca digitado), `cena`
+   `hero.provas`, `dores` (antes e depois), `cena`
    (uma das cenas de `components/landing/niche/cenas/`, ou uma nova no mapa de
    `niche-cena.tsx`), e o `modo` de cada módulo quando ele vende um modo de
    preço. Cobra: os `Record` de `NICHE_CONFIGS` e `NICHE_LANDING_CONFIG`,
    o tipo (campo obrigatório não compila) e
    `__tests__/niche-landing-content.test.ts` (contraste do acento nos dois
    temas, cor distinta dos outros nichos, modos vendidos = modos do nicho,
-   cena serializável, proposta coerente). Os textos de menu,
+   cena serializável, produtos da cena só em modos que o nicho tem). As telas
+   do ERP da landing são prints de verdade da demonstração do nicho: nicho novo
+   entra em `CAPTURAS_DOS_NICHOS` (`lib/landing/capturas.ts`, um `Record`) e
+   no roteiro de `tests/capturas-do-erp`. Os textos de menu,
    passo da proposta e subtotal do PDF saem do vocabulário
    (`copy-builders.ts`); declare override só para texto autoral.
 4. **Demonstração**: `apps/functions/src/scripts/demo/datasets/<id>.ts`,

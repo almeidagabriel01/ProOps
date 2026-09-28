@@ -6,8 +6,8 @@ import { Accent } from "@/components/landing/_shared/section-heading";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { LandingNavbarComSessao } from "@/components/landing/landing-navbar-com-sessao";
 import { SmoothScroll } from "@/components/marketing/_shared/smooth-scroll";
+import { CAPTURAS_DOS_NICHOS } from "@/lib/landing/capturas";
 import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
-import { NICHE_CONFIGS } from "@/lib/niches/config";
 import { NICHE_REGISTRY } from "@/lib/niches/registry";
 import type { TenantNiche } from "@/types";
 
@@ -32,12 +32,13 @@ interface NicheLandingPageProps {
  * O que muda de um nicho para outro é DADO (`NICHE_LANDING_CONFIG`, as etapas
  * do registro e o vocabulário da config de tela), nunca um `if` de nicho aqui.
  * A cor do nicho entra pela raiz (`data-acento`), e o CSS a entrega a tudo
- * abaixo, inclusive às telas codadas.
+ * abaixo. As telas do ERP são prints de verdade do nicho
+ * (`lib/landing/capturas.ts`), tirados da demonstração dele.
  */
 export function NicheLandingPage({ slug }: NicheLandingPageProps) {
   const config = NICHE_LANDING_CONFIG[slug];
   const registro = NICHE_REGISTRY[slug];
-  const vocabulario = NICHE_CONFIGS[slug].vocabulary;
+  const capturas = CAPTURAS_DOS_NICHOS[slug];
   const modulosDaCena = config.modules.map(({ title, modo }) => ({ title, modo }));
   const palavrasDoFecho = config.cta.title.split(" ");
   const ultimaDoFecho = palavrasDoFecho.pop();
@@ -53,11 +54,11 @@ export function NicheLandingPage({ slug }: NicheLandingPageProps) {
       <LandingNavbarComSessao />
 
       <main>
-        <NicheHero hero={config.hero} proposta={config.propostaExemplo} vocabulario={vocabulario} />
+        <NicheHero hero={config.hero} captura={capturas.proposta} />
         <NicheDores dores={config.dores} />
         <NicheCena titulo={config.cena.titulo} frase={config.cena.frase} dados={config.cena.dados} modulos={modulosDaCena} />
-        <NicheEtapas etapas={registro.stageTemplate} visita={registro.defaultVisitType.label} />
-        <NicheModos secao={config.modulesSection} modulos={config.modules} />
+        <NicheEtapas etapas={registro.stageTemplate} visita={registro.defaultVisitType.label} captura={capturas.obra} />
+        <NicheModos secao={config.modulesSection} modulos={config.modules} captura={capturas.produtos} />
         <NichePlataforma />
         <CommandFaq
           items={config.faq}

@@ -19,8 +19,6 @@ const CORTINA_WAVE: ProdutoDeExemplo = {
   },
 };
 const BANDO: ProdutoDeExemplo = { price: 110, markup: 60, pricingModel: { mode: "curtain_width" } };
-const TOLDO: ProdutoDeExemplo = { price: 480, markup: 55, pricingModel: { mode: "curtain_width" } };
-const MOTOR: ProdutoDeExemplo = { price: 690, markup: 35, pricingModel: { mode: "standard" } };
 
 /** Texto da landing do nicho. */
 export const nicheLanding: NicheLandingConfig = {
@@ -49,30 +47,6 @@ export const nicheLanding: NicheLandingConfig = {
       depois: "Medição, produção, instalação e entrega com checklist e fotos.",
     },
   ],
-  propostaExemplo: {
-    titulo: "Persianas e toldo da residência Duarte",
-    cliente: "Marina Duarte",
-    grupos: [
-      {
-        nome: "Sala",
-        itens: [
-          { descricao: "Cortina wave em linho", produto: CORTINA_WAVE, medidas: { largura: 3.2, faixaId: "ate-2-6" } },
-          { descricao: "Persiana rolô tela solar", produto: PERSIANA_ROLO, medidas: { largura: 2.4, altura: 1.8 } },
-        ],
-      },
-      {
-        nome: "Quarto",
-        itens: [
-          { descricao: "Persiana rolô blackout", produto: PERSIANA_ROLO, medidas: { largura: 1.8, altura: 1.6 } },
-          { descricao: "Motor com controle", produto: MOTOR, quantidade: 1 },
-        ],
-      },
-      {
-        nome: "Varanda",
-        itens: [{ descricao: "Toldo retrátil em lona", produto: TOLDO, medidas: { largura: 4.2 } }],
-      },
-    ],
-  },
   cena: {
     titulo: "O vão que vira preço",
     frase: "Arraste as medidas e troque o modo de cobrança: o total é o que a proposta calcularia.",

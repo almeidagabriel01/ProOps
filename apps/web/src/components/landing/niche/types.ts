@@ -1,6 +1,6 @@
 import type React from "react";
 
-import type { ItemDeExemplo, ProdutoDeExemplo, PropostaDeExemplo } from "@/lib/landing/proposta-de-exemplo";
+import type { ItemDeExemplo, ProdutoDeExemplo } from "@/lib/landing/proposta-de-exemplo";
 import type { ProductPricingMode } from "@/lib/product-pricing";
 import type { TenantNiche } from "@/types";
 
@@ -98,8 +98,6 @@ export interface NicheLandingConfig {
   };
   /** O jeito antigo e o jeito na ProOps, lado a lado. */
   dores: readonly { antes: string; depois: string }[];
-  /** A proposta da tela do herói, no vocabulário do nicho. */
-  propostaExemplo: PropostaDeExemplo;
   cena: { titulo: string; frase: string; dados: CenaDoNicho };
   /** `titleHighlight` fecha o título no itálico de acento, como nas outras seções. */
   modulesSection: { title: string; titleHighlight: string; subtitle: string };

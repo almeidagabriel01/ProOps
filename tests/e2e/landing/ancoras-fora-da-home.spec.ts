@@ -1,5 +1,5 @@
 /**
- * LANDING-ANCHORS-02: "Planos" e "Recursos" levam à seção da home a partir de
+ * LANDING-ANCHORS-02: "Planos" e "Funcionalidades" levam à seção da home a partir de
  * qualquer página de marketing.
  *
  * Bug: a navbar e o rodapé usavam `#pricing` e `#recursos` como href e, no
@@ -24,13 +24,17 @@ for (const niche of TENANT_NICHES) {
       "href",
       "/#pricing",
     );
-    await expect(footer.getByRole("link", { name: "Recursos", exact: true })).toHaveAttribute(
+    await expect(footer.getByRole("link", { name: "Funcionalidades", exact: true })).toHaveAttribute(
       "href",
       "/#recursos",
     );
     await expect(
       page.getByRole("navigation").getByRole("link", { name: "Planos", exact: true }).first(),
     ).toHaveAttribute("href", "/#pricing");
+    // "Funcionalidades" na navbar rola até a seção da home, e não abre outra página.
+    await expect(
+      page.getByRole("navigation").getByRole("link", { name: "Funcionalidades", exact: true }).first(),
+    ).toHaveAttribute("href", "/#recursos");
   });
 }
 

@@ -15,6 +15,11 @@ export interface SeloDoPlano {
   rotulo: string;
   /** "Add-on no Starter e no Profissional", ou `null`. */
   rotuloAddon: string | null;
+  /**
+   * O mesmo, como frase para o topo de uma página: "A partir do plano
+   * Profissional, ou como add-on no Starter". O selo curto é para lista e card.
+   */
+  frase: string;
 }
 
 function ordenar(planos: readonly PlanoBase[]): PlanoBase[] {
@@ -89,7 +94,14 @@ export function seloDoPlano(
   const nomes = addonEm.map(({ tier }) => `no ${ordenados.find((p) => p.tier === tier)?.name ?? tier}`);
   const rotuloAddon = nomes.length ? `Add-on ${juntar(nomes)}` : null;
 
-  return { aPartirDe: aPartirDe?.tier ?? null, addonEm, rotulo, rotuloAddon };
+  let frase: string;
+  if (!aPartirDe) frase = nomes.length ? `Disponível como add-on ${juntar(nomes)}` : "Disponível só como add-on";
+  else if (indice === 0) frase = "Incluído em todos os planos";
+  else if (indice === ordenados.length - 1) frase = `No plano ${aPartirDe.name}`;
+  else frase = `A partir do plano ${aPartirDe.name}`;
+  if (aPartirDe && nomes.length) frase += `, ou como add-on ${juntar(nomes)}`;
+
+  return { aPartirDe: aPartirDe?.tier ?? null, addonEm, rotulo, rotuloAddon, frase };
 }
 
 /**

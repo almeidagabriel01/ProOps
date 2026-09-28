@@ -161,6 +161,24 @@ describe("selo do plano", () => {
     expect(selo.rotuloAddon).toBe(rotuloAddon);
   });
 
+  it.each<[string, Requisito, string]>([
+    ["livre", { tipo: "livre" }, "Incluído em todos os planos"],
+    ["aceite online", { tipo: "plano", recursos: ["hasOnlineApproval"] }, "A partir do plano Profissional"],
+    ["notas de entrada", { tipo: "plano", recursos: ["hasFiscalReceiving"] }, "No plano Enterprise"],
+    [
+      "CRM",
+      { tipo: "plano", recursos: ["hasKanban"] },
+      "No plano Enterprise, ou como add-on no Starter e no Profissional",
+    ],
+    [
+      "financeiro",
+      { tipo: "plano", recursos: ["hasFinancial"] },
+      "A partir do plano Profissional, ou como add-on no Starter",
+    ],
+  ])("frase de %s", (_nome, requisito, frase) => {
+    expect(seloDoPlano(requisito).frase).toBe(frase);
+  });
+
   it("o pagamento online no Starter leva o financeiro junto", () => {
     const selo = seloDoPlano({ tipo: "plano", recursos: ["hasFinancial", "hasOnlinePayments"] });
     expect(selo.addonEm.find((a) => a.tier === "starter")?.addons.sort()).toEqual(

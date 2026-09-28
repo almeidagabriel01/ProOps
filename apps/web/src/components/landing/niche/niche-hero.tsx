@@ -1,27 +1,25 @@
 import React from "react";
 
-import { JanelaDoErp } from "@/components/marketing/mocks/janela-do-erp";
-import { TelaPropostaDoNicho } from "@/components/marketing/mocks/telas/tela-proposta-do-nicho";
-import type { NicheVocabulary } from "@/lib/niches/vocabulary";
+import { CapturaDoErp } from "@/components/landing/_shared/captura-do-erp";
+import type { Captura } from "@/lib/landing/capturas";
 
 import { NicheHeroCtas } from "./niche-hero-ctas";
 import type { NicheLandingConfig } from "./types";
 
 interface NicheHeroProps {
   hero: NicheLandingConfig["hero"];
-  proposta: NicheLandingConfig["propostaExemplo"];
-  vocabulario: NicheVocabulary;
+  /** O print de uma proposta desse nicho no ERP. */
+  captura: Captura;
 }
 
 /**
  * O herói da landing de nicho: o título com o nome do nicho na cor dele, e ao
- * lado uma proposta DESSE nicho aberta no ERP (grupos com o vocabulário dele,
- * medidas como no PDF, totais do motor de preço).
+ * lado o print de verdade de uma proposta DESSE nicho aberta no ERP.
  *
  * Componente de servidor. A entrada é keyframe CSS (`hero-enter`), porque este
  * é o bloco do LCP; a única ilha é a dos botões.
  */
-export function NicheHero({ hero, proposta, vocabulario }: NicheHeroProps) {
+export function NicheHero({ hero, captura }: NicheHeroProps) {
   const atraso = (s: number, y = 18) => ({ "--hero-delay": `${s}s`, "--hero-y": `${y}px` }) as React.CSSProperties;
 
   return (
@@ -53,11 +51,12 @@ export function NicheHero({ hero, proposta, vocabulario }: NicheHeroProps) {
           </ul>
         </div>
 
-        <div className="hero-enter relative" style={atraso(0.25, 30)}>
-          <JanelaDoErp proporcao="16 / 12">
-            <TelaPropostaDoNicho proposta={proposta} vocabulario={vocabulario} />
-          </JanelaDoErp>
-        </div>
+        <figure className="hero-enter relative" style={atraso(0.25, 30)}>
+          <CapturaDoErp captura={captura} sizes="(min-width: 1024px) 640px, 100vw" prioridade />
+          <figcaption className="mt-4 text-sm text-black/55 dark:text-white/55">
+            Proposta no ERP. Tela real, com dados de exemplo.
+          </figcaption>
+        </figure>
       </div>
     </section>
   );

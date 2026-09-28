@@ -74,11 +74,6 @@ export const nicheLanding: NicheLandingConfig = {
       depois: "Levantamento, instalação, configuração e entrega com checklist e fotos.",
     },
   ],
-  propostaExemplo: {
-    titulo: "CFTV, alarme e acesso do Condomínio Jardim",
-    cliente: "Condomínio Jardim",
-    grupos: SISTEMAS.map((sistema) => ({ nome: sistema.nome, itens: sistema.itens })),
-  },
   cena: {
     titulo: "Cada área coberta, cada mês cobrado",
     frase: "Ligue os sistemas na planta: cada um entra na proposta com os itens dele, e o contrato mensal vira recorrência.",

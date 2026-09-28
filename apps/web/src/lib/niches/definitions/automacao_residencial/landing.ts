@@ -37,27 +37,6 @@ export const nicheLanding: NicheLandingConfig = {
       depois: "Infraestrutura, instalação, configuração e entrega com checklist e fotos.",
     },
   ],
-  propostaExemplo: {
-    titulo: "Automação do apartamento 1204",
-    cliente: "Ana Moreira",
-    grupos: [
-      {
-        nome: "Iluminação",
-        itens: [
-          { descricao: "Sala: módulo de iluminação", produto: ILUMINACAO, quantidade: 3 },
-          { descricao: "Quarto: módulo de iluminação", produto: ILUMINACAO, quantidade: 2 },
-        ],
-      },
-      {
-        nome: "Áudio",
-        itens: [{ descricao: "Sala: caixas de som embutidas (par)", produto: AUDIO, quantidade: 1 }],
-      },
-      {
-        nome: "Wi-Fi",
-        itens: [{ descricao: "Pontos de acesso mesh", produto: WIFI, quantidade: 3 }],
-      },
-    ],
-  },
   cena: {
     titulo: "Ambiente por ambiente, sistema por sistema",
     frase: "Ligue os sistemas em cada cômodo: a planta mostra onde, e a proposta se agrupa sozinha.",

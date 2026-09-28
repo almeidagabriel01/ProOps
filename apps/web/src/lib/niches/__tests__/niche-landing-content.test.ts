@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { NICHE_LANDING_CONFIG } from "@/lib/landing/niches.config";
-import { calcularProposta } from "@/lib/landing/proposta-de-exemplo";
 import { NICHE_CONFIGS } from "@/lib/niches/config";
 import { NICHE_REGISTRY, TENANT_NICHES } from "@/lib/niches/registry";
 import { getContrastRatio } from "@/utils/color-utils";
@@ -42,14 +41,11 @@ describe.each([...TENANT_NICHES])("landing de %s", (niche) => {
     expect(new Set(modos)).toEqual(new Set(nicho.pricing.dimensionModes));
   });
 
-  it("a proposta de exemplo só usa modos que o nicho tem, e fecha com total", () => {
+  it("os produtos da cena só usam modos de preço que o nicho tem", () => {
     const permitidos = new Set(["standard", ...nicho.pricing.dimensionModes]);
-    for (const grupo of config.propostaExemplo.grupos) {
-      for (const item of grupo.itens) {
-        expect(permitidos.has(item.produto.pricingModel.mode)).toBe(true);
-      }
-    }
-    expect(calcularProposta(config.propostaExemplo).total).toBeGreaterThan(0);
+    const modos = [...JSON.stringify(config.cena.dados).matchAll(/"mode":"([a-z_]+)"/g)].map((m) => m[1]);
+    expect(modos.length).toBeGreaterThan(0);
+    for (const modo of modos) expect(permitidos.has(modo), modo).toBe(true);
   });
 
   it("a cena atravessa a fronteira do servidor (é serializável)", () => {

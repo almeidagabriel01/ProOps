@@ -36,33 +36,6 @@ export const nicheLanding: NicheLandingConfig = {
       depois: "Medição, produção, instalação e entrega com checklist e fotos da obra.",
     },
   ],
-  propostaExemplo: {
-    titulo: "Box, sacada e janelas do apartamento 802",
-    cliente: "Rafael Souza",
-    grupos: [
-      {
-        nome: "Banheiro",
-        itens: [
-          { descricao: "Box de vidro temperado 8 mm", produto: VIDRO, medidas: { largura: 1.2, altura: 1.9 } },
-          { descricao: "Kit de box com roldanas", produto: KIT, quantidade: 1 },
-        ],
-      },
-      {
-        nome: "Sacada",
-        itens: [
-          { descricao: "Envidraçamento de sacada", produto: VIDRO, medidas: { largura: 3.6, altura: 2.4 } },
-          { descricao: "Trilho superior e inferior", produto: PERFIL, medidas: { largura: 3.6, paineis: 2 } },
-        ],
-      },
-      {
-        nome: "Fachada",
-        itens: [
-          { descricao: "Janela de correr, 2 folhas", produto: VIDRO, medidas: { largura: 2, altura: 1.2 } },
-          { descricao: "Perfil de alumínio do requadro", produto: PERFIL, medidas: { largura: 6.4 } },
-        ],
-      },
-    ],
-  },
   cena: {
     titulo: "Medida que vira orçamento",
     frase: "Mude o vão e escolha o que olhar: o vidro por m², o perfil por metro linear, as ferragens por peça.",

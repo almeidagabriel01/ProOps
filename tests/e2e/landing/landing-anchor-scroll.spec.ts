@@ -23,7 +23,7 @@ import type { Page } from "@playwright/test";
 
 const NAV_ANCHORS = [
   { label: "Planos", id: "pricing" },
-  { label: "Recursos", id: "recursos" },
+  { label: "Funcionalidades", id: "recursos" },
   { label: "Plataforma", id: "showcase" },
 ] as const;
 

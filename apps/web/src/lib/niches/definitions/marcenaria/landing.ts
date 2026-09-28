@@ -7,9 +7,7 @@ import { signupHrefForNiche } from "../../niche-ids";
 /** Produtos de exemplo, com preço fictício, calculados pelo motor de preço real. */
 const ROUPEIRO: ProdutoDeExemplo = { price: 780, markup: 45, pricingModel: { mode: "curtain_meter" } };
 const ARMARIO_LINEAR: ProdutoDeExemplo = { price: 1150, markup: 45, pricingModel: { mode: "curtain_width" } };
-const AEREO: ProdutoDeExemplo = { price: 820, markup: 45, pricingModel: { mode: "curtain_width" } };
 const PUXADOR: ProdutoDeExemplo = { price: 38, markup: 60, pricingModel: { mode: "standard" } };
-const MONTAGEM: ProdutoDeExemplo = { price: 850, markup: 0, pricingModel: { mode: "standard" } };
 
 /** Texto da landing do nicho. */
 export const nicheLanding: NicheLandingConfig = {
@@ -38,31 +36,6 @@ export const nicheLanding: NicheLandingConfig = {
       depois: "Medição, projeto, produção, montagem e entrega com checklist e fotos.",
     },
   ],
-  propostaExemplo: {
-    titulo: "Cozinha e dormitório planejados",
-    cliente: "Júlia Prado",
-    grupos: [
-      {
-        nome: "Cozinha",
-        itens: [
-          { descricao: "Armário inferior com bancada", produto: ARMARIO_LINEAR, medidas: { largura: 3.2 } },
-          { descricao: "Armário aéreo", produto: AEREO, medidas: { largura: 2.6 } },
-          { descricao: "Puxador perfil em alumínio", produto: PUXADOR, quantidade: 10 },
-        ],
-      },
-      {
-        nome: "Dormitório",
-        itens: [
-          { descricao: "Roupeiro de correr em MDF", produto: ROUPEIRO, medidas: { largura: 2.4, altura: 2.6 } },
-          { descricao: "Painel de TV", produto: ROUPEIRO, medidas: { largura: 1.8, altura: 1.2 } },
-        ],
-      },
-      {
-        nome: "Closet",
-        itens: [{ descricao: "Montagem no local", produto: MONTAGEM, quantidade: 1 }],
-      },
-    ],
-  },
   cena: {
     titulo: "Do módulo ao orçamento",
     frase: "Mude as medidas do ambiente e veja cada peça entrar na proposta com a sua regra de preço.",

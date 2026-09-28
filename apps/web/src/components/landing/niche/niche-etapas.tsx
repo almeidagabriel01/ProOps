@@ -1,7 +1,9 @@
 import React from "react";
 
+import type { Captura } from "@/lib/landing/capturas";
 import type { StageTemplate } from "@/lib/niches/registry";
 
+import { CapturaDoErp } from "../_shared/captura-do-erp";
 import { Accent } from "../_shared/section-heading";
 
 interface NicheEtapasProps {
@@ -9,6 +11,8 @@ interface NicheEtapasProps {
   etapas: readonly StageTemplate[];
   /** O tipo de visita com que o link de agendamento nasce ("Medição"). */
   visita: string;
+  /** O print da obra desse nicho no ERP. */
+  captura: Captura;
 }
 
 /**
@@ -16,7 +20,7 @@ interface NicheEtapasProps {
  * Nada aqui é texto de landing: os nomes e os checklists são os que o sistema
  * cria na aprovação da proposta. A linha enche com a rolagem, em CSS.
  */
-export function NicheEtapas({ etapas, visita }: NicheEtapasProps) {
+export function NicheEtapas({ etapas, visita, captura }: NicheEtapasProps) {
   const agendamento = ["O cliente escolhe o horário no link de agendamento", "O pedido entra na Agenda para você confirmar"];
   const obra = etapas.map((e) => ({ nome: e.name, itens: [...e.checklist] }));
   // Onde a visita é a própria primeira etapa (a Medição), as duas viram uma
@@ -70,6 +74,10 @@ export function NicheEtapas({ etapas, visita }: NicheEtapasProps) {
             ))}
           </ol>
         </div>
+        <figure className="vt-revela mt-16">
+          <CapturaDoErp captura={captura} sizes="(min-width: 1280px) 1232px, 100vw" />
+          <figcaption className="mt-4 text-sm text-black/55 dark:text-white/55">A obra no ERP, com as etapas do segmento e o checklist. Tela real, com dados de exemplo.</figcaption>
+        </figure>
       </div>
     </section>
   );

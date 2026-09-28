@@ -14,8 +14,8 @@ import { NICHE_REGISTRY, TENANT_NICHES } from "@/lib/niches/registry";
 
 const PRODUTO = [
   { href: "#showcase", label: "Plataforma" },
-  { href: "#recursos", label: "Recursos" },
-  { href: "/funcionalidades", label: "Funcionalidades" },
+  { href: "#recursos", label: "Funcionalidades" },
+  { href: "/funcionalidades", label: "Todas as funcionalidades" },
   { href: "#pricing", label: "Planos" },
 ];
 

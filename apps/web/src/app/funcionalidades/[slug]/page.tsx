@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 
+import { CapturaDoErp } from "@/components/landing/_shared/captura-do-erp";
 import { FechoCta } from "@/components/landing/_shared/fecho-cta";
 import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { Accent } from "@/components/landing/_shared/section-heading";
@@ -22,10 +23,10 @@ import {
   type FuncionalidadeSlug,
   type Recurso,
 } from "@/lib/landing/funcionalidades";
+import { CAPTURAS_DAS_FUNCIONALIDADES } from "@/lib/landing/capturas";
 import { canonicalFor } from "@/lib/site/host-seo";
 
-import { LinhaDeFuncionalidade } from "../_components/linha-de-funcionalidade";
-import { TelaDaFuncionalidade } from "../_components/tela-da-funcionalidade";
+import { CardDeFuncionalidade } from "../_components/card-de-funcionalidade";
 
 interface PaginaProps {
   params: Promise<{ slug: string }>;
@@ -109,8 +110,9 @@ function RecursoIncluido({ item }: { item: Recurso }) {
 }
 
 /**
- * A página de uma funcionalidade: o que ela resolve, a tela, como funciona em
- * três passos e os recursos que ela reúne, cada um com o plano que o libera.
+ * A página de uma funcionalidade: o nome, o que ela resolve e o print de
+ * verdade da tela dela no topo; depois como funciona em três passos e os
+ * recursos que ela reúne, cada um com o plano que o libera.
  * Tudo sai de `lib/landing/funcionalidades`; esta página só organiza.
  */
 export default async function FuncionalidadePage({ params }: PaginaProps) {
@@ -119,6 +121,9 @@ export default async function FuncionalidadePage({ params }: PaginaProps) {
   const f = funcionalidade(slug);
   const selo = seloDoPlano(recurso(f.principal).requisito);
   const itens = f.recursos.map(recurso);
+  const captura = CAPTURAS_DAS_FUNCIONALIDADES[slug];
+  const celular = captura.formato === "celular";
+  const legenda = "Tela real da ProOps, com dados de exemplo.";
 
   return (
     <div className="min-h-screen overflow-x-clip bg-white text-black selection:bg-black selection:text-white dark:bg-neutral-950 dark:text-neutral-100 dark:selection:bg-white dark:selection:text-black">
@@ -133,51 +138,68 @@ export default async function FuncionalidadePage({ params }: PaginaProps) {
       <LandingNavbarComSessao />
 
       <main>
-        <section className="relative bg-white pb-20 pt-28 dark:bg-neutral-950 md:pb-28 md:pt-36">
-          <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-16">
-            <div>
-              <Link
-                href="/funcionalidades"
-                className="hero-enter inline-flex items-center gap-1.5 text-sm font-medium text-black/55 transition-colors hover:text-black dark:text-white/55 dark:hover:text-white"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden />
-                Todas as funcionalidades
-              </Link>
-              <h1
-                className="hero-enter mt-6 [font-family:var(--font-pdf-montserrat)] text-[2.4rem] font-bold leading-[1.03] tracking-[-0.035em] text-black dark:text-white sm:text-5xl lg:text-[3.6rem]"
-                style={{ "--hero-delay": "0.05s", "--hero-y": "22px" } as CSSProperties}
-              >
-                {f.pagina.titulo} <Accent>{f.pagina.destaque}</Accent>
-              </h1>
-              <p
-                className="hero-enter mt-6 max-w-xl text-lg leading-relaxed text-black/60 dark:text-white/60"
-                style={{ "--hero-delay": "0.12s" } as CSSProperties}
-              >
-                {f.pagina.intro}
-              </p>
-              <div className="hero-enter mt-8" style={{ "--hero-delay": "0.2s", "--hero-y": "12px" } as CSSProperties}>
-                <p className="text-sm text-black/60 dark:text-white/60">
-                  <span className="font-semibold text-black dark:text-white">{selo.rotulo}</span>
-                  {selo.rotuloAddon ? <span> · {selo.rotuloAddon}</span> : null}
+        <section className="relative bg-white pb-16 pt-28 dark:bg-neutral-950 md:pb-24 md:pt-36">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <div className={celular ? "grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-20" : undefined}>
+              <div className={celular ? undefined : "max-w-3xl"}>
+                <Link
+                  href="/funcionalidades"
+                  className="hero-enter inline-flex items-center gap-1.5 text-sm font-medium text-black/55 transition-colors hover:text-black dark:text-white/55 dark:hover:text-white"
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden />
+                  Todas as funcionalidades
+                </Link>
+                <h1
+                  className="hero-enter mt-6 [font-family:var(--font-pdf-montserrat)] text-[2.6rem] font-bold leading-[1.02] tracking-[-0.035em] text-black dark:text-white sm:text-6xl lg:text-[4.2rem]"
+                  style={{ "--hero-delay": "0.05s", "--hero-y": "22px" } as CSSProperties}
+                >
+                  {f.titulo}
+                </h1>
+                <p
+                  className="hero-enter mt-4 [font-family:var(--font-pdf-montserrat)] text-2xl font-semibold leading-tight tracking-[-0.02em] text-black/80 dark:text-white/80 md:text-3xl"
+                  style={{ "--hero-delay": "0.1s" } as CSSProperties}
+                >
+                  {f.pagina.titulo} <Accent>{f.pagina.destaque}</Accent>
                 </p>
-                <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-                  <LandingButton
-                    href="/register"
-                    variant="solid"
-                    size="md"
-                    trailingIcon={<ArrowRight className="h-4 w-4" />}
-                  >
-                    Começar agora
-                  </LandingButton>
-                  <LandingButton href="/#pricing" variant="link">
-                    Ver os planos
-                  </LandingButton>
+                <p
+                  className="hero-enter mt-6 max-w-2xl text-lg leading-relaxed text-black/60 dark:text-white/60"
+                  style={{ "--hero-delay": "0.14s" } as CSSProperties}
+                >
+                  {f.pagina.intro}
+                </p>
+                <div className="hero-enter mt-8" style={{ "--hero-delay": "0.2s", "--hero-y": "12px" } as CSSProperties}>
+                  <p className="text-sm font-semibold text-black dark:text-white">{selo.frase}.</p>
+                  <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+                    <LandingButton
+                      href="/register"
+                      variant="solid"
+                      size="md"
+                      trailingIcon={<ArrowRight className="h-4 w-4" />}
+                    >
+                      Começar agora
+                    </LandingButton>
+                    <LandingButton href="/#pricing" variant="link">
+                      Ver os planos
+                    </LandingButton>
+                  </div>
                 </div>
               </div>
+              {celular ? (
+                <figure className="hero-enter" style={{ "--hero-delay": "0.25s", "--hero-y": "30px" } as CSSProperties}>
+                  <CapturaDoErp captura={captura} sizes="300px" prioridade />
+                  <figcaption className="mt-5 text-center text-sm text-black/55 dark:text-white/55">{legenda}</figcaption>
+                </figure>
+              ) : null}
             </div>
-            <div className="hero-enter" style={{ "--hero-delay": "0.25s", "--hero-y": "30px" } as CSSProperties}>
-              <TelaDaFuncionalidade slug={slug} />
-            </div>
+            {celular ? null : (
+              <figure
+                className="hero-enter mt-14 md:mt-16"
+                style={{ "--hero-delay": "0.25s", "--hero-y": "30px" } as CSSProperties}
+              >
+                <CapturaDoErp captura={captura} sizes="(min-width: 1280px) 1232px, 100vw" prioridade />
+                <figcaption className="mt-4 text-sm text-black/55 dark:text-white/55">{legenda}</figcaption>
+              </figure>
+            )}
           </div>
         </section>
 
@@ -255,9 +277,9 @@ export default async function FuncionalidadePage({ params }: PaginaProps) {
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </div>
-            <ul className="mt-10 border-b border-black/10 dark:border-white/10">
+            <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {f.relacionadas.map((outra) => (
-                <LinhaDeFuncionalidade key={outra} funcionalidade={funcionalidade(outra)} />
+                <CardDeFuncionalidade key={outra} funcionalidade={funcionalidade(outra)} />
               ))}
             </ul>
           </div>

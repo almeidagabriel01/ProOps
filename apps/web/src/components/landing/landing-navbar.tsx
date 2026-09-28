@@ -47,13 +47,12 @@ interface LandingNavbarProps {
   isAuthLoading?: boolean;
 }
 
-// "Módulos" e "Recursos" levavam à mesma seção. O lugar dele é da página que
-// lista tudo o que o ERP faz; a âncora `#modulos` continua viva para links
-// antigos de fora.
+// "Funcionalidades" rola até a seção da home que lista as principais; a lista
+// completa, com uma página por funcionalidade, abre pelo botão no fim da seção.
+// Fora da home a âncora vira `/#recursos` (`anchorHref`).
 const navLinks = [
   { href: "#showcase", label: "Plataforma" },
-  { href: "#recursos", label: "Recursos" },
-  { href: "/funcionalidades", label: "Funcionalidades" },
+  { href: "#recursos", label: "Funcionalidades" },
   { href: "#pricing", label: "Planos" },
 ];
 
@@ -216,11 +215,10 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                 key={link.href}
                 href={anchorHref(link.href, pathname)}
                 onClick={(event) => handleAnchorClick(event, link.href)}
-                aria-current={pathname === link.href ? "page" : undefined}
-                className="group relative rounded-full px-3.5 py-1.5 text-[13px] font-medium text-black/65 transition-colors duration-200 hover:bg-black/[0.03] hover:text-black aria-[current=page]:text-black dark:text-white/65 dark:hover:bg-white/[0.06] dark:hover:text-white dark:aria-[current=page]:text-white"
+                className="group relative rounded-full px-3.5 py-1.5 text-[13px] font-medium text-black/65 transition-colors duration-200 hover:bg-black/[0.03] hover:text-black dark:text-white/65 dark:hover:bg-white/[0.06] dark:hover:text-white"
               >
                 {link.label}
-                <span className="absolute bottom-0 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-black transition-all duration-200 group-hover:w-3/5 group-aria-[current=page]:w-3/5 dark:bg-white" />
+                <span className="absolute bottom-0 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-black transition-all duration-200 group-hover:w-3/5 dark:bg-white" />
               </Link>
             ))}
           </motion.nav>
@@ -436,7 +434,6 @@ export function LandingNavbar({ currentUser, onSignOut, isAuthLoading = false }:
                   <Link
                     href={anchorHref(link.href, pathname)}
                     onClick={(event) => handleAnchorClick(event, link.href, true)}
-                    aria-current={pathname === link.href ? "page" : undefined}
                     className="text-2xl font-semibold text-black transition-colors hover:text-black/70 dark:text-white dark:hover:text-white/70"
                   >
                     {link.label}
