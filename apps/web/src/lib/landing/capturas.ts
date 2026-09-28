@@ -14,6 +14,31 @@ import type { TenantNicheId } from "@/lib/niches/registry";
 
 export type FormatoDaCaptura = "desktop" | "celular";
 
+/**
+ * As larguras em que cada print existe em `public/capturas/`. A maior é o
+ * arquivo base (`financeiro.webp`); as outras levam a largura no nome
+ * (`financeiro-640.webp`) e saem de `tests/capturas-do-erp/variantes.ts`.
+ *
+ * As páginas servem esses arquivos direto, com `srcset`, e NÃO pelo
+ * `next/image`: no Next 16.3.4, dois pedidos iguais ao otimizador em que o
+ * primeiro desiste no meio deixam aquela imagem pendurada para sempre no
+ * `next dev` e no `next start` (é o servidor do E2E e do Lighthouse do CI).
+ * Arquivo estático também não gasta otimização de imagem na Vercel.
+ */
+export const LARGURAS_DAS_CAPTURAS: Record<FormatoDaCaptura, readonly number[]> = {
+  desktop: [640, 960, 1280, 1600],
+  celular: [390, 780],
+};
+
+/** O arquivo de uma largura: o base na maior, `-<largura>` nas outras. */
+export function srcDaCaptura(captura: Captura, largura: number): string {
+  return largura === captura.largura ? captura.src : captura.src.replace(/\.webp$/, `-${largura}.webp`);
+}
+
+export function srcSetDaCaptura(captura: Captura): string {
+  return LARGURAS_DAS_CAPTURAS[captura.formato].map((l) => `${srcDaCaptura(captura, l)} ${l}w`).join(", ");
+}
+
 export interface Captura {
   src: `/capturas/${string}.webp`;
   formato: FormatoDaCaptura;

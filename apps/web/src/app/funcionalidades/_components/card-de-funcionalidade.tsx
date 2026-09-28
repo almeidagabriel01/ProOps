@@ -1,8 +1,8 @@
 import React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+import { ImagemDaCaptura } from "@/components/landing/_shared/captura-do-erp";
 import { CAPTURAS_DAS_FUNCIONALIDADES } from "@/lib/landing/capturas";
 import {
   caminhoDaFuncionalidade,
@@ -44,21 +44,18 @@ export function CardDeFuncionalidade({ funcionalidade: f, nivel = "h3" }: CardDe
         )}
       >
         {celular ? (
-          <Image
-            src={captura.src}
-            alt=""
-            width={captura.largura}
-            height={captura.altura}
+          <ImagemDaCaptura
+            captura={captura}
+            decorativa
             sizes="160px"
             className="h-[118%] w-auto self-start rounded-[1.4rem] border-4 border-neutral-900 object-cover object-top shadow-[0_18px_40px_-20px_rgba(0,0,0,0.5)] transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-1.5"
           />
         ) : (
-          <Image
-            src={captura.src}
-            alt=""
-            fill
+          <ImagemDaCaptura
+            captura={captura}
+            decorativa
             sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
-            className="object-cover object-top transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
+            className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
           />
         )}
       </div>

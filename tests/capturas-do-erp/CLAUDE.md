@@ -14,7 +14,8 @@ npx tsx tests/capturas-do-erp/encerrar.ts
 ```
 
 As imagens saem em `apps/web/public/capturas/` (WebP, 1600px de largura no
-desktop e 780px no celular) e são declaradas em
+desktop e 780px no celular, mais as larguras menores do `srcset`, geradas por
+`variantes.ts`) e são declaradas em
 `apps/web/src/lib/landing/capturas.ts`, com o texto alternativo de cada uma. O
 teste `lib/landing/__tests__/capturas.test.ts` reprova arquivo que falte ou que
 tenha dimensão diferente da declarada.
@@ -37,6 +38,16 @@ Tudo é fictício e local. As senhas de `ambiente.ts` só existem no Auth
 emulado.
 
 ## Armadilhas já pagas
+
+- **As páginas não usam `next/image` nesses prints.** No Next 16.3.4, quando
+  dois pedidos iguais chegam juntos ao otimizador e o primeiro desiste no meio,
+  o outro fica pendurado e aquela imagem trava para sempre no `next dev` e no
+  `next start` (o servidor do E2E e do Lighthouse do CI). Reproduzido com dois
+  `fetch` da mesma URL nova, um deles abortado em 5ms. Por isso as larguras
+  são pré-geradas e servidas como arquivo estático (`ImagemDaCaptura`), o que
+  também não gasta otimização de imagem na Vercel. Rodou o roteiro? As
+  variantes saem junto; para refazê-las sem recapturar, `npx tsx
+  tests/capturas-do-erp/variantes.ts`.
 
 - **O Functions não sobe ("User code failed to load. Timeout after 10000")**:
   com o `dev` e o `dev:backend` na mesma máquina, a descoberta das funções

@@ -6,6 +6,7 @@ import sharp from "sharp";
 import { LoginPage } from "../e2e/pages/login.page";
 import { interceptFirebaseRequests } from "../e2e/fixtures/auth.fixture";
 import { EMPRESAS, SENHA, URL_FUNCTIONS, type EmpresaDeCaptura } from "./ambiente";
+import { gerarVariantes } from "./variantes";
 
 /**
  * O roteiro das capturas. Cada entrada é uma tela de verdade do ERP, aberta
@@ -158,6 +159,14 @@ async function salvar(page: Page, captura: Captura) {
   const destino = path.join(SAIDA, `${captura.arquivo}.webp`);
   fs.mkdirSync(path.dirname(destino), { recursive: true });
   await sharp(bruto).resize({ width: largura }).webp({ quality: 82 }).toFile(destino);
+  const { height } = await sharp(destino).metadata();
+  await gerarVariantes({
+    src: `/capturas/${captura.arquivo}.webp`,
+    formato: captura.tela,
+    largura,
+    altura: height ?? 0,
+    alt: "",
+  });
   console.log(`[capturas] ${path.relative(SAIDA, destino)}`);
 }
 
