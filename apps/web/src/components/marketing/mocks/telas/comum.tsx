@@ -51,7 +51,7 @@ export function CascaDoErp({
   children: React.ReactNode;
   acoes?: React.ReactNode;
 }) {
-  const itens = ["Painel", "CRM", "Propostas", "Obras", "Agenda", "Financeiro", "Notas"];
+  const itens = ["Painel", "CRM", "Contatos", "Propostas", "Produtos", "Obras", "Agenda", "Financeiro", "Notas"];
   return (
     <div className="flex h-full min-h-0 flex-1">
       <nav className="mk-w-16 mk-gap-0.5 mk-p-1.5 flex shrink-0 flex-col border-r mk-linha mk-sup">

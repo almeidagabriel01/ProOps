@@ -20,7 +20,6 @@ import type { Recurso } from "../tipos";
 export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   {
     id: "leads",
-    categoria: "relacionamento",
     titulo: "Leads com próxima ação",
     resumo: "Cada contato novo entra no funil com origem, valor estimado e o próximo passo marcado.",
     detalhes: [
@@ -35,7 +34,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "funil-de-propostas",
-    categoria: "relacionamento",
     titulo: "Funil de propostas",
     resumo: "As propostas num quadro com as suas colunas, arrastadas de etapa em etapa.",
     detalhes: [
@@ -50,7 +48,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "contatos",
-    categoria: "relacionamento",
     titulo: "Clientes, fornecedores e parceiros",
     resumo: "Uma ficha por contato com propostas, financeiro, notas e anotações no mesmo lugar.",
     detalhes: [
@@ -66,7 +63,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "importacao",
-    categoria: "relacionamento",
     titulo: "Importação por planilha",
     resumo: "Contatos, produtos e serviços que já estão no Excel entram em minutos.",
     detalhes: [
@@ -81,7 +77,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "busca-global",
-    categoria: "relacionamento",
     titulo: "Busca em qualquer tela",
     resumo: "Um atalho acha proposta, contato ou tela sem sair de onde você está.",
     detalhes: ["Guarda os abertos recentemente.", "Funciona com o teclado do começo ao fim."],
@@ -90,7 +85,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "propostas",
-    categoria: "vendas",
     titulo: "Proposta em passos",
     resumo: "Cliente, itens, pagamento e PDF num assistente que salva o rascunho sozinho.",
     detalhes: [
@@ -110,7 +104,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "aceite-online",
-    categoria: "vendas",
     titulo: "Aceite online",
     resumo: "O cliente aceita a proposta pelo link com nome e CPF ou CNPJ, e você confirma.",
     detalhes: [
@@ -124,7 +117,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "pedido-de-mudancas",
-    categoria: "vendas",
     titulo: "Pedido de mudanças",
     resumo: "Em vez de recusar, o cliente pede ajustes pelo link, com o motivo escrito.",
     detalhes: [
@@ -138,7 +130,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "alertas-de-proposta",
-    categoria: "vendas",
     titulo: "Aviso quando o cliente abre",
     resumo: "Você sabe quando a proposta foi aberta e quem está esperando resposta há dias.",
     detalhes: [
@@ -152,7 +143,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "envio-da-proposta",
-    categoria: "vendas",
     titulo: "Envio pelo WhatsApp e e-mail da empresa",
     resumo: "O botão abre o seu WhatsApp ou e-mail com a mensagem e o link prontos.",
     detalhes: [
@@ -166,7 +156,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "editor-de-pdf",
-    categoria: "vendas",
     titulo: "Editor de PDF",
     resumo: "Capa, seções, fontes e cores da proposta, com a prévia ao lado.",
     detalhes: [
@@ -181,7 +170,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "cores-da-marca",
-    categoria: "vendas",
     titulo: "Cores da sua marca",
     resumo: "A cor da empresa aplicada no sistema e na proposta que o cliente recebe.",
     detalhes: ["Escolha a cor principal e ela passa a vestir a proposta."],
@@ -192,7 +180,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "numeracao",
-    categoria: "vendas",
     titulo: "Numeração de propostas",
     resumo: "Código sequencial por empresa, que também dá nome ao arquivo do PDF.",
     detalhes: [
@@ -207,7 +194,6 @@ export const RECURSOS_DE_VENDA: readonly Recurso[] = [
   },
   {
     id: "metas",
-    categoria: "vendas",
     titulo: "Metas de vendas",
     resumo: "Meta do mês da empresa e de cada vendedor, acompanhada no painel.",
     detalhes: [

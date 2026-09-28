@@ -2,7 +2,14 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { CATALOGO, CATEGORIAS, DESTAQUES, nichosDoRecurso } from "..";
+import {
+  CATALOGO,
+  DESTAQUES,
+  FUNCIONALIDADE_SLUGS,
+  FUNCIONALIDADES,
+  GRUPOS_DE_FUNCIONALIDADES,
+  nichosDoRecurso,
+} from "..";
 
 const APP = path.resolve(__dirname, "../../../../app");
 
@@ -29,12 +36,14 @@ describe("catálogo de funcionalidades", () => {
     for (const id of ids) expect(id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
   });
 
-  it("toda categoria tem recurso, e todo recurso tem categoria conhecida", () => {
-    const categorias = new Set(CATEGORIAS.map((c) => c.id));
-    for (const c of CATEGORIAS) {
-      expect(CATALOGO.some((r) => r.categoria === c.id)).toBe(true);
+  it("todo recurso pertence a exatamente uma funcionalidade", () => {
+    for (const r of CATALOGO) {
+      const donas = FUNCIONALIDADES.filter((f) => f.recursos.includes(r.id)).map((f) => f.slug);
+      expect(donas, r.id).toHaveLength(1);
     }
-    for (const r of CATALOGO) expect(categorias.has(r.categoria)).toBe(true);
+    const citados = FUNCIONALIDADES.flatMap((f) => f.recursos);
+    const ids = new Set(CATALOGO.map((r) => r.id));
+    for (const id of citados) expect(ids.has(id), id).toBe(true);
   });
 
   it.each(CATALOGO.filter((r) => r.rota).map((r) => [r.id, r.rota!] as const))(
@@ -67,6 +76,44 @@ describe("catálogo de funcionalidades", () => {
   });
 });
 
+describe("funcionalidades", () => {
+  it("uma por slug, na ordem dos slugs, com slug em kebab-case", () => {
+    expect(FUNCIONALIDADES.map((f) => f.slug)).toEqual([...FUNCIONALIDADE_SLUGS]);
+    for (const slug of FUNCIONALIDADE_SLUGS) expect(slug).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+  });
+
+  it("o recurso do selo é um dos que ela reúne", () => {
+    for (const f of FUNCIONALIDADES) expect(f.recursos, f.slug).toContain(f.principal);
+  });
+
+  it("todo grupo tem funcionalidade, e toda funcionalidade tem grupo conhecido", () => {
+    const grupos = new Set(GRUPOS_DE_FUNCIONALIDADES.map((g) => g.id));
+    for (const g of GRUPOS_DE_FUNCIONALIDADES) {
+      expect(FUNCIONALIDADES.some((f) => f.grupo === g.id)).toBe(true);
+    }
+    for (const f of FUNCIONALIDADES) expect(grupos.has(f.grupo)).toBe(true);
+  });
+
+  it("relacionadas apontam para outras funcionalidades, sem repetir", () => {
+    for (const f of FUNCIONALIDADES) {
+      expect(f.relacionadas.length).toBeGreaterThan(0);
+      expect(f.relacionadas).not.toContain(f.slug);
+      expect(new Set(f.relacionadas).size).toBe(f.relacionadas.length);
+    }
+  });
+
+  it("três passos, e a explicação da lista cabe numa linha", () => {
+    for (const f of FUNCIONALIDADES) {
+      expect(f.pagina.passos, f.slug).toHaveLength(3);
+      expect(f.resumo.length, f.slug).toBeLessThanOrEqual(110);
+    }
+  });
+
+  it("cada slug tem a sua página, gerada da mesma lista", () => {
+    expect(existsSync(path.join(APP, "funcionalidades", "[slug]", "page.tsx"))).toBe(true);
+  });
+});
+
 describe("destaques da home", () => {
   it("são cinco, e citam só recursos do catálogo", () => {
     expect(DESTAQUES).toHaveLength(5);
@@ -78,8 +125,11 @@ describe("destaques da home", () => {
     }
   });
 
-  it("cada destaque aponta para um capítulo que existe", () => {
-    const categorias = new Set(CATEGORIAS.map((c) => c.id));
-    for (const d of DESTAQUES) expect(categorias.has(d.ancora)).toBe(true);
+  it("cada destaque abre a funcionalidade que reúne o recurso principal dele", () => {
+    for (const d of DESTAQUES) {
+      const pagina = FUNCIONALIDADES.find((f) => f.slug === d.funcionalidade);
+      expect(pagina, d.id).toBeDefined();
+      expect(pagina!.recursos, d.id).toContain(d.principal);
+    }
   });
 });

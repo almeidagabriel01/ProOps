@@ -30,6 +30,9 @@ describe("route-access", () => {
     expect(isPublicRoute("/funcionalidades")).toBe(true);
     expect(isPublicMarketingRoute("/funcionalidades")).toBe(true);
     expect(isSessionlessMarketingRoute("/funcionalidades")).toBe(false);
+    // As páginas de cada funcionalidade herdam o prefixo.
+    expect(isPublicRoute("/funcionalidades/financeiro")).toBe(true);
+    expect(isPublicMarketingRoute("/funcionalidades/financeiro")).toBe(true);
   });
 
   describe("isPublicMarketingRoute", () => {

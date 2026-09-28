@@ -1,30 +1,21 @@
 import type { CSSProperties } from "react";
 import type { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
 
 import { CommandFaq } from "@/components/landing/_shared/command-faq";
 import { FechoCta } from "@/components/landing/_shared/fecho-cta";
-import { LandingButton } from "@/components/landing/_shared/landing-button";
 import { Accent } from "@/components/landing/_shared/section-heading";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { LandingNavbarComSessao } from "@/components/landing/landing-navbar-com-sessao";
 import { SmoothScroll } from "@/components/marketing/_shared/smooth-scroll";
-import { etapasDaObra } from "@/components/marketing/mocks/dados";
 import { BreadcrumbJsonLd, FAQPageJsonLd, SoftwareApplicationJsonLd } from "@/components/seo/json-ld";
-import { CATALOGO, CATEGORIAS } from "@/lib/landing/funcionalidades";
-import { DEFAULT_NICHE, NICHE_REGISTRY } from "@/lib/niches/registry";
+import { FUNCIONALIDADES, GRUPOS_DE_FUNCIONALIDADES } from "@/lib/landing/funcionalidades";
 import { canonicalFor } from "@/lib/site/host-seo";
 
-import { Capitulos } from "./_components/capitulos";
-import { JornadaDaVenda } from "./_components/jornada-da-venda";
-import { LinksDoCliente } from "./_components/links-do-cliente";
-import { VitrineLia } from "./_components/vitrine-lia";
-import { VitrineFluxo } from "./_components/vitrines";
-import { MapaDaOperacao } from "./_components/mapa-da-operacao";
+import { LinhaDeFuncionalidade } from "./_components/linha-de-funcionalidade";
 import { FAQ_FUNCIONALIDADES } from "./_content/faq";
 
 const DESCRICAO =
-  "Tudo o que a ProOps faz, área por área: CRM, propostas com aceite online, obra, pós-venda por link, financeiro, notas fiscais e a Lia. Com o plano que libera cada recurso.";
+  "Tudo o que a ProOps faz: CRM, propostas com aceite online, obras, pós-venda por link, financeiro, notas fiscais e a Lia. Cada funcionalidade com a sua página e o plano que a libera.";
 
 export const metadata: Metadata = {
   title: "Funcionalidades do ERP",
@@ -38,21 +29,19 @@ export const metadata: Metadata = {
 };
 
 /**
- * A página de tudo o que o ERP faz. Montada no servidor: as ilhas de cliente
- * são a navbar (sessão), a jornada animada, o filtro da lista e as cenas que
- * fecham alguns capítulos. O mapa do topo e a lista inteira chegam prontos no
- * HTML, sem esperar JavaScript.
+ * A lista do que o ERP faz: uma linha por funcionalidade, com a explicação
+ * curta e o plano, agrupadas na ordem de uma venda. Cada linha abre a página
+ * da funcionalidade (`[slug]/page.tsx`), onde mora o detalhe. Montada no
+ * servidor: a única ilha é a navbar.
  */
 export default function FuncionalidadesPage() {
-  const etapas = etapasDaObra(NICHE_REGISTRY[DEFAULT_NICHE].stageTemplate, 1);
-
   return (
     <div className="min-h-screen overflow-x-clip bg-white text-black selection:bg-black selection:text-white dark:bg-neutral-950 dark:text-neutral-100 dark:selection:bg-white dark:selection:text-black">
-      <SoftwareApplicationJsonLd featureList={CATALOGO.map((r) => r.titulo)} />
+      <SoftwareApplicationJsonLd featureList={FUNCIONALIDADES.map((f) => f.titulo)} />
       <BreadcrumbJsonLd
         items={[
-          { name: "Início", url: "/" },
-          { name: "Funcionalidades", url: "/funcionalidades" },
+          { name: "ProOps", url: canonicalFor("erp", "/") },
+          { name: "Funcionalidades", url: canonicalFor("erp", "/funcionalidades") },
         ]}
       />
       <FAQPageJsonLd items={[...FAQ_FUNCIONALIDADES]} />
@@ -60,78 +49,62 @@ export default function FuncionalidadesPage() {
       <LandingNavbarComSessao />
 
       <main>
-        <section className="relative bg-white pb-20 pt-32 dark:bg-neutral-950 md:pb-28 md:pt-40">
+        <section className="relative bg-white pb-16 pt-32 dark:bg-neutral-950 md:pb-20 md:pt-40">
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-end lg:gap-16">
-              <h1
-                className="hero-enter [font-family:var(--font-pdf-montserrat)] text-[2.6rem] font-bold leading-[1.02] tracking-[-0.035em] text-black dark:text-white sm:text-6xl lg:text-[4.6rem]"
-                style={{ "--hero-y": "22px" } as CSSProperties}
-              >
-                Tudo o que a ProOps faz, do primeiro contato ao <Accent>recibo</Accent>.
-              </h1>
-              <div
-                className="hero-enter lg:pb-3"
-                style={{ "--hero-delay": "0.12s" } as CSSProperties}
-              >
-                <p className="text-lg leading-relaxed text-black/60 dark:text-white/60">
-                  {CATALOGO.length} recursos em {CATEGORIAS.length} áreas, cada um com o plano que o libera. Siga a
-                  linha da sua área, ou veja uma venda inteira passar por elas logo abaixo.
-                </p>
-                <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
-                  <LandingButton
-                    href="/register"
-                    variant="solid"
-                    size="md"
-                    trailingIcon={<ArrowRight className="h-4 w-4" />}
-                  >
-                    Começar agora
-                  </LandingButton>
-                  <LandingButton href="/agendar" variant="link">
-                    Marcar uma demonstração
-                  </LandingButton>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-16 md:mt-24">
-              <MapaDaOperacao />
-            </div>
-          </div>
-        </section>
-
-        <section
-          aria-labelledby="jornada-titulo"
-          className="relative border-t border-black/10 bg-white pt-24 dark:border-white/10 dark:bg-neutral-950 md:pt-32"
-        >
-          <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <h2
-              id="jornada-titulo"
-              className="max-w-3xl [font-family:var(--font-pdf-montserrat)] text-[2.1rem] font-bold leading-[1.06] tracking-[-0.025em] text-black dark:text-white md:text-5xl"
+            <h1
+              className="hero-enter max-w-4xl [font-family:var(--font-pdf-montserrat)] text-[2.6rem] font-bold leading-[1.02] tracking-[-0.035em] text-black dark:text-white sm:text-6xl lg:text-[4.6rem]"
+              style={{ "--hero-y": "22px" } as CSSProperties}
             >
-              Uma venda só, do lead ao <Accent>contador</Accent>.
-            </h2>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-black/60 dark:text-white/60 md:text-lg">
-              Acompanhe a mesma proposta passar por sete telas. O código e o valor não mudam de sistema no caminho,
-              porque o sistema é um só.
-            </p>
-          </div>
-          <div className="mt-16 pb-24 md:mt-8 md:pb-0">
-            <JornadaDaVenda etapas={etapas} />
+              Tudo o que a ProOps faz, do primeiro contato ao <Accent>recibo</Accent>.
+            </h1>
+            <div
+              className="hero-enter mt-8 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between"
+              style={{ "--hero-delay": "0.12s" } as CSSProperties}
+            >
+              <p className="max-w-2xl text-lg leading-relaxed text-black/60 dark:text-white/60">
+                {FUNCIONALIDADES.length} funcionalidades, cada uma com uma explicação curta e o plano que a libera.
+                Clique numa delas para ver como funciona, a tela do ERP e o que vem incluído.
+              </p>
+              <nav aria-label="Grupos de funcionalidades" className="flex flex-wrap gap-2">
+                {GRUPOS_DE_FUNCIONALIDADES.map((g) => (
+                  <a
+                    key={g.id}
+                    href={`#${g.id}`}
+                    className="rounded-full border border-black/12 px-4 py-2 text-sm font-medium text-black/70 transition-colors duration-200 hover:border-black hover:text-black dark:border-white/15 dark:text-white/70 dark:hover:border-white dark:hover:text-white"
+                  >
+                    {g.titulo}
+                  </a>
+                ))}
+              </nav>
+            </div>
           </div>
         </section>
 
-        <Capitulos
-          vitrines={{
-            links: (
-              <LinksDoCliente
-                etapas={etapas}
-                tipoDeVisita={NICHE_REGISTRY[DEFAULT_NICHE].defaultVisitType.label}
-              />
-            ),
-            financeiro: <VitrineFluxo />,
-            lia: <VitrineLia />,
-          }}
-        />
+        <div className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 md:pb-32">
+          {GRUPOS_DE_FUNCIONALIDADES.map((grupo) => (
+            <section
+              key={grupo.id}
+              id={grupo.id}
+              aria-labelledby={`${grupo.id}-titulo`}
+              className="scroll-mt-28 pt-12 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12 lg:pt-16"
+            >
+              <div className="lg:sticky lg:top-28 lg:self-start">
+                <h2
+                  id={`${grupo.id}-titulo`}
+                  className="[font-family:var(--font-pdf-montserrat)] text-2xl font-bold tracking-[-0.02em] text-black dark:text-white md:text-3xl"
+                >
+                  {grupo.titulo}
+                </h2>
+                <p className="mt-2 text-[15px] leading-relaxed text-black/55 dark:text-white/55">{grupo.resumo}</p>
+              </div>
+              <ol className="mt-6 border-b border-black/10 dark:border-white/10 lg:mt-0">
+                {FUNCIONALIDADES.filter((f) => f.grupo === grupo.id).map((f) => (
+                  <LinhaDeFuncionalidade key={f.slug} funcionalidade={f} />
+                ))}
+              </ol>
+            </section>
+          ))}
+        </div>
 
         <CommandFaq
           items={FAQ_FUNCIONALIDADES}
@@ -147,13 +120,13 @@ export default function FuncionalidadesPage() {
         <FechoCta
           titulo={
             <>
-              A próxima venda já pode passar por <Accent>todas</Accent> essas estações.
+              A próxima venda já pode passar por <Accent>todas</Accent> elas.
             </>
           }
-          frase="Crie a conta, escolha o seu segmento e comece pela proposta. O resto da linha já está montado."
+          frase="Crie a conta, escolha o seu segmento e comece pela proposta. O resto já está montado."
           primario={{ rotulo: "Começar agora", href: "/register" }}
           secundario={{ rotulo: "Falar com a gente", href: "/contato" }}
-          estacoes={CATALOGO.map((r) => r.titulo)}
+          estacoes={FUNCIONALIDADES.map((f) => f.titulo)}
         />
       </main>
 

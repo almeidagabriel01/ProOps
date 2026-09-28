@@ -17,7 +17,7 @@ interface FechoCtaProps {
 /**
  * O fechamento das páginas de venda do ERP: uma frase grande, a ação, e uma
  * faixa lenta com o nome do que a página mostrou, passando como as estações
- * num painel de linha. É o fim da viagem que o mapa do topo começou.
+ * num painel de linha.
  *
  * Componente de servidor; só a faixa (`Marquee`) é cliente, e ela para fora da
  * tela e sob movimento reduzido.

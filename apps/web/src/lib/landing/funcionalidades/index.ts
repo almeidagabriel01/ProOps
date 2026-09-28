@@ -1,19 +1,24 @@
 import { NICHE_CONFIGS } from "@/lib/niches/config";
 import { NICHE_REGISTRY, TENANT_NICHES } from "@/lib/niches/registry";
 
-import { CATEGORIAS } from "./categorias";
 import { RECURSOS_DE_ENTREGA } from "./recursos/entrega";
 import { RECURSOS_DE_GESTAO } from "./recursos/gestao";
 import { RECURSOS_DE_POS_VENDA } from "./recursos/pos-venda";
 import { RECURSOS_DE_VENDA } from "./recursos/venda";
-import type { CategoriaId, DisponibilidadePorNicho, Recurso } from "./tipos";
+import type { DisponibilidadePorNicho, Recurso } from "./tipos";
 
-export { CATEGORIAS, categoria } from "./categorias";
 export { DESTAQUES } from "./destaques";
+export {
+  FUNCIONALIDADES,
+  GRUPOS_DE_FUNCIONALIDADES,
+  funcionalidade,
+  funcionalidadeDoRecurso,
+} from "./funcionalidades";
+export { FUNCIONALIDADE_SLUGS, caminhoDaFuncionalidade, type FuncionalidadeSlug } from "./slugs";
 export { escadaDoLimite, seloDoPlano, type SeloDoPlano } from "./selo-do-plano";
 export type * from "./tipos";
 
-/** Tudo o que o ERP faz. A ordem de exibição é a das categorias. */
+/** Tudo o que o ERP faz, recurso por recurso. */
 export const CATALOGO: readonly Recurso[] = [
   ...RECURSOS_DE_VENDA,
   ...RECURSOS_DE_ENTREGA,
@@ -25,15 +30,6 @@ export function recurso(id: string): Recurso {
   const encontrado = CATALOGO.find((r) => r.id === id);
   if (!encontrado) throw new Error(`Recurso desconhecido: ${id}`);
   return encontrado;
-}
-
-export function recursosDa(categoriaId: CategoriaId): Recurso[] {
-  return CATALOGO.filter((r) => r.categoria === categoriaId);
-}
-
-/** O catálogo agrupado na ordem das categorias. */
-export function capitulos() {
-  return CATEGORIAS.map((c) => ({ categoria: c, recursos: recursosDa(c.id) }));
 }
 
 /**

@@ -17,7 +17,6 @@ import type { Recurso } from "../tipos";
 export const RECURSOS_DE_POS_VENDA: readonly Recurso[] = [
   {
     id: "link-da-proposta",
-    categoria: "links",
     titulo: "Link da proposta",
     resumo: "A proposta com a sua marca, para ver no celular e baixar o PDF.",
     detalhes: [
@@ -31,7 +30,6 @@ export const RECURSOS_DE_POS_VENDA: readonly Recurso[] = [
   },
   {
     id: "link-do-recibo",
-    categoria: "links",
     titulo: "Recibo e cobrança por link",
     resumo: "Cada parcela tem um link com o recibo e as outras parcelas da mesma venda.",
     detalhes: ["O cliente baixa o recibo em PDF.", "A mesma página vira cobrança com o pagamento online."],
@@ -42,7 +40,6 @@ export const RECURSOS_DE_POS_VENDA: readonly Recurso[] = [
   },
   {
     id: "pagamento-online",
-    categoria: "links",
     titulo: "Pagamento por Pix e boleto",
     resumo: "O cliente paga a parcela no link, e a baixa entra sozinha no financeiro.",
     detalhes: [
@@ -57,7 +54,6 @@ export const RECURSOS_DE_POS_VENDA: readonly Recurso[] = [
   },
   {
     id: "link-da-obra",
-    categoria: "links",
     titulo: "Acompanhamento da obra",
     resumo: "O cliente vê as etapas, o checklist, as fotos e a próxima visita.",
     detalhes: ["As anotações internas da equipe ficam de fora.", "No fim, o cliente aceita a entrega pelo mesmo link."],
@@ -68,7 +64,6 @@ export const RECURSOS_DE_POS_VENDA: readonly Recurso[] = [
   },
   {
     id: "link-de-agendamento",
-    categoria: "links",
     titulo: "Link de agendamento",
     resumo: "O cliente escolhe o tipo de visita e um horário livre da sua agenda.",
     detalhes: [
@@ -82,7 +77,6 @@ export const RECURSOS_DE_POS_VENDA: readonly Recurso[] = [
   },
   {
     id: "portal-do-cliente",
-    categoria: "links",
     titulo: "Portal do cliente",
     resumo: "Um link fixo por cliente com propostas, pagamentos, obras e notas.",
     detalhes: [
@@ -97,7 +91,6 @@ export const RECURSOS_DE_POS_VENDA: readonly Recurso[] = [
   },
   {
     id: "link-do-contador",
-    categoria: "links",
     titulo: "Link do contador",
     resumo: "O contador abre o DRE, os lançamentos e as notas, sem login e sem ocupar usuário.",
     detalhes: [

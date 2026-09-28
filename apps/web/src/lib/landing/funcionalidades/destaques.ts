@@ -5,9 +5,10 @@ import type { Destaque } from "./tipos";
  * ProOps cobre: vender, entregar pelo link, receber, executar a obra e
  * delegar para a Lia.
  *
- * Saíram daqui, e foram para `/funcionalidades`, os seis itens antigos
- * (contatos, catálogo, permissões, planilhas): todo ERP tem, e nenhum deles
- * explica por que alguém trocaria de sistema.
+ * Cada um abre a página da funcionalidade correspondente. Os itens antigos
+ * (contatos, catálogo, permissões, planilhas) estão na lista de
+ * `/funcionalidades`: todo ERP tem, e nenhum explica por que alguém trocaria
+ * de sistema.
  */
 export const DESTAQUES: readonly Destaque[] = [
   {
@@ -17,7 +18,7 @@ export const DESTAQUES: readonly Destaque[] = [
       "O cliente abre no celular, pede ajustes ou aceita com nome e CPF, e você sabe no mesmo minuto.",
     principal: "aceite-online",
     recursos: ["aceite-online", "pedido-de-mudancas", "alertas-de-proposta", "editor-de-pdf"],
-    ancora: "vendas",
+    funcionalidade: "aceite-online",
   },
   {
     id: "pos-venda",
@@ -26,7 +27,7 @@ export const DESTAQUES: readonly Destaque[] = [
       "Recibo, Pix, obra, agendamento e portal: o cliente acompanha tudo sem ligar para perguntar.",
     principal: "portal-do-cliente",
     recursos: ["portal-do-cliente", "pagamento-online", "link-da-obra", "link-de-agendamento", "link-do-contador"],
-    ancora: "links",
+    funcionalidade: "pos-venda",
   },
   {
     id: "financeiro",
@@ -35,7 +36,7 @@ export const DESTAQUES: readonly Destaque[] = [
       "Aprovou, as parcelas e as comissões já estão lançadas. O fluxo de caixa mostra os próximos meses em três cenários.",
     principal: "lancamentos",
     recursos: ["lancamentos", "comissoes", "fluxo-de-caixa", "dre", "carteiras"],
-    ancora: "financeiro",
+    funcionalidade: "financeiro",
   },
   {
     id: "obra",
@@ -44,7 +45,7 @@ export const DESTAQUES: readonly Destaque[] = [
       "As etapas do seu segmento, com checklist, fotos e visita marcada, até o cliente aceitar a entrega.",
     principal: "projetos",
     recursos: ["projetos", "visita-da-etapa", "google-agenda", "aceite-da-entrega"],
-    ancora: "obra",
+    funcionalidade: "obras",
   },
   {
     id: "lia",
@@ -53,6 +54,6 @@ export const DESTAQUES: readonly Destaque[] = [
       "Peça em português: ela cria a proposta, dá baixa na parcela ou move o lead, e só grava depois do seu ok.",
     principal: "lia-acoes",
     recursos: ["lia-acoes", "lia-textos"],
-    ancora: "lia",
+    funcionalidade: "lia",
   },
 ];

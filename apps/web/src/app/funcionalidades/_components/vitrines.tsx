@@ -4,7 +4,7 @@ import { JanelaDoErp } from "@/components/marketing/mocks/janela-do-erp";
 import { TelaFluxoDeCaixa } from "@/components/marketing/mocks/telas/telas-do-erp";
 
 /**
- * O fluxo de caixa fechando o capítulo do financeiro. Componente de servidor:
+ * O fluxo de caixa, na página de Fluxo de caixa e DRE. Componente de servidor:
  * o gráfico se revela pela rolagem com CSS (`.vitrine-fluxo` em
  * `app/vitrine.css`), sem hidratar nada.
  */

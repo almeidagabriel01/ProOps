@@ -28,7 +28,6 @@ import type { Recurso } from "../tipos";
 export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   {
     id: "lancamentos",
-    categoria: "financeiro",
     titulo: "Lançamentos da venda",
     resumo: "A proposta aprovada já cria a entrada e as parcelas, e você só dá baixa.",
     detalhes: [
@@ -43,7 +42,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "carteiras",
-    categoria: "financeiro",
     titulo: "Carteiras",
     resumo: "Contas, caixa e cartões com saldo que se atualiza a cada baixa.",
     detalhes: ["Transferência entre carteiras, ajuste de saldo e histórico."],
@@ -54,7 +52,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "comissoes",
-    categoria: "financeiro",
     titulo: "Comissões de vendedor e arquiteto",
     resumo: "Quanto cada parceiro recebe no mês, no mesmo ritmo em que o cliente paga.",
     detalhes: [
@@ -68,7 +65,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "dre",
-    categoria: "financeiro",
     titulo: "DRE",
     resumo: "Receita, impostos, custos e despesas do período, por caixa ou competência.",
     detalhes: ["Cada categoria ligada a uma linha do DRE.", "Até 12 meses lado a lado."],
@@ -79,7 +75,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "fluxo-de-caixa",
-    categoria: "financeiro",
     titulo: "Fluxo de caixa em três cenários",
     resumo: "O saldo dos próximos meses se o cliente pagar tudo, parte ou com atraso.",
     detalhes: [
@@ -93,7 +88,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "painel",
-    categoria: "financeiro",
     titulo: "Painel do dia",
     resumo: "O que vence, o que precisa de atenção e o resultado do mês numa tela.",
     detalhes: [
@@ -108,7 +102,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "notas-fiscais",
-    categoria: "fiscal",
     titulo: "NF-e e NFS-e",
     resumo: "A nota sai da proposta aprovada ou do lançamento, sem digitar de novo.",
     detalhes: [
@@ -123,7 +116,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "certificado",
-    categoria: "fiscal",
     titulo: "Certificado A1 sob controle",
     resumo: "Aviso antes de o certificado vencer, para a emissão não parar no dia.",
     detalhes: ["Avisos com 30, 15, 7 e 1 dia de antecedência.", "Configuração guiada em quatro passos."],
@@ -134,7 +126,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "notas-de-entrada",
-    categoria: "fiscal",
     titulo: "Notas de entrada",
     resumo: "As notas que os fornecedores emitem para o seu CNPJ chegam sozinhas.",
     detalhes: ["Busca de hora em hora.", "Cada nota recebida vira despesa com um clique."],
@@ -145,7 +136,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "lia-acoes",
-    categoria: "lia",
     titulo: "Lia, a IA que executa",
     resumo: "Peça em português e a Lia faz: cria a proposta, lança, dá baixa, move o lead.",
     detalhes: [
@@ -162,7 +152,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "lia-textos",
-    categoria: "lia",
     titulo: "Textos escritos pela IA",
     resumo: "Descrição de produto, observações da proposta e seções do PDF, escritas num clique.",
     detalhes: ["Você revisa e ajusta antes de salvar.", "A Lia também sugere o NCM do produto para a nota fiscal."],
@@ -171,7 +160,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "equipe",
-    categoria: "plataforma",
     titulo: "Equipe e permissões",
     resumo: "Ver, criar, editar e excluir definidos por tela para cada pessoa.",
     detalhes: ["Perfis prontos para começar e ajuste fino depois.", "A mudança vale na hora, sem novo login."],
@@ -183,7 +171,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "duas-etapas",
-    categoria: "plataforma",
     titulo: "Login em duas etapas",
     resumo: "Aplicativo autenticador ou código no WhatsApp, com códigos de recuperação.",
     detalhes: ["Os dois métodos podem conviver na mesma conta."],
@@ -194,7 +181,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "notificacoes",
-    categoria: "plataforma",
     titulo: "Central de notificações",
     resumo: "Cada pessoa escolhe o que recebe no sino e o que chega por e-mail.",
     detalhes: ["Histórico próprio, com o que já foi lido."],
@@ -205,7 +191,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "whatsapp",
-    categoria: "plataforma",
     titulo: "Consultas pelo WhatsApp",
     resumo: "Propostas com PDF, resumo do dia e da semana, saldo e lançamentos, numa conversa.",
     detalhes: ["Um menu de consultas rápidas, sem abrir o computador.", "Envia o link de um lançamento para o cliente."],
@@ -215,7 +200,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "planilhas",
-    categoria: "plataforma",
     titulo: "Planilhas internas",
     resumo: "Planilhas com fórmulas dentro do ERP, para o que foge do fluxo padrão.",
     detalhes: ["Importa e exporta Excel e CSV."],
@@ -227,7 +211,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "celular",
-    categoria: "plataforma",
     titulo: "No celular",
     resumo: "O ERP inteiro adaptado à tela pequena, com barra de navegação embaixo.",
     detalhes: ["Instalável na tela inicial, como um aplicativo."],
@@ -236,7 +219,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "tutorial",
-    categoria: "plataforma",
     titulo: "Tutorial guiado",
     resumo: "Um roteiro tela a tela para a equipe começar sem treinamento.",
     detalhes: ["Um painel de ajuda em cada tela, com o que ela faz."],
@@ -245,7 +227,6 @@ export const RECURSOS_DE_GESTAO: readonly Recurso[] = [
   },
   {
     id: "documentos",
-    categoria: "plataforma",
     titulo: "Arquivos da empresa",
     resumo: "Anexos de propostas, fotos de obra e PDFs guardados junto do que eles contam.",
     detalhes: ["Espaço de armazenamento de acordo com o plano."],

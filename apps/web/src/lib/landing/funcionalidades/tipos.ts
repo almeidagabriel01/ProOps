@@ -3,9 +3,13 @@ import type { LucideIcon } from "lucide-react";
 import type { NichePageKey } from "@/lib/niches/config-types";
 import type { PlanFeatures, PlanTier } from "@/types";
 
+import type { FuncionalidadeSlug } from "./slugs";
+
 /**
- * O catálogo do que o ERP faz, a fonte da página `/funcionalidades`, dos cinco
- * destaques da home e do bloco "plataforma" das landings de nicho.
+ * O catálogo do que o ERP faz: os recursos (o detalhe, com o plano de cada
+ * um) e as funcionalidades que os reúnem (uma página cada em
+ * `/funcionalidades/<slug>`). Alimenta a lista de `/funcionalidades`, os cinco
+ * destaques da home e o bloco "plataforma" das landings de nicho.
  *
  * O requisito de plano de cada recurso é declarado pela CHAVE que o produto
  * usa para bloquear (`PlanFeatures`), nunca pelo nome do plano. O selo que o
@@ -40,25 +44,6 @@ export type Requisito =
     }
   | { tipo: "tier"; minimo: PlanTier };
 
-export type CategoriaId =
-  | "vendas"
-  | "relacionamento"
-  | "links"
-  | "obra"
-  | "financeiro"
-  | "fiscal"
-  | "catalogo"
-  | "lia"
-  | "plataforma";
-
-export interface Categoria {
-  id: CategoriaId;
-  titulo: string;
-  /** Uma frase: o que essa área resolve, do ponto de vista de quem vende projeto. */
-  resumo: string;
-  icone: LucideIcon;
-}
-
 /** Como um limite numérico é dito em português, com a concordância certa. */
 export interface UnidadeDoLimite {
   /** "planilha" */
@@ -80,9 +65,8 @@ export interface UnidadeDoLimite {
 export type DisponibilidadePorNicho = "preco-por-medida" | NichePageKey;
 
 export interface Recurso {
-  /** kebab-case e único: vira âncora (`/funcionalidades#aceite-online`). */
+  /** kebab-case e único: vira âncora na página da funcionalidade que o reúne. */
   id: string;
-  categoria: CategoriaId;
   titulo: string;
   /** Uma linha. */
   resumo: string;
@@ -101,6 +85,39 @@ export interface Recurso {
   nichos?: DisponibilidadePorNicho;
 }
 
+export type GrupoId = "vender" | "entregar" | "receber" | "gerir";
+
+export interface GrupoDeFuncionalidades {
+  id: GrupoId;
+  titulo: string;
+  resumo: string;
+}
+
+/** Uma funcionalidade como o cliente a chama, com a página própria dela. */
+export interface Funcionalidade {
+  slug: FuncionalidadeSlug;
+  titulo: string;
+  /** A explicação curta da lista: uma linha. */
+  resumo: string;
+  icone: LucideIcon;
+  grupo: GrupoId;
+  /** O recurso cujo selo de plano a lista mostra. */
+  principal: string;
+  /** Ids do catálogo que ela reúne, na ordem da página. */
+  recursos: readonly string[];
+  pagina: {
+    /** O título da página, antes do termo em itálico. */
+    titulo: string;
+    /** O termo em itálico que fecha o título. */
+    destaque: string;
+    intro: string;
+    /** Como funciona, em três passos. */
+    passos: readonly { titulo: string; texto: string }[];
+  };
+  /** Outras funcionalidades para seguir lendo. */
+  relacionadas: readonly FuncionalidadeSlug[];
+}
+
 /** Um dos cinco destaques da home: um recurso principal e os que ele puxa. */
 export interface Destaque {
   id: string;
@@ -110,6 +127,6 @@ export interface Destaque {
   principal: string;
   /** Ids do catálogo que o destaque reúne, na ordem em que são citados. */
   recursos: readonly string[];
-  /** Capítulo de `/funcionalidades` para onde "Ver no mapa" leva. */
-  ancora: CategoriaId;
+  /** A página que o destaque abre. */
+  funcionalidade: FuncionalidadeSlug;
 }

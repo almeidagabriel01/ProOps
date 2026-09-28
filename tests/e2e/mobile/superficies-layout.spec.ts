@@ -23,6 +23,7 @@
 
 import { test, expect } from "@playwright/test";
 import { NICHE_REGISTRY, TENANT_NICHES } from "../../../apps/web/src/lib/niches/registry";
+import { FUNCIONALIDADE_SLUGS } from "../../../apps/web/src/lib/landing/funcionalidades/slugs";
 
 /**
  * A porta do servidor de teste, sobreponível.
@@ -43,6 +44,12 @@ const PAGINAS = [
   { nome: "produtos", url: `http://localhost:${PORTA}/produtos` },
   { nome: "fale-conosco", url: `http://localhost:${PORTA}/fale-conosco` },
   { nome: "funcionalidades", url: `http://localhost:${PORTA}/funcionalidades` },
+  // Uma página por funcionalidade, cada uma com a sua tela codada ao lado do
+  // texto: todas entram, porque é a tela que costuma passar da borda.
+  ...FUNCIONALIDADE_SLUGS.map((slug) => ({
+    nome: `funcionalidades/${slug}`,
+    url: `http://localhost:${PORTA}/funcionalidades/${slug}`,
+  })),
   // As landings de nicho têm cenas em SVG com cotas e cones que passam da
   // borda do desenho; vêm do registro, então um nicho novo entra aqui sozinho.
   ...TENANT_NICHES.map((niche) => ({

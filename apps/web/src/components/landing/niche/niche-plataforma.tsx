@@ -1,10 +1,11 @@
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import {
-  CATALOGO,
   DESTAQUES,
+  FUNCIONALIDADES,
+  caminhoDaFuncionalidade,
   recurso,
   seloDoPlano,
 } from "@/lib/landing/funcionalidades";
@@ -14,7 +15,8 @@ import { Accent } from "../_shared/section-heading";
 
 /**
  * O resto da plataforma, que é igual para todo nicho: os cinco destaques da
- * home, lidos do mesmo catálogo de `/funcionalidades`, com o plano de cada um.
+ * home, lidos do mesmo catálogo de `/funcionalidades`, com o plano de cada um
+ * e o link para a página da funcionalidade.
  */
 export function NichePlataforma() {
   return (
@@ -30,7 +32,7 @@ export function NichePlataforma() {
             size="md"
             trailingIcon={<ArrowRight className="h-4 w-4" />}
           >
-            Ver as {CATALOGO.length} funcionalidades
+            Ver as {FUNCIONALIDADES.length} funcionalidades
           </LandingButton>
         </div>
         <ol className="mt-14 border-b border-black/10 dark:border-white/10">
@@ -42,7 +44,12 @@ export function NichePlataforma() {
                 className="vt-revela grid items-baseline gap-2 border-t border-black/10 py-6 dark:border-white/10 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)_17rem] md:gap-10"
               >
                 <h3 className="[font-family:var(--font-pdf-montserrat)] text-lg font-bold leading-snug text-black dark:text-white md:text-xl">
-                  {destaque.titulo}
+                  <Link
+                    href={caminhoDaFuncionalidade(destaque.funcionalidade)}
+                    className="underline-offset-[6px] hover:underline"
+                  >
+                    {destaque.titulo}
+                  </Link>
                 </h3>
                 <p className="text-[15px] leading-relaxed text-black/60 dark:text-white/60">
                   {destaque.frase}
@@ -52,11 +59,12 @@ export function NichePlataforma() {
                     {selo.rotulo}
                   </span>
                   <Link
-                    href={`/funcionalidades#${destaque.ancora}`}
+                    href={caminhoDaFuncionalidade(destaque.funcionalidade)}
+                    aria-label={`Saiba mais: ${destaque.titulo}`}
                     className="inline-flex items-center gap-1 whitespace-nowrap text-[13px] font-semibold text-black underline decoration-black/25 underline-offset-4 hover:decoration-black dark:text-white dark:decoration-white/30 dark:hover:decoration-white"
                   >
-                    Ver no mapa
-                    <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                    Saiba mais
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                   </Link>
                 </div>
               </li>

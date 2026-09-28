@@ -2,11 +2,17 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { HidratarPerto } from "@/components/marketing/_shared/hidratar-perto";
 import { etapasDaObra } from "@/components/marketing/mocks/dados";
-import { CATALOGO, CATEGORIAS, DESTAQUES, recurso, seloDoPlano } from "@/lib/landing/funcionalidades";
+import {
+  DESTAQUES,
+  FUNCIONALIDADES,
+  caminhoDaFuncionalidade,
+  recurso,
+  seloDoPlano,
+} from "@/lib/landing/funcionalidades";
 import { DEFAULT_NICHE, NICHE_REGISTRY } from "@/lib/niches/registry";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +71,12 @@ function Destaques() {
             >
               <span aria-hidden="true" className="destaque-barra absolute left-0 top-9 w-px bg-black dark:bg-white" />
               <h3 className="destaque-titulo [font-family:var(--font-pdf-montserrat)] text-2xl font-bold leading-tight tracking-[-0.02em] md:text-[1.75rem]">
-                {destaque.titulo}
+                <Link
+                  href={caminhoDaFuncionalidade(destaque.funcionalidade)}
+                  className="underline-offset-[6px] hover:underline"
+                >
+                  {destaque.titulo}
+                </Link>
               </h3>
               <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-black/60 dark:text-white/60 md:text-base">
                 {destaque.frase}
@@ -88,11 +99,12 @@ function Destaques() {
                       <span className="text-black/50 dark:text-white/50">{selo.rotuloAddon}</span>
                     ) : null}
                     <Link
-                      href={`/funcionalidades#${destaque.ancora}`}
+                      href={caminhoDaFuncionalidade(destaque.funcionalidade)}
+                      aria-label={`Saiba mais: ${destaque.titulo}`}
                       className="inline-flex items-center gap-1 font-semibold text-black underline decoration-black/25 underline-offset-4 transition-colors hover:decoration-black dark:text-white dark:decoration-white/30 dark:hover:decoration-white"
                     >
-                      Ver no mapa
-                      <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+                      Saiba mais
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                     </Link>
                   </div>
                 </div>
@@ -127,7 +139,8 @@ function Destaques() {
 
 /**
  * "Recursos da plataforma": os cinco recursos que explicam por que alguém
- * troca de sistema, e o caminho para a lista inteira em `/funcionalidades`.
+ * troca de sistema. Cada um abre a página da funcionalidade dele, e o botão do
+ * fim leva à lista inteira em `/funcionalidades`.
  * Hospeda as âncoras `#recursos` e `#modulos` (a antiga seção Módulos).
  */
 export function LandingFeatures() {
@@ -147,7 +160,7 @@ export function LandingFeatures() {
               Do orçamento ao recibo, <Accent>sem trocar de sistema</Accent>
             </>
           }
-          description="Cinco coisas que a ProOps faz e uma planilha não faz. O resto está no mapa completo."
+          description="Cinco coisas que a ProOps faz e uma planilha não faz. Clique em cada uma para ver como funciona."
         />
 
         <HidratarPerto>
@@ -156,7 +169,7 @@ export function LandingFeatures() {
 
         <div className="mt-16 flex flex-col items-start gap-4 border-t border-black/10 pt-10 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[15px] text-black/60 dark:text-white/60">
-            {CATALOGO.length} recursos em {CATEGORIAS.length} áreas, cada um com o plano que o libera.
+            {FUNCIONALIDADES.length} funcionalidades, cada uma com a sua página e o plano que a libera.
           </p>
           <LandingButton
             href="/funcionalidades"

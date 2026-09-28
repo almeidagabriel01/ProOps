@@ -31,14 +31,20 @@ services, settings, share, sobre, solutions, spreadsheets, subscribe,
 subscription-blocked, tasks, team, terms, transactions, verify, wallets
 ```
 
-`funcionalidades` é a página pública com tudo o que o ERP faz, no host do ERP.
-Ela é montada no servidor a partir do catálogo em `lib/landing/funcionalidades/`
-(recursos, categorias e os cinco destaques da home), e o plano de cada recurso é
-um selo DERIVADO de `DEFAULT_PLANS` e dos add-ons (`selo-do-plano.ts`), com
-paridade testada contra o `PLAN_CATALOG` do backend. Nunca escreva o nome de um
-plano num recurso: declare a chave de `PlanFeatures` que o libera. Recurso
-novo no ERP entra no catálogo, e o teste do selo reprova se uma capacidade
-vendável não aparecer em nenhum recurso.
+`funcionalidades` é a lista pública do que o ERP faz, no host do ERP, e
+`funcionalidades/[slug]` é a página de cada funcionalidade (estática, gerada da
+mesma lista; slug fora dela é 404). Tudo sai do catálogo em
+`lib/landing/funcionalidades/`: os recursos (o detalhe), as funcionalidades que
+os reúnem (`funcionalidades.ts`, uma página cada, com os slugs em `slugs.ts`, que
+o sitemap também lê) e os cinco destaques da home, que abrem essas páginas. Todo
+recurso pertence a exatamente uma funcionalidade (teste do catálogo). O plano de
+cada recurso é um selo DERIVADO de `DEFAULT_PLANS` e dos add-ons
+(`selo-do-plano.ts`), com paridade testada contra o `PLAN_CATALOG` do backend.
+Nunca escreva o nome de um plano num recurso: declare a chave de `PlanFeatures`
+que o libera. Recurso novo no ERP entra no catálogo e numa funcionalidade, e o
+teste do selo reprova se uma capacidade vendável não aparecer em nenhum recurso.
+Funcionalidade nova precisa de uma tela em `_components/tela-da-funcionalidade.tsx`
+(um `Record` por slug, que não compila sem ela).
 
 `sobre`, `manifesto`, `produtos` e `fale-conosco` são as páginas do
 **site da empresa** e vivem no route group `(empresa)/`, que não entra na URL.

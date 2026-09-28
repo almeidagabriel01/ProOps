@@ -18,7 +18,6 @@ import type { Recurso } from "../tipos";
 export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   {
     id: "produtos",
-    categoria: "catalogo",
     titulo: "Catálogo de produtos",
     resumo: "Custo, margem e preço de venda, com fotos, estoque, fabricante e NCM.",
     detalhes: [
@@ -33,7 +32,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "servicos",
-    categoria: "catalogo",
     titulo: "Serviços",
     resumo: "Mão de obra e visitas com valor padrão e os dados da nota de serviço.",
     detalhes: ["Código da LC 116 e alíquota de ISS guardados no próprio serviço."],
@@ -44,7 +42,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "preco-por-medida",
-    categoria: "catalogo",
     titulo: "Preço por medida",
     resumo: "O item é cotado pela medida do vão: por metro quadrado, por faixa de altura ou por metro linear.",
     detalhes: [
@@ -59,7 +56,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "solucoes",
-    categoria: "catalogo",
     titulo: "Pacotes por sistema",
     resumo: "Um sistema montado uma vez, com os produtos padrão, entra inteiro na proposta.",
     detalhes: ["Monte o pacote, reaproveite em cada proposta e ajuste só o que muda."],
@@ -71,7 +67,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "ambientes",
-    categoria: "catalogo",
     titulo: "Pacotes por local",
     resumo: "Os locais que se repetem, com os produtos que cada um costuma levar.",
     detalhes: ["Escolha o local na proposta e os itens padrão já entram."],
@@ -83,7 +78,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "projetos",
-    categoria: "obra",
     titulo: "Projetos de instalação",
     resumo: "A venda aprovada vira obra, com as etapas do seu segmento já montadas.",
     detalhes: [
@@ -98,7 +92,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "visita-da-etapa",
-    categoria: "obra",
     titulo: "Visita marcada pela etapa",
     resumo: "Marcar a visita de uma etapa já põe na agenda e avisa o técnico.",
     detalhes: ["Entra na Agenda da empresa e no Google Agenda de quem vai."],
@@ -109,7 +102,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "agenda",
-    categoria: "obra",
     titulo: "Agenda da empresa",
     resumo: "Mês, semana, dia e lista, com arrastar para remarcar.",
     detalhes: [
@@ -123,7 +115,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "google-agenda",
-    categoria: "obra",
     titulo: "Google Agenda",
     resumo: "A agenda do ERP sincronizada com o Google Agenda de cada pessoa.",
     detalhes: ["Visitas e compromissos aparecem no celular de quem vai."],
@@ -134,7 +125,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "tarefas",
-    categoria: "obra",
     titulo: "Tarefas com menção",
     resumo: "O que fazer, de quem e até quando, com @menção que avisa a pessoa.",
     detalhes: [
@@ -148,7 +138,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "google-drive",
-    categoria: "obra",
     titulo: "Proposta no Google Drive",
     resumo: "O PDF da proposta cai sozinho na pasta do cliente, no Drive da empresa.",
     detalhes: ["A pasta é criada pela ProOps; nada é lido do seu Drive."],
@@ -159,7 +148,6 @@ export const RECURSOS_DE_ENTREGA: readonly Recurso[] = [
   },
   {
     id: "aceite-da-entrega",
-    categoria: "obra",
     titulo: "Aceite da entrega",
     resumo: "O cliente confere a obra pelo link e aceita a entrega com nome e documento.",
     detalhes: ["A obra fecha e a equipe é avisada no aceite."],
