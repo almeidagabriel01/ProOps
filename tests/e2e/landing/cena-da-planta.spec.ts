@@ -142,6 +142,30 @@ test.describe("LANDING-CENA-01: o nicho do exemplo", () => {
     // A conta não muda com o nicho: o que troca é o vocabulário.
     await expect(page.locator("[data-folha] li").first()).toContainText("6.850,00");
   });
+
+  // Toda aba, sem exceção, mostra o nome dos itens. O rótulo só aparece com a
+  // regra de CSS do nicho; sem ela a proposta (e o chip sobre a casa, que é o
+  // mesmo elemento) mostra só o cômodo, que foi o que vidraçaria mostrou em
+  // produção enquanto o teste acima conferia outras abas.
+  test("toda aba mostra o nome de cada item", async ({ page }) => {
+    await page.goto(`${ERP}/`);
+    await page.waitForLoadState("networkidle");
+    await rolaAte(page, "proposta");
+
+    const abas = page.getByRole("group", { name: "Nicho do exemplo" }).getByRole("button");
+    const ids = await page.locator("[data-folha] li").first().locator("[data-rotulo-de]").evaluateAll(
+      (els) => els.map((el) => el.getAttribute("data-rotulo-de") ?? ""),
+    );
+    expect(ids.length).toBe(await abas.count());
+
+    for (let i = 0; i < ids.length; i++) {
+      await abas.nth(i).click();
+      const rotulos = page.locator(`[data-folha] [data-rotulo-de="${ids[i]}"]`);
+      await expect(rotulos.first(), `aba ${ids[i]}`).toBeVisible();
+      const visiveis = await rotulos.evaluateAll((els) => els.filter((el) => getComputedStyle(el).display !== "none").length);
+      expect(visiveis, `aba ${ids[i]}: um rótulo por item`).toBe(await page.locator("[data-folha] li").count());
+    }
+  });
 });
 
 test.describe("LANDING-CENA-01: orçamento do celular", () => {
