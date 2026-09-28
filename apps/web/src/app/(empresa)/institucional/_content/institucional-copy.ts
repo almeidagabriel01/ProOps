@@ -404,7 +404,7 @@ export type SegmentoId =
   | "cortinas"
   | "seguranca"
   | "vidracaria"
-  | "marcenaria"
+  | "moveis"
   | "paisagismo"
   | "solar";
 
@@ -423,7 +423,7 @@ export const SEGMENTOS: readonly Segmento[] = [
   { id: "cortinas", nome: "Persianas e toldos", nicho: "cortinas" },
   { id: "seguranca", nome: "Segurança eletrônica", nicho: "seguranca_eletronica" },
   { id: "vidracaria", nome: "Vidraçaria e esquadrias", nicho: "vidracaria_esquadrias" },
-  { id: "marcenaria", nome: "Marcenaria" },
+  { id: "moveis", nome: "Móveis planejados", nicho: "moveis_planejados" },
   { id: "paisagismo", nome: "Paisagismo" },
   { id: "solar", nome: "Energia solar" },
 ] as const;

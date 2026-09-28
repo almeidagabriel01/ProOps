@@ -138,6 +138,7 @@ export const metadata: Metadata = {
     "ERP persianas e toldos",
     "ERP segurança eletrônica",
     "ERP vidraçaria e esquadrias",
+    "ERP móveis planejados",
     "sistema gestão de serviços",
     "propostas comerciais",
     "CRM kanban",

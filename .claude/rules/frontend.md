@@ -43,7 +43,7 @@
 ## Multi-Niche
 - Never hardcode niche-specific logic in generic components
 - Use `useCurrentNicheConfig()` for niche-specific configuration
-- Supported niches: `automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias`
+- Supported niches: `automacao_residencial` | `cortinas` | `seguranca_eletronica` | `vidracaria_esquadrias` | `moveis_planejados`
 - Niche logic lives in `src/lib/niches/`
 
 ## Módulo novo: quatro camadas de acesso

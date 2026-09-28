@@ -1888,7 +1888,7 @@ html[data-heroi="espera"] .regua-desenha {
 [data-nicho="cortinas"] [data-rotulo-de="cortinas"],
 [data-nicho="seguranca"] [data-rotulo-de="seguranca"],
 [data-nicho="vidracaria"] [data-rotulo-de="vidracaria"],
-[data-nicho="marcenaria"] [data-rotulo-de="marcenaria"] {
+[data-nicho="moveis"] [data-rotulo-de="moveis"] {
   display: block;
 }
 .cena-legenda {

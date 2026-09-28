@@ -58,6 +58,13 @@ export const NICHE_REGISTRY = {
     productImageLimit: 3,
     defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
   },
+  moveis_planejados: {
+    label: "Móveis Planejados",
+    landingPath: "/moveis-planejados",
+    demoTenantId: "demo-moveis",
+    productImageLimit: 3,
+    defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
+  },
 } satisfies Record<string, WebNicheEntry>;
 
 export type TenantNicheId = keyof typeof NICHE_REGISTRY;
