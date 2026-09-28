@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   derivePdfUpstream,
   resolveUpstreamForHost,
@@ -26,6 +26,26 @@ describe("resolveUpstreamForHost", () => {
   });
   it("dev for null host", () => {
     expect(resolveUpstreamForHost(null, {}).target).toBe("dev");
+  });
+});
+
+describe("override do upstream local", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  // As capturas do ERP rodam o emulador do projeto de teste na 5011, porque a
+  // 5001 costuma estar com o `dev:backend`. Sem esta entrada na lista, todo
+  // `/api/backend` do servidor das capturas respondia 500.
+  it("aceita o emulador das capturas", () => {
+    const capturas = "http://127.0.0.1:5011/demo-proops-test/southamerica-east1/api";
+    vi.stubEnv("FUNCTIONS_LOCAL_API_URL", capturas);
+    expect(resolveUpstreamForHost("localhost")).toEqual({ baseUrl: capturas, target: "local" });
+  });
+
+  it("recusa um destino fora da lista, em qualquer porta", () => {
+    vi.stubEnv("FUNCTIONS_LOCAL_API_URL", "http://127.0.0.1:5012/demo-proops-test/southamerica-east1/api");
+    expect(() => resolveUpstreamForHost("localhost")).toThrow(/Invalid API upstream override/);
   });
 });
 
