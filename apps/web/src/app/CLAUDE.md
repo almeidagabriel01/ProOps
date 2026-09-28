@@ -24,12 +24,21 @@ Segmentos de rota: proposals, contacts, products, transactions, calendar, crm, d
 403, admin, agendar, ambientes, aplicativo, api, auth,
 automacao-residencial, automation, calendar, cash-flow, checkout-success,
 commissions, contacts, contato, cookies, crm, dashboard, data-deletion, dre,
-decoracao, fale-conosco, forgot-password, institucional, invoices, login,
+decoracao, fale-conosco, forgot-password, funcionalidades, institucional, invoices, login,
 manifesto, notifications, privacy, products, produtos, profile, projects, proposals,
 register, reset,
 services, settings, share, sobre, solutions, spreadsheets, subscribe,
 subscription-blocked, tasks, team, terms, transactions, verify, wallets
 ```
+
+`funcionalidades` é a página pública com tudo o que o ERP faz, no host do ERP.
+Ela é montada no servidor a partir do catálogo em `lib/landing/funcionalidades/`
+(recursos, categorias e os cinco destaques da home), e o plano de cada recurso é
+um selo DERIVADO de `DEFAULT_PLANS` e dos add-ons (`selo-do-plano.ts`), com
+paridade testada contra o `PLAN_CATALOG` do backend. Nunca escreva o nome de um
+plano num recurso: declare a chave de `PlanFeatures` que o libera. Recurso
+novo no ERP entra no catálogo, e o teste do selo reprova se uma capacidade
+vendável não aparecer em nenhum recurso.
 
 `sobre`, `manifesto`, `produtos` e `fale-conosco` são as páginas do
 **site da empresa** e vivem no route group `(empresa)/`, que não entra na URL.

@@ -13,7 +13,7 @@ lib/
 ├── firestore-error.ts       # Tratamento de erros Firestore
 ├── auth/                    # Helpers de autenticação (verificação de token, session)
 ├── niches/                  # Lógica multi-niche (automacao_residencial | cortinas | seguranca_eletronica | vidracaria_esquadrias | marcenaria)
-├── plans/                   # Rótulo de plano (`plan-label.ts`)
+├── plans/                   # Rótulo de plano (`plan-label.ts`) e os dados puros de plano e add-ons (`default-plans.ts`, `addon-definitions.ts`), sem Firebase, para Server Component
 ├── site/                    # Política de host: qual das 3 superfícies e o SEO de cada uma
 ├── permissions/             # Fonte única dos pageIds do sistema de permissões
 ├── notifications/           # Catálogo, link, leitor (por pessoa) e escopo das notificações

@@ -64,15 +64,16 @@ Runs on PRs and Merge Queue events:
 - `e2e-mobile` — Playwright no projeto `mobile-chrome` (Pixel 5, 393x851, `hasTouch`), **em 2 shards** (`--shard=N/2`). Roda **em paralelo** com `e2e`, não depende dele. Cobre `tests/e2e/mobile/**` + `smoke.spec.ts`.
 - `e2e-financial`: Playwright em `tests/e2e/financial`, **2 shards**, em paralelo com `e2e`. Artefatos `playwright-report-financial-shard<N>-<run>`.
 - `performance` — Core Web Vitals + API baseline. Roda **em paralelo** com o E2E: sobe os próprios emuladores e não usa nada dele.
-- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build, **dividido em 3 shards paralelos** (3 URLs cada). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. Gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed` (um job em matriz falha se qualquer shard falhar).
+- `lighthouse` — throttled-mobile Lighthouse perf budget on a production build, **dividido em 5 shards paralelos** (2 ou 3 URLs cada). Runs **in parallel with E2E**, not after: it builds its own production server and depends on nothing from the E2E jobs. Gating it behind E2E added ~8 min of wall clock to every run for no benefit — Actions minutes are free on this public repo. Still required by `all-checks-passed` (um job em matriz falha se qualquer shard falhar).
 - `security` — OWASP ZAP baseline. Roda **em paralelo** com o E2E: faz o próprio build e `npm start`. Esperar os shards (como era até 2026-09-23) só somava ~8 min de relógio.
 - `all-checks-passed` — consolidated gate required by branch protection
 
 ## Lighthouse Perf Budget (`lighthouse` job + `lighthouserc.json`)
 
 Builds Next.js for production, starts `next start -p 3001`, and runs Lighthouse 3x per
-URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
-`/contato`, `/agendar`, `/aplicativo`, `/institucional`, `/sobre`, `/produtos`) under
+URL across the **13 animated public routes** (`/`, `/automacao-residencial`, `/decoracao`,
+`/contato`, `/agendar`, `/aplicativo`, `/institucional`, `/sobre`, `/produtos`,
+`/funcionalidades`, `/seguranca-eletronica`, `/vidracaria-esquadrias`, `/marcenaria`) under
 **mobile + 4x CPU + slow-3G, REAL `devtools` throttling**.
 
 - Config: `lighthouserc.json` at repo root (uses `@lhci/cli`, already a devDependency).
@@ -101,7 +102,7 @@ URL across the **9 animated public routes** (`/`, `/automacao-residencial`, `/de
   deferred (`requestIdleCallback`, commit `550a9bbd`).
 - Run locally: `npm run build && npm run test:lighthouse` (needs a built `.next/`).
 - Report artifact: `lighthouse-report-shard<N>-<run>` (from `lhci-report/`), um por shard.
-- **Shards.** No CI o job roda em matriz de 3 (`test-suite.yml`), e cada shard passa as
+- **Shards.** No CI o job roda em matriz de 5 (`test-suite.yml`), e cada shard passa as
   suas URLs por `--collect.url`, que **sobrepõe** a lista do `lighthouserc.json`. Os
   tetos continuam vindo do arquivo, porque o `assertMatrix` casa por padrão de URL.
   **Ao acrescentar uma URL no `lighthouserc.json`, ponha-a também num shard da matriz**,

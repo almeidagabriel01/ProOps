@@ -10,9 +10,9 @@ em `tenants/{id}.niche` e **nunca muda** depois, nem pelo superadmin (rules,
 | O quê | Onde | Quem lê |
 |---|---|---|
 | Registro de domínio (fonte) | `apps/functions/src/shared/niches.ts` (`NICHE_REGISTRY`, puro) | backend: demo, imagens, agendamento, etapas da obra, rótulo da IA |
-| Espelho no front | `registry.ts` (puro, sem import) | proxy (rotas públicas), sitemap, ids, rótulo, caminho da landing |
+| Espelho no front | `registry.ts` (puro, sem import) | proxy (rotas públicas), sitemap, ids, rótulo, caminho da landing, etapas da obra (as landings mostram as reais) |
 | Configuração de tela | `definitions/<id>/app.ts` (`NicheConfig`) | toda tela, via `useCurrentNicheConfig()` / `getNicheConfig()` |
-| Texto da landing | `definitions/<id>/landing.ts` (`NicheLandingConfig`) | landing, galeria da home, metadados |
+| Landing | `definitions/<id>/landing.ts` (`NicheLandingConfig`) | landing (cor, cena, proposta de exemplo, textos), galeria da home, metadados |
 | Vocabulário (local, grupo) | `definitions/<id>/app.ts` → `vocabulary` | textos de tela, via `useNicheVocabulary()` ou `getNicheConfig(n).vocabulary` |
 | Demonstração | `apps/functions/src/scripts/demo/datasets/<id>.ts` (só dados) | motor `scripts/demo/engine.ts` |
 | Rules | `firebase/firestore.rules` (`isKnownTenantNiche`, `isDemoRead`) | cadastro e leitura da demonstração |
@@ -27,12 +27,23 @@ Cada passo diz o que o cobra. Nenhum passo depende de lembrar.
 1. **Registro do backend**: uma entrada em `NICHE_REGISTRY` (demo, limite de
    imagens, tipo de visita, etapas da obra, rótulo da IA). O compilador cobra
    toda tabela derivada.
-2. **Espelho do front**: a mesma chave em `registry.ts`, com `label` e
-   `landingPath`. **Rules**: o id em `isKnownTenantNiche` e o `demoTenantId` em
+2. **Espelho do front**: a mesma chave em `registry.ts`, com `label`,
+   `landingPath` e a cópia de `stageTemplate` (a landing mostra as etapas
+   REAIS da obra do nicho). **Rules**: o id em `isKnownTenantNiche` e o `demoTenantId` em
    `isDemoRead`. Cobra: `__tests__/niche-registry-parity.test.ts`.
 3. **Pasta `definitions/<id>/`**: `app.ts` (config de tela, com o vocabulário)
-   e `landing.ts` (texto da landing, SEO e cartão da galeria). Cobra: os
-   `Record` de `NICHE_CONFIGS` e `NICHE_LANDING_CONFIG`. Os textos de menu,
+   e `landing.ts`. A landing é um template só
+   (`components/landing/niche/niche-landing-page.tsx`, de servidor), e o que a
+   torna do nicho é este arquivo: `acento` (a cor sobre a base preto e branco),
+   `hero.provas`, `dores` (antes e depois), `propostaExemplo` (itens com
+   produto e medidas; o total sai do motor de preço, nunca digitado), `cena`
+   (uma das cenas de `components/landing/niche/cenas/`, ou uma nova no mapa de
+   `niche-cena.tsx`), e o `modo` de cada módulo quando ele vende um modo de
+   preço. Cobra: os `Record` de `NICHE_CONFIGS` e `NICHE_LANDING_CONFIG`,
+   o tipo (campo obrigatório não compila) e
+   `__tests__/niche-landing-content.test.ts` (contraste do acento nos dois
+   temas, cor distinta dos outros nichos, modos vendidos = modos do nicho,
+   cena serializável, proposta coerente). Os textos de menu,
    passo da proposta e subtotal do PDF saem do vocabulário
    (`copy-builders.ts`); declare override só para texto autoral.
 4. **Demonstração**: `apps/functions/src/scripts/demo/datasets/<id>.ts`,
