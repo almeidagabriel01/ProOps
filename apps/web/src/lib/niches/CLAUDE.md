@@ -49,7 +49,11 @@ Cada passo diz o que o cobra. Nenhum passo depende de lembrar.
    Cobra: `__tests__/niche-marketing-mentions.test.ts`. E uma aba na cena da
    planta da landing (`components/marketing/cena-planta/dados.ts`, com os seis
    rótulos no vocabulário do nicho, mais a linha do nicho no `globals.css`).
-   Cobra: `components/marketing/cena-planta/__tests__/cena-planta.test.ts`.
+   Cobra: `components/marketing/cena-planta/__tests__/cena-planta.test.ts`. E
+   uma prancha no herói do site da empresa: o segmento em `SEGMENTOS`
+   (`app/(empresa)/institucional/_content/institucional-copy.ts`, com o campo
+   `nicho`) e o desenho dele em `_components/heroi/pranchas.ts`, que é um
+   `Record` e não compila sem ele. Cobra: `__tests__/niche-contract.test.ts`.
 
 Nicho que cobra por medida (m², metro linear, faixa de altura) usa os modos que
 já existem (`pricing.dimensionModes`) e troca o nome deles em

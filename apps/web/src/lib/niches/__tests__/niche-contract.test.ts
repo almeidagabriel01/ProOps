@@ -67,12 +67,11 @@ describe("site da empresa lista os nichos prontos", () => {
     expect(NICHOS_PRONTOS).toHaveLength(TENANT_NICHES.length);
   });
 
-  it("a prancheta não marca como pronto mais segmentos do que existem", () => {
-    // A prancheta do herói só ganha um segmento com o desenho dele; um nicho
-    // pode estar pronto antes de ter prancha, mas nunca o contrário.
-    expect(SEGMENTOS.filter((segmento) => segmento.pronto).length).toBeLessThanOrEqual(
-      TENANT_NICHES.length,
-    );
+  // A prancheta do herói é a primeira coisa que o visitante vê: um nicho pronto
+  // sem desenho lá é um cliente que não se reconhece e fecha a aba. Segurança
+  // eletrônica nasceu assim.
+  it.each([...TENANT_NICHES])("a prancheta do herói desenha o nicho %s como pronto", (niche) => {
+    expect(SEGMENTOS.filter((segmento) => segmento.nicho === niche)).toHaveLength(1);
   });
 });
 

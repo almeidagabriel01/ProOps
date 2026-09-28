@@ -200,7 +200,7 @@ export const ITENS: readonly Item[] = [
  * operação de quem chega. Quem vende projeto e não se vê entre os pacotes
  * prontos precisa se ver na página antes de acreditar na frase.
  */
-export type NichoDaCena = "automacao" | "cortinas" | "seguranca" | "marcenaria";
+export type NichoDaCena = "automacao" | "cortinas" | "seguranca" | "vidracaria" | "marcenaria";
 
 export interface Nicho {
   id: NichoDaCena;
@@ -255,6 +255,20 @@ export const NICHOS: readonly Nicho[] = [
       "Controle de acesso biométrico",
       "Sensor de fumaça e gás",
       "Câmeras externas com visão noturna",
+    ],
+  },
+  {
+    id: "vidracaria",
+    nicho: "vidracaria_esquadrias",
+    rotulo: "Vidraçaria e esquadrias",
+    nota: "Orçamento por m² a partir das medidas do vão: mais um pacote pronto.",
+    rotulos: [
+      "Janela de correr em alumínio",
+      "Janela maxim-ar com vidro fosco",
+      "Porta de correr em vidro temperado",
+      "Guarda-corpo em vidro laminado",
+      "Painel de vidro na cozinha",
+      "Envidraçamento da sacada",
     ],
   },
   {

@@ -308,6 +308,41 @@ for (const tela of [
 }
 
 /**
+ * **As abas de nicho no retrato são uma linha só.** A faixa de texto de cima
+ * tem altura reservada (`--faixa-topo`), e cada linha a mais de abas empurra a
+ * nota para cima da casa. Com cinco nichos isso reprovou no CI a 360px, com a
+ * fonte do Linux, e passava no Windows. Contar linhas não depende da fonte:
+ * todas as abas têm o mesmo topo, com qualquer número de nichos.
+ */
+for (const viewport of [
+  { width: 360, height: 740 },
+  { width: 417, height: 760 },
+  { width: 820, height: 1180 },
+]) {
+  test.describe(`LANDING-CENA-01: abas de nicho em ${viewport.width}px`, () => {
+    test.use({ viewport });
+
+    test("ficam numa linha só, e a última é alcançável", async ({ page }) => {
+      await page.goto(`${ERP}/`);
+      await page.waitForLoadState("networkidle");
+      const abas = page.getByRole("group", { name: "Nicho do exemplo" }).getByRole("button");
+      await abas.first().scrollIntoViewIfNeeded();
+
+      const topos = await abas.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+      expect(topos.length).toBeGreaterThanOrEqual(5);
+      expect(new Set(topos).size).toBe(1);
+
+      // A fita rola de lado; a página, não.
+      const larguraDaPagina = await page.evaluate(() => document.documentElement.scrollWidth);
+      expect(larguraDaPagina).toBeLessThanOrEqual(viewport.width);
+
+      await abas.last().click();
+      await expect(abas.last()).toHaveAttribute("aria-pressed", "true");
+    });
+  });
+}
+
+/**
  * **Celular.** Seis pílulas de item sobre uma casa de 345px se empilham umas
  * por cima das outras e cobrem a casa inteira, que foi o que se viu em
  * produção. No retrato cada item apaga quando o seguinte aparece.

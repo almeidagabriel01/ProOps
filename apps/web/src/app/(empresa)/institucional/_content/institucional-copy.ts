@@ -20,7 +20,7 @@ export const PLACEHOLDER = false;
 // cópia, e a que ninguém lembraria de trocar.
 export { WHATSAPP_HREF } from "@/components/landing/_shared/whatsapp";
 import { WHATSAPP_HREF as WPP } from "@/components/landing/_shared/whatsapp";
-import { NICHE_REGISTRY, TENANT_NICHES } from "@/lib/niches/registry";
+import { NICHE_REGISTRY, TENANT_NICHES, type TenantNicheId } from "@/lib/niches/registry";
 
 export interface Principio {
   titulo: string;
@@ -402,27 +402,30 @@ export const HEROI_SOBRE = {
 export type SegmentoId =
   | "automacao"
   | "cortinas"
+  | "seguranca"
+  | "vidracaria"
   | "marcenaria"
   | "paisagismo"
-  | "piscinas"
-  | "solar"
-  | "climatizacao";
+  | "solar";
 
 export interface Segmento {
   id: SegmentoId;
   nome: string;
-  /** Só é `true` o que existe configurado no produto hoje. */
-  pronto?: boolean;
+  /**
+   * O nicho do produto que este desenho representa: só quem tem é "pacote
+   * pronto". Todo nicho do registro precisa de um (`niche-contract.test.ts`).
+   */
+  nicho?: TenantNicheId;
 }
 
 export const SEGMENTOS: readonly Segmento[] = [
-  { id: "automacao", nome: "Automação residencial", pronto: true },
-  { id: "cortinas", nome: "Persianas e toldos", pronto: true },
+  { id: "automacao", nome: "Automação residencial", nicho: "automacao_residencial" },
+  { id: "cortinas", nome: "Persianas e toldos", nicho: "cortinas" },
+  { id: "seguranca", nome: "Segurança eletrônica", nicho: "seguranca_eletronica" },
+  { id: "vidracaria", nome: "Vidraçaria e esquadrias", nicho: "vidracaria_esquadrias" },
   { id: "marcenaria", nome: "Marcenaria" },
   { id: "paisagismo", nome: "Paisagismo" },
-  { id: "piscinas", nome: "Piscinas" },
   { id: "solar", nome: "Energia solar" },
-  { id: "climatizacao", nome: "Climatização" },
 ] as const;
 
 /**

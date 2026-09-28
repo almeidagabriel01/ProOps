@@ -114,7 +114,7 @@ export function Lanterna() {
               key={segmento.id}
               prancha={PRANCHAS[segmento.id]}
               rotulo={segmento.nome}
-              apoio={segmento.pronto ? pronto : undefined}
+              apoio={segmento.nicho ? pronto : undefined}
               ordem={i}
             />
           ))}

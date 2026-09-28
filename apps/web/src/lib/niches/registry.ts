@@ -51,6 +51,13 @@ export const NICHE_REGISTRY = {
     productImageLimit: 1,
     defaultVisitType: { id: "vistoria_tecnica", label: "Vistoria técnica", durationMin: 60 },
   },
+  vidracaria_esquadrias: {
+    label: "Vidraçaria e Esquadrias",
+    landingPath: "/vidracaria-esquadrias",
+    demoTenantId: "demo-vidracaria",
+    productImageLimit: 3,
+    defaultVisitType: { id: "medicao", label: "Medição", durationMin: 60 },
+  },
 } satisfies Record<string, WebNicheEntry>;
 
 export type TenantNicheId = keyof typeof NICHE_REGISTRY;

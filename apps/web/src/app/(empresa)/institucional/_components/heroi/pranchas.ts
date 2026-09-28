@@ -115,16 +115,25 @@ export const PRANCHAS: Record<SegmentoId, Prancha> = {
     lugar: { x: 8, y: 18, largura: 17, giro: 4 },
   },
 
-  piscinas: {
+  // Planta baixa com as câmeras nos cantos, o campo de visão de cada uma, a
+  // central de alarme e dois sensores.
+  seguranca: {
     tracos: [
       "M3 6H97V66H3Z",
-      "M22 14H74A7 7 0 0 1 81 21V47A7 7 0 0 1 74 54H22A7 7 0 0 1 15 47V21A7 7 0 0 1 22 14Z",
-      "M25 19H71A4 4 0 0 1 75 23V45A4 4 0 0 1 71 49H25A4 4 0 0 1 21 45V23A4 4 0 0 1 25 19Z",
-      "M58 14V8M68 14V8M58 11H68",
-      "M3 60H97",
-      "M14 60V66M26 60V66M38 60V66M50 60V66M62 60V66M74 60V66M86 60V66",
+      "M52 6V30",
+      "M52 44V66",
+      "M3 38H28",
+      "M40 38H52",
+      "M7 10H15V15H7Z",
+      "M85 57H93V62H85Z",
+      "M64 12H80V24H64Z",
+      "M67 16H77M67 20H77",
     ],
-    guias: ["M30 34q6-4 12 0t12 0t12 0", "M30 40q6-4 12 0t12 0t12 0"],
+    guias: ["M15 13L42 20M15 13L30 34", "M85 59L60 52M85 59L72 42"],
+    discos: [
+      [42, 52, 2.6],
+      [88, 30, 2.6],
+    ],
     lugar: { x: 58, y: 60, largura: 22, giro: -2 },
   },
 
@@ -142,18 +151,19 @@ export const PRANCHAS: Record<SegmentoId, Prancha> = {
     lugar: { x: 93, y: 74, largura: 17, giro: -4 },
   },
 
-  climatizacao: {
+  // Vista de frente de uma janela de correr: duas folhas que se sobrepõem no
+  // meio, os puxadores, os reflexos no vidro e a seta de quem desliza.
+  vidracaria: {
     tracos: [
-      "M6 6H94V64H6Z",
-      "M6 58H94",
-      "M62 14H90V25H62Z",
-      "M66 25L64 29M72 25L70 29M78 25L76 29M84 25L82 29",
-      "M6 10H40V19H6",
-      "M30 19L26 23M36 19L32 23",
-      "M14 44H34V58H14Z",
-      "M14 50H34",
+      "M6 6H94V60H6Z",
+      "M10 10H52V56H10Z",
+      "M48 10H90V56H48Z",
+      "M4 64H96",
+      "M44 30V36M56 30V36",
+      "M18 44L30 24M24 48L36 28",
+      "M62 44L74 24M68 48L80 28",
     ],
-    guias: ["M60 29C44 35 30 33 16 39", "M60 35C46 43 30 43 16 49"],
+    guias: ["M60 69H80M76 67L80 69L76 71"],
     lugar: { x: 87, y: 27, largura: 16, giro: -3 },
   },
 };
