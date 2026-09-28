@@ -1,4 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+
+import { TENANT_NICHES } from "@/lib/niches/registry";
 
 import {
   COMODOS,
@@ -14,6 +18,8 @@ import {
   formataReais,
   type Parede,
 } from "../dados";
+
+const GLOBALS_CSS = fs.readFileSync(path.resolve(__dirname, "../../../../app/globals.css"), "utf8");
 
 /** Uma borda de cômodo está coberta se alguma parede colinear a contém. */
 function coberta(eixo: "x" | "z", fixo: number, de: number, ate: number, paredes: readonly Parede[]) {
@@ -61,6 +67,18 @@ describe("cena-planta", () => {
       expect(new Set(nicho.rotulos).size, nicho.id).toBe(nicho.rotulos.length);
     }
     expect(new Set(NICHOS.map((n) => n.id)).size).toBe(NICHOS.length);
+  });
+
+  // A seção vende os pacotes prontos: um nicho do produto sem aba aqui some
+  // da landing em silêncio (foi o que aconteceu com segurança eletrônica).
+  it.each([...TENANT_NICHES])("o nicho %s tem aba na cena", (niche) => {
+    expect(NICHOS.filter((n) => n.nicho === niche)).toHaveLength(1);
+  });
+
+  // O rótulo só aparece com a regra de CSS do nicho; sem ela a aba troca e a
+  // proposta fica em branco.
+  it.each(NICHOS.map((n) => n.id))("o CSS mostra os rótulos da aba %s", (id) => {
+    expect(GLOBALS_CSS).toContain(`[data-nicho="${id}"] [data-rotulo-de="${id}"]`);
   });
 
   it("todo item pertence a um cômodo, e toda cortina tem janela", () => {

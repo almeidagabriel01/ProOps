@@ -55,9 +55,12 @@ nenhum, e o chip que está voando continua voando.
 
 O que muda entre nichos é SÓ o rótulo: cômodos, preços, cortinas e a conta são
 os mesmos, porque a tese da seção é exatamente essa (muda o catálogo e as
-palavras, não a base). `marcenaria` não é um nicho configurado no produto
-(`lib/niches/config.ts` tem dois); é o exemplo de um nicho novo, e a nota
-embaixo das abas diz isso.
+palavras, não a base). Todo nicho pronto do produto tem aba, ligada pelo campo
+`nicho` de `NICHOS`; `marcenaria` não tem esse campo porque não é um nicho
+configurado, é o exemplo de um nicho novo, e a nota embaixo das abas diz isso.
+Aba nova precisa da sua linha em `[data-nicho="x"] [data-rotulo-de="x"]` no
+`globals.css`, senão a proposta fica em branco. Os dois casos reprovam em
+`__tests__/cena-planta.test.ts`.
 
 **Num teste, rótulo escondido continua no `textContent`.** `toContainText` lê
 `textContent` e enxerga o que está em `display: none`, então a asserção é de
