@@ -28,7 +28,18 @@ export function SeletorDeNicho({ className }: { className?: string }) {
 
   return (
     <div ref={ancora} data-seletor-de-nicho="" className={cn("pointer-events-auto", className)}>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Nicho do exemplo">
+      {/* No retrato as abas são UMA linha que rola de lado. A faixa de texto de
+          cima tem altura reservada (`--faixa-topo`, no globals.css), e abas que
+          quebram em linhas empurram a nota para cima da casa: com cinco nichos
+          isso já acontecia a 360px com a fonte do Linux. Uma linha só não
+          depende da fonte nem de quantos nichos existem. O `pr-10` deixa a
+          última aba passar do esmaecido da borda. */}
+      <div
+        className="-mx-6 flex gap-1.5 overflow-x-auto px-6 pr-10 [mask-image:linear-gradient(to_right,black_85%,transparent)] [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:[mask-image:none] [&::-webkit-scrollbar]:hidden"
+        role="group"
+        aria-label="Nicho do exemplo"
+        data-abas-de-nicho=""
+      >
         {NICHOS.map((nicho) => (
           <button
             key={nicho.id}
@@ -36,7 +47,7 @@ export function SeletorDeNicho({ className }: { className?: string }) {
             aria-pressed={ativo === nicho.id}
             onClick={() => escolhe(nicho.id)}
             className={cn(
-              "cursor-pointer rounded-full border px-3 py-1.5 text-xs transition-colors duration-300 md:text-[13px]",
+              "shrink-0 cursor-pointer whitespace-nowrap rounded-full border px-3 py-1.5 text-xs transition-colors duration-300 md:text-[13px]",
               ativo === nicho.id
                 ? "border-[rgb(var(--realce)/0.6)] bg-[rgb(var(--realce)/0.12)] text-white"
                 : "border-white/15 text-white/55 hover:border-white/30 hover:text-white/80",
