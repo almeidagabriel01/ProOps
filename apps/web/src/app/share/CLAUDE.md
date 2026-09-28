@@ -151,6 +151,15 @@ alguém da equipe.
   diferente, aprova ou recusa; ou pelo "Marcar como resolvido"
   (`POST /v1/proposals/:id/change-request/resolve`). Com o pedido aberto, o
   cliente ainda pode aceitar, mas não abre outro pedido.
+- **Histórico dos pedidos para o cliente:** o estado do link traz
+  `changeRequests` (o atual e os de `clientChangeRequestHistory`, do mais novo
+  ao mais antigo, montados por `publicChangeRequestHistory`), só com nome,
+  mensagem, data e status (`open` | `resolved`, com a data da resolução); IP,
+  navegador e quem resolveu nunca saem. Com pelo menos um pedido, o painel mostra
+  "Histórico de solicitações (N)", que abre o modal com cada pedido e o selo "Em
+  análise" ou "Resolvida", e o painel do topo aparece mesmo sem outra ação. Um
+  pedido recém-enviado entra no topo da lista sem recarregar. O campo é opcional
+  no tipo do front: com backend antigo o botão só não aparece.
 - **Ao vivo no ERP:** `hooks/use-client-responses.ts` escuta, em tempo real,
   só as propostas com aceite pendente ou pedido aberto (duas consultas por
   igualdade). A lista, o quadro e a visualização leem dele, então o selo e o
@@ -168,8 +177,22 @@ depois de enviar.
 - Mora sob `/share` e não em `/visita` de propósito: herda a árvore sem
   sessão do `providers.tsx`, o `noindex` e a exceção do redirect do apex, que
   uma rota nova precisaria repetir em quatro lugares.
-- Só dia com horário livre aparece. Um 409 (alguém pegou o horário no meio do
-  caminho) recarrega os horários e pede outro.
+- **Dois passos num cartão só**: "Dia e horário" (calendário do mês, em grade
+  de domingo a sábado, e os horários do dia separados em Manhã, Tarde e Noite)
+  e "Seus dados" (o formulário, com "Trocar horário" que volta sem perder o que
+  foi digitado). A coluna da esquerda tem a empresa, o tipo de visita com a
+  duração, a escolha feita e o "Como funciona" (só a partir de `lg`). O
+  calendário substituiu uma faixa de dias com rolagem lateral.
+- Só dia com horário livre é botão; os outros ficam apagados e fora do
+  teclado. As setas de mês param no primeiro e no último mês com horário. As
+  exceções da empresa chegam aqui só como horário que falta: a visão pública
+  não as devolve.
+- Um 409 (alguém pegou o horário no meio do caminho) volta para o calendário,
+  recarrega os horários e pede outro.
+- **Cor da empresa em variáveis CSS** no contêiner: `--brand` e `--brand-fg`
+  para o que é preenchido, e `--brand-line` (`useThemeAdjustedColor`) para
+  borda, anel e os tons feitos com `color-mix`. Uma empresa de cor branca ou
+  preta continua com o dia e o horário escolhidos visíveis nos dois temas.
 - Captcha pelo `lib/captcha.ts` (interativo) e um campo isca `website`, fora da
   árvore acessível, que o backend usa para responder "ok" a robô sem gravar.
 - O botão de envio usa `brandButtonStyle`, como os outros daqui.

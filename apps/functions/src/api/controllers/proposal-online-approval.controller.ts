@@ -17,6 +17,8 @@ import {
   buildClientAcceptance,
   isAcceptancePending,
   isChangeRequestOpen,
+  publicChangeRequestHistory,
+  type PublicChangeRequest,
   isProposalExpired,
   pickPayableTransaction,
   proposalContentHash,
@@ -43,6 +45,8 @@ export interface OnlineApprovalState {
   canRequestChanges: boolean;
   /** Pedido de mudanças ainda aberto (a empresa está revisando). */
   changeRequest: Pick<ClientChangeRequest, "requestedAt"> | null;
+  /** Todos os pedidos de mudanças, do mais novo para o mais antigo, com o status. */
+  changeRequests: PublicChangeRequest[];
   /** Aprovada e com algo a pagar online: o link mostra o botão de pagar. */
   payment: { label: string } | null;
 }
@@ -109,6 +113,7 @@ export async function resolveOnlineApprovalState(
         : null,
     canRequestChanges: open && !requestOpen,
     changeRequest: requestOpen && request ? { requestedAt: request.requestedAt } : null,
+    changeRequests: publicChangeRequestHistory(request, proposal.clientChangeRequestHistory),
     payment,
   };
 }

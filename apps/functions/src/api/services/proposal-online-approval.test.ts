@@ -9,6 +9,7 @@ import {
   pickPayableTransaction,
   resolveChangeRequestOnSave,
   pickApprovedStatus,
+  publicChangeRequestHistory,
   todayInBrazil,
 } from "./proposal-online-approval";
 
@@ -327,3 +328,65 @@ describe("pickPayableTransaction", () => {
   });
 });
 
+
+describe("publicChangeRequestHistory", () => {
+  const resolved = (requestedAt: string, over: Record<string, unknown> = {}) => ({
+    name: "Maria",
+    message: `Pedido de ${requestedAt}`,
+    requestedAt,
+    ip: "200.1.2.3",
+    userAgent: "Mozilla",
+    sharedProposalId: "sp1",
+    status: "resolved",
+    contentHash: "h",
+    resolvedAt: "2026-09-27T12:00:00.000Z",
+    resolvedBy: "uid-da-equipe",
+    ...over,
+  });
+
+  it("junta o atual e o histórico, do mais novo ao mais antigo, sem IP nem quem resolveu", () => {
+    const current = resolved("2026-09-26T10:00:00.000Z", { status: "open", resolvedAt: undefined, resolvedBy: undefined });
+    const list = publicChangeRequestHistory(current, [
+      resolved("2026-09-20T10:00:00.000Z"),
+      resolved("2026-09-24T10:00:00.000Z", { name: null }),
+    ]);
+    expect(list.map((r) => [r.requestedAt, r.status])).toEqual([
+      ["2026-09-26T10:00:00.000Z", "open"],
+      ["2026-09-24T10:00:00.000Z", "resolved"],
+      ["2026-09-20T10:00:00.000Z", "resolved"],
+    ]);
+    expect(list[0]).toEqual({
+      name: "Maria",
+      message: "Pedido de 2026-09-26T10:00:00.000Z",
+      requestedAt: "2026-09-26T10:00:00.000Z",
+      status: "open",
+      resolvedAt: null,
+    });
+    expect(list[1].name).toBeNull();
+    for (const item of list) {
+      expect(Object.keys(item).sort()).toEqual(["message", "name", "requestedAt", "resolvedAt", "status"]);
+    }
+  });
+
+  it("o atual resolvido aparece como resolvido, com a data", () => {
+    const list = publicChangeRequestHistory(resolved("2026-09-26T10:00:00.000Z"), undefined);
+    expect(list).toEqual([
+      expect.objectContaining({ status: "resolved", resolvedAt: "2026-09-27T12:00:00.000Z" }),
+    ]);
+  });
+
+  it("pedido no histórico nunca aparece aberto, nem sem status", () => {
+    const list = publicChangeRequestHistory(undefined, [
+      resolved("2026-09-20T10:00:00.000Z", { status: "open" }),
+      resolved("2026-09-21T10:00:00.000Z", { status: undefined }),
+    ]);
+    expect(list.every((r) => r.status === "resolved")).toBe(true);
+  });
+
+  it("sem pedido nenhum: lista vazia; lixo e repetido ficam de fora", () => {
+    expect(publicChangeRequestHistory(undefined, undefined)).toEqual([]);
+    const current = resolved("2026-09-26T10:00:00.000Z");
+    const list = publicChangeRequestHistory(current, [current, null, "x", { message: 1 }]);
+    expect(list).toHaveLength(1);
+  });
+});

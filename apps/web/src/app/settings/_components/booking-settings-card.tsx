@@ -11,9 +11,10 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import { WEEKDAY_OPTIONS, formatMinutes } from "@/lib/booking/booking-format";
+import { WEEKDAY_OPTIONS, formatDuration, formatMinutes } from "@/lib/booking/booking-format";
 import { BookingService, type BookingSettings } from "@/services/booking-service";
 import { BookingCardSkeleton } from "./settings-skeleton";
+import { BookingExceptionsEditor } from "./booking-exceptions-editor";
 
 interface BookingSettingsCardProps {
   /** Conta de demonstração: mostra o padrão, sem link e sem salvar. */
@@ -35,12 +36,12 @@ const LEAD_OPTIONS = [
 ];
 const HORIZON_OPTIONS = [7, 14, 21, 30, 60];
 
-function durationLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest ? `${hours}h${rest}` : `${hours}h`;
-}
+/**
+ * Nome, duração e lixeira. O cabeçalho usa a mesma grade, senão o rótulo da
+ * duração não fica em cima da coluna dela. A coluna da lixeira existe sempre,
+ * mesmo vazia, para a largura não mudar ao remover o penúltimo tipo.
+ */
+const visitTypeGrid = "sm:grid sm:grid-cols-[minmax(0,1fr)_9rem_2.5rem]";
 
 /**
  * Expediente do link de agendamento: dias, horário, antecedência, até quando e
@@ -250,10 +251,15 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
         </div>
 
         <div className="space-y-2">
-          <Label>Tipos de visita</Label>
+          {/* Os dois rótulos em cima das colunas; no celular cada linha
+              empilha, e a duração ganha o rótulo dela. */}
+          <div className={cn("gap-2", visitTypeGrid)}>
+            <Label>Tipos de visita</Label>
+            <Label className="hidden whitespace-nowrap sm:block">Tempo de duração</Label>
+          </div>
           <ul className="space-y-2">
             {settings.visitTypes.map((type, index) => (
-              <li key={type.id || index} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <li key={type.id || index} className={cn("flex flex-col gap-2 sm:items-center", visitTypeGrid)}>
                 <Input
                   aria-label={`Nome do tipo de visita ${index + 1}`}
                   value={type.label}
@@ -264,11 +270,11 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
                       visitTypes: settings.visitTypes.map((t, i) => (i === index ? { ...t, label: e.target.value } : t)),
                     })
                   }
-                  className="sm:flex-1"
                 />
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 sm:contents">
+                  <span className="shrink-0 text-sm text-muted-foreground sm:hidden">Tempo de duração</span>
                   <Select
-                    aria-label={`Duração do tipo de visita ${index + 1}`}
+                    aria-label={`Tempo de duração do tipo de visita ${index + 1}`}
                     value={String(type.durationMin)}
                     disabled={readOnly}
                     onChange={(e) =>
@@ -279,11 +285,10 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
                       })
                     }
                     disableSort
-                    className="w-28"
                   >
                     {DURATIONS.map((d) => (
                       <option key={d} value={d}>
-                        {durationLabel(d)}
+                        {formatDuration(d)}
                       </option>
                     ))}
                   </Select>
@@ -314,6 +319,16 @@ export function BookingSettingsCard({ readOnly = false, demoDefaults, onLoadingC
             </Button>
           )}
         </div>
+
+        {settings.exceptions && (
+          <BookingExceptionsEditor
+            exceptions={settings.exceptions}
+            onChange={(exceptions) => update({ exceptions })}
+            readOnly={readOnly}
+            startMin={settings.startMin}
+            endMin={settings.endMin}
+          />
+        )}
 
         {!readOnly && (
           <div className="flex justify-end">

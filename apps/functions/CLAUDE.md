@@ -436,6 +436,13 @@ empresa confirma ou recusa. Pro e Enterprise (`bookingLink`).
   limite de frequência dela), então compromisso marcado só no Google também
   ocupa. A consulta é por `startMs` e olha um dia antes: evento que começou
   antes e continua ocupa.
+- **Exceções** (`exceptions` em `booking_settings`): dias inteiros ou faixas de
+  um dia em que a empresa não atende. Entram no cálculo como compromisso
+  (`busyFromExceptions`), em horário de Brasília. `normalizeExceptions` descarta
+  as que já passaram, ordena e dá id estável. O motivo (`note`) é só da empresa:
+  a visão pública devolve os horários, nunca as exceções. O campo é opcional no
+  PUT (schema estrito), e a tela só o manda quando o GET o devolveu, para um
+  front novo não quebrar contra um backend antigo.
 - **O pedido roda numa transação travada pelo dia** (`booking_locks`) que
   reconsulta a Agenda: dois clientes no mesmo horário não viram duas visitas.
 - **Rota pública** em `/v1/public/booking/:token`, montada ANTES do

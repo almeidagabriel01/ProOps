@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  History,
   MessageSquareWarning,
   ShieldCheck,
 } from "lucide-react";
@@ -25,10 +26,11 @@ import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 import { formatDocumento, isDocumentoValido } from "@/lib/format-document";
 import { brandButtonStyle } from "@/utils/color-utils";
-import { formatDateBR } from "@/utils/date-format";
+import { formatDateBR, formatDateTimeBR } from "@/utils/date-format";
 import {
   SharedProposalService,
   type OnlineApprovalState,
+  type SharedChangeRequest,
 } from "@/services/shared-proposal-service";
 
 export const CHANGE_REQUEST_MIN_LENGTH = 10;
@@ -66,7 +68,7 @@ export function ProposalResponsePanel({
   position = "start",
   className,
 }: ProposalResponsePanelProps) {
-  const [dialog, setDialog] = React.useState<"accept" | "changes" | null>(null);
+  const [dialog, setDialog] = React.useState<"accept" | "changes" | "history" | null>(null);
   const [done, setDone] = React.useState<"accept" | "changes" | null>(null);
   const [name, setName] = React.useState("");
   const [document, setDocument] = React.useState("");
@@ -121,10 +123,18 @@ export function ProposalResponsePanel({
         message: message.trim(),
       });
       setDone("changes");
+      const created: SharedChangeRequest = {
+        name: changesName.trim() || null,
+        message: message.trim(),
+        requestedAt: result.requestedAt,
+        status: "open",
+        resolvedAt: null,
+      };
       onStateChange({
         ...state,
         canRequestChanges: false,
         changeRequest: { requestedAt: result.requestedAt },
+        changeRequests: [created, ...(state.changeRequests ?? [])],
       });
     } catch (err) {
       setError(errorMessage(err, "Não foi possível enviar o pedido. Tente de novo."));
@@ -144,8 +154,10 @@ export function ProposalResponsePanel({
     }
   };
 
+  const history = state.changeRequests ?? [];
   const hasAction = state.canApprove || state.canRequestChanges || !!state.payment;
-  const hasStatus = state.approved || state.expired || state.awaitingConfirmation || !!state.changeRequest;
+  const hasStatus =
+    state.approved || state.expired || state.awaitingConfirmation || !!state.changeRequest || history.length > 0;
   if (!hasAction && (position === "end" || !hasStatus)) return null;
 
   let headline: React.ReactNode = null;
@@ -211,6 +223,20 @@ export function ProposalResponsePanel({
                 </span>
               </p>
             )}
+            {history.length > 0 && (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto px-0 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setError(null);
+                  setDialog("history");
+                }}
+              >
+                <History className="mr-1.5 h-4 w-4" />
+                Histórico de solicitações ({history.length})
+              </Button>
+            )}
           </div>
 
           {hasAction && (
@@ -249,6 +275,27 @@ export function ProposalResponsePanel({
         </div>
         {error && !dialog && <p className="mt-2 text-sm text-destructive">{error}</p>}
       </section>
+
+      <Dialog open={dialog === "history"} onOpenChange={(value) => setDialog(value ? "history" : null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Histórico de solicitações</DialogTitle>
+            <DialogDescription>
+              Os pedidos de mudança feitos por este link, do mais recente ao mais antigo.
+            </DialogDescription>
+          </DialogHeader>
+          <ol className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+            {history.map((request) => (
+              <ChangeRequestItem key={request.requestedAt} request={request} tenantName={tenantName} />
+            ))}
+          </ol>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialog(null)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={dialog === "accept"}
@@ -413,5 +460,41 @@ export function ProposalResponsePanel({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function ChangeRequestItem({ request, tenantName }: { request: SharedChangeRequest; tenantName: string }) {
+  const open = request.status === "open";
+  return (
+    <li
+      className="space-y-2 rounded-lg border p-3"
+      aria-label={`Pedido de ${formatDateTimeBR(request.requestedAt)}, ${open ? "em análise" : "resolvido"}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          {formatDateTimeBR(request.requestedAt)}
+          {request.name ? `, por ${request.name}` : ""}
+        </p>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+            open
+              ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+              : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+          )}
+        >
+          {open ? <Clock className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
+          {open ? "Em análise" : "Resolvida"}
+        </span>
+      </div>
+      <p className="whitespace-pre-wrap break-words text-sm">{request.message}</p>
+      <p className="text-xs text-muted-foreground">
+        {open
+          ? `${tenantName} está revisando a proposta.`
+          : request.resolvedAt
+            ? `Resolvida em ${formatDateBR(request.resolvedAt)}.`
+            : "Resolvida."}
+      </p>
+    </li>
   );
 }
