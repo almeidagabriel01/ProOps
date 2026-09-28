@@ -23,9 +23,8 @@ interface MolduraNavegadorProps {
  * screenshot is inside it, and a screen reader announcing a fake URL bar before
  * that is noise.
  *
- * Drawn here rather than reused from `landing-showcase.tsx`, which has the same
- * chrome welded to a specific image, its own GSAP tilt and the ERP landing's
- * token palette. This one takes children and a tone.
+ * It takes children and a tone, so the same chrome frames a screenshot or one
+ * of the coded screens in `components/marketing/mocks/`.
  */
 export function MolduraNavegador({
   children,
