@@ -461,6 +461,20 @@
 .capitulo {
   --tinta: #0a0a0a;
 }
+
+/* Abaixo da dobra, fora de vista: o navegador não calcula estilo nem layout
+   do que ainda não chegou perto da tela. /funcionalidades tem ~4 mil
+   elementos (52 recursos, as telas codadas dos capítulos, a jornada), e o
+   primeiro layout disso tudo era o TBT da página no celular. `auto` guarda a
+   altura real depois da primeira vez, então a rolagem não pula ao voltar. A
+   estimativa é a mediana medida em cada caso. */
+.adiado {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 1000px;
+}
+.adiado-passo {
+  contain-intrinsic-size: auto 520px;
+}
 .dark .capitulo {
   --tinta: #fafafa;
 }

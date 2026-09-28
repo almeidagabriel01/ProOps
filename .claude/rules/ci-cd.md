@@ -145,6 +145,17 @@ URL across the **13 animated public routes** (`/`, `/automacao-residencial`, `/d
   como o CI começa a falhar por motivo que ninguém entende. Em `warn` o número aparece no
   relatório sem reprovar. **Assim que houver três execuções do CI, aperte para `error`** no
   teto que os números pedirem. O CLS delas continua `error`: esse foi medido e deu 0.
+- **`/funcionalidades` e as quatro landings de nicho novas ficam no teto genérico de 800**, sem
+  entrada própria. `/funcionalidades` chegou a medir **~850** (831 e 871 em duas medianas de 3,
+  com `/decoracao` em 216 na mesma rodada): o custo não era script, era o primeiro estilo e
+  layout de ~4 mil elementos (52 recursos, as telas codadas dos capítulos, a jornada). A
+  correção foi `content-visibility: auto` nos capítulos e nos passos da jornada estática
+  (classe `.adiado` em `app/vitrine.css`), que caiu para **308 a 365** contra 222 da
+  calibração (2026-09-28, local, Lighthouse ligado ao Chromium do Playwright porque o
+  chrome-launcher falha com EPERM ao apagar o diretório temporário no Windows). As quatro
+  landings de nicho mediram entre 282 e 337. **Não suba o teto de uma página grande antes de
+  olhar o `dom-size`:** se o `mainthread-work-breakdown` mostra "Other" e "Style & Layout"
+  à frente de "Script Evaluation", o problema é tamanho de DOM fora da tela, não JavaScript.
 - Duas das sub-páginas, e não todas, porque cada URL custa 3 corridas reais (~2 min de
   runner por URL). São as duas mais pesadas (contadores scrubados, faixa de retratos,
   ledger e a cena fixada), então uma regressão no kit de cenas aparece nelas primeiro.

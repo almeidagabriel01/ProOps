@@ -64,7 +64,7 @@ export function Capitulos({ vitrines = {} }: CapitulosProps) {
                   id={categoria.id}
                   data-capitulo=""
                   aria-labelledby={`${categoria.id}-titulo`}
-                  className="capitulo scroll-mt-28 pb-16 last:pb-0"
+                  className="capitulo adiado scroll-mt-28 pb-16 last:pb-0"
                 >
                   <header className="relative flex items-start gap-4">
                     <span className="relative z-10 grid h-[29px] w-[29px] shrink-0 place-items-center rounded-full bg-black text-white dark:bg-white dark:text-black">

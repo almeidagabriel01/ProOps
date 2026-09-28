@@ -353,7 +353,7 @@ function JornadaEstatica({ etapas }: { etapas: readonly EtapaDemo[] }) {
       {PASSOS.map((passo, i) => {
         const celular = passo.foco === "cliente" && passo.cliente;
         return (
-          <li key={passo.titulo} className="vt-revela md:grid md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:items-center md:gap-14">
+          <li key={passo.titulo} className="adiado adiado-passo vt-revela md:grid md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:items-center md:gap-14">
             <div>
               <h3 className="[font-family:var(--font-pdf-montserrat)] text-2xl font-bold tracking-[-0.02em] text-black dark:text-white md:text-3xl">
                 <span className="mr-2 tabular-nums text-black/30 dark:text-white/30">{i + 1}.</span>
